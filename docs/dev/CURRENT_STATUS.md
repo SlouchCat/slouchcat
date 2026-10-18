@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-Stand: 18. Oktober 2026. Branch `claude/m0-project-foundation`, nicht gepusht (Remote legt Marco an).
+Stand: 18. Oktober 2026. In `main` gemerged und nach `https://github.com/SlouchCat/slouchcat` (öffentlich, AGPL-3.0) gepusht.
 
 ## Meilenstein M0 – Projektfundament: abgeschlossen
 
