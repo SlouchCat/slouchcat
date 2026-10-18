@@ -191,3 +191,21 @@ components:
 		t.Fatalf("got %q\nwant %q", got, want)
 	}
 }
+
+// The binary routes mounted by hand carry the same x-visibility as the contract.
+func TestBinaryRoutesMatchContract(t *testing.T) {
+	data, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parseYAML(t, data)
+	paths, _ := doc["paths"].(map[string]any)
+	for route, want := range binaryRoutes {
+		method, pattern, _ := strings.Cut(route, " ")
+		item, _ := paths[strings.TrimPrefix(pattern, BasePath)].(map[string]any)
+		op, _ := item[strings.ToLower(method)].(map[string]any)
+		if got, _ := op["x-visibility"].(string); got != want {
+			t.Errorf("%s: contract says %q, binaryRoutes says %q", route, got, want)
+		}
+	}
+}

@@ -24,6 +24,7 @@ describe('createApiClient', () => {
     const request = fetchMock.mock.calls[0]?.[0];
     expect(request?.method).toBe('GET');
     expect(request?.url).toBe('http://slouchcat.test/api/v1/healthz');
+    expect(request?.headers.get('X-Requested-With')).toBe('Slouchcat');
   });
 
   it('returns a problem document as error when the server is not ready', async () => {

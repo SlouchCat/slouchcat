@@ -21,6 +21,10 @@ type problems struct {
 
 // write sends a problem with a stable machine-readable code.
 func (p problems) write(w http.ResponseWriter, r *http.Request, status int, code, detail string) {
+	p.writeProblem(w, r, status, code, detail, nil)
+}
+
+func (p problems) writeProblem(w http.ResponseWriter, r *http.Request, status int, code, detail string, fields []gen.FieldError) {
 	body := gen.Problem{
 		Type:     "about:blank",
 		Title:    http.StatusText(status),
@@ -30,6 +34,9 @@ func (p problems) write(w http.ResponseWriter, r *http.Request, status int, code
 	}
 	if detail != "" {
 		body.Detail = &detail
+	}
+	if len(fields) > 0 {
+		body.Errors = &fields
 	}
 	w.Header().Set("Content-Type", ContentTypeProblem)
 	w.Header().Set("Cache-Control", "no-store")
