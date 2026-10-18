@@ -1,0 +1,134 @@
+<!doctype html>
+<!--
+  Slouchcat offline spike (plan 10.4, milestone M1a step 1).
+  TEMPORARY test harness: plain static HTML/JS outside web/src, no framework, no build step. It is
+  removed together with GET /api/v1/spike/* after the Go/No-Go decision in M1b.
+  Protocol and results: docs/perf/M1-ios-offline.md.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0c10" />
+    <title>Slouchcat Spike</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="spike.css" />
+    <script type="module" src="spike.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Slouchcat offline spike</h1>
+      <p class="muted">Plan 10.4 · temporary · results go to docs/perf/M1-ios-offline.md</p>
+      <p id="insecure" class="warn" hidden>
+        Not a secure context: OPFS, service workers and persist() need HTTPS or localhost. On
+        Android use <code>adb reverse tcp:8096 tcp:8096</code> and open
+        http://localhost:8096/spike/.
+      </p>
+      <p id="last-heartbeat" class="muted"></p>
+    </header>
+
+    <section>
+      <h2>Device summary</h2>
+      <pre id="summary" class="box"></pre>
+      <div class="row">
+        <button id="copy-summary">Copy summary</button>
+        <button id="refresh-all">Refresh</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>1 · Storage and environment</h2>
+      <dl id="env" class="kv"></dl>
+      <div class="row">
+        <button id="persist">Request persist()</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>2 · Download</h2>
+      <label
+        >Server base URL (empty = this origin)
+        <input id="base" type="url" inputmode="url" placeholder="http://192.168.1.143:8096" />
+      </label>
+      <label
+        >Variant
+        <select id="variant">
+          <option value="fmp4">fmp4 (fragmented MP4 with sidx)</option>
+          <option value="faststart">faststart MP4</option>
+        </select>
+      </label>
+      <label
+        >Write path
+        <select id="path">
+          <option value="sync">sync: createSyncAccessHandle in worker</option>
+          <option value="writable">writable: createWritable on main thread</option>
+        </select>
+      </label>
+      <label
+        >writable: commit every N blocks (8 MiB each)
+        <input id="commit-every" type="number" min="1" max="200" value="16" />
+      </label>
+      <div class="row">
+        <button id="dl-start" class="primary">Start / resume</button>
+        <button id="dl-cancel">Cancel</button>
+        <button id="dl-reset">Reset progress</button>
+      </div>
+      <progress id="dl-progress" max="1" value="0"></progress>
+      <dl id="dl-stats" class="kv"></dl>
+      <h3>Interruptions during downloads</h3>
+      <ol id="interruptions" class="log"></ol>
+    </section>
+
+    <section>
+      <h2>3 · Playback from OPFS</h2>
+      <label
+        >File
+        <select id="play-file"></select>
+      </label>
+      <div class="row">
+        <button id="seek-blob" class="primary">Blob URL: start + seek 25/50/75 %</button>
+        <button id="seek-sw" class="primary">Service worker: start + seek 25/50/75 %</button>
+      </div>
+      <video id="video" controls muted playsinline preload="metadata"></video>
+      <p id="sw-status" class="muted"></p>
+      <ol id="seek-results" class="log"></ol>
+      <h3>Soak: continuous playback</h3>
+      <label
+        >Minutes
+        <input id="soak-minutes" type="number" min="1" max="120" value="30" />
+      </label>
+      <label
+        >Way
+        <select id="soak-method">
+          <option value="blob">Blob URL</option>
+          <option value="sw">Service worker</option>
+        </select>
+      </label>
+      <div class="row">
+        <button id="soak-start">Start soak</button>
+        <button id="soak-stop">Stop soak</button>
+      </div>
+      <p id="soak-status" class="muted"></p>
+    </section>
+
+    <section>
+      <h2>4 · Persistence (files in OPFS)</h2>
+      <p class="muted">
+        Check after 1, 3 and 8 calendar days without opening the page in between. Every load writes
+        a persistence entry to the protocol.
+      </p>
+      <ul id="files" class="files"></ul>
+    </section>
+
+    <section>
+      <h2>5 · Protocol</h2>
+      <div class="row">
+        <button id="export">Export JSON</button>
+        <button id="copy-log">Copy JSON</button>
+        <a id="export-link" hidden></a>
+      </div>
+      <ol id="log" class="log"></ol>
+    </section>
+  </body>
+</html>

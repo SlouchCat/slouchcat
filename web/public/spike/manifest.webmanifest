@@ -1,0 +1,12 @@
+{
+  "name": "Slouchcat Spike",
+  "short_name": "Spike",
+  "description": "Offline download spike (plan 10.4), temporary until the M1b decision.",
+  "id": "/spike/",
+  "start_url": "/spike/",
+  "scope": "/spike/",
+  "display": "standalone",
+  "background_color": "#0b0c10",
+  "theme_color": "#0b0c10",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
