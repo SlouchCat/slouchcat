@@ -48,7 +48,7 @@ mit leerem `config/` und `cache/`: 20 generierte Filme (Kopien der H.264-Testdat
 | Messung | Wert | Ziel |
 |---|---|---|
 | Container `healthy` | 1.62 s | < 5 s |
-| Assistent (`POST /setup` 22:38:45.1) bis alle 32 `image.fetch`-Jobs fertig (22:38:54.7) | **9.5 s** | < 5 min |
+| Assistent (`POST /setup` 22:38:45.1) bis alle 32 `image.fetch`-Jobs fertig (22:38:54.7) | **9.5 s** (zweiter Lauf mit dem finalen Image, 19.10., 00:34: 10.5 s) | < 5 min |
 | Scan 20 generierte Filme (lokal) / 12 eigene (NFS) | 22 ms / 0.83 s | |
 | Warnungen oder Fehler im Container-Log | keine | |
 
@@ -60,6 +60,8 @@ Alle 32 Titel haben TMDB-Texte, FSK-Stufe, Poster und Backdrop.
 |---|---|
 | Range-Anfrage `bytes=0-99` auf eine 10.5-GB-MKV über NFS | HTTP 206, `Content-Range: bytes 0-99/10555016079`, `Cache-Control: private, no-store` |
 | ohne Sitzungs-Cookie | HTTP 401 |
+| Prozesse im Compose-Container vor und nach einer 1-MiB-Range-Anfrage (206 in 1.7 ms) | nur `slouchcat`, kein ffmpeg (W-1) |
+| Speicher des Containers mit 32 Titeln im Leerlauf (`docker stats`) | 35.9 MiB |
 | Startzeit Navigation → erstes `playing` (H.264/AAC-MP4, 10 s Testclip, Playwright `data-start-ms`, Server auf localhost) | Chromium 43 ms, Firefox 73 ms (Ziel < 2 s); Safari ungeprüft (keine Hardware, Entscheid 2) |
 
 ## 4. Startseite
@@ -154,5 +156,5 @@ ist nicht umgesetzt.
 
 ## 5. Leerlauf
 
-Server mit 12 Titeln nach abgeschlossenen Jobs: folgt (Ziel P-2 < 150 MB bei 5'000 Titeln, in M1a nur
-Richtwert).
+Compose-Container mit 32 Titeln nach abgeschlossenen Jobs: 35.9 MiB (`docker stats`); Ziel P-2 < 150 MB
+bei 5'000 Titeln gilt erst in M10.
