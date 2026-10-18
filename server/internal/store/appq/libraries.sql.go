@@ -262,28 +262,3 @@ func (q *Queries) SetLibraryScanProgress(ctx context.Context, arg SetLibraryScan
 	)
 	return err
 }
-
-const setLibraryScanState = `-- name: SetLibraryScanState :exec
-UPDATE libraries
-SET last_scan_state = ?1, last_scan_error = ?2, updated_at = ?3,
-    last_scan_started_at = CASE WHEN ?1 = 'running' THEN ?3 ELSE last_scan_started_at END,
-    last_scan_finished_at = CASE WHEN @state IN ('done', 'failed', 'aborted') THEN ?3 ELSE last_scan_finished_at END
-WHERE id = ?4
-`
-
-type SetLibraryScanStateParams struct {
-	State string
-	Error sql.NullString
-	Now   int64
-	ID    int64
-}
-
-func (q *Queries) SetLibraryScanState(ctx context.Context, arg SetLibraryScanStateParams) error {
-	_, err := q.db.ExecContext(ctx, setLibraryScanState,
-		arg.State,
-		arg.Error,
-		arg.Now,
-		arg.ID,
-	)
-	return err
-}

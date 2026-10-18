@@ -34,6 +34,15 @@ func (q *Queries) CountLibraryMediaFiles(ctx context.Context, libraryID int64) (
 	return count, err
 }
 
+const deleteMediaFileTracks = `-- name: DeleteMediaFileTracks :exec
+DELETE FROM tracks WHERE media_file_id = ?1
+`
+
+func (q *Queries) DeleteMediaFileTracks(ctx context.Context, mediaFileID string) error {
+	_, err := q.db.ExecContext(ctx, deleteMediaFileTracks, mediaFileID)
+	return err
+}
+
 const getItemSystem = `-- name: GetItemSystem :one
 SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at FROM items WHERE id = ?1
 `
@@ -69,6 +78,41 @@ func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getMediaFileSystem = `-- name: GetMediaFileSystem :one
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at FROM media_files WHERE id = ?1
+`
+
+func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile, error) {
+	row := q.db.QueryRowContext(ctx, getMediaFileSystem, id)
+	var i MediaFile
+	err := row.Scan(
+		&i.ID,
+		&i.ItemID,
+		&i.RootID,
+		&i.RelPath,
+		&i.Dev,
+		&i.Inode,
+		&i.Size,
+		&i.Mtime,
+		&i.PartialHash,
+		&i.VersionLabel,
+		&i.Container,
+		&i.VideoCodec,
+		&i.AudioCodec,
+		&i.Width,
+		&i.Height,
+		&i.DurationMs,
+		&i.Probe,
+		&i.Keyframes,
+		&i.ProbedAt,
+		&i.KeyframesAt,
+		&i.MissingSince,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -216,6 +260,40 @@ func (q *Queries) InsertMediaFile(ctx context.Context, arg InsertMediaFileParams
 	return i, err
 }
 
+const insertTrack = `-- name: InsertTrack :exec
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+`
+
+type InsertTrackParams struct {
+	MediaFileID string
+	StreamIndex int64
+	Kind        string
+	Codec       sql.NullString
+	Language    sql.NullString
+	Title       sql.NullString
+	Source      string
+	RelPath     sql.NullString
+	IsDefault   int64
+	IsForced    int64
+}
+
+func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error {
+	_, err := q.db.ExecContext(ctx, insertTrack,
+		arg.MediaFileID,
+		arg.StreamIndex,
+		arg.Kind,
+		arg.Codec,
+		arg.Language,
+		arg.Title,
+		arg.Source,
+		arg.RelPath,
+		arg.IsDefault,
+		arg.IsForced,
+	)
+	return err
+}
+
 const listItemsByLibrary = `-- name: ListItemsByLibrary :many
 SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
 `
@@ -257,6 +335,45 @@ func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]It
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaFileTracks = `-- name: ListMediaFileTracks :many
+SELECT id, media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced FROM tracks WHERE media_file_id = ?1 ORDER BY source, stream_index
+`
+
+func (q *Queries) ListMediaFileTracks(ctx context.Context, mediaFileID string) ([]Track, error) {
+	rows, err := q.db.QueryContext(ctx, listMediaFileTracks, mediaFileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Track{}
+	for rows.Next() {
+		var i Track
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaFileID,
+			&i.StreamIndex,
+			&i.Kind,
+			&i.Codec,
+			&i.Language,
+			&i.Title,
+			&i.Source,
+			&i.RelPath,
+			&i.IsDefault,
+			&i.IsForced,
 		); err != nil {
 			return nil, err
 		}
@@ -322,6 +439,21 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 	return items, nil
 }
 
+const restoreItem = `-- name: RestoreItem :exec
+UPDATE items SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NOT NULL
+`
+
+type RestoreItemParams struct {
+	Now int64
+	ID  string
+}
+
+// A file of a soft-deleted item reappeared: the item comes back with its user data.
+func (q *Queries) RestoreItem(ctx context.Context, arg RestoreItemParams) error {
+	_, err := q.db.ExecContext(ctx, restoreItem, arg.Now, arg.ID)
+	return err
+}
+
 const setMediaFileMissing = `-- name: SetMediaFileMissing :exec
 UPDATE media_files SET missing_since = COALESCE(missing_since, ?1), updated_at = ?1 WHERE id = ?2
 `
@@ -376,4 +508,88 @@ func (q *Queries) SoftDeleteItemsMissingSince(ctx context.Context, arg SoftDelet
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const updateMediaFileKeyframes = `-- name: UpdateMediaFileKeyframes :exec
+UPDATE media_files SET keyframes = ?1, keyframes_at = ?2, updated_at = ?2 WHERE id = ?3
+`
+
+type UpdateMediaFileKeyframesParams struct {
+	Keyframes []byte
+	Now       sql.NullInt64
+	ID        string
+}
+
+func (q *Queries) UpdateMediaFileKeyframes(ctx context.Context, arg UpdateMediaFileKeyframesParams) error {
+	_, err := q.db.ExecContext(ctx, updateMediaFileKeyframes, arg.Keyframes, arg.Now, arg.ID)
+	return err
+}
+
+const updateMediaFileLocation = `-- name: UpdateMediaFileLocation :exec
+UPDATE media_files
+SET rel_path = ?1, dev = ?2, inode = ?3, size = ?4, mtime = ?5,
+    partial_hash = ?6, version_label = ?7, missing_since = NULL, updated_at = ?8
+WHERE id = ?9
+`
+
+type UpdateMediaFileLocationParams struct {
+	RelPath      string
+	Dev          int64
+	Inode        int64
+	Size         int64
+	Mtime        int64
+	PartialHash  sql.NullString
+	VersionLabel sql.NullString
+	Now          int64
+	ID           string
+}
+
+// Same file at a new path (rename, move), changed in place, or back after missing_since.
+func (q *Queries) UpdateMediaFileLocation(ctx context.Context, arg UpdateMediaFileLocationParams) error {
+	_, err := q.db.ExecContext(ctx, updateMediaFileLocation,
+		arg.RelPath,
+		arg.Dev,
+		arg.Inode,
+		arg.Size,
+		arg.Mtime,
+		arg.PartialHash,
+		arg.VersionLabel,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const updateMediaFileProbe = `-- name: UpdateMediaFileProbe :exec
+UPDATE media_files
+SET container = ?1, video_codec = ?2, audio_codec = ?3, width = ?4,
+    height = ?5, duration_ms = ?6, probe = ?7, probed_at = ?8, updated_at = ?8
+WHERE id = ?9
+`
+
+type UpdateMediaFileProbeParams struct {
+	Container  string
+	VideoCodec sql.NullString
+	AudioCodec sql.NullString
+	Width      sql.NullInt64
+	Height     sql.NullInt64
+	DurationMs sql.NullInt64
+	Probe      sql.NullString
+	Now        sql.NullInt64
+	ID         string
+}
+
+func (q *Queries) UpdateMediaFileProbe(ctx context.Context, arg UpdateMediaFileProbeParams) error {
+	_, err := q.db.ExecContext(ctx, updateMediaFileProbe,
+		arg.Container,
+		arg.VideoCodec,
+		arg.AudioCodec,
+		arg.Width,
+		arg.Height,
+		arg.DurationMs,
+		arg.Probe,
+		arg.Now,
+		arg.ID,
+	)
+	return err
 }

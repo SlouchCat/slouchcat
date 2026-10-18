@@ -25,13 +25,6 @@ SELECT * FROM library_roots ORDER BY library_id, id;
 -- name: GetLibraryRoot :one
 SELECT * FROM library_roots WHERE id = @id;
 
--- name: SetLibraryScanState :exec
-UPDATE libraries
-SET last_scan_state = @state, last_scan_error = @error, updated_at = @now,
-    last_scan_started_at = CASE WHEN @state = 'running' THEN @now ELSE last_scan_started_at END,
-    last_scan_finished_at = CASE WHEN @state IN ('done', 'failed', 'aborted') THEN @now ELSE last_scan_finished_at END
-WHERE id = @id;
-
 -- name: SetLibraryScanProgress :exec
 UPDATE libraries SET scan_files_seen = @seen, scan_files_total = @total, updated_at = @now WHERE id = @id;
 
