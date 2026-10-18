@@ -49,6 +49,11 @@ tasks:
       - task: web:build
       - task: server:build
 
+  e2e:
+    desc: Playwright keyboard and playback suite against the built server binary (needs task build and testdata:media)
+    cmds:
+      - task: web:e2e
+
   ci:
     desc: Everything CI runs, in order; fails on codegen drift
     cmds:
@@ -57,6 +62,7 @@ tasks:
       - task: lint
       - task: test
       - task: build
+      - task: e2e
 
   gen:check:
     desc: Fail when generated code differs from the committed state (codegen drift)

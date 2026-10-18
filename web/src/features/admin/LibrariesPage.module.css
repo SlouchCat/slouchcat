@@ -1,0 +1,140 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin-bottom: var(--sc-space-8);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-6);
+  align-items: start;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.aside {
+  min-width: 0;
+}
+
+.panelTitle,
+.cardTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.stateLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+}
+
+.stateLabel {
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.scanProgress {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.scanProgress > :first-child {
+  flex: 1;
+  max-width: 24rem;
+}
+
+.roots {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.rootsTitle {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.rootList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.path {
+  overflow-wrap: anywhere;
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+}
+
+.rootMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+@media (width >= 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  }
+
+  .aside {
+    position: sticky;
+    top: calc(var(--sc-size-header-height) + var(--sc-space-6));
+  }
+}

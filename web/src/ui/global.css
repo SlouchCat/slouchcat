@@ -1,6 +1,13 @@
 /* Document-level base styles. Components style themselves with CSS Modules. */
 :root {
   color-scheme: dark;
+
+  /* Accent of the active profile (M2 lets each profile pick one of the accent tokens). */
+  --accent: var(--sc-color-accent-ember-base);
+  --accent-on: var(--sc-color-accent-ember-on);
+
+  /* Horizontal page padding; rows bleed to the edge and use it as their inner padding. */
+  --page-gutter: var(--sc-space-4);
 }
 
 *,
@@ -22,6 +29,25 @@ body {
   font-size: var(--sc-font-size-md);
   line-height: var(--sc-font-line-height-normal);
   text-rendering: optimizelegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: var(--accent-on);
 }
 
 :focus-visible {
@@ -35,5 +61,18 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (width >= 768px) {
+  :root {
+    --page-gutter: var(--sc-space-10);
+  }
+}
+
+@media (width >= 1440px) {
+  :root {
+    --page-gutter: var(--sc-space-16);
   }
 }

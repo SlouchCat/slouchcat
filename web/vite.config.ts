@@ -24,7 +24,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['icon.svg'],
+      // The glob below already precaches icons; avoid listing them twice.
+      includeManifestIcons: false,
       manifest: {
         name: 'Slouchcat',
         short_name: 'Slouchcat',
@@ -34,11 +35,43 @@ export default defineConfig({
         display: 'standalone',
         background_color: chromeColor,
         theme_color: chromeColor,
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        // PNGs are generated from icon.svg by `pnpm run icons` (scripts/icons.mjs).
+        icons: [
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          {
+            src: 'icons/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+        ],
       },
       workbox: {
-        // API calls always go to the network; only the app shell is precached.
-        navigateFallbackDenylist: [/^\/api\//],
+        // Precache the app shell only (built JS, CSS, HTML, icons); never media or API answers.
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js', 'spike/**'],
+        // The API and the offline spike page are never answered with the app shell.
+        navigateFallbackDenylist: [/^\/api\//, /^\/spike\//],
+        runtimeCaching: [
+          {
+            // Posters and backdrops: immutable per content hash (`v`), served with the session.
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && /^\/api\/v1\/items\/[^/]+\/images\//.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'slouchcat-images',
+              expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            // Everything else under /api (JSON, streams) always goes to the network.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+          },
+        ],
       },
     }),
   ],
@@ -49,7 +82,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:8096',
+      // SLOUCHCAT_API points the dev server at another Go server (e.g. the e2e one on :8097).
+      '/api': process.env.SLOUCHCAT_API ?? 'http://localhost:8096',
     },
   },
   build: {

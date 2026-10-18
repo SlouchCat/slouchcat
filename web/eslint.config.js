@@ -44,6 +44,15 @@ export default defineConfig([
       globals: globals.browser,
     },
     settings: { react: { version: 'detect' } },
+    rules: {
+      // react-aria components manage autoFocus accessibly (dialogs, the first field of a form page).
+      'jsx-a11y/no-autofocus': ['error', { ignoreNonDOM: true }],
+      // TanStack Router guards throw redirect() results by design.
+      '@typescript-eslint/only-throw-error': [
+        'error',
+        { allow: [{ from: 'package', package: '@tanstack/router-core', name: 'Redirect' }] },
+      ],
+    },
   },
   {
     files: ['src/**/*.tsx'],

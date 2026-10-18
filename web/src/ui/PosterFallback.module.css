@@ -1,0 +1,19 @@
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: inherit;
+  background-image: linear-gradient(
+    160deg,
+    var(--sc-color-surface-3) 0%,
+    var(--sc-color-surface-1) 75%
+  );
+}
+
+.mark {
+  width: 34%;
+  fill: var(--sc-color-surface-3);
+}

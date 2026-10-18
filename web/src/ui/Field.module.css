@@ -1,0 +1,92 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.label {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.input {
+  width: 100%;
+  min-height: var(--sc-size-control-height);
+  padding: 0 var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  transition:
+    border-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+.input::placeholder {
+  color: var(--sc-color-text-muted);
+}
+
+.input[data-hovered] {
+  background-color: var(--sc-color-surface-2);
+}
+
+.input[data-focused] {
+  border-color: var(--sc-color-text-secondary);
+  background-color: var(--sc-color-surface-2);
+}
+
+.input[data-invalid] {
+  border-color: var(--sc-color-state-danger);
+}
+
+.mono {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+}
+
+.description {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.error {
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
+}
+
+.segments {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-1);
+}
+
+.segment {
+  padding: var(--sc-space-2) var(--sc-space-5);
+  border-radius: var(--sc-radius-full);
+  color: var(--sc-color-text-secondary);
+  font-weight: var(--sc-font-weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+.segment[data-hovered] {
+  color: var(--sc-color-text-primary);
+}
+
+.segment[data-selected] {
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+}
+
+.segment[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}

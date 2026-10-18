@@ -1,0 +1,23 @@
+.track {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-track);
+}
+
+.thin {
+  height: var(--sc-space-1);
+}
+
+.regular {
+  height: var(--sc-space-2);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--accent);
+  transition: width var(--sc-motion-duration-enter) var(--sc-motion-easing-standard);
+}

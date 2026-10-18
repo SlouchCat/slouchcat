@@ -30,6 +30,29 @@
       "$type": "dimension",
       "width": { "$value": "3px" },
       "offset": { "$value": "2px" }
+    },
+    "scale": {
+      "$type": "number",
+      "$value": 1.06,
+      "$description": "Scale of a focused card; must stay at or below 1.06."
+    }
+  },
+  "size": {
+    "$type": "dimension",
+    "poster": {
+      "sm": { "$value": "8.5rem", "$description": "Poster card width on phones." },
+      "md": { "$value": "10.5rem" },
+      "lg": { "$value": "12.5rem", "$description": "Poster card width on large screens." }
+    },
+    "header": { "height": { "$value": "4rem" } },
+    "content": { "max": { "$value": "90rem", "$description": "Maximum width of page content." } },
+    "form": { "max": { "$value": "34rem", "$description": "Maximum width of a form column." } },
+    "hero": { "min": { "$value": "26rem" }, "max": { "$value": "52rem" } },
+    "control": {
+      "height": {
+        "$value": "2.75rem",
+        "$description": "Buttons and inputs; at least 44 px touch target."
+      }
     }
   }
 }

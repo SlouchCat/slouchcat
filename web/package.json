@@ -9,23 +9,29 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint --max-warnings 0 . && stylelint --max-warnings 0 \"src/**/*.css\" && tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "icons": "node scripts/icons.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
+    "@noriginmedia/norigin-spatial-navigation": "3.3.0",
     "@slouchcat/api-client": "workspace:*",
     "@slouchcat/design-tokens": "workspace:*",
     "@tanstack/react-query": "5.104.2",
     "@tanstack/react-router": "^1.170.45",
     "i18next": "26.4.7",
     "react": "^19.3.1",
+    "react-aria-components": "1.22.1",
     "react-dom": "^19.3.1",
     "react-i18next": "17.0.20"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "1.64.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "14.6.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

@@ -8,13 +8,13 @@ export function ServerStatus() {
   const health = useHealth();
 
   let state: 'pending' | 'success' | 'danger' = 'pending';
-  let label = t('home.server.checking');
+  let label = t('system.server.checking');
   if (health.isSuccess) {
     state = 'success';
-    label = t('home.server.online');
+    label = t('system.server.online');
   } else if (health.isError) {
     state = 'danger';
-    label = t('home.server.offline');
+    label = t('system.server.offline');
   }
 
   return (
@@ -26,7 +26,7 @@ export function ServerStatus() {
         </Text>
         {health.data && (
           <Text as="span" variant="caption" tone="muted">
-            {t('home.server.version', { version: health.data.version })}
+            {t('system.server.version', { version: health.data.version })}
           </Text>
         )}
       </Stack>

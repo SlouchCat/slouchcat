@@ -38,6 +38,20 @@ tasks:
       - rm -rf {{.WEBASSETS}}/*
       - cp -r dist/. {{.WEBASSETS}}/
 
+  e2e:
+    desc: >-
+      Playwright keyboard suite (P-15) against a fresh server on :8097 with a temporary config dir;
+      expects server/bin/slouchcat with the current web build embedded (run `task build` first)
+    deps: [tokens]
+    cmds:
+      - pnpm exec playwright test {{.CLI_ARGS}}
+
+  icons:
+    desc: Regenerate the PWA PNG icons in public/icons from public/icon.svg (ffmpeg)
+    deps: [tokens]
+    cmds:
+      - pnpm run icons
+
   dev:
     desc: Vite dev server; /api is proxied to the Go server on :8096
     deps: [tokens]
