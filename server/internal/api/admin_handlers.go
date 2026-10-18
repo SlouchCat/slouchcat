@@ -2,29 +2,103 @@ package api
 
 import (
 	"context"
+	"net/http"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// Handlers of library administration (contract tag admin). Implemented by the auth/admin
-// executor; the stubs below only keep the package compiling.
+// Handlers of library administration (contract tag admin). Errors go through serviceProblem
+// (auth_handlers.go).
 
-func (s *server) ListLibraries(context.Context, gen.ListLibrariesRequestObject) (gen.ListLibrariesResponseObject, error) {
-	return nil, errNotImplemented
+func (e serviceProblem) VisitListLibrariesResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error   { return e.visit(w) }
+func (e serviceProblem) VisitAcceptLibraryLossResponse(w http.ResponseWriter) error {
+	return e.visit(w)
 }
 
-func (s *server) CreateLibrary(context.Context, gen.CreateLibraryRequestObject) (gen.CreateLibraryResponseObject, error) {
-	return nil, errNotImplemented
+func (s *server) ListLibraries(ctx context.Context, _ gen.ListLibrariesRequestObject) (gen.ListLibrariesResponseObject, error) {
+	libs, err := s.opts.Admin.ListLibraries(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := make(gen.ListLibraries200JSONResponse, 0, len(libs))
+	for _, l := range libs {
+		out = append(out, toLibrary(l))
+	}
+	return out, nil
 }
 
-func (s *server) GetLibrary(context.Context, gen.GetLibraryRequestObject) (gen.GetLibraryResponseObject, error) {
-	return nil, errNotImplemented
+func (s *server) CreateLibrary(ctx context.Context, req gen.CreateLibraryRequestObject) (gen.CreateLibraryResponseObject, error) {
+	body := deref(req.Body)
+	lib, err := s.opts.Admin.CreateLibrary(ctx, model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Path: body.Path})
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.CreateLibrary201JSONResponse(toLibrary(lib)), nil
 }
 
-func (s *server) ScanLibrary(context.Context, gen.ScanLibraryRequestObject) (gen.ScanLibraryResponseObject, error) {
-	return nil, errNotImplemented
+func (s *server) GetLibrary(ctx context.Context, req gen.GetLibraryRequestObject) (gen.GetLibraryResponseObject, error) {
+	lib, err := s.opts.Admin.GetLibrary(ctx, req.Id)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.GetLibrary200JSONResponse(toLibrary(lib)), nil
 }
 
-func (s *server) AcceptLibraryLoss(context.Context, gen.AcceptLibraryLossRequestObject) (gen.AcceptLibraryLossResponseObject, error) {
-	return nil, errNotImplemented
+func (s *server) ScanLibrary(ctx context.Context, req gen.ScanLibraryRequestObject) (gen.ScanLibraryResponseObject, error) {
+	lib, err := s.opts.Admin.ScanLibrary(ctx, req.Id)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.ScanLibrary202JSONResponse(toLibrary(lib)), nil
+}
+
+func (s *server) AcceptLibraryLoss(ctx context.Context, req gen.AcceptLibraryLossRequestObject) (gen.AcceptLibraryLossResponseObject, error) {
+	lib, err := s.opts.Admin.AcceptLibraryLoss(ctx, req.Id)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.AcceptLibraryLoss202JSONResponse(toLibrary(lib)), nil
+}
+
+// toLibrary maps a library to the contract type; times are UTC.
+func toLibrary(l model.Library) gen.Library {
+	roots := make([]gen.LibraryRoot, 0, len(l.Roots))
+	for _, r := range l.Roots {
+		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch)}
+		if r.Warning != "" {
+			root.Warning = &r.Warning
+		}
+		roots = append(roots, root)
+	}
+	scan := gen.LibraryScan{
+		State:          gen.ScanState(l.Scan.State),
+		ItemCount:      l.Scan.ItemCount,
+		FileCount:      l.Scan.FileCount,
+		StartedAt:      utc(l.Scan.StartedAt),
+		FinishedAt:     utc(l.Scan.FinishedAt),
+		LossAcceptedAt: utc(l.Scan.LossAcceptedAt),
+	}
+	if l.Scan.State != "never" {
+		scan.FilesSeen = &l.Scan.FilesSeen
+		scan.FilesTotal = &l.Scan.FilesTotal
+	}
+	if l.Scan.LastError != "" {
+		scan.LastError = &l.Scan.LastError
+	}
+	return gen.Library{
+		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Roots: roots, Scan: scan, CreatedAt: l.CreatedAt.UTC(),
+	}
+}
+
+func utc(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	u := t.UTC()
+	return &u
 }
