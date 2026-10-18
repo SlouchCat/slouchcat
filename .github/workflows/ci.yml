@@ -1,0 +1,55 @@
+# Runs exactly what `task ci` runs locally (plan section 4: "Lokal und CI identisch").
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .tool-versions
+
+      - name: Enable pnpm from package.json#packageManager
+        run: corepack enable && corepack install && pnpm --version
+
+      - name: Install task
+        run: go install github.com/go-task/task/v3/cmd/task@v3.54.0
+
+      - name: Install ffmpeg (probe tests)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @slouchcat/web exec playwright install --with-deps chromium firefox
+
+      - name: Generate test media
+        run: task testdata:media
+
+      - name: task ci
+        run: task ci
+
+      - name: Keep Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report
+          if-no-files-found: ignore

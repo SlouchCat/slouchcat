@@ -87,7 +87,7 @@ func TestAuthorizeByVisibility(t *testing.T) {
 		{name: "admin as owner reaches handler", method: "GET", path: "/api/v1/admin/libraries", token: "owner", wantStatus: 500, allowInternal: true},
 		{name: "post without csrf header", method: "POST", path: "/api/v1/auth/logout", token: "owner", wantStatus: 403, wantCode: "csrf_header_missing"},
 		{name: "public post without csrf header", method: "POST", path: "/api/v1/auth/login", wantStatus: 403, wantCode: "csrf_header_missing"},
-		{name: "post with csrf header reaches handler", method: "POST", path: "/api/v1/auth/logout", token: "owner", csrf: true, wantStatus: 500, allowInternal: true},
+		{name: "post with csrf header reaches handler", method: "POST", path: "/api/v1/auth/logout", token: "owner", csrf: true, wantStatus: 204},
 		{name: "image route without session", method: "GET", path: "/api/v1/items/01ARZ3NDEKTSV4RRFFQ69G5FAV/images/poster/w500", wantStatus: 401, wantCode: "unauthenticated"},
 		{name: "stream route without session", method: "GET", path: "/api/v1/items/01ARZ3NDEKTSV4RRFFQ69G5FAV/stream", wantStatus: 401, wantCode: "unauthenticated"},
 		{name: "spike is public but disabled", method: "GET", path: "/api/v1/spike/fmp4", wantStatus: 404, wantCode: "not_found"},
