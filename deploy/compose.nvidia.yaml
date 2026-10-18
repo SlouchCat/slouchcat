@@ -1,0 +1,15 @@
+# NVIDIA (NVENC/NVDEC, CUDA filters). Requires the NVIDIA Container Toolkit on the host.
+# docker compose -f compose.yaml -f compose.nvidia.yaml up -d
+#
+# Docker derives NVIDIA_DRIVER_CAPABILITIES from the capabilities below and this
+# overrides the image default, so compute (CUDA filters such as tonemap_cuda) and
+# utility (nvidia-smi) are listed explicitly next to video (NVENC/NVDEC).
+services:
+  slouchcat:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, video, utility]

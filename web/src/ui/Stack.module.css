@@ -1,0 +1,29 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.gap1 {
+  gap: var(--sc-space-1);
+}
+
+.gap2 {
+  gap: var(--sc-space-2);
+}
+
+.gap4 {
+  gap: var(--sc-space-4);
+}
+
+.gap6 {
+  gap: var(--sc-space-6);
+}
+
+.gap8 {
+  gap: var(--sc-space-8);
+}

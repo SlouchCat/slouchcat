@@ -1,0 +1,48 @@
+# Container build and run (plan M0 step 6). Included from the root Taskfile with dir: ./deploy.
+version: "3"
+
+vars:
+  IMAGE: slouchcat:dev
+  PLATFORM: linux/amd64
+  VERSION:
+    sh: git describe --always --dirty 2>/dev/null || echo dev
+  COMPOSE: docker compose -f compose.yaml
+
+tasks:
+  build:
+    desc: Build the container image {{.IMAGE}} for {{.PLATFORM}} (context is the repository root)
+    cmds:
+      - >-
+        docker buildx build
+        --platform {{.PLATFORM}}
+        --load
+        -t {{.IMAGE}}
+        --build-arg VERSION={{.VERSION}}
+        -f Dockerfile
+        ..
+
+  up:
+    desc: Start Slouchcat with compose.yaml (set GPU overrides via COMPOSE, see README)
+    cmds:
+      - mkdir -p config cache
+      - "{{.COMPOSE}} up -d"
+
+  down:
+    desc: Stop and remove the compose stack
+    cmds:
+      - "{{.COMPOSE}} down"
+
+  config:
+    desc: Validate compose.yaml and all GPU overrides
+    env:
+      RENDER_GID: '{{.RENDER_GID | default "992"}}'
+    cmds:
+      - docker compose -f compose.yaml config --quiet
+      - docker compose -f compose.yaml -f compose.nvidia.yaml config --quiet
+      - docker compose -f compose.yaml -f compose.intel.yaml config --quiet
+      - docker compose -f compose.yaml -f compose.amd.yaml config --quiet
+
+  healthy-time:
+    desc: Measure time to "healthy" (< 5 s) and idle RSS (< 60 MB) of {{.IMAGE}}
+    cmds:
+      - IMAGE={{.IMAGE}} ./scripts/measure-healthy.sh

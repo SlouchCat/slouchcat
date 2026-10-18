@@ -1,0 +1,17 @@
+.dot {
+  display: inline-block;
+  flex: none;
+  width: var(--sc-space-2);
+  height: var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-text-muted);
+  transition: background-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+.success {
+  background-color: var(--sc-color-state-success);
+}
+
+.danger {
+  background-color: var(--sc-color-state-danger);
+}

@@ -1,0 +1,26 @@
+# Slouchcat – Docker Compose (plan section 3.7).
+# Usage: cp .env.example .env && mkdir -p config cache && docker compose up -d
+# GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
+name: slouchcat
+
+services:
+  slouchcat:
+    # Placeholder owner until the public GitHub repository exists (ADR 0001).
+    image: ghcr.io/slouchcat/slouchcat:0.1
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: slouchcat
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    ports:
+      - "8096:8096"
+    volumes:
+      # /config holds the SQLite database: local disk only, never NFS/SMB.
+      - ./config:/config
+      - ./cache:/cache
+      - ${MEDIA_DIR:-/srv/media}:/media:ro
+    environment:
+      TZ: ${TZ:-Europe/Zurich}
+      SLOUCHCAT_LOG_FORMAT: ${SLOUCHCAT_LOG_FORMAT:-json}
+    # The healthcheck is defined in the image (slouchcat healthcheck).

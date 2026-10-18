@@ -1,0 +1,14 @@
+{
+  "app": {
+    "name": "Slouchcat",
+    "tagline": "Filme, Serien, Hörbücher und Podcasts für deinen Haushalt."
+  },
+  "home": {
+    "server": {
+      "checking": "Verbindung zum Server wird geprüft …",
+      "online": "Server erreichbar",
+      "offline": "Server nicht erreichbar",
+      "version": "Version {{version}}"
+    }
+  }
+}

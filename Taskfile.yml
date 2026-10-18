@@ -1,0 +1,68 @@
+# Single entry point for local development and CI (plan section 4: "Ein Befehl baut und prüft alles").
+# Each area owns its own Taskfile; this file only aggregates them.
+version: "3"
+
+includes:
+  server:
+    taskfile: ./server/Taskfile.yml
+    dir: ./server
+    optional: true
+  web:
+    taskfile: ./web/Taskfile.yml
+    dir: ./web
+    optional: true
+  deploy:
+    taskfile: ./deploy/Taskfile.yml
+    dir: ./deploy
+    optional: true
+  testdata:
+    taskfile: ./testdata/Taskfile.yml
+    dir: ./testdata
+    optional: true
+
+tasks:
+  default:
+    cmds:
+      - task --list
+
+  gen:
+    desc: Run all code generators (OpenAPI → Go and TypeScript, sqlc, design tokens)
+    cmds:
+      - task: server:gen
+      - task: web:gen
+
+  lint:
+    desc: Lint server, web and contract
+    cmds:
+      - task: server:lint
+      - task: web:lint
+
+  test:
+    desc: Run all tests
+    cmds:
+      - task: server:test
+      - task: web:test
+
+  build:
+    desc: Build web app and server binary (web assets are embedded into the binary)
+    cmds:
+      - task: web:build
+      - task: server:build
+
+  ci:
+    desc: Everything CI runs, in order; fails on codegen drift
+    cmds:
+      - task: gen
+      - task: gen:check
+      - task: lint
+      - task: test
+      - task: build
+
+  gen:check:
+    desc: Fail when generated code differs from the committed state (codegen drift)
+    cmds:
+      - git diff --exit-code --stat -- server/internal/api/gen server/internal/store packages/api-client/src/generated
+
+  dev:
+    desc: Run server and web dev server together
+    deps: [server:dev, web:dev]

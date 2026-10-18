@@ -1,0 +1,54 @@
+# Web app, design tokens and TypeScript API client. Included from the root Taskfile with dir ./web,
+# so every command runs in web/. Workspace-wide scripts are reached with `pnpm -w`.
+version: "3"
+
+vars:
+  WEBASSETS: ../server/internal/webassets/dist
+
+tasks:
+  tokens:
+    internal: true
+    desc: Build the design tokens (web build, lint and tests import them)
+    cmds:
+      - pnpm --filter @slouchcat/design-tokens run build
+
+  gen:
+    desc: Build design tokens and generate the TypeScript API client from api/openapi.yaml
+    cmds:
+      - pnpm -w run gen
+
+  lint:
+    desc: ESLint, stylelint, tsc --noEmit for every package, then prettier --check
+    deps: [tokens]
+    cmds:
+      - pnpm -w run lint
+
+  test:
+    desc: Vitest across the workspace (contrast, API client, locales, home route)
+    deps: [tokens]
+    cmds:
+      - pnpm -w run test
+
+  build:
+    desc: Build tokens and the PWA into web/dist and copy it into the Go embed folder
+    cmds:
+      - pnpm -w run build
+      - mkdir -p {{.WEBASSETS}}
+      # The glob skips dotfiles, so the committed .gitkeep stays.
+      - rm -rf {{.WEBASSETS}}/*
+      - cp -r dist/. {{.WEBASSETS}}/
+
+  dev:
+    desc: Vite dev server; /api is proxied to the Go server on :8096
+    deps: [tokens]
+    cmds:
+      - pnpm exec vite
+
+  ci:
+    desc: Everything CI runs for the web side
+    cmds:
+      - pnpm -w install --frozen-lockfile
+      - task: gen
+      - task: lint
+      - task: test
+      - task: build

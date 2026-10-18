@@ -1,0 +1,24 @@
+-- Template for every Slouchcat migration (CLAUDE.md rule 5, plan sections 3.2 and 4).
+--
+-- Copy this file to NNNNN_<short_name>.sql (next free five-digit number) and replace the
+-- placeholder statements. Rules:
+--   * Forward only: there are no down migrations. Never edit a migration that has been committed.
+--   * NO TRANSACTION is required because PRAGMA foreign_keys is a no-op inside a transaction,
+--     and table rebuilds (create new table, copy, drop, rename) need foreign keys switched off.
+--   * Before every run that has pending migrations the server writes a backup with VACUUM INTO
+--     to <config dir>/backups/ and keeps the newest five.
+--   * After the run the server executes PRAGMA foreign_key_check itself and refuses to start
+--     when it reports a violation; the statement below documents the intent for reviewers.
+
+-- +goose Up
+-- +goose NO TRANSACTION
+PRAGMA foreign_keys=OFF;
+
+-- statements go here, for example:
+-- CREATE TABLE example_new (...) STRICT;
+-- INSERT INTO example_new (...) SELECT ... FROM example;
+-- DROP TABLE example;
+-- ALTER TABLE example_new RENAME TO example;
+
+PRAGMA foreign_key_check;
+PRAGMA foreign_keys=ON;

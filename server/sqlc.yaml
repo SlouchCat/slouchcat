@@ -1,0 +1,26 @@
+# sqlc configuration (plan section 3.3). Generated packages are never edited by hand: change the
+# queries or migrations and run `task gen`.
+version: "2"
+sql:
+  # Unfiltered queries. Importing store/systemq is allowed only in the packages listed in
+  # .golangci.yml (depguard rule "systemq").
+  - engine: sqlite
+    schema: migrations
+    queries: queries/system
+    gen:
+      go:
+        package: systemq
+        out: internal/store/systemq
+        emit_empty_slices: true
+
+  # Scoped queries (package store/scopedq). Every query must join visible_items. sqlc refuses a
+  # query directory without queries ("no queries contained in paths"), so this entry stays
+  # commented out until the first scoped query exists (M1a); then remove the leading "# ".
+  # - engine: sqlite
+  #   schema: migrations
+  #   queries: queries/scoped
+  #   gen:
+  #     go:
+  #       package: scopedq
+  #       out: internal/store/scopedq
+  #       emit_empty_slices: true

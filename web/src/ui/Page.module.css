@@ -1,0 +1,19 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100dvh;
+  padding: var(--sc-space-16) var(--sc-space-6);
+  background-color: var(--sc-color-bg-base);
+  background-image: radial-gradient(
+    120% 80% at 80% 0%,
+    var(--sc-color-bg-elevated) 0%,
+    var(--sc-color-bg-base) 70%
+  );
+}
+
+@media (width >= 768px) {
+  .page {
+    padding: var(--sc-space-24) var(--sc-space-16);
+  }
+}

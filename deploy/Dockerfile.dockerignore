@@ -1,0 +1,20 @@
+# BuildKit reads <Dockerfile>.dockerignore next to the Dockerfile; the build
+# context is the repository root (docker buildx build -f deploy/Dockerfile .).
+**/node_modules
+.git
+.github
+.omc
+.claude
+.dev
+docs
+testdata
+web/dist
+server/bin
+server/internal/webassets/dist
+config
+cache
+deploy/config
+deploy/cache
+**/.env
+**/*.log
+coverage

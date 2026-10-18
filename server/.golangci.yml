@@ -1,0 +1,77 @@
+# golangci-lint v2 configuration (run with `task server:lint`). Enforces CLAUDE.md rules 2, 3
+# and 10 where a linter can: os/exec only in internal/transcode, store/systemq only in the
+# packages that may read titles unfiltered. The analyzer tools/itemsaccess covers SQL literals.
+version: "2"
+
+run:
+  timeout: 5m
+  relative-path-mode: gomod
+
+linters:
+  default: standard # errcheck, govet, ineffassign, staticcheck, unused
+  enable:
+    - bodyclose
+    - depguard
+    - errorlint
+    - forbidigo
+    - gosec
+    - misspell
+    - noctx
+    - nolintlint
+    - rowserrcheck
+    - sqlclosecheck
+    - unconvert
+    - usestdlibvars
+  settings:
+    depguard:
+      rules:
+        os-exec:
+          files:
+            - $all
+            - "!**/internal/transcode/**"
+          deny:
+            - pkg: os/exec
+              desc: external processes run only through internal/transcode (CLAUDE.md rule 3)
+        systemq:
+          files:
+            - $all
+            - "!**/internal/{visibility,admin,library,metadata,jobs,notify,offline}/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal/store/systemq
+              desc: unfiltered queries are allowed only in visibility, admin, library, metadata, jobs, notify and offline (CLAUDE.md rule 2)
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^exec\.(Command|CommandContext|LookPath)$
+          pkg: ^os/exec$
+          msg: external processes run only through internal/transcode, with exec.CommandContext and an argument list (CLAUDE.md rule 3)
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # readability of structs wins over a few bytes
+        - shadow # `err` shadowing is idiomatic
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+  exclusions:
+    generated: lax
+    warn-unused: true
+    presets:
+      - std-error-handling
+    rules:
+      - path: internal/transcode/
+        linters:
+          - forbidigo
+      - path: _test\.go
+        linters:
+          - gosec
+          - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/slouchcat/slouchcat/server
