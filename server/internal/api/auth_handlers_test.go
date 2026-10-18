@@ -298,3 +298,32 @@ func TestLoginFailures(t *testing.T) {
 		t.Fatalf("code = %s", code)
 	}
 }
+
+// The eleventh login of one client within a minute answers 429 too_many_attempts; another client
+// (X-Forwarded-For) still gets through. Setup attempts count the same way.
+func TestLoginTooManyAttempts(t *testing.T) {
+	e := newAuthEnv(t)
+	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
+	wrong := map[string]any{"email": "marco@example.ch", "password": "wrong-password"}
+	for range 9 { // the setup took the first attempt
+		wantStatus(t, e.call(t, http.MethodPost, "/api/v1/auth/login", wrong, nil), http.StatusUnauthorized)
+	}
+	rec := e.call(t, http.MethodPost, "/api/v1/auth/login", map[string]any{"email": "marco@example.ch", "password": authTestPassword}, nil)
+	wantStatus(t, rec, http.StatusTooManyRequests)
+	if code := problemCode(t, rec); code != "too_many_attempts" {
+		t.Fatalf("code = %s", code)
+	}
+	if rec.Header().Get("Retry-After") == "" || len(rec.Result().Cookies()) != 0 {
+		t.Errorf("429 headers = %v", rec.Header())
+	}
+	rec = e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
+	wantStatus(t, rec, http.StatusTooManyRequests)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":"marco@example.ch","password":"`+authTestPassword+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(CSRFHeader, CSRFHeaderValue)
+	req.Header.Set("X-Forwarded-For", "203.0.113.9")
+	other := httptest.NewRecorder()
+	e.h.ServeHTTP(other, req)
+	wantStatus(t, other, http.StatusOK)
+}

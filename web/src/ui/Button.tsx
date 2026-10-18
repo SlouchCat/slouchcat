@@ -1,17 +1,16 @@
-import type { ReactNode, Ref } from 'react';
-import {
-  Button as AriaButton,
-  Link as AriaLink,
-  type ButtonProps as AriaButtonProps,
-  type LinkProps as AriaLinkProps,
-} from 'react-aria-components';
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react';
+import { AppLink } from './AppLink';
 import styles from './Button.module.css';
 import { Icon, type IconName } from './Icon';
 import { useSpatialItem } from './spatial';
 
+// Plain buttons and button-styled links for the browsing pages (start, detail, header, error
+// pages): native <button> and <a> without react-aria, so the start page does not load it (P-10).
+// Forms, dialogs and the player use AriaButton from '@/ui/aria' with the same look.
+
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
-interface Look {
+export interface ButtonLook {
   variant?: ButtonVariant;
   size?: 'md' | 'lg';
   icon?: IconName;
@@ -21,7 +20,12 @@ interface Look {
   block?: boolean;
 }
 
-function lookClass({ variant = 'secondary', size = 'md', iconOnly, block }: Look): string {
+export function buttonClass({
+  variant = 'secondary',
+  size = 'md',
+  iconOnly,
+  block,
+}: ButtonLook): string {
   return [
     styles.button,
     styles[variant],
@@ -33,7 +37,7 @@ function lookClass({ variant = 'secondary', size = 'md', iconOnly, block }: Look
     .join(' ');
 }
 
-function Content({ icon, children }: { icon?: IconName; children?: ReactNode }) {
+export function ButtonContent({ icon, children }: { icon?: IconName; children?: ReactNode }) {
   return (
     <>
       {icon && <Icon name={icon} size="md" />}
@@ -42,30 +46,51 @@ function Content({ icon, children }: { icon?: IconName; children?: ReactNode }) 
   );
 }
 
-interface ButtonProps extends Omit<AriaButtonProps, 'className' | 'children' | 'style'>, Look {
+interface ButtonProps
+  extends
+    Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'style' | 'onClick' | 'disabled'>,
+    ButtonLook {
+  onPress?: () => void;
+  isDisabled?: boolean;
+  /** Reachable by pointer only (paging buttons whose content arrow keys already reach). */
+  excludeFromTabOrder?: boolean;
   children?: ReactNode;
   ref?: Ref<HTMLButtonElement>;
 }
 
-/** Action button (react-aria): primary for the one main action, secondary and ghost otherwise. */
+/** Action button: primary for the one main action, secondary and ghost otherwise. */
 export function Button({
   variant,
   size,
   icon,
   iconOnly,
   block,
+  onPress,
+  isDisabled,
+  excludeFromTabOrder,
+  type = 'button',
   children,
   ref,
   ...rest
 }: ButtonProps) {
   return (
-    <AriaButton ref={ref} className={lookClass({ variant, size, iconOnly, block })} {...rest}>
-      <Content icon={icon}>{children}</Content>
-    </AriaButton>
+    <button
+      ref={ref}
+      type={type}
+      className={buttonClass({ variant, size, iconOnly, block })}
+      disabled={isDisabled}
+      tabIndex={excludeFromTabOrder ? -1 : undefined}
+      onClick={onPress}
+      {...rest}
+    >
+      <ButtonContent icon={icon}>{children}</ButtonContent>
+    </button>
   );
 }
 
-interface ButtonLinkProps extends Omit<AriaLinkProps, 'className' | 'children' | 'style'>, Look {
+interface ButtonLinkProps
+  extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'className' | 'style'>, ButtonLook {
+  href: string;
   children?: ReactNode;
   ref?: Ref<HTMLAnchorElement>;
 }
@@ -82,9 +107,9 @@ export function ButtonLink({
   ...rest
 }: ButtonLinkProps) {
   return (
-    <AriaLink ref={ref} className={lookClass({ variant, size, iconOnly, block })} {...rest}>
-      <Content icon={icon}>{children}</Content>
-    </AriaLink>
+    <AppLink ref={ref} className={buttonClass({ variant, size, iconOnly, block })} {...rest}>
+      <ButtonContent icon={icon}>{children}</ButtonContent>
+    </AppLink>
   );
 }
 

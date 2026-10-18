@@ -56,11 +56,16 @@
   font-size: var(--sc-font-size-xs);
 }
 
-.card[data-hovered],
-.card[data-focus-visible] {
+@media (hover: hover) {
+  .card:hover {
+    transform: scale(var(--sc-focus-scale));
+  }
+}
+
+.card:focus-visible {
   transform: scale(var(--sc-focus-scale));
 }
 
-.card[data-focus-visible] .title {
+.card:focus-visible .title {
   color: var(--sc-color-text-primary);
 }

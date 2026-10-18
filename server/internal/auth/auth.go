@@ -53,6 +53,8 @@ type Service struct {
 	now    func() time.Time
 	params argonParams
 
+	attempts attemptLimiter
+
 	dummyOnce sync.Once
 	dummyHash string
 }
@@ -136,7 +138,12 @@ func (s *Service) CreateOwner(ctx context.Context, email, password, language str
 	if verr != nil {
 		return model.Account{}, model.Profile{}, verr
 	}
+	release, err := acquireArgon(ctx)
+	if err != nil {
+		return model.Account{}, model.Profile{}, err
+	}
 	hash, err := hashPassword(password, s.params)
+	release()
 	if err != nil {
 		return model.Account{}, model.Profile{}, err
 	}
@@ -183,30 +190,42 @@ func profileName(email string) string {
 }
 
 // Login checks the credentials and starts a session. Unknown e-mail and wrong password take the
-// same time and both return model.ErrInvalidCredentials.
+// same time and both return model.ErrInvalidCredentials. Over-long input is refused before any
+// hashing; a client over the attempt limit gets model.ErrTooManyAttempts.
 func (s *Service) Login(ctx context.Context, email, password, userAgent string) (model.Session, string, error) {
 	email = NormalizeEmail(email)
 	var verr *model.ValidationError
-	if email == "" {
+	switch {
+	case email == "":
 		verr = verr.Add("email", "required")
+	case utf8.RuneCountInString(email) > maxEmailLen:
+		verr = verr.Add("email", "too_long")
 	}
-	if password == "" {
+	switch {
+	case password == "":
 		verr = verr.Add("password", "required")
+	case utf8.RuneCountInString(password) > maxPasswordLen:
+		verr = verr.Add("password", "too_long")
 	}
 	if verr != nil {
 		return model.Session{}, "", verr
+	}
+	if err := s.AllowAttempt(ctx); err != nil {
+		return model.Session{}, "", err
 	}
 	acc, err := s.read.GetAccountByEmail(ctx, email)
 	if errors.Is(err, sql.ErrNoRows) {
 		// Spend the same time as a real verification so the answer does not reveal whether the
 		// account exists.
-		_, _ = verifyPassword(password, s.dummy())
+		if _, err := s.verify(ctx, password, ""); err != nil && ctx.Err() != nil {
+			return model.Session{}, "", err
+		}
 		return model.Session{}, "", model.ErrInvalidCredentials
 	}
 	if err != nil {
 		return model.Session{}, "", fmt.Errorf("get account: %w", err)
 	}
-	ok, err := verifyPassword(password, acc.PasswordHash)
+	ok, err := s.verify(ctx, password, acc.PasswordHash)
 	if err != nil {
 		return model.Session{}, "", fmt.Errorf("account %d: %w", acc.ID, err)
 	}
@@ -221,6 +240,20 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent string) 
 		s.log.WarnContext(ctx, "delete expired sessions", "err", err)
 	}
 	return s.StartSession(ctx, toAccount(acc), toProfile(prof), userAgent)
+}
+
+// verify checks password against encoded (the dummy hash when encoded is empty) in an argon2id
+// slot.
+func (s *Service) verify(ctx context.Context, password, encoded string) (bool, error) {
+	release, err := acquireArgon(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
+	if encoded == "" {
+		encoded = s.dummy()
+	}
+	return verifyPassword(password, encoded)
 }
 
 // dummy returns a hash of a random password with the service's parameters, computed once.
@@ -256,37 +289,39 @@ func (s *Service) StartSession(ctx context.Context, account model.Account, profi
 }
 
 // Resolve returns the session of a plain token, extending it when it was last touched more than
-// touchInterval ago. Unknown, expired and revoked tokens return model.ErrNotFound.
-func (s *Service) Resolve(ctx context.Context, token string) (model.Session, error) {
+// touchInterval ago; extended reports whether the expiry moved, so the caller can re-issue the
+// cookie. Unknown, expired and revoked tokens return model.ErrNotFound.
+func (s *Service) Resolve(ctx context.Context, token string) (session model.Session, extended bool, err error) {
 	if token == "" || len(token) > 2*tokenBytes {
-		return model.Session{}, model.ErrNotFound
+		return model.Session{}, false, model.ErrNotFound
 	}
 	now := s.now()
 	row, err := s.read.GetSessionByTokenHash(ctx, appq.GetSessionByTokenHashParams{TokenHash: hashToken(token), Now: now.UnixMilli()})
 	if errors.Is(err, sql.ErrNoRows) {
-		return model.Session{}, model.ErrNotFound
+		return model.Session{}, false, model.ErrNotFound
 	}
 	if err != nil {
-		return model.Session{}, fmt.Errorf("get session: %w", err)
+		return model.Session{}, false, fmt.Errorf("get session: %w", err)
 	}
 	acc, err := s.read.GetAccount(ctx, row.AccountID)
 	if err != nil {
-		return model.Session{}, notFoundOr(err, "get account")
+		return model.Session{}, false, notFoundOr(err, "get account")
 	}
 	prof, err := s.read.GetProfile(ctx, row.ProfileID)
 	if err != nil {
-		return model.Session{}, notFoundOr(err, "get profile")
+		return model.Session{}, false, notFoundOr(err, "get profile")
 	}
 	expires := time.UnixMilli(row.ExpiresAt)
 	if now.Sub(time.UnixMilli(row.LastSeenAt)) >= touchInterval {
-		expires = now.Add(SessionLifetime)
-		if err := s.write.TouchSession(ctx, appq.TouchSessionParams{ID: row.ID, Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli()}); err != nil {
+		next := now.Add(SessionLifetime)
+		if err := s.write.TouchSession(ctx, appq.TouchSessionParams{ID: row.ID, Now: now.UnixMilli(), ExpiresAt: next.UnixMilli()}); err != nil {
 			// The session stays valid until its old expiry; a failed touch must not log the user out.
 			s.log.WarnContext(ctx, "touch session", "session_id", row.ID, "err", err)
-			expires = time.UnixMilli(row.ExpiresAt)
+		} else {
+			expires, extended = next, true
 		}
 	}
-	return model.Session{ID: row.ID, Account: toAccount(acc), Profile: toProfile(prof), ExpiresAt: expires}, nil
+	return model.Session{ID: row.ID, Account: toAccount(acc), Profile: toProfile(prof), ExpiresAt: expires}, extended, nil
 }
 
 // Logout revokes the session; revoking an already revoked or unknown session is not an error.

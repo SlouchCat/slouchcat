@@ -16,3 +16,12 @@ INSERT INTO progress_events (profile_id, item_id, media_file_id, device_id, posi
                              played_ms, seq, state, client_time, server_time)
 VALUES (@profile_id, @item_id, @media_file_id, @device_id, @position_ms, @duration_ms,
         @played_ms, @seq, @state, @client_time, @server_time);
+
+-- name: GetLatestDeviceProgressEvent :one
+-- The newest event (by client clock, then seq) of one device and media file, to drop late events
+-- of the same playback.
+SELECT seq, client_time FROM progress_events
+WHERE profile_id = @profile_id AND item_id = @item_id AND device_id = @device_id
+  AND media_file_id IS @media_file_id
+ORDER BY client_time DESC, seq DESC
+LIMIT 1;

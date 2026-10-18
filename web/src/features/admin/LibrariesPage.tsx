@@ -7,17 +7,8 @@ import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import {
-  Button,
-  ConfirmDialog,
-  Notice,
-  Page,
-  Panel,
-  RadioGroup,
-  Skeleton,
-  Text,
-  TextField,
-} from '@/ui';
+import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
+import { AriaButton, ConfirmDialog, RadioGroup, TextField } from '@/ui/aria';
 import { LibraryCard } from './LibraryCard';
 import styles from './LibrariesPage.module.css';
 
@@ -97,11 +88,11 @@ function AddLibraryForm() {
           }}
         />
         <div>
-          <Button type="submit" variant="primary" icon="plus" isPending={create.isPending}>
+          <AriaButton type="submit" variant="primary" icon="plus" isPending={create.isPending}>
             {create.isPending
               ? t('admin.libraries.add.submitting')
               : t('admin.libraries.add.submit')}
-          </Button>
+          </AriaButton>
         </div>
       </Form>
     </Panel>
@@ -151,9 +142,9 @@ export function LibrariesPage() {
               tone="danger"
               title={problemMessage(t, libraries.error)}
               actions={
-                <Button icon="refresh" onPress={() => void libraries.refetch()}>
+                <AriaButton icon="refresh" onPress={() => void libraries.refetch()}>
                   {t('common.retry')}
-                </Button>
+                </AriaButton>
               }
             />
           )}
@@ -164,20 +155,20 @@ export function LibrariesPage() {
               library={library}
               actions={
                 <>
-                  <Button
+                  <AriaButton
                     icon="refresh"
                     isDisabled={isScanning(library)}
                     isPending={scan.isPending && scan.variables === library.id}
                     onPress={() => scan.mutate(library.id)}
                   >
                     {t('admin.libraries.rescan')}
-                  </Button>
+                  </AriaButton>
                   {library.scan.state === 'aborted' && (
                     <ConfirmDialog
                       trigger={
-                        <Button variant="ghost" icon="warning">
+                        <AriaButton variant="ghost" icon="warning">
                           {t('admin.libraries.acceptLoss.action')}
-                        </Button>
+                        </AriaButton>
                       }
                       title={t('admin.libraries.acceptLoss.title')}
                       body={t('admin.libraries.acceptLoss.body')}

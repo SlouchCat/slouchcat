@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -79,9 +81,13 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				return
 			}
 			ctx := context.WithValue(r.Context(), requestKey{}, r)
-			session, hasSession := resolveSession(ctx, auth, r)
+			session, token, extended, hasSession := resolveSession(ctx, auth, r)
 			if hasSession {
 				ctx = context.WithValue(ctx, sessionKey{}, session)
+			}
+			if extended {
+				// Sliding expiry: the browser keeps the cookie as long as the server keeps the session.
+				setSessionCookie(w, r, token, session.ExpiresAt)
 			}
 			r = r.WithContext(ctx)
 			pattern := chi.RouteContext(ctx).RoutePattern()
@@ -105,19 +111,39 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 	}
 }
 
-func resolveSession(ctx context.Context, auth AuthService, r *http.Request) (model.Session, bool) {
+// resolveSession returns the session of the cookie with its token and whether Resolve extended it.
+func resolveSession(ctx context.Context, auth AuthService, r *http.Request) (session model.Session, token string, extended, ok bool) {
 	if auth == nil {
-		return model.Session{}, false
+		return model.Session{}, "", false, false
 	}
 	c, err := r.Cookie(SessionCookie)
 	if err != nil || c.Value == "" {
-		return model.Session{}, false
+		return model.Session{}, "", false, false
 	}
-	s, err := auth.Resolve(ctx, c.Value)
+	s, extended, err := auth.Resolve(ctx, c.Value)
 	if err != nil {
-		return model.Session{}, false
+		return model.Session{}, "", false, false
 	}
-	return s, true
+	return s, c.Value, extended, true
+}
+
+// clientIP is the address the login and setup attempt limit counts: the first X-Forwarded-For
+// entry when it is a valid address (reverse proxy), else the host of RemoteAddr.
+func clientIP(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		first, _, _ := strings.Cut(xff, ",")
+		if ip, err := netip.ParseAddr(strings.TrimSpace(first)); err == nil {
+			return ip.Unmap().String()
+		}
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
 
 // setSessionCookie writes the session cookie. Secure is set when the request arrived over TLS,
@@ -173,6 +199,9 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusNotFound, "not_found", "")
 	case errors.Is(err, model.ErrInvalidCredentials):
 		p.write(w, r, http.StatusUnauthorized, "invalid_credentials", "Unknown e-mail or wrong password.")
+	case errors.Is(err, model.ErrTooManyAttempts):
+		w.Header().Set("Retry-After", "60")
+		p.write(w, r, http.StatusTooManyRequests, "too_many_attempts", "Too many attempts; wait a minute and try again.")
 	case errors.Is(err, model.ErrSetupDone):
 		p.write(w, r, http.StatusConflict, "setup_done", "The setup wizard already ran.")
 	case errors.Is(err, model.ErrLibraryPathInvalid):

@@ -90,7 +90,7 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 	if sess.Account != acc || sess.Profile != prof {
 		t.Fatalf("login session = %+v", sess)
 	}
-	got, err := s.Resolve(ctx, token)
+	got, _, err := s.Resolve(ctx, token)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,14 +100,14 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 	if err := s.Logout(ctx, sess.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Resolve(ctx, token); !errors.Is(err, model.ErrNotFound) {
+	if _, _, err := s.Resolve(ctx, token); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("resolve after logout: %v, want ErrNotFound", err)
 	}
 	if err := s.Logout(ctx, sess.ID); err != nil {
 		t.Fatalf("second logout: %v", err)
 	}
 	for _, bad := range []string{"", "nope", strings.Repeat("a", 4096)} {
-		if _, err := s.Resolve(ctx, bad); !errors.Is(err, model.ErrNotFound) {
+		if _, _, err := s.Resolve(ctx, bad); !errors.Is(err, model.ErrNotFound) {
 			t.Errorf("Resolve(%.10q) = %v, want ErrNotFound", bad, err)
 		}
 	}
@@ -175,28 +175,28 @@ func TestSessionExpiryAndSlidingTouch(t *testing.T) {
 
 	// Within the touch interval nothing is written.
 	clock.advance(time.Minute)
-	got, err := s.Resolve(ctx, token)
+	got, extended, err := s.Resolve(ctx, token)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !got.ExpiresAt.Equal(start.Add(SessionLifetime)) {
+	if extended || !got.ExpiresAt.Equal(start.Add(SessionLifetime)) {
 		t.Fatalf("expiry moved within the touch interval: %v", got.ExpiresAt)
 	}
 
 	// After the interval the expiry slides.
 	clock.advance(10 * time.Minute)
-	got, err = s.Resolve(ctx, token)
+	got, extended, err = s.Resolve(ctx, token)
 	if err != nil {
 		t.Fatal(err)
 	}
 	slid := clock.now().Add(SessionLifetime)
-	if !got.ExpiresAt.Equal(slid) {
+	if !extended || !got.ExpiresAt.Equal(slid) {
 		t.Fatalf("expires = %v, want %v", got.ExpiresAt, slid)
 	}
 
 	// Unused for longer than the lifetime: gone.
 	clock.advance(SessionLifetime + time.Second)
-	if _, err := s.Resolve(ctx, token); !errors.Is(err, model.ErrNotFound) {
+	if _, _, err := s.Resolve(ctx, token); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("expired session resolved: %v", err)
 	}
 	n, err := s.DeleteExpiredSessions(ctx)

@@ -5,6 +5,7 @@
 package model
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +20,21 @@ var (
 	ErrLibraryPathInvalid = errors.New("library path invalid") // 422 library_path_invalid
 	ErrTMDBKeyInvalid     = errors.New("tmdb key invalid")     // 422 tmdb_key_invalid
 	ErrTMDBUnreachable    = errors.New("tmdb unreachable")     // 422 tmdb_unreachable
+	ErrTooManyAttempts    = errors.New("too many attempts")    // 429 too_many_attempts
 )
+
+type clientIPKey struct{}
+
+// WithClientIP stores the client address of the request (login and setup rate limit).
+func WithClientIP(ctx context.Context, ip string) context.Context {
+	return context.WithValue(ctx, clientIPKey{}, ip)
+}
+
+// ClientIP returns the client address stored by WithClientIP, or "".
+func ClientIP(ctx context.Context) string {
+	ip, _ := ctx.Value(clientIPKey{}).(string)
+	return ip
+}
 
 // FieldError names one invalid request field with a stable code (required, too_short, invalid_email, …).
 type FieldError struct {

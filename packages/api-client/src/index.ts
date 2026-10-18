@@ -33,6 +33,8 @@ export const DEFAULT_BASE_URL = '/api/v1';
 export const CSRF_HEADER = 'X-Requested-With';
 export const CSRF_HEADER_VALUE = 'Slouchcat';
 
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
 /**
  * Creates a typed client for the Slouchcat API.
  *
@@ -44,9 +46,13 @@ export function createApiClient(baseUrl: string = DEFAULT_BASE_URL): ApiClient {
   const location = (globalThis as { location?: { href: string } }).location;
   return createClient<paths>({
     baseUrl: location ? new URL(baseUrl, location.href).href : baseUrl,
-    headers: { [CSRF_HEADER]: CSRF_HEADER_VALUE },
     credentials: 'same-origin',
-    fetch: (request) => globalThis.fetch(request),
+    fetch: (request) => {
+      // Only state-changing requests need the CSRF header. Reads go without it, so they match the
+      // responses the server preloads for the start page (Link: rel=preload; as=fetch, P-10).
+      if (!SAFE_METHODS.has(request.method)) request.headers.set(CSRF_HEADER, CSRF_HEADER_VALUE);
+      return globalThis.fetch(request);
+    },
   });
 }
 

@@ -24,6 +24,19 @@ describe('createApiClient', () => {
     const request = fetchMock.mock.calls[0]?.[0];
     expect(request?.method).toBe('GET');
     expect(request?.url).toBe('http://slouchcat.test/api/v1/healthz');
+    // Reads carry no custom header, so they can reuse a preloaded response.
+    expect(request?.headers.get('X-Requested-With')).toBeNull();
+  });
+
+  it('sends the CSRF header with state-changing requests', async () => {
+    const fetchMock = vi.fn(async (_request: Request) => new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = createApiClient('http://slouchcat.test/api/v1');
+    await client.POST('/auth/logout');
+
+    const request = fetchMock.mock.calls[0]?.[0];
+    expect(request?.method).toBe('POST');
     expect(request?.headers.get('X-Requested-With')).toBe('Slouchcat');
   });
 

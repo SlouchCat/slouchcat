@@ -10,6 +10,40 @@ import (
 	"database/sql"
 )
 
+const getLatestDeviceProgressEvent = `-- name: GetLatestDeviceProgressEvent :one
+SELECT seq, client_time FROM progress_events
+WHERE profile_id = ?1 AND item_id = ?2 AND device_id = ?3
+  AND media_file_id IS ?4
+ORDER BY client_time DESC, seq DESC
+LIMIT 1
+`
+
+type GetLatestDeviceProgressEventParams struct {
+	ProfileID   int64
+	ItemID      string
+	DeviceID    sql.NullString
+	MediaFileID sql.NullString
+}
+
+type GetLatestDeviceProgressEventRow struct {
+	Seq        int64
+	ClientTime int64
+}
+
+// The newest event (by client clock, then seq) of one device and media file, to drop late events
+// of the same playback.
+func (q *Queries) GetLatestDeviceProgressEvent(ctx context.Context, arg GetLatestDeviceProgressEventParams) (GetLatestDeviceProgressEventRow, error) {
+	row := q.db.QueryRowContext(ctx, getLatestDeviceProgressEvent,
+		arg.ProfileID,
+		arg.ItemID,
+		arg.DeviceID,
+		arg.MediaFileID,
+	)
+	var i GetLatestDeviceProgressEventRow
+	err := row.Scan(&i.Seq, &i.ClientTime)
+	return i, err
+}
+
 const getProgress = `-- name: GetProgress :one
 
 SELECT profile_id, item_id, position_ms, duration_ms, completed, updated_at FROM progress WHERE profile_id = ?1 AND item_id = ?2

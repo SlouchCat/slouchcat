@@ -22,13 +22,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.button[data-pressed] {
-  transform: scale(0.97);
-}
-
-.button[data-disabled] {
+.button:disabled {
   cursor: default;
   opacity: 0.45;
+}
+
+/* Native states, so plain buttons and links (browsing pages) and react-aria buttons (forms) look the
+   same; data-pressed is react-aria's press state, which also covers touch. */
+.button:active:not(:disabled),
+.button[data-pressed] {
+  transform: scale(0.97);
 }
 
 .lg {
@@ -42,8 +45,7 @@
   color: var(--sc-color-bg-base);
 }
 
-.primary[data-hovered],
-.primary[data-focus-visible] {
+.primary:focus-visible {
   background-color: var(--accent);
   color: var(--accent-on);
 }
@@ -53,8 +55,7 @@
   color: var(--sc-color-text-primary);
 }
 
-.secondary[data-hovered],
-.secondary[data-focus-visible] {
+.secondary:focus-visible {
   background-color: var(--sc-color-surface-2);
 }
 
@@ -63,10 +64,25 @@
   color: var(--sc-color-text-secondary);
 }
 
-.ghost[data-hovered],
-.ghost[data-focus-visible] {
+.ghost:focus-visible {
   background-color: var(--sc-color-surface-2);
   color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .primary:hover:not(:disabled) {
+    background-color: var(--accent);
+    color: var(--accent-on);
+  }
+
+  .secondary:hover:not(:disabled) {
+    background-color: var(--sc-color-surface-2);
+  }
+
+  .ghost:hover:not(:disabled) {
+    background-color: var(--sc-color-surface-2);
+    color: var(--sc-color-text-primary);
+  }
 }
 
 .danger {

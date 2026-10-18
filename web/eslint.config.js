@@ -77,8 +77,9 @@ export default defineConfig([
         {
           patterns: [
             {
-              regex: '^@/ui/.+|^(\\.\\./)+ui(/.*)?$',
-              message: "Features import shared UI only from '@/ui'.",
+              regex: '^@/ui/(?!aria$).+|^(\\.\\./)+ui(/.*)?$',
+              message:
+                "Features import shared UI only from '@/ui' (react-aria parts from '@/ui/aria').",
             },
           ],
         },

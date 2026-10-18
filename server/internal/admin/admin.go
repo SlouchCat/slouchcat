@@ -75,8 +75,12 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 // field, the library path and the TMDB key without side effects; create the owner (which re-checks
 // "no account" inside its transaction, so a concurrent second wizard gets model.ErrSetupDone
 // before it changed anything); store the key encrypted; create the library (queues the first
-// scan); start the session. Password and key never appear in logs or errors.
+// scan); start the session. Every call counts against the client's attempt limit. Password and
+// key never appear in logs or errors.
 func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgent string) (model.Session, string, error) {
+	if err := s.auth.AllowAttempt(ctx); err != nil {
+		return model.Session{}, "", err
+	}
 	required, err := s.auth.SetupRequired(ctx)
 	if err != nil {
 		return model.Session{}, "", err

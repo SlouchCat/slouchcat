@@ -120,6 +120,16 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "422":
           description: |
             Validation failed. Codes: `validation_failed` (see `errors`), `library_path_invalid`
@@ -163,6 +173,16 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "403":
           description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:

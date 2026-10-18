@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-aria-components';
+import { AppLink } from './AppLink';
 import styles from './AppHeader.module.css';
 import { SpatialButton } from './Button';
 import { Logo } from './Logo';
@@ -24,7 +24,7 @@ interface AppHeaderProps {
 function NavLink({ item }: { item: NavItem }) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
   return (
-    <Link
+    <AppLink
       ref={ref}
       onFocus={onFocus}
       href={item.href}
@@ -32,7 +32,7 @@ function NavLink({ item }: { item: NavItem }) {
       aria-current={item.current ? 'page' : undefined}
     >
       {item.label}
-    </Link>
+    </AppLink>
   );
 }
 
@@ -62,9 +62,9 @@ export function AppHeader({
   return (
     <header className={styles.header} data-scrolled={scrolled || undefined}>
       <SpatialGroup focusKey="header" className={styles.inner}>
-        <Link ref={homeRef} onFocus={onHomeFocus} href={homeHref} className={styles.brand}>
+        <AppLink ref={homeRef} onFocus={onHomeFocus} href={homeHref} className={styles.brand}>
           <Logo name={appName} />
-        </Link>
+        </AppLink>
         <nav aria-label={navLabel} className={styles.nav}>
           {nav.map((item) => (
             <NavLink key={item.href} item={item} />

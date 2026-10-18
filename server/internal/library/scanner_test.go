@@ -1,12 +1,15 @@
 package library
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -531,5 +534,144 @@ func TestWatchMode(t *testing.T) {
 		if w, warn := watchMode(fs); w != want[0] || warn != want[1] {
 			t.Errorf("watchMode(%s) = %s, %s; want %v", fs, w, warn, want)
 		}
+	}
+}
+
+// A symlink to a file inside the root is followed and counted; one whose target leaves the root
+// is skipped with a warning and the scan still ends done.
+func TestScanSkipsSymlinkLeavingRoot(t *testing.T) {
+	e := newEnv(t)
+	var logs bytes.Buffer
+	e.svc.log = slog.New(slog.NewTextHandler(&logs, nil))
+	dir := tree(t, []string{"Real (2000)/Real (2000).mkv"})
+	outside := t.TempDir()
+	writeFile(t, outside, "Outside (2002).mkv", "outside the root")
+	if err := os.Symlink(filepath.Join("Real (2000)", "Real (2000).mkv"), filepath.Join(dir, "Link (2001).mkv")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "Outside (2002).mkv"), filepath.Join(dir, "Outside (2002).mkv")); err != nil {
+		t.Fatal(err)
+	}
+	lib := e.create(dir)
+	got := e.scan(lib.ID)
+	if got.Scan.State != "done" || got.Scan.FileCount != 2 {
+		t.Fatalf("scan = %+v, want done with 2 files", got.Scan)
+	}
+	if n := e.count(`SELECT count(*) FROM media_files WHERE rel_path = 'Link (2001).mkv'`); n != 1 {
+		t.Error("symlink inside the root not followed")
+	}
+	if n := e.count(`SELECT count(*) FROM media_files WHERE rel_path LIKE 'Outside%'`); n != 0 {
+		t.Error("symlink leaving the root was followed")
+	}
+	if out := logs.String(); !strings.Contains(out, "level=WARN") || !strings.Contains(out, `path="Outside (2002).mkv"`) {
+		t.Errorf("no warning for the skipped symlink: %s", out)
+	}
+}
+
+// The sweep deletes a title only when every one of its files has been missing for 24 h.
+func TestSweepNeedsAllFilesMissingForGrace(t *testing.T) {
+	e := newEnv(t)
+	files := append([]string{"Avatar (2009)/Avatar (2009) - 1080p.mkv", "Avatar (2009)/Avatar (2009) - 2160p.mkv"}, twentyMovies[:9]...)
+	dir := tree(t, files)
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	itemID := e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, files[0])
+
+	remove(t, dir, files[0])
+	e.scan(lib.ID)
+	e.clock.Advance(24 * time.Hour)
+	remove(t, dir, files[1])
+	e.scan(lib.ID)
+	e.clock.Advance(time.Hour) // first file missing for 25 h, second for 1 h
+	if n, err := e.svc.Sweep(e.ctx); err != nil || n != 0 {
+		t.Fatalf("sweep with one file missing for 1 h deleted %d (%v), want 0", n, err)
+	}
+	e.clock.Advance(23*time.Hour + time.Minute) // both missing for at least 24 h
+	if n, err := e.svc.Sweep(e.ctx); err != nil || n != 1 {
+		t.Fatalf("sweep with both files missing for 24 h deleted %d (%v), want 1", n, err)
+	}
+	if e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NOT NULL`, itemID) != 1 {
+		t.Error("title with all files missing not soft-deleted")
+	}
+}
+
+// A title soft-deleted less than 30 days ago comes back with its id and progress when a new file
+// (different content) with the same TMDB id appears; after 30 days a new title is created.
+func TestRelinkDeletedTitleByProviderID(t *testing.T) {
+	e := newEnv(t)
+	files := append([]string{"Heat (1995) [tmdb-949]/Heat (1995).mkv"}, twentyMovies[4:10]...)
+	dir := tree(t, files)
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	itemID := e.str(`SELECT id FROM items WHERE tmdb_id = 949`)
+	if _, err := e.db.Write.ExecContext(e.ctx, `INSERT INTO accounts (id, email, password_hash, created_at, updated_at) VALUES (1, 'a@b.c', 'x', 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.Write.ExecContext(e.ctx, `INSERT INTO profiles (id, account_id, name, created_at, updated_at) VALUES (1, 1, 'Marco', 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := appq.New(e.db.Write).UpsertProgress(e.ctx, appq.UpsertProgressParams{
+		ProfileID: 1, ItemID: itemID, PositionMs: 600_000, DurationMs: 7_000_000, Now: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	gone := func(rel string) {
+		t.Helper()
+		remove(t, dir, rel)
+		e.scan(lib.ID)
+		e.clock.Advance(25 * time.Hour)
+		if n, err := e.svc.Sweep(e.ctx); err != nil || n != 1 {
+			t.Fatalf("sweep deleted %d (%v), want 1", n, err)
+		}
+	}
+	gone(files[0])
+	writeFile(t, dir, "Heat (1995) [tmdb-949]/Heat (1995) - 2160p.mkv", "a new download")
+	got := e.scan(lib.ID)
+	if v := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Heat (1995) [tmdb-949]/Heat (1995) - 2160p.mkv'`); v != itemID {
+		t.Fatalf("new file joined item %q, want the deleted item %q", v, itemID)
+	}
+	if e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NULL AND available = 1`, itemID) != 1 {
+		t.Error("deleted item not restored")
+	}
+	if got.Scan.ItemCount != 7 {
+		t.Errorf("item count = %d, want 7 (no new item)", got.Scan.ItemCount)
+	}
+	if n := e.count(`SELECT count(*) FROM progress WHERE item_id = ? AND position_ms = 600000`, itemID); n != 1 {
+		t.Errorf("progress rows = %d, want 1", n)
+	}
+
+	// Deleted again and back only after the relink window: a new title.
+	gone("Heat (1995) [tmdb-949]/Heat (1995) - 2160p.mkv")
+	e.clock.Advance(31 * 24 * time.Hour)
+	writeFile(t, dir, "Heat (1995) [tmdb-949]/Heat (1995) - 720p.mkv", "yet another download")
+	e.scan(lib.ID)
+	if v := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Heat (1995) [tmdb-949]/Heat (1995) - 720p.mkv'`); v == itemID {
+		t.Error("file joined a title deleted more than 30 days ago")
+	}
+}
+
+// Without a year, equal titles only merge within the same movie folder.
+func TestTitleWithoutYearMergesOnlyInSameFolder(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, []string{"Horror/Halloween/Halloween.mkv", "Klassiker/Halloween/Halloween.mkv"})
+	lib := e.create(dir)
+	got := e.scan(lib.ID)
+	if got.Scan.ItemCount != 2 || got.Scan.FileCount != 2 {
+		t.Fatalf("scan = %+v, want 2 items with one file each", got.Scan)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE title = 'Halloween' AND year IS NULL`); n != 2 {
+		t.Fatalf("Halloween items = %d, want 2", n)
+	}
+
+	// A second file in the same folder (a later scan) joins that folder's item.
+	writeFile(t, dir, "Horror/Halloween/Halloween.mp4", "second version")
+	got = e.scan(lib.ID)
+	if got.Scan.ItemCount != 2 || got.Scan.FileCount != 3 {
+		t.Fatalf("scan = %+v, want 2 items with 3 files", got.Scan)
+	}
+	if a, b := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Horror/Halloween/Halloween.mkv'`),
+		e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Horror/Halloween/Halloween.mp4'`); a != b {
+		t.Errorf("same-folder files on items %q and %q", a, b)
 	}
 }

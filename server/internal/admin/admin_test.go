@@ -154,7 +154,7 @@ func TestRunSetupHappyPath(t *testing.T) {
 	if p := sess.Profile; p.Name != "marco" || p.MaxRating != 18 || p.Language != "de" || !p.AllLibraries {
 		t.Fatalf("profile = %+v", p)
 	}
-	resolved, err := f.auth.Resolve(ctx, token)
+	resolved, _, err := f.auth.Resolve(ctx, token)
 	if err != nil || resolved.ID != sess.ID {
 		t.Fatalf("resolve setup token: %+v, %v", resolved, err)
 	}

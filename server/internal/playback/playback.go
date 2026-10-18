@@ -196,7 +196,8 @@ func validate(ev model.ProgressEvent) error {
 }
 
 // Report stores a progress event of a visible title and returns the merged progress. M1a merges
-// by taking the latest event; offline merging follows in M5.
+// by taking the latest event; offline merging follows in M5. Every event is stored, but a late one
+// does not move the merged position (see late).
 func (s *Service) Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error) {
 	if err := validate(ev); err != nil {
 		return model.Progress{}, err
@@ -213,6 +214,17 @@ func (s *Service) Report(ctx context.Context, profile model.Profile, itemID stri
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := appq.New(tx)
+	cur, err := q.GetProgress(ctx, appq.GetProgressParams{ProfileID: profile.ID, ItemID: itemID})
+	hasCur := err == nil
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return model.Progress{}, fmt.Errorf("get progress: %w", err)
+	}
+	isLate := false
+	if hasCur {
+		if isLate, err = late(ctx, q, profile.ID, itemID, ev, cur, now); err != nil {
+			return model.Progress{}, err
+		}
+	}
 	err = q.InsertProgressEvent(ctx, appq.InsertProgressEventParams{
 		ProfileID:   profile.ID,
 		ItemID:      itemID,
@@ -229,6 +241,12 @@ func (s *Service) Report(ctx context.Context, profile model.Profile, itemID stri
 	if err != nil {
 		return model.Progress{}, fmt.Errorf("insert progress event: %w", err)
 	}
+	if isLate {
+		if err := tx.Commit(); err != nil {
+			return model.Progress{}, fmt.Errorf("commit progress: %w", err)
+		}
+		return model.Progress{PositionMs: cur.PositionMs, DurationMs: cur.DurationMs, Completed: cur.Completed == 1, UpdatedAt: time.UnixMilli(cur.UpdatedAt).UTC()}, nil
+	}
 	err = q.UpsertProgress(ctx, appq.UpsertProgressParams{
 		ProfileID:  profile.ID,
 		ItemID:     itemID,
@@ -244,6 +262,30 @@ func (s *Service) Report(ctx context.Context, profile model.Profile, itemID stri
 		return model.Progress{}, fmt.Errorf("commit progress: %w", err)
 	}
 	return model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC()}, nil
+}
+
+// late reports whether ev must not replace the merged progress cur: the merged position is newer
+// than the server time of ev, or ev belongs to a playback of the same device and media file whose
+// stored newest event has a higher or equal seq at a client time not before that of ev (a request
+// that overtook another). The client restarts seq with every playback, so a lower seq with a later
+// client time is a new playback and counts. Events without a device id always count.
+func late(ctx context.Context, q *appq.Queries, profileID int64, itemID string, ev model.ProgressEvent, cur appq.Progress, now time.Time) (bool, error) {
+	if cur.UpdatedAt > now.UnixMilli() {
+		return true, nil
+	}
+	if ev.DeviceID == "" {
+		return false, nil
+	}
+	last, err := q.GetLatestDeviceProgressEvent(ctx, appq.GetLatestDeviceProgressEventParams{
+		ProfileID: profileID, ItemID: itemID, DeviceID: nullString(ev.DeviceID), MediaFileID: nullString(ev.MediaFileID),
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get latest progress event: %w", err)
+	}
+	return ev.Seq <= last.Seq && ev.ClientTime.UnixMilli() <= last.ClientTime, nil
 }
 
 func nullString(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }

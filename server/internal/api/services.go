@@ -15,11 +15,12 @@ type AuthService interface {
 	SetupRequired(ctx context.Context) (bool, error)
 	// Login checks e-mail and password and creates a session. It returns the plain token exactly
 	// once; the store keeps only its hash. Unknown e-mail and wrong password both return
-	// model.ErrInvalidCredentials.
+	// model.ErrInvalidCredentials; a client over the attempt limit (model.ClientIP of ctx) gets
+	// model.ErrTooManyAttempts.
 	Login(ctx context.Context, email, password, userAgent string) (model.Session, string, error)
 	// Resolve returns the session of a plain token or model.ErrNotFound. It may extend the
-	// session (sliding expiry).
-	Resolve(ctx context.Context, token string) (model.Session, error)
+	// session (sliding expiry) and then reports extended, so the cookie is re-issued.
+	Resolve(ctx context.Context, token string) (session model.Session, extended bool, err error)
 	// Logout revokes the session.
 	Logout(ctx context.Context, sessionID int64) error
 }

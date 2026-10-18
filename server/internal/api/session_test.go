@@ -24,15 +24,21 @@ func (fakeAuth) Login(context.Context, string, string, string) (model.Session, s
 	return model.Session{}, "", model.ErrInvalidCredentials
 }
 func (fakeAuth) Logout(context.Context, int64) error { return nil }
-func (fakeAuth) Resolve(_ context.Context, token string) (model.Session, error) {
+func (fakeAuth) Resolve(_ context.Context, token string) (model.Session, bool, error) {
 	switch token {
 	case "owner":
-		return model.Session{ID: 1, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de"}}, nil
+		return model.Session{ID: 1, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de"}}, false, nil
 	case "guest":
-		return model.Session{ID: 2, Account: model.Account{ID: 2, Email: "g@b.c", Role: "guest"}, Profile: model.Profile{ID: 2, Name: "Gast", MaxRating: 18, Language: "en"}}, nil
+		return model.Session{ID: 2, Account: model.Account{ID: 2, Email: "g@b.c", Role: "guest"}, Profile: model.Profile{ID: 2, Name: "Gast", MaxRating: 18, Language: "en"}}, false, nil
+	case "sliding":
+		// Resolve moved the expiry of this session.
+		return model.Session{ID: 3, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de"},
+			ExpiresAt: slidingExpiry}, true, nil
 	}
-	return model.Session{}, model.ErrNotFound
+	return model.Session{}, false, model.ErrNotFound
 }
+
+var slidingExpiry = time.Now().Add(30 * 24 * time.Hour).Truncate(time.Second)
 
 func newSessionTestHandler() http.Handler {
 	return NewHandler(Options{
@@ -138,6 +144,7 @@ func TestMapError(t *testing.T) {
 		model.ErrNotFound:                                        {404, "not_found"},
 		model.ErrInvalidCredentials:                              {401, "invalid_credentials"},
 		model.ErrSetupDone:                                       {409, "setup_done"},
+		model.ErrTooManyAttempts:                                 {429, "too_many_attempts"},
 		model.ErrLibraryPathInvalid:                              {422, "library_path_invalid"},
 		model.ErrTMDBKeyInvalid:                                  {422, "tmdb_key_invalid"},
 		model.ErrTMDBUnreachable:                                 {422, "tmdb_unreachable"},
@@ -196,5 +203,53 @@ func TestContextHelpers(t *testing.T) {
 	}
 	if _, ok := sessionFrom(context.Background()); ok {
 		t.Error("sessionFrom must report no session on an empty context")
+	}
+}
+
+// A request whose session Resolve extended carries a fresh cookie with the new expiry; a session
+// that was not extended gets no cookie.
+func TestAuthorizeReissuesExtendedSessionCookie(t *testing.T) {
+	h := newSessionTestHandler()
+	rec := request(t, h, http.MethodGet, "/api/v1/auth/session", "sliding", false)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
+	}
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].Name != SessionCookie || cookies[0].Value != "sliding" || !cookies[0].HttpOnly {
+		t.Fatalf("cookies = %+v, want the refreshed session cookie", cookies)
+	}
+	if !cookies[0].Expires.Equal(slidingExpiry) || cookies[0].MaxAge <= 0 {
+		t.Errorf("cookie expiry = %v (max-age %d), want %v", cookies[0].Expires, cookies[0].MaxAge, slidingExpiry)
+	}
+
+	rec = request(t, h, http.MethodGet, "/api/v1/auth/session", "owner", false)
+	if n := len(rec.Result().Cookies()); n != 0 {
+		t.Errorf("unchanged session set %d cookies", n)
+	}
+
+	// Logout of an extended session leaves only the clearing cookie.
+	rec = request(t, h, http.MethodPost, "/api/v1/auth/logout", "sliding", true)
+	if cookies := rec.Result().Cookies(); len(cookies) != 1 || cookies[0].MaxAge != -1 {
+		t.Errorf("logout cookies = %+v, want only the clearing one", cookies)
+	}
+}
+
+func TestClientIP(t *testing.T) {
+	cases := []struct{ remote, xff, want string }{
+		{"192.0.2.1:1234", "", "192.0.2.1"},
+		{"192.0.2.1:1234", "203.0.113.5, 10.0.0.1", "203.0.113.5"},
+		{"[2001:db8::1]:443", "", "2001:db8::1"},
+		{"192.0.2.1:1234", "not-an-ip", "192.0.2.1"},
+		{"192.0.2.1:1234", "::ffff:198.51.100.2", "198.51.100.2"},
+	}
+	for _, tc := range cases {
+		req := httptest.NewRequest(http.MethodPost, "/x", nil)
+		req.RemoteAddr = tc.remote
+		if tc.xff != "" {
+			req.Header.Set("X-Forwarded-For", tc.xff)
+		}
+		if got := clientIP(req); got != tc.want {
+			t.Errorf("clientIP(%q, %q) = %q, want %q", tc.remote, tc.xff, got, tc.want)
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path"
 	"strconv"
@@ -25,6 +26,9 @@ const (
 	maxRowsPerOp = 4
 	// lossThresholdPercent is the share of known files that may disappear in one scan.
 	lossThresholdPercent = 20
+	// relinkWindow is how long a soft-deleted title can come back through a new file with the same
+	// TMDB or IMDb id, keeping its user data (plan 3.2).
+	relinkWindow = 30 * 24 * time.Hour
 )
 
 // Abort codes stored in libraries.last_scan_error with state aborted (plan 3.2).
@@ -179,7 +183,7 @@ func (s *Service) scanMovies(ctx context.Context, lib appq.Library) (scanStats, 
 		if rs.known, err = sq.ListMediaFilesByRoot(ctx, root.ID); err != nil {
 			return stats, fmt.Errorf("list media files of root %d: %w", root.ID, err)
 		}
-		if rs.disk, err = walkRoot(ctx, rs.proot); err != nil {
+		if rs.disk, err = walkRoot(ctx, rs.proot, s.log); err != nil {
 			if errors.Is(err, errRootMissing) {
 				return stats, scanAbort{abortRootMissing}
 			}
@@ -215,7 +219,7 @@ func (s *Service) scanMovies(ctx context.Context, lib appq.Library) (scanStats, 
 		return stats, scanAbort{abortLoss}
 	}
 
-	idx, err := s.loadItemIndex(ctx, lib.ID)
+	idx, err := s.loadItemIndex(ctx, lib.ID, scans)
 	if err != nil {
 		return stats, err
 	}
@@ -240,8 +244,10 @@ var errRootMissing = errors.New("library root missing")
 
 // walkRoot collects the video files of a root. Extras, samples and ignored entries are skipped.
 // A root that cannot be opened is errRootMissing; any other walk error fails the scan, because a
-// partial walk would look like lost files.
-func walkRoot(ctx context.Context, root paths.Root) ([]diskFile, error) {
+// partial walk would look like lost files. Symlinked directories are not followed; a symlinked
+// file whose target cannot be read inside the root (it leaves the root, dangles, or is not
+// readable) is logged and skipped.
+func walkRoot(ctx context.Context, root paths.Root, log *slog.Logger) ([]diskFile, error) {
 	r, err := paths.Open(root)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errRootMissing, err)
@@ -276,7 +282,11 @@ func walkRoot(ctx context.Context, root paths.Root) ([]diskFile, error) {
 		}
 		var fi fs.FileInfo
 		if d.Type()&fs.ModeSymlink != 0 {
-			fi, err = r.Stat(p) // follows the link, refused when it leaves the root
+			// Follows the link; refused when the target leaves the root.
+			if fi, err = r.Stat(p); err != nil {
+				log.WarnContext(ctx, "symlink not followed, skipped", "path", p, "err", err)
+				return nil
+			}
 		} else {
 			fi, err = d.Info()
 		}
@@ -392,11 +402,14 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan) (ops []scanOp, unc
 	return ops, unchanged, lost, nil
 }
 
-// itemIndex finds the undeleted items of a library by provider id or by (sort_title, year).
+// itemIndex finds the items of a library: undeleted ones by provider id or by (sort_title, year),
+// titles soft-deleted within relinkWindow by provider id only.
 type itemIndex struct {
 	byTMDB  map[int64]string
 	byIMDB  map[string]string
 	byTitle map[string][]itemRef
+	deleted map[string]bool            // soft-deleted items reachable by provider id
+	folders map[string]map[string]bool // item id → movie folders of its files (see folderKey)
 }
 
 type itemRef struct {
@@ -412,21 +425,58 @@ func titleKey(sortTitle string, year sql.NullInt64) string {
 	return sortTitle + "|" + strconv.FormatInt(year.Int64, 10)
 }
 
-func (s *Service) loadItemIndex(ctx context.Context, libraryID int64) (*itemIndex, error) {
-	items, err := systemq.New(s.db.Read).ListItemsByLibrary(ctx, libraryID)
+// folderKey names the movie folder of a file, or "" for a file directly in the root, which is no
+// movie folder.
+func folderKey(rootID int64, rel string) string {
+	dir := path.Dir(rel)
+	if dir == "." {
+		return ""
+	}
+	return strconv.FormatInt(rootID, 10) + "/" + dir
+}
+
+func (s *Service) loadItemIndex(ctx context.Context, libraryID int64, scans []*rootScan) (*itemIndex, error) {
+	q := systemq.New(s.db.Read)
+	items, err := q.ListItemsByLibrary(ctx, libraryID)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
-	idx := &itemIndex{byTMDB: map[int64]string{}, byIMDB: map[string]string{}, byTitle: map[string][]itemRef{}}
+	deleted, err := q.ListRecentlyDeletedItemsByLibrary(ctx, systemq.ListRecentlyDeletedItemsByLibraryParams{
+		LibraryID: libraryID, Since: sql.NullInt64{Int64: s.now().Add(-relinkWindow).UnixMilli(), Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list deleted items: %w", err)
+	}
+	idx := &itemIndex{
+		byTMDB: map[int64]string{}, byIMDB: map[string]string{}, byTitle: map[string][]itemRef{},
+		deleted: map[string]bool{}, folders: map[string]map[string]bool{},
+	}
 	for _, it := range items {
 		if it.Kind == "movie" {
 			idx.add(it.ID, it.SortTitle, it.Year, it.TmdbID.Int64, it.ImdbID.String)
+		}
+	}
+	// After the undeleted items, so an undeleted title with the same id wins.
+	for _, it := range deleted {
+		if it.Kind == "movie" {
+			idx.addDeleted(it.ID, it.TmdbID.Int64, it.ImdbID.String)
+		}
+	}
+	for _, rs := range scans {
+		for _, k := range rs.known {
+			idx.addFolder(k.ItemID, folderKey(rs.root.ID, k.RelPath))
 		}
 	}
 	return idx, nil
 }
 
 func (idx *itemIndex) add(id, sortTitle string, year sql.NullInt64, tmdb int64, imdb string) {
+	idx.addIDs(id, tmdb, imdb)
+	key := titleKey(sortTitle, year)
+	idx.byTitle[key] = append(idx.byTitle[key], itemRef{id: id, tmdb: tmdb, imdb: imdb})
+}
+
+func (idx *itemIndex) addIDs(id string, tmdb int64, imdb string) {
 	if tmdb != 0 {
 		if _, ok := idx.byTMDB[tmdb]; !ok {
 			idx.byTMDB[tmdb] = id
@@ -437,13 +487,32 @@ func (idx *itemIndex) add(id, sortTitle string, year sql.NullInt64, tmdb int64, 
 			idx.byIMDB[imdb] = id
 		}
 	}
-	key := titleKey(sortTitle, year)
-	idx.byTitle[key] = append(idx.byTitle[key], itemRef{id: id, tmdb: tmdb, imdb: imdb})
+}
+
+// addDeleted makes a soft-deleted item reachable by its provider ids, not by its title.
+func (idx *itemIndex) addDeleted(id string, tmdb int64, imdb string) {
+	if tmdb == 0 && imdb == "" {
+		return
+	}
+	idx.deleted[id] = true
+	idx.addIDs(id, tmdb, imdb)
+}
+
+func (idx *itemIndex) addFolder(id, folder string) {
+	if folder == "" {
+		return
+	}
+	if idx.folders[id] == nil {
+		idx.folders[id] = map[string]bool{}
+	}
+	idx.folders[id][folder] = true
 }
 
 // find returns the item of a title: by TMDB id, else IMDb id, else (sort_title, year) when the
-// provider ids do not contradict.
-func (idx *itemIndex) find(m movieInfo) string {
+// provider ids do not contradict. Without a year, a title only matches an item that already has a
+// file in the same movie folder (folder as folderKey returns it), so two films of the same name in
+// different folders stay apart.
+func (idx *itemIndex) find(m movieInfo, folder string) string {
 	if m.tmdb != 0 {
 		if id, ok := idx.byTMDB[m.tmdb]; ok {
 			return id
@@ -455,6 +524,9 @@ func (idx *itemIndex) find(m movieInfo) string {
 		}
 	}
 	for _, ref := range idx.byTitle[titleKey(m.sortTitle, m.year)] {
+		if !m.year.Valid && (folder == "" || !idx.folders[ref.id][folder]) {
+			continue
+		}
 		if (m.tmdb == 0 || ref.tmdb == 0 || m.tmdb == ref.tmdb) && (m.imdb == "" || ref.imdb == "" || m.imdb == ref.imdb) {
 			return ref.id
 		}
@@ -564,7 +636,15 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 		switch op.kind {
 		case opNew:
 			m := infos[i]
-			itemID := idx.find(m)
+			folder := folderKey(op.rs.root.ID, op.disk.rel)
+			itemID := idx.find(m, folder)
+			if idx.deleted[itemID] {
+				// Re-downloaded within relinkWindow: the title returns with its user data.
+				if err := q.RestoreItem(ctx, systemq.RestoreItemParams{Now: ms, ID: itemID}); err != nil {
+					return 0, fmt.Errorf("restore item: %w", err)
+				}
+				delete(idx.deleted, itemID)
+			}
 			if itemID == "" {
 				itemID = s.newID()
 				params := systemq.InsertItemParams{
@@ -590,6 +670,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 				idx.add(itemID, m.sortTitle, m.year, m.tmdb, m.imdb)
 				local.items++
 			}
+			idx.addFolder(itemID, folder)
 			fileID := s.newID()
 			if _, err := q.InsertMediaFile(ctx, systemq.InsertMediaFileParams{
 				ID: fileID, ItemID: itemID, RootID: op.rs.root.ID, RelPath: op.disk.rel,
@@ -615,6 +696,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 			}); err != nil {
 				return 0, fmt.Errorf("update media file: %w", err)
 			}
+			idx.addFolder(op.known.ItemID, folderKey(op.rs.root.ID, op.disk.rel))
 			if op.known.MissingSince.Valid {
 				if err := q.RestoreItem(ctx, systemq.RestoreItemParams{Now: ms, ID: op.known.ItemID}); err != nil {
 					return 0, fmt.Errorf("restore item: %w", err)

@@ -1,15 +1,14 @@
 import { Outlet, useRouter, type ErrorComponentProps } from '@tanstack/react-router';
-import { RouterProvider } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
-import { Button, Notice, Page } from '@/ui';
+import { Button, LinkRouterProvider, Notice, Page } from '@/ui';
 
-/** Lets react-aria links (`href`) navigate through the app router instead of reloading. */
+/** Lets the app's links (`href`) navigate through the app router instead of reloading. */
 export function RootLayout() {
   const router = useRouter();
   return (
-    <RouterProvider navigate={(href) => void router.navigate({ href })}>
+    <LinkRouterProvider navigate={(href) => void router.navigate({ href })}>
       <Outlet />
-    </RouterProvider>
+    </LinkRouterProvider>
   );
 }
 

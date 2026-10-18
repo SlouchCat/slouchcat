@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl } from '@/api/client';
 import { formatPlayerTime } from '@/lib/format';
-import { Button } from '@/ui';
+import { AriaButton } from '@/ui/aria';
 import { SeekBar } from './SeekBar';
 import { useProgressReporter } from './useProgressReporter';
 import styles from './Player.module.css';
@@ -264,7 +264,7 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
       )}
 
       <div className={styles.top}>
-        <Button
+        <AriaButton
           variant="ghost"
           icon="back"
           iconOnly
@@ -289,7 +289,7 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
           }}
         />
         <div className={styles.bar}>
-          <Button
+          <AriaButton
             variant="ghost"
             icon={playing ? 'pause' : 'play'}
             iconOnly
@@ -304,7 +304,7 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
             </span>
           </span>
           <span className={styles.spacer} />
-          <Button
+          <AriaButton
             variant="ghost"
             icon={fullscreen ? 'fullscreenExit' : 'fullscreen'}
             iconOnly

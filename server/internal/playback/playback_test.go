@@ -196,3 +196,60 @@ func TestOpenReadsThroughRoot(t *testing.T) {
 		t.Errorf("vanished file: err = %v, want ErrNotFound", err)
 	}
 }
+
+// A playing event with seq 3 that arrives after the paused event with seq 5 of the same playback
+// is stored but does not move the position; a new playback (seq restarts, later client time) and
+// another device do.
+func TestReportIgnoresLateEventOfSamePlayback(t *testing.T) {
+	f := vistest.New(t)
+	now := time.Date(2026, 10, 18, 20, 0, 0, 0, time.UTC)
+	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return now }))
+	ctx := context.Background()
+	m := f.Rated(12)
+	ev := func(device string, seq, pos int64, state string, client time.Time) model.ProgressEvent {
+		return model.ProgressEvent{MediaFileID: m.FileID, DeviceID: device, PositionMs: pos, DurationMs: vistest.DurationMs,
+			PlayedMs: 10_000, Seq: seq, State: state, ClientTime: client}
+	}
+	t0 := now.Add(-time.Minute)
+	report := func(e model.ProgressEvent) model.Progress {
+		t.Helper()
+		p, err := s.Report(ctx, f.P18, m.ID, e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	report(ev("tv", 4, 1_000_000, "playing", t0.Add(40*time.Second)))
+	if p := report(ev("tv", 5, 1_200_000, "paused", t0.Add(50*time.Second))); p.PositionMs != 1_200_000 {
+		t.Fatalf("paused seq 5 = %+v", p)
+	}
+	now = now.Add(time.Second)
+	if p := report(ev("tv", 3, 900_000, "playing", t0.Add(30*time.Second))); p.PositionMs != 1_200_000 {
+		t.Errorf("late playing seq 3 moved the position: %+v", p)
+	}
+	if n := countEvents(t, f, f.P18.ID, m.ID); n != 3 {
+		t.Errorf("stored %d events, want 3 (late events are kept)", n)
+	}
+	info, err := s.Start(ctx, f.P18, m.ID, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.ResumePositionMs != 1_200_000 {
+		t.Errorf("resume = %d, want the position of seq 5", info.ResumePositionMs)
+	}
+
+	// A new playback on the same device starts at seq 1 with a later client time.
+	now = now.Add(time.Minute)
+	if p := report(ev("tv", 1, 1_300_000, "playing", now)); p.PositionMs != 1_300_000 {
+		t.Errorf("new playback seq 1 = %+v, want applied", p)
+	}
+	// Another device always counts.
+	if p := report(ev("phone", 1, 500_000, "paused", now.Add(-time.Hour))); p.PositionMs != 500_000 {
+		t.Errorf("other device = %+v, want applied", p)
+	}
+	// Without a device id the event always counts.
+	if p := report(ev("", 0, 400_000, "paused", t0)); p.PositionMs != 400_000 {
+		t.Errorf("event without device = %+v, want applied", p)
+	}
+}

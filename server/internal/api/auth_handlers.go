@@ -52,6 +52,7 @@ func (s sessionStarted) visit(w http.ResponseWriter) error {
 	if err := json.NewEncoder(&buf).Encode(toSessionInfo(s.session)); err != nil {
 		return err
 	}
+	w.Header().Del("Set-Cookie") // a cookie refreshed by the middleware gives way to the new one
 	setSessionCookie(w, s.r, s.token, s.session.ExpiresAt)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -67,6 +68,7 @@ func (s sessionStarted) VisitLoginResponse(w http.ResponseWriter) error    { ret
 type loggedOut struct{ r *http.Request }
 
 func (l loggedOut) VisitLogoutResponse(w http.ResponseWriter) error {
+	w.Header().Del("Set-Cookie") // a cookie refreshed by the middleware must not survive the logout
 	clearSessionCookie(w, l.r)
 	w.WriteHeader(http.StatusNoContent)
 	return nil
@@ -104,7 +106,7 @@ func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (g
 		TMDBKey:  deref(body.TmdbApiKey),
 		Library:  model.LibraryRequest{Name: body.Library.Name, Kind: string(body.Library.Kind), Path: body.Library.Path},
 	}
-	session, token, err := s.opts.Admin.RunSetup(ctx, in, userAgent(ctx))
+	session, token, err := s.opts.Admin.RunSetup(model.WithClientIP(ctx, clientIP(requestFrom(ctx))), in, userAgent(ctx))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -113,7 +115,7 @@ func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (g
 
 func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.LoginResponseObject, error) {
 	body := deref(req.Body)
-	session, token, err := s.opts.Auth.Login(ctx, string(body.Email), deref(body.Password), userAgent(ctx))
+	session, token, err := s.opts.Auth.Login(model.WithClientIP(ctx, clientIP(requestFrom(ctx))), string(body.Email), deref(body.Password), userAgent(ctx))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

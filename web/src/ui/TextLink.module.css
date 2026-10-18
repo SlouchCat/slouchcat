@@ -12,6 +12,8 @@
   cursor: pointer;
 }
 
-.link[data-hovered] {
-  color: var(--accent);
+@media (hover: hover) {
+  .link:hover {
+    color: var(--accent);
+  }
 }

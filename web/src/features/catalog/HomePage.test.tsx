@@ -33,6 +33,21 @@ describe('start page', () => {
     expect(headings).toEqual(['Weiterschauen', 'Neu hinzugefügt']);
   });
 
+  it('opens a title through the router; modified clicks keep the browser default', async () => {
+    mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
+    const { router } = renderApp('/');
+    const recentRow = await screen.findByRole('region', { name: 'Neu hinzugefügt' });
+    const card = within(recentRow).getByRole('link', { name: /Heat/ });
+    expect(card).toHaveAttribute('href', `/items/${ids.heat}`);
+
+    // Ctrl+click (new tab) is left to the browser: not prevented, no app navigation.
+    expect(fireEvent.click(card, { ctrlKey: true })).toBe(true);
+    expect(router.state.location.pathname).toBe('/');
+
+    expect(fireEvent.click(card)).toBe(false);
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${ids.heat}`));
+  });
+
   it('prefixes image URLs with the API base and loads only the first row eagerly', async () => {
     mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     const { container } = renderApp('/');
@@ -103,9 +118,11 @@ describe('start page', () => {
     expect(first).toHaveAttribute('width', '1280');
     expect(first).toHaveAttribute('height', '720');
 
-    // After the first image loaded, the next slide preloads with low priority.
+    // Once the first image is painted (two frames after load), the next slide joins with low
+    // priority; never before, as the server may have preloaded the first one already.
     fireEvent.load(first!);
-    expect(images()).toHaveLength(2);
+    expect(images()).toHaveLength(1);
+    await waitFor(() => expect(images()).toHaveLength(2));
     expect(images()[1]).toHaveAttribute(
       'src',
       `/api/v1/items/${ids.alien}/images/backdrop/w780?v=ghi`,

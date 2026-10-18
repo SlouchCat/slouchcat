@@ -23,16 +23,19 @@ import (
 
 // Child-profile contract test (plan 10.2) for every scoped operation of api/openapi.yaml. It runs the
 // real catalog and playback services on the vistest fixture (movies rated 0, 6, 12, 16, 18 and one
-// unrated) with the profiles P18, P6 and P0 and checks:
+// unrated, plus the edge cases: a 0-rated movie in library X, one whose only file is missing and a
+// soft-deleted one) with the profiles P18, P16, P12, P6, P0 and PX (only library 1) and checks:
 //   - negative: no response of a profile contains the id of a title above its rating, nor of the
-//     unrated title (except for P18);
+//     unrated title (except for P18), nor of the missing or deleted title, nor (for PX) of the
+//     title in library X;
 //   - positive: titles exactly on the profile's level appear (off-by-one), for P6 in every home row;
 //   - ID endpoints: an invisible title answers 404 not_found, a visible one succeeds.
 //
 // The operations come from the contract, so a new scoped operation without an entry in
 // profileRegistry fails the test.
 
-// profileAuth resolves the tokens "p18", "p6" and "p0" to sessions of the fixture profiles.
+// profileAuth resolves the tokens "p18", "p16", "p12", "p6", "p0" and "px" to sessions of the
+// fixture profiles.
 type profileAuth struct{ sessions map[string]model.Session }
 
 func (profileAuth) SetupRequired(context.Context) (bool, error) { return false, nil }
@@ -40,11 +43,11 @@ func (profileAuth) Login(context.Context, string, string, string) (model.Session
 	return model.Session{}, "", model.ErrInvalidCredentials
 }
 func (profileAuth) Logout(context.Context, int64) error { return nil }
-func (a profileAuth) Resolve(_ context.Context, token string) (model.Session, error) {
+func (a profileAuth) Resolve(_ context.Context, token string) (model.Session, bool, error) {
 	if s, ok := a.sessions[token]; ok {
-		return s, nil
+		return s, false, nil
 	}
-	return model.Session{}, model.ErrNotFound
+	return model.Session{}, false, model.ErrNotFound
 }
 
 // profileCall is one request of the registry. Path is relative to BasePath; {id} is replaced by
@@ -258,9 +261,10 @@ func newProfileFixture(t *testing.T) profileFixture {
 func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	t.Helper()
 	f := vistest.New(t)
+	f.AddEdgeCases(t)
 	log := vistest.Logger()
 	sessions := map[string]model.Session{}
-	tokens := map[string]model.Profile{"p18": f.P18, "p6": f.P6, "p0": f.P0}
+	tokens := map[string]model.Profile{"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX}
 	i := int64(0)
 	for token, p := range tokens {
 		i++
@@ -345,9 +349,34 @@ func TestContractChildProfiles(t *testing.T) {
 		if len(rows["picks"]) == 0 || rows["picks"][0] != f.Rated(18).ID {
 			t.Errorf("P18 picks = %v, want the 18-rated movie first", rows["picks"])
 		}
+		// Each level sees its own rating and not the next one; PX sees library 1 only. Titles that
+		// are missing or deleted show up nowhere, although they carry progress and a top pick.
+		for _, tc := range []struct {
+			token     string
+			see, hide vistest.Movie
+		}{
+			{"p12", f.Rated(12), f.Rated(16)},
+			{"p16", f.Rated(16), f.Rated(18)},
+			{"px", f.Rated(18), edgeCase(f, func(m vistest.Movie) bool { return m.OtherLibrary })},
+			{"p18", edgeCase(f, func(m vistest.Movie) bool { return m.OtherLibrary }), edgeCase(f, func(m vistest.Movie) bool { return m.Missing })},
+			{"p0", f.Rated(0), edgeCase(f, func(m vistest.Movie) bool { return m.Deleted })},
+		} {
+			_, rows := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", tc.token, "", nil))
+			if !slices.Contains(rows["recent"], tc.see.ID) {
+				t.Errorf("%s recent = %v lacks movie %s", tc.token, rows["recent"], tc.see.Label)
+			}
+			for key, ids := range rows {
+				if slices.Contains(ids, tc.hide.ID) {
+					t.Errorf("%s row %s contains movie %s", tc.token, key, tc.hide.Label)
+				}
+			}
+		}
+		if keys, _ := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "px", "", nil)); slices.Contains(keys, "continue") {
+			t.Errorf("PX rows = %v: progress on invisible titles only, continue must be omitted", keys)
+		}
 	})
 
-	for _, token := range []string{"p0", "p6", "p18"} {
+	for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px"} {
 		profile := pf.tokens[token]
 		t.Run(profile.Name, func(t *testing.T) {
 			for _, op := range names {
@@ -387,13 +416,23 @@ func TestContractChildProfiles(t *testing.T) {
 	}
 
 	// None of the rejected progress reports left a raw event behind.
-	for _, p := range []model.Profile{f.P0, f.P6} {
+	for _, p := range pf.tokens {
 		for _, m := range f.Movies {
 			if !vistest.VisibleTo(p, m) && countProgressEvents(t, f, p.ID, m.ID) != 0 {
 				t.Errorf("%s stored a progress event for invisible movie %s", p.Name, m.Label)
 			}
 		}
 	}
+}
+
+// edgeCase returns the first fixture movie matching pick.
+func edgeCase(f *vistest.Fixture, pick func(vistest.Movie) bool) vistest.Movie {
+	for _, m := range f.Movies {
+		if pick(m) {
+			return m
+		}
+	}
+	panic("contract test: edge case missing from the fixture")
 }
 
 func assertOnlyVisible(t *testing.T, op string, p model.Profile, movies []vistest.Movie, found map[string]bool) {

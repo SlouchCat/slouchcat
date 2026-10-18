@@ -66,6 +66,20 @@ func (s *Service) Home(ctx context.Context, profile model.Profile) ([]model.Home
 	return out, nil
 }
 
+// FirstPick returns the first title of the picks row, the slide the start page's hero carousel
+// shows first, or model.ErrNotFound when the row is empty. The app shell of the start page uses it
+// to preload the hero image (P-10); the order is the one of Home.
+func (s *Service) FirstPick(ctx context.Context, profile model.Profile) (model.ItemSummary, error) {
+	items, err := s.vis.Picks(ctx, visibility.Profile(profile), 1)
+	if err != nil {
+		return model.ItemSummary{}, fmt.Errorf("first pick: %w", err)
+	}
+	if len(items) == 0 {
+		return model.ItemSummary{}, model.ErrNotFound
+	}
+	return items[0], nil
+}
+
 // Item returns the detail of a visible title; media files carry their MIME type for the client's
 // canPlayType check.
 func (s *Service) Item(ctx context.Context, profile model.Profile, itemID string) (model.ItemDetail, error) {

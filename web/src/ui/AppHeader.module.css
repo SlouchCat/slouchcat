@@ -43,9 +43,14 @@
   transition: color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
 }
 
-.navLink[data-hovered],
-.navLink[data-focus-visible] {
+.navLink:focus-visible {
   color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .navLink:hover {
+    color: var(--sc-color-text-primary);
+  }
 }
 
 .navLink[aria-current='page'] {

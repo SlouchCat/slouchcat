@@ -66,22 +66,50 @@ Alle 32 Titel haben TMDB-Texte, FSK-Stufe, Poster und Backdrop.
 
 Lighthouse 12.8.2, Mobile-Voreinstellung, simuliert (1.6 Mbit/s, 150 ms RTT, 4× CPU), Startseite mit
 12 Titeln (TMDB-Poster w500 50–190 kB, Backdrops w780 58–120 kB bzw. w1280 140–400 kB), Server auf
-127.0.0.1, angemeldet. Median aus drei Läufen.
+127.0.0.1 (HTTP/1.1, gzip), angemeldet (Cookie als Kopfzeile). Median aus drei Läufen.
 
-| Messung | vorher | nachher |
-|---|---|---|
-| LCP | 13.0 s | 3.4 s (3.38 / 3.38 / 3.38 s) |
-| FCP | 4.4 s | 2.25 s |
-| TBT / CLS | 32 ms / 0 | 7 ms / 0 |
-| LCP-Phasen (TTFB / Ladeverzug / Ladezeit / Renderverzug) | 0.45 / 10.6 / 0.5 / 1.4 s | 0.45 / 2.25 / 0.02 / 0.66 s |
-| JS beim Start (gzip) | 591 kB ohne Kompression | 190 kB (index 105 kB, ui 85 kB) |
-| LCP-Element | aktives Hero-`<img>` w1280 | aktives Hero-`<img>`, w780 über `srcset` |
+| Messung | vorher | Runde 1 | Runde 2 |
+|---|---|---|---|
+| LCP | 13.0 s | 3.4 s (3.38 / 3.38 / 3.38 s) | 2.57 s (2.568 / 2.570 / 2.568 s) |
+| FCP | 4.4 s | 2.25 s | 1.70 s |
+| TBT / CLS | 32 ms / 0 | 7 ms / 0 | 4 ms / 0 |
+| LCP-Phasen (TTFB / Ladeverzug / Ladezeit / Renderverzug) | 0.45 / 10.6 / 0.5 / 1.4 s | 0.45 / 2.25 / 0.02 / 0.66 s | 0.45 / 0–0.14 / 0–0.24 / 1.74–2.12 s |
+| JS beim Start (gzip) | 591 kB ohne Kompression | 190 kB (index 105 kB, ui 85 kB), 3 Dateien | 156 kB, 1 Datei (Übertragung 158 KiB) |
+| Anfragen vor dem LCP | – | 11 | 7 (Dokument, Sitzung, Startseite, Hero-Bild, JS, CSS, Manifest) |
+| LCP-Element | aktives Hero-`<img>` w1280 | aktives Hero-`<img>`, w780 über `srcset` | unverändert |
 
-Massnahmen: gzip für App und JSON, `/auth/session` und `/home` parallel (`/setup` nur ohne Sitzung),
-Backdrop w780 für Telefone, nur das aktive Karussellbild sofort, Poster erst nach dem gezeichneten
-Hero-Bild. Ziel P-10 (< 2.5 s) noch nicht erreicht: Der Ladeverzug ist die Kette HTML → 190 kB JS →
-Ausführung (4× CPU) → `/home` → Bild. Ein Prototyp mit `Link: rel=preload` für das Hero-Bild im Antwortkopf
-von `/` (Server kennt Sitzung und Startseite) ergab 2.9 s; den Rest bestimmt die JS-Menge und -Ausführung.
+Runde 2 (Läufe `lighthouse-home-3-run{1,2,3}.json`):
+
+- **Vorladen durch den Server.** `GET /` mit gültiger Sitzung trägt `Link: rel=preload` für
+  `/api/v1/auth/session` und `/api/v1/home` (`as=fetch; crossorigin`) und für das erste Karussellbild der
+  Empfehlungen des Profils (`as=image`, gleiche `imagesrcset`/`imagesizes` wie das Karussell,
+  `fetchpriority=high`; `api/preload.go`, `discover.Service.FirstPick` über die Sichtbarkeitsschicht).
+  Lesende API-Aufrufe gehen ohne den CSRF-Kopf, damit der Browser die vorgeladenen Antworten nimmt
+  (geprüft: je eine Anfrage für Sitzung und Startseite). Damit beginnen Bild und Daten mit dem JS statt
+  danach: der Ladeverzug fällt von 2.25 s auf 0.
+- **Kein react-aria auf dem Startpfad.** Stöberseiten nutzen schlichte `<button>`/`<a>` (`@/ui`),
+  Formulare, Dialoge und Player `@/ui/aria`; die Anmeldung wird bei Bedarf geladen. −32 kB gzip.
+- **Eine JS- und eine CSS-Datei** für alles, was die Startseite statisch lädt (rolldown
+  `codeSplitting`-Gruppe `$initial`), SW-Registrierung inline statt als blockierendes `registerSW.js`
+  (FCP −0.3 s).
+- Das zweite Karussellbild startet erst, wenn das erste gezeichnet ist (es ist vorgeladen und sonst vor
+  dem Zeichnen geladen).
+
+Geprüft und verworfen: Zeilen einen Frame nach dem Hero rendern (LCP unverändert, CPU ist nicht der
+Engpass), react-dom als eigene parallele Datei (2.70 s), terser statt oxc (+0.9 kB), nur die aktive
+Sprache laden (Lighthouse-Browser `en`, Profil `de`: beide nötig, ein Nachladen kostete eine Anfrage),
+lodash-es von norigin ersetzen (−7.6 kB gzip, siehe unten: unter der Schwelle).
+
+**P-10 (< 2.5 s) knapp verfehlt (2.57 s).** Laut Lantern-Simulation (Trace dieses Stands) endet das
+Dokument bei 0.60 s; danach teilen sich JS (158 KiB) und Hero-Bild (114 KiB) die Leitung: Bild fertig bei
+2.25 s, JS bei 2.55 s, der LCP folgt dem JS-Ende nach rund 20 ms CPU. Dominant ist also die Ladezeit des
+Start-JS im Wettbewerb mit dem Bild (im Lighthouse-Bericht als „Renderverzug“ ausgewiesen). Lantern
+rechnet in RTT-Stufen: erst rund 30 kB weniger JS (oder 40 kB weniger Bild) senken den LCP um eine
+Stufe auf etwa 2.42 s; 7–27 kB weniger ändern nichts. Nächster Schritt: das erste Hero-Bild serverseitig
+in die App-Hülle von `/` schreiben (ein `<img>` mit denselben Attributen, das React übernimmt), damit der
+LCP nicht mehr auf das JS wartet; die Simulation erwartet dann ≈ 2.25 s (Bildende). Hinter Caddy mit
+HTTPS (K-8) kommen HTTP/2 und Brotli hinzu (Chrome sendet `br` nur über HTTPS), was das JS um rund
+20 % verkleinert; das ist hier im HTTP-Labor nicht messbar.
 
 ## 5. Leerlauf
 

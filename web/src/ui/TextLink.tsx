@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-aria-components';
+import { AppLink } from './AppLink';
 import { Icon } from './Icon';
 import styles from './TextLink.module.css';
 
@@ -13,7 +13,7 @@ interface TextLinkProps {
 /** Inline text link. */
 export function TextLink({ href, children, external = false }: TextLinkProps) {
   return (
-    <Link
+    <AppLink
       href={href}
       className={styles.link}
       target={external ? '_blank' : undefined}
@@ -21,6 +21,6 @@ export function TextLink({ href, children, external = false }: TextLinkProps) {
     >
       {children}
       {external && <Icon name="external" size="sm" />}
-    </Link>
+    </AppLink>
   );
 }

@@ -742,6 +742,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     login: {
@@ -789,6 +799,16 @@ export interface operations {
             /** @description Validation failed (`validation_failed`). */
             422: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {

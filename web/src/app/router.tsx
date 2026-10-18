@@ -7,7 +7,6 @@ import {
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
-import { LoginPage } from '@/features/auth/LoginPage';
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
@@ -51,7 +50,7 @@ const loginRoute = createRoute({
     const session = await context.queryClient.ensureQueryData(sessionQuery);
     if (session) throw redirect({ to: '/' });
   },
-  component: LoginPage,
+  component: lazyRouteComponent(() => import('@/features/auth/LoginPage'), 'LoginPage'),
 });
 
 /** Everything behind the login. */
@@ -97,7 +96,8 @@ const playRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/player/PlayerPage'), 'PlayerPage'),
 });
 
-// Home, detail and login are in the main bundle (LCP, P-10); rarely used pages load on demand.
+// Home and detail are in the main bundle (LCP, P-10); the form pages (setup, login, admin) and the
+// player load on demand, and with them react-aria.
 export const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,

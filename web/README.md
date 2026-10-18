@@ -1,7 +1,7 @@
 # @slouchcat/web
 
 React-PWA von Slouchcat: Vite, React 19, TypeScript (strict), `@tanstack/react-router` (Routen im Code),
-`@tanstack/react-query`, `i18next`/`react-i18next`, `react-aria-components` (Formulare, Knöpfe, Dialoge),
+`@tanstack/react-query`, `i18next`/`react-i18next`, `react-aria-components` (Formulare, Dialoge, Player-Knöpfe),
 `@noriginmedia/norigin-spatial-navigation` (Pfeiltasten wie mit einer Fernbedienung), `vite-plugin-pwa`,
 Playwright für die Tastatursuite.
 
@@ -62,11 +62,22 @@ scripts/icons.mjs     PWA-Icons aus icon.svg
 - **Fortschritt:** alle 10 s während der Wiedergabe, bei Pause, am Ende, beim Verstecken der Seite und
   beim Verlassen (die letzten beiden mit `keepalive`). `seq` steigt je Wiedergabe, `playedMs` zählt nur
   tatsächlich abgespielte Zeit seit dem letzten Ereignis.
-- **Bundles:** Start, Detail und Anmeldung liegen im Hauptbundle (LCP, P-10); Assistent, Player und
-  Admin werden bei Bedarf geladen. Der Server liefert App und JSON mit gzip aus.
+- **Bundles:** Start und Detail liegen im Hauptbundle (LCP, P-10); Anmeldung, Assistent, Player und
+  Admin werden bei Bedarf geladen und mit ihnen react-aria. Die Stöberseiten (Start, Detail, Kopfzeile,
+  Fehlerseiten) nutzen schlichte `<button>`/`<a>` aus `@/ui` (`Button`, `ButtonLink`, `Spatial*`,
+  `PosterCard`, `TextLink`, `ProgressBar`); `AppLink` übergibt interne Pfade dem Router. Formulare,
+  Dialoge und der Player nehmen `AriaButton`, `TextField`, `RadioGroup` und `ConfirmDialog` aus
+  `@/ui/aria` (ESLint lässt in Features nur `@/ui` und `@/ui/aria` zu). Hover, Fokus und Druck kommen
+  aus `:hover` (nur bei `hover: hover`), `:focus-visible` und `:active`. Der Server liefert App und
+  JSON mit gzip aus.
+- **Vorladen durch den Server (P-10):** Fragt ein angemeldeter Browser `/` an, trägt die App-Hülle
+  `Link: rel=preload` für `/auth/session`, `/home` (`as=fetch; crossorigin`) und das erste
+  Karussellbild (gleiche URLs, `imagesrcset` und `imagesizes` wie im Karussell). Lesende API-Aufrufe
+  gehen deshalb ohne den CSRF-Kopf `X-Requested-With` (nur schreibende brauchen ihn), sonst nähme der
+  Browser die vorgeladenen Antworten nicht.
 - **Bilder auf der Startseite (P-10):** Im Karussell steht zuerst nur das Bild der aktiven Folie im
   Dokument, `loading="eager"` und `fetchpriority="high"`, als `srcset` aus `backdropSmall` (w780) und
-  `backdrop` (w1280) mit `sizes="100vw"`. Nach dessen `load` kommt das Bild der nächsten Folie dazu (lazy,
+  `backdrop` (w1280) mit `sizes="100vw"`. Ist es gezeichnet, kommt das Bild der nächsten Folie dazu (lazy,
   niedrige Priorität); gezeigte Folien bleiben. Die Poster kommen erst ins Dokument, wenn das erste
   Karussellbild geladen und gezeichnet ist (oder fehlschlug): Über HTTP/1.1 teilen sich sonst bis zu sechs
   Verbindungen die Bandbreite, und das Hero-Bild kommt um Sekunden später. Danach laden die ersten sechs

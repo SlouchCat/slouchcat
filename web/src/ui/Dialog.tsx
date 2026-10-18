@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
-import { Button } from './Button';
+import { AriaButton } from './AriaButton';
 import styles from './Dialog.module.css';
 
 interface ConfirmDialogProps {
@@ -40,10 +40,10 @@ export function ConfirmDialog({
                 </Heading>
                 <p className={styles.body}>{body}</p>
                 <div className={styles.actions}>
-                  <Button variant="ghost" onPress={close}>
+                  <AriaButton variant="ghost" onPress={close}>
                     {cancelLabel}
-                  </Button>
-                  <Button
+                  </AriaButton>
+                  <AriaButton
                     variant={tone}
                     autoFocus
                     onPress={() => {
@@ -52,7 +52,7 @@ export function ConfirmDialog({
                     }}
                   >
                     {confirmLabel}
-                  </Button>
+                  </AriaButton>
                 </div>
               </>
             )}

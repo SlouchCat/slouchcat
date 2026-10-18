@@ -23,7 +23,8 @@ export default defineConfig({
     themeColorMeta(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Inline registration: no extra, parser-blocking script request before the first paint (P-10).
+      injectRegister: 'inline',
       // The glob below already precaches icons; avoid listing them twice.
       includeManifestIcons: false,
       manifest: {
@@ -89,5 +90,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rolldownOptions: {
+      output: {
+        // Everything the start page loads statically goes into one JS and one CSS file instead of
+        // an entry, a shared chunk and the runtime: fewer requests before the hero (P-10). The
+        // form pages, the player and react-aria stay separate chunks.
+        codeSplitting: { groups: [{ name: 'index', tags: ['$initial'] }] },
+      },
+    },
   },
 });

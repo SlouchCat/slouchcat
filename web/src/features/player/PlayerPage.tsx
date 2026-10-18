@@ -9,7 +9,8 @@ import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
-import { Button, Notice } from '@/ui';
+import { Notice } from '@/ui';
+import { AriaButton } from '@/ui/aria';
 import { VideoPlayer } from './VideoPlayer';
 import styles from './Player.module.css';
 
@@ -110,9 +111,9 @@ function PlayerMessage({ children, onBack }: { children: ReactNode; onBack: () =
       <div className={styles.messageBox}>
         {children}
         <div>
-          <Button variant="secondary" icon="back" onPress={onBack} autoFocus>
+          <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
             {t('common.back')}
-          </Button>
+          </AriaButton>
         </div>
       </div>
     </main>

@@ -62,7 +62,7 @@ function imageSource(slide: HeroSlide) {
  * right on the last button page through the slides; the buttons keep focus.
  *
  * Artwork loads on demand (P-10): only the active slide's image is in the document at first, eager
- * and with high priority. Once it has loaded, the next slide's image joins (lazy, low priority) so
+ * and with high priority. Once it is on screen, the next slide's image joins (lazy, low priority) so
  * the crossfade has it ready; every slide that was shown stays. The stacked images all sit in the
  * viewport, so `loading="lazy"` alone would not hold the others back.
  */
@@ -151,9 +151,15 @@ export function HeroCarousel({
               onLoad={
                 active
                   ? () => {
-                      setActiveLoaded(true);
-                      // Two frames: the one that paints the image, then the next.
-                      requestAnimationFrame(() => requestAnimationFrame(() => onArtShown?.()));
+                      // Two frames: the one that paints the image, then the next. The next slide
+                      // waits for them too: the server preloads the first image, so it may be
+                      // loaded before it is painted.
+                      requestAnimationFrame(() =>
+                        requestAnimationFrame(() => {
+                          setActiveLoaded(true);
+                          onArtShown?.();
+                        }),
+                      );
                     }
                   : undefined
               }

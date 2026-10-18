@@ -439,6 +439,69 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 	return items, nil
 }
 
+const listRecentlyDeletedItemsByLibrary = `-- name: ListRecentlyDeletedItemsByLibrary :many
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at FROM items
+WHERE library_id = ?1 AND deleted_at IS NOT NULL AND deleted_at >= ?2
+ORDER BY deleted_at DESC, id
+`
+
+type ListRecentlyDeletedItemsByLibraryParams struct {
+	LibraryID int64
+	Since     sql.NullInt64
+}
+
+// Soft-deleted titles that a re-downloaded file may bring back by provider id (plan 3.2).
+func (q *Queries) ListRecentlyDeletedItemsByLibrary(ctx context.Context, arg ListRecentlyDeletedItemsByLibraryParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentlyDeletedItemsByLibrary, arg.LibraryID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const restoreItem = `-- name: RestoreItem :exec
 UPDATE items SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NOT NULL
 `
@@ -493,8 +556,9 @@ const softDeleteItemsMissingSince = `-- name: SoftDeleteItemsMissingSince :execr
 UPDATE items SET deleted_at = ?1, updated_at = ?1
 WHERE deleted_at IS NULL
   AND kind IN ('movie', 'episode', 'extra', 'audiobook')
-  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL)
-  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since < ?2)
+  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id)
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m
+                  WHERE m.item_id = items.id AND (m.missing_since IS NULL OR m.missing_since >= ?2))
 `
 
 type SoftDeleteItemsMissingSinceParams struct {

@@ -14,6 +14,12 @@ SELECT * FROM items WHERE id = @id;
 -- name: ListItemsByLibrary :many
 SELECT * FROM items WHERE library_id = @library_id AND deleted_at IS NULL ORDER BY id;
 
+-- name: ListRecentlyDeletedItemsByLibrary :many
+-- Soft-deleted titles that a re-downloaded file may bring back by provider id (plan 3.2).
+SELECT * FROM items
+WHERE library_id = @library_id AND deleted_at IS NOT NULL AND deleted_at >= @since
+ORDER BY deleted_at DESC, id;
+
 -- name: CountLibraryItems :one
 SELECT count(*) FROM items WHERE library_id = @library_id AND deleted_at IS NULL;
 
@@ -42,8 +48,9 @@ UPDATE media_files SET missing_since = COALESCE(missing_since, @now), updated_at
 UPDATE items SET deleted_at = @now, updated_at = @now
 WHERE deleted_at IS NULL
   AND kind IN ('movie', 'episode', 'extra', 'audiobook')
-  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL)
-  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since < @before);
+  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id)
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m
+                  WHERE m.item_id = items.id AND (m.missing_since IS NULL OR m.missing_since >= @before));
 
 -- name: UpdateMediaFileLocation :exec
 -- Same file at a new path (rename, move), changed in place, or back after missing_since.

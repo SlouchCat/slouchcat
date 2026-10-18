@@ -9,7 +9,8 @@ import { formErrors } from '@/api/errors';
 import { applyProfileLanguage, sessionQuery } from '@/app/session';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Button, Logo, Notice, Page, Panel, Stack, Text, TextField } from '@/ui';
+import { Logo, Notice, Page, Panel, Stack, Text } from '@/ui';
+import { AriaButton, TextField } from '@/ui/aria';
 import { ServerStatus } from '@/features/system/ServerStatus';
 import styles from './AuthPage.module.css';
 
@@ -68,9 +69,9 @@ export function LoginPage() {
               isRequired
               validate={required}
             />
-            <Button type="submit" variant="primary" size="lg" block isPending={login.isPending}>
+            <AriaButton type="submit" variant="primary" size="lg" block isPending={login.isPending}>
               {login.isPending ? t('login.submitting') : t('login.submit')}
-            </Button>
+            </AriaButton>
           </Form>
         </Panel>
         <ServerStatus />

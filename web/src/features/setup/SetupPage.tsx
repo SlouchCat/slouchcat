@@ -11,18 +11,8 @@ import { ServerStatus } from '@/features/system/ServerStatus';
 import { supportedLanguages, type Language } from '@/i18n';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import {
-  Button,
-  Logo,
-  Notice,
-  Page,
-  Panel,
-  RadioGroup,
-  Stack,
-  Text,
-  TextField,
-  TextLink,
-} from '@/ui';
+import { Logo, Notice, Page, Panel, Stack, Text, TextLink } from '@/ui';
+import { AriaButton, RadioGroup, TextField } from '@/ui/aria';
 import styles from './SetupPage.module.css';
 
 const TMDB_KEY_URL = 'https://www.themoviedb.org/settings/api';
@@ -219,9 +209,9 @@ export function SetupPage() {
           </Step>
 
           {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-          <Button type="submit" variant="primary" size="lg" block isPending={setup.isPending}>
+          <AriaButton type="submit" variant="primary" size="lg" block isPending={setup.isPending}>
             {setup.isPending ? t('setup.submitting') : t('setup.submit')}
-          </Button>
+          </AriaButton>
         </Form>
         <ServerStatus />
       </Stack>

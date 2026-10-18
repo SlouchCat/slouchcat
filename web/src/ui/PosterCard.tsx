@@ -1,4 +1,4 @@
-import { Link } from 'react-aria-components';
+import { AppLink } from './AppLink';
 import styles from './PosterCard.module.css';
 import { PosterFallback } from './PosterFallback';
 import { ProgressBar } from './ProgressBar';
@@ -36,7 +36,7 @@ export function PosterCard({
 }: PosterCardProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
   return (
-    <Link ref={ref} href={href} className={styles.card} onFocus={onFocus}>
+    <AppLink ref={ref} href={href} className={styles.card} onFocus={onFocus}>
       <span className={styles.frame}>
         {deferImage ? null : posterUrl ? (
           <img
@@ -62,6 +62,6 @@ export function PosterCard({
         <span className={styles.title}>{title}</span>
         {caption && <span className={styles.caption}>{caption}</span>}
       </span>
-    </Link>
+    </AppLink>
   );
 }

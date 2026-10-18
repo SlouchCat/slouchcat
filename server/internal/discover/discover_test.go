@@ -43,6 +43,32 @@ func TestHomeRowsInOrderWithoutEmptyRows(t *testing.T) {
 	}
 }
 
+func TestFirstPickIsFirstHeroSlide(t *testing.T) {
+	f := vistest.New(t)
+	s := New(f.DB, f.CacheDir, vistest.Logger())
+	ctx := context.Background()
+	for _, p := range []model.Profile{f.P18, f.P6, f.P0} {
+		rows, err := s.Home(ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) == 0 || rows[0].Key != RowPicks {
+			t.Fatalf("%s: rows = %v", p.Name, rowKeys(rows))
+		}
+		first, err := s.FirstPick(ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := rows[0].Items[0]; first.ID != want.ID || first.BackdropSmall == nil || first.Backdrop == nil {
+			t.Errorf("%s: first pick = %+v, want %s with both backdrops", p.Name, first, want.ID)
+		}
+	}
+	// A profile without visible titles has no picks.
+	if _, err := s.FirstPick(ctx, model.Profile{ID: 9999, Language: "de"}); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("profile without titles: err = %v", err)
+	}
+}
+
 func TestItemCarriesMimeType(t *testing.T) {
 	f := vistest.New(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())

@@ -2,7 +2,8 @@
 // under /api/v1 (contract api/openapi.yaml), the binary handlers for images, media streams and the
 // spike download, RFC 9457 problem responses, request IDs, request logging, panic recovery, the
 // CSRF header rule and the session middleware that enforces x-visibility per route. Everything
-// outside /api/v1 goes to the web app handler. The web app and the JSON routes are gzipped
+// outside /api/v1 goes to the web app handler; the start page's app shell carries a preload
+// header for the hero image (preload.go). The web app and the JSON routes are gzipped
 // (compressText); the binary routes are not.
 package api
 
@@ -70,7 +71,7 @@ func NewHandler(o Options) http.Handler {
 	s := &server{opts: o, p: p}
 
 	r := chi.NewRouter()
-	r.Use(requestID, requestLog(o.Logger), p.recoverer)
+	r.Use(requestID, requestLog(o.Logger), p.recoverer, MaxBody(MaxBodyBytes))
 	r.Route(BasePath, func(r chi.Router) {
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 			p.write(w, r, http.StatusNotFound, "not_found", "No API route matches this path.")
@@ -92,7 +93,10 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(binaryStreamPath, s.getItemStream)
 		r.With(authorize).Get(binarySpikePath, s.getSpikeFile)
 	})
-	r.Handle("/*", compressText(o.Web))
+	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
+	// the start page's app shell then carries a preload header for its image (preload.go).
+	picker, _ := o.Catalog.(heroPicker)
+	r.Handle("/*", compressText(startPagePreload(o.Auth, picker, o.Logger)(o.Web)))
 	return r
 }
 
