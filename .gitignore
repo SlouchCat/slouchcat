@@ -1,5 +1,22 @@
 # oh-my-claudecode runtime state
 .omc/
 
-# Claude Code local permissions
+# Claude Code local permissions and worktrees
 .claude/settings.local.json
+.claude/worktrees/
+
+# Dependencies and build output
+node_modules/
+web/dist/
+packages/*/dist/
+server/bin/
+server/internal/webassets/dist/*
+!server/internal/webassets/dist/.gitkeep
+coverage/
+*.out
+
+# Local runtime data
+/config/
+/cache/
+testdata/media/
+.env

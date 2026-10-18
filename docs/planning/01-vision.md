@@ -2,7 +2,7 @@
 
 Stand: 18. Oktober 2026, Ergebnis des Deep Interviews (19 Runden, Restmehrdeutigkeit 10 %).
 Die vollständige Spezifikation mit allen Abnahmekriterien liegt unter
-`docs/planning/02-anforderungen-interview.md` (Arbeitskopie für OMC: `.omc/specs/deep-interview-slouchcat-vision.md`)
+`docs/spec/01-anforderungen-v1.md` (Arbeitskopie für OMC: `.omc/specs/deep-interview-slouchcat-vision.md`)
 und wird in der Planungsphase in `docs/spec/` überführt.
 
 ## Was Slouchcat ist
