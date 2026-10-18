@@ -5,6 +5,7 @@
 //	slouchcat [serve] [flags]     run the server (default)
 //	slouchcat healthcheck [flags] exit 0 when the local server answers GET /api/v1/healthz with 200
 //	slouchcat dump [flags]        write a replayable SQL snapshot of the database to stdout
+//	slouchcat watchbench --root DIR [--passes N] [--inotify]  measure change detection of a root
 //
 // The healthcheck subcommand serves the container HEALTHCHECK, so the image needs no curl. dump
 // produces the frozen milestone states in testdata/db (plan 6.2 point 4). All subcommands read the
@@ -59,6 +60,9 @@ func run(args []string) int {
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		cmd, args = args[0], args[1:]
 	}
+	if cmd == "watchbench" {
+		return watchbench(args) // own flags, no server configuration
+	}
 	cfg, err := config.Load(args, os.Getenv)
 	if errors.Is(err, flag.ErrHelp) {
 		fmt.Fprintln(os.Stderr, "usage: slouchcat [serve|healthcheck] [flags]")
@@ -75,6 +79,8 @@ func run(args []string) int {
 		return healthcheck(cfg)
 	case "dump":
 		return dump(cfg)
+	case "watchbench":
+		return watchbench(args)
 	default:
 		fmt.Fprintf(os.Stderr, "slouchcat: unknown command %q (want serve, healthcheck or dump)\n", cmd)
 		return 2
