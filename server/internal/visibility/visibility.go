@@ -218,7 +218,7 @@ type ImageLocation struct {
 }
 
 // Image returns the stored image of a visible title by kind (poster, backdrop) and size (w500,
-// w1280).
+// w780, w1280).
 func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string) (ImageLocation, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {

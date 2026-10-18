@@ -5,6 +5,9 @@ import { api, request } from '@/api/client';
 export const homeQuery = queryOptions({
   queryKey: ['home'],
   queryFn: ({ signal }): Promise<HomePage> => request(api.GET('/home', { signal })),
+  // The router guard prefetches the start page; the page mounting right after must not ask again.
+  // The player invalidates it after playback.
+  staleTime: 30_000,
 });
 
 export const itemQuery = (id: string) =>

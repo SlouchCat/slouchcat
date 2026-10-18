@@ -13,8 +13,10 @@ interface PosterCardProps {
   posterUrl?: string;
   /** Watch progress 0 … 100 with its accessible label. */
   progress?: { percent: number; label: string };
-  /** Load the image eagerly (first visible row). */
+  /** Load the image eagerly (the first cards of the first row); every other poster is lazy. */
   eager?: boolean;
+  /** Keep the image out of the document for now (the hero artwork goes first); the frame stays. */
+  deferImage?: boolean;
   focusKey?: string;
 }
 
@@ -29,13 +31,14 @@ export function PosterCard({
   posterUrl,
   progress,
   eager = false,
+  deferImage = false,
   focusKey,
 }: PosterCardProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
   return (
     <Link ref={ref} href={href} className={styles.card} onFocus={onFocus}>
       <span className={styles.frame}>
-        {posterUrl ? (
+        {deferImage ? null : posterUrl ? (
           <img
             className={styles.image}
             src={posterUrl}

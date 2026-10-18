@@ -10,8 +10,9 @@ import (
 
 // Image sizes stored in M1a (TMDB sizes, kept unchanged); summaries prefer them.
 const (
-	posterSize   = "w500"
-	backdropSize = "w1280"
+	posterSize        = "w500"
+	backdropSize      = "w1280"
+	backdropSmallSize = "w780"
 )
 
 // fallbackLang is the second choice for texts after the profile language (B-3).
@@ -92,6 +93,16 @@ func pickImage(rows []scopedq.Image, kind, size string) *model.Image {
 	return &model.Image{Kind: chosen.Kind, Size: chosen.Size, ContentHash: chosen.ContentHash, Width: int(chosen.Width), Height: int(chosen.Height)}
 }
 
+// exactImage returns the image of kind in exactly the given size, or nil.
+func exactImage(rows []scopedq.Image, kind, size string) *model.Image {
+	for i := range rows {
+		if rows[i].Kind == kind && rows[i].Size == size {
+			return &model.Image{Kind: kind, Size: size, ContentHash: rows[i].ContentHash, Width: int(rows[i].Width), Height: int(rows[i].Height)}
+		}
+	}
+	return nil
+}
+
 func summarize(it scopedq.Item, ex extras, lang string) model.ItemSummary {
 	s := model.ItemSummary{
 		ID:       it.ID,
@@ -99,6 +110,8 @@ func summarize(it scopedq.Item, ex extras, lang string) model.ItemSummary {
 		Title:    pickTexts(ex.texts[it.ID], lang, it.Title).title,
 		Poster:   pickImage(ex.images[it.ID], "poster", posterSize),
 		Backdrop: pickImage(ex.images[it.ID], "backdrop", backdropSize),
+		// The small backdrop only in its own size: it is the phone variant of Backdrop.
+		BackdropSmall: exactImage(ex.images[it.ID], "backdrop", backdropSmallSize),
 	}
 	if it.Year.Valid {
 		y := int(it.Year.Int64)

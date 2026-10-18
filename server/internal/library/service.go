@@ -45,6 +45,8 @@ type Service struct {
 	probe transcode.Runner
 	log   *slog.Logger
 	now   func() time.Time
+	// imageCheck queues image.fetch for titles with incomplete images after a scan (optional).
+	imageCheck func(ctx context.Context, libraryID int64) (int, error)
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it
@@ -59,6 +61,12 @@ type Option func(*Service)
 // WithClock replaces time.Now, for tests.
 func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
+}
+
+// WithImageCheck runs check after every successful scan of a library; metadata's
+// QueueIncompleteImages queues image.fetch for titles whose stored images miss a size or a file.
+func WithImageCheck(check func(ctx context.Context, libraryID int64) (int, error)) Option {
+	return func(s *Service) { s.imageCheck = check }
 }
 
 // New returns the library service. queue must work on db.Write.

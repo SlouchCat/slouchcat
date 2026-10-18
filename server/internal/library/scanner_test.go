@@ -1,10 +1,12 @@
 package library
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -420,6 +422,36 @@ func TestSecondVersionAttachesToSameItem(t *testing.T) {
 	}
 	if n := e.jobCount(JobMetadataMatch); n != 1 {
 		t.Errorf("metadata.match jobs = %d, want 1", n)
+	}
+}
+
+func TestScanRunsImageCheck(t *testing.T) {
+	e := newEnv(t)
+	var checked []int64
+	fail := false
+	WithImageCheck(func(_ context.Context, libraryID int64) (int, error) {
+		checked = append(checked, libraryID)
+		if fail {
+			return 0, errors.New("cache unreadable")
+		}
+		return 1, nil
+	})(e.svc)
+	dir := tree(t, twentyMovies[:2])
+	lib := e.create(dir)
+	if got := e.scan(lib.ID); got.Scan.State != "done" || !slices.Equal(checked, []int64{lib.ID}) {
+		t.Fatalf("after scan: state %q, checked %v", got.Scan.State, checked)
+	}
+	// A failing check is logged; the scan stays done.
+	fail = true
+	if got := e.scan(lib.ID); got.Scan.State != "done" || len(checked) != 2 {
+		t.Fatalf("failing check: state %q, checked %v", got.Scan.State, checked)
+	}
+	// An aborted scan changes nothing and checks nothing.
+	if err := os.RemoveAll(dir); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.scan(lib.ID); got.Scan.State != "aborted" || len(checked) != 2 {
+		t.Fatalf("aborted scan: state %q, checked %v", got.Scan.State, checked)
 	}
 }
 

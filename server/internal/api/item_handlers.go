@@ -146,10 +146,11 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 	return gen.ReportProgress200JSONResponse(toProgress(p)), nil
 }
 
-// Image kinds and sizes of the contract (M1a stores TMDB images unchanged in one size each).
+// Image kinds and sizes of the contract (M1a stores TMDB images unchanged: posters in w500,
+// backdrops in w780 and w1280).
 var (
 	imageKinds = map[string]bool{"poster": true, "backdrop": true}
-	imageSizes = map[string]bool{"w500": true, "w1280": true}
+	imageSizes = map[string]bool{"w500": true, "w780": true, "w1280": true}
 )
 
 // getItemImage serves a poster or backdrop with scope (binary endpoint, CLAUDE.md rule 6). The
@@ -215,7 +216,11 @@ func toItemRef(it model.ItemSummary) gen.ItemRef {
 		Title:          it.Title,
 		Year:           it.Year,
 		RuntimeMinutes: it.RuntimeMinutes,
-		Images:         gen.ItemImages{Poster: toImageRef(it.ID, it.Poster), Backdrop: toImageRef(it.ID, it.Backdrop)},
+		Images: gen.ItemImages{
+			Poster:        toImageRef(it.ID, it.Poster),
+			Backdrop:      toImageRef(it.ID, it.Backdrop),
+			BackdropSmall: toImageRef(it.ID, it.BackdropSmall),
+		},
 	}
 	if it.Rating != nil {
 		r := gen.Rating(*it.Rating)

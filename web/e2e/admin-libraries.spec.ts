@@ -52,8 +52,12 @@ test('an invalid path is reported at the field; Enter submits from the field', a
 });
 
 test('browser back leaves the page to the start page', async ({ page }) => {
+  // Both pages must have rendered before going back: Firefox aborts a history navigation that
+  // races the router's own history update on load (page.goBack: NS_ERROR_FAILURE).
   await page.goto('/');
+  await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
   await page.goto('/admin/libraries');
+  await expect(page.getByRole('article', { name: 'Filme' })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
 });

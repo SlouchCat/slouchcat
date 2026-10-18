@@ -2,6 +2,7 @@ import type { HomeRow, ItemRef } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -33,6 +34,9 @@ const rowTitleKey = {
   recent: 'home.rows.recent',
   picks: 'home.picks',
 } as const;
+
+// Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.
+const EAGER_POSTERS = 6;
 
 const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
 const imageUrl = (image: { url: string } | undefined) => (image ? apiUrl(image.url) : undefined);
@@ -69,6 +73,9 @@ export function HomePage() {
   useDocumentTitle(t('home.title'));
   const { session } = authed.useRouteContext();
   const home = useQuery(homeQuery);
+  // Posters wait until the hero artwork is on screen: on a slow link they would share its
+  // bandwidth (P-10). The frames keep their size, so nothing shifts.
+  const [heroShown, setHeroShown] = useState(false);
 
   if (home.isPending) {
     return (
@@ -112,11 +119,17 @@ export function HomePage() {
     id: item.id,
     title: item.title,
     backdropUrl: imageUrl(item.images.backdrop),
+    backdropSmallUrl: imageUrl(item.images.backdropSmall),
     posterUrl: imageUrl(item.images.poster),
     meta: <ItemMeta item={item} />,
     playHref: paths.play(item.id),
     detailsHref: paths.item(item.id),
   }));
+
+  const firstSlide = slides[0];
+  const heroHasArt = Boolean(
+    firstSlide && (firstSlide.backdropUrl ?? firstSlide.backdropSmallUrl ?? firstSlide.posterUrl),
+  );
 
   return (
     <SpatialPage defaultFocusKey={defaultFocusKey}>
@@ -128,13 +141,14 @@ export function HomePage() {
             slides={slides}
             playLabel={t('item.play')}
             detailsLabel={t('item.details')}
+            onArtShown={() => setHeroShown(true)}
           />
         )}
         {lists.length > 0 && (
           <div className={`${styles.rows} ${picks ? styles.underHero : styles.padded}`}>
             {lists.map((row, rowIndex) => (
               <Row key={row.key} title={t(rowTitleKey[row.key])} focusKey={`row-${row.key}`}>
-                {row.items.map((item) => (
+                {row.items.map((item, itemIndex) => (
                   <PosterCard
                     key={item.id}
                     focusKey={cardKey(row, item)}
@@ -142,7 +156,8 @@ export function HomePage() {
                     title={item.title}
                     caption={cardCaption(t, row, item)}
                     posterUrl={imageUrl(item.images.poster)}
-                    eager={rowIndex === 0}
+                    eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
+                    deferImage={heroHasArt && !heroShown}
                     progress={
                       row.key === 'continue' && item.progress
                         ? {

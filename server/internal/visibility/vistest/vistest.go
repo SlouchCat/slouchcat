@@ -1,7 +1,7 @@
 // Package vistest builds the child-profile fixture of plan section 10.2 for tests: a temporary
 // database with one movie library, movies rated FSK 0, 6, 12, 16, 18 and one without rating, each
-// with a real media file, texts in de and en, a stored poster and backdrop, progress rows and top
-// picks, plus the profiles P18, P6 and P0 of one account.
+// with a real media file, texts in de and en, a stored poster and backdrop (w1280 and w780),
+// progress rows and top picks, plus the profiles P18, P6 and P0 of one account.
 //
 // It lives below visibility because seeding writes the title tables directly, which only the
 // packages allowed by the itemsaccess analyzer may do. Only tests import it.
@@ -36,14 +36,15 @@ const FileSize = 64 << 10
 
 // Movie is one fixture title.
 type Movie struct {
-	ID          string
-	Rating      *int // nil = unrated
-	Label       string
-	FileID      string
-	RelPath     string // relative to Fixture.MediaDir
-	Content     []byte
-	PosterRel   string // relative to Fixture.CacheDir
-	BackdropRel string
+	ID               string
+	Rating           *int // nil = unrated
+	Label            string
+	FileID           string
+	RelPath          string // relative to Fixture.MediaDir
+	Content          []byte
+	PosterRel        string // relative to Fixture.CacheDir
+	BackdropRel      string
+	BackdropSmallRel string // backdrop in w780
 }
 
 // Fixture is the seeded database with its directories.
@@ -168,6 +169,7 @@ func (f *Fixture) seedMovies(t testing.TB, ctx context.Context) {
 			m.ID, "Movie "+label, "Plot "+label, "Tagline "+label)
 		m.PosterRel = f.addImage(t, m.ID, "poster", "w500", 10, 15)
 		m.BackdropRel = f.addImage(t, m.ID, "backdrop", "w1280", 16, 9)
+		m.BackdropSmallRel = f.addImage(t, m.ID, "backdrop", "w780", 8, 5)
 		f.Movies = append(f.Movies, m)
 	}
 	// Progress: P18 started the 12-rated movie, P6 the 6-rated one (both at 1/6 of the runtime).

@@ -115,6 +115,57 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 	return items, nil
 }
 
+const listMatchedItemImages = `-- name: ListMatchedItemImages :many
+SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.rel_path
+FROM items AS i
+JOIN images AS im ON im.item_id = i.id
+WHERE i.library_id = ?1
+  AND i.deleted_at IS NULL
+  AND i.metadata_state = 'matched'
+  AND i.tmdb_id IS NOT NULL
+ORDER BY i.id, im.kind, im.size
+`
+
+type ListMatchedItemImagesRow struct {
+	ItemID       string
+	LockedFields string
+	Kind         string
+	Size         string
+	RelPath      string
+}
+
+// Stored images of the matched titles of a library, for the image check after a scan
+// (QueueIncompleteImages). Titles without any image row are not listed: TMDB has none for them,
+// or their first image.fetch is still pending.
+func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([]ListMatchedItemImagesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMatchedItemImages, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMatchedItemImagesRow{}
+	for rows.Next() {
+		var i ListMatchedItemImagesRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.LockedFields,
+			&i.Kind,
+			&i.Size,
+			&i.RelPath,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setItemMetadataState = `-- name: SetItemMetadataState :exec
 UPDATE items
 SET metadata_state = ?1,

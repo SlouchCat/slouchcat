@@ -40,10 +40,12 @@ scripts/icons.mjs     PWA-Icons aus icon.svg
 
 ## Entscheide
 
-- **Wächter im Router.** Die Root-Route fragt `GET /setup` ab und schickt alles nach `/setup`, solange der
-  Assistent nicht gelaufen ist. Die Layout-Route `_authed` lädt `GET /auth/session`; 401 führt nach `/login`.
-  Danach gilt die Sprache des Profils (`i18n.changeLanguage`). Ein 401 auf irgendeiner späteren Abfrage
-  löscht die Sitzung im Cache und führt ebenfalls zur Anmeldung.
+- **Wächter im Router.** Die Root-Route fragt zuerst `GET /auth/session` ab. Eine Sitzung gibt es erst nach
+  dem Assistenten; nur ohne Sitzung (401) fragt sie `GET /setup` und schickt alles nach `/setup`, solange der
+  Assistent nicht gelaufen ist. Auf der Startseite fordert sie `GET /home` gleichzeitig mit der Sitzung an
+  (Prefetch, nicht abgewartet), statt erst nach dem Wächter (P-10). Die Layout-Route `_authed` führt ohne
+  Sitzung nach `/login`. Danach gilt die Sprache des Profils (`i18n.changeLanguage`). Ein 401 auf irgendeiner
+  späteren Abfrage löscht die Sitzung im Cache und führt ebenfalls zur Anmeldung.
 - **Keine Sichtbarkeitsregel im Client** (Regel 12). Die Seiten zeigen, was der Server liefert; leere
   Reihen werden nur defensiv ausgeblendet (E-9). Die Prüfung `canPlayType` im Player ist eine
   Gerätefähigkeit, keine Freigaberegel: Kann der Browser das Format nicht, erscheint der Hinweis auf M1b.
@@ -61,8 +63,16 @@ scripts/icons.mjs     PWA-Icons aus icon.svg
   beim Verlassen (die letzten beiden mit `keepalive`). `seq` steigt je Wiedergabe, `playedMs` zählt nur
   tatsächlich abgespielte Zeit seit dem letzten Ereignis.
 - **Bundles:** Start, Detail und Anmeldung liegen im Hauptbundle (LCP, P-10); Assistent, Player und
-  Admin werden bei Bedarf geladen. Das Backdrop im Karussell lädt mit `fetchpriority="high"`, alle
-  Bildflächen haben feste Seitenverhältnisse (kein Layout-Sprung).
+  Admin werden bei Bedarf geladen. Der Server liefert App und JSON mit gzip aus.
+- **Bilder auf der Startseite (P-10):** Im Karussell steht zuerst nur das Bild der aktiven Folie im
+  Dokument, `loading="eager"` und `fetchpriority="high"`, als `srcset` aus `backdropSmall` (w780) und
+  `backdrop` (w1280) mit `sizes="100vw"`. Nach dessen `load` kommt das Bild der nächsten Folie dazu (lazy,
+  niedrige Priorität); gezeigte Folien bleiben. Die Poster kommen erst ins Dokument, wenn das erste
+  Karussellbild geladen und gezeichnet ist (oder fehlschlug): Über HTTP/1.1 teilen sich sonst bis zu sechs
+  Verbindungen die Bandbreite, und das Hero-Bild kommt um Sekunden später. Danach laden die ersten sechs
+  Poster der ersten Reihe sofort, alle anderen `loading="lazy"` (horizontale Reihen liegen für Chrome
+  meist innerhalb der Lazy-Distanz), alle `decoding="async"`. Alle Bildflächen haben feste
+  Seitenverhältnisse (kein Layout-Sprung).
 - **Neue Tokens:** `color.scrim.*` (Grundfarbe mit abnehmender Deckkraft für Verläufe über Bildern),
   `color.media.backdrop`, `color.state.track`/`buffered`, `motion.duration.crossfade`/`chrome`,
   `focus.scale` (1.06), `size.*` (Posterbreiten, Kopfzeile, Inhalts- und Formularbreite, Hero, Bedienhöhe).

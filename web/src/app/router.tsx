@@ -10,7 +10,9 @@ import {
 import { LoginPage } from '@/features/auth/LoginPage';
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
+import { homeQuery } from '@/features/catalog/queries';
 import { AppLayout } from './AppLayout';
+import { paths } from './paths';
 import { RootError, RootLayout } from './RootLayout';
 import { applyProfileLanguage, sessionQuery, setupStatusQuery } from './session';
 
@@ -18,13 +20,19 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
-// Guard order: setup first (nothing else works before the wizard ran), then the session.
+// Guard: the session first. A session exists only after the wizard ran, so `/setup` is asked only
+// when there is none (401). On the start page its data is requested in parallel with the session
+// instead of after the guard (P-10: two round trips less before the hero image). The prefetch is
+// not awaited, so the page renders its skeleton as soon as the session is known.
 const rootRoute = createRootRouteWithContext<RouterContext>()({
-  beforeLoad: async ({ context, location }) => {
-    const status = await context.queryClient.ensureQueryData(setupStatusQuery);
-    const onSetup = location.pathname === '/setup';
-    if (status.setupRequired && !onSetup) throw redirect({ to: '/setup' });
-    if (!status.setupRequired && onSetup) throw redirect({ to: '/' });
+  beforeLoad: async ({ context: { queryClient }, location }) => {
+    if (location.pathname === paths.home) void queryClient.prefetchQuery(homeQuery);
+    const session = await queryClient.ensureQueryData(sessionQuery);
+    const setupRequired =
+      !session && (await queryClient.ensureQueryData(setupStatusQuery)).setupRequired;
+    const onSetup = location.pathname === paths.setup;
+    if (setupRequired && !onSetup) throw redirect({ to: '/setup' });
+    if (!setupRequired && onSetup) throw redirect({ to: '/' });
   },
   component: RootLayout,
   errorComponent: RootError,

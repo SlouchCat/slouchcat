@@ -1,4 +1,5 @@
-import { act, screen, within } from '@testing-library/react';
+import type { ItemRef } from '@slouchcat/api-client';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, heat, homePage, ids } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn } from '@/test/api';
@@ -38,13 +39,14 @@ describe('start page', () => {
     await screen.findByRole('heading', { name: 'Weiterschauen' });
 
     const backdrop = container.querySelector('img[fetchpriority="high"]');
-    expect(backdrop).toHaveAttribute(
-      'src',
-      `/api/v1/items/${ids.heat}/images/backdrop/w1280?v=def`,
-    );
+    expect(backdrop).toHaveAttribute('src', `/api/v1/items/${ids.heat}/images/backdrop/w780?v=ghi`);
 
+    // Posters wait until the hero artwork is on screen; their frames are already there.
     const continueRow = screen.getByRole('region', { name: 'Weiterschauen' });
     const alienCard = within(continueRow).getByRole('link', { name: /Alien/ });
+    expect(container.querySelectorAll('img')).toHaveLength(1);
+    fireEvent.load(backdrop!);
+    await waitFor(() => expect(alienCard.querySelector('img')).not.toBeNull());
     const poster = alienCard.querySelector('img');
     expect(poster).toHaveAttribute('src', `/api/v1/items/${ids.alien}/images/poster/w500?v=abc`);
     expect(poster).toHaveAttribute('loading', 'eager');
@@ -58,6 +60,85 @@ describe('start page', () => {
         .getByRole('link', { name: /Arrival/ })
         .querySelector('img'),
     ).toBeNull();
+  });
+
+  it('asks for the session and the start page in parallel, never for /setup', async () => {
+    const { calls } = mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
+    renderApp('/');
+    await screen.findByRole('heading', { name: 'Weiterschauen' });
+    const paths = calls.map((call) => call.path);
+    // The start page is requested before the session answered, i.e. not after the guard.
+    expect(paths.slice(0, 2)).toEqual(['/home', '/auth/session']);
+    expect(paths.filter((path) => path === '/home')).toHaveLength(1);
+    expect(paths).not.toContain('/setup');
+  });
+
+  it('loads the active backdrop first, in w780 for small screens, and the next one after it', async () => {
+    const wideOnly: ItemRef = {
+      ...arrival,
+      images: {
+        backdrop: {
+          url: `/items/${ids.arrival}/images/backdrop/w1280?v=jkl`,
+          width: 1280,
+          height: 720,
+        },
+      },
+    };
+    mockApi({
+      ...signedIn,
+      'GET /home': () => json({ rows: [{ key: 'picks', items: [heat, alien, wideOnly] }] }),
+    });
+    const { container } = renderApp('/');
+    const hero = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+    const images = () => [...container.querySelectorAll('img')];
+
+    expect(images()).toHaveLength(1);
+    const [first] = images();
+    const base = `/api/v1/items/${ids.heat}/images/backdrop`;
+    expect(first).toHaveAttribute('src', `${base}/w780?v=ghi`);
+    expect(first).toHaveAttribute('srcset', `${base}/w780?v=ghi 780w, ${base}/w1280?v=def 1280w`);
+    expect(first).toHaveAttribute('sizes', '100vw');
+    expect(first).toHaveAttribute('loading', 'eager');
+    expect(first).toHaveAttribute('fetchpriority', 'high');
+    expect(first).toHaveAttribute('width', '1280');
+    expect(first).toHaveAttribute('height', '720');
+
+    // After the first image loaded, the next slide preloads with low priority.
+    fireEvent.load(first!);
+    expect(images()).toHaveLength(2);
+    expect(images()[1]).toHaveAttribute(
+      'src',
+      `/api/v1/items/${ids.alien}/images/backdrop/w780?v=ghi`,
+    );
+    expect(images()[1]).toHaveAttribute('loading', 'lazy');
+    expect(images()[1]).toHaveAttribute('fetchpriority', 'low');
+
+    // A slide without the small size falls back to w1280 without srcset.
+    fireEvent.click(within(hero).getByRole('button', { name: 'Empfehlung 3 von 3 anzeigen' }));
+    const third = images().find((image) => image.getAttribute('src')?.includes(ids.arrival));
+    expect(third).toHaveAttribute(
+      'src',
+      `/api/v1/items/${ids.arrival}/images/backdrop/w1280?v=jkl`,
+    );
+    expect(third).not.toHaveAttribute('srcset');
+    expect(third).toHaveAttribute('fetchpriority', 'high');
+  });
+
+  it('loads the first six posters of the first row eagerly and the rest lazily', async () => {
+    const items = Array.from({ length: 8 }, (_, index) => ({
+      ...alien,
+      id: `${ids.alien}${index}`,
+    }));
+    mockApi({ ...signedIn, 'GET /home': () => json({ rows: [{ key: 'recent', items }] }) });
+    const { container } = renderApp('/');
+    await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
+    const loading = [...container.querySelectorAll('img')].map((image) =>
+      image.getAttribute('loading'),
+    );
+    expect(loading).toEqual([...Array<string>(6).fill('eager'), 'lazy', 'lazy']);
+    for (const image of container.querySelectorAll('img')) {
+      expect(image).toHaveAttribute('decoding', 'async');
+    }
   });
 
   it('shows watch progress and the remaining time on "Weiterschauen" cards', async () => {

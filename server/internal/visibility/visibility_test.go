@@ -150,6 +150,9 @@ func TestReaderMapsDetailInProfileLanguage(t *testing.T) {
 	if de.Poster == nil || de.Poster.Size != "w500" || de.Poster.Width != 10 || de.Backdrop == nil || de.Backdrop.Size != "w1280" || de.Backdrop.ContentHash == "" {
 		t.Errorf("images = %+v / %+v", de.Poster, de.Backdrop)
 	}
+	if de.BackdropSmall == nil || de.BackdropSmall.Size != "w780" || de.BackdropSmall.Width != 8 || de.BackdropSmall.ContentHash == de.Backdrop.ContentHash {
+		t.Errorf("small backdrop = %+v", de.BackdropSmall)
+	}
 	if len(de.MediaFiles) != 1 || de.MediaFiles[0].ID != m.FileID || !de.MediaFiles[0].Available || de.MediaFiles[0].SizeBytes != vistest.FileSize {
 		t.Errorf("media files = %+v", de.MediaFiles)
 	}

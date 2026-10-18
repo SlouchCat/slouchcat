@@ -34,9 +34,8 @@ export const session: SessionInfo = {
   profile: { id: 1, name: 'Marco', maxRating: 18, language: 'de' },
 };
 
-/** Default answers for the guard: setup done, logged in. */
+/** Default answers for the guard: logged in (the guard asks `/setup` only without a session). */
 export const signedIn: Routes = {
-  'GET /setup': () => json({ setupRequired: false }),
   'GET /auth/session': () => json(session),
 };
 

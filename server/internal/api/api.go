@@ -2,7 +2,8 @@
 // under /api/v1 (contract api/openapi.yaml), the binary handlers for images, media streams and the
 // spike download, RFC 9457 problem responses, request IDs, request logging, panic recovery, the
 // CSRF header rule and the session middleware that enforces x-visibility per route. Everything
-// outside /api/v1 goes to the web app handler.
+// outside /api/v1 goes to the web app handler. The web app and the JSON routes are gzipped
+// (compressText); the binary routes are not.
 package api
 
 import (
@@ -83,7 +84,7 @@ func NewHandler(o Options) http.Handler {
 		})
 		gen.HandlerWithOptions(strict, gen.ChiServerOptions{
 			BaseRouter:       r,
-			Middlewares:      []gen.MiddlewareFunc{authorize},
+			Middlewares:      []gen.MiddlewareFunc{authorize, compressText},
 			ErrorHandlerFunc: p.badRequest,
 		})
 		// Binary endpoints (CLAUDE.md rule 6) share the session middleware.
@@ -91,7 +92,7 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(binaryStreamPath, s.getItemStream)
 		r.With(authorize).Get(binarySpikePath, s.getSpikeFile)
 	})
-	r.Handle("/*", o.Web)
+	r.Handle("/*", compressText(o.Web))
 	return r
 }
 

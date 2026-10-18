@@ -78,7 +78,7 @@ func (s Session) IsOwner() bool { return s.Account.Role == "owner" }
 // Image is a poster or backdrop reference as the client uses it.
 type Image struct {
 	Kind        string // poster, backdrop
-	Size        string // w500, w1280
+	Size        string // w500, w780, w1280
 	ContentHash string
 	Width       int
 	Height      int
@@ -110,6 +110,7 @@ type ItemSummary struct {
 	Rating         *int // effective FSK rating, nil when unknown
 	Poster         *Image
 	Backdrop       *Image
+	BackdropSmall  *Image // backdrop in w780, nil when that size is not stored
 	Progress       *Progress
 }
 

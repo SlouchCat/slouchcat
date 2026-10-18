@@ -16,6 +16,8 @@ export interface HeroSlide {
   title: string;
   /** Same-origin backdrop URL (w1280); the poster is used blurred when there is none. */
   backdropUrl?: string;
+  /** The same backdrop in w780 for phones; the browser picks it through `srcset`. */
+  backdropSmallUrl?: string;
   posterUrl?: string;
   /** Metadata line (chips for year, runtime, FSK). */
   meta?: ReactNode;
@@ -30,6 +32,8 @@ interface HeroCarouselProps {
   playLabel: string;
   detailsLabel: string;
   intervalMs?: number;
+  /** Called once the first image is on screen (loaded and painted) or has failed. */
+  onArtShown?: () => void;
 }
 
 export const HERO_PLAY_KEY = 'hero-play';
@@ -39,10 +43,28 @@ const prefersReducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** Source attributes of a slide image: the small backdrop first, the large one for wide screens. */
+function imageSource(slide: HeroSlide) {
+  const { backdropUrl, backdropSmallUrl, posterUrl } = slide;
+  if (backdropUrl && backdropSmallUrl) {
+    return {
+      src: backdropSmallUrl,
+      srcSet: `${backdropSmallUrl} 780w, ${backdropUrl} 1280w`,
+      sizes: '100vw',
+    };
+  }
+  return { src: backdropUrl ?? backdropSmallUrl ?? posterUrl };
+}
+
 /**
  * Full-bleed carousel at the top of the start page. Rotates every `intervalMs` unless the pointer
  * or focus is inside it (or reduced motion is requested). Arrow left on the first button and arrow
  * right on the last button page through the slides; the buttons keep focus.
+ *
+ * Artwork loads on demand (P-10): only the active slide's image is in the document at first, eager
+ * and with high priority. Once it has loaded, the next slide's image joins (lazy, low priority) so
+ * the crossfade has it ready; every slide that was shown stays. The stacked images all sit in the
+ * viewport, so `loading="lazy"` alone would not hold the others back.
  */
 export function HeroCarousel({
   label,
@@ -50,6 +72,7 @@ export function HeroCarousel({
   playLabel,
   detailsLabel,
   intervalMs = 8000,
+  onArtShown,
 }: HeroCarouselProps) {
   const { t } = useTranslation();
   const [index, setIndex] = useState(0);
@@ -61,6 +84,13 @@ export function HeroCarousel({
 
   const current = Math.min(index, count - 1);
   const slide = slides[current];
+  // Slide positions whose image is in the document.
+  const [armed, setArmed] = useState<ReadonlySet<number>>(() => new Set([current]));
+  const [activeLoaded, setActiveLoaded] = useState(false);
+  const next = (current + 1) % count;
+  if (!armed.has(current) || (activeLoaded && !armed.has(next))) {
+    setArmed(new Set(armed).add(current).add(activeLoaded ? next : current));
+  }
 
   const step = (delta: number) => setIndex((value) => (value + delta + count) % count);
   // norigin keeps the handlers it saw at registration; route them through a ref.
@@ -103,20 +133,31 @@ export function HeroCarousel({
     >
       <div className={styles.art} aria-hidden="true">
         {slides.map((item, position) => {
-          const src = item.backdropUrl ?? item.posterUrl;
-          if (!src) return null;
+          const source = imageSource(item);
+          if (!source.src || !armed.has(position)) return null;
+          const active = position === current;
           return (
             <img
               key={item.id}
-              className={`${styles.image} ${item.backdropUrl ? '' : styles.blurred}`}
-              data-active={position === current || undefined}
-              src={src}
+              className={`${styles.image} ${item.backdropUrl || item.backdropSmallUrl ? '' : styles.blurred}`}
+              data-active={active || undefined}
+              {...source}
               alt=""
               width={1280}
               height={720}
-              loading={position === 0 ? 'eager' : 'lazy'}
-              fetchPriority={position === 0 ? 'high' : 'low'}
-              decoding={position === 0 ? 'sync' : 'async'}
+              loading={active ? 'eager' : 'lazy'}
+              fetchPriority={active ? 'high' : 'low'}
+              decoding={active ? 'sync' : 'async'}
+              onLoad={
+                active
+                  ? () => {
+                      setActiveLoaded(true);
+                      // Two frames: the one that paints the image, then the next.
+                      requestAnimationFrame(() => requestAnimationFrame(() => onArtShown?.()));
+                    }
+                  : undefined
+              }
+              onError={active ? onArtShown : undefined}
             />
           );
         })}

@@ -64,9 +64,24 @@ Alle 32 Titel haben TMDB-Texte, FSK-Stufe, Poster und Backdrop.
 
 ## 4. Startseite
 
-| Messung | Wert |
-|---|---|
-| Lighthouse Mobile LCP | folgt |
+Lighthouse 12.8.2, Mobile-Voreinstellung, simuliert (1.6 Mbit/s, 150 ms RTT, 4× CPU), Startseite mit
+12 Titeln (TMDB-Poster w500 50–190 kB, Backdrops w780 58–120 kB bzw. w1280 140–400 kB), Server auf
+127.0.0.1, angemeldet. Median aus drei Läufen.
+
+| Messung | vorher | nachher |
+|---|---|---|
+| LCP | 13.0 s | 3.4 s (3.38 / 3.38 / 3.38 s) |
+| FCP | 4.4 s | 2.25 s |
+| TBT / CLS | 32 ms / 0 | 7 ms / 0 |
+| LCP-Phasen (TTFB / Ladeverzug / Ladezeit / Renderverzug) | 0.45 / 10.6 / 0.5 / 1.4 s | 0.45 / 2.25 / 0.02 / 0.66 s |
+| JS beim Start (gzip) | 591 kB ohne Kompression | 190 kB (index 105 kB, ui 85 kB) |
+| LCP-Element | aktives Hero-`<img>` w1280 | aktives Hero-`<img>`, w780 über `srcset` |
+
+Massnahmen: gzip für App und JSON, `/auth/session` und `/home` parallel (`/setup` nur ohne Sitzung),
+Backdrop w780 für Telefone, nur das aktive Karussellbild sofort, Poster erst nach dem gezeichneten
+Hero-Bild. Ziel P-10 (< 2.5 s) noch nicht erreicht: Der Ladeverzug ist die Kette HTML → 190 kB JS →
+Ausführung (4× CPU) → `/home` → Bild. Ein Prototyp mit `Link: rel=preload` für das Hero-Bild im Antwortkopf
+von `/` (Server kennt Sitzung und Startseite) ergab 2.9 s; den Rest bestimmt die JS-Menge und -Ausführung.
 
 ## 5. Leerlauf
 

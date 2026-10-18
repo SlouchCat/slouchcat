@@ -10,6 +10,7 @@ export const ids = {
 const images = (id: string) => ({
   poster: { url: `/items/${id}/images/poster/w500?v=abc`, width: 500, height: 750 },
   backdrop: { url: `/items/${id}/images/backdrop/w1280?v=def`, width: 1280, height: 720 },
+  backdropSmall: { url: `/items/${id}/images/backdrop/w780?v=ghi`, width: 780, height: 439 },
 });
 
 export const heat: ItemRef = {

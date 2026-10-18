@@ -175,7 +175,7 @@ func (c *Client) SearchMovie(ctx context.Context, title string, year *int) (int6
 	return 0, nil
 }
 
-// DownloadImage fetches an image in size (w500, w1280) at the TMDB path (/abc.jpg). The caller
+// DownloadImage fetches an image in size (w500, w780, w1280) at the TMDB path (/abc.jpg). The caller
 // closes body. mediaType comes from the Content-Type of the answer.
 func (c *Client) DownloadImage(ctx context.Context, size, path string) (body io.ReadCloser, mediaType string, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.imageURL(size, path), nil)

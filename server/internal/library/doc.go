@@ -24,6 +24,10 @@
 // A second scan of an unchanged tree finds every file by its path and writes nothing except the
 // scan state, so scans converge and can run again after an interrupted job.
 //
+// After a successful scan the optional image check (WithImageCheck, metadata's
+// QueueIncompleteImages) queues image.fetch for matched titles whose stored images miss a size
+// (a size added in a later release) or whose image files were deleted from the cache.
+//
 // # Loss protection
 //
 // Before any write the scan aborts with state "aborted" and an error code when

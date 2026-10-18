@@ -78,7 +78,18 @@ var profileRegistry = map[string]profileCall{
 			}
 		}},
 	"getItemImage": {contract: "GET /items/{id}/images/{kind}/{size}", path: "/items/{id}/images/poster/w500", perItem: true, okStatus: http.StatusOK,
-		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			// Both backdrop sizes answer for the same visible titles.
+			for _, b := range []struct{ size, rel string }{{"w1280", m.BackdropRel}, {"w780", m.BackdropSmallRel}} {
+				want, err := os.ReadFile(filepath.Join(f.CacheDir, filepath.FromSlash(b.rel)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/images/backdrop/"+b.size, token, "", nil)
+				if got.Code != http.StatusOK || !bytes.Equal(got.Body.Bytes(), want) {
+					t.Errorf("backdrop %s of %s: status %d", b.size, m.Label, got.Code)
+				}
+			}
 			want, err := os.ReadFile(filepath.Join(f.CacheDir, filepath.FromSlash(m.PosterRel)))
 			if err != nil {
 				t.Fatal(err)
@@ -240,6 +251,12 @@ type profileFixture struct {
 
 func newProfileFixture(t *testing.T) profileFixture {
 	t.Helper()
+	return newProfileFixtureWithWeb(t, http.NotFoundHandler())
+}
+
+// newProfileFixtureWithWeb is newProfileFixture with web serving every path outside the API.
+func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
+	t.Helper()
 	f := vistest.New(t)
 	log := vistest.Logger()
 	sessions := map[string]model.Session{}
@@ -250,7 +267,7 @@ func newProfileFixture(t *testing.T) profileFixture {
 		sessions[token] = model.Session{ID: i, Account: f.Account, Profile: p, ExpiresAt: time.Now().Add(time.Hour)}
 	}
 	h := NewHandler(Options{
-		Version: "test", Started: time.Now(), Logger: log, Web: http.NotFoundHandler(),
+		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth:     profileAuth{sessions: sessions},
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
 		Playback: playback.New(f.DB, log),
@@ -450,11 +467,16 @@ func TestContractStreamAndImageEdges(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("file of another title: status %d", rec.Code)
 	}
-	for _, path := range []string{"/images/poster/w9999", "/images/logo/w500", "/images/backdrop/w500"} {
+	for _, path := range []string{"/images/poster/w9999", "/images/logo/w500", "/images/backdrop/w500", "/images/backdrop/w342", "/images/poster/w780", "/images/backdrop/original"} {
 		rec = send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+path, "p6", "", nil)
 		if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
 			t.Errorf("%s: status %d", path, rec.Code)
 		}
+	}
+	// The small backdrop of a title above the profile limit is as invisible as the title.
+	rec = send(t, h, http.MethodGet, BasePath+"/items/"+f.Rated(12).ID+"/images/backdrop/w780", "p6", "", nil)
+	if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
+		t.Errorf("w780 backdrop of a hidden title: status %d", rec.Code)
 	}
 	rec = send(t, h, http.MethodGet, BasePath+"/items/"+m.ID, "p6", "", nil)
 	var d struct {
@@ -462,9 +484,19 @@ func TestContractStreamAndImageEdges(t *testing.T) {
 			Poster struct {
 				URL string `json:"url"`
 			} `json:"poster"`
+			BackdropSmall struct {
+				URL   string `json:"url"`
+				Width int    `json:"width"`
+			} `json:"backdropSmall"`
 		} `json:"images"`
 	}
 	decode(t, rec, &d)
+	if !strings.HasPrefix(d.Images.BackdropSmall.URL, BasePath+"/items/"+m.ID+"/images/backdrop/w780?v=") || d.Images.BackdropSmall.Width != 8 {
+		t.Errorf("backdropSmall = %+v", d.Images.BackdropSmall)
+	}
+	if img := send(t, h, http.MethodGet, d.Images.BackdropSmall.URL, "p6", "", nil); img.Code != http.StatusOK {
+		t.Errorf("backdropSmall URL from the detail: status %d", img.Code)
+	}
 	if !strings.HasPrefix(d.Images.Poster.URL, BasePath+"/items/"+m.ID+"/images/poster/w500?v=") {
 		t.Errorf("poster URL = %q", d.Images.Poster.URL)
 	}

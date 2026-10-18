@@ -8,7 +8,9 @@
 //     parsed year ±1), fetches de-DE and en-US, writes item_texts for de and en and the item
 //     columns, maps the certification after AN-8 and enqueues image.fetch.
 //   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2: downloads the
-//     poster (w500) and the backdrop (w1280) and upserts the images rows.
+//     poster (w500) and the backdrop (w1280 and w780) and upserts the images rows. Sizes whose
+//     source is unchanged and whose file exists are skipped, so the job also fills in a size added
+//     later and re-downloads deleted files; the library scan enqueues it for such titles.
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,

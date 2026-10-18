@@ -5,6 +5,7 @@ import { homePage } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, type Routes } from '@/test/api';
 
 const setupRequired: Routes = {
+  'GET /auth/session': () => problem(401, 'unauthenticated'),
   'GET /setup': () => json({ setupRequired: true }),
   'GET /healthz': () => json({ status: 'ok', version: '0.2.0', uptimeSeconds: 1 }),
 };
@@ -49,10 +50,15 @@ describe('setup wizard', () => {
   });
 
   it('posts the request and opens the start page on 201', async () => {
+    // Like the server: no session before the wizard ran, the session cookie after it.
+    let done = false;
     const { calls } = mockApi({
       ...setupRequired,
-      'POST /setup': () => json(session, 201),
-      'GET /auth/session': () => json(session),
+      'POST /setup': () => {
+        done = true;
+        return json(session, 201);
+      },
+      'GET /auth/session': () => (done ? json(session) : problem(401, 'unauthenticated')),
       'GET /home': () => json(homePage),
     });
     const { router } = renderApp('/setup');

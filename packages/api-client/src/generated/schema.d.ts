@@ -150,7 +150,7 @@ export interface paths {
          * @description Implemented as an `http.Handler`. Images are reachable only through the item ID; the handler checks
          *     the scope (not visible → 404) and answers with `Cache-Control: private, max-age=31536000, immutable`.
          *     The query parameter `v` is the content hash and serves cache busting only. In M1a the TMDB image
-         *     is stored unchanged: posters exist in size `w500`, backdrops in `w1280`.
+         *     is stored unchanged: posters exist in size `w500`, backdrops in `w780` and `w1280`.
          */
         get: operations["getItemImage"];
         put?: never;
@@ -451,6 +451,8 @@ export interface components {
         ItemImages: {
             poster?: components["schemas"]["ImageRef"];
             backdrop?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w780 for viewports up to about 900 px. */
+            backdropSmall?: components["schemas"]["ImageRef"];
         };
         Progress: {
             /** Format: int64 */
@@ -932,7 +934,7 @@ export interface operations {
                 /** @description Item ID (ULID). */
                 id: components["parameters"]["ItemID"];
                 kind: components["schemas"]["ImageKind"];
-                size: "w500" | "w1280";
+                size: "w500" | "w780" | "w1280";
             };
             cookie?: never;
         };

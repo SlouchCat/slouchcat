@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -48,6 +49,7 @@ type fakeTMDB struct {
 	srv    *httptest.Server
 	poster []byte
 	backdr []byte
+	backdS []byte // backdrop in w780
 
 	mu        sync.Mutex
 	hits      map[string]int
@@ -104,7 +106,7 @@ func countryJSON(code, cert string) map[string]any {
 
 func newFakeTMDB(t *testing.T) *fakeTMDB {
 	t.Helper()
-	f := &fakeTMDB{hits: map[string]int{}, poster: jpegBytes(t, 20, 30), backdr: jpegBytes(t, 32, 18)}
+	f := &fakeTMDB{hits: map[string]int{}, poster: jpegBytes(t, 20, 30), backdr: jpegBytes(t, 32, 18), backdS: jpegBytes(t, 16, 9)}
 	movies := map[string]fixture{
 		// DE FSK 12 next to US R: DE wins.
 		"550": movieFixture(550, "tt0000550", "First Film", "Erster Film", "Deutsche Beschreibung",
@@ -211,6 +213,7 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 	}
 	mux.HandleFunc("GET /t/p/w500/poster550.jpg", image(f.poster))
 	mux.HandleFunc("GET /t/p/w1280/backdrop550.jpg", image(f.backdr))
+	mux.HandleFunc("GET /t/p/w780/backdrop550.jpg", image(f.backdS))
 	mux.HandleFunc("GET /t/p/w500/poster601.jpg", image(f.poster))
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
@@ -643,7 +646,7 @@ func (e *env) images(t *testing.T, id string) map[string]imageRow {
 		if err := rows.Scan(&r.Kind, &r.Size, &r.RelPath, &r.Hash, &r.MediaType, &r.Source, &r.Width, &r.Height, &r.Bytes); err != nil {
 			t.Fatal(err)
 		}
-		out[r.Kind] = r
+		out[r.Kind+"/"+r.Size] = r
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
@@ -672,10 +675,11 @@ func TestImageFetchStoresFilesAndIsIdempotent(t *testing.T) {
 		data []byte
 		w, h int64
 	}{
-		"poster":   {"images/" + idByTMDB + "/poster-w500.jpg", e.tmdb.poster, 20, 30},
-		"backdrop": {"images/" + idByTMDB + "/backdrop-w1280.jpg", e.tmdb.backdr, 32, 18},
+		"poster/w500":    {"images/" + idByTMDB + "/poster-w500.jpg", e.tmdb.poster, 20, 30},
+		"backdrop/w1280": {"images/" + idByTMDB + "/backdrop-w1280.jpg", e.tmdb.backdr, 32, 18},
+		"backdrop/w780":  {"images/" + idByTMDB + "/backdrop-w780.jpg", e.tmdb.backdS, 16, 9},
 	}
-	if len(imgs) != 2 {
+	if len(imgs) != 3 {
 		t.Fatalf("image rows %+v", imgs)
 	}
 	for kind, w := range want {
@@ -693,8 +697,8 @@ func TestImageFetchStoresFilesAndIsIdempotent(t *testing.T) {
 		}
 	}
 	entries, _ := os.ReadDir(filepath.Join(e.cache, "images", idByTMDB))
-	if len(entries) != 2 {
-		t.Fatalf("image dir holds %d entries, want 2 (no temp files left)", len(entries))
+	if len(entries) != 3 {
+		t.Fatalf("image dir holds %d entries, want 3 (no temp files left)", len(entries))
 	}
 
 	// Second run: same sources and existing files, no download.
@@ -705,7 +709,7 @@ func TestImageFetchStoresFilesAndIsIdempotent(t *testing.T) {
 		t.Fatalf("poster downloaded %d times, want 1", n)
 	}
 	// A missing file is fetched again.
-	if err := os.Remove(filepath.Join(e.cache, filepath.FromSlash(want["poster"].rel))); err != nil {
+	if err := os.Remove(filepath.Join(e.cache, filepath.FromSlash(want["poster/w500"].rel))); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
@@ -717,6 +721,66 @@ func TestImageFetchStoresFilesAndIsIdempotent(t *testing.T) {
 	if n := e.tmdb.count("/t/p/w1280/backdrop550.jpg"); n != 1 {
 		t.Fatalf("backdrop downloaded %d times, want 1", n)
 	}
+
+	// A size added later (w780 next to w1280): the next run fetches only the missing size.
+	if _, err := e.db.Write.Exec(`DELETE FROM images WHERE item_id = ? AND size = 'w780'`, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(e.cache, filepath.FromSlash(want["backdrop/w780"].rel))); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.images(t, idByTMDB)) != 3 || e.tmdb.count("/t/p/w780/backdrop550.jpg") != 2 ||
+		e.tmdb.count("/t/p/w1280/backdrop550.jpg") != 1 || e.tmdb.count("/t/p/w500/poster550.jpg") != 2 {
+		t.Fatalf("after removing w780: rows %d, %d TMDB requests", len(e.images(t, idByTMDB)), e.tmdb.total())
+	}
+}
+
+func TestQueueIncompleteImages(t *testing.T) {
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	e.addItem(t, itemSeed{id: idNoRating, title: "Unrated", tmdbID: 602}) // TMDB has no images
+	for _, id := range []string{idByTMDB, idNoRating} {
+		if err := e.svc.match(ctx, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	check := func(step string, wantQueued int, wantJobs ...string) {
+		t.Helper()
+		mustExec(t, e.db.Write, `DELETE FROM jobs`)
+		n, err := e.svc.QueueIncompleteImages(ctx, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := e.imageJobs(t); n != wantQueued || !slices.Equal(got, wantJobs) {
+			t.Fatalf("%s: queued %d, jobs %q; want %d, %q", step, n, got, wantQueued, wantJobs)
+		}
+	}
+	job := "image:" + idByTMDB + ` p2 {"itemId":"` + idByTMDB + `"}`
+	check("complete", 0)
+
+	// An older store without the w780 backdrop: queued, and image.fetch fills in that size.
+	mustExec(t, e.db.Write, `DELETE FROM images WHERE item_id = ? AND size = 'w780'`, idByTMDB)
+	check("w780 missing", 1, job)
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	check("w780 fetched", 0)
+
+	// A file deleted from the cache.
+	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w500.jpg")); err != nil {
+		t.Fatal(err)
+	}
+	check("poster file deleted", 1, job)
+	// A locked kind is never fetched, so it is not checked either.
+	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["poster"]' WHERE id = ?`, idByTMDB)
+	check("poster locked", 0)
 }
 
 func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {
@@ -743,7 +807,7 @@ func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {
 	if err := e.svc.fetchImages(ctx, idBySearch); err != nil {
 		t.Fatal(err)
 	}
-	if imgs := e.images(t, idBySearch); len(imgs) != 1 || imgs["poster"].Width != 20 {
+	if imgs := e.images(t, idBySearch); len(imgs) != 1 || imgs["poster/w500"].Width != 20 {
 		t.Fatalf("rows %+v, want the poster only", imgs)
 	}
 }
@@ -769,7 +833,7 @@ func TestJobChainWithWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(10 * time.Second)
-	for len(e.images(t, idByIMDB)) < 2 {
+	for len(e.images(t, idByIMDB)) < 3 {
 		if time.Now().After(deadline) {
 			t.Fatalf("images not stored; item %+v, image jobs %q", e.item(t, idByIMDB), e.imageJobs(t))
 		}

@@ -120,6 +120,14 @@ func (s *Service) Scan(ctx context.Context, lib appq.Library) error {
 	}
 	s.log.InfoContext(ctx, "library scan done", "library_id", lib.ID, "files", stats.files, "new", stats.created,
 		"updated", stats.updated, "missing", stats.missing, "items_created", stats.items, "duration", s.now().Sub(start))
+	if s.imageCheck != nil {
+		// Artwork is not part of the scan result: a failed check is logged, the scan stays done.
+		if n, err := s.imageCheck(ctx, lib.ID); err != nil {
+			s.log.WarnContext(ctx, "image check after scan failed", "library_id", lib.ID, "err", err)
+		} else if n > 0 {
+			s.log.InfoContext(ctx, "titles with incomplete images queued for image.fetch", "library_id", lib.ID, "titles", n)
+		}
+	}
 	return nil
 }
 
