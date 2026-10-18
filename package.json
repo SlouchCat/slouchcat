@@ -1,0 +1,22 @@
+{
+  "name": "slouchcat",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "gen": "pnpm -r run gen",
+    "lint": "pnpm -r run lint && pnpm run format:check",
+    "format": "prettier --write web packages package.json",
+    "format:check": "prettier --check web packages package.json",
+    "test": "pnpm -r run test",
+    "build": "pnpm -r run build"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3"
+  }
+}

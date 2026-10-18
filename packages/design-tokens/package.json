@@ -1,0 +1,29 @@
+{
+  "name": "@slouchcat/design-tokens",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Slouchcat design tokens (DTCG) compiled to CSS custom properties and typed constants.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./tokens.css": "./dist/tokens.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "gen": "node build.mjs",
+    "build": "node build.mjs",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "node build.mjs && vitest run"
+  },
+  "devDependencies": {
+    "style-dictionary": "^5.7.0",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

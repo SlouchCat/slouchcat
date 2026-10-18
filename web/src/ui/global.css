@@ -1,0 +1,39 @@
+/* Document-level base styles. Components style themselves with CSS Modules. */
+:root {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--sc-color-bg-base);
+  color: var(--sc-color-text-primary);
+  font-family: var(--sc-font-family-sans);
+  font-size: var(--sc-font-size-md);
+  line-height: var(--sc-font-line-height-normal);
+  text-rendering: optimizelegibility;
+}
+
+:focus-visible {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

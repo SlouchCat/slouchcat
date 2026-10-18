@@ -1,0 +1,3 @@
+.status {
+  min-height: calc(var(--sc-font-size-sm) * var(--sc-font-line-height-normal));
+}

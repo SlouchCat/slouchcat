@@ -1,0 +1,29 @@
+{
+  "motion": {
+    "duration": {
+      "$type": "duration",
+      "fast": { "$value": "120ms", "$description": "Hover and small state changes." },
+      "focus": {
+        "$value": "180ms",
+        "$description": "Focus movement; must stay at or below 200 ms."
+      },
+      "enter": { "$value": "240ms", "$description": "Elements entering the screen." },
+      "exit": { "$value": "160ms", "$description": "Elements leaving the screen." }
+    },
+    "easing": {
+      "$type": "cubicBezier",
+      "standard": { "$value": [0.2, 0, 0, 1] },
+      "enter": { "$value": [0, 0, 0, 1], "$description": "Decelerate into place." },
+      "exit": { "$value": [0.3, 0, 1, 1], "$description": "Accelerate out of view." }
+    }
+  },
+  "z": {
+    "$type": "number",
+    "base": { "$value": 0 },
+    "raised": { "$value": 10 },
+    "sticky": { "$value": 100 },
+    "overlay": { "$value": 1000 },
+    "modal": { "$value": 1100 },
+    "toast": { "$value": 1200 }
+  }
+}

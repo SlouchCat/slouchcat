@@ -1,0 +1,77 @@
+{
+  "color": {
+    "$type": "color",
+    "bg": {
+      "base": {
+        "$value": "#0b0c10",
+        "$description": "App background, near-black with a cool cast."
+      },
+      "elevated": {
+        "$value": "#13151b",
+        "$description": "Panels and sheets that sit above the base."
+      },
+      "overlay": { "$value": "#0b0c10d9", "$description": "Scrim behind dialogs and over artwork." }
+    },
+    "surface": {
+      "1": { "$value": "#16181f", "$description": "Cards and rows at rest." },
+      "2": { "$value": "#1d2029", "$description": "Hovered or selected cards." },
+      "3": { "$value": "#262a35", "$description": "Inputs and pressed states." }
+    },
+    "text": {
+      "primary": { "$value": "#f3f3f5", "$description": "Titles and body text." },
+      "secondary": { "$value": "#b6b9c4", "$description": "Supporting text and metadata." },
+      "muted": { "$value": "#878b98", "$description": "Hints and disabled labels." },
+      "on-accent": {
+        "$value": "{color.bg.base}",
+        "$description": "Default text on any accent fill."
+      }
+    },
+    "border": {
+      "subtle": { "$value": "#ffffff14", "$description": "Hairline separators, used sparingly." }
+    },
+    "state": {
+      "focus-ring": {
+        "$value": "#f3f3f5",
+        "$description": "Focus indicator, high contrast on every surface."
+      },
+      "danger": { "$value": "#f2777a" },
+      "success": { "$value": "#5fcf8f" },
+      "warning": { "$value": "#e8b65a" }
+    },
+    "accent": {
+      "$description": "Profile accent colours; each profile picks exactly one.",
+      "ember": {
+        "base": { "$value": "#e8794a" },
+        "on": { "$value": "#1c0d06" }
+      },
+      "coral": {
+        "base": { "$value": "#f0857a" },
+        "on": { "$value": "#1f0b09" }
+      },
+      "amber": {
+        "base": { "$value": "#e3b24f" },
+        "on": { "$value": "#1d1404" }
+      },
+      "lime": {
+        "base": { "$value": "#a3d465" },
+        "on": { "$value": "#111a06" }
+      },
+      "teal": {
+        "base": { "$value": "#45c2b1" },
+        "on": { "$value": "#04191a" }
+      },
+      "sky": {
+        "base": { "$value": "#62aef0" },
+        "on": { "$value": "#06121f" }
+      },
+      "violet": {
+        "base": { "$value": "#a993f5" },
+        "on": { "$value": "#120c24" }
+      },
+      "rose": {
+        "base": { "$value": "#ec77a3" },
+        "on": { "$value": "#1f0812" }
+      }
+    }
+  }
+}
