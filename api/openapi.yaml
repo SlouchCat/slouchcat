@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: Slouchcat API
+  version: 0.1.0
+  summary: Public API of the Slouchcat media server.
+  description: |
+    Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
+
+    Every operation carries the vendor extension `x-visibility` with one of the values
+    `public` (no session needed), `scoped` (filtered through the visibility layer of the active
+    profile), `system` (unfiltered, internal callers only) or `admin` (main account only).
+    A schema test fails when an operation has no marker.
+
+    Errors use RFC 9457 problem details (`application/problem+json`) with the extra member `code`,
+    a stable machine-readable identifier such as `not_found` or `validation_failed`.
+    Items that the active profile may not see answer with HTTP 404, never 403.
+  license:
+    name: AGPL-3.0-only
+    identifier: AGPL-3.0-only
+servers:
+  - url: /api/v1
+    description: Same origin as the web app.
+tags:
+  - name: system
+    description: Health and server information.
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Liveness and readiness of the server
+      description: |
+        Returns 200 once the HTTP server listens, the database is open and migrations ran.
+        Used by the container health check and the web app to detect a reachable server.
+      tags: [system]
+      x-visibility: public
+      security: []
+      responses:
+        "200":
+          description: The server is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: The server is starting or a dependency is not ready.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: slouchcat_session
+      description: Browser session (HttpOnly, Secure, SameSite=Lax). Added in M2.
+    bearerToken:
+      type: http
+      scheme: bearer
+      description: Bearer token for third-party clients. Added in M2.
+  schemas:
+    Health:
+      type: object
+      required: [status, version, uptimeSeconds]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Always `ok` on a 200 response.
+        version:
+          type: string
+          description: Server version as built, for example `0.1.0+abc1234`.
+          examples: ["0.1.0+abc1234"]
+        uptimeSeconds:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Seconds since the process started.
+    Problem:
+      type: object
+      description: RFC 9457 problem details with a stable `code`.
+      required: [type, title, status, code]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: URI reference identifying the problem type; `about:blank` for generic HTTP errors.
+          examples: ["about:blank"]
+        title:
+          type: string
+          description: Short human-readable summary, English, stable per `code`.
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: HTTP status code of this response.
+        detail:
+          type: string
+          description: Human-readable explanation for this occurrence. Never contains secrets.
+        instance:
+          type: string
+          format: uri-reference
+          description: Request path that produced the problem.
+        code:
+          type: string
+          pattern: "^[a-z][a-z0-9_]*$"
+          description: Stable machine-readable identifier, for example `not_found`, `validation_failed`, `not_ready`.
+          examples: ["not_found"]

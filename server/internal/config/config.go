@@ -1,0 +1,117 @@
+// Package config loads the server configuration from command-line flags and environment
+// variables (prefix SLOUCHCAT_). Flags win over environment variables, which win over defaults.
+package config
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"log/slog"
+	"net"
+	"os"
+	"path/filepath"
+	"strconv"
+
+	"github.com/slouchcat/slouchcat/server/internal/logging"
+)
+
+// EnvPrefix is the prefix of every environment variable the server reads.
+const EnvPrefix = "SLOUCHCAT_"
+
+// Config is the validated server configuration.
+type Config struct {
+	Listen    string         // TCP address of the HTTP server, for example ":8096".
+	ConfigDir string         // Absolute path of the persistent directory (database, backups).
+	CacheDir  string         // Absolute path of the regenerable cache directory.
+	LogLevel  slog.Level     // Minimum level that is logged.
+	LogFormat logging.Format // json or text.
+	Dev       bool           // Development mode.
+}
+
+// Load parses args (without the program name and subcommand) and the environment read through
+// getenv, then validates the result.
+func Load(args []string, getenv func(string) string) (Config, error) {
+	fs := flag.NewFlagSet("slouchcat", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	env := func(name, def string) string {
+		if v := getenv(EnvPrefix + name); v != "" {
+			return v
+		}
+		return def
+	}
+	listen := fs.String("listen", env("LISTEN", ":8096"), "HTTP listen address (env SLOUCHCAT_LISTEN)")
+	configDir := fs.String("config-dir", env("CONFIG_DIR", "/config"), "persistent data directory (env SLOUCHCAT_CONFIG_DIR)")
+	cacheDir := fs.String("cache-dir", env("CACHE_DIR", "/cache"), "cache directory (env SLOUCHCAT_CACHE_DIR)")
+	logLevel := fs.String("log-level", env("LOG_LEVEL", "info"), "debug, info, warn or error (env SLOUCHCAT_LOG_LEVEL)")
+	logFormat := fs.String("log-format", env("LOG_FORMAT", string(logging.FormatJSON)), "json or text (env SLOUCHCAT_LOG_FORMAT)")
+	devDefault, err := parseBool(env("DEV", "false"))
+	if err != nil {
+		return Config{}, fmt.Errorf("%sDEV: %w", EnvPrefix, err)
+	}
+	dev := fs.Bool("dev", devDefault, "development mode (env SLOUCHCAT_DEV)")
+
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			fs.SetOutput(os.Stderr)
+			fs.PrintDefaults()
+		}
+		return Config{}, err
+	}
+	if fs.NArg() > 0 {
+		return Config{}, fmt.Errorf("unexpected arguments: %v", fs.Args())
+	}
+
+	cfg := Config{Listen: *listen, LogFormat: logging.Format(*logFormat), Dev: *dev}
+	if err := cfg.LogLevel.UnmarshalText([]byte(*logLevel)); err != nil {
+		return Config{}, fmt.Errorf("log level: %w", err)
+	}
+	if cfg.LogFormat != logging.FormatJSON && cfg.LogFormat != logging.FormatText {
+		return Config{}, fmt.Errorf("log format %q: want json or text", *logFormat)
+	}
+	if _, _, err := net.SplitHostPort(cfg.Listen); err != nil {
+		return Config{}, fmt.Errorf("listen address: %w", err)
+	}
+	if cfg.ConfigDir, err = absDir("config dir", *configDir); err != nil {
+		return Config{}, err
+	}
+	if cfg.CacheDir, err = absDir("cache dir", *cacheDir); err != nil {
+		return Config{}, err
+	}
+	if cfg.ConfigDir == cfg.CacheDir {
+		return Config{}, errors.New("config dir and cache dir must differ")
+	}
+	return cfg, nil
+}
+
+// LogValue groups the effective configuration for the startup log line.
+func (c Config) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("listen", c.Listen),
+		slog.String("config_dir", c.ConfigDir),
+		slog.String("cache_dir", c.CacheDir),
+		slog.String("log_level", c.LogLevel.String()),
+		slog.String("log_format", string(c.LogFormat)),
+		slog.Bool("dev", c.Dev),
+	)
+}
+
+func absDir(name, dir string) (string, error) {
+	if dir == "" {
+		return "", fmt.Errorf("%s must not be empty", name)
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", name, err)
+	}
+	return abs, nil
+}
+
+func parseBool(s string) (bool, error) {
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return false, fmt.Errorf("invalid boolean %q", s)
+	}
+	return b, nil
+}

@@ -20,3 +20,9 @@ coverage/
 /cache/
 testdata/media/
 .env
+
+# Local dev runtime (task dev)
+.dev/
+
+# Taskfile cache
+.task/

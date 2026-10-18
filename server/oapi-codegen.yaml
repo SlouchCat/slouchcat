@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+# Generates types and the chi strict server from ../api/openapi.yaml (`task gen`). The output in
+# internal/api/gen is never edited by hand.
+package: gen
+output: internal/api/gen/api.gen.go
+generate:
+  models: true
+  chi-server: true
+  strict-server: true

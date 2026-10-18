@@ -1,0 +1,53 @@
+# Server tasks, included from the root Taskfile with dir ./server (`task server:<name>`).
+# All Go tools run through `go tool` with the versions pinned in go.mod.
+version: "3"
+
+vars:
+  VERSION:
+    sh: git describe --always --dirty 2>/dev/null || echo dev
+
+tasks:
+  gen:
+    desc: Generate the API server (oapi-codegen) and the database queries (sqlc)
+    cmds:
+      - go tool oapi-codegen -config oapi-codegen.yaml ../api/openapi.yaml
+      - go tool sqlc generate
+
+  lint:
+    desc: golangci-lint, the itemsaccess analyzer and go vet
+    cmds:
+      - go tool golangci-lint run ./...
+      - go run ./tools/itemsaccess/cmd/itemsaccess ./...
+      - go vet ./...
+
+  test:
+    desc: Run all server tests with the race detector
+    cmds:
+      - go test -race ./...
+
+  build:
+    desc: Build the static server binary into bin/slouchcat
+    env:
+      CGO_ENABLED: "0"
+    cmds:
+      - go build -trimpath -ldflags "-s -w -X main.version={{.VERSION}}" -o bin/slouchcat ./cmd/slouchcat
+
+  dev:
+    desc: Run the server in development mode with data under ../.dev
+    cmds:
+      - mkdir -p ../.dev/config ../.dev/cache
+      - go run ./cmd/slouchcat serve --dev --log-format text --config-dir ../.dev/config --cache-dir ../.dev/cache
+
+  vuln:
+    desc: Check dependencies for known vulnerabilities (needs network access)
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  ci:
+    desc: Everything CI runs for the server, in order
+    cmds:
+      - task: gen
+      - task: lint
+      - task: test
+      - task: build
+      - task: vuln
