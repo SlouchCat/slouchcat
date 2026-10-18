@@ -14,7 +14,7 @@ import (
 var fakeSecrets = []string{
 	"hunter2-FAKE", "tok_FAKE_123", "pin-FAKE-0815", "apikey-FAKE-xyz", "Bearer FAKE.jwt.value",
 	"xapikey-FAKE", "s3cr3t-FAKE", "query-FAKE-key", "st-FAKE-token", "err-FAKE-key", "with-FAKE",
-	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key",
+	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "4711",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -30,7 +30,7 @@ func logAll(t *testing.T, format Format) string {
 		"password", "hunter2-FAKE",
 		"Token", "tok_FAKE_123",
 		"pin", "pin-FAKE-0815",
-		slog.Group("profile", slog.Int("PIN", 4711)),
+		slog.Group("profile", slog.Int("PIN", 4711)), // numeric secret, listed in fakeSecrets
 		"apiKey", "apikey-FAKE-xyz",
 		"Authorization", "Bearer FAKE.jwt.value",
 		"X-Api-Key", "xapikey-FAKE",

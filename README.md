@@ -4,7 +4,8 @@ Selbst gehosteter Media-Server mit kompromisslosem Design. Eigenständige, von E
 losgelöste Lösung für einen Haushalt und seine Gäste: Filme, Serien, Hörbücher und Podcasts, Profile mit
 Altersfreigabe, kuratierte Startseite, Transcoding mit GPU, echte Offline-Wiedergabe in der PWA.
 
-Status: Meilenstein M0 (Projektfundament) in Arbeit, siehe `docs/dev/CURRENT_STATUS.md`.
+Status: Meilenstein M0 (Projektfundament) abgeschlossen, M1a (Durchstich) steht an; Details in
+`docs/dev/CURRENT_STATUS.md`.
 
 ## Aufbau
 

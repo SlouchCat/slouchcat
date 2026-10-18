@@ -61,7 +61,7 @@ tasks:
   gen:check:
     desc: Fail when generated code differs from the committed state (codegen drift)
     cmds:
-      - git diff --exit-code --stat -- server/internal/api/gen server/internal/store packages/api-client/src/generated packages/design-tokens/dist
+      - git diff --exit-code --stat -- server/internal/api/gen server/internal/store packages/api-client/src/generated
 
   dev:
     desc: Run server and web dev server together

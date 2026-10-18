@@ -32,7 +32,7 @@ Gewichtete Entscheidungstreiber (Plan 2.2):
 | Datenbank | SQLite im WAL-Modus über `modernc.org/sqlite` (ohne CGO); eine Schreibverbindung, N Leseverbindungen; Datei in `/config`, das nie auf NFS/SMB liegen darf (`statfs`-Prüfung beim Start) |
 | Abfragen | `sqlc` für statische Abfragen, getrennt in `queries/scoped/` (müssen `visible_items` enthalten) und `queries/system/` (Paket `store/systemq`, Import nur in erlaubten Paketen); Query-Builder in `visibility` für Listen und Suche (ab M1a) |
 | Migrationen | `goose`, nur vorwärts, eingebettet; Vorlage mit `-- +goose NO TRANSACTION`, `PRAGMA foreign_keys=OFF`, `PRAGMA foreign_key_check`, `PRAGMA foreign_keys=ON`; vor jedem Lauf `VACUUM INTO` nach `/config/backups/`, die letzten 5 Sicherungen bleiben |
-| Jobs | eigene persistente Queue in SQLite (Lease, Idempotenz-Schlüssel, Debounce, Retry mit Backoff, Priorität 0–9, Abbruch, Zeitpläne); `goqite` wurde in M0 mit Timebox geprüft, Ergebnis in ADR 0002 |
+| Jobs | eigene persistente Queue in SQLite (Lease, Idempotenz-Schlüssel, Debounce, Retry mit Backoff, Priorität 0–9, Abbruch, Zeitpläne); `goqite` wurde in M0 geprüft und verworfen (keine Idempotenz-Schlüssel, keine Zeitpläne, kein Backoff), siehe ADR 0002 |
 | Logging | `log/slog` mit Redaction-Handler für `password`, `pin`, `token`, `apiKey`, `Authorization`, `X-Api-Key`, Query-Parameter `api_key` und `st` |
 | Transcoding, Bilder | ffmpeg/ffprobe aus dem jellyfin-ffmpeg-Build, ausschliesslich hinter dem Paket `transcode`; `os/exec` ist sonst verboten |
 | Lint | `golangci-lint` mit `forbidigo`, `depguard`, `gosec`; eigener Analyzer `itemsaccess`; `govulncheck` |
@@ -91,8 +91,9 @@ hinfällig.
 
 ## Offene Folgepunkte
 
-- Verifikation von `debian:trixie-slim` als Basis mit jellyfin-ffmpeg-Paketen (M0, Schritt 6; braucht
-  Docker auf dem Entwicklungsrechner).
+- Erledigt in M0, Schritt 6: `debian:trixie-slim` ist verifiziert. Das Jellyfin-Repository liefert
+  `jellyfin-ffmpeg7` 7.1.4-3-trixie für amd64 und arm64; kein Rückfall auf `bookworm-slim` nötig
+  (`deploy/README.md`).
 - Go-Modulpfad: bis das öffentliche GitHub-Repository existiert, lautet er `github.com/slouchcat/slouchcat`;
   er wird beim Anlegen des Remotes auf den echten Besitzer umbenannt (ein `sed` über das Repository).
 - Design-Brief mit Schrift und Palette in M1b; TVDB-Lizenz vor M3.

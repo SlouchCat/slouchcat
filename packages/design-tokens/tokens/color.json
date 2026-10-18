@@ -20,7 +20,7 @@
     "text": {
       "primary": { "$value": "#f3f3f5", "$description": "Titles and body text." },
       "secondary": { "$value": "#b6b9c4", "$description": "Supporting text and metadata." },
-      "muted": { "$value": "#878b98", "$description": "Hints and disabled labels." },
+      "muted": { "$value": "#9095a3", "$description": "Hints and disabled labels." },
       "on-accent": {
         "$value": "{color.bg.base}",
         "$description": "Default text on any accent fill."

@@ -24,10 +24,28 @@ function contrast(foreground: string, background: string): number {
 const MIN_RATIO = 4.5;
 const bg = tokens.color.bg.base;
 
+// Text must stay readable on every surface it can sit on, not only on the base background.
+const surfaces: Record<string, string> = {
+  'bg.base': bg,
+  'bg.elevated': tokens.color.bg.elevated,
+  'surface.1': tokens.color.surface['1'],
+  'surface.2': tokens.color.surface['2'],
+  'surface.3': tokens.color.surface['3'],
+};
+const textTokens: Record<string, string> = {
+  'text.primary': tokens.color.text.primary,
+  'text.secondary': tokens.color.text.secondary,
+  'text.muted': tokens.color.text.muted,
+};
+
 const pairs: { pair: string; foreground: string; background: string }[] = [
-  { pair: 'text.primary / bg.base', foreground: tokens.color.text.primary, background: bg },
-  { pair: 'text.secondary / bg.base', foreground: tokens.color.text.secondary, background: bg },
-  { pair: 'text.muted / bg.base', foreground: tokens.color.text.muted, background: bg },
+  ...Object.entries(textTokens).flatMap(([textName, foreground]) =>
+    Object.entries(surfaces).map(([surfaceName, background]) => ({
+      pair: `${textName} / ${surfaceName}`,
+      foreground,
+      background,
+    })),
+  ),
   ...accentNames.flatMap((name) => {
     const accent = tokens.color.accent[name];
     return [
