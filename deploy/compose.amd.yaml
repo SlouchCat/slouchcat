@@ -1,0 +1,12 @@
+# AMD (VAAPI via Mesa radeonsi, shipped with jellyfin-ffmpeg). Best effort, untested (plan 3.5).
+# docker compose -f compose.yaml -f compose.amd.yaml up -d
+#
+# group_add needs the numeric GID of the host group "render": the container has
+# no group of that name, so a name would fail at start. Find it with
+#   getent group render | cut -d: -f3
+services:
+  slouchcat:
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${RENDER_GID:?RENDER_GID is not set, see: getent group render | cut -d: -f3}"

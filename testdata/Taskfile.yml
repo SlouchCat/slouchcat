@@ -1,0 +1,21 @@
+# Test data generators (plan M0 step 6). Included from the root Taskfile with dir: ./testdata.
+version: "3"
+
+vars:
+  TREE_ROOT: '{{.TREE_ROOT | default "media/placeholder-tree"}}'
+
+tasks:
+  media:
+    desc: Generate synthetic test media into testdata/media (needs ffmpeg; override with FFMPEG/FFPROBE)
+    cmds:
+      - ./generate-media.sh
+
+  tree:
+    desc: Create the placeholder library tree (empty files, ~60k files / 8k folders); extra args after --
+    cmds:
+      - python3 -I generate-library-tree.py --root "{{.TREE_ROOT}}" {{.CLI_ARGS}}
+
+  clean:
+    desc: Remove all generated test data (testdata/media)
+    cmds:
+      - rm -rf media
