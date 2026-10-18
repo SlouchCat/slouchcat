@@ -39,13 +39,28 @@ ganze Datei (nur Demux) und läuft darum mit niedrigster Priorität nach den Met
 Platzhalterdateien schlägt die Probe erwartungsgemäss fehl (`EBML header parsing failed`) und wird nach
 Backoff bis zu fünfmal wiederholt; Titel und Poster hängen nicht davon ab.
 
+## 2a. Frischer Stack per Docker Compose (DoD M1a)
+
+Image `slouchcat:dev` (`task deploy:build`), `docker compose -f compose.yaml -f .dev/compose.m1a.yaml up -d`
+mit leerem `config/` und `cache/`: 20 generierte Filme (Kopien der H.264-Testdatei unter echten Titeln wie
+`The Matrix (1999)`) unter `/media/Generated` und Marcos 12 Testfilme (NFS) unter `/testfilme`.
+
+| Messung | Wert | Ziel |
+|---|---|---|
+| Container `healthy` | 1.62 s | < 5 s |
+| Assistent (`POST /setup` 22:38:45.1) bis alle 32 `image.fetch`-Jobs fertig (22:38:54.7) | **9.5 s** | < 5 min |
+| Scan 20 generierte Filme (lokal) / 12 eigene (NFS) | 22 ms / 0.83 s | |
+| Warnungen oder Fehler im Container-Log | keine | |
+
+Alle 32 Titel haben TMDB-Texte, FSK-Stufe, Poster und Backdrop.
+
 ## 3. Direct Play
 
 | Messung | Wert |
 |---|---|
 | Range-Anfrage `bytes=0-99` auf eine 10.5-GB-MKV über NFS | HTTP 206, `Content-Range: bytes 0-99/10555016079`, `Cache-Control: private, no-store` |
 | ohne Sitzungs-Cookie | HTTP 401 |
-| Startzeit bis `playing` in Chrome und Firefox (H.264/AAC-MP4) | folgt (Playwright-Messung `data-start-ms`) |
+| Startzeit Navigation → erstes `playing` (H.264/AAC-MP4, 10 s Testclip, Playwright `data-start-ms`, Server auf localhost) | Chromium 43 ms, Firefox 73 ms (Ziel < 2 s); Safari ungeprüft (keine Hardware, Entscheid 2) |
 
 ## 4. Startseite
 

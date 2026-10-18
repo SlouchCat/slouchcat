@@ -30,7 +30,7 @@ func TestFrozenStatesMigrate(t *testing.T) {
 		}
 	}
 	if len(states) == 0 {
-		t.Skip("no frozen states yet (the first one is written at the end of M1a)")
+		t.Fatal("no frozen states in testdata/db; every milestone from M1a on adds one")
 	}
 	for _, name := range states {
 		t.Run(name, func(t *testing.T) {
