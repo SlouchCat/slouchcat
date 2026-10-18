@@ -45,6 +45,11 @@ func NewHandler(fsys fs.FS) http.Handler {
 		if name != "" && name != "index.html" && serveFile(w, r, fsys, name) {
 			return
 		}
+		// A folder with its own index.html is a self-contained page (for example the offline
+		// spike under /spike/), not a client-side route of the app.
+		if name != "" && strings.HasSuffix(r.URL.Path, "/") && serveFile(w, r, fsys, name+"/index.html") {
+			return
+		}
 		if strings.HasPrefix(name, "assets/") {
 			http.NotFound(w, r) // a missing hashed asset is never an app route
 			return
