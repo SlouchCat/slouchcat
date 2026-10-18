@@ -27,3 +27,4 @@ geändert.
 | 2026-10-18 | Testserver = Proxmox-CT mit Ressourcenlimits statt N100; iOS/macOS ungeprüft (keine Apple-Geräte) | Antwort auf Frage 2 | M1a, M1b, AN-7, AN-13 |
 | 2026-10-18 | SMB/NFS sind der Hauptfall für Medien; Eine-Minute-Ziel bleibt, Nachweis in Lastmessung | Antwort auf Frage 3 | M1a, M3, AN-12 |
 | 2026-10-18 | Referenzgrösse der Sammlung: ~2'500 Filme, ~40'000 Folgen; Lastmessung auf ≥ 45'000 Dateien / 8'000 Ordner skaliert; Erst-Scan in Batches, unterbrechbar, mit Fortschritt | Angabe von Marco | M0 (Generator), M1a, M3, B-4, P-4 |
+| 2026-10-18 | OMC-Agenten executor und designer laufen auf Opus (`.claude/omc.jsonc`); übrige Stufen Standard | Code wird nicht vom Auftraggeber gegengelesen; Design ist Alleinstellungsmerkmal | alle Meilensteine |

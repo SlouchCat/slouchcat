@@ -1,0 +1,13 @@
+{
+  // oh-my-claudecode: Projektkonfiguration für Slouchcat.
+  // Entscheid vom 18. Oktober 2026 (docs/planning/04-entscheidungen.md):
+  // Code und Design werden von Opus geschrieben, weil der Auftraggeber den Code
+  // nicht selbst gegenlesen kann und Design das Alleinstellungsmerkmal ist.
+  // Alle übrigen Agenten behalten die OMC-Standardstufen
+  // (architect/planner/critic/code-reviewer/analyst: opus, verifier/test-engineer: sonnet,
+  // explore/writer: haiku).
+  "agents": {
+    "executor": { "model": "opus" },
+    "designer": { "model": "opus" }
+  }
+}
