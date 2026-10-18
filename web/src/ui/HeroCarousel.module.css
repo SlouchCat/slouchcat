@@ -1,3 +1,4 @@
+/* Height and image placement are repeated by #hero-prepaint in global.css; keep them in step. */
 .hero {
   position: relative;
   display: flex;

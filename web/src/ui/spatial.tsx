@@ -1,14 +1,4 @@
-import {
-  FocusContext,
-  getCurrentFocusKey,
-  init,
-  pause,
-  resume,
-  setFocus,
-  doesFocusableExist,
-  useFocusable,
-  type Direction,
-} from '@noriginmedia/norigin-spatial-navigation';
+import type { Direction } from '@noriginmedia/norigin-spatial-navigation';
 import { useCallback, useEffect, type ReactNode, type Ref } from 'react';
 
 // Spatial (remote-control style) navigation for the browsing pages, built on norigin.
@@ -19,19 +9,39 @@ import { useCallback, useEffect, type ReactNode, type Ref } from 'react';
 //   button natively, and forms keep their arrow keys. SpatialPage prevents page scrolling on arrow
 //   keys only while a browsing page is mounted.
 // - Outside a SpatialPage norigin is paused; Tab order is always the DOM order.
+// - norigin (with lodash-es, about 17 kB gzip) is a chunk of its own, requested once the start
+//   bundle runs, so it does not share the link with the hero image (P-10). The routes with the app
+//   header wait for it (router.tsx); everything below may then use it synchronously.
 
-let initialised = false;
+type Norigin = typeof import('@noriginmedia/norigin-spatial-navigation');
 
-export function initSpatialNavigation(): void {
-  if (initialised) return;
-  init({
-    shouldFocusDOMNode: true,
-    shouldUseNativeEvents: true,
-    domNodeFocusOptions: { preventScroll: true },
-    distanceCalculationMethod: 'center',
-  });
-  pause();
-  initialised = true;
+let norigin: Norigin | undefined;
+let loading: Promise<void> | undefined;
+
+/** Loads and initialises norigin (paused); repeated calls share one load, a failed one is retried. */
+export function loadSpatialNavigation(): Promise<void> {
+  loading ??= import('@noriginmedia/norigin-spatial-navigation').then(
+    (module) => {
+      module.init({
+        shouldFocusDOMNode: true,
+        shouldUseNativeEvents: true,
+        domNodeFocusOptions: { preventScroll: true },
+        distanceCalculationMethod: 'center',
+      });
+      module.pause();
+      norigin = module;
+    },
+    (error: unknown) => {
+      loading = undefined;
+      throw error;
+    },
+  );
+  return loading;
+}
+
+function nav(): Norigin {
+  if (!norigin) throw new Error('Spatial navigation used before loadSpatialNavigation() resolved');
+  return norigin;
 }
 
 const reducedMotion = () =>
@@ -68,7 +78,7 @@ interface SpatialPageProps {
 /** Enables arrow-key navigation while a browsing page (home, detail) is mounted. */
 export function SpatialPage({ children, defaultFocusKey }: SpatialPageProps) {
   useEffect(() => {
-    initSpatialNavigation();
+    const { doesFocusableExist, getCurrentFocusKey, pause, resume, setFocus } = nav();
     resume();
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -109,6 +119,7 @@ export function useSpatialItem<E extends HTMLElement>({
   focusKey,
   onArrowPress,
 }: SpatialItemOptions = {}) {
+  const { getCurrentFocusKey, useFocusable } = nav();
   const {
     ref,
     focusSelf,
@@ -120,7 +131,7 @@ export function useSpatialItem<E extends HTMLElement>({
   });
   const onFocus = useCallback(() => {
     if (getCurrentFocusKey() !== key) focusSelf();
-  }, [focusSelf, key]);
+  }, [getCurrentFocusKey, focusSelf, key]);
   return { ref: ref as Ref<E>, onFocus, focusKey: key };
 }
 
@@ -144,6 +155,7 @@ export function SpatialGroup({
   as: Tag = 'div',
   ...aria
 }: SpatialGroupProps) {
+  const { FocusContext, useFocusable } = nav();
   const { ref, focusKey: key } = useFocusable<object, HTMLElement>({
     focusKey,
     saveLastFocusedChild: rememberLastChild,

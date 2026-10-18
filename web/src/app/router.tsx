@@ -10,6 +10,7 @@ import {
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
+import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
 import { paths } from './paths';
 import { RootError, RootLayout } from './RootLayout';
@@ -65,10 +66,14 @@ const authedRoute = createRoute({
   },
 });
 
-/** Pages with the app header; the player runs full screen without it. */
+/**
+ * Pages with the app header; the player runs full screen without it. Header, start and detail
+ * page navigate with norigin, which loads as its own chunk (spatial.tsx).
+ */
 const chromeRoute = createRoute({
   getParentRoute: () => authedRoute,
   id: '_chrome',
+  beforeLoad: () => loadSpatialNavigation(),
   component: AppLayout,
 });
 

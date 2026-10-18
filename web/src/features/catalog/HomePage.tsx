@@ -2,7 +2,7 @@ import type { HomeRow, ItemRef } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -12,6 +12,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
   Button,
   ButtonLink,
+  dismissHeroPrepaint,
   HERO_PLAY_KEY,
   HeroCarousel,
   Notice,
@@ -76,6 +77,17 @@ export function HomePage() {
   // Posters wait until the hero artwork is on screen: on a slow link they would share its
   // bandwidth (P-10). The frames keep their size, so nothing shifts.
   const [heroShown, setHeroShown] = useState(false);
+  const firstPick = home.data?.rows.find((row) => row.key === 'picks')?.items[0];
+  const heroHasArt = Boolean(
+    firstPick &&
+    (firstPick.images.backdrop ?? firstPick.images.backdropSmall ?? firstPick.images.poster),
+  );
+  // The server painted the first hero image into the shell (P-10); it gives way once the carousel
+  // shows its own image, or right away when the page has no hero art.
+  const prepaintDone = home.isError || (home.isSuccess && (!heroHasArt || heroShown));
+  useEffect(() => {
+    if (prepaintDone) dismissHeroPrepaint();
+  }, [prepaintDone]);
 
   if (home.isPending) {
     return (
@@ -125,11 +137,6 @@ export function HomePage() {
     playHref: paths.play(item.id),
     detailsHref: paths.item(item.id),
   }));
-
-  const firstSlide = slides[0];
-  const heroHasArt = Boolean(
-    firstSlide && (firstSlide.backdropUrl ?? firstSlide.backdropSmallUrl ?? firstSlide.posterUrl),
-  );
 
   return (
     <SpatialPage defaultFocusKey={defaultFocusKey}>

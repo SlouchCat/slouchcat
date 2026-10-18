@@ -57,6 +57,17 @@ function imageSource(slide: HeroSlide) {
 }
 
 /**
+ * Fades out the first hero image the server wrote into the start page's shell (`#hero-prepaint`,
+ * api/preload.go) and removes it afterwards. Safe to call more than once or without the image.
+ */
+export function dismissHeroPrepaint() {
+  const prepaint = document.getElementById('hero-prepaint');
+  if (!prepaint || prepaint.dataset.done !== undefined) return;
+  prepaint.addEventListener('transitionend', () => prepaint.remove(), { once: true });
+  prepaint.dataset.done = '';
+}
+
+/**
  * Full-bleed carousel at the top of the start page. Rotates every `intervalMs` unless the pointer
  * or focus is inside it (or reduced motion is requested). Arrow left on the first button and arrow
  * right on the last button page through the slides; the buttons keep focus.

@@ -68,15 +68,15 @@ Lighthouse 12.8.2, Mobile-Voreinstellung, simuliert (1.6 Mbit/s, 150 ms RTT, 4×
 12 Titeln (TMDB-Poster w500 50–190 kB, Backdrops w780 58–120 kB bzw. w1280 140–400 kB), Server auf
 127.0.0.1 (HTTP/1.1, gzip), angemeldet (Cookie als Kopfzeile). Median aus drei Läufen.
 
-| Messung | vorher | Runde 1 | Runde 2 |
-|---|---|---|---|
-| LCP | 13.0 s | 3.4 s (3.38 / 3.38 / 3.38 s) | 2.57 s (2.568 / 2.570 / 2.568 s) |
-| FCP | 4.4 s | 2.25 s | 1.70 s |
-| TBT / CLS | 32 ms / 0 | 7 ms / 0 | 4 ms / 0 |
-| LCP-Phasen (TTFB / Ladeverzug / Ladezeit / Renderverzug) | 0.45 / 10.6 / 0.5 / 1.4 s | 0.45 / 2.25 / 0.02 / 0.66 s | 0.45 / 0–0.14 / 0–0.24 / 1.74–2.12 s |
-| JS beim Start (gzip) | 591 kB ohne Kompression | 190 kB (index 105 kB, ui 85 kB), 3 Dateien | 156 kB, 1 Datei (Übertragung 158 KiB) |
-| Anfragen vor dem LCP | – | 11 | 7 (Dokument, Sitzung, Startseite, Hero-Bild, JS, CSS, Manifest) |
-| LCP-Element | aktives Hero-`<img>` w1280 | aktives Hero-`<img>`, w780 über `srcset` | unverändert |
+| Messung | vorher | Runde 1 | Runde 2 | Runde 3 |
+|---|---|---|---|---|
+| LCP | 13.0 s | 3.4 s (3.38 / 3.38 / 3.38 s) | 2.57 s (2.568 / 2.570 / 2.568 s) | 2.55 s (2.552 / 2.551 / 2.459 s) |
+| FCP | 4.4 s | 2.25 s | 1.70 s | 1.65 s (1.652 / 1.651 / 1.709 s) |
+| TBT / CLS | 32 ms / 0 | 7 ms / 0 | 4 ms / 0 | 0–1 ms / 0 |
+| LCP-Phasen (TTFB / Ladeverzug / Ladezeit / Renderverzug) | 0.45 / 10.6 / 0.5 / 1.4 s | 0.45 / 2.25 / 0.02 / 0.66 s | 0.45 / 0–0.14 / 0–0.24 / 1.74–2.12 s | 0.45 / 0.75 / 0.32 / 1.03 s; 0.45 / 0.54 / 0.35 / 1.22 s; 0.45 / 0.58 / 0.53 / 0.89 s |
+| JS beim Start (gzip) | 591 kB ohne Kompression | 190 kB (index 105 kB, ui 85 kB), 3 Dateien | 156 kB, 1 Datei (Übertragung 158 KiB) | 139 kB, 1 Datei (Übertragung 141 KiB); norigin 16.6 kB als eigene Datei nach dem LCP |
+| Anfragen vor dem LCP | – | 11 | 7 (Dokument, Sitzung, Startseite, Hero-Bild, JS, CSS, Manifest) | 7 (unverändert) |
+| LCP-Element | aktives Hero-`<img>` w1280 | aktives Hero-`<img>`, w780 über `srcset` | unverändert | `#hero-prepaint img` aus der App-Hülle (w780 über `srcset`) |
 
 Runde 2 (Läufe `lighthouse-home-3-run{1,2,3}.json`):
 
@@ -100,7 +100,7 @@ Engpass), react-dom als eigene parallele Datei (2.70 s), terser statt oxc (+0.9 
 Sprache laden (Lighthouse-Browser `en`, Profil `de`: beide nötig, ein Nachladen kostete eine Anfrage),
 lodash-es von norigin ersetzen (−7.6 kB gzip, siehe unten: unter der Schwelle).
 
-**P-10 (< 2.5 s) knapp verfehlt (2.57 s).** Laut Lantern-Simulation (Trace dieses Stands) endet das
+**Stand nach Runde 2: P-10 (< 2.5 s) knapp verfehlt (2.57 s).** Laut Lantern-Simulation (Trace dieses Stands) endet das
 Dokument bei 0.60 s; danach teilen sich JS (158 KiB) und Hero-Bild (114 KiB) die Leitung: Bild fertig bei
 2.25 s, JS bei 2.55 s, der LCP folgt dem JS-Ende nach rund 20 ms CPU. Dominant ist also die Ladezeit des
 Start-JS im Wettbewerb mit dem Bild (im Lighthouse-Bericht als „Renderverzug“ ausgewiesen). Lantern
@@ -110,6 +110,47 @@ in die App-Hülle von `/` schreiben (ein `<img>` mit denselben Attributen, das R
 LCP nicht mehr auf das JS wartet; die Simulation erwartet dann ≈ 2.25 s (Bildende). Hinter Caddy mit
 HTTPS (K-8) kommen HTTP/2 und Brotli hinzu (Chrome sendet `br` nur über HTTPS), was das JS um rund
 20 % verkleinert; das ist hier im HTTP-Labor nicht messbar.
+
+Runde 3 (Läufe `lighthouse-home-4-run{1,2,3}.json`):
+
+- **Hero-Bild in der App-Hülle.** `GET /` mit Sitzung und erster Empfehlung ersetzt den Marker
+  `<!--hero-->` in `index.html` (vor `#root`) durch `<div id="hero-prepaint" aria-hidden="true"><img …>`
+  mit denselben Attributen wie das aktive Karussellbild (URLs, `srcset`, `sizes`, `fetchpriority=high`,
+  `decoding=sync`; Werte HTML-maskiert; `api/preload.go`). Ohne Sitzung oder Bild fällt der Marker weg.
+  `#hero-prepaint` in `global.css` hat die Geometrie des Karussellbilds (Höhe
+  `clamp(hero-min, 78vh, hero-max)`, `object-fit: cover`, `object-position: center 25%`), liegt über
+  der Seite und unter der Kopfzeile (`z-raised`, `pointer-events: none`) und wird ausgeblendet
+  (`motion.duration.crossfade`) und entfernt, sobald das Karussell sein eigenes Bild gezeichnet hat, die
+  Seite ohne Hero-Bild auskommt oder der Router `/` verlässt. Geprüft mit Playwright (412 und 1440 px
+  breit): gleiches Rechteck und gleiche `currentSrc` wie das Karussellbild, danach entfernt; CLS 0.
+  Im Browser ist das Bild damit nach 29–67 ms gezeichnet statt nach dem JS (vorher 143 ms).
+- **norigin als eigene Datei.** `@noriginmedia/norigin-spatial-navigation` mit lodash-es (16.6 kB gzip)
+  lädt per `import()`, sobald das Start-JS läuft; die Routen mit Kopfzeile (`_chrome`) warten darauf
+  (`loadSpatialNavigation()` in `ui/spatial.tsx`). Die Anfrage beginnt nach dem LCP und zählt deshalb
+  nicht mehr dazu. Start-JS 156 → 139 kB gzip. Kosten: Kopfzeile und Seiteninhalt erscheinen eine
+  Anfrage später; das Hero-Bild steht dann schon.
+- Geprüft: `@tanstack/react-query-devtools` ist nicht im Bundle. Verworfen: die inaktive Sprache
+  nachladen (≈ 2.5 kB, siehe Runde 2), Hero-Bild vor Sitzung und Startseite im `Link`-Kopf (Chrome
+  fordert das Bild trotzdem nach der Sitzung an; 2.445 / 2.551 / 2.552 s).
+
+Zwischenstände: nur Hero-Bild in der Hülle 2.61 / 2.55 / 2.60 s (`decoding=async`) bzw. 2.60 / 2.55 /
+2.60 s (`decoding=sync`), also ohne Wirkung auf den simulierten Wert; norigin testweise ganz entfernt
+2.447 / 2.456 / 2.458 s; drei weitere Läufe des Endstands (`lighthouse-home-4x-run*`) 2.551 / 2.444 /
+2.444 s. Über alle sechs Läufe des Endstands: dreimal ≈ 2.45 s, dreimal 2.55 s.
+
+**P-10 (< 2.5 s) im Median weiterhin knapp verfehlt (2.55 s), Werte pendeln zwischen 2.44 und 2.55 s.**
+Warum das Hero-Bild in der Hülle den simulierten Wert kaum bewegt: Lantern baut den LCP-Graphen aus
+allen Anfragen, die im (ungedrosselten) Beobachtungslauf *vor* dem gezeichneten LCP fertig waren. Auf
+127.0.0.1 ist das Start-JS nach 15–47 ms geladen, das Bild nach 29–67 ms gezeichnet; das JS bleibt also im
+Graphen, und der simulierte LCP endet weiter mit dem JS-Download (Bild und JS teilen sich die Leitung).
+Ein Modul-Skript erzeugt zudem kein `EvaluateScript`-Ereignis, mit dem Lantern es als „nicht
+renderblockierend“ aussortieren könnte. In einem echten gedrosselten Browser zeichnet die Hülle das Bild,
+sobald es geladen ist (laut Simulation bei ≈ 2.25 s), unabhängig vom JS. Gewirkt hat im simulierten Wert
+nur die kleinere Start-Datei (−17 kB): Sie bringt den LCP genau an die Stufe, die je nach CPU-Zeiten des
+Beobachtungslaufs (FCP 1.65 s ↔ LCP 2.55 s, FCP 1.70 s ↔ LCP 2.45 s) mal darunter, mal darüber liegt.
+Ein sicherer Abstand bräuchte nochmals rund 15–30 kB weniger Start-JS, oder das Start-JS erst nach dem
+Hero-Bild anzufordern (nur auf `/` mit Hülle; verschiebt die Interaktivität um etwa eine Anfrage). Beides
+ist nicht umgesetzt.
 
 ## 5. Leerlauf
 

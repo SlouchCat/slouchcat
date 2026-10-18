@@ -1,10 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"html"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
@@ -23,6 +27,10 @@ const (
 	heroLargeWidth = "1280w"
 )
 
+// heroMarker is the comment in web/index.html where the start page's shell receives the first hero
+// image (heroPrepaint); every GET / replaces it, with nothing when there is no image.
+const heroMarker = "<!--hero-->"
+
 // startPreloads are the API reads the start page makes first (router guard and home query). The
 // web client sends reads without custom headers, so its fetch() reuses these preloads.
 var startPreloads = []string{
@@ -38,6 +46,9 @@ var startPreloads = []string{
 // is left out on purpose: the service worker precaches it, and a stored header would preload a
 // stale image later.
 //
+// The same request also writes the first hero image into the shell (heroPrepaint), so the browser
+// paints it as soon as it has loaded instead of after the JavaScript has run.
+//
 // The shell is sent with Cache-Control: no-cache (webassets), so the header is computed per
 // request; Vary: Cookie keeps shared caches from handing it to another viewer.
 func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) func(http.Handler) http.Handler {
@@ -51,6 +62,7 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 				return
 			}
 			w.Header().Add("Vary", "Cookie")
+			prepaint := ""
 			session, token, extended, ok := resolveSession(r.Context(), auth, r)
 			if ok {
 				if extended {
@@ -66,13 +78,73 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 					if link := heroLink(item); link != "" {
 						w.Header().Add("Link", link)
 					}
+					prepaint = heroPrepaint(item)
 				case !errors.Is(err, model.ErrNotFound) && !errors.Is(err, context.Canceled):
 					log.WarnContext(r.Context(), "hero preload skipped", "err", err)
 				}
 			}
-			next.ServeHTTP(w, r)
+			shell := &shellWriter{ResponseWriter: w}
+			next.ServeHTTP(shell, r)
+			shell.flush(prepaint)
 		})
 	}
+}
+
+// shellWriter holds back the app shell so startPagePreload can fill in the hero marker. The shell
+// is a small file; anything other than a 200 HTML answer passes through unchanged.
+type shellWriter struct {
+	http.ResponseWriter
+	status int
+	body   bytes.Buffer
+}
+
+func (s *shellWriter) WriteHeader(status int) {
+	if s.status == 0 {
+		s.status = status
+	}
+}
+
+func (s *shellWriter) Write(p []byte) (int, error) {
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	return s.body.Write(p)
+}
+
+func (s *shellWriter) flush(prepaint string) {
+	body := s.body.Bytes()
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	if s.status == http.StatusOK && strings.HasPrefix(s.Header().Get("Content-Type"), "text/html") {
+		body = bytes.Replace(body, []byte(heroMarker), []byte(prepaint), 1)
+		s.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	}
+	s.ResponseWriter.WriteHeader(s.status)
+	_, _ = s.ResponseWriter.Write(body)
+}
+
+// heroPrepaint returns the first hero image as markup for the app shell, or "" when the item has
+// no backdrop (a poster is shown blurred by the carousel and is not painted ahead). It sits outside
+// #root with the carousel's geometry (#hero-prepaint in web/src/ui/global.css) and the attributes
+// of the carousel's active image (URLs, srcset, sizes, priority, sync decoding); the start page
+// fades it out once its own image is on screen.
+func heroPrepaint(item model.ItemSummary) string {
+	var attrs string
+	switch {
+	case item.Backdrop != nil && item.BackdropSmall != nil:
+		small, large := imageURL(item.ID, *item.BackdropSmall), imageURL(item.ID, *item.Backdrop)
+		attrs = `src="` + html.EscapeString(small) + `" srcset="` +
+			html.EscapeString(small+" "+heroSmallWidth+", "+large+" "+heroLargeWidth) + `" sizes="100vw"`
+	case item.Backdrop != nil:
+		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.Backdrop)) + `"`
+	case item.BackdropSmall != nil:
+		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.BackdropSmall)) + `"`
+	default:
+		return ""
+	}
+	return `<div id="hero-prepaint" aria-hidden="true"><img ` + attrs +
+		` alt="" width="1280" height="720" fetchpriority="high" decoding="sync"></div>`
 }
 
 // heroLink returns the Link header value that preloads the image the hero shows for item, chosen

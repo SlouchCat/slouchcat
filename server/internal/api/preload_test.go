@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +40,10 @@ func (emptyCatalog) FirstPick(context.Context, model.Profile) (model.ItemSummary
 	return model.ItemSummary{}, model.ErrNotFound
 }
 
-const appShell = "<!doctype html><title>Slouchcat</title>"
+const appShell = `<!doctype html><title>Slouchcat</title><body><!--hero--><div id="root"></div>`
+
+// shellWith is the app shell with the hero marker replaced by prepaint.
+func shellWith(prepaint string) string { return strings.Replace(appShell, heroMarker, prepaint, 1) }
 
 func shellHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -98,10 +102,19 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 			` 1280w"; imagesizes="100vw"; fetchpriority=high`,
 	}
 
+	// The shell paints the same image ahead of the app: outside #root, URLs HTML-escaped.
+	esc := func(u string) string { return strings.ReplaceAll(u, "&", "&amp;") }
+	prepaint := `<div id="hero-prepaint" aria-hidden="true"><img src="` + esc(small) + `" srcset="` +
+		esc(small) + " 780w, " + esc(large) + ` 1280w" sizes="100vw" alt="" width="1280" height="720" ` +
+		`fetchpriority="high" decoding="sync"></div>`
+
 	t.Run("start page with session", func(t *testing.T) {
 		rec := getWithToken(h, "/", "p18")
-		if rec.Code != http.StatusOK || rec.Body.String() != appShell {
-			t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusOK || rec.Body.String() != shellWith(prepaint) {
+			t.Fatalf("status %d, body %q\nwant %q", rec.Code, rec.Body.String(), shellWith(prepaint))
+		}
+		if got := rec.Header().Get("Content-Length"); got != strconv.Itoa(len(shellWith(prepaint))) {
+			t.Errorf("Content-Length = %q", got)
 		}
 		if got := rec.Header().Values("Link"); !slices.Equal(got, want) {
 			t.Errorf("Link = %q\nwant   %q", got, want)
@@ -128,16 +141,20 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		}
 	})
 
-	for name, tc := range map[string]struct{ path, token string }{
-		"without session":       {"/", ""},
-		"unknown session":       {"/", "nope"},
-		"other app route":       {"/items/" + first.ID, "p18"},
-		"index.html (precache)": {"/index.html", "p18"},
+	// The start page always drops the marker; other routes are left alone (it is a comment).
+	for name, tc := range map[string]struct{ path, token, body string }{
+		"without session":       {"/", "", shellWith("")},
+		"unknown session":       {"/", "nope", shellWith("")},
+		"other app route":       {"/items/" + first.ID, "p18", appShell},
+		"index.html (precache)": {"/index.html", "p18", appShell},
 	} {
 		t.Run(name, func(t *testing.T) {
 			rec := getWithToken(h, tc.path, tc.token)
-			if rec.Code != http.StatusOK || rec.Body.String() != appShell {
+			if rec.Code != http.StatusOK || rec.Body.String() != tc.body {
 				t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
+			}
+			if strings.Contains(rec.Body.String(), "hero-prepaint") {
+				t.Errorf("body carries the hero image: %q", rec.Body.String())
 			}
 			if got := rec.Header().Get("Link"); got != "" {
 				t.Errorf("Link = %q, want none", got)
@@ -151,7 +168,7 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 			Auth: auth, Catalog: emptyCatalog{},
 		})
 		rec := getWithToken(h, "/", "p18")
-		if rec.Code != http.StatusOK || rec.Body.String() != appShell {
+		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
 			t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
 		}
 		if got := rec.Header().Values("Link"); !slices.Equal(got, want[:2]) {
@@ -180,6 +197,37 @@ func TestHeroLinkFallsBackToSingleImage(t *testing.T) {
 	for _, tc := range cases {
 		if got := heroLink(tc.item); got != tc.want {
 			t.Errorf("%s: heroLink = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestHeroPrepaint(t *testing.T) {
+	img := func(kind, size string) *model.Image {
+		return &model.Image{Kind: kind, Size: size, ContentHash: "h"}
+	}
+	const tail = ` alt="" width="1280" height="720" fetchpriority="high" decoding="sync"></div>`
+	cases := []struct {
+		name string
+		item model.ItemSummary
+		want string
+	}{
+		{"both backdrops", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), BackdropSmall: img("backdrop", "w780")},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h" ` +
+				`srcset="/api/v1/items/a/images/backdrop/w780?v=h 780w, /api/v1/items/a/images/backdrop/w1280?v=h 1280w" sizes="100vw"` + tail},
+		{"large backdrop only", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), Poster: img("poster", "w500")},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280?v=h"` + tail},
+		{"small backdrop only", model.ItemSummary{ID: "a", BackdropSmall: img("backdrop", "w780")},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h"` + tail},
+		// The carousel blurs a poster; the shell does not paint it ahead.
+		{"poster only", model.ItemSummary{ID: "a", Poster: img("poster", "w500")}, ""},
+		{"no image", model.ItemSummary{ID: "a"}, ""},
+		// Attribute values are escaped even though the URLs are built by the server.
+		{"escaped", model.ItemSummary{ID: "a", Backdrop: &model.Image{Kind: "backdrop", Size: `w1280"><x&`, ContentHash: "h"}},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280&#34;&gt;&lt;x&amp;?v=h"` + tail},
+	}
+	for _, tc := range cases {
+		if got := heroPrepaint(tc.item); got != tc.want {
+			t.Errorf("%s: heroPrepaint = %q\nwant %q", tc.name, got, tc.want)
 		}
 	}
 }

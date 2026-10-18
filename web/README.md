@@ -55,7 +55,9 @@ scripts/icons.mjs     PWA-Icons aus icon.svg
   (`shouldFocusDOMNode`), also gelten `:focus-visible`, Screenreader und Enter wie gewohnt. Native
   Ereignisse bleiben unangetastet; `SpatialPage` (Start, Detail) verhindert nur das Scrollen durch
   Pfeiltasten. Auf Formularseiten und im Player ist norigin pausiert; dort gelten Tab und die eigenen
-  Tasten. Pfeil links auf „Abspielen“ bzw. rechts auf „Details“ blättert das Karussell.
+  Tasten. Pfeil links auf „Abspielen“ bzw. rechts auf „Details“ blättert das Karussell. norigin (mit
+  lodash-es) ist eine eigene Datei: `main.tsx` fordert sie beim Start an (`loadSpatialNavigation()`),
+  die Routen mit Kopfzeile (`_chrome`) warten darauf, danach nutzen die Bausteine sie synchron (P-10).
 - **Player-Tasten:** Leertaste/Enter Wiedergabe/Pause, ←/→ ±10 s, ↑/↓ Lautstärke, F Vollbild,
   Escape/Backspace zurück zur Detailseite. Die Bedienelemente verschwinden nach 3 s ohne Eingabe.
   `data-start-ms` am Player misst die Zeit vom Öffnen der Route bis zum ersten `playing`.
@@ -75,6 +77,12 @@ scripts/icons.mjs     PWA-Icons aus icon.svg
   Karussellbild (gleiche URLs, `imagesrcset` und `imagesizes` wie im Karussell). Lesende API-Aufrufe
   gehen deshalb ohne den CSRF-Kopf `X-Requested-With` (nur schreibende brauchen ihn), sonst nähme der
   Browser die vorgeladenen Antworten nicht.
+- **Hero-Bild in der App-Hülle (P-10):** Am Marker `<!--hero-->` in `index.html` schreibt der Server für
+  dieselbe Anfrage `<div id="hero-prepaint">` mit dem ersten Karussellbild (gleiche Attribute) vor
+  `#root`; ohne Sitzung oder Bild entfällt der Marker. `#hero-prepaint` in `global.css` hat die Geometrie
+  des Karussellbilds und liegt über der Seite, unter der Kopfzeile. `dismissHeroPrepaint()` blendet es aus,
+  sobald das Karussell sein Bild gezeichnet hat (oder die Startseite kein Hero-Bild hat), und `main.tsx`
+  beim Verlassen von `/`. Ändert sich Höhe oder Bildausschnitt des Karussells, muss `global.css` mit.
 - **Bilder auf der Startseite (P-10):** Im Karussell steht zuerst nur das Bild der aktiven Folie im
   Dokument, `loading="eager"` und `fetchpriority="high"`, als `srcset` aus `backdropSmall` (w780) und
   `backdrop` (w1280) mit `sizes="100vw"`. Ist es gezeichnet, kommt das Bild der nächsten Folie dazu (lazy,
