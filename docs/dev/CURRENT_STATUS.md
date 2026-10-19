@@ -1,8 +1,8 @@
 # Aktueller Stand
 
 Stand: 19. Oktober 2026. M0, M1a und M1b sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1, #2 und #3). **M2 ist auf dem Branch `claude/m2-accounts-profiles-access` umgesetzt**
-(Pull Request #4 gegen `main`, kein Merge ohne Marcos Wort).
+Pull Requests #1, #2 und #3). **M2 ist in `main` gemerged**
+(Pull Request #4, gemerged am 19. Oktober 2026).
 
 ## Meilenstein M2 – Konten, Profile, Zugriff
 
