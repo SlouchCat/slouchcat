@@ -107,9 +107,11 @@ lokalen Override-Datei `.dev/compose.m1a.yaml` (Testfilme unter `/testfilme`, Sp
 - **`SLOUCHCAT_WORKERS`** (Standard 2–4 nach CPU), `SLOUCHCAT_FFMPEG`/`FFPROBE`, `SLOUCHCAT_SPIKE_DIR`
   (temporär bis M1b).
 
-**Noch nicht erfüllt / ausstehend:** Android-Lauf des Spikes;
-Lastmessung über SMB (NFS erledigt); Marcos eigener Abspieltest im Browser (Stack läuft auf
-`http://192.168.1.143:8096`, Zugang in `.dev/README-m1a-test.md`).
+**Abspieltest durch Marco** im Browser gegen den Compose-Stack (`http://192.168.1.143:8096`): bestanden,
+19. Oktober 2026 («Scheint alles zu funktionieren»).
+
+**Noch ausstehend:** Android-Lauf des Spikes (Protokoll in `docs/perf/M1-ios-offline.md`); Lastmessung
+über SMB (NFS erledigt).
 
 ## Offene Punkte für M1b
 
