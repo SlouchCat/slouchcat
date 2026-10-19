@@ -129,7 +129,8 @@ type Fixture struct {
 
 	libraryID      int64
 	rootID         int64
-	otherLibraryID int64 // library X (AddEdgeCases)
+	otherLibraryID int64   // library X (AddEdgeCases)
+	loose          []Movie // titles outside All that the oracle looks up (AddLoneExtraSeries)
 }
 
 // LibraryID is the id of library 1 (the movies and the series).
@@ -182,24 +183,74 @@ func (f *Fixture) Unrated() Movie {
 	panic("vistest: no unrated movie")
 }
 
-// VisibleTo reports whether a profile of the owner account may see m by the rules of plan 3.3
-// (unknown counts as 18; missing and deleted titles are invisible; the library of the title must be in
-// the profile's rights, as PX only has library 1; a container is visible when its own and its smallest child rating fit).
-// Profiles of the guest account need Fixture.VisibleTo.
+// VisibleTo reports whether a profile of the owner account may see the movie m by the rules of
+// plan 3.3 (unknown counts as 18; missing and deleted titles are invisible; the library of the
+// title must be in the profile's rights, as PX only has library 1; a container is visible when its
+// own rating and its stored MinChild fit). Series trees, extras and profiles of the guest account
+// need Fixture.VisibleTo.
 func VisibleTo(p model.Profile, m Movie) bool {
-	return visibleTo(p, 18, true, nil, m)
+	return visibleTo(p, 18, true, nil, m, m.minChild())
 }
 
 // VisibleTo reports whether the profile may see m, with the limits of its account applied: the
-// ceiling of the guest account G and its library rights (library 1 only) cap the profile.
+// ceiling of the guest account G and its library rights (library 1 only) cap the profile. The
+// container rule is derived from the fixture tree (migration 00010): a container's smallest child
+// rating is the minimum over its live content children, a leaf counting with its rating and a
+// container child with the stricter of its rating and its own smallest child rating. An extra is
+// visible only while its parent is.
 func (f *Fixture) VisibleTo(p model.Profile, m Movie) bool {
 	if f.Guest.ID != 0 && p.AccountID == f.Guest.ID {
-		return visibleTo(p, f.Guest.MaxRating, f.Guest.AllLibraries, f.Guest.LibraryIDs, m)
+		return f.visible(p, f.Guest.MaxRating, f.Guest.AllLibraries, f.Guest.LibraryIDs, m, 0)
 	}
-	return visibleTo(p, 18, true, nil, m)
+	return f.visible(p, 18, true, nil, m, 0)
 }
 
-func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []int64, m Movie) bool {
+func (f *Fixture) visible(p model.Profile, accountMax int, accountAll bool, accountLibs []int64, m Movie, depth int) bool {
+	if !visibleTo(p, accountMax, accountAll, accountLibs, m, f.minChild(m, depth)) {
+		return false
+	}
+	if m.Kind != "extra" {
+		return true
+	}
+	parent, ok := f.lookup(m.ParentID)
+	return ok && depth < 4 && f.visible(p, accountMax, accountAll, accountLibs, parent, depth+1)
+}
+
+// lookup finds a fixture title by id, including the titles that are not part of All.
+func (f *Fixture) lookup(id string) (Movie, bool) {
+	for _, m := range slices.Concat(f.All(), f.loose) {
+		if m.ID == id {
+			return m, true
+		}
+	}
+	return Movie{}, false
+}
+
+// minChild derives the smallest child rating of a container from the tree (18 without content
+// children); a title without children in the fixture keeps its stored MinChild.
+func (f *Fixture) minChild(m Movie, depth int) int {
+	if !m.Container {
+		return m.minChild()
+	}
+	out, found := 18, false
+	for _, c := range slices.Concat(f.All(), f.loose) {
+		if c.ParentID != m.ID || c.ID == "" || c.Kind == "extra" || c.Missing || c.Deleted || c.Unavailable {
+			continue
+		}
+		found = true
+		v := c.rating()
+		if c.Container && depth < 4 {
+			v = max(v, f.minChild(c, depth+1))
+		}
+		out = min(out, v)
+	}
+	if !found {
+		return m.minChild()
+	}
+	return out
+}
+
+func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []int64, m Movie, minChild int) bool {
 	if m.Missing || m.Deleted || m.Unavailable {
 		return false
 	}
@@ -214,7 +265,7 @@ func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []i
 	if m.rating() > limit {
 		return false
 	}
-	if m.Container && m.minChild() > limit {
+	if m.Container && minChild > limit {
 		return false
 	}
 	return true

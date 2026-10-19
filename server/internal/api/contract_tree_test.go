@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -222,8 +223,8 @@ func TestContractSeriesTree(t *testing.T) {
 	}
 }
 
-// Design 1: an extra alone makes no series available and lowers no minimum rating; the extra's
-// own reply does not reveal the hidden series.
+// Design 1: an extra alone makes no series available and lowers no minimum rating; the extra
+// itself is not found either, because an extra needs a visible parent (migration 00010).
 func TestContractExtrasNeverContainers(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
@@ -239,13 +240,80 @@ func TestContractExtrasNeverContainers(t *testing.T) {
 			t.Errorf("%s start page lists the series with only an extra", token)
 		}
 		rec := send(t, h, http.MethodGet, BasePath+"/items/"+extra.ID, token, "", nil)
-		if strings.Contains(rec.Body.String(), series.ID) {
-			t.Errorf("%s: the extra reveals its unavailable series: %s", token, rec.Body.String())
+		if rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), series.ID) {
+			t.Errorf("%s getItem of the extra of the unavailable series: %d %s, want 404", token, rec.Code, rec.Body.String())
+		}
+		if f.VisibleTo(f.P18, extra) || f.VisibleTo(f.P18, series) {
+			t.Error("the oracle must hide the lone series and its extra")
 		}
 	}
 	// The extra under the fixture series does not count as a season either.
 	d := getDetail(t, h, "p18", f.Show.Series.ID)
 	if !intIs(d.ChildCount, 2) {
 		t.Errorf("series childCount = %v, want 2 (the extra does not count)", d.ChildCount)
+	}
+}
+
+// Plan 3.3 and 10.2 (M3 review, finding 1): the series rated 12 whose episodes are all rated 16 by
+// the mass rating is hidden for P12 like its seasons: absent from the start page, 404 by id, its
+// trailers and its extra 404. With the episodes back at 12 everything returns.
+func TestContractSeriesHiddenWhenEpisodesAbove(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	show := f.Show
+	episodes := []vistest.Movie{show.E1, show.E2, show.E3, show.Special}
+	massRate := func(rating int) {
+		t.Helper()
+		ids := make([]string, len(episodes))
+		for i, e := range episodes {
+			ids[i] = `"` + e.ID + `"`
+		}
+		body := `{"itemIds":[` + strings.Join(ids, ",") + `],"rating":` + strconv.Itoa(rating) + `}`
+		if rec := send(t, h, http.MethodPost, BasePath+"/admin/items/rating", "p18", body, nil); rec.Code != http.StatusOK {
+			t.Fatalf("setItemsRating %d = %d %s", rating, rec.Code, rec.Body.String())
+		}
+	}
+	trailers := func(token string) int {
+		return send(t, h, http.MethodGet, BasePath+"/items/"+show.Series.ID+"/trailers", token, "", nil).Code
+	}
+	if got := getTitle(t, h, "p12", show.Series.ID); got != http.StatusOK || !slices.Contains(homeIDs(t, h, "p12"), show.Series.ID) {
+		t.Fatalf("P12 must see the series before the mass rating: %d", got)
+	}
+
+	massRate(16)
+	if slices.Contains(homeIDs(t, h, "p12"), show.Series.ID) {
+		t.Error("P12 start page still lists the series whose episodes are all rated 16")
+	}
+	for _, m := range show.All() {
+		if got := getTitle(t, h, "p12", m.ID); got != http.StatusNotFound {
+			t.Errorf("P12 getItem %s %s with every episode at 16: %d, want 404", m.Kind, m.Label, got)
+		}
+	}
+	if got := trailers("p12"); got != http.StatusNotFound {
+		t.Errorf("P12 trailers of the hidden series: %d, want 404", got)
+	}
+	if got := getTitle(t, h, "p12", show.Extra.ID); got != http.StatusNotFound {
+		t.Errorf("P12 getItem of the extra of the hidden series: %d, want 404", got)
+	}
+	for _, token := range []string{"p16", "p18"} {
+		if got := getTitle(t, h, token, show.Series.ID); got != http.StatusOK {
+			t.Errorf("%s must see the series: %d", token, got)
+		}
+		if got := getTitle(t, h, token, show.Extra.ID); got != http.StatusOK {
+			t.Errorf("%s must see the series extra: %d", token, got)
+		}
+	}
+
+	massRate(12)
+	if !slices.Contains(homeIDs(t, h, "p12"), show.Series.ID) {
+		t.Error("P12 start page lacks the series after the episodes went back to 12")
+	}
+	for _, m := range show.All() {
+		if got := getTitle(t, h, "p12", m.ID); got != http.StatusOK {
+			t.Errorf("P12 getItem %s %s after the way back: %d, want 200", m.Kind, m.Label, got)
+		}
+	}
+	if got := trailers("p12"); got != http.StatusOK {
+		t.Errorf("P12 trailers of the visible series: %d, want 200", got)
 	}
 }

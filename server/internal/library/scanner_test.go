@@ -443,6 +443,30 @@ func TestExtrasBecomeExtraItemsAndSamplesAreSkipped(t *testing.T) {
 	}
 }
 
+// M3 review, finding 2: a new extra never attaches to a soft-deleted film, also when the film has
+// no provider id (it is not reachable for a relink then, but still owns its folder).
+func TestExtraNeverAttachesToDeletedFilm(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, twentyMovies[:10]) // Alien first; one lost file stays below the loss threshold
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	alien := e.str(`SELECT id FROM items WHERE kind = 'movie' AND title = 'Alien'`)
+	remove(t, dir, "Alien (1979)/Alien (1979).mkv")
+	e.scan(lib.ID)
+	e.clock.Advance(25 * time.Hour)
+	if n, err := e.svc.Sweep(e.ctx); err != nil || n != 1 {
+		t.Fatalf("sweep = %d, %v; want the film", n, err)
+	}
+	writeFile(t, dir, "Alien (1979)/Trailers/Alien Trailer.mkv", "trailer")
+	e.scan(lib.ID)
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'extra'`); n != 0 {
+		t.Errorf("extras = %d, want none below the soft-deleted film", n)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NOT NULL`, alien); n != 1 {
+		t.Error("the soft-deleted film came back without a file of its own")
+	}
+}
+
 func TestSecondVersionAttachesToSameItem(t *testing.T) {
 	e := newEnv(t)
 	dir := tree(t, []string{"Avatar (2009)/Avatar (2009) - 1080p.mkv", "Avatar (2009)/Avatar (2009) - 2160p.mkv"})

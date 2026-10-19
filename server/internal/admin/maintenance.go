@@ -143,8 +143,11 @@ func (s *Service) ListIssues(ctx context.Context, kind string, libraryID *int64,
 // contentKinds are the children that make a container available (migration 00008).
 var contentKinds = []string{"season", "episode", "podcast_episode"}
 
+// isContainer reports whether a kind takes its availability and min_child_rating from children.
+func isContainer(kind string) bool { return kind == "series" || kind == "season" || kind == "podcast" }
+
 // VerifyRatings recomputes effective_rating (own rating against the parent chain),
-// min_child_rating and available of every title by the trigger rules (plan 3.2, migration 00008)
+// min_child_rating and available of every title by the trigger rules (plan 3.2, migrations 00008, 00010)
 // and returns one rating_mismatch issue per live title whose stored columns differ (rating.verify;
 // the nightly job follows in M8). Podcast episodes keep their stored availability (enclosure).
 func (s *Service) VerifyRatings(ctx context.Context) ([]model.Issue, error) {
@@ -191,14 +194,14 @@ func (s *Service) VerifyRatings(ctx context.Context) ([]model.Issue, error) {
 			return v
 		}
 		var v bool
-		switch r.Kind {
-		case "series", "season", "podcast":
+		switch {
+		case isContainer(r.Kind):
 			for _, c := range children[r.ID] {
 				if depth < 8 && !c.DeletedAt.Valid && slices.Contains(contentKinds, c.Kind) && avail(c, depth+1) {
 					v = true
 				}
 			}
-		case "podcast_episode":
+		case r.Kind == "podcast_episode":
 			v = r.Available == 1
 		default:
 			v = r.HasFile
@@ -206,20 +209,36 @@ func (s *Service) VerifyRatings(ctx context.Context) ([]model.Issue, error) {
 		available[r.ID] = v
 		return v
 	}
-	minChild := func(r *systemq.AdminListRatingStateRow) sql.NullInt64 {
+	// min_child_rating (migration 00010): a leaf child counts with its effective rating, a child
+	// that is a container (a season) with the stricter of its effective and its own
+	// min_child_rating; unknown counts as 18.
+	minChildren := map[string]sql.NullInt64{}
+	var minChild func(r *systemq.AdminListRatingStateRow, depth int) sql.NullInt64
+	minChild = func(r *systemq.AdminListRatingStateRow, depth int) sql.NullInt64 {
+		if v, ok := minChildren[r.ID]; ok {
+			return v
+		}
 		var out sql.NullInt64
 		for _, c := range children[r.ID] {
-			if c.DeletedAt.Valid || !slices.Contains(contentKinds, c.Kind) || !avail(c, 1) {
+			if depth >= 8 || c.DeletedAt.Valid || !slices.Contains(contentKinds, c.Kind) || !avail(c, depth+1) {
 				continue
 			}
 			v := int64(18)
-			if e := eff(c, 1); e.Valid {
+			if e := eff(c, depth+1); e.Valid {
 				v = e.Int64
+			}
+			if isContainer(c.Kind) {
+				m := int64(18)
+				if mc := minChild(c, depth+1); mc.Valid {
+					m = mc.Int64
+				}
+				v = max(v, m)
 			}
 			if !out.Valid || v < out.Int64 {
 				out = sql.NullInt64{Int64: v, Valid: true}
 			}
 		}
+		minChildren[r.ID] = out
 		return out
 	}
 
@@ -233,7 +252,7 @@ func (s *Service) VerifyRatings(ctx context.Context) ([]model.Issue, error) {
 		if e := eff(r, 0); e != r.EffectiveRating {
 			diffs = append(diffs, fmt.Sprintf("effective_rating %s != %s", ratingText(r.EffectiveRating), ratingText(e)))
 		}
-		if m := minChild(r); m != r.MinChildRating {
+		if m := minChild(r, 0); m != r.MinChildRating {
 			diffs = append(diffs, fmt.Sprintf("min_child_rating %s != %s", ratingText(r.MinChildRating), ratingText(m)))
 		}
 		if a := avail(r, 0); a != (r.Available == 1) {

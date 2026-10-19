@@ -73,6 +73,7 @@ func (f *Fixture) AddLoneExtraSeries(t testing.TB) (series, extra Movie) {
 	extra = f.addMovie(t, Movie{Kind: "extra", Label: "LT", ParentID: series.ID, Effective: zero, RelPath: "Lone/Trailers/Lone.mp4"},
 		f.libraryID, f.rootID, f.MediaDir, 41)
 	exec(t, f.DB, `UPDATE items SET extra_kind = 'trailer' WHERE id = ?`, extra.ID)
+	f.loose = append(f.loose, series, extra)
 	return series, extra
 }
 

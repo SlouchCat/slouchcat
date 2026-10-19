@@ -201,11 +201,9 @@ func (idx *itemIndex) addIDs(id string, tmdb, tvdb int64, imdb string) {
 	}
 }
 
-// addDeleted makes a soft-deleted title reachable by its provider ids, not by its title.
+// addDeleted marks a soft-deleted title as deleted, so no extra attaches to it through its
+// folder, and makes it reachable by its provider ids, not by its title.
 func (idx *itemIndex) addDeleted(id string, tmdb, tvdb int64, imdb string) {
-	if tmdb == 0 && tvdb == 0 && imdb == "" {
-		return
-	}
 	idx.deleted[id] = true
 	idx.addIDs(id, tmdb, tvdb, imdb)
 }

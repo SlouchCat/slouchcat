@@ -259,3 +259,89 @@ func TestTriggersExtrasAreNoContent(t *testing.T) {
 		t.Error("the series extra must follow the raise: hidden for P12, visible for P18")
 	}
 }
+
+// Migration 00010: a series counts its seasons with the stricter of their own rating and their
+// smallest episode rating, so a series whose episodes are all above a level is above it too, and
+// an extra is visible only below a visible parent.
+func TestTriggersAllEpisodesAboveTheLevel(t *testing.T) {
+	t.Run("all episodes above the level hide the series and the season", func(t *testing.T) {
+		db := openTestDB(t)
+		seedTree(t, db.Write)
+		mustExec(t, db.Write, `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, extra_kind, added_at, created_at, updated_at)
+		                       VALUES (?, 'extra', ?, 1, 'Making of', 'making of', 'featurette', 0, 0, 0)`, idSeriesExtra, idSeries)
+		addFile(t, db.Write, "01FILE000000000000000000E1", idEp1, "Show/Season 01/E1.mkv")
+		addFile(t, db.Write, "01FILE000000000000000000E2", idEp2, "Show/Season 01/E2.mkv")
+		addFile(t, db.Write, "01FILE000000000000000000X2", idSeriesExtra, "Show/Trailers/Making of.mkv")
+		for _, id := range []string{idSeries, idSeason, idEp1, idSeriesExtra} {
+			if !visible(t, db.Write, 12, id) {
+				t.Fatalf("%s must be visible for P12 while episode 1 is rated 12", id)
+			}
+		}
+
+		// Every episode at 16 (mass rating): season and series are above 12, and so is the extra.
+		mustExec(t, db.Write, `UPDATE items SET own_rating = 16 WHERE kind = 'episode'`)
+		if minChild(t, db.Write, idSeason) != val(16) || minChild(t, db.Write, idSeries) != val(16) {
+			t.Errorf("min_child_rating season %v, series %v, want 16 and 16", minChild(t, db.Write, idSeason), minChild(t, db.Write, idSeries))
+		}
+		for _, id := range []string{idSeries, idSeason, idEp1, idEp2, idSeriesExtra} {
+			if visible(t, db.Write, 12, id) {
+				t.Errorf("%s must be hidden for P12 when every episode is rated 16", id)
+			}
+			if !visible(t, db.Write, 18, id) {
+				t.Errorf("%s must stay visible for P18", id)
+			}
+		}
+
+		// One episode back at 12: the whole chain returns.
+		mustExec(t, db.Write, `UPDATE items SET own_rating = NULL WHERE id = ?`, idEp1)
+		if minChild(t, db.Write, idSeries) != val(12) {
+			t.Errorf("series min_child_rating = %v, want 12", minChild(t, db.Write, idSeries))
+		}
+		for _, id := range []string{idSeries, idSeason, idEp1, idSeriesExtra} {
+			if !visible(t, db.Write, 12, id) {
+				t.Errorf("%s must be visible for P12 again", id)
+			}
+		}
+
+		// A hard-deleted episode recomputes season and series through the chain.
+		mustExec(t, db.Write, `DELETE FROM items WHERE id = ?`, idEp1)
+		if minChild(t, db.Write, idSeason) != val(16) || minChild(t, db.Write, idSeries) != val(16) {
+			t.Errorf("after delete: min_child_rating season %v, series %v, want 16 and 16", minChild(t, db.Write, idSeason), minChild(t, db.Write, idSeries))
+		}
+	})
+
+	t.Run("extras of a hidden, unavailable or deleted parent are hidden", func(t *testing.T) {
+		db := openTestDB(t)
+		seedTree(t, db.Write)
+		const idMovieExtra = "01EXTRA0000000000000000MOV"
+		item := `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, extra_kind, added_at, created_at, updated_at)
+		         VALUES (?, 'extra', ?, 1, ?, ?, 'trailer', 0, 0, 0)`
+		mustExec(t, db.Write, item, idMovieExtra, idMovie, "Teaser", "teaser")
+		mustExec(t, db.Write, item, idSeriesExtra, idSeries, "Trailer", "trailer")
+		addFile(t, db.Write, "01FILE000000000000000000X1", idMovieExtra, "Film/Trailers/Teaser.mkv")
+		addFile(t, db.Write, "01FILE000000000000000000X2", idSeriesExtra, "Show/Trailers/Trailer.mkv")
+
+		// The film has no file yet and the series no episode: both extras are hidden.
+		if visible(t, db.Write, 18, idMovieExtra) || visible(t, db.Write, 18, idSeriesExtra) {
+			t.Error("extras of unavailable parents must be hidden")
+		}
+		addFile(t, db.Write, "01FILE0000000000000000000M", idMovie, "Film/Film.mkv")
+		addFile(t, db.Write, "01FILE000000000000000000E1", idEp1, "Show/Season 01/E1.mkv")
+		if !visible(t, db.Write, 6, idMovieExtra) || !visible(t, db.Write, 12, idSeriesExtra) {
+			t.Error("extras must be visible below their visible parents")
+		}
+		// A series whose only episode is above 12 hides its extra for P12.
+		mustExec(t, db.Write, `UPDATE items SET own_rating = 16 WHERE id = ?`, idEp1)
+		if visible(t, db.Write, 12, idSeriesExtra) || !visible(t, db.Write, 18, idSeriesExtra) {
+			t.Error("the extra of a series hidden by its episodes must be hidden for P12 only")
+		}
+		mustExec(t, db.Write, `UPDATE items SET deleted_at = 1 WHERE id = ?`, idMovie)
+		if visible(t, db.Write, 18, idMovieExtra) {
+			t.Error("the extra of a soft-deleted film must be hidden")
+		}
+		mustExec(t, db.Write, `UPDATE media_files SET missing_since = 1 WHERE item_id = ?`, idEp1)
+		if visible(t, db.Write, 18, idSeriesExtra) {
+			t.Error("the extra of an unavailable series must be hidden")
+		}
+	})
+}
