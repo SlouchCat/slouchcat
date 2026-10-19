@@ -108,12 +108,22 @@ func (s *server) CreateInvitation(ctx context.Context, req gen.CreateInvitationR
 		return s.problem(ctx, err), nil
 	}
 	base := toInvitation(inv)
-	return gen.CreateInvitation201JSONResponse{
+	return invitationCreated{gen.CreateInvitation201JSONResponse{
 		AllLibraries: base.AllLibraries, CreatedAt: base.CreatedAt, ExpiresAt: base.ExpiresAt, Id: base.Id,
 		LibraryIds: base.LibraryIds, MaxRating: base.MaxRating, Note: base.Note, State: base.State,
 		UsedAt: base.UsedAt, UsedByEmail: base.UsedByEmail,
 		Token: inv.Token, Url: "/invite/" + url.PathEscape(inv.Token),
-	}, nil
+	}}, nil
+}
+
+// invitationCreated answers 201 with the one-time token and keeps every cache from storing it.
+type invitationCreated struct {
+	gen.CreateInvitation201JSONResponse
+}
+
+func (r invitationCreated) VisitCreateInvitationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Cache-Control", "no-store")
+	return r.CreateInvitation201JSONResponse.VisitCreateInvitationResponse(w)
 }
 
 func (s *server) RevokeInvitation(ctx context.Context, req gen.RevokeInvitationRequestObject) (gen.RevokeInvitationResponseObject, error) {

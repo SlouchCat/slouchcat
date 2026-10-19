@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -103,10 +104,11 @@ func allWant(status int) map[string]int {
 // profile may call all of them (never 403 profile_required); profile management then answers 403
 // primary_profile_required, which is a different rule.
 var accountRegistry = map[string]accountCall{
-	"getSession":     {contract: "GET /auth/session", path: "/auth/session", want: allWant(http.StatusOK)},
-	"logout":         {contract: "POST /auth/logout", path: "/auth/logout", want: allWant(http.StatusNoContent)},
-	"listMyProfiles": {contract: "GET /auth/profiles", path: "/auth/profiles", want: allWant(http.StatusOK)},
-	"selectProfile":  {contract: "POST /auth/profiles/{id}/select", path: "/auth/profiles/{profile}/select", body: `{}`, want: allWant(http.StatusOK)},
+	"listAccountLibraries": {contract: "GET /libraries", path: "/libraries", want: allWant(http.StatusOK)},
+	"getSession":           {contract: "GET /auth/session", path: "/auth/session", want: allWant(http.StatusOK)},
+	"logout":               {contract: "POST /auth/logout", path: "/auth/logout", want: allWant(http.StatusNoContent)},
+	"listMyProfiles":       {contract: "GET /auth/profiles", path: "/auth/profiles", want: allWant(http.StatusOK)},
+	"selectProfile":        {contract: "POST /auth/profiles/{id}/select", path: "/auth/profiles/{profile}/select", body: `{}`, want: allWant(http.StatusOK)},
 	"listProfiles": {contract: "GET /profiles", path: "/profiles",
 		want: map[string]int{"primary": http.StatusOK, "none": http.StatusForbidden, "guest": http.StatusOK}},
 	"createProfile": {contract: "POST /profiles", path: "/profiles", body: `{"name":"Registry"}`,
@@ -737,5 +739,260 @@ func TestContractProfileLanguage(t *testing.T) {
 	}
 	if got := title("p6", f.Rated(6).ID); got != "Film 06" {
 		t.Errorf("P6 after the switch to de: title = %q, want Film 06", got)
+	}
+}
+
+// listAccountLibraries: the main account sees every library, a guest the ones of its account, both
+// by name, without a profile and without titles.
+func TestListAccountLibraries(t *testing.T) {
+	pf := newProfileFixture(t)
+	f := pf.f
+	type lib struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+		Kind string `json:"kind"`
+	}
+	list := func(token string) []lib {
+		t.Helper()
+		rec := send(t, pf.h, http.MethodGet, BasePath+"/libraries", token, "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: %d %s", token, rec.Code, rec.Body.String())
+		}
+		var out []lib
+		decode(t, rec, &out)
+		return out
+	}
+	want := []lib{{ID: f.LibraryID(), Name: "Filme", Kind: "movies"}, {ID: f.OtherLibraryID(), Name: "Filme X", Kind: "movies"}}
+	for _, token := range []string{"p18", "p6", "px", "none"} {
+		if got := list(token); !slices.Equal(got, want) {
+			t.Errorf("%s libraries = %+v, want %+v", token, got, want)
+		}
+	}
+	for _, token := range []string{"pg", "pg18"} {
+		if got := list(token); !slices.Equal(got, want[:1]) {
+			t.Errorf("%s libraries = %+v, want only %+v", token, got, want[:1])
+		}
+	}
+	if rec := send(t, pf.h, http.MethodGet, BasePath+"/libraries", "", "", nil); rec.Code != http.StatusUnauthorized {
+		t.Errorf("without a session: %d", rec.Code)
+	}
+}
+
+// A guest (with its own primary profile) cannot touch the profiles of another account: its
+// management calls with the owner's profile ids answer 404, and nothing changes.
+func TestContractGuestCannotReachOwnerProfiles(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	target := fmt.Sprint(f.P12.ID)
+	for _, tc := range []struct{ method, path, body string }{
+		{http.MethodPost, "/auth/profiles/" + target + "/select", `{}`},
+		{http.MethodPatch, "/profiles/" + target, `{"name":"Gehackt"}`},
+		{http.MethodPut, "/profiles/" + target + "/pin", `{"pin":"1234"}`},
+		{http.MethodDelete, "/profiles/" + target + "/pin", ""},
+		{http.MethodDelete, "/profiles/" + target, ""},
+	} {
+		rec := send(t, h, tc.method, BasePath+tc.path, "pg", tc.body, nil)
+		if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
+			t.Errorf("%s %s as the guest: %d %s, want 404", tc.method, tc.path, rec.Code, rec.Body.String())
+		}
+	}
+	var list []struct {
+		ID     int64  `json:"id"`
+		Name   string `json:"name"`
+		HasPin bool   `json:"hasPin"`
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/profiles", "p18", "", nil), &list)
+	i := slices.IndexFunc(list, func(p struct {
+		ID     int64  `json:"id"`
+		Name   string `json:"name"`
+		HasPin bool   `json:"hasPin"`
+	}) bool {
+		return p.ID == f.P12.ID
+	})
+	if i < 0 || list[i].Name != "P12" || list[i].HasPin {
+		t.Errorf("the owner's profile changed: %+v", list)
+	}
+	// And the guest's session still has its own profile.
+	if info := sessionOf(t, send(t, h, http.MethodGet, BasePath+"/auth/session", "pg", "", nil)); info.Profile == nil || info.Profile.Id != f.PG.ID {
+		t.Errorf("guest session after the attempts: %+v", info)
+	}
+}
+
+// openRange opens a Range response "bytes=0-" of stream URL on a real server and reads a megabyte,
+// so the server sits in a blocked write like it does for a browser with a full buffer. closed is
+// closed when the server closes the connection.
+func openRange(t *testing.T, h http.Handler, streamURL string) (closed <-chan struct{}, body io.ReadCloser) {
+	t.Helper()
+	done := make(chan struct{})
+	var once sync.Once
+	srv := httptest.NewUnstartedServer(h)
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateClosed {
+			once.Do(func() { close(done) })
+		}
+	}
+	srv.Start()
+	t.Cleanup(srv.Close)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+streamURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Range", "bytes=0-")
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+	if resp.StatusCode != http.StatusPartialContent {
+		t.Fatalf("range: %d", resp.StatusCode)
+	}
+	if _, err := io.CopyN(io.Discard, resp.Body, 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	return done, resp.Body
+}
+
+func expectClosed(t *testing.T, what string, closed <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatalf("%s: the connection is still open a second after the change", what)
+	}
+}
+
+// Direct play of an episode that stops being visible: the open Range response ends when the
+// administrator raises the series (plan 10.2 for direct play; HLS ends with its next segment request).
+func TestContractRatingChangeEndsOpenDirectStream(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	e1 := f.Show.E1
+	if err := os.Truncate(filepath.Join(f.MediaDir, filepath.FromSlash(e1.RelPath)), 1<<30); err != nil {
+		t.Fatal(err)
+	}
+	_, st := pf.mint(t, "p12", e1, "direct")
+	closed, body := openRange(t, h, BasePath+"/items/"+e1.ID+"/stream?st="+url.QueryEscape(st))
+
+	if rec := setRating(t, h, "p18", f.Show.Series.ID, `{"rating":16}`); rec.Code != http.StatusOK {
+		t.Fatalf("raise: %d %s", rec.Code, rec.Body.String())
+	}
+	expectClosed(t, "open Range response of P12 after the series went to 16", closed)
+	if n, err := io.Copy(io.Discard, body); err == nil {
+		t.Errorf("response completed after the change (%d more bytes)", n)
+	}
+	// The token itself still resolves, but the title is gone: 404 like every other request.
+	if got := send(t, h, http.MethodGet, BasePath+"/items/"+e1.ID+"/stream?st="+url.QueryEscape(st), "", "", map[string]string{"Range": "bytes=0-9"}).Code; got != http.StatusNotFound {
+		t.Errorf("new Range request after the change: %d, want 404", got)
+	}
+}
+
+// Lowering a guest's ceiling, taking a library right from a profile and changing a profile's
+// rating all end the open direct streams they hide.
+func TestContractLoweredAccessEndsOpenDirectStreams(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	m := f.Rated(12)
+	if err := os.Truncate(filepath.Join(f.MediaDir, filepath.FromSlash(m.RelPath)), 1<<30); err != nil {
+		t.Fatal(err)
+	}
+	stream := func(token string) (<-chan struct{}, io.ReadCloser) {
+		_, st := pf.mint(t, token, m, "direct")
+		return openRange(t, h, BasePath+"/items/"+m.ID+"/stream?st="+url.QueryEscape(st))
+	}
+
+	guestClosed, _ := stream("pg")
+	pxClosed, _ := stream("px")
+	p12Closed, _ := stream("p12")
+	// Lower the guest to 6: the 12-rated movie is above it.
+	if rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", `{"maxRating":6}`, nil); rec.Code != http.StatusOK {
+		t.Fatalf("updateGuest: %d %s", rec.Code, rec.Body.String())
+	}
+	expectClosed(t, "guest stream after the ceiling dropped to 6", guestClosed)
+	select {
+	case <-pxClosed:
+		t.Fatal("the stream of PX ended for a change that does not concern it")
+	case <-p12Closed:
+		t.Fatal("the stream of P12 ended for a change that does not concern it")
+	default:
+	}
+	// Take the library from PX.
+	body := fmt.Sprintf(`{"allLibraries":false,"libraryIds":[%d]}`, f.OtherLibraryID())
+	if rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.PX.ID), "p18", body, nil); rec.Code != http.StatusOK {
+		t.Fatalf("updateProfile: %d %s", rec.Code, rec.Body.String())
+	}
+	expectClosed(t, "PX stream after its library right was removed", pxClosed)
+	// Lower P12's rating below the title.
+	if rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.P12.ID), "p18", `{"maxRating":6}`, nil); rec.Code != http.StatusOK {
+		t.Fatalf("updateProfile: %d %s", rec.Code, rec.Body.String())
+	}
+	expectClosed(t, "P12 stream after its rating dropped to 6", p12Closed)
+}
+
+// slipPlayback interleaves a step into the first EndAccount call, after the real one.
+type slipPlayback struct {
+	*playback.Service
+	calls int
+	slip  func()
+}
+
+func (p *slipPlayback) EndAccount(ctx context.Context, id int64) error {
+	p.calls++
+	err := p.Service.EndAccount(ctx, id)
+	if p.calls == 1 && p.slip != nil {
+		p.slip()
+	}
+	return err
+}
+
+// The order of a guest revocation: the sessions are revoked before the playback ends (so nothing
+// new can be authorised), and a stream that a request already past its checks opens between the
+// steps is still ended by the second call after the account is gone.
+func TestContractGuestRevocationOrder(t *testing.T) {
+	pf := newProfileFixture(t)
+	f := pf.f
+	m := f.Rated(6)
+	ctx := context.Background()
+	_, st := pf.mint(t, "pg", m, "direct")
+	grant, err := pf.pb.Authorize(ctx, st) // the request is past its token check
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var slipped model.StreamSource
+	wrapper := &slipPlayback{Service: pf.pb}
+	wrapper.slip = func() {
+		if _, _, err := pf.pa.Resolve(ctx, "pg"); err == nil {
+			t.Error("the guest session still resolves while its playback ends: sessions must be revoked first")
+		}
+		if _, err := pf.pb.Authorize(ctx, st); err == nil {
+			t.Error("a stream token still authorises after the sessions were revoked")
+		}
+		var accounts int
+		if err := f.DB.Read.QueryRow(`SELECT count(*) FROM accounts WHERE id = ?`, f.Guest.ID).Scan(&accounts); err != nil || accounts != 1 {
+			t.Errorf("the account must still exist during the first end: %d (%v)", accounts, err)
+		}
+		src, err := pf.pb.OpenGrant(ctx, grant) // the late stream
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		slipped = src
+	}
+	h := pf.handlerWithPlayback(wrapper)
+	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("revokeGuest: %d %s", rec.Code, rec.Body.String())
+	}
+	if wrapper.calls != 2 {
+		t.Errorf("EndAccount ran %d times, want 2 (before and after the delete)", wrapper.calls)
+	}
+	if slipped.File == nil {
+		t.Fatal("the late stream was not opened")
+	}
+	defer slipped.File.Close()
+	select {
+	case <-slipped.File.(interface{ Done() <-chan struct{} }).Done():
+	default:
+		t.Error("the stream that slipped in between survived the revocation")
 	}
 }

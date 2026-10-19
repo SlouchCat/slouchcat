@@ -296,20 +296,20 @@ func (s *Service) StartSession(ctx context.Context, account model.Account, profi
 	now := s.now()
 	expires := now.Add(SessionLifetime)
 	ua := sql.NullString{String: truncate(userAgent, maxUserAgentLen), Valid: userAgent != ""}
-	device, err := s.touchDevice(ctx, userAgent)
+	device, err := s.sessionDevice(ctx, userAgent)
 	if err != nil {
 		return model.Session{}, "", err
 	}
 	row, err := s.write.InsertSession(ctx, appq.InsertSessionParams{
 		TokenHash: hashToken(token), AccountID: account.ID,
 		ProfileID: sql.NullInt64{Int64: profile.ID, Valid: profile.ID != 0},
-		DeviceID:  sql.NullString{String: device, Valid: device != ""},
+		DeviceID:  sql.NullString{String: device, Valid: true},
 		UserAgent: ua, Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli(),
 	})
 	if err != nil {
 		return model.Session{}, "", fmt.Errorf("insert session: %w", err)
 	}
-	return model.Session{ID: row.ID, Account: account, Profile: profile, ExpiresAt: time.UnixMilli(row.ExpiresAt)}, token, nil
+	return model.Session{ID: row.ID, Account: account, Profile: profile, DeviceID: device, ExpiresAt: time.UnixMilli(row.ExpiresAt)}, token, nil
 }
 
 // Resolve returns the session of a plain token, extending it when it was last touched more than
@@ -341,6 +341,9 @@ func (s *Service) Resolve(ctx context.Context, token string) (session model.Sess
 			if err := s.write.TouchAccount(ctx, appq.TouchAccountParams{ID: row.AccountID, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}); err != nil {
 				s.log.WarnContext(ctx, "touch account", "account_id", row.AccountID, "err", err)
 			}
+			if err := s.write.UpsertDevice(ctx, appq.UpsertDeviceParams{ID: session.DeviceID, Now: now.UnixMilli()}); err != nil {
+				s.log.WarnContext(ctx, "touch device", "session_id", row.ID, "err", err)
+			}
 		}
 	}
 	return session, extended, nil
@@ -357,7 +360,14 @@ func (s *Service) loadSession(ctx context.Context, q *appq.Queries, row appq.Ses
 	if err != nil {
 		return model.Session{}, err
 	}
-	session := model.Session{ID: row.ID, Account: account, ExpiresAt: time.UnixMilli(row.ExpiresAt)}
+	session := model.Session{ID: row.ID, Account: account, DeviceID: row.DeviceID.String, ExpiresAt: time.UnixMilli(row.ExpiresAt)}
+	if !row.DeviceID.Valid {
+		// A session from before migration 00007 gets its device now, fixed for its lifetime.
+		var err error
+		if session.DeviceID, err = s.assignDevice(ctx, row.ID); err != nil {
+			return model.Session{}, err
+		}
+	}
 	if row.ProfileID.Valid {
 		prof, err := q.GetProfile(ctx, row.ProfileID.Int64)
 		if err != nil {
@@ -417,7 +427,11 @@ func (s *Service) Logout(ctx context.Context, sessionID int64) error {
 	return nil
 }
 
-// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago.
+// deviceRetention is how long a device (and its PIN counters) is kept without use.
+const deviceRetention = 400 * 24 * time.Hour
+
+// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago, and
+// devices and PIN counters unused for 400 days (the lifetime of the device cookie).
 func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	now := s.now()
 	n, err := s.write.DeleteExpiredSessions(ctx, appq.DeleteExpiredSessionsParams{
@@ -425,6 +439,13 @@ func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	})
 	if err != nil {
 		return 0, fmt.Errorf("delete expired sessions: %w", err)
+	}
+	cutoff := now.Add(-deviceRetention).UnixMilli()
+	if _, err := s.write.DeleteStalePinAttempts(ctx, cutoff); err != nil {
+		return n, fmt.Errorf("delete stale pin attempts: %w", err)
+	}
+	if _, err := s.write.DeleteStaleDevices(ctx, cutoff); err != nil {
+		return n, fmt.Errorf("delete stale devices: %w", err)
 	}
 	return n, nil
 }

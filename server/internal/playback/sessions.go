@@ -457,7 +457,7 @@ func (s *Service) OpenGrant(ctx context.Context, g model.PlaybackGrant) (model.S
 	if err != nil {
 		return model.StreamSource{}, err
 	}
-	src.File = s.track(ctx, g.ID, src.File)
+	src.File = s.track(ctx, g, src.File)
 	return src, nil
 }
 
@@ -506,6 +506,7 @@ func (s *Service) EndAccount(ctx context.Context, accountID int64) error {
 	for _, id := range ids {
 		s.end(id)
 	}
+	s.cancelAccount(accountID) // streams whose row was revoked earlier or is not yet written
 	return nil
 }
 
@@ -521,6 +522,7 @@ func (s *Service) EndProfile(ctx context.Context, profileID int64) error {
 	for _, id := range ids {
 		s.end(id)
 	}
+	s.cancelProfile(profileID)
 	return nil
 }
 

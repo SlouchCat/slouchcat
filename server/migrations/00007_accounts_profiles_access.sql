@@ -16,6 +16,7 @@
 -- +goose Up
 -- +goose NO TRANSACTION
 PRAGMA foreign_keys=OFF;
+BEGIN;
 
 DROP VIEW visible_items;
 
@@ -113,5 +114,6 @@ WHERE (p.all_libraries = 1
        OR EXISTS (SELECT 1 FROM account_libraries AS al
                   WHERE al.account_id = a.id AND al.library_id = i.library_id));
 
+COMMIT;
 PRAGMA foreign_key_check;
 PRAGMA foreign_keys=ON;

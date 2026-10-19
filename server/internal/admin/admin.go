@@ -18,6 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -36,6 +37,14 @@ const (
 	maxLibraryPath = 4096
 	maxTMDBKeyLen  = 1024
 )
+
+// Enqueuer is the job queue (package jobs).
+type Enqueuer interface {
+	Enqueue(ctx context.Context, j jobs.NewJob) (int64, error)
+}
+
+// jobMetadataMatch is the job of package metadata that enriches one item; payload {"itemId": …}.
+const jobMetadataMatch = "metadata.match"
 
 // Libraries is implemented by package library.
 type Libraries interface {
@@ -59,6 +68,7 @@ type Service struct {
 	read      *appq.Queries
 	auth      *auth.Service
 	vis       *visibility.Reader // system-scope read of the rating override
+	queue     Enqueuer           // metadata refresh after a cleared override; nil = none
 	libraries Libraries
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
@@ -75,6 +85,13 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 		db: db.Write, write: appq.New(db.Write), read: appq.New(db.Read), auth: auth, vis: visibility.New(db, log), libraries: libraries,
 		keyring: keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now,
 	}
+}
+
+// WithQueue sets the job queue used to refresh the metadata of a title whose rating override was
+// cleared, and returns the receiver.
+func (s *Service) WithQueue(q Enqueuer) *Service {
+	s.queue = q
+	return s
 }
 
 // RunSetup runs the first-start wizard. Order: refuse when an account exists; validate every
@@ -223,6 +240,21 @@ func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Librar
 	return s.libraries.AcceptLoss(ctx, id)
 }
 
+// queueRefresh queues a metadata match for the title, which fills in the rating again now that the
+// override and its lock are gone. A failure is logged only: the override is cleared either way.
+func (s *Service) queueRefresh(ctx context.Context, itemID string) {
+	if s.queue == nil {
+		return
+	}
+	payload, err := json.Marshal(map[string]string{"itemId": itemID})
+	if err == nil {
+		_, err = s.queue.Enqueue(ctx, jobs.NewJob{Type: jobMetadataMatch, Priority: 4, IdempotencyKey: "match:" + itemID, Payload: payload})
+	}
+	if err != nil {
+		s.log.WarnContext(ctx, "queue metadata refresh", "item_id", itemID, "err", err)
+	}
+}
+
 // ratingLockField is the entry of items.locked_fields that keeps the metadata job from
 // overwriting an override (the job locks by column name).
 const ratingLockField = "own_rating"
@@ -276,5 +308,8 @@ func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int)
 		return model.ItemRating{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "item rating overridden", "item_id", itemID, "rating_set", rating != nil)
+	if rating == nil {
+		s.queueRefresh(ctx, itemID)
+	}
 	return s.vis.SystemItemRating(ctx, visibility.System("admin rating override"), itemID)
 }

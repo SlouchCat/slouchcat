@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
@@ -341,6 +342,27 @@ func TestSetItemRating(t *testing.T) {
 	const id = "01J0000000000000000000ABCD"
 	twelve, sixteen := 12, 16
 	f.seedItem(t, id, &twelve, "tmdb:DE", `["title"]`)
+	f.svc.WithQueue(jobs.NewQueue(f.db.Write, nil))
+	queued := func() []string {
+		t.Helper()
+		rows, err := f.db.Read.QueryContext(ctx, `SELECT type || ' ' || payload FROM jobs ORDER BY id`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var j string
+			if err := rows.Scan(&j); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, j)
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
 
 	got, err := f.svc.SetItemRating(ctx, id, &sixteen)
 	if err != nil {
@@ -361,7 +383,11 @@ func TestSetItemRating(t *testing.T) {
 	if _, eff, _, locked := f.itemRow(t, id); eff.Int64 != 12 || locked != `["title","own_rating"]` {
 		t.Fatalf("second override: effective %v locked %s", eff, locked)
 	}
-	// Clearing removes value, source and lock but keeps the other locks.
+	if len(queued()) != 0 {
+		t.Fatalf("an override queued jobs: %v", queued())
+	}
+	// Clearing removes value, source and lock but keeps the other locks, and queues a metadata
+	// match that fills the rating in again.
 	got, err = f.svc.SetItemRating(ctx, id, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -372,8 +398,14 @@ func TestSetItemRating(t *testing.T) {
 	if own, _, source, locked := f.itemRow(t, id); own.Valid || source.Valid || locked != `["title"]` {
 		t.Fatalf("row after clearing: %v %v %s", own, source, locked)
 	}
+	if want := []string{`metadata.match {"itemId":"` + id + `"}`}; !slices.Equal(queued(), want) {
+		t.Fatalf("queued jobs after clearing = %v, want %v", queued(), want)
+	}
 	if _, err := f.svc.SetItemRating(ctx, id, nil); err != nil {
 		t.Fatalf("clearing twice: %v", err)
+	}
+	if len(queued()) != 1 {
+		t.Errorf("clearing twice queued %d jobs, want the one (idempotency key)", len(queued()))
 	}
 
 	for _, bad := range []int{-1, 5, 7, 17, 99} {

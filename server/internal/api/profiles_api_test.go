@@ -192,12 +192,19 @@ func TestProfilePickerFlow(t *testing.T) {
 		t.Error("a refused selection must not clear the cache")
 	}
 	// While locked even the right PIN is refused ...
-	if rec := selectKid(owner, "4711"); rec.Code != http.StatusTooManyRequests || problemCode(t, rec) != "pin_locked" {
-		t.Errorf("right PIN while locked: %d %s", rec.Code, rec.Body.String())
+	// ... also when the client drops or swaps its device cookie: the lock belongs to the device the
+	// session started on.
+	owner.cookies[DeviceCookie] = &http.Cookie{Name: DeviceCookie, Value: strings.Repeat("c", 32)}
+	if rec := selectKid(owner, "0000"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("wrong PIN under a swapped device cookie: %d %s", rec.Code, rec.Body.String())
 	}
-	// ... but another device is not affected.
+	delete(owner.cookies, DeviceCookie)
+	if rec := selectKid(owner, "4711"); rec.Code != http.StatusTooManyRequests || problemCode(t, rec) != "pin_locked" {
+		t.Errorf("right PIN without a device cookie: %d %s", rec.Code, rec.Body.String())
+	}
+	// ... but another device (its own login) is not affected.
 	other := newBrowser(t, e.h)
-	other.cookies[SessionCookie] = owner.cookies[SessionCookie]
+	wantStatus(t, other.do(http.MethodPost, "/api/v1/auth/login", map[string]any{"email": "marco@example.ch", "password": authTestPassword}), http.StatusOK)
 	rec = selectKid(other, "4711")
 	wantStatus(t, rec, http.StatusOK)
 	if got := rec.Header().Get("Clear-Site-Data"); got != `"cache"` {
@@ -248,9 +255,7 @@ func TestProfilePickerFlow(t *testing.T) {
 
 	// A profile that is deleted while a session has it active sends that session back to the
 	// picker (the deleting session is another one, on the primary profile).
-	manager := newBrowser(t, e.h)
-	wantStatus(t, manager.do(http.MethodPost, "/api/v1/auth/login", map[string]any{"email": "marco@example.ch", "password": authTestPassword}), http.StatusOK)
-	wantStatus(t, manager.do(http.MethodPost, fmt.Sprintf("/api/v1/auth/profiles/%d/select", primaryID), nil), http.StatusOK)
+	manager := other // still on the primary profile
 	if info := sessionOf(t, owner.do(http.MethodGet, "/api/v1/auth/session", nil)); info.Profile == nil || info.Profile.Id != kid.Id {
 		t.Fatalf("the first session must be on the child profile: %+v", info)
 	}
@@ -319,6 +324,9 @@ func TestInvitationFlow(t *testing.T) {
 	wantStatus(t, rec, http.StatusCreated)
 	var inv gen.InvitationCreated
 	decode(t, rec, &inv)
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("the response with the one-time token has Cache-Control %q, want no-store", got)
+	}
 	if inv.State != gen.Open || inv.Note == nil || *inv.Note != "Oma" || !strings.HasPrefix(inv.Url, "/invite/") || strings.TrimPrefix(inv.Url, "/invite/") != inv.Token || len(inv.Token) != 43 {
 		t.Fatalf("created invitation = %s", rec.Body.String())
 	}
@@ -455,5 +463,51 @@ func TestImageURLsCarryProfileID(t *testing.T) {
 		if n == 0 {
 			t.Errorf("%s: no image URLs on the start page", tc.token)
 		}
+	}
+}
+
+// The invitation token never reaches the log or a problem body: the request log, the problem
+// instance and the error logs mask the segment after /invitations/ and /invite/.
+func TestInvitationTokenStaysOutOfLogsAndProblems(t *testing.T) {
+	e := newAuthEnv(t)
+	owner := newBrowser(t, e.h)
+	wantStatus(t, owner.do(http.MethodPost, "/api/v1/setup", setupBody()), http.StatusCreated)
+	var inv gen.InvitationCreated
+	decode(t, owner.do(http.MethodPost, "/api/v1/admin/invitations", map[string]any{"maxRating": 6, "allLibraries": true}), &inv)
+	revoked := inv.Token
+	wantStatus(t, owner.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/invitations/%d", inv.Id), nil), http.StatusNoContent)
+	unknown := strings.Repeat("Q", 43)
+
+	guest := newBrowser(t, e.h)
+	for _, tc := range []struct {
+		method, path string
+		body         any
+		status       int
+	}{
+		{http.MethodGet, "/api/v1/invitations/" + revoked, nil, http.StatusGone},
+		{http.MethodGet, "/api/v1/invitations/" + unknown, nil, http.StatusNotFound},
+		{http.MethodPost, "/api/v1/invitations/" + revoked + "/accept", map[string]any{"email": "g@example.ch", "password": "guest-password-1", "profileName": "G"}, http.StatusGone},
+		{http.MethodGet, "/invite/" + revoked, nil, http.StatusNotFound}, // the web app route
+	} {
+		rec := guest.do(tc.method, tc.path, tc.body)
+		if rec.Code != tc.status {
+			t.Fatalf("%s %s: %d (%s), want %d", tc.method, tc.path, rec.Code, rec.Body.String(), tc.status)
+		}
+		for _, token := range []string{revoked, unknown} {
+			if strings.Contains(rec.Body.String(), token) {
+				t.Errorf("%s %s: the token is in the response body: %s", tc.method, tc.path, rec.Body.String())
+			}
+		}
+		if strings.HasPrefix(tc.path, "/api/") && !strings.Contains(rec.Body.String(), `"instance":"`+strings.Replace(strings.Replace(tc.path, revoked, "[redacted]", 1), unknown, "[redacted]", 1)+`"`) {
+			t.Errorf("%s %s: problem instance not masked: %s", tc.method, tc.path, rec.Body.String())
+		}
+	}
+	for _, token := range []string{revoked, unknown} {
+		if strings.Contains(e.logs.String(), token) {
+			t.Errorf("the token %s... is in the log output", token[:6])
+		}
+	}
+	if !strings.Contains(e.logs.String(), "/api/v1/invitations/[redacted]") || !strings.Contains(e.logs.String(), "/invite/[redacted]") {
+		t.Errorf("the request log lost the masked paths: %s", e.logs.String())
 	}
 }

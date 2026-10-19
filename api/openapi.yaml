@@ -511,6 +511,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /libraries:
+    get:
+      operationId: listAccountLibraries
+      summary: Libraries the signed-in account may see, by name
+      description: |
+        Names and kinds of the libraries available to the account (all libraries for the main account, the
+        allowed ones for a guest), for the library choice in profile settings. No titles, so `account`.
+      tags: [profiles]
+      x-visibility: account
+      responses:
+        "200":
+          description: Libraries, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LibrarySummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
   /invitations/{token}:
     get:
       operationId: getInvitation
@@ -2403,6 +2424,18 @@ components:
     LibraryKind:
       type: string
       enum: [movies, series]
+
+    LibrarySummary:
+      type: object
+      required: [id, name, kind]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/LibraryKind"
 
     LibraryRequest:
       type: object

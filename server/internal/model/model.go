@@ -128,6 +128,7 @@ type Session struct {
 	ID        int64
 	Account   Account
 	Profile   Profile
+	DeviceID  string // device the session started on (PIN locks count per profile and device)
 	ExpiresAt time.Time
 }
 
@@ -208,6 +209,7 @@ type InvitationPreview struct {
 type LibraryRef struct {
 	ID   int64
 	Name string
+	Kind string // movies, series; set by ListAccountLibraries
 }
 
 // AcceptInvitation is the input of the guest sign-up.

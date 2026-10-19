@@ -109,8 +109,20 @@ func TestPINLockoutCurve(t *testing.T) {
 		t.Fatalf("stored PIN hash = %q (%v)", hash, err)
 	}
 
+	// The same account on a second device: its own session, started with the cookie of that device.
+	sessB, _, err := s.StartSession(ctxOn(deviceB), sess.Account, sess.Profile, "ua")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sess.DeviceID != deviceA || sessB.DeviceID != deviceB {
+		t.Fatalf("session devices = %q, %q", sess.DeviceID, sessB.DeviceID)
+	}
 	wrong := func(device string) error {
-		_, err := s.SelectProfile(ctxOn(device), sess, kid.ID, "0000")
+		session := sess
+		if device == deviceB {
+			session = sessB
+		}
+		_, err := s.SelectProfile(ctxOn(device), session, kid.ID, "0000")
 		return err
 	}
 	lockedFor := func(err error) time.Duration {
@@ -146,7 +158,7 @@ func TestPINLockoutCurve(t *testing.T) {
 		}
 		// Another device is not locked.
 		if i == 0 {
-			if got, err := s.SelectProfile(ctxOn(deviceB), sess, kid.ID, "4711"); err != nil || got.Profile.ID != kid.ID {
+			if got, err := s.SelectProfile(ctxOn(deviceB), sessB, kid.ID, "4711"); err != nil || got.Profile.ID != kid.ID {
 				t.Fatalf("other device: %v", err)
 			}
 			if err := wrong(deviceB); !errors.Is(err, model.ErrPinInvalid) {
@@ -396,11 +408,21 @@ func TestProfileRules(t *testing.T) {
 		t.Errorf("delete unknown: %v", err)
 	}
 	var ended []int64
-	if err := s.DeleteProfile(ctx, sess, p.ID, func(_ context.Context, id int64) error { ended = append(ended, id); return nil }); err != nil {
+	// Order: the sessions drop the profile first, then end runs, then the profile is deleted, then
+	// end runs once more for a stream that slipped in between.
+	var states []string
+	end := func(_ context.Context, id int64) error {
+		ended = append(ended, id)
+		var attached, profiles int
+		_ = s.db.QueryRow(`SELECT (SELECT count(*) FROM sessions WHERE profile_id = ?), (SELECT count(*) FROM profiles WHERE id = ?)`, id, id).Scan(&attached, &profiles)
+		states = append(states, fmt.Sprintf("sessions %d, profile %d", attached, profiles))
+		return nil
+	}
+	if err := s.DeleteProfile(ctx, sess, p.ID, end); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(ended, []int64{p.ID}) {
-		t.Errorf("end called for %v", ended)
+	if !slices.Equal(ended, []int64{p.ID, p.ID}) || !slices.Equal(states, []string{"sessions 0, profile 1", "sessions 0, profile 0"}) {
+		t.Errorf("end called for %v with states %v, want twice: detached before the delete, deleted after", ended, states)
 	}
 	// kidSession lost its profile (the session itself lives on).
 	if got, _, err := s.Resolve(ctx, token); err != nil || got.HasProfile() {

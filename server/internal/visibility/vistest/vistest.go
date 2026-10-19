@@ -26,6 +26,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -52,9 +53,10 @@ type Movie struct {
 	BackdropRel      string // backdrop w1280 JPEG
 	BackdropSmallRel string // backdrop w780 JPEG
 
-	OtherLibrary bool // in library X, which PX may not see
-	Missing      bool // its only file has missing_since set
-	Deleted      bool // soft-deleted
+	LibraryID    int64 // the library the title is in (set when it is seeded)
+	OtherLibrary bool  // in library X, which PX may not see
+	Missing      bool  // its only file has missing_since set
+	Deleted      bool  // soft-deleted
 
 	// Series tree entries (AddSeries): Kind is "series", "season" or "episode" ("" = movie); a
 	// container has no file; Effective and MinChild are the ratings the triggers compute.
@@ -130,8 +132,8 @@ func (f *Fixture) Unrated() Movie {
 }
 
 // VisibleTo reports whether a profile of the owner account may see m by the rules of plan 3.3
-// (unknown counts as 18; missing and deleted titles are invisible; library X needs all libraries,
-// as PX only has library 1; a container is visible when its own and its smallest child rating fit).
+// (unknown counts as 18; missing and deleted titles are invisible; the library of the title must be in
+// the profile's rights, as PX only has library 1; a container is visible when its own and its smallest child rating fit).
 // Profiles of the guest account need Fixture.VisibleTo.
 func VisibleTo(p model.Profile, m Movie) bool {
 	return visibleTo(p, 18, true, nil, m)
@@ -150,10 +152,11 @@ func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []i
 	if m.Missing || m.Deleted {
 		return false
 	}
-	if m.OtherLibrary && (!p.AllLibraries || !accountAll) {
+	// Library rights: the profile's own and the account's, both read from the fixture data.
+	if !p.AllLibraries && !slices.Contains(p.LibraryIDs, m.LibraryID) {
 		return false
 	}
-	if !m.OtherLibrary && !accountAll && len(accountLibs) == 0 {
+	if !accountAll && !slices.Contains(accountLibs, m.LibraryID) {
 		return false
 	}
 	limit := min(p.MaxRating, accountMax)
@@ -300,6 +303,7 @@ func (f *Fixture) addMovie(t testing.TB, m Movie, libraryID, rootID int64, media
 	t.Helper()
 	m.ID = "01J9000000000000000000R0" + m.Label
 	m.FileID = "01J9000000000000000000F0" + m.Label
+	m.LibraryID = libraryID
 	m.RelPath = fmt.Sprintf("Movie %s (20%02d)/Movie %s (20%02d).mp4", m.Label, 10+i, m.Label, 10+i)
 	if m.Kind == "episode" {
 		m.RelPath = fmt.Sprintf("Show/Season 01/Show - S01%s.mp4", m.Label)

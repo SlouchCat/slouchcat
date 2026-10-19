@@ -75,6 +75,9 @@ func (s *server) SetItemRating(ctx context.Context, req gen.SetItemRatingRequest
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
+	if err := s.recheckStreams(ctx); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	out := gen.AdminItemRating{
 		Id: r.ID, Kind: gen.ItemKind(r.Kind), Title: r.Title, OwnRating: optRating(r.OwnRating),
 		EffectiveRating: optRating(r.EffectiveRating), RatingSource: optString(r.RatingSource),

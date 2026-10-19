@@ -193,6 +193,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log)
 	libSvc := library.New(db, queue, runner, log, library.WithImageCheck(metaSvc.QueueIncompleteImages))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
+	adminSvc.WithQueue(queue)
 	keys.admin = adminSvc
 
 	var workers sync.WaitGroup

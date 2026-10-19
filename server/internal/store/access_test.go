@@ -105,7 +105,7 @@ func TestMigration00007KeepsFrozenData(t *testing.T) {
 			}
 			cfg := t.TempDir()
 			replay(t, filepath.Join(cfg, FileName), string(script))
-			var sessions int
+			var sessions, playbacks int
 			var before sql.NullInt64
 			raw, err := sql.Open("sqlite", filepath.Join(cfg, FileName))
 			if err != nil {
@@ -113,6 +113,11 @@ func TestMigration00007KeepsFrozenData(t *testing.T) {
 			}
 			if err := raw.QueryRow(`SELECT count(*), max(profile_id) FROM sessions`).Scan(&sessions, &before); err != nil {
 				t.Fatal(err)
+			}
+			if name == "M1b.sql" { // playback_sessions exists from migration 00005
+				if err := raw.QueryRow(`SELECT count(*) FROM playback_sessions`).Scan(&playbacks); err != nil {
+					t.Fatal(err)
+				}
 			}
 			_ = raw.Close()
 
@@ -135,6 +140,24 @@ func TestMigration00007KeepsFrozenData(t *testing.T) {
 			}
 			if after != sessions || profile != before {
 				t.Errorf("sessions after migration: %d (profile %v), before %d (profile %v)", after, profile, sessions, before)
+			}
+			if name == "M1b.sql" {
+				// The playback sessions survive the rebuild of sessions, and their foreign key still
+				// points at the (new) table: every row finds its session.
+				var after, orphans int
+				if err := db.Read.QueryRow(`SELECT count(*) FROM playback_sessions`).Scan(&after); err != nil {
+					t.Fatal(err)
+				}
+				if err := db.Read.QueryRow(`SELECT count(*) FROM playback_sessions AS ps LEFT JOIN sessions AS s ON s.id = ps.session_id WHERE s.id IS NULL`).Scan(&orphans); err != nil {
+					t.Fatal(err)
+				}
+				if after != playbacks || playbacks == 0 || orphans != 0 {
+					t.Errorf("playback_sessions: %d before, %d after, %d without session", playbacks, after, orphans)
+				}
+				var target string
+				if err := db.Read.QueryRow(`SELECT "table" FROM pragma_foreign_key_list('playback_sessions') WHERE "from" = 'session_id'`).Scan(&target); err != nil || target != "sessions" {
+					t.Errorf("playback_sessions.session_id references %q (%v), want sessions", target, err)
+				}
 			}
 			var primaries int
 			if err := db.Read.QueryRow(`SELECT count(*) FROM profiles WHERE is_default = 1`).Scan(&primaries); err != nil || primaries != 1 {

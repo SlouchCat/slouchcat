@@ -31,6 +31,25 @@ func requirePrimary(session model.Session) error {
 	return nil
 }
 
+// ListAccountLibraries returns the libraries the account may see, ordered by name: all of them for
+// an account with all libraries, otherwise its own. It needs no profile.
+func (s *Service) ListAccountLibraries(ctx context.Context, account model.Account) ([]model.LibraryRef, error) {
+	rows, err := s.read.ListLibraries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list libraries: %w", err)
+	}
+	out := make([]model.LibraryRef, 0, len(rows))
+	for _, l := range rows {
+		if account.AllLibraries || slices.Contains(account.LibraryIDs, l.ID) {
+			out = append(out, model.LibraryRef{ID: l.ID, Name: l.Name, Kind: l.Kind})
+		}
+	}
+	slices.SortStableFunc(out, func(a, b model.LibraryRef) int {
+		return strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name))
+	})
+	return out, nil
+}
+
 // ListMyProfiles returns the profiles of the account for the picker, primary profile first. It
 // works without an active profile.
 func (s *Service) ListMyProfiles(ctx context.Context, accountID int64) ([]model.Profile, error) {
@@ -86,12 +105,8 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	if in.PIN != nil && !ValidPIN(*in.PIN) {
 		verr = verr.Add("pin", "invalid_pin")
 	}
-	n, err := s.read.CountProfilesByAccount(ctx, acc.ID)
-	if err != nil {
-		return model.Profile{}, fmt.Errorf("count profiles: %w", err)
-	}
-	if n >= MaxProfiles {
-		verr = verr.Add("name", "too_many_profiles")
+	if p.AllLibraries == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
+		verr = verr.Add("libraryIds", "required")
 	}
 	if verr != nil {
 		return model.Profile{}, verr
@@ -111,6 +126,15 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.write.WithTx(tx)
+	// The limit is checked inside the write transaction, so two concurrent creations cannot both
+	// take the last slot.
+	n, err := q.CountProfilesByAccount(ctx, acc.ID)
+	if err != nil {
+		return model.Profile{}, fmt.Errorf("count profiles: %w", err)
+	}
+	if n >= MaxProfiles {
+		return model.Profile{}, (&model.ValidationError{}).Add("name", "too_many_profiles")
+	}
 	row, err := q.InsertProfile(ctx, p)
 	if err != nil {
 		return model.Profile{}, fmt.Errorf("insert profile: %w", err)
@@ -152,6 +176,9 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 		if libs, verr, err = s.libraryChoice(ctx, acc, p.AllLibraries == 1, in.LibraryIDs, verr); err != nil {
 			return model.Profile{}, err
 		}
+	}
+	if p.AllLibraries == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
+		verr = verr.Add("libraryIds", "required")
 	}
 	if verr != nil {
 		return model.Profile{}, verr
@@ -230,6 +257,14 @@ func applyInput(acc model.Account, name *string, maxRating *int64, language *str
 		}
 	}
 	return verr
+}
+
+// hasField reports whether verr already has an error for field.
+func hasField(verr *model.ValidationError, field string) bool {
+	if verr == nil {
+		return false
+	}
+	return slices.ContainsFunc(verr.Fields, func(f model.FieldError) bool { return f.Field == field })
 }
 
 // libraryChoice validates the library rights of a profile: every id must exist and, for a
@@ -327,6 +362,11 @@ func (s *Service) DeleteProfile(ctx context.Context, session model.Session, id i
 	if row.IsDefault == 1 {
 		return model.ErrPrimaryProfile
 	}
+	// Order matters: first the sessions drop the profile (own committed statement: their next
+	// request is a session without profile), then the profile's streams end, then it is deleted.
+	if _, err := s.write.ClearSessionsProfile(ctx, nullInt(row.ID)); err != nil {
+		return fmt.Errorf("detach sessions: %w", err)
+	}
 	if end != nil {
 		if err := end(ctx, row.ID); err != nil {
 			return err
@@ -334,6 +374,11 @@ func (s *Service) DeleteProfile(ctx context.Context, session model.Session, id i
 	}
 	if err := s.write.DeleteProfile(ctx, row.ID); err != nil {
 		return fmt.Errorf("delete profile: %w", err)
+	}
+	if end != nil { // a stream opened by a request that was already past its checks
+		if err := end(ctx, row.ID); err != nil {
+			return err
+		}
 	}
 	s.log.InfoContext(ctx, "profile deleted", "account_id", session.Account.ID, "profile_id", row.ID)
 	return nil

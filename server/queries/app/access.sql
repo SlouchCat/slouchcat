@@ -58,8 +58,27 @@ DELETE FROM profile_libraries WHERE profile_id = @profile_id;
 INSERT INTO profile_libraries (profile_id, library_id) VALUES (@profile_id, @library_id);
 
 -- name: SetSessionProfile :execrows
-UPDATE sessions SET profile_id = @profile_id, device_id = COALESCE(sqlc.narg('device_id'), device_id), last_seen_at = @now
-WHERE id = @id AND revoked_at IS NULL;
+-- The device of a session is fixed at its start (PIN locks must not depend on a cookie the client
+-- can drop); the profile must still exist in the session's account.
+UPDATE sessions SET profile_id = @profile_id, last_seen_at = @now
+WHERE sessions.id = @id AND sessions.revoked_at IS NULL
+  AND EXISTS (SELECT 1 FROM profiles AS p WHERE p.id = @profile_id AND p.account_id = sessions.account_id);
+
+-- name: ClearSessionsProfile :execrows
+-- Sessions that have the profile active fall back to the picker (before the profile is deleted).
+UPDATE sessions SET profile_id = NULL WHERE profile_id = @profile_id;
+
+-- name: AssignSessionDevice :exec
+UPDATE sessions SET device_id = @device_id WHERE id = @id AND device_id IS NULL;
+
+-- name: ClampProfileRatings :execrows
+UPDATE profiles SET max_rating = @max_rating, updated_at = @now WHERE account_id = @account_id AND max_rating > @max_rating;
+
+-- name: DeleteStaleDevices :execrows
+DELETE FROM devices WHERE last_seen_at < @before;
+
+-- name: DeleteStalePinAttempts :execrows
+DELETE FROM pin_attempts WHERE updated_at < @before;
 
 -- name: TouchAccount :exec
 UPDATE accounts SET last_seen_at = @now WHERE id = @id;

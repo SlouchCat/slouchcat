@@ -194,14 +194,23 @@ Zugriffe von aussen ist das Profil also der vorgesehene Weg.
 ```bash
 SLOUCHCAT_DOMAIN=media.example.org   # Pflicht; ohne Wert gilt "localhost" (siehe unten)
 ACME_EMAIL=admin@example.org         # optional, für Ablaufhinweise von Let's Encrypt
-SLOUCHCAT_TRUSTED_PROXIES=private    # Caddy läuft im privaten Docker-Netz
+SLOUCHCAT_TRUSTED_PROXIES=private    # Caddy läuft im privaten Docker-Netz; nur mit compose.https-only.yaml (s. u.)
 ```
 
-`SLOUCHCAT_TRUSTED_PROXIES=private` ist wichtig: Ohne diese Einstellung ignoriert der Server
-`X-Forwarded-For` und sähe jeden Zugriff als Zugriff von der Caddy-Adresse im Docker-Netz. Das verfälscht
-die Zuordnung der Anmeldeversuche (Begrenzung der Fehlversuche je Client) und das Log. `private` vertraut nur
-Adressen aus privaten Netzen; ein Aufrufer aus dem Internet kann den Header nicht fälschen, weil Caddy ihn
-überschreibt.
+`SLOUCHCAT_TRUSTED_PROXIES` ist wichtig: Ohne diese Einstellung ignoriert der Server `X-Forwarded-For` und
+sähe jeden Zugriff als Zugriff von der Caddy-Adresse im Docker-Netz. Das verfälscht die Zuordnung der
+Anmeldeversuche (Begrenzung der Fehlversuche je Client) und das Log.
+
+**`private` ist nur sicher, wenn Port 8096 für nicht vertrauenswürdige Clients unerreichbar ist.** `private`
+vertraut jedem Absender aus einem privaten Netz (RFC 1918, Loopback, `fc00::/7`), nicht nur Caddy. Caddy
+überschreibt `X-Forwarded-For` bei allem, was über ihn läuft, aber ein Gerät im Heimnetz, das direkt auf
+`http://<host>:8096` zugreift, ist ebenfalls ein «privater» Absender und kann den Header selbst setzen und
+sich damit eine beliebige Client-Adresse geben (und so die Begrenzung der Anmeldeversuche je Adresse
+umgehen). Deshalb ist der **normale Weg für das Profil `https`**, den Override `compose.https-only.yaml`
+dazuzunehmen: Dann veröffentlicht der Host Port 8096 gar nicht, und der Server ist nur über Caddy erreichbar.
+Wo 8096 trotzdem im LAN offen bleibt, statt `private` die genaue Adresse oder das Docker-Netz von Caddy als
+CIDR eintragen (`docker network inspect` zeigt es). Die Sperre falscher PINs hängt nicht von dieser
+Einstellung ab (sie zählt je Sitzung und Profil), nur die Begrenzung der Anmeldeversuche je Adresse.
 
 **Start**
 
@@ -260,9 +269,10 @@ Nach einer Änderung an der `Caddyfile`: `docker compose --profile https up -d -
 
 `compose.yaml` veröffentlicht den Server weiterhin auf Port **8096** (HTTP, ohne TLS). Das ist für das
 Heimnetz bequem, aber ungeschützt: Passwörter und Sitzungs-Cookie laufen dort im Klartext, und das Cookie
-ist ohne `X-Forwarded-Proto: https` nicht `Secure`. Der Router darf 8096 nie weiterleiten. Soll der Server
-nur über Caddy erreichbar sein, den Override `compose.https-only.yaml` dazunehmen; er veröffentlicht 8096
-nicht mehr (Docker Compose ab 2.24):
+ist ohne `X-Forwarded-Proto: https` nicht `Secure`. Der Router darf 8096 nie weiterleiten. Mit dem Profil
+`https` ist der Override `compose.https-only.yaml` der empfohlene Normalfall: Er veröffentlicht 8096 nicht
+mehr, der Server ist nur über Caddy erreichbar, und `SLOUCHCAT_TRUSTED_PROXIES=private` ist dann sicher
+(Docker Compose ab 2.24):
 
 ```bash
 docker compose -f compose.yaml -f compose.https-only.yaml --profile https up -d
@@ -397,9 +407,14 @@ noch Lese-Timeout. Auf dem Slouchcat-Host `SLOUCHCAT_TRUSTED_PROXIES` auf die Ad
 
 ```bash
 curl -sS -D - https://media.example.org/api/v1/auth/session          # 401, Set-Cookie mit "Secure"
-curl -sS -D - -o /dev/null -H 'Range: bytes=0-99' -b cookie.txt \
-  https://media.example.org/api/v1/items/<id>/stream                  # 206 und Content-Range
+# Der Datenstrom prüft das Stream-Token (?st=), nicht das Cookie: Token und URL kommen aus startPlayback.
+STREAM=$(curl -sS -b cookie.txt -H 'X-Requested-With: Slouchcat' -H 'Content-Type: application/json' \
+  -X POST -d '{}' https://media.example.org/api/v1/items/<id>/play | jq -r .streamUrl)
+curl -sS -D - -o /dev/null -H 'Range: bytes=0-99' "https://media.example.org$STREAM"   # 206 und Content-Range
 ```
+
+(`cookie.txt` stammt aus einer Anmeldung mit `curl -c cookie.txt`, danach `selectProfile`, falls das Konto
+mehrere Profile hat; bei HLS-Titeln ist `streamUrl` eine Playlist statt des Direktstroms.)
 
 Das Cookie `slouchcat_session` muss das Attribut `Secure` tragen; fehlt es, kommt `X-Forwarded-Proto` nicht
 an. Im Server-Log steht bei Anmeldungen die Adresse des Clients; steht dort die Adresse des Proxys, fehlt

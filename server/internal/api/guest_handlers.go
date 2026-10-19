@@ -42,6 +42,9 @@ func (s *server) UpdateGuest(ctx context.Context, req gen.UpdateGuestRequestObje
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
+	if err := s.recheckStreams(ctx); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	return gen.UpdateGuest200JSONResponse(toGuest(g)), nil
 }
 

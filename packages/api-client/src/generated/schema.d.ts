@@ -207,6 +207,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/libraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Libraries the signed-in account may see, by name
+         * @description Names and kinds of the libraries available to the account (all libraries for the main account, the
+         *     allowed ones for a guest), for the library choice in profile settings. No titles, so `account`.
+         */
+        get: operations["listAccountLibraries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations/{token}": {
         parameters: {
             query?: never;
@@ -1154,6 +1175,12 @@ export interface components {
         };
         /** @enum {string} */
         LibraryKind: "movies" | "series";
+        LibrarySummary: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            kind: components["schemas"]["LibraryKind"];
+        };
         LibraryRequest: {
             name: string;
             kind: components["schemas"]["LibraryKind"];
@@ -1841,6 +1868,27 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listAccountLibraries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Libraries, by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySummary"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
         };
     };
     getInvitation: {

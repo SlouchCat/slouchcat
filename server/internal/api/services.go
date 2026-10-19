@@ -36,6 +36,8 @@ type ProfileService interface {
 	// *model.PinLockedError, model.ErrTooManyAttempts, *model.ValidationError. The device comes
 	// from model.DeviceID(ctx).
 	SelectProfile(ctx context.Context, session model.Session, profileID int64, pin string) (model.Session, error)
+	// ListAccountLibraries returns the libraries the account may see (all for the main account), by name.
+	ListAccountLibraries(ctx context.Context, account model.Account) ([]model.LibraryRef, error)
 	ListProfiles(ctx context.Context, session model.Session) ([]model.Profile, error)
 	CreateProfile(ctx context.Context, session model.Session, in model.ProfileInput) (model.Profile, error)
 	UpdateProfile(ctx context.Context, session model.Session, id int64, in model.ProfileInput) (model.Profile, error)
@@ -120,6 +122,9 @@ type PlaybackService interface {
 	EndAccount(ctx context.Context, accountID int64) error
 	// EndProfile ends every playback session of a profile (profile deleted).
 	EndProfile(ctx context.Context, profileID int64) error
+	// RecheckVisibility ends the open direct-play streams whose title their profile may no longer
+	// see; called after a change of ratings, ceilings or library rights.
+	RecheckVisibility(ctx context.Context) error
 	// Report stores a progress event and returns the merged progress.
 	Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error)
 }

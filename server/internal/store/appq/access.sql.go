@@ -10,6 +10,51 @@ import (
 	"database/sql"
 )
 
+const assignSessionDevice = `-- name: AssignSessionDevice :exec
+UPDATE sessions SET device_id = ?1 WHERE id = ?2 AND device_id IS NULL
+`
+
+type AssignSessionDeviceParams struct {
+	DeviceID sql.NullString
+	ID       int64
+}
+
+func (q *Queries) AssignSessionDevice(ctx context.Context, arg AssignSessionDeviceParams) error {
+	_, err := q.db.ExecContext(ctx, assignSessionDevice, arg.DeviceID, arg.ID)
+	return err
+}
+
+const clampProfileRatings = `-- name: ClampProfileRatings :execrows
+UPDATE profiles SET max_rating = ?1, updated_at = ?2 WHERE account_id = ?3 AND max_rating > ?1
+`
+
+type ClampProfileRatingsParams struct {
+	MaxRating int64
+	Now       int64
+	AccountID int64
+}
+
+func (q *Queries) ClampProfileRatings(ctx context.Context, arg ClampProfileRatingsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clampProfileRatings, arg.MaxRating, arg.Now, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const clearSessionsProfile = `-- name: ClearSessionsProfile :execrows
+UPDATE sessions SET profile_id = NULL WHERE profile_id = ?1
+`
+
+// Sessions that have the profile active fall back to the picker (before the profile is deleted).
+func (q *Queries) ClearSessionsProfile(ctx context.Context, profileID sql.NullInt64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clearSessionsProfile, profileID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countProfilesByAccount = `-- name: CountProfilesByAccount :one
 SELECT count(*) FROM profiles WHERE account_id = ?1
 `
@@ -81,6 +126,30 @@ DELETE FROM profile_libraries WHERE profile_id = ?1
 func (q *Queries) DeleteProfileLibraries(ctx context.Context, profileID int64) error {
 	_, err := q.db.ExecContext(ctx, deleteProfileLibraries, profileID)
 	return err
+}
+
+const deleteStaleDevices = `-- name: DeleteStaleDevices :execrows
+DELETE FROM devices WHERE last_seen_at < ?1
+`
+
+func (q *Queries) DeleteStaleDevices(ctx context.Context, before int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteStaleDevices, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteStalePinAttempts = `-- name: DeleteStalePinAttempts :execrows
+DELETE FROM pin_attempts WHERE updated_at < ?1
+`
+
+func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteStalePinAttempts, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getGuestAccount = `-- name: GetGuestAccount :one
@@ -762,24 +831,21 @@ func (q *Queries) SetProfilePin(ctx context.Context, arg SetProfilePinParams) er
 }
 
 const setSessionProfile = `-- name: SetSessionProfile :execrows
-UPDATE sessions SET profile_id = ?1, device_id = COALESCE(?2, device_id), last_seen_at = ?3
-WHERE id = ?4 AND revoked_at IS NULL
+UPDATE sessions SET profile_id = ?1, last_seen_at = ?2
+WHERE sessions.id = ?3 AND sessions.revoked_at IS NULL
+  AND EXISTS (SELECT 1 FROM profiles AS p WHERE p.id = ?1 AND p.account_id = sessions.account_id)
 `
 
 type SetSessionProfileParams struct {
 	ProfileID sql.NullInt64
-	DeviceID  sql.NullString
 	Now       int64
 	ID        int64
 }
 
+// The device of a session is fixed at its start (PIN locks must not depend on a cookie the client
+// can drop); the profile must still exist in the session's account.
 func (q *Queries) SetSessionProfile(ctx context.Context, arg SetSessionProfileParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, setSessionProfile,
-		arg.ProfileID,
-		arg.DeviceID,
-		arg.Now,
-		arg.ID,
-	)
+	result, err := q.db.ExecContext(ctx, setSessionProfile, arg.ProfileID, arg.Now, arg.ID)
 	if err != nil {
 		return 0, err
 	}

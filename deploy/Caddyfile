@@ -11,8 +11,12 @@
 	# The server already compresses what is worth compressing: no "encode" here.
 	header -Server
 
-	# No request body limit (Caddy's default) and no read timeout: uploads of artwork and long HLS
-	# responses must not be cut off. flush_interval -1 sends every chunk at once (Range, HLS).
+	# Browsers must use HTTPS from now on for this host (one year; no includeSubDomains, no preload).
+	header Strict-Transport-Security "max-age=31536000"
+
+	# No request body limit of Caddy's own (the server caps request bodies at 64 KiB itself) and no
+	# read timeout: long HLS and Range responses must not be cut off. flush_interval -1 sends every
+	# chunk at once (Range, HLS).
 	# X-Forwarded-For, X-Forwarded-Proto and X-Forwarded-Host are set by Caddy itself.
 	reverse_proxy slouchcat:8096 {
 		flush_interval -1

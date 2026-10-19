@@ -293,6 +293,8 @@ type profileFixture struct {
 	a        *auth.Service
 	pa       profileAuth
 	admin    *admin.Service
+	pb       *playback.Service
+	opts     Options
 }
 
 // testTokenKey is the stream-token key of the contract fixtures.
@@ -328,13 +330,23 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		pf.newSession(t, name, p)
 	}
 	pf.newSession(t, "none", model.Profile{})
-	pf.h = NewHandler(Options{
+	pf.pb = playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(pf.tc))
+	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
-		Playback: playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(pf.tc)),
-	})
+		Playback: pf.pb,
+	}
+	pf.h = NewHandler(pf.opts)
 	return pf
+}
+
+// handlerWithPlayback is the handler of the fixture with another playback service (a wrapper of
+// pf.pb that observes or interleaves calls).
+func (pf profileFixture) handlerWithPlayback(pb PlaybackService) http.Handler {
+	o := pf.opts
+	o.Playback = pb
+	return NewHandler(o)
 }
 
 // newSession starts a browser session for the account of profile p (owner or guest account; a

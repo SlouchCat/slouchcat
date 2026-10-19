@@ -16,6 +16,9 @@ const (
 	attemptsPerMin  = 10
 	attemptBurst    = 10
 	bucketIdleAfter = 10 * time.Minute
+	// maxBuckets caps the table: client addresses come from the network (or from a trusted
+	// proxy's header), so an attacker could otherwise make it grow without bound.
+	maxBuckets = 10_000
 )
 
 // argonSlots bounds concurrent argon2id runs; argonRuns counts the runs started (tests).
@@ -36,7 +39,8 @@ func acquireArgon(ctx context.Context) (release func(), err error) {
 }
 
 // attemptLimiter is a token bucket per client address: attemptsPerMin refill per minute, up to
-// attemptBurst. Buckets idle for bucketIdleAfter are dropped when a new one is created.
+// attemptBurst. Buckets idle for bucketIdleAfter are dropped when a new one is created, and the
+// table never holds more than maxBuckets (the least recently used goes first).
 type attemptLimiter struct {
 	mu      sync.Mutex
 	buckets map[string]*bucket
@@ -56,10 +60,16 @@ func (l *attemptLimiter) allow(ip string, now time.Time) error {
 		if l.buckets == nil {
 			l.buckets = map[string]*bucket{}
 		}
+		oldest, oldestAt := "", now
 		for k, old := range l.buckets {
 			if now.Sub(old.last) > bucketIdleAfter {
 				delete(l.buckets, k)
+			} else if old.last.Before(oldestAt) || oldest == "" {
+				oldest, oldestAt = k, old.last
 			}
+		}
+		if len(l.buckets) >= maxBuckets {
+			delete(l.buckets, oldest) // the client that was seen longest ago starts over
 		}
 		b = &bucket{tokens: attemptBurst, last: now}
 		l.buckets[ip] = b

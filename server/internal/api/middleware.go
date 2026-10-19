@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/slouchcat/slouchcat/server/internal/logging"
 )
 
 // HeaderRequestID carries the request ID in both directions.
@@ -54,7 +56,7 @@ func requestLog(log *slog.Logger) func(http.Handler) http.Handler {
 			}
 			attrs := []slog.Attr{
 				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
+				slog.String("path", logging.RedactString(r.URL.Path)),
 				slog.Int("status", status),
 				slog.Float64("duration_ms", float64(time.Since(start).Microseconds())/1000),
 				slog.String("request_id", requestIDFrom(r.Context())),

@@ -16,11 +16,14 @@ var errNoProfileService = errors.New("profile service not configured")
 
 func (e serviceProblem) VisitListMyProfilesResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitSelectProfileResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitListProfilesResponse(w http.ResponseWriter) error   { return e.visit(w) }
-func (e serviceProblem) VisitCreateProfileResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitUpdateProfileResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitDeleteProfileResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitSetProfilePinResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitListAccountLibrariesResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitListProfilesResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitCreateProfileResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitUpdateProfileResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitDeleteProfileResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitSetProfilePinResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitRemoveProfilePinResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -119,6 +122,9 @@ func (s *server) UpdateProfile(ctx context.Context, req gen.UpdateProfileRequest
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
+	if err := s.recheckStreams(ctx); err != nil {
+		return s.problem(ctx, err), nil
+	}
 	return gen.UpdateProfile200JSONResponse(toProfile(p)), nil
 }
 
@@ -181,4 +187,29 @@ func accentPtr(a *gen.Accent) *string {
 	}
 	v := string(*a)
 	return &v
+}
+
+func (s *server) ListAccountLibraries(ctx context.Context, _ gen.ListAccountLibrariesRequestObject) (gen.ListAccountLibrariesResponseObject, error) {
+	session, svc, err := s.accountSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	libs, err := svc.ListAccountLibraries(ctx, session.Account)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := make(gen.ListAccountLibraries200JSONResponse, 0, len(libs))
+	for _, l := range libs {
+		out = append(out, gen.LibrarySummary{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind)})
+	}
+	return out, nil
+}
+
+// recheckStreams ends open direct-play streams whose title became invisible after a change of
+// ratings, ceilings or library rights.
+func (s *server) recheckStreams(ctx context.Context) error {
+	if s.opts.Playback == nil {
+		return nil
+	}
+	return s.opts.Playback.RecheckVisibility(ctx)
 }

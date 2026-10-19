@@ -62,6 +62,9 @@ func (s *Service) CreateInvitation(ctx context.Context, creator model.Account, r
 	if err != nil {
 		return model.Invitation{}, err
 	}
+	if !req.AllLibraries && len(libs) == 0 && !hasField(verr, "libraryIds") {
+		verr = verr.Add("libraryIds", "required")
+	}
 	if verr != nil {
 		return model.Invitation{}, verr
 	}
@@ -286,6 +289,9 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 	if err != nil {
 		return model.Session{}, "", err
 	}
+	// By design (accepted): a valid link lets its holder learn whether an e-mail address already has
+	// an account (422 email already_exists). The link is secret, one-time and rate limited, and the
+	// guest needs the answer to pick another address.
 	if _, err := q.GetAccountByEmail(ctx, email); err == nil {
 		return model.Session{}, "", (&model.ValidationError{}).Add("email", "already_exists")
 	} else if !errors.Is(err, sql.ErrNoRows) {

@@ -76,6 +76,9 @@ func (s *Service) UpdateGuest(ctx context.Context, id int64, in model.GuestUpdat
 			return model.Guest{}, err
 		}
 	}
+	if all == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
+		verr = verr.Add("libraryIds", "required")
+	}
 	if verr != nil {
 		return model.Guest{}, verr
 	}
@@ -89,6 +92,11 @@ func (s *Service) UpdateGuest(ctx context.Context, id int64, in model.GuestUpdat
 	now := s.now().UnixMilli()
 	if err := q.UpdateAccountLimits(ctx, appq.UpdateAccountLimitsParams{ID: acc.ID, MaxRating: maxRating, AllLibraries: all, Now: now}); err != nil {
 		return model.Guest{}, fmt.Errorf("update limits: %w", err)
+	}
+	// A lowered ceiling also lowers the guest's profiles, so the profile list never shows a level
+	// the account no longer allows (the view caps them in any case).
+	if _, err := q.ClampProfileRatings(ctx, appq.ClampProfileRatingsParams{AccountID: acc.ID, MaxRating: maxRating, Now: now}); err != nil {
+		return model.Guest{}, fmt.Errorf("clamp profile ratings: %w", err)
 	}
 	if err := q.DeleteAccountLibraries(ctx, acc.ID); err != nil {
 		return model.Guest{}, fmt.Errorf("replace account libraries: %w", err)
@@ -108,35 +116,33 @@ func (s *Service) UpdateGuest(ctx context.Context, id int64, in model.GuestUpdat
 	return toGuest(acc.ID, acc.Email, maxRating, all, acc.CreatedAt, acc.LastSeenAt.Int64, acc.LastSeenAt.Valid, int(n), libs), nil
 }
 
-// RevokeAccount revokes a guest account (K-7): end runs first (the API ends the account's playback
-// there), then one transaction revokes every session and deletes the account with its profiles
-// and progress. From the next request on its cookies and stream tokens answer 401. An unknown id
-// and an owner account are model.ErrNotFound.
+// RevokeAccount revokes a guest account (K-7). The order is deliberate: first every session of the
+// account is revoked (own committed statement, so the next request of the guest is a 401 and no new
+// stream can be authorised), then end runs (the API ends the account's playback: open streams, HLS
+// output), then one transaction deletes the account with its profiles and progress, and end runs
+// once more for a stream that a request already past its checks opened in between. From the next
+// request on cookies and stream tokens answer 401. An unknown id and an owner account are
+// model.ErrNotFound.
 func (s *Service) RevokeAccount(ctx context.Context, accountID int64, end func(ctx context.Context, accountID int64) error) error {
 	acc, err := s.read.GetGuestAccount(ctx, accountID)
 	if err != nil {
 		return notFoundOr(err, "get guest")
+	}
+	if _, err := s.write.RevokeAccountSessions(ctx, appq.RevokeAccountSessionsParams{AccountID: acc.ID, Now: nullInt(s.now().UnixMilli())}); err != nil {
+		return fmt.Errorf("revoke sessions: %w", err)
 	}
 	if end != nil {
 		if err := end(ctx, acc.ID); err != nil {
 			return err
 		}
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	q := s.write.WithTx(tx)
-	now := s.now().UnixMilli()
-	if _, err := q.RevokeAccountSessions(ctx, appq.RevokeAccountSessionsParams{AccountID: acc.ID, Now: nullInt(now)}); err != nil {
-		return fmt.Errorf("revoke sessions: %w", err)
-	}
-	if _, err := q.DeleteAccount(ctx, acc.ID); err != nil {
+	if _, err := s.write.DeleteAccount(ctx, acc.ID); err != nil {
 		return fmt.Errorf("delete account: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit: %w", err)
+	if end != nil {
+		if err := end(ctx, acc.ID); err != nil {
+			return err
+		}
 	}
 	s.log.InfoContext(ctx, "guest account revoked", "account_id", acc.ID)
 	return nil
