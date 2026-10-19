@@ -225,3 +225,35 @@ func TestBinaryRoutesMatchContract(t *testing.T) {
 		}
 	}
 }
+
+// K-1: profiles carry no e-mail and no password; a profile request needs only the name.
+func TestContractProfileHasNoCredentials(t *testing.T) {
+	data, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parseYAML(t, data)
+	for _, name := range []string{"Profile", "ProfileSummary", "ProfileRequest", "ProfileUpdate"} {
+		schema, _ := resolve(doc, "#/components/schemas/"+name).(map[string]any)
+		props, _ := schema["properties"].(map[string]any)
+		if len(props) == 0 {
+			t.Fatalf("schema %s has no properties", name)
+		}
+		for key := range props {
+			lower := strings.ToLower(key)
+			if strings.Contains(lower, "mail") || strings.Contains(lower, "password") {
+				t.Errorf("schema %s has a credential field %q (K-1)", name, key)
+			}
+		}
+	}
+	req, _ := resolve(doc, "#/components/schemas/ProfileRequest").(map[string]any)
+	var required []string
+	if list, ok := req["required"].([]any); ok {
+		for _, r := range list {
+			required = append(required, fmt.Sprint(r))
+		}
+	}
+	if !slices.Equal(required, []string{"name"}) {
+		t.Errorf("ProfileRequest.required = %v, want [name] (K-1: image and everything else optional)", required)
+	}
+}
