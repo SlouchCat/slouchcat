@@ -33,7 +33,7 @@ Alle fünf Schritte aus `docs/planning/03-plan-v1.md` (M1a) sind umgesetzt, Comm
 | B-1 Bibliothek Typ Film und Serie anlegen; `/media` read-only | PASS | Assistent und `POST /admin/libraries` (beide Typen, `admin-libraries.spec.ts`); Schreibversuch im Container: `docker exec slouchcat touch /media/Generated/x` → `Read-only file system` (ebenso `/testfilme`) |
 | B-2 Namenskorpus ≥ 150 Muster, ≥ 98 % | 184 Pfade, 100 %; 30 NFO-Fälle | `go test ./internal/library/ -run TestParseMoviePathCorpus -v` druckt die Quote |
 | B-3 Titel/Beschreibung in Profilsprache, Fallback en; Poster für die Referenzfilme | PASS: 32 von 32 Titeln mit de/en-Texten und Postern | Compose-Lauf; `go test ./internal/visibility/` (Sprach-Fallback) |
-| B-4 ext4: neu/umbenannt/gelöscht sichtbar < 60 s; Netzfreigaben nach AN-12 mit Messwert | inotify meldet in 2 s (inkl. Entprellung); Poller über NFS/SMB: Durchlauf 128–193 ms auf dem Referenzbaum (lokal), Intervall 45 s → Änderung < 60 s | `slouchcat watchbench`, `docs/perf/M1a.md` |
+| B-4 ext4: neu/umbenannt/gelöscht sichtbar < 60 s; Netzfreigaben nach AN-12 mit Messwert | inotify meldet in 2 s (inkl. Entprellung); **NFS in Referenzgrösse** (60'800 Dateien auf dem NAS): Stat-Durchlauf 3.0–10.9 s, Intervall 45 s, neuer Titel nach 48.4 s sichtbar; Voll-Scan 2'500 Filme über NFS 4.75 s | `slouchcat watchbench`, `docs/perf/M1a.md` Abschnitte 1 und 1a |
 | W-5 Fortsetzung ±10 s über zwei Kontexte | Server: `progress` je Profil und Item, `resumePositionMs` im `PlaybackInfo`; Playwright-Test mit zwei Browser-Kontexten (`web/e2e/resume.spec.ts`) | `task e2e`, `go test ./internal/playback/`, Vitest `PlayerPage.test.tsx` |
 | E-1 Reihenfolge Karussell, Weiterschauen, Neu hinzugefügt | PASS | Vertragstest prüft Reihenfolge und entfallende leere Reihen |
 | C-1 installierbar | TEILWEISE: Manifest mit PNG-Icons (192, 512, maskable) und Service Worker werden ausgeliefert; Lighthouse 12 hat keine Installierbarkeits-Prüfung mehr, die Installation wird mit dem Android-Lauf des Spikes manuell geprüft | `web/vite.config.ts`, `curl /manifest.webmanifest`, `/sw.js` |
@@ -43,7 +43,7 @@ Alle fünf Schritte aus `docs/planning/03-plan-v1.md` (M1a) sind umgesetzt, Comm
 | `task ci` grün (6.2 Pkt. 2) | exit 0 | gen, gen:check, lint (0 issues), Go-Tests mit `-race`, Vitest (48: web 42, api-client 4, design-tokens 2), Build, Playwright (54) |
 | Eingefrorener DB-Stand (6.2 Pkt. 4) | `testdata/db/M1a.sql`, Migrationstest grün | `go test ./internal/store/ -run TestFrozen` |
 | Messwerte (6.2 Pkt. 5) | `docs/perf/M1a.md`, `docs/perf/M1-ios-offline.md` | |
-| Lastmessung Dateiüberwachung ≥ 45'000 Dateien, 8'000 Ordner (lokale Platte) | 60'800 Dateien in 8'213 Ordnern: Stat-Durchlauf 128–193 ms, inotify 8'213 Watches in 0.4 s, Voll-Scan 2'500 Filme in 1.09 s | `docs/perf/M1a.md` Abschnitt 1 |
+| Lastmessung Dateiüberwachung ≥ 45'000 Dateien, 8'000 Ordner (lokale Platte) | 60'800 Dateien in 8'213 Ordnern: Stat-Durchlauf 128–193 ms, inotify 8'213 Watches in 0.4 s, Voll-Scan 2'500 Filme in 1.09 s; zusätzlich über NFS: 3.0–10.9 s je Durchlauf, Änderung nach 48 s sichtbar | `docs/perf/M1a.md` Abschnitte 1 und 1a |
 | Code-Review (separate Passage, Opus) | 0 Sichtbarkeitslecks, 2 wichtige und 10 kleinere Befunde, alle behoben (siehe unten) | Commit `fix(server): harden login, scanner and progress after review` |
 | Verifier-Agent (6.2 Pkt. 6) | «DoD bestätigt mit Ausnahmen» (LCP, Safari/iOS, Android-Spike, NFS-Lastmessung, Abspieltest); Korrekturen am Bericht übernommen, W-5-Test ergänzt | `task ci` durch den Verifier erneut: exit 0 |
 
@@ -109,7 +109,7 @@ lokalen Override-Datei `.dev/compose.m1a.yaml` (Testfilme unter `/testfilme`, Sp
   (temporär bis M1b).
 
 **Noch nicht erfüllt / ausstehend:** LCP 2.55 s statt < 2.5 s (siehe Tabelle); Android-Lauf des Spikes;
-Lastmessung in Referenzgrösse über NFS/SMB; Marcos eigener Abspieltest im Browser (Stack läuft auf
+Lastmessung über SMB (NFS erledigt); Marcos eigener Abspieltest im Browser (Stack läuft auf
 `http://192.168.1.143:8096`, Zugang in `.dev/README-m1a-test.md`); Push des Branches.
 
 ## Offene Punkte für M1b

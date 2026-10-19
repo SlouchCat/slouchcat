@@ -19,10 +19,24 @@ Messung mit `server/bin/slouchcat watchbench --root <baum> --passes 5 --inotify`
 | `fs.inotify.max_user_watches` auf dem Rechner | 256'774 (Belegung 3.2 %, Warnung ab 80 %) | |
 | Neue Datei per inotify gemeldet (inkl. 2 s Entprellung) | 2.0 s | < 60 s (B-4) |
 
-Auf Marcos NFS-Freigabe `/mnt/nerdnas/medien/Testfilme` (13 Ordner, 45 Dateien): erster Durchlauf
-5.9 ms, danach 2.6–2.8 ms (Messung des Scanner-Agenten). Der Durchlauf in Referenzgrösse **über NFS/SMB**
-steht noch aus: dafür muss der Platzhalterbaum auf die Freigabe geschrieben werden (60'800 Dateien auf
-dem NAS, nach Rücksprache), oder er läuft auf dem Proxmox-Testcontainer (Entscheid 2, vor M1b).
+### 1a. Derselbe Baum über NFS (Referenzgrösse, Entscheid 3)
+
+Platzhalterbaum mit `generate-library-tree.py` direkt auf die NFS-v4.2-Freigabe des NAS geschrieben
+(`/mnt/nerdnas/medien/slouchcat-load`, 60'800 Dateien in 8'213 Ordnern, Erzeugung 28.8 s über NFS;
+nach der Messung wieder gelöscht). Messung 19. Oktober 2026, 07:20, mit Marcos Einverständnis.
+
+| Messung | Wert | Grenzwert |
+|---|---|---|
+| Stat-Durchlauf des Pollers, 5 Läufe warm | 4.56 / 3.22 / 9.64 / 2.97 / 9.75 s | < 15 s je 10'000 Dateien (Plan 3.4) |
+| nach 70 s Pause (NFS-Attributcache abgelaufen), 2 Läufe | 10.88 / 3.80 s | |
+| Adaptives Intervall daraus | 45 s (3 × 10.9 s = 32.7 s < 45 s) | |
+| Voll-Scan `Movies/` (2'500 Filmordner) über NFS durch den Server | 4.75 s, 2'500 Titel | |
+| Neuer Filmordner auf der Freigabe bis Titel in `/admin/libraries` sichtbar (Poller → `scan.library`) | **48.4 s** | < 60 s (B-4, AN-12) |
+
+Ergebnis: das Eine-Minute-Ziel aus Entscheid 3 wird über NFS mit der Referenzgrösse eingehalten; die
+Reserve ist mit rund 12 s knapp. Die Schwankung der Durchläufe (3–11 s) kommt vom NAS-seitigen Cache. Die
+kleine Freigabe `/mnt/nerdnas/medien/Testfilme` (13 Ordner, 45 Dateien) braucht 2.6–5.9 ms je Durchlauf.
+SMB ist nicht gemessen (keine SMB-Freigabe eingerichtet); der Proxmox-Testcontainer (Entscheid 2) folgt vor M1b.
 
 ## 2. Scanner
 
