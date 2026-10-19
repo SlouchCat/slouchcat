@@ -58,10 +58,12 @@ tasks:
 
   healthy-time:arm64:
     desc: >-
-      Start {{.IMAGE}}-arm64 under QEMU and measure the time to healthy; the RSS limit is raised
-      because the emulator's own memory counts (about 70 MB instead of 24 MB native)
+      Start {{.IMAGE}}-arm64 under QEMU and measure the time to healthy; the limits are raised
+      because the emulator's own memory counts (about 70 MB instead of 24 MB native) and the emulated
+      start takes 1.3 s here but about 7 s on a GitHub runner (P-1's 5 s applies to real hardware)
     env:
       IMAGE: "{{.IMAGE}}-arm64"
+      MAX_HEALTHY_SECONDS: "30"
       MAX_RSS_MB: "120"
     cmds:
       - ./scripts/measure-healthy.sh

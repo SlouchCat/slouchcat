@@ -70,7 +70,7 @@ task deploy:build:multi       # amd64 und arm64 in einem Lauf, ohne --load
   prüft nur, dass beide Plattformen bauen, wie die CI. `OUTPUT=type=oci,dest=/tmp/slouchcat.oci.tar`
   schreibt ein OCI-Archiv; sobald es eine Registry gibt, pusht `OUTPUT=type=registry` mit passendem
   `IMAGE`.
-- `healthy-time:arm64` ist `scripts/measure-healthy.sh` mit `MAX_RSS_MB=120`: Unter QEMU zählt der
+- `healthy-time:arm64` ist `scripts/measure-healthy.sh` mit `MAX_HEALTHY_SECONDS=30` und `MAX_RSS_MB=120`: Unter QEMU zählt der
   Speicher des Emulators mit (gemessen rund 70 MB statt 24 MB nativ). Die Zeit bis `healthy` gilt
   weiterhin mit 5 s Grenze. Echte Werte für arm64 liefert erst ein arm64-Rechner.
 - `TARGETOS`/`TARGETARCH` stehen im Dockerfile **ohne** Standardwert: BuildKit setzt sie aus

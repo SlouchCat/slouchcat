@@ -291,6 +291,12 @@ Werkzeuge: `task deploy:build:arm64`, `task deploy:build:multi`, `task deploy:he
 (`docker/setup-qemu-action`, `setup-buildx-action`, `build-push-action`, Cache `type=gha`), lädt jedes
 Image einzeln und prüft `healthy` mit `deploy/scripts/measure-healthy.sh`.
 
+**GitHub Actions (Job `image`, 19. Oktober 2026):** auf dem Runner (`ubuntu-24.04`, 4 vCPU) wird das
+arm64-Image unter QEMU erst nach **6.96 s** healthy (Leerlauf-RSS 86.7 MB), weil die Backend-Erkennung ihren
+Software-Test-Encode emuliert ausführt. Der erste Lauf des Jobs scheiterte deshalb an der 5-s-Grenze; die
+Grenze gilt für echte Hardware (P-1), der emulierte Schritt prüft seither nur noch «startet innert 30 s».
+amd64 nativ auf dem Runner: healthy innert 5 s, RSS unter 60 MB (Schritt grün).
+
 ## 7. Design-Feinschliff (Schritt 5)
 
 ### Akzentfarben

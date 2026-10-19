@@ -114,5 +114,7 @@ jobs:
         run: IMAGE=slouchcat:ci-amd64 deploy/scripts/measure-healthy.sh
 
       # Under QEMU the emulator's own memory counts towards the RSS, hence the higher limit.
-      - name: arm64 turns healthy under emulation (< 5 s)
-        run: IMAGE=slouchcat:ci-arm64 MAX_RSS_MB=120 deploy/scripts/measure-healthy.sh
+      # Under QEMU the start takes about 7 s on the runner (the backend detection's software test
+      # encode runs emulated); P-1's 5 s applies to real hardware, this step only proves the image starts.
+      - name: arm64 starts under emulation (healthy within 30 s)
+        run: IMAGE=slouchcat:ci-arm64 MAX_HEALTHY_SECONDS=30 MAX_RSS_MB=120 deploy/scripts/measure-healthy.sh
