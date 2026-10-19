@@ -10,6 +10,10 @@ RETURNING id;
 SELECT id FROM jobs
 WHERE idempotency_key = @idempotency_key AND state IN ('queued', 'running');
 
+-- name: SetQueuedJobPayload :execrows
+-- Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
+UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'queued';
+
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = @id;
 

@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -48,11 +50,17 @@ type Service struct {
 	// imageCheck queues image.fetch for titles with incomplete images after a scan (optional).
 	imageCheck func(ctx context.Context, libraryID int64) (int, error)
 
-	mu       sync.Mutex
-	runCtx   context.Context // context of Start; watchers of libraries created later run under it
-	wg       sync.WaitGroup
-	watchers map[int64]*Watcher // by root id
-	retrying map[int64]bool     // library ids with a pending re-queue (scan was running)
+	mu        sync.Mutex
+	runCtx    context.Context // context of Start; watchers of libraries created later run under it
+	wg        sync.WaitGroup
+	watchers  map[int64]*Watcher      // by root id
+	retrying  map[int64]bool          // library ids with a pending re-queue (scan was running)
+	scanLocks map[int64]chan struct{} // by library id; see lockScan
+
+	// pathMu guards the coalescing of watcher changes into scan.path jobs.
+	pathMu       sync.Mutex
+	pathPending  map[int64]map[int64]map[string]bool // library id → root id → directories not yet queued
+	pathRetrying map[int64]bool                      // library ids waiting for their running path scan
 }
 
 // Option configures New.
@@ -73,7 +81,8 @@ func WithImageCheck(check func(ctx context.Context, libraryID int64) (int, error
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		db: db, queue: queue, probe: probe, log: log, now: time.Now,
-		watchers: map[int64]*Watcher{}, retrying: map[int64]bool{},
+		watchers: map[int64]*Watcher{}, retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
+		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
 	}
 	for _, o := range opts {
 		o(s)
@@ -291,6 +300,133 @@ func (s *Service) triggerScan(ctx context.Context, libraryID int64) {
 	})
 }
 
+// triggerPathScan is called by the watcher of a root with the directories that changed: it
+// merges them into the pending scan.path job of the library, debounced like triggerScan. When
+// that job is already running, the directories wait here and are queued once it has finished.
+func (s *Service) triggerPathScan(ctx context.Context, libraryID, rootID int64, dirs []string) {
+	s.pathMu.Lock()
+	defer s.pathMu.Unlock()
+	byRoot := s.pathPending[libraryID]
+	if byRoot == nil {
+		byRoot = map[int64]map[string]bool{}
+		s.pathPending[libraryID] = byRoot
+	}
+	if byRoot[rootID] == nil {
+		byRoot[rootID] = map[string]bool{}
+	}
+	for _, d := range dirs {
+		byRoot[rootID][d] = true
+	}
+	if !s.pathRetrying[libraryID] {
+		s.flushPathScan(ctx, libraryID)
+	}
+}
+
+// flushPathScan queues the pending directories of a library; s.pathMu must be held.
+func (s *Service) flushPathScan(ctx context.Context, libraryID int64) {
+	pending := pathScanPayload{LibraryID: libraryID}
+	for rootID, dirs := range s.pathPending[libraryID] {
+		pending.Roots = append(pending.Roots, pathScanRoot{RootID: rootID, Dirs: slices.Collect(maps.Keys(dirs))})
+	}
+	if len(pending.Roots) == 0 {
+		return
+	}
+	payload, err := json.Marshal(normalizePathScan(pending))
+	if err != nil {
+		s.log.ErrorContext(ctx, "encode path scan", "library_id", libraryID, "err", err)
+		return
+	}
+	id, err := s.queue.Enqueue(ctx, jobs.NewJob{
+		Type: JobScanPath, Priority: prioPathScan, IdempotencyKey: pathScanKey(libraryID), Payload: payload, Delay: jobs.DebounceWindow,
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			s.log.WarnContext(ctx, "queue path scan after change", "library_id", libraryID, "err", err)
+		}
+		return // the directories stay pending for the next change
+	}
+	j, err := s.queue.Get(ctx, id)
+	if err != nil {
+		if ctx.Err() == nil {
+			s.log.WarnContext(ctx, "load queued path scan", "library_id", libraryID, "err", err)
+		}
+		return
+	}
+	queued := false
+	if j.State == jobs.StateQueued {
+		// Enqueue returned either the new job or a pending one holding the key: merge.
+		var held pathScanPayload
+		if err := json.Unmarshal(j.Payload, &held); err != nil {
+			s.log.ErrorContext(ctx, "decode queued path scan", "job_id", j.ID, "err", err)
+			return
+		}
+		held.Roots = append(held.Roots, pending.Roots...)
+		merged := normalizePathScan(held)
+		if pathScanDirs(merged) > MaxChangedDirs {
+			delete(s.pathPending, libraryID)
+			s.triggerScan(ctx, libraryID)
+			return
+		}
+		data, err := json.Marshal(merged)
+		if err != nil {
+			s.log.ErrorContext(ctx, "encode path scan", "library_id", libraryID, "err", err)
+			return
+		}
+		queued = string(data) == string(j.Payload)
+		if !queued {
+			if queued, err = s.queue.SetQueuedPayload(ctx, j.ID, data); err != nil {
+				if ctx.Err() == nil {
+					s.log.WarnContext(ctx, "merge path scan", "job_id", j.ID, "err", err)
+				}
+				return
+			}
+		}
+	}
+	if queued {
+		delete(s.pathPending, libraryID)
+		if err := appq.New(s.db.Write).MarkLibraryScanQueued(ctx, appq.MarkLibraryScanQueuedParams{Now: s.now().UnixMilli(), ID: libraryID}); err != nil && ctx.Err() == nil {
+			s.log.WarnContext(ctx, "mark scan queued", "library_id", libraryID, "err", err)
+		}
+		return
+	}
+	// The job holding the key runs (or has just ended): its directories were read before these
+	// changes, so they are queued again once it has finished.
+	s.pathRetrying[libraryID] = true
+	s.wg.Go(func() {
+		select {
+		case <-ctx.Done():
+		case <-time.After(runningRetry):
+		}
+		s.pathMu.Lock()
+		defer s.pathMu.Unlock()
+		delete(s.pathRetrying, libraryID)
+		if ctx.Err() == nil {
+			s.flushPathScan(ctx, libraryID)
+		}
+	})
+}
+
+// normalizePathScan merges the entries of the same root and sorts roots and directories.
+func normalizePathScan(p pathScanPayload) pathScanPayload {
+	byRoot := map[int64][]string{}
+	for _, r := range p.Roots {
+		byRoot[r.RootID] = append(byRoot[r.RootID], r.Dirs...)
+	}
+	out := pathScanPayload{LibraryID: p.LibraryID, Roots: make([]pathScanRoot, 0, len(byRoot))}
+	for _, id := range slices.Sorted(maps.Keys(byRoot)) {
+		out.Roots = append(out.Roots, pathScanRoot{RootID: id, Dirs: cleanDirs(byRoot[id])})
+	}
+	return out
+}
+
+func pathScanDirs(p pathScanPayload) int {
+	n := 0
+	for _, r := range p.Roots {
+		n += len(r.Dirs)
+	}
+	return n
+}
+
 func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, error) {
 	roots, err := appq.New(s.db.Read).ListLibraryRoots(ctx, l.ID)
 	if err != nil {
@@ -406,13 +542,25 @@ func (s *Service) startWatcher(root appq.LibraryRoot) {
 		return
 	}
 	libraryID := root.LibraryID
-	w := NewWatcher(pr, root.Watch, func() { s.triggerScan(ctx, libraryID) }, s.log.With("library_id", libraryID, "root_id", root.ID))
+	w := NewWatcher(pr, root.Watch, s.rootChanged(ctx, libraryID, root.ID), s.log.With("library_id", libraryID, "root_id", root.ID))
 	s.watchers[root.ID] = w
 	s.wg.Go(func() {
 		if err := w.Run(ctx); err != nil && ctx.Err() == nil {
 			s.log.Error("library watcher stopped", "library_id", libraryID, "root_id", root.ID, "err", err)
 		}
 	})
+}
+
+// rootChanged returns the change callback of the watcher of a root: a path scan of the changed
+// directories, or a full scan when the watcher reports nil (too many changes, lost events).
+func (s *Service) rootChanged(ctx context.Context, libraryID, rootID int64) func(dirs []string) {
+	return func(dirs []string) {
+		if dirs == nil {
+			s.triggerScan(ctx, libraryID)
+			return
+		}
+		s.triggerPathScan(ctx, libraryID, rootID, dirs)
+	}
 }
 
 // WatcherStats returns the statistics of the running watchers by root id.

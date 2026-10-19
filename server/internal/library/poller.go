@@ -31,12 +31,20 @@ func PollInterval(last time.Duration) time.Duration {
 // overlapping the listings shortens it nearly linearly up to the server's limit.
 const DefaultPollWorkers = 16
 
+// MaxChangedDirs is the most changed directories a change report names. A pass or a quiet window
+// with more changes reports nil instead, and the library gets a full scan (a path scan of that
+// many directories is no cheaper than walking the tree).
+const MaxChangedDirs = 500
+
 // PassStats describes one stat pass of a Poller.
 type PassStats struct {
 	Dirs     int           // directories listed
 	Files    int           // other entries seen (files, symlinks)
 	Changed  int           // directories new, gone or with a different listing than in the previous pass
 	Duration time.Duration // wall time of the pass
+	// ChangedDirs are the changed directories, slash-separated relative to the root ("." is the
+	// root itself) and sorted; nil when Changed is 0 or exceeds MaxChangedDirs.
+	ChangedDirs []string
 }
 
 // Poller detects changes below a root without inotify (NFS, SMB): each pass lists every
@@ -48,7 +56,7 @@ type PassStats struct {
 // directory, so only the listing of the directory itself reveals it.
 type Poller struct {
 	root     paths.Root
-	onChange func()
+	onChange func(changed []string)
 
 	// Workers is the number of concurrent directory listings; 0 or less means DefaultPollWorkers.
 	// Set it before the first pass.
@@ -59,8 +67,10 @@ type Poller struct {
 }
 
 // NewPoller returns a poller for root. onChange runs after a pass that found changes (never
-// after the first pass, which only records the baseline). It may be nil.
-func NewPoller(root paths.Root, onChange func()) *Poller {
+// after the first pass, which only records the baseline) with PassStats.ChangedDirs: the
+// directories to scan again, or nil when more than MaxChangedDirs changed and the whole root
+// needs a scan. It may be nil.
+func NewPoller(root paths.Root, onChange func(changed []string)) *Poller {
 	return &Poller{root: root, onChange: onChange}
 }
 
@@ -147,24 +157,30 @@ func (p *Poller) Pass(ctx context.Context) (PassStats, error) {
 		}
 	}
 
+	var changed []string
 	p.mu.Lock()
 	if p.snap != nil {
 		for d, sum := range next {
 			if old, ok := p.snap[d]; !ok || old != sum {
-				stats.Changed++
+				changed = append(changed, d)
 			}
 		}
 		for d := range p.snap {
 			if _, ok := next[d]; !ok {
-				stats.Changed++
+				changed = append(changed, d)
 			}
 		}
 	}
 	p.snap = next
 	p.mu.Unlock()
+	stats.Changed = len(changed)
+	if stats.Changed <= MaxChangedDirs {
+		slices.Sort(changed)
+		stats.ChangedDirs = changed
+	}
 	stats.Duration = time.Since(start)
 	if stats.Changed > 0 && p.onChange != nil {
-		p.onChange()
+		p.onChange(stats.ChangedDirs)
 	}
 	return stats, nil
 }

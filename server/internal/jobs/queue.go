@@ -13,7 +13,8 @@
 //     key again returns the ID of the active job instead of adding a duplicate. After the job has
 //     finished, the key can be used again.
 //   - Debounce: set Delay to DebounceWindow together with a key. The first enqueue waits for the
-//     window, every enqueue of the same key inside it coalesces into that job.
+//     window, every enqueue of the same key inside it coalesces into that job. A caller that
+//     needs the work of both enqueues merges it into the pending job with SetQueuedPayload.
 //   - Retry: a failed attempt is retried after 10 s · 2^(attempt-1) (10 s, 20 s, 40 s, …) until
 //     MaxAttempts is reached; then the job ends in state failed with the last error.
 //   - Cancel: queued and running jobs can be cancelled; a running handler sees its context
@@ -221,6 +222,20 @@ func (q *Queue) Cancel(ctx context.Context, id int64) (bool, error) {
 	n, err := q.q.CancelJob(ctx, systemq.CancelJobParams{Now: q.now().UnixMilli(), ID: id})
 	if err != nil {
 		return false, fmt.Errorf("cancel job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
+// SetQueuedPayload replaces the payload of a queued job, for handlers that coalesce work into
+// one pending job (scan.path merges directories). It reports false when the job is no longer
+// queued: a worker claimed it, or it ended.
+func (q *Queue) SetQueuedPayload(ctx context.Context, id int64, payload json.RawMessage) (bool, error) {
+	if !json.Valid(payload) {
+		return false, errors.New("payload is not valid JSON")
+	}
+	n, err := q.q.SetQueuedJobPayload(ctx, systemq.SetQueuedJobPayloadParams{Payload: string(payload), Now: q.now().UnixMilli(), ID: id})
+	if err != nil {
+		return false, fmt.Errorf("set payload of job %d: %w", id, err)
 	}
 	return n == 1, nil
 }

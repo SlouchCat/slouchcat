@@ -2,8 +2,12 @@ package library
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -43,7 +47,45 @@ func (e *env) cancelScans() {
 	}
 }
 
-func TestInotifyWatcherQueuesDebouncedScan(t *testing.T) {
+// queuedPathScans returns the number of queued scan.path jobs and the directories they name.
+func (e *env) queuedPathScans() (int, []string) {
+	e.t.Helper()
+	rows, err := e.db.Read.QueryContext(e.ctx, `SELECT payload FROM jobs WHERE type = ? AND state = 'queued'`, JobScanPath)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	defer rows.Close()
+	n, dirs := 0, []string{}
+	for rows.Next() {
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
+			e.t.Fatal(err)
+		}
+		var p pathScanPayload
+		if err := json.Unmarshal([]byte(raw), &p); err != nil {
+			e.t.Fatalf("payload %s: %v", raw, err)
+		}
+		n++
+		for _, r := range p.Roots {
+			dirs = append(dirs, r.Dirs...)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		e.t.Fatal(err)
+	}
+	return n, dirs
+}
+
+// waitPathScan waits for exactly one queued scan.path job naming want.
+func (e *env) waitPathScan(want ...string) {
+	e.t.Helper()
+	waitFor(e.t, 5*time.Second, fmt.Sprintf("a queued scan.path of %q", want), func() bool {
+		n, dirs := e.queuedPathScans()
+		return n == 1 && slices.Equal(dirs, want)
+	})
+}
+
+func TestInotifyWatcherQueuesDebouncedPathScan(t *testing.T) {
 	e := newEnv(t)
 	dir := t.TempDir()
 	lib := e.create(dir)
@@ -52,26 +94,29 @@ func TestInotifyWatcherQueuesDebouncedScan(t *testing.T) {
 	ctx, cancel := context.WithCancel(e.ctx)
 	defer cancel()
 	var calls atomic.Int32
-	w := NewWatcher(mustRoot(t, dir), WatchInotify, func() {
+	changed := e.svc.rootChanged(ctx, lib.ID, lib.Roots[0].ID)
+	w := NewWatcher(mustRoot(t, dir), WatchInotify, func(dirs []string) {
 		calls.Add(1)
-		e.svc.triggerScan(ctx, lib.ID)
+		changed(dirs)
 	}, discard)
 	done := make(chan error, 1)
 	go func() { done <- w.Run(ctx) }()
 	waitFor(t, 5*time.Second, "inotify watches", func() bool { return w.Stats().Dirs == 1 })
 
+	// Two quick changes: one report after the quiet window, one job with both new folders and the
+	// root whose listing changed.
 	start := time.Now()
 	writeFile(t, dir, "Alien (1979)/Alien (1979).mkv", "a")
 	time.Sleep(100 * time.Millisecond)
 	writeFile(t, dir, "Aliens (1986)/Aliens (1986).mkv", "b")
-	waitFor(t, 5*time.Second, "a queued scan.library job", func() bool { return e.queuedScans() == 1 })
-	t.Logf("scan queued %v after the first change", time.Since(start).Round(time.Millisecond))
+	e.waitPathScan(".", "Alien (1979)", "Aliens (1986)")
+	t.Logf("path scan queued %v after the first change", time.Since(start).Round(time.Millisecond))
 	time.Sleep(w.quiet + 500*time.Millisecond)
 	if n := calls.Load(); n != 1 {
-		t.Errorf("two quick changes triggered %d times, want 1", n)
+		t.Errorf("two quick changes reported %d times, want 1", n)
 	}
-	if n := e.queuedScans(); n != 1 {
-		t.Errorf("queued scans = %d, want 1", n)
+	if n, _ := e.queuedPathScans(); n != 1 || e.queuedScans() != 0 {
+		t.Errorf("queued path scans = %d, full scans = %d; want 1 and 0", n, e.queuedScans())
 	}
 	if d := w.Stats().Dirs; d != 3 {
 		t.Errorf("watched dirs = %d, want 3 (root and two new folders)", d)
@@ -80,10 +125,17 @@ func TestInotifyWatcherQueuesDebouncedScan(t *testing.T) {
 		t.Errorf("library state = %q, %v; want queued", lib.Scan.State, err)
 	}
 
-	// A change inside a directory created after the start is seen as well.
+	// A new file in a folder created after the start: the job names that folder only.
 	e.cancelScans()
-	writeFile(t, dir, "Alien (1979)/movie.nfo", "<movie/>")
-	waitFor(t, 5*time.Second, "a scan after a change in a new folder", func() bool { return e.queuedScans() == 1 })
+	writeFile(t, dir, "Alien (1979)/Alien (1979) - 2160p.mkv", "c")
+	e.waitPathScan("Alien (1979)")
+
+	// A removed folder: the folder (its files are gone) and its parent.
+	e.cancelScans()
+	if err := os.RemoveAll(filepath.Join(dir, "Aliens (1986)")); err != nil {
+		t.Fatal(err)
+	}
+	e.waitPathScan(".", "Aliens (1986)")
 
 	// Hidden and ignored entries do not trigger.
 	e.cancelScans()
@@ -108,13 +160,100 @@ func TestInotifyWatcherQueuesDebouncedScan(t *testing.T) {
 	}
 }
 
+// A poll watcher queues scan.path with the directories its stat pass found changed.
+func TestPollWatcherQueuesPathScan(t *testing.T) {
+	e := newEnv(t)
+	dir := t.TempDir()
+	writeFile(t, dir, "Alien (1979)/Alien (1979).mkv", "a")
+	lib := e.create(dir)
+	e.cancelScans()
+	ctx, cancel := context.WithCancel(e.ctx)
+	defer cancel()
+	w := NewWatcher(mustRoot(t, dir), WatchPoll, e.svc.rootChanged(ctx, lib.ID, lib.Roots[0].ID), discard)
+	w.pause = func(time.Duration) time.Duration { return 50 * time.Millisecond }
+	done := make(chan error, 1)
+	go func() { done <- w.Run(ctx) }()
+	waitFor(t, 5*time.Second, "the baseline pass", func() bool { return w.Stats().LastPass.Dirs == 2 })
+
+	writeFile(t, dir, "Up (2009)/Up (2009).mkv", "u")
+	e.waitPathScan(".", "Up (2009)")
+	if st := w.Stats(); st.LastPass.Dirs != 3 {
+		t.Errorf("last pass = %+v", st.LastPass)
+	}
+	if e.queuedScans() != 0 {
+		t.Error("a change in one folder queued a full scan")
+	}
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Changes reported while a scan.path job waits merge into it; while it runs they wait in memory;
+// more than MaxChangedDirs fall back to a full scan.
+func TestTriggerPathScanCoalesces(t *testing.T) {
+	e := newEnv(t)
+	dir := t.TempDir()
+	lib := e.create(dir)
+	e.cancelScans()
+	ctx, cancel := context.WithCancel(e.ctx)
+	rootID := lib.Roots[0].ID
+
+	e.svc.triggerPathScan(ctx, lib.ID, rootID, []string{"B", "."})
+	e.svc.triggerPathScan(ctx, lib.ID, rootID, []string{"A", "B"})
+	e.waitPathScan(".", "A", "B")
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ? AND priority = 6`, JobScanPath, pathScanKey(lib.ID)); n != 1 {
+		t.Errorf("scan.path jobs with key and priority 6 = %d, want 1", n)
+	}
+
+	// The job runs: the new directory is not merged into it but kept for the next job.
+	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE jobs SET state = 'running' WHERE type = ?`, JobScanPath); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.triggerPathScan(ctx, lib.ID, rootID, []string{"C"})
+	if v := e.str(`SELECT payload FROM jobs WHERE type = ?`, JobScanPath); strings.Contains(v, `"C"`) {
+		t.Errorf("running job changed: %s", v)
+	}
+	e.svc.pathMu.Lock()
+	pending, retrying := e.svc.pathPending[lib.ID][rootID]["C"], e.svc.pathRetrying[lib.ID]
+	e.svc.pathMu.Unlock()
+	if !pending || !retrying {
+		t.Errorf("directory C pending %v, retry scheduled %v; want both", pending, retrying)
+	}
+	cancel()
+	e.svc.wg.Wait()
+
+	// Too many directories: a full scan instead.
+	e.cancelScans()
+	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE jobs SET state = 'done' WHERE state = 'running'`); err != nil {
+		t.Fatal(err)
+	}
+	ctx2, cancel2 := context.WithCancel(e.ctx)
+	defer cancel2()
+	e.svc.pathPending = map[int64]map[int64]map[string]bool{}
+	e.svc.pathRetrying = map[int64]bool{}
+	e.svc.triggerPathScan(ctx2, lib.ID, rootID, []string{"x"})
+	many := make([]string, MaxChangedDirs)
+	for i := range many {
+		many[i] = fmt.Sprintf("d%03d", i)
+	}
+	e.svc.triggerPathScan(ctx2, lib.ID, rootID, many)
+	if e.queuedScans() != 1 {
+		t.Errorf("queued full scans = %d, want 1", e.queuedScans())
+	}
+}
+
 func TestPollerDetectsChanges(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "Alien (1979)/Alien (1979).mkv", "a")
 	writeFile(t, dir, "Alien (1979)/movie.nfo", "n")
 	writeFile(t, dir, "Heat (1995)/Heat (1995).mkv", "h")
 	var calls atomic.Int32
-	p := NewPoller(mustRoot(t, dir), func() { calls.Add(1) })
+	var reported []string
+	p := NewPoller(mustRoot(t, dir), func(dirs []string) {
+		calls.Add(1)
+		reported = dirs
+	})
 	ctx := context.Background()
 
 	st, err := p.Pass(ctx)
@@ -149,10 +288,16 @@ func TestPollerDetectsChanges(t *testing.T) {
 	if st, err = p.Pass(ctx); err != nil || st.Changed != 1 || calls.Load() != 1 {
 		t.Fatalf("pass after a new file = %+v, %v, calls %d; want 1 changed dir", st, err, calls.Load())
 	}
+	if want := []string{"Heat (1995)"}; !slices.Equal(st.ChangedDirs, want) || !slices.Equal(reported, want) {
+		t.Errorf("changed dirs = %q, reported %q; want %q", st.ChangedDirs, reported, want)
+	}
 	// Deleted file.
 	remove(t, dir, "Alien (1979)/movie.nfo")
 	if st, err = p.Pass(ctx); err != nil || st.Changed != 1 || calls.Load() != 2 {
 		t.Fatalf("pass after a deleted file = %+v, %v, calls %d", st, err, calls.Load())
+	}
+	if want := []string{"Alien (1979)"}; !slices.Equal(reported, want) {
+		t.Errorf("reported %q, want %q", reported, want)
 	}
 	// Changed size of a file.
 	writeFile(t, dir, "Heat (1995)/Heat (1995).mkv", "longer content")
@@ -164,12 +309,18 @@ func TestPollerDetectsChanges(t *testing.T) {
 	if st, err = p.Pass(ctx); err != nil || st.Changed != 2 || st.Dirs != 4 {
 		t.Fatalf("pass after a new folder = %+v, %v; want 2 changed of 4 dirs", st, err)
 	}
+	if want := []string{".", "Up (2009)"}; !slices.Equal(reported, want) {
+		t.Errorf("reported %q, want %q", reported, want)
+	}
 	// Removed folder.
 	if err := os.RemoveAll(filepath.Join(dir, "Up (2009)")); err != nil {
 		t.Fatal(err)
 	}
 	if st, err = p.Pass(ctx); err != nil || st.Changed != 2 || st.Dirs != 3 {
 		t.Fatalf("pass after a removed folder = %+v, %v", st, err)
+	}
+	if want := []string{".", "Up (2009)"}; !slices.Equal(reported, want) {
+		t.Errorf("reported %q after removal, want %q", reported, want)
 	}
 	// Ignored entries do not count.
 	calls.Store(0)
@@ -209,7 +360,7 @@ func TestPollWatcherQueuesScan(t *testing.T) {
 	e.cancelScans()
 	ctx, cancel := context.WithCancel(e.ctx)
 	defer cancel()
-	w := NewWatcher(mustRoot(t, dir), WatchPoll, func() { e.svc.triggerScan(ctx, lib.ID) }, discard)
+	w := NewWatcher(mustRoot(t, dir), WatchPoll, e.svc.rootChanged(ctx, lib.ID, lib.Roots[0].ID), discard)
 	done := make(chan error, 1)
 	go func() { done <- w.Run(ctx) }()
 	waitFor(t, 5*time.Second, "the first stat pass", func() bool { return w.Stats().Interval == minPollInterval })

@@ -95,6 +95,19 @@ func (s *Service) handleScan(ctx context.Context, j *jobs.Job) error {
 // Scan runs a full scan of lib (see the package documentation). Aborts are recorded in the
 // library and return nil; other failures are recorded as failed and returned.
 func (s *Service) Scan(ctx context.Context, lib appq.Library) error {
+	unlock, err := s.lockScan(ctx, lib.ID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	// Reloaded under the lock: a path scan that ran meanwhile may have used the accepted loss.
+	lib, err = appq.New(s.db.Read).GetLibrary(ctx, lib.ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("load library: %w", err)
+	}
 	start := s.now()
 	if err := s.setState(ctx, lib.ID, "running", ""); err != nil {
 		return err
@@ -104,22 +117,7 @@ func (s *Service) Scan(ctx context.Context, lib appq.Library) error {
 		return s.finish(ctx, lib, "done", "", 0, 0)
 	}
 	stats, err := s.scanMovies(ctx, lib)
-	var abort scanAbort
-	switch {
-	case errors.As(err, &abort):
-		s.log.WarnContext(ctx, "library scan aborted, nothing changed", "library_id", lib.ID, "reason", abort.code)
-		return s.finish(ctx, lib, "aborted", abort.code, 0, 0)
-	case err != nil && ctx.Err() != nil:
-		// Interrupted (shutdown, cancel): the job runs again; the next run converges.
-		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-		defer cancel()
-		_ = s.setState(bg, lib.ID, "queued", "")
-		return err
-	case err != nil:
-		s.log.ErrorContext(ctx, "library scan failed", "library_id", lib.ID, "err", err)
-		if ferr := s.finish(context.WithoutCancel(ctx), lib, "failed", err.Error(), 0, 0); ferr != nil {
-			return errors.Join(err, ferr)
-		}
+	if done, err := s.endScan(ctx, lib, "library scan", err); done {
 		return err
 	}
 	s.log.InfoContext(ctx, "library scan done", "library_id", lib.ID, "files", stats.files, "new", stats.created,
@@ -133,6 +131,49 @@ func (s *Service) Scan(ctx context.Context, lib appq.Library) error {
 		}
 	}
 	return nil
+}
+
+// endScan records the end of a scan that returned err: an abort as aborted (nil error), an
+// interruption as queued again (the job runs again and converges), any other error as failed. It
+// reports whether the scan ended that way; for err == nil the caller finishes the scan.
+func (s *Service) endScan(ctx context.Context, lib appq.Library, what string, err error) (bool, error) {
+	var abort scanAbort
+	switch {
+	case err == nil:
+		return false, nil
+	case errors.As(err, &abort):
+		s.log.WarnContext(ctx, what+" aborted, nothing changed", "library_id", lib.ID, "reason", abort.code)
+		return true, s.finish(ctx, lib, "aborted", abort.code, 0, 0)
+	case ctx.Err() != nil:
+		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_ = s.setState(bg, lib.ID, "queued", "")
+		return true, err
+	default:
+		s.log.ErrorContext(ctx, what+" failed", "library_id", lib.ID, "err", err)
+		if ferr := s.finish(context.WithoutCancel(ctx), lib, "failed", err.Error(), 0, 0); ferr != nil {
+			return true, errors.Join(err, ferr)
+		}
+		return true, err
+	}
+}
+
+// lockScan serializes the scans of one library: a full scan and a path scan on two workers would
+// plan against the same rows and could insert the same new file twice. It waits until ctx ends.
+func (s *Service) lockScan(ctx context.Context, libraryID int64) (func(), error) {
+	s.mu.Lock()
+	ch := s.scanLocks[libraryID]
+	if ch == nil {
+		ch = make(chan struct{}, 1)
+		s.scanLocks[libraryID] = ch
+	}
+	s.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (s *Service) setState(ctx context.Context, id int64, state, msg string) error {
@@ -205,7 +246,7 @@ func (s *Service) scanMovies(ctx context.Context, lib appq.Library) (scanStats, 
 	var ops []scanOp
 	unchanged, lost := 0, 0
 	for _, rs := range scans {
-		o, u, l, err := s.planRoot(ctx, rs)
+		o, u, l, err := s.planRoot(ctx, rs, nil)
 		if err != nil {
 			return stats, err
 		}
@@ -230,7 +271,7 @@ func (s *Service) scanMovies(ctx context.Context, lib appq.Library) (scanStats, 
 			return stats, err
 		}
 		end := min(len(ops), i+batchRows/maxRowsPerOp)
-		n, err := s.applyBatch(ctx, lib, idx, ops[i:end], seen+end-i, total, &stats)
+		n, err := s.applyBatch(ctx, lib, idx, ops[i:end], &scanProgress{seen: seen + end - i, total: total}, &stats)
 		if err != nil {
 			return stats, err
 		}
@@ -273,34 +314,14 @@ func walkRoot(ctx context.Context, root paths.Root, log *slog.Logger) ([]diskFil
 			}
 			return nil
 		}
-		if d.IsDir() || !IsVideo(d.Name()) {
+		if d.IsDir() {
 			return nil
 		}
-		parsed := ParseMoviePath(p)
-		if parsed.Extra || parsed.Sample {
-			return nil
+		f, ok, err := videoFile(ctx, r, p, d, log)
+		if ok {
+			files = append(files, f)
 		}
-		var fi fs.FileInfo
-		if d.Type()&fs.ModeSymlink != 0 {
-			// Follows the link; refused when the target leaves the root.
-			if fi, err = r.Stat(p); err != nil {
-				log.WarnContext(ctx, "symlink not followed, skipped", "path", p, "err", err)
-				return nil
-			}
-		} else {
-			fi, err = d.Info()
-		}
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil // removed during the walk
-		}
-		if err != nil {
-			return err
-		}
-		if !fi.Mode().IsRegular() {
-			return nil
-		}
-		files = append(files, diskFile{rel: p, size: fi.Size(), mtime: fi.ModTime().UnixMilli(), id: fileIdentity(fi)})
-		return nil
+		return err
 	})
 	if err != nil {
 		return nil, fmt.Errorf("walk %s: %w", root.Dir(), err)
@@ -308,10 +329,49 @@ func walkRoot(ctx context.Context, root paths.Root, log *slog.Logger) ([]diskFil
 	return files, nil
 }
 
+// videoFile turns the non-directory entry d at p into a candidate video file. ok is false for
+// entries a scan skips: no video, extras and samples, a vanished entry, anything but a regular
+// file, and a symlink whose target cannot be read inside the root (logged).
+func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, log *slog.Logger) (diskFile, bool, error) {
+	if !IsVideo(d.Name()) {
+		return diskFile{}, false, nil
+	}
+	if parsed := ParseMoviePath(p); parsed.Extra || parsed.Sample {
+		return diskFile{}, false, nil
+	}
+	var fi fs.FileInfo
+	var err error
+	if d.Type()&fs.ModeSymlink != 0 {
+		// Follows the link; refused when the target leaves the root.
+		if fi, err = r.Stat(p); err != nil {
+			log.WarnContext(ctx, "symlink not followed, skipped", "path", p, "err", err)
+			return diskFile{}, false, nil
+		}
+	} else {
+		fi, err = d.Info()
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return diskFile{}, false, nil // removed during the walk
+	}
+	if err != nil {
+		return diskFile{}, false, err
+	}
+	if !fi.Mode().IsRegular() {
+		return diskFile{}, false, nil
+	}
+	return diskFile{rel: p, size: fi.Size(), mtime: fi.ModTime().UnixMilli(), id: fileIdentity(fi)}, true, nil
+}
+
 // planRoot matches the files on disk against the known files of the root: same rel_path, then
 // (dev, inode, size), then partial_hash; the rest is new, and known files left over are missing.
 // It returns the operations, the count of unchanged files and the count of newly missing ones.
-func (s *Service) planRoot(ctx context.Context, rs *rootScan) (ops []scanOp, unchanged, lost int, err error) {
+//
+// scope limits a path scan (nil for a full scan): rs.disk holds only the files of the scanned
+// directories, so only known files inside scope can become missing. Known files outside scope
+// still match a renamed or moved file, but only when they are missing already or their old path
+// is gone; otherwise the new file is a copy or a hard link and becomes a file of its own, as in
+// a full scan.
+func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (ops []scanOp, unchanged, lost int, err error) {
 	r, err := paths.Open(rs.proot)
 	if err != nil {
 		return nil, 0, 0, err
@@ -347,6 +407,17 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan) (ops []scanOp, unc
 		ops = append(ops, op)
 	}
 
+	// usable reports whether an unclaimed known file may be the origin of a file on disk.
+	usable := func(k *systemq.MediaFile) bool {
+		if claimed[k.ID] {
+			return false
+		}
+		if scope.covers(k.RelPath) || k.MissingSince.Valid {
+			return true
+		}
+		_, err := r.Lstat(k.RelPath)
+		return gone(err)
+	}
 	type identity struct {
 		dev, inode, size int64
 	}
@@ -371,7 +442,7 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan) (ops []scanOp, unc
 			return nil, 0, 0, err
 		}
 		if d.id.inode != 0 {
-			if k := byID[identity{toInt64(d.id.dev), toInt64(d.id.inode), d.size}]; k != nil && !claimed[k.ID] {
+			if k := byID[identity{toInt64(d.id.dev), toInt64(d.id.inode), d.size}]; k != nil && usable(k) {
 				claimed[k.ID] = true
 				ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String, reprobe: k.Mtime != d.mtime})
 				continue
@@ -385,7 +456,7 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan) (ops []scanOp, unc
 			s.log.WarnContext(ctx, "file not readable, skipped", "root_id", rs.root.ID, "path", d.rel, "err", err)
 			continue
 		}
-		if k := byHash[h]; k != nil && !claimed[k.ID] {
+		if k := byHash[h]; k != nil && usable(k) {
 			claimed[k.ID] = true
 			ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: h, reprobe: true})
 			continue
@@ -394,7 +465,7 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan) (ops []scanOp, unc
 	}
 	for i := range rs.known {
 		k := &rs.known[i]
-		if !claimed[k.ID] && !k.MissingSince.Valid {
+		if !claimed[k.ID] && !k.MissingSince.Valid && scope.covers(k.RelPath) {
 			ops = append(ops, scanOp{kind: opMissing, rs: rs, known: k})
 			lost++
 		}
@@ -594,9 +665,13 @@ func (n NFO) empty() bool {
 		n.MPAA == "" && n.Certification == ""
 }
 
+// scanProgress is the progress a full scan records with each batch.
+type scanProgress struct{ seen, total int }
+
 // applyBatch writes one batch of operations in one transaction, together with the follow-up jobs
-// and the scan progress. It returns the number of operations applied.
-func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemIndex, ops []scanOp, seen, total int, stats *scanStats) (int, error) {
+// and the scan progress (prog; nil for a path scan, which leaves the counts of the last full scan).
+// It returns the number of operations applied.
+func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemIndex, ops []scanOp, prog *scanProgress, stats *scanStats) (int, error) {
 	// File reads (NFO) happen before the transaction starts.
 	infos := make([]movieInfo, len(ops))
 	roots := map[int64]*os.Root{}
@@ -715,8 +790,10 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 			local.missing++
 		}
 	}
-	if err := appq.New(tx).SetLibraryScanProgress(ctx, appq.SetLibraryScanProgressParams{Seen: int64(seen), Total: int64(total), Now: ms, ID: lib.ID}); err != nil {
-		return 0, fmt.Errorf("set scan progress: %w", err)
+	if prog != nil {
+		if err := appq.New(tx).SetLibraryScanProgress(ctx, appq.SetLibraryScanProgressParams{Seen: int64(prog.seen), Total: int64(prog.total), Now: ms, ID: lib.ID}); err != nil {
+			return 0, fmt.Errorf("set scan progress: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit scan batch: %w", err)

@@ -270,3 +270,22 @@ func (q *Queries) ReleaseJob(ctx context.Context, arg ReleaseJobParams) (int64, 
 	}
 	return result.RowsAffected()
 }
+
+const setQueuedJobPayload = `-- name: SetQueuedJobPayload :execrows
+UPDATE jobs SET payload = ?1, updated_at = ?2 WHERE id = ?3 AND state = 'queued'
+`
+
+type SetQueuedJobPayloadParams struct {
+	Payload string
+	Now     int64
+	ID      int64
+}
+
+// Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
+func (q *Queries) SetQueuedJobPayload(ctx context.Context, arg SetQueuedJobPayloadParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setQueuedJobPayload, arg.Payload, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}

@@ -5,8 +5,10 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,13 +40,16 @@ type WatchStats struct {
 }
 
 // Watcher reports changes below one library root by calling onChange, at most once per quiet
-// period of jobs.DebounceWindow for inotify events and once per changed stat pass.
+// period of jobs.DebounceWindow for inotify events and once per changed stat pass. onChange gets
+// the changed directories (slash-separated, relative to the root, sorted), or nil when the whole
+// root needs a scan: more than MaxChangedDirs changed, or the inotify queue overflowed.
 type Watcher struct {
 	root     paths.Root
 	mode     string
-	onChange func()
+	onChange func(dirs []string)
 	log      *slog.Logger
 	quiet    time.Duration
+	pause    func(last time.Duration) time.Duration // pause after a stat pass: PollInterval; tests shorten it
 
 	events atomic.Int64 // inotify events since the last stat pass (inotify_poll)
 
@@ -55,8 +60,8 @@ type Watcher struct {
 }
 
 // NewWatcher returns a watcher of root in mode (WatchInotify, WatchPoll or WatchInotifyPoll).
-func NewWatcher(root paths.Root, mode string, onChange func(), log *slog.Logger) *Watcher {
-	return &Watcher{root: root, mode: mode, onChange: onChange, log: log, quiet: jobs.DebounceWindow}
+func NewWatcher(root paths.Root, mode string, onChange func(dirs []string), log *slog.Logger) *Watcher {
+	return &Watcher{root: root, mode: mode, onChange: onChange, log: log, quiet: jobs.DebounceWindow, pause: PollInterval}
 }
 
 // Stats returns the watched directory count, the last stat pass and the current poll interval.
@@ -86,11 +91,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 }
 
 func (w *Watcher) runPoll(ctx context.Context, withInotify bool) error {
-	p := NewPoller(w.root, func() {
+	p := NewPoller(w.root, func(changed []string) {
 		if withInotify && w.events.Load() == 0 {
 			w.log.Warn("stat pass found changes that inotify did not report; this file system needs polling")
 		}
-		w.onChange()
+		w.onChange(changed)
 	})
 	failing := false
 	for {
@@ -108,7 +113,7 @@ func (w *Watcher) runPoll(ctx context.Context, withInotify bool) error {
 			w.log.Info("stat pass works again")
 			failing = false
 		}
-		interval := PollInterval(st.Duration)
+		interval := w.pause(st.Duration)
 		w.mu.Lock()
 		if err == nil {
 			w.last = st
@@ -143,7 +148,12 @@ func (w *Watcher) runInotify(ctx context.Context) error {
 		w.mu.Unlock()
 	}()
 
-	w.addTree(fw, r, ".")
+	// Watched directories, relative to the root: a removed or renamed entry that was one of them
+	// takes its files along.
+	watched := map[string]bool{}
+	for _, d := range w.addTree(fw, r, ".") {
+		watched[d] = true
+	}
 	if limit := maxUserWatches(); limit > 0 {
 		if dirs := len(fw.WatchList()); dirs*10 > limit*8 {
 			w.log.Warn("inotify watches above 80 % of fs.inotify.max_user_watches; raise the limit on the host",
@@ -152,6 +162,28 @@ func (w *Watcher) runInotify(ctx context.Context) error {
 	}
 
 	var debounce <-chan time.Time
+	// Directories touched by the events of the current quiet window; overflow means more than
+	// MaxChangedDirs, reported as nil (full scan).
+	dirs := map[string]bool{}
+	overflow := false
+	touch := func(d ...string) {
+		for _, x := range d {
+			dirs[x] = true
+		}
+		if len(dirs) > MaxChangedDirs {
+			overflow = true
+			clear(dirs)
+		}
+	}
+	report := func() {
+		if overflow {
+			w.onChange(nil)
+		} else if len(dirs) > 0 {
+			w.onChange(slices.Sorted(maps.Keys(dirs)))
+		}
+		clear(dirs)
+		overflow = false
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -164,10 +196,21 @@ func (w *Watcher) runInotify(ctx context.Context) error {
 			if !ok || Ignored(path.Base(rel)) || ev.Op == fsnotify.Chmod {
 				continue
 			}
-			if ev.Has(fsnotify.Create) {
+			// The directory holding the entry changed. A created directory is scanned with
+			// everything below it (files may have landed before its watch was added); a removed
+			// or renamed directory is scanned to find its files gone.
+			touch(path.Dir(rel))
+			switch {
+			case ev.Has(fsnotify.Create):
 				if fi, err := r.Lstat(rel); err == nil && fi.IsDir() {
-					w.addTree(fw, r, rel)
+					for _, d := range w.addTree(fw, r, rel) {
+						watched[d] = true
+						touch(d)
+					}
 				}
+			case (ev.Has(fsnotify.Remove) || ev.Has(fsnotify.Rename)) && watched[rel]:
+				delete(watched, rel)
+				touch(rel)
 			}
 			w.events.Add(1)
 			debounce = time.After(w.quiet)
@@ -177,11 +220,14 @@ func (w *Watcher) runInotify(ctx context.Context) error {
 			}
 			w.log.Warn("inotify error", "err", err)
 			if errors.Is(err, fsnotify.ErrEventOverflow) {
-				w.onChange()
+				clear(dirs)
+				overflow = false
+				debounce = nil
+				w.onChange(nil)
 			}
 		case <-debounce:
 			debounce = nil
-			w.onChange()
+			report()
 		}
 	}
 }
@@ -196,8 +242,10 @@ func (w *Watcher) relative(name string) (string, bool) {
 	return rel, ok && rel != ""
 }
 
-// addTree watches rel and every directory below it, skipping ignored ones.
-func (w *Watcher) addTree(fw *fsnotify.Watcher, r *os.Root, rel string) {
+// addTree watches rel and every directory below it, skipping ignored ones. It returns the
+// directories it watches.
+func (w *Watcher) addTree(fw *fsnotify.Watcher, r *os.Root, rel string) []string {
+	var added []string
 	_ = fs.WalkDir(r.FS(), rel, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || !d.IsDir() {
 			// Vanished or unreadable entries are skipped; the next scan sees them.
@@ -214,8 +262,10 @@ func (w *Watcher) addTree(fw *fsnotify.Watcher, r *os.Root, rel string) {
 			w.log.Warn("inotify watch failed; changes below this directory need the periodic scan", "dir", p, "err", err)
 			return fs.SkipAll
 		}
+		added = append(added, p)
 		return nil
 	})
+	return added
 }
 
 // maxUserWatches reads the inotify watch limit; 0 when unknown.

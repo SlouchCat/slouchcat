@@ -102,7 +102,7 @@ func TestPollerParallelMatchesSerial(t *testing.T) {
 func TestPollerPassCancel(t *testing.T) {
 	dir := t.TempDir()
 	writeTree(t, dir)
-	p := NewPoller(mustRoot(t, dir), func() { t.Error("onChange after a cancelled pass") })
+	p := NewPoller(mustRoot(t, dir), func([]string) { t.Error("onChange after a cancelled pass") })
 	if _, err := p.Pass(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -147,4 +147,32 @@ func TestPollerPassCancel(t *testing.T) {
 		t.Error("no pass was cancelled while running")
 	}
 	waitFor(t, 5*time.Second, "the workers to stop", func() bool { return runtime.NumGoroutine() <= goroutines })
+}
+
+// More than MaxChangedDirs changed directories are reported as nil: the root needs a full scan.
+func TestPollerReportsTooManyChangesAsNil(t *testing.T) {
+	dir := t.TempDir()
+	calls := 0
+	var reported []string
+	p := NewPoller(mustRoot(t, dir), func(dirs []string) {
+		calls++
+		reported = dirs
+	})
+	if _, err := p.Pass(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	for i := range MaxChangedDirs {
+		if err := os.Mkdir(filepath.Join(dir, fmt.Sprintf("Film %03d", i)), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// MaxChangedDirs new folders and the root: one too many.
+	st, err := p.Pass(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Changed != MaxChangedDirs+1 || st.ChangedDirs != nil || calls != 1 || reported != nil {
+		t.Fatalf("pass = changed %d, dirs %d, calls %d, reported %d; want %d, nil, 1, nil",
+			st.Changed, len(st.ChangedDirs), calls, len(reported), MaxChangedDirs+1)
+	}
 }

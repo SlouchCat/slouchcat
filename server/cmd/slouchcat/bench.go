@@ -61,7 +61,7 @@ func runWatchbench(dir string, passes, workers int, inotify bool) error {
 	fmt.Printf("root: %s (fs %s)\n", abs, fsType)
 
 	changed := 0
-	poller := library.NewPoller(root, func() { changed++ })
+	poller := library.NewPoller(root, func([]string) { changed++ })
 	poller.Workers = workers
 	fmt.Printf("poller: %d workers\n", workers)
 	ctx := context.Background()
@@ -79,7 +79,7 @@ func runWatchbench(dir string, passes, workers int, inotify bool) error {
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	seen := make(chan struct{}, 1)
-	w := library.NewWatcher(root, library.WatchInotify, func() {
+	w := library.NewWatcher(root, library.WatchInotify, func([]string) {
 		select {
 		case seen <- struct{}{}:
 		default:
