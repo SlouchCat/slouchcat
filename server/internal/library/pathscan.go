@@ -17,7 +17,6 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
-	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // dirScope is the part of a root that a path scan covers: the files directly in the listed
@@ -68,12 +67,16 @@ func (s *Service) handlePathScan(ctx context.Context, j *jobs.Job) error {
 	if err := decodePayload(j, &p); err != nil {
 		return err
 	}
-	return s.ScanPaths(ctx, p.LibraryID, p.Roots)
+	return s.runCancellable(ctx, j, p.LibraryID, func(ctx context.Context) error { return s.scanPaths(ctx, p.LibraryID, p.Roots) })
 }
 
 // ScanPaths runs a path scan of the given directories of a library (see the package
-// documentation). Like Scan, aborts are recorded in the library and return nil.
+// documentation). Like Scan, aborts and cancellations are recorded in the library and return nil.
 func (s *Service) ScanPaths(ctx context.Context, libraryID int64, roots []pathScanRoot) error {
+	return s.runCancellable(ctx, nil, libraryID, func(ctx context.Context) error { return s.scanPaths(ctx, libraryID, roots) })
+}
+
+func (s *Service) scanPaths(ctx context.Context, libraryID int64, roots []pathScanRoot) error {
 	unlock, err := s.lockScan(ctx, libraryID)
 	if err != nil {
 		return err
@@ -87,14 +90,11 @@ func (s *Service) ScanPaths(ctx context.Context, libraryID int64, roots []pathSc
 	if err != nil {
 		return fmt.Errorf("load library %d: %w", libraryID, err)
 	}
-	if lib.Kind != "movies" {
-		return nil // series libraries are scanned from M3 on
-	}
 	start := s.now()
 	if err := s.setState(ctx, lib.ID, "running", ""); err != nil {
 		return err
 	}
-	stats, dirs, usedLoss, err := s.scanMoviePaths(ctx, lib, roots)
+	stats, dirs, usedLoss, err := s.scanLibraryPaths(ctx, lib, roots)
 	if done, err := s.endScan(ctx, lib, "path scan", err); done {
 		return err
 	}
@@ -113,9 +113,9 @@ func (s *Service) ScanPaths(ctx context.Context, libraryID int64, roots []pathSc
 	return nil
 }
 
-// scanMoviePaths plans and applies a path scan. It returns the statistics, the number of
+// scanLibraryPaths plans and applies a path scan. It returns the statistics, the number of
 // directories read and whether it applied a loss that only loss_accepted_at allowed.
-func (s *Service) scanMoviePaths(ctx context.Context, lib appq.Library, req []pathScanRoot) (scanStats, int, bool, error) {
+func (s *Service) scanLibraryPaths(ctx context.Context, lib appq.Library, req []pathScanRoot) (scanStats, int, bool, error) {
 	var stats scanStats
 	want := map[int64][]string{}
 	for _, r := range req {
@@ -125,16 +125,15 @@ func (s *Service) scanMoviePaths(ctx context.Context, lib appq.Library, req []pa
 	if err != nil {
 		return stats, 0, false, fmt.Errorf("list roots: %w", err)
 	}
-	sq := systemq.New(s.db.Read)
 	since := s.now().Add(-missingGrace).UnixMilli()
 	// All roots of the library: the item index needs their folders and the loss rule their counts.
 	scans := make([]*rootScan, 0, len(roots))
 	scopes := map[*rootScan]*dirScope{}
 	active, recentMissing, dirCount := 0, 0, 0
 	for _, root := range roots {
-		rs := &rootScan{root: root}
-		if rs.known, err = sq.ListMediaFilesByRoot(ctx, root.ID); err != nil {
-			return stats, 0, false, fmt.Errorf("list media files of root %d: %w", root.ID, err)
+		rs, err := s.openRoot(ctx, root)
+		if err != nil {
+			return stats, 0, false, err
 		}
 		rootActive := 0
 		for _, k := range rs.known {
@@ -184,19 +183,14 @@ func (s *Service) scanMoviePaths(ctx context.Context, lib appq.Library, req []pa
 		usedLoss = true
 	}
 
-	idx, err := s.loadItemIndex(ctx, lib.ID, scans)
-	if err != nil {
-		return stats, 0, false, err
-	}
-	for i := 0; i < len(ops); {
-		if err := ctx.Err(); err != nil {
+	if len(ops) > 0 {
+		idx, err := s.loadItemIndex(ctx, lib, scans)
+		if err != nil {
 			return stats, 0, false, err
 		}
-		end := min(len(ops), i+batchRows/maxRowsPerOp)
-		if _, err := s.applyBatch(ctx, lib, idx, ops[i:end], nil, &stats); err != nil {
+		if _, err := s.applyOps(ctx, lib, idx, ops, 0, 0, false, &stats); err != nil {
 			return stats, 0, false, err
 		}
-		i = end
 	}
 	return stats, dirCount, usedLoss, nil
 }
@@ -250,7 +244,7 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		files, isGone, err := listDirFiles(ctx, r, dir, s.log)
+		files, isGone, err := listDirFiles(ctx, r, dir, lib.Kind, rs.ignored, s.log)
 		if err != nil {
 			return nil, fmt.Errorf("list %s in root %d: %w", dir, rs.root.ID, err)
 		}
@@ -264,11 +258,11 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 	return scope, nil
 }
 
-// listDirFiles lists the video files directly in dir; subdirectories are not entered (a path
-// scan names every directory it reads, and extras and samples in subfolders are skipped anyway).
-// isGone reports a directory that does not exist any more. A symlinked directory is not read,
-// like in the walk of a full scan.
-func listDirFiles(ctx context.Context, r *os.Root, dir string, log *slog.Logger) (files []diskFile, isGone bool, err error) {
+// listDirFiles lists the video files directly in dir that a full scan would pick up (videoFile);
+// subdirectories are not entered (a path scan names every directory it reads). isGone reports a
+// directory that does not exist any more. A symlinked directory is not read, like in the walk of
+// a full scan.
+func listDirFiles(ctx context.Context, r *os.Root, dir, kind string, ignored map[string]bool, log *slog.Logger) (files []diskFile, isGone bool, err error) {
 	fi, err := r.Lstat(dir)
 	switch {
 	case gone(err):
@@ -296,7 +290,7 @@ func listDirFiles(ctx context.Context, r *os.Root, dir string, log *slog.Logger)
 		if e.IsDir() || Ignored(e.Name()) {
 			continue
 		}
-		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, log)
+		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, kind, ignored, log)
 		if err != nil {
 			return nil, false, err
 		}

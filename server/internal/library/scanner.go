@@ -1,6 +1,7 @@
 package library
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -8,9 +9,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
-	"path"
-	"strconv"
-	"strings"
+	"slices"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -22,36 +21,51 @@ import (
 const (
 	// batchRows bounds the rows written per transaction (plan 3.6: lease ≫ transaction).
 	batchRows = 500
-	// maxRowsPerOp is the most rows one scan operation writes: item, media file, two jobs.
+	// maxRowsPerOp is the most rows one operation of a movie library writes: item, media file,
+	// metadata.match and probe.file for a new file; media file, restored item and probe.file for
+	// an update.
 	maxRowsPerOp = 4
+	// maxRowsPerSeriesOp is the most rows one operation of a series library writes: series, its
+	// metadata.match, season, episode, media file and probe.file for a new series; episode, its
+	// metadata.match, season, media file, probe.file and the restore of a soft-deleted series and
+	// season for a known one.
+	maxRowsPerSeriesOp = 8
 	// lossThresholdPercent is the share of known files that may disappear in one scan.
 	lossThresholdPercent = 20
 	// relinkWindow is how long a soft-deleted title can come back through a new file with the same
-	// TMDB or IMDb id, keeping its user data (plan 3.2).
+	// TMDB, TVDB or IMDb id, keeping its user data (plan 3.2).
 	relinkWindow = 30 * 24 * time.Hour
 )
 
-// Abort codes stored in libraries.last_scan_error with state aborted (plan 3.2).
+// Abort codes stored in libraries.last_scan_error with state aborted (plan 3.2), and the code of
+// a scan the administrator cancelled (CancelScan).
 const (
 	abortRootMissing = "root_missing"
 	abortRootEmpty   = "root_empty"
 	abortLoss        = "loss_over_threshold"
+	abortCancelled   = "cancelled"
 )
+
+// errScanCancelled is the cancel cause of a scan stopped by CancelScan; a server shutdown cancels
+// with context.Canceled instead and leaves the scan queued.
+var errScanCancelled = errors.New("scan cancelled by the administrator")
 
 // diskFile is a candidate video file found by the walk.
 type diskFile struct {
-	rel   string
-	size  int64
-	mtime int64 // Unix milliseconds
-	id    fileID
+	rel    string
+	size   int64
+	mtime  int64 // Unix milliseconds
+	id     fileID
+	parsed ParsedName // ParseMoviePath or ParseSeriesPath, by library kind
 }
 
 // rootScan is the state of one root during a scan.
 type rootScan struct {
-	root  appq.LibraryRoot
-	proot paths.Root
-	disk  []diskFile
-	known []systemq.MediaFile
+	root    appq.LibraryRoot
+	proot   paths.Root
+	disk    []diskFile
+	known   []systemq.MediaFile
+	ignored map[string]bool // rel paths of ignored_files
 }
 
 type opKind int
@@ -76,6 +90,14 @@ type scanAbort struct{ code string }
 
 func (a scanAbort) Error() string { return "scan aborted: " + a.code }
 
+// parsePath parses rel with the name parser of the library kind.
+func parsePath(kind, rel string) ParsedName {
+	if kind == "series" {
+		return ParseSeriesPath(rel)
+	}
+	return ParseMoviePath(rel)
+}
+
 func (s *Service) handleScan(ctx context.Context, j *jobs.Job) error {
 	var p libraryPayload
 	if err := decodePayload(j, &p); err != nil {
@@ -89,12 +111,52 @@ func (s *Service) handleScan(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return fmt.Errorf("load library %d: %w", p.LibraryID, err)
 	}
-	return s.Scan(ctx, lib)
+	return s.runCancellable(ctx, j, lib.ID, func(ctx context.Context) error { return s.scan(ctx, lib) })
 }
 
-// Scan runs a full scan of lib (see the package documentation). Aborts are recorded in the
-// library and return nil; other failures are recorded as failed and returned.
+// Scan runs a full scan of lib (see the package documentation). Aborts and cancellations
+// (CancelScan) are recorded in the library and return nil; other failures are recorded as failed
+// and returned.
 func (s *Service) Scan(ctx context.Context, lib appq.Library) error {
+	return s.runCancellable(ctx, nil, lib.ID, func(ctx context.Context) error { return s.scan(ctx, lib) })
+}
+
+// scanRun is a running scan that CancelScan can stop.
+type scanRun struct{ cancel context.CancelCauseFunc }
+
+// runCancellable runs a scan of a library so that CancelScan can stop it: the scan is registered
+// before it waits for the scan lock, and a job that CancelScan cancelled between its claim and the
+// registration does not start. A cancelled scan ends with state aborted and last_scan_error
+// "cancelled"; the next queued scan runs normally and converges.
+func (s *Service) runCancellable(ctx context.Context, j *jobs.Job, libraryID int64, scan func(context.Context) error) error {
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	run := &scanRun{cancel: cancel}
+	s.mu.Lock()
+	if s.runs[libraryID] == nil {
+		s.runs[libraryID] = map[*scanRun]bool{}
+	}
+	s.runs[libraryID][run] = true
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.runs[libraryID], run)
+		s.mu.Unlock()
+	}()
+	if j != nil && j.ID != 0 {
+		if cur, err := s.queue.Get(ctx, j.ID); err == nil && cur.State == jobs.StateCancelled {
+			return nil // CancelScan recorded the end
+		}
+	}
+	err := scan(ctx)
+	if err != nil && errors.Is(context.Cause(ctx), errScanCancelled) {
+		s.log.InfoContext(ctx, "scan cancelled", "library_id", libraryID)
+		return s.setState(context.WithoutCancel(ctx), libraryID, "aborted", abortCancelled)
+	}
+	return err
+}
+
+func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 	unlock, err := s.lockScan(ctx, lib.ID)
 	if err != nil {
 		return err
@@ -112,30 +174,35 @@ func (s *Service) Scan(ctx context.Context, lib appq.Library) error {
 	if err := s.setState(ctx, lib.ID, "running", ""); err != nil {
 		return err
 	}
-	if lib.Kind != "movies" {
-		s.log.InfoContext(ctx, "series libraries are scanned from M3 on; nothing to do", "library_id", lib.ID)
-		return s.finish(ctx, lib, "done", "", 0, 0)
-	}
-	stats, err := s.scanMovies(ctx, lib)
+	stats, err := s.scanLibrary(ctx, lib)
 	if done, err := s.endScan(ctx, lib, "library scan", err); done {
 		return err
 	}
-	s.log.InfoContext(ctx, "library scan done", "library_id", lib.ID, "files", stats.files, "new", stats.created,
+	s.log.InfoContext(ctx, "library scan done", "library_id", lib.ID, "kind", lib.Kind, "files", stats.files, "new", stats.created,
 		"updated", stats.updated, "missing", stats.missing, "items_created", stats.items, "duration", s.now().Sub(start))
+	// Artwork and metadata are not part of the scan result: a failed check is logged, the scan
+	// stays done.
 	if s.imageCheck != nil {
-		// Artwork is not part of the scan result: a failed check is logged, the scan stays done.
 		if n, err := s.imageCheck(ctx, lib.ID); err != nil {
 			s.log.WarnContext(ctx, "image check after scan failed", "library_id", lib.ID, "err", err)
 		} else if n > 0 {
 			s.log.InfoContext(ctx, "titles with incomplete images queued for image.fetch", "library_id", lib.ID, "titles", n)
 		}
 	}
+	if s.metadataCheck != nil {
+		if n, err := s.metadataCheck(ctx, lib.ID); err != nil {
+			s.log.WarnContext(ctx, "metadata check after scan failed", "library_id", lib.ID, "err", err)
+		} else if n > 0 {
+			s.log.InfoContext(ctx, "titles with pending metadata queued for metadata.match", "library_id", lib.ID, "titles", n)
+		}
+	}
 	return nil
 }
 
 // endScan records the end of a scan that returned err: an abort as aborted (nil error), an
-// interruption as queued again (the job runs again and converges), any other error as failed. It
-// reports whether the scan ended that way; for err == nil the caller finishes the scan.
+// interruption as queued again (the job runs again and converges), a cancellation not at all
+// (runCancellable records it), any other error as failed. It reports whether the scan ended that
+// way; for err == nil the caller finishes the scan.
 func (s *Service) endScan(ctx context.Context, lib appq.Library, what string, err error) (bool, error) {
 	var abort scanAbort
 	switch {
@@ -144,6 +211,8 @@ func (s *Service) endScan(ctx context.Context, lib appq.Library, what string, er
 	case errors.As(err, &abort):
 		s.log.WarnContext(ctx, what+" aborted, nothing changed", "library_id", lib.ID, "reason", abort.code)
 		return true, s.finish(ctx, lib, "aborted", abort.code, 0, 0)
+	case errors.Is(context.Cause(ctx), errScanCancelled):
+		return true, err
 	case ctx.Err() != nil:
 		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
@@ -206,25 +275,42 @@ type scanStats struct {
 	files, created, updated, missing, items int
 }
 
-func (s *Service) scanMovies(ctx context.Context, lib appq.Library) (scanStats, error) {
+// openRoot prepares the scan of one root: its known media files and its ignored files.
+func (s *Service) openRoot(ctx context.Context, root appq.LibraryRoot) (*rootScan, error) {
+	sq := systemq.New(s.db.Read)
+	rs := &rootScan{root: root, ignored: map[string]bool{}}
+	var err error
+	if rs.known, err = sq.ListMediaFilesByRoot(ctx, root.ID); err != nil {
+		return nil, fmt.Errorf("list media files of root %d: %w", root.ID, err)
+	}
+	ignored, err := sq.ListIgnoredFilesByRoot(ctx, root.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list ignored files of root %d: %w", root.ID, err)
+	}
+	for _, rel := range ignored {
+		rs.ignored[rel] = true
+	}
+	return rs, nil
+}
+
+func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats, error) {
 	var stats scanStats
 	roots, err := appq.New(s.db.Read).ListLibraryRoots(ctx, lib.ID)
 	if err != nil {
 		return stats, fmt.Errorf("list roots: %w", err)
 	}
-	sq := systemq.New(s.db.Read)
 	scans := make([]*rootScan, 0, len(roots))
 	knownActive := 0
 	for _, root := range roots {
-		rs := &rootScan{root: root}
+		rs, err := s.openRoot(ctx, root)
+		if err != nil {
+			return stats, err
+		}
 		rs.proot, err = paths.NewRoot(root.Path)
 		if err != nil {
 			return stats, scanAbort{abortRootMissing}
 		}
-		if rs.known, err = sq.ListMediaFilesByRoot(ctx, root.ID); err != nil {
-			return stats, fmt.Errorf("list media files of root %d: %w", root.ID, err)
-		}
-		if rs.disk, err = walkRoot(ctx, rs.proot, s.log); err != nil {
+		if rs.disk, err = walkRoot(ctx, rs.proot, lib.Kind, rs.ignored, s.log); err != nil {
 			if errors.Is(err, errRootMissing) {
 				return stats, scanAbort{abortRootMissing}
 			}
@@ -260,35 +346,68 @@ func (s *Service) scanMovies(ctx context.Context, lib appq.Library) (scanStats, 
 		return stats, scanAbort{abortLoss}
 	}
 
-	idx, err := s.loadItemIndex(ctx, lib.ID, scans)
-	if err != nil {
-		return stats, err
-	}
 	total := unchanged + len(ops)
 	seen := unchanged
-	for i := 0; i < len(ops); {
-		if err := ctx.Err(); err != nil {
-			return stats, err
-		}
-		end := min(len(ops), i+batchRows/maxRowsPerOp)
-		n, err := s.applyBatch(ctx, lib, idx, ops[i:end], &scanProgress{seen: seen + end - i, total: total}, &stats)
+	if len(ops) > 0 {
+		idx, err := s.loadItemIndex(ctx, lib, scans)
 		if err != nil {
 			return stats, err
 		}
-		seen += n
-		i = end
+		if seen, err = s.applyOps(ctx, lib, idx, ops, seen, total, true, &stats); err != nil {
+			return stats, err
+		}
 	}
 	return stats, s.finish(ctx, lib, "done", "", seen, total)
 }
 
+// applyOps writes ops in batches of at most batchRows rows, checking ctx between batches. With
+// progress (full scan) each batch records seen and total; it returns seen after the last batch.
+func (s *Service) applyOps(ctx context.Context, lib appq.Library, idx *itemIndex, ops []scanOp, seen, total int, progress bool, stats *scanStats) (int, error) {
+	orderOps(ops)
+	per := batchRows / maxRowsPerOp
+	if lib.Kind == "series" {
+		per = batchRows / maxRowsPerSeriesOp
+	}
+	for i := 0; i < len(ops); {
+		if err := ctx.Err(); err != nil {
+			return seen, err
+		}
+		end := min(len(ops), i+per)
+		var prog *scanProgress
+		if progress {
+			prog = &scanProgress{seen: seen + end - i, total: total}
+		}
+		n, err := s.applyBatch(ctx, lib, idx, ops[i:end], prog, stats)
+		if err != nil {
+			return seen, err
+		}
+		seen += n
+		i = end
+	}
+	return seen, nil
+}
+
+// orderOps moves new extras behind all other operations, so the title an extra belongs to (a
+// movie, series or season found in the same scan) exists when the extra is written.
+func orderOps(ops []scanOp) {
+	extra := func(op scanOp) int {
+		if op.kind == opNew && op.disk.parsed.Extra {
+			return 1
+		}
+		return 0
+	}
+	slices.SortStableFunc(ops, func(a, b scanOp) int { return cmp.Compare(extra(a), extra(b)) })
+}
+
 var errRootMissing = errors.New("library root missing")
 
-// walkRoot collects the video files of a root. Extras, samples and ignored entries are skipped.
-// A root that cannot be opened is errRootMissing; any other walk error fails the scan, because a
-// partial walk would look like lost files. Symlinked directories are not followed; a symlinked
-// file whose target cannot be read inside the root (it leaves the root, dangles, or is not
-// readable) is logged and skipped.
-func walkRoot(ctx context.Context, root paths.Root, log *slog.Logger) ([]diskFile, error) {
+// walkRoot collects the video files of a root that become titles or extras of the library kind
+// (see wanted); samples, ignored entries and ignored files are skipped. A root that cannot be
+// opened is errRootMissing; any other walk error fails the scan, because a partial walk would
+// look like lost files. Symlinked directories are not followed; a symlinked file whose target
+// cannot be read inside the root (it leaves the root, dangles, or is not readable) is logged and
+// skipped.
+func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[string]bool, log *slog.Logger) ([]diskFile, error) {
 	r, err := paths.Open(root)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errRootMissing, err)
@@ -317,7 +436,7 @@ func walkRoot(ctx context.Context, root paths.Root, log *slog.Logger) ([]diskFil
 		if d.IsDir() {
 			return nil
 		}
-		f, ok, err := videoFile(ctx, r, p, d, log)
+		f, ok, err := videoFile(ctx, r, p, d, kind, ignored, log)
 		if ok {
 			files = append(files, f)
 		}
@@ -329,14 +448,33 @@ func walkRoot(ctx context.Context, root paths.Root, log *slog.Logger) ([]diskFil
 	return files, nil
 }
 
+// wanted reports whether a parsed video file is scanned: never a sample; in a movie library a
+// movie or an extra inside a movie folder; in a series library an episode or an extra below a
+// series folder. A file of a series library without an episode marker is logged.
+func wanted(ctx context.Context, kind, rel string, p ParsedName, log *slog.Logger) bool {
+	switch {
+	case p.Sample:
+		return false
+	case kind == "series":
+		if p.Series == nil && !p.Extra {
+			log.WarnContext(ctx, "no episode marker in the name, file skipped", "path", rel)
+		}
+		return p.Series != nil
+	default:
+		return !p.Extra || movieFolder(rel) != ""
+	}
+}
+
 // videoFile turns the non-directory entry d at p into a candidate video file. ok is false for
-// entries a scan skips: no video, extras and samples, a vanished entry, anything but a regular
-// file, and a symlink whose target cannot be read inside the root (logged).
-func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, log *slog.Logger) (diskFile, bool, error) {
-	if !IsVideo(d.Name()) {
+// entries a scan skips: no video, an ignored file, a file wanted rejects, a vanished entry,
+// anything but a regular file, and a symlink whose target cannot be read inside the root
+// (logged).
+func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, kind string, ignored map[string]bool, log *slog.Logger) (diskFile, bool, error) {
+	if !IsVideo(d.Name()) || ignored[p] {
 		return diskFile{}, false, nil
 	}
-	if parsed := ParseMoviePath(p); parsed.Extra || parsed.Sample {
+	parsed := parsePath(kind, p)
+	if !wanted(ctx, kind, p, parsed, log) {
 		return diskFile{}, false, nil
 	}
 	var fi fs.FileInfo
@@ -359,7 +497,7 @@ func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, log *sl
 	if !fi.Mode().IsRegular() {
 		return diskFile{}, false, nil
 	}
-	return diskFile{rel: p, size: fi.Size(), mtime: fi.ModTime().UnixMilli(), id: fileIdentity(fi)}, true, nil
+	return diskFile{rel: p, size: fi.Size(), mtime: fi.ModTime().UnixMilli(), id: fileIdentity(fi), parsed: parsed}, true, nil
 }
 
 // planRoot matches the files on disk against the known files of the root: same rel_path, then
@@ -471,336 +609,4 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 		}
 	}
 	return ops, unchanged, lost, nil
-}
-
-// itemIndex finds the items of a library: undeleted ones by provider id or by (sort_title, year),
-// titles soft-deleted within relinkWindow by provider id only.
-type itemIndex struct {
-	byTMDB  map[int64]string
-	byIMDB  map[string]string
-	byTitle map[string][]itemRef
-	deleted map[string]bool            // soft-deleted items reachable by provider id
-	folders map[string]map[string]bool // item id → movie folders of its files (see folderKey)
-}
-
-type itemRef struct {
-	id   string
-	tmdb int64
-	imdb string
-}
-
-func titleKey(sortTitle string, year sql.NullInt64) string {
-	if !year.Valid {
-		return sortTitle + "|"
-	}
-	return sortTitle + "|" + strconv.FormatInt(year.Int64, 10)
-}
-
-// folderKey names the movie folder of a file, or "" for a file directly in the root, which is no
-// movie folder.
-func folderKey(rootID int64, rel string) string {
-	dir := path.Dir(rel)
-	if dir == "." {
-		return ""
-	}
-	return strconv.FormatInt(rootID, 10) + "/" + dir
-}
-
-func (s *Service) loadItemIndex(ctx context.Context, libraryID int64, scans []*rootScan) (*itemIndex, error) {
-	q := systemq.New(s.db.Read)
-	items, err := q.ListItemsByLibrary(ctx, libraryID)
-	if err != nil {
-		return nil, fmt.Errorf("list items: %w", err)
-	}
-	deleted, err := q.ListRecentlyDeletedItemsByLibrary(ctx, systemq.ListRecentlyDeletedItemsByLibraryParams{
-		LibraryID: libraryID, Since: sql.NullInt64{Int64: s.now().Add(-relinkWindow).UnixMilli(), Valid: true},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("list deleted items: %w", err)
-	}
-	idx := &itemIndex{
-		byTMDB: map[int64]string{}, byIMDB: map[string]string{}, byTitle: map[string][]itemRef{},
-		deleted: map[string]bool{}, folders: map[string]map[string]bool{},
-	}
-	for _, it := range items {
-		if it.Kind == "movie" {
-			idx.add(it.ID, it.SortTitle, it.Year, it.TmdbID.Int64, it.ImdbID.String)
-		}
-	}
-	// After the undeleted items, so an undeleted title with the same id wins.
-	for _, it := range deleted {
-		if it.Kind == "movie" {
-			idx.addDeleted(it.ID, it.TmdbID.Int64, it.ImdbID.String)
-		}
-	}
-	for _, rs := range scans {
-		for _, k := range rs.known {
-			idx.addFolder(k.ItemID, folderKey(rs.root.ID, k.RelPath))
-		}
-	}
-	return idx, nil
-}
-
-func (idx *itemIndex) add(id, sortTitle string, year sql.NullInt64, tmdb int64, imdb string) {
-	idx.addIDs(id, tmdb, imdb)
-	key := titleKey(sortTitle, year)
-	idx.byTitle[key] = append(idx.byTitle[key], itemRef{id: id, tmdb: tmdb, imdb: imdb})
-}
-
-func (idx *itemIndex) addIDs(id string, tmdb int64, imdb string) {
-	if tmdb != 0 {
-		if _, ok := idx.byTMDB[tmdb]; !ok {
-			idx.byTMDB[tmdb] = id
-		}
-	}
-	if imdb != "" {
-		if _, ok := idx.byIMDB[imdb]; !ok {
-			idx.byIMDB[imdb] = id
-		}
-	}
-}
-
-// addDeleted makes a soft-deleted item reachable by its provider ids, not by its title.
-func (idx *itemIndex) addDeleted(id string, tmdb int64, imdb string) {
-	if tmdb == 0 && imdb == "" {
-		return
-	}
-	idx.deleted[id] = true
-	idx.addIDs(id, tmdb, imdb)
-}
-
-func (idx *itemIndex) addFolder(id, folder string) {
-	if folder == "" {
-		return
-	}
-	if idx.folders[id] == nil {
-		idx.folders[id] = map[string]bool{}
-	}
-	idx.folders[id][folder] = true
-}
-
-// find returns the item of a title: by TMDB id, else IMDb id, else (sort_title, year) when the
-// provider ids do not contradict. Without a year, a title only matches an item that already has a
-// file in the same movie folder (folder as folderKey returns it), so two films of the same name in
-// different folders stay apart.
-func (idx *itemIndex) find(m movieInfo, folder string) string {
-	if m.tmdb != 0 {
-		if id, ok := idx.byTMDB[m.tmdb]; ok {
-			return id
-		}
-	}
-	if m.imdb != "" {
-		if id, ok := idx.byIMDB[m.imdb]; ok {
-			return id
-		}
-	}
-	for _, ref := range idx.byTitle[titleKey(m.sortTitle, m.year)] {
-		if !m.year.Valid && (folder == "" || !idx.folders[ref.id][folder]) {
-			continue
-		}
-		if (m.tmdb == 0 || ref.tmdb == 0 || m.tmdb == ref.tmdb) && (m.imdb == "" || ref.imdb == "" || m.imdb == ref.imdb) {
-			return ref.id
-		}
-	}
-	return ""
-}
-
-// movieInfo is a new file's title data from its name and NFO.
-type movieInfo struct {
-	title, sortTitle, originalTitle string
-	year                            sql.NullInt64
-	tmdb                            int64
-	imdb                            string
-	rating                          *int
-	versionLabel                    string
-}
-
-// describe parses the file's name and its NFO (movie.nfo next to it, or <stem>.nfo). Ids in the
-// name win over the NFO.
-func describe(r *os.Root, rel string) movieInfo {
-	p := ParseMoviePath(rel)
-	nfo := readNFO(r, rel)
-	m := movieInfo{title: p.Title, tmdb: p.TMDBID, imdb: p.IMDBID, versionLabel: p.VersionLabel, originalTitle: nfo.OriginalTitle}
-	if m.title == "" {
-		m.title = strings.TrimSuffix(path.Base(rel), path.Ext(rel))
-	}
-	m.sortTitle = SortTitle(m.title)
-	switch {
-	case p.Year != nil:
-		m.year = sql.NullInt64{Int64: int64(*p.Year), Valid: true}
-	case nfo.Year != 0:
-		m.year = sql.NullInt64{Int64: int64(nfo.Year), Valid: true}
-	}
-	if m.tmdb == 0 {
-		m.tmdb = nfo.TMDBID
-	}
-	if m.imdb == "" {
-		m.imdb = nfo.IMDBID
-	}
-	m.rating = nfo.GermanRating()
-	return m
-}
-
-func readNFO(r *os.Root, rel string) NFO {
-	dir := path.Dir(rel)
-	stem := strings.TrimSuffix(path.Base(rel), path.Ext(rel))
-	for _, name := range []string{path.Join(dir, stem+".nfo"), path.Join(dir, "movie.nfo")} {
-		fi, err := r.Stat(name)
-		if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxNFOSize {
-			continue
-		}
-		data, err := r.ReadFile(name)
-		if err != nil {
-			continue
-		}
-		if n := ParseNFO(data); !n.empty() {
-			return n
-		}
-	}
-	return NFO{}
-}
-
-func (n NFO) empty() bool {
-	return n.Title == "" && n.OriginalTitle == "" && n.Year == 0 && n.TMDBID == 0 && n.IMDBID == "" &&
-		n.MPAA == "" && n.Certification == ""
-}
-
-// scanProgress is the progress a full scan records with each batch.
-type scanProgress struct{ seen, total int }
-
-// applyBatch writes one batch of operations in one transaction, together with the follow-up jobs
-// and the scan progress (prog; nil for a path scan, which leaves the counts of the last full scan).
-// It returns the number of operations applied.
-func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemIndex, ops []scanOp, prog *scanProgress, stats *scanStats) (int, error) {
-	// File reads (NFO) happen before the transaction starts.
-	infos := make([]movieInfo, len(ops))
-	roots := map[int64]*os.Root{}
-	defer func() {
-		for _, r := range roots {
-			_ = r.Close()
-		}
-	}()
-	for i, op := range ops {
-		switch op.kind {
-		case opNew:
-			r, ok := roots[op.rs.root.ID]
-			if !ok {
-				var err error
-				if r, err = paths.Open(op.rs.proot); err != nil {
-					return 0, err
-				}
-				roots[op.rs.root.ID] = r
-			}
-			infos[i] = describe(r, op.disk.rel)
-		case opUpdate:
-			infos[i].versionLabel = ParseMoviePath(op.disk.rel).VersionLabel
-		case opMissing:
-		}
-	}
-
-	now := s.now()
-	ms := now.UnixMilli()
-	tx, err := s.db.Write.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback() }()
-	q := systemq.New(tx)
-	var local scanStats
-	for i, op := range ops {
-		switch op.kind {
-		case opNew:
-			m := infos[i]
-			folder := folderKey(op.rs.root.ID, op.disk.rel)
-			itemID := idx.find(m, folder)
-			if idx.deleted[itemID] {
-				// Re-downloaded within relinkWindow: the title returns with its user data.
-				if err := q.RestoreItem(ctx, systemq.RestoreItemParams{Now: ms, ID: itemID}); err != nil {
-					return 0, fmt.Errorf("restore item: %w", err)
-				}
-				delete(idx.deleted, itemID)
-			}
-			if itemID == "" {
-				itemID = s.newID()
-				params := systemq.InsertItemParams{
-					ID: itemID, Kind: "movie", LibraryID: lib.ID, Title: m.title, SortTitle: m.sortTitle,
-					OriginalTitle: sql.NullString{String: m.originalTitle, Valid: m.originalTitle != ""},
-					Year:          m.year,
-					TmdbID:        sql.NullInt64{Int64: m.tmdb, Valid: m.tmdb != 0},
-					ImdbID:        sql.NullString{String: m.imdb, Valid: m.imdb != ""},
-					Now:           ms,
-				}
-				if m.rating != nil {
-					params.OwnRating = sql.NullInt64{Int64: int64(*m.rating), Valid: true}
-					params.RatingSource = sql.NullString{String: "nfo", Valid: true}
-				}
-				if _, err := q.InsertItem(ctx, params); err != nil {
-					return 0, fmt.Errorf("insert item: %w", err)
-				}
-				if err := enqueueTx(ctx, q, now, matchJob(itemID)); err != nil {
-					return 0, err
-				}
-				// Later files of the same title in this scan attach to this item. A failed
-				// transaction fails the whole scan, so the index never outlives a rollback.
-				idx.add(itemID, m.sortTitle, m.year, m.tmdb, m.imdb)
-				local.items++
-			}
-			idx.addFolder(itemID, folder)
-			fileID := s.newID()
-			if _, err := q.InsertMediaFile(ctx, systemq.InsertMediaFileParams{
-				ID: fileID, ItemID: itemID, RootID: op.rs.root.ID, RelPath: op.disk.rel,
-				Dev: toInt64(op.disk.id.dev), Inode: toInt64(op.disk.id.inode), Size: op.disk.size, Mtime: op.disk.mtime,
-				PartialHash:  sql.NullString{String: op.hash, Valid: op.hash != ""},
-				VersionLabel: sql.NullString{String: m.versionLabel, Valid: m.versionLabel != ""},
-				Container:    extOf(op.disk.rel), Now: ms,
-			}); err != nil {
-				return 0, fmt.Errorf("insert media file: %w", err)
-			}
-			if err := enqueueTx(ctx, q, now, probeJob(fileID)); err != nil {
-				return 0, err
-			}
-			local.created++
-		case opUpdate:
-			label := infos[i].versionLabel
-			if err := q.UpdateMediaFileLocation(ctx, systemq.UpdateMediaFileLocationParams{
-				RelPath: op.disk.rel, Dev: toInt64(op.disk.id.dev), Inode: toInt64(op.disk.id.inode),
-				Size: op.disk.size, Mtime: op.disk.mtime,
-				PartialHash:  sql.NullString{String: op.hash, Valid: op.hash != ""},
-				VersionLabel: sql.NullString{String: label, Valid: label != ""},
-				Now:          ms, ID: op.known.ID,
-			}); err != nil {
-				return 0, fmt.Errorf("update media file: %w", err)
-			}
-			idx.addFolder(op.known.ItemID, folderKey(op.rs.root.ID, op.disk.rel))
-			if op.known.MissingSince.Valid {
-				if err := q.RestoreItem(ctx, systemq.RestoreItemParams{Now: ms, ID: op.known.ItemID}); err != nil {
-					return 0, fmt.Errorf("restore item: %w", err)
-				}
-			}
-			if op.reprobe {
-				if err := enqueueTx(ctx, q, now, probeJob(op.known.ID)); err != nil {
-					return 0, err
-				}
-			}
-			local.updated++
-		case opMissing:
-			if err := q.SetMediaFileMissing(ctx, systemq.SetMediaFileMissingParams{Now: ms, ID: op.known.ID}); err != nil {
-				return 0, fmt.Errorf("mark media file missing: %w", err)
-			}
-			local.missing++
-		}
-	}
-	if prog != nil {
-		if err := appq.New(tx).SetLibraryScanProgress(ctx, appq.SetLibraryScanProgressParams{Seen: int64(prog.seen), Total: int64(prog.total), Now: ms, ID: lib.ID}); err != nil {
-			return 0, fmt.Errorf("set scan progress: %w", err)
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit scan batch: %w", err)
-	}
-	stats.created += local.created
-	stats.updated += local.updated
-	stats.missing += local.missing
-	stats.items += local.items
-	return len(ops), nil
 }

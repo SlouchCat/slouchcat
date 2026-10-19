@@ -129,10 +129,12 @@ func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile,
 
 const insertItem = `-- name: InsertItem :one
 
-INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, tmdb_id, imdb_id,
+INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date,
+                   tmdb_id, tvdb_id, imdb_id, season_number, episode_number, episode_end, extra_kind,
                    own_rating, rating_source, added_at, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-        ?11, ?12, ?13, ?13, ?13)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
+        ?10, ?11, ?12, ?13, ?14, ?15, ?16,
+        ?17, ?18, ?19, ?19, ?19)
 RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at
 `
 
@@ -145,8 +147,14 @@ type InsertItemParams struct {
 	SortTitle     string
 	OriginalTitle sql.NullString
 	Year          sql.NullInt64
+	ReleaseDate   sql.NullString
 	TmdbID        sql.NullInt64
+	TvdbID        sql.NullInt64
 	ImdbID        sql.NullString
+	SeasonNumber  sql.NullInt64
+	EpisodeNumber sql.NullInt64
+	EpisodeEnd    sql.NullInt64
+	ExtraKind     sql.NullString
 	OwnRating     sql.NullInt64
 	RatingSource  sql.NullString
 	Now           int64
@@ -164,8 +172,14 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		arg.SortTitle,
 		arg.OriginalTitle,
 		arg.Year,
+		arg.ReleaseDate,
 		arg.TmdbID,
+		arg.TvdbID,
 		arg.ImdbID,
+		arg.SeasonNumber,
+		arg.EpisodeNumber,
+		arg.EpisodeEnd,
+		arg.ExtraKind,
 		arg.OwnRating,
 		arg.RatingSource,
 		arg.Now,
@@ -542,7 +556,11 @@ func (q *Queries) ListRecentlyDeletedItemsByLibrary(ctx context.Context, arg Lis
 }
 
 const restoreItem = `-- name: RestoreItem :exec
-UPDATE items SET deleted_at = NULL, updated_at = ?1 WHERE id = ?2 AND deleted_at IS NOT NULL
+UPDATE items SET deleted_at = NULL, updated_at = ?1
+WHERE items.deleted_at IS NOT NULL
+  AND items.id IN (?2,
+             (SELECT p.parent_id FROM items AS p WHERE p.id = ?2),
+             (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = ?2)))
 `
 
 type RestoreItemParams struct {
@@ -550,7 +568,9 @@ type RestoreItemParams struct {
 	ID  string
 }
 
-// A file of a soft-deleted item reappeared: the item comes back with its user data.
+// A file of a soft-deleted item reappeared: the item comes back with its user data, and with it
+// its soft-deleted parent and grandparent (the season and series of an episode or a season
+// extra), so the tree stays whole.
 func (q *Queries) RestoreItem(ctx context.Context, arg RestoreItemParams) error {
 	_, err := q.db.ExecContext(ctx, restoreItem, arg.Now, arg.ID)
 	return err
@@ -694,7 +714,8 @@ func (q *Queries) UpdateMediaFileLocation(ctx context.Context, arg UpdateMediaFi
 const updateMediaFileProbe = `-- name: UpdateMediaFileProbe :exec
 UPDATE media_files
 SET container = ?1, video_codec = ?2, audio_codec = ?3, width = ?4,
-    height = ?5, duration_ms = ?6, probe = ?7, probed_at = ?8, updated_at = ?8
+    height = ?5, duration_ms = ?6, probe = ?7, probe_error = NULL, probed_at = ?8,
+    updated_at = ?8
 WHERE id = ?9
 `
 

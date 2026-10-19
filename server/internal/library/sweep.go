@@ -10,7 +10,8 @@ import (
 )
 
 // handleSweep soft-deletes titles whose files have all been missing for more than 24 h (plan
-// 3.2). User data stays attached to the item; a file that reappears restores it.
+// 3.2), and then the seasons and series left without undeleted children. User data stays
+// attached to the item; a file that reappears restores it with its season and series.
 func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 	n, err := s.Sweep(ctx)
 	if err != nil {
@@ -20,15 +21,35 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 	return nil
 }
 
-// Sweep runs the soft delete once and returns the number of items deleted.
+// Sweep runs the soft delete once, in one transaction, and returns the number of items deleted:
+// movies, episodes and extras whose files are all missing for longer than the grace period, then
+// seasons without undeleted children (episodes, extras), then series without undeleted children
+// (seasons, extras).
 func (s *Service) Sweep(ctx context.Context) (int64, error) {
 	now := s.now()
-	n, err := systemq.New(s.db.Write).SoftDeleteItemsMissingSince(ctx, systemq.SoftDeleteItemsMissingSinceParams{
-		Now:    sql.NullInt64{Int64: now.UnixMilli(), Valid: true},
-		Before: sql.NullInt64{Int64: now.Add(-missingGrace).UnixMilli(), Valid: true},
+	ms := sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
+	tx, err := s.db.Write.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	n, err := q.SoftDeleteItemsMissingSince(ctx, systemq.SoftDeleteItemsMissingSinceParams{
+		Now: ms, Before: sql.NullInt64{Int64: now.Add(-missingGrace).UnixMilli(), Valid: true},
 	})
 	if err != nil {
 		return 0, fmt.Errorf("soft delete missing items: %w", err)
 	}
-	return n, nil
+	seasons, err := q.SoftDeleteEmptySeasons(ctx, ms)
+	if err != nil {
+		return 0, fmt.Errorf("soft delete empty seasons: %w", err)
+	}
+	series, err := q.SoftDeleteEmptySeries(ctx, ms)
+	if err != nil {
+		return 0, fmt.Errorf("soft delete empty series: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("sweep: %w", err)
+	}
+	return n + seasons + series, nil
 }
