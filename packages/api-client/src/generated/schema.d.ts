@@ -335,6 +335,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/trailers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trailers of a title (B-8, W-10)
+         * @description The YouTube trailers found for a film or series, one or more per language, the profile language
+         *     first. Trailers come from the chain of plan 5.3 (TMDB videos, then the YouTube Data API, an optional
+         *     AI provider) or were set by the administrator (`source` `manual`). The client plays them only in the
+         *     YouTube IFrame player at `embedUrl` (`youtube-nocookie.com`); the server never downloads a video.
+         *     An invisible title answers 404 like every other ID endpoint.
+         */
+        get: operations["getItemTrailers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/people/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person with the titles the active profile may see
+         * @description Cast and crew come from the metadata provider (B-3). The credits list only visible titles; a person
+         *     without any visible credit does not exist for the profile and answers 404 (plan 10.2: a person with
+         *     roles in an FSK-6 and an FSK-18 film shows only the FSK-6 role to a 6-rated profile).
+         */
+        get: operations["getPerson"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/play": {
         parameters: {
             query?: never;
@@ -568,7 +614,13 @@ export interface paths {
         put?: never;
         /** Queue a full scan of the library */
         post: operations["scanLibrary"];
-        delete?: never;
+        /**
+         * Cancel the queued or running scan of a library
+         * @description Cancels the active scan job (M3: the first scan of a large collection may take hours and must be
+         *     interruptible, decision 3). The scan ends with state `aborted` and `lastError` `cancelled`; the next
+         *     scheduled or triggered scan runs normally. Without an active scan the library is returned unchanged.
+         */
+        delete: operations["cancelLibraryScan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -694,6 +746,238 @@ export interface paths {
          */
         put: operations["setItemRating"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Administration view of a title
+         * @description Unfiltered view for the administrator (metadata state, provider ids, locked fields, ratings, trailers,
+         *     media files with their paths). Not an `ItemRef`. Deleted titles answer 404.
+         */
+        get: operations["getAdminItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign a title manually to a provider entry (B-6)
+         * @description Stores the provider id on the title, locks the provider ids against enrichment and queues a metadata
+         *     refresh at high priority; images and trailers follow from it. The assignment survives every later scan
+         *     and refresh: files are matched by path, inode and hash, never by title, and locked fields are never
+         *     overwritten. Only films and series can be assigned; `tvdb` only series.
+         */
+        put: operations["setItemMatch"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh metadata, images, trailers and probes of a title
+         * @description Queues `metadata.match` at high priority (which queues `image.fetch` and `trailer.find`) and a probe
+         *     of every media file of the title. Locked fields and manual trailers are kept.
+         */
+        post: operations["refreshItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/trailers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a trailer manually (B-8 "manueller Ersatz")
+         * @description Adds a manual trailer for the language from a YouTube URL (`youtube.com/watch?v=…`, `youtu.be/…`,
+         *     `youtube-nocookie.com/embed/…`) or a bare video id. Manual trailers survive refreshes; an automatic
+         *     trailer of the same language and id is replaced by the manual row.
+         */
+        post: operations["createItemTrailer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/trailers/{trailerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a trailer of a title */
+        delete: operations["deleteItemTrailer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign an age rating to many titles at once (B-9, AN-1)
+         * @description The same semantics as `setItemRating` for every id in the list, in transactions of at most 500 rows.
+         *     Unknown ids are skipped and not counted. `null` clears the overrides.
+         */
+        post: operations["setItemsRating"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/metadata/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search a metadata provider for the manual assignment (B-6) */
+        get: operations["searchMetadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/issues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Titles and files that need attention (B-9)
+         * @description `unmatched`: no provider match (or pending for more than 24 h); `no_images`: matched film or series
+         *     without a poster; `unrated`: effective rating unknown (hidden from every profile under 18, AN-1);
+         *     `orphaned`: titles without a file or with only missing files, seasons without episodes, series
+         *     without seasons; `unplayable`: media files ffprobe cannot read (one entry per file);
+         *     `rating_mismatch`: stored derived rating columns differ from a fresh computation (plan 3.2
+         *     `rating.verify`).
+         */
+        get: operations["listMaintenanceIssues"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Titles and files that exist twice (B-9)
+         * @description Groups of films or series of one library with the same provider id, with the same title and year
+         *     (without provider id), and media files with the same content hash (also across titles).
+         */
+        get: operations["listDuplicates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge duplicate titles into one (B-9)
+         * @description Moves the media files, children, extras, trailers and credits of the source titles to the target,
+         *     merges the progress per profile (the larger position wins) and deletes the sources. Sources must be
+         *     of the same kind and library as the target.
+         */
+        post: operations["mergeItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove orphaned titles and unplayable files (B-9)
+         * @description Titles in the list are soft-deleted when they have no file or only missing files (others are skipped).
+         *     Media files in the list are removed from the library and recorded as ignored, so the next scan does
+         *     not add them again; a title left without a file is soft-deleted too.
+         */
+        post: operations["cleanupItems"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1048,6 +1332,18 @@ export interface components {
              */
             accent?: string;
             progress?: components["schemas"]["Progress"];
+            /** @description Season of an episode, series of a season, parent title of an extra. */
+            parentId?: components["schemas"]["ItemID"];
+            /** @description Seasons and episodes; 0 = specials. */
+            seasonNumber?: number;
+            episodeNumber?: number;
+            /** @description Last episode number of a file that holds several episodes (S01E01-E02). */
+            episodeEnd?: number;
+            /** @description Title of the series in the profile language (seasons and episodes). */
+            seriesTitle?: string;
+            extraKind?: components["schemas"]["ExtraKind"];
+            /** @description Visible seasons of a series, visible episodes of a season. */
+            childCount?: number;
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
             originalTitle?: string;
@@ -1058,7 +1354,63 @@ export interface components {
             genres: string[];
             /** Format: int64 */
             tmdbId?: number;
+            /** @description Versions of the title (B-5), the primary version first; `versionLabel` is always set. */
             mediaFiles: components["schemas"]["MediaFileInfo"][];
+            /** Format: int64 */
+            tvdbId?: number;
+            /** @description The series of a season or an episode. */
+            series?: components["schemas"]["ItemRef"];
+            /** @description The season of an episode. */
+            season?: components["schemas"]["ItemRef"];
+            /** @description Visible seasons of a series by number, specials last. */
+            seasons?: components["schemas"]["ItemRef"][];
+            /** @description Visible episodes of a season by number. */
+            episodes?: components["schemas"]["ItemRef"][];
+            /** @description Visible extras of a film, series or season (B-7). */
+            extras?: components["schemas"]["ItemRef"][];
+            /** @description The next visible episode of the same series after this episode. */
+            nextEpisode?: components["schemas"]["ItemRef"];
+            /** @description Cast and crew in provider order (B-3). */
+            cast?: components["schemas"]["CastMember"][];
+            /** @description Trailers known for the title (`getItemTrailers`). */
+            trailerCount?: number;
+        };
+        /** @enum {string} */
+        ExtraKind: "trailer" | "featurette" | "deleted_scene" | "behind_the_scenes" | "interview" | "scene" | "short" | "other";
+        CastMember: {
+            /** Format: int64 */
+            personId: number;
+            name: string;
+            /** @enum {string} */
+            role: "cast" | "director" | "writer" | "creator";
+            character?: string;
+        };
+        Person: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            credits: {
+                item: components["schemas"]["ItemRef"];
+                /** @enum {string} */
+                role: "cast" | "director" | "writer" | "creator";
+                character?: string;
+            }[];
+        };
+        Trailer: {
+            /** Format: int64 */
+            id: number;
+            /** @description ISO 639-1 language of the trailer (`de`, `en`, …). */
+            lang: string;
+            youtubeId: string;
+            /**
+             * Format: uri
+             * @description `https://www.youtube-nocookie.com/embed/<youtubeId>` for the IFrame player.
+             */
+            embedUrl: string;
+            title?: string;
+            /** @enum {string} */
+            source: "tmdb" | "youtube" | "ai" | "manual";
+            official: boolean;
         };
         MediaFileInfo: {
             id: string;
@@ -1174,6 +1526,129 @@ export interface components {
             clientTime: string;
         };
         /** @enum {string} */
+        MetadataProvider: "tmdb" | "tvdb";
+        ItemMatchRequest: {
+            provider: components["schemas"]["MetadataProvider"];
+            /** @description Id at the provider (TMDB and TVDB ids are numeric). */
+            providerId: string;
+        };
+        TrailerRequest: {
+            lang: string;
+            youtubeId?: string;
+            /** @description YouTube URL as an alternative to `youtubeId`. */
+            url?: string;
+        };
+        ItemsRatingRequest: {
+            itemIds: components["schemas"]["ItemID"][];
+            rating: components["schemas"]["Rating"] | null;
+        };
+        MetadataCandidate: {
+            provider: components["schemas"]["MetadataProvider"];
+            providerId: string;
+            title: string;
+            originalTitle?: string;
+            year?: number;
+            overview?: string;
+            /**
+             * Format: uri
+             * @description Small poster at the provider's image host (administration only).
+             */
+            posterUrl?: string;
+        };
+        AdminMediaFile: {
+            id: string;
+            /** Format: int64 */
+            rootId?: number;
+            /** @description Path relative to the library root (administration only). */
+            path: string;
+            /** Format: int64 */
+            sizeBytes: number;
+            available: boolean;
+            versionLabel?: string;
+            /** Format: date-time */
+            probedAt?: string;
+            /** @description Last ffprobe failure; set means unplayable (B-9). */
+            probeError?: string;
+        };
+        /** @description Administration view of a title; not an `ItemRef` (unfiltered, admin only). */
+        AdminItem: {
+            id: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            /** @description Parsed title of the item. */
+            title: string;
+            year?: number;
+            /** Format: int64 */
+            libraryId: number;
+            parentId?: components["schemas"]["ItemID"];
+            seasonNumber?: number;
+            episodeNumber?: number;
+            episodeEnd?: number;
+            /** @enum {string} */
+            metadataState: "pending" | "matched" | "unmatched" | "failed" | "skipped";
+            metadataError?: string;
+            /** Format: date-time */
+            matchedAt?: string;
+            /** Format: int64 */
+            tmdbId?: number;
+            /** Format: int64 */
+            tvdbId?: number;
+            imdbId?: string;
+            lockedFields: string[];
+            ownRating?: components["schemas"]["Rating"];
+            effectiveRating?: components["schemas"]["Rating"];
+            ratingSource?: string;
+            /** @enum {string} */
+            trailerState: "pending" | "found" | "none" | "failed";
+            trailers: components["schemas"]["Trailer"][];
+            mediaFiles: components["schemas"]["AdminMediaFile"][];
+            children: {
+                seasons: number;
+                episodes: number;
+                extras: number;
+            };
+        };
+        /** @enum {string} */
+        IssueKind: "unmatched" | "no_images" | "unrated" | "orphaned" | "unplayable" | "rating_mismatch";
+        Issue: {
+            kind: components["schemas"]["IssueKind"];
+            itemId: components["schemas"]["ItemID"];
+            itemKind: components["schemas"]["ItemKind"];
+            title: string;
+            year?: number;
+            /** Format: int64 */
+            libraryId: number;
+            /** @description Path of the file concerned, relative to its library root. */
+            path?: string;
+            mediaFileId?: string;
+            /** @description Stable code or message, for example the metadata error or the probe error. */
+            detail?: string;
+        };
+        IssuePage: {
+            total: number;
+            items: components["schemas"]["Issue"][];
+        };
+        DuplicateGroup: {
+            /** @enum {string} */
+            reason: "provider_id" | "title_year" | "file_hash";
+            items: {
+                itemId: components["schemas"]["ItemID"];
+                kind: components["schemas"]["ItemKind"];
+                title: string;
+                year?: number;
+                /** Format: int64 */
+                libraryId?: number;
+                files: components["schemas"]["AdminMediaFile"][];
+            }[];
+        };
+        MergeRequest: {
+            targetId: components["schemas"]["ItemID"];
+            sourceIds: components["schemas"]["ItemID"][];
+        };
+        CleanupRequest: {
+            itemIds?: components["schemas"]["ItemID"][];
+            mediaFileIds?: string[];
+        };
+        /** @enum {string} */
         LibraryKind: "movies" | "series";
         LibrarySummary: {
             /** Format: int64 */
@@ -1189,7 +1664,8 @@ export interface components {
         };
         /**
          * @description `aborted` means the loss protection stopped the scan (root missing or empty, or more than 20 % of
-         *     the files vanished); `lastError` carries the reason and `acceptLibraryLoss` lifts the block.
+         *     the files vanished) or the administrator cancelled it (`lastError` `cancelled`); `lastError` carries
+         *     the reason and `acceptLibraryLoss` lifts the block.
          * @enum {string}
          */
         ScanState: "never" | "queued" | "running" | "done" | "failed" | "aborted";
@@ -2133,6 +2609,87 @@ export interface operations {
             };
         };
     };
+    getItemTrailers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Trailers, profile language first; empty when none is known. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trailer"][];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person and the visible credits. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Person"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown person, or no visible credit for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     startPlayback: {
         parameters: {
             query?: never;
@@ -2686,6 +3243,39 @@ export interface operations {
             };
         };
     };
+    cancelLibraryScan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancellation requested; the library with its scan state. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     acceptLibraryLoss: {
         parameters: {
             query?: never;
@@ -2958,6 +3548,416 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The title. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemMatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Assignment stored, refresh queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    refreshItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jobs queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createItemTrailer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TrailerRequest"];
+            };
+        };
+        responses: {
+            /** @description The stored trailer. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trailer"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteItemTrailer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                trailerId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title or trailer (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemsRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemsRatingRequest"];
+            };
+        };
+        responses: {
+            /** @description Number of titles changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        updated: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchMetadata: {
+        parameters: {
+            query: {
+                provider: components["schemas"]["MetadataProvider"];
+                kind: "movie" | "series";
+                query: string;
+                year?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Candidates, best first (at most 20). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataCandidate"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Provider not configured or key rejected (`tmdb_key_invalid`, `tmdb_unreachable`, `provider_not_configured`), or validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMaintenanceIssues: {
+        parameters: {
+            query: {
+                kind: components["schemas"]["IssueKind"];
+                libraryId?: number;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of issues. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listDuplicates: {
+        parameters: {
+            query?: {
+                libraryId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Duplicate groups. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateGroup"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    mergeItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeRequest"];
+            };
+        };
+        responses: {
+            /** @description The merged title. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cleanupItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CleanupRequest"];
+            };
+        };
+        responses: {
+            /** @description What was removed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: number;
+                        files: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`). */
             422: {
                 headers: {

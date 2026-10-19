@@ -31,7 +31,7 @@ func TestLibraryEndpoints(t *testing.T) {
 		t.Fatalf("root = %+v", root)
 	}
 	scan := list[0].Scan
-	if scan.State != gen.Queued || scan.StartedAt == nil || scan.StartedAt.Location() != time.UTC || scan.FilesSeen == nil {
+	if scan.State != gen.ScanStateQueued || scan.StartedAt == nil || scan.StartedAt.Location() != time.UTC || scan.FilesSeen == nil {
 		t.Fatalf("scan = %+v", scan)
 	}
 	if !scan.StartedAt.Equal(time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)) {
