@@ -15,3 +15,18 @@
 .danger {
   background-color: var(--sc-color-state-danger);
 }
+
+.warning {
+  background-color: var(--sc-color-state-warning);
+}
+
+.active {
+  background-color: var(--accent);
+  animation: pulse 1.4s var(--sc-motion-easing-standard) infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}

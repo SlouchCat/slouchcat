@@ -1,0 +1,75 @@
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--page-gutter);
+}
+
+.title {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.paging {
+  display: none;
+  gap: var(--sc-space-1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .paging {
+    display: flex;
+    opacity: 0;
+    transition: opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+  }
+
+  .row:hover .paging {
+    opacity: 1;
+  }
+}
+
+.scroller {
+  overflow: auto hidden;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: var(--page-gutter);
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.list {
+  display: flex;
+  gap: var(--sc-space-4);
+  width: max-content;
+  margin: 0;
+
+  /* Room for the focus ring and the focus scale, which the scroll container would clip. */
+  padding: var(--sc-space-4) var(--page-gutter) var(--sc-space-6);
+  list-style: none;
+}
+
+.item {
+  width: var(--sc-size-poster-sm);
+  scroll-snap-align: start;
+}
+
+@media (width >= 768px) {
+  .item {
+    width: var(--sc-size-poster-md);
+  }
+}
+
+@media (width >= 1440px) {
+  .item {
+    width: var(--sc-size-poster-lg);
+  }
+}

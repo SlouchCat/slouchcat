@@ -25,6 +25,303 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the first-start wizard still has to run */
+        get: operations["getSetupStatus"];
+        put?: never;
+        /**
+         * Run the first-start wizard
+         * @description Creates the main account with its default profile, the first library and optionally stores the
+         *     TMDB key (encrypted at rest). The key is checked against TMDB before it is stored. On success the
+         *     caller is logged in (session cookie). Allowed only while no account exists.
+         */
+        post: operations["runSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log in with e-mail and password */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** End the current session */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Account and active profile of the current session */
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rows of the start page for the active profile
+         * @description Returns the rows in display order: `picks` (Cat's recommendations; M1a placeholder content),
+         *     `continue` (continue watching) and `recent` (recently added). Empty rows are omitted (E-9).
+         *     Every item passed the visibility layer of the active profile.
+         */
+        get: operations["getHome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail of a title */
+        get: operations["getItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/images/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poster or backdrop of a title (binary)
+         * @description Implemented as an `http.Handler`. Images are reachable only through the item ID; the handler checks
+         *     the scope (not visible → 404) and answers with `Cache-Control: private, max-age=31536000, immutable`.
+         *     The query parameter `v` is the content hash and serves cache busting only. In M1a the TMDB image
+         *     is stored unchanged: posters exist in size `w500`, backdrops in `w780` and `w1280`.
+         */
+        get: operations["getItemImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/play": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide how the title is played and return the stream description
+         * @description M1a supports direct play only: the response names the media file, its container and codecs and
+         *     the stream URL that the `<video>` element loads with the session cookie. Whether the device can
+         *     play the codecs is decided by the client (`canPlayType`); HLS follows in M1b.
+         */
+        post: operations["startPlayback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Direct play of the media file (binary, Range)
+         * @description Implemented as an `http.Handler`. Serves the media file through the `paths` package with full
+         *     Range support (HTTP 206), authorised by the session cookie (stream tokens follow in M1b).
+         *     Not visible → 404. `Accept-Ranges: bytes`, `Cache-Control: private, no-store`.
+         */
+        get: operations["getItemStream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report a playback progress event
+         * @description The client sends an event every 10 s, on pause and at the end (plan 3.4 step 7). The server
+         *     stores the raw event (`progress_events`) and updates the merged position of the active profile.
+         *     Positions at or beyond 90 % of the duration mark the title as completed.
+         */
+        post: operations["reportProgress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** All libraries with their scan state */
+        get: operations["listLibraries"];
+        put?: never;
+        /** Create a library and start its first scan */
+        post: operations["createLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One library with its scan state */
+        get: operations["getLibrary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries/{id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue a full scan of the library */
+        post: operations["scanLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries/{id}/accept-loss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept that files disappeared and let the next scan apply the deletions
+         * @description A scan aborts without changes when the library root is missing or empty or when more than 20 %
+         *     of the known files vanished (plan 3.2). After this confirmation the next scan applies the loss.
+         */
+        post: operations["acceptLibraryLoss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spike/{variant}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download file of the offline spike (binary, Range)
+         * @description Temporary endpoint of the M1a offline spike (plan 10.4). Implemented as an `http.Handler` that
+         *     serves `spike-fmp4.mp4` or `spike-faststart.mp4` from the directory in `SLOUCHCAT_SPIKE_DIR` with
+         *     Range support. Without that setting the endpoint answers 404. Removed after the M1b decision.
+         */
+        get: operations["getSpikeFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -70,10 +367,271 @@ export interface components {
              * @example not_found
              */
             code: string;
+            /** @description Field errors for `validation_failed`. */
+            errors?: components["schemas"]["FieldError"][];
+        };
+        FieldError: {
+            /** @description JSON pointer-like field name, for example `email` or `library.path`. */
+            field: string;
+            /** @description Stable identifier the client translates, for example `required`, `too_short`, `invalid_email`. */
+            code: string;
+        };
+        SetupStatus: {
+            /** @description True until the wizard created the main account. */
+            setupRequired: boolean;
+        };
+        SetupRequest: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+            library: components["schemas"]["LibraryRequest"];
+            /** @description TMDB v4 read access token; optional. Stored encrypted, never returned. */
+            tmdbApiKey?: string;
+            language?: components["schemas"]["Language"];
+        };
+        LoginRequest: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+        };
+        SessionInfo: {
+            account: components["schemas"]["Account"];
+            profile: components["schemas"]["Profile"];
+        };
+        Account: {
+            /** Format: int64 */
+            id: number;
+            /** Format: email */
+            email: string;
+            /**
+             * @description M1a knows only the main account.
+             * @enum {string}
+             */
+            role: "owner";
+        };
+        /** @description A viewing profile. Profiles carry no e-mail and no password (K-1); only `name` is required. */
+        Profile: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /**
+             * Format: uri-reference
+             * @description Optional profile image (M2).
+             */
+            image?: string;
+            maxRating: components["schemas"]["Rating"];
+            language: components["schemas"]["Language"];
+            /** @description Accent colour token name, for example `ember` (M2). */
+            accent?: string;
+        };
+        /** @enum {string} */
+        Language: "de" | "en";
+        /**
+         * @description FSK age rating.
+         * @enum {integer}
+         */
+        Rating: 0 | 6 | 12 | 16 | 18;
+        /** @description ULID of an item. */
+        ItemID: string;
+        /** @enum {string} */
+        ItemKind: "movie" | "series" | "season" | "episode" | "extra" | "audiobook" | "podcast" | "podcast_episode";
+        /** @enum {string} */
+        ImageKind: "poster" | "backdrop";
+        ImageRef: {
+            /**
+             * Format: uri-reference
+             * @description Relative URL under the API base, including the cache-busting `v` parameter.
+             */
+            url: string;
+            width: number;
+            height: number;
+        };
+        ItemImages: {
+            poster?: components["schemas"]["ImageRef"];
+            backdrop?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w780 for viewports up to about 900 px. */
+            backdropSmall?: components["schemas"]["ImageRef"];
+        };
+        Progress: {
+            /** Format: int64 */
+            positionMs: number;
+            /** Format: int64 */
+            durationMs: number;
+            percent: number;
+            completed: boolean;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /**
+         * @description A title as it appears in lists. Every response that contains an ItemRef is `scoped`; the
+         *     contract test enforces this.
+         */
+        ItemRef: {
+            id: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            /** @description Title in the profile language, fallback English, fallback parsed file name. */
+            title: string;
+            year?: number;
+            runtimeMinutes?: number;
+            /** @description Effective FSK rating; omitted when unknown (then hidden from profiles under 18). */
+            rating?: components["schemas"]["Rating"];
+            images: components["schemas"]["ItemImages"];
+            progress?: components["schemas"]["Progress"];
+        };
+        ItemDetail: components["schemas"]["ItemRef"] & {
+            originalTitle?: string;
+            tagline?: string;
+            overview?: string;
+            /** Format: date */
+            releaseDate?: string;
+            genres: string[];
+            /** Format: int64 */
+            tmdbId?: number;
+            mediaFiles: components["schemas"]["MediaFileInfo"][];
+        };
+        MediaFileInfo: {
+            id: string;
+            /** @description Container by extension, for example `mp4`, `mkv`. */
+            container: string;
+            /** @description MIME type with codecs parameter when known, for example `video/mp4; codecs="avc1.640028, mp4a.40.2"`. */
+            mimeType?: string;
+            videoCodec?: string;
+            audioCodec?: string;
+            width?: number;
+            height?: number;
+            /** Format: int64 */
+            durationMs?: number;
+            /** Format: int64 */
+            sizeBytes: number;
+            /** @description Version label parsed from the file name, for example `1080p` (B-5 in M3). */
+            versionLabel?: string;
+            /** @description False while the file is missing (24 h grace period). */
+            available: boolean;
+        };
+        /** @enum {string} */
+        HomeRowKey: "picks" | "continue" | "recent";
+        HomeRow: {
+            key: components["schemas"]["HomeRowKey"];
+            items: components["schemas"]["ItemRef"][];
+        };
+        HomePage: {
+            rows: components["schemas"]["HomeRow"][];
+        };
+        PlaybackRequest: {
+            /** @description Which file to play; defaults to the primary file. */
+            mediaFileId?: string;
+            /** @description Stable client identifier (used for progress merging in M5). */
+            deviceId?: string;
+        };
+        PlaybackInfo: {
+            /**
+             * @description M1a serves direct play only; `hls` follows in M1b.
+             * @enum {string}
+             */
+            mode: "direct";
+            item: components["schemas"]["ItemRef"];
+            mediaFile: components["schemas"]["MediaFileInfo"];
+            /**
+             * Format: uri-reference
+             * @description Relative URL of the Range endpoint, authorised by the session cookie.
+             */
+            streamUrl: string;
+            /**
+             * Format: int64
+             * @description Position to resume from; 0 when the title was never started or was completed.
+             */
+            resumePositionMs: number;
+        };
+        ProgressEvent: {
+            mediaFileId?: string;
+            /** Format: int64 */
+            positionMs: number;
+            /** Format: int64 */
+            durationMs: number;
+            /**
+             * Format: int64
+             * @description Milliseconds actually played since the previous event.
+             */
+            playedMs: number;
+            /**
+             * Format: int64
+             * @description Running sequence number per playback on the client.
+             */
+            seq: number;
+            /** @enum {string} */
+            state: "playing" | "paused" | "ended";
+            /**
+             * Format: date-time
+             * @description Device clock when the event was created.
+             */
+            clientTime: string;
+        };
+        /** @enum {string} */
+        LibraryKind: "movies" | "series";
+        LibraryRequest: {
+            name: string;
+            kind: components["schemas"]["LibraryKind"];
+            /** @description Absolute directory on the server (inside the container, for example `/media/Filme`). */
+            path: string;
+        };
+        /**
+         * @description `aborted` means the loss protection stopped the scan (root missing or empty, or more than 20 % of
+         *     the files vanished); `lastError` carries the reason and `acceptLibraryLoss` lifts the block.
+         * @enum {string}
+         */
+        ScanState: "never" | "queued" | "running" | "done" | "failed" | "aborted";
+        Library: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            kind: components["schemas"]["LibraryKind"];
+            roots: components["schemas"]["LibraryRoot"][];
+            scan: components["schemas"]["LibraryScan"];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        LibraryRoot: {
+            /** Format: int64 */
+            id: number;
+            path: string;
+            /** @description Detected file system class (`ext4`, `xfs`, `btrfs`, `zfs`, `fuse`, `nfs`, `smb`, `unknown`). */
+            fsType: string;
+            /**
+             * @description Change detection strategy chosen from `fsType` (plan 3.4).
+             * @enum {string}
+             */
+            watch: "inotify" | "poll" | "inotify_poll";
+            /** @description Stable code for a warning shown in the wizard, for example `network_share`. */
+            warning?: string;
+        };
+        LibraryScan: {
+            state: components["schemas"]["ScanState"];
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** @description Files processed in the running or last scan. */
+            filesSeen?: number;
+            /** @description Files found by the directory walk of the running or last scan. */
+            filesTotal?: number;
+            /** @description Stable code (`root_missing`, `root_empty`, `loss_over_threshold`) or a message. */
+            lastError?: string;
+            /** Format: date-time */
+            lossAcceptedAt?: string;
+            /** @description Titles that are not deleted. */
+            itemCount: number;
+            /** @description Media files that are not missing. */
+            fileCount: number;
         };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        /** @description Item ID (ULID). */
+        ItemID: components["schemas"]["ItemID"];
+        LibraryID: number;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -100,6 +658,788 @@ export interface operations {
             };
             /** @description The server is starting or a dependency is not ready. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSetupStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+        };
+    };
+    runSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupRequest"];
+            };
+        };
+        responses: {
+            /** @description Setup completed; the response carries the new session. */
+            201: {
+                headers: {
+                    /** @description Session cookie `slouchcat_session`. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Setup already completed (`setup_done`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed. Codes: `validation_failed` (see `errors`), `library_path_invalid`
+             *     (not absolute, missing, not a directory or not readable), `tmdb_key_invalid` (TMDB answered 401),
+             *     `tmdb_unreachable` (TMDB did not answer; retry or leave the key empty).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Logged in; the response carries the session. */
+            200: {
+                headers: {
+                    /** @description Session cookie `slouchcat_session`. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description Unknown e-mail or wrong password (`invalid_credentials`). The message is the same for both. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked and cookie cleared. Also 204 without a session. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Start page rows. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomePage"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The title with its media files and the resume position of the active profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetail"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getItemImage: {
+        parameters: {
+            query?: {
+                /** @description Content hash for cache busting; ignored by the server. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                kind: components["schemas"]["ImageKind"];
+                size: "w500" | "w780" | "w1280";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown, not visible, or no image of this kind and size (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    startPlayback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PlaybackRequest"];
+            };
+        };
+        responses: {
+            /** @description Playback description. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackInfo"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown, not visible, or the requested media file does not belong to the title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getItemStream: {
+        parameters: {
+            query?: {
+                /** @description Media file ID from `PlaybackInfo`; defaults to the primary file of the title. */
+                file?: string;
+            };
+            header?: {
+                Range?: string;
+            };
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Whole file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                    "video/x-matroska": string;
+                };
+            };
+            /** @description Requested byte range. */
+            206: {
+                headers: {
+                    "Content-Range"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                    "video/x-matroska": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown, not visible, or the file is missing (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Range not satisfiable. */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reportProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProgressEvent"];
+            };
+        };
+        responses: {
+            /** @description Merged progress after the event. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Progress"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listLibraries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Libraries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"][];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not the main account (`forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created; the first scan is queued. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not the main account or CSRF header missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`, `library_path_invalid`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The library. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not the main account (`forbidden`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    scanLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan queued (or already running). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not the main account or CSRF header missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    acceptLibraryLoss: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Loss accepted; a scan is queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not the main account or CSRF header missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSpikeFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                variant: "fmp4" | "faststart";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Whole file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            /** @description Requested byte range. */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            /** @description Spike not enabled or file missing (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

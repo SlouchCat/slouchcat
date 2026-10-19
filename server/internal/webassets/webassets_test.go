@@ -19,6 +19,7 @@ func TestBuiltApp(t *testing.T) {
 		"index.html":             {Data: []byte("<!doctype html><title>Slouchcat</title>")},
 		"assets/index-3f2a1b.js": {Data: []byte("console.log(1)")},
 		"manifest.webmanifest":   {Data: []byte("{}")},
+		"spike/index.html":       {Data: []byte("<!doctype html><title>Spike</title>")},
 	})
 	cases := []struct {
 		target, cache, body string
@@ -31,6 +32,9 @@ func TestBuiltApp(t *testing.T) {
 		{"/manifest.webmanifest", cacheRevalid, "{}", 200},
 		{"/assets/missing-000000.js", "", "404 page not found\n", 404},
 		{"/../../etc/passwd", cacheRevalid, "<!doctype html><title>Slouchcat</title>", 200},
+		{"/spike/", cacheRevalid, "<!doctype html><title>Spike</title>", 200},
+		{"/spike/index.html", cacheRevalid, "<!doctype html><title>Spike</title>", 200},
+		{"/spike", cacheRevalid, "<!doctype html><title>Slouchcat</title>", 200},
 	}
 	for _, tc := range cases {
 		rec := get(t, h, http.MethodGet, tc.target)

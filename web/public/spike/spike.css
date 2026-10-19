@@ -1,0 +1,194 @@
+/* Offline spike page: one column, large touch targets, dark. Temporary test harness outside
+   web/src, so the design-token rules of the app do not apply; colours stay in one place here. */
+:root {
+  --bg: #0b0c10;
+  --panel: #16181f;
+  --line: #2a2e3a;
+  --text: #e9eaee;
+  --muted: #9aa0ad;
+  --accent: #e8794a;
+  --ok: #5fc27e;
+  --bad: #ef6464;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 16px 16px 64px;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    16px/1.45 system-ui,
+    sans-serif;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 0 0 12px;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 16px 0 8px;
+}
+
+section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.warn {
+  border: 1px solid var(--bad);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+label {
+  display: block;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+input,
+select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  min-height: 48px;
+  padding: 8px 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+button {
+  flex: 1 1 180px;
+  min-height: 48px;
+  padding: 10px 14px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+button.primary {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+progress {
+  width: 100%;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+video {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.box {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.8rem;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: minmax(120px, 40%) 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.kv dt {
+  color: var(--muted);
+}
+
+.kv dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.log {
+  margin: 0;
+  padding-left: 20px;
+  font:
+    0.78rem/1.4 ui-monospace,
+    monospace;
+  max-height: 420px;
+  overflow: auto;
+  word-break: break-word;
+}
+
+.log li {
+  margin-bottom: 4px;
+}
+
+.files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.files li {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.bad {
+  color: var(--bad);
+}

@@ -1,0 +1,38 @@
+.skeleton {
+  display: block;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  animation: pulse 1.6s var(--sc-motion-easing-standard) infinite;
+}
+
+.line {
+  width: 60%;
+  height: var(--sc-font-size-md);
+}
+
+.title {
+  width: 40%;
+  height: var(--sc-font-size-3xl);
+}
+
+.poster {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+}
+
+.hero {
+  width: 100%;
+  height: clamp(var(--sc-size-hero-min), 72vh, var(--sc-size-hero-max));
+  border-radius: 0;
+}
+
+.block {
+  width: 100%;
+  height: calc(var(--sc-space-24) + var(--sc-space-12));
+}
+
+@keyframes pulse {
+  50% {
+    background-color: var(--sc-color-surface-2);
+  }
+}

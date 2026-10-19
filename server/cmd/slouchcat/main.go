@@ -4,9 +4,12 @@
 //
 //	slouchcat [serve] [flags]     run the server (default)
 //	slouchcat healthcheck [flags] exit 0 when the local server answers GET /api/v1/healthz with 200
+//	slouchcat dump [flags]        write a replayable SQL snapshot of the database to stdout
+//	slouchcat watchbench --root DIR [--passes N] [--inotify]  measure change detection of a root
 //
-// The healthcheck subcommand serves the container HEALTHCHECK, so the image needs no curl. Both
-// subcommands read the same flags and SLOUCHCAT_* environment variables.
+// The healthcheck subcommand serves the container HEALTHCHECK, so the image needs no curl. dump
+// produces the frozen milestone states in testdata/db (plan 6.2 point 4). All subcommands read the
+// same flags and SLOUCHCAT_* environment variables.
 package main
 
 import (
@@ -24,11 +27,19 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/api"
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/config"
+	"github.com/slouchcat/slouchcat/server/internal/discover"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
+	"github.com/slouchcat/slouchcat/server/internal/metadata"
+	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
 )
 
@@ -49,6 +60,9 @@ func run(args []string) int {
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		cmd, args = args[0], args[1:]
 	}
+	if cmd == "watchbench" {
+		return watchbench(args) // own flags, no server configuration
+	}
 	cfg, err := config.Load(args, os.Getenv)
 	if errors.Is(err, flag.ErrHelp) {
 		fmt.Fprintln(os.Stderr, "usage: slouchcat [serve|healthcheck] [flags]")
@@ -63,10 +77,36 @@ func run(args []string) int {
 		return serve(cfg)
 	case "healthcheck":
 		return healthcheck(cfg)
+	case "dump":
+		return dump(cfg)
+	case "watchbench":
+		return watchbench(args)
 	default:
-		fmt.Fprintf(os.Stderr, "slouchcat: unknown command %q (want serve or healthcheck)\n", cmd)
+		fmt.Fprintf(os.Stderr, "slouchcat: unknown command %q (want serve, healthcheck or dump)\n", cmd)
 		return 2
 	}
+}
+
+// dump opens the database (running pending migrations like serve does) and writes the SQL
+// snapshot to stdout.
+func dump(cfg config.Config) int {
+	log, err := logging.New(os.Stderr, cfg.LogFormat, cfg.LogLevel)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "slouchcat:", err)
+		return 2
+	}
+	ctx := context.Background()
+	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "dump:", err)
+		return 1
+	}
+	defer db.Close()
+	if err := store.Dump(ctx, db.Read, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, "dump:", err)
+		return 1
+	}
+	return 0
 }
 
 // healthcheck probes the server on the loopback interface, or on the configured host when the
@@ -136,11 +176,35 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		}
 	}()
 
+	keyring, err := secrets.Load(cfg.ConfigDir, log)
+	if err != nil {
+		return err
+	}
+	queue := jobs.NewQueue(db.Write, nil)
+	runner := transcode.Runner{FFmpegPath: cfg.FFmpeg, FFprobePath: cfg.FFprobe}
+	authSvc := auth.New(db, log)
+	// admin stores and reveals the TMDB key, metadata checks and uses it: the key source is
+	// resolved lazily so both can be constructed without a cycle.
+	keys := &lazyKeys{}
+	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, log)
+	libSvc := library.New(db, queue, runner, log, library.WithImageCheck(metaSvc.QueueIncompleteImages))
+	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
+	keys.admin = adminSvc
+
 	var workers sync.WaitGroup
-	worker := jobs.NewWorker(jobs.NewQueue(db.Write, nil), "worker-1", log)
-	workers.Go(func() { worker.Run(ctx) })
+	for i := range cfg.Workers {
+		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
+		libSvc.RegisterJobs(worker)
+		metaSvc.RegisterJobs(worker)
+		workers.Go(func() { worker.Run(ctx) })
+	}
+	workers.Go(func() {
+		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {
+			log.Error("library watchers stopped", "err", err)
+		}
+	})
 	defer func() {
-		stop() // also on error paths, so the worker returns before the database closes
+		stop() // also on error paths, so the workers return before the database closes
 		workers.Wait()
 	}()
 
@@ -151,6 +215,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	srv := &http.Server{
 		Handler: api.NewHandler(api.Options{
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
+			Auth: authSvc, Admin: adminSvc,
+			Catalog:  discover.New(db, cfg.CacheDir, log),
+			Playback: playback.New(db, log),
+			SpikeDir: cfg.SpikeDir,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -170,4 +238,13 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
+}
+
+// lazyKeys hands the admin service to metadata as its key source after both exist.
+type lazyKeys struct {
+	admin *admin.Service
+}
+
+func (k *lazyKeys) TMDBKey(ctx context.Context) (string, error) {
+	return k.admin.TMDBKey(ctx)
 }

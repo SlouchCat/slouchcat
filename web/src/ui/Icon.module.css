@@ -1,0 +1,23 @@
+.icon {
+  flex: none;
+  fill: currentcolor;
+  stroke: currentcolor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.md {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.lg {
+  width: 1.75rem;
+  height: 1.75rem;
+}

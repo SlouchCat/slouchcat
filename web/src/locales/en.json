@@ -3,12 +3,229 @@
     "name": "Slouchcat",
     "tagline": "Films, series, audiobooks and podcasts for your household."
   },
-  "home": {
+  "common": {
+    "back": "Back",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "loading": "Loading …"
+  },
+  "nav": {
+    "main": "Main navigation",
+    "home": "Home",
+    "libraries": "Libraries",
+    "logout": "Sign out",
+    "profile": "Profile {{name}}",
+    "skip": "Skip to content"
+  },
+  "system": {
     "server": {
       "checking": "Checking the connection to the server …",
       "online": "Server reachable",
       "offline": "Server unreachable",
       "version": "Version {{version}}"
+    }
+  },
+  "errors": {
+    "page": {
+      "title": "Slouchcat cannot be reached right now",
+      "body": "The server does not answer. Check that the container is running, then try again."
+    },
+    "code": {
+      "invalid_credentials": "E-mail address or password is wrong.",
+      "library_path_invalid": "This folder does not exist on the server or cannot be read. Enter an absolute path inside the container.",
+      "tmdb_key_invalid": "TMDB rejected the key. Check the read access token.",
+      "tmdb_unreachable": "TMDB cannot be reached right now. Try again or leave the field empty.",
+      "setup_done": "Slouchcat is already set up. Please sign in.",
+      "not_found": "Not found.",
+      "unauthenticated": "Your session has expired. Please sign in again.",
+      "forbidden": "This account is not allowed to do that.",
+      "csrf_header_missing": "The request was rejected for security reasons. Reload the page.",
+      "validation_failed": "Please check the highlighted fields.",
+      "network": "The server cannot be reached.",
+      "unknown": "Something went wrong. Please try again."
+    },
+    "field": {
+      "required": "Required.",
+      "too_short": "Too short.",
+      "too_long": "Too long.",
+      "invalid_email": "Not a valid e-mail address.",
+      "invalid": "Invalid value.",
+      "not_absolute": "Enter an absolute path; it starts with /.",
+      "password_too_short": "At least 10 characters.",
+      "password_mismatch": "The passwords do not match."
+    }
+  },
+  "setup": {
+    "title": "Welcome to Slouchcat",
+    "intro": "Three short steps, then Slouchcat scans your first library.",
+    "step": "Step {{step}}",
+    "account": {
+      "title": "Main account",
+      "description": "You manage Slouchcat with this account.",
+      "email": "E-mail address",
+      "password": "Password",
+      "passwordHint": "At least 10 characters.",
+      "passwordRepeat": "Repeat password"
+    },
+    "library": {
+      "title": "First library",
+      "description": "You can add more libraries later.",
+      "name": "Name",
+      "kind": "Content",
+      "path": "Folder",
+      "pathHint": "Absolute path inside the container, for example /media/Movies."
+    },
+    "tmdb": {
+      "title": "Metadata from TMDB (optional)",
+      "description": "With a read access token from themoviedb.org Slouchcat fetches overviews, posters and age ratings. Without a key, titles come from the file names.",
+      "link": "Create a token on themoviedb.org",
+      "label": "API read access token",
+      "hint": "Stored encrypted and never shown again."
+    },
+    "submit": "Finish setup",
+    "submitting": "Setting up …"
+  },
+  "login": {
+    "title": "Sign in",
+    "intro": "Sign in with your Slouchcat account.",
+    "email": "E-mail address",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in …"
+  },
+  "library": {
+    "kind": {
+      "movies": "Movies",
+      "series": "Series"
+    }
+  },
+  "home": {
+    "title": "Home",
+    "picks": "Cat's picks",
+    "rows": {
+      "continue": "Continue watching",
+      "recent": "Recently added"
+    },
+    "remaining": "{{time}} left",
+    "empty": {
+      "title": "Nothing here yet",
+      "body": "Your films appear here as soon as a library has been scanned.",
+      "action": "View libraries"
+    }
+  },
+  "ui": {
+    "carousel": {
+      "roledescription": "carousel",
+      "slide": "slide",
+      "position": "{{index}} of {{count}}",
+      "show": "Show pick {{index}} of {{count}}"
+    },
+    "row": {
+      "previous": "Scroll back",
+      "next": "Scroll forward"
+    }
+  },
+  "item": {
+    "play": "Play",
+    "details": "Details",
+    "resume": "Resume from {{time}}",
+    "watched": "{{percent}} % watched",
+    "originalTitle": "Original title: {{title}}",
+    "notFound": {
+      "title": "Title not found",
+      "body": "This title does not exist or no longer exists.",
+      "action": "Go to home"
+    },
+    "file": {
+      "title": "File",
+      "container": "Container",
+      "resolution": "Resolution",
+      "video": "Video",
+      "audio": "Audio",
+      "size": "Size",
+      "version": "Version",
+      "unavailable": "unavailable",
+      "none": "No file is available for this title right now."
+    }
+  },
+  "rating": {
+    "fsk": "FSK {{age}}"
+  },
+  "format": {
+    "hours": "{{hours}} h",
+    "minutes": "{{minutes}} min",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "resolution": "{{width}} × {{height}}",
+    "uhd": "4K",
+    "fhd": "1080p",
+    "hd": "720p",
+    "sd": "SD"
+  },
+  "player": {
+    "region": "Video player",
+    "loading": "Loading …",
+    "play": "Play",
+    "pause": "Pause",
+    "fullscreen": "Full screen",
+    "exitFullscreen": "Exit full screen",
+    "back": "Back",
+    "seek": "Playback position",
+    "time": "{{elapsed}} of {{total}}",
+    "volume": "Volume {{percent}} %",
+    "unsupported": {
+      "title": "Format cannot be played directly",
+      "body": "This browser cannot play this format directly; conversion follows in M1b.",
+      "details": "File: {{container}}, video {{video}}, audio {{audio}}"
+    },
+    "error": {
+      "title": "Playback not possible",
+      "body": "The file could not be loaded."
+    }
+  },
+  "admin": {
+    "libraries": {
+      "title": "Libraries",
+      "intro": "Folders Slouchcat watches and the state of their scans.",
+      "empty": "No library yet.",
+      "roots": "Folders",
+      "fsType": "File system {{type}}",
+      "watch": {
+        "inotify": "Changes are detected immediately",
+        "poll": "Changes are polled regularly",
+        "inotify_poll": "Detected immediately, also polled regularly"
+      },
+      "warning": {
+        "network_share": "Network share"
+      },
+      "state": {
+        "never": "Never scanned",
+        "queued": "Waiting for scan",
+        "running": "Scanning",
+        "done": "Up to date",
+        "failed": "Scan failed",
+        "aborted": "Scan stopped"
+      },
+      "counts": "Titles: {{items}} · Files: {{files}}",
+      "progress": "{{seen}} of {{total}} files",
+      "finishedAt": "Last scan: {{date}}",
+      "error": {
+        "root_missing": "The folder is missing. Is the drive mounted? Nothing was deleted.",
+        "root_empty": "The folder is empty. Nothing was deleted.",
+        "loss_over_threshold": "More than 20 % of the files are missing. Nothing was deleted to be safe.",
+        "other": "Last error: {{message}}"
+      },
+      "rescan": "Scan again",
+      "acceptLoss": {
+        "action": "Accept loss",
+        "title": "Remove missing files?",
+        "body": "The next scan removes the missing titles from the library; progress for these titles is lost. Only do this when the files were deleted on purpose.",
+        "confirm": "Remove and scan"
+      },
+      "add": {
+        "title": "Add library",
+        "submit": "Add",
+        "submitting": "Adding …"
+      }
     }
   }
 }

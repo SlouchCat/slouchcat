@@ -1,0 +1,19 @@
+.link {
+  display: inline-flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+  border-radius: var(--sc-radius-sm);
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-medium);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    color: var(--accent);
+  }
+}

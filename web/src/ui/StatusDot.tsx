@@ -1,7 +1,9 @@
 import styles from './StatusDot.module.css';
 
+export type StatusDotState = 'pending' | 'active' | 'success' | 'warning' | 'danger';
+
 interface StatusDotProps {
-  state: 'pending' | 'success' | 'danger';
+  state: StatusDotState;
 }
 
 /** Decorative status indicator; the accompanying text carries the meaning. */

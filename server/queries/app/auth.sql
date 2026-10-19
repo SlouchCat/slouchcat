@@ -1,0 +1,57 @@
+-- Accounts, profiles and sessions (package store/appq). Owner: auth / admin packages.
+-- Times are Unix milliseconds.
+
+-- name: CountAccounts :one
+SELECT count(*) FROM accounts;
+
+-- name: InsertAccount :one
+INSERT INTO accounts (email, password_hash, role, created_at, updated_at)
+VALUES (@email, @password_hash, @role, @now, @now)
+RETURNING *;
+
+-- name: GetAccountByEmail :one
+SELECT * FROM accounts WHERE email = @email;
+
+-- name: GetAccount :one
+SELECT * FROM accounts WHERE id = @id;
+
+-- name: InsertProfile :one
+INSERT INTO profiles (account_id, name, max_rating, language, all_libraries, is_default, created_at, updated_at)
+VALUES (@account_id, @name, @max_rating, @language, @all_libraries, @is_default, @now, @now)
+RETURNING *;
+
+-- name: GetProfile :one
+SELECT * FROM profiles WHERE id = @id;
+
+-- name: GetDefaultProfile :one
+SELECT * FROM profiles WHERE account_id = @account_id ORDER BY is_default DESC, id LIMIT 1;
+
+-- name: InsertSession :one
+INSERT INTO sessions (token_hash, account_id, profile_id, user_agent, created_at, last_seen_at, expires_at)
+VALUES (@token_hash, @account_id, @profile_id, @user_agent, @now, @now, @expires_at)
+RETURNING *;
+
+-- name: GetSessionByTokenHash :one
+SELECT * FROM sessions WHERE token_hash = @token_hash AND revoked_at IS NULL AND expires_at > @now;
+
+-- name: TouchSession :exec
+UPDATE sessions SET last_seen_at = @now, expires_at = @expires_at WHERE id = @id;
+
+-- name: RevokeSession :execrows
+UPDATE sessions SET revoked_at = @now WHERE id = @id AND revoked_at IS NULL;
+
+-- name: RevokeAccountSessions :execrows
+UPDATE sessions SET revoked_at = @now WHERE account_id = @account_id AND revoked_at IS NULL;
+
+-- name: DeleteExpiredSessions :execrows
+DELETE FROM sessions WHERE expires_at < @now OR revoked_at IS NOT NULL AND revoked_at < @before;
+
+-- name: GetSetting :one
+SELECT value FROM settings WHERE key = @key;
+
+-- name: UpsertSetting :exec
+INSERT INTO settings (key, value, updated_at) VALUES (@key, @value, @now)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;
+
+-- name: DeleteSetting :exec
+DELETE FROM settings WHERE key = @key;

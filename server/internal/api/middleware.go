@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -64,4 +65,30 @@ func requestLog(log *slog.Logger) func(http.Handler) http.Handler {
 			log.LogAttrs(r.Context(), slog.LevelInfo, "http request", attrs...)
 		})
 	}
+}
+
+// compressedTypes are the text media types that compressText gzips (P-10: the uncompressed
+// bundle dominated the start page on slow mobile links). Images, media streams and the spike
+// download are binary and never pass through it. Go's mime table names JavaScript text/javascript.
+var compressedTypes = []string{
+	"text/html", "text/css", "text/javascript", "application/javascript", "application/json",
+	"application/problem+json", "application/manifest+json", "image/svg+xml",
+}
+
+// compressText compresses text responses of the web app and the JSON API (gzip level 5). The
+// response varies by Accept-Encoding: chi adds the Vary header when it compresses, this wrapper
+// adds it when the client accepts no encoding. A client that accepts one gets the whole body, as a
+// byte range of the identity body does not apply to the compressed one.
+func compressText(next http.Handler) http.Handler {
+	compress := middleware.Compress(5, compressedTypes...)(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		accept := strings.ToLower(r.Header.Get("Accept-Encoding"))
+		if strings.Contains(accept, "gzip") || strings.Contains(accept, "deflate") {
+			r.Header.Del("Range")
+			r.Header.Del("If-Range")
+		} else {
+			w.Header().Add("Vary", "Accept-Encoding")
+		}
+		compress.ServeHTTP(w, r)
+	})
 }

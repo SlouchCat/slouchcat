@@ -10,6 +10,8 @@ import (
 // ErrOutsideRoot is returned for relative paths that could leave their root.
 var ErrOutsideRoot = errors.New("path is not inside its root")
 
+var errUnregistered = errors.New("root is not registered")
+
 // Root is a registered directory that relative paths are resolved against.
 type Root struct {
 	dir string
@@ -29,7 +31,7 @@ func (r Root) Dir() string { return r.dir }
 // Resolve joins rel to root after rejecting every form that could leave the root.
 func Resolve(root Root, rel string) (string, error) {
 	if root.dir == "" {
-		return "", errors.New("root is not registered")
+		return "", errUnregistered
 	}
 	if rel == "" || strings.ContainsRune(rel, 0) || filepath.IsAbs(rel) || strings.HasPrefix(rel, "/") {
 		return "", fmt.Errorf("%w: %q", ErrOutsideRoot, rel)

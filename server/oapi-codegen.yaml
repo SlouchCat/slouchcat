@@ -7,3 +7,13 @@ generate:
   models: true
   chi-server: true
   strict-server: true
+  # The parsed contract is embedded (gen.GetSwagger) so the session middleware can read
+  # x-visibility per route at runtime.
+  embedded-spec: true
+output-options:
+  # Binary endpoints (images, media streams, spike download) are plain http.Handlers mounted in
+  # internal/api (CLAUDE.md rule 6); the strict server covers JSON operations only.
+  exclude-operation-ids:
+    - getItemImage
+    - getItemStream
+    - getSpikeFile

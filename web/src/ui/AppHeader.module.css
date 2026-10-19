@@ -1,0 +1,101 @@
+.header {
+  position: fixed;
+  z-index: var(--sc-z-sticky);
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--sc-size-header-height);
+  background-color: transparent;
+  transition: background-color var(--sc-motion-duration-enter) var(--sc-motion-easing-standard);
+}
+
+.header[data-scrolled] {
+  background-color: var(--sc-color-scrim-solid);
+  backdrop-filter: blur(var(--sc-space-4));
+}
+
+.inner {
+  display: flex;
+  gap: var(--sc-space-6);
+  align-items: center;
+  height: 100%;
+  padding: 0 var(--page-gutter);
+}
+
+.brand {
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-primary);
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  gap: var(--sc-space-1);
+}
+
+.navLink {
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-full);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  text-decoration: none;
+  transition: color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+.navLink:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .navLink:hover {
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.navLink[aria-current='page'] {
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.account {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin-left: auto;
+}
+
+.profile {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--accent);
+  color: var(--accent-on);
+  font-weight: var(--sc-font-weight-bold);
+}
+
+@media (width < 640px) {
+  .profileName {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .inner {
+    gap: var(--sc-space-3);
+  }
+}

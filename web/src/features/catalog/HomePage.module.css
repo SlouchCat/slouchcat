@@ -1,0 +1,70 @@
+.home {
+  min-height: 100dvh;
+  padding-bottom: var(--sc-space-16);
+}
+
+.padded {
+  padding-top: calc(var(--sc-size-header-height) + var(--sc-space-8));
+}
+
+.rows {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+}
+
+/* On wide screens the first row tucks slightly into the hero's bottom scrim. */
+@media (width >= 768px) {
+  .underHero {
+    margin-top: calc(-1 * var(--sc-space-8));
+  }
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  max-width: var(--sc-size-form-max);
+  padding-right: var(--page-gutter);
+  padding-left: var(--page-gutter);
+}
+
+.empty > div {
+  margin-top: var(--sc-space-3);
+}
+
+.padded:not(.rows, .empty) {
+  padding-right: var(--page-gutter);
+  padding-left: var(--page-gutter);
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+}
+
+.skeletonRow {
+  display: flex;
+  gap: var(--sc-space-4);
+  overflow: hidden;
+  padding: 0 var(--page-gutter);
+}
+
+.skeletonCard {
+  flex: none;
+  width: var(--sc-size-poster-sm);
+}
+
+@media (width >= 768px) {
+  .skeletonCard {
+    width: var(--sc-size-poster-md);
+  }
+}
+
+@media (width >= 1440px) {
+  .skeletonCard {
+    width: var(--sc-size-poster-lg);
+  }
+}

@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -27,6 +28,10 @@ type Config struct {
 	LogLevel  slog.Level     // Minimum level that is logged.
 	LogFormat logging.Format // json or text.
 	Dev       bool           // Development mode.
+	FFmpeg    string         // ffmpeg binary (name on PATH or absolute path).
+	FFprobe   string         // ffprobe binary (name on PATH or absolute path).
+	SpikeDir  string         // Directory with the offline spike files; empty disables the endpoint (M1a only).
+	Workers   int            // Number of job workers.
 }
 
 // Load parses args (without the program name and subcommand) and the environment read through
@@ -51,6 +56,17 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("%sDEV: %w", EnvPrefix, err)
 	}
 	dev := fs.Bool("dev", devDefault, "development mode (env SLOUCHCAT_DEV)")
+	ffmpeg := fs.String("ffmpeg", env("FFMPEG", "ffmpeg"), "ffmpeg binary (env SLOUCHCAT_FFMPEG)")
+	ffprobe := fs.String("ffprobe", env("FFPROBE", "ffprobe"), "ffprobe binary (env SLOUCHCAT_FFPROBE)")
+	spikeDir := fs.String("spike-dir", env("SPIKE_DIR", ""), "directory with the offline spike files, empty = disabled (env SLOUCHCAT_SPIKE_DIR)")
+	workers := fs.Int("workers", 0, "number of job workers, 0 = automatic (env SLOUCHCAT_WORKERS)")
+	if v := env("WORKERS", ""); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			return Config{}, fmt.Errorf("%sWORKERS: invalid count %q", EnvPrefix, v)
+		}
+		*workers = n
+	}
 
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -63,7 +79,22 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("unexpected arguments: %v", fs.Args())
 	}
 
-	cfg := Config{Listen: *listen, LogFormat: logging.Format(*logFormat), Dev: *dev}
+	cfg := Config{Listen: *listen, LogFormat: logging.Format(*logFormat), Dev: *dev,
+		FFmpeg: *ffmpeg, FFprobe: *ffprobe, Workers: *workers}
+	if cfg.FFmpeg == "" || cfg.FFprobe == "" {
+		return Config{}, errors.New("ffmpeg and ffprobe must not be empty")
+	}
+	if cfg.Workers < 0 {
+		return Config{}, errors.New("workers must not be negative")
+	}
+	if cfg.Workers == 0 {
+		cfg.Workers = max(2, min(4, runtime.NumCPU()))
+	}
+	if *spikeDir != "" {
+		if cfg.SpikeDir, err = absDir("spike dir", *spikeDir); err != nil {
+			return Config{}, err
+		}
+	}
 	if err := cfg.LogLevel.UnmarshalText([]byte(*logLevel)); err != nil {
 		return Config{}, fmt.Errorf("log level: %w", err)
 	}
@@ -94,6 +125,10 @@ func (c Config) LogValue() slog.Value {
 		slog.String("log_level", c.LogLevel.String()),
 		slog.String("log_format", string(c.LogFormat)),
 		slog.Bool("dev", c.Dev),
+		slog.String("ffmpeg", c.FFmpeg),
+		slog.String("ffprobe", c.FFprobe),
+		slog.String("spike_dir", c.SpikeDir),
+		slog.Int("workers", c.Workers),
 	)
 }
 

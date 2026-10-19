@@ -1,0 +1,15 @@
+.meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.part + .part::before {
+  margin-right: var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  content: '·';
+}

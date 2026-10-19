@@ -1,6 +1,10 @@
 // Package api wires the HTTP surface of Slouchcat: the generated strict server for the JSON API
-// under /api/v1 (contract api/openapi.yaml), RFC 9457 problem responses, request IDs, request
-// logging and panic recovery. Everything outside /api/v1 goes to the web app handler.
+// under /api/v1 (contract api/openapi.yaml), the binary handlers for images, media streams and the
+// spike download, RFC 9457 problem responses, request IDs, request logging, panic recovery, the
+// CSRF header rule and the session middleware that enforces x-visibility per route. Everything
+// outside /api/v1 goes to the web app handler; the start page's app shell carries a preload
+// header for the hero image (preload.go). The web app and the JSON routes are gzipped
+// (compressText); the binary routes are not.
 package api
 
 import (
@@ -17,6 +21,21 @@ import (
 // BasePath is the prefix of all API routes.
 const BasePath = "/api/v1"
 
+// Binary endpoints are excluded from the generated server (oapi-codegen.yaml) and therefore from
+// the embedded spec, so their x-visibility is repeated here; the contract test checks that these
+// values match api/openapi.yaml.
+const (
+	binaryImagePath  = "/items/{id}/images/{kind}/{size}"
+	binaryStreamPath = "/items/{id}/stream"
+	binarySpikePath  = "/spike/{variant}"
+)
+
+var binaryRoutes = map[string]string{
+	"GET " + BasePath + binaryImagePath:  "scoped",
+	"GET " + BasePath + binaryStreamPath: "scoped",
+	"GET " + BasePath + binarySpikePath:  "public",
+}
+
 // Options configure NewHandler.
 type Options struct {
 	Version string       // Reported by getHealth.
@@ -24,6 +43,12 @@ type Options struct {
 	Logger  *slog.Logger // Redacting logger.
 	Web     http.Handler // Serves every path outside BasePath.
 	Dev     bool         // Development mode: problem details of panics include the panic value.
+
+	Auth     AuthService
+	Admin    AdminService
+	Catalog  CatalogService
+	Playback PlaybackService
+	SpikeDir string // Directory with the spike download files; empty disables the endpoint.
 
 	now func() time.Time // Overrides the clock in tests.
 }
@@ -34,9 +59,19 @@ func NewHandler(o Options) http.Handler {
 		o.now = time.Now
 	}
 	p := problems{log: o.Logger, dev: o.Dev}
+	spec, err := gen.GetSpec()
+	if err != nil {
+		panic(err) // the embedded contract is generated from api/openapi.yaml and always parses
+	}
+	visibility := visibilityOf(spec, BasePath)
+	for route, vis := range binaryRoutes {
+		visibility[route] = vis
+	}
+	authorize := p.authorize(o.Auth, visibility)
+	s := &server{opts: o, p: p}
 
 	r := chi.NewRouter()
-	r.Use(requestID, requestLog(o.Logger), p.recoverer)
+	r.Use(requestID, requestLog(o.Logger), p.recoverer, MaxBody(MaxBodyBytes))
 	r.Route(BasePath, func(r chi.Router) {
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 			p.write(w, r, http.StatusNotFound, "not_found", "No API route matches this path.")
@@ -44,19 +79,32 @@ func NewHandler(o Options) http.Handler {
 		r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 			p.write(w, r, http.StatusMethodNotAllowed, "method_not_allowed", "The route does not support this method.")
 		})
-		strict := gen.NewStrictHandlerWithOptions(&server{opts: o}, nil, gen.StrictHTTPServerOptions{
+		strict := gen.NewStrictHandlerWithOptions(s, nil, gen.StrictHTTPServerOptions{
 			RequestErrorHandlerFunc:  p.badRequest,
 			ResponseErrorHandlerFunc: p.internal,
 		})
-		gen.HandlerWithOptions(strict, gen.ChiServerOptions{BaseRouter: r, ErrorHandlerFunc: p.badRequest})
+		gen.HandlerWithOptions(strict, gen.ChiServerOptions{
+			BaseRouter:       r,
+			Middlewares:      []gen.MiddlewareFunc{authorize, compressText},
+			ErrorHandlerFunc: p.badRequest,
+		})
+		// Binary endpoints (CLAUDE.md rule 6) share the session middleware.
+		r.With(authorize).Get(binaryImagePath, s.getItemImage)
+		r.With(authorize).Get(binaryStreamPath, s.getItemStream)
+		r.With(authorize).Get(binarySpikePath, s.getSpikeFile)
 	})
-	r.Handle("/*", o.Web)
+	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
+	// the start page's app shell then carries a preload header for its image (preload.go).
+	picker, _ := o.Catalog.(heroPicker)
+	r.Handle("/*", compressText(startPagePreload(o.Auth, picker, o.Logger)(o.Web)))
 	return r
 }
 
-// server implements the generated strict server interface.
+// server implements the generated strict server interface; the handlers live in one file per
+// feature (auth_handlers.go, admin_handlers.go, item_handlers.go, …).
 type server struct {
 	opts Options
+	p    problems
 }
 
 var _ gen.StrictServerInterface = (*server)(nil)

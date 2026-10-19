@@ -1,0 +1,17 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  min-width: 0;
+  margin: 0;
+  padding: var(--sc-space-6);
+  border: 0;
+  border-radius: var(--sc-radius-xl);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+@media (width < 480px) {
+  .panel {
+    padding: var(--sc-space-5) var(--sc-space-4);
+  }
+}

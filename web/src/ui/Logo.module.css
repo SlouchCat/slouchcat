@@ -1,0 +1,35 @@
+.logo {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.mark {
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+}
+
+.head {
+  fill: var(--sc-color-accent-ember-base);
+}
+
+.play {
+  fill: var(--sc-color-bg-base);
+}
+
+.name {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-display);
+}
+
+@media (width < 480px) {
+  .name {
+    position: absolute;
+    overflow: hidden;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

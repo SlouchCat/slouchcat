@@ -2,8 +2,9 @@
 # queries or migrations and run `task gen`.
 version: "2"
 sql:
-  # Unfiltered queries. Importing store/systemq is allowed only in the packages listed in
-  # .golangci.yml (depguard rule "systemq").
+  # Unfiltered queries on title tables (package store/systemq). Importing it is allowed only in the
+  # packages listed in .golangci.yml (depguard rule "systemq"): visibility, admin, library, metadata,
+  # jobs, notify, offline.
   - engine: sqlite
     schema: migrations
     queries: queries/system
@@ -13,14 +14,25 @@ sql:
         out: internal/store/systemq
         emit_empty_slices: true
 
-  # Scoped queries (package store/scopedq). Every query must join visible_items. sqlc refuses a
-  # query directory without queries ("no queries contained in paths"), so this entry stays
-  # commented out until the first scoped query exists (M1a); then remove the leading "# ".
-  # - engine: sqlite
-  #   schema: migrations
-  #   queries: queries/scoped
-  #   gen:
-  #     go:
-  #       package: scopedq
-  #       out: internal/store/scopedq
-  #       emit_empty_slices: true
+  # Scoped queries (package store/scopedq), used by the visibility package only. Every query must
+  # join visible_items; the test in internal/store checks every file in queries/scoped.
+  - engine: sqlite
+    schema: migrations
+    queries: queries/scoped
+    gen:
+      go:
+        package: scopedq
+        out: internal/store/scopedq
+        emit_empty_slices: true
+
+  # User data and configuration (package store/appq): settings, accounts, profiles, sessions,
+  # libraries, roots, progress. Free to import; must never touch items, media_files or tracks
+  # (the itemsaccess analyzer would report the generated SQL).
+  - engine: sqlite
+    schema: migrations
+    queries: queries/app
+    gen:
+      go:
+        package: appq
+        out: internal/store/appq
+        emit_empty_slices: true

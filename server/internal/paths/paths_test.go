@@ -2,6 +2,10 @@ package paths
 
 import (
 	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -64,5 +68,55 @@ func TestDetectFS(t *testing.T) {
 	t.Logf("temp dir file system: %s", typ)
 	if _, err := DetectFS("/does/not/exist"); err == nil {
 		t.Fatal("expected an error for a missing directory")
+	}
+}
+
+func TestOpenAndWalkStayInsideRoot(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "Movies", "A (2020)"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "Movies", "A (2020)", "A (2020).mkv"), []byte("v"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	root, err := NewRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	if _, err := r.Stat("Movies/A (2020)/A (2020).mkv"); err != nil {
+		t.Errorf("stat inside root: %v", err)
+	}
+	if _, err := r.Open("link/secret.txt"); err == nil {
+		t.Error("symlink leaving the root must be refused")
+	}
+	if _, err := r.Open("../secret.txt"); err == nil {
+		t.Error(".. must be refused")
+	}
+	var seen []string
+	err = Walk(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		seen = append(seen, p)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{".", "Movies", "Movies/A (2020)", "Movies/A (2020)/A (2020).mkv", "link"}
+	if strings.Join(seen, "|") != strings.Join(want, "|") {
+		t.Errorf("walk = %v, want %v (symlinked directory listed but not entered)", seen, want)
 	}
 }

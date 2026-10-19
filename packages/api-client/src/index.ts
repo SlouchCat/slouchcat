@@ -4,12 +4,36 @@ import type { components, paths } from './generated/schema';
 export type { components, paths } from './generated/schema';
 
 export type Health = components['schemas']['Health'];
+export type SessionInfo = components['schemas']['SessionInfo'];
+export type Profile = components['schemas']['Profile'];
+export type SetupRequest = components['schemas']['SetupRequest'];
+export type LoginRequest = components['schemas']['LoginRequest'];
+export type HomePage = components['schemas']['HomePage'];
+export type HomeRow = components['schemas']['HomeRow'];
+export type ItemRef = components['schemas']['ItemRef'];
+export type ItemDetail = components['schemas']['ItemDetail'];
+export type MediaFileInfo = components['schemas']['MediaFileInfo'];
+export type PlaybackInfo = components['schemas']['PlaybackInfo'];
+export type ProgressEvent = components['schemas']['ProgressEvent'];
+export type Progress = components['schemas']['Progress'];
+export type Library = components['schemas']['Library'];
+export type LibraryRequest = components['schemas']['LibraryRequest'];
+export type FieldError = components['schemas']['FieldError'];
 /** RFC 9457 problem details as returned by every failing JSON endpoint. */
 export type Problem = components['schemas']['Problem'];
 export type ApiClient = Client<paths>;
 
 /** Same-origin base path of the API (the `servers` entry of api/openapi.yaml). */
 export const DEFAULT_BASE_URL = '/api/v1';
+
+/**
+ * Header every state-changing request must carry (contract description). Browsers never add a
+ * custom header to cross-site form posts, so with the SameSite=Lax cookie this blocks CSRF.
+ */
+export const CSRF_HEADER = 'X-Requested-With';
+export const CSRF_HEADER_VALUE = 'Slouchcat';
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
  * Creates a typed client for the Slouchcat API.
@@ -22,7 +46,13 @@ export function createApiClient(baseUrl: string = DEFAULT_BASE_URL): ApiClient {
   const location = (globalThis as { location?: { href: string } }).location;
   return createClient<paths>({
     baseUrl: location ? new URL(baseUrl, location.href).href : baseUrl,
-    fetch: (request) => globalThis.fetch(request),
+    credentials: 'same-origin',
+    fetch: (request) => {
+      // Only state-changing requests need the CSRF header. Reads go without it, so they match the
+      // responses the server preloads for the start page (Link: rel=preload; as=fetch, P-10).
+      if (!SAFE_METHODS.has(request.method)) request.headers.set(CSRF_HEADER, CSRF_HEADER_VALUE);
+      return globalThis.fetch(request);
+    },
   });
 }
 

@@ -1,0 +1,43 @@
+.chip {
+  display: inline-flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+  min-height: var(--sc-space-6);
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-sm);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.neutral {
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+}
+
+.outline {
+  border: 1px solid var(--sc-color-text-secondary);
+  color: var(--sc-color-text-primary);
+}
+
+.warning {
+  background-color: var(--sc-color-state-warning);
+  color: var(--sc-color-bg-base);
+}
+
+.danger {
+  background-color: var(--sc-color-state-danger);
+  color: var(--sc-color-bg-base);
+}
+
+.success {
+  background-color: var(--sc-color-state-success);
+  color: var(--sc-color-bg-base);
+}
+
+.info {
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-secondary);
+}

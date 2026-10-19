@@ -36,7 +36,27 @@
       },
       "danger": { "$value": "#f2777a" },
       "success": { "$value": "#5fcf8f" },
-      "warning": { "$value": "#e8b65a" }
+      "warning": { "$value": "#e8b65a" },
+      "track": {
+        "$value": "#ffffff33",
+        "$description": "Unfilled part of progress and seek bars."
+      },
+      "buffered": { "$value": "#ffffff66", "$description": "Buffered range on the seek bar." }
+    },
+    "scrim": {
+      "$description": "The base background at decreasing opacity, for gradients over artwork (no grey banding).",
+      "solid": {
+        "$value": "#0b0c10f5",
+        "$description": "Bottom edge of hero and detail backdrops."
+      },
+      "strong": { "$value": "#0b0c10cc", "$description": "Behind text that sits on artwork." },
+      "medium": { "$value": "#0b0c1080" },
+      "soft": { "$value": "#0b0c1033" },
+      "clear": { "$value": "#0b0c1000", "$description": "Fully transparent end stop of the scrim." }
+    },
+    "media": {
+      "$description": "Letterbox behind the video element.",
+      "backdrop": { "$value": "#000000" }
     },
     "accent": {
       "$description": "Profile accent colours; each profile picks exactly one.",

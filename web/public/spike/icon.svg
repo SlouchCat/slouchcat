@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- M0 placeholder icon. Colours mirror color.bg.base and color.accent.ember.base of
+       @slouchcat/design-tokens; PNG icons generated from the tokens follow with C-1 in M1a. -->
+  <rect width="512" height="512" rx="112" fill="#0b0c10" />
+  <path d="M136 400V136l80 72h80l80-72v264a24 24 0 0 1-24 24H160a24 24 0 0 1-24-24z" fill="#e8794a" />
+  <path d="M228 268v96l84-48z" fill="#0b0c10" />
+</svg>

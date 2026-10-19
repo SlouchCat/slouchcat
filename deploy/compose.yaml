@@ -23,4 +23,6 @@ services:
     environment:
       TZ: ${TZ:-Europe/Zurich}
       SLOUCHCAT_LOG_FORMAT: ${SLOUCHCAT_LOG_FORMAT:-json}
+      # Optional: TMDB v4 read access token from .env; the wizard can store it encrypted instead.
+      SLOUCHCAT_TMDB_API_KEY: ${SLOUCHCAT_TMDB_API_KEY:-}
     # The healthcheck is defined in the image (slouchcat healthcheck).

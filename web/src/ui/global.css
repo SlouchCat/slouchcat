@@ -1,6 +1,13 @@
 /* Document-level base styles. Components style themselves with CSS Modules. */
 :root {
   color-scheme: dark;
+
+  /* Accent of the active profile (M2 lets each profile pick one of the accent tokens). */
+  --accent: var(--sc-color-accent-ember-base);
+  --accent-on: var(--sc-color-accent-ember-on);
+
+  /* Horizontal page padding; rows bleed to the edge and use it as their inner padding. */
+  --page-gutter: var(--sc-space-4);
 }
 
 *,
@@ -22,11 +29,56 @@ body {
   font-size: var(--sc-font-size-md);
   line-height: var(--sc-font-line-height-normal);
   text-rendering: optimizelegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: var(--accent-on);
 }
 
 :focus-visible {
   outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
   outline-offset: var(--sc-focus-ring-offset);
+}
+
+/*
+ * First hero image, written into the start page's shell by the server (P-10, api/preload.go): the
+ * geometry of the carousel's image (HeroCarousel.module.css), above the page and below the header,
+ * until the carousel shows its own image and dismissHeroPrepaint() fades it out.
+ */
+#hero-prepaint {
+  position: absolute;
+  z-index: var(--sc-z-raised);
+  inset: 0 0 auto;
+  height: clamp(var(--sc-size-hero-min), 78vh, var(--sc-size-hero-max));
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity var(--sc-motion-duration-crossfade) var(--sc-motion-easing-standard);
+}
+
+#hero-prepaint[data-done] {
+  opacity: 0;
+}
+
+#hero-prepaint > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -35,5 +87,18 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (width >= 768px) {
+  :root {
+    --page-gutter: var(--sc-space-10);
+  }
+}
+
+@media (width >= 1440px) {
+  :root {
+    --page-gutter: var(--sc-space-16);
   }
 }

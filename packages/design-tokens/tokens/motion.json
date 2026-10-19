@@ -8,7 +8,9 @@
         "$description": "Focus movement; must stay at or below 200 ms."
       },
       "enter": { "$value": "240ms", "$description": "Elements entering the screen." },
-      "exit": { "$value": "160ms", "$description": "Elements leaving the screen." }
+      "exit": { "$value": "160ms", "$description": "Elements leaving the screen." },
+      "crossfade": { "$value": "700ms", "$description": "Hero slides fading into each other." },
+      "chrome": { "$value": "300ms", "$description": "Player controls fading in and out." }
     },
     "easing": {
       "$type": "cubicBezier",

@@ -14,7 +14,9 @@ import (
 // Contract rules for api/openapi.yaml (CLAUDE.md rule 7, plan section 3.3):
 //   - every operation carries x-visibility with one of the allowed values;
 //   - every operation whose responses reference the schema ItemRef, directly or through any
-//     chain of $ref, is scoped.
+//     chain of $ref, is scoped;
+//   - every operation whose path contains /images/ has the path parameter {id}, so no image is
+//     delivered without the item whose visibility decides it.
 
 var (
 	visibilities = []string{"public", "scoped", "system", "admin"}
@@ -46,6 +48,9 @@ func checkContract(doc map[string]any) []string {
 			}
 			if vis != "scoped" && references(doc, op["responses"], itemRefPointer, map[string]bool{}) {
 				problems = append(problems, fmt.Sprintf("%s: responses contain ItemRef, x-visibility must be scoped, is %q", name, vis))
+			}
+			if strings.Contains(path, "/images/") && !strings.Contains(path, "{id}") {
+				problems = append(problems, name+": image path without the item path parameter {id}")
 			}
 		}
 	}
@@ -148,6 +153,16 @@ paths:
       responses:
         200:
           $ref: "#/components/responses/ItemList"
+  /images/{kind}:
+    get:
+      x-visibility: scoped
+      responses:
+        "200": {description: ok}
+  /items/{id}/images/{kind}:
+    get:
+      x-visibility: scoped
+      responses:
+        "200": {description: ok}
   /fine:
     get:
       x-visibility: scoped
@@ -183,11 +198,30 @@ components:
 	got := checkContract(doc)
 	t.Logf("violations:\n%s", strings.Join(got, "\n"))
 	want := []string{
+		"GET /images/{kind}: image path without the item path parameter {id}",
 		`GET /leak: responses contain ItemRef, x-visibility must be scoped, is "public"`,
 		"GET /no-marker: missing x-visibility",
 		`POST /typo: x-visibility "private" not in [public scoped system admin]`,
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
+	}
+}
+
+// The binary routes mounted by hand carry the same x-visibility as the contract.
+func TestBinaryRoutesMatchContract(t *testing.T) {
+	data, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parseYAML(t, data)
+	paths, _ := doc["paths"].(map[string]any)
+	for route, want := range binaryRoutes {
+		method, pattern, _ := strings.Cut(route, " ")
+		item, _ := paths[strings.TrimPrefix(pattern, BasePath)].(map[string]any)
+		op, _ := item[strings.ToLower(method)].(map[string]any)
+		if got, _ := op["x-visibility"].(string); got != want {
+			t.Errorf("%s: contract says %q, binaryRoutes says %q", route, got, want)
+		}
 	}
 }

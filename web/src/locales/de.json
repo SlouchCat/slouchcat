@@ -3,12 +3,229 @@
     "name": "Slouchcat",
     "tagline": "Filme, Serien, Hörbücher und Podcasts für deinen Haushalt."
   },
-  "home": {
+  "common": {
+    "back": "Zurück",
+    "retry": "Erneut versuchen",
+    "cancel": "Abbrechen",
+    "loading": "Wird geladen …"
+  },
+  "nav": {
+    "main": "Hauptnavigation",
+    "home": "Start",
+    "libraries": "Bibliotheken",
+    "logout": "Abmelden",
+    "profile": "Profil {{name}}",
+    "skip": "Zum Inhalt springen"
+  },
+  "system": {
     "server": {
       "checking": "Verbindung zum Server wird geprüft …",
       "online": "Server erreichbar",
       "offline": "Server nicht erreichbar",
       "version": "Version {{version}}"
+    }
+  },
+  "errors": {
+    "page": {
+      "title": "Slouchcat ist gerade nicht erreichbar",
+      "body": "Der Server antwortet nicht. Prüfe, ob der Container läuft, und versuche es dann erneut."
+    },
+    "code": {
+      "invalid_credentials": "E-Mail-Adresse oder Passwort stimmen nicht.",
+      "library_path_invalid": "Diesen Ordner gibt es auf dem Server nicht, oder er ist nicht lesbar. Gib einen absoluten Pfad im Container an.",
+      "tmdb_key_invalid": "TMDB hat den Schlüssel abgelehnt. Prüfe das Lesezugriffs-Token.",
+      "tmdb_unreachable": "TMDB ist gerade nicht erreichbar. Versuche es erneut oder lass das Feld leer.",
+      "setup_done": "Slouchcat ist bereits eingerichtet. Melde dich an.",
+      "not_found": "Nicht gefunden.",
+      "unauthenticated": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+      "forbidden": "Dafür fehlt diesem Konto die Berechtigung.",
+      "csrf_header_missing": "Die Anfrage wurde aus Sicherheitsgründen abgelehnt. Lade die Seite neu.",
+      "validation_failed": "Bitte prüfe die markierten Felder.",
+      "network": "Der Server ist nicht erreichbar.",
+      "unknown": "Etwas ist schiefgelaufen. Versuche es erneut."
+    },
+    "field": {
+      "required": "Pflichtfeld.",
+      "too_short": "Zu kurz.",
+      "too_long": "Zu lang.",
+      "invalid_email": "Keine gültige E-Mail-Adresse.",
+      "invalid": "Ungültiger Wert.",
+      "not_absolute": "Gib einen absoluten Pfad an, er beginnt mit /.",
+      "password_too_short": "Mindestens 10 Zeichen.",
+      "password_mismatch": "Die Passwörter stimmen nicht überein."
+    }
+  },
+  "setup": {
+    "title": "Willkommen bei Slouchcat",
+    "intro": "Drei kurze Schritte, dann scannt Slouchcat deine erste Bibliothek.",
+    "step": "Schritt {{step}}",
+    "account": {
+      "title": "Hauptkonto",
+      "description": "Mit diesem Konto verwaltest du Slouchcat.",
+      "email": "E-Mail-Adresse",
+      "password": "Passwort",
+      "passwordHint": "Mindestens 10 Zeichen.",
+      "passwordRepeat": "Passwort wiederholen"
+    },
+    "library": {
+      "title": "Erste Bibliothek",
+      "description": "Weitere Bibliotheken kannst du später hinzufügen.",
+      "name": "Name",
+      "kind": "Inhalt",
+      "path": "Ordner",
+      "pathHint": "Absoluter Pfad im Container, zum Beispiel /media/Filme."
+    },
+    "tmdb": {
+      "title": "Metadaten von TMDB (optional)",
+      "description": "Mit einem Lesezugriffs-Token von themoviedb.org lädt Slouchcat Beschreibungen, Poster und Altersfreigaben. Ohne Schlüssel stammen die Titel aus den Dateinamen.",
+      "link": "Token auf themoviedb.org erstellen",
+      "label": "API-Lesezugriffs-Token",
+      "hint": "Wird verschlüsselt gespeichert und nie wieder angezeigt."
+    },
+    "submit": "Einrichtung abschliessen",
+    "submitting": "Wird eingerichtet …"
+  },
+  "login": {
+    "title": "Anmelden",
+    "intro": "Melde dich mit deinem Slouchcat-Konto an.",
+    "email": "E-Mail-Adresse",
+    "password": "Passwort",
+    "submit": "Anmelden",
+    "submitting": "Wird angemeldet …"
+  },
+  "library": {
+    "kind": {
+      "movies": "Filme",
+      "series": "Serien"
+    }
+  },
+  "home": {
+    "title": "Startseite",
+    "picks": "Cat's Empfehlungen",
+    "rows": {
+      "continue": "Weiterschauen",
+      "recent": "Neu hinzugefügt"
+    },
+    "remaining": "Noch {{time}}",
+    "empty": {
+      "title": "Hier ist es noch leer",
+      "body": "Sobald eine Bibliothek gescannt ist, erscheinen deine Filme hier.",
+      "action": "Bibliotheken ansehen"
+    }
+  },
+  "ui": {
+    "carousel": {
+      "roledescription": "Karussell",
+      "slide": "Folie",
+      "position": "{{index}} von {{count}}",
+      "show": "Empfehlung {{index}} von {{count}} anzeigen"
+    },
+    "row": {
+      "previous": "Zurückblättern",
+      "next": "Weiterblättern"
+    }
+  },
+  "item": {
+    "play": "Abspielen",
+    "details": "Details",
+    "resume": "Weiterschauen ab {{time}}",
+    "watched": "{{percent}} % gesehen",
+    "originalTitle": "Originaltitel: {{title}}",
+    "notFound": {
+      "title": "Titel nicht gefunden",
+      "body": "Diesen Titel gibt es nicht oder nicht mehr.",
+      "action": "Zur Startseite"
+    },
+    "file": {
+      "title": "Datei",
+      "container": "Container",
+      "resolution": "Auflösung",
+      "video": "Video",
+      "audio": "Audio",
+      "size": "Grösse",
+      "version": "Version",
+      "unavailable": "nicht verfügbar",
+      "none": "Zu diesem Titel ist gerade keine Datei verfügbar."
+    }
+  },
+  "rating": {
+    "fsk": "FSK {{age}}"
+  },
+  "format": {
+    "hours": "{{hours}} h",
+    "minutes": "{{minutes}} min",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "resolution": "{{width}} × {{height}}",
+    "uhd": "4K",
+    "fhd": "1080p",
+    "hd": "720p",
+    "sd": "SD"
+  },
+  "player": {
+    "region": "Videoplayer",
+    "loading": "Wird geladen …",
+    "play": "Abspielen",
+    "pause": "Pause",
+    "fullscreen": "Vollbild",
+    "exitFullscreen": "Vollbild beenden",
+    "back": "Zurück",
+    "seek": "Wiedergabeposition",
+    "time": "{{elapsed}} von {{total}}",
+    "volume": "Lautstärke {{percent}} %",
+    "unsupported": {
+      "title": "Format nicht direkt abspielbar",
+      "body": "Dieses Format kann der Browser nicht direkt abspielen; Umwandlung folgt in M1b.",
+      "details": "Datei: {{container}}, Video {{video}}, Audio {{audio}}"
+    },
+    "error": {
+      "title": "Wiedergabe nicht möglich",
+      "body": "Die Datei konnte nicht geladen werden."
+    }
+  },
+  "admin": {
+    "libraries": {
+      "title": "Bibliotheken",
+      "intro": "Ordner, die Slouchcat beobachtet, und der Stand ihrer Scans.",
+      "empty": "Noch keine Bibliothek angelegt.",
+      "roots": "Ordner",
+      "fsType": "Dateisystem {{type}}",
+      "watch": {
+        "inotify": "Änderungen werden sofort erkannt",
+        "poll": "Änderungen werden regelmässig abgefragt",
+        "inotify_poll": "Sofort erkannt, zusätzlich regelmässig abgefragt"
+      },
+      "warning": {
+        "network_share": "Netzlaufwerk"
+      },
+      "state": {
+        "never": "Noch nie gescannt",
+        "queued": "Wartet auf Scan",
+        "running": "Scan läuft",
+        "done": "Aktuell",
+        "failed": "Scan fehlgeschlagen",
+        "aborted": "Scan gestoppt"
+      },
+      "counts": "Titel: {{items}} · Dateien: {{files}}",
+      "progress": "{{seen}} von {{total}} Dateien",
+      "finishedAt": "Letzter Scan: {{date}}",
+      "error": {
+        "root_missing": "Der Ordner fehlt. Ist das Laufwerk eingehängt? Es wurde nichts gelöscht.",
+        "root_empty": "Der Ordner ist leer. Es wurde nichts gelöscht.",
+        "loss_over_threshold": "Mehr als 20 % der Dateien fehlen. Zum Schutz wurde nichts gelöscht.",
+        "other": "Letzter Fehler: {{message}}"
+      },
+      "rescan": "Erneut scannen",
+      "acceptLoss": {
+        "action": "Verlust akzeptieren",
+        "title": "Fehlende Dateien entfernen?",
+        "body": "Der nächste Scan entfernt die fehlenden Titel aus der Bibliothek, Fortschritte zu diesen Titeln gehen verloren. Tu das nur, wenn die Dateien absichtlich gelöscht wurden.",
+        "confirm": "Entfernen und scannen"
+      },
+      "add": {
+        "title": "Bibliothek hinzufügen",
+        "submit": "Hinzufügen",
+        "submitting": "Wird hinzugefügt …"
+      }
     }
   }
 }
