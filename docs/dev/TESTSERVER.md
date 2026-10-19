@@ -91,6 +91,14 @@ Geprüft: SSH als `root` mit Marcos Schlüssel, Debian 13 amd64, 2 Kerne, 4 GB, 
 (`hello-world` läuft), `smbd` aktiv und Freigabe `media` vom Entwicklungsrechner anonym sichtbar,
 Platzhalterbaum mit 60'800 Dateien in 2.7 s erzeugt.
 
+## Befund SMB-Verzeichniscache (19. Oktober 2026)
+
+Samba 4.22 im Container vergibt Directory Leases; der CIFS-Client auf dem Entwicklungsrechner (Kernel 7.0)
+hält das Listing von `Movies/` danach bis zu `dir_cache_timeout` (30 s, bei laufender Nutzung länger).
+Eine im Container angelegte Datei war über das Mount erst nach 218–445 s sichtbar, obwohl Poller (3 s)
+und Pfad-Scan (2 s) längst schnell genug sind. Für Messungen und für den Betrieb gilt die Abhilfe aus
+`deploy/README.md` («Medien auf SMB-Freigaben»): `dir_cache_timeout=0` auf dem Client.
+
 ## Noch offen
 
 - `smbpasswd -a media` im Container (Marco, Passwort nur dort).

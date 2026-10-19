@@ -86,6 +86,27 @@ GitHub-Repository existiert (ADR 0001, offene Folgepunkte). Ohne veröffentlicht
 Der Container läuft als `${PUID:-1000}:${PGID:-1000}`; `./config` und `./cache` müssen diesem Benutzer
 gehören (`sudo chown -R 1000:1000 config cache`, falls Docker sie als root angelegt hat).
 
+### Medien auf SMB-Freigaben (CIFS)
+
+Der Watcher erkennt Änderungen auf Netzfreigaben per Stat-Durchlauf (Plan 3.4). Auf SMB kommt ein
+Client-Cache dazu: Seit Samba 4.22 vergibt der Server **Directory Leases**, und der Linux-CIFS-Client hält
+Verzeichnislistings dann bis zu `dir_cache_timeout` (Standard 30 s, verlängert sich bei Nutzung). Legt ein
+Programm **direkt auf dem NAS** eine Datei an (Radarr oder Sonarr auf dem NAS selbst), erfährt der Client das
+unter Umständen erst Minuten später; die Messung auf dem Testserver zeigte 218–445 s statt < 60 s
+(`docs/perf/M1a.md`, Abschnitt 1b). Abhilfe auf dem Docker-Host, auf dem die Freigabe gemountet ist:
+
+```bash
+# sofort (bis zum Neustart)
+echo 0 | sudo tee /sys/module/cifs/parameters/dir_cache_timeout
+# dauerhaft
+echo 'options cifs dir_cache_timeout=0' | sudo tee /etc/modprobe.d/cifs-slouchcat.conf
+```
+
+Nicht `drop_dir_cache` schreiben: auf Kernel 7.0 löst das einen Kernel-Fehler aus («scheduling while
+atomic»). Schreibt Radarr/Sonarr über SMB von einem anderen Rechner, informiert Samba den Client selbst;
+mit dem Radarr/Sonarr-Webhook (M9) entfällt die Abhängigkeit vom Polling ganz (AN-12). NFS ist nicht
+betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
+
 ### Umgebungsvariablen
 
 | Variable | Standard im Image | Bedeutung |
