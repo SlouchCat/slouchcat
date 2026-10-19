@@ -38,6 +38,45 @@ Reserve ist mit rund 12 s knapp. Die Schwankung der Durchläufe (3–11 s) kommt
 kleine Freigabe `/mnt/nerdnas/medien/Testfilme` (13 Ordner, 45 Dateien) braucht 2.6–5.9 ms je Durchlauf.
 SMB ist nicht gemessen (keine SMB-Freigabe eingerichtet); der Proxmox-Testcontainer (Entscheid 2) folgt vor M1b.
 
+### 1b. Derselbe Baum über SMB (Proxmox-Testcontainer, Entscheid 2)
+
+Testcontainer 190 `slouchcat-nas` auf pve2 (`docs/dev/TESTSERVER.md`: 2 vCPU, 4 GB, Debian 13, Samba),
+Baum mit `setup-nas.sh` im Container erzeugt, auf dem Entwicklungsrechner per CIFS gemountet
+(`vers=3.1.1`, `cache=strict`). Messung 19. Oktober 2026, 11:30–11:55, Stand vor dem Poller-Umbau.
+
+| Messung | Wert | Grenzwert |
+|---|---|---|
+| Stat-Durchlauf des Pollers (seriell), 5 Läufe | 48.9 / 48.3 / 48.6 / 49.2 / 49.1 s | < 15 s je 10'000 Dateien, d. h. < 91 s für 60'800 (eingehalten), aber |
+| Adaptives Intervall daraus | 2 min 27 s | |
+| Python-Vergleich: alle 8'212 Ordner nur `stat` | 17.3 s | |
+| Python-Vergleich: alle Listings ohne Attribute / mit Attributen | 52.4 s / 54.5 s | |
+| Voll-Scan `Movies/` (2'500 Filmordner, erste Anlage) über SMB | 73.2 s | |
+| Rescan ohne Änderungen über SMB | 53.9 s | |
+| Neuer Filmordner (im Container angelegt) bis Titel sichtbar | **445 s** | < 60 s (B-4) **verfehlt** |
+
+Befund: CIFS kostet rund 6 ms je Verzeichnislisting und 2 ms je `stat`; Poller und Scanner arbeiteten
+seriell. Zwei Massnahmen im selben Meilenstein (Branch `claude/m1a-testserver-prep`):
+
+1. **Paralleler Poller** (Worker-Pool, Standard 16): Durchlauf über die Freigabe 48 s → 4.6 s
+   (1 Worker 44–70 s, 4: 20.5 s, 8: 10.3 s, 16: 4.6 s, 32: 3.8 s); lokal 130 ms → 36 ms.
+2. **Pfad-Scan `scan.path`**: der Watcher meldet die geänderten Ordner, der Scanner liest nur diese
+   (2.2 s vom Job bis zum sichtbaren Titel statt 54 s Rescan).
+
+Danach verfälschte ein **Client-Cache** die Messung: Samba 4.22 vergibt Directory Leases, der CIFS-Client
+hält das Listing bis `dir_cache_timeout` (30 s, bei Nutzung länger); eine im Container (also am Samba
+vorbei) angelegte Datei war erst nach 218 / 218 / 237 s sichtbar. Mit `dir_cache_timeout=0` auf dem Client
+(`deploy/README.md`, «Medien auf SMB-Freigaben»):
+
+| Messung (Cache aus, 16 Worker, Pfad-Scan) | Wert | Grenzwert |
+|---|---|---|
+| Stat-Durchlauf des Pollers | 2.8–3.1 s | < 15 s je 10'000 Dateien |
+| Erster Voll-Scan `Movies/` (2'500 Ordner) über SMB | 2 min 0 s (jeder `stat` geht zum Server) | einmalig |
+| Neuer Filmordner (im Container angelegt) bis Titel sichtbar, 3 Proben | **37.4 / 33.3 / 33.4 s** | < 60 s (B-4) **eingehalten** |
+
+Rechnung: bis 45 s Poll-Pause + 3 s Durchlauf + 2 s Entprellung + 2 s Pfad-Scan; typisch 33–37 s,
+schlechtester Fall rund 52 s. Ohne `dir_cache_timeout=0` gilt B-4 auf SMB nur mit Radarr/Sonarr-Webhook
+(M9) oder wenn die Arr-Dienste selbst über SMB schreiben (AN-12).
+
 ## 2. Scanner
 
 | Messung | Wert |

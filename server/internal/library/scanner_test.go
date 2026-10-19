@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -673,5 +674,280 @@ func TestTitleWithoutYearMergesOnlyInSameFolder(t *testing.T) {
 	if a, b := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Horror/Halloween/Halloween.mkv'`),
 		e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Horror/Halloween/Halloween.mp4'`); a != b {
 		t.Errorf("same-folder files on items %q and %q", a, b)
+	}
+}
+
+// pathScan runs a path scan of dirs in the first root of the library and returns its state.
+func (e *env) pathScan(lib model.Library, dirs ...string) model.Library {
+	e.t.Helper()
+	if err := e.svc.ScanPaths(e.ctx, lib.ID, []pathScanRoot{{RootID: lib.Roots[0].ID, Dirs: dirs}}); err != nil {
+		e.t.Fatalf("path scan: %v", err)
+	}
+	m, err := e.svc.Get(e.ctx, lib.ID)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return m
+}
+
+// touched counts the items, media files and jobs written at or after since.
+func (e *env) touched(since time.Time) (items, files, jobs int) {
+	e.t.Helper()
+	ms := since.UnixMilli()
+	return e.count(`SELECT count(*) FROM items WHERE updated_at >= ?`, ms),
+		e.count(`SELECT count(*) FROM media_files WHERE updated_at >= ?`, ms),
+		e.count(`SELECT count(*) FROM jobs WHERE created_at >= ?`, ms)
+}
+
+func TestPathScanNewFileTouchesOnlyItsFolder(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, twentyMovies[:10])
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	e.clock.Advance(time.Hour)
+	since := e.clock.Now()
+
+	writeFile(t, dir, "Up (2009)/Up (2009).mkv", "up")
+	got := e.pathScan(lib, ".", "Up (2009)")
+	if got.Scan.State != "done" || got.Scan.ItemCount != 11 || got.Scan.FileCount != 11 {
+		t.Fatalf("path scan = %+v, want done with 11 items and files", got.Scan)
+	}
+	// The counts of the last full scan stay; the path scan does not replace them.
+	if got.Scan.FilesTotal != 10 || got.Scan.FilesSeen != 10 {
+		t.Errorf("scan progress = %d/%d, want the full scan's 10/10", got.Scan.FilesSeen, got.Scan.FilesTotal)
+	}
+	fileID := e.str(`SELECT id FROM media_files WHERE rel_path = 'Up (2009)/Up (2009).mkv'`)
+	itemID := e.str(`SELECT item_id FROM media_files WHERE id = ?`, fileID)
+	if e.str(`SELECT title || ' ' || year FROM items WHERE id = ?`, itemID) != "Up 2009" {
+		t.Errorf("new item = %q", e.str(`SELECT title || ' ' || year FROM items WHERE id = ?`, itemID))
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ?`, JobProbeFile, "probe:"+fileID); n != 1 {
+		t.Errorf("probe.file jobs for the new file = %d, want 1", n)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ?`, JobMetadataMatch, "match:"+itemID); n != 1 {
+		t.Errorf("metadata.match jobs for the new item = %d, want 1", n)
+	}
+	if items, files, jobs := e.touched(since); items != 1 || files != 1 || jobs != 2 {
+		t.Errorf("rows written: %d items, %d media files, %d jobs; want 1, 1, 2 (only the new title)", items, files, jobs)
+	}
+
+	// The same path scan again converges: nothing written.
+	e.clock.Advance(time.Hour)
+	since = e.clock.Now()
+	if got := e.pathScan(lib, ".", "Up (2009)"); got.Scan.State != "done" || got.Scan.ItemCount != 11 {
+		t.Fatalf("second path scan = %+v", got.Scan)
+	}
+	if items, files, jobs := e.touched(since); items != 0 || files != 0 || jobs != 0 {
+		t.Errorf("second path scan wrote %d items, %d media files, %d jobs", items, files, jobs)
+	}
+}
+
+func TestPathScanRenameKeepsFile(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, twentyMovies[:10])
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	fileID := e.str(`SELECT id FROM media_files WHERE rel_path = ?`, twentyMovies[0])
+	itemID := e.str(`SELECT item_id FROM media_files WHERE id = ?`, fileID)
+	jobsBefore := e.count(`SELECT count(*) FROM jobs`)
+
+	// Inside the folder.
+	rename(t, dir, twentyMovies[0], "Alien (1979)/Alien (1979) - 1080p.mkv")
+	e.pathScan(lib, "Alien (1979)")
+	if v := e.str(`SELECT id || ' ' || item_id || ' ' || version_label FROM media_files WHERE rel_path = 'Alien (1979)/Alien (1979) - 1080p.mkv'`); v != fileID+" "+itemID+" 1080p" {
+		t.Fatalf("renamed file = %q, want the same file and item", v)
+	}
+
+	// Into another folder; the scan names only the new folder (its events came first).
+	rename(t, dir, "Alien (1979)/Alien (1979) - 1080p.mkv", "Alien Directors Cut (1979)/Alien (1979).mkv")
+	e.pathScan(lib, "Alien Directors Cut (1979)")
+	if v := e.str(`SELECT id FROM media_files WHERE rel_path = 'Alien Directors Cut (1979)/Alien (1979).mkv'`); v != fileID {
+		t.Fatalf("moved file has id %q, want %q", v, fileID)
+	}
+	if n := e.count(`SELECT count(*) FROM media_files`); n != 10 {
+		t.Errorf("media files = %d, want 10", n)
+	}
+	// The old folder's scan finds nothing left to do.
+	e.pathScan(lib, "Alien (1979)")
+	if n := e.count(`SELECT count(*) FROM media_files WHERE missing_since IS NOT NULL`); n != 0 {
+		t.Errorf("%d files missing after the moves", n)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs`); n != jobsBefore {
+		t.Errorf("renames queued %d jobs, want none", n-jobsBefore)
+	}
+
+	// A hard link in another folder is a copy, not a move: the original stays where it is.
+	if err := os.Link(filepath.Join(dir, twentyMovies[5]), filepath.Join(dir, "Lola rennt (1998)", "Inception Copy (2010).mp4")); err != nil {
+		t.Fatal(err)
+	}
+	e.pathScan(lib, "Lola rennt (1998)")
+	if v := e.str(`SELECT rel_path FROM media_files WHERE id = (SELECT id FROM media_files WHERE rel_path = ?)`, twentyMovies[5]); v != twentyMovies[5] {
+		t.Errorf("hard-linked original moved to %q", v)
+	}
+	if n := e.count(`SELECT count(*) FROM media_files`); n != 11 {
+		t.Errorf("media files = %d, want 11 (the link is a file of its own)", n)
+	}
+}
+
+func TestPathScanMissingFilesAndFolders(t *testing.T) {
+	e := newEnv(t)
+	files := append([]string{"Avatar (2009)/Avatar (2009) - 1080p.mkv", "Avatar (2009)/Avatar (2009) - 2160p.mkv"}, twentyMovies[:10]...)
+	dir := tree(t, files)
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	missing := func() int { return e.count(`SELECT count(*) FROM media_files WHERE missing_since IS NOT NULL`) }
+
+	// A removed file.
+	remove(t, dir, twentyMovies[1])
+	if got := e.pathScan(lib, path.Dir(twentyMovies[1])); got.Scan.State != "done" || missing() != 1 || got.Scan.FileCount != 11 {
+		t.Fatalf("after a removed file: %+v, missing %d", got.Scan, missing())
+	}
+	// A removed folder: both its files go missing (3 of 12 within 24 h: 25 %, accepted below).
+	if err := os.RemoveAll(filepath.Join(dir, "Avatar (2009)")); err != nil {
+		t.Fatal(err)
+	}
+	got := e.pathScan(lib, ".", "Avatar (2009)")
+	if got.Scan.State != "aborted" || got.Scan.LastError != abortLoss || missing() != 1 {
+		t.Fatalf("crossing 20 %% within 24 h: %+v, missing %d; want aborted/loss_over_threshold, 1", got.Scan, missing())
+	}
+	if _, err := e.svc.AcceptLoss(e.ctx, lib.ID); err != nil {
+		t.Fatal(err)
+	}
+	got = e.pathScan(lib, ".", "Avatar (2009)")
+	if got.Scan.State != "done" || missing() != 3 || got.Scan.FileCount != 9 || got.Scan.LossAcceptedAt != nil {
+		t.Fatalf("accepted: %+v, missing %d; want done, 3 missing, acceptance cleared", got.Scan, missing())
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE available = 0 AND deleted_at IS NULL`); n != 2 {
+		t.Errorf("unavailable items = %d, want 2", n)
+	}
+	// The file reappears: missing_since clears.
+	writeFile(t, dir, twentyMovies[1], fmt.Sprintf("video %d %s", 3, twentyMovies[1]))
+	if got := e.pathScan(lib, path.Dir(twentyMovies[1])); got.Scan.State != "done" || missing() != 2 {
+		t.Fatalf("after reappearance: %+v, missing %d", got.Scan, missing())
+	}
+}
+
+func TestPathScanLossProtection(t *testing.T) {
+	ten := twentyMovies[:10]
+	missing := func(e *env) int { return e.count(`SELECT count(*) FROM media_files WHERE missing_since IS NOT NULL`) }
+
+	t.Run("root missing", func(t *testing.T) {
+		e := newEnv(t)
+		dir := tree(t, ten)
+		lib := e.create(dir)
+		e.scan(lib.ID)
+		if err := os.RemoveAll(dir); err != nil {
+			t.Fatal(err)
+		}
+		got := e.pathScan(lib, ".", "Alien (1979)")
+		if got.Scan.State != "aborted" || got.Scan.LastError != abortRootMissing || missing(e) != 0 {
+			t.Fatalf("path scan = %q/%q, missing %d; want aborted/root_missing", got.Scan.State, got.Scan.LastError, missing(e))
+		}
+	})
+
+	t.Run("root empty", func(t *testing.T) {
+		e := newEnv(t)
+		dir := tree(t, ten)
+		lib := e.create(dir)
+		e.scan(lib.ID)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range entries {
+			if err := os.RemoveAll(filepath.Join(dir, d.Name())); err != nil {
+				t.Fatal(err)
+			}
+		}
+		got := e.pathScan(lib, ".", "Alien (1979)")
+		if got.Scan.State != "aborted" || got.Scan.LastError != abortRootEmpty || missing(e) != 0 {
+			t.Fatalf("path scan = %q/%q, missing %d; want aborted/root_empty", got.Scan.State, got.Scan.LastError, missing(e))
+		}
+	})
+
+	t.Run("30 percent at once", func(t *testing.T) {
+		e := newEnv(t)
+		dir := tree(t, ten)
+		lib := e.create(dir)
+		e.scan(lib.ID)
+		e.clock.Advance(time.Hour)
+		since := e.clock.Now()
+		var dirs []string
+		for _, f := range ten[:3] {
+			if err := os.RemoveAll(filepath.Join(dir, path.Dir(f))); err != nil {
+				t.Fatal(err)
+			}
+			dirs = append(dirs, path.Dir(f))
+		}
+		got := e.pathScan(lib, append(dirs, ".")...)
+		if got.Scan.State != "aborted" || got.Scan.LastError != abortLoss {
+			t.Fatalf("path scan = %q/%q, want aborted/loss_over_threshold", got.Scan.State, got.Scan.LastError)
+		}
+		if items, files, jobs := e.touched(since); items != 0 || files != 0 || jobs != 0 || missing(e) != 0 {
+			t.Errorf("aborted path scan wrote %d items, %d files, %d jobs; %d missing", items, files, jobs, missing(e))
+		}
+	})
+
+	t.Run("small losses add up within 24 h", func(t *testing.T) {
+		e := newEnv(t)
+		dir := tree(t, ten)
+		lib := e.create(dir)
+		e.scan(lib.ID)
+		for i, want := range []string{"done", "done", "aborted"} {
+			remove(t, dir, ten[i])
+			got := e.pathScan(lib, path.Dir(ten[i]))
+			if got.Scan.State != want {
+				t.Fatalf("loss %d: state %q (%q), want %q", i+1, got.Scan.State, got.Scan.LastError, want)
+			}
+		}
+		if missing(e) != 2 {
+			t.Fatalf("missing = %d, want 2 (the third loss crosses 20 %%)", missing(e))
+		}
+		// After 24 h the earlier losses no longer count.
+		e.clock.Advance(25 * time.Hour)
+		if got := e.pathScan(lib, path.Dir(ten[2])); got.Scan.State != "done" || missing(e) != 3 {
+			t.Fatalf("after 24 h: %+v, missing %d", got.Scan, missing(e))
+		}
+	})
+}
+
+// A path scan waits for a running full scan of the same library instead of racing it.
+func TestPathScanWaitsForFullScan(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, twentyMovies[:3])
+	lib := e.create(dir)
+	unlock, err := e.svc.lockScan(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- e.svc.ScanPaths(e.ctx, lib.ID, []pathScanRoot{{RootID: lib.Roots[0].ID, Dirs: []string{"."}}})
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("path scan ran while the library was locked: %v", err)
+	case <-time.After(200 * time.Millisecond):
+	}
+	unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(e.ctx)
+	unlock, err = e.svc.lockScan(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	cancel()
+	if err := e.svc.ScanPaths(ctx, lib.ID, nil); !errors.Is(err, context.Canceled) {
+		t.Errorf("waiting path scan with a cancelled context = %v", err)
+	}
+}
+
+func TestCleanDirs(t *testing.T) {
+	got := cleanDirs([]string{"b/", "a", ".", "a", "../x", "/abs", "@eaDir/x", "a/.hidden", "c/./d"})
+	if want := []string{".", "a", "b", "c/d"}; !slices.Equal(got, want) {
+		t.Errorf("cleanDirs = %q, want %q", got, want)
 	}
 }

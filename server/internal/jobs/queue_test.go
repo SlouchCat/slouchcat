@@ -271,3 +271,26 @@ func TestCancel(t *testing.T) {
 		t.Fatalf("state = %s, %v; want cancelled", got.State, err)
 	}
 }
+
+func TestSetQueuedPayloadOnlyWhileQueued(t *testing.T) {
+	ctx := context.Background()
+	q, _ := newTestQueue(t)
+	id := mustEnqueue(t, q, NewJob{Type: "a", IdempotencyKey: "k", Payload: []byte(`{"dirs":["x"]}`)})
+
+	if ok, err := q.SetQueuedPayload(ctx, id, []byte(`{"dirs":["x","y"]}`)); err != nil || !ok {
+		t.Fatalf("SetQueuedPayload on a queued job = %v, %v; want true", ok, err)
+	}
+	if _, err := q.SetQueuedPayload(ctx, id, []byte(`{`)); err == nil {
+		t.Error("invalid JSON accepted")
+	}
+	j := mustClaim(t, q, "w1")
+	if j == nil || string(j.Payload) != `{"dirs":["x","y"]}` {
+		t.Fatalf("claimed %+v, want the merged payload", j)
+	}
+	if ok, err := q.SetQueuedPayload(ctx, id, []byte(`{"dirs":["z"]}`)); err != nil || ok {
+		t.Fatalf("SetQueuedPayload on a running job = %v, %v; want false", ok, err)
+	}
+	if got, err := q.Get(ctx, id); err != nil || string(got.Payload) != `{"dirs":["x","y"]}` {
+		t.Errorf("payload of the running job = %s, %v", got.Payload, err)
+	}
+}

@@ -20,11 +20,12 @@ import (
 // when requested, the time and watch count to register the whole tree with inotify plus the
 // latency until a new file is reported. It writes the numbers for docs/perf/<Mx>.md.
 //
-//	slouchcat watchbench --root DIR [--passes 3] [--inotify]
+//	slouchcat watchbench --root DIR [--passes 3] [--workers 8] [--inotify]
 func watchbench(args []string) int {
 	fs := flag.NewFlagSet("watchbench", flag.ContinueOnError)
 	root := fs.String("root", "", "absolute directory to measure")
 	passes := fs.Int("passes", 3, "number of stat passes")
+	workers := fs.Int("workers", library.DefaultPollWorkers, "concurrent directory listings of the stat pass")
 	inotify := fs.Bool("inotify", false, "also register the tree with inotify and measure the event latency")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -33,14 +34,18 @@ func watchbench(args []string) int {
 		fmt.Fprintln(os.Stderr, "watchbench: --root is required")
 		return 2
 	}
-	if err := runWatchbench(*root, *passes, *inotify); err != nil {
+	if *workers < 1 {
+		fmt.Fprintln(os.Stderr, "watchbench: --workers must be at least 1")
+		return 2
+	}
+	if err := runWatchbench(*root, *passes, *workers, *inotify); err != nil {
 		fmt.Fprintln(os.Stderr, "watchbench:", err)
 		return 1
 	}
 	return 0
 }
 
-func runWatchbench(dir string, passes int, inotify bool) error {
+func runWatchbench(dir string, passes, workers int, inotify bool) error {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return err
@@ -56,7 +61,9 @@ func runWatchbench(dir string, passes int, inotify bool) error {
 	fmt.Printf("root: %s (fs %s)\n", abs, fsType)
 
 	changed := 0
-	poller := library.NewPoller(root, func() { changed++ })
+	poller := library.NewPoller(root, func([]string) { changed++ })
+	poller.Workers = workers
+	fmt.Printf("poller: %d workers\n", workers)
 	ctx := context.Background()
 	for i := range passes {
 		st, err := poller.Pass(ctx)
@@ -72,7 +79,7 @@ func runWatchbench(dir string, passes int, inotify bool) error {
 
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	seen := make(chan struct{}, 1)
-	w := library.NewWatcher(root, library.WatchInotify, func() {
+	w := library.NewWatcher(root, library.WatchInotify, func([]string) {
 		select {
 		case seen <- struct{}{}:
 		default:

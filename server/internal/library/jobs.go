@@ -16,6 +16,7 @@ import (
 // Job types. The names are a contract with the packages that enqueue or handle them.
 const (
 	JobScanLibrary    = "scan.library"    // payload {"libraryId": n}, key scan:<id>
+	JobScanPath       = "scan.path"       // payload pathScanPayload, key scan:<id>:path
 	JobProbeFile      = "probe.file"      // payload {"mediaFileId": "<ULID>"}, key probe:<id>
 	JobProbeKeyframes = "probe.keyframes" // payload {"mediaFileId": "<ULID>"}, key keyframes:<id>
 	JobSweep          = "library.sweep"   // key sweep
@@ -24,6 +25,7 @@ const (
 
 // Job priorities (0 lowest, 9 highest).
 const (
+	prioPathScan  = 6
 	prioScan      = 5
 	prioMatch     = 4
 	prioProbe     = 3
@@ -35,6 +37,19 @@ type libraryPayload struct {
 	LibraryID int64 `json:"libraryId"`
 }
 
+// pathScanPayload names the directories a path scan reads: per root of the library, directories
+// slash-separated and relative to the root ("." is the root itself), sorted and unique.
+// Example: {"libraryId": 1, "roots": [{"rootId": 1, "dirs": [".", "Alien (1979)"]}]}.
+type pathScanPayload struct {
+	LibraryID int64          `json:"libraryId"`
+	Roots     []pathScanRoot `json:"roots"`
+}
+
+type pathScanRoot struct {
+	RootID int64    `json:"rootId"`
+	Dirs   []string `json:"dirs"`
+}
+
 type mediaFilePayload struct {
 	MediaFileID string `json:"mediaFileId"`
 }
@@ -44,6 +59,8 @@ type itemPayload struct {
 }
 
 func scanKey(libraryID int64) string { return "scan:" + strconv.FormatInt(libraryID, 10) }
+
+func pathScanKey(libraryID int64) string { return scanKey(libraryID) + ":path" }
 
 // newJob describes a job that is enqueued inside a scan or probe transaction.
 type newJob struct {
@@ -94,6 +111,7 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 // RegisterJobs registers the handlers of the library jobs on w.
 func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobScanLibrary, s.handleScan)
+	w.Handle(JobScanPath, s.handlePathScan)
 	w.Handle(JobProbeFile, s.handleProbe)
 	w.Handle(JobProbeKeyframes, s.handleKeyframes)
 	w.Handle(JobSweep, s.handleSweep)
