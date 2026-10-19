@@ -39,6 +39,18 @@ const (
 	stillPriority        = 1 // episode stills come after posters
 )
 
+// errItemChanged ends a match whose title changed its provider ids or locked fields while the job
+// resolved it (a manual match or a refresh in the meantime): the job writes nothing and returns
+// this error, so the queue retries it and the next run resolves with the new ids.
+var errItemChanged = errors.New("provider ids or locked fields changed during the match")
+
+// sameIdentity reports whether cur still has the provider ids and locked fields of the snapshot a
+// match started from.
+func sameIdentity(cur, snap systemq.Item) bool {
+	return cur.TmdbID == snap.TmdbID && cur.TvdbID == snap.TvdbID && cur.ImdbID == snap.ImdbID &&
+		cur.LockedFields == snap.LockedFields
+}
+
 // maxEpisodesPerTx bounds a season transaction: every episode writes two texts and one row, so a
 // transaction stays below 500 rows (jobs package rule).
 const maxEpisodesPerTx = 150
@@ -119,7 +131,7 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
 	if !found || rec.TMDBID == 0 {
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
-	applied, err := s.applyTitle(ctx, item.ID, rec.TitleRecord)
+	_, applied, err := s.applyTitle(ctx, item, rec.TitleRecord)
 	if err != nil || !applied {
 		return err
 	}
@@ -210,11 +222,11 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	if !found {
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
-	applied, err := s.applyTitle(ctx, item.ID, rec.TitleRecord)
+	series, applied, err := s.applyTitle(ctx, item, rec.TitleRecord)
 	if err != nil || !applied {
 		return err
 	}
-	if err := s.matchSeasons(ctx, item.ID, prov, rec); err != nil {
+	if err := s.matchSeasons(ctx, series, prov, rec); err != nil {
 		return err
 	}
 	return s.enqueueTrailerAfterMatch(ctx, item.ID)
@@ -310,8 +322,10 @@ func (s *Service) seriesProvider(series systemq.Item) (Provider, string, bool) {
 // matchSeasons writes every season of the series that exists in the library and every episode of
 // it that exists, one transaction per season (and per maxEpisodesPerTx episodes), then enqueues
 // image.fetch for the series, its seasons and episodes with an image path and metadata.match for
-// the episodes still waiting.
-func (s *Service) matchSeasons(ctx context.Context, seriesID string, prov Provider, rec SeriesRecord) error {
+// the episodes still waiting. series is the series as applyTitle wrote it; a season transaction
+// that finds other provider ids or locked fields on it writes nothing (errItemChanged).
+func (s *Service) matchSeasons(ctx context.Context, series systemq.Item, prov Provider, rec SeriesRecord) error {
+	seriesID := series.ID
 	children, err := s.read.ListChildItems(ctx, sql.NullString{String: seriesID, Valid: true})
 	if err != nil {
 		return fmt.Errorf("metadata.match: list seasons of %s: %w", seriesID, err)
@@ -373,7 +387,7 @@ func (s *Service) matchSeasons(ctx context.Context, seriesID string, prov Provid
 		if it, ok := seasons[n]; ok {
 			season = &it
 		}
-		written, err := s.applySeason(ctx, season, episodes[n], srec)
+		written, err := s.applySeason(ctx, series, season, episodes[n], srec)
 		if err != nil {
 			return err
 		}
@@ -407,7 +421,7 @@ type imageJob struct {
 
 // applySeason writes the season item (when the library has one) and its episodes in batches. It
 // returns the image jobs for the written items with an image path.
-func (s *Service) applySeason(ctx context.Context, season *systemq.Item, eps []systemq.Item, srec SeasonRecord) ([]imageJob, error) {
+func (s *Service) applySeason(ctx context.Context, series systemq.Item, season *systemq.Item, eps []systemq.Item, srec SeasonRecord) ([]imageJob, error) {
 	byNumber := make(map[int]EpisodeRecord, len(srec.Episodes))
 	for _, e := range srec.Episodes {
 		byNumber[e.Number] = e
@@ -421,7 +435,7 @@ func (s *Service) applySeason(ctx context.Context, season *systemq.Item, eps []s
 			withSeason = season
 		}
 		first = false
-		written, err := s.applySeasonBatch(ctx, withSeason, batch, srec, byNumber)
+		written, err := s.applySeasonBatch(ctx, series, withSeason, batch, srec, byNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -430,7 +444,7 @@ func (s *Service) applySeason(ctx context.Context, season *systemq.Item, eps []s
 	return out, nil
 }
 
-func (s *Service) applySeasonBatch(ctx context.Context, season *systemq.Item, eps []systemq.Item, srec SeasonRecord, byNumber map[int]EpisodeRecord) ([]imageJob, error) {
+func (s *Service) applySeasonBatch(ctx context.Context, series systemq.Item, season *systemq.Item, eps []systemq.Item, srec SeasonRecord, byNumber map[int]EpisodeRecord) ([]imageJob, error) {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("metadata.match: begin: %w", err)
@@ -439,6 +453,9 @@ func (s *Service) applySeasonBatch(ctx context.Context, season *systemq.Item, ep
 	q := s.write.WithTx(tx)
 	now := s.now().UnixMilli()
 	var out []imageJob
+	if err := checkSeries(ctx, q, series); err != nil {
+		return nil, err
+	}
 
 	if season != nil {
 		cur, ok, err := reloadItem(ctx, q, season.ID)
@@ -576,6 +593,20 @@ func (s *Service) writeChild(ctx context.Context, q *systemq.Queries, cur system
 	return nil
 }
 
+// checkSeries reloads the series inside the transaction of a season or episode write and returns
+// errItemChanged when its provider ids or locked fields differ from the snapshot the job resolved
+// the provider records with.
+func checkSeries(ctx context.Context, q *systemq.Queries, series systemq.Item) error {
+	cur, ok, err := reloadItem(ctx, q, series.ID)
+	if err != nil {
+		return err
+	}
+	if ok && !sameIdentity(cur, series) {
+		return fmt.Errorf("metadata.match %s: %w", series.ID, errItemChanged)
+	}
+	return nil
+}
+
 // reloadItem reads an item inside a transaction; ok is false when it is gone or soft-deleted.
 func reloadItem(ctx context.Context, q *systemq.Queries, id string) (systemq.Item, bool, error) {
 	cur, err := q.GetItemSystem(ctx, id)
@@ -633,6 +664,9 @@ func (s *Service) matchEpisode(ctx context.Context, item systemq.Item) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.write.WithTx(tx)
+	if err := checkSeries(ctx, q, series); err != nil {
+		return err
+	}
 	cur, ok, err := reloadItem(ctx, q, item.ID)
 	if err != nil || !ok {
 		return err
@@ -674,50 +708,66 @@ func (s *Service) seriesOf(ctx context.Context, item systemq.Item) (systemq.Item
 }
 
 // applyTitle writes the texts, columns and credits of a movie or series in one transaction,
-// keeping locked fields. It reports false when the item disappeared in the meantime.
-func (s *Service) applyTitle(ctx context.Context, itemID string, rec TitleRecord) (bool, error) {
+// keeping locked fields. snap is the item the job resolved rec with: when the reloaded row has
+// other provider ids or locked fields (a manual match or refresh meanwhile), nothing is written
+// and errItemChanged is returned for a retry. It returns the item with the provider ids as
+// written, and false when the item disappeared in the meantime. A changed own rating triggers the
+// visibility recheck of open streams after the commit.
+func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRecord) (systemq.Item, bool, error) {
+	itemID := snap.ID
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
-		return false, fmt.Errorf("metadata.match: begin: %w", err)
+		return snap, false, fmt.Errorf("metadata.match: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.write.WithTx(tx)
 
 	cur, ok, err := reloadItem(ctx, q, itemID)
 	if err != nil || !ok {
-		return false, err
+		return snap, false, err
+	}
+	if !sameIdentity(cur, snap) {
+		return snap, false, fmt.Errorf("metadata.match %s: %w", itemID, errItemChanged)
 	}
 	stored, err := q.ListItemTextsByItem(ctx, itemID)
 	if err != nil {
-		return false, fmt.Errorf("metadata.match: load texts %s: %w", itemID, err)
+		return snap, false, fmt.Errorf("metadata.match: load texts %s: %w", itemID, err)
 	}
 	locked := lockedFields(cur.LockedFields)
 	defTitle := func(string) string { return firstNonEmpty(rec.OriginalTitle, cur.Title) }
 	for _, t := range buildTexts(cur, stored, locked, rec.Texts, defTitle, true) {
 		if err := q.UpsertItemText(ctx, t); err != nil {
-			return false, fmt.Errorf("metadata.match: write %s text of %s: %w", t.Lang, itemID, err)
+			return snap, false, fmt.Errorf("metadata.match: write %s text of %s: %w", t.Lang, itemID, err)
 		}
 	}
 	p, err := titleUpdate(cur, locked, rec)
 	if err != nil {
-		return false, err
+		return snap, false, err
 	}
 	now := s.now().UnixMilli()
 	p.Now = sql.NullInt64{Int64: now, Valid: true}
 	if err := q.UpdateItemMatch(ctx, p); err != nil {
-		return false, fmt.Errorf("metadata.match: update item %s: %w", itemID, err)
+		return snap, false, fmt.Errorf("metadata.match: update item %s: %w", itemID, err)
 	}
 	if !locked["cast"] {
 		if err := replaceCredits(ctx, q, itemID, rec.Credits, now); err != nil {
-			return false, err
+			return snap, false, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("metadata.match: commit %s: %w", itemID, err)
+		return snap, false, fmt.Errorf("metadata.match: commit %s: %w", itemID, err)
 	}
 	s.log.Info("item matched", "item_id", itemID, "provider", rec.Provider, "provider_id", rec.ID,
 		"rating_source", p.RatingSource.String)
-	return true, nil
+	if p.OwnRating != cur.OwnRating && s.recheck != nil {
+		// The match is stored; a failed recheck only leaves streams open until the next change.
+		if err := s.recheck(ctx); err != nil {
+			s.log.Warn("visibility recheck after a rating change failed", "item_id", itemID, "err", err)
+		}
+	}
+	written := cur
+	written.TmdbID, written.TvdbID, written.ImdbID = p.TmdbID, p.TvdbID, p.ImdbID
+	return written, true, nil
 }
 
 // replaceCredits replaces the credits of an item; people are upserted by their TMDB ID, people
@@ -906,6 +956,36 @@ func (s *Service) enqueueMatch(ctx context.Context, itemID string, priority int)
 	return s.enqueueJob(ctx, JobMatch, "match:", itemID, priority)
 }
 
+// enqueueManualMatch queues metadata.match at the priority of a manual match or refresh. A match
+// job of the title that is already queued at a lower priority (a scan's) is cancelled and queued
+// again at the manual priority; a running one is left alone, because its write sees the changed
+// ids and retries (errItemChanged).
+func (s *Service) enqueueManualMatch(ctx context.Context, itemID string) error {
+	payload, err := json.Marshal(itemPayload{ItemID: itemID})
+	if err != nil {
+		return fmt.Errorf("%s payload: %w", JobMatch, err)
+	}
+	nj := jobs.NewJob{Type: JobMatch, Priority: matchManualPriority, IdempotencyKey: "match:" + itemID, Payload: payload}
+	id, err := s.queue.Enqueue(ctx, nj)
+	if err != nil {
+		return fmt.Errorf("enqueue %s %s: %w", JobMatch, itemID, err)
+	}
+	j, err := s.queue.Get(ctx, id)
+	if err != nil {
+		return fmt.Errorf("enqueue %s %s: %w", JobMatch, itemID, err)
+	}
+	if j.State != jobs.StateQueued || j.Priority >= matchManualPriority {
+		return nil
+	}
+	if _, err := s.queue.Cancel(ctx, id); err != nil {
+		return fmt.Errorf("enqueue %s %s: %w", JobMatch, itemID, err)
+	}
+	if _, err := s.queue.Enqueue(ctx, nj); err != nil {
+		return fmt.Errorf("enqueue %s %s: %w", JobMatch, itemID, err)
+	}
+	return nil
+}
+
 // enqueueTrailerAfterMatch queues trailer.find after a successful movie or series match; the job
 // itself skips titles without tmdb_id or with the trailer field locked.
 func (s *Service) enqueueTrailerAfterMatch(ctx context.Context, itemID string) error {
@@ -915,25 +995,46 @@ func (s *Service) enqueueTrailerAfterMatch(ctx context.Context, itemID string) e
 	return nil
 }
 
+// maxUpgradeMatches bounds the one-time matches of titles matched before M3 per check.
+const maxUpgradeMatches = 200
+
 // QueuePendingMetadata enqueues metadata.match for every title of the library whose metadata is
 // still pending without an active match job: movies and series (priority 4) and episodes of
-// matched series (priority 3). The library scan calls it after every complete run, so enrichment
-// converges after aborted scans and failed jobs. It returns the number of jobs queued.
+// matched series (priority 3). It also queues one match (priority 4, at most maxUpgradeMatches per
+// run) for matched titles from before M3, which lack image paths, credits and trailers
+// (ListUpgradeMatchItems), and trailer.find for matched titles whose trailers are still pending
+// (QueuePendingTrailers, for example after the YouTube quota ran out). The library scan calls it
+// after every complete run, so enrichment converges after aborted scans, failed jobs and the
+// upgrade. It returns the number of jobs queued.
 func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (int, error) {
 	rows, err := s.read.ListPendingMatchItems(ctx, libraryID)
 	if err != nil {
 		return 0, fmt.Errorf("list pending metadata: %w", err)
 	}
-	for i, r := range rows {
+	n := 0
+	for _, r := range rows {
 		prio := matchPriority
 		if r.Kind == "episode" {
 			prio = matchEpisodePriority
 		}
 		if err := s.enqueueMatch(ctx, r.ID, prio); err != nil {
-			return i, err
+			return n, err
 		}
+		n++
 	}
-	return len(rows), nil
+	// Before the trailers: a queued trailer job keeps a title out of the upgrade list.
+	upgrade, err := s.read.ListUpgradeMatchItems(ctx, systemq.ListUpgradeMatchItemsParams{LibraryID: libraryID, LimitCount: maxUpgradeMatches})
+	if err != nil {
+		return n, fmt.Errorf("list titles matched before M3: %w", err)
+	}
+	for _, id := range upgrade {
+		if err := s.enqueueMatch(ctx, id, matchPriority); err != nil {
+			return n, err
+		}
+		n++
+	}
+	t, err := s.QueuePendingTrailers(ctx, libraryID)
+	return n + t, err
 }
 
 func genreNames(gs []Genre) []string {

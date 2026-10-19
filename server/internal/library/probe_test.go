@@ -102,6 +102,57 @@ func TestProbeJobsOnTestMedia(t *testing.T) {
 	}
 }
 
+// M3 review, finding 4: a probe that fails because of the environment (ffprobe not configured or
+// not found) is returned for a retry and stores no probe_error; only a failure of the file does.
+func TestProbeEnvironmentErrorsAreRetried(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, []string{"Alien (1979)/Alien (1979).mkv"})
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	id := e.str(`SELECT id FROM media_files`)
+	for name, runner := range map[string]transcode.Runner{
+		"not configured": {},
+		"not found":      {FFprobePath: filepath.Join(t.TempDir(), "ffprobe")},
+	} {
+		e.svc.probe = runner
+		if err := e.svc.handleProbe(e.ctx, mediaJob(t, JobProbeFile, id)); err == nil {
+			t.Errorf("%s: probe = nil, want an error for a retry", name)
+		}
+		if v := e.str(`SELECT coalesce(probe_error, '') || '/' || coalesce(probed_at, '') FROM media_files WHERE id = ?`, id); v != "/" {
+			t.Errorf("%s: probe_error/probed_at = %q, want none", name, v)
+		}
+	}
+}
+
+// A file that comes back unchanged after missing_since is probed again, so a probe that failed
+// while the file was away does not stay.
+func TestReturningFileIsProbedAgain(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, twentyMovies[:10])
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	rel := twentyMovies[0]
+	id := e.str(`SELECT id FROM media_files WHERE rel_path = ?`, rel)
+	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE jobs SET state = 'done' WHERE type = ?`, JobProbeFile); err != nil {
+		t.Fatal(err)
+	}
+	away := filepath.Join(t.TempDir(), "away.mkv")
+	if err := os.Rename(filepath.Join(dir, filepath.FromSlash(rel)), away); err != nil {
+		t.Fatal(err)
+	}
+	e.scan(lib.ID)
+	if n := e.count(`SELECT count(*) FROM media_files WHERE id = ? AND missing_since IS NOT NULL`, id); n != 1 {
+		t.Fatal("the file is not missing")
+	}
+	if err := os.Rename(away, filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+		t.Fatal(err)
+	}
+	e.scan(lib.ID)
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND idempotency_key = ?`, JobProbeFile, "probe:"+id); n != 1 {
+		t.Errorf("probe jobs for the returned file = %d, want 1", n)
+	}
+}
+
 func TestKeyframeEncoding(t *testing.T) {
 	in := []time.Duration{4 * time.Second, 0, 2*time.Second + 2*time.Millisecond, -time.Millisecond, 2 * time.Hour}
 	b := EncodeKeyframes(in)

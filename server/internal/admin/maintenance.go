@@ -34,6 +34,9 @@ const (
 	pendingAfter  = 24 * time.Hour
 	maxMergeIDs   = 100
 	maxCleanupIDs = 5000
+	// maxHashGroups caps the file_hash groups of one duplicates answer (files below 1 MiB are
+	// never grouped); the administrator merges or removes them and sees the next ones.
+	maxHashGroups = 200
 	// cleanupReason is the ignored_files reason of files the administrator removes.
 	cleanupReason = "unplayable"
 )
@@ -131,7 +134,8 @@ func (s *Service) ListIssues(ctx context.Context, kind string, libraryID *int64,
 		}
 		all = slices.DeleteFunc(all, func(i model.Issue) bool { return libraryID != nil && i.LibraryID != *libraryID })
 		total = int64(len(all))
-		page.Items = append(page.Items, all[min(offset, len(all)):min(offset+limit, len(all))]...)
+		from := min(offset, len(all)) // offset+limit could overflow for an offset near MaxInt
+		page.Items = append(page.Items, all[from:from+min(limit, len(all)-from)]...)
 	}
 	if err != nil {
 		return model.IssuePage{}, fmt.Errorf("list %s issues: %w", kind, err)
@@ -364,8 +368,13 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 	}
 	var current *model.DuplicateGroup
 	var currentHash string
+	groups := 0
 	for _, r := range hashes {
 		if current == nil || r.PartialHash.String != currentHash {
+			if groups == maxHashGroups {
+				break
+			}
+			groups++
 			out = append(out, model.DuplicateGroup{Reason: DuplicateFileHash})
 			current, currentHash = &out[len(out)-1], r.PartialHash.String
 		}
@@ -385,8 +394,10 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 // episodes, extras), trailers and credits of the sources move to the target (rows the target
 // already has stay behind), progress merges per profile (completed wins, then the larger
 // position), progress events and top picks follow, then the sources are deleted for good. Sources
-// must have the kind and the library of the target. One transaction; the triggers recompute
-// availability and ratings. The answer is the administration view of the target.
+// must have the kind and the library of the target; all are checked before anything moves. One
+// transaction per source (plan 3.6: bounded transactions), so each source merges whole or not at
+// all; after a failure the merged sources are gone and a repeated request merges the rest. The
+// triggers recompute availability and ratings. The answer is the administration view of the target.
 func (s *Service) MergeItems(ctx context.Context, targetID string, sourceIDs []string) (model.AdminItem, error) {
 	var verr *model.ValidationError
 	switch {
@@ -404,67 +415,86 @@ func (s *Service) MergeItems(ctx context.Context, targetID string, sourceIDs []s
 	slices.Sort(sources)
 	sources = slices.Compact(sources)
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return model.AdminItem{}, fmt.Errorf("begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	q := systemq.New(tx)
-	target, err := s.liveItem(ctx, q, targetID)
-	if err != nil {
-		return model.AdminItem{}, err
-	}
-	for _, id := range sources {
-		src, err := s.liveItem(ctx, q, id)
+	check := func(q *systemq.Queries, ids []string) error {
+		target, err := s.liveItem(ctx, q, targetID)
 		if err != nil {
-			return model.AdminItem{}, err
+			return err
 		}
-		if src.Kind != target.Kind || src.LibraryID != target.LibraryID {
-			return model.AdminItem{}, (&model.ValidationError{}).Add("sourceIds", "invalid_value")
+		for _, id := range ids {
+			src, err := s.liveItem(ctx, q, id)
+			if err != nil {
+				return err
+			}
+			if src.Kind != target.Kind || src.LibraryID != target.LibraryID {
+				return (&model.ValidationError{}).Add("sourceIds", "invalid_value")
+			}
 		}
+		return nil
+	}
+	if err := check(systemq.New(s.db), sources); err != nil {
+		return model.AdminItem{}, err
 	}
 	now := s.now().UnixMilli()
 	tid := sql.NullString{String: targetID, Valid: true}
 	for _, id := range sources {
-		sid := sql.NullString{String: id, Valid: true}
-		steps := []struct {
-			what string
-			run  func() error
-		}{
-			{"media files", func() error {
-				return q.AdminMoveMediaFiles(ctx, systemq.AdminMoveMediaFilesParams{TargetID: targetID, SourceID: id, Now: now})
-			}},
-			{"children", func() error {
-				return q.AdminMoveChildren(ctx, systemq.AdminMoveChildrenParams{TargetID: tid, SourceID: sid, Now: now})
-			}},
-			{"trailers", func() error {
-				return q.AdminMoveTrailers(ctx, systemq.AdminMoveTrailersParams{TargetID: targetID, SourceID: id})
-			}},
-			{"credits", func() error {
-				return q.AdminMoveCredits(ctx, systemq.AdminMoveCreditsParams{TargetID: targetID, SourceID: id})
-			}},
-			{"progress", func() error {
-				return q.AdminMergeProgress(ctx, systemq.AdminMergeProgressParams{TargetID: targetID, SourceID: id})
-			}},
-			{"progress events", func() error {
-				return q.AdminMoveProgressEvents(ctx, systemq.AdminMoveProgressEventsParams{TargetID: targetID, SourceID: id})
-			}},
-			{"top picks", func() error {
-				return q.AdminMoveTopPicks(ctx, systemq.AdminMoveTopPicksParams{TargetID: targetID, SourceID: id})
-			}},
-			{"delete source", func() error { return q.AdminDeleteItem(ctx, id) }},
+		if err := s.mergeSource(ctx, check, tid, id, now); err != nil {
+			return model.AdminItem{}, err
 		}
-		for _, step := range steps {
-			if err := step.run(); err != nil {
-				return model.AdminItem{}, fmt.Errorf("merge %s: %w", step.what, err)
-			}
-		}
-	}
-	if err := tx.Commit(); err != nil {
-		return model.AdminItem{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "items merged", "target_id", targetID, "sources", len(sources))
 	return s.GetAdminItem(ctx, targetID)
+}
+
+// mergeSource moves the rows of one source to the target and deletes the source, in one
+// transaction that checks target and source again.
+func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, []string) error, tid sql.NullString, id string, now int64) error {
+	targetID := tid.String
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	if err := check(q, []string{id}); err != nil {
+		return err
+	}
+	sid := sql.NullString{String: id, Valid: true}
+	steps := []struct {
+		what string
+		run  func() error
+	}{
+		{"media files", func() error {
+			return q.AdminMoveMediaFiles(ctx, systemq.AdminMoveMediaFilesParams{TargetID: targetID, SourceID: id, Now: now})
+		}},
+		{"children", func() error {
+			return q.AdminMoveChildren(ctx, systemq.AdminMoveChildrenParams{TargetID: tid, SourceID: sid, Now: now})
+		}},
+		{"trailers", func() error {
+			return q.AdminMoveTrailers(ctx, systemq.AdminMoveTrailersParams{TargetID: targetID, SourceID: id})
+		}},
+		{"credits", func() error {
+			return q.AdminMoveCredits(ctx, systemq.AdminMoveCreditsParams{TargetID: targetID, SourceID: id})
+		}},
+		{"progress", func() error {
+			return q.AdminMergeProgress(ctx, systemq.AdminMergeProgressParams{TargetID: targetID, SourceID: id})
+		}},
+		{"progress events", func() error {
+			return q.AdminMoveProgressEvents(ctx, systemq.AdminMoveProgressEventsParams{TargetID: targetID, SourceID: id})
+		}},
+		{"top picks", func() error {
+			return q.AdminMoveTopPicks(ctx, systemq.AdminMoveTopPicksParams{TargetID: targetID, SourceID: id})
+		}},
+		{"delete source", func() error { return q.AdminDeleteItem(ctx, id) }},
+	}
+	for _, step := range steps {
+		if err := step.run(); err != nil {
+			return fmt.Errorf("merge %s: %w", step.what, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
 }
 
 // CleanupItems removes orphaned titles and unplayable files (B-9). A title in itemIDs is
@@ -505,8 +535,21 @@ func (s *Service) CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []stri
 	return items, files, nil
 }
 
-// softDeleteOrphans soft-deletes the orphaned titles of ids in one transaction.
+// softDeleteOrphans soft-deletes the orphaned titles of ids, in transactions of at most 500 titles
+// (plan 3.6). After a failure the earlier batches stay committed; it returns their count.
 func (s *Service) softDeleteOrphans(ctx context.Context, ids []string) (int, error) {
+	n := 0
+	for chunk := range slices.Chunk(ids, maxRatingBatch) {
+		done, err := s.softDeleteOrphanBatch(ctx, chunk)
+		n += done
+		if err != nil {
+			return n, err
+		}
+	}
+	return n, nil
+}
+
+func (s *Service) softDeleteOrphanBatch(ctx context.Context, ids []string) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin: %w", err)

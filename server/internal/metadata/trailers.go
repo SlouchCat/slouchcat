@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/youtubeid"
 )
 
 // Trailer chain (plan 5.3, design 3.2): trailer.find {itemId}, key trailer:<itemId>, priority 1,
@@ -145,7 +145,7 @@ func pickTMDBTrailers(videos []Video, langs []string) []TrailerHit {
 	var keep []Video
 	for _, v := range videos {
 		lang := strings.ToLower(v.Lang)
-		if v.Type == "Trailer" && v.Site == "YouTube" && want[lang] && youtubeIDPattern.MatchString(v.Key) {
+		if v.Type == "Trailer" && v.Site == "YouTube" && want[lang] && youtubeid.Valid(v.Key) {
 			v.Lang = lang
 			keep = append(keep, v)
 		}
@@ -333,9 +333,6 @@ func (s *Service) QueuePendingTrailers(ctx context.Context, libraryID int64) (in
 	}
 	return len(ids), nil
 }
-
-// youtubeIDPattern is the shape of a YouTube video ID (trailers.youtube_id, 8 to 16 characters).
-var youtubeIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{8,16}$`)
 
 func boolInt(b bool) int64 {
 	if b {

@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
+	"github.com/slouchcat/slouchcat/server/internal/youtubeid"
 )
 
 // YouTube Data API v3 (plan 5.3, design 3.2): the second step of the trailer chain, for de and en
@@ -116,7 +117,7 @@ func (y *youtubeTrailers) find(ctx context.Context, key string, q TrailerQuery, 
 	}
 	var ids []string
 	for _, it := range search.Items {
-		if youtubeIDPattern.MatchString(it.ID.VideoID) {
+		if youtubeid.Valid(it.ID.VideoID) {
 			ids = append(ids, it.ID.VideoID)
 		}
 	}
@@ -169,7 +170,7 @@ func pickYouTubeVideo(items []youtubeVideo, rank map[string]int, titles []string
 	var keep []scored
 	for _, v := range items {
 		secs, ok := parseISODuration(v.ContentDetails.Duration)
-		if !ok || secs < minTrailerSeconds || secs > maxTrailerSeconds || !youtubeIDPattern.MatchString(v.ID) {
+		if !ok || secs < minTrailerSeconds || secs > maxTrailerSeconds || !youtubeid.Valid(v.ID) {
 			continue
 		}
 		name := normalizeTitle(v.Snippet.Title)

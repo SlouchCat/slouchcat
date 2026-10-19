@@ -75,8 +75,11 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	}
 	pr, err := s.probe.Probe(ctx, t.abs)
 	if err != nil {
-		if ctx.Err() != nil {
-			return err // interrupted, not a property of the file
+		var fileErr *transcode.FileError
+		if ctx.Err() != nil || !errors.As(err, &fileErr) {
+			// Interrupted, or the environment failed (ffprobe missing or not configured, no
+			// process, an I/O error): not a property of the file, so the job retries with backoff.
+			return fmt.Errorf("probe %s: %w", t.file.ID, err)
 		}
 		return s.storeProbeError(ctx, t, err)
 	}

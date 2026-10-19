@@ -21,7 +21,10 @@
 //     stills and metadata.match for episodes that still wait. Season: skipped
 //     (season_via_series) unless the series job already matched it. Episode: needs a matched
 //     series (else skipped/series_unmatched); an episode that is already matched makes no
-//     provider call. Other kinds: skipped (unsupported_kind).
+//     provider call. Other kinds: skipped (unsupported_kind). A write that finds other provider
+//     ids or locked fields on the title (or its series) than the job resolved with, because a
+//     manual match or refresh came in meanwhile, writes nothing and fails the attempt, so the queue
+//     retries with the new ids. A manual match or refresh raises a queued match job to priority 7.
 //   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2 (episode stills 1):
 //     downloads the original of the stored image paths (items.tmdb_poster_path for movies, series
 //     and seasons; items.tmdb_backdrop_path for movies, series and episode stills) once, scales it
@@ -34,7 +37,8 @@
 //     poster without accent is retried a bounded number of times (maxAccentRetries).
 //   - trailer.find, payload {"itemId": "<ULID>"}, key trailer:<itemId>, priority 1: the trailer
 //     chain TMDB videos → YouTube Data API (daily quota) → AI (off in M3) for movies and series
-//     with a tmdb_id (trailers.go, youtube.go). metadata.match enqueues it after every match.
+//     with a tmdb_id (trailers.go, youtube.go). metadata.match enqueues it after every match;
+//     QueuePendingMetadata (after every full scan) enqueues it for titles still pending.
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
@@ -104,6 +108,9 @@ type Service struct {
 	trailersYouTube TrailerProvider
 	trailersAI      AITrailerProvider
 
+	// recheck ends open direct-play streams whose title became invisible (WithVisibilityRecheck).
+	recheck func(ctx context.Context) error
+
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
 }
@@ -118,6 +125,7 @@ type options struct {
 	trailerAI   string
 	http        *http.Client
 	now         func() time.Time
+	recheck     func(ctx context.Context) error
 }
 
 // Option configures New.
@@ -148,6 +156,14 @@ func WithYouTubeQuota(q *ratelimit.Quota) Option {
 // "off"; any other value logs a warning and stays off.
 func WithTrailerAI(mode string) Option {
 	return func(o *options) { o.trailerAI = mode }
+}
+
+// WithVisibilityRecheck sets the function a match calls after it changed the own rating of a
+// title (the triggers pass it on to seasons, episodes and extras), so open direct-play streams of
+// a title that became invisible end (playback.Service.RecheckVisibility). Without it nothing is
+// rechecked.
+func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
+	return func(o *options) { o.recheck = recheck }
 }
 
 // WithHTTPClient replaces the HTTP client (default: 15 s timeout).
@@ -194,6 +210,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		trailersTMDB:    &tmdbTrailers{client: client, keys: keys},
 		trailersYouTube: newYouTubeTrailers(o.youtubeBase, o.http, o.quota, keys),
 		trailersAI:      newAITrailers(o.trailerAI, log),
+		recheck:         o.recheck,
 
 		accentRetries: map[string]int{},
 	}

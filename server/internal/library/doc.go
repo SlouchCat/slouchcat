@@ -9,8 +9,8 @@
 //  1. Read: for every root, open it through package paths (os.Root), load its ignored_files, walk
 //     it and collect the video files of the library kind: movies and extras inside movie folders
 //     (ParseMoviePath), or episodes and extras below series folders (ParseSeriesPath); samples,
-//     ignored files, hidden entries and NAS metadata folders are skipped, and a file of a series
-//     library without an episode marker is logged and skipped. Then match them
+//     ignored files, hidden entries and NAS metadata folders are skipped, and the files of a series
+//     library without an episode marker are skipped and logged once per directory. Then match them
 //     against the known media files of the root: the same rel_path is the same file (size and
 //     mtime are updated, a changed file is probed again); otherwise an equal (dev, inode, size)
 //     means renamed or moved on the same device; otherwise an equal partial_hash (SHA-256 over the
@@ -21,13 +21,15 @@
 //     everything else, so their parent exists. Jobs are inserted in the same transaction as the
 //     rows they refer to; every new or changed file queues probe.file. Renames keep the media file
 //     id and therefore the item and all user data (progress hangs on the item). Missing files get
-//     missing_since; a file that reappears clears it and restores a soft-deleted item with its
-//     soft-deleted season and series.
+//     missing_since; a file that reappears clears it, is probed again and restores a soft-deleted
+//     item with its soft-deleted season and series (a film above an extra only with a present file
+//     of its own).
 //
 // A new movie file joins the undeleted movie of the library with the same TMDB id, else IMDb id,
 // else (sort_title, year), or creates a movie item and queues metadata.match. A new episode file
-// finds or creates its series in the same way (TVDB id first; a new series queues metadata.match
-// with priority 4), then the season by (series, season number) with items.title "Season N" or
+// finds or creates its series in the same way (TVDB id first, then the series that owns the series
+// folder, whose year the metadata job may have changed, then (sort_title, year); a new series
+// queues metadata.match with priority 4), then the season by (series, season number) with items.title "Season N" or
 // "Specials" (no metadata job), then the episode by (season, episode number) with the title from
 // the name or the NFO, else "Episode N", the numbers, episode_end of a multi-episode file and the
 // release date of a daily show. A second file of the same episode is a version of it. A new
@@ -40,8 +42,10 @@
 // An extra (Trailers/, Featurettes/, … folders or a -trailer, -featurette, … suffix) becomes an
 // item of kind extra with extra_kind, its own media file and probe.file and no metadata job. Its
 // parent is the movie of its movie folder, or the season of its season folder, else the series of
-// its series folder. An extra without such a title (two movies in one folder, a Trailers/ folder
-// in the root of a series library, a series not scanned yet) is skipped.
+// its series folder; a soft-deleted title is never a parent. An extra without such a title (two
+// movies in one folder, a Trailers/ folder in the root of a series library, a series not scanned
+// yet) is skipped and remembered while the server runs: later scans without other changes neither
+// hash nor plan it, a scan with other changes tries it again.
 //
 // A second scan of an unchanged tree finds every file by its path and writes nothing except the
 // scan state, so scans converge and can run again after an interrupted job.
@@ -62,8 +66,11 @@
 // # Probe
 //
 // probe.file stores codecs, resolution, duration, the probe JSON and the tracks. When ffprobe
-// fails on the file, it records probed_at and probe_error (the message without the host path),
-// stores no tracks and ends without retry; a later successful probe clears probe_error.
+// rejects the file (transcode.FileError: an exit error that is not an operating system failure,
+// or output that does not parse), it records probed_at and probe_error (the message without the
+// host path), stores no tracks and ends without retry; a later successful probe clears
+// probe_error. Any other failure (ffprobe missing or not configured, no process, a share that
+// dropped) is returned, so the job retries with backoff.
 //
 // # Path scan (job scan.path)
 //

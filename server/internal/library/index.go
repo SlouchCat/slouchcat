@@ -23,6 +23,8 @@ type itemIndex struct {
 	byTVDB   map[int64]string
 	byIMDB   map[string]string
 	byTitle  map[string][]itemRef
+	refs     map[string]itemRef         // undeleted title id → its provider ids
+	series   bool                       // the titles are series (a series library)
 	deleted  map[string]bool            // soft-deleted items that a new file may restore
 	parent   map[string]string          // item id → parent id (seasons, episodes, extras)
 	kinds    map[string]string          // item id → kind
@@ -42,7 +44,7 @@ type itemRef struct {
 func newItemIndex() *itemIndex {
 	return &itemIndex{
 		byTMDB: map[int64]string{}, byTVDB: map[int64]string{}, byIMDB: map[string]string{},
-		byTitle: map[string][]itemRef{}, deleted: map[string]bool{}, parent: map[string]string{}, kinds: map[string]string{},
+		byTitle: map[string][]itemRef{}, refs: map[string]itemRef{}, deleted: map[string]bool{}, parent: map[string]string{}, kinds: map[string]string{},
 		folders: map[string]map[string]bool{}, byFolder: map[string]string{},
 		seasons: map[string]string{}, episodes: map[string]string{}, matched: map[string]bool{},
 	}
@@ -108,6 +110,7 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 		titleKind = "series"
 	}
 	idx := newItemIndex()
+	idx.series = titleKind == "series"
 	add := func(it systemq.Item, isDeleted bool) {
 		idx.kinds[it.ID] = it.Kind
 		if it.ParentID.Valid {
@@ -180,7 +183,9 @@ func (idx *itemIndex) title(id, titleKind string) string {
 func (idx *itemIndex) add(id, sortTitle string, year sql.NullInt64, tmdb, tvdb int64, imdb string) {
 	idx.addIDs(id, tmdb, tvdb, imdb)
 	key := titleKey(sortTitle, year)
-	idx.byTitle[key] = append(idx.byTitle[key], itemRef{id: id, tmdb: tmdb, tvdb: tvdb, imdb: imdb})
+	ref := itemRef{id: id, tmdb: tmdb, tvdb: tvdb, imdb: imdb}
+	idx.byTitle[key] = append(idx.byTitle[key], ref)
+	idx.refs[id] = ref
 }
 
 func (idx *itemIndex) addIDs(id string, tmdb, tvdb int64, imdb string) {
@@ -244,10 +249,13 @@ func (idx *itemIndex) folderTitle(folder string) string {
 	return id
 }
 
-// find returns the title of a file: by TVDB id, else TMDB id, else IMDb id, else (sort_title,
-// year) when the provider ids do not contradict. Without a year, a title only matches an item
-// that already has a file in the same folder (as titleFolderKey or seriesFolderKey name it), so
-// two titles of the same name in different folders stay apart.
+// find returns the title of a file: by TVDB id, else TMDB id, else IMDb id, else (in a series
+// library) the undeleted series that already owns the series folder, else (sort_title, year);
+// the last two only when the provider ids do not contradict. The folder comes before the year
+// because the metadata job replaces the year of the folder name with the first air date, so a new
+// episode in "Show (2019)" still joins the series that TMDB dates 2020. Without a year, a title
+// only matches an item that already has a file in the same folder (as titleFolderKey or
+// seriesFolderKey name it), so two titles of the same name in different folders stay apart.
 func (idx *itemIndex) find(m titleInfo, folder string) string {
 	if m.tvdb != 0 {
 		if id, ok := idx.byTVDB[m.tvdb]; ok {
@@ -264,26 +272,41 @@ func (idx *itemIndex) find(m titleInfo, folder string) string {
 			return id
 		}
 	}
+	if owner := idx.byFolder[folder]; idx.series && folder != "" && owner != "" && !idx.deleted[owner] {
+		if ref, ok := idx.refs[owner]; ok && ref.fits(m) {
+			return owner
+		}
+	}
 	for _, ref := range idx.byTitle[titleKey(m.sortTitle, m.year)] {
 		if !m.year.Valid && (folder == "" || !idx.folders[ref.id][folder]) {
 			continue
 		}
-		if (m.tmdb == 0 || ref.tmdb == 0 || m.tmdb == ref.tmdb) && (m.tvdb == 0 || ref.tvdb == 0 || m.tvdb == ref.tvdb) &&
-			(m.imdb == "" || ref.imdb == "" || m.imdb == ref.imdb) {
+		if ref.fits(m) {
 			return ref.id
 		}
 	}
 	return ""
 }
 
-// undelete forgets id and its ancestors as soft-deleted after RestoreItem brought them back.
+// fits reports whether the provider ids of a file do not contradict those of a title.
+func (ref itemRef) fits(m titleInfo) bool {
+	return (m.tmdb == 0 || ref.tmdb == 0 || m.tmdb == ref.tmdb) && (m.tvdb == 0 || ref.tvdb == 0 || m.tvdb == ref.tvdb) &&
+		(m.imdb == "" || ref.imdb == "" || m.imdb == ref.imdb)
+}
+
+// undelete forgets id and its container ancestors (season, series) as soft-deleted after
+// RestoreItem brought them back; a film above an extra stays deleted unless its own file returns.
 func (idx *itemIndex) undelete(id string) {
-	for range 3 {
-		delete(idx.deleted, id)
+	delete(idx.deleted, id)
+	for range 2 {
 		p, ok := idx.parent[id]
 		if !ok {
 			return
 		}
 		id = p
+		switch idx.kinds[id] {
+		case "series", "season", "podcast":
+			delete(idx.deleted, id)
+		}
 	}
 }

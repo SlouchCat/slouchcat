@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/youtubeid"
 )
 
 // Administration of single titles (M3, design 4.2): the unfiltered view, manual match, refresh,
@@ -154,10 +154,7 @@ func (s *Service) RefreshItem(ctx context.Context, itemID string) (model.AdminIt
 	return s.GetAdminItem(ctx, itemID)
 }
 
-var (
-	langPattern      = regexp.MustCompile(`^[a-z]{2,3}$`)
-	youtubeIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{8,16}$`)
-)
+var langPattern = regexp.MustCompile(`^[a-z]{2,3}$`)
 
 // CreateItemTrailer stores a manual trailer from a YouTube URL or a bare video id (B-8). A request
 // with both must name the same video.
@@ -176,8 +173,8 @@ func (s *Service) CreateItemTrailer(ctx context.Context, itemID, lang, youtubeID
 	case len(rawURL) > maxTrailerURL:
 		verr = verr.Add("url", "too_long")
 	default:
-		fromID, idOK := ParseYouTubeID(youtubeID)
-		fromURL, urlOK := ParseYouTubeID(rawURL)
+		fromID, idOK := youtubeid.Parse(youtubeID)
+		fromURL, urlOK := youtubeid.Parse(rawURL)
 		switch {
 		case youtubeID != "" && !idOK:
 			verr = verr.Add("youtubeId", "invalid_value")
@@ -209,40 +206,6 @@ func (s *Service) DeleteItemTrailer(ctx context.Context, itemID string, trailerI
 		return err
 	}
 	return s.meta.DeleteTrailer(ctx, itemID, trailerID)
-}
-
-// ParseYouTubeID returns the video id of a YouTube URL (youtube.com/watch?v=, youtu.be/,
-// youtube-nocookie.com/embed/; with or without scheme and www.) or of a bare id
-// ([A-Za-z0-9_-]{8,16}). It applies the rules of metadata.ParseYouTubeID without importing it.
-func ParseYouTubeID(urlOrID string) (string, bool) {
-	v := strings.TrimSpace(urlOrID)
-	if youtubeIDPattern.MatchString(v) {
-		return v, true
-	}
-	if !strings.Contains(v, "://") {
-		v = "https://" + v
-	}
-	u, err := url.Parse(v)
-	if err != nil {
-		return "", false
-	}
-	host := strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
-	host = strings.TrimPrefix(host, "m.")
-	var id string
-	switch host {
-	case "youtu.be":
-		id = strings.Trim(u.Path, "/")
-	case "youtube.com":
-		if u.Path == "/watch" {
-			id = u.Query().Get("v")
-		}
-	case "youtube-nocookie.com":
-		id = strings.TrimPrefix(u.Path, "/embed/")
-	}
-	if !youtubeIDPattern.MatchString(id) {
-		return "", false
-	}
-	return id, true
 }
 
 // SearchMetadata asks a provider for candidates of the manual match (B-6).

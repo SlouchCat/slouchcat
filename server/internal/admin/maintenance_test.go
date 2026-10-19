@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -237,6 +238,12 @@ func TestAdminMaintenanceIssues(t *testing.T) {
 	if page, err := m.svc.ListIssues(m.ctx, IssueOrphaned, nil, 1, 1); err != nil || page.Total != 3 || len(page.Items) != 1 {
 		t.Errorf("orphaned page 2 = %+v, %v", page, err)
 	}
+	// An offset near MaxInt is an empty page, not an overflow (review finding 11).
+	for _, kind := range []string{IssueRatingMismatch, IssueUnrated} {
+		if page, err := m.svc.ListIssues(m.ctx, kind, nil, maxIssueLimit, math.MaxInt); err != nil || len(page.Items) != 0 {
+			t.Errorf("%s at offset MaxInt = %+v, %v", kind, page, err)
+		}
+	}
 	for _, bad := range []struct {
 		kind          string
 		limit, offset int
@@ -246,6 +253,18 @@ func TestAdminMaintenanceIssues(t *testing.T) {
 			t.Errorf("ListIssues(%q, %d, %d) = %v, want a validation error", bad.kind, bad.limit, bad.offset, err)
 		}
 	}
+
+	// A series that is itself unmatched or unrated stands for its episodes (review finding 14).
+	m.exec(t, `UPDATE items SET metadata_state = 'unmatched' WHERE id = ?`, f.Show.Series.ID)
+	if got := issueIDs(m.issues(t, IssueUnmatched)); !slices.Equal(got, sorted(f.Unrated().ID, f.Show.Series.ID)) {
+		t.Errorf("unmatched with an unmatched series = %v, want the series instead of its episode", got)
+	}
+	m.exec(t, `UPDATE items SET metadata_state = 'matched' WHERE id = ?`, f.Show.Series.ID)
+	m.exec(t, `UPDATE items SET own_rating = NULL WHERE id = ?`, f.Show.Series.ID)
+	if got := issueIDs(m.issues(t, IssueUnrated)); !slices.Equal(got, sorted(f.Unrated().ID, f.Show.Series.ID)) {
+		t.Errorf("unrated with an unrated series = %v, want the series without its episodes", got)
+	}
+	m.exec(t, `UPDATE items SET own_rating = 12 WHERE id = ?`, f.Show.Series.ID)
 
 	// rating_mismatch: a derived column written behind the triggers' back.
 	m.exec(t, `UPDATE items SET effective_rating = 6 WHERE id = ?`, f.Show.E1.ID)
@@ -273,8 +292,11 @@ func TestAdminMaintenanceDuplicates(t *testing.T) {
 	m16, m18, m0, m6, m12 := f.Rated(16), f.Rated(18), f.Rated(0), f.Rated(6), f.Rated(12)
 	m.exec(t, `UPDATE items SET tmdb_id = (SELECT tmdb_id FROM items WHERE id = ?) WHERE id = ?`, m18.ID, m16.ID)
 	m.exec(t, `UPDATE items SET tmdb_id = NULL, sort_title = 'same', year = 2020 WHERE id IN (?, ?)`, m0.ID, m6.ID)
-	m.exec(t, `UPDATE media_files SET partial_hash = 'abc' WHERE id IN (?, ?)`, m12.FileID, f.Unrated().FileID)
+	m.exec(t, `UPDATE media_files SET partial_hash = 'abc', size = 2097152 WHERE id IN (?, ?)`, m12.FileID, f.Unrated().FileID)
 	m.exec(t, `UPDATE media_files SET partial_hash = 'solo' WHERE id = ?`, f.Version2FileID)
+	// Identical small and empty files (placeholders) are no duplicates (review finding 15).
+	m.exec(t, `UPDATE media_files SET partial_hash = 'tiny' WHERE id IN (?, ?)`, m0.FileID, m6.FileID)
+	m.exec(t, `UPDATE media_files SET partial_hash = 'empty', size = 0 WHERE id IN (?, ?)`, m16.FileID, m18.FileID)
 
 	groups, err := m.svc.ListDuplicates(m.ctx, nil)
 	if err != nil {
@@ -532,26 +554,6 @@ func TestAdminTrailers(t *testing.T) {
 	}
 	if _, err := m.svc.CreateItemTrailer(m.ctx, "01J0000000000000000000XXXX", "de", "dQw4w9WgXcQ", ""); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("unknown title: %v", err)
-	}
-}
-
-func TestParseYouTubeID(t *testing.T) {
-	for in, want := range map[string]string{
-		"dQw4w9WgXcQ": "dQw4w9WgXcQ",
-		"https://www.youtube.com/watch?v=dQw4w9WgXcQ":     "dQw4w9WgXcQ",
-		"youtube.com/watch?v=dQw4w9WgXcQ&list=x":          "dQw4w9WgXcQ",
-		"https://m.youtube.com/watch?v=dQw4w9WgXcQ":       "dQw4w9WgXcQ",
-		"https://youtu.be/dQw4w9WgXcQ":                    "dQw4w9WgXcQ",
-		"https://www.youtube-nocookie.com/embed/x_y-z123": "x_y-z123",
-		"https://vimeo.com/123456789":                     "",
-		"https://youtube.com/watch?v=short":               "",
-		"https://youtube.com/channel/dQw4w9WgXcQ":         "",
-		"": "",
-	} {
-		got, ok := ParseYouTubeID(in)
-		if got != want || ok != (want != "") {
-			t.Errorf("ParseYouTubeID(%q) = %q, %v; want %q", in, got, ok, want)
-		}
 	}
 }
 

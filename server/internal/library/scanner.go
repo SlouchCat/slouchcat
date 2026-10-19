@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
+	"path"
 	"slices"
 	"time"
 
@@ -61,11 +63,80 @@ type diskFile struct {
 
 // rootScan is the state of one root during a scan.
 type rootScan struct {
-	root    appq.LibraryRoot
-	proot   paths.Root
-	disk    []diskFile
-	known   []systemq.MediaFile
-	ignored map[string]bool // rel paths of ignored_files
+	root     appq.LibraryRoot
+	proot    paths.Root
+	disk     []diskFile
+	known    []systemq.MediaFile
+	ignored  map[string]bool // rel paths of ignored_files
+	deferred []diskFile      // unchanged extras an earlier scan skipped for want of a parent
+}
+
+// fileStamp is the size and mtime of a file on disk.
+type fileStamp struct{ size, mtime int64 }
+
+// rememberOrphans records extras files a batch skipped because no title owns their folder, so
+// the next scans neither hash nor write them while they and the library stay unchanged.
+func (s *Service) rememberOrphans(files []scanOp) {
+	if len(files) == 0 {
+		return
+	}
+	s.orphanMu.Lock()
+	defer s.orphanMu.Unlock()
+	for _, op := range files {
+		m := s.orphans[op.rs.root.ID]
+		if m == nil {
+			m = map[string]fileStamp{}
+			s.orphans[op.rs.root.ID] = m
+		}
+		m[op.disk.rel] = fileStamp{op.disk.size, op.disk.mtime}
+	}
+}
+
+// deferOrphan reports whether d is an extras file a scan skipped before, unchanged since.
+func (s *Service) deferOrphan(rootID int64, d diskFile) bool {
+	s.orphanMu.Lock()
+	defer s.orphanMu.Unlock()
+	st, ok := s.orphans[rootID][d.rel]
+	return ok && st == fileStamp{d.size, d.mtime}
+}
+
+// reviveDeferred handles the skipped extras of a scan after planning: when the scan changes
+// nothing else they count as unchanged (no hash, no item index, no write); otherwise a title may
+// own their folder now, so they are planned as new files again (and remembered again if a batch
+// skips them once more). It returns the operations and the number of unchanged extras.
+func (s *Service) reviveDeferred(ctx context.Context, scans []*rootScan, ops []scanOp) ([]scanOp, int, error) {
+	n := 0
+	for _, rs := range scans {
+		n += len(rs.deferred)
+	}
+	if n == 0 || len(ops) == 0 {
+		return ops, n, nil
+	}
+	for _, rs := range scans {
+		if len(rs.deferred) == 0 {
+			continue
+		}
+		r, err := paths.Open(rs.proot)
+		if err != nil {
+			return nil, 0, err
+		}
+		s.orphanMu.Lock()
+		for _, d := range rs.deferred {
+			delete(s.orphans[rs.root.ID], d.rel)
+		}
+		s.orphanMu.Unlock()
+		for _, d := range rs.deferred {
+			h, err := PartialHash(r, d.rel)
+			if err != nil {
+				s.log.WarnContext(ctx, "file not readable, skipped", "root_id", rs.root.ID, "path", d.rel, "err", err)
+				continue
+			}
+			ops = append(ops, scanOp{kind: opNew, rs: rs, disk: d, hash: h})
+		}
+		_ = r.Close()
+		rs.deferred = nil
+	}
+	return ops, 0, nil
 }
 
 type opKind int
@@ -193,7 +264,7 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 		if n, err := s.metadataCheck(ctx, lib.ID); err != nil {
 			s.log.WarnContext(ctx, "metadata check after scan failed", "library_id", lib.ID, "err", err)
 		} else if n > 0 {
-			s.log.InfoContext(ctx, "titles with pending metadata queued for metadata.match", "library_id", lib.ID, "titles", n)
+			s.log.InfoContext(ctx, "titles queued for metadata.match or trailer.find", "library_id", lib.ID, "titles", n)
 		}
 	}
 	return nil
@@ -345,6 +416,11 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 		s.log.WarnContext(ctx, "too many files missing", "library_id", lib.ID, "missing", lost, "known", knownActive)
 		return stats, scanAbort{abortLoss}
 	}
+	ops, deferred, err := s.reviveDeferred(ctx, scans, ops)
+	if err != nil {
+		return stats, err
+	}
+	unchanged += deferred
 
 	total := unchanged + len(ops)
 	seen := unchanged
@@ -417,6 +493,7 @@ func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[str
 		return nil, errRootMissing
 	}
 	var files []diskFile
+	noMarker := map[string]int{}
 	err = paths.Walk(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -436,7 +513,7 @@ func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[str
 		if d.IsDir() {
 			return nil
 		}
-		f, ok, err := videoFile(ctx, r, p, d, kind, ignored, log)
+		f, ok, err := videoFile(ctx, r, p, d, kind, ignored, noMarker, log)
 		if ok {
 			files = append(files, f)
 		}
@@ -445,19 +522,21 @@ func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[str
 	if err != nil {
 		return nil, fmt.Errorf("walk %s: %w", root.Dir(), err)
 	}
+	logNoMarker(ctx, log, noMarker)
 	return files, nil
 }
 
 // wanted reports whether a parsed video file is scanned: never a sample; in a movie library a
 // movie or an extra inside a movie folder; in a series library an episode or an extra below a
-// series folder. A file of a series library without an episode marker is logged.
-func wanted(ctx context.Context, kind, rel string, p ParsedName, log *slog.Logger) bool {
+// series folder. A file of a series library without an episode marker is counted per directory
+// in noMarker (logged once per directory, see logNoMarker).
+func wanted(kind, rel string, p ParsedName, noMarker map[string]int) bool {
 	switch {
 	case p.Sample:
 		return false
 	case kind == "series":
 		if p.Series == nil && !p.Extra {
-			log.WarnContext(ctx, "no episode marker in the name, file skipped", "path", rel)
+			noMarker[path.Dir(rel)]++
 		}
 		return p.Series != nil
 	default:
@@ -465,16 +544,24 @@ func wanted(ctx context.Context, kind, rel string, p ParsedName, log *slog.Logge
 	}
 }
 
+// logNoMarker logs the files without an episode marker of one walk once per directory, not once
+// per file and scan (the 6-hour schedule would repeat every line).
+func logNoMarker(ctx context.Context, log *slog.Logger, noMarker map[string]int) {
+	for _, dir := range slices.Sorted(maps.Keys(noMarker)) {
+		log.WarnContext(ctx, "no episode marker in the name, files skipped", "dir", dir, "files", noMarker[dir])
+	}
+}
+
 // videoFile turns the non-directory entry d at p into a candidate video file. ok is false for
-// entries a scan skips: no video, an ignored file, a file wanted rejects, a vanished entry,
-// anything but a regular file, and a symlink whose target cannot be read inside the root
-// (logged).
-func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, kind string, ignored map[string]bool, log *slog.Logger) (diskFile, bool, error) {
+// entries a scan skips: no video, an ignored file, a file wanted rejects (files without an episode
+// marker are counted in noMarker), a vanished entry, anything but a regular file, and a symlink
+// whose target cannot be read inside the root (logged).
+func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, kind string, ignored map[string]bool, noMarker map[string]int, log *slog.Logger) (diskFile, bool, error) {
 	if !IsVideo(d.Name()) || ignored[p] {
 		return diskFile{}, false, nil
 	}
 	parsed := parsePath(kind, p)
-	if !wanted(ctx, kind, p, parsed, log) {
+	if !wanted(kind, p, parsed, noMarker) {
 		return diskFile{}, false, nil
 	}
 	var fi fs.FileInfo
@@ -535,7 +622,9 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 			unchanged++
 			continue
 		}
-		op := scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String, reprobe: changed}
+		// A file back from missing_since is probed again: its last probe may have failed while
+		// it was away (a share that dropped), and a stored probe_error would stay otherwise.
+		op := scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String, reprobe: changed || k.MissingSince.Valid}
 		if changed {
 			if op.hash, err = PartialHash(r, d.rel); err != nil {
 				s.log.WarnContext(ctx, "hash changed file", "root_id", rs.root.ID, "path", d.rel, "err", err)
@@ -582,9 +671,14 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 		if d.id.inode != 0 {
 			if k := byID[identity{toInt64(d.id.dev), toInt64(d.id.inode), d.size}]; k != nil && usable(k) {
 				claimed[k.ID] = true
-				ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String, reprobe: k.Mtime != d.mtime})
+				ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String,
+					reprobe: k.Mtime != d.mtime || k.MissingSince.Valid})
 				continue
 			}
+		}
+		if d.parsed.Extra && s.deferOrphan(rs.root.ID, d) {
+			rs.deferred = append(rs.deferred, d) // see reviveDeferred
+			continue
 		}
 		h, err := PartialHash(r, d.rel)
 		if errors.Is(err, fs.ErrNotExist) {

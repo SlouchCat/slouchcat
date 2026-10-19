@@ -558,9 +558,11 @@ func (q *Queries) ListRecentlyDeletedItemsByLibrary(ctx context.Context, arg Lis
 const restoreItem = `-- name: RestoreItem :exec
 UPDATE items SET deleted_at = NULL, updated_at = ?1
 WHERE items.deleted_at IS NOT NULL
-  AND items.id IN (?2,
-             (SELECT p.parent_id FROM items AS p WHERE p.id = ?2),
-             (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = ?2)))
+  AND (items.id = ?2
+       OR (items.id IN ((SELECT p.parent_id FROM items AS p WHERE p.id = ?2),
+                        (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = ?2)))
+           AND (items.kind IN ('series', 'season', 'podcast')
+                OR EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL))))
 `
 
 type RestoreItemParams struct {
@@ -570,7 +572,8 @@ type RestoreItemParams struct {
 
 // A file of a soft-deleted item reappeared: the item comes back with its user data, and with it
 // its soft-deleted parent and grandparent (the season and series of an episode or a season
-// extra), so the tree stays whole.
+// extra), so the tree stays whole. An ancestor that is not a container (the film of an extra)
+// comes back only with a present file of its own; otherwise the next sweep would delete it again.
 func (q *Queries) RestoreItem(ctx context.Context, arg RestoreItemParams) error {
 	_, err := q.db.ExecContext(ctx, restoreItem, arg.Now, arg.ID)
 	return err

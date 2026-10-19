@@ -23,7 +23,9 @@ SELECT
     (SELECT count(*) FROM items AS x WHERE x.parent_id = @id AND x.kind = 'extra' AND x.deleted_at IS NULL) AS extras;
 
 -- Maintenance issues (listMaintenanceIssues, B-9). Each kind has a page query and a count; a
--- NULL library_id lists every library.
+-- NULL library_id lists every library. unmatched and unrated list an episode only when its series
+-- is matched (rated); otherwise the series stands for all its episodes, so a large series fills
+-- the list with one entry instead of one per episode.
 
 -- name: AdminCountUnmatched :one
 SELECT count(*) FROM items AS i
@@ -31,6 +33,10 @@ WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
   AND (i.metadata_state IN ('unmatched', 'failed')
        OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
        OR (i.metadata_state = 'pending' AND i.created_at < @pending_before))
+  AND (i.kind <> 'episode' OR EXISTS (
+        SELECT 1 FROM items AS sr
+        WHERE sr.kind = 'series' AND sr.metadata_state = 'matched'
+          AND (sr.id = i.parent_id OR sr.id = (SELECT p.parent_id FROM items AS p WHERE p.id = i.parent_id))))
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'));
 
 -- name: AdminListUnmatched :many
@@ -39,6 +45,10 @@ WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
   AND (i.metadata_state IN ('unmatched', 'failed')
        OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
        OR (i.metadata_state = 'pending' AND i.created_at < @pending_before))
+  AND (i.kind <> 'episode' OR EXISTS (
+        SELECT 1 FROM items AS sr
+        WHERE sr.kind = 'series' AND sr.metadata_state = 'matched'
+          AND (sr.id = i.parent_id OR sr.id = (SELECT p.parent_id FROM items AS p WHERE p.id = i.parent_id))))
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'))
 ORDER BY i.library_id, i.sort_title, i.id
 LIMIT @limit_count OFFSET @offset_count;
@@ -60,11 +70,19 @@ LIMIT @limit_count OFFSET @offset_count;
 -- name: AdminCountUnrated :one
 SELECT count(*) FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode') AND i.effective_rating IS NULL
+  AND (i.kind <> 'episode' OR EXISTS (
+        SELECT 1 FROM items AS sr
+        WHERE sr.kind = 'series' AND sr.effective_rating IS NOT NULL
+          AND (sr.id = i.parent_id OR sr.id = (SELECT p.parent_id FROM items AS p WHERE p.id = i.parent_id))))
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'));
 
 -- name: AdminListUnrated :many
 SELECT i.id, i.kind, i.title, i.year, i.library_id FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode') AND i.effective_rating IS NULL
+  AND (i.kind <> 'episode' OR EXISTS (
+        SELECT 1 FROM items AS sr
+        WHERE sr.kind = 'series' AND sr.effective_rating IS NOT NULL
+          AND (sr.id = i.parent_id OR sr.id = (SELECT p.parent_id FROM items AS p WHERE p.id = i.parent_id))))
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'))
 ORDER BY i.library_id, i.sort_title, i.id
 LIMIT @limit_count OFFSET @offset_count;
@@ -161,19 +179,20 @@ WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series')
 ORDER BY i.library_id, i.kind, i.sort_title, i.year, i.id;
 
 -- name: AdminListHashDuplicates :many
--- Media files whose content hash a file of another title shares.
+-- Media files whose content hash a file of another title shares. Files below 1 MiB (empty files,
+-- placeholder trees, samples) are left out: identical small files say nothing about duplicates.
 SELECT m.partial_hash, m.id AS media_file_id, m.root_id, m.rel_path, m.size, m.version_label, m.missing_since,
        i.id, i.kind, i.title, i.year, i.library_id
 FROM media_files AS m
 JOIN items AS i ON i.id = m.item_id
-WHERE m.partial_hash IS NOT NULL AND i.deleted_at IS NULL
+WHERE m.partial_hash IS NOT NULL AND m.size >= 1048576 AND i.deleted_at IS NULL
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'))
   AND EXISTS (SELECT 1 FROM media_files AS o JOIN items AS oi ON oi.id = o.item_id
-              WHERE o.partial_hash = m.partial_hash AND o.item_id <> m.item_id AND oi.deleted_at IS NULL)
+              WHERE o.partial_hash = m.partial_hash AND o.size >= 1048576 AND o.item_id <> m.item_id AND oi.deleted_at IS NULL)
 ORDER BY m.partial_hash, i.id, m.id;
 
--- Merge (mergeItems, B-9): one transaction moves everything of a source to the target, then
--- deletes the source. The triggers recompute availability and ratings on the way.
+-- Merge (mergeItems, B-9): one transaction per source moves everything of the source to the
+-- target, then deletes the source. The triggers recompute availability and ratings on the way.
 
 -- name: AdminMoveMediaFiles :exec
 UPDATE media_files SET item_id = @target_id, updated_at = @now WHERE item_id = @source_id;

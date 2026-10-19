@@ -91,14 +91,21 @@ func (s *server) SetItemsRating(ctx context.Context, req gen.SetItemsRatingReque
 		return s.problem(ctx, (&model.ValidationError{}).Add("itemIds", "required")), nil
 	}
 	n, err := s.opts.Admin.SetItemsRating(ctx, req.Body.ItemIds, ratingPtr(req.Body.Rating))
-	if err != nil {
-		return s.problem(ctx, err), nil
-	}
-	// One re-check for the whole batch: streams of titles the profile may no longer see end.
-	if err := s.recheckStreams(ctx); err != nil {
+	// One re-check for the whole request: streams of titles the profile may no longer see end.
+	if err := s.recheckAfter(ctx, err); err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.SetItemsRating200JSONResponse{Updated: n}, nil
+}
+
+// recheckAfter re-checks the open direct-play streams after a mass change of titles (rating,
+// merge, cleanup), also when the change failed half way, because the batches before the failure
+// are committed. The change's own error wins over a failed re-check.
+func (s *server) recheckAfter(ctx context.Context, err error) error {
+	if rerr := s.recheckStreams(ctx); rerr != nil && err == nil {
+		return rerr
+	}
+	return err
 }
 
 func (s *server) SearchMetadata(ctx context.Context, req gen.SearchMetadataRequestObject) (gen.SearchMetadataResponseObject, error) {
@@ -166,7 +173,8 @@ func (s *server) MergeItems(ctx context.Context, req gen.MergeItemsRequestObject
 		return s.problem(ctx, (&model.ValidationError{}).Add("targetId", "required")), nil
 	}
 	it, err := s.opts.Admin.MergeItems(ctx, req.Body.TargetId, req.Body.SourceIds)
-	if err != nil {
+	// Streams of the deleted sources end.
+	if err := s.recheckAfter(ctx, err); err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.MergeItems200JSONResponse(toAdminItem(it)), nil
@@ -178,7 +186,8 @@ func (s *server) CleanupItems(ctx context.Context, req gen.CleanupItemsRequestOb
 		items, files = deref(b.ItemIds), deref(b.MediaFileIds)
 	}
 	removedItems, removedFiles, err := s.opts.Admin.CleanupItems(ctx, items, files)
-	if err != nil {
+	// Streams of soft-deleted titles and removed files end.
+	if err := s.recheckAfter(ctx, err); err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.CleanupItems200JSONResponse{Items: removedItems, Files: removedFiles}, nil

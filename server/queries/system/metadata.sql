@@ -67,6 +67,22 @@ WHERE i.library_id = @library_id AND i.deleted_at IS NULL AND i.metadata_state =
                   WHERE j.idempotency_key = 'match:' || i.id AND j.state IN ('queued', 'running'))
 ORDER BY i.id;
 
+-- name: ListUpgradeMatchItems :many
+-- Matched TMDB movies and series of a library without image paths and without a finished trailer
+-- check: titles matched before M3, which lack the image paths, credits and trailers only a match
+-- writes (QueuePendingMetadata queues one match each, at most @limit_count per run). The M3 match
+-- stores the paths or queues trailer.find, whose check sets trailer_checked_at, so a title is
+-- queued once.
+SELECT i.id FROM items AS i
+WHERE i.library_id = @library_id AND i.deleted_at IS NULL
+  AND i.kind IN ('movie', 'series') AND i.metadata_state = 'matched' AND i.tmdb_id IS NOT NULL
+  AND i.tmdb_poster_path IS NULL AND i.tmdb_backdrop_path IS NULL AND i.trailer_checked_at IS NULL
+  AND instr(i.locked_fields, '"trailer"') = 0
+  AND NOT EXISTS (SELECT 1 FROM jobs AS j
+                  WHERE j.idempotency_key IN ('match:' || i.id, 'trailer:' || i.id) AND j.state IN ('queued', 'running'))
+ORDER BY i.id
+LIMIT @limit_count;
+
 -- name: AssignItemMatch :exec
 -- Manual match (B-6): the chosen provider ID, the other provider ID and imdb_id cleared, the IDs
 -- locked, metadata and trailers pending until the queued match has run.

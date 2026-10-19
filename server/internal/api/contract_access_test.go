@@ -946,6 +946,24 @@ func TestContractRatingChangeEndsOpenDirectStream(t *testing.T) {
 	}
 }
 
+// M3 review, findings 9 and 10: merging a title into another deletes the source, so an open
+// direct stream of the source ends like after a rating change.
+func TestContractMergeEndsOpenDirectStream(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	source, target := f.Rated(6), f.Rated(0)
+	if err := os.Truncate(filepath.Join(f.MediaDir, filepath.FromSlash(source.RelPath)), 1<<30); err != nil {
+		t.Fatal(err)
+	}
+	_, st := pf.mint(t, "p18", source, "direct")
+	closed, _ := openRange(t, h, BasePath+"/items/"+source.ID+"/stream?st="+url.QueryEscape(st))
+	body := `{"targetId":"` + target.ID + `","sourceIds":["` + source.ID + `"]}`
+	if rec := send(t, h, http.MethodPost, BasePath+"/admin/maintenance/merge", "p18", body, nil); rec.Code != http.StatusOK {
+		t.Fatalf("merge: %d %s", rec.Code, rec.Body.String())
+	}
+	expectClosed(t, "open Range response of the merged source", closed)
+}
+
 // Lowering a guest's ceiling, taking a library right from a profile and changing a profile's
 // rating all end the open direct streams they hide.
 func TestContractLoweredAccessEndsOpenDirectStreams(t *testing.T) {

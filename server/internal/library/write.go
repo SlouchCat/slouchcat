@@ -239,6 +239,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 		return 0, fmt.Errorf("commit scan batch: %w", err)
 	}
 	s.recordBatch(len(ops), time.Since(began))
+	s.rememberOrphans(w.orphans)
 	if w.skipped > 0 {
 		s.log.InfoContext(ctx, "extras without a parent title skipped", "library_id", lib.ID, "files", w.skipped)
 	}
@@ -261,6 +262,7 @@ type batchWriter struct {
 	ms      int64
 	stats   scanStats
 	skipped int
+	orphans []scanOp // new extras skipped for want of a parent (Service.rememberOrphans)
 }
 
 func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error {
@@ -268,8 +270,12 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 	switch op.kind {
 	case opNew:
 		itemID, err := w.item(ctx, info)
-		if err != nil || itemID == "" {
+		if err != nil {
 			return err
+		}
+		if itemID == "" {
+			w.orphans = append(w.orphans, op) // an extra without a parent title
+			return nil
 		}
 		fileID := w.newID()
 		if _, err := q.InsertMediaFile(ctx, systemq.InsertMediaFileParams{

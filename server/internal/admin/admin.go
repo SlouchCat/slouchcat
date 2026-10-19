@@ -258,13 +258,17 @@ func (s *Service) TMDBKey(ctx context.Context) (string, error) {
 	return s.secretKey(ctx, EnvTMDBKey, SettingTMDBKey)
 }
 
-// TVDBKey returns the TVDB key and the optional subscriber PIN, each from the environment or else
-// from its encrypted setting; "" when not configured.
+// TVDBKey returns the TVDB key and the optional subscriber PIN from one source: both from the
+// environment when the key is set there, else both from their encrypted settings, so a PIN never
+// pairs with the key of the other source; "" when not configured.
 func (s *Service) TVDBKey(ctx context.Context) (key, pin string, err error) {
-	if key, err = s.secretKey(ctx, EnvTVDBKey, SettingTVDBKey); err != nil {
+	if key := strings.TrimSpace(s.getenv(EnvTVDBKey)); key != "" {
+		return key, strings.TrimSpace(s.getenv(EnvTVDBPin)), nil
+	}
+	if key, err = s.secretKey(ctx, "", SettingTVDBKey); err != nil {
 		return "", "", err
 	}
-	if pin, err = s.secretKey(ctx, EnvTVDBPin, SettingTVDBPin); err != nil {
+	if pin, err = s.secretKey(ctx, "", SettingTVDBPin); err != nil {
 		return "", "", err
 	}
 	return key, pin, nil
@@ -276,10 +280,10 @@ func (s *Service) YouTubeKey(ctx context.Context) (string, error) {
 	return s.secretKey(ctx, EnvYouTubeKey, SettingYouTubeKey)
 }
 
-// secretKey reads a key: the environment variable wins, otherwise the decrypted setting; "" when
-// neither is set. Values never reach the log or an error.
+// secretKey reads a key: the environment variable wins (env "" reads only the setting), otherwise
+// the decrypted setting; "" when neither is set. Values never reach the log or an error.
 func (s *Service) secretKey(ctx context.Context, env, setting string) (string, error) {
-	if key := strings.TrimSpace(s.getenv(env)); key != "" {
+	if key := strings.TrimSpace(s.getenv(env)); env != "" && key != "" {
 		return key, nil
 	}
 	enc, err := s.read.GetSetting(ctx, setting)
@@ -375,7 +379,8 @@ func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int)
 	return s.vis.SystemItemRating(ctx, visibility.System("admin rating override"), itemID)
 }
 
-// maxRatingBatch is the size of one transaction of the mass rating (design 4.2).
+// maxRatingBatch is the size of one transaction of the mass rating (design 4.2) and of the
+// maintenance cleanup (plan 3.6: batches of at most 500).
 const maxRatingBatch = 500
 
 // maxRatingItems caps one mass rating request (contract ItemsRatingRequest).

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/youtubeid"
 )
 
 // Administration functions of the metadata package (design 3.2 and 4.2): provider search, manual
@@ -142,7 +142,7 @@ func (s *Service) AssignMatch(ctx context.Context, itemID, provider, providerID 
 		return fmt.Errorf("assign match %s: commit: %w", item.ID, err)
 	}
 	s.log.Info("manual match assigned", "item_id", item.ID, "provider", provider, "provider_id", id)
-	return s.enqueueMatch(ctx, item.ID, matchManualPriority)
+	return s.enqueueManualMatch(ctx, item.ID)
 }
 
 // Refresh re-runs the enrichment of a title: metadata.match at priority 7 (images and trailers
@@ -165,7 +165,7 @@ func (s *Service) Refresh(ctx context.Context, itemID string) error {
 	case item.Kind == "season" && item.ParentID.Valid:
 		target = item.ParentID.String
 	}
-	if err := s.enqueueMatch(ctx, target, matchManualPriority); err != nil {
+	if err := s.enqueueManualMatch(ctx, target); err != nil {
 		return fmt.Errorf("refresh %s: %w", item.ID, err)
 	}
 	files, err := s.read.ListMediaFileIDsByItem(ctx, item.ID)
@@ -195,7 +195,7 @@ func (s *Service) AddManualTrailer(ctx context.Context, itemID, lang, youtubeID 
 	if !trailerLangPattern.MatchString(lang) {
 		v = v.Add("lang", "invalid_value")
 	}
-	if !youtubeIDPattern.MatchString(youtubeID) {
+	if !youtubeid.Valid(youtubeID) {
 		v = v.Add("youtubeId", "invalid_value")
 	}
 	if v != nil {
@@ -277,44 +277,6 @@ func (s *Service) ListTrailersSystem(ctx context.Context, itemID string) ([]mode
 		out = append(out, toTrailer(r))
 	}
 	return out, nil
-}
-
-// ParseYouTubeID extracts the video ID from a YouTube URL (youtube.com/watch?v=, youtu.be/,
-// youtube.com/embed|shorts|live|v/, youtube-nocookie.com/embed/) or accepts a bare ID.
-func ParseYouTubeID(urlOrID string) (string, bool) {
-	in := strings.TrimSpace(urlOrID)
-	if youtubeIDPattern.MatchString(in) {
-		return in, true
-	}
-	if !strings.Contains(in, "://") {
-		in = "https://" + in
-	}
-	u, err := url.Parse(in)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
-		return "", false
-	}
-	host := strings.TrimPrefix(strings.TrimPrefix(strings.ToLower(u.Hostname()), "www."), "m.")
-	segs := strings.Split(strings.Trim(u.Path, "/"), "/")
-	id := ""
-	switch host {
-	case "youtu.be":
-		id = segs[0]
-	case "youtube.com", "music.youtube.com":
-		switch {
-		case segs[0] == "watch":
-			id = u.Query().Get("v")
-		case len(segs) == 2 && (segs[0] == "embed" || segs[0] == "shorts" || segs[0] == "live" || segs[0] == "v"):
-			id = segs[1]
-		}
-	case "youtube-nocookie.com":
-		if len(segs) == 2 && segs[0] == "embed" {
-			id = segs[1]
-		}
-	}
-	if !youtubeIDPattern.MatchString(id) {
-		return "", false
-	}
-	return id, true
 }
 
 // liveItem loads an item that exists and is not soft-deleted, else model.ErrNotFound.

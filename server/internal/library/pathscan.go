@@ -182,6 +182,9 @@ func (s *Service) scanLibraryPaths(ctx context.Context, lib appq.Library, req []
 		}
 		usedLoss = true
 	}
+	if ops, _, err = s.reviveDeferred(ctx, scans, ops); err != nil {
+		return stats, 0, false, err
+	}
 
 	if len(ops) > 0 {
 		idx, err := s.loadItemIndex(ctx, lib, scans)
@@ -286,11 +289,12 @@ func listDirFiles(ctx context.Context, r *os.Root, dir, kind string, ignored map
 	if err != nil {
 		return nil, false, err
 	}
+	noMarker := map[string]int{}
 	for _, e := range entries {
 		if e.IsDir() || Ignored(e.Name()) {
 			continue
 		}
-		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, kind, ignored, log)
+		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, kind, ignored, noMarker, log)
 		if err != nil {
 			return nil, false, err
 		}
@@ -298,5 +302,6 @@ func listDirFiles(ctx context.Context, r *os.Root, dir, kind string, ignored map
 			files = append(files, df)
 		}
 	}
+	logNoMarker(ctx, log, noMarker)
 	return files, false, nil
 }

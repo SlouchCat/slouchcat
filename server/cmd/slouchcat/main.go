@@ -194,7 +194,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	// admin stores and reveals the TMDB key, metadata checks and uses it: the key source is
 	// resolved lazily so both can be constructed without a cycle.
 	keys := &lazyKeys{cfg: cfg}
-	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI))
+	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
+	// direct-play streams of titles that became invisible (M3 review, finding 20).
+	playbackSvc, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
+		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility))
 	libSvc := library.New(db, queue, runner, log,
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata))
@@ -219,7 +223,6 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		workers.Wait()
 	}()
 
-	playbackSvc, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
 	sweepCtx, stopSweep := context.WithCancel(ctx)
 	var sweeper sync.WaitGroup
 	sweeper.Go(func() { playbackSvc.Run(sweepCtx) })
@@ -271,7 +274,8 @@ func (k *lazyKeys) TMDBKey(ctx context.Context) (string, error) {
 	return k.admin.TMDBKey(ctx)
 }
 
-// TVDBKey returns the TVDB key and PIN: the environment (config) wins, else the stored settings.
+// TVDBKey returns the TVDB key and PIN from one source: both from the environment (config) when
+// the key is set there, else both from the stored settings (admin.TVDBKey applies the same rule).
 func (k *lazyKeys) TVDBKey(ctx context.Context) (key, pin string, err error) {
 	if k.cfg.TVDBAPIKey != "" {
 		return k.cfg.TVDBAPIKey, k.cfg.TVDBPIN, nil

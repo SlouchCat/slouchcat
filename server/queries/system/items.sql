@@ -64,12 +64,15 @@ WHERE id = @id;
 -- name: RestoreItem :exec
 -- A file of a soft-deleted item reappeared: the item comes back with its user data, and with it
 -- its soft-deleted parent and grandparent (the season and series of an episode or a season
--- extra), so the tree stays whole.
+-- extra), so the tree stays whole. An ancestor that is not a container (the film of an extra)
+-- comes back only with a present file of its own; otherwise the next sweep would delete it again.
 UPDATE items SET deleted_at = NULL, updated_at = @now
 WHERE items.deleted_at IS NOT NULL
-  AND items.id IN (@id,
-             (SELECT p.parent_id FROM items AS p WHERE p.id = @id),
-             (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = @id)));
+  AND (items.id = @id
+       OR (items.id IN ((SELECT p.parent_id FROM items AS p WHERE p.id = @id),
+                        (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = @id)))
+           AND (items.kind IN ('series', 'season', 'podcast')
+                OR EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL))));
 
 -- name: GetMediaFileSystem :one
 SELECT * FROM media_files WHERE id = @id;

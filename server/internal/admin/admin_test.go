@@ -305,9 +305,20 @@ func TestOptionalProviderKeys(t *testing.T) {
 	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "FAKE-tvdb-setting" || pin != "FAKE-pin" {
 		t.Fatalf("TVDBKey from settings = %q, %q, %v", key, pin, err)
 	}
+	// Key and PIN come from one source (review finding 22): the environment key brings the
+	// environment PIN, never the stored one; a PIN in the environment alone changes nothing.
+	f.env[EnvTVDBPin] = "FAKE-pin-env"
+	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "FAKE-tvdb-setting" || pin != "FAKE-pin" {
+		t.Fatalf("TVDBKey with an environment PIN only = %q, %q, %v", key, pin, err)
+	}
+	delete(f.env, EnvTVDBPin)
 	f.env[EnvTVDBKey], f.env[EnvYouTubeKey] = "FAKE-tvdb-env", " FAKE-yt-env "
-	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "FAKE-tvdb-env" || pin != "FAKE-pin" {
+	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "FAKE-tvdb-env" || pin != "" {
 		t.Fatalf("TVDBKey with env = %q, %q, %v", key, pin, err)
+	}
+	f.env[EnvTVDBPin] = "FAKE-pin-env"
+	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "FAKE-tvdb-env" || pin != "FAKE-pin-env" {
+		t.Fatalf("TVDBKey with env key and PIN = %q, %q, %v", key, pin, err)
 	}
 	if key, err := f.svc.YouTubeKey(ctx); err != nil || key != "FAKE-yt-env" {
 		t.Fatalf("YouTubeKey with env = %q, %v", key, err)

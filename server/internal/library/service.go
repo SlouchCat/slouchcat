@@ -63,6 +63,11 @@ type Service struct {
 	statsMu    sync.Mutex
 	writeStats WriteStats // see TakeWriteStats
 
+	// orphanMu guards orphans: extras files a scan skipped because no title owns their folder,
+	// by root id and rel path, with the size and mtime they had (see deferOrphan).
+	orphanMu sync.Mutex
+	orphans  map[int64]map[string]fileStamp
+
 	// pathMu guards the coalescing of watcher changes into scan.path jobs.
 	pathMu       sync.Mutex
 	pathPending  map[int64]map[int64]map[string]bool // library id → root id → directories not yet queued
@@ -85,7 +90,8 @@ func WithImageCheck(check func(ctx context.Context, libraryID int64) (int, error
 
 // WithMetadataCheck runs check after every successful full scan of a library; metadata's
 // QueuePendingMetadata queues metadata.match for titles with metadata_state 'pending' and no
-// active job, so the enrichment converges after interrupted or cancelled scans (design 2.2).
+// active job, a one-time match for titles matched before M3 and trailer.find for pending trailers,
+// so the enrichment converges after interrupted or cancelled scans (design 2.2).
 func WithMetadataCheck(check func(ctx context.Context, libraryID int64) (int, error)) Option {
 	return func(s *Service) { s.metadataCheck = check }
 }
@@ -97,6 +103,7 @@ func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logg
 		watchers: map[int64]*Watcher{}, retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},
 		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
+		orphans: map[int64]map[string]fileStamp{},
 	}
 	for _, o := range opts {
 		o(s)

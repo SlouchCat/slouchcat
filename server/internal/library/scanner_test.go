@@ -467,6 +467,78 @@ func TestExtraNeverAttachesToDeletedFilm(t *testing.T) {
 	}
 }
 
+// M3 review, finding 19: a returning extra file restores the extra but not its soft-deleted film
+// while the film's own file is still missing; the film's file brings the film back.
+func TestReturningExtraKeepsDeletedFilmDeleted(t *testing.T) {
+	e := newEnv(t)
+	extraRel := "Alien (1979)/Trailers/Alien Trailer.mkv"
+	dir := tree(t, append(slices.Clone(twentyMovies[:10]), extraRel))
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	film := e.str(`SELECT id FROM items WHERE kind = 'movie' AND title = 'Alien'`)
+	extra := e.str(`SELECT id FROM items WHERE kind = 'extra'`)
+	away := t.TempDir()
+	for _, rel := range []string{twentyMovies[0], extraRel} {
+		if err := os.Rename(filepath.Join(dir, filepath.FromSlash(rel)), filepath.Join(away, filepath.Base(rel))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.scan(lib.ID)
+	e.clock.Advance(25 * time.Hour)
+	if n, err := e.svc.Sweep(e.ctx); err != nil || n != 2 {
+		t.Fatalf("sweep = %d, %v; want the film and its extra", n, err)
+	}
+	back := func(rel string) {
+		t.Helper()
+		if err := os.Rename(filepath.Join(away, filepath.Base(rel)), filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+			t.Fatal(err)
+		}
+		e.scan(lib.ID)
+	}
+	back(extraRel)
+	if v := e.str(`SELECT group_concat(id || ':' || (deleted_at IS NULL), ',') FROM (SELECT id, deleted_at FROM items WHERE id IN (?, ?) ORDER BY id = ?)`,
+		film, extra, film); v != extra+":1,"+film+":0" {
+		t.Errorf("after the extra returned: %s, want the extra restored and the film still deleted", v)
+	}
+	back(twentyMovies[0])
+	if n := e.count(`SELECT count(*) FROM items WHERE id IN (?, ?) AND deleted_at IS NULL`, film, extra); n != 2 {
+		t.Errorf("after the film returned: %d restored, want 2", n)
+	}
+}
+
+// M3 review, finding 16: an extra without a parent title (two films share its folder) is skipped
+// once; unchanged rescans neither hash nor write it, and a scan with other changes tries again.
+func TestOrphanExtraIsNotReplannedByUnchangedRescans(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, []string{"Double/Film A (2001).mkv", "Double/Film B (2002).mkv", "Double/Trailers/Trailer.mkv"})
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'extra'`); n != 0 {
+		t.Fatalf("extras = %d, want none (no single parent)", n)
+	}
+	e.svc.TakeWriteStats()
+	got := e.scan(lib.ID)
+	if st := e.svc.TakeWriteStats(); st.Batches != 0 || st.Ops != 0 {
+		t.Errorf("unchanged rescan wrote %+v, want nothing", st)
+	}
+	if got.Scan.State != "done" {
+		t.Errorf("rescan = %+v", got.Scan)
+	}
+	// Another change in the library: the extra is planned again (and skipped again).
+	writeFile(t, dir, "Heat (1995)/Heat (1995).mkv", "heat")
+	e.scan(lib.ID)
+	if st := e.svc.TakeWriteStats(); st.Ops != 2 {
+		t.Errorf("scan with a new film wrote %d operations, want 2 (the film and the retried extra)", st.Ops)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'extra'`); n != 0 {
+		t.Errorf("extras = %d, want none", n)
+	}
+	e.scan(lib.ID)
+	if st := e.svc.TakeWriteStats(); st.Batches != 0 {
+		t.Errorf("unchanged rescan after the retry wrote %+v", st)
+	}
+}
+
 func TestSecondVersionAttachesToSameItem(t *testing.T) {
 	e := newEnv(t)
 	dir := tree(t, []string{"Avatar (2009)/Avatar (2009) - 1080p.mkv", "Avatar (2009)/Avatar (2009) - 2160p.mkv"})

@@ -254,28 +254,3 @@ func TestManualTrailers(t *testing.T) {
 		t.Fatalf("state %s after deleting every trailer", state)
 	}
 }
-
-func TestParseYouTubeID(t *testing.T) {
-	ok := map[string]string{
-		"dQw4w9WgXcQ": "dQw4w9WgXcQ",
-		"https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s":  "dQw4w9WgXcQ",
-		"youtube.com/watch?v=dQw4w9WgXcQ":                    "dQw4w9WgXcQ",
-		"https://m.youtube.com/watch?v=dQw4w9WgXcQ":          "dQw4w9WgXcQ",
-		"https://youtu.be/dQw4w9WgXcQ?si=abc":                "dQw4w9WgXcQ",
-		"https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ": "dQw4w9WgXcQ",
-		"https://www.youtube.com/embed/dQw4w9WgXcQ":          "dQw4w9WgXcQ",
-		"https://www.youtube.com/shorts/dQw4w9WgXcQ":         "dQw4w9WgXcQ",
-		"  https://www.youtube.com/watch?v=dQw4w9WgXcQ  ":    "dQw4w9WgXcQ",
-	}
-	for in, want := range ok {
-		if got, valid := ParseYouTubeID(in); !valid || got != want {
-			t.Errorf("ParseYouTubeID(%q) = %q, %v; want %q", in, got, valid, want)
-		}
-	}
-	for _, in := range []string{"", "short", "https://vimeo.com/123456789", "https://www.youtube.com/watch?v=bad!id",
-		"https://evil.example/watch?v=dQw4w9WgXcQ", "javascript:alert(1)", "https://youtube.com/channel/UC123456789"} {
-		if got, valid := ParseYouTubeID(in); valid {
-			t.Errorf("ParseYouTubeID(%q) = %q, accepted", in, got)
-		}
-	}
-}

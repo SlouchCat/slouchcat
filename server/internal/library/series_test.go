@@ -1,8 +1,10 @@
 package library
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -508,6 +510,55 @@ func TestProbeErrorOnBrokenFile(t *testing.T) {
 	}
 	if v := e.str(`SELECT coalesce(probe_error, 'none') || '/' || video_codec FROM media_files WHERE id = ?`, id); v != "none/h264" {
 		t.Errorf("after the re-probe: %q, want none/h264", v)
+	}
+}
+
+// M3 review, finding 17: files without an episode marker are logged once per directory and scan
+// with their count, not once per file.
+func TestNoEpisodeMarkerLoggedPerDirectory(t *testing.T) {
+	e := newEnv(t)
+	var logs bytes.Buffer
+	e.svc.log = slog.New(slog.NewTextHandler(&logs, nil))
+	dir := tree(t, []string{"Show (2020)/Season 01/Show - S01E01.mkv", "Show (2020)/Season 01/Recap one.mkv",
+		"Show (2020)/Season 01/Recap two.mkv", "Show (2020)/Bonus.mkv"})
+	lib := e.createSeries(dir)
+	e.scan(lib.ID)
+	out := logs.String()
+	if n := strings.Count(out, "no episode marker"); n != 2 {
+		t.Errorf("%d warnings, want one per directory:\n%s", n, out)
+	}
+	if !strings.Contains(out, `dir="Show (2020)/Season 01" files=2`) || !strings.Contains(out, `dir="Show (2020)" files=1`) {
+		t.Errorf("warnings without directory and count:\n%s", out)
+	}
+}
+
+// M3 review, finding 6: the metadata job replaces the folder year with the first air date; a new
+// episode in the same series folder still joins the series instead of creating a second one.
+func TestSeriesFolderWinsOverChangedYear(t *testing.T) {
+	e := newEnv(t)
+	dir := tree(t, []string{"Show (2019)/Season 01/Show - S01E01.mkv"})
+	lib := e.createSeries(dir)
+	e.scan(lib.ID)
+	series := e.str(`SELECT id FROM items WHERE kind = 'series'`)
+	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE items SET year = 2020, metadata_state = 'matched' WHERE id = ?`, series); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, dir, "Show (2019)/Season 01/Show - S01E02.mkv", "episode two")
+	writeFile(t, dir, "Show (2019)/Season 02/Show - S02E01.mkv", "season two")
+	e.scan(lib.ID)
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'series'`); n != 1 {
+		t.Fatalf("series = %d, want 1", n)
+	}
+	for _, ep := range [][2]int{{1, 1}, {1, 2}, {2, 1}} {
+		if id := e.episode("Show", ep[0], ep[1]); id == "" {
+			t.Errorf("S%02dE%02d is not below the series", ep[0], ep[1])
+		}
+	}
+	// A path scan of the folder finds the same series.
+	writeFile(t, dir, "Show (2019)/Season 01/Show - S01E03.mkv", "episode three")
+	e.pathScan(lib, "Show (2019)/Season 01")
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'series'`); n != 1 {
+		t.Errorf("series after the path scan = %d, want 1", n)
 	}
 }
 
