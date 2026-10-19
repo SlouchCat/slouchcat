@@ -121,6 +121,8 @@ lokalen Override-Datei `.dev/compose.m1a.yaml` (Testfilme unter `/testfilme`, Sp
 3. Stream-Token (5.4), Bildpipeline (WebP, Grössen, Akzentfarbe), HLS/Remux, Design-Feinschliff, arm64.
 4. `inotify_poll`-Abweichungen und Scan-Fehler erscheinen erst mit dem Dashboard (M8) in der Oberfläche;
    bis dahin Log und `/admin/libraries`.
-5. Proxmox-Testcontainer als schwaches NAS anlegen (Entscheid 2, vor M1b).
+5. Proxmox-Testcontainer als schwaches NAS anlegen (Entscheid 2, vor M1b): Spezifikation und Skripte liegen
+   in `docs/dev/TESTSERVER.md` und `scripts/proxmox/`; es fehlt die SSH-Verbindung zum Proxmox-Host in
+   Claude Desktop (Marco), dann legt Claude den Container an und misst SMB.
 6. GitHub Actions: Workflow `.github/workflows/ci.yml` läuft seit dem Push dieses Branches; Ergebnis auf
    GitHub prüfen (der Lauf braucht ffmpeg, Playwright-Browser und `task testdata:media`, alles im Workflow).
