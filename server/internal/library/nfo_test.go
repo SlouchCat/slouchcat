@@ -82,7 +82,7 @@ func TestParseNFO(t *testing.T) {
 		{"junk before xml", "garbage line\n<movie><title>Heat</title></movie>", NFO{Title: "Heat"}, nil},
 		{"binary junk", "\x00\x01\x02\xff\xfe", NFO{}, nil},
 		{"truncated xml", "<movie><title>Heat</title><year>19", NFO{Title: "Heat"}, nil},
-		{"tvshow root ignored", "<tvshow><title>Dark</title></tvshow>", NFO{}, nil},
+		{"other root ignored", "<musicvideo><title>Dark</title></musicvideo>", NFO{}, nil},
 		{"latin1 declared", `<?xml version="1.0" encoding="ISO-8859-1"?><movie><title>Heat</title></movie>`, NFO{}, nil},
 		{"html entities", `<movie><title>Fast &amp; Furious</title><plot>Caf&eacute;</plot></movie>`, NFO{Title: "Fast & Furious", Plot: "Café"}, nil},
 		{"cdata", `<movie><plot><![CDATA[A <b>bold</b> plot]]></plot></movie>`, NFO{Plot: "A <b>bold</b> plot"}, nil},
@@ -107,6 +107,11 @@ func TestParseNFO(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			got := ParseNFO([]byte(c.in))
+			// Every case is a movie NFO; the kind is checked once here, the fields below.
+			if got.Kind != "" && got.Kind != NFOMovie {
+				t.Errorf("Kind = %q, want movie or empty", got.Kind)
+			}
+			got.Kind = ""
 			if !reflect.DeepEqual(got, c.want) {
 				t.Errorf("ParseNFO =\n  %+v\nwant\n  %+v", got, c.want)
 			}

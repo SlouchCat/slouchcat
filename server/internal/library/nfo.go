@@ -8,10 +8,21 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
-// NFO holds the fields of a Kodi/Jellyfin/Radarr movie.nfo that the scanner uses (B-2).
+// NFO kinds: the root element of the file.
+const (
+	NFOMovie   = "movie"
+	NFOTVShow  = "tvshow"
+	NFOEpisode = "episodedetails"
+)
+
+// NFO holds the fields of a Kodi/Jellyfin/Radarr/Sonarr NFO that the scanner uses (B-2): a
+// movie.nfo or <stem>.nfo (<movie>), a tvshow.nfo in the series folder (<tvshow>) or the
+// <stem>.nfo of an episode (<episodedetails>).
 type NFO struct {
+	Kind          string // NFOMovie, NFOTVShow, NFOEpisode; "" when no known root element was found
 	Title         string
 	OriginalTitle string
 	Year          int
@@ -22,8 +33,12 @@ type NFO struct {
 	MPAA          string
 	Certification string
 	TMDBID        int64
+	TVDBID        int64
 	IMDBID        string
 	Genres        []string
+	Season        *int   // episodedetails
+	Episode       *int   // episodedetails
+	Aired         string // episodedetails: YYYY-MM-DD
 }
 
 // maxNFOSize bounds the NFO files the scanner reads; real ones are a few KiB.
@@ -31,13 +46,20 @@ const maxNFOSize = 1 << 20
 
 var errNotUTF8 = errors.New("only UTF-8 NFO files are decoded")
 
-// ParseNFO reads a movie NFO. It never fails: junk, a bare URL (the "URL NFO" that only points to
-// a database page), a missing <movie> element or a non-UTF-8 charset yield the fields read so far,
-// possibly an empty NFO. A UTF-8 byte order mark is allowed.
+// ParseNFO reads an NFO with the root element <movie>, <tvshow> or <episodedetails> (NFO.Kind);
+// of a multi-episode file's NFO only the first <episodedetails> is read. It never fails: junk, a
+// bare URL (the "URL NFO" that only points to a database page), a missing root element or a
+// non-UTF-8 charset yield the fields read so far, possibly an empty NFO. A UTF-8 byte order mark
+// is allowed.
 func ParseNFO(data []byte) NFO {
 	var n NFO
 	data = bytes.TrimPrefix(data, []byte("\xEF\xBB\xBF"))
-	start := bytes.Index(data, []byte("<movie"))
+	start := -1
+	for _, root := range []string{NFOMovie, NFOTVShow, NFOEpisode} {
+		if i := bytes.Index(data, []byte("<"+root)); i >= 0 && (start < 0 || i < start) {
+			start = i
+		}
+	}
 	if start < 0 {
 		return n
 	}
@@ -62,8 +84,8 @@ func ParseNFO(data []byte) NFO {
 	}
 
 	var (
-		depth   int    // 1 inside <movie>
-		field   string // direct child of <movie> being read
+		depth   int    // 1 inside the root element
+		field   string // direct child of the root element being read
 		attrs   []xml.Attr
 		text    strings.Builder
 		uniques = map[string]string{}
@@ -76,8 +98,13 @@ func ParseNFO(data []byte) NFO {
 		switch t := tok.(type) {
 		case xml.StartElement:
 			depth++
-			if depth == 1 && t.Name.Local != "movie" {
-				return n
+			if depth == 1 {
+				switch t.Name.Local {
+				case NFOMovie, NFOTVShow, NFOEpisode:
+					n.Kind = t.Name.Local
+				default:
+					return n
+				}
 			}
 			if depth == 2 {
 				field, attrs = strings.ToLower(t.Name.Local), t.Attr
@@ -126,6 +153,22 @@ func (n *NFO) set(field, v string, attrs []xml.Attr, uniques map[string]string) 
 		if n.Premiered == "" {
 			n.Premiered = v
 		}
+	case "aired":
+		if isDate(v) {
+			n.Aired = v
+		}
+	case "season":
+		if s, err := strconv.Atoi(v); err == nil && s >= 0 {
+			n.Season = &s
+		}
+	case "episode":
+		if e, err := strconv.Atoi(v); err == nil && e >= 0 {
+			n.Episode = &e
+		}
+	case "tvdbid":
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil && id > 0 {
+			n.TVDBID = id
+		}
 	case "mpaa":
 		n.MPAA = v
 	case "certification":
@@ -159,8 +202,24 @@ func (n *NFO) set(field, v string, attrs []xml.Attr, uniques map[string]string) 
 	}
 }
 
-// withUniqueIDs lets <uniqueid> override the legacy <tmdbid>/<id> fields (Kodi v18+).
+// withUniqueIDs lets <uniqueid> override the legacy <tmdbid>/<tvdbid>/<id> fields (Kodi v18+).
+// A <tvshow> or <episodedetails> without <year> takes the year of its first air date.
 func (n NFO) withUniqueIDs(uniques map[string]string) NFO {
+	if n.Year == 0 && n.Kind != NFOMovie {
+		for _, d := range []string{n.Premiered, n.Aired} {
+			if len(d) >= 4 {
+				if y, ok := yearOf(d[:4]); ok {
+					n.Year = y
+					break
+				}
+			}
+		}
+	}
+	if v, ok := uniques["tvdb"]; ok {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil && id > 0 {
+			n.TVDBID = id
+		}
+	}
 	if v, ok := uniques["tmdb"]; ok {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil && id > 0 {
 			n.TMDBID = id
@@ -170,6 +229,12 @@ func (n NFO) withUniqueIDs(uniques map[string]string) NFO {
 		n.IMDBID = v
 	}
 	return n
+}
+
+// isDate reports a YYYY-MM-DD date.
+func isDate(s string) bool {
+	_, err := time.Parse(time.DateOnly, s)
+	return err == nil
 }
 
 var (

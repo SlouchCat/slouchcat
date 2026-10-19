@@ -7,16 +7,22 @@ import (
 	"strings"
 )
 
-// ParsedName is what the movie name parser reads from a file path (Plex, Jellyfin, Radarr and
-// scene naming).
+// ParsedName is what the name parsers read from a file path (Plex, Jellyfin, Radarr, Sonarr and
+// scene naming). ParseMoviePath fills the title fields with the movie; ParseSeriesPath leaves
+// them empty and fills Series.
 type ParsedName struct {
 	Title        string
 	Year         *int
 	TMDBID       int64
 	IMDBID       string
 	VersionLabel string // resolution plus edition, for example "1080p" or "2160p Director's Cut"
-	Extra        bool   // trailer, featurette, … (B-7, M3); never a title of its own
+	Extra        bool   // trailer, featurette, … (B-7); an item of kind extra below its title
+	ExtraKind    string // items.extra_kind of an extra: trailer, featurette, deleted_scene, …
+	ExtraTitle   string // title of an extra: the file name without the extra suffix
 	Sample       bool   // scene sample; never a title
+	// Series is set by ParseSeriesPath for an episode (a file with an episode marker) and for an
+	// extra below a series folder; nil for anything else.
+	Series *ParsedEpisode
 }
 
 var videoExts = map[string]bool{
@@ -46,15 +52,60 @@ func Ignored(name string) bool {
 	return strings.HasPrefix(name, ".") || ignoredNames[strings.ToLower(name)]
 }
 
-// Extras folders inside a movie folder (Plex/Jellyfin local extras).
-var extrasDirs = map[string]bool{
-	"trailers": true, "featurettes": true, "deleted scenes": true, "behind the scenes": true,
-	"interviews": true, "scenes": true, "shorts": true, "extras": true, "others": true, "other": true,
+// Extras folders inside a movie or series folder (Plex/Jellyfin local extras) and the
+// items.extra_kind they map to.
+var extrasDirs = map[string]string{
+	"trailers": "trailer", "featurettes": "featurette", "deleted scenes": "deleted_scene",
+	"behind the scenes": "behind_the_scenes", "interviews": "interview", "scenes": "scene",
+	"shorts": "short", "extras": "other", "others": "other", "other": "other",
 }
 
-var extraSuffixes = []string{
-	"-trailer", "-featurette", "-short", "-deleted", "-deletedscene", "-behindthescenes", "-interview",
-	"-scene", "-other", "-extra",
+// Extra suffixes of a file name ("Alien (1979)-trailer.mkv") and their extra_kind, longest first
+// where one suffix ends another.
+var extraSuffixes = []struct{ suffix, kind string }{
+	{"-trailer", "trailer"}, {"-featurette", "featurette"}, {"-short", "short"},
+	{"-deletedscene", "deleted_scene"}, {"-deleted", "deleted_scene"},
+	{"-behindthescenes", "behind_the_scenes"}, {"-interview", "interview"}, {"-scene", "scene"},
+	{"-other", "other"}, {"-extra", "other"},
+}
+
+// extraSuffix returns the extra kind of a file stem with an extra suffix ("…-trailer",
+// "… - trailer" or a bare "trailer") and the stem without it.
+func extraSuffix(stem string) (kind, rest string, ok bool) {
+	t := strings.TrimSpace(stem)
+	ls := strings.ToLower(t)
+	for _, e := range extraSuffixes {
+		spaced := strings.Replace(e.suffix, "-", " - ", 1)
+		switch {
+		case strings.HasSuffix(ls, spaced):
+			return e.kind, cleanTitle(t[:len(t)-len(spaced)]), true
+		case strings.HasSuffix(ls, e.suffix):
+			return e.kind, cleanTitle(t[:len(t)-len(e.suffix)]), true
+		case ls == e.suffix[1:]:
+			return e.kind, "", true
+		}
+	}
+	return "", "", false
+}
+
+// extraTitle is the title of an extra: the stem without its extra suffix, or the stem itself.
+func extraTitle(stem string) string {
+	if _, rest, ok := extraSuffix(stem); ok && rest != "" {
+		return rest
+	}
+	return cleanTitle(stem)
+}
+
+// isSampleStem reports a scene sample by its file stem.
+func isSampleStem(stem string) bool {
+	ls := strings.ToLower(strings.TrimSpace(stem))
+	return ls == "sample" || strings.HasSuffix(ls, "-sample") || strings.HasSuffix(ls, ".sample") ||
+		strings.HasPrefix(ls, "sample.") || strings.HasPrefix(ls, "sample-")
+}
+
+func isSampleDir(d string) bool {
+	ld := strings.ToLower(d)
+	return ld == "sample" || ld == "samples"
 }
 
 var (
@@ -86,12 +137,13 @@ type nameParts struct {
 	title      string
 	year       *int
 	tmdb       int64
+	tvdb       int64
 	imdb       string
 	edition    string
 	resolution string
 }
 
-func (p nameParts) hasIDs() bool { return p.tmdb != 0 || p.imdb != "" }
+func (p nameParts) hasIDs() bool { return p.tmdb != 0 || p.imdb != "" || p.tvdb != 0 }
 
 // ParseMoviePath parses the slash-separated path of a video file relative to its library root.
 //
@@ -108,25 +160,25 @@ func ParseMoviePath(rel string) ParsedName {
 
 	var res ParsedName
 	for i, d := range dirs {
-		ld := strings.ToLower(d)
 		// A top-level "Shorts" or "Extras" folder is a category of the library, not local extras.
-		if i >= 1 && extrasDirs[ld] {
-			res.Extra = true
+		// The deepest extras folder names the kind.
+		if kind, ok := extrasDirs[strings.ToLower(d)]; ok && i >= 1 {
+			res.Extra, res.ExtraKind = true, kind
 		}
-		if ld == "sample" || ld == "samples" {
+		if isSampleDir(d) {
 			res.Sample = true
 		}
 	}
-	ls := strings.ToLower(strings.TrimSpace(stem))
-	for _, suf := range extraSuffixes {
-		if strings.HasSuffix(ls, suf) || strings.HasSuffix(ls, strings.Replace(suf, "-", " - ", 1)) || ls == suf[1:] {
-			res.Extra = true
+	if kind, _, ok := extraSuffix(stem); ok {
+		res.Extra = true
+		if res.ExtraKind == "" {
+			res.ExtraKind = kind
 		}
 	}
-	if ls == "sample" || strings.HasSuffix(ls, "-sample") || strings.HasSuffix(ls, ".sample") ||
-		strings.HasPrefix(ls, "sample.") || strings.HasPrefix(ls, "sample-") {
-		res.Sample = true
+	if res.Extra {
+		res.ExtraTitle = extraTitle(stem)
 	}
+	res.Sample = res.Sample || isSampleStem(stem)
 
 	fileP := parseName(stem)
 	var folderP *nameParts
@@ -175,7 +227,22 @@ func ParseMoviePath(rel string) ParsedName {
 // specialDir reports folders that never name the movie: extras, samples and part folders.
 func specialDir(d string) bool {
 	ld := strings.ToLower(d)
-	return extrasDirs[ld] || ld == "sample" || ld == "samples" || partRe.MatchString(ld)
+	_, extras := extrasDirs[ld]
+	return extras || isSampleDir(d) || partRe.MatchString(ld)
+}
+
+// movieFolder returns the folder of the movie a file in a movie library belongs to: its directory
+// without trailing extras, sample and part folders ("Alien (1979)/Trailers/x.mkv" → "Alien
+// (1979)"); "" for a file directly in the root.
+func movieFolder(rel string) string {
+	dir := path.Dir(rel)
+	for dir != "." && specialDir(path.Base(dir)) {
+		dir = path.Dir(dir)
+	}
+	if dir == "." {
+		return ""
+	}
+	return dir
 }
 
 // parseName parses one folder name or file stem.
@@ -204,6 +271,10 @@ func parseName(s string) nameParts {
 		case "imdb", "imdbid":
 			if imdbRe.MatchString(v) && p.imdb == "" {
 				p.imdb = v
+			}
+		case "tvdb", "tvdbid":
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 && p.tvdb == 0 {
+				p.tvdb = n
 			}
 		}
 	}
