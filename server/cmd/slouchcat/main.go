@@ -195,9 +195,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	// resolved lazily so both can be constructed without a cycle.
 	keys := &lazyKeys{cfg: cfg}
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI))
-	libSvc := library.New(db, queue, runner, log, library.WithImageCheck(metaSvc.QueueIncompleteImages))
+	libSvc := library.New(db, queue, runner, log,
+		library.WithImageCheck(metaSvc.QueueIncompleteImages),
+		library.WithMetadataCheck(metaSvc.QueuePendingMetadata))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
-	adminSvc.WithQueue(queue)
+	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc)
 	keys.admin = adminSvc
 
 	var workers sync.WaitGroup
@@ -269,16 +271,20 @@ func (k *lazyKeys) TMDBKey(ctx context.Context) (string, error) {
 	return k.admin.TMDBKey(ctx)
 }
 
-// TVDBKey returns SLOUCHCAT_TVDB_API_KEY and SLOUCHCAT_TVDB_PIN until the admin service provides
-// TVDBKey with the stored settings (M3, admin package).
-func (k *lazyKeys) TVDBKey(context.Context) (key, pin string, err error) {
-	return k.cfg.TVDBAPIKey, k.cfg.TVDBPIN, nil
+// TVDBKey returns the TVDB key and PIN: the environment (config) wins, else the stored settings.
+func (k *lazyKeys) TVDBKey(ctx context.Context) (key, pin string, err error) {
+	if k.cfg.TVDBAPIKey != "" {
+		return k.cfg.TVDBAPIKey, k.cfg.TVDBPIN, nil
+	}
+	return k.admin.TVDBKey(ctx)
 }
 
-// YouTubeKey returns SLOUCHCAT_YOUTUBE_API_KEY until the admin service provides YouTubeKey (M3,
-// admin package).
-func (k *lazyKeys) YouTubeKey(context.Context) (string, error) {
-	return k.cfg.YouTubeAPIKey, nil
+// YouTubeKey returns the YouTube Data API key: the environment (config) wins, else the stored setting.
+func (k *lazyKeys) YouTubeKey(ctx context.Context) (string, error) {
+	if k.cfg.YouTubeAPIKey != "" {
+		return k.cfg.YouTubeAPIKey, nil
+	}
+	return k.admin.YouTubeKey(ctx)
 }
 
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on
