@@ -21,12 +21,14 @@ const (
 
 // testKeys is a KeySource with every provider key.
 type testKeys struct {
-	tmdb, tvdb, pin string
+	tmdb, tvdb, pin, youtube string
 }
 
 func (k testKeys) TMDBKey(context.Context) (string, error) { return k.tmdb, nil }
 
 func (k testKeys) TVDBKey(context.Context) (string, string, error) { return k.tvdb, k.pin, nil }
+
+func (k testKeys) YouTubeKey(context.Context) (string, error) { return k.youtube, nil }
 
 // tid returns a 26 character item ID for tag and n.
 func tid(tag string, n int) string {
@@ -269,6 +271,38 @@ func (f *fakeTMDB) addTV(t *testing.T, mux *http.ServeMux, auth func(http.Handle
 		_, _ = w.Write(f.poster)
 	}
 	mux.HandleFunc("GET /t/p/original/{name}", tvImage)
+
+	// Videos (trailer chain): the same list for every request language, as TMDB answers with
+	// include_video_language.
+	videos := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("include_video_language") != "de,en,null" {
+			t.Errorf("videos without include_video_language: %s", r.URL)
+		}
+		lang(r)
+		v := func(lang any, key, typ, site string, official bool, published, name string) map[string]any {
+			return map[string]any{"iso_639_1": lang, "iso_3166_1": "US", "key": key, "type": typ, "site": site,
+				"official": official, "published_at": published, "name": name, "size": 1080, "id": key}
+		}
+		results := []any{}
+		switch r.URL.Path {
+		case "/3/movie/550/videos":
+			results = []any{
+				v("de", "deTrailer01", "Trailer", "YouTube", false, "2021-01-01T10:00:00.000Z", "Trailer (neu)"),
+				v("de", "deOfficial1", "Trailer", "YouTube", true, "2019-01-01T10:00:00.000Z", "Offizieller Trailer"),
+				v("en", "enOlder0001", "Trailer", "YouTube", true, "2018-01-01T10:00:00.000Z", "Official Trailer 1"),
+				v("en", "enOfficial1", "Trailer", "YouTube", true, "2019-06-01T10:00:00.000Z", "Official Trailer 2"),
+				v("en", "enTeaser001", "Teaser", "YouTube", true, "2022-01-01T10:00:00.000Z", "Teaser"),
+				v("en", "vimeo123456", "Trailer", "Vimeo", true, "2022-01-01T10:00:00.000Z", "Vimeo trailer"),
+				v("fr", "frTrailer01", "Trailer", "YouTube", true, "2022-01-01T10:00:00.000Z", "Bande-annonce"),
+				v(nil, "noLang00001", "Trailer", "YouTube", true, "2022-01-01T10:00:00.000Z", "Without language"),
+			}
+		case "/3/tv/900/videos":
+			results = []any{v("en", "tvTrailer01", "Trailer", "YouTube", true, "2010-01-01T10:00:00.000Z", "Season 1 Trailer")}
+		}
+		writeJSON(w, map[string]any{"id": 1, "results": results})
+	}
+	mux.HandleFunc("GET /3/movie/{id}/videos", auth(videos))
+	mux.HandleFunc("GET /3/tv/{id}/videos", auth(videos))
 }
 
 // fakeTVDB serves the TVDB v4 endpoints the provider uses, with the answer shapes of the real API.

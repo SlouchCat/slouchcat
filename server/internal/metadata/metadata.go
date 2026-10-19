@@ -32,6 +32,9 @@
 //     files; the library scan enqueues it for such titles. A locked kind is not fetched, but its
 //     sizes are scaled from the stored image. A palette failure keeps the previous accent; a
 //     poster without accent is retried a bounded number of times (maxAccentRetries).
+//   - trailer.find, payload {"itemId": "<ULID>"}, key trailer:<itemId>, priority 1: the trailer
+//     chain TMDB videos → YouTube Data API (daily quota) → AI (off in M3) for movies and series
+//     with a tmdb_id (trailers.go, youtube.go). metadata.match enqueues it after every match.
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
@@ -55,6 +58,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
+	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -76,6 +80,8 @@ type KeySource interface {
 	TMDBKey(ctx context.Context) (string, error)
 	// TVDBKey returns the TVDB v4 API key and the optional subscriber PIN.
 	TVDBKey(ctx context.Context) (key, pin string, err error)
+	// YouTubeKey returns the YouTube Data API v3 key.
+	YouTubeKey(ctx context.Context) (string, error)
 }
 
 // Service runs the metadata jobs and checks TMDB keys.
@@ -94,6 +100,10 @@ type Service struct {
 	tvdb   *tvdbProvider
 	now    func() time.Time
 
+	trailersTMDB    TrailerProvider
+	trailersYouTube TrailerProvider
+	trailersAI      AITrailerProvider
+
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
 }
@@ -103,6 +113,9 @@ type options struct {
 	imageBase   string
 	tvdbBase    string
 	tvdbArtBase string
+	youtubeBase string
+	quota       *ratelimit.Quota
+	trailerAI   string
 	http        *http.Client
 	now         func() time.Time
 }
@@ -120,6 +133,23 @@ func WithTVDBBaseURL(api, artworks string) Option {
 	return func(o *options) { o.tvdbBase, o.tvdbArtBase = api, artworks }
 }
 
+// WithYouTubeBaseURL replaces the YouTube Data API base URL (tests use an httptest.Server).
+func WithYouTubeBaseURL(api string) Option {
+	return func(o *options) { o.youtubeBase = api }
+}
+
+// WithYouTubeQuota replaces the daily YouTube quota (default 10'000 units, reset at midnight
+// Pacific time); tests pass one with a mock clock.
+func WithYouTubeQuota(q *ratelimit.Quota) Option {
+	return func(o *options) { o.quota = q }
+}
+
+// WithTrailerAI sets the AI step of the trailer chain (SLOUCHCAT_TRAILER_AI). M3 knows only
+// "off"; any other value logs a warning and stays off.
+func WithTrailerAI(mode string) Option {
+	return func(o *options) { o.trailerAI = mode }
+}
+
 // WithHTTPClient replaces the HTTP client (default: 15 s timeout).
 func WithHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.http = c }
@@ -134,7 +164,7 @@ func WithClock(now func() time.Time) Option {
 // <cacheDir>/images. runner scales the images (ffmpeg).
 func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	o := options{apiBase: DefaultAPIBase, imageBase: DefaultImageBase, tvdbBase: DefaultTVDBBase,
-		tvdbArtBase: DefaultTVDBArtworkBase, now: time.Now}
+		tvdbArtBase: DefaultTVDBArtworkBase, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -143,6 +173,9 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		err = fmt.Errorf("metadata cache dir: %w", err)
 	}
 	client := NewClient(o.apiBase, o.imageBase, o.http)
+	if o.quota == nil {
+		o.quota = ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific)
+	}
 	return &Service{
 		db:     db,
 		write:  systemq.New(db.Write),
@@ -158,14 +191,19 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		tvdb:   newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys),
 		now:    o.now,
 
+		trailersTMDB:    &tmdbTrailers{client: client, keys: keys},
+		trailersYouTube: newYouTubeTrailers(o.youtubeBase, o.http, o.quota, keys),
+		trailersAI:      newAITrailers(o.trailerAI, log),
+
 		accentRetries: map[string]int{},
 	}
 }
 
-// RegisterJobs registers the handlers of metadata.match and image.fetch on w.
+// RegisterJobs registers the handlers of metadata.match, image.fetch and trailer.find on w.
 func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobMatch, s.handleMatch)
 	w.Handle(JobImageFetch, s.handleImageFetch)
+	w.Handle(JobTrailerFind, s.handleTrailerFind)
 }
 
 // CheckKey validates a TMDB key. It returns nil, model.ErrTMDBKeyInvalid or

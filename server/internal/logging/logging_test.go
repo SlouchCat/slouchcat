@@ -15,6 +15,7 @@ var fakeSecrets = []string{
 	"hunter2-FAKE", "tok_FAKE_123", "pin-FAKE-0815", "apikey-FAKE-xyz", "Bearer FAKE.jwt.value",
 	"xapikey-FAKE", "s3cr3t-FAKE", "query-FAKE-key", "st-FAKE-token", "err-FAKE-key", "with-FAKE",
 	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "4711", "pl-FAKE-media", "pl-FAKE-init", "pl-FAKE-seg",
+	"yt-FAKE-key", "ytq-FAKE-key", "tvdb-FAKE-key", "tvdbpin-FAKE", "apikeyq-FAKE",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -35,6 +36,9 @@ func logAll(t *testing.T, format Format) string {
 		"Authorization", "Bearer FAKE.jwt.value",
 		"X-Api-Key", "xapikey-FAKE",
 		"client_secret", "s3cr3t-FAKE",
+		"youtube_api_key", "yt-FAKE-key",
+		"tvdbApiKey", "tvdb-FAKE-key",
+		"TVDB_PIN", "tvdbpin-FAKE",
 		"user", "marco",
 	)
 	log.Info("nested group",
@@ -49,6 +53,8 @@ func logAll(t *testing.T, format Format) string {
 		"parsed", &url.URL{Scheme: "https", Host: "example.org", RawQuery: "api_key=url-FAKE-key"},
 		"err", fmt.Errorf("fetch: %w", errors.New(`Get "https://x.test/?api_key=err-FAKE-key": timeout`)),
 		"first", "first=kept",
+		"youtube", "https://www.googleapis.com/youtube/v3/search?part=snippet&q=x&key=ytq-FAKE-key&maxResults=5",
+		"other", "https://x.test/login?apikey=apikeyq-FAKE",
 		// An HLS playlist quoted in an error: every line carries the stream token (plan 5.4).
 		"playlist", fmt.Errorf("parse playlist: %w", errors.New("#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4?st=pl-FAKE-init\"\nmedia.m3u8?st=pl-FAKE-media\nseg/0?st=pl-FAKE-seg\n")),
 	)
@@ -69,6 +75,7 @@ func TestRedaction(t *testing.T) {
 			for _, keep := range []string{
 				"marco", "GET", "attempt", "language=de", "segment=3", "first=kept", "component",
 				"api_key=" + Redacted, "st=" + Redacted, "api.themoviedb.org", "example.org",
+				"key=" + Redacted, "apikey=" + Redacted, "maxResults=5", "q=x",
 			} {
 				if !strings.Contains(out, keep) {
 					t.Errorf("output lost non-secret %q", keep)
@@ -80,7 +87,7 @@ func TestRedaction(t *testing.T) {
 
 func TestIsSensitiveKey(t *testing.T) {
 	for key, want := range map[string]bool{
-		"password": true, "PIN": true, "offline_pin": true, "access_token": true, "api_key": true,
+		"password": true, "PIN": true, "offline_pin": true, "access_token": true, "api_key": true, "youtube_api_key": true, "tvdbApiKey": true, "TVDB_PIN": true,
 		"apiKey": true, "X-Api-Key": true, "authorization": true, "secret": true,
 		"pin_hash": true, "profile_pin": true, "invitation_token": true, "token_hash": true, "password_hash": true, "device_id": false, "content_hash": false,
 		"user": false, "path": false, "max_tokens": false, "mapping": false, "status": false,

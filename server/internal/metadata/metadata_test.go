@@ -26,6 +26,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
@@ -263,12 +264,17 @@ func (k staticKey) TMDBKey(context.Context) (string, error) { return string(k), 
 
 func (k staticKey) TVDBKey(context.Context) (string, string, error) { return "", "", nil }
 
+func (k staticKey) YouTubeKey(context.Context) (string, error) { return "", nil }
+
 type env struct {
 	db    *store.DB
 	queue *jobs.Queue
 	svc   *Service
 	tmdb  *fakeTMDB
 	tvdb  *fakeTVDB
+	yt    *fakeYouTube
+	quota *ratelimit.Quota
+	clock *testClock
 	cache string
 	logs  *bytes.Buffer
 }
@@ -290,22 +296,26 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 	t.Cleanup(func() { _ = db.Close() })
 	f := newFakeTMDB(t)
 	tv := newFakeTVDB(t)
+	yt := newFakeYouTube(t)
+	clock := &testClock{t: testNow}
+	quota := ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific, ratelimit.WithQuotaClock(clock.now))
 	cache := t.TempDir()
 	q := jobs.NewQueue(db.Write, nil)
 	svc := New(db, q, keys, cache, transcode.Runner{FFmpegPath: lookFFmpeg()}, log,
 		WithBaseURL(f.srv.URL+"/3", f.srv.URL+"/t/p"), WithHTTPClient(f.srv.Client()),
 		WithTVDBBaseURL(tv.srv.URL+"/v4", tv.srv.URL+"/art"),
+		WithYouTubeBaseURL(yt.srv.URL+"/youtube/v3"), WithYouTubeQuota(quota),
 		WithClock(func() time.Time { return testNow }))
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 0, 0)`)
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (2, 'Serien', 'series', 0, 0)`)
 	t.Cleanup(func() {
-		for _, secret := range []string{goodToken, rateToken, tvdbKey, tvdbPin, tvdbToken} {
+		for _, secret := range []string{goodToken, rateToken, tvdbKey, tvdbPin, tvdbToken, ytKey, ytQuotaKey} {
 			if strings.Contains(logs.String(), secret) {
 				t.Errorf("secret %q in logs:\n%s", secret, logs.String())
 			}
 		}
 	})
-	return &env{db: db, queue: q, svc: svc, tmdb: f, tvdb: tv, cache: cache, logs: logs}
+	return &env{db: db, queue: q, svc: svc, tmdb: f, tvdb: tv, yt: yt, quota: quota, clock: clock, cache: cache, logs: logs}
 }
 
 type lockedWriter struct {
@@ -1237,14 +1247,14 @@ func TestJobChainWithWorker(t *testing.T) {
 	if err := e.db.Read.QueryRow(`SELECT group_concat(type || '=' || state, ',') FROM (SELECT type, state FROM jobs ORDER BY id)`).Scan(&states); err != nil {
 		t.Fatal(err)
 	}
-	for !strings.Contains(states, "image.fetch=done") {
+	for !strings.Contains(states, "image.fetch=done") || !strings.Contains(states, "trailer.find=done") {
 		if time.Now().After(deadline) {
 			t.Fatalf("job states %s", states)
 		}
 		time.Sleep(20 * time.Millisecond)
 		_ = e.db.Read.QueryRow(`SELECT group_concat(type || '=' || state, ',') FROM (SELECT type, state FROM jobs ORDER BY id)`).Scan(&states)
 	}
-	if states != "metadata.match=done,image.fetch=done" {
+	if states != "metadata.match=done,image.fetch=done,trailer.find=done" {
 		t.Fatalf("job states %s", states)
 	}
 	if r := e.item(t, idByIMDB); r.State != "matched" || r.Source.String != "tmdb:DE" {

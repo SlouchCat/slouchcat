@@ -126,7 +126,7 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
 	if err := s.enqueueImages(ctx, item.ID, imageFetchPriority); err != nil {
 		return fmt.Errorf("metadata.match: %w", err)
 	}
-	return nil
+	return s.enqueueTrailerAfterMatch(ctx, item.ID)
 }
 
 // resolveMovie finds the TMDB movie of item: tmdb_id, else imdb_id through /find, else a title
@@ -217,7 +217,7 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	if err := s.matchSeasons(ctx, item.ID, prov, rec); err != nil {
 		return err
 	}
-	return nil
+	return s.enqueueTrailerAfterMatch(ctx, item.ID)
 }
 
 // resolveSeriesTMDB finds the TMDB series of item: tmdb_id, else tvdb_id or imdb_id through /find,
@@ -904,6 +904,15 @@ func (s *Service) enqueueImages(ctx context.Context, itemID string, priority int
 
 func (s *Service) enqueueMatch(ctx context.Context, itemID string, priority int) error {
 	return s.enqueueJob(ctx, JobMatch, "match:", itemID, priority)
+}
+
+// enqueueTrailerAfterMatch queues trailer.find after a successful movie or series match; the job
+// itself skips titles without tmdb_id or with the trailer field locked.
+func (s *Service) enqueueTrailerAfterMatch(ctx context.Context, itemID string) error {
+	if err := s.enqueueTrailers(ctx, itemID); err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
+	}
+	return nil
 }
 
 // QueuePendingMetadata enqueues metadata.match for every title of the library whose metadata is

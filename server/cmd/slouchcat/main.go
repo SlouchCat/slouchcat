@@ -269,6 +269,11 @@ func (k *lazyKeys) TVDBKey(context.Context) (key, pin string, err error) {
 	return os.Getenv("SLOUCHCAT_TVDB_API_KEY"), os.Getenv("SLOUCHCAT_TVDB_PIN"), nil
 }
 
+// YouTubeKey reads the environment until the admin service provides YouTubeKey (M3, admin package).
+func (k *lazyKeys) YouTubeKey(context.Context) (string, error) {
+	return os.Getenv("SLOUCHCAT_YOUTUBE_API_KEY"), nil
+}
+
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on
 // <cache>/transcode and returns the playback service with the stream-token key of the key file
 // (plan 5.4). Without a usable ffmpeg the server still runs: titles then play directly only. The
