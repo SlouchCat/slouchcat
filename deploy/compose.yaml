@@ -1,5 +1,6 @@
 # Slouchcat – Docker Compose (plan section 3.7).
 # Usage: cp .env.example .env && mkdir -p config cache && docker compose up -d
+# HTTPS: docker compose --profile https up -d (Caddy, see README and Caddyfile).
 # GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
 name: slouchcat
 
@@ -25,4 +26,33 @@ services:
       SLOUCHCAT_LOG_FORMAT: ${SLOUCHCAT_LOG_FORMAT:-json}
       # Optional: TMDB v4 read access token from .env; the wizard can store it encrypted instead.
       SLOUCHCAT_TMDB_API_KEY: ${SLOUCHCAT_TMDB_API_KEY:-}
+      # Empty = ignore X-Forwarded-For; "private" = RFC 1918, loopback and fc00::/7; or a CIDR list.
+      # Set it to "private" when the https profile or another reverse proxy is in front (README).
+      SLOUCHCAT_TRUSTED_PROXIES: ${SLOUCHCAT_TRUSTED_PROXIES:-}
     # The healthcheck is defined in the image (slouchcat healthcheck).
+
+  # Optional HTTPS front end (plan K-8): only started with --profile https.
+  caddy:
+    image: caddy:2.10
+    container_name: slouchcat-caddy
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on:
+      slouchcat:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SLOUCHCAT_DOMAIN: ${SLOUCHCAT_DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and ACME account: keep this volume, or Caddy requests new certificates.
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
