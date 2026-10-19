@@ -1,9 +1,8 @@
 # Aktueller Stand
 
 Stand: 19. Oktober 2026. M0 ist in `main` gemerged und nach `https://github.com/SlouchCat/slouchcat`
-gepusht. M1a liegt auf dem lokalen Branch `claude/m1a-scan-direct-play-home` (**noch nicht gepusht**: der
-Push aus der Agenten-Session wurde vom Auto-Modus blockiert; nicht gemerged; Merge und Pull Request nur auf
-Marcos Wort).
+gepusht. M1a liegt auf dem Branch `claude/m1a-scan-direct-play-home` (nach origin gepusht, nicht gemerged;
+Merge in `main` und Pull Request nur auf Marcos Wort).
 
 ## Meilenstein M1a – Durchstich Teil 1: Scan, Direct Play, Startseite
 
@@ -110,7 +109,7 @@ lokalen Override-Datei `.dev/compose.m1a.yaml` (Testfilme unter `/testfilme`, Sp
 
 **Noch nicht erfüllt / ausstehend:** Android-Lauf des Spikes;
 Lastmessung über SMB (NFS erledigt); Marcos eigener Abspieltest im Browser (Stack läuft auf
-`http://192.168.1.143:8096`, Zugang in `.dev/README-m1a-test.md`); Push des Branches.
+`http://192.168.1.143:8096`, Zugang in `.dev/README-m1a-test.md`).
 
 ## Offene Punkte für M1b
 
@@ -122,6 +121,5 @@ Lastmessung über SMB (NFS erledigt); Marcos eigener Abspieltest im Browser (Sta
 4. `inotify_poll`-Abweichungen und Scan-Fehler erscheinen erst mit dem Dashboard (M8) in der Oberfläche;
    bis dahin Log und `/admin/libraries`.
 5. Proxmox-Testcontainer als schwaches NAS anlegen (Entscheid 2, vor M1b).
-6. GitHub Actions: Workflow `.github/workflows/ci.yml` läuft mit dem ersten Push dieses Branches; der Push
-   aus der Agenten-Session wurde vom Auto-Modus blockiert und ist von Marco auszuführen:
-   `git push -u origin claude/m1a-scan-direct-play-home`.
+6. GitHub Actions: Workflow `.github/workflows/ci.yml` läuft seit dem Push dieses Branches; Ergebnis auf
+   GitHub prüfen (der Lauf braucht ffmpeg, Playwright-Browser und `task testdata:media`, alles im Workflow).
