@@ -149,8 +149,11 @@ export interface paths {
          * Poster or backdrop of a title (binary)
          * @description Implemented as an `http.Handler`. Images are reachable only through the item ID; the handler checks
          *     the scope (not visible → 404) and answers with `Cache-Control: private, max-age=31536000, immutable`.
-         *     The query parameter `v` is the content hash and serves cache busting only. In M1a the TMDB image
-         *     is stored unchanged: posters exist in size `w500`, backdrops in `w780` and `w1280`.
+         *     The query parameter `v` is the content hash and serves cache busting only. Since M1b the image
+         *     pipeline (plan 3.1) scales every image with ffmpeg: posters exist in `w200`, `w400` and `w800`,
+         *     backdrops in `w780`, `w1280` and `w1920` (the number is the width in pixels). Every size is stored
+         *     as WebP and as JPEG; the server answers WebP when the request's `Accept` header lists
+         *     `image/webp`, JPEG otherwise, and sets `Vary: Accept`.
          */
         get: operations["getItemImage"];
         put?: never;
@@ -453,6 +456,12 @@ export interface components {
             backdrop?: components["schemas"]["ImageRef"];
             /** @description Backdrop in w780 for viewports up to about 900 px. */
             backdropSmall?: components["schemas"]["ImageRef"];
+            /** @description Poster in w200 (narrow cards, `srcset`); M1b image pipeline. */
+            posterSmall?: components["schemas"]["ImageRef"];
+            /** @description Poster in w800 (detail page on wide screens); M1b image pipeline. */
+            posterLarge?: components["schemas"]["ImageRef"];
+            /** @description Backdrop in w1920 for viewports above about 1400 px; M1b image pipeline. */
+            backdropLarge?: components["schemas"]["ImageRef"];
         };
         Progress: {
             /** Format: int64 */
@@ -478,6 +487,12 @@ export interface components {
             /** @description Effective FSK rating; omitted when unknown (then hidden from profiles under 18). */
             rating?: components["schemas"]["Rating"];
             images: components["schemas"]["ItemImages"];
+            /**
+             * @description Accent colour of the title, derived from its poster by the image pipeline (plan 3.1:
+             *     `palettegen`, the most saturated colour at medium lightness). Lower-case hex, for the
+             *     poster tint and the backdrop scrim; omitted while no poster is processed.
+             */
+            accent?: string;
             progress?: components["schemas"]["Progress"];
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
@@ -954,7 +969,7 @@ export interface operations {
                 /** @description Item ID (ULID). */
                 id: components["parameters"]["ItemID"];
                 kind: components["schemas"]["ImageKind"];
-                size: "w500" | "w780" | "w1280";
+                size: "w200" | "w400" | "w800" | "w780" | "w1280" | "w1920";
             };
             cookie?: never;
         };

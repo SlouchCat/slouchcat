@@ -289,8 +289,11 @@ paths:
       description: |
         Implemented as an `http.Handler`. Images are reachable only through the item ID; the handler checks
         the scope (not visible → 404) and answers with `Cache-Control: private, max-age=31536000, immutable`.
-        The query parameter `v` is the content hash and serves cache busting only. In M1a the TMDB image
-        is stored unchanged: posters exist in size `w500`, backdrops in `w780` and `w1280`.
+        The query parameter `v` is the content hash and serves cache busting only. Since M1b the image
+        pipeline (plan 3.1) scales every image with ffmpeg: posters exist in `w200`, `w400` and `w800`,
+        backdrops in `w780`, `w1280` and `w1920` (the number is the width in pixels). Every size is stored
+        as WebP and as JPEG; the server answers WebP when the request's `Accept` header lists
+        `image/webp`, JPEG otherwise, and sets `Vary: Accept`.
       tags: [items]
       x-visibility: scoped
       parameters:
@@ -305,7 +308,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [w500, w780, w1280]
+            enum: [w200, w400, w800, w780, w1280, w1920]
         - name: v
           in: query
           required: false
@@ -943,6 +946,15 @@ components:
         backdropSmall:
           $ref: "#/components/schemas/ImageRef"
           description: Backdrop in w780 for viewports up to about 900 px.
+        posterSmall:
+          $ref: "#/components/schemas/ImageRef"
+          description: Poster in w200 (narrow cards, `srcset`); M1b image pipeline.
+        posterLarge:
+          $ref: "#/components/schemas/ImageRef"
+          description: Poster in w800 (detail page on wide screens); M1b image pipeline.
+        backdropLarge:
+          $ref: "#/components/schemas/ImageRef"
+          description: Backdrop in w1920 for viewports above about 1400 px; M1b image pipeline.
 
     Progress:
       type: object
@@ -990,6 +1002,13 @@ components:
           description: Effective FSK rating; omitted when unknown (then hidden from profiles under 18).
         images:
           $ref: "#/components/schemas/ItemImages"
+        accent:
+          type: string
+          pattern: "^#[0-9a-f]{6}$"
+          description: |
+            Accent colour of the title, derived from its poster by the image pipeline (plan 3.1:
+            `palettegen`, the most saturated colour at medium lightness). Lower-case hex, for the
+            poster tint and the backdrop scrim; omitted while no poster is processed.
         progress:
           $ref: "#/components/schemas/Progress"
 
