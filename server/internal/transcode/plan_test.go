@@ -1,6 +1,7 @@
 package transcode
 
 import (
+	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -87,10 +88,19 @@ func TestNewPlanRemuxKeyframes(t *testing.T) {
 		t.Errorf("long GOP starts %v, want %v", got, want)
 	}
 
-	// Without a keyframe index remux falls back to the 4-s grid.
-	p, _ = NewPlan(videoSource("h264", 1920, 1080, "", sec(10)), Target{Mode: ModeRemux, VideoCopy: true})
+	// Without a keyframe index remux is refused: on a grid the segment numbers would drift with
+	// GOPs longer than 4 s.
+	if _, err := NewPlan(videoSource("h264", 1920, 1080, "", sec(10)), Target{Mode: ModeRemux, VideoCopy: true}); !errors.Is(err, ErrNoKeyframes) {
+		t.Errorf("remux without index: %v, want ErrNoKeyframes", err)
+	}
+	// Audio only has no keyframes to cut on and uses the grid.
+	audio := Source{Probe: Probe{Format: Format{Duration: sec(10)}, Streams: []Stream{{Type: "audio", Codec: "aac"}}}}
+	p, err = NewPlan(audio, Target{Mode: ModeRemux, VideoCopy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got, want := starts(p), []time.Duration{0, sec(4), sec(8)}; !slices.Equal(got, want) {
-		t.Errorf("nil index starts %v, want %v", got, want)
+		t.Errorf("audio-only starts %v, want %v", got, want)
 	}
 }
 
@@ -129,7 +139,7 @@ func TestNewPlanOutput(t *testing.T) {
 		{"1080p SDR tonemap ignored", videoSource("hevc", 1920, 1080, "bt709", sec(10)), Target{Mode: ModeTranscode, Tonemap: true}, 1920, 1080, 8_160_000, false, 2, 1080},
 		{"1080p to 720p", videoSource("hevc", 1920, 800, "", sec(10)), Target{Mode: ModeTranscode, MaxHeight: 720}, 1728, 720, 4_160_000, false, 1.5, 720},
 		{"odd size", videoSource("mpeg4", 721, 405, "", sec(10)), Target{Mode: ModeTranscode}, 720, 404, 4_160_000, false, 2, 1080},
-		{"remux", videoSource("hevc", 3840, 2160, "smpte2084", sec(10)), Target{Mode: ModeRemux, VideoCopy: true}, 3840, 2160, 12_000_000, false, 0.5, 0},
+		{"remux", videoSource("hevc", 3840, 2160, "smpte2084", sec(10), 0, sec(5)), Target{Mode: ModeRemux, VideoCopy: true}, 3840, 2160, 12_000_000, false, 0.5, 0},
 	}
 	for _, c := range cases {
 		p, err := NewPlan(c.src, c.t)

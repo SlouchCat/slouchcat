@@ -213,7 +213,14 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	}()
 
 	playbackSvc, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
-	defer closeTranscoder()
+	sweepCtx, stopSweep := context.WithCancel(ctx)
+	var sweeper sync.WaitGroup
+	sweeper.Go(func() { playbackSvc.Run(sweepCtx) })
+	defer func() {
+		stopSweep() // the sweep stops transcodes, so it ends before the manager closes
+		sweeper.Wait()
+		closeTranscoder()
+	}()
 
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Listen)
 	if err != nil {
@@ -277,6 +284,6 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 	}
 	stats := mgr.Stats()
 	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap, "ffmpeg", caps.Version)
-	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)))
+	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)), playback.WithKeyframeIndex(runner.Keyframes))
 	return playback.New(db, log, opts...), mgr.Close
 }

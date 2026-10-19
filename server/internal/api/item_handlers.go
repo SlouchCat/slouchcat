@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -210,10 +211,35 @@ func (s *server) getItemStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer src.File.Close()
+	if rv, ok := src.File.(interface{ Done() <-chan struct{} }); ok {
+		defer abortOnRevoke(w, rv.Done())()
+	}
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Cache-Control", "private, no-store")
 	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
+// abortOnRevoke ends a running response once done is closed (plan 5.4: a revoked playback stops
+// within a second). A browser keeps "bytes=0-" open and stops reading while its buffer is full, so
+// the handler may sit in a blocked write that no read error reaches: an expired write deadline
+// fails that write, ServeContent returns and the server closes the connection. The returned
+// function must run before the handler returns (the ResponseController is not used after that).
+func abortOnRevoke(w http.ResponseWriter, done <-chan struct{}) func() {
+	rc := http.NewResponseController(w)
+	finished := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		select {
+		case <-done:
+			_ = rc.SetWriteDeadline(time.Now()) // ErrNotSupported for writers without deadlines
+		case <-finished:
+		}
+	})
+	return func() {
+		close(finished)
+		wg.Wait()
+	}
 }
 
 // imageURL is the scoped image URL of an item with the content hash for cache busting.

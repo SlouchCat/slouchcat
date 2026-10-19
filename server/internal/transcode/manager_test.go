@@ -52,23 +52,23 @@ func TestManagerAdmission(t *testing.T) {
 	p := testPlan(t, src) // cost 2
 	ctx := context.Background()
 
-	if _, err := m.Start(ctx, "A", src, p); err != nil {
+	if _, err := m.Start(ctx, "A", src, p, 0); err != nil {
 		t.Fatal(err)
 	}
 	if st := m.Stats(); st.Used != 2 || st.Running != 1 || st.Sessions != 1 || st.Budget != 3 || st.Backend != BackendSoftware {
 		t.Errorf("stats %+v", st)
 	}
 	start := time.Now()
-	if _, err := m.Start(ctx, "B", src, p); !errors.Is(err, ErrBusy) {
+	if _, err := m.Start(ctx, "B", src, p, 0); !errors.Is(err, ErrBusy) {
 		t.Fatalf("second session: %v, want ErrBusy", err)
 	}
 	if d := time.Since(start); d < 250*time.Millisecond {
 		t.Errorf("ErrBusy after %v, want after the admission wait", d)
 	}
-	if _, err := m.Start(ctx, "A", src, p); err == nil {
+	if _, err := m.Start(ctx, "A", src, p, 0); err == nil {
 		t.Error("want error for a duplicate id")
 	}
-	if _, err := m.Start(ctx, "../evil", src, p); err == nil {
+	if _, err := m.Start(ctx, "../evil", src, p, 0); err == nil {
 		t.Error("want error for an unsafe id")
 	}
 
@@ -76,7 +76,7 @@ func TestManagerAdmission(t *testing.T) {
 	m.admitWait = 5 * time.Second
 	admitted := make(chan error, 1)
 	go func() {
-		_, err := m.Start(ctx, "C", src, p)
+		_, err := m.Start(ctx, "C", src, p, 0)
 		admitted <- err
 	}()
 	time.Sleep(100 * time.Millisecond)
@@ -94,7 +94,7 @@ func TestManagerAdmission(t *testing.T) {
 	// A canceled context ends the wait.
 	cctx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
 	defer cancel()
-	if _, err := m.Start(cctx, "D", src, p); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := m.Start(cctx, "D", src, p, 0); !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("canceled wait: %v", err)
 	}
 }
@@ -106,7 +106,7 @@ func TestManagerAdmitsOversizedSessionAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := m.Start(context.Background(), "big", src, p); err != nil {
+	if _, err := m.Start(context.Background(), "big", src, p, 0); err != nil {
 		t.Fatalf("cost %v alone on budget 1: %v", p.Cost, err)
 	}
 }
@@ -114,7 +114,7 @@ func TestManagerAdmitsOversizedSessionAlone(t *testing.T) {
 func TestManagerIdleStopAndResume(t *testing.T) {
 	m := newTestManager(t, "exec sleep 30\n", 0, 100*time.Millisecond)
 	src := videoSource("hevc", 1920, 1080, "", sec(20))
-	s, err := m.Start(context.Background(), "idle", src, testPlan(t, src))
+	s, err := m.Start(context.Background(), "idle", src, testPlan(t, src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestManagerIdleStopAndResume(t *testing.T) {
 func TestSessionReportsFFmpegFailure(t *testing.T) {
 	m := newTestManager(t, "echo 'Invalid data found when processing input' >&2\nexit 1\n", 0, time.Minute)
 	src := videoSource("hevc", 1920, 1080, "", sec(20))
-	s, err := m.Start(context.Background(), "fail", src, testPlan(t, src))
+	s, err := m.Start(context.Background(), "fail", src, testPlan(t, src), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestNewManagerWipesWorkDir(t *testing.T) {
 		t.Error("want error without ffmpeg path")
 	}
 	m.Close()
-	if _, err := m.Start(context.Background(), "x", Source{}, Plan{Segments: []Segment{{0, sec(4)}}}); !errors.Is(err, ErrClosed) {
+	if _, err := m.Start(context.Background(), "x", Source{}, Plan{Segments: []Segment{{0, sec(4)}}}, 0); !errors.Is(err, ErrClosed) {
 		t.Errorf("Start after Close: %v", err)
 	}
 }

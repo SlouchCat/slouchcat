@@ -1,4 +1,7 @@
 .backdrop {
+  /* Only this title's accent (inline style) tints the backdrop, never an inherited one. */
+  --sc-item-accent: initial;
+
   position: absolute;
   z-index: -1;
   top: 0;

@@ -81,9 +81,27 @@ func pickGenres(raw, lang string) []string {
 	return []string{}
 }
 
-// pickImage returns the image of kind in exactly the given size, or nil. Of the two formats it
-// takes the WebP row's hash, else the JPEG row's; width and height are the same for both.
+// legacyPosterSize is the only poster size of M1a. Until image.fetch has derived the new sizes
+// (after the upgrade, or for a poster whose original cannot be fetched), the w500 JPEG stands in
+// for the w400 poster, so a title keeps its poster: the summary names it as w400 and the image
+// endpoint serves it under that size (see Reader.Image).
+const legacyPosterSize = "w500"
+
+// pickImage returns the image of kind in the given size, or nil; the w400 poster falls back to
+// M1a's w500 row. Of the two formats it takes the WebP row's hash, else the JPEG row's; width and
+// height are the same for both.
 func pickImage(rows []scopedq.Image, kind, size string) *model.Image {
+	img := pickExactImage(rows, kind, size)
+	if img == nil && kind == "poster" && size == posterSize {
+		if img = pickExactImage(rows, kind, legacyPosterSize); img != nil {
+			img.Size = posterSize
+		}
+	}
+	return img
+}
+
+// pickExactImage returns the image of kind in exactly the given size, or nil.
+func pickExactImage(rows []scopedq.Image, kind, size string) *model.Image {
 	var chosen *scopedq.Image
 	for i := range rows {
 		r := &rows[i]

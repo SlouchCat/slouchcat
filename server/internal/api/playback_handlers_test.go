@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -68,7 +72,13 @@ func (h fakeHLS) OpenInit(context.Context) (io.ReadSeekCloser, error) {
 	return readSeekNopCloser{bytes.NewReader([]byte("init " + h.id))}, nil
 }
 
+// restartedSegment is a segment whose wait a newer seek superseded.
+const restartedSegment = 99
+
 func (fakeHLS) OpenSegment(_ context.Context, i int) (io.ReadSeekCloser, error) {
+	if i == restartedSegment {
+		return nil, model.ErrSegmentRestarted
+	}
 	return readSeekNopCloser{bytes.NewReader([]byte{byte(i)})}, nil
 }
 
@@ -155,6 +165,11 @@ func TestStreamTokenEndpoints(t *testing.T) {
 	if got := send(t, h, http.MethodGet, base+"/seg/x?st="+url.QueryEscape(st), "", "", nil); got.Code != http.StatusNotFound {
 		t.Errorf("segment x: %d", got.Code)
 	}
+	// A wait that a newer seek superseded: 503, retry in a second.
+	if got := send(t, h, http.MethodGet, base+"/seg/99?st="+url.QueryEscape(st), "", "", nil); got.Code != http.StatusServiceUnavailable ||
+		problemCode(t, got) != "segment_restarted" || got.Header().Get("Retry-After") != "1" {
+		t.Errorf("superseded segment: %d %v %s", got.Code, got.Header(), got.Body.String())
+	}
 
 	// Only the owning browser session may stop it; then 401 within the next request.
 	if got := send(t, h, http.MethodDelete, base, "p18", "", nil); got.Code != http.StatusNotFound {
@@ -205,5 +220,59 @@ func TestStartPlaybackBusy(t *testing.T) {
 	rec := send(t, pf.h, http.MethodPost, BasePath+"/items/"+m.ID+"/play", "p0", `{}`, nil)
 	if rec.Code != http.StatusServiceUnavailable || problemCode(t, rec) != "transcode_busy" || rec.Header().Get("Retry-After") == "" {
 		t.Errorf("busy: %d %v %s", rec.Code, rec.Header(), rec.Body.String())
+	}
+}
+
+// I2, plan 5.4: stopping a direct-play session ends a Range response "bytes=0-" that is already
+// streaming to a client that stopped reading (browser buffer full), within a second.
+func TestStopEndsRunningRangeResponse(t *testing.T) {
+	pf := newProfileFixture(t)
+	m := pf.f.Rated(12)
+	// A long film: a sparse file far larger than the socket buffers.
+	if err := os.Truncate(filepath.Join(pf.f.MediaDir, filepath.FromSlash(m.RelPath)), 1<<30); err != nil {
+		t.Fatal(err)
+	}
+	id, st := pf.mint(t, "p12", m, "direct")
+	closed := make(chan struct{})
+	var once sync.Once
+	srv := httptest.NewUnstartedServer(pf.h)
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateClosed {
+			once.Do(func() { close(closed) })
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+BasePath+"/items/"+m.ID+"/stream?st="+url.QueryEscape(st), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Range", "bytes=0-")
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusPartialContent {
+		t.Fatalf("range: %d", resp.StatusCode)
+	}
+	if _, err := io.CopyN(io.Discard, resp.Body, 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond) // the server fills the socket buffers and blocks in a write
+
+	if got := send(t, pf.h, http.MethodDelete, BasePath+"/playback/sessions/"+id, "p12", "", nil); got.Code != http.StatusNoContent {
+		t.Fatalf("stop: %d %s", got.Code, got.Body.String())
+	}
+	// The client does not read on: the server must still close the connection.
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+		t.Fatal("connection still open a second after the stop")
+	}
+	n, err := io.Copy(io.Discard, resp.Body) // what was buffered, then the closed connection
+	if err == nil {
+		t.Errorf("response completed after the stop (%d more bytes)", n)
 	}
 }

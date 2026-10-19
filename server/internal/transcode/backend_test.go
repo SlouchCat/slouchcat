@@ -4,7 +4,9 @@ import (
 	"context"
 	"os/exec"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 const fakeDetect = `case "$*" in
@@ -54,6 +56,23 @@ func TestDetectFake(t *testing.T) {
 	noX264 := fakeBinary(t, `case "$*" in "-version") echo v;; *) printf ' ------\n V....D h264_nvenc NVENC\n';; esac`)
 	if _, _, err := Detect(ctx, Runner{FFmpegPath: noX264}, "auto", nil); err == nil {
 		t.Error("want error without libx264")
+	}
+}
+
+func TestDetectBoundsHangingTestEncode(t *testing.T) {
+	old := testEncodeTimeout
+	testEncodeTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { testEncodeTimeout = old })
+	// nvenc and qsv hang (a stuck device); Detect gives each its timeout and falls back.
+	bin := fakeBinary(t, strings.Replace(strings.Replace(fakeDetect, `*h264_nvenc*) echo "no CUDA device" >&2; exit 1;;`,
+		`*h264_nvenc*) exec sleep 30;;`, 1), `*h264_qsv*) exit 0;;`, `*h264_qsv*) exec sleep 30;;`, 1))
+	start := time.Now()
+	b, _, err := Detect(context.Background(), Runner{FFmpegPath: bin}, "auto", nil)
+	if err != nil || b != BackendSoftware {
+		t.Fatalf("hanging hardware: %s, %v; want software", b, err)
+	}
+	if d := time.Since(start); d > 3*time.Second {
+		t.Errorf("Detect took %v with two hanging test encodes of 200 ms", d)
 	}
 }
 

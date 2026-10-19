@@ -1,4 +1,7 @@
 .card {
+  /* A title's accent applies to its own card only, never to a card nested in another title. */
+  --sc-item-accent: initial;
+
   position: relative;
   display: block;
   width: 100%;

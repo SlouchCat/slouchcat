@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -79,7 +80,8 @@ func (s *Service) handleImageFetch(ctx context.Context, j *jobs.Job) error {
 // the image paths and, per kind, skips the work when every derived row stems from the current
 // TMDB original and its file exists (so a run after a deleted file or a new size only fills the
 // gap). The original is downloaded only when its row is missing, stale or its file is gone. A kind
-// without a TMDB path or locked by the admin keeps its rows.
+// without a TMDB path keeps its rows. A kind locked by the admin is never fetched from TMDB, but
+// its missing sizes are scaled from the stored image (scaleLocked).
 func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	if s.cacheE != nil {
 		return s.cacheE
@@ -94,6 +96,34 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	if item.DeletedAt.Valid || item.MetadataState != stateMatched || !item.TmdbID.Valid {
 		return nil
 	}
+	root, err := paths.Open(s.cache)
+	if err != nil {
+		return fmt.Errorf("image.fetch: %w", err)
+	}
+	defer root.Close()
+	rows, err := s.read.ListImagesByItem(ctx, item.ID)
+	if err != nil {
+		return fmt.Errorf("image.fetch: list images of %s: %w", item.ID, err)
+	}
+	byKind := map[string][]systemq.Image{}
+	for _, r := range rows {
+		byKind[r.Kind] = append(byKind[r.Kind], r)
+	}
+	locked := lockedFields(item.LockedFields)
+	unlocked := 0
+	for _, kind := range imageKinds {
+		if !locked[kind] {
+			unlocked++
+			continue
+		}
+		if err := s.scaleLocked(ctx, root, item.ID, kind, byKind[kind]); err != nil {
+			return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
+		}
+	}
+	if unlocked == 0 {
+		return nil
+	}
+
 	key, err := s.keys.TMDBKey(ctx)
 	if err != nil {
 		return fmt.Errorf("image.fetch: read tmdb key: %w", err)
@@ -112,31 +142,13 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	case err != nil:
 		return fmt.Errorf("image.fetch %s: %w", item.ID, err)
 	}
-
-	root, err := paths.Open(s.cache)
-	if err != nil {
-		return fmt.Errorf("image.fetch: %w", err)
-	}
-	defer root.Close()
-	rows, err := s.read.ListImagesByItem(ctx, item.ID)
-	if err != nil {
-		return fmt.Errorf("image.fetch: list images of %s: %w", item.ID, err)
-	}
-
-	locked := lockedFields(item.LockedFields)
 	tmdbPath := map[string]string{"poster": m.PosterPath, "backdrop": m.BackdropPath}
 	for _, kind := range imageKinds {
 		path := tmdbPath[kind]
 		if path == "" || locked[kind] {
 			continue
 		}
-		var prev []systemq.Image
-		for _, r := range rows {
-			if r.Kind == kind {
-				prev = append(prev, r)
-			}
-		}
-		if err := s.processKind(ctx, c, root, item.ID, kind, path, prev); err != nil {
+		if err := s.processKind(ctx, c, root, item.ID, kind, path, byKind[kind]); err != nil {
 			return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
 		}
 	}
@@ -179,20 +191,15 @@ func kindComplete(kind string, rows []storedImage, sourceURL string, exists func
 // tmdbPath.
 func (s *Service) processKind(ctx context.Context, c *Client, root *os.Root, itemID, kind, tmdbPath string, prev []systemq.Image) error {
 	sourceURL := c.imageURL(originalSize, tmdbPath)
-	exists := func(rel string) bool {
-		_, err := root.Stat(rel)
-		return err == nil
-	}
-	state := make([]storedImage, 0, len(prev))
+	exists := rootExists(root)
 	var orig *systemq.Image
 	for i, r := range prev {
-		state = append(state, storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath})
 		if r.Size == originalSize {
 			orig = &prev[i]
 		}
 	}
-	if kindComplete(kind, state, sourceURL, exists) {
-		return nil
+	if kindComplete(kind, storedImages(prev), sourceURL, exists) {
+		return s.fillAccent(ctx, itemID, kind, prev)
 	}
 
 	dir := imagesDir + "/" + itemID
@@ -209,11 +216,17 @@ func (s *Service) processKind(ctx context.Context, c *Client, root *os.Root, ite
 		}
 		origRel = rel
 	}
-	produced, err := s.deriveImages(ctx, root, dir, itemID, kind, origRel, sourceURL)
+	return s.deriveAndPrune(ctx, root, dir, itemID, kind, origRel, sourceURL, prev)
+}
+
+// deriveAndPrune derives every size of kind from the original at origRel and removes the rows
+// (and files) of sizes the pipeline no longer produces (M1a's w500 poster). A palette failure
+// keeps the accent the poster rows had.
+func (s *Service) deriveAndPrune(ctx context.Context, root *os.Root, dir, itemID, kind, origRel, sourceURL string, prev []systemq.Image) error {
+	produced, err := s.deriveImages(ctx, root, dir, itemID, kind, origRel, sourceURL, storedAccent(prev))
 	if err != nil {
 		return err
 	}
-	// Rows of sizes the pipeline no longer produces (M1a's w500 poster) go, with their files.
 	for _, r := range prev {
 		if r.Size == originalSize || produced[r.Size+"/"+r.Format] {
 			continue
@@ -224,6 +237,133 @@ func (s *Service) processKind(ctx context.Context, c *Client, root *os.Root, ite
 		s.removeFile(root, itemID, kind, r.RelPath)
 	}
 	return nil
+}
+
+// scaleLocked brings a kind the admin locked up to the current sizes without asking TMDB: locked
+// means "keep this image", not "keep these sizes". The derived sizes are scaled from the stored
+// original; without one (M1a stored no original) the widest stored JPEG becomes the original, so
+// the M1a w500 poster turns into w200, w400 and w800 (w800 slightly upscaled). A kind without any
+// usable file is left alone.
+func (s *Service) scaleLocked(ctx context.Context, root *os.Root, itemID, kind string, prev []systemq.Image) error {
+	exists := rootExists(root)
+	if len(prev) == 0 {
+		return nil
+	}
+	if kindComplete(kind, storedImages(prev), "", exists) {
+		return s.fillAccent(ctx, itemID, kind, prev)
+	}
+	src := lockedSource(prev, exists)
+	if src == nil {
+		return nil
+	}
+	dir := imagesDir + "/" + itemID
+	if src.Size == originalSize {
+		return s.deriveAndPrune(ctx, root, dir, itemID, kind, src.RelPath, src.SourceUrl, prev)
+	}
+	data, err := root.ReadFile(src.RelPath)
+	if err != nil {
+		return fmt.Errorf("read stored %s: %w", kind, err)
+	}
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("decode stored %s header: %w", kind, err)
+	}
+	rel := dir + "/" + kind + "-" + originalSize + ".jpg"
+	if err := writeFile(root, dir, rel, data); err != nil {
+		return err
+	}
+	sum := sha256.Sum256(data)
+	if err := s.write.UpsertImage(ctx, systemq.UpsertImageParams{
+		ItemID: itemID, Kind: kind, Size: originalSize, Format: originalFormat, SourceUrl: src.SourceUrl,
+		RelPath: rel, ContentHash: hex.EncodeToString(sum[:]), MediaType: "image/jpeg",
+		Width: int64(cfg.Width), Height: int64(cfg.Height), Bytes: int64(len(data)), Now: s.now().UnixMilli(),
+	}); err != nil {
+		return fmt.Errorf("upsert original row: %w", err)
+	}
+	return s.deriveAndPrune(ctx, root, dir, itemID, kind, rel, src.SourceUrl, prev)
+}
+
+// lockedSource returns the stored image a locked kind is scaled from: the original when its file
+// exists, else the widest derived JPEG with an existing file, or nil.
+func lockedSource(prev []systemq.Image, exists func(rel string) bool) *systemq.Image {
+	var best *systemq.Image
+	for i := range prev {
+		r := &prev[i]
+		if !exists(r.RelPath) {
+			continue
+		}
+		if r.Size == originalSize {
+			return r
+		}
+		if r.Format == string(transcode.ImageJPEG) && r.MediaType == "image/jpeg" && (best == nil || r.Width > best.Width) {
+			best = r
+		}
+	}
+	return best
+}
+
+// fillAccent computes the accent of a complete poster whose derived rows carry none (the palette
+// failed on an earlier run) from its w200 JPEG and stores it on every derived row. A failure again
+// leaves the rows as they are; QueueIncompleteImages bounds the retries (maxAccentRetries).
+func (s *Service) fillAccent(ctx context.Context, itemID, kind string, prev []systemq.Image) error {
+	if kind != "poster" || storedAccent(prev).Valid {
+		return nil
+	}
+	var src *systemq.Image
+	for i := range prev {
+		if prev[i].Size == sizeName(accentSourceWidth) && prev[i].Format == string(transcode.ImageJPEG) {
+			src = &prev[i]
+		}
+	}
+	if src == nil {
+		return nil
+	}
+	abs, err := paths.Resolve(s.cache, src.RelPath)
+	if err != nil {
+		return fmt.Errorf("resolve accent source: %w", err)
+	}
+	accent := s.accent(ctx, itemID, abs)
+	if !accent.Valid {
+		return nil
+	}
+	for _, r := range prev {
+		if r.Size == originalSize {
+			continue
+		}
+		if err := s.write.UpsertImage(ctx, systemq.UpsertImageParams{
+			ItemID: r.ItemID, Kind: r.Kind, Size: r.Size, Format: r.Format, Lang: r.Lang, SourceUrl: r.SourceUrl,
+			RelPath: r.RelPath, ContentHash: r.ContentHash, MediaType: r.MediaType, Width: r.Width, Height: r.Height,
+			Bytes: r.Bytes, Accent: accent, Now: r.CreatedAt,
+		}); err != nil {
+			return fmt.Errorf("store accent: %w", err)
+		}
+	}
+	return nil
+}
+
+// storedAccent returns the accent of the derived poster rows, or an invalid value.
+func storedAccent(prev []systemq.Image) sql.NullString {
+	for _, r := range prev {
+		if r.Kind == "poster" && r.Size != originalSize && r.Accent.Valid {
+			return r.Accent
+		}
+	}
+	return sql.NullString{}
+}
+
+func storedImages(prev []systemq.Image) []storedImage {
+	out := make([]storedImage, 0, len(prev))
+	for _, r := range prev {
+		out = append(out, storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath})
+	}
+	return out
+}
+
+func rootExists(root *os.Root) func(rel string) bool {
+	return func(rel string) bool {
+		_, err := root.Stat(rel)
+		return err == nil
+	}
 }
 
 // storeOriginal downloads the TMDB original to <dir>/<kind>-original.<ext> (temporary name, then
@@ -279,9 +419,9 @@ type derived struct {
 }
 
 // deriveImages scales the original at origRel into every width and format of kind in one ffmpeg
-// run, computes the accent colour for posters, renames the files into place and upserts their
-// rows. It returns the produced "<size>/<format>" keys.
-func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, kind, origRel, sourceURL string) (map[string]bool, error) {
+// run, computes the accent colour for posters (prevAccent stays when the palette fails), renames
+// the files into place and upserts their rows. It returns the produced "<size>/<format>" keys.
+func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, kind, origRel, sourceURL string, prevAccent sql.NullString) (map[string]bool, error) {
 	in, err := paths.Resolve(s.cache, origRel)
 	if err != nil {
 		return nil, fmt.Errorf("resolve original: %w", err)
@@ -319,6 +459,9 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			if o.width == accentSourceWidth && o.format == transcode.ImageJPEG {
 				accent = s.accent(ctx, itemID, args[i].Path)
 			}
+		}
+		if !accent.Valid {
+			accent = prevAccent
 		}
 	}
 
@@ -369,7 +512,7 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 }
 
 // accent computes the accent colour of the poster at the absolute path. A failure only costs the
-// tint, so it is logged and the rows are stored without an accent.
+// tint, so it is logged and an invalid value returned (the caller keeps a previous accent).
 func (s *Service) accent(ctx context.Context, itemID, path string) sql.NullString {
 	colors, err := s.runner.Palette(ctx, path, accentColors)
 	if err != nil {
@@ -387,15 +530,22 @@ func (s *Service) removeFile(root *os.Root, itemID, kind, rel string) {
 	}
 }
 
+// maxAccentRetries bounds how often QueueIncompleteImages queues a complete poster only because
+// its rows carry no accent (the palette failed, or the poster has no saturated colour at all). The
+// count lives in memory per title, so every server start allows that many retries again; with the
+// scan at start and after library changes that is a handful of palette runs per title and run.
+const maxAccentRetries = 3
+
 // QueueIncompleteImages enqueues image.fetch (key image:<itemId>) for every matched title of the
 // library whose images are incomplete: a stored kind lacks one of its derived sizes or formats
 // (for example the WebP files next to the JPEG rows kept from M1a), still has a size the pipeline
-// no longer produces (M1a's w500 poster), or the file of a derived row is gone from the cache.
-// Locked kinds are left alone, and titles without any image row are not checked (TMDB has none,
-// or their first image.fetch is pending), so a title without artwork costs no TMDB request per
-// scan. The library scan calls it after every successful run (the server schedules a scan of
-// every library at start, so titles from M1a are queued right after the upgrade); it returns the
-// number of titles queued.
+// no longer produces (M1a's w500 poster), the file of a derived row is gone from the cache, or the
+// poster rows carry no accent (at most maxAccentRetries times). Locked kinds count as well when a
+// stored file can be scaled (image.fetch scales them without TMDB). Titles without any image row
+// are not checked (TMDB has none, or their first image.fetch is pending), so a title without
+// artwork costs no TMDB request per scan. The library scan calls it after every successful run
+// (the server schedules a scan of every library at start, so titles from M1a are queued right
+// after the upgrade); it returns the number of titles queued.
 func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (int, error) {
 	if s.cacheE != nil {
 		return 0, s.cacheE
@@ -409,14 +559,12 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 		return 0, fmt.Errorf("image check: %w", err)
 	}
 	defer root.Close()
-	exists := func(rel string) bool {
-		_, err := root.Stat(rel)
-		return err == nil
-	}
+	exists := rootExists(root)
 
 	type title struct {
 		locked map[string]bool
 		kinds  map[string][]storedImage // stored kinds
+		accent bool                     // a derived poster row carries an accent
 	}
 	var order []string
 	titles := map[string]*title{}
@@ -427,18 +575,26 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 			titles[r.ItemID] = t
 			order = append(order, r.ItemID)
 		}
-		if t.locked[r.Kind] {
-			continue
-		}
 		t.kinds[r.Kind] = append(t.kinds[r.Kind], storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath})
+		if r.Kind == "poster" && r.Size != originalSize && r.Accent.Valid {
+			t.accent = true
+		}
 	}
 	queued := 0
 	for _, id := range order {
+		t := titles[id]
 		complete := true
-		for kind, stored := range titles[id].kinds {
-			if !kindComplete(kind, stored, "", exists) {
-				complete = false
+		for kind, stored := range t.kinds {
+			if kindComplete(kind, stored, "", exists) {
+				continue
 			}
+			if t.locked[kind] && !slices.ContainsFunc(stored, func(si storedImage) bool { return exists(si.relPath) }) {
+				continue // nothing left to scale from
+			}
+			complete = false
+		}
+		if complete && t.kinds["poster"] != nil && !t.accent && s.accentRetry(id) {
+			complete = false
 		}
 		if complete {
 			continue
@@ -458,6 +614,17 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 		queued++
 	}
 	return queued, nil
+}
+
+// accentRetry reports whether a poster without accent may be queued once more and counts it.
+func (s *Service) accentRetry(itemID string) bool {
+	s.accentMu.Lock()
+	defer s.accentMu.Unlock()
+	if s.accentRetries[itemID] >= maxAccentRetries {
+		return false
+	}
+	s.accentRetries[itemID]++
+	return true
 }
 
 // download reads the whole original (TMDB originals are a few MiB at most) and determines its

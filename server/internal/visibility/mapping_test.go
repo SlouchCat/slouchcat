@@ -48,11 +48,12 @@ func TestSummaryImagesAndAccent(t *testing.T) {
 		t.Errorf("accent = %q", s.Accent)
 	}
 
-	// M1a rows only (before the pipeline ran): no poster, the two backdrop sizes, no accent.
+	// M1a rows only (before the pipeline ran): the w500 poster stands in for w400, the two backdrop
+	// sizes, no accent.
 	m1a := []scopedq.Image{row("poster", "w500", "jpeg", "m1a", 500, ""), row("backdrop", "w1280", "jpeg", "b", 1280, "")}
 	s = summarize(scopedq.Item{ID: "i", Kind: "movie"}, extras{images: map[string][]scopedq.Image{"i": m1a}}, "de")
-	if s.Poster != nil || s.PosterSmall != nil || s.Backdrop == nil || s.Accent != "" {
-		t.Errorf("M1a summary = %+v", s)
+	if imgKey(s.Poster) != "w400/m1a" || s.Poster.Width != 500 || s.PosterSmall != nil || s.PosterLarge != nil || s.Backdrop == nil || s.Accent != "" {
+		t.Errorf("M1a summary = %+v, poster %+v", s, s.Poster)
 	}
 }
 

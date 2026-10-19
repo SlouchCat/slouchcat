@@ -27,8 +27,13 @@ const (
 // vaapiDevice is the DRM render node used by the QSV and VAAPI backends.
 const vaapiDevice = "/dev/dri/renderD128"
 
-// detectTimeout bounds every ffmpeg call of Detect.
-const detectTimeout = 15 * time.Second
+// Detect runs before the server listens, so it is bounded: detectDeadline for all of it,
+// testEncodeTimeout for each hardware test encode (a missing or hanging device must not block).
+// They are variables for the tests.
+var (
+	detectDeadline    = 10 * time.Second
+	testEncodeTimeout = 5 * time.Second
+)
 
 // Capabilities describes what the ffmpeg build and the hardware support.
 type Capabilities struct {
@@ -68,15 +73,15 @@ func Detect(ctx context.Context, r Runner, override string, log *slog.Logger) (B
 		return "", Capabilities{}, fmt.Errorf("unknown hardware backend %q (want auto, nvenc, qsv, vaapi or software)", override)
 	}
 
-	version, err := r.detectOutput(ctx, "-version")
+	version, err := r.detectOutput(ctx, detectDeadline, "-version")
 	if err != nil {
 		return "", Capabilities{}, err
 	}
-	encOut, err := r.detectOutput(ctx, "-hide_banner", "-encoders")
+	encOut, err := r.detectOutput(ctx, detectDeadline, "-hide_banner", "-encoders")
 	if err != nil {
 		return "", Capabilities{}, err
 	}
-	filterOut, err := r.detectOutput(ctx, "-hide_banner", "-filters")
+	filterOut, err := r.detectOutput(ctx, detectDeadline, "-hide_banner", "-filters")
 	if err != nil {
 		return "", Capabilities{}, err
 	}
@@ -98,7 +103,7 @@ func Detect(ctx context.Context, r Runner, override string, log *slog.Logger) (B
 			log.Info("transcode backend not in this ffmpeg build", "backend", b)
 			continue
 		}
-		if _, err := r.detectOutput(ctx, testEncodeArgs(b)...); err != nil {
+		if _, err := r.detectOutput(ctx, testEncodeTimeout, testEncodeArgs(b)...); err != nil {
 			level := slog.LevelInfo
 			if override != "" && override != "auto" {
 				level = slog.LevelWarn
@@ -132,12 +137,13 @@ func testEncodeArgs(b Backend) []string {
 	return slices.Concat(in, src, out)
 }
 
-// detectOutput runs ffmpeg with a fixed argument list and returns its standard output.
-func (r Runner) detectOutput(ctx context.Context, args ...string) ([]byte, error) {
+// detectOutput runs ffmpeg with a fixed argument list for at most timeout and returns its
+// standard output.
+func (r Runner) detectOutput(ctx context.Context, timeout time.Duration, args ...string) ([]byte, error) {
 	if r.FFmpegPath == "" {
 		return nil, errors.New("ffmpeg path is not configured")
 	}
-	ctx, cancel := context.WithTimeout(ctx, detectTimeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	var stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, r.FFmpegPath, args...) //nolint:gosec // G204: configured binary, fixed argument list

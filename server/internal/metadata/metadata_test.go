@@ -940,9 +940,158 @@ func TestQueueIncompleteImages(t *testing.T) {
 		t.Fatal(err)
 	}
 	check("poster file deleted", 1, job)
-	// A locked kind is never fetched, so it is not checked either.
+	// A locked kind is not fetched from TMDB but scaled from the stored original, so it is checked
+	// as well; image.fetch rebuilds the file without a download.
 	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["poster"]' WHERE id = ?`, idByTMDB)
-	check("poster locked", 0)
+	check("poster locked", 1, job)
+	posterDownloads := e.tmdb.count("/t/p/original/poster550.jpg")
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(e.cache, "images", idByTMDB, "poster-w400.jpg")); err != nil {
+		t.Fatalf("locked poster file not rebuilt: %v", err)
+	}
+	if got := e.tmdb.count("/t/p/original/poster550.jpg"); got != posterDownloads {
+		t.Fatalf("locked poster downloaded again (%d → %d)", posterDownloads, got)
+	}
+	check("locked poster rebuilt", 0)
+	// A locked kind without any file left cannot be scaled: not queued.
+	for _, name := range []string{"original.jpg", "w200.jpg", "w200.webp", "w400.jpg", "w400.webp", "w800.jpg", "w800.webp"} {
+		if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-"+name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("locked poster without files", 0)
+}
+
+// M11: a locked M1a poster (w500 only, no original) is scaled into the new sizes without TMDB.
+func TestImageFetchScalesLockedM1aPoster(t *testing.T) {
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550, locked: `["poster"]`})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	w500 := e.insertM1aImage(t, idByTMDB, "poster", "w500", jpegBytes(t, 500, 750))
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if n, err := e.svc.QueueIncompleteImages(ctx, 1); err != nil || n != 1 {
+		t.Fatalf("locked M1a poster queued %d, %v; want 1", n, err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.tmdb.count("/t/p/original/poster550.jpg"); n != 0 {
+		t.Fatalf("locked poster downloaded %d times", n)
+	}
+	imgs := e.images(t, idByTMDB)
+	for _, size := range []string{"w200", "w400", "w800"} {
+		for _, format := range []string{"jpeg", "webp"} {
+			r, ok := imgs["poster/"+size+"/"+format]
+			if !ok || r.Source != e.tmdb.srv.URL+"/t/p/w500/x.jpg" || !r.Accent.Valid {
+				t.Errorf("poster %s %s = %+v (present %v)", size, format, r, ok)
+			}
+		}
+	}
+	if o := imgs["poster/original/jpeg"]; o.Width != 500 || o.Height != 750 {
+		t.Errorf("promoted original = %+v", o)
+	}
+	if _, ok := imgs["poster/w500/jpeg"]; ok {
+		t.Error("w500 row kept")
+	}
+	if _, err := os.Stat(w500); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("w500 file kept: %v", err)
+	}
+	// The unlocked backdrop still came from TMDB.
+	if _, ok := imgs["backdrop/w1280/webp"]; !ok {
+		t.Error("backdrop not fetched")
+	}
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if n, err := e.svc.QueueIncompleteImages(ctx, 1); err != nil || n != 0 {
+		t.Fatalf("after scaling queued %d, %v; want 0", n, err)
+	}
+}
+
+// failingPalette returns an ffmpeg wrapper that fails every palettegen run and runs the real
+// ffmpeg otherwise.
+func failingPalette(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "ffmpeg")
+	script := "#!/bin/sh\ncase \"$*\" in *palettegen*) echo palette broken >&2; exit 1;; esac\nexec " + lookFFmpeg() + " \"$@\"\n"
+	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// M10: a palette failure keeps the previous accent; a poster without accent is retried a bounded
+// number of times and image.fetch fills it in.
+func TestAccentSurvivesPaletteFailure(t *testing.T) {
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	good := e.images(t, idByTMDB)["poster/w400/jpeg"].Accent
+	if !good.Valid {
+		t.Fatal("no accent after the first run")
+	}
+
+	// The poster is derived again (a file went missing) while the palette fails: accent kept.
+	runner := e.svc.runner
+	e.svc.runner = transcode.Runner{FFmpegPath: failingPalette(t), FFprobePath: runner.FFprobePath}
+	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w800.jpg")); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	for key, r := range e.images(t, idByTMDB) {
+		if strings.HasPrefix(key, "poster/w") && r.Accent != good {
+			t.Errorf("%s accent %v after a palette failure, want %v", key, r.Accent, good)
+		}
+	}
+
+	// Rows without accent (an earlier failure): queued at most maxAccentRetries times.
+	mustExec(t, e.db.Write, `UPDATE images SET accent = NULL WHERE item_id = ?`, idByTMDB)
+	for i := range maxAccentRetries + 2 {
+		mustExec(t, e.db.Write, `DELETE FROM jobs`)
+		n, err := e.svc.QueueIncompleteImages(ctx, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 0
+		if i < maxAccentRetries {
+			want = 1
+		}
+		if n != want {
+			t.Fatalf("check %d queued %d, want %d", i+1, n, want)
+		}
+		if i == 0 {
+			// Still failing: nothing changes.
+			if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+				t.Fatal(err)
+			}
+			if e.images(t, idByTMDB)["poster/w400/jpeg"].Accent.Valid {
+				t.Fatal("accent appeared with a failing palette")
+			}
+		}
+	}
+	// With a working palette the next image.fetch fills in the accent without re-deriving.
+	e.svc.runner = runner
+	before := e.images(t, idByTMDB)["poster/w400/webp"].Hash
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	imgs := e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	if imgs["poster/w400/webp"].Accent != good || imgs["poster/w400/webp"].Hash != before {
+		t.Errorf("filled accent %v (want %v), hash changed %v", imgs["poster/w400/webp"].Accent, good, imgs["poster/w400/webp"].Hash != before)
+	}
 }
 
 func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {

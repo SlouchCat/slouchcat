@@ -165,6 +165,10 @@
   "player": {
     "region": "Video player",
     "loading": "Loading …",
+    "busy": {
+      "title": "Server busy",
+      "body": "Trying again shortly …"
+    },
     "play": "Play",
     "pause": "Pause",
     "fullscreen": "Full screen",

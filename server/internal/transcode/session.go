@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -25,15 +26,22 @@ const (
 	killGrace = 2 * time.Second
 	// maxStartsPerRequest bounds the ffmpeg starts one request may cause (one retry).
 	maxStartsPerRequest = 2
-	stderrTail          = 4 << 10
-	initName            = "init.mp4"
-	logName             = "ffmpeg.log"
+	// maxFailures is how often ffmpeg may fail from the same start segment before requests for it
+	// get the error without another start (players retry failed segments several times).
+	maxFailures = 3
+	stderrTail  = 4 << 10
+	initName    = "init.mp4"
+	logName     = "ffmpeg.log"
 )
 
 // Errors of a session.
 var (
 	ErrClosed    = errors.New("transcode session stopped")
 	ErrNoSegment = errors.New("no such segment")
+	// ErrRestarted is returned to a waiting request whose ffmpeg run was replaced by a newer
+	// request for a distant segment (the newest request wins). It is retryable: the API answers
+	// 503 with Retry-After 1.
+	ErrRestarted = errors.New("transcode restarted for a newer request")
 )
 
 // Session is one HLS output: ffmpeg runs that write the segments of its plan into the session
@@ -46,6 +54,8 @@ type Session struct {
 	plan Plan
 	log  *slog.Logger
 
+	pub sync.Mutex // serializes publishing; the disk I/O runs outside mu
+
 	mu        sync.Mutex
 	changed   chan struct{} // closed and replaced on every state change
 	done      []bool        // segment published in dir
@@ -54,24 +64,35 @@ type Session struct {
 	run       *run              // the current ffmpeg, nil when none runs
 	live      map[*run]struct{} // all processes not yet reaped (killed ones exit asynchronously)
 	runs      int               // run counter for directory names
+	gen       uint64            // ffmpeg starts; a waiter whose run was replaced backs off
+	front     int               // highest segment requested since the last start (MaxAhead)
+	failures  map[int]failure   // failed runs per start segment
 	err       error             // why the last run that ended on its own failed
 	lastUse   time.Time
 	cpu       time.Duration // CPU time of finished runs
 	active    bool          // holds plan.Cost of the manager's budget
+	cold      bool          // idle for RemoveAfterIdle: directory removed, restarts on demand
 	closed    bool
+}
+
+// failure counts the failed ffmpeg runs from one start segment.
+type failure struct {
+	n   int
+	err error
 }
 
 // run is one ffmpeg process writing segments start, start+1, ... into its own directory.
 type run struct {
-	start  int
-	next   int // next segment index this run will finish
-	seen   int // entries of the segment list already processed
-	dir    string
-	cmd    *exec.Cmd
-	cancel context.CancelFunc
-	killed bool
-	exited chan struct{}
-	stderr *tailWriter
+	start   int
+	next    int       // next segment index this run will finish
+	seen    int       // entries of the segment list already processed
+	stalled time.Time // when the next listed segment was first seen incomplete
+	dir     string
+	cmd     *exec.Cmd
+	cancel  context.CancelFunc
+	killed  bool
+	exited  chan struct{}
+	stderr  *tailWriter
 }
 
 // Plan returns the segment plan of the session.
@@ -108,7 +129,8 @@ func (s *Session) MediaPlaylist(initURL string, segmentURL func(i int) string) [
 	return mediaPlaylist(s.plan, initURL, segmentURL)
 }
 
-// OpenInit returns the init segment (ftyp+moov) once the first segment is written.
+// OpenInit returns the init segment (ftyp+moov) once the first file of any run is written. When
+// no ffmpeg runs (idle, throttled or cold), it starts one at the last requested position.
 func (s *Session) OpenInit(ctx context.Context) (io.ReadSeekCloser, error) {
 	s.Touch()
 	defer s.Touch()
@@ -121,10 +143,10 @@ func (s *Session) OpenInit(ctx context.Context) (io.ReadSeekCloser, error) {
 		}
 		if s.initReady {
 			s.mu.Unlock()
-			return os.Open(filepath.Join(s.dir, initName))
+			return s.open(initName)
 		}
 		if s.run == nil {
-			if err := s.restartLocked(s.firstPending(), &starts); err != nil {
+			if err := s.restartLocked(s.pendingFrom(s.front), &starts); err != nil {
 				s.mu.Unlock()
 				return nil, err
 			}
@@ -141,7 +163,8 @@ func (s *Session) OpenInit(ctx context.Context) (io.ReadSeekCloser, error) {
 
 // OpenSegment returns segment i when it is complete. If it is not produced yet and the running
 // ffmpeg is at most lookahead segments before it, OpenSegment waits (bounded by ctx); otherwise
-// it restarts ffmpeg at i. Produced segments stay on disk and remain valid.
+// it restarts ffmpeg at i. Produced segments stay on disk and remain valid. A waiting request
+// whose run is replaced by a newer request's restart returns ErrRestarted.
 func (s *Session) OpenSegment(ctx context.Context, i int) (io.ReadSeekCloser, error) {
 	if i < 0 || i >= len(s.plan.Segments) {
 		return nil, fmt.Errorf("%w: %d", ErrNoSegment, i)
@@ -149,25 +172,34 @@ func (s *Session) OpenSegment(ctx context.Context, i int) (io.ReadSeekCloser, er
 	s.Touch()
 	defer s.Touch()
 	starts := 0
+	s.mu.Lock()
+	gen := s.gen
+	s.mu.Unlock()
 	for {
 		s.mu.Lock()
 		if s.closed {
 			s.mu.Unlock()
 			return nil, ErrClosed
 		}
+		s.front = max(s.front, i)
 		if s.done[i] {
 			s.mu.Unlock()
-			return os.Open(s.segmentPath(i))
+			return s.open(fmt.Sprintf(segmentPattern, i))
 		}
 		if s.missing[i] {
 			s.mu.Unlock()
 			return nil, fmt.Errorf("%w: segment %d was not produced by ffmpeg", ErrNoSegment, i)
 		}
 		if r := s.run; r == nil || i < r.next || i > r.next+lookahead {
+			if r != nil && s.gen != gen {
+				s.mu.Unlock()
+				return nil, fmt.Errorf("%w: segment %d", ErrRestarted, i)
+			}
 			if err := s.restartLocked(i, &starts); err != nil {
 				s.mu.Unlock()
 				return nil, err
 			}
+			gen = s.gen
 		}
 		ch := s.changed
 		s.mu.Unlock()
@@ -179,8 +211,26 @@ func (s *Session) OpenSegment(ctx context.Context, i int) (io.ReadSeekCloser, er
 	}
 }
 
+// open opens a published file. A file that vanished belongs to a session that was stopped.
+func (s *Session) open(name string) (io.ReadSeekCloser, error) {
+	f, err := os.Open(filepath.Join(s.dir, name)) //nolint:gosec // G304: session work dir and a fixed file name
+	if err == nil {
+		return f, nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		s.mu.Lock()
+		closed := s.closed
+		s.mu.Unlock()
+		if closed {
+			return nil, ErrClosed
+		}
+		return nil, fmt.Errorf("%w: %s: %w", ErrNoSegment, name, err)
+	}
+	return nil, err
+}
+
 // restartLocked kills the current run and starts one at segment i, unless this request already
-// started one that failed (then its error is returned).
+// started one that failed (then its error is returned) or ffmpeg failed maxFailures times from i.
 func (s *Session) restartLocked(i int, starts *int) error {
 	if *starts > 0 && s.err != nil {
 		return s.err
@@ -188,17 +238,27 @@ func (s *Session) restartLocked(i int, starts *int) error {
 	if *starts >= maxStartsPerRequest {
 		return fmt.Errorf("transcode session %s: ffmpeg stopped twice before segment %d", s.id, i)
 	}
+	if f := s.failures[i]; f.n >= maxFailures {
+		return fmt.Errorf("transcode session %s: ffmpeg failed %d times from segment %d: %w", s.id, f.n, i, f.err)
+	}
 	*starts++
 	if s.run != nil {
-		s.killLocked(s.run)
+		s.killLocked(s.run, true)
 	}
 	return s.startLocked(i)
 }
 
-func (s *Session) firstPending() int {
-	for i, d := range s.done {
-		if !d {
-			return i
+// pendingFrom returns the first segment at or after i that is neither published nor known to be
+// missing, else the first pending one from the start.
+func (s *Session) pendingFrom(i int) int {
+	for k := max(i, 0); k < len(s.done); k++ {
+		if !s.done[k] && !s.missing[k] {
+			return k
+		}
+	}
+	for k, d := range s.done {
+		if !d && !s.missing[k] {
+			return k
 		}
 	}
 	return 0
@@ -214,8 +274,16 @@ func (s *Session) broadcastLocked() {
 	s.changed = make(chan struct{})
 }
 
-// startLocked starts ffmpeg at segment i in a fresh run directory.
+// startLocked starts ffmpeg at segment i in a fresh run directory. It refuses a stopped session,
+// so a Stop racing with Start or a request never leaves an orphaned ffmpeg.
 func (s *Session) startLocked(i int) error {
+	if s.closed {
+		return ErrClosed
+	}
+	if err := os.MkdirAll(s.dir, 0o750); err != nil {
+		return err
+	}
+	s.cold = false
 	s.runs++
 	dir := filepath.Join(s.dir, fmt.Sprintf("run%04d", s.runs))
 	if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -225,7 +293,7 @@ func (s *Session) startLocked(i int) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(s.m.ctx)
 	cmd := exec.CommandContext(ctx, s.m.runner.FFmpegPath, args...) //nolint:gosec // G204: configured binary, argument list from ffmpegArgs
 	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
 	cmd.WaitDelay = killGrace
@@ -250,6 +318,8 @@ func (s *Session) startLocked(i int) error {
 	s.err = nil
 	s.run = r
 	s.live[r] = struct{}{}
+	s.gen++
+	s.front = i
 	if !s.active {
 		s.m.acquire(s.plan.Cost)
 		s.active = true
@@ -260,8 +330,9 @@ func (s *Session) startLocked(i int) error {
 }
 
 // killLocked stops a run: SIGTERM, SIGKILL after killGrace. Segments it lists from now on are
-// ignored, because ffmpeg closes the interrupted segment as if it were complete.
-func (s *Session) killLocked(r *run) {
+// ignored, because ffmpeg closes the interrupted segment as if it were complete. keepBudget keeps
+// the session's budget (restart or MaxAhead pause); otherwise it is released.
+func (s *Session) killLocked(r *run, keepBudget bool) {
 	if r.killed {
 		return
 	}
@@ -269,7 +340,9 @@ func (s *Session) killLocked(r *run) {
 	r.cancel()
 	if s.run == r {
 		s.run = nil
-		s.releaseLocked()
+		if !keepBudget {
+			s.releaseLocked()
+		}
 	}
 	s.broadcastLocked()
 }
@@ -290,56 +363,102 @@ func (s *Session) watch(r *run, logf *os.File) {
 	for {
 		select {
 		case err := <-waitErr:
-			s.collect(r)
+			s.collect(r, true)
 			s.finish(r, err)
 			if logf != nil {
 				_ = logf.Close()
 			}
 			return
 		case <-t.C:
-			s.collect(r)
+			s.collect(r, false)
 		}
 	}
 }
 
-// collect publishes the segments the run has finished since the last call.
-func (s *Session) collect(r *run) {
+// collect publishes the segments the run has finished since the last call. ffmpeg lists a
+// segment before it writes its data, so a listed segment counts only once checkComplete accepts
+// it; until then collect keeps its position and retries on the next tick, and gives up after
+// incompleteWait (or at once when the process has exited: final). The disk I/O runs outside mu;
+// pub keeps publishers of different runs apart.
+func (s *Session) collect(r *run, final bool) {
 	data, err := os.ReadFile(filepath.Join(r.dir, segmentList))
 	if err != nil {
 		return
 	}
 	idx := parseSegmentList(data)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if r.killed || s.closed || len(idx) <= r.seen {
-		return
-	}
-	for _, k := range idx[r.seen:] {
-		r.seen++
+	s.pub.Lock()
+	defer s.pub.Unlock()
+	for {
+		s.mu.Lock()
+		if r.killed || s.closed || r.seen >= len(idx) {
+			s.mu.Unlock()
+			break
+		}
+		k := idx[r.seen]
 		if k < 0 || k >= len(s.done) {
+			r.seen++
+			s.mu.Unlock()
 			continue
 		}
+		already, needInit := s.done[k], !s.initReady
+		s.mu.Unlock()
+
 		src := filepath.Join(r.dir, fmt.Sprintf(segmentPattern, k))
-		if s.done[k] {
+		var wrote bool
+		if already {
 			_ = os.Remove(src)
-		} else {
-			wrote, err := publishSegment(src, s.segmentPath(k), filepath.Join(s.dir, initName), !s.initReady)
-			if err != nil {
-				s.log.Error("publish segment", "session", s.id, "segment", k, "err", err)
-				s.err = err
-				s.killLocked(r)
+		} else if err = checkComplete(src); err == nil {
+			wrote, err = publishSegment(src, s.segmentPath(k), filepath.Join(s.dir, initName), needInit)
+		}
+
+		s.mu.Lock()
+		if errors.Is(err, errIncomplete) && !final {
+			now := time.Now()
+			if r.stalled.IsZero() {
+				r.stalled = now
+			}
+			if now.Sub(r.stalled) <= s.m.incompleteWait {
+				s.mu.Unlock()
 				return
 			}
+			err = fmt.Errorf("segment %d still incomplete after %v: %w", k, s.m.incompleteWait, err)
+		}
+		r.stalled = time.Time{}
+		if err != nil {
+			if !r.killed && !s.closed {
+				s.log.Error("publish segment", "session", s.id, "segment", k, "err", err)
+				s.err = err
+				s.killLocked(r, false)
+			}
+			s.mu.Unlock()
+			return
+		}
+		if !already {
 			s.initReady = s.initReady || wrote
 			s.done[k] = true
 		}
+		r.seen++
 		r.next = k + 1
+		delete(s.failures, r.start)
+		s.broadcastLocked()
+		s.mu.Unlock()
 	}
-	s.broadcastLocked()
-	// The run reached segments an earlier run already wrote: stop it; a request for the next
-	// missing segment starts a new run there.
-	if s.run == r && r.next < len(s.done) && s.done[r.next] {
-		s.killLocked(r)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if r.killed || s.closed || s.run != r {
+		return
+	}
+	switch {
+	case r.next < len(s.done) && s.done[r.next]:
+		// The run reached segments an earlier run already wrote: stop it; a request for the next
+		// missing segment starts a new run there.
+		s.killLocked(r, false)
+	case s.m.maxAhead > 0 && r.next-1-s.front > s.m.maxAhead:
+		// Far enough ahead of the player: pause ffmpeg, keep the budget; the next request for a
+		// missing segment restarts it there.
+		s.log.Debug("ffmpeg ahead, pausing", "session", s.id, "next", r.next, "front", s.front)
+		s.killLocked(r, true)
 	}
 }
 
@@ -357,12 +476,14 @@ func (s *Session) finish(r *run, waitErr error) {
 	}
 	_ = os.RemoveAll(r.dir)
 	if s.run != r {
-		return // killed: replaced, idle or stopped
+		return // killed: replaced, paused, idle or stopped
 	}
 	s.run = nil
 	s.releaseLocked()
 	if waitErr != nil {
 		s.err = fmt.Errorf("ffmpeg from segment %d: %w: %s", r.start, waitErr, r.stderr.String())
+		f := s.failures[r.start]
+		s.failures[r.start] = failure{n: f.n + 1, err: s.err}
 		s.log.Warn("ffmpeg failed", "session", s.id, "segment", r.start, "err", s.err)
 		return
 	}
@@ -383,7 +504,7 @@ func (s *Session) close() {
 	s.closed = true
 	var runs []*run
 	for r := range s.live {
-		s.killLocked(r)
+		s.killLocked(r, false)
 		runs = append(runs, r)
 	}
 	s.releaseLocked()
@@ -397,20 +518,45 @@ func (s *Session) close() {
 	}
 }
 
-// idleKill stops ffmpeg when nobody asked for a segment within timeout; the files stay.
-func (s *Session) idleKill(now time.Time, timeout time.Duration) {
+// idleCheck stops ffmpeg and releases the budget when nobody asked for a segment within idle;
+// the files stay. After removeAfter without requests (0 = never) the directory is removed too
+// and the session turns cold: the next request restarts ffmpeg at the requested segment.
+func (s *Session) idleCheck(now time.Time, idle, removeAfter time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.run != nil && now.Sub(s.lastUse) > timeout {
-		s.log.Debug("ffmpeg idle, stopping", "session", s.id)
-		s.killLocked(s.run)
+	if s.closed {
+		return
 	}
+	since := now.Sub(s.lastUse)
+	if since > idle {
+		if s.run != nil {
+			s.log.Debug("ffmpeg idle, stopping", "session", s.id)
+			s.killLocked(s.run, false)
+		}
+		s.releaseLocked() // also a session paused by MaxAhead
+	}
+	if removeAfter <= 0 || since <= removeAfter || s.cold || len(s.live) > 0 {
+		return
+	}
+	s.log.Debug("transcode session idle, removing files", "session", s.id)
+	if err := os.RemoveAll(s.dir); err != nil {
+		s.log.Warn("remove transcode dir", "session", s.id, "err", err)
+		return
+	}
+	clear(s.done)
+	clear(s.missing)
+	clear(s.failures)
+	s.initReady = false
+	s.err = nil
+	s.cold = true
+	s.broadcastLocked()
 }
 
-func (s *Session) running() bool {
+// state reports whether ffmpeg runs and whether the session is cold.
+func (s *Session) state() (running, cold bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.run != nil
+	return s.run != nil, s.cold
 }
 
 // deprioritize lowers the CPU priority (nice 10) and makes ffmpeg the preferred victim of the

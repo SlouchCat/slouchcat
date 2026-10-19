@@ -31,6 +31,9 @@ const (
 	prioProbe     = 3
 	prioSweep     = 2
 	prioKeyframes = 1
+	// prioKeyframesPlayback: a playback fell back to transcoding because the index is missing;
+	// the index runs before everything else so the next start remuxes.
+	prioKeyframesPlayback = 9
 )
 
 type libraryPayload struct {
@@ -76,6 +79,44 @@ func probeJob(mediaFileID string) newJob {
 
 func keyframesJob(mediaFileID string) newJob {
 	return newJob{JobProbeKeyframes, prioKeyframes, "keyframes:" + mediaFileID, mediaFilePayload{mediaFileID}}
+}
+
+// QueueKeyframesForPlayback queues the keyframe index of a media file at top priority (a playback
+// is transcoding because the index is missing). A queued index job of a scan (priority 1) is
+// replaced; a running one is left alone.
+func QueueKeyframesForPlayback(ctx context.Context, q *jobs.Queue, mediaFileID string) error {
+	payload, err := json.Marshal(mediaFilePayload{mediaFileID})
+	if err != nil {
+		return fmt.Errorf("encode %s payload: %w", JobProbeKeyframes, err)
+	}
+	nj := jobs.NewJob{Type: JobProbeKeyframes, Priority: prioKeyframesPlayback, IdempotencyKey: "keyframes:" + mediaFileID, Payload: payload}
+	id, err := q.Enqueue(ctx, nj)
+	if err != nil {
+		return err
+	}
+	j, err := q.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if j.State != jobs.StateQueued || j.Priority >= prioKeyframesPlayback {
+		return nil
+	}
+	if _, err := q.Cancel(ctx, id); err != nil {
+		return err
+	}
+	_, err = q.Enqueue(ctx, nj)
+	return err
+}
+
+// StoreKeyframes stores a keyframe index that playback computed on demand, like the index job.
+func StoreKeyframes(ctx context.Context, db *sql.DB, mediaFileID string, kf []time.Duration, now time.Time) error {
+	err := systemq.New(db).UpdateMediaFileKeyframes(ctx, systemq.UpdateMediaFileKeyframesParams{
+		Keyframes: EncodeKeyframes(kf), Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, ID: mediaFileID,
+	})
+	if err != nil {
+		return fmt.Errorf("store keyframe index of %s: %w", mediaFileID, err)
+	}
+	return nil
 }
 
 func matchJob(itemID string) newJob {

@@ -157,7 +157,8 @@ func ParseProbe(data []byte) (Probe, error) {
 
 // Keyframes returns the presentation times of the key frames of the first video stream, sorted.
 // It only demuxes (`-show_entries packet=pts_time,flags`), so it reads the file once without
-// decoding; packets whose flags contain K are key frames.
+// decoding; packets whose flags contain K are key frames. A remux plan needs this index
+// (Source.Keyframes): NewPlan returns ErrNoKeyframes without it.
 func (r Runner) Keyframes(ctx context.Context, path string) ([]time.Duration, error) {
 	out, err := r.ffprobe(ctx, "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-of", "csv=p=0", path)
 	if err != nil {

@@ -219,7 +219,7 @@ type ImageLocation struct {
 
 // Image returns the stored image of a visible title by kind (poster, backdrop) and size (w200 …
 // w1920). With preferWebP it returns the WebP row when one exists, else (and without preferWebP)
-// the JPEG row.
+// the JPEG row. A missing w400 poster falls back to M1a's w500 JPEG (legacyPosterSize).
 func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, preferWebP bool) (ImageLocation, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -230,6 +230,9 @@ func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, 
 		format = "webp"
 	}
 	im, err := r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: size, Format: format})
+	if errors.Is(err, sql.ErrNoRows) && kind == "poster" && size == posterSize {
+		im, err = r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: legacyPosterSize, Format: format})
+	}
 	if err != nil {
 		return ImageLocation{}, notFound(err)
 	}

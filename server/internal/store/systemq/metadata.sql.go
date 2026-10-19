@@ -98,7 +98,7 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 }
 
 const listMatchedItemImages = `-- name: ListMatchedItemImages :many
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path
+SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = ?1
@@ -116,6 +116,7 @@ type ListMatchedItemImagesRow struct {
 	Format       string
 	SourceUrl    string
 	RelPath      string
+	Accent       sql.NullString
 }
 
 // Stored images of the matched titles of a library, for the image check after a scan
@@ -138,6 +139,7 @@ func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([
 			&i.Format,
 			&i.SourceUrl,
 			&i.RelPath,
+			&i.Accent,
 		); err != nil {
 			return nil, err
 		}

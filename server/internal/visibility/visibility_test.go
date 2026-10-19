@@ -243,6 +243,19 @@ func TestReaderMediaFileAndImage(t *testing.T) {
 	if _, err := r.Image(ctx, Profile(f.P6), m12.ID, "poster", "w400", false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("image of an invisible title: err = %v", err)
 	}
+
+	// A title with M1a's w500 poster only: it answers the w400 request (JPEG for both formats).
+	if _, err := f.DB.Write.Exec(`UPDATE images SET size = 'w500' WHERE item_id = ? AND kind = 'poster' AND size = 'w400' AND format = 'jpeg'`, m6.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, webp := range []bool{false, true} {
+		if leg, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w400", webp); err != nil || leg.RelPath != m6.PosterRel || leg.MediaType != "image/jpeg" {
+			t.Errorf("w500 stand-in (webp %v) = %+v, %v", webp, leg, err)
+		}
+	}
+	if _, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w200", false); err != nil {
+		t.Errorf("w200 still served: %v", err)
+	}
 }
 
 func TestReaderRejectsUnscopedReads(t *testing.T) {

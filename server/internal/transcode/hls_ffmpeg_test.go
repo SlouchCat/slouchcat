@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -270,7 +271,7 @@ func stopAndForget(t *testing.T, s *Session, from int) {
 	var r *run
 	if s.run != nil {
 		r = s.run
-		s.killLocked(r)
+		s.killLocked(r, false)
 	}
 	s.mu.Unlock()
 	if r != nil {
@@ -307,7 +308,7 @@ func TestHLSRemuxEndToEnd(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	s, err := m.Start(ctx, "remux", src, p)
+	s, err := m.Start(ctx, "remux", src, p, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +332,7 @@ func TestHLSRemuxEndToEnd(t *testing.T) {
 
 	// A second session: stop ffmpeg after segment 0, seek to the last segment (restart with -ss),
 	// then back to 3 (another restart that stops when it reaches the existing segment 4).
-	s2, err := m.Start(ctx, "remux2", src, p)
+	s2, err := m.Start(ctx, "remux2", src, p, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +370,7 @@ func TestHLSTranscodeEndToEnd(t *testing.T) {
 	read := reader(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	s, err := m.Start(ctx, "transcode", src, p)
+	s, err := m.Start(ctx, "transcode", src, p, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,4 +394,73 @@ func TestHLSTranscodeEndToEnd(t *testing.T) {
 		t.Errorf("init + segments of four runs decode to %d frames, want 480", n)
 	}
 	decodes(t, r, init, seg4)
+}
+
+// A 10-s GOP (x264 -g 240 at 24 fps): with a grid plan the segment muxer cut once per keyframe and
+// the numbering drifted from the playlist; NewPlan refuses remux without the index, and with the
+// index ffmpeg's cuts match the plan, from the start, from a resume segment and after a seek.
+func TestHLSRemuxLongGOP(t *testing.T) {
+	r := hlsRunner(t)
+	path := filepath.Join(t.TempDir(), "longgop.mkv")
+	runFFmpeg(t, r, "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000",
+		"-t", "35", "-c:v", "libx264", "-preset", "ultrafast", "-bf", "3", "-g", "240",
+		"-x264-params", "keyint=240:min-keyint=240:scenecut=0", "-c:a", "aac", "-b:a", "96k", path)
+	ctx := context.Background()
+	probe, err := r.Probe(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := Target{Mode: ModeRemux, VideoCopy: true, AudioCopy: true}
+	if _, err := NewPlan(Source{Path: path, Probe: probe}, target); !errors.Is(err, ErrNoKeyframes) {
+		t.Fatalf("remux without index: %v, want ErrNoKeyframes", err)
+	}
+	kf, err := r.Keyframes(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []time.Duration{0, sec(10), sec(20), sec(30)}; !slices.Equal(kf, want) {
+		t.Fatalf("keyframes %v, want %v", kf, want)
+	}
+	src := Source{Path: path, Probe: probe, Keyframes: kf}
+	p, err := NewPlan(src, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := starts(p), []time.Duration{0, sec(10), sec(20), sec(30)}; !slices.Equal(got, want) {
+		t.Fatalf("plan %v, want %v", got, want)
+	}
+	m := newFFmpegManager(t, r, BackendSoftware)
+	read := reader(t)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	s, err := m.Start(ctx, "longgop", src, p, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	init := read(s.OpenInit(ctx))
+	tracks := parseInit(t, init)
+	segs := make([][]byte, len(p.Segments))
+	for i := range segs {
+		segs[i] = read(s.OpenSegment(ctx, i))
+		checkSegment(t, p, tracks, i, segs[i])
+	}
+	if n := decodes(t, r, init, segs...); n != 840 {
+		t.Errorf("init + all segments decode to %d frames, want 840 (35 s at 24 fps)", n)
+	}
+
+	// Resume at segment 2, then seek back to 1 (a restart that stops at the existing segment 2).
+	s2, err := m.Start(ctx, "longgop2", src, p, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	init2 := read(s2.OpenInit(ctx))
+	seg2 := read(s2.OpenSegment(ctx, 2))
+	checkSegment(t, p, tracks, 2, seg2)
+	seg1 := read(s2.OpenSegment(ctx, 1))
+	checkSegment(t, p, tracks, 1, seg1)
+	decodes(t, r, init2, seg1, seg2)
+	if runs := runCount(s2); runs != 2 {
+		t.Errorf("%d ffmpeg runs, want 2 (resume at 2, seek to 1)", runs)
+	}
 }

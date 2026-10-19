@@ -81,13 +81,18 @@ const (
 	audioBitrate     = 160_000
 )
 
+// ErrNoKeyframes is returned by NewPlan for a remux of a video without a keyframe index: on a grid
+// the segment muxer cuts once per source keyframe, so with GOPs longer than 4 s the segment
+// numbers drift away from the playlist. The caller computes the index first (Runner.Keyframes)
+// or transcodes.
+var ErrNoKeyframes = errors.New("remux needs the keyframe index of the source")
+
 // NewPlan computes the segment list and the admission cost for src and t.
 //
 // Transcode cuts on a 4-s grid from 0 (keyframes are forced there); a remainder shorter than 1 s is
 // merged into the last segment. Remux cuts on source keyframes: the next boundary is the first
-// keyframe at least 4 s after the previous one. Without a keyframe index remux falls back to the
-// 4-s grid; ffmpeg then cuts at the first keyframe after each grid point, so the playlist
-// durations are approximate and a seek may land on an earlier keyframe (documented in ADR 0003).
+// keyframe at least 4 s after the previous one; without src.Keyframes it returns ErrNoKeyframes.
+// Audio-only sources use the 4-s grid in both modes.
 func NewPlan(src Source, t Target) (Plan, error) {
 	if t.Mode != ModeRemux && t.Mode != ModeTranscode {
 		return Plan{}, fmt.Errorf("unknown mode %q", t.Mode)
@@ -117,7 +122,10 @@ func NewPlan(src Source, t Target) (Plan, error) {
 	}
 
 	var starts []time.Duration
-	if t.Mode == ModeRemux && hasVideo && len(src.Keyframes) > 0 {
+	if t.Mode == ModeRemux && hasVideo {
+		if len(src.Keyframes) == 0 {
+			return Plan{}, ErrNoKeyframes
+		}
 		starts = keyframeStarts(src.Keyframes, d)
 	} else {
 		starts = gridStarts(d)

@@ -25,6 +25,13 @@ func probeOf(codec, transfer, primaries string) *transcode.Probe {
 	}}
 }
 
+func pixProbe(codec, profile, pixFmt string) *transcode.Probe {
+	return &transcode.Probe{Streams: []transcode.Stream{
+		{Type: "video", Codec: codec, Profile: profile, PixFmt: pixFmt, ColorTransfer: "bt709"},
+		{Type: "audio", Codec: "aac"},
+	}}
+}
+
 // Plan 10.3 rows 1–3 per client, plus the H.264 MKV (remux) and the surround audio files.
 func TestDecideMatrix(t *testing.T) {
 	h264MP4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac"}
@@ -41,6 +48,7 @@ func TestDecideMatrix(t *testing.T) {
 	tonemap := Decision{Mode: ModeTranscode, MaxHeight: 1080, Tonemap: true, AudioCopy: true, Reason: ReasonHDR}
 	remuxH264 := Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: true, Reason: ReasonContainer}
 	remuxAudioEncode := Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: false, Reason: ReasonContainer}
+	pixelFormat := Decision{Mode: ModeTranscode, MaxHeight: 1080, AudioCopy: true, Reason: ReasonPixelFormat}
 
 	for _, tc := range []struct {
 		name  string
@@ -67,7 +75,8 @@ func TestDecideMatrix(t *testing.T) {
 		{"hevc hdr safari", hevcHDR, hdr, capsSafari, remuxHEVC},
 		{"hevc hdr android", hevcHDR, hdr, capsAndroid, tonemap},
 		{"hlg counts as hdr", hevcHDR, probeOf("hevc", "arib-std-b67", "bt2020"), capsFirefox, tonemap},
-		{"bt2020 primaries count as hdr", hevcHDR, probeOf("hevc", "", "bt2020"), capsFirefox, tonemap},
+		// The rule of transcode.NewPlan: only the PQ/HLG transfer is HDR, BT.2020 primaries alone are SDR.
+		{"bt2020 primaries alone are sdr", hevcHDR, probeOf("hevc", "bt709", "bt2020"), capsFirefox, transcodeSDR},
 		// H.264/AAC in MKV → remux in every browser.
 		{"h264 mkv chrome", h264MKV, nil, capsChrome, remuxH264},
 		{"h264 mkv firefox", h264MKV, nil, capsFirefox, remuxH264},
@@ -85,6 +94,15 @@ func TestDecideMatrix(t *testing.T) {
 			Decision{Mode: ModeTranscode, MaxHeight: 1080, Reason: ReasonVideoCodec}},
 		{"no hls support plays directly", hevcSDR, sdr, model.PlaybackCapabilities{Video: []string{"h264"}, Audio: []string{"aac"}, HLS: "none"},
 			Decision{Mode: ModeDirect}},
+		// Pixel formats browsers do not decode: H.264 High 10 and 4:2:2/4:4:4 transcode.
+		{"h264 high 10 mp4 not direct", h264MP4, pixProbe("h264", "High 10", "yuv420p10le"), capsChrome, pixelFormat},
+		{"h264 10 bit without profile", h264MKV, pixProbe("h264", "", "yuv420p10le"), capsSafari, pixelFormat},
+		{"h264 4:2:2 mkv", h264MKV, pixProbe("h264", "High 4:2:2", "yuv422p"), capsChrome, pixelFormat},
+		{"hevc 4:4:4 on safari", hevcSDR, pixProbe("hevc", "Rext", "yuv444p10le"), capsSafari, pixelFormat},
+		{"hevc main 10 remuxes", hevcSDR, pixProbe("hevc", "Main 10", "yuv420p10le"), capsSafari, remuxHEVC},
+		{"h264 high 8 bit plays directly", h264MP4, pixProbe("h264", "High", "yuv420p"), capsChrome, Decision{Mode: ModeDirect}},
+		{"h264 high 10 without hls plays directly", h264MP4, pixProbe("h264", "High 10", "yuv420p10le"),
+			model.PlaybackCapabilities{Video: []string{"h264"}, Audio: []string{"aac"}, HLS: "none"}, Decision{Mode: ModeDirect}},
 		{"mp4 without audio", model.MediaFile{Container: "m4v", VideoCodec: "h264"}, nil, capsFirefox, Decision{Mode: ModeDirect}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

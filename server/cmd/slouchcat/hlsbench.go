@@ -147,6 +147,7 @@ func runHLSBench(ctx context.Context, o benchOptions) (benchReport, error) {
 	defer os.RemoveAll(workDir)
 	m, err := transcode.NewManager(transcode.ManagerOptions{
 		Runner: o.runner, WorkDir: filepath.Join(workDir, "transcode"), Backend: backend, Caps: caps, Budget: o.budget, Log: log,
+		MaxAhead: -1, // measure the encoder, not the pause ahead of the player
 	})
 	if err != nil {
 		return benchReport{}, err
@@ -183,7 +184,7 @@ func benchOne(ctx context.Context, m *transcode.Manager, n int, src transcode.So
 	limit time.Duration, start time.Time) (res benchStream) {
 	res.Stream = n + 1
 	id := fmt.Sprintf("bench%03d", n+1)
-	s, err := m.Start(ctx, id, src, plan)
+	s, err := m.Start(ctx, id, src, plan, 0)
 	if err != nil {
 		res.Error = err.Error()
 		return res

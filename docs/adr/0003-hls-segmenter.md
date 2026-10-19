@@ -47,6 +47,11 @@ eigenen Parser gelesen (`hls_ffmpeg_test.go`), dekodiert wurde mit ffmpeg (Init 
      stellt die absolute Zeit wieder her.
    - Bei SIGTERM schliesst ffmpeg das angefangene Segment und trägt es in die Segmentliste ein, als wäre
      es vollständig.
+   - Der Segment-Muxer schreibt den Eintrag in die Segmentliste **vor** den Daten des Segments (die
+     Daten gehen erst beim Schliessen der Datei hinaus). Wer die Liste liest, sieht kurz eine leere oder
+     halbe Datei (in der Kalibrierung beobachtet: `read …/seg00010.m4s: EOF`).
+   - Ohne Keyframe-Index (4-s-Raster) schneidet der Segment-Muxer beim Remux einmal je Quell-Keyframe;
+     bei GOPs über 4 s (geprüft mit `-g 240`, 10 s) passt die Nummerierung nicht mehr zur Playlist.
 
 ## Entscheid
 
@@ -73,7 +78,8 @@ Stereo (5.1 wird heruntergemischt) oder Kopie. Kapitel und Metadaten werden nich
 (`-map_chapters -1 -map_metadata -1`), sonst entsteht eine zusätzliche Textspur.
 
 **Backends** (`Detect`: Encoder- und Filterliste, je Hardware-Backend ein Testbild; Reihenfolge NVENC,
-QSV, VAAPI, Software):
+QSV, VAAPI, Software; `Detect` läuft vor dem Start des HTTP-Servers und dauert deshalb höchstens 10 s,
+ein Testbild höchstens 5 s):
 
 | Backend | SDR | HDR10 → SDR | Status |
 |---|---|---|---|
@@ -85,26 +91,51 @@ QSV, VAAPI, Software):
 Quellen, die die GPU nicht dekodiert (z. B. H.264 10 Bit, MPEG-4), laufen über Software-Dekodierung und
 die CPU-Kette vor dem Hardware-Encoder.
 
-**Ablage und Auslieferung:** ffmpeg schreibt in `<cache>/transcode/<Sitzung>/runNNNN/`. Ein Segment gilt
-als fertig, sobald ffmpeg es in die Segmentliste schreibt (alle 50 ms gelesen); die Sitzung verschiebt es
-dann nach `<Sitzung>/seg%05d.m4s`. Hat die Datei `ftyp`+`moov` vorne (erste Datei eines Laufs), wird der
-Kopf abgeschnitten; der allererste Kopf wird `init.mp4`. Ein laufender Neustart überschreibt so nie eine
-ausgelieferte Datei. Nach dem Abbruch eines Laufs werden dessen Listeneinträge verworfen (SIGTERM-Falle).
+**Ablage und Auslieferung:** ffmpeg schreibt in `<cache>/transcode/<Sitzung>/runNNNN/`. Die Sitzung liest
+die Segmentliste alle 50 ms. Ein gelistetes Segment gilt erst als fertig, wenn die Datei in sich
+vollständig ist (der Listeneintrag kommt vor den Daten, siehe oben): Die Boxen auf oberster Ebene enden
+genau am Dateiende, die letzte ist ein `mdat`, ein `moof` ist dabei, und beginnt die Datei mit `ftyp`,
+folgt `moov`. Gelesen werden nur die Boxköpfe. Ist das Segment noch unvollständig, bleibt die Sitzung an
+dieser Listenposition und prüft beim nächsten Durchgang erneut; erst nach 2 s (oder wenn ffmpeg schon
+beendet ist) gilt es als Fehler und der Lauf wird beendet. Ein fertiges Segment verschiebt die Sitzung
+nach `<Sitzung>/seg%05d.m4s`; das Lesen und Schreiben geschieht ausserhalb der Sitzungssperre, ein eigener
+Mutex hält Läufe beim Veröffentlichen auseinander. Hat die Datei `ftyp`+`moov` vorne (erste Datei eines
+Laufs), wird der Kopf abgeschnitten; der allererste Kopf wird `init.mp4`. Ein laufender Neustart
+überschreibt so nie eine ausgelieferte Datei. Nach dem Abbruch eines Laufs werden dessen Listeneinträge
+verworfen (SIGTERM-Falle).
 
-**Spulmodell:** `OpenSegment(i)` liefert von der Platte, wenn vorhanden; liegt *i* höchstens 3 Segmente vor
-dem nächsten Segment des laufenden ffmpeg, wartet die Anfrage; sonst wird ffmpeg beendet (SIGTERM, nach
-2 s SIGKILL) und an *i* neu gestartet. Erreicht ein Lauf ein schon vorhandenes Segment, wird er beendet;
-die nächste fehlende Anfrage startet dort neu. Pro Anfrage höchstens zwei Starts; scheitert ffmpeg, kommt
-dessen Fehlermeldung (letzte 4 KiB von stderr) zurück, das ganze Protokoll steht in `ffmpeg.log`.
+**Spulmodell:** `Start` beginnt am Segment, an dem die Wiedergabe einsetzt (0 oder das Segment der
+Fortsetzung); `OpenInit` wartet auf die erste Datei irgendeines Laufs. `OpenSegment(i)` liefert von der
+Platte, wenn vorhanden; liegt *i* höchstens 3 Segmente vor dem nächsten Segment des laufenden ffmpeg,
+wartet die Anfrage; sonst wird ffmpeg beendet (SIGTERM, nach 2 s SIGKILL) und an *i* neu gestartet.
+Erreicht ein Lauf ein schon vorhandenes Segment, wird er beendet; die nächste fehlende Anfrage startet dort
+neu. Fragen zwei Leser weit auseinander an, gewinnt die neueste Anfrage: Eine wartende Anfrage, deren
+Lauf inzwischen von einer anderen ersetzt wurde (Startzähler je Sitzung), startet ffmpeg nicht erneut,
+sondern endet mit `ErrRestarted` (API: 503 mit `Retry-After: 1`). Pro Anfrage höchstens zwei Starts;
+scheitert ffmpeg, kommt dessen Fehlermeldung (letzte 4 KiB von stderr) zurück, das ganze Protokoll steht
+in `ffmpeg.log`. Ist ffmpeg ab demselben Segment dreimal gescheitert, bekommen weitere Anfragen den Fehler
+ohne neuen Start (hls.js wiederholt fehlgeschlagene Segmente mehrmals). Eine Datei, die beim Öffnen fehlt,
+heisst `ErrClosed` (Sitzung beendet) bzw. `ErrNoSegment`, nie 500.
+
+**Vorlauf und Aufräumen:** Hat ffmpeg mehr als `MaxAhead` (Standard 8 Segmente, etwa 32 s) fertige
+Segmente über dem höchsten seit seinem Start angefragten Segment, beendet die Sitzung den Lauf (SIGTERM)
+und behält ihr Budget; die nächste Anfrage nach einem fehlenden Segment startet dort neu, die Dateien
+bleiben. Nach 60 s ohne Anfrage wird ffmpeg beendet und das Budget frei. Nach `RemoveAfterIdle` (Standard
+10 min) ohne Anfrage löscht die Sitzung ihr Verzeichnis und wird "kalt": Sie bleibt registriert, und die
+nächste Anfrage (`OpenSegment` bzw. `OpenInit`) startet ffmpeg am angefragten Segment neu. `Stats` meldet
+die Belegung des Arbeitsverzeichnisses und die Zahl der kalten Sitzungen.
 
 **Prozesse und Admission Control:** `exec.CommandContext` mit Argumentliste, nach dem Start `nice 10` und
 `oom_score_adj 500` (best effort). Budget je Backend: NVENC 12, QSV und VAAPI 8, Software Kerne / 2,
 überschreibbar. Kosten nach Plan 3.5 (4K HDR mit Tonemapping 4, 4K 3, bis 1080p 2, Ausgabe bis 720p 1,5,
 Remux 0,5 – auch mit AAC-Kodierung –, nur Audio 0,25). Kosten belegt eine Sitzung, solange ihr ffmpeg
-läuft; `Start` wartet bis 10 s auf Budget, sonst `ErrBusy`. Eine Sitzung, die allein das Budget
-überschreitet, startet, wenn sonst nichts läuft. Nach 60 s ohne Anfrage wird ffmpeg beendet und das Budget
-frei; die Dateien bleiben. Eine fortgesetzte Sitzung erhält ihr Budget ohne Warten zurück (laufende
-Wiedergabe darf nicht abbrechen).
+läuft oder wegen `MaxAhead` pausiert; `Start` wartet bis 10 s auf Budget, sonst `ErrBusy`. Wartende
+`Start`-Aufrufe kommen in der Reihenfolge ihres Eintreffens dran; eine billige Sitzung überholt keine
+teure, die schon wartet. Eine Sitzung, die allein das Budget überschreitet, startet, wenn sonst nichts
+Budget belegt. Eine fortgesetzte Sitzung (nach Leerlauf oder kalt) erhält ihr Budget ohne Warten zurück
+(laufende Wiedergabe darf nicht abbrechen). Jeder ffmpeg-Prozess hängt an einem Kontext des Managers, den
+`Close` abbricht; ein `Stop` oder `Close` zwischen Anmeldung und Start einer Sitzung verhindert den Start
+(kein verwaister ffmpeg, kein belegtes Budget).
 
 ## Messwerte (Entwicklungsrechner, RTX 4070, 28 Kerne)
 
@@ -127,14 +158,18 @@ Echtzeit. Die Kalibrierung von Kosten und Budgets (Plan 3.5) folgt in `docs/perf
 - An der Naht zweier Läufe überlappt beim Remux das Audio um bis zu 250 ms (Ausgabe-Seek vor dem
   Keyframe). Es sind dieselben Quellframes, der Player ersetzt sie beim Anhängen; beim Transcode beträgt
   die Überlappung nur das AAC-Priming (21 ms).
-- Ohne Keyframe-Index fällt Remux auf das 4-s-Raster zurück; ffmpeg schneidet dann am nächsten Keyframe
-  nach jedem Rasterpunkt. Die Playlist-Dauern stimmen nur ungefähr, und nach einem Sprung kann die
-  Wiedergabe bis zu einem GOP früher oder später einsetzen. `probe.file` legt den Index für jede Datei an.
+- Remux braucht den Keyframe-Index der Quelle: Ohne ihn lehnt `NewPlan` mit `ErrNoKeyframes` ab, und der
+  Aufrufer berechnet den Index zuerst (`Runner.Keyframes`) oder kodiert um. Ein 4-s-Raster würde bei
+  langen GOPs die Nummerierung verschieben (siehe oben). Nur-Audio-Quellen nutzen das Raster.
 - Endet das Video vor dem Audio, kann das letzte Rastersegment ohne Videoframe bleiben und wird nie
   geschrieben; die Sitzung meldet es als `ErrNoSegment`.
-- Ohne Drosselung kodiert ffmpeg bis zum Ende des Films voraus (Remux und NVENC mit einem Vielfachen
-  der Echtzeit) und belegt entsprechend Platz im Cache, bis die Sitzung endet oder 60 s ruht.
-  Eine Drosselung folgt bei Bedarf mit den W-8-Limits (M4).
+- ffmpeg läuft höchstens `MaxAhead` Segmente (etwa 32 s) vor dem Player her; danach pausiert es und
+  startet bei Bedarf neu. Jede Pause kostet beim Weiterlaufen einen Neustart (Remux 0,1–0,2 s, NVENC
+  0,4–0,5 s), den der Puffer des Players überbrückt. Der Cache wächst während der Wiedergabe mit dem
+  gesehenen Teil des Films und wird erst nach `RemoveAfterIdle` ohne Anfrage oder mit dem Ende der Sitzung
+  frei. `hlsbench` schaltet die Pause ab (`MaxAhead` negativ), um den Encoder zu messen.
+- Wird eine Datei zwischen Listeneintrag und Daten nie fertig (ffmpeg hängt), bricht die Sitzung den Lauf
+  nach 2 s ab; die Anfrage bekommt den Fehler, die nächste startet neu.
 - Fehlt `tonemap_cuda` (Ubuntu-ffmpeg), trägt die CPU das Tonemapping; im Container mit jellyfin-ffmpeg
   greift `tonemap_cuda`, sobald der Container eine NVIDIA-GPU sieht.
 

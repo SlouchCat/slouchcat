@@ -23,6 +23,11 @@ const (
 	ReasonVideoCodec = "video_codec" // the client cannot decode the video codec directly
 	ReasonAudioCodec = "audio_codec" // the client cannot decode the audio codec, audio is encoded to AAC
 	ReasonHDR        = "hdr"         // HDR source on a client without HDR passthrough: tonemap to SDR
+	// ReasonPixelFormat: H.264 High 10 or a 4:2:2/4:4:4 source that browsers do not decode.
+	ReasonPixelFormat = "pixel_format"
+	// ReasonKeyframesPending: a remux candidate whose keyframe index is not computed yet; it is
+	// transcoded on the 4-s grid while the index job runs (see Service.ensureKeyframes).
+	ReasonKeyframesPending = "keyframes_pending"
 )
 
 // MaxTranscodeHeight caps transcode output in M1b (AN-17: software transcode up to 1080p SDR).
@@ -63,8 +68,9 @@ func normalizeCapabilities(c *model.PlaybackCapabilities) model.PlaybackCapabili
 	return out
 }
 
-// isHDR reports whether the main video stream carries HDR10/HLG signalling (PQ or HLG transfer, or
-// BT.2020 primaries).
+// isHDR reports whether the main video stream is HDR10/HLG: PQ or HLG transfer. It is the rule of
+// transcode.NewPlan (plan.go isHDR), so the decision and the plan agree on tonemapping; BT.2020
+// primaries alone (an SDR wide-gamut master) do not count.
 func isHDR(v *transcode.Stream) bool {
 	if v == nil {
 		return false
@@ -73,7 +79,33 @@ func isHDR(v *transcode.Stream) bool {
 	case "smpte2084", "arib-std-b67":
 		return true
 	}
-	return strings.ToLower(v.ColorPrimaries) == "bt2020"
+	return false
+}
+
+// browserDecodable reports whether browsers decode the pixel format of the main video stream:
+// H.264 only as 8-bit 4:2:0 (High 10, High 4:2:2 and High 4:4:4 fail in MSE and Safari), HEVC
+// as 4:2:0 in 8 or 10 bit (Main, Main 10). Without a probe the stream counts as decodable.
+func browserDecodable(codec string, v *transcode.Stream) bool {
+	if v == nil {
+		return true
+	}
+	pix := strings.ToLower(v.PixFmt)
+	profile := strings.ToLower(v.Profile)
+	if strings.Contains(profile, "4:2:2") || strings.Contains(profile, "4:4:4") || strings.Contains(profile, "rext") {
+		return false
+	}
+	if pix != "" && !strings.Contains(pix, "420") && pix != "nv12" && pix != "p010le" {
+		return false // 4:2:2, 4:4:4, gray, rgb
+	}
+	if codec == "h264" {
+		if strings.Contains(profile, "high 10") {
+			return false
+		}
+		if pix != "" && pix != "yuv420p" && pix != "yuvj420p" && pix != "nv12" {
+			return false // 10 or 12 bit
+		}
+	}
+	return true
 }
 
 // mainVideo returns the first video stream that is not cover art, or nil.
@@ -101,9 +133,12 @@ func mp4Family(container string) bool {
 // rows 4–6, follow in M4). probe may be nil when the file is not probed yet; the codec columns of
 // the file are used then and the source counts as SDR.
 //
-//   - MP4/M4V/MOV with H.264 and AAC (or no audio) on a client that plays H.264 → direct.
+//   - MP4/M4V/MOV with 8-bit 4:2:0 H.264 and AAC (or no audio) on a client that plays H.264 →
+//     direct.
 //   - A client without HLS support (neither native nor MSE) → direct; the client checks the file
 //     itself and shows that it cannot play it.
+//   - H.264 High 10 and 4:2:2/4:4:4 sources (probe profile and pix_fmt) → transcode, reason
+//     pixel_format: no browser decodes them.
 //   - HDR source → transcode with tonemapping to SDR (<= 1080p), except on a native-HLS client
 //     (Safari) that decodes the codec: remux, the HDR stream passes through.
 //   - H.264 or HEVC video the client decodes → remux (video copied, HEVC tagged hvc1); the audio
@@ -114,19 +149,25 @@ func Decide(file model.MediaFile, probe *transcode.Probe, caps model.PlaybackCap
 	audio := strings.ToLower(file.AudioCodec)
 	videoOK := video != "" && slices.Contains(caps.Video, video)
 	audioOK := audio == "" || slices.Contains(caps.Audio, audio)
+	v := mainVideo(probe)
+	pixelsOK := browserDecodable(video, v)
 
-	if mp4Family(file.Container) && video == "h264" && (audio == "" || audio == "aac") && videoOK && audioOK {
+	if mp4Family(file.Container) && video == "h264" && (audio == "" || audio == "aac") && videoOK && audioOK && pixelsOK {
 		return Decision{Mode: ModeDirect}
 	}
 	if caps.HLS == "none" {
 		return Decision{Mode: ModeDirect}
 	}
-	hdr := isHDR(mainVideo(probe))
+	hdr := isHDR(v)
 	remuxable := video == "h264" || video == "hevc"
 	passthrough := caps.HLS == "native" && videoOK && remuxable
 	if hdr && !passthrough {
 		return Decision{Mode: ModeTranscode, MaxHeight: MaxTranscodeHeight, Tonemap: true,
 			AudioCopy: audio == "aac" && audioOK, Reason: ReasonHDR}
+	}
+	if !pixelsOK {
+		return Decision{Mode: ModeTranscode, MaxHeight: MaxTranscodeHeight, Tonemap: hdr,
+			AudioCopy: audio == "aac" && audioOK, Reason: ReasonPixelFormat}
 	}
 	if videoOK && remuxable {
 		d := Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: audioOK}

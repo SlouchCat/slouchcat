@@ -1,11 +1,14 @@
 package playback
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"sync"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -30,8 +33,9 @@ func NewManagerTranscoder(m *transcode.Manager, backend transcode.Backend) *Mana
 // Backend names the encoder backend of transcodes.
 func (t *ManagerTranscoder) Backend() string { return string(t.backend) }
 
-// Start plans the HLS output of req and starts it; an exhausted budget returns
-// model.ErrTranscodeBusy.
+// Start plans the HLS output of req and starts the encoder at the segment of req.Resume (else
+// req.StartSegment); an exhausted budget returns model.ErrTranscodeBusy, a remux without keyframe
+// index ErrNoKeyframes.
 func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSession, error) {
 	d := req.Decision
 	src := transcode.Source{Path: req.Path, Probe: req.Probe, Keyframes: req.Keyframes}
@@ -40,10 +44,18 @@ func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSessi
 		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1,
 	}
 	plan, err := transcode.NewPlan(src, target)
+	if errors.Is(err, transcode.ErrNoKeyframes) {
+		return nil, errors.Join(ErrNoKeyframes, err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("plan hls output %s: %w", req.ID, err)
 	}
-	sess, err := t.m.Start(ctx, req.ID, src, plan)
+	start := req.StartSegment
+	if req.Resume > 0 {
+		start = segmentAt(plan.Segments, req.Resume)
+	}
+	start = max(0, min(start, len(plan.Segments)-1))
+	sess, err := t.m.Start(ctx, req.ID, src, plan, start)
 	if errors.Is(err, transcode.ErrBusy) {
 		return nil, model.ErrTranscodeBusy
 	}
@@ -57,18 +69,32 @@ func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSessi
 	return ms, nil
 }
 
-// Get returns the running output of a playback session.
+// Get returns the output of a playback session while the manager has it; the entry of a session
+// the manager dropped is removed.
 func (t *ManagerTranscoder) Get(id string) (HLSSession, bool) {
 	t.mu.Lock()
+	defer t.mu.Unlock()
 	ms, ok := t.sessions[id]
-	t.mu.Unlock()
 	if !ok {
 		return nil, false
 	}
-	if _, running := t.m.Get(id); !running {
+	if sess, alive := t.m.Get(id); !alive || sess != ms.s {
+		delete(t.sessions, id)
 		return nil, false
 	}
 	return ms, true
+}
+
+// segmentAt returns the index of the segment that contains pos (the last one beyond the end).
+// On the 4-s transcode grid that is floor(pos / 4 s); a remux plan cuts on keyframes.
+func segmentAt(segs []transcode.Segment, pos time.Duration) int {
+	i, _ := slices.BinarySearchFunc(segs, pos, func(s transcode.Segment, p time.Duration) int {
+		return cmp.Compare(s.Start, p)
+	})
+	if i < len(segs) && segs[i].Start == pos {
+		return i
+	}
+	return max(0, i-1)
 }
 
 // Stop ends the output and removes its files.
@@ -106,10 +132,14 @@ func (ms *managerSession) OpenSegment(ctx context.Context, i int) (io.ReadSeekCl
 
 func (ms *managerSession) Touch() { ms.s.Touch() }
 
-// notFoundIfEnded maps a segment outside the plan and a stopped session to model.ErrNotFound.
+// notFoundIfEnded maps a segment outside the plan and a stopped session to model.ErrNotFound and
+// a wait that a newer seek superseded to model.ErrSegmentRestarted (503, retry in a second).
 func notFoundIfEnded(err error) error {
-	if errors.Is(err, transcode.ErrNoSegment) || errors.Is(err, transcode.ErrClosed) {
+	switch {
+	case errors.Is(err, transcode.ErrNoSegment) || errors.Is(err, transcode.ErrClosed):
 		return errors.Join(model.ErrNotFound, err)
+	case errors.Is(err, transcode.ErrRestarted):
+		return errors.Join(model.ErrSegmentRestarted, err)
 	}
 	return err
 }

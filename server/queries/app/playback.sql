@@ -30,8 +30,12 @@ WHERE session_id = @session_id AND revoked_at IS NULL
 RETURNING id;
 
 -- name: ListEndedPlaybackSessions :many
--- Revoked or expired playback sessions whose transcode output may still be on disk.
-SELECT id FROM playback_sessions WHERE revoked_at IS NOT NULL OR expires_at <= @now;
+-- Revoked or expired playback sessions, and those whose browser session ended, whose transcode
+-- output or open stream may still be running.
+SELECT ps.id FROM playback_sessions AS ps
+LEFT JOIN sessions AS s ON s.id = ps.session_id
+WHERE ps.revoked_at IS NOT NULL OR ps.expires_at <= @now
+   OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= @now;
 
 -- name: DeleteExpiredPlaybackSessions :execrows
 DELETE FROM playback_sessions WHERE expires_at < @before OR revoked_at IS NOT NULL AND revoked_at < @before;

@@ -1,22 +1,49 @@
 import type { ProgressEvent } from '@slouchcat/api-client';
+import { focusManager, onlineManager } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alienDetail, hlsPlayback, ids, playback } from '@/test/fixtures';
-import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
+import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
 
 const progressRoute = `POST /items/${ids.alien}/progress`;
 
 // hls.js is mocked: jsdom has no MSE. The mock records how the player drives it.
 const hlsMock = vi.hoisted(() => {
-  const instances: { source?: string; media?: unknown; config: unknown; destroyed: boolean }[] = [];
+  type ErrorData = { type: string; details: string; fatal: boolean };
+  const instances: {
+    source?: string;
+    media?: unknown;
+    config: unknown;
+    destroyed: boolean;
+    recoverMediaError: number;
+    startLoad: number;
+    /** Raises Hls.Events.ERROR the way hls.js does. */
+    emitError: (data: ErrorData) => void;
+  }[] = [];
   class FakeHls {
     static Events = { ERROR: 'hlsError' };
+    static ErrorTypes = { NETWORK_ERROR: 'networkError', MEDIA_ERROR: 'mediaError' };
     readonly record: (typeof instances)[number];
+    private readonly errorHandlers: ((event: string, data: ErrorData) => void)[] = [];
     constructor(config: unknown) {
-      this.record = { config, destroyed: false };
+      this.record = {
+        config,
+        destroyed: false,
+        recoverMediaError: 0,
+        startLoad: 0,
+        emitError: (data) => this.errorHandlers.forEach((handler) => handler('hlsError', data)),
+      };
       instances.push(this.record);
     }
-    on() {}
+    on(event: string, handler: (event: string, data: ErrorData) => void) {
+      if (event === 'hlsError') this.errorHandlers.push(handler);
+    }
+    recoverMediaError() {
+      this.record.recoverMediaError += 1;
+    }
+    startLoad() {
+      this.record.startLoad += 1;
+    }
     loadSource(source: string) {
       this.record.source = source;
     }
@@ -80,6 +107,7 @@ function stubMedia(canPlay: CanPlayTypeResult = 'probably') {
 describe('player', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    hlsMock.instances.length = 0;
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -278,6 +306,129 @@ describe('player', () => {
       ]),
     );
   });
+
+  it('starts playback once: no new session on reconnect or refocus', async () => {
+    stubMedia();
+    const { calls } = mockApi(routes());
+    const starts = () =>
+      calls.filter((call) => call.method === 'POST' && call.path.endsWith('/play'));
+    const { container } = renderApp(`/play/${ids.alien}`);
+    await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+    const video = container.querySelector('video');
+    try {
+      // A network blip and a laptop waking up (the window regains focus).
+      act(() => {
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await act(() => vi.advanceTimersByTimeAsync(100));
+    } finally {
+      onlineManager.setOnline(true);
+      focusManager.setFocused(undefined);
+    }
+    expect(starts()).toHaveLength(1);
+    expect(container.querySelector('video')).toBe(video);
+  });
+
+  it('retries the start while the transcoder is busy, after the server delay', async () => {
+    stubMedia();
+    let busyAnswers = 2;
+    const { calls } = mockApi({
+      ...routes(),
+      [`POST /items/${ids.alien}/play`]: () => {
+        if (busyAnswers === 0) return json(playback);
+        busyAnswers -= 1;
+        const busy = problem(503, 'transcode_busy');
+        busy.headers.set('Retry-After', '1');
+        return busy;
+      },
+    });
+    const starts = () =>
+      calls.filter((call) => call.method === 'POST' && call.path.endsWith('/play'));
+    const { container } = renderApp(`/play/${ids.alien}`);
+
+    expect(await screen.findByText('Server ausgelastet')).toBeVisible();
+    expect(starts()).toHaveLength(1);
+    // Retry-After: 1 → the next attempt waits one second.
+    await act(() => vi.advanceTimersByTimeAsync(900));
+    expect(starts()).toHaveLength(1);
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(starts()).toHaveLength(2);
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+    await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+    expect(starts()).toHaveLength(3);
+    expect(screen.queryByText('Server ausgelastet')).toBeNull();
+  });
+
+  it('shows the busy error after three retries', async () => {
+    stubMedia();
+    const { calls } = mockApi({
+      ...routes(),
+      [`POST /items/${ids.alien}/play`]: () => {
+        const busy = problem(503, 'transcode_busy');
+        busy.headers.set('Retry-After', '1');
+        return busy;
+      },
+    });
+    const starts = () =>
+      calls.filter((call) => call.method === 'POST' && call.path.endsWith('/play'));
+    const { container } = renderApp(`/play/${ids.alien}`);
+    await screen.findByText('Server ausgelastet');
+    await act(() => vi.advanceTimersByTimeAsync(3500));
+    expect(
+      await screen.findByText('Der Server ist ausgelastet. Bitte versuche es später erneut.'),
+    ).toBeVisible();
+    expect(screen.getByText('Wiedergabe nicht möglich')).toBeVisible();
+    expect(starts()).toHaveLength(4);
+    expect(container.querySelector('video')).toBeNull();
+  });
+
+  it('does not retry other start errors', async () => {
+    stubMedia();
+    const { calls } = mockApi({
+      ...routes(),
+      [`POST /items/${ids.alien}/play`]: () => problem(404, 'not_found'),
+    });
+    renderApp(`/play/${ids.alien}`);
+    expect(await screen.findByText('Wiedergabe nicht möglich')).toBeVisible();
+    await act(() => vi.advanceTimersByTimeAsync(3500));
+    expect(calls.filter((call) => call.path.endsWith('/play'))).toHaveLength(1);
+  });
+
+  it.each([
+    ['mediaError', 'recoverMediaError'],
+    ['networkError', 'startLoad'],
+  ] as const)(
+    'recovers once from a fatal hls.js %s (%s) before showing the failure',
+    async (type, recovery) => {
+      vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation((mime) =>
+        mime === 'application/vnd.apple.mpegurl' ? '' : 'probably',
+      );
+      vi.stubGlobal('MediaSource', { isTypeSupported: () => true });
+      mockApi(routes(hlsPlayback));
+      const { container } = renderApp(`/play/${ids.alien}`);
+      await waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+      const hls = hlsMock.instances[0]!;
+
+      // Non-fatal errors are hls.js's own business; an element error reaches hls.js as well.
+      act(() => {
+        hls.emitError({ type, details: 'detail', fatal: false });
+        container.querySelector('video')!.dispatchEvent(new Event('error'));
+      });
+      expect(hls[recovery]).toBe(0);
+      expect(screen.queryByRole('alert')).toBeNull();
+
+      act(() => hls.emitError({ type, details: 'detail', fatal: true }));
+      expect(hls[recovery]).toBe(1);
+      expect(screen.queryByRole('alert')).toBeNull();
+
+      act(() => hls.emitError({ type, details: 'detail', fatal: true }));
+      expect(hls[recovery]).toBe(1);
+      expect(screen.getByRole('alert')).toHaveTextContent('Wiedergabe nicht möglich');
+    },
+  );
 
   it('returns to the detail page with Escape', async () => {
     stubMedia();

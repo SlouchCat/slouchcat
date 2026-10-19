@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
@@ -51,6 +51,14 @@ export function playbackEngine(info: PlaybackInfo, platform: MediaPlatform): Pla
   return platform.canPlayType(playbackMime(info)) !== '' ? 'direct' : 'unsupported';
 }
 
+/** Retries of the start request while the server answers 503 `transcode_busy`. */
+const BUSY_RETRIES = 3;
+/** Wait between those retries when the answer carries no `Retry-After`. */
+const BUSY_RETRY_FALLBACK_MS = 1000;
+
+const isTranscodeBusy = (error: unknown) =>
+  isApiError(error, 503) && error.code === 'transcode_busy';
+
 /** Video player route (W-1 direct play, W-5 progress and resume). */
 export function PlayerPage() {
   const { t } = useTranslation();
@@ -60,6 +68,9 @@ export function PlayerPage() {
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
 
+  // Starting playback creates a session and may start a transcode on the server, so the request
+  // runs once per mount: never refetched on reconnect, focus or staleness (a second session would
+  // rebuild the player mid-stream). Only a busy transcoder is retried, after the server's delay.
   const playback = useQuery({
     queryKey: ['playback', itemId],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
@@ -70,10 +81,13 @@ export function PlayerPage() {
           signal,
         }),
       ),
-    staleTime: 0,
+    staleTime: Infinity,
     gcTime: 0,
-    retry: false,
+    retry: (failureCount, error) => isTranscodeBusy(error) && failureCount < BUSY_RETRIES,
+    retryDelay: (_failureCount, error) =>
+      (isApiError(error) ? error.retryAfterMs : null) ?? BUSY_RETRY_FALLBACK_MS,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   useDocumentTitle(playback.data?.item.title);
   useStopPlaybackOnLeave(playback.data?.playbackSessionId);
@@ -98,7 +112,14 @@ export function PlayerPage() {
 
   return (
     <PlayerMessage onBack={goBack}>
-      {playback.isPending && <p className={styles.loading}>{t('player.loading')}</p>}
+      {playback.isPending && !isTranscodeBusy(playback.failureReason) && (
+        <p className={styles.loading}>{t('player.loading')}</p>
+      )}
+      {playback.isPending && isTranscodeBusy(playback.failureReason) && (
+        <Notice tone="info" title={t('player.busy.title')}>
+          {t('player.busy.body')}
+        </Notice>
+      )}
       {playback.isError && (
         <Notice tone="danger" title={t('player.error.title')}>
           {problemMessage(t, playback.error)}

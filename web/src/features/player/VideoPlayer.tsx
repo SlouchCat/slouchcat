@@ -212,8 +212,22 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
             },
           },
         });
+        // A fatal error gets one recovery attempt per kind before the player gives up: a media
+        // error (decode, buffer append) re-creates the media source, a network error restarts
+        // loading at the current position.
+        let mediaRecovered = false;
+        let networkRecovered = false;
         hls.on(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal) setFailed(true);
+          if (!data.fatal) return;
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR && !mediaRecovered) {
+            mediaRecovered = true;
+            hls.recoverMediaError();
+          } else if (data.type === Hls.ErrorTypes.NETWORK_ERROR && !networkRecovered) {
+            networkRecovered = true;
+            hls.startLoad();
+          } else {
+            setFailed(true);
+          }
         });
         hls.loadSource(apiUrl(info.streamUrl));
         hls.attachMedia(element);
@@ -267,7 +281,10 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
     const onDuration = () => {
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);
     };
-    const onError = () => setFailed(true);
+    // With hls.js the element's errors reach hls.js as well, which reports them (and recovers).
+    const onError = () => {
+      if (engine !== 'hlsjs') setFailed(true);
+    };
 
     element.addEventListener('loadedmetadata', onLoadedMetadata);
     element.addEventListener('playing', onPlaying);
@@ -289,7 +306,7 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
       element.removeEventListener('durationchange', onDuration);
       element.removeEventListener('error', onError);
     };
-  }, [info, openedAt]);
+  }, [engine, info, openedAt]);
 
   const elapsed = formatPlayerTime(currentMs, durationMs);
   const total = formatPlayerTime(durationMs, durationMs);

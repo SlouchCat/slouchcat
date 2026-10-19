@@ -27,6 +27,9 @@
 }
 
 .poster {
+  /* Only this title's accent (inline style) colours the glow, never an inherited one. */
+  --sc-item-accent: initial;
+
   display: none;
   isolation: isolate;
 }

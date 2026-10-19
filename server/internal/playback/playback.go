@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -43,9 +44,20 @@ type Service struct {
 	now   func() time.Time
 	key   []byte     // HMAC key of the stream tokens
 	tc    Transcoder // nil: no HLS, every title plays directly
+	queue *jobs.Queue
 
-	sweepMu   sync.Mutex
-	lastSweep time.Time
+	// keyframes computes a missing keyframe index before a remux (nil: never on demand; the
+	// file is transcoded until the index job ran), bounded by keyframeTimeout.
+	keyframes       func(ctx context.Context, path string) ([]time.Duration, error)
+	keyframeTimeout time.Duration
+	// grantRecheck is how often an open direct-play stream re-reads its playback session.
+	grantRecheck time.Duration
+
+	streamsMu sync.Mutex
+	streams   map[string]map[*grantFile]struct{} // open direct-play streams per playback id
+
+	rebuildMu  sync.Mutex
+	rebuilding map[string]chan struct{} // HLS outputs being rebuilt, closed when done
 }
 
 // Option configures New.
@@ -67,12 +79,24 @@ func WithTranscoder(t Transcoder) Option {
 	return func(s *Service) { s.tc = t }
 }
 
-// New returns the playback service; log is the redacting logger.
+// WithKeyframeIndex lets Start compute a missing keyframe index before a remux
+// (transcode.Runner.Keyframes); the index is stored for the next start.
+func WithKeyframeIndex(f func(ctx context.Context, path string) ([]time.Duration, error)) Option {
+	return func(s *Service) { s.keyframes = f }
+}
+
+// New returns the playback service; log is the redacting logger. Run sweeps ended playback
+// sessions in the background.
 func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: db, read: appq.New(db.Read), write: appq.New(db.Write), vis: visibility.New(db, log), log: log, now: time.Now}
+	s := &Service{
+		db: db, read: appq.New(db.Read), write: appq.New(db.Write), vis: visibility.New(db, log), log: log, now: time.Now,
+		keyframeTimeout: KeyframeTimeout, grantRecheck: grantRecheckInterval,
+		streams: map[string]map[*grantFile]struct{}{}, rebuilding: map[string]chan struct{}{},
+	}
 	for _, o := range opts {
 		o(s)
 	}
+	s.queue = jobs.NewQueue(db.Write, func() time.Time { return s.now() })
 	if len(s.key) == 0 {
 		s.key = make([]byte, macLength)
 		_, _ = rand.Read(s.key) // crypto/rand.Read never fails

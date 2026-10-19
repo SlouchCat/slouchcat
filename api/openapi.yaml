@@ -418,7 +418,9 @@ paths:
         `paths` package with full Range support (HTTP 206), authorised by the stream token `st` only
         (no cookie needed; plan 5.4). A missing, forged, revoked or expired token → 401; a token of
         another title, an HLS session or a title that is no longer visible → 404.
-        `Accept-Ranges: bytes`, `Cache-Control: private, no-store`.
+        `Accept-Ranges: bytes`, `Cache-Control: private, no-store`. Revoking the playback session
+        (stop, logout, an ended login) also ends a response that is already streaming: the server
+        closes the connection within a second.
       tags: [items]
       x-visibility: scoped
       security:
@@ -566,7 +568,9 @@ paths:
       description: |
         Implemented as an `http.Handler`, authorised by the stream token `st` only (plan 5.4). One
         variant: the media playlist `media.m3u8?st=…` (relative URL) with `CODECS`, `RESOLUTION` and
-        `BANDWIDTH`. Every request re-checks the title through the visibility layer.
+        `BANDWIDTH`. Every request re-checks the title through the visibility layer. When the server
+        lost the HLS output of a valid playback session (restart), any HLS request rebuilds it; a
+        segment request restarts the encoder at that segment.
         `Cache-Control: private, no-store`.
       tags: [items]
       x-visibility: scoped
@@ -586,6 +590,8 @@ paths:
           $ref: "#/components/responses/StreamUnauthenticated"
         "404":
           $ref: "#/components/responses/StreamNotFound"
+        "503":
+          $ref: "#/components/responses/StreamUnavailable"
 
   /playback/sessions/{id}/media.m3u8:
     get:
@@ -614,6 +620,8 @@ paths:
           $ref: "#/components/responses/StreamUnauthenticated"
         "404":
           $ref: "#/components/responses/StreamNotFound"
+        "503":
+          $ref: "#/components/responses/StreamUnavailable"
 
   /playback/sessions/{id}/init.mp4:
     get:
@@ -639,6 +647,8 @@ paths:
           $ref: "#/components/responses/StreamUnauthenticated"
         "404":
           $ref: "#/components/responses/StreamNotFound"
+        "503":
+          $ref: "#/components/responses/StreamUnavailable"
 
   /playback/sessions/{id}/seg/{n}:
     get:
@@ -674,6 +684,8 @@ paths:
           $ref: "#/components/responses/StreamUnauthenticated"
         "404":
           $ref: "#/components/responses/StreamNotFound"
+        "503":
+          $ref: "#/components/responses/StreamUnavailable"
 
   /admin/libraries:
     get:
@@ -895,6 +907,19 @@ components:
     StreamNotFound:
       description: |
         Unknown playback session, no HLS output, or the title is no longer visible (`not_found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    StreamUnavailable:
+      description: |
+        `transcode_busy`: the HLS output was lost (server restart) and restarting it found no transcode
+        budget within 10 s. `segment_restarted`: a newer seek restarted the encoder while this request
+        waited (`Retry-After: 1`). `Retry-After` names the pause in seconds.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
       content:
         application/problem+json:
           schema:
@@ -1388,7 +1413,10 @@ components:
           description: Encoder backend of a transcode (`nvenc`, `qsv`, `vaapi`, `software`).
         reason:
           type: string
-          description: Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`).
+          description: |
+            Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`,
+            `pixel_format` for H.264 High 10 and 4:2:2/4:4:4 sources, `keyframes_pending` for a remux
+            candidate that is transcoded until its keyframe index exists).
 
     ProgressEvent:
       type: object

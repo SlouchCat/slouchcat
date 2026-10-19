@@ -64,11 +64,14 @@ type PlaybackService interface {
 	// revoked or expired.
 	Authorize(ctx context.Context, token string) (model.PlaybackGrant, error)
 	// OpenGrant opens the media file of a direct-play grant through the paths package after
-	// re-checking visibility (model.ErrNotFound otherwise).
+	// re-checking visibility (model.ErrNotFound otherwise). When the File has a method
+	// Done() <-chan struct{}, a close of that channel means the playback was revoked: the
+	// handler aborts the response.
 	OpenGrant(ctx context.Context, g model.PlaybackGrant) (model.StreamSource, error)
 	// HLS returns the HLS output of a grant after re-checking visibility (model.ErrNotFound
-	// otherwise).
-	HLS(ctx context.Context, g model.PlaybackGrant) (model.HLSStream, error)
+	// otherwise). An output the transcoder lost (server restart) is rebuilt and starts at
+	// segment; model.ErrTranscodeBusy when the budget stays exhausted.
+	HLS(ctx context.Context, g model.PlaybackGrant, segment int) (model.HLSStream, error)
 	// Stop ends a playback session of the browser session (model.ErrNotFound for any other).
 	Stop(ctx context.Context, session model.Session, playbackID string) error
 	// EndSession ends every playback session of a browser session (logout).

@@ -13,21 +13,26 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
-// fakeTranscoder records requests and serves fixed playlists and segments.
+// fakeTranscoder records requests and serves fixed playlists and segments. Like the manager it
+// rejects a remux without keyframe index (ErrNoKeyframes); rejectRemux rejects every remux.
 type fakeTranscoder struct {
-	mu      sync.Mutex
-	busy    bool
-	started []HLSRequest
-	running map[string]*fakeHLS
-	stopped []string
-	touched int
-	backend string
+	mu          sync.Mutex
+	busy        bool
+	rejectRemux bool
+	onStart     func(HLSRequest) // called before Start returns, outside the lock
+	started     []HLSRequest
+	running     map[string]*fakeHLS
+	stopped     []string
+	touched     int
+	backend     string
 }
 
 type fakeHLS struct {
@@ -43,14 +48,36 @@ func (f *fakeTranscoder) Backend() string { return f.backend }
 
 func (f *fakeTranscoder) Start(_ context.Context, req HLSRequest) (HLSSession, error) {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	if f.busy {
+		f.mu.Unlock()
 		return nil, model.ErrTranscodeBusy
+	}
+	if req.Decision.Mode == ModeRemux && (f.rejectRemux || len(req.Keyframes) == 0) {
+		f.mu.Unlock()
+		return nil, ErrNoKeyframes
 	}
 	f.started = append(f.started, req)
 	s := &fakeHLS{t: f, id: req.ID}
 	f.running[req.ID] = s
+	hook := f.onStart
+	f.mu.Unlock()
+	if hook != nil {
+		hook(req)
+	}
 	return s, nil
+}
+
+// lose drops an output without a stop, like a server restart.
+func (f *fakeTranscoder) lose(id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.running, id)
+}
+
+func (f *fakeTranscoder) starts() []HLSRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]HLSRequest(nil), f.started...)
 }
 
 func (f *fakeTranscoder) Get(id string) (HLSSession, bool) {
@@ -112,11 +139,22 @@ func tokenOf(t *testing.T, streamURL string) string {
 	return st
 }
 
-// hevcProbe is a stored probe of a 90-s HEVC SDR file.
+// hevcProbe is a stored probe of a 90-s HEVC 10-bit SDR file.
 func hevcProbe(t *testing.T) string {
 	t.Helper()
+	return probeJSON(t, "hevc", "yuv420p10le")
+}
+
+// h264Probe is a stored probe of a 90-s H.264 8-bit file.
+func h264Probe(t *testing.T) string {
+	t.Helper()
+	return probeJSON(t, "h264", "yuv420p")
+}
+
+func probeJSON(t *testing.T, codec, pixFmt string) string {
+	t.Helper()
 	p := transcode.Probe{Format: transcode.Format{Name: "matroska,webm", Duration: 90 * time.Second}, Streams: []transcode.Stream{
-		{Index: 0, Type: "video", Codec: "hevc", Width: 1280, Height: 720, PixFmt: "yuv420p10le", ColorTransfer: "bt709", ColorPrimaries: "bt709"},
+		{Index: 0, Type: "video", Codec: codec, Width: 1280, Height: 720, PixFmt: pixFmt, ColorTransfer: "bt709", ColorPrimaries: "bt709"},
 		{Index: 1, Type: "audio", Codec: "aac", Channels: 2},
 	}}
 	b, err := json.Marshal(p)
@@ -173,7 +211,7 @@ func TestStreamTokenLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = src.File.Close()
-	if _, err := s.HLS(ctx, g); !errors.Is(err, model.ErrNotFound) {
+	if _, err := s.HLS(ctx, g, 0); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("HLS of a direct grant: %v", err)
 	}
 
@@ -282,7 +320,7 @@ func TestStartHLSRequestAndVisibilityRecheck(t *testing.T) {
 	ctx := context.Background()
 	m := f.Rated(6)
 	kf := []time.Duration{0, 2 * time.Second, 7 * time.Second, 8 * time.Second}
-	f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", hevcProbe(t), library.EncodeKeyframes(kf))
+	f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", h264Probe(t), library.EncodeKeyframes(kf))
 	session := browserSession(t, f, f.P6)
 
 	info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{Capabilities: &model.PlaybackCapabilities{Video: []string{"h264"}, Audio: []string{"aac"}, HLS: "mse"}})
@@ -306,7 +344,7 @@ func TestStartHLSRequestAndVisibilityRecheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hs, err := s.HLS(ctx, g)
+	hs, err := s.HLS(ctx, g, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +361,7 @@ func TestStartHLSRequestAndVisibilityRecheck(t *testing.T) {
 	if _, err := s.Authorize(ctx, tokenOf(t, info.StreamURL)); err != nil {
 		t.Fatalf("token itself stays valid: %v", err)
 	}
-	if _, err := s.HLS(ctx, g); !errors.Is(err, model.ErrNotFound) {
+	if _, err := s.HLS(ctx, g, 0); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("HLS of a title that became invisible: %v", err)
 	}
 }
@@ -377,29 +415,433 @@ func TestSweepStopsEndedOutputAndDeletesOldRows(t *testing.T) {
 	ctx := context.Background()
 	m := f.Rated(18)
 	f.SetMediaFile(t, m.FileID, "mkv", "hevc", "aac", hevcProbe(t), nil)
-	session := browserSession(t, f, f.P18)
-	info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+	info, err := s.Start(ctx, browserSession(t, f, f.P18), m.ID, model.PlaybackRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The client vanished: 13 h later the session is expired; the next Start sweeps its output.
-	now = now.Add(13 * time.Hour)
-	if _, err := s.Start(ctx, browserSession(t, f, f.P18), f.Rated(0).ID, model.PlaybackRequest{}); err != nil {
+	loggedOut := browserSession(t, f, f.P18)
+	other, err := s.Start(ctx, loggedOut, m.ID, model.PlaybackRequest{})
+	if err != nil {
 		t.Fatal(err)
 	}
+	// Start does not sweep; the background sweep does.
+	s.sweep(ctx)
+	if _, running := tc.Get(info.PlaybackSessionID); !running {
+		t.Fatal("sweep stopped a valid session")
+	}
+	// The login of the second playback is revoked elsewhere (not through EndSession): the next
+	// sweep stops its output.
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE sessions SET revoked_at = 1 WHERE id = ?`, loggedOut.ID); err != nil {
+		t.Fatal(err)
+	}
+	s.sweep(ctx)
+	if _, running := tc.Get(other.PlaybackSessionID); running {
+		t.Error("output of a revoked browser session still runs after the sweep")
+	}
+	if _, running := tc.Get(info.PlaybackSessionID); !running {
+		t.Fatal("sweep stopped a valid session")
+	}
+	// The client vanished: 13 h later the session is expired; the sweep stops its output.
+	now = now.Add(13 * time.Hour)
+	s.sweep(ctx)
 	if _, running := tc.Get(info.PlaybackSessionID); running {
 		t.Error("output of an expired session still runs after the sweep")
 	}
 	// A day later the row is gone.
 	now = now.Add(2 * 24 * time.Hour)
-	if _, err := s.Start(ctx, browserSession(t, f, f.P18), f.Rated(0).ID, model.PlaybackRequest{}); err != nil {
-		t.Fatal(err)
-	}
+	s.sweep(ctx)
 	var n int
 	if err := f.DB.Read.QueryRowContext(ctx, `SELECT count(*) FROM playback_sessions WHERE id = ?`, info.PlaybackSessionID).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
 	if n != 0 {
 		t.Error("expired row not deleted")
+	}
+}
+
+func TestRunSweepsUntilCancelled(t *testing.T) {
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx, cancel := context.WithCancel(context.Background())
+	m := f.Rated(18)
+	f.SetMediaFile(t, m.FileID, "mkv", "hevc", "aac", hevcProbe(t), nil)
+	session := browserSession(t, f, f.P18)
+	info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE sessions SET revoked_at = 1 WHERE id = ?`, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() { s.Run(ctx); close(done) }()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, running := tc.Get(info.PlaybackSessionID); !running {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("Run did not sweep at start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not return after cancel")
+	}
+}
+
+// fakeIndex is a keyframe indexer for Start: it returns kf after delay, or the context error.
+type fakeIndex struct {
+	mu    sync.Mutex
+	calls int
+	kf    []time.Duration
+	delay time.Duration
+}
+
+func (x *fakeIndex) keyframes(ctx context.Context, _ string) ([]time.Duration, error) {
+	x.mu.Lock()
+	x.calls++
+	x.mu.Unlock()
+	select {
+	case <-time.After(x.delay):
+		return x.kf, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func keyframeJob(t *testing.T, f *vistest.Fixture, fileID string) (priority int, state string) {
+	t.Helper()
+	err := f.DB.Read.QueryRowContext(context.Background(),
+		`SELECT priority, state FROM jobs WHERE idempotency_key = ? AND state IN ('queued', 'running')`, "keyframes:"+fileID).Scan(&priority, &state)
+	if err != nil {
+		t.Fatalf("keyframe job of %s: %v", fileID, err)
+	}
+	return priority, state
+}
+
+// I1: a remux without keyframe index computes it on demand and stores it for the next start.
+func TestRemuxComputesMissingKeyframes(t *testing.T) {
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	idx := &fakeIndex{kf: []time.Duration{0, 5 * time.Second, 10 * time.Second}}
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc), WithKeyframeIndex(idx.keyframes))
+	ctx := context.Background()
+	m := f.Rated(6)
+	f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", h264Probe(t), nil)
+	session := browserSession(t, f, f.P6)
+
+	info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Transcoding == nil || info.Transcoding.Mode != ModeRemux || info.Transcoding.Reason != ReasonContainer {
+		t.Fatalf("H.264 MKV without index = %+v", info.Transcoding)
+	}
+	if got := tc.starts(); len(got) != 1 || len(got[0].Keyframes) != 3 || got[0].Keyframes[1] != 5*time.Second {
+		t.Fatalf("started = %+v", got)
+	}
+	pf, err := visibility.New(f.DB, vistest.Logger()).MediaFileProbe(ctx, visibility.Profile(f.P6), m.ID, m.FileID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kf, err := library.DecodeKeyframes(pf.Keyframes); err != nil || len(kf) != 3 {
+		t.Errorf("stored index = %v, %v", kf, err)
+	}
+	// The next start uses the stored index.
+	if _, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if idx.calls != 1 {
+		t.Errorf("index computed %d times", idx.calls)
+	}
+}
+
+// I1: an index that takes longer than the timeout falls back to transcoding and queues the index
+// job at top priority, replacing the scan's low-priority job.
+func TestRemuxFallsBackWhileKeyframesPending(t *testing.T) {
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	idx := &fakeIndex{kf: []time.Duration{0}, delay: time.Hour}
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc), WithKeyframeIndex(idx.keyframes))
+	s.keyframeTimeout = 50 * time.Millisecond
+	ctx := context.Background()
+	m := f.Rated(6)
+	f.SetMediaFile(t, m.FileID, "mkv", "h264", "ac3", h264Probe(t), nil)
+	if _, err := jobs.NewQueue(f.DB.Write, nil).Enqueue(ctx, jobs.NewJob{Type: library.JobProbeKeyframes, Priority: 1,
+		IdempotencyKey: "keyframes:" + m.FileID, Payload: []byte(`{"mediaFileId":"` + m.FileID + `"}`)}); err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	info, err := s.Start(ctx, browserSession(t, f, f.P6), m.ID, model.PlaybackRequest{Capabilities: &model.PlaybackCapabilities{Video: []string{"h264"}, Audio: []string{"aac", "ac3"}, HLS: "native"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if time.Since(start) > 5*time.Second {
+		t.Errorf("start took %v", time.Since(start))
+	}
+	if info.Transcoding == nil || info.Transcoding.Mode != ModeTranscode || info.Transcoding.Reason != ReasonKeyframesPending || info.Transcoding.Backend != "software" {
+		t.Fatalf("pending index = %+v", info.Transcoding)
+	}
+	got := tc.starts()
+	if len(got) != 1 || got[0].Decision != (Decision{Mode: ModeTranscode, MaxHeight: 1080, Reason: ReasonKeyframesPending}) || got[0].Keyframes != nil {
+		t.Errorf("started = %+v", got)
+	}
+	if prio, state := keyframeJob(t, f, m.FileID); prio != 9 || state != "queued" {
+		t.Errorf("keyframe job = %d %s, want 9 queued", prio, state)
+	}
+	var row struct{ mode, reason string }
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT mode, reason FROM playback_sessions WHERE id = ?`, info.PlaybackSessionID).Scan(&row.mode, &row.reason); err != nil {
+		t.Fatal(err)
+	}
+	if row.mode != ModeTranscode || row.reason != ReasonKeyframesPending {
+		t.Errorf("row = %+v", row)
+	}
+}
+
+// I1 safety net: the transcoder rejects a remux (transcode.ErrNoKeyframes); Start transcodes.
+func TestRemuxRejectedByTranscoderFallsBack(t *testing.T) {
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	tc.rejectRemux = true
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(6)
+	f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", h264Probe(t), library.EncodeKeyframes([]time.Duration{0, 4 * time.Second}))
+	info, err := s.Start(ctx, browserSession(t, f, f.P6), m.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Transcoding == nil || info.Transcoding.Mode != ModeTranscode || info.Transcoding.Reason != ReasonKeyframesPending {
+		t.Fatalf("rejected remux = %+v", info.Transcoding)
+	}
+	if got := tc.starts(); len(got) != 1 || got[0].Decision.Mode != ModeTranscode || !got[0].Decision.AudioCopy {
+		t.Errorf("started = %+v", got)
+	}
+	if prio, _ := keyframeJob(t, f, m.FileID); prio != 9 {
+		t.Errorf("keyframe job priority %d", prio)
+	}
+}
+
+// I6: the output starts at the profile's resume position; without progress at 0.
+func TestStartPassesResumePosition(t *testing.T) {
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(12) // P18 is at 1/6 of the runtime
+	f.SetMediaFile(t, m.FileID, "mkv", "hevc", "aac", hevcProbe(t), nil)
+	info, err := s.Start(ctx, browserSession(t, f, f.P18), m.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := time.Duration(vistest.DurationMs/6) * time.Millisecond
+	if got := tc.starts(); len(got) != 1 || got[0].Resume != want || info.ResumePositionMs != vistest.DurationMs/6 {
+		t.Errorf("resume = %+v, info %d", got, info.ResumePositionMs)
+	}
+	if _, err := s.Start(ctx, browserSession(t, f, f.P12), m.ID, model.PlaybackRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := tc.starts(); len(got) != 2 || got[1].Resume != 0 || got[1].StartSegment != 0 {
+		t.Errorf("without progress = %+v", got[1])
+	}
+}
+
+// M6: a logout while the output waited for admission stops it again.
+func TestStartStopsOutputAfterLogoutDuringAdmission(t *testing.T) {
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(18)
+	f.SetMediaFile(t, m.FileID, "mkv", "hevc", "aac", hevcProbe(t), nil)
+	session := browserSession(t, f, f.P18)
+	tc.onStart = func(HLSRequest) {
+		if _, err := f.DB.Write.ExecContext(ctx, `UPDATE sessions SET revoked_at = 1 WHERE id = ?`, session.ID); err != nil {
+			t.Error(err)
+		}
+	}
+	if _, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{}); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Fatalf("start across a logout: %v", err)
+	}
+	if got := tc.starts(); len(got) != 1 {
+		t.Fatalf("started %d", len(got))
+	}
+	if _, running := tc.Get(tc.starts()[0].ID); running {
+		t.Error("output still runs after the logout")
+	}
+}
+
+// M7: a valid HLS grant whose output is gone (server restart) rebuilds it at the requested segment.
+func TestHLSRebuildsLostOutput(t *testing.T) {
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	hevc := f.Rated(18)
+	f.SetMediaFile(t, hevc.FileID, "mkv", "hevc", "aac", hevcProbe(t), nil)
+	h264 := f.Rated(6)
+	f.SetMediaFile(t, h264.FileID, "mkv", "h264", "ac3", h264Probe(t), library.EncodeKeyframes([]time.Duration{0, 4 * time.Second, 9 * time.Second}))
+	safari := &model.PlaybackCapabilities{Video: []string{"h264", "hevc"}, Audio: []string{"aac", "ac3"}, HLS: "native"}
+
+	a, err := s.Start(ctx, browserSession(t, f, f.P18), hevc.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := s.Start(ctx, browserSession(t, f, f.P18), h264.ID, model.PlaybackRequest{Capabilities: safari})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Transcoding.Mode != ModeRemux || !tc.starts()[1].Decision.AudioCopy {
+		t.Fatalf("safari remux = %+v %+v", b.Transcoding, tc.starts()[1])
+	}
+	for _, info := range []model.PlaybackInfo{a, b} {
+		tc.lose(info.PlaybackSessionID)
+	}
+
+	ga, err := s.Authorize(ctx, tokenOf(t, a.StreamURL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.HLS(ctx, ga, 7); err != nil {
+		t.Fatalf("rebuild transcode: %v", err)
+	}
+	gb, err := s.Authorize(ctx, tokenOf(t, b.StreamURL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.HLS(ctx, gb, 0); err != nil {
+		t.Fatalf("rebuild remux: %v", err)
+	}
+	got := tc.starts()
+	if len(got) != 4 {
+		t.Fatalf("started %d outputs", len(got))
+	}
+	ra, rb := got[2], got[3]
+	if ra.ID != a.PlaybackSessionID || ra.StartSegment != 7 || ra.Resume != 0 ||
+		ra.Decision != (Decision{Mode: ModeTranscode, MaxHeight: 1080, AudioCopy: true}) {
+		t.Errorf("rebuilt transcode = %+v", ra)
+	}
+	if rb.ID != b.PlaybackSessionID || len(rb.Keyframes) != 3 ||
+		rb.Decision != (Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: false}) {
+		t.Errorf("rebuilt remux = %+v", rb)
+	}
+	// A running output is not started again.
+	if _, err := s.HLS(ctx, ga, 3); err != nil || len(tc.starts()) != 4 {
+		t.Errorf("second request: %v, %d starts", err, len(tc.starts()))
+	}
+	// A stopped playback is not rebuilt: its token is refused before HLS is asked.
+	if err := s.Stop(ctx, ga.Session, ga.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Authorize(ctx, tokenOf(t, a.StreamURL)); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("after stop: %v", err)
+	}
+	// Concurrent requests of a lost output rebuild it once.
+	tc.lose(gb.ID)
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			if _, err := s.HLS(ctx, gb, 2); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	wg.Wait()
+	if n := len(tc.starts()); n != 5 {
+		t.Errorf("concurrent rebuild started %d outputs, want 1 more", n-4)
+	}
+}
+
+// I2: revoking a direct-play session ends a stream that is already being read within a second,
+// whether by Stop or by a revocation the stream notices itself (re-read of the row).
+func TestRevokeEndsOpenStream(t *testing.T) {
+	f := vistest.New(t)
+	s := New(f.DB, vistest.Logger())
+	s.grantRecheck = 100 * time.Millisecond
+	ctx := context.Background()
+	m := f.Rated(18)
+
+	open := func(session model.Session) (model.PlaybackGrant, chan error) {
+		t.Helper()
+		info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		g, err := s.Authorize(ctx, tokenOf(t, info.StreamURL))
+		if err != nil {
+			t.Fatal(err)
+		}
+		src, err := s.OpenGrant(ctx, g)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ended := make(chan error, 1)
+		go func() {
+			defer src.File.Close()
+			buf := make([]byte, 512)
+			for {
+				_, err := src.File.Read(buf)
+				if errors.Is(err, io.EOF) { // a long film: start over
+					_, err = src.File.Seek(0, io.SeekStart)
+				}
+				if err != nil {
+					ended <- err
+					return
+				}
+				time.Sleep(time.Millisecond)
+			}
+		}()
+		return g, ended
+	}
+	expectEnd := func(name string, ended chan error) {
+		t.Helper()
+		select {
+		case err := <-ended:
+			if !errors.Is(err, model.ErrUnauthenticated) {
+				t.Errorf("%s: read ended with %v", name, err)
+			}
+		case <-time.After(time.Second):
+			t.Errorf("%s: stream still open a second after the revocation", name)
+		}
+	}
+
+	g, ended := open(browserSession(t, f, f.P18))
+	time.Sleep(50 * time.Millisecond)
+	select {
+	case err := <-ended:
+		t.Fatalf("stream ended early: %v", err)
+	default:
+	}
+	if err := s.Stop(ctx, g.Session, g.ID); err != nil {
+		t.Fatal(err)
+	}
+	expectEnd("stop", ended)
+
+	session := browserSession(t, f, f.P18)
+	_, ended = open(session)
+	if err := s.EndSession(ctx, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	expectEnd("logout", ended)
+
+	// Revoked elsewhere (the login ended): the stream re-reads its row and stops.
+	session = browserSession(t, f, f.P18)
+	_, ended = open(session)
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE sessions SET revoked_at = 1 WHERE id = ?`, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	expectEnd("ended login", ended)
+
+	s.streamsMu.Lock()
+	left := len(s.streams)
+	s.streamsMu.Unlock()
+	if left != 0 {
+		t.Errorf("%d playback ids still registered after close", left)
 	}
 }

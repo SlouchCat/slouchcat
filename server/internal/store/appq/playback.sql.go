@@ -102,10 +102,14 @@ func (q *Queries) InsertPlaybackSession(ctx context.Context, arg InsertPlaybackS
 }
 
 const listEndedPlaybackSessions = `-- name: ListEndedPlaybackSessions :many
-SELECT id FROM playback_sessions WHERE revoked_at IS NOT NULL OR expires_at <= ?1
+SELECT ps.id FROM playback_sessions AS ps
+LEFT JOIN sessions AS s ON s.id = ps.session_id
+WHERE ps.revoked_at IS NOT NULL OR ps.expires_at <= ?1
+   OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= ?1
 `
 
-// Revoked or expired playback sessions whose transcode output may still be on disk.
+// Revoked or expired playback sessions, and those whose browser session ended, whose transcode
+// output or open stream may still be running.
 func (q *Queries) ListEndedPlaybackSessions(ctx context.Context, now int64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, listEndedPlaybackSessions, now)
 	if err != nil {

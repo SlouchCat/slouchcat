@@ -250,9 +250,12 @@ type Library struct {
 
 // ErrUnauthenticated: a stream token is missing, forged, revoked or expired (401 unauthenticated).
 // ErrTranscodeBusy: the transcode budget stayed exhausted (503 transcode_busy).
+// ErrSegmentRestarted: a newer seek restarted the encoder while a segment request waited (503
+// segment_restarted, retry after a second).
 var (
-	ErrUnauthenticated = errors.New("unauthenticated")
-	ErrTranscodeBusy   = errors.New("transcode budget exhausted")
+	ErrUnauthenticated  = errors.New("unauthenticated")
+	ErrTranscodeBusy    = errors.New("transcode budget exhausted")
+	ErrSegmentRestarted = errors.New("segment request superseded by a newer seek")
 )
 
 // PlaybackCapabilities are the codecs and the HLS support the client reports with startPlayback

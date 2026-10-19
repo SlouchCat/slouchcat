@@ -13,7 +13,9 @@
 //     w200 poster and upserts one images row per kind, size and format (images.go). A kind whose
 //     derived rows stem from the current original and whose files exist is skipped, so the job
 //     also fills in a size added later and regenerates deleted files; the library scan enqueues
-//     it for such titles.
+//     it for such titles. A locked kind is not fetched from TMDB, but its sizes are scaled from
+//     the stored image. A palette failure keeps the previous accent; a poster without accent is
+//     retried a bounded number of times (maxAccentRetries).
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
@@ -31,6 +33,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -68,6 +71,9 @@ type Service struct {
 	log    *slog.Logger
 	client *Client
 	now    func() time.Time
+
+	accentMu      sync.Mutex
+	accentRetries map[string]int // per item: queued image checks for a missing accent
 }
 
 type options struct {
@@ -118,6 +124,8 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		log:    log,
 		client: NewClient(o.apiBase, o.imageBase, o.http),
 		now:    o.now,
+
+		accentRetries: map[string]int{},
 	}
 }
 

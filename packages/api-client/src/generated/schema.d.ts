@@ -203,7 +203,9 @@ export interface paths {
          *     `paths` package with full Range support (HTTP 206), authorised by the stream token `st` only
          *     (no cookie needed; plan 5.4). A missing, forged, revoked or expired token → 401; a token of
          *     another title, an HLS session or a title that is no longer visible → 404.
-         *     `Accept-Ranges: bytes`, `Cache-Control: private, no-store`.
+         *     `Accept-Ranges: bytes`, `Cache-Control: private, no-store`. Revoking the playback session
+         *     (stop, logout, an ended login) also ends a response that is already streaming: the server
+         *     closes the connection within a second.
          */
         get: operations["getItemStream"];
         put?: never;
@@ -270,7 +272,9 @@ export interface paths {
          * HLS master playlist (binary)
          * @description Implemented as an `http.Handler`, authorised by the stream token `st` only (plan 5.4). One
          *     variant: the media playlist `media.m3u8?st=…` (relative URL) with `CODECS`, `RESOLUTION` and
-         *     `BANDWIDTH`. Every request re-checks the title through the visibility layer.
+         *     `BANDWIDTH`. Every request re-checks the title through the visibility layer. When the server
+         *     lost the HLS output of a valid playback session (restart), any HLS request rebuilds it; a
+         *     segment request restarts the encoder at that segment.
          *     `Cache-Control: private, no-store`.
          */
         get: operations["getPlaybackMaster"];
@@ -705,7 +709,11 @@ export interface components {
             mode: "remux" | "transcode";
             /** @description Encoder backend of a transcode (`nvenc`, `qsv`, `vaapi`, `software`). */
             backend?: string;
-            /** @description Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`). */
+            /**
+             * @description Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`,
+             *     `pixel_format` for H.264 High 10 and 4:2:2/4:4:4 sources, `keyframes_pending` for a remux
+             *     candidate that is transcoded until its keyframe index exists).
+             */
             reason: string;
         };
         ProgressEvent: {
@@ -803,6 +811,20 @@ export interface components {
         /** @description Unknown playback session, no HLS output, or the title is no longer visible (`not_found`). */
         StreamNotFound: {
             headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `transcode_busy`: the HLS output was lost (server restart) and restarting it found no transcode
+         *     budget within 10 s. `segment_restarted`: a newer seek restarted the encoder while this request
+         *     waited (`Retry-After: 1`). `Retry-After` names the pause in seconds.
+         */
+        StreamUnavailable: {
+            headers: {
+                "Retry-After"?: number;
                 [name: string]: unknown;
             };
             content: {
@@ -1452,6 +1474,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            503: components["responses"]["StreamUnavailable"];
         };
     };
     getPlaybackMedia: {
@@ -1480,6 +1503,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            503: components["responses"]["StreamUnavailable"];
         };
     };
     getPlaybackInit: {
@@ -1508,6 +1532,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            503: components["responses"]["StreamUnavailable"];
         };
     };
     getPlaybackSegment: {
@@ -1538,6 +1563,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            503: components["responses"]["StreamUnavailable"];
         };
     };
     listLibraries: {

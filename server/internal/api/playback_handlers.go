@@ -35,8 +35,8 @@ func (s *server) StopPlayback(ctx context.Context, req gen.StopPlaybackRequestOb
 }
 
 // hlsStream returns the HLS output of the token's playback session; the path id must be the
-// session the token names.
-func (s *server) hlsStream(w http.ResponseWriter, r *http.Request) (model.HLSStream, bool) {
+// session the token names. segment is where a lost output restarts (playlists and init: 0).
+func (s *server) hlsStream(w http.ResponseWriter, r *http.Request, segment int) (model.HLSStream, bool) {
 	g, ok := grantFrom(r.Context())
 	if !ok || s.opts.Playback == nil {
 		s.p.internal(w, r, errNoItemsServices)
@@ -46,7 +46,7 @@ func (s *server) hlsStream(w http.ResponseWriter, r *http.Request) (model.HLSStr
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
 		return nil, false
 	}
-	hs, err := s.opts.Playback.HLS(r.Context(), g)
+	hs, err := s.opts.Playback.HLS(r.Context(), g, segment)
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return nil, false
@@ -70,7 +70,7 @@ func writePlaylist(w http.ResponseWriter, body []byte) {
 }
 
 func (s *server) getPlaybackMaster(w http.ResponseWriter, r *http.Request) {
-	hs, ok := s.hlsStream(w, r)
+	hs, ok := s.hlsStream(w, r, 0)
 	if !ok {
 		return
 	}
@@ -78,7 +78,7 @@ func (s *server) getPlaybackMaster(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) getPlaybackMedia(w http.ResponseWriter, r *http.Request) {
-	hs, ok := s.hlsStream(w, r)
+	hs, ok := s.hlsStream(w, r, 0)
 	if !ok {
 		return
 	}
@@ -87,7 +87,7 @@ func (s *server) getPlaybackMedia(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) getPlaybackInit(w http.ResponseWriter, r *http.Request) {
-	hs, ok := s.hlsStream(w, r)
+	hs, ok := s.hlsStream(w, r, 0)
 	if !ok {
 		return
 	}
@@ -95,13 +95,13 @@ func (s *server) getPlaybackInit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) getPlaybackSegment(w http.ResponseWriter, r *http.Request) {
-	hs, ok := s.hlsStream(w, r)
-	if !ok {
-		return
-	}
 	n, err := strconv.Atoi(chi.URLParam(r, "n"))
 	if err != nil || n < 0 {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	hs, ok := s.hlsStream(w, r, n)
+	if !ok {
 		return
 	}
 	s.serveFragment(w, r, func(ctx context.Context) (io.ReadSeekCloser, error) { return hs.OpenSegment(ctx, n) })

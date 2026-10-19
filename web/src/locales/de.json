@@ -165,6 +165,10 @@
   "player": {
     "region": "Videoplayer",
     "loading": "Wird geladen …",
+    "busy": {
+      "title": "Server ausgelastet",
+      "body": "Neuer Versuch in Kürze …"
+    },
     "play": "Abspielen",
     "pause": "Pause",
     "fullscreen": "Vollbild",
