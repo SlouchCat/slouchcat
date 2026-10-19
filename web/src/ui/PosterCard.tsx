@@ -1,5 +1,6 @@
 import { AppLink } from './AppLink';
 import { itemAccentStyle } from './accent';
+import { Chip } from './Chip';
 import styles from './PosterCard.module.css';
 import { PosterFallback } from './PosterFallback';
 import { ProgressBar } from './ProgressBar';
@@ -21,6 +22,8 @@ interface PosterCardProps {
   posterSmallUrl?: string;
   /** The title's accent colour (`#rrggbb`, ItemRef.accent): placeholder tint and focus glow. */
   accent?: string;
+  /** Small label on the poster (the kind of an extra: "Trailer", "Featurette"). */
+  badge?: string;
   /** Watch progress 0 … 100 with its accessible label. */
   progress?: { percent: number; label: string };
   /** Load the image eagerly (the first cards of the first row); every other poster is lazy. */
@@ -42,6 +45,7 @@ export function PosterCard({
   posterUrl,
   posterSmallUrl,
   accent,
+  badge,
   progress,
   eager = false,
   deferImage = false,
@@ -75,6 +79,11 @@ export function PosterCard({
           />
         ) : (
           <PosterFallback />
+        )}
+        {badge && (
+          <span className={styles.badge}>
+            <Chip>{badge}</Chip>
+          </span>
         )}
         {progress && (
           <span className={styles.progress}>

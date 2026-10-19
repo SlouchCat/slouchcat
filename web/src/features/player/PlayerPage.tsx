@@ -1,11 +1,12 @@
 import type { PlaybackInfo } from '@slouchcat/api-client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
+import { itemQuery } from '@/features/catalog/queries';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
@@ -63,7 +64,13 @@ const isTranscodeBusy = (error: unknown) =>
 export function PlayerPage() {
   const { t } = useTranslation();
   const { itemId } = route.useParams();
+  const { file } = route.useSearch();
   const queryClient = useQueryClient();
+  // The version to play (B-5): from the link of the detail page, later from the version menu,
+  // which also hands over the position to continue from.
+  const [selection, setSelection] = useState<{ fileId?: string; startMs?: number }>(() => ({
+    fileId: file,
+  }));
   // Start of the measurement "navigation → first frame playing" (data-start-ms).
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
@@ -72,17 +79,22 @@ export function PlayerPage() {
   // runs once per mount: never refetched on reconnect, focus or staleness (a second session would
   // rebuild the player mid-stream). Only a busy transcoder is retried, after the server's delay.
   const playback = useQuery({
-    queryKey: ['playback', itemId],
+    queryKey: ['playback', itemId, selection.fileId ?? null],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
       request(
         api.POST('/items/{id}/play', {
           params: { path: { id: itemId } },
-          body: { capabilities: playbackCapabilities() },
+          body: {
+            ...(selection.fileId ? { mediaFileId: selection.fileId } : {}),
+            capabilities: playbackCapabilities(),
+          },
           signal,
         }),
       ),
     staleTime: Infinity,
     gcTime: 0,
+    // A version switch keeps the paused player on screen until the new session answers.
+    placeholderData: keepPreviousData,
     retry: (failureCount, error) => isTranscodeBusy(error) && failureCount < BUSY_RETRIES,
     retryDelay: (_failureCount, error) =>
       (isApiError(error) ? error.retryAfterMs : null) ?? BUSY_RETRY_FALLBACK_MS,
@@ -91,6 +103,23 @@ export function PlayerPage() {
   });
   useDocumentTitle(playback.data?.item.title);
   useStopPlaybackOnLeave(playback.data?.playbackSessionId);
+  // The versions of the title for the version menu; the detail page usually has them cached.
+  const detail = useQuery({ ...itemQuery(itemId), enabled: playback.isSuccess });
+  const versions = detail.data?.mediaFiles ?? [];
+
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  const switchVersion = (fileId: string, positionMs: number) => {
+    const current = playback.data;
+    if (!current || current.mediaFile.id === fileId) return;
+    // Ends the running session (and its transcode) before the next one starts.
+    api
+      .DELETE('/playback/sessions/{id}', {
+        params: { path: { id: current.playbackSessionId } },
+      })
+      .catch(() => undefined);
+    setSelection({ fileId, startMs: positionMs });
+  };
 
   const engine = useMemo(
     () => (playback.data ? playbackEngine(playback.data, browserPlatform()) : null),
@@ -107,7 +136,22 @@ export function PlayerPage() {
   );
 
   if (playback.data && engine && engine !== 'unsupported') {
-    return <VideoPlayer info={playback.data} engine={engine} openedAt={openedAt} onBack={goBack} />;
+    return (
+      <VideoPlayer
+        // A new session (another version) gets a fresh element and progress reporter.
+        key={playback.data.playbackSessionId}
+        info={playback.data}
+        engine={engine}
+        openedAt={openedAt}
+        onBack={goBack}
+        startPositionMs={selection.startMs}
+        versions={versions}
+        infoOpen={infoOpen}
+        onToggleInfo={() => setInfoOpen((open) => !open)}
+        switching={playback.isPlaceholderData}
+        onSwitchVersion={switchVersion}
+      />
+    );
   }
 
   return (

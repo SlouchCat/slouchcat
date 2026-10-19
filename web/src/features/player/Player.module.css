@@ -221,3 +221,47 @@
   font-family: var(--sc-font-family-mono);
   font-size: var(--sc-font-size-xs);
 }
+
+/* "Stream-Info" overlay (key i), top right under the title bar. */
+.info {
+  position: absolute;
+  top: calc(var(--sc-space-16) + var(--sc-space-4));
+  right: var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  width: min(22rem, calc(100% - 2 * var(--page-gutter)));
+  padding: var(--sc-space-4) var(--sc-space-5);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-overlay);
+}
+
+.infoTitle {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+}
+
+.infoList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  font-size: var(--sc-font-size-xs);
+}
+
+.infoRow {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--sc-space-3);
+}
+
+.infoRow dt {
+  color: var(--sc-color-text-secondary);
+}
+
+.infoRow dd {
+  margin: 0;
+  font-family: var(--sc-font-family-mono);
+  overflow-wrap: anywhere;
+}

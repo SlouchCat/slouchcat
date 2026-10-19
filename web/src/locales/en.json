@@ -7,7 +7,8 @@
     "back": "Back",
     "retry": "Try again",
     "cancel": "Cancel",
-    "loading": "Loading …"
+    "loading": "Loading …",
+    "close": "Close"
   },
   "nav": {
     "main": "Main navigation",
@@ -163,6 +164,36 @@
       "version": "Version",
       "unavailable": "unavailable",
       "none": "No file is available for this title right now."
+    },
+    "manage": "Manage",
+    "trailer": "Trailer",
+    "seriesLink": "Go to series",
+    "parentLink": "Go to main title",
+    "nextEpisode": "Next episode",
+    "episodeCode": "S{{season}}E{{episode}}",
+    "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
+    "episodeOf": "{{code}} · {{series}}",
+    "docTitle": {
+      "season": "{{title}} – {{series}}",
+      "episode": "{{code}} {{title}} – {{series}}"
+    },
+    "versions": "Versions",
+    "extras": "Extras",
+    "cast": {
+      "title": "Cast",
+      "role": {
+        "cast": "Cast",
+        "director": "Director",
+        "writer": "Writer",
+        "creator": "Creator"
+      }
+    },
+    "seasons": "Seasons",
+    "episodes": {
+      "title": "Episodes",
+      "empty": "No episodes.",
+      "count_one": "{{count}} episode",
+      "count_other": "{{count}} episodes"
     }
   },
   "rating": {
@@ -201,7 +232,29 @@
     "error": {
       "title": "Playback not possible",
       "body": "The file could not be loaded."
-    }
+    },
+    "info": "Stream info",
+    "version": "Version",
+    "versionCurrent": "{{label}} (current)",
+    "streamInfo": {
+      "title": "Stream info",
+      "mode": "Mode",
+      "modeDirect": "Direct",
+      "modeHls": "HLS",
+      "transcoding": "Conversion",
+      "remux": "Remux",
+      "transcode": "Transcode",
+      "backend": "Backend",
+      "reason": "Reason",
+      "mediaFile": "File ID",
+      "version": "Version",
+      "container": "Container",
+      "video": "Video",
+      "audio": "Audio",
+      "resolution": "Resolution",
+      "none": "–"
+    },
+    "versionButton": "Version: {{label}}"
   },
   "admin": {
     "libraries": {
@@ -440,6 +493,31 @@
     "notFound": {
       "title": "Link not found",
       "body": "This invitation link does not exist. Check that you copied all of it."
+    }
+  },
+  "extraKind": {
+    "trailer": "Trailer",
+    "featurette": "Featurette",
+    "deleted_scene": "Deleted scene",
+    "behind_the_scenes": "Behind the scenes",
+    "interview": "Interview",
+    "scene": "Scene",
+    "short": "Short",
+    "other": "Extra"
+  },
+  "trailer": {
+    "title": "Trailer: {{title}}",
+    "language": "Language",
+    "frame": "Trailer of {{title}} (YouTube)",
+    "none": "No trailer available.",
+    "privacy": "The trailer is played by YouTube (youtube-nocookie.com)."
+  },
+  "person": {
+    "credits": "Films and series",
+    "as": "as {{character}}",
+    "notFound": {
+      "title": "Person not found",
+      "body": "There are no titles for this person here."
     }
   }
 }

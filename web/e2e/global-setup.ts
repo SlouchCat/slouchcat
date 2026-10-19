@@ -1,13 +1,27 @@
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { request, type APIRequestContext } from '@playwright/test';
-import { BASE_URL, MOVIES_DIR, OWNER, STORAGE_STATE } from './env';
+import { BASE_URL, MOVIES_DIR, OWNER, STORAGE_STATE, TV_DIR } from './env';
 
 const SCAN_TIMEOUT_MS = 180_000;
 const CSRF = { 'X-Requested-With': 'Slouchcat' };
 
 interface LibraryState {
+  name: string;
   scan: { state: string; lastError?: string };
+}
+
+/** The series library of M3 (testdata/media/TV), added next to "Filme" once per run. */
+async function ensureSeriesLibrary(api: APIRequestContext): Promise<void> {
+  if (!existsSync(TV_DIR)) return;
+  const libraries = (await (await api.get('/api/v1/admin/libraries')).json()) as LibraryState[];
+  if (libraries.some((library) => library.name === 'Serien')) return;
+  const created = await api.post('/api/v1/admin/libraries', {
+    data: { name: 'Serien', kind: 'series', path: TV_DIR },
+  });
+  if (created.status() !== 201 && created.status() !== 202) {
+    throw new Error(`POST /admin/libraries answered ${created.status()}: ${await created.text()}`);
+  }
 }
 
 async function waitForScan(api: APIRequestContext): Promise<void> {
@@ -29,8 +43,8 @@ async function waitForScan(api: APIRequestContext): Promise<void> {
 
 /**
  * Builds nothing and expects the server from start-server.mjs: runs the setup wizard through the
- * API (main account, library on testdata/media/Movies, no TMDB key), waits for the first scan,
- * logs in and stores the session for the specs.
+ * API (main account, library on testdata/media/Movies, no TMDB key), adds the series library on
+ * testdata/media/TV, waits for the first scans, logs in and stores the session for the specs.
  */
 export default async function globalSetup(): Promise<void> {
   const api = await request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: CSRF });
@@ -53,6 +67,7 @@ export default async function globalSetup(): Promise<void> {
       data: { email: OWNER.email, password: OWNER.password },
     });
     if (!login.ok()) throw new Error(`login answered ${login.status()}: ${await login.text()}`);
+    await ensureSeriesLibrary(api);
     await waitForScan(api);
     mkdirSync(dirname(STORAGE_STATE), { recursive: true });
     await api.storageState({ path: STORAGE_STATE });

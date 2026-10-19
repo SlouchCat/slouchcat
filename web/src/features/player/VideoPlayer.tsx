@@ -1,11 +1,12 @@
-import type { PlaybackInfo } from '@slouchcat/api-client';
+import type { MediaFileInfo, PlaybackInfo } from '@slouchcat/api-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl } from '@/api/client';
 import { formatPlayerTime } from '@/lib/format';
-import { AriaButton } from '@/ui/aria';
+import { AriaButton, MenuButton } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
 import { SeekBar } from './SeekBar';
+import { StreamInfo } from './StreamInfo';
 import { useProgressReporter } from './useProgressReporter';
 import styles from './Player.module.css';
 
@@ -23,10 +24,24 @@ interface VideoPlayerProps {
   /** performance.now() when the player route opened. */
   openedAt: number;
   onBack: () => void;
+  /** Position to start from instead of the server's resume position (after a version switch). */
+  startPositionMs?: number;
+  /** Versions of the title (B-5); the version menu shows with two or more. */
+  versions?: readonly MediaFileInfo[];
+  /** A switch to another version is on its way. */
+  switching?: boolean;
+  onSwitchVersion?: (mediaFileId: string, positionMs: number) => void;
+  /** The "Stream-Info" overlay (key i). */
+  infoOpen?: boolean;
+  onToggleInfo?: () => void;
 }
 
 const isActivatable = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
+
+/** Keys inside the version menu belong to the menu (arrows, Enter, Escape). */
+const inMenu = (target: EventTarget | null) =>
+  target instanceof HTMLElement && target.closest('[role="menu"], [role="menuitemradio"]') !== null;
 
 function bufferedRanges(video: HTMLVideoElement): [number, number][] {
   const ranges: [number, number][] = [];
@@ -37,21 +52,33 @@ function bufferedRanges(video: HTMLVideoElement): [number, number][] {
 }
 
 /** Where playback starts: the resume position unless it lies in the last seconds of the file. */
-function resumeSeconds(info: PlaybackInfo, durationMs: number): number {
-  const resume = info.resumePositionMs;
+function resumeSeconds(resume: number, durationMs: number): number {
   if (resume <= 0 || (durationMs > 0 && resume >= durationMs - RESUME_TAIL_MS)) return 0;
   return resume / 1000;
 }
 
-export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps) {
+export function VideoPlayer({
+  info,
+  engine,
+  openedAt,
+  onBack,
+  startPositionMs,
+  versions = [],
+  switching = false,
+  onSwitchVersion,
+  infoOpen = false,
+  onToggleInfo,
+}: VideoPlayerProps) {
   const { t } = useTranslation();
+  // Fixed for the life of this player (one playback session).
+  const [resumeMs] = useState(() => startPositionMs ?? info.resumePositionMs);
   const video = useRef<HTMLVideoElement>(null);
   const container = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<number | undefined>(undefined);
   const osdTimer = useRef<number | undefined>(undefined);
 
   const [playing, setPlaying] = useState(false);
-  const [currentMs, setCurrentMs] = useState(info.resumePositionMs);
+  const [currentMs, setCurrentMs] = useState(resumeMs);
   const [durationMs, setDurationMs] = useState(info.mediaFile.durationMs ?? 0);
   const [buffered, setBuffered] = useState<[number, number][]>([]);
   const [fullscreen, setFullscreen] = useState(false);
@@ -145,6 +172,7 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       poke();
+      if (inMenu(event.target)) return;
       switch (event.key) {
         case ' ':
         case 'Enter':
@@ -177,7 +205,21 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
           event.preventDefault();
           toggleFullscreen();
           return;
+        case 'i':
+        case 'I':
+          event.preventDefault();
+          onToggleInfo?.();
+          return;
         case 'Escape':
+          if (infoOpen) {
+            event.preventDefault();
+            onToggleInfo?.();
+            return;
+          }
+          if (document.fullscreenElement) return;
+          event.preventDefault();
+          onBack();
+          return;
         case 'Backspace':
           if (document.fullscreenElement) return;
           event.preventDefault();
@@ -188,7 +230,7 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [changeVolume, onBack, poke, seekBy, toggleFullscreen, togglePlay]);
+  }, [changeVolume, infoOpen, onBack, onToggleInfo, poke, seekBy, toggleFullscreen, togglePlay]);
 
   // hls.js (Chromium, Firefox): loaded as its own chunk only for HLS playback (ADR 0004). It starts
   // loading at the resume position, so a transcode does not first encode the beginning.
@@ -201,7 +243,7 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
       .then(({ default: Hls }) => {
         if (cancelled) return;
         const hls = new Hls({
-          startPosition: resumeSeconds(info, info.mediaFile.durationMs ?? 0),
+          startPosition: resumeSeconds(resumeMs, info.mediaFile.durationMs ?? 0),
           // A seek far ahead restarts the encoder; the first byte of that segment may take a while.
           fragLoadPolicy: {
             default: {
@@ -238,7 +280,7 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
       cancelled = true;
       destroy();
     };
-  }, [engine, info]);
+  }, [engine, info, resumeMs]);
 
   // Media element events.
   useEffect(() => {
@@ -254,7 +296,7 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
     };
     const onLoadedMetadata = () => {
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);
-      const resume = resumeSeconds(info, element.duration * 1000);
+      const resume = resumeSeconds(resumeMs, element.duration * 1000);
       // hls.js already started at the resume position.
       if (resume > 0 && Math.abs(element.currentTime - resume) > 1) element.currentTime = resume;
       element.play().catch(() => setPlaying(false));
@@ -306,7 +348,16 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
       element.removeEventListener('durationchange', onDuration);
       element.removeEventListener('error', onError);
     };
-  }, [engine, info, openedAt]);
+  }, [engine, info, openedAt, resumeMs]);
+
+  // Another version: pause here and hand the position over to the next session.
+  const switchTo = (mediaFileId: string) => {
+    const element = video.current;
+    if (!element || !onSwitchVersion) return;
+    element.pause();
+    onSwitchVersion(mediaFileId, Math.round(element.currentTime * 1000));
+  };
+  const currentVersion = info.mediaFile.versionLabel ?? info.mediaFile.container.toUpperCase();
 
   const elapsed = formatPlayerTime(currentMs, durationMs);
   const total = formatPlayerTime(durationMs, durationMs);
@@ -322,7 +373,8 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
       data-seek-ms={seek?.ms}
       data-seek-count={seek?.count}
       data-engine={engine}
-      data-controls={hidden ? 'hidden' : 'visible'}
+      data-media-file-id={info.mediaFile.id}
+      data-controls={hidden && !infoOpen ? 'hidden' : 'visible'}
       onPointerMove={poke}
       onPointerDown={poke}
       onFocus={poke}
@@ -347,6 +399,8 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
           <p>{t('player.error.body')}</p>
         </div>
       )}
+
+      {infoOpen && <StreamInfo info={info} />}
 
       {osd && (
         <div className={styles.osd} role="status">
@@ -402,6 +456,31 @@ export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps
             aria-label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
             onPress={toggleFullscreen}
           />
+          {onToggleInfo && (
+            <AriaButton
+              variant="ghost"
+              icon="info"
+              iconOnly
+              aria-label={t('player.info')}
+              aria-pressed={infoOpen}
+              onPress={onToggleInfo}
+            />
+          )}
+          {versions.length > 1 && onSwitchVersion && (
+            <MenuButton
+              aria-label={t('player.version')}
+              buttonLabel={t('player.versionButton', { label: currentVersion })}
+              label={currentVersion}
+              options={versions.map((version, index) => ({
+                id: version.id,
+                label: version.versionLabel ?? String(index + 1),
+              }))}
+              selectedKey={info.mediaFile.id}
+              onSelect={(id) => {
+                if (!switching) switchTo(id);
+              }}
+            />
+          )}
         </div>
       </div>
     </main>

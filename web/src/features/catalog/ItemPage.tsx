@@ -1,23 +1,31 @@
-import type { ItemDetail, MediaFileInfo } from '@slouchcat/api-client';
+import type { ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { formatBytes, formatClock, resolutionClass } from '@/lib/format';
+import { useActiveSession } from '@/app/session';
+import { formatBytes, formatClock, formatRuntime, resolutionClass } from '@/lib/format';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
+import { useOnline } from '@/lib/useOnline';
 import {
   Backdrop,
   Button,
   ButtonLink,
+  CastCard,
   Chip,
+  ChoiceChips,
+  EpisodeCard,
   Notice,
+  PosterCard,
   PosterFallback,
   ProgressBar,
+  Row,
   Skeleton,
   SpatialButton,
   SpatialButtonLink,
@@ -26,17 +34,31 @@ import {
   itemAccentStyle,
 } from '@/ui';
 import { ItemMeta } from './ItemMeta';
+import { creditCaption, episodeCode, extraKindLabel } from './labels';
 import { itemQuery } from './queries';
 import styles from './ItemPage.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/items/$itemId');
 
+// The trailer dialog needs react-aria, which the browsing pages do not load up front (P-10).
+const TrailerPanel = lazy(() =>
+  import('./TrailerPanel').then((module) => ({ default: module.TrailerPanel })),
+);
+
 const PLAY_KEY = 'detail-play';
+const BACK_KEY = 'detail-back';
 // Rendered poster width (ItemPage.module.css, wide layout only).
 const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
 
 const imageUrl = (image: { url: string } | undefined) => (image ? apiUrl(image.url) : undefined);
-const BACK_KEY = 'detail-back';
+
+const watchedProgress = (t: TFunction, item: ItemRef) =>
+  item.progress && !item.progress.completed && item.progress.positionMs > 0
+    ? {
+        percent: item.progress.percent,
+        label: t('item.watched', { percent: Math.round(item.progress.percent) }),
+      }
+    : undefined;
 
 function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; language: string }) {
   const facts: [string, string][] = [[t('item.file.container'), file.container.toUpperCase()]];
@@ -70,9 +92,21 @@ function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; l
   );
 }
 
-function Actions({ item, onBack }: { item: ItemDetail; onBack: () => void }) {
+interface ActionsProps {
+  item: ItemDetail;
+  /** The version the play link starts (B-5); undefined for titles without files. */
+  file: MediaFileInfo | undefined;
+  onBack: () => void;
+  onTrailer: () => void;
+}
+
+function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
   const { t } = useTranslation();
-  const playable = item.mediaFiles.some((file) => file.available);
+  const session = useActiveSession();
+  const online = useOnline();
+  // Series and seasons play through their episodes; any other title has a play button, disabled
+  // while it has no available file.
+  const playable = item.kind !== 'series' && item.kind !== 'season';
   const resume =
     item.progress && !item.progress.completed && item.progress.positionMs > 0
       ? item.progress
@@ -80,39 +114,277 @@ function Actions({ item, onBack }: { item: ItemDetail; onBack: () => void }) {
   const playLabel = resume
     ? t('item.resume', { time: formatClock(resume.positionMs) })
     : t('item.play');
+  // Only one version: the server picks it; with several the chosen one goes along.
+  const playHref = paths.play(item.id, item.mediaFiles.length > 1 ? file?.id : undefined);
+  // A shortcut for the one who manages the library, not a visibility rule: the server answers the
+  // administration page only for that account and profile anyway.
+  const canManage = session.account.role === 'owner' && session.profile.isPrimary;
 
   return (
     <SpatialGroup className={styles.actions}>
-      {playable ? (
-        <SpatialButtonLink
-          focusKey={PLAY_KEY}
-          href={paths.play(item.id)}
-          variant="primary"
-          size="lg"
-          icon="play"
-        >
-          {playLabel}
-        </SpatialButtonLink>
-      ) : (
-        <Button variant="primary" size="lg" icon="play" isDisabled>
-          {playLabel}
-        </Button>
-      )}
+      {playable &&
+        (file?.available ? (
+          <SpatialButtonLink
+            focusKey={PLAY_KEY}
+            href={playHref}
+            variant="primary"
+            size="lg"
+            icon="play"
+          >
+            {playLabel}
+          </SpatialButtonLink>
+        ) : (
+          <Button variant="primary" size="lg" icon="play" isDisabled>
+            {playLabel}
+          </Button>
+        ))}
       <SpatialButton focusKey={BACK_KEY} variant="ghost" size="lg" icon="back" onPress={onBack}>
         {t('common.back')}
       </SpatialButton>
+      {(item.trailerCount ?? 0) > 0 && online && (
+        <SpatialButton variant="secondary" size="lg" icon="play" onPress={onTrailer}>
+          {t('item.trailer')}
+        </SpatialButton>
+      )}
+      {canManage && (
+        <SpatialButtonLink href={paths.adminItem(item.id)} variant="ghost" size="lg" icon="info">
+          {t('item.manage')}
+        </SpatialButtonLink>
+      )}
     </SpatialGroup>
   );
 }
 
-/** Detail page of a title: artwork, facts, overview, file information, play or resume. */
-export function ItemPage() {
+/** Links to the neighbours of an episode, season or extra: next episode, series, main title. */
+function RelatedLinks({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation();
+  const next = item.kind === 'episode' ? item.nextEpisode : undefined;
+  const series = item.kind === 'episode' || item.kind === 'season' ? item.series : undefined;
+  const parentId = item.kind === 'extra' ? item.parentId : undefined;
+  if (!next && !series && !parentId) return null;
+  const nextCode = next ? episodeCode(t, next) : undefined;
+
+  return (
+    <SpatialGroup className={styles.related}>
+      {next && (
+        <SpatialButtonLink href={paths.item(next.id)} variant="secondary" icon="chevronRight">
+          {t('item.nextEpisode')}
+          <span className={styles.relatedDetail}>
+            {nextCode ? `${nextCode} · ${next.title}` : next.title}
+          </span>
+        </SpatialButtonLink>
+      )}
+      {series && (
+        <SpatialButtonLink href={paths.item(series.id)} variant="ghost" icon="folder">
+          {t('item.seriesLink')}
+        </SpatialButtonLink>
+      )}
+      {parentId && (
+        <SpatialButtonLink href={paths.item(parentId)} variant="ghost" icon="folder">
+          {t('item.parentLink')}
+        </SpatialButtonLink>
+      )}
+    </SpatialGroup>
+  );
+}
+
+function Versions({
+  item,
+  file,
+  onChange,
+}: {
+  item: ItemDetail;
+  file: MediaFileInfo | undefined;
+  onChange: (id: string) => void;
+}) {
   const { t, i18n } = useTranslation();
+  if (item.kind === 'series' || item.kind === 'season') return null;
+  return (
+    <section className={styles.files} aria-labelledby="item-file-heading">
+      <h2 id="item-file-heading" className={styles.sectionTitle}>
+        {t('item.file.title')}
+      </h2>
+      {item.mediaFiles.length > 1 && file && (
+        <ChoiceChips
+          label={t('item.versions')}
+          focusKey="detail-version"
+          value={file.id}
+          onChange={onChange}
+          options={item.mediaFiles.map((entry, index) => ({
+            value: entry.id,
+            label: entry.versionLabel ?? String(index + 1),
+          }))}
+        />
+      )}
+      {file ? (
+        <FileFacts file={file} t={t} language={i18n.language} />
+      ) : (
+        <Notice tone="warning">{t('item.file.none')}</Notice>
+      )}
+    </section>
+  );
+}
+
+function EpisodeGrid({ episodes }: { episodes: readonly ItemRef[] }) {
+  const { t } = useTranslation();
+  if (episodes.length === 0) return <p className={styles.muted}>{t('item.episodes.empty')}</p>;
+  return (
+    <SpatialGroup as="ul" className={styles.episodes} aria-label={t('item.episodes.title')}>
+      {episodes.map((episode) => (
+        <li key={episode.id}>
+          <EpisodeCard
+            focusKey={`episode-${episode.id}`}
+            href={paths.item(episode.id)}
+            code={episodeCode(t, episode) ?? ''}
+            title={episode.title}
+            caption={episode.runtimeMinutes ? formatRuntime(t, episode.runtimeMinutes) : undefined}
+            stillUrl={imageUrl(episode.images.backdropSmall ?? episode.images.backdrop)}
+            accent={episode.accent}
+            progress={watchedProgress(t, episode)}
+          />
+        </li>
+      ))}
+    </SpatialGroup>
+  );
+}
+
+/** The episodes of one season, fetched as the season's detail (ItemDetail.episodes). */
+function SeasonEpisodes({ seasonId }: { seasonId: string }) {
+  const { t } = useTranslation();
+  const season = useQuery(itemQuery(seasonId));
+  if (season.isPending) {
+    return (
+      <div className={styles.episodes} aria-busy="true">
+        <Skeleton shape="block" />
+      </div>
+    );
+  }
+  if (season.isError) {
+    return (
+      <Notice
+        tone="danger"
+        title={problemMessage(t, season.error)}
+        actions={
+          <Button icon="refresh" onPress={() => void season.refetch()}>
+            {t('common.retry')}
+          </Button>
+        }
+      />
+    );
+  }
+  return <EpisodeGrid episodes={season.data.episodes ?? []} />;
+}
+
+function Seasons({ seasons }: { seasons: readonly ItemRef[] }) {
+  const { t } = useTranslation();
+  const [chosen, setChosen] = useState<string | null>(null);
+  const current = seasons.find((season) => season.id === chosen) ?? seasons[0];
+  if (!current) return null;
+  return (
+    <section className={styles.block} aria-labelledby="item-seasons-heading">
+      <h2 id="item-seasons-heading" className={styles.sectionTitle}>
+        {t('item.seasons')}
+      </h2>
+      <ChoiceChips
+        label={t('item.seasons')}
+        focusKey="detail-season"
+        value={current.id}
+        onChange={setChosen}
+        options={seasons.map((season) => ({ value: season.id, label: season.title }))}
+      />
+      <SeasonEpisodes seasonId={current.id} />
+    </section>
+  );
+}
+
+function Extras({ extras }: { extras: readonly ItemRef[] }) {
+  const { t } = useTranslation();
+  if (extras.length === 0) return null;
+  return (
+    <Row title={t('item.extras')} focusKey="detail-extras">
+      {extras.map((extra) => (
+        <PosterCard
+          key={extra.id}
+          href={paths.play(extra.id)}
+          title={extra.title}
+          badge={extraKindLabel(t, extra.extraKind)}
+          caption={extra.runtimeMinutes ? formatRuntime(t, extra.runtimeMinutes) : undefined}
+          posterUrl={imageUrl(extra.images.poster)}
+          posterSmallUrl={imageUrl(extra.images.posterSmall)}
+          accent={extra.accent}
+        />
+      ))}
+    </Row>
+  );
+}
+
+function Cast({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation();
+  const cast = item.cast ?? [];
+  if (cast.length === 0) return null;
+  return (
+    <Row title={t('item.cast.title')} focusKey="detail-cast">
+      {cast.map((member) => (
+        <CastCard
+          key={`${member.personId}-${member.role}`}
+          href={paths.person(member.personId)}
+          name={member.name}
+          caption={creditCaption(t, member)}
+        />
+      ))}
+    </Row>
+  );
+}
+
+/** Tab title per kind: episodes and seasons carry the series name. */
+function documentTitle(t: TFunction, item: ItemDetail | undefined): string | undefined {
+  if (!item) return undefined;
+  const series = item.seriesTitle ?? item.series?.title;
+  if (item.kind === 'season' && series) {
+    return t('item.docTitle.season', { title: item.title, series });
+  }
+  if (item.kind === 'episode' && series) {
+    return t('item.docTitle.episode', {
+      code: episodeCode(t, item) ?? '',
+      title: item.title,
+      series,
+    });
+  }
+  return item.title;
+}
+
+/** Line above the title: "S01E02 · Series" for an episode, the series for a season. */
+function kicker(t: TFunction, item: ItemDetail): string | undefined {
+  const series = item.seriesTitle ?? item.series?.title;
+  if (item.kind === 'episode') {
+    const code = episodeCode(t, item);
+    if (code && series) return t('item.episodeOf', { code, series });
+    return code ?? series;
+  }
+  if (item.kind === 'season') return series;
+  if (item.kind === 'extra') return extraKindLabel(t, item.extraKind);
+  return undefined;
+}
+
+/**
+ * Detail page of a title (C-2): artwork, facts, overview, play or resume. By kind: versions and
+ * extras of a film, seasons and episodes of a series, the neighbours of an episode.
+ */
+export function ItemPage() {
   const { itemId } = route.useParams();
+  // One state (chosen version, season, dialog) per title: the next episode is the same route.
+  return <ItemView key={itemId} itemId={itemId} />;
+}
+
+function ItemView({ itemId }: { itemId: string }) {
+  const { t } = useTranslation();
   const query = useQuery(itemQuery(itemId));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
-  useDocumentTitle(query.data?.title);
+  useDocumentTitle(documentTitle(t, query.data));
+  const [chosenFile, setChosenFile] = useState<string | null>(null);
+  const [trailerOpen, setTrailerOpen] = useState(false);
+  const online = useOnline();
 
   if (query.isPending) {
     return (
@@ -152,14 +424,19 @@ export function ItemPage() {
 
   const item = query.data;
   const { images } = item;
+  const episode = item.kind === 'episode';
+  const still = images.backdropSmall ?? images.backdrop;
   const hasArt = Boolean(
     images.backdrop ?? images.backdropSmall ?? images.backdropLarge ?? images.poster,
   );
   const progress = item.progress && !item.progress.completed ? item.progress : undefined;
   const genres = item.genres.join(', ');
+  // The server lists the primary version first (B-5).
+  const file = item.mediaFiles.find((entry) => entry.id === chosenFile) ?? item.mediaFiles[0];
+  const line = kicker(t, item);
 
   return (
-    <SpatialPage defaultFocusKey={item.mediaFiles.some((f) => f.available) ? PLAY_KEY : BACK_KEY}>
+    <SpatialPage defaultFocusKey={file?.available ? PLAY_KEY : BACK_KEY}>
       <main className={styles.detail}>
         <Backdrop
           url={imageUrl(images.backdrop)}
@@ -171,7 +448,15 @@ export function ItemPage() {
 
         <div className={`${styles.layout} ${hasArt ? '' : styles.noArt}`}>
           <div className={styles.poster} style={itemAccentStyle(item.accent)}>
-            {images.poster ? (
+            {episode && still ? (
+              <img
+                src={apiUrl(still.url)}
+                alt=""
+                width={still.width}
+                height={still.height}
+                className={styles.stillImage}
+              />
+            ) : images.poster ? (
               <img
                 src={apiUrl(images.poster.url)}
                 srcSet={
@@ -186,7 +471,7 @@ export function ItemPage() {
                 className={styles.posterImage}
               />
             ) : (
-              <span className={styles.posterFallback}>
+              <span className={episode ? styles.stillFallback : styles.posterFallback}>
                 <PosterFallback />
               </span>
             )}
@@ -194,6 +479,7 @@ export function ItemPage() {
 
           <div className={styles.info}>
             <div className={styles.heading}>
+              {line && <p className={styles.kicker}>{line}</p>}
               <h1 className={styles.title}>{item.title}</h1>
               {item.originalTitle && item.originalTitle !== item.title && (
                 <p className={styles.original}>
@@ -207,7 +493,13 @@ export function ItemPage() {
             </div>
             {item.tagline && <p className={styles.tagline}>{item.tagline}</p>}
 
-            <Actions item={item} onBack={goBack} />
+            <Actions
+              item={item}
+              file={file}
+              onBack={goBack}
+              onTrailer={() => setTrailerOpen(true)}
+            />
+            <RelatedLinks item={item} />
 
             {progress && (
               <div className={styles.progress}>
@@ -223,20 +515,34 @@ export function ItemPage() {
 
             {item.overview && <p className={styles.overview}>{item.overview}</p>}
 
-            <section className={styles.files} aria-labelledby="item-file-heading">
-              <h2 id="item-file-heading" className={styles.sectionTitle}>
-                {t('item.file.title')}
-              </h2>
-              {item.mediaFiles.length === 0 ? (
-                <Notice tone="warning">{t('item.file.none')}</Notice>
-              ) : (
-                item.mediaFiles.map((file) => (
-                  <FileFacts key={file.id} file={file} t={t} language={i18n.language} />
-                ))
-              )}
-            </section>
+            {item.kind === 'series' && <Seasons seasons={item.seasons ?? []} />}
+            {item.kind === 'season' && (
+              <section className={styles.block} aria-labelledby="item-episodes-heading">
+                <h2 id="item-episodes-heading" className={styles.sectionTitle}>
+                  {t('item.episodes.title')}
+                </h2>
+                <EpisodeGrid episodes={item.episodes ?? []} />
+              </section>
+            )}
+
+            <Versions item={item} file={file} onChange={setChosenFile} />
           </div>
         </div>
+
+        <div className={styles.rows}>
+          <Extras extras={item.extras ?? []} />
+          <Cast item={item} />
+        </div>
+
+        {trailerOpen && online && (
+          <Suspense fallback={null}>
+            <TrailerPanel
+              itemId={item.id}
+              title={item.title}
+              onClose={() => setTrailerOpen(false)}
+            />
+          </Suspense>
+        )}
       </main>
     </SpatialPage>
   );

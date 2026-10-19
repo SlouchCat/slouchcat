@@ -156,3 +156,180 @@ export const accountLibraries: LibrarySummary[] = [
   { id: 1, name: 'Filme', kind: 'movies' },
   { id: 2, name: 'Serien', kind: 'series' },
 ];
+
+// M3: a series with two seasons, an episode with its neighbours, a film with versions and extras.
+export const seriesIds = {
+  show: '01JB8Z6Q4M7N9P2R3S5T7V9W4A',
+  season1: '01JB8Z6Q4M7N9P2R3S5T7V9W4B',
+  specials: '01JB8Z6Q4M7N9P2R3S5T7V9W4C',
+  e1: '01JB8Z6Q4M7N9P2R3S5T7V9W4D',
+  e2: '01JB8Z6Q4M7N9P2R3S5T7V9W4E',
+  e34: '01JB8Z6Q4M7N9P2R3S5T7V9W4F',
+  s0e1: '01JB8Z6Q4M7N9P2R3S5T7V9W4G',
+  extra: '01JB8Z6Q4M7N9P2R3S5T7V9W4H',
+} as const;
+
+const showRef: ItemRef = {
+  id: seriesIds.show,
+  kind: 'series',
+  title: 'Slouchcat Test Show',
+  year: 2024,
+  images: {},
+  childCount: 2,
+};
+
+const seasonRef = (
+  id: string,
+  title: string,
+  seasonNumber: number,
+  childCount: number,
+): ItemRef => ({
+  id,
+  kind: 'season',
+  title,
+  seasonNumber,
+  parentId: seriesIds.show,
+  seriesTitle: showRef.title,
+  childCount,
+  images: {},
+});
+
+const episodeRef = (
+  id: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  title: string,
+  extra: Partial<ItemRef> = {},
+): ItemRef => ({
+  id,
+  kind: 'episode',
+  title,
+  seasonNumber,
+  episodeNumber,
+  parentId: seasonNumber === 0 ? seriesIds.specials : seriesIds.season1,
+  seriesTitle: showRef.title,
+  runtimeMinutes: 45,
+  images: {
+    backdropSmall: { url: `/items/${id}/images/backdrop/w780?v=s`, width: 780, height: 439 },
+  },
+  ...extra,
+});
+
+export const episodes = {
+  e1: episodeRef(seriesIds.e1, 1, 1, 'Pilot', {
+    progress: {
+      positionMs: 600_000,
+      durationMs: 2_700_000,
+      percent: 22,
+      completed: false,
+      updatedAt: '2026-10-18T19:00:00Z',
+    },
+  }),
+  e2: episodeRef(seriesIds.e2, 1, 2, 'Die lange Nacht'),
+  e34: episodeRef(seriesIds.e34, 1, 3, 'Episode 3', { episodeEnd: 4 }),
+  s0e1: episodeRef(seriesIds.s0e1, 0, 1, 'Episode 1'),
+};
+
+const seasons = [
+  seasonRef(seriesIds.season1, 'Season 1', 1, 3),
+  seasonRef(seriesIds.specials, 'Specials', 0, 1),
+];
+
+const file = (id: string, label: string, height: number): ItemDetail['mediaFiles'][number] => ({
+  id,
+  container: 'mp4',
+  mimeType: 'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+  videoCodec: 'h264',
+  audioCodec: 'aac',
+  width: Math.round((height * 16) / 9),
+  height,
+  durationMs: 2_700_000,
+  sizeBytes: 900_000_000,
+  versionLabel: label,
+  available: true,
+});
+
+export const showDetail: ItemDetail = {
+  ...showRef,
+  genres: ['Drama'],
+  mediaFiles: [],
+  seasons,
+  extras: [
+    {
+      id: seriesIds.extra,
+      kind: 'extra',
+      title: 'Making Of',
+      extraKind: 'featurette',
+      parentId: seriesIds.show,
+      images: {},
+    },
+  ],
+  cast: [
+    { personId: 7, name: 'Lena Muster', role: 'cast', character: 'Kommissarin Weber' },
+    { personId: 8, name: 'Noah Beispiel', role: 'creator' },
+  ],
+  trailerCount: 0,
+};
+
+export const season1Detail: ItemDetail = {
+  ...seasons[0]!,
+  genres: [],
+  mediaFiles: [],
+  series: showRef,
+  episodes: [episodes.e1, episodes.e2, episodes.e34],
+};
+
+export const specialsDetail: ItemDetail = {
+  ...seasons[1]!,
+  genres: [],
+  mediaFiles: [],
+  series: showRef,
+  episodes: [episodes.s0e1],
+};
+
+export const episode2Detail: ItemDetail = {
+  ...episodes.e2,
+  overview: 'Die zweite Folge.',
+  genres: [],
+  mediaFiles: [file('mf-e2', '1080p', 1080)],
+  series: showRef,
+  season: seasons[0],
+  nextEpisode: episodes.e34,
+};
+
+export const extraDetail: ItemDetail = {
+  id: seriesIds.extra,
+  kind: 'extra',
+  title: 'Making Of',
+  extraKind: 'featurette',
+  parentId: seriesIds.show,
+  images: {},
+  genres: [],
+  mediaFiles: [file('mf-extra', '720p', 720)],
+};
+
+/** Alien with two versions (B-5), extras (B-7), cast and two trailers (W-10). */
+export const alienVersions: ItemDetail = {
+  ...alienDetail,
+  mediaFiles: [alienDetail.mediaFiles[0]!, file('mf-2', '720p', 720)],
+  extras: [
+    {
+      id: '01JB8Z6Q4M7N9P2R3S5T7V9W5A',
+      kind: 'extra',
+      title: 'Alien Trailer',
+      extraKind: 'trailer',
+      parentId: ids.alien,
+      images: {},
+    },
+    {
+      id: '01JB8Z6Q4M7N9P2R3S5T7V9W5B',
+      kind: 'extra',
+      title: 'On Set',
+      extraKind: 'behind_the_scenes',
+      parentId: ids.alien,
+      images: {},
+    },
+  ],
+  cast: [{ personId: 3, name: 'Sigourney Weaver', role: 'cast', character: 'Ellen Ripley' }],
+  trailerCount: 2,
+};

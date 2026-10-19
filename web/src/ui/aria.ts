@@ -4,6 +4,8 @@ export { AriaButton } from './AriaButton';
 export { AccentPicker } from './AccentPicker';
 export { CheckboxGroup } from './CheckboxGroup';
 export { ConfirmDialog, FormDialog } from './Dialog';
+export { MenuButton } from './Menu';
 export { PinField } from './PinField';
 export { RadioGroup } from './RadioGroup';
 export { TextField } from './TextField';
+export { TrailerDialog } from './TrailerDialog';

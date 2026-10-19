@@ -7,7 +7,8 @@
     "back": "Zurück",
     "retry": "Erneut versuchen",
     "cancel": "Abbrechen",
-    "loading": "Wird geladen …"
+    "loading": "Wird geladen …",
+    "close": "Schliessen"
   },
   "nav": {
     "main": "Hauptnavigation",
@@ -163,6 +164,36 @@
       "version": "Version",
       "unavailable": "nicht verfügbar",
       "none": "Zu diesem Titel ist gerade keine Datei verfügbar."
+    },
+    "manage": "Verwalten",
+    "trailer": "Trailer",
+    "seriesLink": "Zur Serie",
+    "parentLink": "Zum Haupttitel",
+    "nextEpisode": "Nächste Folge",
+    "episodeCode": "S{{season}}E{{episode}}",
+    "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
+    "episodeOf": "{{code}} · {{series}}",
+    "docTitle": {
+      "season": "{{title}} – {{series}}",
+      "episode": "{{code}} {{title}} – {{series}}"
+    },
+    "versions": "Versionen",
+    "extras": "Extras",
+    "cast": {
+      "title": "Besetzung",
+      "role": {
+        "cast": "Darsteller",
+        "director": "Regie",
+        "writer": "Drehbuch",
+        "creator": "Idee"
+      }
+    },
+    "seasons": "Staffeln",
+    "episodes": {
+      "title": "Folgen",
+      "empty": "Keine Folgen.",
+      "count_one": "{{count}} Folge",
+      "count_other": "{{count}} Folgen"
     }
   },
   "rating": {
@@ -201,7 +232,29 @@
     "error": {
       "title": "Wiedergabe nicht möglich",
       "body": "Die Datei konnte nicht geladen werden."
-    }
+    },
+    "info": "Stream-Info",
+    "version": "Version",
+    "versionCurrent": "{{label}} (aktuell)",
+    "streamInfo": {
+      "title": "Stream-Info",
+      "mode": "Modus",
+      "modeDirect": "Direkt",
+      "modeHls": "HLS",
+      "transcoding": "Umwandlung",
+      "remux": "Remux",
+      "transcode": "Transcode",
+      "backend": "Backend",
+      "reason": "Grund",
+      "mediaFile": "Datei-ID",
+      "version": "Version",
+      "container": "Container",
+      "video": "Video",
+      "audio": "Audio",
+      "resolution": "Auflösung",
+      "none": "–"
+    },
+    "versionButton": "Version: {{label}}"
   },
   "admin": {
     "libraries": {
@@ -440,6 +493,31 @@
     "notFound": {
       "title": "Link nicht gefunden",
       "body": "Diesen Einladungslink gibt es nicht. Prüfe, ob du ihn vollständig kopiert hast."
+    }
+  },
+  "extraKind": {
+    "trailer": "Trailer",
+    "featurette": "Featurette",
+    "deleted_scene": "Entfallene Szene",
+    "behind_the_scenes": "Hinter den Kulissen",
+    "interview": "Interview",
+    "scene": "Szene",
+    "short": "Kurzfilm",
+    "other": "Extra"
+  },
+  "trailer": {
+    "title": "Trailer: {{title}}",
+    "language": "Sprache",
+    "frame": "Trailer von {{title}} (YouTube)",
+    "none": "Kein Trailer verfügbar.",
+    "privacy": "Der Trailer wird von YouTube abgespielt (youtube-nocookie.com)."
+  },
+  "person": {
+    "credits": "Filme und Serien",
+    "as": "als {{character}}",
+    "notFound": {
+      "title": "Person nicht gefunden",
+      "body": "Zu dieser Person gibt es hier keine Titel."
     }
   }
 }

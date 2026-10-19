@@ -1,0 +1,86 @@
+.card {
+  --sc-item-accent: initial;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  width: 100%;
+  border-radius: var(--sc-radius-lg);
+  color: inherit;
+  text-decoration: none;
+  outline-offset: var(--sc-focus-ring-offset);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+/* Without a still the frame carries a tint of the accent. */
+.frame::before {
+  position: absolute;
+  inset: 0;
+  background-color: var(--sc-item-accent, var(--sc-color-surface-2));
+  content: '';
+  opacity: 0.18;
+}
+
+.image {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.progress {
+  position: absolute;
+  right: var(--sc-space-3);
+  bottom: var(--sc-space-3);
+  left: var(--sc-space-3);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  padding: 0 var(--sc-space-1);
+}
+
+.code {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+}
+
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  line-height: var(--sc-font-line-height-snug);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.caption {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+@media (hover: hover) {
+  .card:hover {
+    transform: scale(var(--sc-focus-scale));
+  }
+}
+
+.card:focus-visible {
+  transform: scale(var(--sc-focus-scale));
+}

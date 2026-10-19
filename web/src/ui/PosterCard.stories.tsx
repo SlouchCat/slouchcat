@@ -56,3 +56,8 @@ export const WithProgress: Story = {
 export const WithoutPoster: Story = {
   args: { title: 'Slouchcat Test H264 (2024)', caption: '2024', posterUrl: undefined },
 };
+
+/** An extra of a title: no poster, its kind as a label (B-7). */
+export const WithBadge: Story = {
+  args: { title: 'Making Of', caption: undefined, posterUrl: undefined, badge: 'Featurette' },
+};
