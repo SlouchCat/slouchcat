@@ -95,6 +95,18 @@ func movieFixture(id int64, imdb, title, deTitle, deOverview string, genresDE, g
 			"id": id, "imdb_id": imdb, "original_title": title + " (Original)", "release_date": "2001-03-04",
 			"runtime": 117, "poster_path": poster, "backdrop_path": backdrop,
 			"release_dates": map[string]any{"results": releases},
+			"credits": map[string]any{
+				"cast": []any{
+					map[string]any{"id": 9001, "name": "Lead Actor", "character": "Hero", "order": 0, "profile_path": "/lead.jpg"},
+					map[string]any{"id": 9002, "name": "Second Actor", "character": "Sidekick", "order": 1},
+				},
+				"crew": []any{
+					map[string]any{"id": 9101, "name": "The Director", "job": "Director", "department": "Directing"},
+					map[string]any{"id": 9102, "name": "The Writer", "job": "Screenplay", "department": "Writing"},
+					map[string]any{"id": 9102, "name": "The Writer", "job": "Story", "department": "Writing"},
+					map[string]any{"id": 9103, "name": "The Composer", "job": "Original Music Composer", "department": "Sound"},
+				},
+			},
 		}
 		if lang == langDE {
 			m["title"], m["overview"], m["tagline"], m["genres"] = deTitle, deOverview, "", gen(genresDE)
@@ -172,8 +184,8 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 			http.Error(w, `{"status_code":34}`, http.StatusNotFound)
 			return
 		}
-		if r.URL.Query().Get("append_to_response") != "release_dates" {
-			t.Errorf("movie request without release_dates: %s", r.URL)
+		if r.URL.Query().Get("append_to_response") != "release_dates,credits" {
+			t.Errorf("movie request without release_dates and credits: %s", r.URL)
 		}
 		switch r.URL.Query().Get("language") {
 		case langDE:
@@ -185,16 +197,20 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 			http.Error(w, "bad language", http.StatusBadRequest)
 		}
 	}))
-	mux.HandleFunc("GET /3/find/{imdb}", auth(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("external_source") != "imdb_id" {
+	mux.HandleFunc("GET /3/find/{ext}", auth(func(w http.ResponseWriter, r *http.Request) {
+		src, ext := r.URL.Query().Get("external_source"), r.PathValue("ext")
+		movies, tv := []any{}, []any{}
+		switch {
+		case src == "imdb_id" && ext == "tt0000550":
+			movies = append(movies, map[string]any{"id": 550})
+		case (src == "imdb_id" && ext == "tt0000900") || (src == "tvdb_id" && ext == "81189"):
+			tv = append(tv, map[string]any{"id": 900, "name": "Test Show", "first_air_date": "2010-04-01"})
+		case src != "imdb_id" && src != "tvdb_id":
 			t.Errorf("find without external_source: %s", r.URL)
 		}
-		results := []any{}
-		if r.PathValue("imdb") == "tt0000550" {
-			results = append(results, map[string]any{"id": 550})
-		}
-		writeJSON(w, map[string]any{"movie_results": results})
+		writeJSON(w, map[string]any{"movie_results": movies, "tv_results": tv})
 	}))
+	f.addTV(t, mux, auth, writeJSON)
 	mux.HandleFunc("GET /3/search/movie", auth(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		results := []any{}
@@ -245,16 +261,25 @@ type staticKey string
 
 func (k staticKey) TMDBKey(context.Context) (string, error) { return string(k), nil }
 
+func (k staticKey) TVDBKey(context.Context) (string, string, error) { return "", "", nil }
+
 type env struct {
 	db    *store.DB
 	queue *jobs.Queue
 	svc   *Service
 	tmdb  *fakeTMDB
+	tvdb  *fakeTVDB
 	cache string
 	logs  *bytes.Buffer
 }
 
 func newEnv(t *testing.T, key string) *env {
+	t.Helper()
+	return newEnvWith(t, staticKey(key))
+}
+
+// newEnvWith starts the fake TMDB and TVDB servers and a service that reads its keys from keys.
+func newEnvWith(t *testing.T, keys KeySource) *env {
 	t.Helper()
 	logs := &bytes.Buffer{}
 	log := slog.New(logging.NewRedactingHandler(slog.NewTextHandler(&lockedWriter{w: logs}, nil)))
@@ -264,18 +289,23 @@ func newEnv(t *testing.T, key string) *env {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	f := newFakeTMDB(t)
+	tv := newFakeTVDB(t)
 	cache := t.TempDir()
 	q := jobs.NewQueue(db.Write, nil)
-	svc := New(db, q, staticKey(key), cache, transcode.Runner{FFmpegPath: lookFFmpeg()}, log,
+	svc := New(db, q, keys, cache, transcode.Runner{FFmpegPath: lookFFmpeg()}, log,
 		WithBaseURL(f.srv.URL+"/3", f.srv.URL+"/t/p"), WithHTTPClient(f.srv.Client()),
+		WithTVDBBaseURL(tv.srv.URL+"/v4", tv.srv.URL+"/art"),
 		WithClock(func() time.Time { return testNow }))
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 0, 0)`)
+	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (2, 'Serien', 'series', 0, 0)`)
 	t.Cleanup(func() {
-		if strings.Contains(logs.String(), goodToken) || strings.Contains(logs.String(), rateToken) {
-			t.Errorf("token in logs:\n%s", logs.String())
+		for _, secret := range []string{goodToken, rateToken, tvdbKey, tvdbPin, tvdbToken} {
+			if strings.Contains(logs.String(), secret) {
+				t.Errorf("secret %q in logs:\n%s", secret, logs.String())
+			}
 		}
 	})
-	return &env{db: db, queue: q, svc: svc, tmdb: f, cache: cache, logs: logs}
+	return &env{db: db, queue: q, svc: svc, tmdb: f, tvdb: tv, cache: cache, logs: logs}
 }
 
 type lockedWriter struct {

@@ -28,21 +28,51 @@ var mainReleaseTypes = map[int]bool{3: true, 4: true, 5: true}
 // returns the rating and its source ("tmdb:DE", "tmdb:AT", …) or nil and "" when no country in
 // the order DE → AT → CH → GB → US has a known certification (unknown = NULL, AN-1).
 func FSKFromReleaseDates(rd ReleaseDates) (rating *int, source string) {
+	rating, country := FSKFromCertifications(releaseCertifications(rd))
+	if rating == nil {
+		return nil, ""
+	}
+	return rating, ProviderTMDB + ":" + country
+}
+
+// releaseCertifications returns the certification of the main release per country.
+func releaseCertifications(rd ReleaseDates) map[string]string {
 	byCountry := make(map[string][]Release, len(rd.Results))
 	for _, c := range rd.Results {
 		code := strings.ToUpper(strings.TrimSpace(c.Country))
 		byCountry[code] = append(byCountry[code], c.ReleaseDates...)
 	}
-	for _, country := range ratingCountries {
-		cert := certification(byCountry[country])
+	out := make(map[string]string, len(byCountry))
+	for code, releases := range byCountry {
+		if cert := certification(releases); cert != "" {
+			out[code] = cert
+		}
+	}
+	return out
+}
+
+// FSKFromCertifications maps one certification per country (ISO 3166-1 alpha-2) to an FSK step
+// after AN-8 and returns the rating with the country it came from, or nil and "" when no country
+// in the order DE → AT → CH → GB → US has a known value. Values are compared in upper case;
+// a "FSK" prefix and a trailing "+" are ignored ("FSK 16", "16+").
+func FSKFromCertifications(certs map[string]string) (rating *int, country string) {
+	for _, c := range ratingCountries {
+		cert := normalizeCertification(certs[c])
 		if cert == "" {
 			continue
 		}
-		if fsk, ok := fskTables[country][cert]; ok {
-			return &fsk, "tmdb:" + country
+		if fsk, ok := fskTables[c][cert]; ok {
+			return &fsk, c
 		}
 	}
 	return nil, ""
+}
+
+// normalizeCertification upper-cases a certification and strips "FSK", blanks and a trailing "+".
+func normalizeCertification(v string) string {
+	v = strings.ToUpper(strings.TrimSpace(v))
+	v = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(v, "FSK"), "-"))
+	return strings.TrimSuffix(v, "+")
 }
 
 // certification returns the first non-empty certification of a main release, else the first

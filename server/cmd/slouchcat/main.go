@@ -264,6 +264,11 @@ func (k *lazyKeys) TMDBKey(ctx context.Context) (string, error) {
 	return k.admin.TMDBKey(ctx)
 }
 
+// TVDBKey reads the environment until the admin service provides TVDBKey (M3, admin package).
+func (k *lazyKeys) TVDBKey(context.Context) (key, pin string, err error) {
+	return os.Getenv("SLOUCHCAT_TVDB_API_KEY"), os.Getenv("SLOUCHCAT_TVDB_PIN"), nil
+}
+
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on
 // <cache>/transcode and returns the playback service with the stream-token key of the key file
 // (plan 5.4). Without a usable ffmpeg the server still runs: titles then play directly only. The

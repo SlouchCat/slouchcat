@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -18,6 +17,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -41,9 +41,6 @@ const (
 	accentSourceWidth = 200
 	accentColors      = 8
 )
-
-// imageKinds lists the stored kinds in processing order.
-var imageKinds = []string{"poster", "backdrop"}
 
 // imageWidths lists the delivered widths per kind.
 var imageWidths = map[string][]int{
@@ -76,12 +73,21 @@ func (s *Service) handleImageFetch(ctx context.Context, j *jobs.Job) error {
 	return s.fetchImages(ctx, itemID)
 }
 
-// fetchImages runs the image pipeline for a matched item. It re-reads the English movie detail for
-// the image paths and, per kind, skips the work when every derived row stems from the current
-// TMDB original and its file exists (so a run after a deleted file or a new size only fills the
-// gap). The original is downloaded only when its row is missing, stale or its file is gone. A kind
-// without a TMDB path keeps its rows. A kind locked by the admin is never fetched from TMDB, but
-// its missing sizes are scaled from the stored image (scaleLocked).
+// itemImageKinds lists the image kinds per item kind: posters for movies, series and seasons,
+// backdrops for movies and series and the still of an episode.
+var itemImageKinds = map[string][]string{
+	"movie":   {"poster", "backdrop"},
+	"series":  {"poster", "backdrop"},
+	"season":  {"poster"},
+	"episode": {"backdrop"},
+}
+
+// fetchImages runs the image pipeline for a matched item. It reads the image paths the match
+// stored on the item (no provider request) and, per kind, skips the work when every derived row
+// stems from the current original and its file exists (so a run after a deleted file or a new
+// size only fills the gap). The original is downloaded only when its row is missing, stale or its
+// file is gone. A kind without a path keeps its rows. A kind locked by the admin is never
+// fetched, but its missing sizes are scaled from the stored image (scaleLocked).
 func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	if s.cacheE != nil {
 		return s.cacheE
@@ -93,7 +99,8 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	if err != nil {
 		return fmt.Errorf("image.fetch: load item %s: %w", itemID, err)
 	}
-	if item.DeletedAt.Valid || item.MetadataState != stateMatched || !item.TmdbID.Valid {
+	kinds := itemImageKinds[item.Kind]
+	if item.DeletedAt.Valid || item.MetadataState != stateMatched || len(kinds) == 0 {
 		return nil
 	}
 	root, err := paths.Open(s.cache)
@@ -110,49 +117,49 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 		byKind[r.Kind] = append(byKind[r.Kind], r)
 	}
 	locked := lockedFields(item.LockedFields)
-	unlocked := 0
-	for _, kind := range imageKinds {
-		if !locked[kind] {
-			unlocked++
+	for _, kind := range kinds {
+		if locked[kind] {
+			if err := s.scaleLocked(ctx, root, item.ID, kind, byKind[kind]); err != nil {
+				return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
+			}
 			continue
 		}
-		if err := s.scaleLocked(ctx, root, item.ID, kind, byKind[kind]); err != nil {
-			return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
-		}
-	}
-	if unlocked == 0 {
-		return nil
-	}
-
-	key, err := s.keys.TMDBKey(ctx)
-	if err != nil {
-		return fmt.Errorf("image.fetch: read tmdb key: %w", err)
-	}
-	if key == "" {
-		return nil
-	}
-	c := s.client.WithKey(key)
-	m, err := c.Movie(ctx, item.TmdbID.Int64, langEN)
-	switch {
-	case errors.Is(err, ErrNotFound):
-		return nil
-	case errors.Is(err, model.ErrTMDBKeyInvalid):
-		s.log.Warn("tmdb key rejected", "item_id", item.ID)
-		return nil
-	case err != nil:
-		return fmt.Errorf("image.fetch %s: %w", item.ID, err)
-	}
-	tmdbPath := map[string]string{"poster": m.PosterPath, "backdrop": m.BackdropPath}
-	for _, kind := range imageKinds {
-		path := tmdbPath[kind]
-		if path == "" || locked[kind] {
+		source := s.imageSource(item, kind, byKind[kind])
+		if source == "" {
 			continue
 		}
-		if err := s.processKind(ctx, c, root, item.ID, kind, path, byKind[kind]); err != nil {
+		if err := s.processKind(ctx, root, item.ID, kind, source, byKind[kind]); err != nil {
 			return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
 		}
 	}
 	return nil
+}
+
+// imageSource returns the URL of the original of kind: the TMDB original of the stored path
+// (/abc.jpg), a stored TVDB artwork URL, or for titles matched before M3 (no stored path) the
+// source of the stored original. "" means there is nothing to fetch.
+func (s *Service) imageSource(item systemq.Item, kind string, prev []systemq.Image) string {
+	path := item.TmdbPosterPath
+	if kind == "backdrop" {
+		path = item.TmdbBackdropPath
+	}
+	if path.Valid && path.String != "" {
+		switch {
+		case strings.HasPrefix(path.String, "/"):
+			return s.client.imageURL(originalSize, path.String)
+		case strings.HasPrefix(path.String, s.tvdb.artBase+"/"):
+			return path.String
+		}
+		s.log.Warn("image path of an unknown host ignored", "item_id", item.ID, "kind", kind)
+		return ""
+	}
+	prefix := s.client.imageURL(originalSize, "")
+	for _, r := range prev {
+		if r.Size == originalSize && strings.HasPrefix(r.SourceUrl, prefix) {
+			return r.SourceUrl
+		}
+	}
+	return ""
 }
 
 // storedImage is the part of an image row the completeness check needs.
@@ -187,10 +194,8 @@ func kindComplete(kind string, rows []storedImage, sourceURL string, exists func
 	return have == len(want)
 }
 
-// processKind brings the rows and files of one kind up to date with the TMDB original at
-// tmdbPath.
-func (s *Service) processKind(ctx context.Context, c *Client, root *os.Root, itemID, kind, tmdbPath string, prev []systemq.Image) error {
-	sourceURL := c.imageURL(originalSize, tmdbPath)
+// processKind brings the rows and files of one kind up to date with the original at sourceURL.
+func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind, sourceURL string, prev []systemq.Image) error {
 	exists := rootExists(root)
 	var orig *systemq.Image
 	for i, r := range prev {
@@ -210,7 +215,7 @@ func (s *Service) processKind(ctx context.Context, c *Client, root *os.Root, ite
 	if orig != nil && orig.SourceUrl == sourceURL && exists(orig.RelPath) {
 		origRel = orig.RelPath
 	} else {
-		rel, err := s.storeOriginal(ctx, c, root, dir, itemID, kind, tmdbPath, sourceURL, orig)
+		rel, err := s.storeOriginal(ctx, root, dir, itemID, kind, sourceURL, orig)
 		if err != nil {
 			return err
 		}
@@ -366,11 +371,11 @@ func rootExists(root *os.Root) func(rel string) bool {
 	}
 }
 
-// storeOriginal downloads the TMDB original to <dir>/<kind>-original.<ext> (temporary name, then
+// storeOriginal downloads the original at sourceURL to <dir>/<kind>-original.<ext> (temporary name, then
 // rename), upserts its row and returns its rel_path. A replaced original with another extension
 // is removed.
-func (s *Service) storeOriginal(ctx context.Context, c *Client, root *os.Root, dir, itemID, kind, tmdbPath, sourceURL string, prev *systemq.Image) (string, error) {
-	data, mediaType, err := download(ctx, c, originalSize, tmdbPath)
+func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID, kind, sourceURL string, prev *systemq.Image) (string, error) {
+	data, mediaType, err := download(ctx, s.client, sourceURL)
 	if err != nil {
 		return "", err
 	}
@@ -541,11 +546,12 @@ const maxAccentRetries = 3
 // (for example the WebP files next to the JPEG rows kept from M1a), still has a size the pipeline
 // no longer produces (M1a's w500 poster), the file of a derived row is gone from the cache, or the
 // poster rows carry no accent (at most maxAccentRetries times). Locked kinds count as well when a
-// stored file can be scaled (image.fetch scales them without TMDB). Titles without any image row
-// are not checked (TMDB has none, or their first image.fetch is pending), so a title without
-// artwork costs no TMDB request per scan. The library scan calls it after every successful run
-// (the server schedules a scan of every library at start, so titles from M1a are queued right
-// after the upgrade); it returns the number of titles queued.
+// stored file can be scaled (image.fetch scales them without TMDB). A title of any kind with a
+// stored image path but no row of that kind yet (its first image.fetch failed) is queued as well
+// (episode stills at priority 1); a title without path and rows has no artwork and costs nothing
+// per scan. The library scan calls it after every successful run (the server schedules a scan of
+// every library at start, so titles from M1a are queued right after the upgrade); it returns the
+// number of titles queued.
 func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (int, error) {
 	if s.cacheE != nil {
 		return 0, s.cacheE
@@ -580,7 +586,12 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 			t.accent = true
 		}
 	}
+	missing, err := s.read.ListItemsMissingImages(ctx, libraryID)
+	if err != nil {
+		return 0, fmt.Errorf("list titles without images: %w", err)
+	}
 	queued := 0
+	done := map[string]bool{}
 	for _, id := range order {
 		t := titles[id]
 		complete := true
@@ -599,18 +610,25 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 		if complete {
 			continue
 		}
-		payload, err := json.Marshal(itemPayload{ItemID: id})
-		if err != nil {
-			return queued, fmt.Errorf("image payload: %w", err)
+		if err := s.enqueueImages(ctx, id, imageFetchPriority); err != nil {
+			return queued, err
 		}
-		if _, err := s.queue.Enqueue(ctx, jobs.NewJob{
-			Type:           JobImageFetch,
-			Priority:       imageFetchPriority,
-			IdempotencyKey: "image:" + id,
-			Payload:        payload,
-		}); err != nil {
-			return queued, fmt.Errorf("enqueue image.fetch %s: %w", id, err)
+		done[id] = true
+		queued++
+	}
+	for _, m := range missing {
+		locked := lockedFields(m.LockedFields)
+		if done[m.ID] || ((m.PosterMissing != 1 || locked["poster"]) && (m.BackdropMissing != 1 || locked["backdrop"])) {
+			continue
 		}
+		prio := imageFetchPriority
+		if m.Kind == "episode" {
+			prio = stillPriority
+		}
+		if err := s.enqueueImages(ctx, m.ID, prio); err != nil {
+			return queued, err
+		}
+		done[m.ID] = true
 		queued++
 	}
 	return queued, nil
@@ -629,8 +647,8 @@ func (s *Service) accentRetry(itemID string) bool {
 
 // download reads the whole original (TMDB originals are a few MiB at most) and determines its
 // media type, sniffing the content when the answer has no usable Content-Type.
-func download(ctx context.Context, c *Client, size, tmdbPath string) ([]byte, string, error) {
-	body, mediaType, err := c.DownloadImage(ctx, size, tmdbPath)
+func download(ctx context.Context, c *Client, sourceURL string) ([]byte, string, error) {
+	body, mediaType, err := c.DownloadURL(ctx, sourceURL)
 	if err != nil {
 		return nil, "", err
 	}
