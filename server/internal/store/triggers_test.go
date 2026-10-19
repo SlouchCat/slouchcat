@@ -208,3 +208,54 @@ func TestTriggersMovieAndLibraryRights(t *testing.T) {
 		t.Error("profile with library right must see the movie")
 	}
 }
+
+const (
+	idSeasonExtra = "01EXTRA0000000000000000SEA"
+	idSeriesExtra = "01EXTRA0000000000000000SER"
+)
+
+// Migration 00008: extras never make a container available and never lower its smallest child
+// rating, but they inherit the ratings of their parent chain like every other child.
+func TestTriggersExtrasAreNoContent(t *testing.T) {
+	db := openTestDB(t)
+	seedTree(t, db.Write)
+	item := `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, own_rating, extra_kind, added_at, created_at, updated_at)
+	         VALUES (?, 'extra', ?, 1, ?, ?, ?, 'featurette', 0, 0, 0)`
+	mustExec(t, db.Write, item, idSeasonExtra, idSeason, "Making of", "making of", 0) // own rating 0, below the series
+	mustExec(t, db.Write, item, idSeriesExtra, idSeries, "Trailer", "trailer", nil)
+
+	// An extra with a file alone: the season and the series stay unavailable and invisible.
+	addFile(t, db.Write, "01FILE000000000000000000X1", idSeasonExtra, "Show/Season 01/Featurettes/Making of.mkv")
+	addFile(t, db.Write, "01FILE000000000000000000X2", idSeriesExtra, "Show/Trailers/Trailer.mkv")
+	if available(t, db.Write, idSeasonExtra) != 1 {
+		t.Fatal("the extra with a file must be available itself")
+	}
+	if available(t, db.Write, idSeason) != 0 || available(t, db.Write, idSeries) != 0 || visible(t, db.Write, 18, idSeries) {
+		t.Error("an extra alone must not make season or series available")
+	}
+	if minChild(t, db.Write, idSeason) != null || minChild(t, db.Write, idSeries) != null {
+		t.Errorf("min_child_rating with extras only: season %v, series %v, want NULL", minChild(t, db.Write, idSeason), minChild(t, db.Write, idSeries))
+	}
+
+	// With an episode the season counts that episode only: the extra (effective 12) does not
+	// lower the minimum below the episode's 16.
+	addFile(t, db.Write, "01FILE000000000000000000E2", idEp2, "Show/Season 01/E2.mkv")
+	if available(t, db.Write, idSeason) != 1 || minChild(t, db.Write, idSeason) != val(16) {
+		t.Errorf("season with E2: available %d, min_child_rating %v, want 1 and 16", available(t, db.Write, idSeason), minChild(t, db.Write, idSeason))
+	}
+	if visible(t, db.Write, 12, idSeason) {
+		t.Error("the season whose only episode is rated 16 must stay hidden for P12 despite its extra")
+	}
+
+	// Inheritance: the extras follow the series' rating (the season extra keeps max(own, parent)).
+	if effective(t, db.Write, idSeasonExtra) != val(12) || effective(t, db.Write, idSeriesExtra) != val(12) {
+		t.Errorf("extra ratings = %v, %v, want 12", effective(t, db.Write, idSeasonExtra), effective(t, db.Write, idSeriesExtra))
+	}
+	mustExec(t, db.Write, `UPDATE items SET own_rating = 16 WHERE id = ?`, idSeries)
+	if effective(t, db.Write, idSeasonExtra) != val(16) || effective(t, db.Write, idSeriesExtra) != val(16) {
+		t.Errorf("after raising the series: extras %v, %v, want 16", effective(t, db.Write, idSeasonExtra), effective(t, db.Write, idSeriesExtra))
+	}
+	if visible(t, db.Write, 12, idSeriesExtra) || !visible(t, db.Write, 18, idSeriesExtra) {
+		t.Error("the series extra must follow the raise: hidden for P12, visible for P18")
+	}
+}
