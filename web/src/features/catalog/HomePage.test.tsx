@@ -77,6 +77,38 @@ describe('start page', () => {
     ).toBeNull();
   });
 
+  it('offers the w200 and w400 posters and hands the title accent to the card', async () => {
+    const poster = (size: string) => ({
+      url: `/items/${ids.heat}/images/poster/${size}?v=abc`,
+      width: size === 'w200' ? 200 : 400,
+      height: size === 'w200' ? 300 : 600,
+    });
+    const tinted: ItemRef = {
+      ...heat,
+      accent: '#3a7bd5',
+      images: { poster: poster('w400'), posterSmall: poster('w200'), posterLarge: poster('w800') },
+    };
+    mockApi({
+      ...signedIn,
+      'GET /home': () => json({ rows: [{ key: 'recent', items: [tinted, arrival] }] }),
+    });
+    renderApp('/');
+    const row = await screen.findByRole('region', { name: 'Neu hinzugefügt' });
+
+    const card = within(row).getByRole('link', { name: /Heat/ });
+    expect(card.style.getPropertyValue('--sc-item-accent')).toBe('#3a7bd5');
+    const base = `/api/v1/items/${ids.heat}/images/poster`;
+    const image = card.querySelector('img');
+    expect(image).toHaveAttribute('src', `${base}/w400?v=abc`);
+    // w800 stays out of the cards: a 3x phone would pick it and the start page would get heavier.
+    expect(image).toHaveAttribute('srcset', `${base}/w200?v=abc 200w, ${base}/w400?v=abc 400w`);
+    expect(image).toHaveAttribute('sizes');
+
+    // No accent from the server: no property, the CSS falls back to the tokens.
+    const plain = within(row).getByRole('link', { name: /Arrival/ });
+    expect(plain.style.getPropertyValue('--sc-item-accent')).toBe('');
+  });
+
   it('asks for the session and the start page in parallel, never for /setup', async () => {
     const { calls } = mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     renderApp('/');

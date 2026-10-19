@@ -324,10 +324,25 @@ func (s *Service) Resolve(ctx context.Context, token string) (session model.Sess
 	return model.Session{ID: row.ID, Account: toAccount(acc), Profile: toProfile(prof), ExpiresAt: expires}, extended, nil
 }
 
-// Logout revokes the session; revoking an already revoked or unknown session is not an error.
+// Logout revokes the session and, in the same transaction, every playback session it started, so
+// their stream tokens answer 401 from the next request on (plan 5.4); revoking an already revoked
+// or unknown session is not an error. The API stops the HLS output through the playback service.
 func (s *Service) Logout(ctx context.Context, sessionID int64) error {
-	if _, err := s.write.RevokeSession(ctx, appq.RevokeSessionParams{ID: sessionID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}}); err != nil {
+	now := sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin logout: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := s.write.WithTx(tx)
+	if _, err := q.RevokeSession(ctx, appq.RevokeSessionParams{ID: sessionID, Now: now}); err != nil {
 		return fmt.Errorf("revoke session: %w", err)
+	}
+	if _, err := q.RevokePlaybackSessionsBySession(ctx, appq.RevokePlaybackSessionsBySessionParams{SessionID: sessionID, Now: now}); err != nil {
+		return fmt.Errorf("revoke playback sessions: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit logout: %w", err)
 	}
 	return nil
 }

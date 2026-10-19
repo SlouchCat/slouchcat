@@ -24,6 +24,17 @@ Einzige Quelle für Farben, Typografie, Abstände, Radien, Bewegung und Ebenen d
 | `motion.*`                     | Dauer (fast 120 ms, focus 180 ms ≤ 200 ms, enter, exit) und Kurven                          |
 | `z.*`                          | Ebenen (base bis toast)                                                                     |
 
+## Akzentfarben zur Laufzeit
+
+Zwei Werte kommen nicht aus dem Build, sondern zur Laufzeit als CSS Custom Properties (Beschreibung in
+`web/src/ui/accent.ts`):
+
+- `--sc-accent` / `--sc-on-accent`: Akzent des aktiven Profils. `web/src/app/session.ts` setzt sie auf
+  `var(--sc-color-accent-<name>-base)` bzw. `-on` (nur Namen aus `accentNames`); ohne Sitzung gilt
+  `ember` aus `web/src/ui/global.css`.
+- `--sc-item-accent`: Akzentfarbe eines Titels (`ItemRef.accent`, `#rrggbb` aus der Bildpipeline) für
+  das Glühen der Posterkarte und den Tint des Detail-Backdrops; jeder Gebrauch hat einen Token-Rückfall.
+
 ## Schrift
 
 `font.family.sans` ist vorläufig ein System-Schriftstapel. Die selbst gehostete variable Schrift wird im

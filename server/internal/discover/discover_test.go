@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"image/jpeg"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -89,7 +90,7 @@ func TestImageOpensThroughCacheRoot(t *testing.T) {
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	ctx := context.Background()
 	m := f.Rated(6)
-	src, err := s.Image(ctx, f.P6, m.ID, "backdrop", "w1280")
+	src, err := s.Image(ctx, f.P6, m.ID, "backdrop", "w1280", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,13 +102,23 @@ func TestImageOpensThroughCacheRoot(t *testing.T) {
 	if b := img.Bounds(); b.Dx() != 16 || b.Dy() != 9 || src.MediaType != "image/jpeg" {
 		t.Errorf("image %v, type %s", b, src.MediaType)
 	}
-	if _, err := s.Image(ctx, f.P6, f.Rated(12).ID, "poster", "w500"); !errors.Is(err, model.ErrNotFound) {
+	webp, err := s.Image(ctx, f.P6, m.ID, "poster", "w400", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := make([]byte, 12)
+	_, err = io.ReadFull(webp.File, head)
+	_ = webp.File.Close()
+	if err != nil || string(head[:4]) != "RIFF" || string(head[8:]) != "WEBP" || webp.MediaType != "image/webp" {
+		t.Errorf("webp poster: %q, type %s, %v", head, webp.MediaType, err)
+	}
+	if _, err := s.Image(ctx, f.P6, f.Rated(12).ID, "poster", "w400", false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("invisible title: err = %v", err)
 	}
 	if err := os.Remove(filepath.Join(f.CacheDir, filepath.FromSlash(m.PosterRel))); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Image(ctx, f.P6, m.ID, "poster", "w500"); !errors.Is(err, model.ErrNotFound) {
+	if _, err := s.Image(ctx, f.P6, m.ID, "poster", "w400", false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("row without file: err = %v, want ErrNotFound", err)
 	}
 }

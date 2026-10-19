@@ -11,7 +11,7 @@ Slouchcat läuft als ein Container (Plan 3.7, ADR 0001 "Auslieferung"). Dieser O
 | `.env.example` | Vorlage für `.env` (Medienordner, Benutzer, Render-Gruppe, Zeitzone) |
 | `licenses/FFMPEG-NOTICE.md` | GPL-Hinweis und schriftliches Quellcode-Angebot für ffmpeg, landet in `/licenses` |
 | `scripts/measure-healthy.sh` | Misst Zeit bis `healthy` und Leerlauf-RSS (DoD M0) |
-| `Taskfile.yml` | `task deploy:build`, `deploy:up`, `deploy:down`, `deploy:config`, `deploy:healthy-time` |
+| `Taskfile.yml` | `task deploy:build`, `deploy:build:arm64`, `deploy:build:multi`, `deploy:binfmt`, `deploy:up`, `deploy:down`, `deploy:config`, `deploy:healthy-time`, `deploy:healthy-time:arm64` |
 
 ## Image bauen
 
@@ -49,9 +49,55 @@ Build-Argumente:
 | `BASE_IMAGE` | `debian:trixie-slim` | Laufzeit-Basis; Rückfall `debian:bookworm-slim` zusammen mit `FFMPEG_SUITE=bookworm` |
 | `GO_IMAGE`, `NODE_IMAGE` | `golang:1.27-trixie`, `node:24-trixie-slim` | Build-Images |
 
-**arm64** (ab M1b): Das Dockerfile ist vorbereitet (`TARGETARCH`, Cross-Kompilierung in den Build-Stufen,
-nur die apt-Stufe läuft emuliert). Bauen mit `--platform linux/arm64` braucht QEMU/binfmt auf dem
-Build-Rechner.
+**arm64** (ab M1b): siehe [arm64 und beide Plattformen](#arm64-und-beide-plattformen).
+
+## arm64 und beide Plattformen
+
+Das Image gibt es für `linux/amd64` und `linux/arm64` (P-1). Web-App und Go-Binary entstehen auf der
+Build-Plattform (Go cross-kompiliert mit `GOARCH=$TARGETARCH`); nur die apt-Stufe des Laufzeit-Images
+läuft für arm64 unter QEMU. Auf einem amd64-Rechner braucht das einmal pro Systemstart den
+binfmt-Handler:
+
+```bash
+task deploy:binfmt            # docker run --privileged --rm tonistiigi/binfmt --install arm64
+task deploy:build:arm64       # slouchcat:dev-arm64, --load
+task deploy:healthy-time:arm64  # startet das arm64-Image emuliert, Zeit bis healthy
+task deploy:build:multi       # amd64 und arm64 in einem Lauf, ohne --load
+```
+
+- `build:arm64` ist `build` mit `PLATFORM=linux/arm64` und dem Tag `slouchcat:dev-arm64`.
+- `build:multi` baut `PLATFORMS` (Standard `linux/amd64,linux/arm64`) mit `OUTPUT=type=cacheonly`: Das
+  prüft nur, dass beide Plattformen bauen, wie die CI. `OUTPUT=type=oci,dest=/tmp/slouchcat.oci.tar`
+  schreibt ein OCI-Archiv; sobald es eine Registry gibt, pusht `OUTPUT=type=registry` mit passendem
+  `IMAGE`.
+- `healthy-time:arm64` ist `scripts/measure-healthy.sh` mit `MAX_HEALTHY_SECONDS=30` und `MAX_RSS_MB=120`: Unter QEMU zählt der
+  Speicher des Emulators mit (gemessen rund 70 MB statt 24 MB nativ), und der emulierte Start dauert
+  hier 1.3 s, auf einem GitHub-Runner rund 7 s; die 5-s-Grenze von P-1 gilt für echte Hardware. Echte
+  Werte für arm64 liefert erst ein arm64-Rechner.
+- `TARGETOS`/`TARGETARCH` stehen im Dockerfile **ohne** Standardwert: BuildKit setzt sie aus
+  `--platform`, ein Standardwert hätte Vorrang (ein früheres `ARG TARGETARCH=amd64` baute für arm64 ein
+  amd64-Binary und eine amd64-apt-Quelle). `ARG VERSION` steht im Laufzeit-Image erst nach der
+  apt-Stufe, damit eine neue Version deren Cache nicht verwirft (arm64: 113 s emuliert gegenüber 2 s aus
+  dem Cache).
+
+Gemessen am 19. Oktober 2026 (Entwicklungsrechner, Docker 29, QEMU über `tonistiigi/binfmt`):
+
+| Schritt | amd64 | arm64 (emuliert) |
+|---|---|---|
+| Build ohne apt-Cache (Web und Go aus dem Cache) | 31 s, davon apt-Stufe 22.5 s | 117 s, davon apt-Stufe 113 s |
+| Build mit neuer `VERSION` | – | 2 s |
+| `GET /api/v1/healthz` antwortet | – | 0.62 / 0.74 / 0.82 s |
+| Docker-Status `healthy` | 1.19 / 1.20 / 1.25 s | 1.32 / 1.41 / 1.44 s |
+| Leerlauf-RSS | 23.5–24.6 MB | 70–71 MB (inkl. QEMU) |
+
+Im arm64-Container: `uname -m` = `aarch64`, ELF-Maschine des Binarys AArch64,
+`ffmpeg version 7.1.4-Jellyfin`, Migrationen und Schlüsselerzeugung wie unter amd64.
+
+**CI:** Der Job `image` in `.github/workflows/ci.yml` baut beide Plattformen mit
+`docker/setup-qemu-action`, `docker/setup-buildx-action` und `docker/build-push-action` (`push: false`,
+Cache `type=gha`), lädt danach jedes Image einzeln und lässt `scripts/measure-healthy.sh` laufen
+(arm64 mit `MAX_RSS_MB=120`). Er läuft parallel zum Job `ci`; gepusht wird nichts, solange es keine
+Registry gibt (ADR 0001).
 
 **Hardware-Treiber:** jellyfin-ffmpeg bringt libva, die Intel-VA-Treiber (iHD, i965), die oneVPL-Laufzeit
 für QSV und Mesa radeonsi für AMD-VAAPI unter `/usr/lib/jellyfin-ffmpeg/lib` selbst mit. Die Debian-Pakete

@@ -25,7 +25,7 @@ const textAttributes = [
 ];
 
 export default defineConfig([
-  globalIgnores(['dist', 'dev-dist', 'coverage']),
+  globalIgnores(['dist', 'dev-dist', 'coverage', 'storybook-static']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -56,7 +56,8 @@ export default defineConfig([
   },
   {
     files: ['src/**/*.tsx'],
-    ignores: ['src/**/*.test.tsx'],
+    // Tests and stories hold sample data and developer labels, not UI text of the app.
+    ignores: ['src/**/*.test.tsx', 'src/**/*.stories.tsx'],
     plugins: { i18next },
     rules: {
       'i18next/no-literal-string': [

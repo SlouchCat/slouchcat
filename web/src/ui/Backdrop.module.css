@@ -1,0 +1,66 @@
+.backdrop {
+  /* Only this title's accent (inline style) tints the backdrop, never an inherited one. */
+  --sc-item-accent: initial;
+
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: min(80vh, 56.25vw + var(--sc-space-24));
+  min-height: var(--sc-size-hero-min);
+  overflow: hidden;
+  background-color: var(--sc-color-bg-elevated);
+  isolation: isolate;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  animation: appear var(--sc-motion-duration-crossfade) var(--sc-motion-easing-enter);
+}
+
+.blurred {
+  filter: blur(var(--sc-space-10)) saturate(1.2);
+  opacity: 0.6;
+  transform: scale(1.2);
+}
+
+/* Bottom scrim into the page, left scrim behind the text. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(
+      to top,
+      var(--sc-color-bg-base) 0%,
+      var(--sc-color-scrim-solid) 18%,
+      var(--sc-color-scrim-medium) 55%,
+      var(--sc-color-scrim-soft) 100%
+    ),
+    linear-gradient(to right, var(--sc-color-scrim-strong) 0%, var(--sc-color-scrim-clear) 70%);
+}
+
+/*
+ * The title's accent (--sc-item-accent, from ItemRef.accent) over artwork and scrim in the colour
+ * blend mode: hue and saturation come from the accent, luminance stays that of the layers below.
+ * The scrim keeps its darkness and the text on it its contrast; black stays black. The mask fades
+ * the tint out towards the bottom edge, where the backdrop meets the untinted page. No accent, no
+ * tint.
+ */
+.tint {
+  position: absolute;
+  inset: 0;
+  background-color: var(--sc-item-accent, transparent);
+  mix-blend-mode: color;
+  opacity: 0.45;
+  mask-image: linear-gradient(to top, transparent 0%, var(--sc-color-bg-base) 45%);
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}

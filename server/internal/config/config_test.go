@@ -18,7 +18,7 @@ func TestDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
-		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers}
+		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto"}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -29,25 +29,30 @@ func TestDefaults(t *testing.T) {
 
 func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	env := envMap(map[string]string{
-		"SLOUCHCAT_LISTEN":     "127.0.0.1:9000",
-		"SLOUCHCAT_CONFIG_DIR": "/srv/config",
-		"SLOUCHCAT_LOG_LEVEL":  "debug",
-		"SLOUCHCAT_LOG_FORMAT": "text",
-		"SLOUCHCAT_DEV":        "true",
-		"SLOUCHCAT_FFPROBE":    "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		"SLOUCHCAT_SPIKE_DIR":  "/srv/spike",
-		"SLOUCHCAT_WORKERS":    "3",
+		"SLOUCHCAT_LISTEN":           "127.0.0.1:9000",
+		"SLOUCHCAT_CONFIG_DIR":       "/srv/config",
+		"SLOUCHCAT_LOG_LEVEL":        "debug",
+		"SLOUCHCAT_LOG_FORMAT":       "text",
+		"SLOUCHCAT_DEV":              "true",
+		"SLOUCHCAT_FFPROBE":          "/usr/lib/jellyfin-ffmpeg/ffprobe",
+		"SLOUCHCAT_SPIKE_DIR":        "/srv/spike",
+		"SLOUCHCAT_WORKERS":          "3",
+		"SLOUCHCAT_HW":               "nvenc",
+		"SLOUCHCAT_TRANSCODE_BUDGET": "6.5",
 	})
-	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6"}, env)
+	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software"}, env)
 	if err != nil {
 		t.Fatal(err)
 	}
 	absCache, _ := filepath.Abs("rel/cache")
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		SpikeDir: "/srv/spike", Workers: 6}
+		SpikeDir: "/srv/spike", Workers: 6, HW: "software", TranscodeBudget: 6.5}
 	if cfg != want {
 		t.Fatalf("got %+v, want %+v", cfg, want)
+	}
+	if cfg.TranscodeDir() != filepath.Join(absCache, "transcode") {
+		t.Errorf("transcode dir = %q", cfg.TranscodeDir())
 	}
 }
 
@@ -64,6 +69,9 @@ func TestValidation(t *testing.T) {
 		"bad dev env":     {env: map[string]string{"SLOUCHCAT_DEV": "maybe"}},
 		"bad workers":     {env: map[string]string{"SLOUCHCAT_WORKERS": "many"}},
 		"empty ffmpeg":    {args: []string{"--ffmpeg", ""}},
+		"bad hw":          {env: map[string]string{"SLOUCHCAT_HW": "cuda"}},
+		"bad budget":      {env: map[string]string{"SLOUCHCAT_TRANSCODE_BUDGET": "lots"}},
+		"negative budget": {args: []string{"--transcode-budget", "-1"}},
 		"unknown flag":    {args: []string{"--nope"}},
 		"extra arguments": {args: []string{"serve"}},
 	}

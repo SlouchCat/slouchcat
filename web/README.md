@@ -7,16 +7,19 @@ Playwright für die Tastatursuite.
 
 ## Befehle
 
-| Befehl           | Wirkung                                                                                               |
-| ---------------- | ----------------------------------------------------------------------------------------------------- |
-| `task web:dev`   | Vite-Entwicklungsserver; `/api` wird an den Go-Server auf `http://localhost:8096` weitergeleitet      |
-| `task web:gen`   | Design-Tokens bauen, API-Client aus `api/openapi.yaml` erzeugen                                       |
-| `task web:lint`  | ESLint, stylelint, `tsc --noEmit`, `prettier --check`                                                 |
-| `task web:test`  | Vitest im ganzen Workspace                                                                            |
-| `task web:build` | Build nach `web/dist`, danach Kopie nach `server/internal/webassets/dist` (eingebettet ins Go-Binary) |
-| `task web:ci`    | Installation mit `--frozen-lockfile`, gen, lint, test, build                                          |
-| `task web:e2e`   | Playwright-Tastatursuite (P-15) gegen einen frischen Server auf `:8097`; setzt `task build` voraus    |
-| `task web:icons` | PNG-Icons in `public/icons/` aus `public/icon.svg` neu erzeugen (ffmpeg, Farbe aus den Tokens)        |
+| Befehl                      | Wirkung                                                                                                   |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `task web:dev`              | Vite-Entwicklungsserver; `/api` wird an den Go-Server auf `http://localhost:8096` weitergeleitet          |
+| `task web:gen`              | Design-Tokens bauen, API-Client aus `api/openapi.yaml` erzeugen                                           |
+| `task web:lint`             | ESLint, stylelint, `tsc --noEmit`, `prettier --check`                                                     |
+| `task web:test`             | Vitest im ganzen Workspace                                                                                |
+| `task web:build`            | Build nach `web/dist`, danach Kopie nach `server/internal/webassets/dist` (eingebettet ins Go-Binary)     |
+| `task web:ci`               | Installation mit `--frozen-lockfile`, gen, lint, test, build                                              |
+| `task web:e2e`              | Playwright-Tastatursuite (P-15) gegen einen frischen Server auf `:8097`; setzt `task build` voraus        |
+| `task web:icons`            | PNG-Icons in `public/icons/` aus `public/icon.svg` neu erzeugen (ffmpeg, Farbe aus den Tokens)            |
+| `task web:storybook`        | Storybook der Komponenten aus `src/ui` auf `http://localhost:6006`                                        |
+| `task web:storybook:test`   | Screenshot jeder Story gegen `e2e-storybook/__screenshots__` (Chromium im Playwright-Docker-Image, 0.1 %) |
+| `task web:storybook:update` | Referenzbilder nach einer gewollten Änderung neu schreiben (PNG-Diff prüfen)                              |
 
 ## Aufbau
 

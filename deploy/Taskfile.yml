@@ -7,6 +7,12 @@ vars:
   VERSION:
     sh: git describe --always --dirty 2>/dev/null || echo dev
   COMPOSE: docker compose -f compose.yaml
+  # Every platform the image is published for (P-1: amd64 and arm64).
+  PLATFORMS: linux/amd64,linux/arm64
+  # Where build:multi puts the result. cacheonly only proves that both platforms build (as CI
+  # does); type=oci,dest=<file>.tar writes an OCI archive, type=registry pushes once a registry
+  # exists.
+  OUTPUT: type=cacheonly
 
 tasks:
   build:
@@ -20,6 +26,47 @@ tasks:
         --build-arg VERSION={{.VERSION}}
         -f Dockerfile
         ..
+
+  binfmt:
+    desc: >-
+      Register the QEMU arm64 handler on this host (one privileged container run; needed once per
+      boot for build:arm64, build:multi and starting arm64 images)
+    cmds:
+      - docker run --privileged --rm tonistiigi/binfmt --install arm64
+
+  build:arm64:
+    desc: >-
+      Build {{.IMAGE}}-arm64 for linux/arm64; the Go binary is cross-compiled, only the apt stage
+      runs under QEMU (task deploy:binfmt first)
+    cmds:
+      - task: build
+        vars:
+          PLATFORM: linux/arm64
+          IMAGE: "{{.IMAGE}}-arm64"
+
+  build:multi:
+    desc: Build {{.PLATFORMS}} in one run without loading it (OUTPUT, default type=cacheonly)
+    cmds:
+      - >-
+        docker buildx build
+        --platform {{.PLATFORMS}}
+        --output {{.OUTPUT}}
+        -t {{.IMAGE}}
+        --build-arg VERSION={{.VERSION}}
+        -f Dockerfile
+        ..
+
+  healthy-time:arm64:
+    desc: >-
+      Start {{.IMAGE}}-arm64 under QEMU and measure the time to healthy; the limits are raised
+      because the emulator's own memory counts (about 70 MB instead of 24 MB native) and the emulated
+      start takes 1.3 s here but about 7 s on a GitHub runner (P-1's 5 s applies to real hardware)
+    env:
+      IMAGE: "{{.IMAGE}}-arm64"
+      MAX_HEALTHY_SECONDS: "30"
+      MAX_RSS_MB: "120"
+    cmds:
+      - ./scripts/measure-healthy.sh
 
   up:
     desc: Start Slouchcat with compose.yaml (set GPU overrides via COMPOSE, see README)

@@ -10,41 +10,21 @@ import (
 	"database/sql"
 )
 
-const getImageByItemKindSize = `-- name: GetImageByItemKindSize :one
-SELECT id, item_id, kind, size, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at FROM images WHERE item_id = ?1 AND kind = ?2 AND size = ?3
+const deleteImage = `-- name: DeleteImage :exec
+DELETE FROM images WHERE id = ?1
 `
 
-type GetImageByItemKindSizeParams struct {
-	ItemID string
-	Kind   string
-	Size   string
-}
-
-func (q *Queries) GetImageByItemKindSize(ctx context.Context, arg GetImageByItemKindSizeParams) (Image, error) {
-	row := q.db.QueryRowContext(ctx, getImageByItemKindSize, arg.ItemID, arg.Kind, arg.Size)
-	var i Image
-	err := row.Scan(
-		&i.ID,
-		&i.ItemID,
-		&i.Kind,
-		&i.Size,
-		&i.Lang,
-		&i.SourceUrl,
-		&i.RelPath,
-		&i.ContentHash,
-		&i.MediaType,
-		&i.Width,
-		&i.Height,
-		&i.Bytes,
-		&i.CreatedAt,
-	)
-	return i, err
+// Removes a row the pipeline no longer produces (for example the M1a poster in w500).
+func (q *Queries) DeleteImage(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteImage, id)
+	return err
 }
 
 const listImagesByItem = `-- name: ListImagesByItem :many
-SELECT id, item_id, kind, size, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at FROM images WHERE item_id = ?1 ORDER BY kind, size
+SELECT id, item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, accent, created_at FROM images WHERE item_id = ?1 ORDER BY kind, size, format
 `
 
+// Every stored image row of a title, originals included (image.fetch compares them with TMDB).
 func (q *Queries) ListImagesByItem(ctx context.Context, itemID string) ([]Image, error) {
 	rows, err := q.db.QueryContext(ctx, listImagesByItem, itemID)
 	if err != nil {
@@ -59,6 +39,7 @@ func (q *Queries) ListImagesByItem(ctx context.Context, itemID string) ([]Image,
 			&i.ItemID,
 			&i.Kind,
 			&i.Size,
+			&i.Format,
 			&i.Lang,
 			&i.SourceUrl,
 			&i.RelPath,
@@ -67,6 +48,7 @@ func (q *Queries) ListImagesByItem(ctx context.Context, itemID string) ([]Image,
 			&i.Width,
 			&i.Height,
 			&i.Bytes,
+			&i.Accent,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -116,14 +98,14 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 }
 
 const listMatchedItemImages = `-- name: ListMatchedItemImages :many
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.rel_path
+SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = ?1
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
   AND i.tmdb_id IS NOT NULL
-ORDER BY i.id, im.kind, im.size
+ORDER BY i.id, im.kind, im.size, im.format
 `
 
 type ListMatchedItemImagesRow struct {
@@ -131,7 +113,10 @@ type ListMatchedItemImagesRow struct {
 	LockedFields string
 	Kind         string
 	Size         string
+	Format       string
+	SourceUrl    string
 	RelPath      string
+	Accent       sql.NullString
 }
 
 // Stored images of the matched titles of a library, for the image check after a scan
@@ -151,7 +136,10 @@ func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([
 			&i.LockedFields,
 			&i.Kind,
 			&i.Size,
+			&i.Format,
+			&i.SourceUrl,
 			&i.RelPath,
+			&i.Accent,
 		); err != nil {
 			return nil, err
 		}
@@ -248,11 +236,11 @@ func (q *Queries) UpdateItemFromTMDB(ctx context.Context, arg UpdateItemFromTMDB
 }
 
 const upsertImage = `-- name: UpsertImage :exec
-INSERT INTO images (item_id, kind, size, lang, source_url, rel_path, content_hash, media_type, width, height,
-                    bytes, created_at)
+INSERT INTO images (item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width,
+                    height, bytes, accent, created_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-        ?11, ?12)
-ON CONFLICT (item_id, kind, size) DO UPDATE
+        ?11, ?12, ?13, ?14)
+ON CONFLICT (item_id, kind, size, format) DO UPDATE
 SET lang         = excluded.lang,
     source_url   = excluded.source_url,
     rel_path     = excluded.rel_path,
@@ -261,6 +249,7 @@ SET lang         = excluded.lang,
     width        = excluded.width,
     height       = excluded.height,
     bytes        = excluded.bytes,
+    accent       = excluded.accent,
     created_at   = excluded.created_at
 `
 
@@ -268,6 +257,7 @@ type UpsertImageParams struct {
 	ItemID      string
 	Kind        string
 	Size        string
+	Format      string
 	Lang        sql.NullString
 	SourceUrl   string
 	RelPath     string
@@ -276,6 +266,7 @@ type UpsertImageParams struct {
 	Width       int64
 	Height      int64
 	Bytes       int64
+	Accent      sql.NullString
 	Now         int64
 }
 
@@ -284,6 +275,7 @@ func (q *Queries) UpsertImage(ctx context.Context, arg UpsertImageParams) error 
 		arg.ItemID,
 		arg.Kind,
 		arg.Size,
+		arg.Format,
 		arg.Lang,
 		arg.SourceUrl,
 		arg.RelPath,
@@ -292,6 +284,7 @@ func (q *Queries) UpsertImage(ctx context.Context, arg UpsertImageParams) error 
 		arg.Width,
 		arg.Height,
 		arg.Bytes,
+		arg.Accent,
 		arg.Now,
 	)
 	return err

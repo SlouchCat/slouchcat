@@ -21,7 +21,7 @@
 }
 
 .active {
-  background-color: var(--accent);
+  background-color: var(--sc-accent);
   animation: pulse 1.4s var(--sc-motion-easing-standard) infinite;
 }
 

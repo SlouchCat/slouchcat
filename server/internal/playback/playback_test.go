@@ -100,7 +100,7 @@ func TestReportCompletesAndReopens(t *testing.T) {
 	if !p.Completed || p.PositionMs != vistest.DurationMs*95/100 || !p.UpdatedAt.Equal(now) {
 		t.Errorf("95 %% event = %+v, want completed", p)
 	}
-	info, err := s.Start(ctx, f.P18, m.ID, "", "")
+	info, err := s.Start(ctx, browserSession(t, f, f.P18), m.ID, model.PlaybackRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestReportCompletesAndReopens(t *testing.T) {
 	if p.Completed {
 		t.Errorf("50 %% after completion = %+v, want reopened", p)
 	}
-	info, err = s.Start(ctx, f.P18, m.ID, "", "")
+	info, err = s.Start(ctx, browserSession(t, f, f.P18), m.ID, model.PlaybackRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,15 +147,18 @@ func TestStartDescribesDirectPlay(t *testing.T) {
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger())
 	m := f.Rated(6)
-	info, err := s.Start(context.Background(), f.P6, m.ID, "", "device-1")
+	info, err := s.Start(context.Background(), browserSession(t, f, f.P6), m.ID, model.PlaybackRequest{DeviceID: "device-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if info.Mode != "direct" || info.MediaFile.ID != m.FileID || info.Item.ID != m.ID {
 		t.Errorf("info = %+v", info)
 	}
-	if want := "/api/v1/items/" + m.ID + "/stream?file=" + m.FileID; info.StreamURL != want {
+	if want := "/api/v1/items/" + m.ID + "/stream?st=" + SignToken(s.key, info.PlaybackSessionID, m.ID); info.StreamURL != want {
 		t.Errorf("stream URL = %q, want %q", info.StreamURL, want)
+	}
+	if info.Transcoding != nil || len(info.PlaybackSessionID) != 26 {
+		t.Errorf("direct play: transcoding %+v, playback session %q", info.Transcoding, info.PlaybackSessionID)
 	}
 	if info.MediaFile.MimeType != `video/mp4; codecs="avc1.64001F, mp4a.40.2"` {
 		t.Errorf("mime = %q", info.MediaFile.MimeType)
@@ -163,7 +166,7 @@ func TestStartDescribesDirectPlay(t *testing.T) {
 	if info.ResumePositionMs != vistest.DurationMs/6 {
 		t.Errorf("resume = %d, want the stored position", info.ResumePositionMs)
 	}
-	if _, err := s.Start(context.Background(), f.P6, f.Rated(16).ID, "", ""); !errors.Is(err, model.ErrNotFound) {
+	if _, err := s.Start(context.Background(), browserSession(t, f, f.P6), f.Rated(16).ID, model.PlaybackRequest{}); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("invisible title: err = %v", err)
 	}
 }
@@ -231,7 +234,7 @@ func TestReportIgnoresLateEventOfSamePlayback(t *testing.T) {
 	if n := countEvents(t, f, f.P18.ID, m.ID); n != 3 {
 		t.Errorf("stored %d events, want 3 (late events are kept)", n)
 	}
-	info, err := s.Start(ctx, f.P18, m.ID, "", "")
+	info, err := s.Start(ctx, browserSession(t, f, f.P18), m.ID, model.PlaybackRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,18 +9,19 @@ import { useCallback, useEffect, type ReactNode, type Ref } from 'react';
 //   button natively, and forms keep their arrow keys. SpatialPage prevents page scrolling on arrow
 //   keys only while a browsing page is mounted.
 // - Outside a SpatialPage norigin is paused; Tab order is always the DOM order.
-// - norigin (with lodash-es, about 17 kB gzip) is a chunk of its own, requested once the start
-//   bundle runs, so it does not share the link with the hero image (P-10). The routes with the app
-//   header wait for it (router.tsx); everything below may then use it synchronously.
+// - norigin (with lodash-es, about 17 kB gzip) and the focus scroll (reveal.ts) are a chunk of
+//   their own (spatialRuntime.ts), requested once the start bundle runs, so they do not share the
+//   link with the hero image (P-10). The routes with the app header wait for it (router.tsx);
+//   everything below may then use it synchronously.
 
-type Norigin = typeof import('@noriginmedia/norigin-spatial-navigation');
+type Norigin = typeof import('./spatialRuntime');
 
 let norigin: Norigin | undefined;
 let loading: Promise<void> | undefined;
 
 /** Loads and initialises norigin (paused); repeated calls share one load, a failed one is retried. */
 export function loadSpatialNavigation(): Promise<void> {
-  loading ??= import('@noriginmedia/norigin-spatial-navigation').then(
+  loading ??= import('./spatialRuntime').then(
     (module) => {
       module.init({
         shouldFocusDOMNode: true,
@@ -42,20 +43,6 @@ export function loadSpatialNavigation(): Promise<void> {
 function nav(): Norigin {
   if (!norigin) throw new Error('Spatial navigation used before loadSpatialNavigation() resolved');
   return norigin;
-}
-
-const reducedMotion = () =>
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-/** Scrolls a focused element into view the way the rows expect it (centred horizontally). */
-export function revealElement(node: Element): void {
-  if (typeof node.scrollIntoView !== 'function') return;
-  node.scrollIntoView({
-    block: 'nearest',
-    inline: 'center',
-    behavior: reducedMotion() ? 'auto' : 'smooth',
-  });
 }
 
 const ARROWS: Record<string, Direction> = {
@@ -119,7 +106,7 @@ export function useSpatialItem<E extends HTMLElement>({
   focusKey,
   onArrowPress,
 }: SpatialItemOptions = {}) {
-  const { getCurrentFocusKey, useFocusable } = nav();
+  const { getCurrentFocusKey, revealElement, useFocusable } = nav();
   const {
     ref,
     focusSelf,

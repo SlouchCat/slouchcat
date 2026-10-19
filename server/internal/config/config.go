@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -32,7 +33,17 @@ type Config struct {
 	FFprobe   string         // ffprobe binary (name on PATH or absolute path).
 	SpikeDir  string         // Directory with the offline spike files; empty disables the endpoint (M1a only).
 	Workers   int            // Number of job workers.
+	// HW selects the transcode backend: auto (detect), nvenc, qsv, vaapi or software (M1b).
+	HW string
+	// TranscodeBudget overrides the admission budget of the transcode backend; 0 = backend default.
+	TranscodeBudget float64
 }
+
+// TranscodeDir is the work directory of HLS output: <cache>/transcode, wiped at every start.
+func (c Config) TranscodeDir() string { return filepath.Join(c.CacheDir, "transcode") }
+
+// hwBackends are the values of SLOUCHCAT_HW / --hw.
+var hwBackends = map[string]bool{"auto": true, "nvenc": true, "qsv": true, "vaapi": true, "software": true}
 
 // Load parses args (without the program name and subcommand) and the environment read through
 // getenv, then validates the result.
@@ -60,6 +71,15 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	ffprobe := fs.String("ffprobe", env("FFPROBE", "ffprobe"), "ffprobe binary (env SLOUCHCAT_FFPROBE)")
 	spikeDir := fs.String("spike-dir", env("SPIKE_DIR", ""), "directory with the offline spike files, empty = disabled (env SLOUCHCAT_SPIKE_DIR)")
 	workers := fs.Int("workers", 0, "number of job workers, 0 = automatic (env SLOUCHCAT_WORKERS)")
+	hw := fs.String("hw", env("HW", "auto"), "transcode backend: auto, nvenc, qsv, vaapi or software (env SLOUCHCAT_HW)")
+	budget := fs.Float64("transcode-budget", 0, "transcode admission budget, 0 = backend default (env SLOUCHCAT_TRANSCODE_BUDGET)")
+	if v := env("TRANSCODE_BUDGET", ""); v != "" {
+		b, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("%sTRANSCODE_BUDGET: invalid number %q", EnvPrefix, v)
+		}
+		*budget = b
+	}
 	if v := env("WORKERS", ""); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 0 {
@@ -86,6 +106,13 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 	if cfg.Workers < 0 {
 		return Config{}, errors.New("workers must not be negative")
+	}
+	cfg.HW, cfg.TranscodeBudget = *hw, *budget
+	if !hwBackends[cfg.HW] {
+		return Config{}, fmt.Errorf("hw %q: want auto, nvenc, qsv, vaapi or software", cfg.HW)
+	}
+	if cfg.TranscodeBudget < 0 || math.IsNaN(cfg.TranscodeBudget) || math.IsInf(cfg.TranscodeBudget, 0) {
+		return Config{}, errors.New("transcode budget must be a finite number >= 0")
 	}
 	if cfg.Workers == 0 {
 		cfg.Workers = max(2, min(4, runtime.NumCPU()))
@@ -129,6 +156,8 @@ func (c Config) LogValue() slog.Value {
 		slog.String("ffprobe", c.FFprobe),
 		slog.String("spike_dir", c.SpikeDir),
 		slog.Int("workers", c.Workers),
+		slog.String("hw", c.HW),
+		slog.Float64("transcode_budget", c.TranscodeBudget),
 	)
 }
 

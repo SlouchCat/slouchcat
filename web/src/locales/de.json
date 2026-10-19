@@ -42,7 +42,8 @@
       "csrf_header_missing": "Die Anfrage wurde aus Sicherheitsgründen abgelehnt. Lade die Seite neu.",
       "validation_failed": "Bitte prüfe die markierten Felder.",
       "network": "Der Server ist nicht erreichbar.",
-      "unknown": "Etwas ist schiefgelaufen. Versuche es erneut."
+      "unknown": "Etwas ist schiefgelaufen. Versuche es erneut.",
+      "transcode_busy": "Der Server ist ausgelastet. Bitte versuche es später erneut."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -164,6 +165,10 @@
   "player": {
     "region": "Videoplayer",
     "loading": "Wird geladen …",
+    "busy": {
+      "title": "Server ausgelastet",
+      "body": "Neuer Versuch in Kürze …"
+    },
     "play": "Abspielen",
     "pause": "Pause",
     "fullscreen": "Vollbild",
@@ -173,8 +178,8 @@
     "time": "{{elapsed}} von {{total}}",
     "volume": "Lautstärke {{percent}} %",
     "unsupported": {
-      "title": "Format nicht direkt abspielbar",
-      "body": "Dieses Format kann der Browser nicht direkt abspielen; Umwandlung folgt in M1b.",
+      "title": "Format nicht abspielbar",
+      "body": "Dieser Browser kann dieses Format nicht abspielen.",
       "details": "Datei: {{container}}, Video {{video}}, Audio {{audio}}"
     },
     "error": {

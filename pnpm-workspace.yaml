@@ -1,3 +1,8 @@
 packages:
   - web
   - packages/*
+
+# Install scripts stay off unless listed here (pnpm strictDepBuilds). esbuild (pulled in by
+# Storybook) works without its postinstall: the platform binary comes as an optional dependency.
+allowBuilds:
+  esbuild: false

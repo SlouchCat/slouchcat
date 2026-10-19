@@ -4,6 +4,21 @@ version: "3"
 
 vars:
   WEBASSETS: ../server/internal/webassets/dist
+  DOCKER: docker
+  # The Storybook screenshots run in the official Playwright image of exactly the installed
+  # @playwright/test version, so baselines match on every machine and in CI (storybook.config.ts).
+  PLAYWRIGHT_VERSION:
+    sh: node -p "require('./package.json').devDependencies['@playwright/test']"
+  PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v{{.PLAYWRIGHT_VERSION}}-noble
+  REPO:
+    sh: git rev-parse --show-toplevel
+  # The repository is mounted at the same path inside the container: pnpm's bin shims and
+  # symlinks keep working.
+  PLAYWRIGHT_DOCKER: >-
+    {{.DOCKER}} run --rm --init --ipc=host
+    --user "$(id -u):$(id -g)" -e HOME=/tmp -e CI
+    -v "{{.REPO}}:{{.REPO}}" -w "{{.REPO}}/web"
+    {{.PLAYWRIGHT_IMAGE}}
 
 tasks:
   tokens:
@@ -45,6 +60,32 @@ tasks:
     deps: [tokens]
     cmds:
       - pnpm exec playwright test {{.CLI_ARGS}}
+
+  storybook:
+    desc: Storybook dev server for web/src/ui on http://localhost:6006
+    deps: [tokens]
+    cmds:
+      - pnpm run storybook
+
+  storybook:build:
+    desc: Build the static Storybook of web/src/ui into web/storybook-static
+    deps: [tokens]
+    cmds:
+      - pnpm run storybook:build
+
+  storybook:test:
+    desc: >-
+      Screenshot every story and compare with the baselines in e2e-storybook/__screenshots__
+      (maxDiffPixelRatio 0.001, A-2); runs Chromium in the Playwright Docker image
+    deps: [storybook:build]
+    cmds:
+      - "{{.PLAYWRIGHT_DOCKER}} node_modules/.bin/playwright test -c storybook.config.ts {{.CLI_ARGS}}"
+
+  storybook:update:
+    desc: Rewrite the screenshot baselines after an intended visual change (review the PNG diff)
+    deps: [storybook:build]
+    cmds:
+      - "{{.PLAYWRIGHT_DOCKER}} node_modules/.bin/playwright test -c storybook.config.ts --update-snapshots {{.CLI_ARGS}}"
 
   icons:
     desc: Regenerate the PWA PNG icons in public/icons from public/icon.svg (ffmpeg)

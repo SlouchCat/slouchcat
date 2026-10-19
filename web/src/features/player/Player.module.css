@@ -117,7 +117,7 @@
   height: var(--sc-space-1);
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-state-track);
-  transition: height var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+  transition: height var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .seek:hover .seekTrack,
@@ -140,7 +140,7 @@
 
 .seekPlayed {
   left: 0;
-  background-color: var(--accent);
+  background-color: var(--sc-accent);
 }
 
 .seekThumb {
@@ -153,8 +153,8 @@
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.6);
   transition:
-    opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
-    transform var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+    opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .seek:hover .seekThumb,

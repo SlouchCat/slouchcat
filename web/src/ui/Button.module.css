@@ -15,10 +15,12 @@
   text-decoration: none;
   cursor: pointer;
   user-select: none;
+
+  /* Focus moves fill and text colour (focus-visible styles below): focus duration, <= 200 ms. */
   transition:
-    background-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
-    color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
-    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -46,8 +48,8 @@
 }
 
 .primary:focus-visible {
-  background-color: var(--accent);
-  color: var(--accent-on);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
 }
 
 .secondary {
@@ -71,8 +73,8 @@
 
 @media (hover: hover) {
   .primary:hover:not(:disabled) {
-    background-color: var(--accent);
-    color: var(--accent-on);
+    background-color: var(--sc-accent);
+    color: var(--sc-on-accent);
   }
 
   .secondary:hover:not(:disabled) {

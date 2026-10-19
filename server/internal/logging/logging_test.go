@@ -14,7 +14,7 @@ import (
 var fakeSecrets = []string{
 	"hunter2-FAKE", "tok_FAKE_123", "pin-FAKE-0815", "apikey-FAKE-xyz", "Bearer FAKE.jwt.value",
 	"xapikey-FAKE", "s3cr3t-FAKE", "query-FAKE-key", "st-FAKE-token", "err-FAKE-key", "with-FAKE",
-	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "4711",
+	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "4711", "pl-FAKE-media", "pl-FAKE-init", "pl-FAKE-seg",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -49,6 +49,8 @@ func logAll(t *testing.T, format Format) string {
 		"parsed", &url.URL{Scheme: "https", Host: "example.org", RawQuery: "api_key=url-FAKE-key"},
 		"err", fmt.Errorf("fetch: %w", errors.New(`Get "https://x.test/?api_key=err-FAKE-key": timeout`)),
 		"first", "first=kept",
+		// An HLS playlist quoted in an error: every line carries the stream token (plan 5.4).
+		"playlist", fmt.Errorf("parse playlist: %w", errors.New("#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4?st=pl-FAKE-init\"\nmedia.m3u8?st=pl-FAKE-media\nseg/0?st=pl-FAKE-seg\n")),
 	)
 	log.Warn("message with https://x.test/?api_key=msg-FAKE-key inside")
 	return buf.String()

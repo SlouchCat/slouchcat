@@ -42,7 +42,8 @@
       "csrf_header_missing": "The request was rejected for security reasons. Reload the page.",
       "validation_failed": "Please check the highlighted fields.",
       "network": "The server cannot be reached.",
-      "unknown": "Something went wrong. Please try again."
+      "unknown": "Something went wrong. Please try again.",
+      "transcode_busy": "The server is busy. Please try again later."
     },
     "field": {
       "required": "Required.",
@@ -164,6 +165,10 @@
   "player": {
     "region": "Video player",
     "loading": "Loading …",
+    "busy": {
+      "title": "Server busy",
+      "body": "Trying again shortly …"
+    },
     "play": "Play",
     "pause": "Pause",
     "fullscreen": "Full screen",
@@ -173,8 +178,8 @@
     "time": "{{elapsed}} of {{total}}",
     "volume": "Volume {{percent}} %",
     "unsupported": {
-      "title": "Format cannot be played directly",
-      "body": "This browser cannot play this format directly; conversion follows in M1b.",
+      "title": "Format cannot be played",
+      "body": "This browser cannot play this format.",
       "details": "File: {{container}}, video {{video}}, audio {{audio}}"
     },
     "error": {

@@ -1,7 +1,9 @@
 // Public surface of the shared UI primitives, used by viewer and admin pages alike (C-2).
 // Features import from '@/ui' only (ESLint rule); react-aria based parts (forms, dialogs, the
 // player's buttons) come from '@/ui/aria', so the browsing pages never load react-aria (P-10).
+export { itemAccentStyle } from './accent';
 export { AppHeader, type NavItem } from './AppHeader';
+export { Backdrop } from './Backdrop';
 export { LinkRouterProvider } from './AppLink';
 export { Button, ButtonLink, SpatialButton, SpatialButtonLink, type ButtonVariant } from './Button';
 export { Chip } from './Chip';

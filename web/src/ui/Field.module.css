@@ -21,8 +21,8 @@
   color: var(--sc-color-text-primary);
   font: inherit;
   transition:
-    border-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
-    background-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .input::placeholder {
@@ -72,9 +72,11 @@
   color: var(--sc-color-text-secondary);
   font-weight: var(--sc-font-weight-medium);
   cursor: pointer;
+
+  /* Arrow keys move focus and selection together inside the group. */
   transition:
-    background-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
-    color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .segment[data-hovered] {

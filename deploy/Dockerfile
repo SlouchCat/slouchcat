@@ -41,8 +41,10 @@ RUN --mount=type=cache,id=slouchcat-pnpm,target=/pnpm/store \
 # ---------------------------------------------------------------------------
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS server
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+# BuildKit fills TARGETOS/TARGETARCH from --platform; a default value here would win over it
+# (an earlier `ARG TARGETARCH=amd64` built amd64 binaries for linux/arm64).
+ARG TARGETOS
+ARG TARGETARCH
 ARG VERSION=dev
 ENV GOTOOLCHAIN=local \
     GOFLAGS=-mod=readonly
@@ -54,7 +56,8 @@ RUN rm -rf internal/webassets/dist && mkdir -p internal/webassets/dist
 COPY --from=web /src/web/dist/ ./internal/webassets/dist/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    test -n "${TARGETARCH}" \
+ && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
       -o /out/slouchcat ./cmd/slouchcat
 
@@ -70,8 +73,8 @@ ARG FFMPEG_SUITE=trixie
 ARG FFMPEG_PACKAGE=jellyfin-ffmpeg7
 # Upstream version without the "-<suite>" suffix; empty installs the newest one.
 ARG FFMPEG_VERSION=7.1.4-3
-ARG TARGETARCH=amd64
-ARG VERSION=dev
+# Set by BuildKit from --platform (amd64, arm64); no default, see the server stage.
+ARG TARGETARCH
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -121,6 +124,9 @@ ENV SLOUCHCAT_CONFIG_DIR=/config \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
 
+# Declared this late on purpose: a build argument invalidates the cache of every RUN after it, and
+# VERSION changes with each commit while the apt layer above does not.
+ARG VERSION=dev
 LABEL org.opencontainers.image.title="Slouchcat" \
       org.opencontainers.image.description="Self-hosted media server" \
       org.opencontainers.image.source="https://github.com/slouchcat/slouchcat" \

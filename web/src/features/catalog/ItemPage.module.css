@@ -13,46 +13,6 @@
   max-width: var(--sc-size-form-max);
 }
 
-.backdrop {
-  position: absolute;
-  z-index: -1;
-  top: 0;
-  right: 0;
-  left: 0;
-  height: min(80vh, 56.25vw + var(--sc-space-24));
-  min-height: var(--sc-size-hero-min);
-  overflow: hidden;
-  background-color: var(--sc-color-bg-elevated);
-}
-
-.backdropImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 20%;
-  animation: appear var(--sc-motion-duration-crossfade) var(--sc-motion-easing-enter);
-}
-
-.blurred {
-  filter: blur(var(--sc-space-10)) saturate(1.2);
-  opacity: 0.6;
-  transform: scale(1.2);
-}
-
-.scrim {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(
-      to top,
-      var(--sc-color-bg-base) 0%,
-      var(--sc-color-scrim-solid) 18%,
-      var(--sc-color-scrim-medium) 55%,
-      var(--sc-color-scrim-soft) 100%
-    ),
-    linear-gradient(to right, var(--sc-color-scrim-strong) 0%, var(--sc-color-scrim-clear) 70%);
-}
-
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -67,7 +27,23 @@
 }
 
 .poster {
+  /* Only this title's accent (inline style) colours the glow, never an inherited one. */
+  --sc-item-accent: initial;
+
   display: none;
+  isolation: isolate;
+}
+
+/* Ambient glow in the title's accent behind the poster (the card's focus glow, at rest). */
+.poster::before {
+  position: absolute;
+  z-index: -1;
+  inset: var(--sc-space-6) var(--sc-space-4) calc(-1 * var(--sc-space-2));
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-item-accent, transparent);
+  content: '';
+  filter: blur(var(--sc-space-8));
+  opacity: 0.4;
 }
 
 .posterImage,
@@ -217,11 +193,5 @@
     display: block;
     position: sticky;
     top: calc(var(--sc-size-header-height) + var(--sc-space-6));
-  }
-}
-
-@keyframes appear {
-  from {
-    opacity: 0;
   }
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -79,6 +80,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		RuntimeMinutes: ref.RuntimeMinutes,
 		Rating:         ref.Rating,
 		Images:         ref.Images,
+		Accent:         ref.Accent,
 		Progress:       ref.Progress,
 		OriginalTitle:  optString(d.OriginalTitle),
 		Tagline:        optString(d.Tagline),
@@ -104,22 +106,30 @@ func (s *server) StartPlayback(ctx context.Context, req gen.StartPlaybackRequest
 	if err != nil {
 		return nil, err
 	}
-	var fileID, deviceID string
-	if req.Body != nil {
-		fileID = deref(req.Body.MediaFileId)
-		deviceID = deref(req.Body.DeviceId)
+	var in model.PlaybackRequest
+	if b := req.Body; b != nil {
+		in.MediaFileID = deref(b.MediaFileId)
+		in.DeviceID = deref(b.DeviceId)
+		if c := b.Capabilities; c != nil {
+			in.Capabilities = &model.PlaybackCapabilities{Video: c.Video, Audio: c.Audio, HLS: string(c.Hls)}
+		}
 	}
-	info, err := s.opts.Playback.Start(ctx, session.Profile, req.Id, fileID, deviceID)
+	info, err := s.opts.Playback.Start(ctx, session, req.Id, in)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.StartPlayback200JSONResponse(gen.PlaybackInfo{
-		Mode:             gen.PlaybackInfoMode(info.Mode),
-		Item:             toItemRef(info.Item),
-		MediaFile:        toMediaFileInfo(info.MediaFile),
-		StreamUrl:        info.StreamURL,
-		ResumePositionMs: info.ResumePositionMs,
-	}), nil
+	out := gen.PlaybackInfo{
+		Mode:              gen.PlaybackInfoMode(info.Mode),
+		Item:              toItemRef(info.Item),
+		MediaFile:         toMediaFileInfo(info.MediaFile),
+		StreamUrl:         info.StreamURL,
+		ResumePositionMs:  info.ResumePositionMs,
+		PlaybackSessionId: info.PlaybackSessionID,
+	}
+	if tr := info.Transcoding; tr != nil {
+		out.Transcoding = &gen.Transcoding{Mode: gen.TranscodingMode(tr.Mode), Backend: optString(tr.Backend), Reason: tr.Reason}
+	}
+	return gen.StartPlayback200JSONResponse(out), nil
 }
 
 func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressRequestObject) (gen.ReportProgressResponseObject, error) {
@@ -146,15 +156,19 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 	return gen.ReportProgress200JSONResponse(toProgress(p)), nil
 }
 
-// Image kinds and sizes of the contract (M1a stores TMDB images unchanged: posters in w500,
-// backdrops in w780 and w1280).
+// Image kinds and sizes of the contract (M1b image pipeline, plan 3.1): posters in w200, w400 and
+// w800, backdrops in w780, w1280 and w1920, each stored as WebP and JPEG.
 var (
 	imageKinds = map[string]bool{"poster": true, "backdrop": true}
-	imageSizes = map[string]bool{"w500": true, "w780": true, "w1280": true}
+	imageSizes = map[string]map[string]bool{
+		"poster":   {"w200": true, "w400": true, "w800": true},
+		"backdrop": {"w780": true, "w1280": true, "w1920": true},
+	}
 )
 
 // getItemImage serves a poster or backdrop with scope (binary endpoint, CLAUDE.md rule 6). The
-// query parameter v is the content hash and only busts caches.
+// query parameter v is the content hash and only busts caches. The format follows the Accept
+// header (WebP when listed, else JPEG), so the answer varies by Accept.
 func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	session, ok := sessionFrom(r.Context())
 	if !ok || s.opts.Catalog == nil {
@@ -162,11 +176,12 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, kind, size := chi.URLParam(r, "id"), chi.URLParam(r, "kind"), chi.URLParam(r, "size")
-	if !imageKinds[kind] || !imageSizes[size] {
+	if !imageKinds[kind] || !imageSizes[kind][size] {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
 		return
 	}
-	src, err := s.opts.Catalog.Image(r.Context(), session.Profile, id, kind, size)
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Catalog.Image(r.Context(), session.Profile, id, kind, size, acceptsWebP(r.Header.Values("Accept")))
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return
@@ -177,24 +192,54 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
-// getItemStream serves the media file with Range support (binary endpoint, CLAUDE.md rule 6):
-// http.ServeContent answers 206 for a satisfiable range and 416 otherwise.
+// getItemStream serves the media file of a direct-play session with Range support (binary
+// endpoint, CLAUDE.md rule 6), authorised by the stream token (streamGrant): http.ServeContent
+// answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404.
 func (s *server) getItemStream(w http.ResponseWriter, r *http.Request) {
-	session, ok := sessionFrom(r.Context())
+	g, ok := grantFrom(r.Context())
 	if !ok || s.opts.Playback == nil {
 		s.p.internal(w, r, errNoItemsServices)
 		return
 	}
-	src, err := s.opts.Playback.Open(r.Context(), session.Profile, chi.URLParam(r, "id"), r.URL.Query().Get("file"))
+	if chi.URLParam(r, "id") != g.ItemID {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	src, err := s.opts.Playback.OpenGrant(r.Context(), g)
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return
 	}
 	defer src.File.Close()
+	if rv, ok := src.File.(interface{ Done() <-chan struct{} }); ok {
+		defer abortOnRevoke(w, rv.Done())()
+	}
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Cache-Control", "private, no-store")
 	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
+// abortOnRevoke ends a running response once done is closed (plan 5.4: a revoked playback stops
+// within a second). A browser keeps "bytes=0-" open and stops reading while its buffer is full, so
+// the handler may sit in a blocked write that no read error reaches: an expired write deadline
+// fails that write, ServeContent returns and the server closes the connection. The returned
+// function must run before the handler returns (the ResponseController is not used after that).
+func abortOnRevoke(w http.ResponseWriter, done <-chan struct{}) func() {
+	rc := http.NewResponseController(w)
+	finished := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		select {
+		case <-done:
+			_ = rc.SetWriteDeadline(time.Now()) // ErrNotSupported for writers without deadlines
+		case <-finished:
+		}
+	})
+	return func() {
+		close(finished)
+		wg.Wait()
+	}
 }
 
 // imageURL is the scoped image URL of an item with the content hash for cache busting.
@@ -218,9 +263,15 @@ func toItemRef(it model.ItemSummary) gen.ItemRef {
 		RuntimeMinutes: it.RuntimeMinutes,
 		Images: gen.ItemImages{
 			Poster:        toImageRef(it.ID, it.Poster),
+			PosterSmall:   toImageRef(it.ID, it.PosterSmall),
+			PosterLarge:   toImageRef(it.ID, it.PosterLarge),
 			Backdrop:      toImageRef(it.ID, it.Backdrop),
 			BackdropSmall: toImageRef(it.ID, it.BackdropSmall),
+			BackdropLarge: toImageRef(it.ID, it.BackdropLarge),
 		},
+	}
+	if it.Accent != "" {
+		ref.Accent = &it.Accent
 	}
 	if it.Rating != nil {
 		r := gen.Rating(*it.Rating)

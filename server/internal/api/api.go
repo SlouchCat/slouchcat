@@ -1,7 +1,8 @@
 // Package api wires the HTTP surface of Slouchcat: the generated strict server for the JSON API
 // under /api/v1 (contract api/openapi.yaml), the binary handlers for images, media streams and the
-// spike download, RFC 9457 problem responses, request IDs, request logging, panic recovery, the
-// CSRF header rule and the session middleware that enforces x-visibility per route. Everything
+// spike download, the HLS endpoints of playback sessions (stream token, stream_token.go), RFC 9457
+// problem responses, request IDs, request logging, panic recovery, Referrer-Policy, the CSRF
+// header rule and the session middleware that enforces x-visibility per route. Everything
 // outside /api/v1 goes to the web app handler; the start page's app shell carries a preload
 // header for the hero image (preload.go). The web app and the JSON routes are gzipped
 // (compressText); the binary routes are not.
@@ -28,12 +29,20 @@ const (
 	binaryImagePath  = "/items/{id}/images/{kind}/{size}"
 	binaryStreamPath = "/items/{id}/stream"
 	binarySpikePath  = "/spike/{variant}"
+	hlsMasterPath    = "/playback/sessions/{id}/master.m3u8"
+	hlsMediaPath     = "/playback/sessions/{id}/media.m3u8"
+	hlsInitPath      = "/playback/sessions/{id}/init.mp4"
+	hlsSegmentPath   = "/playback/sessions/{id}/seg/{n}"
 )
 
 var binaryRoutes = map[string]string{
 	"GET " + BasePath + binaryImagePath:  "scoped",
 	"GET " + BasePath + binaryStreamPath: "scoped",
 	"GET " + BasePath + binarySpikePath:  "public",
+	"GET " + BasePath + hlsMasterPath:    "scoped",
+	"GET " + BasePath + hlsMediaPath:     "scoped",
+	"GET " + BasePath + hlsInitPath:      "scoped",
+	"GET " + BasePath + hlsSegmentPath:   "scoped",
 }
 
 // Options configure NewHandler.
@@ -71,7 +80,7 @@ func NewHandler(o Options) http.Handler {
 	s := &server{opts: o, p: p}
 
 	r := chi.NewRouter()
-	r.Use(requestID, requestLog(o.Logger), p.recoverer, MaxBody(MaxBodyBytes))
+	r.Use(securityHeaders, requestID, requestLog(o.Logger), p.recoverer, MaxBody(MaxBodyBytes))
 	r.Route(BasePath, func(r chi.Router) {
 		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 			p.write(w, r, http.StatusNotFound, "not_found", "No API route matches this path.")
@@ -88,10 +97,16 @@ func NewHandler(o Options) http.Handler {
 			Middlewares:      []gen.MiddlewareFunc{authorize, compressText},
 			ErrorHandlerFunc: p.badRequest,
 		})
-		// Binary endpoints (CLAUDE.md rule 6) share the session middleware.
+		// Binary endpoints (CLAUDE.md rule 6) share the session middleware; the media stream and the
+		// HLS endpoints are scoped through the stream token instead of the cookie (plan 5.4).
+		streamAuth := p.streamAuth(o.Playback)
 		r.With(authorize).Get(binaryImagePath, s.getItemImage)
-		r.With(authorize).Get(binaryStreamPath, s.getItemStream)
 		r.With(authorize).Get(binarySpikePath, s.getSpikeFile)
+		r.With(streamAuth).Get(binaryStreamPath, s.getItemStream)
+		r.With(streamAuth).Get(hlsMasterPath, s.getPlaybackMaster)
+		r.With(streamAuth).Get(hlsMediaPath, s.getPlaybackMedia)
+		r.With(streamAuth).Get(hlsInitPath, s.getPlaybackInit)
+		r.With(streamAuth).Get(hlsSegmentPath, s.getPlaybackSegment)
 	})
 	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
 	// the start page's app shell then carries a preload header for its image (preload.go).

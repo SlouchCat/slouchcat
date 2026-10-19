@@ -7,7 +7,9 @@ package secrets
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hkdf"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -35,6 +37,7 @@ var (
 // Keyring encrypts and decrypts secrets with the key of the config directory.
 type Keyring struct {
 	aead cipher.AEAD
+	key  []byte // master key, only used to derive purpose keys (Derive)
 }
 
 // Load reads <configDir>/secret.key or creates it with a fresh random key. An existing key file
@@ -72,7 +75,7 @@ func newKeyring(key []byte) (*Keyring, error) {
 	if err != nil {
 		return nil, fmt.Errorf("secrets: %w", err)
 	}
-	return &Keyring{aead: aead}, nil
+	return &Keyring{aead: aead, key: key}, nil
 }
 
 // create writes a new random key atomically: temp file with mode 0600 in the same directory,
@@ -135,4 +138,16 @@ func (k *Keyring) Decrypt(ciphertext string) (string, error) {
 		return "", ErrCorrupt
 	}
 	return string(plain), nil
+}
+
+// Derive returns a 32-byte key for one purpose, for example "stream-token" (HMAC key of the stream
+// tokens, plan 5.4). It is HKDF-SHA256 over the master key with the label as info, so purpose keys
+// are independent of each other and of the encryption key, and the same label always yields the
+// same key for the same key file. The result lives in memory only.
+func (k *Keyring) Derive(label string) []byte {
+	out, err := hkdf.Key(sha256.New, k.key, nil, "slouchcat/"+label, keySize)
+	if err != nil {
+		panic(err) // only fails for lengths above 255 * 32 bytes
+	}
+	return out
 }

@@ -149,3 +149,26 @@ func TestLoadRejectsShortKey(t *testing.T) {
 		t.Fatal("Load accepted a key file of the wrong size")
 	}
 }
+
+func TestDeriveIsStablePerKeyAndLabel(t *testing.T) {
+	dir := t.TempDir()
+	a := load(t, dir)
+	again := load(t, dir)
+	other := load(t, t.TempDir())
+	stream := a.Derive("stream-token")
+	if len(stream) != keySize {
+		t.Fatalf("derived key has %d bytes", len(stream))
+	}
+	if !bytes.Equal(stream, again.Derive("stream-token")) {
+		t.Error("the same key file and label yield different keys")
+	}
+	if bytes.Equal(stream, a.Derive("other-purpose")) {
+		t.Error("different labels yield the same key")
+	}
+	if bytes.Equal(stream, other.Derive("stream-token")) {
+		t.Error("different key files yield the same key")
+	}
+	if bytes.Equal(stream, a.key) {
+		t.Error("the derived key equals the master key")
+	}
+}

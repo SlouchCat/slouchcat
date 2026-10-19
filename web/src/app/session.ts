@@ -1,4 +1,5 @@
 import type { components, SessionInfo } from '@slouchcat/api-client';
+import { accentNames, type AccentName } from '@slouchcat/design-tokens';
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { api, isApiError, request } from '@/api/client';
@@ -33,6 +34,26 @@ export async function applyProfileLanguage(session: SessionInfo): Promise<void> 
   }
 }
 
+const isAccentName = (name: string | undefined): name is AccentName =>
+  name !== undefined && (accentNames as readonly string[]).includes(name);
+
+/**
+ * Applies the accent of the active profile (`profile.accent`, a token name such as `teal`) to the
+ * whole app: `--sc-accent` and `--sc-on-accent` on the root element point at that accent's
+ * tokens. Without a session or with an unknown name, the defaults from global.css (ember) apply.
+ */
+export function applyProfileAccent(session: SessionInfo | null): void {
+  const { style } = document.documentElement;
+  const name = session?.profile.accent;
+  if (isAccentName(name)) {
+    style.setProperty('--sc-accent', `var(--sc-color-accent-${name}-base)`);
+    style.setProperty('--sc-on-accent', `var(--sc-color-accent-${name}-on)`);
+  } else {
+    style.removeProperty('--sc-accent');
+    style.removeProperty('--sc-on-accent');
+  }
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -41,6 +62,7 @@ export function useLogout() {
     onSettled: async () => {
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== 'setup-status' });
       queryClient.setQueryData(sessionQuery.queryKey, null);
+      applyProfileAccent(null);
       await navigate({ to: '/login' });
     },
   });

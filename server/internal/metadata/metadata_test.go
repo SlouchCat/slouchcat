@@ -27,6 +27,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
 const (
@@ -47,9 +48,8 @@ var testNow = time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
 // fakeTMDB serves the TMDB endpoints the package uses, from fixtures.
 type fakeTMDB struct {
 	srv    *httptest.Server
-	poster []byte
-	backdr []byte
-	backdS []byte // backdrop in w780
+	poster []byte // TMDB original of the poster
+	backdr []byte // TMDB original of the backdrop
 
 	mu        sync.Mutex
 	hits      map[string]int
@@ -57,12 +57,18 @@ type fakeTMDB struct {
 	authSeen  []string
 }
 
+// jpegBytes returns a w×h JPEG: a strong red block in the upper half (the poster's accent) over a
+// greyish gradient of low saturation.
 func jpegBytes(t *testing.T, w, h int) []byte {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	for x := range w {
 		for y := range h {
-			img.Set(x, y, color.RGBA{R: uint8(x * 10), G: uint8(y * 10), B: 128, A: 255})
+			c := color.RGBA{R: uint8(90 + x%40), G: uint8(90 + y%40), B: 110, A: 255}
+			if y < h/2 {
+				c = color.RGBA{R: 200, G: 30, B: 40, A: 255}
+			}
+			img.Set(x, y, c)
 		}
 	}
 	var buf bytes.Buffer
@@ -106,7 +112,7 @@ func countryJSON(code, cert string) map[string]any {
 
 func newFakeTMDB(t *testing.T) *fakeTMDB {
 	t.Helper()
-	f := &fakeTMDB{hits: map[string]int{}, poster: jpegBytes(t, 20, 30), backdr: jpegBytes(t, 32, 18), backdS: jpegBytes(t, 16, 9)}
+	f := &fakeTMDB{hits: map[string]int{}, poster: jpegBytes(t, 300, 450), backdr: jpegBytes(t, 640, 360)}
 	movies := map[string]fixture{
 		// DE FSK 12 next to US R: DE wins.
 		"550": movieFixture(550, "tt0000550", "First Film", "Erster Film", "Deutsche Beschreibung",
@@ -211,10 +217,9 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 			_, _ = w.Write(data)
 		}
 	}
-	mux.HandleFunc("GET /t/p/w500/poster550.jpg", image(f.poster))
-	mux.HandleFunc("GET /t/p/w1280/backdrop550.jpg", image(f.backdr))
-	mux.HandleFunc("GET /t/p/w780/backdrop550.jpg", image(f.backdS))
-	mux.HandleFunc("GET /t/p/w500/poster601.jpg", image(f.poster))
+	mux.HandleFunc("GET /t/p/original/poster550.jpg", image(f.poster))
+	mux.HandleFunc("GET /t/p/original/backdrop550.jpg", image(f.backdr))
+	mux.HandleFunc("GET /t/p/original/poster601.jpg", image(f.poster))
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
 	return f
@@ -261,7 +266,7 @@ func newEnv(t *testing.T, key string) *env {
 	f := newFakeTMDB(t)
 	cache := t.TempDir()
 	q := jobs.NewQueue(db.Write, nil)
-	svc := New(db, q, staticKey(key), cache, log,
+	svc := New(db, q, staticKey(key), cache, transcode.Runner{FFmpegPath: lookFFmpeg()}, log,
 		WithBaseURL(f.srv.URL+"/3", f.srv.URL+"/t/p"), WithHTTPClient(f.srv.Client()),
 		WithClock(func() time.Time { return testNow }))
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 0, 0)`)
@@ -627,14 +632,36 @@ func TestMatchIgnoresDeletedAndUnknownItems(t *testing.T) {
 	}
 }
 
-type imageRow struct {
-	Kind, Size, RelPath, Hash, MediaType, Source string
-	Width, Height, Bytes                         int64
+// lookFFmpeg returns the ffmpeg on PATH or "" (package metadata may not import os/exec; the
+// runner resolves the name itself, this only decides whether the image tests can run).
+func lookFFmpeg() string {
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		path := filepath.Join(dir, "ffmpeg")
+		if info, err := os.Stat(path); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+			return path
+		}
+	}
+	return ""
 }
 
+// requireFFmpeg skips image pipeline tests on machines without ffmpeg.
+func requireFFmpeg(t *testing.T) {
+	t.Helper()
+	if lookFFmpeg() == "" {
+		t.Skip("ffmpeg not installed")
+	}
+}
+
+type imageRow struct {
+	Kind, Size, Format, RelPath, Hash, MediaType, Source string
+	Accent                                               sql.NullString
+	Width, Height, Bytes                                 int64
+}
+
+// images returns the image rows of a title keyed "<kind>/<size>/<format>".
 func (e *env) images(t *testing.T, id string) map[string]imageRow {
 	t.Helper()
-	rows, err := e.db.Read.Query(`SELECT kind, size, rel_path, content_hash, media_type, source_url, width, height, bytes
+	rows, err := e.db.Read.Query(`SELECT kind, size, format, rel_path, content_hash, media_type, source_url, accent, width, height, bytes
 	                              FROM images WHERE item_id = ?`, id)
 	if err != nil {
 		t.Fatal(err)
@@ -643,10 +670,10 @@ func (e *env) images(t *testing.T, id string) map[string]imageRow {
 	out := map[string]imageRow{}
 	for rows.Next() {
 		var r imageRow
-		if err := rows.Scan(&r.Kind, &r.Size, &r.RelPath, &r.Hash, &r.MediaType, &r.Source, &r.Width, &r.Height, &r.Bytes); err != nil {
+		if err := rows.Scan(&r.Kind, &r.Size, &r.Format, &r.RelPath, &r.Hash, &r.MediaType, &r.Source, &r.Accent, &r.Width, &r.Height, &r.Bytes); err != nil {
 			t.Fatal(err)
 		}
-		out[r.Kind+"/"+r.Size] = r
+		out[r.Kind+"/"+r.Size+"/"+r.Format] = r
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
@@ -659,86 +686,215 @@ func sha(b []byte) string {
 	return hex.EncodeToString(s[:])
 }
 
+// scaledHeight is the height ffmpeg's scale=W:-2 gives a w×h input: rounded, then even.
+func scaledHeight(width, w, h int) int64 {
+	return int64((width*h+w)/(2*w)) * 2
+}
+
+// checkPipeline verifies the rows and files of one title after image.fetch: the original and six
+// derived rows per kind in kinds, with matching hashes, sizes, dimensions and formats, the accent
+// on every poster row, and no temporary files.
+func (e *env) checkPipeline(t *testing.T, id string, kinds ...string) map[string]imageRow {
+	t.Helper()
+	imgs := e.images(t, id)
+	originals := map[string]struct {
+		data []byte
+		path string
+	}{"poster": {e.tmdb.poster, "/poster550.jpg"}, "backdrop": {e.tmdb.backdr, "/backdrop550.jpg"}}
+	if id == idBySearch {
+		originals["poster"] = struct {
+			data []byte
+			path string
+		}{e.tmdb.poster, "/poster601.jpg"}
+	}
+	want := 0
+	accent := ""
+	for _, kind := range kinds {
+		o := originals[kind]
+		cfg, _, err := image.DecodeConfig(bytes.NewReader(o.data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		source := e.tmdb.srv.URL + "/t/p/original" + o.path
+		orig := imgs[kind+"/original/jpeg"]
+		if orig.RelPath != "images/"+id+"/"+kind+"-original.jpg" || orig.Hash != sha(o.data) || orig.Source != source ||
+			orig.MediaType != "image/jpeg" || orig.Width != int64(cfg.Width) || orig.Height != int64(cfg.Height) || orig.Accent.Valid {
+			t.Fatalf("%s original row %+v", kind, orig)
+		}
+		want++
+		for _, w := range imageWidths[kind] {
+			for _, f := range imageFormats {
+				key := kind + "/" + sizeName(w) + "/" + string(f.format)
+				r, ok := imgs[key]
+				if !ok {
+					t.Fatalf("no row %s in %v", key, imgs)
+				}
+				want++
+				data, err := os.ReadFile(filepath.Join(e.cache, filepath.FromSlash(r.RelPath)))
+				if err != nil {
+					t.Fatalf("%s file: %v", key, err)
+				}
+				if r.RelPath != "images/"+id+"/"+kind+"-"+sizeName(w)+"."+f.ext || r.MediaType != f.mediaType ||
+					r.Hash != sha(data) || r.Bytes != int64(len(data)) || r.Source != source ||
+					r.Width != int64(w) || r.Height != scaledHeight(w, cfg.Width, cfg.Height) {
+					t.Fatalf("%s row %+v (%d bytes on disk)", key, r, len(data))
+				}
+				switch f.format {
+				case transcode.ImageWebP:
+					if len(data) < 12 || string(data[:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
+						t.Fatalf("%s is not WebP", key)
+					}
+				case transcode.ImageJPEG:
+					c, err := jpeg.DecodeConfig(bytes.NewReader(data))
+					if err != nil || int64(c.Width) != r.Width || int64(c.Height) != r.Height {
+						t.Fatalf("%s JPEG header %+v: %v", key, c, err)
+					}
+				}
+				switch {
+				case kind == "backdrop" && r.Accent.Valid:
+					t.Fatalf("%s carries an accent", key)
+				case kind == "poster" && (!r.Accent.Valid || (accent != "" && r.Accent.String != accent)):
+					t.Fatalf("%s accent %v, others %q", key, r.Accent, accent)
+				case kind == "poster":
+					accent = r.Accent.String
+				}
+			}
+		}
+	}
+	if len(imgs) != want {
+		t.Fatalf("%d image rows, want %d: %v", len(imgs), want, imgs)
+	}
+	entries, err := os.ReadDir(filepath.Join(e.cache, "images", id))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != want {
+		t.Fatalf("image dir holds %d entries, want %d (no temp files left)", len(entries), want)
+	}
+	return imgs
+}
+
 func TestImageFetchStoresFilesAndIsIdempotent(t *testing.T) {
+	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
 	if err := e.svc.match(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
+	start := time.Now()
 	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
-	imgs := e.images(t, idByTMDB)
-	want := map[string]struct {
-		rel  string
-		data []byte
-		w, h int64
-	}{
-		"poster/w500":    {"images/" + idByTMDB + "/poster-w500.jpg", e.tmdb.poster, 20, 30},
-		"backdrop/w1280": {"images/" + idByTMDB + "/backdrop-w1280.jpg", e.tmdb.backdr, 32, 18},
-		"backdrop/w780":  {"images/" + idByTMDB + "/backdrop-w780.jpg", e.tmdb.backdS, 16, 9},
+	t.Logf("image.fetch of one title (2 originals, 12 derived images, palette): %v", time.Since(start))
+	imgs := e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	// The red upper half of the poster is the most saturated colour at medium lightness.
+	if a := imgs["poster/w400/webp"].Accent.String; len(a) != 7 || a[1:3] < "a0" || a[3:5] > "60" || a[5:7] > "60" {
+		t.Fatalf("accent %q, want the poster's red", a)
 	}
-	if len(imgs) != 3 {
-		t.Fatalf("image rows %+v", imgs)
+	poster, backdrop := "/t/p/original/poster550.jpg", "/t/p/original/backdrop550.jpg"
+
+	// Second run: same sources and existing files, no download and no ffmpeg run (a broken runner
+	// would fail the job).
+	runner := e.svc.runner
+	e.svc.runner = transcode.Runner{FFmpegPath: filepath.Join(t.TempDir(), "missing-ffmpeg")}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
 	}
-	for kind, w := range want {
-		r := imgs[kind]
-		if r.RelPath != w.rel || r.Hash != sha(w.data) || r.Bytes != int64(len(w.data)) ||
-			r.Width != w.w || r.Height != w.h || r.MediaType != "image/jpeg" {
-			t.Fatalf("%s row %+v", kind, r)
-		}
-		if !strings.HasPrefix(r.Source, e.tmdb.srv.URL+"/t/p/") {
-			t.Fatalf("%s source_url %s", kind, r.Source)
-		}
-		got, err := os.ReadFile(filepath.Join(e.cache, filepath.FromSlash(w.rel)))
-		if err != nil || !bytes.Equal(got, w.data) {
-			t.Fatalf("%s file: %v", kind, err)
-		}
-	}
-	entries, _ := os.ReadDir(filepath.Join(e.cache, "images", idByTMDB))
-	if len(entries) != 3 {
-		t.Fatalf("image dir holds %d entries, want 3 (no temp files left)", len(entries))
+	e.svc.runner = runner
+	if e.tmdb.count(poster) != 1 || e.tmdb.count(backdrop) != 1 {
+		t.Fatalf("originals downloaded %d/%d times, want 1", e.tmdb.count(poster), e.tmdb.count(backdrop))
 	}
 
-	// Second run: same sources and existing files, no download.
-	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
-		t.Fatal(err)
-	}
-	if n := e.tmdb.count("/t/p/w500/poster550.jpg"); n != 1 {
-		t.Fatalf("poster downloaded %d times, want 1", n)
-	}
-	// A missing file is fetched again.
-	if err := os.Remove(filepath.Join(e.cache, filepath.FromSlash(want["poster/w500"].rel))); err != nil {
+	// A missing derived file is rebuilt from the kept original, without a download.
+	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w800.webp")); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.tmdb.count("/t/p/w500/poster550.jpg"); n != 2 {
-		t.Fatalf("poster downloaded %d times, want 2 after the file vanished", n)
-	}
-	if n := e.tmdb.count("/t/p/w1280/backdrop550.jpg"); n != 1 {
-		t.Fatalf("backdrop downloaded %d times, want 1", n)
+	e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	if e.tmdb.count(poster) != 1 {
+		t.Fatalf("poster downloaded %d times, want 1 (the original is kept)", e.tmdb.count(poster))
 	}
 
-	// A size added later (w780 next to w1280): the next run fetches only the missing size.
-	if _, err := e.db.Write.Exec(`DELETE FROM images WHERE item_id = ? AND size = 'w780'`, idByTMDB); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(filepath.Join(e.cache, filepath.FromSlash(want["backdrop/w780"].rel))); err != nil {
-		t.Fatal(err)
+	// A missing original is downloaded again.
+	for _, name := range []string{"poster-original.jpg", "poster-w200.jpg"} {
+		if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, name)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
-	if len(e.images(t, idByTMDB)) != 3 || e.tmdb.count("/t/p/w780/backdrop550.jpg") != 2 ||
-		e.tmdb.count("/t/p/w1280/backdrop550.jpg") != 1 || e.tmdb.count("/t/p/w500/poster550.jpg") != 2 {
-		t.Fatalf("after removing w780: rows %d, %d TMDB requests", len(e.images(t, idByTMDB)), e.tmdb.total())
+	e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	if e.tmdb.count(poster) != 2 || e.tmdb.count(backdrop) != 1 {
+		t.Fatalf("downloads poster %d, backdrop %d; want 2 and 1", e.tmdb.count(poster), e.tmdb.count(backdrop))
+	}
+
+	// A changed TMDB image (another source URL) replaces original and derived rows.
+	mustExec(t, e.db.Write, `UPDATE images SET source_url = 'https://image.tmdb.org/t/p/original/old.jpg' WHERE item_id = ? AND kind = 'backdrop'`, idByTMDB)
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	if e.tmdb.count(backdrop) != 2 {
+		t.Fatalf("backdrop downloaded %d times, want 2 after a source change", e.tmdb.count(backdrop))
+	}
+}
+
+// insertM1aImage stores an image the way M1a did (TMDB size, unchanged JPEG, format column at its
+// migration default) and returns its file path.
+func (e *env) insertM1aImage(t *testing.T, id, kind, size string, data []byte) string {
+	t.Helper()
+	rel := "images/" + id + "/" + kind + "-" + size + ".jpg"
+	path := filepath.Join(e.cache, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, e.db.Write, `INSERT INTO images (item_id, kind, size, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at)
+	                         VALUES (?, ?, ?, ?, ?, ?, 'image/jpeg', 20, 30, ?, 1)`,
+		id, kind, size, e.tmdb.srv.URL+"/t/p/"+size+"/x.jpg", rel, sha(data), len(data))
+	return path
+}
+
+func TestImageFetchReplacesM1aImages(t *testing.T) {
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	old := []byte("m1a image")
+	w500 := e.insertM1aImage(t, idByTMDB, "poster", "w500", old)
+	w1280 := e.insertM1aImage(t, idByTMDB, "backdrop", "w1280", old)
+	e.insertM1aImage(t, idByTMDB, "backdrop", "w780", old)
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if n, err := e.svc.QueueIncompleteImages(ctx, 1); err != nil || n != 1 {
+		t.Fatalf("M1a title queued %d, %v; want 1", n, err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	if _, err := os.Stat(w500); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("M1a poster file still there: %v", err)
+	}
+	if data, err := os.ReadFile(w1280); err != nil || bytes.Equal(data, old) {
+		t.Fatalf("M1a backdrop file not replaced: %v", err)
+	}
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if n, err := e.svc.QueueIncompleteImages(ctx, 1); err != nil || n != 0 {
+		t.Fatalf("after the pipeline queued %d, %v; want 0", n, err)
 	}
 }
 
 func TestQueueIncompleteImages(t *testing.T) {
+	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
@@ -765,25 +921,181 @@ func TestQueueIncompleteImages(t *testing.T) {
 	job := "image:" + idByTMDB + ` p2 {"itemId":"` + idByTMDB + `"}`
 	check("complete", 0)
 
-	// An older store without the w780 backdrop: queued, and image.fetch fills in that size.
-	mustExec(t, e.db.Write, `DELETE FROM images WHERE item_id = ? AND size = 'w780'`, idByTMDB)
-	check("w780 missing", 1, job)
+	// A store without one format of a size: queued, and image.fetch fills it in.
+	mustExec(t, e.db.Write, `DELETE FROM images WHERE item_id = ? AND size = 'w780' AND format = 'webp'`, idByTMDB)
+	check("w780 webp missing", 1, job)
 	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
 		t.Fatal(err)
 	}
-	check("w780 fetched", 0)
+	check("w780 webp rebuilt", 0)
 
-	// A file deleted from the cache.
-	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w500.jpg")); err != nil {
+	// The original alone may go missing: the delivered images are complete.
+	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "backdrop-original.jpg")); err != nil {
+		t.Fatal(err)
+	}
+	check("original file deleted", 0)
+
+	// A derived file deleted from the cache.
+	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w400.jpg")); err != nil {
 		t.Fatal(err)
 	}
 	check("poster file deleted", 1, job)
-	// A locked kind is never fetched, so it is not checked either.
+	// A locked kind is not fetched from TMDB but scaled from the stored original, so it is checked
+	// as well; image.fetch rebuilds the file without a download.
 	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["poster"]' WHERE id = ?`, idByTMDB)
-	check("poster locked", 0)
+	check("poster locked", 1, job)
+	posterDownloads := e.tmdb.count("/t/p/original/poster550.jpg")
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(e.cache, "images", idByTMDB, "poster-w400.jpg")); err != nil {
+		t.Fatalf("locked poster file not rebuilt: %v", err)
+	}
+	if got := e.tmdb.count("/t/p/original/poster550.jpg"); got != posterDownloads {
+		t.Fatalf("locked poster downloaded again (%d → %d)", posterDownloads, got)
+	}
+	check("locked poster rebuilt", 0)
+	// A locked kind without any file left cannot be scaled: not queued.
+	for _, name := range []string{"original.jpg", "w200.jpg", "w200.webp", "w400.jpg", "w400.webp", "w800.jpg", "w800.webp"} {
+		if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-"+name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check("locked poster without files", 0)
+}
+
+// M11: a locked M1a poster (w500 only, no original) is scaled into the new sizes without TMDB.
+func TestImageFetchScalesLockedM1aPoster(t *testing.T) {
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550, locked: `["poster"]`})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	w500 := e.insertM1aImage(t, idByTMDB, "poster", "w500", jpegBytes(t, 500, 750))
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if n, err := e.svc.QueueIncompleteImages(ctx, 1); err != nil || n != 1 {
+		t.Fatalf("locked M1a poster queued %d, %v; want 1", n, err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.tmdb.count("/t/p/original/poster550.jpg"); n != 0 {
+		t.Fatalf("locked poster downloaded %d times", n)
+	}
+	imgs := e.images(t, idByTMDB)
+	for _, size := range []string{"w200", "w400", "w800"} {
+		for _, format := range []string{"jpeg", "webp"} {
+			r, ok := imgs["poster/"+size+"/"+format]
+			if !ok || r.Source != e.tmdb.srv.URL+"/t/p/w500/x.jpg" || !r.Accent.Valid {
+				t.Errorf("poster %s %s = %+v (present %v)", size, format, r, ok)
+			}
+		}
+	}
+	if o := imgs["poster/original/jpeg"]; o.Width != 500 || o.Height != 750 {
+		t.Errorf("promoted original = %+v", o)
+	}
+	if _, ok := imgs["poster/w500/jpeg"]; ok {
+		t.Error("w500 row kept")
+	}
+	if _, err := os.Stat(w500); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("w500 file kept: %v", err)
+	}
+	// The unlocked backdrop still came from TMDB.
+	if _, ok := imgs["backdrop/w1280/webp"]; !ok {
+		t.Error("backdrop not fetched")
+	}
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if n, err := e.svc.QueueIncompleteImages(ctx, 1); err != nil || n != 0 {
+		t.Fatalf("after scaling queued %d, %v; want 0", n, err)
+	}
+}
+
+// failingPalette returns an ffmpeg wrapper that fails every palettegen run and runs the real
+// ffmpeg otherwise.
+func failingPalette(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "ffmpeg")
+	script := "#!/bin/sh\ncase \"$*\" in *palettegen*) echo palette broken >&2; exit 1;; esac\nexec " + lookFFmpeg() + " \"$@\"\n"
+	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// M10: a palette failure keeps the previous accent; a poster without accent is retried a bounded
+// number of times and image.fetch fills it in.
+func TestAccentSurvivesPaletteFailure(t *testing.T) {
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	good := e.images(t, idByTMDB)["poster/w400/jpeg"].Accent
+	if !good.Valid {
+		t.Fatal("no accent after the first run")
+	}
+
+	// The poster is derived again (a file went missing) while the palette fails: accent kept.
+	runner := e.svc.runner
+	e.svc.runner = transcode.Runner{FFmpegPath: failingPalette(t), FFprobePath: runner.FFprobePath}
+	if err := os.Remove(filepath.Join(e.cache, "images", idByTMDB, "poster-w800.jpg")); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	for key, r := range e.images(t, idByTMDB) {
+		if strings.HasPrefix(key, "poster/w") && r.Accent != good {
+			t.Errorf("%s accent %v after a palette failure, want %v", key, r.Accent, good)
+		}
+	}
+
+	// Rows without accent (an earlier failure): queued at most maxAccentRetries times.
+	mustExec(t, e.db.Write, `UPDATE images SET accent = NULL WHERE item_id = ?`, idByTMDB)
+	for i := range maxAccentRetries + 2 {
+		mustExec(t, e.db.Write, `DELETE FROM jobs`)
+		n, err := e.svc.QueueIncompleteImages(ctx, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 0
+		if i < maxAccentRetries {
+			want = 1
+		}
+		if n != want {
+			t.Fatalf("check %d queued %d, want %d", i+1, n, want)
+		}
+		if i == 0 {
+			// Still failing: nothing changes.
+			if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+				t.Fatal(err)
+			}
+			if e.images(t, idByTMDB)["poster/w400/jpeg"].Accent.Valid {
+				t.Fatal("accent appeared with a failing palette")
+			}
+		}
+	}
+	// With a working palette the next image.fetch fills in the accent without re-deriving.
+	e.svc.runner = runner
+	before := e.images(t, idByTMDB)["poster/w400/webp"].Hash
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	imgs := e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	if imgs["poster/w400/webp"].Accent != good || imgs["poster/w400/webp"].Hash != before {
+		t.Errorf("filled accent %v (want %v), hash changed %v", imgs["poster/w400/webp"].Accent, good, imgs["poster/w400/webp"].Hash != before)
+	}
 }
 
 func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {
+	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idNoRating, title: "Unrated", tmdbID: 602})
@@ -799,7 +1111,7 @@ func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(e.cache, "images", idNoRating)); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("image dir created without images: %v", err)
 	}
-	// Only a poster: one row.
+	// Only a poster: the original and its six derived rows.
 	e.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2002})
 	if err := e.svc.match(ctx, idBySearch); err != nil {
 		t.Fatal(err)
@@ -807,12 +1119,49 @@ func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {
 	if err := e.svc.fetchImages(ctx, idBySearch); err != nil {
 		t.Fatal(err)
 	}
-	if imgs := e.images(t, idBySearch); len(imgs) != 1 || imgs["poster/w500"].Width != 20 {
-		t.Fatalf("rows %+v, want the poster only", imgs)
+	e.checkPipeline(t, idBySearch, "poster")
+}
+
+func TestImageFetchRetryReusesOriginal(t *testing.T) {
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	// Scaling fails (ffmpeg missing): the job fails, the downloaded original stays.
+	runner := e.svc.runner
+	e.svc.runner = transcode.Runner{FFmpegPath: filepath.Join(t.TempDir(), "missing-ffmpeg")}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err == nil {
+		t.Fatal("image.fetch succeeded without ffmpeg")
+	}
+	imgs := e.images(t, idByTMDB)
+	if len(imgs) != 1 || imgs["poster/original/jpeg"].RelPath == "" {
+		t.Fatalf("rows after the failed run: %v, want the poster original only", imgs)
+	}
+	entries, err := os.ReadDir(filepath.Join(e.cache, "images", idByTMDB))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, en := range entries {
+		if strings.HasPrefix(en.Name(), ".tmp-") {
+			t.Fatalf("temporary file %s left behind", en.Name())
+		}
+	}
+	// The retry scales from the kept original.
+	e.svc.runner = runner
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	e.checkPipeline(t, idByTMDB, "poster", "backdrop")
+	if n := e.tmdb.count("/t/p/original/poster550.jpg"); n != 1 {
+		t.Fatalf("poster downloaded %d times, want 1", n)
 	}
 }
 
 func TestJobChainWithWorker(t *testing.T) {
+	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idByIMDB, title: "Whatever", imdbID: "tt0000550"})
 	w := jobs.NewWorker(e.queue, "metadata-test", slog.New(slog.DiscardHandler))
@@ -833,7 +1182,7 @@ func TestJobChainWithWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	deadline := time.Now().Add(10 * time.Second)
-	for len(e.images(t, idByIMDB)) < 3 {
+	for len(e.images(t, idByIMDB)) < 14 {
 		if time.Now().After(deadline) {
 			t.Fatalf("images not stored; item %+v, image jobs %q", e.item(t, idByIMDB), e.imageJobs(t))
 		}

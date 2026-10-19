@@ -85,8 +85,18 @@ export const playback: PlaybackInfo = {
   mode: 'direct',
   item: alien,
   mediaFile: alienDetail.mediaFiles[0]!,
-  streamUrl: `/items/${ids.alien}/stream?file=mf-1`,
+  streamUrl: `/items/${ids.alien}/stream?st=ps-1.token`,
   resumePositionMs: 2_533_000,
+  playbackSessionId: 'ps-1',
+};
+
+/** The same title as HLS (remux of an MKV), master playlist with the stream token. */
+export const hlsPlayback: PlaybackInfo = {
+  ...playback,
+  mode: 'hls',
+  streamUrl: '/api/v1/playback/sessions/ps-2/master.m3u8?st=ps-2.token',
+  playbackSessionId: 'ps-2',
+  transcoding: { mode: 'remux', reason: 'container' },
 };
 
 export const library = (overrides: Partial<Library> = {}): Library => ({

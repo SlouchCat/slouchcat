@@ -24,7 +24,7 @@ Zugang, GPU-Durchreichung und Limits sind vor M1b festzulegen; dieses Dokument l
 | Root-Disk | 16 GB | System, Docker-Image (≈ 0.5 GB), Cache |
 | Daten-Disk | Mountpoint `/srv/media`, 64 GB | Platzhalterbaum (leer) und einige echte Testdateien |
 | Features | `nesting=1,keyctl=1` | Docker im unprivilegierten CT |
-| GPU | keine (Startwert) | Software-Transcoding ist die dokumentierte Ausnahme AN-17. Der Host `pve2` hat eine Intel UHD 630 (`/dev/dri/renderD128`); sie wird erst für die QSV/VAAPI-Messung in M1b durchgereicht |
+| GPU | Intel UHD 630 des Hosts (`/dev/dri/renderD128`, `card1`), seit 2026-10-19 durchgereicht | Für die QSV/VAAPI-Messung in M1b (Entscheid 4). Ohne GPU gilt die dokumentierte Ausnahme AN-17; die Software-Messung läuft mit `SLOUCHCAT_HW=software` |
 | Netz | `vmbr0`, DHCP, Hostname `slouchcat-nas` | gleiches LAN wie Entwicklungsrechner und NAS |
 | Dienste | Samba (Freigabe `media`), Docker + Compose-Plugin, Python 3 (Baum-Generator) | NFS-Server läuft in unprivilegierten CTs nicht zuverlässig; NFS bleibt Sache des echten NAS |
 | Zugang | SSH mit Schlüssel als `root` (CT), aus Claude Desktop als gespeicherte SSH-Verbindung | kein Passwort im Repo oder Chat |
@@ -91,6 +91,23 @@ Geprüft: SSH als `root` mit Marcos Schlüssel, Debian 13 amd64, 2 Kerne, 4 GB, 
 (`hello-world` läuft), `smbd` aktiv und Freigabe `media` vom Entwicklungsrechner anonym sichtbar,
 Platzhalterbaum mit 60'800 Dateien in 2.7 s erzeugt.
 
+## GPU-Durchreichung (19. Oktober 2026)
+
+Proxmox VE 9 reicht Geräteknoten mit `dev<n>` in unprivilegierte Container durch und setzt dabei Gruppe und
+Rechte im Container selbst (kein `lxc.idmap`, kein `chmod` auf dem Host):
+
+```bash
+# auf pve2
+pct set 190 -dev0 /dev/dri/renderD128,gid=993,mode=0660   # 993 = Gruppe render auf dem Host
+pct set 190 -dev1 /dev/dri/card1,gid=44,mode=0660         # 44 = Gruppe video
+pct reboot 190
+pct exec 190 -- ls -ln /dev/dri                            # renderD128 mit gid 993
+```
+
+Im Container nutzt der Slouchcat-Stack `deploy/compose.intel.yaml` mit `RENDER_GID=993`. Welche Pipeline die
+UHD 630 (Comet Lake, Gen 9.5) mit jellyfin-ffmpeg tatsächlich beherrscht (QSV über MediaSDK, sonst VAAPI),
+stellt die M1b-Messung fest (`docs/perf/M1b.md`).
+
 ## Befund SMB-Verzeichniscache (19. Oktober 2026)
 
 Samba 4.22 im Container vergibt Directory Leases; der CIFS-Client auf dem Entwicklungsrechner (Kernel 7.0)
@@ -103,5 +120,3 @@ und Pfad-Scan (2 s) längst schnell genug sind. Für Messungen und für den Betr
 
 - `smbpasswd -a media` im Container (Marco, Passwort nur dort).
 - SMB-Lastmessung mit `watchbench` über CIFS (Abschnitt oben), Ergebnis nach `docs/perf/M1a.md` 1b.
-- GPU: `/dev/dri/renderD128` des Hosts erst für die QSV/VAAPI-Messung in M1b per
-  `lxc.cgroup2.devices.allow` + `lxc.mount.entry` durchreichen.

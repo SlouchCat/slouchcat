@@ -14,7 +14,12 @@ import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
 import { paths } from './paths';
 import { RootError, RootLayout } from './RootLayout';
-import { applyProfileLanguage, sessionQuery, setupStatusQuery } from './session';
+import {
+  applyProfileAccent,
+  applyProfileLanguage,
+  sessionQuery,
+  setupStatusQuery,
+} from './session';
 
 export interface RouterContext {
   queryClient: QueryClient;
@@ -50,6 +55,8 @@ const loginRoute = createRoute({
   beforeLoad: async ({ context }) => {
     const session = await context.queryClient.ensureQueryData(sessionQuery);
     if (session) throw redirect({ to: '/' });
+    // Signed out (logout or an expired session): back to the default accent.
+    applyProfileAccent(null);
   },
   component: lazyRouteComponent(() => import('@/features/auth/LoginPage'), 'LoginPage'),
 });
@@ -62,6 +69,7 @@ const authedRoute = createRoute({
     const session = await context.queryClient.ensureQueryData(sessionQuery);
     if (!session) throw redirect({ to: '/login' });
     await applyProfileLanguage(session);
+    applyProfileAccent(session);
     return { session };
   },
 });

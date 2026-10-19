@@ -1,4 +1,7 @@
 .card {
+  /* A title's accent applies to its own card only, never to a card nested in another title. */
+  --sc-item-accent: initial;
+
   position: relative;
   display: block;
   width: 100%;
@@ -7,7 +10,32 @@
   text-decoration: none;
   outline-offset: var(--sc-focus-ring-offset);
   transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  isolation: isolate;
   -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Glow behind the poster in the title's accent (--sc-item-accent, set from ItemRef.accent; the
+ * profile accent when the title has none yet). Blurred once, then only its opacity moves, so focus
+ * stays on the compositor. Shifted down like a light below the poster; the row's padding keeps
+ * the top edge from being clipped.
+ */
+.card::before {
+  position: absolute;
+  z-index: -1;
+  top: var(--sc-space-6);
+  right: 0;
+  left: 0;
+  border-radius: var(--sc-radius-lg);
+  aspect-ratio: 2 / 3;
+  background-color: var(--sc-item-accent, var(--sc-accent));
+  content: '';
+
+  /* Lifted a little: accents sit at medium lightness, which reads dim on the near-black base. */
+  filter: blur(var(--sc-space-5)) brightness(1.35) saturate(1.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .frame {
@@ -19,11 +47,20 @@
   background-color: var(--sc-color-surface-1);
 }
 
+/* The accent tints the empty frame while the poster waits (the hero goes first, P-10). */
+.frame::before {
+  position: absolute;
+  inset: 0;
+  background-color: var(--sc-item-accent, transparent);
+  content: '';
+  opacity: 0.18;
+}
+
 .image {
+  position: relative;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .progress {
@@ -60,10 +97,18 @@
   .card:hover {
     transform: scale(var(--sc-focus-scale));
   }
+
+  .card:hover::before {
+    opacity: 0.5;
+  }
 }
 
 .card:focus-visible {
   transform: scale(var(--sc-focus-scale));
+}
+
+.card:focus-visible::before {
+  opacity: 0.7;
 }
 
 .card:focus-visible .title {

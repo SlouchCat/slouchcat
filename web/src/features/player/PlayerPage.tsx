@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
@@ -11,6 +11,14 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { Notice } from '@/ui';
 import { AriaButton } from '@/ui/aria';
+import {
+  browserPlatform,
+  hlsEngine,
+  playbackCapabilities,
+  type MediaPlatform,
+  type PlaybackEngine,
+} from './capabilities';
+import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { VideoPlayer } from './VideoPlayer';
 import styles from './Player.module.css';
 
@@ -34,12 +42,22 @@ export function playbackMime(info: PlaybackInfo): string {
 }
 
 /**
- * Whether this browser can direct-play the file. This is a device capability check (W-1), not a
- * visibility rule: the server already decided that the profile may watch the title.
+ * How this browser plays the answer of startPlayback: the file directly, HLS natively (Safari) or
+ * through hls.js, or not at all. This is a device capability check (W-1), not a visibility rule:
+ * the server already decided that the profile may watch the title.
  */
-function canPlay(mime: string): boolean {
-  return document.createElement('video').canPlayType(mime) !== '';
+export function playbackEngine(info: PlaybackInfo, platform: MediaPlatform): PlaybackEngine {
+  if (info.mode === 'hls') return hlsEngine(platform);
+  return platform.canPlayType(playbackMime(info)) !== '' ? 'direct' : 'unsupported';
 }
+
+/** Retries of the start request while the server answers 503 `transcode_busy`. */
+const BUSY_RETRIES = 3;
+/** Wait between those retries when the answer carries no `Retry-After`. */
+const BUSY_RETRY_FALLBACK_MS = 1000;
+
+const isTranscodeBusy = (error: unknown) =>
+  isApiError(error, 503) && error.code === 'transcode_busy';
 
 /** Video player route (W-1 direct play, W-5 progress and resume). */
 export function PlayerPage() {
@@ -50,19 +68,32 @@ export function PlayerPage() {
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
 
+  // Starting playback creates a session and may start a transcode on the server, so the request
+  // runs once per mount: never refetched on reconnect, focus or staleness (a second session would
+  // rebuild the player mid-stream). Only a busy transcoder is retried, after the server's delay.
   const playback = useQuery({
     queryKey: ['playback', itemId],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
-      request(api.POST('/items/{id}/play', { params: { path: { id: itemId } }, body: {}, signal })),
-    staleTime: 0,
+      request(
+        api.POST('/items/{id}/play', {
+          params: { path: { id: itemId } },
+          body: { capabilities: playbackCapabilities() },
+          signal,
+        }),
+      ),
+    staleTime: Infinity,
     gcTime: 0,
-    retry: false,
+    retry: (failureCount, error) => isTranscodeBusy(error) && failureCount < BUSY_RETRIES,
+    retryDelay: (_failureCount, error) =>
+      (isApiError(error) ? error.retryAfterMs : null) ?? BUSY_RETRY_FALLBACK_MS,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   useDocumentTitle(playback.data?.item.title);
+  useStopPlaybackOnLeave(playback.data?.playbackSessionId);
 
-  const supported = useMemo(
-    () => (playback.data ? canPlay(playbackMime(playback.data)) : true),
+  const engine = useMemo(
+    () => (playback.data ? playbackEngine(playback.data, browserPlatform()) : null),
     [playback.data],
   );
 
@@ -75,19 +106,26 @@ export function PlayerPage() {
     [itemId, queryClient],
   );
 
-  if (playback.data && supported) {
-    return <VideoPlayer info={playback.data} openedAt={openedAt} onBack={goBack} />;
+  if (playback.data && engine && engine !== 'unsupported') {
+    return <VideoPlayer info={playback.data} engine={engine} openedAt={openedAt} onBack={goBack} />;
   }
 
   return (
     <PlayerMessage onBack={goBack}>
-      {playback.isPending && <p className={styles.loading}>{t('player.loading')}</p>}
+      {playback.isPending && !isTranscodeBusy(playback.failureReason) && (
+        <p className={styles.loading}>{t('player.loading')}</p>
+      )}
+      {playback.isPending && isTranscodeBusy(playback.failureReason) && (
+        <Notice tone="info" title={t('player.busy.title')}>
+          {t('player.busy.body')}
+        </Notice>
+      )}
       {playback.isError && (
         <Notice tone="danger" title={t('player.error.title')}>
           {problemMessage(t, playback.error)}
         </Notice>
       )}
-      {playback.data && !supported && (
+      {playback.data && engine === 'unsupported' && (
         <Notice tone="warning" title={t('player.unsupported.title')}>
           <p>{t('player.unsupported.body')}</p>
           <p className={styles.detailsLine}>

@@ -11,3 +11,8 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   ohne TMDB-Schlüssel, 8 Titel mit Dateien, Spuren und einem Fortschritt). Erzeugt mit
   `server/bin/slouchcat dump --config-dir <config>` nach einem Lauf des Assistenten gegen einen frischen
   Server. Der Test `TestFrozenStatesMigrate` in `server/internal/store` spielt jeden Stand ein.
+- `M1b.sql`: Stand nach M1b (gleiches Vorgehen: Konto `frozen@example.test`, Filmbibliothek auf
+  `testdata/media/Movies` ohne TMDB-Schlüssel, 10 Titel mit Dateien, Spuren und Keyframe-Index, ein
+  Fortschritt und eine beendete Wiedergabesitzung in `playback_sessions` (Migration 00005); `images` ist
+  leer, weil ohne TMDB-Schlüssel keine Bilder entstehen (Migration 00006 wird vom Test
+  `TestImagesMigrationKeepsM1aRows` mit M1a-Zeilen geprüft).
