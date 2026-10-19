@@ -63,6 +63,12 @@ tasks:
       - task: test
       - task: build
       - task: e2e
+      - task: storybook:test
+
+  storybook:test:
+    desc: Storybook screenshot checks of web/src/ui against the committed baselines (needs Docker)
+    cmds:
+      - task: web:storybook:test
 
   gen:check:
     desc: Fail when generated code differs from the committed state (codegen drift)

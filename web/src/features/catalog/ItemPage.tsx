@@ -11,6 +11,7 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import {
+  Backdrop,
   Button,
   ButtonLink,
   Chip,
@@ -22,6 +23,7 @@ import {
   SpatialButtonLink,
   SpatialGroup,
   SpatialPage,
+  itemAccentStyle,
 } from '@/ui';
 import { ItemMeta } from './ItemMeta';
 import { itemQuery } from './queries';
@@ -30,6 +32,10 @@ import styles from './ItemPage.module.css';
 const route = getRouteApi('/_authed/_chrome/items/$itemId');
 
 const PLAY_KEY = 'detail-play';
+// Rendered poster width (ItemPage.module.css, wide layout only).
+const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
+
+const imageUrl = (image: { url: string } | undefined) => (image ? apiUrl(image.url) : undefined);
 const BACK_KEY = 'detail-back';
 
 function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; language: string }) {
@@ -145,35 +151,38 @@ export function ItemPage() {
   }
 
   const item = query.data;
-  const backdrop = item.images.backdrop ?? item.images.poster;
+  const { images } = item;
+  const hasArt = Boolean(
+    images.backdrop ?? images.backdropSmall ?? images.backdropLarge ?? images.poster,
+  );
   const progress = item.progress && !item.progress.completed ? item.progress : undefined;
   const genres = item.genres.join(', ');
 
   return (
     <SpatialPage defaultFocusKey={item.mediaFiles.some((f) => f.available) ? PLAY_KEY : BACK_KEY}>
       <main className={styles.detail}>
-        <div className={styles.backdrop} aria-hidden="true">
-          {backdrop && (
-            <img
-              className={`${styles.backdropImage} ${item.images.backdrop ? '' : styles.blurred}`}
-              src={apiUrl(backdrop.url)}
-              alt=""
-              width={1280}
-              height={720}
-              fetchPriority="high"
-            />
-          )}
-          <div className={styles.scrim} />
-        </div>
+        <Backdrop
+          url={imageUrl(images.backdrop)}
+          smallUrl={imageUrl(images.backdropSmall)}
+          largeUrl={imageUrl(images.backdropLarge)}
+          posterUrl={imageUrl(images.poster)}
+          accent={item.accent}
+        />
 
-        <div className={`${styles.layout} ${backdrop ? '' : styles.noArt}`}>
-          <div className={styles.poster}>
-            {item.images.poster ? (
+        <div className={`${styles.layout} ${hasArt ? '' : styles.noArt}`}>
+          <div className={styles.poster} style={itemAccentStyle(item.accent)}>
+            {images.poster ? (
               <img
-                src={apiUrl(item.images.poster.url)}
+                src={apiUrl(images.poster.url)}
+                srcSet={
+                  images.posterLarge
+                    ? `${apiUrl(images.poster.url)} 400w, ${apiUrl(images.posterLarge.url)} 800w`
+                    : undefined
+                }
+                sizes={images.posterLarge ? POSTER_SIZES : undefined}
                 alt=""
-                width={500}
-                height={750}
+                width={400}
+                height={600}
                 className={styles.posterImage}
               />
             ) : (

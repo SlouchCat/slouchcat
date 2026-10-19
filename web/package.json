@@ -11,7 +11,10 @@
     "lint": "eslint --max-warnings 0 . && stylelint --max-warnings 0 \"src/**/*.css\" && tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
     "icons": "node scripts/icons.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "storybook": "storybook dev --port 6006 --no-open",
+    "storybook:build": "storybook build --quiet --output-dir storybook-static",
+    "storybook:test": "playwright test -c storybook.config.ts"
   },
   "dependencies": {
     "@noriginmedia/norigin-spatial-navigation": "3.3.0",
@@ -19,6 +22,7 @@
     "@slouchcat/design-tokens": "workspace:*",
     "@tanstack/react-query": "5.104.2",
     "@tanstack/react-router": "^1.170.45",
+    "hls.js": "1.7.3",
     "i18next": "26.4.7",
     "react": "^19.3.1",
     "react-aria-components": "1.22.1",
@@ -28,6 +32,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@playwright/test": "1.64.1",
+    "@storybook/react-vite": "10.6.2",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -44,6 +49,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
     "jsdom": "^30.1.3",
+    "storybook": "10.6.2",
     "stylelint": "^17.16.0",
     "stylelint-config-standard": "^40.0.0",
     "stylelint-declaration-strict-value": "^1.12.1",

@@ -45,13 +45,74 @@ jobs:
       - name: Generate test media
         run: task testdata:media
 
+      # Includes the Storybook screenshot checks, which run in the Playwright Docker image
+      # (task web:storybook:test; the runner has Docker).
       - name: task ci
         run: task ci
 
-      - name: Keep Playwright report on failure
+      # Playwright artefacts (e2e/env.ts, storybook.config.ts): traces, screenshot diffs, reports.
+      - name: Keep Playwright reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: web/playwright-report
+          path: |
+            web/node_modules/.playwright/
+            web/node_modules/.playwright-storybook/
           if-no-files-found: ignore
+
+  # Container image for both platforms (P-1: images amd64 and arm64 start). Builds without pushing:
+  # there is no registry yet (ADR 0001). The Go binary is cross-compiled; only the apt stage of the
+  # arm64 image runs under QEMU. Each image is then loaded and must turn healthy in < 5 s.
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build linux/amd64 and linux/arm64 (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ github.sha }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Single-platform loads come from the cache of the step above.
+      - name: Load the amd64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/amd64
+          build-args: VERSION=${{ github.sha }}
+          load: true
+          tags: slouchcat:ci-amd64
+          cache-from: type=gha
+
+      - name: Load the arm64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile
+          platforms: linux/arm64
+          build-args: VERSION=${{ github.sha }}
+          load: true
+          tags: slouchcat:ci-arm64
+          cache-from: type=gha
+
+      - name: amd64 turns healthy (< 5 s, idle RSS < 60 MB)
+        run: IMAGE=slouchcat:ci-amd64 deploy/scripts/measure-healthy.sh
+
+      # Under QEMU the emulator's own memory counts towards the RSS, hence the higher limit.
+      - name: arm64 turns healthy under emulation (< 5 s)
+        run: IMAGE=slouchcat:ci-arm64 MAX_RSS_MB=120 deploy/scripts/measure-healthy.sh

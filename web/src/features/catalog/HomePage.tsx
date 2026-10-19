@@ -163,6 +163,8 @@ export function HomePage() {
                     title={item.title}
                     caption={cardCaption(t, row, item)}
                     posterUrl={imageUrl(item.images.poster)}
+                    posterSmallUrl={imageUrl(item.images.posterSmall)}
+                    accent={item.accent}
                     eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
                     deferImage={heroHasArt && !heroShown}
                     progress={

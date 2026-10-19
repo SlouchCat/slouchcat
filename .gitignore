@@ -8,6 +8,7 @@
 # Dependencies and build output
 node_modules/
 web/dist/
+web/storybook-static/
 packages/*/dist/
 server/bin/
 server/internal/webassets/dist/*

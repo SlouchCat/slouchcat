@@ -40,7 +40,7 @@
   font-size: var(--sc-font-size-sm);
   font-weight: var(--sc-font-weight-medium);
   text-decoration: none;
-  transition: color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .navLink:focus-visible {
@@ -80,8 +80,8 @@
   width: var(--sc-space-8);
   height: var(--sc-space-8);
   border-radius: var(--sc-radius-full);
-  background-color: var(--accent);
-  color: var(--accent-on);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
   font-weight: var(--sc-font-weight-bold);
 }
 

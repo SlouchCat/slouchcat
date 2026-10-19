@@ -2,9 +2,12 @@
 :root {
   color-scheme: dark;
 
-  /* Accent of the active profile (M2 lets each profile pick one of the accent tokens). */
-  --accent: var(--sc-color-accent-ember-base);
-  --accent-on: var(--sc-color-accent-ember-on);
+  /*
+   * Accent of the active profile: one of the accent tokens, ember until a session says otherwise.
+   * app/session.ts points both properties at the profile's token on the root element (accent.ts).
+   */
+  --sc-accent: var(--sc-color-accent-ember-base);
+  --sc-on-accent: var(--sc-color-accent-ember-on);
 
   /* Horizontal page padding; rows bleed to the edge and use it as their inner padding. */
   --page-gutter: var(--sc-space-4);
@@ -46,8 +49,8 @@ img {
 }
 
 ::selection {
-  background-color: var(--accent);
-  color: var(--accent-on);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
 }
 
 :focus-visible {

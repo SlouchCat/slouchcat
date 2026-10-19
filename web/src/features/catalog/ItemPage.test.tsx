@@ -48,6 +48,48 @@ describe('detail page', () => {
     expect(screen.getByText('Originaltitel: Alien – Das unheimliche Wesen')).toBeVisible();
   });
 
+  it('tints backdrop and poster with the title accent and offers every image size', async () => {
+    const image = (kind: string, size: string, width: number) => ({
+      url: `/items/${ids.alien}/images/${kind}/${size}?v=x`,
+      width,
+      height: Math.round(width * (kind === 'poster' ? 1.5 : 0.5625)),
+    });
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () =>
+        json({
+          ...alienDetail,
+          accent: '#c0392b',
+          images: {
+            poster: image('poster', 'w400', 400),
+            posterLarge: image('poster', 'w800', 800),
+            backdropSmall: image('backdrop', 'w780', 780),
+            backdrop: image('backdrop', 'w1280', 1280),
+            backdropLarge: image('backdrop', 'w1920', 1920),
+          },
+        }),
+    });
+    const { container } = renderApp(`/items/${ids.alien}`);
+    await screen.findByRole('heading', { level: 1, name: 'Alien' });
+
+    const base = `/api/v1/items/${ids.alien}/images`;
+    const backdrop = container.querySelector('img[fetchpriority="high"]');
+    expect(backdrop).toHaveAttribute(
+      'srcset',
+      `${base}/backdrop/w780?v=x 780w, ${base}/backdrop/w1280?v=x 1280w, ${base}/backdrop/w1920?v=x 1920w`,
+    );
+    const tinted = [...container.querySelectorAll<HTMLElement>('[style]')].filter(
+      (element) => element.style.getPropertyValue('--sc-item-accent') === '#c0392b',
+    );
+    // The backdrop (tint over the scrim) and the poster column (glow).
+    expect(tinted).toHaveLength(2);
+    const poster = container.querySelector(`img[src="${base}/poster/w400?v=x"]`);
+    expect(poster).toHaveAttribute(
+      'srcset',
+      `${base}/poster/w400?v=x 400w, ${base}/poster/w800?v=x 800w`,
+    );
+  });
+
   it('shows a not-found message on 404', async () => {
     mockApi({ ...signedIn, 'GET /items/*': () => problem(404, 'not_found') });
     renderApp(`/items/${ids.heat}`);

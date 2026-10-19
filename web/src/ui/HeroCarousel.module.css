@@ -84,7 +84,7 @@
   width: var(--sc-space-2);
   height: var(--sc-space-2);
   border-radius: var(--sc-radius-full);
-  background-color: var(--accent);
+  background-color: var(--sc-accent);
 }
 
 .slide {

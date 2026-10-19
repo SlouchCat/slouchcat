@@ -18,8 +18,8 @@
   width: var(--sc-space-8);
   height: var(--sc-space-8);
   border-radius: var(--sc-radius-full);
-  background-color: var(--accent);
-  color: var(--accent-on);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
   font-size: var(--sc-font-size-sm);
   font-weight: var(--sc-font-weight-bold);
 }
