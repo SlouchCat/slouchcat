@@ -6,6 +6,7 @@
 //	slouchcat healthcheck [flags] exit 0 when the local server answers GET /api/v1/healthz with 200
 //	slouchcat dump [flags]        write a replayable SQL snapshot of the database to stdout
 //	slouchcat watchbench --root DIR [--passes N] [--inotify]  measure change detection of a root
+//	slouchcat hlsbench --file F [--streams N] [--mode transcode|remux]  measure concurrent HLS sessions
 //
 // The healthcheck subcommand serves the container HEALTHCHECK, so the image needs no curl. dump
 // produces the frozen milestone states in testdata/db (plan 6.2 point 4). All subcommands read the
@@ -62,6 +63,9 @@ func run(args []string) int {
 	}
 	if cmd == "watchbench" {
 		return watchbench(args) // own flags, no server configuration
+	}
+	if cmd == "hlsbench" {
+		return hlsbench(args) // own flags, no server configuration
 	}
 	cfg, err := config.Load(args, os.Getenv)
 	if errors.Is(err, flag.ErrHelp) {
