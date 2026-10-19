@@ -22,6 +22,10 @@ info:
 
     Binary endpoints (images, media streams) are described here but implemented as plain
     `http.Handler`s (plan principle 3): the generated strict server covers only JSON operations.
+
+    Stream tokens (plan 5.4): the media stream and the HLS endpoints are authorised by the query
+    parameter `st` from `PlaybackInfo.streamUrl` instead of the cookie, so native players work too.
+    Every response carries `Referrer-Policy: no-referrer`, so the token never leaves in a Referer.
   license:
     name: AGPL-3.0-only
     identifier: AGPL-3.0-only
@@ -349,9 +353,13 @@ paths:
       operationId: startPlayback
       summary: Decide how the title is played and return the stream description
       description: |
-        M1a supports direct play only: the response names the media file, its container and codecs and
-        the stream URL that the `<video>` element loads with the session cookie. Whether the device can
-        play the codecs is decided by the client (`canPlayType`); HLS follows in M1b.
+        Decides between direct play, remux and transcode (plan 10.3) from the stored probe of the media
+        file and the `capabilities` the client reports, creates a playback session and returns its
+        stream URL with the stream token `st` (plan 5.4): the Range endpoint for `direct`, the HLS
+        master playlist for `hls`. The token authorises every request of this playback without the
+        session cookie; `DELETE /playback/sessions/{id}` and logout revoke it. A title that is not
+        probed yet, or a server without a transcoder, plays directly and the client checks the codecs
+        itself (`canPlayType`).
       tags: [items]
       x-visibility: scoped
       parameters:
@@ -387,25 +395,37 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`), for example an over-long `deviceId`.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "503":
+          description: |
+            The transcode budget stayed exhausted for 10 s (`transcode_busy`); the client may retry later.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /items/{id}/stream:
     get:
       operationId: getItemStream
       summary: Direct play of the media file (binary, Range)
       description: |
-        Implemented as an `http.Handler`. Serves the media file through the `paths` package with full
-        Range support (HTTP 206), authorised by the session cookie (stream tokens follow in M1b).
-        Not visible → 404. `Accept-Ranges: bytes`, `Cache-Control: private, no-store`.
+        Implemented as an `http.Handler`. Serves the media file of a direct-play session through the
+        `paths` package with full Range support (HTTP 206), authorised by the stream token `st` only
+        (no cookie needed; plan 5.4). A missing, forged, revoked or expired token → 401; a token of
+        another title, an HLS session or a title that is no longer visible → 404.
+        `Accept-Ranges: bytes`, `Cache-Control: private, no-store`.
       tags: [items]
       x-visibility: scoped
+      security:
+        - streamToken: []
       parameters:
         - $ref: "#/components/parameters/ItemID"
-        - name: file
-          in: query
-          required: false
-          description: Media file ID from `PlaybackInfo`; defaults to the primary file of the title.
-          schema:
-            type: string
+        - $ref: "#/components/parameters/StreamToken"
         - name: Range
           in: header
           required: false
@@ -440,13 +460,13 @@ paths:
                 type: string
                 format: binary
         "401":
-          description: No valid session (`unauthenticated`).
+          description: Stream token missing, forged, revoked or expired (`unauthenticated`).
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
         "404":
-          description: Unknown, not visible, or the file is missing (`not_found`).
+          description: Not visible, another title than the token's, or the file is missing (`not_found`).
           content:
             application/problem+json:
               schema:
@@ -503,6 +523,157 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+
+  /playback/sessions/{id}:
+    delete:
+      operationId: stopPlayback
+      summary: End a playback session
+      description: |
+        Revokes the stream token of the playback session and stops its HLS output; requests with the
+        token answer 401 from then on (plan 5.4). Only the browser session that started the playback
+        may stop it; any other, unknown or already ended id answers 404. Logout ends all playback
+        sessions of the browser session.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/PlaybackSessionID"
+      responses:
+        "204":
+          description: Playback session ended.
+        "401":
+          description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Not a running playback session of this browser session (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /playback/sessions/{id}/master.m3u8:
+    get:
+      operationId: getPlaybackMaster
+      summary: HLS master playlist (binary)
+      description: |
+        Implemented as an `http.Handler`, authorised by the stream token `st` only (plan 5.4). One
+        variant: the media playlist `media.m3u8?st=…` (relative URL) with `CODECS`, `RESOLUTION` and
+        `BANDWIDTH`. Every request re-checks the title through the visibility layer.
+        `Cache-Control: private, no-store`.
+      tags: [items]
+      x-visibility: scoped
+      security:
+        - streamToken: []
+      parameters:
+        - $ref: "#/components/parameters/PlaybackSessionID"
+        - $ref: "#/components/parameters/StreamToken"
+      responses:
+        "200":
+          description: Master playlist.
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/StreamUnauthenticated"
+        "404":
+          $ref: "#/components/responses/StreamNotFound"
+
+  /playback/sessions/{id}/media.m3u8:
+    get:
+      operationId: getPlaybackMedia
+      summary: HLS media playlist (binary)
+      description: |
+        Implemented as an `http.Handler`, authorised by `st`. A complete VOD playlist (fMP4,
+        `#EXT-X-MAP` to `init.mp4?st=…`, segments `seg/{n}?st=…`, relative URLs), created at start
+        from the duration (transcode: 4-s grid) or the keyframe index (remux), so the client can seek
+        anywhere at once (plan 3.5).
+      tags: [items]
+      x-visibility: scoped
+      security:
+        - streamToken: []
+      parameters:
+        - $ref: "#/components/parameters/PlaybackSessionID"
+        - $ref: "#/components/parameters/StreamToken"
+      responses:
+        "200":
+          description: Media playlist.
+          content:
+            application/vnd.apple.mpegurl:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/StreamUnauthenticated"
+        "404":
+          $ref: "#/components/responses/StreamNotFound"
+
+  /playback/sessions/{id}/init.mp4:
+    get:
+      operationId: getPlaybackInit
+      summary: fMP4 initialisation segment (binary)
+      description: Implemented as an `http.Handler`, authorised by `st`. `ftyp` and `moov` of the HLS output.
+      tags: [items]
+      x-visibility: scoped
+      security:
+        - streamToken: []
+      parameters:
+        - $ref: "#/components/parameters/PlaybackSessionID"
+        - $ref: "#/components/parameters/StreamToken"
+      responses:
+        "200":
+          description: Initialisation segment.
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/StreamUnauthenticated"
+        "404":
+          $ref: "#/components/responses/StreamNotFound"
+
+  /playback/sessions/{id}/seg/{n}:
+    get:
+      operationId: getPlaybackSegment
+      summary: fMP4 media segment (binary)
+      description: |
+        Implemented as an `http.Handler`, authorised by `st`. Segment `n` of the media playlist
+        (`moof` + `mdat`). A segment that is not produced yet is awaited while the encoder is close to
+        it; a seek further away restarts the encoder at that segment (plan 3.5).
+      tags: [items]
+      x-visibility: scoped
+      security:
+        - streamToken: []
+      parameters:
+        - $ref: "#/components/parameters/PlaybackSessionID"
+        - name: n
+          in: path
+          required: true
+          description: Segment number, from 0.
+          schema:
+            type: integer
+            minimum: 0
+        - $ref: "#/components/parameters/StreamToken"
+      responses:
+        "200":
+          description: Media segment.
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/StreamUnauthenticated"
+        "404":
+          $ref: "#/components/responses/StreamNotFound"
 
   /admin/libraries:
     get:
@@ -714,6 +885,20 @@ paths:
                 $ref: "#/components/schemas/Problem"
 
 components:
+  responses:
+    StreamUnauthenticated:
+      description: Stream token missing, forged, revoked or expired (`unauthenticated`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    StreamNotFound:
+      description: |
+        Unknown playback session, no HLS output, or the title is no longer visible (`not_found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   securitySchemes:
     sessionCookie:
       type: apiKey
@@ -724,6 +909,14 @@ components:
       type: http
       scheme: bearer
       description: Bearer token for third-party clients. Added in M2.
+    streamToken:
+      type: apiKey
+      in: query
+      name: st
+      description: |
+        Stream token of a playback session (plan 5.4), returned in `PlaybackInfo.streamUrl`:
+        `<playback session id>.<base64url HMAC-SHA256 over id and item>`. No expiry inside the token;
+        the playback session expires 12 h after its last request and is revoked on stop and logout.
   parameters:
     ItemID:
       name: id
@@ -732,6 +925,22 @@ components:
       description: Item ID (ULID).
       schema:
         $ref: "#/components/schemas/ItemID"
+    PlaybackSessionID:
+      name: id
+      in: path
+      required: true
+      description: Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`.
+      schema:
+        type: string
+        pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+    StreamToken:
+      name: st
+      in: query
+      required: true
+      description: Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs.
+      schema:
+        type: string
+        maxLength: 128
     LibraryID:
       name: id
       in: path
@@ -1107,15 +1316,43 @@ components:
           type: string
           maxLength: 64
           description: Stable client identifier (used for progress merging in M5).
+        capabilities:
+          $ref: "#/components/schemas/PlaybackCapabilities"
+
+    PlaybackCapabilities:
+      type: object
+      description: |
+        What the client can play, from `canPlayType` / `MediaSource.isTypeSupported` (device profiles
+        follow in M4). Without it the server assumes H.264 and AAC through MSE.
+      required: [video, audio, hls]
+      properties:
+        video:
+          type: array
+          maxItems: 16
+          description: Decodable video codecs, ffprobe names (`h264`, `hevc`, `av1`, `vp9`).
+          items:
+            type: string
+            pattern: "^[a-z0-9]{1,16}$"
+        audio:
+          type: array
+          maxItems: 16
+          description: Decodable audio codecs, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`).
+          items:
+            type: string
+            pattern: "^[a-z0-9]{1,16}$"
+        hls:
+          type: string
+          enum: [native, mse, none]
+          description: "`native`: the media element plays HLS itself (Safari); `mse`: through hls.js; `none`: no HLS."
 
     PlaybackInfo:
       type: object
-      required: [mode, item, mediaFile, streamUrl, resumePositionMs]
+      required: [mode, item, mediaFile, streamUrl, resumePositionMs, playbackSessionId]
       properties:
         mode:
           type: string
-          enum: [direct]
-          description: M1a serves direct play only; `hls` follows in M1b.
+          enum: [direct, hls]
+          description: "`direct`: the file as it is through the Range endpoint; `hls`: fMP4-HLS (remux or transcode)."
         item:
           $ref: "#/components/schemas/ItemRef"
         mediaFile:
@@ -1123,12 +1360,35 @@ components:
         streamUrl:
           type: string
           format: uri-reference
-          description: Relative URL of the Range endpoint, authorised by the session cookie.
+          description: |
+            Relative URL with the stream token `st`: the Range endpoint (`direct`) or the HLS master
+            playlist (`hls`).
+        playbackSessionId:
+          type: string
+          description: ID of the playback session, for `DELETE /playback/sessions/{id}` when playback ends.
+        transcoding:
+          $ref: "#/components/schemas/Transcoding"
         resumePositionMs:
           type: integer
           format: int64
           minimum: 0
           description: Position to resume from; 0 when the title was never started or was completed.
+
+    Transcoding:
+      type: object
+      description: How an `hls` playback is produced; absent for direct play.
+      required: [mode, reason]
+      properties:
+        mode:
+          type: string
+          enum: [remux, transcode]
+          description: "`remux`: the video is copied into fMP4; `transcode`: encoded to H.264/AAC."
+        backend:
+          type: string
+          description: Encoder backend of a transcode (`nvenc`, `qsv`, `vaapi`, `software`).
+        reason:
+          type: string
+          description: Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`).
 
     ProgressEvent:
       type: object

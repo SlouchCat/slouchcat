@@ -212,6 +212,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		workers.Wait()
 	}()
 
+	playbackSvc, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	defer closeTranscoder()
+
 	ln, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.Listen)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
@@ -221,7 +224,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
 			Auth: authSvc, Admin: adminSvc,
 			Catalog:  discover.New(db, cfg.CacheDir, log),
-			Playback: playback.New(db, log),
+			Playback: playbackSvc,
 			SpikeDir: cfg.SpikeDir,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -251,4 +254,29 @@ type lazyKeys struct {
 
 func (k *lazyKeys) TMDBKey(ctx context.Context) (string, error) {
 	return k.admin.TMDBKey(ctx)
+}
+
+// newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on
+// <cache>/transcode and returns the playback service with the stream-token key of the key file
+// (plan 5.4). Without a usable ffmpeg the server still runs: titles then play directly only. The
+// returned function stops every transcode on shutdown.
+func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner transcode.Runner, keyring *secrets.Keyring, log *slog.Logger) (*playback.Service, func()) {
+	opts := []playback.Option{playback.WithTokenKey(keyring.Derive("stream-token"))}
+	backend, caps, err := transcode.Detect(ctx, runner, cfg.HW, log)
+	if err != nil {
+		log.Error("transcode backend detection failed; HLS disabled, titles play directly only", "hw", cfg.HW, "err", err)
+		return playback.New(db, log, opts...), func() {}
+	}
+	mgr, err := transcode.NewManager(transcode.ManagerOptions{
+		Runner: runner, WorkDir: cfg.TranscodeDir(), Backend: backend, Caps: caps,
+		Budget: cfg.TranscodeBudget, Log: log,
+	})
+	if err != nil {
+		log.Error("transcode manager failed; HLS disabled, titles play directly only", "err", err)
+		return playback.New(db, log, opts...), func() {}
+	}
+	stats := mgr.Stats()
+	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap, "ffmpeg", caps.Version)
+	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)))
+	return playback.New(db, log, opts...), mgr.Close
 }

@@ -13,6 +13,7 @@ const problemKeys = {
   forbidden: 'errors.code.forbidden',
   csrf_header_missing: 'errors.code.csrf_header_missing',
   validation_failed: 'errors.code.validation_failed',
+  transcode_busy: 'errors.code.transcode_busy',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

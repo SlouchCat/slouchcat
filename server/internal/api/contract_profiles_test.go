@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,9 +16,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/oklog/ulid/v2"
+
 	"github.com/slouchcat/slouchcat/server/internal/discover"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -51,15 +55,21 @@ func (a profileAuth) Resolve(_ context.Context, token string) (model.Session, bo
 }
 
 // profileCall is one request of the registry. Path is relative to BasePath; {id} is replaced by
-// the fixture item id when perItem is set.
+// the fixture item id when perItem is set. With mint set, the test first creates a playback session
+// of that mode for the movie and the profile's browser session (bypassing startPlayback, so it
+// exists for invisible titles too) and replaces {ps} with its id and {st} with its stream token;
+// streamOnly requests then go without the cookie, authorised by the token alone.
 type profileCall struct {
-	contract string // "METHOD /path" exactly as in api/openapi.yaml
-	path     string
-	body     string
-	header   map[string]string
-	perItem  bool
-	okStatus int // expected status for a visible item
-	check    func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder)
+	contract        string // "METHOD /path" exactly as in api/openapi.yaml
+	path            string
+	body            string
+	header          map[string]string
+	perItem         bool
+	okStatus        int // expected status for a visible item
+	invisibleStatus int // expected status for an invisible item; 0 = 404 not_found
+	mint            string
+	streamOnly      bool
+	check           func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder)
 }
 
 var profileRegistry = map[string]profileCall{
@@ -108,28 +118,30 @@ var profileRegistry = map[string]profileCall{
 			}
 		}},
 	"startPlayback": {contract: "POST /items/{id}/play", path: "/items/{id}/play", perItem: true, okStatus: http.StatusOK,
-		body: `{"deviceId":"contract-test"}`,
-		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+		body: `{"deviceId":"contract-test","capabilities":{"video":["h264"],"audio":["aac"],"hls":"mse"}}`,
+		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var info struct {
-				Mode      string `json:"mode"`
-				StreamURL string `json:"streamUrl"`
-				MediaFile struct {
+				Mode              string `json:"mode"`
+				StreamURL         string `json:"streamUrl"`
+				PlaybackSessionID string `json:"playbackSessionId"`
+				MediaFile         struct {
 					ID       string `json:"id"`
 					MimeType string `json:"mimeType"`
 				} `json:"mediaFile"`
 			}
 			decode(t, rec, &info)
-			if info.Mode != "direct" || info.MediaFile.ID != m.FileID || !strings.HasPrefix(info.MediaFile.MimeType, "video/mp4") {
+			if info.Mode != "direct" || info.MediaFile.ID != m.FileID || !strings.HasPrefix(info.MediaFile.MimeType, "video/mp4") ||
+				!strings.HasPrefix(info.StreamURL, BasePath+"/items/"+m.ID+"/stream?st="+info.PlaybackSessionID+".") {
 				t.Errorf("startPlayback %s = %s", m.Label, rec.Body.String())
 			}
-			// The returned stream URL works as it is.
-			stream := send(t, h, http.MethodGet, info.StreamURL, token, "", map[string]string{"Range": "bytes=10-19"})
+			// The returned stream URL works as it is, without the cookie.
+			stream := send(t, h, http.MethodGet, info.StreamURL, "", "", map[string]string{"Range": "bytes=10-19"})
 			if stream.Code != http.StatusPartialContent || stream.Body.Len() != 10 {
 				t.Errorf("stream URL %s: status %d, %d bytes", info.StreamURL, stream.Code, stream.Body.Len())
 			}
 		}},
-	"getItemStream": {contract: "GET /items/{id}/stream", path: "/items/{id}/stream", perItem: true, okStatus: http.StatusPartialContent,
-		header: map[string]string{"Range": "bytes=0-99"},
+	"getItemStream": {contract: "GET /items/{id}/stream", path: "/items/{id}/stream?st={st}", perItem: true, okStatus: http.StatusPartialContent,
+		mint: "direct", streamOnly: true, header: map[string]string{"Range": "bytes=0-99"},
 		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			if cr := rec.Header().Get("Content-Range"); cr != fmt.Sprintf("bytes 0-99/%d", vistest.FileSize) {
 				t.Errorf("Content-Range = %q", cr)
@@ -139,6 +151,31 @@ var profileRegistry = map[string]profileCall{
 			}
 			if !bytes.Equal(rec.Body.Bytes(), m.Content[:100]) {
 				t.Errorf("stream body differs from the first 100 bytes of the file")
+			}
+		}},
+	"stopPlayback": {contract: "DELETE /playback/sessions/{id}", path: "/playback/sessions/{ps}", perItem: true,
+		okStatus: http.StatusNoContent, invisibleStatus: http.StatusNoContent, mint: "remux"},
+	"getPlaybackMaster": {contract: "GET /playback/sessions/{id}/master.m3u8", path: "/playback/sessions/{ps}/master.m3u8?st={st}",
+		perItem: true, okStatus: http.StatusOK, mint: "transcode", streamOnly: true,
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			if ct := rec.Header().Get("Content-Type"); ct != "application/vnd.apple.mpegurl" || !strings.Contains(rec.Body.String(), "media.m3u8?st=") {
+				t.Errorf("master: %s %q", ct, rec.Body.String())
+			}
+		}},
+	"getPlaybackMedia": {contract: "GET /playback/sessions/{id}/media.m3u8", path: "/playback/sessions/{ps}/media.m3u8?st={st}",
+		perItem: true, okStatus: http.StatusOK, mint: "remux", streamOnly: true,
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			if body := rec.Body.String(); !strings.Contains(body, "init.mp4?st=") || !strings.Contains(body, "seg/0?st=") {
+				t.Errorf("media playlist %q", body)
+			}
+		}},
+	"getPlaybackInit": {contract: "GET /playback/sessions/{id}/init.mp4", path: "/playback/sessions/{ps}/init.mp4?st={st}",
+		perItem: true, okStatus: http.StatusOK, mint: "remux", streamOnly: true},
+	"getPlaybackSegment": {contract: "GET /playback/sessions/{id}/seg/{n}", path: "/playback/sessions/{ps}/seg/3?st={st}",
+		perItem: true, okStatus: http.StatusOK, mint: "transcode", streamOnly: true,
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			if rec.Header().Get("Content-Type") != "video/mp4" || !bytes.Equal(rec.Body.Bytes(), []byte{3}) {
+				t.Errorf("segment 3: %v %x", rec.Header(), rec.Body.Bytes())
 			}
 		}},
 	"reportProgress": {contract: "POST /items/{id}/progress", path: "/items/{id}/progress", perItem: true, okStatus: http.StatusOK,
@@ -247,10 +284,15 @@ func scopedOperations(t *testing.T) map[string]string {
 }
 
 type profileFixture struct {
-	f      *vistest.Fixture
-	h      http.Handler
-	tokens map[string]model.Profile
+	f        *vistest.Fixture
+	h        http.Handler
+	tokens   map[string]model.Profile
+	sessions map[string]model.Session
+	tc       *fakeTranscoder
 }
+
+// testTokenKey is the stream-token key of the contract fixtures.
+var testTokenKey = []byte("contract-test-stream-token-key!!")
 
 func newProfileFixture(t *testing.T) profileFixture {
 	t.Helper()
@@ -265,18 +307,33 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	log := vistest.Logger()
 	sessions := map[string]model.Session{}
 	tokens := map[string]model.Profile{"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX}
-	i := int64(0)
 	for token, p := range tokens {
-		i++
-		sessions[token] = model.Session{ID: i, Account: f.Account, Profile: p, ExpiresAt: time.Now().Add(time.Hour)}
+		sessions[token] = f.Session(t, p)
 	}
+	tc := newFakeTranscoder()
 	h := NewHandler(Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth:     profileAuth{sessions: sessions},
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
-		Playback: playback.New(f.DB, log),
+		Playback: playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(tc)),
 	})
-	return profileFixture{f: f, h: h, tokens: tokens}
+	return profileFixture{f: f, h: h, tokens: tokens, sessions: sessions, tc: tc}
+}
+
+// mint creates a playback session of the given mode for movie m and the browser session of token,
+// directly in the store, and returns its id and stream token.
+func (pf profileFixture) mint(t *testing.T, token string, m vistest.Movie, mode string) (id, st string) {
+	t.Helper()
+	session := pf.sessions[token]
+	id = ulid.Make().String()
+	err := appq.New(pf.f.DB.Write).InsertPlaybackSession(context.Background(), appq.InsertPlaybackSessionParams{
+		ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
+		ItemID: m.ID, MediaFileID: m.FileID, Mode: mode, Now: time.Now().UnixMilli(), ExpiresAt: time.Now().Add(time.Hour).UnixMilli(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id, playback.SignToken(testTokenKey, id, m.ID)
 }
 
 func homeRows(t *testing.T, rec *httptest.ResponseRecorder) (keys []string, rows map[string][]string) {
@@ -395,10 +452,26 @@ func TestContractChildProfiles(t *testing.T) {
 					continue
 				}
 				for _, m := range f.Movies {
-					rec := send(t, h, method, BasePath+strings.ReplaceAll(call.path, "{id}", m.ID), token, call.body, call.header)
+					path := strings.ReplaceAll(call.path, "{id}", m.ID)
+					if call.mint != "" {
+						ps, st := pf.mint(t, token, m, call.mint)
+						path = strings.NewReplacer("{ps}", ps, "{st}", url.QueryEscape(st)).Replace(path)
+					}
+					cookie := token
+					if call.streamOnly {
+						cookie = ""
+					}
+					rec := send(t, h, method, BasePath+path, cookie, call.body, call.header)
 					if !vistest.VisibleTo(profile, m) {
-						if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
-							t.Errorf("%s movie %s: status %d (%s), want 404 not_found", op, m.Label, rec.Code, rec.Body.String())
+						switch call.invisibleStatus {
+						case 0:
+							if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
+								t.Errorf("%s movie %s: status %d (%s), want 404 not_found", op, m.Label, rec.Code, rec.Body.String())
+							}
+						default:
+							if rec.Code != call.invisibleStatus {
+								t.Errorf("%s movie %s: status %d (%s), want %d", op, m.Label, rec.Code, rec.Body.String(), call.invisibleStatus)
+							}
 						}
 						continue
 					}
@@ -494,17 +567,20 @@ func TestContractStreamAndImageEdges(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(6)
-	rec := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/stream", "p6", "", map[string]string{"Range": "bytes=999999-"})
+	_, st := pf.mint(t, "p6", m, "direct")
+	stream := BasePath + "/items/" + m.ID + "/stream?st=" + url.QueryEscape(st)
+	rec := send(t, h, http.MethodGet, stream, "", "", map[string]string{"Range": "bytes=999999-"})
 	if rec.Code != http.StatusRequestedRangeNotSatisfiable {
 		t.Errorf("unsatisfiable range: status %d", rec.Code)
 	}
-	rec = send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/stream?file="+m.FileID, "p6", "", nil)
+	rec = send(t, h, http.MethodGet, stream, "", "", nil)
 	if rec.Code != http.StatusOK || rec.Body.Len() != vistest.FileSize {
 		t.Errorf("whole file: status %d, %d bytes", rec.Code, rec.Body.Len())
 	}
-	rec = send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/stream?file="+f.Rated(0).FileID, "p6", "", nil)
+	// A token of another title does not open this one.
+	rec = send(t, h, http.MethodGet, BasePath+"/items/"+f.Rated(0).ID+"/stream?st="+url.QueryEscape(st), "", "", nil)
 	if rec.Code != http.StatusNotFound {
-		t.Errorf("file of another title: status %d", rec.Code)
+		t.Errorf("token of another title: status %d", rec.Code)
 	}
 	for _, path := range []string{"/images/poster/w9999", "/images/logo/w400", "/images/backdrop/w500", "/images/poster/w500", "/images/backdrop/w342", "/images/poster/w780", "/images/backdrop/w400", "/images/backdrop/original", "/images/poster/original"} {
 		rec = send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+path, "p6", "", nil)

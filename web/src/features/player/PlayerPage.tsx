@@ -11,6 +11,14 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { Notice } from '@/ui';
 import { AriaButton } from '@/ui/aria';
+import {
+  browserPlatform,
+  hlsEngine,
+  playbackCapabilities,
+  type MediaPlatform,
+  type PlaybackEngine,
+} from './capabilities';
+import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { VideoPlayer } from './VideoPlayer';
 import styles from './Player.module.css';
 
@@ -34,11 +42,13 @@ export function playbackMime(info: PlaybackInfo): string {
 }
 
 /**
- * Whether this browser can direct-play the file. This is a device capability check (W-1), not a
- * visibility rule: the server already decided that the profile may watch the title.
+ * How this browser plays the answer of startPlayback: the file directly, HLS natively (Safari) or
+ * through hls.js, or not at all. This is a device capability check (W-1), not a visibility rule:
+ * the server already decided that the profile may watch the title.
  */
-function canPlay(mime: string): boolean {
-  return document.createElement('video').canPlayType(mime) !== '';
+export function playbackEngine(info: PlaybackInfo, platform: MediaPlatform): PlaybackEngine {
+  if (info.mode === 'hls') return hlsEngine(platform);
+  return platform.canPlayType(playbackMime(info)) !== '' ? 'direct' : 'unsupported';
 }
 
 /** Video player route (W-1 direct play, W-5 progress and resume). */
@@ -53,16 +63,23 @@ export function PlayerPage() {
   const playback = useQuery({
     queryKey: ['playback', itemId],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
-      request(api.POST('/items/{id}/play', { params: { path: { id: itemId } }, body: {}, signal })),
+      request(
+        api.POST('/items/{id}/play', {
+          params: { path: { id: itemId } },
+          body: { capabilities: playbackCapabilities() },
+          signal,
+        }),
+      ),
     staleTime: 0,
     gcTime: 0,
     retry: false,
     refetchOnWindowFocus: false,
   });
   useDocumentTitle(playback.data?.item.title);
+  useStopPlaybackOnLeave(playback.data?.playbackSessionId);
 
-  const supported = useMemo(
-    () => (playback.data ? canPlay(playbackMime(playback.data)) : true),
+  const engine = useMemo(
+    () => (playback.data ? playbackEngine(playback.data, browserPlatform()) : null),
     [playback.data],
   );
 
@@ -75,8 +92,8 @@ export function PlayerPage() {
     [itemId, queryClient],
   );
 
-  if (playback.data && supported) {
-    return <VideoPlayer info={playback.data} openedAt={openedAt} onBack={goBack} />;
+  if (playback.data && engine && engine !== 'unsupported') {
+    return <VideoPlayer info={playback.data} engine={engine} openedAt={openedAt} onBack={goBack} />;
   }
 
   return (
@@ -87,7 +104,7 @@ export function PlayerPage() {
           {problemMessage(t, playback.error)}
         </Notice>
       )}
-      {playback.data && !supported && (
+      {playback.data && engine === 'unsupported' && (
         <Notice tone="warning" title={t('player.unsupported.title')}>
           <p>{t('player.unsupported.body')}</p>
           <p className={styles.detailsLine}>

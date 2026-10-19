@@ -53,12 +53,26 @@ type CatalogService interface {
 	Image(ctx context.Context, profile model.Profile, itemID, kind, size string, preferWebP bool) (model.StreamSource, error)
 }
 
-// PlaybackService decides playback and records progress (package playback).
+// PlaybackService decides playback, issues and checks stream tokens and records progress
+// (package playback).
 type PlaybackService interface {
-	// Start returns the playback description; mediaFileID may be empty for the primary file.
-	Start(ctx context.Context, profile model.Profile, itemID, mediaFileID, deviceID string) (model.PlaybackInfo, error)
-	// Open opens the media file for direct play through the paths package.
-	Open(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.StreamSource, error)
+	// Start decides the playback mode, creates a playback session of the browser session and
+	// returns the playback description with the token URL. Errors: model.ErrNotFound,
+	// *model.ValidationError, model.ErrTranscodeBusy.
+	Start(ctx context.Context, session model.Session, itemID string, req model.PlaybackRequest) (model.PlaybackInfo, error)
+	// Authorize resolves a stream token; model.ErrUnauthenticated when it is missing, forged,
+	// revoked or expired.
+	Authorize(ctx context.Context, token string) (model.PlaybackGrant, error)
+	// OpenGrant opens the media file of a direct-play grant through the paths package after
+	// re-checking visibility (model.ErrNotFound otherwise).
+	OpenGrant(ctx context.Context, g model.PlaybackGrant) (model.StreamSource, error)
+	// HLS returns the HLS output of a grant after re-checking visibility (model.ErrNotFound
+	// otherwise).
+	HLS(ctx context.Context, g model.PlaybackGrant) (model.HLSStream, error)
+	// Stop ends a playback session of the browser session (model.ErrNotFound for any other).
+	Stop(ctx context.Context, session model.Session, playbackID string) error
+	// EndSession ends every playback session of a browser session (logout).
+	EndSession(ctx context.Context, sessionID int64) error
 	// Report stores a progress event and returns the merged progress.
 	Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error)
 }

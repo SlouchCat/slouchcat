@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -73,7 +74,8 @@ func TestCompression(t *testing.T) {
 	}
 
 	// Binary routes are never compressed.
-	stream := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/stream", "p6", "", map[string]string{"Accept-Encoding": "gzip", "Range": "bytes=0-99"})
+	_, st := pf.mint(t, "p6", m, "direct")
+	stream := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/stream?st="+url.QueryEscape(st), "", "", map[string]string{"Accept-Encoding": "gzip", "Range": "bytes=0-99"})
 	if stream.Code != http.StatusPartialContent || stream.Header().Get("Content-Encoding") != "" || !bytes.Equal(stream.Body.Bytes(), m.Content[:100]) {
 		t.Errorf("stream: status %d, Content-Encoding %q", stream.Code, stream.Header().Get("Content-Encoding"))
 	}

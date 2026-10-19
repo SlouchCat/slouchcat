@@ -206,6 +206,31 @@ if want "$f"; then
     -map 0:v -map 1:a -map_metadata 2 -map_chapters 2 "${x264[@]}" "${aac[@]}" "$f"
 fi
 
+# (h) Long clips for the HLS seek test (M1b, web/e2e/hls.spec.ts): 90 s at 720p keeps generation
+# fast. HEVC 10-bit → transcode in Chromium/Firefox; H.264/AAC in MKV → remux, with irregular
+# keyframes so the remux segment boundaries follow the keyframe index (plan 3.5).
+mapfile -t v90 < <(printf '%s\n' -f lavfi -i "testsrc2=size=1280x720:rate=24:duration=90")
+mapfile -t a90 < <(tone 90 440)
+
+f="$(movie_path "Slouchcat Test HEVC Long (2024)" mkv)"
+if want "$f"; then
+  "${ff[@]}" "${v90[@]}" "${a90[@]}" \
+    -c:v libx265 -preset ultrafast -crf 32 -g 48 -pix_fmt yuv420p10le \
+    -color_primaries bt709 -color_trc bt709 -colorspace bt709 \
+    -x265-params log-level=error \
+    "${aac[@]}" -metadata title="Slouchcat Test HEVC Long" "$f"
+fi
+
+f="$(movie_path "Slouchcat Test H264 MKV Long (2024)" mkv)"
+if want "$f"; then
+  "${ff[@]}" "${v90[@]}" "${a90[@]}" \
+    -c:v libx264 -preset veryfast -crf 30 -pix_fmt yuv420p \
+    -color_primaries bt709 -color_trc bt709 -colorspace bt709 \
+    -x264-params "keyint=infinite:scenecut=0" \
+    -force_key_frames 0,2,7,8,15,21,30,31,45,60,61,75 \
+    "${aac[@]}" -metadata title="Slouchcat Test H264 MKV Long" "$f"
+fi
+
 # Series example: two episodes.
 show="Slouchcat Test Show (2024)"
 for ep in 1 2; do

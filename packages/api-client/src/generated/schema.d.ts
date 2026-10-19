@@ -175,9 +175,13 @@ export interface paths {
         put?: never;
         /**
          * Decide how the title is played and return the stream description
-         * @description M1a supports direct play only: the response names the media file, its container and codecs and
-         *     the stream URL that the `<video>` element loads with the session cookie. Whether the device can
-         *     play the codecs is decided by the client (`canPlayType`); HLS follows in M1b.
+         * @description Decides between direct play, remux and transcode (plan 10.3) from the stored probe of the media
+         *     file and the `capabilities` the client reports, creates a playback session and returns its
+         *     stream URL with the stream token `st` (plan 5.4): the Range endpoint for `direct`, the HLS
+         *     master playlist for `hls`. The token authorises every request of this playback without the
+         *     session cookie; `DELETE /playback/sessions/{id}` and logout revoke it. A title that is not
+         *     probed yet, or a server without a transcoder, plays directly and the client checks the codecs
+         *     itself (`canPlayType`).
          */
         post: operations["startPlayback"];
         delete?: never;
@@ -195,9 +199,11 @@ export interface paths {
         };
         /**
          * Direct play of the media file (binary, Range)
-         * @description Implemented as an `http.Handler`. Serves the media file through the `paths` package with full
-         *     Range support (HTTP 206), authorised by the session cookie (stream tokens follow in M1b).
-         *     Not visible → 404. `Accept-Ranges: bytes`, `Cache-Control: private, no-store`.
+         * @description Implemented as an `http.Handler`. Serves the media file of a direct-play session through the
+         *     `paths` package with full Range support (HTTP 206), authorised by the stream token `st` only
+         *     (no cookie needed; plan 5.4). A missing, forged, revoked or expired token → 401; a token of
+         *     another title, an HLS session or a title that is no longer visible → 404.
+         *     `Accept-Ranges: bytes`, `Cache-Control: private, no-store`.
          */
         get: operations["getItemStream"];
         put?: never;
@@ -224,6 +230,117 @@ export interface paths {
          *     Positions at or beyond 90 % of the duration mark the title as completed.
          */
         post: operations["reportProgress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playback/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End a playback session
+         * @description Revokes the stream token of the playback session and stops its HLS output; requests with the
+         *     token answer 401 from then on (plan 5.4). Only the browser session that started the playback
+         *     may stop it; any other, unknown or already ended id answers 404. Logout ends all playback
+         *     sessions of the browser session.
+         */
+        delete: operations["stopPlayback"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playback/sessions/{id}/master.m3u8": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * HLS master playlist (binary)
+         * @description Implemented as an `http.Handler`, authorised by the stream token `st` only (plan 5.4). One
+         *     variant: the media playlist `media.m3u8?st=…` (relative URL) with `CODECS`, `RESOLUTION` and
+         *     `BANDWIDTH`. Every request re-checks the title through the visibility layer.
+         *     `Cache-Control: private, no-store`.
+         */
+        get: operations["getPlaybackMaster"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playback/sessions/{id}/media.m3u8": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * HLS media playlist (binary)
+         * @description Implemented as an `http.Handler`, authorised by `st`. A complete VOD playlist (fMP4,
+         *     `#EXT-X-MAP` to `init.mp4?st=…`, segments `seg/{n}?st=…`, relative URLs), created at start
+         *     from the duration (transcode: 4-s grid) or the keyframe index (remux), so the client can seek
+         *     anywhere at once (plan 3.5).
+         */
+        get: operations["getPlaybackMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playback/sessions/{id}/init.mp4": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * fMP4 initialisation segment (binary)
+         * @description Implemented as an `http.Handler`, authorised by `st`. `ftyp` and `moov` of the HLS output.
+         */
+        get: operations["getPlaybackInit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playback/sessions/{id}/seg/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * fMP4 media segment (binary)
+         * @description Implemented as an `http.Handler`, authorised by `st`. Segment `n` of the media playlist
+         *     (`moof` + `mdat`). A segment that is not produced yet is awaited while the encoder is close to
+         *     it; a seek further away restarts the encoder at that segment (plan 3.5).
+         */
+        get: operations["getPlaybackSegment"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -539,25 +656,57 @@ export interface components {
             mediaFileId?: string;
             /** @description Stable client identifier (used for progress merging in M5). */
             deviceId?: string;
+            capabilities?: components["schemas"]["PlaybackCapabilities"];
+        };
+        /**
+         * @description What the client can play, from `canPlayType` / `MediaSource.isTypeSupported` (device profiles
+         *     follow in M4). Without it the server assumes H.264 and AAC through MSE.
+         */
+        PlaybackCapabilities: {
+            /** @description Decodable video codecs, ffprobe names (`h264`, `hevc`, `av1`, `vp9`). */
+            video: string[];
+            /** @description Decodable audio codecs, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`). */
+            audio: string[];
+            /**
+             * @description `native`: the media element plays HLS itself (Safari); `mse`: through hls.js; `none`: no HLS.
+             * @enum {string}
+             */
+            hls: "native" | "mse" | "none";
         };
         PlaybackInfo: {
             /**
-             * @description M1a serves direct play only; `hls` follows in M1b.
+             * @description `direct`: the file as it is through the Range endpoint; `hls`: fMP4-HLS (remux or transcode).
              * @enum {string}
              */
-            mode: "direct";
+            mode: "direct" | "hls";
             item: components["schemas"]["ItemRef"];
             mediaFile: components["schemas"]["MediaFileInfo"];
             /**
              * Format: uri-reference
-             * @description Relative URL of the Range endpoint, authorised by the session cookie.
+             * @description Relative URL with the stream token `st`: the Range endpoint (`direct`) or the HLS master
+             *     playlist (`hls`).
              */
             streamUrl: string;
+            /** @description ID of the playback session, for `DELETE /playback/sessions/{id}` when playback ends. */
+            playbackSessionId: string;
+            transcoding?: components["schemas"]["Transcoding"];
             /**
              * Format: int64
              * @description Position to resume from; 0 when the title was never started or was completed.
              */
             resumePositionMs: number;
+        };
+        /** @description How an `hls` playback is produced; absent for direct play. */
+        Transcoding: {
+            /**
+             * @description `remux`: the video is copied into fMP4; `transcode`: encoded to H.264/AAC.
+             * @enum {string}
+             */
+            mode: "remux" | "transcode";
+            /** @description Encoder backend of a transcode (`nvenc`, `qsv`, `vaapi`, `software`). */
+            backend?: string;
+            /** @description Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`). */
+            reason: string;
         };
         ProgressEvent: {
             mediaFileId?: string;
@@ -641,10 +790,33 @@ export interface components {
             fileCount: number;
         };
     };
-    responses: never;
+    responses: {
+        /** @description Stream token missing, forged, revoked or expired (`unauthenticated`). */
+        StreamUnauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Unknown playback session, no HLS output, or the title is no longer visible (`not_found`). */
+        StreamNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
     parameters: {
         /** @description Item ID (ULID). */
         ItemID: components["schemas"]["ItemID"];
+        /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+        PlaybackSessionID: string;
+        /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
+        StreamToken: string;
         LibraryID: number;
     };
     requestBodies: never;
@@ -1058,13 +1230,31 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description Validation failed (`validation_failed`), for example an over-long `deviceId`. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The transcode budget stayed exhausted for 10 s (`transcode_busy`); the client may retry later. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getItemStream: {
         parameters: {
-            query?: {
-                /** @description Media file ID from `PlaybackInfo`; defaults to the primary file of the title. */
-                file?: string;
+            query: {
+                /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
+                st: components["parameters"]["StreamToken"];
             };
             header?: {
                 Range?: string;
@@ -1098,7 +1288,7 @@ export interface operations {
                     "video/x-matroska": string;
                 };
             };
-            /** @description No valid session (`unauthenticated`). */
+            /** @description Stream token missing, forged, revoked or expired (`unauthenticated`). */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -1107,7 +1297,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Unknown, not visible, or the file is missing (`not_found`). */
+            /** @description Not visible, another title than the token's, or the file is missing (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1186,6 +1376,168 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    stopPlayback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Playback session ended. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not a running playback session of this browser session (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPlaybackMaster: {
+        parameters: {
+            query: {
+                /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
+                st: components["parameters"]["StreamToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Master playlist. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.apple.mpegurl": string;
+                };
+            };
+            401: components["responses"]["StreamUnauthenticated"];
+            404: components["responses"]["StreamNotFound"];
+        };
+    };
+    getPlaybackMedia: {
+        parameters: {
+            query: {
+                /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
+                st: components["parameters"]["StreamToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Media playlist. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.apple.mpegurl": string;
+                };
+            };
+            401: components["responses"]["StreamUnauthenticated"];
+            404: components["responses"]["StreamNotFound"];
+        };
+    };
+    getPlaybackInit: {
+        parameters: {
+            query: {
+                /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
+                st: components["parameters"]["StreamToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Initialisation segment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            401: components["responses"]["StreamUnauthenticated"];
+            404: components["responses"]["StreamNotFound"];
+        };
+    };
+    getPlaybackSegment: {
+        parameters: {
+            query: {
+                /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
+                st: components["parameters"]["StreamToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+                /** @description Segment number, from 0. */
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Media segment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            401: components["responses"]["StreamUnauthenticated"];
+            404: components["responses"]["StreamNotFound"];
         };
     };
     listLibraries: {

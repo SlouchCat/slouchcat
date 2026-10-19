@@ -208,6 +208,11 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "library_path_invalid", "The library path must be an absolute, readable directory on the server.")
 	case errors.Is(err, model.ErrTMDBKeyInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_key_invalid", "TMDB rejected the key.")
+	case errors.Is(err, model.ErrUnauthenticated):
+		p.write(w, r, http.StatusUnauthorized, "unauthenticated", "The stream token is missing, invalid, revoked or expired.")
+	case errors.Is(err, model.ErrTranscodeBusy):
+		w.Header().Set("Retry-After", "30")
+		p.write(w, r, http.StatusServiceUnavailable, "transcode_busy", "The server is busy transcoding; try again later.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
 	case errors.As(err, &verr):

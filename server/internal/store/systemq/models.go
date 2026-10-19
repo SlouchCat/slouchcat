@@ -146,6 +146,23 @@ type MediaFile struct {
 	UpdatedAt    int64
 }
 
+type PlaybackSession struct {
+	ID             string
+	SessionID      int64
+	AccountID      int64
+	ProfileID      int64
+	ItemID         string
+	MediaFileID    string
+	DeviceID       sql.NullString
+	Mode           string
+	Backend        sql.NullString
+	Reason         sql.NullString
+	StartedAt      int64
+	LastActivityAt int64
+	ExpiresAt      int64
+	RevokedAt      sql.NullInt64
+}
+
 type Profile struct {
 	ID           int64
 	AccountID    int64

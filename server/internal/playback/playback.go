@@ -1,6 +1,8 @@
 // Package playback decides how a title is played and records playback progress (plan 3.4 steps 6
-// and 7, W-1, W-5). M1a supports direct play only: the client receives the stream URL of the
-// Range endpoint and plays the file as it is; HLS, remux and transcoding follow in M1b.
+// and 7, W-1, W-3, W-5). Start decides between direct play, remux and transcode from the stored
+// probe and the client's capabilities (decide.go), records a playback session and returns URLs
+// with the stream token (sessions.go, token.go, plan 5.4). HLS output comes from a Transcoder
+// (package transcode through transcoder.go); direct play never starts ffmpeg (W-1).
 //
 // Every read of a title goes through the visibility package, so a title the profile may not see
 // answers model.ErrNotFound for playback, streaming and progress alike. Files are opened only
@@ -11,13 +13,14 @@ package playback
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -32,10 +35,17 @@ const maxClientIDLength = 64
 
 // Service implements the playback service of the API.
 type Service struct {
-	db  *store.DB
-	vis *visibility.Reader
-	log *slog.Logger
-	now func() time.Time
+	db    *store.DB
+	read  *appq.Queries
+	write *appq.Queries
+	vis   *visibility.Reader
+	log   *slog.Logger
+	now   func() time.Time
+	key   []byte     // HMAC key of the stream tokens
+	tc    Transcoder // nil: no HLS, every title plays directly
+
+	sweepMu   sync.Mutex
+	lastSweep time.Time
 }
 
 // Option configures New.
@@ -46,11 +56,26 @@ func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
 }
 
+// WithTokenKey sets the HMAC key of the stream tokens (secrets.Keyring.Derive("stream-token")).
+// Without it New draws a random key, so tokens do not survive a restart.
+func WithTokenKey(key []byte) Option {
+	return func(s *Service) { s.key = key }
+}
+
+// WithTranscoder enables HLS playback (remux and transcode) through t.
+func WithTranscoder(t Transcoder) Option {
+	return func(s *Service) { s.tc = t }
+}
+
 // New returns the playback service; log is the redacting logger.
 func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
-	s := &Service{db: db, vis: visibility.New(db, log), log: log, now: time.Now}
+	s := &Service{db: db, read: appq.New(db.Read), write: appq.New(db.Write), vis: visibility.New(db, log), log: log, now: time.Now}
 	for _, o := range opts {
 		o(s)
+	}
+	if len(s.key) == 0 {
+		s.key = make([]byte, macLength)
+		_, _ = rand.Read(s.key) // crypto/rand.Read never fails
 	}
 	return s
 }
@@ -80,35 +105,6 @@ func containerType(container string) string {
 	default:
 		return "application/octet-stream"
 	}
-}
-
-// Start describes how the client plays a visible title. mediaFileID may be empty for the primary
-// file. The resume position is the profile's position unless the title was completed.
-func (s *Service) Start(ctx context.Context, profile model.Profile, itemID, mediaFileID, _ string) (model.PlaybackInfo, error) {
-	scope := visibility.Profile(profile)
-	loc, err := s.vis.MediaFile(ctx, scope, itemID, mediaFileID)
-	if err != nil {
-		return model.PlaybackInfo{}, err
-	}
-	if !loc.File.Available {
-		return model.PlaybackInfo{}, model.ErrNotFound
-	}
-	item, err := s.vis.Summary(ctx, scope, itemID)
-	if err != nil {
-		return model.PlaybackInfo{}, err
-	}
-	file := loc.File
-	file.MimeType = MimeType(file.Container, file.VideoCodec, file.AudioCodec)
-	info := model.PlaybackInfo{
-		Mode:      "direct",
-		Item:      item,
-		MediaFile: file,
-		StreamURL: "/api/v1/items/" + url.PathEscape(item.ID) + "/stream?file=" + url.QueryEscape(file.ID),
-	}
-	if p := item.Progress; p != nil && !p.Completed && p.PositionMs > 0 {
-		info.ResumePositionMs = p.PositionMs
-	}
-	return info, nil
 }
 
 // Open opens a media file of a visible title for direct play. The caller closes the file. A file

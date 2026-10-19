@@ -105,22 +105,30 @@ func (s *server) StartPlayback(ctx context.Context, req gen.StartPlaybackRequest
 	if err != nil {
 		return nil, err
 	}
-	var fileID, deviceID string
-	if req.Body != nil {
-		fileID = deref(req.Body.MediaFileId)
-		deviceID = deref(req.Body.DeviceId)
+	var in model.PlaybackRequest
+	if b := req.Body; b != nil {
+		in.MediaFileID = deref(b.MediaFileId)
+		in.DeviceID = deref(b.DeviceId)
+		if c := b.Capabilities; c != nil {
+			in.Capabilities = &model.PlaybackCapabilities{Video: c.Video, Audio: c.Audio, HLS: string(c.Hls)}
+		}
 	}
-	info, err := s.opts.Playback.Start(ctx, session.Profile, req.Id, fileID, deviceID)
+	info, err := s.opts.Playback.Start(ctx, session, req.Id, in)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.StartPlayback200JSONResponse(gen.PlaybackInfo{
-		Mode:             gen.PlaybackInfoMode(info.Mode),
-		Item:             toItemRef(info.Item),
-		MediaFile:        toMediaFileInfo(info.MediaFile),
-		StreamUrl:        info.StreamURL,
-		ResumePositionMs: info.ResumePositionMs,
-	}), nil
+	out := gen.PlaybackInfo{
+		Mode:              gen.PlaybackInfoMode(info.Mode),
+		Item:              toItemRef(info.Item),
+		MediaFile:         toMediaFileInfo(info.MediaFile),
+		StreamUrl:         info.StreamURL,
+		ResumePositionMs:  info.ResumePositionMs,
+		PlaybackSessionId: info.PlaybackSessionID,
+	}
+	if tr := info.Transcoding; tr != nil {
+		out.Transcoding = &gen.Transcoding{Mode: gen.TranscodingMode(tr.Mode), Backend: optString(tr.Backend), Reason: tr.Reason}
+	}
+	return gen.StartPlayback200JSONResponse(out), nil
 }
 
 func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressRequestObject) (gen.ReportProgressResponseObject, error) {
@@ -183,15 +191,20 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
-// getItemStream serves the media file with Range support (binary endpoint, CLAUDE.md rule 6):
-// http.ServeContent answers 206 for a satisfiable range and 416 otherwise.
+// getItemStream serves the media file of a direct-play session with Range support (binary
+// endpoint, CLAUDE.md rule 6), authorised by the stream token (streamGrant): http.ServeContent
+// answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404.
 func (s *server) getItemStream(w http.ResponseWriter, r *http.Request) {
-	session, ok := sessionFrom(r.Context())
+	g, ok := grantFrom(r.Context())
 	if !ok || s.opts.Playback == nil {
 		s.p.internal(w, r, errNoItemsServices)
 		return
 	}
-	src, err := s.opts.Playback.Open(r.Context(), session.Profile, chi.URLParam(r, "id"), r.URL.Query().Get("file"))
+	if chi.URLParam(r, "id") != g.ItemID {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	src, err := s.opts.Playback.OpenGrant(r.Context(), g)
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return

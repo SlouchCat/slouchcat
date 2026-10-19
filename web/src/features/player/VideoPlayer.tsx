@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { apiUrl } from '@/api/client';
 import { formatPlayerTime } from '@/lib/format';
 import { AriaButton } from '@/ui/aria';
+import type { PlaybackEngine } from './capabilities';
 import { SeekBar } from './SeekBar';
 import { useProgressReporter } from './useProgressReporter';
 import styles from './Player.module.css';
@@ -17,6 +18,8 @@ const RESUME_TAIL_MS = 5000;
 
 interface VideoPlayerProps {
   info: PlaybackInfo;
+  /** Range stream or native HLS (the element loads streamUrl itself) or hls.js (MSE). */
+  engine: Exclude<PlaybackEngine, 'unsupported'>;
   /** performance.now() when the player route opened. */
   openedAt: number;
   onBack: () => void;
@@ -33,7 +36,14 @@ function bufferedRanges(video: HTMLVideoElement): [number, number][] {
   return ranges;
 }
 
-export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
+/** Where playback starts: the resume position unless it lies in the last seconds of the file. */
+function resumeSeconds(info: PlaybackInfo, durationMs: number): number {
+  const resume = info.resumePositionMs;
+  if (resume <= 0 || (durationMs > 0 && resume >= durationMs - RESUME_TAIL_MS)) return 0;
+  return resume / 1000;
+}
+
+export function VideoPlayer({ info, engine, openedAt, onBack }: VideoPlayerProps) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -48,6 +58,8 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
   const [idle, setIdle] = useState(false);
   const [osd, setOsd] = useState<string | null>(null);
   const [startMs, setStartMs] = useState<number | null>(null);
+  // Last seek: from the element starting to seek until it plays again (e2e measurement, W-3).
+  const [seek, setSeek] = useState<{ ms: number; count: number } | null>(null);
   const [failed, setFailed] = useState(false);
 
   useProgressReporter({
@@ -178,24 +190,79 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [changeVolume, onBack, poke, seekBy, toggleFullscreen, togglePlay]);
 
+  // hls.js (Chromium, Firefox): loaded as its own chunk only for HLS playback (ADR 0004). It starts
+  // loading at the resume position, so a transcode does not first encode the beginning.
+  useEffect(() => {
+    const element = video.current;
+    if (engine !== 'hlsjs' || !element) return;
+    let cancelled = false;
+    let destroy = () => {};
+    import('hls.js/light')
+      .then(({ default: Hls }) => {
+        if (cancelled) return;
+        const hls = new Hls({
+          startPosition: resumeSeconds(info, info.mediaFile.durationMs ?? 0),
+          // A seek far ahead restarts the encoder; the first byte of that segment may take a while.
+          fragLoadPolicy: {
+            default: {
+              maxTimeToFirstByteMs: 20_000,
+              maxLoadTimeMs: 60_000,
+              timeoutRetry: { maxNumRetry: 2, retryDelayMs: 0, maxRetryDelayMs: 0 },
+              errorRetry: { maxNumRetry: 3, retryDelayMs: 500, maxRetryDelayMs: 4000 },
+            },
+          },
+        });
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) setFailed(true);
+        });
+        hls.loadSource(apiUrl(info.streamUrl));
+        hls.attachMedia(element);
+        destroy = () => hls.destroy();
+      })
+      .catch(() => setFailed(true));
+    return () => {
+      cancelled = true;
+      destroy();
+    };
+  }, [engine, info]);
+
   // Media element events.
   useEffect(() => {
     const element = video.current;
     if (!element) return;
+    let seekStarted: number | null = null;
+    let seeked = false;
+    const finishSeek = () => {
+      if (seekStarted === null) return;
+      const ms = Math.round(performance.now() - seekStarted);
+      seekStarted = null;
+      setSeek((value) => ({ ms, count: (value?.count ?? 0) + 1 }));
+    };
     const onLoadedMetadata = () => {
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);
-      const resume = info.resumePositionMs;
-      if (resume > 0 && resume < element.duration * 1000 - RESUME_TAIL_MS) {
-        element.currentTime = resume / 1000;
-      }
+      const resume = resumeSeconds(info, element.duration * 1000);
+      // hls.js already started at the resume position.
+      if (resume > 0 && Math.abs(element.currentTime - resume) > 1) element.currentTime = resume;
       element.play().catch(() => setPlaying(false));
     };
     const onPlaying = () => {
       setPlaying(true);
       setStartMs((value) => value ?? Math.round(performance.now() - openedAt));
+      finishSeek();
+    };
+    const onSeeking = () => {
+      seekStarted ??= performance.now();
+      seeked = false;
+    };
+    const onSeeked = () => {
+      seeked = true;
     };
     const onPause = () => setPlaying(false);
-    const onTime = () => setCurrentMs(element.currentTime * 1000);
+    const onTime = () => {
+      setCurrentMs(element.currentTime * 1000);
+      // Seeking within the buffer fires no new `playing`: the first tick after `seeked` counts.
+      if (seeked && !element.paused) finishSeek();
+    };
     const onProgress = () => setBuffered(bufferedRanges(element));
     const onDuration = () => {
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);
@@ -204,6 +271,8 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
 
     element.addEventListener('loadedmetadata', onLoadedMetadata);
     element.addEventListener('playing', onPlaying);
+    element.addEventListener('seeking', onSeeking);
+    element.addEventListener('seeked', onSeeked);
     element.addEventListener('pause', onPause);
     element.addEventListener('timeupdate', onTime);
     element.addEventListener('progress', onProgress);
@@ -212,13 +281,15 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
     return () => {
       element.removeEventListener('loadedmetadata', onLoadedMetadata);
       element.removeEventListener('playing', onPlaying);
+      element.removeEventListener('seeking', onSeeking);
+      element.removeEventListener('seeked', onSeeked);
       element.removeEventListener('pause', onPause);
       element.removeEventListener('timeupdate', onTime);
       element.removeEventListener('progress', onProgress);
       element.removeEventListener('durationchange', onDuration);
       element.removeEventListener('error', onError);
     };
-  }, [info.resumePositionMs, openedAt]);
+  }, [info, openedAt]);
 
   const elapsed = formatPlayerTime(currentMs, durationMs);
   const total = formatPlayerTime(durationMs, durationMs);
@@ -231,17 +302,20 @@ export function VideoPlayer({ info, openedAt, onBack }: VideoPlayerProps) {
       className={styles.player}
       aria-label={t('player.region')}
       data-start-ms={startMs ?? undefined}
+      data-seek-ms={seek?.ms}
+      data-seek-count={seek?.count}
+      data-engine={engine}
       data-controls={hidden ? 'hidden' : 'visible'}
       onPointerMove={poke}
       onPointerDown={poke}
       onFocus={poke}
     >
-      {/* Subtitle tracks arrive with track selection (W-6, M4); M1a plays the main streams. */}
+      {/* Subtitle tracks arrive with track selection (W-6, M4); M1b plays the main streams. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
         ref={video}
         className={styles.video}
-        src={apiUrl(info.streamUrl)}
+        src={engine === 'hlsjs' ? undefined : apiUrl(info.streamUrl)}
         preload="auto"
         playsInline
         onPointerUp={(event) => {

@@ -13,6 +13,8 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
 // testParams keep the tests fast; TestPHCDefaultParams covers the production parameters.
@@ -284,5 +286,33 @@ func TestPHCParamsReadFromString(t *testing.T) {
 		if _, err := verifyPassword(testPassword, bad); !errors.Is(err, errBadHash) {
 			t.Errorf("verify(%q) = %v, want errBadHash", bad, err)
 		}
+	}
+}
+
+// Logout revokes the playback sessions of the browser session with it (plan 5.4), and only those.
+func TestLogoutRevokesPlaybackSessions(t *testing.T) {
+	ctx := context.Background()
+	f := vistest.New(t)
+	s := New(f.DB, vistest.Logger())
+	mine, other := f.Session(t, f.P18), f.Session(t, f.P18)
+	q := appq.New(f.DB.Write)
+	for id, session := range map[string]int64{"01JAAAAAAAAAAAAAAAAAAAAAA1": mine.ID, "01JAAAAAAAAAAAAAAAAAAAAAA2": mine.ID, "01JAAAAAAAAAAAAAAAAAAAAAA3": other.ID} {
+		err := q.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
+			ID: id, SessionID: session, AccountID: f.Account.ID, ProfileID: f.P18.ID, ItemID: f.Rated(18).ID,
+			MediaFileID: f.Rated(18).FileID, Mode: "direct", Now: 1, ExpiresAt: time.Now().Add(time.Hour).UnixMilli(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Logout(ctx, mine.ID); err != nil {
+		t.Fatal(err)
+	}
+	var revoked, open int
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT count(revoked_at), count(*) - count(revoked_at) FROM playback_sessions`).Scan(&revoked, &open); err != nil {
+		t.Fatal(err)
+	}
+	if revoked != 2 || open != 1 {
+		t.Errorf("after logout: %d revoked, %d open; want 2 and 1", revoked, open)
 	}
 }

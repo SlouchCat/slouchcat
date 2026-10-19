@@ -124,6 +124,13 @@ func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 
 func (s *server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.LogoutResponseObject, error) {
 	if session, ok := sessionFrom(ctx); ok {
+		// Playback first: it revokes the stream tokens and stops their HLS output; auth then
+		// revokes the browser session (and, in the same transaction, any playback left).
+		if s.opts.Playback != nil {
+			if err := s.opts.Playback.EndSession(ctx, session.ID); err != nil {
+				return s.problem(ctx, err), nil
+			}
+		}
 		if err := s.opts.Auth.Logout(ctx, session.ID); err != nil {
 			return s.problem(ctx, err), nil
 		}

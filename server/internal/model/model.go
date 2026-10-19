@@ -168,11 +168,13 @@ type HomeRow struct {
 
 // PlaybackInfo is the answer of startPlayback.
 type PlaybackInfo struct {
-	Mode             string // direct
-	Item             ItemSummary
-	MediaFile        MediaFile
-	StreamURL        string
-	ResumePositionMs int64
+	Mode              string // direct, hls
+	Item              ItemSummary
+	MediaFile         MediaFile
+	StreamURL         string // Range URL (direct) or master playlist (hls), both with the stream token
+	ResumePositionMs  int64
+	PlaybackSessionID string
+	Transcoding       *Transcoding // nil for direct play
 }
 
 // ProgressEvent is one raw event from a client.
@@ -242,4 +244,55 @@ type Library struct {
 	Roots     []LibraryRoot
 	Scan      LibraryScan
 	CreatedAt time.Time
+}
+
+// Playback sessions and stream tokens (M1b, plan 5.4).
+
+// ErrUnauthenticated: a stream token is missing, forged, revoked or expired (401 unauthenticated).
+// ErrTranscodeBusy: the transcode budget stayed exhausted (503 transcode_busy).
+var (
+	ErrUnauthenticated = errors.New("unauthenticated")
+	ErrTranscodeBusy   = errors.New("transcode budget exhausted")
+)
+
+// PlaybackCapabilities are the codecs and the HLS support the client reports with startPlayback
+// (canPlayType checks; device profiles follow in M4).
+type PlaybackCapabilities struct {
+	Video []string // h264, hevc, …
+	Audio []string // aac, ac3, eac3, …
+	HLS   string   // native, mse, none
+}
+
+// PlaybackRequest is the body of startPlayback.
+type PlaybackRequest struct {
+	MediaFileID  string // empty = primary file
+	DeviceID     string
+	Capabilities *PlaybackCapabilities // nil = H.264/AAC with MSE (a browser of the M1a client)
+}
+
+// Transcoding describes an HLS playback: remux (copy video) or transcode, the encoder backend and
+// why the file is not played directly.
+type Transcoding struct {
+	Mode    string // remux, transcode
+	Backend string // nvenc, qsv, vaapi, software; empty for remux
+	Reason  string
+}
+
+// PlaybackGrant is a valid stream token resolved to its playback session: the browser session
+// (account and profile) it was issued to and the title and media file it covers.
+type PlaybackGrant struct {
+	ID          string // playback session id (ULID)
+	Session     Session
+	ItemID      string
+	MediaFileID string
+	Mode        string // direct, remux, transcode
+}
+
+// HLSStream serves the playlists and fMP4 segments of one HLS playback. URLs inside playlists are
+// supplied by the caller, so the stream token stays in the HTTP layer.
+type HLSStream interface {
+	MasterPlaylist(mediaURL string) []byte
+	MediaPlaylist(initURL string, segmentURL func(i int) string) []byte
+	OpenInit(ctx context.Context) (io.ReadSeekCloser, error)
+	OpenSegment(ctx context.Context, i int) (io.ReadSeekCloser, error)
 }
