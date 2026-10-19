@@ -92,6 +92,14 @@ export function SpatialPage({ children, defaultFocusKey }: SpatialPageProps) {
   return <>{children}</>;
 }
 
+/** Focus key of the element norigin focused last (by arrows, Tab or pointer). */
+export const spatialFocusKey = (): string => nav().getCurrentFocusKey();
+
+/** Moves focus to a registered element, for when the focused one goes away. */
+export function setSpatialFocus(focusKey: string): void {
+  void nav().setFocus(focusKey);
+}
+
 interface SpatialItemOptions {
   focusKey?: string;
   /** Return false to consume the arrow press (for example to page a carousel). */

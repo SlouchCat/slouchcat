@@ -155,33 +155,6 @@
   align-items: flex-start;
 }
 
-.facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: var(--sc-space-4) var(--sc-space-6);
-  width: 100%;
-  margin: 0;
-}
-
-.fact {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-  min-width: 0;
-}
-
-.fact dt {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-}
-
-.fact dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-size: var(--sc-font-size-sm);
-  font-weight: var(--sc-font-weight-medium);
-}
-
 .stillImage,
 .stillFallback {
   width: 100%;

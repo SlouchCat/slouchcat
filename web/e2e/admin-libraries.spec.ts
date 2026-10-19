@@ -91,6 +91,10 @@ test('"Scan abbrechen" shows while a scan is queued or running and cancels it', 
   const library = (await response.json()) as { scan: { state: string; lastError?: string } };
   await page.unroute('**/api/v1/admin/libraries', delay);
 
+  // The cancel either stopped the scan, or the (small) scan finished just before it arrived;
+  // anything else, or a finished scan with an error, is a failure.
+  expect(['aborted', 'done']).toContain(library.scan.state);
+  if (library.scan.state === 'done') expect(library.scan.lastError).toBeUndefined();
   if (library.scan.state === 'aborted') {
     expect(library.scan.lastError).toBe('cancelled');
     await expect(

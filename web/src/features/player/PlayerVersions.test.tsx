@@ -95,7 +95,8 @@ describe('player: versions and stream info (B-5)', () => {
     const info = screen.getByRole('region', { name: 'Stream-Info' });
     expect(within(info).getByText('HLS')).toBeVisible();
     expect(within(info).getByText('Remux')).toBeVisible();
-    expect(within(info).getByText('container')).toBeVisible();
+    // The reason code in words.
+    expect(within(info).getByText('Grund').nextElementSibling).toHaveTextContent('Container');
     expect(within(info).getByText('mf-1')).toBeVisible();
     expect(within(info).getByText('1080p')).toBeVisible();
     expect(within(info).getByText('1920 × 1080 · 1080p')).toBeVisible();
@@ -111,7 +112,7 @@ describe('player: versions and stream info (B-5)', () => {
   it('switches the version: ends the session, starts the other file at the same position', async () => {
     const media = stubMedia();
     const { calls } = mockApi(routes());
-    const { container } = renderApp(`/play/${ids.alien}`);
+    const { container, router } = renderApp(`/play/${ids.alien}`);
     const first = await videoOf(container);
     act(() => {
       first.dispatchEvent(new Event('loadedmetadata'));
@@ -125,9 +126,14 @@ describe('player: versions and stream info (B-5)', () => {
 
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     expect(starts(calls)[1]?.body).toMatchObject({ mediaFileId: 'mf-2' });
-    expect(
-      calls.some((call) => call.method === 'DELETE' && call.path === '/playback/sessions/ps-1'),
-    ).toBe(true);
+    // The old session ends before the next one starts.
+    const stop = calls.findIndex(
+      (call) => call.method === 'DELETE' && call.path === '/playback/sessions/ps-1',
+    );
+    expect(stop).toBeGreaterThan(-1);
+    expect(stop).toBeLessThan(calls.indexOf(starts(calls)[1]!));
+    // The URL names the chosen version, so a reload plays it.
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ file: 'mf-2' }));
 
     const region = screen.getByRole('main', { name: 'Videoplayer' });
     await waitFor(() => expect(region).toHaveAttribute('data-media-file-id', 'mf-2'));
@@ -139,6 +145,86 @@ describe('player: versions and stream info (B-5)', () => {
     });
     // The position the viewer was at, not the stored resume position.
     expect(media.currentTime).toBeCloseTo(3100);
+    // Leaving the old player did not stop that session a second time.
+    await act(() => vi.advanceTimersByTimeAsync(10));
+    expect(
+      calls.filter((call) => call.method === 'DELETE' && call.path === '/playback/sessions/ps-1'),
+    ).toHaveLength(1);
+  });
+
+  it('locks the old player until its session has ended', async () => {
+    const media = stubMedia();
+    let endSession: (response: Response) => void = () => undefined;
+    const ended = new Promise<Response>((resolve) => {
+      endSession = resolve;
+    });
+    const { calls } = mockApi({
+      ...routes(),
+      // The DELETE answers when the test says so.
+      'DELETE /playback/sessions/*': (() => ended) as unknown as () => Response,
+    });
+    const { container } = renderApp(`/play/${ids.alien}`);
+    const first = await videoOf(container);
+    act(() => {
+      first.dispatchEvent(new Event('loadedmetadata'));
+    });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+
+    await user.click(await screen.findByRole('button', { name: 'Version: 1080p' }));
+    await user.click(await screen.findByRole('menuitemradio', { name: '720p' }));
+    const seekedTo = media.currentTime;
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Version wird gewechselt …');
+    expect(screen.getByRole('button', { name: 'Abspielen' })).toBeDisabled();
+    fireEvent.keyDown(document.body, { key: ' ' });
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+    // Neither played (the stub would unpause) nor seeked.
+    expect(media.paused).toBe(true);
+    expect(media.currentTime).toBe(seekedTo);
+    expect(starts(calls)).toHaveLength(1);
+
+    endSession(new Response(null, { status: 204 }));
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    await waitFor(() =>
+      expect(screen.getByRole('main', { name: 'Videoplayer' })).toHaveAttribute(
+        'data-media-file-id',
+        'mf-2',
+      ),
+    );
+  });
+
+  it('renders the version menu inside the player, so it shows in full screen', async () => {
+    stubMedia();
+    mockApi(routes());
+    const { container } = renderApp(`/play/${ids.alien}`);
+    await videoOf(container);
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+
+    await user.click(await screen.findByRole('button', { name: 'Version: 1080p' }));
+    const menu = await screen.findByRole('menu');
+    expect(screen.getByRole('main', { name: 'Videoplayer' })).toContainElement(menu);
+  });
+
+  it('keeps the controls on screen while the version menu is open', async () => {
+    stubMedia();
+    mockApi(routes());
+    const { container } = renderApp(`/play/${ids.alien}`);
+    const first = await videoOf(container);
+    act(() => {
+      first.dispatchEvent(new Event('loadedmetadata'));
+    });
+    const region = screen.getByRole('main', { name: 'Videoplayer' });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+
+    await user.click(await screen.findByRole('button', { name: 'Version: 1080p' }));
+    await screen.findByRole('menu');
+    await act(() => vi.advanceTimersByTimeAsync(4000));
+    expect(region).toHaveAttribute('data-controls', 'visible');
+
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    await act(() => vi.advanceTimersByTimeAsync(4000));
+    expect(region).toHaveAttribute('data-controls', 'hidden');
   });
 
   it('has no version menu for a title with one file', async () => {

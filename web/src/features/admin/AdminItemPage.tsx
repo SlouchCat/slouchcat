@@ -12,9 +12,9 @@ import { useActiveSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { ButtonLink, Chip, Notice, Page, Panel, Skeleton, Text } from '@/ui';
+import { ButtonLink, Chip, FactList, Notice, Page, Panel, Skeleton, Text } from '@/ui';
 import { AriaButton, ConfirmDialog, FormDialog, RadioGroup, TextField } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../shared/choices';
+import { ratingOptions, titleRatingOf } from '../shared/choices';
 import { MatchDialog } from './MatchDialog';
 import { adminItemQuery, maintenanceKey } from './queries';
 import styles from './AdminItemPage.module.css';
@@ -25,19 +25,6 @@ const route = getRouteApi('/_authed/_active/_chrome/admin/items/$itemId');
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{8,16}$/;
 const LANG_CODE = /^[a-z]{2,3}$/;
 const FROM_METADATA = 'metadata';
-
-function Facts({ rows }: { rows: [string, string][] }) {
-  return (
-    <dl className={styles.facts}>
-      {rows.map(([term, value]) => (
-        <div key={term} className={styles.fact}>
-          <dt>{term}</dt>
-          <dd>{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
 
 function itemFacts(t: TFunction, item: AdminItem, language: string): [string, string][] {
   const none = t('admin.item.facts.none');
@@ -84,19 +71,15 @@ function RatingPanel({ item, onSaved }: { item: AdminItem; onSaved: () => Promis
   const [value, setValue] = useState(
     item.ownRating !== undefined ? String(item.ownRating) : FROM_METADATA,
   );
-  const [saved, setSaved] = useState(false);
   const save = useMutation({
     mutationFn: () =>
       request(
         api.PUT('/admin/items/{id}/rating', {
           params: { path: { id: item.id } },
-          body: { rating: value === FROM_METADATA ? null : ratingOf(value) },
+          body: { rating: value === FROM_METADATA ? null : (titleRatingOf(value) ?? null) },
         }),
       ),
-    onSuccess: async () => {
-      setSaved(true);
-      await onSaved();
-    },
+    onSuccess: onSaved,
   });
   const fsk = (age: number | undefined) => (age !== undefined ? t('rating.fsk', { age }) : none);
 
@@ -105,8 +88,8 @@ function RatingPanel({ item, onSaved }: { item: AdminItem; onSaved: () => Promis
       <h2 id="admin-item-rating" className={styles.panelTitle}>
         {t('admin.item.rating.title')}
       </h2>
-      <Facts
-        rows={[
+      <FactList
+        facts={[
           [t('admin.item.rating.own'), fsk(item.ownRating)],
           [t('admin.item.rating.effective'), fsk(item.effectiveRating)],
           [t('admin.item.rating.source'), item.ratingSource || none],
@@ -116,10 +99,7 @@ function RatingPanel({ item, onSaved }: { item: AdminItem; onSaved: () => Promis
         <RadioGroup
           label={t('admin.item.rating.label')}
           value={value}
-          onChange={(next) => {
-            setValue(next);
-            setSaved(false);
-          }}
+          onChange={setValue}
           options={[
             { value: FROM_METADATA, label: t('admin.item.rating.fromMetadata') },
             ...ratingOptions(t),
@@ -130,7 +110,6 @@ function RatingPanel({ item, onSaved }: { item: AdminItem; onSaved: () => Promis
         </AriaButton>
       </div>
       {save.isError && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
-      {saved && <Notice>{t('admin.item.rating.saved')}</Notice>}
     </Panel>
   );
 }
@@ -408,10 +387,18 @@ function AdminItemView({ itemId }: { itemId: string }) {
         <h2 id="admin-item-facts" className={styles.panelTitle}>
           {t('admin.item.facts.metadata')}
         </h2>
-        <Facts rows={itemFacts(t, data, i18n.language)} />
+        <FactList facts={itemFacts(t, data, i18n.language)} />
       </Panel>
-      {/* Remount on a new rating so the choice starts from the stored value. */}
-      <RatingPanel key={`${data.ownRating ?? 'none'}`} item={data} onSaved={reload} />
+      {/* Remount on a new rating so the choice starts from the stored value; the confirmation
+          lives here, so it survives that remount. */}
+      <RatingPanel
+        key={`${data.ownRating ?? 'none'}`}
+        item={data}
+        onSaved={async () => {
+          setNotice(t('admin.item.rating.saved'));
+          await reload();
+        }}
+      />
       <FilesPanel item={data} />
       <TrailersPanel item={data} onChanged={reload} />
 

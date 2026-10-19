@@ -1,7 +1,7 @@
 import type { PlaybackInfo } from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -57,6 +57,9 @@ const BUSY_RETRIES = 3;
 /** Wait between those retries when the answer carries no `Retry-After`. */
 const BUSY_RETRY_FALLBACK_MS = 1000;
 
+/** How long a version switch waits for the old session to end before it starts the next one. */
+const STOP_WAIT_MS = 2000;
+
 const isTranscodeBusy = (error: unknown) =>
   isApiError(error, 503) && error.code === 'transcode_busy';
 
@@ -64,13 +67,20 @@ const isTranscodeBusy = (error: unknown) =>
 export function PlayerPage() {
   const { t } = useTranslation();
   const { itemId } = route.useParams();
+  // The version to play (B-5): from the link of the detail page or the version menu, kept in
+  // the URL so a reload plays the chosen one. The menu also hands over the position.
   const { file } = route.useSearch();
+  const navigate = route.useNavigate();
   const queryClient = useQueryClient();
-  // The version to play (B-5): from the link of the detail page, later from the version menu,
-  // which also hands over the position to continue from.
-  const [selection, setSelection] = useState<{ fileId?: string; startMs?: number }>(() => ({
-    fileId: file,
-  }));
+  const [startMs, setStartMs] = useState<number | undefined>(undefined);
+  const [switchingTo, setSwitchingTo] = useState<string | undefined>(undefined);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // Start of the measurement "navigation → first frame playing" (data-start-ms).
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
@@ -79,13 +89,13 @@ export function PlayerPage() {
   // runs once per mount: never refetched on reconnect, focus or staleness (a second session would
   // rebuild the player mid-stream). Only a busy transcoder is retried, after the server's delay.
   const playback = useQuery({
-    queryKey: ['playback', itemId, selection.fileId ?? null],
+    queryKey: ['playback', itemId, file ?? null],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
       request(
         api.POST('/items/{id}/play', {
           params: { path: { id: itemId } },
           body: {
-            ...(selection.fileId ? { mediaFileId: selection.fileId } : {}),
+            ...(file ? { mediaFileId: file } : {}),
             capabilities: playbackCapabilities(),
           },
           signal,
@@ -102,23 +112,31 @@ export function PlayerPage() {
     refetchOnReconnect: false,
   });
   useDocumentTitle(playback.data?.item.title);
-  useStopPlaybackOnLeave(playback.data?.playbackSessionId);
+  const stopSession = useStopPlaybackOnLeave(playback.data?.playbackSessionId);
   // The versions of the title for the version menu; the detail page usually has them cached.
   const detail = useQuery({ ...itemQuery(itemId), enabled: playback.isSuccess });
   const versions = detail.data?.mediaFiles ?? [];
 
   const [infoOpen, setInfoOpen] = useState(false);
 
-  const switchVersion = (fileId: string, positionMs: number) => {
+  // From the menu until the new session answered; the old player is paused and locked meanwhile.
+  const switching =
+    playback.isPlaceholderData || (switchingTo !== undefined && switchingTo !== file);
+
+  const switchVersion = async (fileId: string, positionMs: number) => {
     const current = playback.data;
-    if (!current || current.mediaFile.id === fileId) return;
-    // Ends the running session (and its transcode) before the next one starts.
-    api
-      .DELETE('/playback/sessions/{id}', {
-        params: { path: { id: current.playbackSessionId } },
-      })
-      .catch(() => undefined);
-    setSelection({ fileId, startMs: positionMs });
+    if (!current || current.mediaFile.id === fileId || switching) return;
+    setSwitchingTo(fileId);
+    // The running session (and its transcode) ends before the next one starts: with few transcode
+    // slots the server would otherwise answer the start with 503. A slow answer holds the switch
+    // up for STOP_WAIT_MS at most.
+    await Promise.race([
+      stopSession(),
+      new Promise((resolve) => window.setTimeout(resolve, STOP_WAIT_MS)),
+    ]);
+    if (!mounted.current) return;
+    setStartMs(positionMs);
+    await navigate({ search: (previous) => ({ ...previous, file: fileId }), replace: true });
   };
 
   const engine = useMemo(
@@ -144,12 +162,12 @@ export function PlayerPage() {
         engine={engine}
         openedAt={openedAt}
         onBack={goBack}
-        startPositionMs={selection.startMs}
+        startPositionMs={startMs}
         versions={versions}
         infoOpen={infoOpen}
         onToggleInfo={() => setInfoOpen((open) => !open)}
-        switching={playback.isPlaceholderData}
-        onSwitchVersion={switchVersion}
+        switching={switching}
+        onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
       />
     );
   }

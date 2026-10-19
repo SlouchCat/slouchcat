@@ -88,6 +88,19 @@ export function VideoPlayer({
   // Last seek: from the element starting to seek until it plays again (e2e measurement, W-3).
   const [seek, setSeek] = useState<{ ms: number; count: number } | null>(null);
   const [failed, setFailed] = useState(false);
+  // The version menu keeps the controls on screen while it is open.
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The menu renders into the player, so it stays visible in full screen.
+  const [portal, setPortal] = useState<HTMLElement | null>(null);
+  const containerRef = useCallback((node: HTMLDivElement | null) => {
+    container.current = node;
+    setPortal(node);
+  }, []);
+  // During a version switch the old session is ended already: playing or seeking it would fail.
+  const locked = useRef(switching);
+  useEffect(() => {
+    locked.current = switching;
+  }, [switching]);
 
   useProgressReporter({
     itemId: info.item.id,
@@ -128,14 +141,14 @@ export function VideoPlayer({
 
   const togglePlay = useCallback(() => {
     const element = video.current;
-    if (!element) return;
+    if (!element || locked.current) return;
     if (element.paused || element.ended) element.play().catch(() => setPlaying(false));
     else element.pause();
   }, []);
 
   const seekBy = useCallback((seconds: number) => {
     const element = video.current;
-    if (!element) return;
+    if (!element || locked.current) return;
     const end = Number.isFinite(element.duration) ? element.duration : Infinity;
     element.currentTime = Math.min(end, Math.max(0, element.currentTime + seconds));
     setCurrentMs(element.currentTime * 1000);
@@ -362,11 +375,11 @@ export function VideoPlayer({
   const elapsed = formatPlayerTime(currentMs, durationMs);
   const total = formatPlayerTime(durationMs, durationMs);
   const timeText = t('player.time', { elapsed, total });
-  const hidden = idle && playing;
+  const hidden = idle && playing && !menuOpen;
 
   return (
     <main
-      ref={container}
+      ref={containerRef}
       className={styles.player}
       aria-label={t('player.region')}
       data-start-ms={startMs ?? undefined}
@@ -402,9 +415,9 @@ export function VideoPlayer({
 
       {infoOpen && <StreamInfo info={info} />}
 
-      {osd && (
+      {(switching || osd) && (
         <div className={styles.osd} role="status">
-          {osd}
+          {switching ? t('player.switching') : osd}
         </div>
       )}
 
@@ -428,7 +441,7 @@ export function VideoPlayer({
           buffered={buffered}
           onSeek={(ms) => {
             const element = video.current;
-            if (!element) return;
+            if (!element || locked.current) return;
             element.currentTime = ms / 1000;
             setCurrentMs(ms);
           }}
@@ -440,6 +453,7 @@ export function VideoPlayer({
             iconOnly
             aria-label={playing ? t('player.pause') : t('player.play')}
             onPress={togglePlay}
+            isDisabled={switching}
             autoFocus
           />
           <span className={styles.time}>
@@ -479,6 +493,8 @@ export function VideoPlayer({
               onSelect={(id) => {
                 if (!switching) switchTo(id);
               }}
+              onOpenChange={setMenuOpen}
+              portalContainer={portal ?? undefined}
             />
           )}
         </div>

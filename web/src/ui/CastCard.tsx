@@ -19,7 +19,7 @@ export function CastCard({ href, name, caption, focusKey }: CastCardProps) {
   return (
     <AppLink ref={ref} href={href} className={styles.card} onFocus={onFocus}>
       <span className={styles.avatar} aria-hidden="true">
-        {name.slice(0, 1).toUpperCase()}
+        {Array.from(name)[0]?.toUpperCase()}
       </span>
       <span className={styles.name}>{name}</span>
       {caption && <span className={styles.caption}>{caption}</span>}

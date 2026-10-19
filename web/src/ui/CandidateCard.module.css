@@ -1,0 +1,59 @@
+.card {
+  display: flex;
+  gap: var(--sc-space-3);
+  width: 100%;
+  padding: var(--sc-space-2);
+  border: 0;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.card:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.card:hover:not(:disabled) {
+  background-color: var(--sc-color-surface-2);
+}
+
+.poster {
+  flex: none;
+  width: 3.5rem;
+  height: 5.25rem;
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-3);
+  object-fit: cover;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.title {
+  font-weight: var(--sc-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.overview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}

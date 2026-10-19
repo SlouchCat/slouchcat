@@ -14,7 +14,7 @@ import {
 
 let series = '';
 
-const seasons = (page: Page) => page.getByRole('group', { name: 'Staffeln' });
+const seasons = (page: Page) => page.getByRole('group', { name: 'Staffel wählen' });
 const episodes = (page: Page) => page.getByRole('list', { name: 'Folgen' });
 
 /** Index of the focused card in the episode list, or -1. */

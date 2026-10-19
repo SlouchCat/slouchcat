@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { H264_TITLE, idOf, itemPath } from './catalog';
+import { CSRF, H264_TITLE, idOf, itemPath } from './catalog';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 
@@ -20,8 +20,22 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
 });
 
+test.afterEach(async ({ owner }) => {
+  // A trailer left by a failed run would make "Löschen" ambiguous here and add a trailer button
+  // to the detail page of the other specs.
+  if (!admin) return;
+  const item = (await (await owner.get(`/api/v1${admin}`)).json()) as {
+    trailers: { id: number }[];
+  };
+  for (const trailer of item.trailers) {
+    await owner.delete(`/api/v1${admin}/trailers/${trailer.id}`, { headers: CSRF });
+  }
+});
+
 test('shows kind, state, both version files and the trailer state', async ({ page }) => {
-  await expect(page.getByText('Film', { exact: true }).first()).toBeVisible();
+  const facts = page.getByRole('region', { name: 'Metadaten' });
+  await expect(facts.getByRole('term').filter({ hasText: /^Art$/ })).toBeVisible();
+  await expect(facts.getByRole('definition').filter({ hasText: /^Film$/ })).toBeVisible();
   const files = page.getByRole('region', { name: 'Dateien' });
   await expect(files.getByRole('listitem')).toHaveCount(2);
   await expect(files.getByText(/Slouchcat Test H264 \(2024\)\.mp4$/)).toBeVisible();

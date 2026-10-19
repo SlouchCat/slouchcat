@@ -1,4 +1,4 @@
-import type { DuplicateGroup, Issue, IssueKind } from '@slouchcat/api-client';
+import type { DuplicateGroup, Issue, IssueKind, Rating } from '@slouchcat/api-client';
 import {
   useInfiniteQuery,
   useMutation,
@@ -26,7 +26,7 @@ import {
   Tabs,
   type SelectableItem,
 } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../shared/choices';
+import { ratingOptions, titleRatingOf } from '../shared/choices';
 import { MatchDialog } from './MatchDialog';
 import {
   duplicatesQuery,
@@ -63,10 +63,13 @@ function RatingDialog({
   onDone: (outcome: Outcome) => void;
 }) {
   const { t } = useTranslation();
-  const [rating, setRating] = useState('0');
+  // No preselection: an unrated title counts as FSK 18, and a wrong default (FSK 0) would open it
+  // to every profile with two key presses.
+  const [rating, setRating] = useState('');
+  const chosen = titleRatingOf(rating);
   const assign = useMutation({
-    mutationFn: () =>
-      request(api.POST('/admin/items/rating', { body: { itemIds, rating: ratingOf(rating) } })),
+    mutationFn: (value: Rating) =>
+      request(api.POST('/admin/items/rating', { body: { itemIds, rating: value } })),
     onSuccess: (result) => {
       onDone({ tone: 'info', text: t('admin.maintenance.done.rating', { count: result.updated }) });
       onClose();
@@ -74,7 +77,7 @@ function RatingDialog({
   });
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    assign.mutate();
+    if (chosen !== undefined && !assign.isPending) assign.mutate(chosen);
   };
   return (
     <FormDialog
@@ -93,12 +96,25 @@ function RatingDialog({
           value={rating}
           onChange={setRating}
           options={ratingOptions(t)}
+          isRequired
         />
+        <p className={styles.muted} aria-live="polite">
+          {chosen !== undefined &&
+            t('admin.maintenance.rating.summary', {
+              count: itemIds.length,
+              rating: t('rating.fsk', { age: chosen }),
+            })}
+        </p>
         <div className={styles.dialogActions}>
           <AriaButton variant="ghost" onPress={onClose}>
             {t('common.cancel')}
           </AriaButton>
-          <AriaButton type="submit" variant="primary" isPending={assign.isPending}>
+          <AriaButton
+            type="submit"
+            variant="primary"
+            isDisabled={chosen === undefined}
+            isPending={assign.isPending}
+          >
             {assign.isPending
               ? t('admin.maintenance.rating.submitting')
               : t('admin.maintenance.rating.submit')}
@@ -143,14 +159,34 @@ function IssueTab({ kind }: { kind: IssueKind }) {
   const failed = (error: unknown) => setOutcome({ tone: 'danger', text: problemMessage(t, error) });
 
   const refreshItems = useMutation({
-    mutationFn: (ids: string[]) =>
-      Promise.all(
-        ids.map((id) =>
-          request(api.POST('/admin/items/{id}/refresh', { params: { path: { id } } })),
-        ),
+    // One request after the other: a selection over several pages must not fire hundreds of
+    // requests at once, and one failure must not hide what the others did.
+    mutationFn: async (ids: string[]) => {
+      let failures = 0;
+      let firstError: unknown;
+      for (const id of ids) {
+        try {
+          await request(api.POST('/admin/items/{id}/refresh', { params: { path: { id } } }));
+        } catch (error) {
+          failures += 1;
+          firstError ??= error;
+        }
+      }
+      return { failures, firstError };
+    },
+    onSuccess: ({ failures, firstError }, ids) =>
+      finish(
+        failures === 0
+          ? { tone: 'info', text: t('admin.maintenance.done.refresh', { count: ids.length }) }
+          : {
+              tone: 'danger',
+              text: t('admin.maintenance.done.refreshFailed', {
+                count: ids.length,
+                failed: failures,
+                error: problemMessage(t, firstError),
+              }),
+            },
       ),
-    onSuccess: (_, ids) =>
-      finish({ tone: 'info', text: t('admin.maintenance.done.refresh', { count: ids.length }) }),
     onError: failed,
   });
   const cleanup = useMutation({
@@ -159,7 +195,10 @@ function IssueTab({ kind }: { kind: IssueKind }) {
     onSuccess: (result) =>
       finish({
         tone: 'info',
-        text: t('admin.maintenance.done.cleanup', { items: result.items, files: result.files }),
+        text: t('admin.maintenance.done.cleanup', {
+          items: t('admin.maintenance.titleCount', { count: result.items }),
+          files: t('admin.maintenance.fileCount', { count: result.files }),
+        }),
       }),
     onError: failed,
   });
@@ -199,12 +238,12 @@ function IssueTab({ kind }: { kind: IssueKind }) {
     orphaned: (
       <ConfirmDialog
         trigger={
-          <AriaButton variant="danger" isDisabled={none}>
+          <AriaButton variant="danger" isDisabled={none || cleanup.isPending}>
             {t('admin.maintenance.action.cleanup')}
           </AriaButton>
         }
         title={t('admin.maintenance.cleanup.title')}
-        body={t('admin.maintenance.cleanup.body')}
+        body={t('admin.maintenance.cleanup.body', { count: itemIds.length })}
         confirmLabel={t('admin.maintenance.cleanup.confirm')}
         cancelLabel={t('common.cancel')}
         tone="danger"
@@ -216,12 +255,12 @@ function IssueTab({ kind }: { kind: IssueKind }) {
         {refreshButton(t('admin.maintenance.action.recheck'))}
         <ConfirmDialog
           trigger={
-            <AriaButton variant="danger" isDisabled={none}>
+            <AriaButton variant="danger" isDisabled={none || cleanup.isPending}>
               {t('admin.maintenance.action.remove')}
             </AriaButton>
           }
           title={t('admin.maintenance.remove.title')}
-          body={t('admin.maintenance.remove.body')}
+          body={t('admin.maintenance.remove.body', { count: mediaFileIds.length })}
           confirmLabel={t('admin.maintenance.remove.confirm')}
           cancelLabel={t('common.cancel')}
           tone="danger"
@@ -398,7 +437,10 @@ function DuplicateCard({
             </AriaButton>
           }
           title={t('admin.maintenance.duplicates.confirmTitle')}
-          body={t('admin.maintenance.duplicates.confirmBody', { title: targetItem?.title ?? '' })}
+          body={t('admin.maintenance.duplicates.confirmBody', {
+            count: group.items.length - 1,
+            title: targetItem?.title ?? '',
+          })}
           confirmLabel={t('admin.maintenance.duplicates.merge')}
           cancelLabel={t('common.cancel')}
           onConfirm={() => merge.mutate()}

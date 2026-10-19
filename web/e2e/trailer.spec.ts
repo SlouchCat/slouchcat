@@ -79,6 +79,35 @@ test('arrows reach "Trailer"; Enter opens the YouTube frame; Escape closes', asy
   await expectVisibleFocus(page);
 });
 
+test("Backspace (a remote's back key) closes the dialog, the detail page stays", async ({
+  page,
+}) => {
+  await trailerButton(page).focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: `Trailer: ${H264_TITLE}` });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Backspace');
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`${detail}$`));
+  await expectFocusOn(page, trailerButton(page));
+});
+
+test('offline closes an open dialog for good; the focus moves to "Zurück"', async ({
+  page,
+  context,
+}) => {
+  await trailerButton(page).focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: `Trailer: ${H264_TITLE}` });
+  await expect(dialog).toBeVisible();
+  await context.setOffline(true);
+  await expect(dialog).toHaveCount(0);
+  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück', exact: true }));
+  await context.setOffline(false);
+  await expect(trailerButton(page)).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+});
+
 test('offline the trailer button disappears (W-10) and comes back online', async ({
   page,
   context,

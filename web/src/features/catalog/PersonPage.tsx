@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { apiUrl, isApiError } from '@/api/client';
+import { imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useBackKeys } from '@/lib/useBackKeys';
@@ -25,7 +25,6 @@ import styles from './PersonPage.module.css';
 const route = getRouteApi('/_authed/_active/_chrome/people/$personId');
 
 const BACK_KEY = 'person-back';
-const imageUrl = (image: { url: string } | undefined) => (image ? apiUrl(image.url) : undefined);
 
 /** A person (B-3): name and the titles with a role that the active profile may see. */
 export function PersonPage() {
@@ -36,7 +35,10 @@ export function PersonPage() {
   const query = useQuery({ ...personQuery(id), enabled: valid });
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
-  useDocumentTitle(query.data?.name ?? t('person.notFound.title'));
+  // No title while loading; "nicht gefunden" only once that is certain.
+  useDocumentTitle(
+    query.data?.name ?? (!valid || query.isError ? t('person.notFound.title') : undefined),
+  );
 
   if (valid && query.isPending) {
     return (

@@ -26,6 +26,22 @@ const person: Person = {
 describe('person page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it('says "nicht gefunden" in the tab title only once that is certain', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    mockApi({
+      ...signedIn,
+      'GET /people/3': (() =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        })) as unknown as () => Response,
+    });
+    renderApp('/people/3');
+    await waitFor(() => expect(document.querySelector('[aria-busy="true"]')).not.toBeNull());
+    expect(document.title).toBe('Slouchcat');
+    answer(problem(404, 'not_found'));
+    await waitFor(() => expect(document.title).toBe('Person nicht gefunden · Slouchcat'));
+  });
+
   it('shows the name and the visible credits with their roles', async () => {
     mockApi({ ...signedIn, 'GET /people/3': () => json(person) });
     renderApp('/people/3');

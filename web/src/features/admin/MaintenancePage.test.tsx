@@ -130,6 +130,7 @@ describe('maintenance page', () => {
     expect(screen.getByText('1 ausgewählt')).toBeVisible();
     await user.click(remove);
     const dialog = await screen.findByRole('alertdialog', { name: 'Dateien entfernen?' });
+    expect(within(dialog).getByText(/^Die ausgewählte Datei wird/)).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Entfernen' }));
 
     await waitFor(() =>
@@ -137,7 +138,7 @@ describe('maintenance page', () => {
         mediaFileIds: ['mf-broken'],
       }),
     );
-    expect(await screen.findByText('Entfernt: 1 Titel, 1 Dateien.')).toBeVisible();
+    expect(await screen.findByText('Entfernt: 1 Titel, 1 Datei.')).toBeVisible();
     await waitFor(() =>
       expect(screen.queryByRole('link', { name: 'Slouchcat Test Broken' })).not.toBeInTheDocument(),
     );
@@ -154,8 +155,17 @@ describe('maintenance page', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Freigabe zuweisen' });
     expect(within(dialog).getByText('Gilt für 2 ausgewählte Titel.')).toBeVisible();
+    // Nothing is chosen up front (FSK 0 would open the titles to every profile).
+    for (const radio of within(dialog).getAllByRole('radio')) expect(radio).not.toBeChecked();
+    const submit = within(dialog).getByRole('button', { name: 'Zuweisen' });
+    expect(submit).toBeDisabled();
+    await user.click(submit);
+    expect(calls.some((call) => call.path === '/admin/items/rating')).toBe(false);
+
     await user.click(within(dialog).getByRole('radio', { name: 'FSK 12' }));
-    await user.click(within(dialog).getByRole('button', { name: 'Zuweisen' }));
+    expect(within(dialog).getByText('2 Titel erhalten FSK 12.')).toBeVisible();
+    expect(submit).toBeEnabled();
+    await user.click(submit);
 
     await waitFor(() =>
       expect(calls.find((call) => call.path === '/admin/items/rating')?.body).toEqual({
@@ -197,6 +207,77 @@ describe('maintenance page', () => {
       expect(calls.some((call) => call.path === `/admin/items/${id(1)}/refresh`)).toBe(true),
     );
     expect(await screen.findByText('1 Titel wird aktualisiert.')).toBeVisible();
+  });
+
+  it('refresh: one request per title; a partial failure is reported and the list reloads', async () => {
+    const user = userEvent.setup();
+    const { calls } = setup({
+      [`POST /admin/items/${id(1)}/refresh`]: () => json({}, 202),
+      [`POST /admin/items/${id(2)}/refresh`]: () => problem(404, 'not_found'),
+    });
+    renderApp('/admin/maintenance');
+    await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
+    const listed = () =>
+      calls.filter((call) => call.method === 'GET' && call.path === '/admin/maintenance/issues')
+        .length;
+    const before = listed();
+
+    await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Aktualisieren' }));
+    expect(await screen.findByText(/^1 von 2 Titeln nicht aktualisiert: /)).toBeVisible();
+    expect(calls.filter((call) => call.path.endsWith('/refresh'))).toHaveLength(2);
+    await waitFor(() => expect(listed()).toBeGreaterThan(before));
+    expect(screen.getByText('0 ausgewählt')).toBeVisible();
+  });
+
+  it('orphaned: the confirmation names the count; the trigger is off while it runs', async () => {
+    const user = userEvent.setup();
+    let finish: (response: Response) => void = () => undefined;
+    lists.orphaned = [issue('orphaned', 5), issue('orphaned', 6)];
+    setup({
+      'POST /admin/maintenance/cleanup': (() =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        })) as unknown as () => Response,
+    });
+    renderApp('/admin/maintenance');
+    await user.click(await screen.findByRole('tab', { name: /Verwaist/ }));
+    await screen.findByRole('link', { name: 'Titel 5' });
+    await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
+    const trigger = screen.getByRole('button', { name: 'Bereinigen' });
+    await user.click(trigger);
+    const dialog = await screen.findByRole('alertdialog', { name: 'Titel bereinigen?' });
+    expect(within(dialog).getByText(/^Die 2 ausgewählten Titel werden/)).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Bereinigen' }));
+    await waitFor(() => expect(trigger).toBeDisabled());
+
+    lists.orphaned = [];
+    finish(json({ items: 2, files: 0 }));
+    expect(await screen.findByText('Entfernt: 2 Titel, 0 Dateien.')).toBeVisible();
+  });
+
+  it('match: searching again with the same values asks the server again', async () => {
+    const user = userEvent.setup();
+    let reachable = false;
+    const { calls } = setup({
+      'GET /admin/metadata/search': () => (reachable ? json([]) : problem(503, 'tmdb_unreachable')),
+    });
+    renderApp('/admin/maintenance');
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Slouchcat Test H264 auswählen' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Zuordnen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Titel zuordnen' });
+    await user.click(within(dialog).getByRole('button', { name: 'Suchen' }));
+    const searches = () => calls.filter((call) => call.path === '/admin/metadata/search').length;
+    await waitFor(() => expect(within(dialog).getByRole('alert')).toBeVisible());
+    expect(searches()).toBe(1);
+
+    reachable = true;
+    await user.click(within(dialog).getByRole('button', { name: 'Suchen' }));
+    await waitFor(() => expect(searches()).toBe(2));
+    expect(await within(dialog).findByText('Keine Treffer.')).toBeVisible();
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('match: choosing a candidate stores it', async () => {

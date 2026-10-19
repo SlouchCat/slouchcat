@@ -87,13 +87,16 @@ describe('admin item page', () => {
     expect(await screen.findByText('Aktualisierung eingereiht.')).toBeVisible();
   });
 
-  it('sets the own rating back to the metadata rating', async () => {
+  it('sets the own rating back to the metadata rating and confirms it', async () => {
     const user = userEvent.setup();
+    let stored: AdminItem = item;
     const { calls } = mockApi({
       ...signedIn,
-      [`GET ${base}`]: () => json(item),
-      [`PUT ${base}/rating`]: () =>
-        json({ id: item.id, kind: 'movie', title: 'Alien', effectiveRating: 18 }),
+      [`GET ${base}`]: () => json(stored),
+      [`PUT ${base}/rating`]: () => {
+        stored = { ...item, ownRating: undefined, effectiveRating: 18, ratingSource: 'missing' };
+        return json({ id: item.id, kind: 'movie', title: 'Alien', effectiveRating: 18 });
+      },
     });
     renderApp(base);
     const rating = await screen.findByRole('region', { name: 'Freigabe' });
@@ -103,6 +106,13 @@ describe('admin item page', () => {
     await waitFor(() =>
       expect(calls.find((call) => call.path === `${base}/rating`)?.body).toEqual({ rating: null }),
     );
+    // The panel starts anew from the stored value (source "missing"); the confirmation stays.
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'Freigabe' })).getByText('missing'),
+      ).toBeVisible(),
+    );
+    expect(screen.getByText('Freigabe gespeichert.')).toBeVisible();
   });
 
   it('adds a manual trailer from a URL and deletes one after confirmation', async () => {

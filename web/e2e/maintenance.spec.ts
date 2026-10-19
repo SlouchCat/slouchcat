@@ -18,6 +18,21 @@ async function issues(owner: APIRequestContext, kind: string): Promise<IssueData
   return ((await response.json()) as { items: IssueData[] }).items;
 }
 
+/**
+ * Where the broken file stands: listed as unplayable, not probed yet (the title exists, it is
+ * unmatched and unrated like every title without TMDB), or gone (removed by the other browser's
+ * run, the file is on the ignore list).
+ */
+async function brokenState(owner: APIRequestContext): Promise<'listed' | 'pending' | 'gone'> {
+  if ((await issues(owner, 'unplayable')).some((issue) => issue.title === BROKEN_TITLE)) {
+    return 'listed';
+  }
+  for (const kind of ['unmatched', 'unrated']) {
+    if ((await issues(owner, kind)).some((issue) => issue.title === BROKEN_TITLE)) return 'pending';
+  }
+  return 'gone';
+}
+
 const tab = (page: Page, name: RegExp) => page.getByRole('tab', { name });
 const panel = (page: Page) => page.getByRole('tabpanel');
 
@@ -87,13 +102,18 @@ test('unrated: select by keyboard, assign a rating, the title leaves the list', 
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: 'Freigabe zuweisen' });
     await expect(dialog).toBeVisible();
+    // No level is chosen up front: FSK 0 would open the title to every profile.
+    const submit = dialog.getByRole('button', { name: 'Zuweisen' });
+    await expect(dialog.getByRole('radio', { checked: true })).toHaveCount(0);
+    await expect(submit).toBeDisabled();
     await expectFocusOn(page, dialog.getByRole('radio', { name: 'FSK 0' }));
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     await expect(dialog.getByRole('radio', { name: 'FSK 12' })).toBeChecked();
+    await expect(dialog.getByText('1 Titel erhält FSK 12.')).toBeVisible();
     await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, dialog.getByRole('button', { name: 'Zuweisen' }));
+    await expectFocusOn(page, submit);
     await page.keyboard.press('Enter');
     await expect(dialog).toHaveCount(0);
     await expect(panel(page).getByText('Freigabe für 1 Titel gesetzt.')).toBeVisible();
@@ -116,15 +136,12 @@ test('unplayable lists the broken file; "Entfernen" removes it after confirmatio
   // The probe of the broken file runs after the scan (long done when this spec runs). The run of
   // the other browser may have removed it already: then only the outcome is checked (the file is
   // on the ignore list, no scan brings it back).
-  let before: IssueData | undefined;
-  for (let attempt = 0; attempt < 10 && !before; attempt += 1) {
-    before = (await issues(owner, 'unplayable')).find((issue) => issue.title === BROKEN_TITLE);
-    if (!before) await page.waitForTimeout(1000);
-  }
+  await expect.poll(() => brokenState(owner), { timeout: 15_000 }).not.toBe('pending');
+  const listed = (await brokenState(owner)) === 'listed';
 
   await tab(page, /^Nicht abspielbar/).click();
   const link = panel(page).getByRole('link', { name: new RegExp(`^${BROKEN_TITLE}`) });
-  if (before) {
+  if (listed) {
     await expect(link).toBeVisible();
     await expect(panel(page).getByText(/\.mkv$/)).toBeVisible();
     const box = panel(page).getByRole('checkbox', { name: `${BROKEN_TITLE} auswählen` });
@@ -139,7 +156,7 @@ test('unplayable lists the broken file; "Entfernen" removes it after confirmatio
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Entfernen' }));
     await page.keyboard.press('Enter');
     await expect(confirm).toHaveCount(0);
-    await expect(panel(page).getByText(/^Entfernt: \d+ Titel, 1 Dateien\.$/)).toBeVisible();
+    await expect(panel(page).getByText(/^Entfernt: \d+ Titel, 1 Datei\.$/)).toBeVisible();
   }
   await expect(link).toHaveCount(0);
   expect((await issues(owner, 'unplayable')).some((issue) => issue.title === BROKEN_TITLE)).toBe(

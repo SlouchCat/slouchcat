@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { AriaButton } from './AriaButton';
 import dialogStyles from './Dialog.module.css';
@@ -27,8 +27,8 @@ interface TrailerDialogProps {
 
 /**
  * A trailer in the YouTube IFrame player (W-10, B-8) inside a modal (react-aria): focus moves into
- * the dialog and stays there, Escape or a click outside closes it and focus returns to the button
- * that opened it. The video comes from youtube-nocookie.com; the server never downloads it.
+ * the dialog and stays there, Escape, Backspace (a remote's back key) or a click outside closes it
+ * and focus returns to the button that opened it. The video comes from youtube-nocookie.com; the server never downloads it.
  */
 export function TrailerDialog({
   isOpen,
@@ -44,6 +44,19 @@ export function TrailerDialog({
   note,
   children,
 }: TrailerDialogProps) {
+  // react-aria closes on Escape only. Backspace is the back key of a remote (C-4): it closes the
+  // dialog, and the capture phase keeps the page behind it from going back as well.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Backspace' || event.altKey || event.ctrlKey || event.metaKey) return;
+      event.preventDefault();
+      onOpenChange(false);
+    };
+    window.addEventListener('keydown', onKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true });
+  }, [isOpen, onOpenChange]);
+
   return (
     <ModalOverlay
       className={dialogStyles.overlay}

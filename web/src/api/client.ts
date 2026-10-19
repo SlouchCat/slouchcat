@@ -12,6 +12,10 @@ export function apiUrl(url: string): string {
   return `${DEFAULT_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
+/** URL of an image the server listed for a title (ItemRef.images), undefined without one. */
+export const imageUrl = (image: { url: string } | undefined): string | undefined =>
+  image ? apiUrl(image.url) : undefined;
+
 /** A failed API call: HTTP status plus the problem details when the server sent them. */
 export class ApiError extends Error {
   readonly status: number;

@@ -54,6 +54,14 @@ export function resolutionClass(t: TFunction, width: number, height: number): st
   return t('format.sd');
 }
 
+/** "1920 × 1080 · 1080p": the size of a video and its class. */
+export function formatResolution(t: TFunction, width: number, height: number): string {
+  return t('format.resolutionWithClass', {
+    resolution: t('format.resolution', { width, height }),
+    class: resolutionClass(t, width, height),
+  });
+}
+
 export function formatDateTime(iso: string, language: string): string {
   return new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(
     new Date(iso),

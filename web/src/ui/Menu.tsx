@@ -28,6 +28,12 @@ interface MenuButtonProps {
   onSelect: (id: string) => void;
   icon?: IconName;
   variant?: ButtonVariant;
+  /**
+   * Element the menu renders into instead of the document body: an element in full screen (the
+   * player) shows only its own subtree, a menu outside it would be invisible.
+   */
+  portalContainer?: Element;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 /**
@@ -43,6 +49,8 @@ export function MenuButton({
   onSelect,
   icon,
   variant = 'ghost',
+  portalContainer,
+  onOpenChange,
 }: MenuButtonProps) {
   const onSelectionChange = (selection: Selection) => {
     if (selection === 'all') return;
@@ -50,11 +58,16 @@ export function MenuButton({
     if (key !== undefined && String(key) !== selectedKey) onSelect(String(key));
   };
   return (
-    <MenuTrigger>
+    <MenuTrigger onOpenChange={onOpenChange}>
       <AriaButton variant={variant} icon={icon} aria-label={buttonLabel}>
         {label}
       </AriaButton>
-      <Popover className={styles.popover} placement="top end" offset={8}>
+      <Popover
+        className={styles.popover}
+        placement="top end"
+        offset={8}
+        UNSTABLE_portalContainer={portalContainer}
+      >
         <AriaMenu
           aria-label={ariaLabel}
           className={styles.menu}

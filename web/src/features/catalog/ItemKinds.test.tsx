@@ -1,5 +1,5 @@
 import type { Trailer } from '@slouchcat/api-client';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -12,7 +12,7 @@ import {
   showDetail,
   specialsDetail,
 } from '@/test/fixtures';
-import { json, mockApi, renderApp, session, signedIn } from '@/test/api';
+import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
 
 const trailers: Trailer[] = [
   {
@@ -109,6 +109,64 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
     await waitFor(() => expect(button).toHaveFocus());
   });
 
+  it('Backspace in the trailer dialog closes the dialog, not the page (C-4)', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json(alienVersions),
+      [`GET /items/${ids.alien}/trailers`]: () => json(trailers),
+    });
+    const { router } = renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+
+    const button = await screen.findByRole('button', { name: 'Trailer' });
+    await user.click(button);
+    let dialog = await screen.findByRole('dialog', { name: 'Trailer: Alien' });
+    await within(dialog).findByTitle('Trailer von Alien (YouTube)');
+    // On the dialog's own button: react-aria does not consume Backspace there.
+    const close = within(dialog).getByRole('button', { name: 'Schliessen' });
+    close.focus();
+    fireEvent.keyDown(close, { key: 'Backspace' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe(`/items/${ids.alien}`);
+    await waitFor(() => expect(button).toHaveFocus());
+
+    // On the dialog element itself (where react-aria puts the focus after Enter).
+    await user.click(button);
+    dialog = await screen.findByRole('dialog', { name: 'Trailer: Alien' });
+    fireEvent.keyDown(dialog, { key: 'Backspace' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe(`/items/${ids.alien}`);
+  });
+
+  it('offline closes an open trailer dialog for good and moves the focus to "Zurück"', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json(alienVersions),
+      [`GET /items/${ids.alien}/trailers`]: () => json(trailers),
+    });
+    renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Trailer' }));
+    await screen.findByRole('dialog', { name: 'Trailer: Alien' });
+
+    online.mockReturnValue(false);
+    act(() => {
+      window.dispatchEvent(new Event('offline'));
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Zurück' })).toHaveFocus());
+
+    // Back online: the button returns, the dialog does not open (and play) by itself.
+    online.mockReturnValue(true);
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(screen.getByRole('button', { name: 'Trailer' })).toBeVisible();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('hides the trailer button while offline (W-10) and without trailers', async () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
     mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienVersions) });
@@ -165,7 +223,7 @@ describe('detail page: series, season, episode, extra', () => {
     await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Show' });
     // A series has no play button of its own.
     expect(screen.queryByRole('link', { name: /Abspielen/ })).not.toBeInTheDocument();
-    const seasons = screen.getByRole('group', { name: 'Staffeln' });
+    const seasons = screen.getByRole('group', { name: 'Staffel wählen' });
     expect(within(seasons).getByRole('button', { name: 'Season 1' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -188,6 +246,35 @@ describe('detail page: series, season, episode, extra', () => {
     expect(within(cast).getByText('als Kommissarin Weber')).toBeVisible();
     expect(within(cast).getByText('Idee')).toBeVisible();
     expect(document.title).toBe('Slouchcat Test Show · Slouchcat');
+  });
+
+  it('series: a season switch shows the loading state, then an error with a retry', async () => {
+    let answer: (response: Response) => void = () => undefined;
+    let fail = true;
+    mockApi({
+      ...seriesRoutes,
+      [`GET /items/${seriesIds.specials}`]: (() => {
+        if (!fail) return json(specialsDetail);
+        return new Promise<Response>((resolve) => {
+          answer = resolve;
+        });
+      }) as unknown as () => Response,
+    });
+    renderApp(`/items/${seriesIds.show}`);
+    const user = userEvent.setup();
+
+    const seasons = await screen.findByRole('group', { name: 'Staffel wählen' });
+    await screen.findByRole('list', { name: 'Folgen' });
+    await user.click(within(seasons).getByRole('button', { name: 'Specials' }));
+    // The episodes of the previous season do not stay on screen while the next one loads.
+    expect(screen.queryByRole('list', { name: 'Folgen' })).not.toBeInTheDocument();
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+
+    answer(problem(500, 'internal'));
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByText('S00E01')).toBeVisible();
   });
 
   it('season: its episodes, a link to the series, the series in the tab title', async () => {

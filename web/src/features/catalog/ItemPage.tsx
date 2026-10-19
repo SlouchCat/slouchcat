@@ -2,13 +2,13 @@ import type { ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { apiUrl, isApiError } from '@/api/client';
+import { apiUrl, imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { formatBytes, formatClock, formatRuntime, resolutionClass } from '@/lib/format';
+import { formatBytes, formatClock, formatResolution, formatRuntime } from '@/lib/format';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
@@ -21,6 +21,7 @@ import {
   Chip,
   ChoiceChips,
   EpisodeCard,
+  FactList,
   Notice,
   PosterCard,
   PosterFallback,
@@ -32,6 +33,8 @@ import {
   SpatialGroup,
   SpatialPage,
   itemAccentStyle,
+  setSpatialFocus,
+  spatialFocusKey,
 } from '@/ui';
 import { ItemMeta } from './ItemMeta';
 import { creditCaption, episodeCode, extraKindLabel } from './labels';
@@ -47,10 +50,9 @@ const TrailerPanel = lazy(() =>
 
 const PLAY_KEY = 'detail-play';
 const BACK_KEY = 'detail-back';
+const TRAILER_KEY = 'detail-trailer';
 // Rendered poster width (ItemPage.module.css, wide layout only).
 const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
-
-const imageUrl = (image: { url: string } | undefined) => (image ? apiUrl(image.url) : undefined);
 
 const watchedProgress = (t: TFunction, item: ItemRef) =>
   item.progress && !item.progress.completed && item.progress.positionMs > 0
@@ -63,10 +65,7 @@ const watchedProgress = (t: TFunction, item: ItemRef) =>
 function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; language: string }) {
   const facts: [string, string][] = [[t('item.file.container'), file.container.toUpperCase()]];
   if (file.width && file.height) {
-    facts.push([
-      t('item.file.resolution'),
-      `${t('format.resolution', { width: file.width, height: file.height })} · ${resolutionClass(t, file.width, file.height)}`,
-    ]);
+    facts.push([t('item.file.resolution'), formatResolution(t, file.width, file.height)]);
   }
   if (file.videoCodec) facts.push([t('item.file.video'), file.videoCodec.toUpperCase()]);
   if (file.audioCodec) facts.push([t('item.file.audio'), file.audioCodec.toUpperCase()]);
@@ -80,14 +79,7 @@ function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; l
           {t('item.file.unavailable')}
         </Chip>
       )}
-      <dl className={styles.facts}>
-        {facts.map(([term, value]) => (
-          <div key={term} className={styles.fact}>
-            <dt>{term}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <FactList facts={facts} />
     </div>
   );
 }
@@ -142,7 +134,13 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
         {t('common.back')}
       </SpatialButton>
       {(item.trailerCount ?? 0) > 0 && online && (
-        <SpatialButton variant="secondary" size="lg" icon="play" onPress={onTrailer}>
+        <SpatialButton
+          focusKey={TRAILER_KEY}
+          variant="secondary"
+          size="lg"
+          icon="play"
+          onPress={onTrailer}
+        >
           {t('item.trailer')}
         </SpatialButton>
       )}
@@ -170,7 +168,9 @@ function RelatedLinks({ item }: { item: ItemDetail }) {
         <SpatialButtonLink href={paths.item(next.id)} variant="secondary" icon="chevronRight">
           {t('item.nextEpisode')}
           <span className={styles.relatedDetail}>
-            {nextCode ? `${nextCode} · ${next.title}` : next.title}
+            {nextCode
+              ? t('item.nextEpisodeLabel', { code: nextCode, title: next.title })
+              : next.title}
           </span>
         </SpatialButtonLink>
       )}
@@ -286,7 +286,7 @@ function Seasons({ seasons }: { seasons: readonly ItemRef[] }) {
         {t('item.seasons')}
       </h2>
       <ChoiceChips
-        label={t('item.seasons')}
+        label={t('item.seasonChoice')}
         focusKey="detail-season"
         value={current.id}
         onChange={setChosen}
@@ -385,6 +385,13 @@ function ItemView({ itemId }: { itemId: string }) {
   const [chosenFile, setChosenFile] = useState<string | null>(null);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const online = useOnline();
+  // Offline the trailer button and its dialog go away. The dialog stays closed afterwards (it
+  // must not come back by itself and autoplay on reconnect), and the focus moves to "Zurück"
+  // instead of getting lost on the page body.
+  if (!online && trailerOpen) setTrailerOpen(false);
+  useEffect(() => {
+    if (!online && spatialFocusKey() === TRAILER_KEY) setSpatialFocus(BACK_KEY);
+  }, [online]);
 
   if (query.isPending) {
     return (
@@ -534,7 +541,7 @@ function ItemView({ itemId }: { itemId: string }) {
           <Cast item={item} />
         </div>
 
-        {trailerOpen && online && (
+        {trailerOpen && (
           <Suspense fallback={null}>
             <TrailerPanel
               itemId={item.id}

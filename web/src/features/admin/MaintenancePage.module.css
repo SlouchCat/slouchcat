@@ -43,11 +43,6 @@
   font-size: var(--sc-font-size-sm);
 }
 
-.strong {
-  font-weight: var(--sc-font-weight-semibold);
-  overflow-wrap: anywhere;
-}
-
 .path {
   font-family: var(--sc-font-family-mono);
   font-size: var(--sc-font-size-xs);
@@ -103,54 +98,4 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.candidate {
-  display: flex;
-  gap: var(--sc-space-3);
-  width: 100%;
-  padding: var(--sc-space-2);
-  border: 0;
-  border-radius: var(--sc-radius-md);
-  background-color: var(--sc-color-surface-1);
-  color: var(--sc-color-text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
-}
-
-.candidate:disabled {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.candidate:hover:not(:disabled) {
-  background-color: var(--sc-color-surface-2);
-}
-
-.candidatePoster {
-  flex: none;
-  width: 3.5rem;
-  height: 5.25rem;
-  border-radius: var(--sc-radius-sm);
-  background-color: var(--sc-color-surface-3);
-  object-fit: cover;
-}
-
-.candidateText {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-  min-width: 0;
-}
-
-.candidateOverview {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-sm);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
 }

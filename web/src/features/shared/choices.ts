@@ -23,3 +23,11 @@ export const accentOptions = (t: TFunction) =>
 /** Rating from a radio value; unknown values fall back to the lowest, the safest choice. */
 export const ratingOf = (value: string): Rating =>
   ratings.find((age) => String(age) === value) ?? 0;
+
+/**
+ * Rating of a title from a radio value, undefined while none (or an unknown one) is chosen. Unlike
+ * `ratingOf` (a profile ceiling, where 0 is the safe fallback) there is no fallback: FSK 0 makes a
+ * title visible to every profile, so it must be an explicit choice.
+ */
+export const titleRatingOf = (value: string): Rating | undefined =>
+  ratings.find((age) => String(age) === value);

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { formText } from '@/lib/form';
-import { Notice } from '@/ui';
+import { CandidateCard, Notice } from '@/ui';
 import { AriaButton, FormDialog, RadioGroup, TextField } from '@/ui/aria';
 import styles from './MaintenancePage.module.css';
 
@@ -89,13 +89,16 @@ export function MatchDialog({ itemId, title, year, kind, onClose, onMatched }: M
     const data = new FormData(event.currentTarget);
     const parsedYear = parseYear(formText(data, 'year'));
     if (parsedYear === null) return;
-    setSearch({
+    const next: Search = {
       provider,
       // TVDB knows series only.
       kind: provider === 'tvdb' ? 'series' : searchKind,
       query: formText(data, 'query'),
       year: parsedYear,
-    });
+    };
+    // The same search again (after "TMDB nicht erreichbar"): same query key, so ask anew.
+    if (search !== null && JSON.stringify(next) === JSON.stringify(search)) void results.refetch();
+    else setSearch(next);
   };
 
   return (
@@ -163,35 +166,19 @@ export function MatchDialog({ itemId, title, year, kind, onClose, onMatched }: M
           <ul className={styles.candidateList}>
             {results.data.map((candidate) => (
               <li key={`${candidate.provider}-${candidate.providerId}`}>
-                <button
-                  type="button"
-                  className={styles.candidate}
+                <CandidateCard
+                  title={candidateTitle(candidate)}
+                  subtitle={
+                    candidate.originalTitle !== candidate.title
+                      ? candidate.originalTitle
+                      : undefined
+                  }
+                  overview={candidate.overview}
+                  posterUrl={candidate.posterUrl}
                   aria-label={t('admin.match.choose', { title: candidateTitle(candidate) })}
-                  disabled={match.isPending}
-                  onClick={() => match.mutate(candidate)}
-                >
-                  {candidate.posterUrl ? (
-                    <img
-                      className={styles.candidatePoster}
-                      src={candidate.posterUrl}
-                      alt=""
-                      width={80}
-                      height={120}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span className={styles.candidatePoster} aria-hidden="true" />
-                  )}
-                  <span className={styles.candidateText}>
-                    <span className={styles.strong}>{candidateTitle(candidate)}</span>
-                    {candidate.originalTitle && candidate.originalTitle !== candidate.title && (
-                      <span className={styles.muted}>{candidate.originalTitle}</span>
-                    )}
-                    {candidate.overview && (
-                      <span className={styles.candidateOverview}>{candidate.overview}</span>
-                    )}
-                  </span>
-                </button>
+                  isDisabled={match.isPending}
+                  onPress={() => match.mutate(candidate)}
+                />
               </li>
             ))}
           </ul>

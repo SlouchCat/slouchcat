@@ -1,7 +1,25 @@
 import type { PlaybackInfo } from '@slouchcat/api-client';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { resolutionClass } from '@/lib/format';
+import { formatResolution } from '@/lib/format';
+import { FactList } from '@/ui';
 import styles from './Player.module.css';
+
+const reasons = [
+  'container',
+  'video_codec',
+  'audio_codec',
+  'hdr',
+  'pixel_format',
+  'keyframes_pending',
+] as const;
+type Reason = (typeof reasons)[number];
+
+/** The server's reason for not playing directly in words; an unknown code shows as it is. */
+const reasonText = (t: TFunction, reason: string): string =>
+  (reasons as readonly string[]).includes(reason)
+    ? t(`player.streamInfo.reasons.${reason as Reason}`)
+    : reason;
 
 /**
  * "Stream-Info" overlay of the player (B-5): how the server delivers this playback and which file
@@ -21,7 +39,7 @@ export function StreamInfo({ info }: { info: PlaybackInfo }) {
     rows.push(
       [t('player.streamInfo.transcoding'), t(`player.streamInfo.${info.transcoding.mode}`)],
       [t('player.streamInfo.backend'), info.transcoding.backend ?? none],
-      [t('player.streamInfo.reason'), info.transcoding.reason],
+      [t('player.streamInfo.reason'), reasonText(t, info.transcoding.reason)],
     );
   }
   rows.push(
@@ -32,9 +50,7 @@ export function StreamInfo({ info }: { info: PlaybackInfo }) {
     [t('player.streamInfo.audio'), file.audioCodec?.toUpperCase() ?? none],
     [
       t('player.streamInfo.resolution'),
-      file.width && file.height
-        ? `${t('format.resolution', { width: file.width, height: file.height })} · ${resolutionClass(t, file.width, file.height)}`
-        : none,
+      file.width && file.height ? formatResolution(t, file.width, file.height) : none,
     ],
   );
 
@@ -47,14 +63,7 @@ export function StreamInfo({ info }: { info: PlaybackInfo }) {
       <h2 id="stream-info-title" className={styles.infoTitle}>
         {t('player.streamInfo.title')}
       </h2>
-      <dl className={styles.infoList}>
-        {rows.map(([term, value]) => (
-          <div key={term} className={styles.infoRow}>
-            <dt>{term}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <FactList facts={rows} layout="rows" />
     </section>
   );
 }

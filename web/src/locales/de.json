@@ -174,6 +174,7 @@
     "seriesLink": "Zur Serie",
     "parentLink": "Zum Haupttitel",
     "nextEpisode": "Nächste Folge",
+    "nextEpisodeLabel": "{{code}} · {{title}}",
     "episodeCode": "S{{season}}E{{episode}}",
     "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
     "episodeOf": "{{code}} · {{series}}",
@@ -186,18 +187,16 @@
     "cast": {
       "title": "Besetzung",
       "role": {
-        "cast": "Darsteller",
         "director": "Regie",
         "writer": "Drehbuch",
         "creator": "Idee"
       }
     },
     "seasons": "Staffeln",
+    "seasonChoice": "Staffel wählen",
     "episodes": {
       "title": "Folgen",
-      "empty": "Keine Folgen.",
-      "count_one": "{{count}} Folge",
-      "count_other": "{{count}} Folgen"
+      "empty": "Keine Folgen."
     }
   },
   "rating": {
@@ -208,6 +207,7 @@
     "minutes": "{{minutes}} min",
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "resolution": "{{width}} × {{height}}",
+    "resolutionWithClass": "{{resolution}} · {{class}}",
     "uhd": "4K",
     "fhd": "1080p",
     "hd": "720p",
@@ -239,7 +239,7 @@
     },
     "info": "Stream-Info",
     "version": "Version",
-    "versionCurrent": "{{label}} (aktuell)",
+    "switching": "Version wird gewechselt …",
     "streamInfo": {
       "title": "Stream-Info",
       "mode": "Modus",
@@ -250,6 +250,14 @@
       "transcode": "Transcode",
       "backend": "Backend",
       "reason": "Grund",
+      "reasons": {
+        "container": "Container",
+        "video_codec": "Videocodec",
+        "audio_codec": "Audiocodec",
+        "hdr": "HDR-Video",
+        "pixel_format": "Pixelformat (10 Bit, 4:2:2 oder 4:4:4)",
+        "keyframes_pending": "Keyframe-Index wird erstellt"
+      },
       "mediaFile": "Datei-ID",
       "version": "Version",
       "container": "Container",
@@ -408,6 +416,10 @@
       "selectNone": "Auswahl aufheben",
       "more": "Mehr laden",
       "shown": "{{shown}} von {{total}}",
+      "titleCount_one": "{{count}} Titel",
+      "titleCount_other": "{{count}} Titel",
+      "fileCount_one": "{{count}} Datei",
+      "fileCount_other": "{{count}} Dateien",
       "action": {
         "match": "Zuordnen",
         "refresh": "Aktualisieren",
@@ -419,20 +431,24 @@
       "done": {
         "refresh_one": "{{count}} Titel wird aktualisiert.",
         "refresh_other": "{{count}} Titel werden aktualisiert.",
+        "refreshFailed_one": "{{failed}} von {{count}} Titel nicht aktualisiert: {{error}}",
+        "refreshFailed_other": "{{failed}} von {{count}} Titeln nicht aktualisiert: {{error}}",
         "rating_one": "Freigabe für {{count}} Titel gesetzt.",
         "rating_other": "Freigabe für {{count}} Titel gesetzt.",
-        "cleanup": "Entfernt: {{items}} Titel, {{files}} Dateien.",
+        "cleanup": "Entfernt: {{items}}, {{files}}.",
         "merge": "Titel zusammengeführt.",
         "match": "Zuordnung gespeichert, die Metadaten werden geladen."
       },
       "cleanup": {
         "title": "Titel bereinigen?",
-        "body": "Die ausgewählten Titel werden aus der Bibliothek entfernt. Dateien auf der Platte bleiben unberührt.",
+        "body_one": "Der ausgewählte Titel wird aus der Bibliothek entfernt. Dateien auf der Platte bleiben unberührt.",
+        "body_other": "Die {{count}} ausgewählten Titel werden aus der Bibliothek entfernt. Dateien auf der Platte bleiben unberührt.",
         "confirm": "Bereinigen"
       },
       "remove": {
         "title": "Dateien entfernen?",
-        "body": "Die ausgewählten Dateien werden aus der Bibliothek entfernt und bei künftigen Scans übersprungen. Auf der Platte bleiben sie.",
+        "body_one": "Die ausgewählte Datei wird aus der Bibliothek entfernt und bei künftigen Scans übersprungen. Auf der Platte bleibt sie.",
+        "body_other": "Die {{count}} ausgewählten Dateien werden aus der Bibliothek entfernt und bei künftigen Scans übersprungen. Auf der Platte bleiben sie.",
         "confirm": "Entfernen"
       },
       "rating": {
@@ -440,6 +456,8 @@
         "description_one": "Gilt für {{count}} ausgewählten Titel.",
         "description_other": "Gilt für {{count}} ausgewählte Titel.",
         "label": "Altersfreigabe",
+        "summary_one": "{{count}} Titel erhält {{rating}}.",
+        "summary_other": "{{count}} Titel erhalten {{rating}}.",
         "submit": "Zuweisen",
         "submitting": "Wird zugewiesen …"
       },
@@ -454,7 +472,8 @@
         "option": "{{index}}: {{title}}",
         "merge": "Zusammenführen",
         "confirmTitle": "Titel zusammenführen?",
-        "confirmBody": "Dateien, Extras, Trailer und Fortschritt der anderen Titel wandern zu «{{title}}». Die anderen Titel werden gelöscht.",
+        "confirmBody_one": "Dateien, Extras, Trailer und Fortschritt des anderen Titels wandern zu «{{title}}». Der andere Titel wird gelöscht.",
+        "confirmBody_other": "Dateien, Extras, Trailer und Fortschritt der {{count}} anderen Titel wandern zu «{{title}}». Die anderen Titel werden gelöscht.",
         "empty": "Keine Duplikate gefunden."
       }
     },
@@ -501,9 +520,6 @@
       },
       "files": {
         "title": "Dateien",
-        "path": "Pfad",
-        "size": "Grösse",
-        "version": "Version",
         "probedAt": "Geprüft am {{date}}",
         "probeError": "Prüffehler",
         "none": "Keine Dateien."

@@ -174,6 +174,7 @@
     "seriesLink": "Go to series",
     "parentLink": "Go to main title",
     "nextEpisode": "Next episode",
+    "nextEpisodeLabel": "{{code}} · {{title}}",
     "episodeCode": "S{{season}}E{{episode}}",
     "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
     "episodeOf": "{{code}} · {{series}}",
@@ -186,18 +187,16 @@
     "cast": {
       "title": "Cast",
       "role": {
-        "cast": "Cast",
         "director": "Director",
         "writer": "Writer",
         "creator": "Creator"
       }
     },
     "seasons": "Seasons",
+    "seasonChoice": "Choose a season",
     "episodes": {
       "title": "Episodes",
-      "empty": "No episodes.",
-      "count_one": "{{count}} episode",
-      "count_other": "{{count}} episodes"
+      "empty": "No episodes."
     }
   },
   "rating": {
@@ -208,6 +207,7 @@
     "minutes": "{{minutes}} min",
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "resolution": "{{width}} × {{height}}",
+    "resolutionWithClass": "{{resolution}} · {{class}}",
     "uhd": "4K",
     "fhd": "1080p",
     "hd": "720p",
@@ -239,7 +239,7 @@
     },
     "info": "Stream info",
     "version": "Version",
-    "versionCurrent": "{{label}} (current)",
+    "switching": "Switching version …",
     "streamInfo": {
       "title": "Stream info",
       "mode": "Mode",
@@ -250,6 +250,14 @@
       "transcode": "Transcode",
       "backend": "Backend",
       "reason": "Reason",
+      "reasons": {
+        "container": "Container",
+        "video_codec": "Video codec",
+        "audio_codec": "Audio codec",
+        "hdr": "HDR video",
+        "pixel_format": "Pixel format (10-bit, 4:2:2 or 4:4:4)",
+        "keyframes_pending": "Keyframe index pending"
+      },
       "mediaFile": "File ID",
       "version": "Version",
       "container": "Container",
@@ -408,6 +416,10 @@
       "selectNone": "Clear selection",
       "more": "Load more",
       "shown": "{{shown}} of {{total}}",
+      "titleCount_one": "{{count}} title",
+      "titleCount_other": "{{count}} titles",
+      "fileCount_one": "{{count}} file",
+      "fileCount_other": "{{count}} files",
       "action": {
         "match": "Match",
         "refresh": "Refresh",
@@ -419,20 +431,24 @@
       "done": {
         "refresh_one": "{{count}} title is being refreshed.",
         "refresh_other": "{{count}} titles are being refreshed.",
+        "refreshFailed_one": "{{failed}} of {{count}} title not refreshed: {{error}}",
+        "refreshFailed_other": "{{failed}} of {{count}} titles not refreshed: {{error}}",
         "rating_one": "Rating set for {{count}} title.",
         "rating_other": "Rating set for {{count}} titles.",
-        "cleanup": "Removed: {{items}} titles, {{files}} files.",
+        "cleanup": "Removed: {{items}}, {{files}}.",
         "merge": "Titles merged.",
         "match": "Match saved, the metadata is being loaded."
       },
       "cleanup": {
         "title": "Clean up titles?",
-        "body": "The selected titles are removed from the library. Files on disk stay untouched.",
+        "body_one": "The selected title is removed from the library. Files on disk stay untouched.",
+        "body_other": "The {{count}} selected titles are removed from the library. Files on disk stay untouched.",
         "confirm": "Clean up"
       },
       "remove": {
         "title": "Remove files?",
-        "body": "The selected files are removed from the library and skipped by future scans. They stay on disk.",
+        "body_one": "The selected file is removed from the library and skipped by future scans. It stays on disk.",
+        "body_other": "The {{count}} selected files are removed from the library and skipped by future scans. They stay on disk.",
         "confirm": "Remove"
       },
       "rating": {
@@ -440,6 +456,8 @@
         "description_one": "Applies to {{count}} selected title.",
         "description_other": "Applies to {{count}} selected titles.",
         "label": "Age rating",
+        "summary_one": "{{count}} title gets {{rating}}.",
+        "summary_other": "{{count}} titles get {{rating}}.",
         "submit": "Assign",
         "submitting": "Assigning …"
       },
@@ -454,7 +472,8 @@
         "option": "{{index}}: {{title}}",
         "merge": "Merge",
         "confirmTitle": "Merge titles?",
-        "confirmBody": "Files, extras, trailers and progress of the other titles move to “{{title}}”. The other titles are deleted.",
+        "confirmBody_one": "Files, extras, trailers and progress of the other title move to “{{title}}”. The other title is deleted.",
+        "confirmBody_other": "Files, extras, trailers and progress of the {{count}} other titles move to “{{title}}”. The other titles are deleted.",
         "empty": "No duplicates found."
       }
     },
@@ -501,9 +520,6 @@
       },
       "files": {
         "title": "Files",
-        "path": "Path",
-        "size": "Size",
-        "version": "Version",
         "probedAt": "Checked at {{date}}",
         "probeError": "Probe error",
         "none": "No files."
