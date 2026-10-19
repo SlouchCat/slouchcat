@@ -6,7 +6,9 @@ import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 // page with credits is covered by PersonPage.test.tsx.
 
 test('a person without visible credits shows the not-found notice', async ({ page }) => {
-  const response = page.waitForResponse((candidate) => candidate.url().endsWith('/api/v1/people/1'));
+  const response = page.waitForResponse((candidate) =>
+    candidate.url().endsWith('/api/v1/people/1'),
+  );
   await page.goto('/people/1');
   expect((await response).status()).toBe(404);
   await expect(page.getByText('Person nicht gefunden')).toBeVisible();
