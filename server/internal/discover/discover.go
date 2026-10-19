@@ -94,9 +94,10 @@ func (s *Service) Item(ctx context.Context, profile model.Profile, itemID string
 	return d, nil
 }
 
-// Image opens a stored image of a visible title. The caller closes the file.
-func (s *Service) Image(ctx context.Context, profile model.Profile, itemID, kind, size string) (model.StreamSource, error) {
-	loc, err := s.vis.Image(ctx, visibility.Profile(profile), itemID, kind, size)
+// Image opens a stored image of a visible title: WebP when preferWebP is set and the WebP row
+// exists, JPEG otherwise. The caller closes the file.
+func (s *Service) Image(ctx context.Context, profile model.Profile, itemID, kind, size string, preferWebP bool) (model.StreamSource, error) {
+	loc, err := s.vis.Image(ctx, visibility.Profile(profile), itemID, kind, size, preferWebP)
 	if err != nil {
 		return model.StreamSource{}, err
 	}

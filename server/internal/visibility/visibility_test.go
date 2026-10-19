@@ -147,8 +147,22 @@ func TestReaderMapsDetailInProfileLanguage(t *testing.T) {
 	if de.Rating == nil || *de.Rating != 6 || de.Year == nil || de.RuntimeMinutes == nil || de.TMDBID == nil || de.ReleaseDate == "" || de.OriginalTitle != "Original 06" {
 		t.Errorf("de detail fields = %+v", de)
 	}
-	if de.Poster == nil || de.Poster.Size != "w500" || de.Poster.Width != 10 || de.Backdrop == nil || de.Backdrop.Size != "w1280" || de.Backdrop.ContentHash == "" {
+	if de.Poster == nil || de.Poster.Size != "w400" || de.Poster.Width != 10 || de.Backdrop == nil || de.Backdrop.Size != "w1280" || de.Backdrop.ContentHash == "" {
 		t.Errorf("images = %+v / %+v", de.Poster, de.Backdrop)
+	}
+	for name, img := range map[string]struct {
+		got  *model.Image
+		size string
+		w    int
+	}{
+		"posterSmall": {de.PosterSmall, "w200", 4}, "posterLarge": {de.PosterLarge, "w800", 20}, "backdropLarge": {de.BackdropLarge, "w1920", 24},
+	} {
+		if img.got == nil || img.got.Size != img.size || img.got.Width != img.w || img.got.ContentHash == "" {
+			t.Errorf("%s = %+v", name, img.got)
+		}
+	}
+	if de.Accent != vistest.ItemAccent {
+		t.Errorf("accent = %q, want %q", de.Accent, vistest.ItemAccent)
 	}
 	if de.BackdropSmall == nil || de.BackdropSmall.Size != "w780" || de.BackdropSmall.Width != 8 || de.BackdropSmall.ContentHash == de.Backdrop.ContentHash {
 		t.Errorf("small backdrop = %+v", de.BackdropSmall)
@@ -200,17 +214,33 @@ func TestReaderMediaFileAndImage(t *testing.T) {
 		t.Errorf("file of an invisible title: err = %v, want ErrNotFound", err)
 	}
 
-	img, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w500")
+	img, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w400", false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if img.RelPath != m6.PosterRel || img.MediaType != "image/jpeg" || img.ContentHash == "" {
 		t.Errorf("image = %+v", img)
 	}
-	if _, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w1280"); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("missing size: err = %v", err)
+	webp, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w400", true)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := r.Image(ctx, Profile(f.P6), m12.ID, "poster", "w500"); !errors.Is(err, model.ErrNotFound) {
+	if webp.RelPath != m6.PosterWebPRel || webp.MediaType != "image/webp" || webp.ContentHash == img.ContentHash {
+		t.Errorf("webp image = %+v", webp)
+	}
+	// Without a WebP row the JPEG answers a WebP request.
+	if _, err := f.DB.Write.Exec(`DELETE FROM images WHERE item_id = ? AND kind = 'poster' AND size = 'w400' AND format = 'webp'`, m6.ID); err != nil {
+		t.Fatal(err)
+	}
+	if fb, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", "w400", true); err != nil || fb.RelPath != m6.PosterRel || fb.MediaType != "image/jpeg" {
+		t.Errorf("webp fallback = %+v, %v", fb, err)
+	}
+	for _, size := range []string{"w1280", "original", "w500"} {
+		if _, err := r.Image(ctx, Profile(f.P6), m6.ID, "poster", size, true); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("poster %s: err = %v, want ErrNotFound", size, err)
+		}
+	}
+	if _, err := r.Image(ctx, Profile(f.P6), m12.ID, "poster", "w400", false); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("image of an invisible title: err = %v", err)
 	}
 }

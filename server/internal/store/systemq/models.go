@@ -22,6 +22,7 @@ type Image struct {
 	ItemID      string
 	Kind        string
 	Size        string
+	Format      string
 	Lang        sql.NullString
 	SourceUrl   string
 	RelPath     string
@@ -30,6 +31,7 @@ type Image struct {
 	Width       int64
 	Height      int64
 	Bytes       int64
+	Accent      sql.NullString
 	CreatedAt   int64
 }
 

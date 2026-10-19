@@ -79,6 +79,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		RuntimeMinutes: ref.RuntimeMinutes,
 		Rating:         ref.Rating,
 		Images:         ref.Images,
+		Accent:         ref.Accent,
 		Progress:       ref.Progress,
 		OriginalTitle:  optString(d.OriginalTitle),
 		Tagline:        optString(d.Tagline),
@@ -146,15 +147,19 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 	return gen.ReportProgress200JSONResponse(toProgress(p)), nil
 }
 
-// Image kinds and sizes of the contract (M1a stores TMDB images unchanged: posters in w500,
-// backdrops in w780 and w1280).
+// Image kinds and sizes of the contract (M1b image pipeline, plan 3.1): posters in w200, w400 and
+// w800, backdrops in w780, w1280 and w1920, each stored as WebP and JPEG.
 var (
 	imageKinds = map[string]bool{"poster": true, "backdrop": true}
-	imageSizes = map[string]bool{"w500": true, "w780": true, "w1280": true}
+	imageSizes = map[string]map[string]bool{
+		"poster":   {"w200": true, "w400": true, "w800": true},
+		"backdrop": {"w780": true, "w1280": true, "w1920": true},
+	}
 )
 
 // getItemImage serves a poster or backdrop with scope (binary endpoint, CLAUDE.md rule 6). The
-// query parameter v is the content hash and only busts caches.
+// query parameter v is the content hash and only busts caches. The format follows the Accept
+// header (WebP when listed, else JPEG), so the answer varies by Accept.
 func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	session, ok := sessionFrom(r.Context())
 	if !ok || s.opts.Catalog == nil {
@@ -162,11 +167,12 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, kind, size := chi.URLParam(r, "id"), chi.URLParam(r, "kind"), chi.URLParam(r, "size")
-	if !imageKinds[kind] || !imageSizes[size] {
+	if !imageKinds[kind] || !imageSizes[kind][size] {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
 		return
 	}
-	src, err := s.opts.Catalog.Image(r.Context(), session.Profile, id, kind, size)
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Catalog.Image(r.Context(), session.Profile, id, kind, size, acceptsWebP(r.Header.Values("Accept")))
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return
@@ -218,9 +224,15 @@ func toItemRef(it model.ItemSummary) gen.ItemRef {
 		RuntimeMinutes: it.RuntimeMinutes,
 		Images: gen.ItemImages{
 			Poster:        toImageRef(it.ID, it.Poster),
+			PosterSmall:   toImageRef(it.ID, it.PosterSmall),
+			PosterLarge:   toImageRef(it.ID, it.PosterLarge),
 			Backdrop:      toImageRef(it.ID, it.Backdrop),
 			BackdropSmall: toImageRef(it.ID, it.BackdropSmall),
+			BackdropLarge: toImageRef(it.ID, it.BackdropLarge),
 		},
+	}
+	if it.Accent != "" {
+		ref.Accent = &it.Accent
 	}
 	if it.Rating != nil {
 		r := gen.Rating(*it.Rating)

@@ -190,7 +190,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	// admin stores and reveals the TMDB key, metadata checks and uses it: the key source is
 	// resolved lazily so both can be constructed without a cycle.
 	keys := &lazyKeys{}
-	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, log)
+	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log)
 	libSvc := library.New(db, queue, runner, log, library.WithImageCheck(metaSvc.QueueIncompleteImages))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	keys.admin = adminSvc

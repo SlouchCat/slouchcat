@@ -93,7 +93,7 @@ func (s Session) IsOwner() bool { return s.Account.Role == "owner" }
 // Image is a poster or backdrop reference as the client uses it.
 type Image struct {
 	Kind        string // poster, backdrop
-	Size        string // w500, w780, w1280
+	Size        string // w200, w400, w800 (poster), w780, w1280, w1920 (backdrop)
 	ContentHash string
 	Width       int
 	Height      int
@@ -122,10 +122,14 @@ type ItemSummary struct {
 	Title          string
 	Year           *int
 	RuntimeMinutes *int
-	Rating         *int // effective FSK rating, nil when unknown
-	Poster         *Image
-	Backdrop       *Image
+	Rating         *int   // effective FSK rating, nil when unknown
+	Poster         *Image // w400
+	Backdrop       *Image // w1280
 	BackdropSmall  *Image // backdrop in w780, nil when that size is not stored
+	PosterSmall    *Image // w200 (M1b image pipeline)
+	PosterLarge    *Image // w800
+	BackdropLarge  *Image // w1920
+	Accent         string // #rrggbb from the poster palette, "" until the pipeline has run
 	Progress       *Progress
 }
 

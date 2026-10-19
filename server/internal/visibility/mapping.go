@@ -8,11 +8,16 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
 )
 
-// Image sizes stored in M1a (TMDB sizes, kept unchanged); summaries prefer them.
+// Image sizes of the M1b pipeline (plan 3.1) as summaries expose them. Every size exists as WebP
+// and JPEG; the reference carries the WebP row's hash when there is one (the hash only busts
+// caches, the format is negotiated per request).
 const (
-	posterSize        = "w500"
-	backdropSize      = "w1280"
+	posterSmallSize   = "w200"
+	posterSize        = "w400"
+	posterLargeSize   = "w800"
 	backdropSmallSize = "w780"
+	backdropSize      = "w1280"
+	backdropLargeSize = "w1920"
 )
 
 // fallbackLang is the second choice for texts after the profile language (B-3).
@@ -76,42 +81,48 @@ func pickGenres(raw, lang string) []string {
 	return []string{}
 }
 
-// pickImage returns the image of kind, preferring the given size.
+// pickImage returns the image of kind in exactly the given size, or nil. Of the two formats it
+// takes the WebP row's hash, else the JPEG row's; width and height are the same for both.
 func pickImage(rows []scopedq.Image, kind, size string) *model.Image {
 	var chosen *scopedq.Image
 	for i := range rows {
-		if rows[i].Kind != kind {
+		r := &rows[i]
+		if r.Kind != kind || r.Size != size {
 			continue
 		}
-		if chosen == nil || rows[i].Size == size {
-			chosen = &rows[i]
+		if chosen == nil || r.Format == "webp" {
+			chosen = r
 		}
 	}
 	if chosen == nil {
 		return nil
 	}
-	return &model.Image{Kind: chosen.Kind, Size: chosen.Size, ContentHash: chosen.ContentHash, Width: int(chosen.Width), Height: int(chosen.Height)}
+	return &model.Image{Kind: kind, Size: size, ContentHash: chosen.ContentHash, Width: int(chosen.Width), Height: int(chosen.Height)}
 }
 
-// exactImage returns the image of kind in exactly the given size, or nil.
-func exactImage(rows []scopedq.Image, kind, size string) *model.Image {
+// pickAccent returns the accent colour stored on the poster rows (image.fetch writes the same
+// value to every derived poster row), or "".
+func pickAccent(rows []scopedq.Image) string {
 	for i := range rows {
-		if rows[i].Kind == kind && rows[i].Size == size {
-			return &model.Image{Kind: kind, Size: size, ContentHash: rows[i].ContentHash, Width: int(rows[i].Width), Height: int(rows[i].Height)}
+		if rows[i].Kind == "poster" && rows[i].Accent.Valid {
+			return rows[i].Accent.String
 		}
 	}
-	return nil
+	return ""
 }
 
 func summarize(it scopedq.Item, ex extras, lang string) model.ItemSummary {
 	s := model.ItemSummary{
-		ID:       it.ID,
-		Kind:     it.Kind,
-		Title:    pickTexts(ex.texts[it.ID], lang, it.Title).title,
-		Poster:   pickImage(ex.images[it.ID], "poster", posterSize),
-		Backdrop: pickImage(ex.images[it.ID], "backdrop", backdropSize),
-		// The small backdrop only in its own size: it is the phone variant of Backdrop.
-		BackdropSmall: exactImage(ex.images[it.ID], "backdrop", backdropSmallSize),
+		ID:            it.ID,
+		Kind:          it.Kind,
+		Title:         pickTexts(ex.texts[it.ID], lang, it.Title).title,
+		Poster:        pickImage(ex.images[it.ID], "poster", posterSize),
+		PosterSmall:   pickImage(ex.images[it.ID], "poster", posterSmallSize),
+		PosterLarge:   pickImage(ex.images[it.ID], "poster", posterLargeSize),
+		Backdrop:      pickImage(ex.images[it.ID], "backdrop", backdropSize),
+		BackdropSmall: pickImage(ex.images[it.ID], "backdrop", backdropSmallSize),
+		BackdropLarge: pickImage(ex.images[it.ID], "backdrop", backdropLargeSize),
+		Accent:        pickAccent(ex.images[it.ID]),
 	}
 	if it.Year.Valid {
 		y := int(it.Year.Int64)

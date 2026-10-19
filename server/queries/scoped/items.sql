@@ -41,7 +41,7 @@ LIMIT @limit_count;
 SELECT i.* FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE i.kind IN ('movie', 'series')
-  AND EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop')
+  AND EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop' AND im.size <> 'original')
 ORDER BY i.added_at DESC, i.id DESC
 LIMIT @limit_count;
 
@@ -50,11 +50,12 @@ SELECT t.* FROM item_texts AS t
 JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = @profile_id
 WHERE t.item_id IN (sqlc.slice('item_ids'));
 
+-- Delivered image rows (all sizes and formats, without the kept TMDB originals).
 -- name: ListItemImages :many
 SELECT im.* FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = @profile_id
-WHERE im.item_id IN (sqlc.slice('item_ids'))
-ORDER BY im.item_id, im.kind, im.size;
+WHERE im.item_id IN (sqlc.slice('item_ids')) AND im.size <> 'original'
+ORDER BY im.item_id, im.kind, im.size, im.format;
 
 -- name: ListItemProgress :many
 SELECT p.* FROM progress AS p
@@ -73,7 +74,12 @@ JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.item_id = @item_id
 ORDER BY m.missing_since IS NOT NULL, m.created_at, m.id;
 
+-- One delivered image in the wanted format with JPEG as the fallback: format 'webp' returns the
+-- WebP row when it exists, else the JPEG row; format 'jpeg' only the JPEG row.
 -- name: GetItemImage :one
 SELECT im.* FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = @profile_id
-WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size;
+WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size <> 'original'
+  AND im.format IN (@format, 'jpeg')
+ORDER BY im.format = 'jpeg'
+LIMIT 1;

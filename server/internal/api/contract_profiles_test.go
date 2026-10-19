@@ -80,7 +80,7 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("getItem %s = %s", m.Label, rec.Body.String())
 			}
 		}},
-	"getItemImage": {contract: "GET /items/{id}/images/{kind}/{size}", path: "/items/{id}/images/poster/w500", perItem: true, okStatus: http.StatusOK,
+	"getItemImage": {contract: "GET /items/{id}/images/{kind}/{size}", path: "/items/{id}/images/poster/w400", perItem: true, okStatus: http.StatusOK,
 		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			// Both backdrop sizes answer for the same visible titles.
 			for _, b := range []struct{ size, rel string }{{"w1280", m.BackdropRel}, {"w780", m.BackdropSmallRel}} {
@@ -506,7 +506,7 @@ func TestContractStreamAndImageEdges(t *testing.T) {
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("file of another title: status %d", rec.Code)
 	}
-	for _, path := range []string{"/images/poster/w9999", "/images/logo/w500", "/images/backdrop/w500", "/images/backdrop/w342", "/images/poster/w780", "/images/backdrop/original"} {
+	for _, path := range []string{"/images/poster/w9999", "/images/logo/w400", "/images/backdrop/w500", "/images/poster/w500", "/images/backdrop/w342", "/images/poster/w780", "/images/backdrop/w400", "/images/backdrop/original", "/images/poster/original"} {
 		rec = send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+path, "p6", "", nil)
 		if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
 			t.Errorf("%s: status %d", path, rec.Code)
@@ -536,7 +536,7 @@ func TestContractStreamAndImageEdges(t *testing.T) {
 	if img := send(t, h, http.MethodGet, d.Images.BackdropSmall.URL, "p6", "", nil); img.Code != http.StatusOK {
 		t.Errorf("backdropSmall URL from the detail: status %d", img.Code)
 	}
-	if !strings.HasPrefix(d.Images.Poster.URL, BasePath+"/items/"+m.ID+"/images/poster/w500?v=") {
+	if !strings.HasPrefix(d.Images.Poster.URL, BasePath+"/items/"+m.ID+"/images/poster/w400?v=") {
 		t.Errorf("poster URL = %q", d.Images.Poster.URL)
 	}
 	if img := send(t, h, http.MethodGet, d.Images.Poster.URL, "p6", "", nil); img.Code != http.StatusOK {

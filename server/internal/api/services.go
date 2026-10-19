@@ -48,8 +48,9 @@ type CatalogService interface {
 	Home(ctx context.Context, profile model.Profile) ([]model.HomeRow, error)
 	// Item returns the detail or model.ErrNotFound when the item is unknown or not visible.
 	Item(ctx context.Context, profile model.Profile, itemID string) (model.ItemDetail, error)
-	// Image opens a stored image of a visible item or returns model.ErrNotFound.
-	Image(ctx context.Context, profile model.Profile, itemID, kind, size string) (model.StreamSource, error)
+	// Image opens a stored image of a visible item (WebP when preferWebP and stored, else JPEG) or
+	// returns model.ErrNotFound.
+	Image(ctx context.Context, profile model.Profile, itemID, kind, size string, preferWebP bool) (model.StreamSource, error)
 }
 
 // PlaybackService decides playback and records progress (package playback).

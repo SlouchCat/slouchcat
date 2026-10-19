@@ -44,9 +44,10 @@ type Movie struct {
 	FileID           string
 	RelPath          string // relative to Fixture.MediaDir (OtherMediaDir for the OtherLibrary title)
 	Content          []byte
-	PosterRel        string // relative to Fixture.CacheDir
-	BackdropRel      string
-	BackdropSmallRel string // backdrop in w780
+	PosterRel        string // poster w400 JPEG, relative to Fixture.CacheDir
+	PosterWebPRel    string // poster w400 WebP
+	BackdropRel      string // backdrop w1280 JPEG
+	BackdropSmallRel string // backdrop w780 JPEG
 
 	OtherLibrary bool // in library X, which PX may not see
 	Missing      bool // its only file has missing_since set
@@ -240,31 +241,64 @@ func (f *Fixture) addMovie(t testing.TB, m Movie, libraryID, rootID int64, media
 	exec(t, f.DB, `INSERT INTO item_texts (item_id, lang, title, overview, tagline) VALUES (?, 'de', ?, ?, ?), (?, 'en', ?, ?, ?)`,
 		m.ID, "Film "+m.Label, "Handlung "+m.Label, "Leitsatz "+m.Label,
 		m.ID, "Movie "+m.Label, "Plot "+m.Label, "Tagline "+m.Label)
-	m.PosterRel = f.addImage(t, m.ID, "poster", "w500", 10, 15)
-	m.BackdropRel = f.addImage(t, m.ID, "backdrop", "w1280", 16, 9)
-	m.BackdropSmallRel = f.addImage(t, m.ID, "backdrop", "w780", 8, 5)
+	// The image pipeline's layout (plan 3.1): every size as JPEG and WebP, the accent on the
+	// poster rows, the kept original. Tiny pixel sizes keep the fixture fast; the rows record them.
+	for _, im := range []struct {
+		kind, size string
+		w, h       int
+	}{
+		{"poster", "w200", 4, 6}, {"poster", "w400", 10, 15}, {"poster", "w800", 20, 30},
+		{"backdrop", "w780", 8, 5}, {"backdrop", "w1280", 16, 9}, {"backdrop", "w1920", 24, 14},
+	} {
+		jpg := f.addImage(t, m.ID, im.kind, im.size, "jpeg", im.w, im.h)
+		webp := f.addImage(t, m.ID, im.kind, im.size, "webp", im.w, im.h)
+		switch im.kind + "/" + im.size {
+		case "poster/w400":
+			m.PosterRel, m.PosterWebPRel = jpg, webp
+		case "backdrop/w1280":
+			m.BackdropRel = jpg
+		case "backdrop/w780":
+			m.BackdropSmallRel = jpg
+		}
+	}
+	f.addImage(t, m.ID, "poster", "original", "jpeg", 40, 60)
 	return m
 }
 
-// addImage writes a small JPEG under the cache directory and records it; it returns the rel_path.
-func (f *Fixture) addImage(t testing.TB, itemID, kind, size string, w, h int) string {
+// ItemAccent is the accent colour every fixture title carries on its poster rows.
+const ItemAccent = "#c81e28"
+
+// addImage writes a small image under the cache directory and records it; it returns the rel_path.
+// A JPEG is a real image; a WebP is a RIFF/WEBP header with a marker (the standard library cannot
+// encode WebP; the tests compare bytes, not pixels).
+func (f *Fixture) addImage(t testing.TB, itemID, kind, size, format string, w, h int) string {
 	t.Helper()
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	for x := range w {
-		for y := range h {
-			img.Set(x, y, color.RGBA{R: uint8(x * 10), G: uint8(y * 10), B: 128, A: 255})
+	var buf bytes.Buffer
+	ext, mediaType := "jpg", "image/jpeg"
+	if format == "webp" {
+		ext, mediaType = "webp", "image/webp"
+		buf.WriteString("RIFF\x00\x00\x00\x00WEBP" + kind + "-" + size + "-" + itemID) // size field left 0
+	} else {
+		img := image.NewRGBA(image.Rect(0, 0, w, h))
+		for x := range w {
+			for y := range h {
+				img.Set(x, y, color.RGBA{R: uint8(x * 10), G: uint8(y * 10), B: 128, A: 255})
+			}
+		}
+		if err := jpeg.Encode(&buf, img, nil); err != nil {
+			t.Fatal(err)
 		}
 	}
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, img, nil); err != nil {
-		t.Fatal(err)
+	var accent any
+	if kind == "poster" && size != "original" {
+		accent = ItemAccent
 	}
-	rel := fmt.Sprintf("images/%s/%s-%s.jpg", itemID, kind, size)
+	rel := fmt.Sprintf("images/%s/%s-%s.%s", itemID, kind, size, ext)
 	writeFile(t, filepath.Join(f.CacheDir, filepath.FromSlash(rel)), buf.Bytes())
 	sum := sha256.Sum256(buf.Bytes())
-	exec(t, f.DB, `INSERT INTO images (item_id, kind, size, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at)
-	               VALUES (?, ?, ?, 'de', 'https://image.tmdb.org/t/p/x.jpg', ?, ?, 'image/jpeg', ?, ?, ?, 1)`,
-		itemID, kind, size, rel, hex.EncodeToString(sum[:]), w, h, buf.Len())
+	exec(t, f.DB, `INSERT INTO images (item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, accent, created_at)
+	               VALUES (?, ?, ?, ?, NULL, 'https://image.tmdb.org/t/p/original/x.jpg', ?, ?, ?, ?, ?, ?, ?, 1)`,
+		itemID, kind, size, format, rel, hex.EncodeToString(sum[:]), mediaType, w, h, buf.Len(), accent)
 	return rel
 }
 
