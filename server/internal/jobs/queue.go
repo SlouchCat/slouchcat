@@ -144,7 +144,8 @@ func (q *Queue) Enqueue(ctx context.Context, j NewJob) (int64, error) {
 }
 
 // Claim leases the next runnable job of one of types for workerID. It returns (nil, nil) when
-// no job is runnable. Jobs whose lease expired after their last attempt are failed first.
+// no job is runnable. Jobs whose lease expired after their last attempt are failed first; the
+// other expired leases return to the queue and compete again by priority and age.
 func (q *Queue) Claim(ctx context.Context, workerID string, types []string) (*Job, error) {
 	if len(types) == 0 {
 		return nil, nil
@@ -152,6 +153,9 @@ func (q *Queue) Claim(ctx context.Context, workerID string, types []string) (*Jo
 	now := q.now()
 	if _, err := q.q.FailExhaustedLeases(ctx, now.UnixMilli()); err != nil {
 		return nil, fmt.Errorf("fail exhausted leases: %w", err)
+	}
+	if _, err := q.q.RequeueExpiredLeases(ctx, now.UnixMilli()); err != nil {
+		return nil, fmt.Errorf("requeue expired leases: %w", err)
 	}
 	row, err := q.q.ClaimJob(ctx, systemq.ClaimJobParams{
 		WorkerID:   sql.NullString{String: workerID, Valid: true},

@@ -54,7 +54,9 @@ test('choose 720p by keyboard → the player streams that file (Stream-Info)', a
   const href = (await playLink.getAttribute('href')) ?? '';
   const chosen = new URL(href, 'http://x').searchParams.get('file');
   expect(chosen).toBeTruthy();
-  await expect(page.getByRole('region', { name: 'Datei' }).getByText('720p')).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Datei' }).locator('dd').getByText('720p', { exact: true }),
+  ).toBeVisible();
 
   const started = await startedFile(page, async () => {
     await playLink.focus();

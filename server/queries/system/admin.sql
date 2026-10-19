@@ -28,13 +28,17 @@ SELECT
 -- name: AdminCountUnmatched :one
 SELECT count(*) FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
-  AND (i.metadata_state IN ('unmatched', 'failed') OR (i.metadata_state = 'pending' AND i.created_at < @pending_before))
+  AND (i.metadata_state IN ('unmatched', 'failed')
+       OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
+       OR (i.metadata_state = 'pending' AND i.created_at < @pending_before))
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'));
 
 -- name: AdminListUnmatched :many
 SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
-  AND (i.metadata_state IN ('unmatched', 'failed') OR (i.metadata_state = 'pending' AND i.created_at < @pending_before))
+  AND (i.metadata_state IN ('unmatched', 'failed')
+       OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
+       OR (i.metadata_state = 'pending' AND i.created_at < @pending_before))
   AND (sqlc.narg('library_id') IS NULL OR i.library_id = sqlc.narg('library_id'))
 ORDER BY i.library_id, i.sort_title, i.id
 LIMIT @limit_count OFFSET @offset_count;

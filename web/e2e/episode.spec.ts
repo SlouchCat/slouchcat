@@ -53,9 +53,7 @@ test('"Zur Serie" leads to the series; browser back returns', async ({ page }) =
   await expect(page).toHaveURL(new RegExp(`${firstEpisode}$`));
 });
 
-test('arrows: play → back, down to the next episode; Tab order; no focus trap', async ({
-  page,
-}) => {
+test('arrows: play → back, down to the next episode', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, play(page));
   await page.keyboard.press('ArrowRight');
@@ -63,8 +61,12 @@ test('arrows: play → back, down to the next episode; Tab order; no focus trap'
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, next(page));
+});
 
-  await resetFocus(page);
+// Tab order from the top of the page, like detail.spec: in Playwright's Firefox a Tab that would
+// leave the document after the last link does not wrap to the start, so this does not follow the
+// arrow test above.
+test('Tab reaches play and the next episode after the header; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, play(page), 2);
   await tabTo(page, next(page), 4);

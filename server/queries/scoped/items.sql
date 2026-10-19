@@ -19,7 +19,7 @@ LIMIT @limit_count;
 SELECT i.* FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 JOIN progress AS p ON p.item_id = i.id AND p.profile_id = @profile_id
-WHERE p.completed = 0 AND p.position_ms > 0
+WHERE p.completed = 0 AND p.position_ms > 0 AND i.kind <> 'extra'
 ORDER BY p.updated_at DESC, i.id DESC
 LIMIT @limit_count;
 

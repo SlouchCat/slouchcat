@@ -212,7 +212,7 @@ const listContinueWatching = `-- name: ListContinueWatching :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN progress AS p ON p.item_id = i.id AND p.profile_id = ?1
-WHERE p.completed = 0 AND p.position_ms > 0
+WHERE p.completed = 0 AND p.position_ms > 0 AND i.kind <> 'extra'
 ORDER BY p.updated_at DESC, i.id DESC
 LIMIT ?2
 `

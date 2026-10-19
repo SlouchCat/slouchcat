@@ -36,9 +36,7 @@ SET state = 'running', lease_owner = ?1, lease_until = ?2,
     attempts = attempts + 1, updated_at = ?3
 WHERE id = (
     SELECT j.id FROM jobs AS j
-    WHERE j.type IN (/*SLICE:types*/?)
-      AND ((j.state = 'queued' AND j.run_after <= ?3)
-        OR (j.state = 'running' AND j.lease_until < ?3 AND j.attempts < j.max_attempts))
+    WHERE j.state = 'queued' AND j.run_after <= ?3 AND j.type IN (/*SLICE:types*/?)
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )
@@ -265,6 +263,22 @@ type ReleaseJobParams struct {
 
 func (q *Queries) ReleaseJob(ctx context.Context, arg ReleaseJobParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, releaseJob, arg.Now, arg.ID, arg.WorkerID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const requeueExpiredLeases = `-- name: RequeueExpiredLeases :execrows
+UPDATE jobs
+SET state = 'queued', lease_owner = NULL, lease_until = NULL, updated_at = ?1
+WHERE state = 'running' AND lease_until < ?1 AND attempts < max_attempts
+`
+
+// Expired leases of jobs that may still run go back to the queue (the attempt stays counted), so
+// the claim below reads only queued rows in the order of the index jobs_claim.
+func (q *Queries) RequeueExpiredLeases(ctx context.Context, now int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, requeueExpiredLeases, now)
 	if err != nil {
 		return 0, err
 	}

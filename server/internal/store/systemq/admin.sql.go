@@ -100,7 +100,9 @@ const adminCountUnmatched = `-- name: AdminCountUnmatched :one
 
 SELECT count(*) FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
-  AND (i.metadata_state IN ('unmatched', 'failed') OR (i.metadata_state = 'pending' AND i.created_at < ?1))
+  AND (i.metadata_state IN ('unmatched', 'failed')
+       OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
+       OR (i.metadata_state = 'pending' AND i.created_at < ?1))
   AND (?2 IS NULL OR i.library_id = ?2)
 `
 
@@ -591,7 +593,9 @@ func (q *Queries) AdminListTitleYearDuplicates(ctx context.Context, libraryID in
 const adminListUnmatched = `-- name: AdminListUnmatched :many
 SELECT i.id, i.kind, i.title, i.year, i.library_id, i.metadata_state, i.metadata_error FROM items AS i
 WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series', 'episode')
-  AND (i.metadata_state IN ('unmatched', 'failed') OR (i.metadata_state = 'pending' AND i.created_at < ?1))
+  AND (i.metadata_state IN ('unmatched', 'failed')
+       OR (i.metadata_state = 'skipped' AND i.kind IN ('movie', 'series'))
+       OR (i.metadata_state = 'pending' AND i.created_at < ?1))
   AND (?2 IS NULL OR i.library_id = ?2)
 ORDER BY i.library_id, i.sort_title, i.id
 LIMIT ?4 OFFSET ?3

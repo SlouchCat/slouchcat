@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 
 // Other specs add a second library, so the rescan buttons are scoped to the test library.
@@ -71,10 +71,12 @@ test('"Scan abbrechen" shows while a scan is queued or running and cancels it', 
 }) => {
   // Hold the list requests back a little, so the queued state the scan request answered with
   // stays on screen long enough to act on (the test library scans in well under a second).
-  await page.route('**/api/v1/admin/libraries', async (route) => {
+  // The handler may still be waiting when the test unroutes it: then the request is gone already.
+  const delay = async (route: Route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    await route.continue();
-  });
+    await route.continue().catch(() => undefined);
+  };
+  await page.route('**/api/v1/admin/libraries', delay);
   await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
   await page.keyboard.press('Enter');
   const cancel = filme(page).getByRole('button', { name: 'Scan abbrechen' });
@@ -87,7 +89,7 @@ test('"Scan abbrechen" shows while a scan is queued or running and cancels it', 
   const response = await cancelled;
   expect(response.status()).toBe(202);
   const library = (await response.json()) as { scan: { state: string; lastError?: string } };
-  await page.unroute('**/api/v1/admin/libraries');
+  await page.unroute('**/api/v1/admin/libraries', delay);
 
   if (library.scan.state === 'aborted') {
     expect(library.scan.lastError).toBe('cancelled');

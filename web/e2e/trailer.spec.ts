@@ -93,6 +93,6 @@ test('offline the trailer button disappears (W-10) and comes back online', async
 test('a title without trailers has no trailer button', async ({ page }) => {
   await page.goto(extras);
   await expect(page.getByRole('heading', { level: 1, name: EXTRAS_TITLE })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Zurück' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Zurück', exact: true })).toBeVisible();
   await expect(trailerButton(page)).toHaveCount(0);
 });
