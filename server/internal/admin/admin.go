@@ -33,6 +33,15 @@ const (
 	// EnvTMDBKey overrides the stored TMDB key (plan 3.8 point 3).
 	EnvTMDBKey = "SLOUCHCAT_TMDB_API_KEY"
 
+	// Optional provider keys of M3 (design 3.1): the environment wins; the encrypted settings are
+	// only read when present (the settings page that stores them follows in M8).
+	SettingTVDBKey    = "tvdb_api_key"
+	SettingTVDBPin    = "tvdb_pin"
+	SettingYouTubeKey = "youtube_api_key"
+	EnvTVDBKey        = "SLOUCHCAT_TVDB_API_KEY"
+	EnvTVDBPin        = "SLOUCHCAT_TVDB_PIN"
+	EnvYouTubeKey     = "SLOUCHCAT_YOUTUBE_API_KEY"
+
 	maxLibraryName = 80
 	maxLibraryPath = 4096
 	maxTMDBKeyLen  = 1024
@@ -56,6 +65,39 @@ type Libraries interface {
 	AcceptLoss(ctx context.Context, id int64) (model.Library, error)
 }
 
+// LibraryMaintenance is implemented by package library (M3): cancelling a scan and removing
+// files from the library (B-9 cleanup).
+type LibraryMaintenance interface {
+	// CancelScan cancels the queued or running scan job; model.ErrNotFound for an unknown library.
+	CancelScan(ctx context.Context, libraryID int64) (model.Library, error)
+	// IgnoreFiles removes the media files, records them in ignored_files with the reason and
+	// soft-deletes titles left without a file; unknown ids are skipped.
+	IgnoreFiles(ctx context.Context, mediaFileIDs []string, reason string) (files, itemsDeleted int, err error)
+}
+
+// Metadata is implemented by package metadata (M3): provider search, manual match, refresh and
+// trailers.
+type Metadata interface {
+	// Search asks a provider; errors *model.ValidationError, model.ErrProviderNotConfigured,
+	// model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable.
+	Search(ctx context.Context, provider, kind, query string, year *int) ([]model.MetadataCandidate, error)
+	// AssignMatch stores the provider id, locks the provider ids and queues the match
+	// (model.ErrNotFound, *model.ValidationError).
+	AssignMatch(ctx context.Context, itemID, provider, providerID string) error
+	// Refresh queues the match and the probes of the title (model.ErrNotFound).
+	Refresh(ctx context.Context, itemID string) error
+	// AddManualTrailer stores a manual trailer (model.ErrNotFound, *model.ValidationError).
+	AddManualTrailer(ctx context.Context, itemID, lang, youtubeID string) (model.Trailer, error)
+	// DeleteTrailer removes a trailer of the title (model.ErrNotFound).
+	DeleteTrailer(ctx context.Context, itemID string, trailerID int64) error
+	// ListTrailersSystem lists every trailer of a title, unfiltered.
+	ListTrailersSystem(ctx context.Context, itemID string) ([]model.Trailer, error)
+}
+
+// ErrNotConfigured: a maintenance operation needs a collaborator that was not wired
+// (WithLibraryMaintenance, WithMetadata); the API answers 500.
+var ErrNotConfigured = errors.New("admin: collaborator not configured")
+
 // TMDBChecker is implemented by package metadata.
 type TMDBChecker interface {
 	CheckKey(ctx context.Context, key string) error // nil, model.ErrTMDBKeyInvalid or model.ErrTMDBUnreachable
@@ -66,10 +108,13 @@ type Service struct {
 	db        *sql.DB // writer, for the rating override transaction
 	write     *appq.Queries
 	read      *appq.Queries
+	sys       *systemq.Queries // unfiltered reads of the administration views (reader pool)
 	auth      *auth.Service
 	vis       *visibility.Reader // system-scope read of the rating override
 	queue     Enqueuer           // metadata refresh after a cleared override; nil = none
 	libraries Libraries
+	maint     LibraryMaintenance // nil until WithLibraryMaintenance
+	meta      Metadata           // nil until WithMetadata
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
 	getenv    func(string) string
@@ -82,8 +127,9 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 	getenv func(string) string, log *slog.Logger,
 ) *Service {
 	return &Service{
-		db: db.Write, write: appq.New(db.Write), read: appq.New(db.Read), auth: auth, vis: visibility.New(db, log), libraries: libraries,
-		keyring: keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now,
+		db: db.Write, write: appq.New(db.Write), read: appq.New(db.Read), sys: systemq.New(db.Read), auth: auth, vis: visibility.New(db, log),
+		libraries: libraries,
+		keyring:   keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now,
 	}
 }
 
@@ -91,6 +137,20 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 // cleared, and returns the receiver.
 func (s *Service) WithQueue(q Enqueuer) *Service {
 	s.queue = q
+	return s
+}
+
+// WithLibraryMaintenance sets the scan cancellation and file removal of package library, and
+// returns the receiver.
+func (s *Service) WithLibraryMaintenance(m LibraryMaintenance) *Service {
+	s.maint = m
+	return s
+}
+
+// WithMetadata sets the provider search, manual match, refresh and trailers of package metadata,
+// and returns the receiver.
+func (s *Service) WithMetadata(m Metadata) *Service {
+	s.meta = m
 	return s
 }
 
@@ -195,19 +255,43 @@ func (s *Service) storeTMDBKey(ctx context.Context, key string) error {
 // TMDBKey returns the TMDB key: the environment variable wins, otherwise the decrypted setting;
 // "" when none is configured.
 func (s *Service) TMDBKey(ctx context.Context) (string, error) {
-	if key := strings.TrimSpace(s.getenv(EnvTMDBKey)); key != "" {
+	return s.secretKey(ctx, EnvTMDBKey, SettingTMDBKey)
+}
+
+// TVDBKey returns the TVDB key and the optional subscriber PIN, each from the environment or else
+// from its encrypted setting; "" when not configured.
+func (s *Service) TVDBKey(ctx context.Context) (key, pin string, err error) {
+	if key, err = s.secretKey(ctx, EnvTVDBKey, SettingTVDBKey); err != nil {
+		return "", "", err
+	}
+	if pin, err = s.secretKey(ctx, EnvTVDBPin, SettingTVDBPin); err != nil {
+		return "", "", err
+	}
+	return key, pin, nil
+}
+
+// YouTubeKey returns the YouTube Data API key from the environment or else from its encrypted
+// setting; "" when not configured.
+func (s *Service) YouTubeKey(ctx context.Context) (string, error) {
+	return s.secretKey(ctx, EnvYouTubeKey, SettingYouTubeKey)
+}
+
+// secretKey reads a key: the environment variable wins, otherwise the decrypted setting; "" when
+// neither is set. Values never reach the log or an error.
+func (s *Service) secretKey(ctx context.Context, env, setting string) (string, error) {
+	if key := strings.TrimSpace(s.getenv(env)); key != "" {
 		return key, nil
 	}
-	enc, err := s.read.GetSetting(ctx, SettingTMDBKey)
+	enc, err := s.read.GetSetting(ctx, setting)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("read tmdb key setting: %w", err)
+		return "", fmt.Errorf("read setting %s: %w", setting, err)
 	}
 	key, err := s.keyring.Decrypt(enc)
 	if err != nil {
-		return "", fmt.Errorf("tmdb key setting: %w", err)
+		return "", fmt.Errorf("setting %s: %w", setting, err)
 	}
 	return key, nil
 }
@@ -266,7 +350,7 @@ const ratingLockField = "own_rating"
 // lock is removed; the title counts as unrated (18) until the next metadata match restores the
 // rating. The result is the unfiltered administration view. model.ErrNotFound for an unknown title.
 func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error) {
-	if rating != nil && !slices.Contains([]int{0, 6, 12, 16, 18}, *rating) {
+	if !validRating(rating) {
 		return model.ItemRating{}, (&model.ValidationError{}).Add("rating", "invalid_value")
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -274,13 +358,103 @@ func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int)
 		return model.ItemRating{}, fmt.Errorf("begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	q := systemq.New(tx)
-	item, err := q.GetItemSystem(ctx, itemID)
-	if errors.Is(err, sql.ErrNoRows) || (err == nil && item.DeletedAt.Valid) {
+	ok, err := s.applyRating(ctx, systemq.New(tx), itemID, rating)
+	if err != nil {
+		return model.ItemRating{}, err
+	}
+	if !ok {
 		return model.ItemRating{}, model.ErrNotFound
 	}
+	if err := tx.Commit(); err != nil {
+		return model.ItemRating{}, fmt.Errorf("commit: %w", err)
+	}
+	s.log.InfoContext(ctx, "item rating overridden", "item_id", itemID, "rating_set", rating != nil)
+	if rating == nil {
+		s.queueRefresh(ctx, itemID)
+	}
+	return s.vis.SystemItemRating(ctx, visibility.System("admin rating override"), itemID)
+}
+
+// maxRatingBatch is the size of one transaction of the mass rating (design 4.2).
+const maxRatingBatch = 500
+
+// maxRatingItems caps one mass rating request (contract ItemsRatingRequest).
+const maxRatingItems = 5000
+
+// SetItemsRating assigns (or, with nil, clears) the rating of many titles with the semantics of
+// SetItemRating per title, in transactions of at most 500 titles (B-9, AN-1). Unknown and deleted
+// ids are skipped and not counted; duplicates count once. The caller re-checks open streams once.
+func (s *Service) SetItemsRating(ctx context.Context, itemIDs []string, rating *int) (int, error) {
+	var verr *model.ValidationError
+	switch {
+	case len(itemIDs) == 0:
+		verr = verr.Add("itemIds", "required")
+	case len(itemIDs) > maxRatingItems:
+		verr = verr.Add("itemIds", "too_long")
+	}
+	if !validRating(rating) {
+		verr = verr.Add("rating", "invalid_value")
+	}
+	if verr != nil {
+		return 0, verr
+	}
+	ids := slices.Clone(itemIDs)
+	slices.Sort(ids)
+	ids = slices.Compact(ids)
+	var updated []string
+	for chunk := range slices.Chunk(ids, maxRatingBatch) {
+		done, err := s.rateBatch(ctx, chunk, rating)
+		if err != nil {
+			return len(updated), err
+		}
+		updated = append(updated, done...)
+	}
+	s.log.InfoContext(ctx, "item ratings overridden", "requested", len(ids), "updated", len(updated), "rating_set", rating != nil)
+	if rating == nil {
+		for _, id := range updated {
+			s.queueRefresh(ctx, id)
+		}
+	}
+	return len(updated), nil
+}
+
+// rateBatch applies the rating to one batch in one transaction and returns the changed ids.
+func (s *Service) rateBatch(ctx context.Context, ids []string, rating *int) ([]string, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return model.ItemRating{}, fmt.Errorf("get item: %w", err)
+		return nil, fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	var done []string
+	for _, id := range ids {
+		ok, err := s.applyRating(ctx, q, id, rating)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			done = append(done, id)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit: %w", err)
+	}
+	return done, nil
+}
+
+func validRating(rating *int) bool {
+	return rating == nil || slices.Contains([]int{0, 6, 12, 16, 18}, *rating)
+}
+
+// applyRating writes the override (or its removal) of one title inside the caller's transaction;
+// false for an unknown or deleted title.
+func (s *Service) applyRating(ctx context.Context, q *systemq.Queries, itemID string, rating *int) (bool, error) {
+	item, err := q.GetItemSystem(ctx, itemID)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && item.DeletedAt.Valid) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get item: %w", err)
 	}
 	var locked []string
 	if err := json.Unmarshal([]byte(item.LockedFields), &locked); err != nil {
@@ -295,21 +469,14 @@ func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int)
 	}
 	raw, err := json.Marshal(locked)
 	if err != nil {
-		return model.ItemRating{}, fmt.Errorf("locked fields: %w", err)
+		return false, fmt.Errorf("locked fields: %w", err)
 	}
 	if locked == nil {
 		raw = []byte("[]")
 	}
 	params.LockedFields = string(raw)
 	if err := q.UpdateItemRatingOverride(ctx, params); err != nil {
-		return model.ItemRating{}, fmt.Errorf("update rating: %w", err)
+		return false, fmt.Errorf("update rating: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return model.ItemRating{}, fmt.Errorf("commit: %w", err)
-	}
-	s.log.InfoContext(ctx, "item rating overridden", "item_id", itemID, "rating_set", rating != nil)
-	if rating == nil {
-		s.queueRefresh(ctx, itemID)
-	}
-	return s.vis.SystemItemRating(ctx, visibility.System("admin rating override"), itemID)
+	return true, nil
 }

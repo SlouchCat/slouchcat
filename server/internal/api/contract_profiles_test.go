@@ -401,7 +401,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log)
+	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
+		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{})
 
 	pa := profileAuth{Service: a, tokens: map[string]string{}}
 	sessions := map[string]model.Session{}

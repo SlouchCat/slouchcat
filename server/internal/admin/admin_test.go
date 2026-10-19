@@ -282,6 +282,43 @@ func TestTMDBKeyEnvWins(t *testing.T) {
 	}
 }
 
+// TVDB and YouTube keys (M3): the environment wins, encrypted settings follow when present,
+// otherwise the provider is not configured ("").
+func TestOptionalProviderKeys(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "" || pin != "" {
+		t.Fatalf("TVDBKey unset = %q, %q, %v", key, pin, err)
+	}
+	if key, err := f.svc.YouTubeKey(ctx); err != nil || key != "" {
+		t.Fatalf("YouTubeKey unset = %q, %v", key, err)
+	}
+	for setting, value := range map[string]string{SettingTVDBKey: "FAKE-tvdb-setting", SettingTVDBPin: "FAKE-pin", SettingYouTubeKey: "FAKE-yt-setting"} {
+		enc, err := f.ring.Encrypt(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.db.Write.ExecContext(ctx, `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, 0)`, setting, enc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "FAKE-tvdb-setting" || pin != "FAKE-pin" {
+		t.Fatalf("TVDBKey from settings = %q, %q, %v", key, pin, err)
+	}
+	f.env[EnvTVDBKey], f.env[EnvYouTubeKey] = "FAKE-tvdb-env", " FAKE-yt-env "
+	if key, pin, err := f.svc.TVDBKey(ctx); err != nil || key != "FAKE-tvdb-env" || pin != "FAKE-pin" {
+		t.Fatalf("TVDBKey with env = %q, %q, %v", key, pin, err)
+	}
+	if key, err := f.svc.YouTubeKey(ctx); err != nil || key != "FAKE-yt-env" {
+		t.Fatalf("YouTubeKey with env = %q, %v", key, err)
+	}
+	for _, secret := range []string{"FAKE-tvdb", "FAKE-pin", "FAKE-yt"} {
+		if strings.Contains(f.logs.String(), secret) {
+			t.Errorf("log carries %s", secret)
+		}
+	}
+}
+
 func TestLibraryDelegation(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)

@@ -145,7 +145,33 @@ var adminRegistry = map[string]adminCall{
 	"updateGuest":       {contract: "PATCH /admin/guests/{id}", path: "/admin/guests/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
 	"revokeGuest":       {contract: "DELETE /admin/guests/{id}", path: "/admin/guests/9999", ownerStatus: http.StatusNotFound},
 	"setItemRating":     {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
+	// M3: requests against fixture titles that leave the fixture unchanged (the fake metadata and
+	// library services of the contract fixture record nothing).
+	"cancelLibraryScan": {contract: "DELETE /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
+	"getAdminItem":      {contract: "GET /admin/items/{id}", path: "/admin/items/" + fixtureFilm6, ownerStatus: http.StatusOK},
+	"setItemMatch": {contract: "PUT /admin/items/{id}/match", path: "/admin/items/" + fixtureFilm6 + "/match",
+		body: `{"provider":"tmdb","providerId":"603"}`, ownerStatus: http.StatusAccepted},
+	"refreshItem": {contract: "POST /admin/items/{id}/refresh", path: "/admin/items/" + fixtureFilm6 + "/refresh", ownerStatus: http.StatusAccepted},
+	"createItemTrailer": {contract: "POST /admin/items/{id}/trailers", path: "/admin/items/" + fixtureFilm6 + "/trailers",
+		body: `{"lang":"de","url":"https://youtu.be/dQw4w9WgXcQ"}`, ownerStatus: http.StatusCreated},
+	"deleteItemTrailer": {contract: "DELETE /admin/items/{id}/trailers/{trailerId}", path: "/admin/items/" + fixtureFilm6 + "/trailers/999", ownerStatus: http.StatusNotFound},
+	"setItemsRating": {contract: "POST /admin/items/rating", path: "/admin/items/rating",
+		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
+	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",
+		ownerStatus: http.StatusUnprocessableEntity},
+	"listMaintenanceIssues": {contract: "GET /admin/maintenance/issues", path: "/admin/maintenance/issues?kind=unrated", ownerStatus: http.StatusOK},
+	"listDuplicates":        {contract: "GET /admin/maintenance/duplicates", path: "/admin/maintenance/duplicates", ownerStatus: http.StatusOK},
+	"mergeItems": {contract: "POST /admin/maintenance/merge", path: "/admin/maintenance/merge",
+		body: `{"targetId":"` + fixtureFilm6 + `","sourceIds":["` + fixtureSeries + `"]}`, ownerStatus: http.StatusUnprocessableEntity},
+	"cleanupItems": {contract: "POST /admin/maintenance/cleanup", path: "/admin/maintenance/cleanup",
+		body: `{"itemIds":["` + fixtureFilm6 + `"]}`, ownerStatus: http.StatusOK},
 }
+
+// Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).
+const (
+	fixtureFilm6  = "01J9000000000000000000R006"
+	fixtureSeries = "01J9000000000000000000R0SS"
+)
 
 // publicCall is one call of the public registry (no session).
 type publicCall struct {
@@ -293,7 +319,6 @@ func TestContractAdminOperations(t *testing.T) {
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	h := pf.h
-	titles := pf.f.All()
 
 	ids := keysOf(adminRegistry)
 	sort.Strings(ids)
@@ -317,8 +342,13 @@ func TestContractAdminOperations(t *testing.T) {
 			if rec.Code != call.ownerStatus {
 				t.Errorf("owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}
-			if found := itemIDsIn(t, rec, titles); len(found) != 0 {
-				t.Errorf("response contains title ids %v", found)
+			// Administration views name titles by id (unfiltered, owner only) but never as ItemRef,
+			// which carries scoped image URLs.
+			if refs := itemRefsIn(t, rec); len(refs) != 0 {
+				t.Errorf("response contains ItemRef objects %v", refs)
+			}
+			if strings.Contains(rec.Body.String(), "/images/") {
+				t.Errorf("response contains image URLs: %s", rec.Body.String())
 			}
 			assertNoSecrets(t, id, rec)
 		})

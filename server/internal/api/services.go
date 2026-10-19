@@ -82,6 +82,35 @@ type AdminService interface {
 	// SetItemRating overrides (or, with nil, clears) the age rating of a title and returns its
 	// ratings; model.ErrNotFound for an unknown title.
 	SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error)
+
+	// M3 (design 4.2). Every method answers model.ErrNotFound for an unknown or deleted title and
+	// *model.ValidationError for invalid input.
+
+	// CancelLibraryScan cancels the queued or running scan of a library.
+	CancelLibraryScan(ctx context.Context, libraryID int64) (model.Library, error)
+	// GetAdminItem returns the unfiltered administration view of a title.
+	GetAdminItem(ctx context.Context, itemID string) (model.AdminItem, error)
+	// SetItemMatch assigns a film or series to a provider entry (B-6) and queues the match.
+	SetItemMatch(ctx context.Context, itemID, provider, providerID string) (model.AdminItem, error)
+	// RefreshItem queues metadata, images, trailers and probes of a title.
+	RefreshItem(ctx context.Context, itemID string) (model.AdminItem, error)
+	// CreateItemTrailer stores a manual trailer from a YouTube id or URL.
+	CreateItemTrailer(ctx context.Context, itemID, lang, youtubeID, url string) (model.Trailer, error)
+	// DeleteItemTrailer removes a trailer of a title.
+	DeleteItemTrailer(ctx context.Context, itemID string, trailerID int64) error
+	// SetItemsRating applies SetItemRating to many titles; unknown ids are skipped and not counted.
+	SetItemsRating(ctx context.Context, itemIDs []string, rating *int) (int, error)
+	// SearchMetadata asks a provider (model.ErrProviderNotConfigured, model.ErrTMDBKeyInvalid,
+	// model.ErrTMDBUnreachable).
+	SearchMetadata(ctx context.Context, provider, kind, query string, year *int) ([]model.MetadataCandidate, error)
+	// ListIssues returns one page of maintenance issues of a kind (limit 0 = 50).
+	ListIssues(ctx context.Context, kind string, libraryID *int64, limit, offset int) (model.IssuePage, error)
+	// ListDuplicates returns the duplicate groups.
+	ListDuplicates(ctx context.Context, libraryID *int64) ([]model.DuplicateGroup, error)
+	// MergeItems merges the sources into the target and returns the target.
+	MergeItems(ctx context.Context, targetID string, sourceIDs []string) (model.AdminItem, error)
+	// CleanupItems soft-deletes orphaned titles and removes media files as ignored.
+	CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []string) (items, files int, err error)
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer
