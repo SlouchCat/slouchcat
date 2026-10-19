@@ -83,6 +83,11 @@
   color: var(--sc-color-text-primary);
 }
 
+.segment[data-disabled] {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .segment[data-selected] {
   background-color: var(--sc-color-surface-3);
   color: var(--sc-color-text-primary);

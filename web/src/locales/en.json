@@ -15,7 +15,10 @@
     "libraries": "Libraries",
     "logout": "Sign out",
     "profile": "Profile {{name}}",
-    "skip": "Skip to content"
+    "skip": "Skip to content",
+    "access": "Access",
+    "profiles": "Profiles",
+    "switchProfile": "Switch profile, now {{name}}"
   },
   "system": {
     "server": {
@@ -43,7 +46,15 @@
       "validation_failed": "Please check the highlighted fields.",
       "network": "The server cannot be reached.",
       "unknown": "Something went wrong. Please try again.",
-      "transcode_busy": "The server is busy. Please try again later."
+      "transcode_busy": "The server is busy. Please try again later.",
+      "pin_required": "This profile is protected by a PIN.",
+      "pin_invalid": "The PIN is wrong.",
+      "pin_locked": "Too many wrong PINs. Try again later.",
+      "profile_required": "Choose a profile first.",
+      "primary_profile_required": "Only the primary profile of this account manages profiles.",
+      "primary_profile": "The primary profile cannot be deleted.",
+      "invitation_gone": "This invitation link is no longer valid.",
+      "too_many_attempts": "Too many attempts. Wait a moment and try again."
     },
     "field": {
       "required": "Required.",
@@ -53,7 +64,12 @@
       "invalid": "Invalid value.",
       "not_absolute": "Enter an absolute path; it starts with /.",
       "password_too_short": "At least 10 characters.",
-      "password_mismatch": "The passwords do not match."
+      "password_mismatch": "The passwords do not match.",
+      "above_account_limit": "Higher than this account's ceiling.",
+      "unknown_library": "This library does not exist.",
+      "too_many_profiles": "An account can have at most 10 profiles.",
+      "already_exists": "This e-mail address is already taken.",
+      "pin_format": "The PIN has 4 to 8 digits."
     }
   },
   "setup": {
@@ -231,6 +247,199 @@
         "submit": "Add",
         "submitting": "Adding …"
       }
+    },
+    "access": {
+      "title": "Access",
+      "intro": "Invite guests with a one-time link and decide what they may watch.",
+      "notAllowed": {
+        "title": "Main account only",
+        "body": "Invitations and guests are managed in the primary profile of the main account."
+      },
+      "form": {
+        "rating": "Highest age rating",
+        "libraries": "Libraries"
+      },
+      "invitations": {
+        "title": "Invitations",
+        "intro": "A link works once and for seven days. Whoever opens it creates a guest account of their own.",
+        "note": "Who is the link for?",
+        "noteHint": "For example a name. The guest sees the note too.",
+        "create": "Create invitation",
+        "creating": "Creating …",
+        "created": {
+          "title": "Invitation link created",
+          "once": "Copy the link now: it is shown only this once.",
+          "label": "Invitation link",
+          "copy": "Copy link",
+          "copied": "Link copied.",
+          "copyFailed": "Copying is not possible. The link is selected, copy it with Ctrl+C.",
+          "dismiss": "Hide link"
+        },
+        "list": "Existing invitations",
+        "empty": "No invitation created yet.",
+        "noNote": "No note",
+        "state": {
+          "open": "Open",
+          "used": "Used",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        },
+        "expires": "Valid until {{date}}",
+        "usedBy": "Accepted by {{email}}",
+        "revoke": {
+          "action": "Revoke",
+          "title": "Revoke invitation?",
+          "body": "The link stops working.",
+          "confirm": "Revoke"
+        }
+      },
+      "guests": {
+        "title": "Guests",
+        "intro": "Guests have an account of their own with a ceiling and libraries. Their profiles stay below it.",
+        "list": "Guests",
+        "empty": "No guests yet.",
+        "profiles_one": "{{count}} profile",
+        "profiles_other": "{{count}} profiles",
+        "lastSeen": "Last seen: {{date}}",
+        "neverSeen": "Never signed in",
+        "edit": "Edit",
+        "editTitle": "Edit guest {{email}}",
+        "save": "Save",
+        "saving": "Saving …",
+        "remove": {
+          "action": "Remove",
+          "title": "Remove guest {{email}}?",
+          "body": "Account, profiles and progress are deleted. Running sessions and playback end immediately.",
+          "confirm": "Remove guest"
+        }
+      }
+    }
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "accent": {
+    "label": "Colour",
+    "ember": "Ember",
+    "coral": "Coral",
+    "amber": "Amber",
+    "lime": "Lime",
+    "teal": "Teal",
+    "sky": "Sky",
+    "violet": "Violet",
+    "rose": "Rose"
+  },
+  "libraries": {
+    "all": "All libraries",
+    "none": "No library",
+    "choose": "Choose libraries",
+    "named": "Library {{id}}",
+    "modeAll": "All",
+    "modeSome": "Selection",
+    "needOne": "Choose at least one library.",
+    "loadFailed": "The libraries could not be loaded."
+  },
+  "profiles": {
+    "picker": {
+      "title": "Who's watching?",
+      "intro": "Choose your profile.",
+      "list": "Profiles",
+      "manage": "Manage profiles",
+      "active": "active",
+      "locked": "protected by a PIN",
+      "primary": "Primary profile",
+      "loadFailed": "The profiles could not be loaded.",
+      "primaryActive": "Primary profile · active"
+    },
+    "pin": {
+      "title": "PIN for {{name}}",
+      "intro": "This profile is protected by a PIN.",
+      "label": "PIN",
+      "hint": "4 to 8 digits.",
+      "submit": "Open",
+      "submitting": "Checking …",
+      "invalid": "The PIN is wrong. Try again.",
+      "locked": "Too many wrong attempts. Try again in",
+      "time": "{{minutes}}:{{seconds}}",
+      "lockedFor": "Locked for {{seconds}} seconds."
+    },
+    "settings": {
+      "title": "Profiles",
+      "intro": "Everyone in the household gets a profile of their own with age rating, language, colour and libraries.",
+      "onlyPrimary": {
+        "title": "Primary profile only",
+        "body": "You manage profiles in the primary profile of this account. Switch to it to add or change profiles.",
+        "action": "Switch profile"
+      },
+      "add": "Add profile",
+      "list": "Profiles of this account",
+      "edit": "Edit",
+      "primary": "Primary profile",
+      "hasPin": "PIN",
+      "delete": {
+        "action": "Delete",
+        "title": "Delete profile \"{{name}}\"?",
+        "body": "Progress and settings of this profile are lost. This cannot be undone.",
+        "confirm": "Delete profile"
+      },
+      "pin": {
+        "set": "Set PIN",
+        "change": "Change PIN",
+        "title": "PIN for {{name}}",
+        "label": "New PIN",
+        "hint": "4 to 8 digits. Without the PIN the profile cannot be opened.",
+        "save": "Save PIN",
+        "saving": "Saving …",
+        "remove": {
+          "action": "Remove PIN",
+          "title": "Remove the PIN of {{name}}?",
+          "body": "Afterwards anyone can open this profile without a PIN.",
+          "confirm": "Remove PIN"
+        }
+      },
+      "form": {
+        "createTitle": "New profile",
+        "editTitle": "Edit profile",
+        "name": "Name",
+        "rating": "Age rating",
+        "ratingHint": "Titles with a higher rating stay invisible to this profile.",
+        "language": "Language",
+        "libraries": "Libraries",
+        "pin": "PIN (optional)",
+        "create": "Add profile",
+        "creating": "Adding …",
+        "save": "Save",
+        "saving": "Saving …"
+      },
+      "ratingAboveAccount": "FSK {{age}} · Account at most FSK {{max}}"
+    }
+  },
+  "invite": {
+    "title": "Invitation to Slouchcat",
+    "intro": "Create your account and you can start right away.",
+    "for": "For: {{note}}",
+    "rating": "Age rating up to",
+    "libraries": "Libraries",
+    "expires": "The link is valid until {{date}}.",
+    "form": {
+      "email": "E-mail address",
+      "password": "Password",
+      "passwordHint": "At least 10 characters.",
+      "profileName": "Profile name",
+      "profileNameHint": "What your profile is called, for example your first name.",
+      "language": "Language",
+      "submit": "Create account",
+      "submitting": "Creating …"
+    },
+    "gone": {
+      "title": "Link no longer valid",
+      "body": "This link was already used, has expired or was withdrawn. Ask whoever invited you for a new link.",
+      "action": "Go to sign-in"
+    },
+    "notFound": {
+      "title": "Link not found",
+      "body": "This invitation link does not exist. Check that you copied all of it."
     }
   }
 }

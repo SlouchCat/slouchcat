@@ -14,8 +14,12 @@ const meta = {
     nav: [
       { href: '#', label: 'Start', current: true },
       { href: '#libraries', label: 'Bibliotheken' },
+      { href: '#access', label: 'Zugriff' },
+      { href: '#profiles', label: 'Profile' },
     ],
     profileName: 'Marco',
+    profileHref: '#profiles',
+    profileLabel: 'Profil wechseln, aktuell Marco',
     logoutLabel: 'Abmelden',
     onLogout: () => undefined,
   },

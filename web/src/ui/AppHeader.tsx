@@ -17,6 +17,10 @@ interface AppHeaderProps {
   navLabel: string;
   nav: readonly NavItem[];
   profileName: string;
+  /** The profile picker: avatar and name link there to switch profiles. */
+  profileHref: string;
+  /** Accessible name of that link ("Switch profile, now Marco"). */
+  profileLabel: string;
   logoutLabel: string;
   onLogout: () => void;
 }
@@ -46,11 +50,14 @@ export function AppHeader({
   navLabel,
   nav,
   profileName,
+  profileHref,
+  profileLabel,
   logoutLabel,
   onLogout,
 }: AppHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const { ref: homeRef, onFocus: onHomeFocus } = useSpatialItem<HTMLAnchorElement>();
+  const { ref: profileRef, onFocus: onProfileFocus } = useSpatialItem<HTMLAnchorElement>();
 
   useEffect(() => {
     const update = () => setScrolled(window.scrollY > 8);
@@ -71,12 +78,20 @@ export function AppHeader({
           ))}
         </nav>
         <div className={styles.account}>
-          <span className={styles.profile}>
+          <AppLink
+            ref={profileRef}
+            onFocus={onProfileFocus}
+            href={profileHref}
+            className={styles.profile}
+            aria-label={profileLabel}
+          >
             <span className={styles.avatar} aria-hidden="true">
               {profileName.slice(0, 1).toUpperCase()}
             </span>
-            <span className={styles.profileName}>{profileName}</span>
-          </span>
+            <span className={styles.profileName} aria-hidden="true">
+              {profileName}
+            </span>
+          </AppLink>
           <SpatialButton
             variant="ghost"
             icon="logout"

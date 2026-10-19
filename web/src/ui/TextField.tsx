@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import {
   FieldError,
   Input,
@@ -15,14 +15,31 @@ interface TextFieldProps extends Omit<AriaTextFieldProps, 'className' | 'childre
   placeholder?: string;
   /** Monospace input for paths and tokens. */
   mono?: boolean;
+  /** The `<input>` element, for code that has to select its text. */
+  inputRef?: Ref<HTMLInputElement>;
+  /** Select the whole text when the field gets focus (a link to copy). */
+  selectOnFocus?: boolean;
 }
 
 /** Labelled text input (react-aria) with description and inline validation message. */
-export function TextField({ label, description, placeholder, mono, ...rest }: TextFieldProps) {
+export function TextField({
+  label,
+  description,
+  placeholder,
+  mono,
+  inputRef,
+  selectOnFocus,
+  ...rest
+}: TextFieldProps) {
   return (
     <AriaTextField className={styles.field} {...rest}>
       <Label className={styles.label}>{label}</Label>
-      <Input className={`${styles.input} ${mono ? styles.mono : ''}`} placeholder={placeholder} />
+      <Input
+        ref={inputRef}
+        className={`${styles.input} ${mono ? styles.mono : ''}`}
+        placeholder={placeholder}
+        onFocus={selectOnFocus ? (event) => event.currentTarget.select() : undefined}
+      />
       {description && (
         <Text slot="description" className={styles.description}>
           {description}

@@ -1,0 +1,121 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin-bottom: var(--sc-space-8);
+}
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-12);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  max-width: 56rem;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.sectionTitle {
+  font-size: var(--sc-font-size-xl);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.panelTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.actions,
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.dialogActions {
+  justify-content: flex-end;
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.listBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.listTitle {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3) var(--sc-space-6);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.strong {
+  font-weight: var(--sc-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

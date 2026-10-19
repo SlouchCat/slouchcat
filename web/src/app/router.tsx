@@ -13,12 +13,14 @@ import { homeQuery } from '@/features/catalog/queries';
 import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
 import { paths } from './paths';
+import { isReturnTarget } from './returnTarget';
 import { RootError, RootLayout } from './RootLayout';
 import {
   applyProfileAccent,
   applyProfileLanguage,
   sessionQuery,
   setupStatusQuery,
+  type ActiveSession,
 } from './session';
 
 export interface RouterContext {
@@ -61,7 +63,14 @@ const loginRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/auth/LoginPage'), 'LoginPage'),
 });
 
-/** Everything behind the login. */
+/** A visitor with an invitation link needs no session; the page works with or without one. */
+const inviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/invite/$token',
+  component: lazyRouteComponent(() => import('@/features/invite/InvitePage'), 'InvitePage'),
+});
+
+/** Everything behind the login: a session, with or without a chosen profile. */
 const authedRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: '_authed',
@@ -74,12 +83,41 @@ const authedRoute = createRoute({
   },
 });
 
+/** The profile picker (K-4): reachable with a session and no profile chosen yet. */
+const profilesRoute = createRoute({
+  getParentRoute: () => authedRoute,
+  path: '/profiles',
+  validateSearch: (search: Record<string, unknown>): { next?: string } =>
+    isReturnTarget(search.next) ? { next: search.next } : {},
+  beforeLoad: () => loadSpatialNavigation(),
+  component: lazyRouteComponent(
+    () => import('@/features/profiles/ProfilePickerPage'),
+    'ProfilePickerPage',
+  ),
+});
+
+/** Everything that needs a chosen profile; without one the picker comes first. */
+const activeRoute = createRoute({
+  getParentRoute: () => authedRoute,
+  id: '_active',
+  beforeLoad: ({ context, location }) => {
+    const { session } = context;
+    if (!session.profile) {
+      throw redirect({
+        to: '/profiles',
+        search: location.pathname === paths.home ? {} : { next: location.href },
+      });
+    }
+    return { session: session as ActiveSession };
+  },
+});
+
 /**
  * Pages with the app header; the player runs full screen without it. Header, start and detail
  * page navigate with norigin, which loads as its own chunk (spatial.tsx).
  */
 const chromeRoute = createRoute({
-  getParentRoute: () => authedRoute,
+  getParentRoute: () => activeRoute,
   id: '_chrome',
   beforeLoad: () => loadSpatialNavigation(),
   component: AppLayout,
@@ -103,8 +141,23 @@ const librariesRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/LibrariesPage'), 'LibrariesPage'),
 });
 
+const profileSettingsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/settings/profiles',
+  component: lazyRouteComponent(
+    () => import('@/features/profiles/ProfileSettingsPage'),
+    'ProfileSettingsPage',
+  ),
+});
+
+const accessRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/access',
+  component: lazyRouteComponent(() => import('@/features/admin/AccessPage'), 'AccessPage'),
+});
+
 const playRoute = createRoute({
-  getParentRoute: () => authedRoute,
+  getParentRoute: () => activeRoute,
   path: '/play/$itemId',
   component: lazyRouteComponent(() => import('@/features/player/PlayerPage'), 'PlayerPage'),
 });
@@ -114,9 +167,19 @@ const playRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,
+  inviteRoute,
   authedRoute.addChildren([
-    chromeRoute.addChildren([homeRoute, itemRoute, librariesRoute]),
-    playRoute,
+    profilesRoute,
+    activeRoute.addChildren([
+      chromeRoute.addChildren([
+        homeRoute,
+        itemRoute,
+        librariesRoute,
+        accessRoute,
+        profileSettingsRoute,
+      ]),
+      playRoute,
+    ]),
   ]),
 ]);
 

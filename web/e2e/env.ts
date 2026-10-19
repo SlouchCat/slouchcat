@@ -26,3 +26,6 @@ export const OWNER = {
   email: 'e2e-owner@slouchcat.test',
   password: 'e2e-password-0123',
 } as const;
+
+/** Name of the main account's primary profile: the setup wizard takes it from the e-mail address. */
+export const OWNER_PROFILE = OWNER.email.split('@')[0];

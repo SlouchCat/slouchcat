@@ -1,4 +1,13 @@
-import type { HomePage, ItemDetail, ItemRef, Library, PlaybackInfo } from '@slouchcat/api-client';
+import type {
+  HomePage,
+  ItemDetail,
+  ItemRef,
+  Library,
+  LibrarySummary,
+  PlaybackInfo,
+  Profile,
+  ProfileSummary,
+} from '@slouchcat/api-client';
 
 // Contract-shaped fixtures (api/openapi.yaml). IDs are valid ULIDs.
 export const ids = {
@@ -108,3 +117,42 @@ export const library = (overrides: Partial<Library> = {}): Library => ({
   scan: { state: 'done', itemCount: 12, fileCount: 14, finishedAt: '2026-10-18T18:05:00Z' },
   ...overrides,
 });
+
+/** Profile summaries as the picker lists them. */
+export const summaries: ProfileSummary[] = [
+  { id: 1, name: 'Marco', accent: 'teal', hasPin: false, isPrimary: true },
+  { id: 2, name: 'Lena', accent: 'rose', hasPin: true, isPrimary: false },
+  { id: 3, name: 'Noah', accent: 'sky', hasPin: false, isPrimary: false },
+];
+
+/** The same profiles with their settings, as `GET /profiles` returns them. */
+export const profiles: Profile[] = [
+  {
+    id: 1,
+    name: 'Marco',
+    accent: 'teal',
+    maxRating: 18,
+    language: 'de',
+    allLibraries: true,
+    libraryIds: [],
+    hasPin: false,
+    isPrimary: true,
+  },
+  {
+    id: 2,
+    name: 'Lena',
+    accent: 'rose',
+    maxRating: 12,
+    language: 'en',
+    allLibraries: false,
+    libraryIds: [1],
+    hasPin: true,
+    isPrimary: false,
+  },
+];
+
+/** `GET /libraries`: what the account may hand out (all of them for the main account). */
+export const accountLibraries: LibrarySummary[] = [
+  { id: 1, name: 'Filme', kind: 'movies' },
+  { id: 2, name: 'Serien', kind: 'series' },
+];

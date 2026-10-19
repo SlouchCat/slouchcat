@@ -6,7 +6,7 @@ import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
-import { applyProfileLanguage, sessionQuery } from '@/app/session';
+import { adoptSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Logo, Notice, Page, Panel, Stack, Text } from '@/ui';
@@ -24,9 +24,9 @@ export function LoginPage() {
     mutationFn: (body: LoginRequest): Promise<SessionInfo> =>
       request(api.POST('/auth/login', { body })),
     onSuccess: async (session) => {
-      queryClient.setQueryData(sessionQuery.queryKey, session);
-      await applyProfileLanguage(session);
-      await navigate({ to: '/' });
+      await adoptSession(queryClient, session);
+      // An account with several profiles (or a PIN) picks one first (K-4).
+      await navigate({ to: session.profile ? '/' : '/profiles' });
     },
   });
   const errors = login.error ? formErrors(t, login.error) : null;

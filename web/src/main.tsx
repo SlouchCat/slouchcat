@@ -22,6 +22,11 @@ const queryClient = createQueryClient({
     queryClient.setQueryData(sessionQuery.queryKey, null);
     void router.navigate({ to: '/login' });
   },
+  // The active profile is gone (deleted elsewhere): read the session again and pick another.
+  onProfileRequired: () => {
+    void queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey });
+    void router.navigate({ to: '/profiles' });
+  },
 });
 const router = createAppRouter(queryClient);
 // The hero image the server painted into the start page's shell never outlives the start page.

@@ -1,0 +1,61 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4) var(--sc-space-6);
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--sc-space-8);
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 44rem;
+}
+
+.gap {
+  margin-top: var(--sc-space-8);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+  gap: var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cardHead {
+  display: flex;
+  gap: var(--sc-space-4);
+  align-items: center;
+}
+
+.cardTitle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.name {
+  overflow: hidden;
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+  text-overflow: ellipsis;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}

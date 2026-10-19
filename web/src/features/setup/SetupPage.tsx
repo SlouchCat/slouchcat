@@ -6,17 +6,16 @@ import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
-import { applyProfileLanguage, sessionQuery, setupStatusQuery } from '@/app/session';
+import { adoptSession, setupStatusQuery } from '@/app/session';
 import { ServerStatus } from '@/features/system/ServerStatus';
-import { supportedLanguages, type Language } from '@/i18n';
-import { formText } from '@/lib/form';
+import { currentLanguage } from '@/i18n';
+import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Logo, Notice, Page, Panel, Stack, Text, TextLink } from '@/ui';
 import { AriaButton, RadioGroup, TextField } from '@/ui/aria';
 import styles from './SetupPage.module.css';
 
 const TMDB_KEY_URL = 'https://www.themoviedb.org/settings/api';
-const MIN_PASSWORD = 10;
 
 function Step({
   step,
@@ -52,7 +51,7 @@ function Step({
 
 /** First-start wizard (A-1 minimal): main account, first library, optional TMDB key. */
 export function SetupPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   useDocumentTitle(t('setup.title'));
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -63,8 +62,7 @@ export function SetupPage() {
     mutationFn: (body: SetupRequest): Promise<SessionInfo> => request(api.POST('/setup', { body })),
     onSuccess: async (session) => {
       queryClient.setQueryData(setupStatusQuery.queryKey, { setupRequired: false });
-      queryClient.setQueryData(sessionQuery.queryKey, session);
-      await applyProfileLanguage(session);
+      await adoptSession(queryClient, session);
       await navigate({ to: '/' });
     },
     onError: async (error) => {
@@ -80,16 +78,13 @@ export function SetupPage() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const field = (name: string) => formText(data, name);
-    const language = (supportedLanguages as readonly string[]).includes(i18n.resolvedLanguage ?? '')
-      ? (i18n.resolvedLanguage as Language)
-      : undefined;
     const tmdbApiKey = field('tmdbApiKey');
     setup.mutate({
       email: field('email'),
       password: formText(data, 'password', false),
       library: { name: field('library.name'), kind, path: field('library.path') },
       ...(tmdbApiKey ? { tmdbApiKey } : {}),
-      ...(language ? { language } : {}),
+      language: currentLanguage(),
     });
   };
 

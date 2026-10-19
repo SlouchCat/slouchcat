@@ -2,7 +2,7 @@ import '@slouchcat/design-tokens/tokens.css';
 import '@/ui/global.css';
 import '@/i18n';
 import type { Preview } from '@storybook/react-vite';
-import i18n from 'i18next';
+import { setLanguage } from '@/i18n';
 import { loadSpatialNavigation } from '@/ui';
 
 const preview: Preview = {
@@ -16,7 +16,7 @@ const preview: Preview = {
   loaders: [
     async () => {
       // German like the e2e suite; spatial components need norigin before they render.
-      await i18n.changeLanguage('de');
+      await setLanguage('de');
       await loadSpatialNavigation();
       return {};
     },

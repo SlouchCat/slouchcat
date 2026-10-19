@@ -15,7 +15,10 @@
     "libraries": "Bibliotheken",
     "logout": "Abmelden",
     "profile": "Profil {{name}}",
-    "skip": "Zum Inhalt springen"
+    "skip": "Zum Inhalt springen",
+    "access": "Zugriff",
+    "profiles": "Profile",
+    "switchProfile": "Profil wechseln, aktuell {{name}}"
   },
   "system": {
     "server": {
@@ -43,7 +46,15 @@
       "validation_failed": "Bitte prüfe die markierten Felder.",
       "network": "Der Server ist nicht erreichbar.",
       "unknown": "Etwas ist schiefgelaufen. Versuche es erneut.",
-      "transcode_busy": "Der Server ist ausgelastet. Bitte versuche es später erneut."
+      "transcode_busy": "Der Server ist ausgelastet. Bitte versuche es später erneut.",
+      "pin_required": "Dieses Profil ist mit einer PIN geschützt.",
+      "pin_invalid": "Die PIN stimmt nicht.",
+      "pin_locked": "Zu viele falsche PINs. Versuche es später erneut.",
+      "profile_required": "Wähle zuerst ein Profil.",
+      "primary_profile_required": "Profile verwaltet nur das Hauptprofil dieses Kontos.",
+      "primary_profile": "Das Hauptprofil kann nicht gelöscht werden.",
+      "invitation_gone": "Dieser Einladungslink ist nicht mehr gültig.",
+      "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -53,7 +64,12 @@
       "invalid": "Ungültiger Wert.",
       "not_absolute": "Gib einen absoluten Pfad an, er beginnt mit /.",
       "password_too_short": "Mindestens 10 Zeichen.",
-      "password_mismatch": "Die Passwörter stimmen nicht überein."
+      "password_mismatch": "Die Passwörter stimmen nicht überein.",
+      "above_account_limit": "Höher als die Obergrenze dieses Kontos.",
+      "unknown_library": "Diese Bibliothek gibt es nicht.",
+      "too_many_profiles": "Mehr als 10 Profile pro Konto sind nicht möglich.",
+      "already_exists": "Diese E-Mail-Adresse ist schon vergeben.",
+      "pin_format": "Die PIN besteht aus 4 bis 8 Ziffern."
     }
   },
   "setup": {
@@ -231,6 +247,199 @@
         "submit": "Hinzufügen",
         "submitting": "Wird hinzugefügt …"
       }
+    },
+    "access": {
+      "title": "Zugriff",
+      "intro": "Lade Gäste mit einem Einmal-Link ein und lege fest, was sie sehen dürfen.",
+      "notAllowed": {
+        "title": "Nur für das Hauptkonto",
+        "body": "Einladungen und Gäste verwaltet das Hauptprofil des Hauptkontos."
+      },
+      "form": {
+        "rating": "Höchste Altersfreigabe",
+        "libraries": "Bibliotheken"
+      },
+      "invitations": {
+        "title": "Einladungen",
+        "intro": "Ein Link gilt einmal und sieben Tage. Wer ihn öffnet, legt ein eigenes Gastkonto an.",
+        "note": "Für wen ist der Link?",
+        "noteHint": "Zum Beispiel ein Name. Die Notiz sieht auch der Gast.",
+        "create": "Einladung erstellen",
+        "creating": "Wird erstellt …",
+        "created": {
+          "title": "Einladungslink erstellt",
+          "once": "Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.",
+          "label": "Einladungslink",
+          "copy": "Link kopieren",
+          "copied": "Link kopiert.",
+          "copyFailed": "Kopieren nicht möglich. Der Link ist markiert, kopiere ihn mit Strg+C.",
+          "dismiss": "Link ausblenden"
+        },
+        "list": "Bestehende Einladungen",
+        "empty": "Noch keine Einladung erstellt.",
+        "noNote": "Ohne Notiz",
+        "state": {
+          "open": "Offen",
+          "used": "Benutzt",
+          "expired": "Abgelaufen",
+          "revoked": "Widerrufen"
+        },
+        "expires": "Gültig bis {{date}}",
+        "usedBy": "Angenommen von {{email}}",
+        "revoke": {
+          "action": "Widerrufen",
+          "title": "Einladung widerrufen?",
+          "body": "Der Link funktioniert danach nicht mehr.",
+          "confirm": "Widerrufen"
+        }
+      },
+      "guests": {
+        "title": "Gäste",
+        "intro": "Gäste haben ein eigenes Konto mit Obergrenze und Bibliotheken. Ihre Profile bleiben darunter.",
+        "list": "Gäste",
+        "empty": "Noch keine Gäste.",
+        "profiles_one": "{{count}} Profil",
+        "profiles_other": "{{count}} Profile",
+        "lastSeen": "Zuletzt gesehen: {{date}}",
+        "neverSeen": "Noch nie angemeldet",
+        "edit": "Bearbeiten",
+        "editTitle": "Gast {{email}} bearbeiten",
+        "save": "Speichern",
+        "saving": "Wird gespeichert …",
+        "remove": {
+          "action": "Entfernen",
+          "title": "Gast {{email}} entfernen?",
+          "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort.",
+          "confirm": "Gast entfernen"
+        }
+      }
+    }
+  },
+  "language": {
+    "de": "Deutsch",
+    "en": "English"
+  },
+  "accent": {
+    "label": "Farbe",
+    "ember": "Glut",
+    "coral": "Koralle",
+    "amber": "Bernstein",
+    "lime": "Limette",
+    "teal": "Türkis",
+    "sky": "Himmel",
+    "violet": "Violett",
+    "rose": "Rosa"
+  },
+  "libraries": {
+    "all": "Alle Bibliotheken",
+    "none": "Keine Bibliothek",
+    "choose": "Bibliotheken wählen",
+    "named": "Bibliothek {{id}}",
+    "modeAll": "Alle",
+    "modeSome": "Auswahl",
+    "needOne": "Wähle mindestens eine Bibliothek.",
+    "loadFailed": "Die Bibliotheken konnten nicht geladen werden."
+  },
+  "profiles": {
+    "picker": {
+      "title": "Wer schaut?",
+      "intro": "Wähle dein Profil.",
+      "list": "Profile",
+      "manage": "Profile verwalten",
+      "active": "aktiv",
+      "locked": "mit PIN geschützt",
+      "primary": "Hauptprofil",
+      "loadFailed": "Die Profile konnten nicht geladen werden.",
+      "primaryActive": "Hauptprofil · aktiv"
+    },
+    "pin": {
+      "title": "PIN für {{name}}",
+      "intro": "Dieses Profil ist mit einer PIN geschützt.",
+      "label": "PIN",
+      "hint": "4 bis 8 Ziffern.",
+      "submit": "Öffnen",
+      "submitting": "Wird geprüft …",
+      "invalid": "Die PIN stimmt nicht. Versuche es noch einmal.",
+      "locked": "Zu viele Fehlversuche. Neuer Versuch in",
+      "time": "{{minutes}}:{{seconds}}",
+      "lockedFor": "Gesperrt für {{seconds}} Sekunden."
+    },
+    "settings": {
+      "title": "Profile",
+      "intro": "Jede Person im Haushalt bekommt ein eigenes Profil mit Altersfreigabe, Sprache, Farbe und Bibliotheken.",
+      "onlyPrimary": {
+        "title": "Nur im Hauptprofil",
+        "body": "Profile verwaltest du im Hauptprofil dieses Kontos. Wechsle dorthin, um Profile anzulegen oder zu ändern.",
+        "action": "Profil wechseln"
+      },
+      "add": "Profil hinzufügen",
+      "list": "Profile dieses Kontos",
+      "edit": "Bearbeiten",
+      "primary": "Hauptprofil",
+      "hasPin": "PIN",
+      "delete": {
+        "action": "Löschen",
+        "title": "Profil „{{name}}“ löschen?",
+        "body": "Fortschritt und Einstellungen dieses Profils gehen verloren. Das lässt sich nicht rückgängig machen.",
+        "confirm": "Profil löschen"
+      },
+      "pin": {
+        "set": "PIN setzen",
+        "change": "PIN ändern",
+        "title": "PIN für {{name}}",
+        "label": "Neue PIN",
+        "hint": "4 bis 8 Ziffern. Ohne die PIN lässt sich das Profil nicht öffnen.",
+        "save": "PIN speichern",
+        "saving": "Wird gespeichert …",
+        "remove": {
+          "action": "PIN entfernen",
+          "title": "PIN von {{name}} entfernen?",
+          "body": "Danach kann jeder dieses Profil ohne PIN öffnen.",
+          "confirm": "PIN entfernen"
+        }
+      },
+      "form": {
+        "createTitle": "Neues Profil",
+        "editTitle": "Profil bearbeiten",
+        "name": "Name",
+        "rating": "Altersfreigabe",
+        "ratingHint": "Titel mit höherer Freigabe bleiben für dieses Profil unsichtbar.",
+        "language": "Sprache",
+        "libraries": "Bibliotheken",
+        "pin": "PIN (optional)",
+        "create": "Profil anlegen",
+        "creating": "Wird angelegt …",
+        "save": "Speichern",
+        "saving": "Wird gespeichert …"
+      },
+      "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}"
+    }
+  },
+  "invite": {
+    "title": "Einladung zu Slouchcat",
+    "intro": "Lege dein Konto an, dann kannst du gleich loslegen.",
+    "for": "Für: {{note}}",
+    "rating": "Altersfreigabe bis",
+    "libraries": "Bibliotheken",
+    "expires": "Der Link gilt bis {{date}}.",
+    "form": {
+      "email": "E-Mail-Adresse",
+      "password": "Passwort",
+      "passwordHint": "Mindestens 10 Zeichen.",
+      "profileName": "Profilname",
+      "profileNameHint": "So heisst dein Profil, zum Beispiel dein Vorname.",
+      "language": "Sprache",
+      "submit": "Konto anlegen",
+      "submitting": "Wird angelegt …"
+    },
+    "gone": {
+      "title": "Link nicht mehr gültig",
+      "body": "Dieser Link wurde schon benutzt, ist abgelaufen oder wurde zurückgezogen. Bitte die einladende Person um einen neuen Link.",
+      "action": "Zur Anmeldung"
+    },
+    "notFound": {
+      "title": "Link nicht gefunden",
+      "body": "Diesen Einladungslink gibt es nicht. Prüfe, ob du ihn vollständig kopiert hast."
     }
   }
 }
