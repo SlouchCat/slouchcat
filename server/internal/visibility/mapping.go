@@ -1,6 +1,7 @@
 package visibility
 
 import (
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -162,7 +163,25 @@ func summarize(it scopedq.Item, ex extras, lang string) model.ItemSummary {
 			UpdatedAt:  time.UnixMilli(p.UpdatedAt).UTC(),
 		}
 	}
+	s.ParentID = ex.parents[it.ID] // only a parent the profile may see
+	s.SeasonNumber = optInt(it.SeasonNumber)
+	s.EpisodeNumber = optInt(it.EpisodeNumber)
+	s.EpisodeEnd = optInt(it.EpisodeEnd)
+	s.ExtraKind = it.ExtraKind.String
+	s.SeriesTitle = ex.seriesTitles[it.ID]
+	if it.Kind == "series" || it.Kind == "season" {
+		n := ex.childCounts[it.ID]
+		s.ChildCount = &n
+	}
 	return s
+}
+
+func optInt(v sql.NullInt64) *int {
+	if !v.Valid {
+		return nil
+	}
+	n := int(v.Int64)
+	return &n
 }
 
 func detail(it scopedq.Item, ex extras, lang string) model.ItemDetail {
@@ -179,7 +198,31 @@ func detail(it scopedq.Item, ex extras, lang string) model.ItemDetail {
 		id := it.TmdbID.Int64
 		d.TMDBID = &id
 	}
+	if it.TvdbID.Valid {
+		id := it.TvdbID.Int64
+		d.TVDBID = &id
+	}
 	return d
+}
+
+// versionLabel is the label of a version (B-5): the label parsed from the file name, else one
+// derived from the probed height, so the version choice is always labelled. Only a file without a
+// probed height and without a parsed label has none.
+func versionLabel(parsed string, height int64) string {
+	switch {
+	case parsed != "":
+		return parsed
+	case height >= 2000:
+		return "2160p"
+	case height >= 1000:
+		return "1080p"
+	case height >= 700:
+		return "720p"
+	case height > 0:
+		return "SD"
+	default:
+		return ""
+	}
 }
 
 func mediaFile(f scopedq.ListMediaFilesForItemRow) model.MediaFile {
@@ -192,7 +235,7 @@ func mediaFile(f scopedq.ListMediaFilesForItemRow) model.MediaFile {
 		Height:       int(f.Height.Int64),
 		DurationMs:   f.DurationMs.Int64,
 		SizeBytes:    f.Size,
-		VersionLabel: f.VersionLabel.String,
+		VersionLabel: versionLabel(f.VersionLabel.String, f.Height.Int64),
 		Available:    !f.MissingSince.Valid,
 	}
 }

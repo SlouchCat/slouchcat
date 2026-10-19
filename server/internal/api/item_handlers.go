@@ -25,10 +25,12 @@ var (
 	errNoItemsServices = errors.New("catalog or playback service not configured")
 )
 
-func (e serviceProblem) VisitGetHomeResponse(w http.ResponseWriter) error        { return e.visit(w) }
-func (e serviceProblem) VisitGetItemResponse(w http.ResponseWriter) error        { return e.visit(w) }
-func (e serviceProblem) VisitStartPlaybackResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitReportProgressResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitGetHomeResponse(w http.ResponseWriter) error         { return e.visit(w) }
+func (e serviceProblem) VisitGetItemResponse(w http.ResponseWriter) error         { return e.visit(w) }
+func (e serviceProblem) VisitStartPlaybackResponse(w http.ResponseWriter) error   { return e.visit(w) }
+func (e serviceProblem) VisitReportProgressResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitGetItemTrailersResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitGetPersonResponse(w http.ResponseWriter) error       { return e.visit(w) }
 
 // itemSession returns the session of a scoped request; the scoped gate only lets requests with a
 // session through.
@@ -72,7 +74,8 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	ref := toItemRef(session.Profile.ID, d.ItemSummary)
+	pid := session.Profile.ID
+	ref := toItemRef(pid, d.ItemSummary)
 	out := gen.ItemDetail{
 		Id:             ref.Id,
 		Kind:           ref.Kind,
@@ -83,12 +86,27 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		Images:         ref.Images,
 		Accent:         ref.Accent,
 		Progress:       ref.Progress,
+		ParentId:       ref.ParentId,
+		SeasonNumber:   ref.SeasonNumber,
+		EpisodeNumber:  ref.EpisodeNumber,
+		EpisodeEnd:     ref.EpisodeEnd,
+		SeriesTitle:    ref.SeriesTitle,
+		ExtraKind:      ref.ExtraKind,
+		ChildCount:     ref.ChildCount,
 		OriginalTitle:  optString(d.OriginalTitle),
 		Tagline:        optString(d.Tagline),
 		Overview:       optString(d.Overview),
 		Genres:         d.Genres,
 		TmdbId:         d.TMDBID,
+		TvdbId:         d.TVDBID,
 		MediaFiles:     make([]gen.MediaFileInfo, 0, len(d.MediaFiles)),
+		Seasons:        toItemRefs(pid, d.Seasons, d.Kind == "series"),
+		Episodes:       toItemRefs(pid, d.Episodes, d.Kind == "season"),
+		Extras:         toItemRefs(pid, d.Extras, d.Kind == "movie" || d.Kind == "series" || d.Kind == "season"),
+		Series:         optItemRef(pid, d.Series),
+		Season:         optItemRef(pid, d.Season),
+		NextEpisode:    optItemRef(pid, d.NextEpisode),
+		TrailerCount:   &d.TrailerCount,
 	}
 	if out.Genres == nil {
 		out.Genres = []string{}
@@ -99,7 +117,81 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	for _, f := range d.MediaFiles {
 		out.MediaFiles = append(out.MediaFiles, toMediaFileInfo(f))
 	}
+	cast := make([]gen.CastMember, 0, len(d.Cast))
+	for _, c := range d.Cast {
+		cast = append(cast, gen.CastMember{PersonId: c.PersonID, Name: c.Name, Role: gen.CastMemberRole(c.Role), Character: optString(c.Character)})
+	}
+	out.Cast = &cast
 	return gen.GetItem200JSONResponse(out), nil
+}
+
+// toItemRefs maps a list of the detail; a list that does not apply to the kind is left out.
+func toItemRefs(profileID int64, items []model.ItemSummary, applies bool) *[]gen.ItemRef {
+	if !applies {
+		return nil
+	}
+	out := make([]gen.ItemRef, 0, len(items))
+	for _, it := range items {
+		out = append(out, toItemRef(profileID, it))
+	}
+	return &out
+}
+
+func optItemRef(profileID int64, it *model.ItemSummary) *gen.ItemRef {
+	if it == nil {
+		return nil
+	}
+	ref := toItemRef(profileID, *it)
+	return &ref
+}
+
+func (s *server) GetItemTrailers(ctx context.Context, req gen.GetItemTrailersRequestObject) (gen.GetItemTrailersResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	trailers, err := s.opts.Catalog.Trailers(ctx, session.Profile, req.Id)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := make(gen.GetItemTrailers200JSONResponse, 0, len(trailers))
+	for _, t := range trailers {
+		out = append(out, toTrailer(t))
+	}
+	return out, nil
+}
+
+func (s *server) GetPerson(ctx context.Context, req gen.GetPersonRequestObject) (gen.GetPersonResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p, err := s.opts.Catalog.Person(ctx, session.Profile, req.Id)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.GetPerson200JSONResponse{Id: p.ID, Name: p.Name}
+	out.Credits = make([]struct {
+		Character *string               `json:"character,omitempty"`
+		Item      gen.ItemRef           `json:"item"`
+		Role      gen.PersonCreditsRole `json:"role"`
+	}, 0, len(p.Credits))
+	for _, c := range p.Credits {
+		out.Credits = append(out.Credits, struct {
+			Character *string               `json:"character,omitempty"`
+			Item      gen.ItemRef           `json:"item"`
+			Role      gen.PersonCreditsRole `json:"role"`
+		}{Character: optString(c.Character), Item: toItemRef(session.Profile.ID, c.Item), Role: gen.PersonCreditsRole(c.Role)})
+	}
+	return out, nil
+}
+
+// toTrailer maps a trailer with its IFrame URL (youtube-nocookie.com).
+func toTrailer(t model.Trailer) gen.Trailer {
+	return gen.Trailer{
+		Id: t.ID, Lang: t.Lang, YoutubeId: t.YouTubeID, EmbedUrl: t.EmbedURL(), Title: optString(t.Title),
+		Source: gen.TrailerSource(t.Source), Official: t.Official,
+	}
 }
 
 func (s *server) StartPlayback(ctx context.Context, req gen.StartPlaybackRequestObject) (gen.StartPlaybackResponseObject, error) {
@@ -283,6 +375,15 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 	if it.Progress != nil {
 		p := toProgress(*it.Progress)
 		ref.Progress = &p
+	}
+	if it.ParentID != "" {
+		ref.ParentId = &it.ParentID
+	}
+	ref.SeasonNumber, ref.EpisodeNumber, ref.EpisodeEnd, ref.ChildCount = it.SeasonNumber, it.EpisodeNumber, it.EpisodeEnd, it.ChildCount
+	ref.SeriesTitle = optString(it.SeriesTitle)
+	if it.ExtraKind != "" {
+		k := gen.ExtraKind(it.ExtraKind)
+		ref.ExtraKind = &k
 	}
 	return ref
 }

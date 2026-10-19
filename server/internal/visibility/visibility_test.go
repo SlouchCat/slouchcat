@@ -258,6 +258,52 @@ func TestReaderMediaFileAndImage(t *testing.T) {
 	}
 }
 
+// B-5: the versions of a title are ordered by height, then age; MediaFile("") picks the same
+// primary file as the detail list, so playback and the detail page agree.
+func TestReaderVersionsPrimaryFirst(t *testing.T) {
+	f := vistest.New(t)
+	f.AddSeries(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+	m12 := f.Rated(12)
+	primary := func() (string, []model.MediaFile) {
+		t.Helper()
+		d, err := r.Item(ctx, Profile(f.P12), m12.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		loc, err := r.MediaFile(ctx, Profile(f.P12), m12.ID, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return loc.File.ID, d.MediaFiles
+	}
+	id, files := primary()
+	if id != m12.FileID || len(files) != 2 || files[0].ID != m12.FileID || files[1].ID != f.Version2FileID ||
+		files[0].VersionLabel != "1080p" || files[1].VersionLabel != "720p" {
+		t.Errorf("primary %s, files %+v", id, files)
+	}
+	// A newer 2160p file becomes the primary one; an unprobed file (no height) goes last.
+	for _, row := range []struct {
+		id     string
+		height any
+	}{{"01J9000000000000000000F0V4", 2160}, {"01J9000000000000000000F0V0", nil}} {
+		if _, err := f.DB.Write.Exec(`INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, height, created_at, updated_at)
+		                              VALUES (?, ?, ?, ?, 1, 1, 'mkv', ?, 9, 9)`, row.id, m12.ID, f.RootID(), row.id+".mkv", row.height); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id, files = primary()
+	var got []string
+	for _, mf := range files {
+		got = append(got, mf.ID+"/"+mf.VersionLabel)
+	}
+	want := []string{"01J9000000000000000000F0V4/2160p", m12.FileID + "/1080p", f.Version2FileID + "/720p", "01J9000000000000000000F0V0/"}
+	if id != "01J9000000000000000000F0V4" || !slices.Equal(got, want) {
+		t.Errorf("primary %s, files %v, want %v", id, got, want)
+	}
+}
+
 func TestReaderRejectsUnscopedReads(t *testing.T) {
 	f := vistest.New(t)
 	r := New(f.DB, vistest.Logger())
@@ -268,6 +314,15 @@ func TestReaderRejectsUnscopedReads(t *testing.T) {
 		}
 		if _, err := r.Item(ctx, s, f.Rated(0).ID); !errors.Is(err, ErrUnscoped) {
 			t.Errorf("%s scope: Item err = %v, want ErrUnscoped", name, err)
+		}
+		if _, err := r.Summary(ctx, s, f.Rated(0).ID); !errors.Is(err, ErrUnscoped) {
+			t.Errorf("%s scope: Summary err = %v, want ErrUnscoped", name, err)
+		}
+		if _, err := r.Trailers(ctx, s, f.Rated(0).ID); !errors.Is(err, ErrUnscoped) {
+			t.Errorf("%s scope: Trailers err = %v, want ErrUnscoped", name, err)
+		}
+		if _, err := r.Person(ctx, s, 1); !errors.Is(err, ErrUnscoped) {
+			t.Errorf("%s scope: Person err = %v, want ErrUnscoped", name, err)
 		}
 	}
 }
@@ -292,7 +347,7 @@ func TestFixtureRulesMatchView(t *testing.T) {
 	r := New(f.DB, vistest.Logger())
 	ctx := context.Background()
 
-	titles := slices.Concat(f.Movies, f.Show.All())
+	titles := f.All()
 	profiles := []model.Profile{f.P0, f.P6, f.P12, f.P16, f.P18, f.PX, f.PG, f.PG18}
 	for _, p := range profiles {
 		for _, m := range titles {

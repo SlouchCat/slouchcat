@@ -241,7 +241,7 @@ func TestContractAccountOperations(t *testing.T) {
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
-	titles := slices.Concat(f.Movies, f.Show.All())
+	titles := f.All()
 	q := appq.New(f.DB.Write)
 
 	ids := keysOf(accountRegistry)
@@ -293,7 +293,7 @@ func TestContractAdminOperations(t *testing.T) {
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	h := pf.h
-	titles := slices.Concat(pf.f.Movies, pf.f.Show.All())
+	titles := pf.f.All()
 
 	ids := keysOf(adminRegistry)
 	sort.Strings(ids)
@@ -329,7 +329,7 @@ func TestContractAdminOperations(t *testing.T) {
 func TestContractPublicOperations(t *testing.T) {
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
-	titles := slices.Concat(pf.f.Movies, pf.f.Show.All())
+	titles := pf.f.All()
 	ids := keysOf(publicRegistry)
 	sort.Strings(ids)
 	for _, id := range ids {
@@ -436,6 +436,9 @@ func TestContractRatingChange(t *testing.T) {
 	if got := segment(ps, st); got != http.StatusNotFound {
 		t.Errorf("segment of the running stream after the raise: %d, want 404", got)
 	}
+	if rec := send(t, h, http.MethodGet, BasePath+"/items/"+show.Series.ID+"/trailers", "p12", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("P12 trailers of the raised series: %d, want 404", rec.Code)
+	}
 	if got := getTitle(t, h, "p16", show.Series.ID); got != http.StatusOK {
 		t.Errorf("P16 must see the series rated 16: %d", got)
 	}
@@ -448,10 +451,14 @@ func TestContractRatingChange(t *testing.T) {
 		t.Fatalf("setItemRating 12 = %d %s", rec.Code, rec.Body.String())
 	}
 	home = homeIDs(t, h, "p12")
-	for _, m := range []vistest.Movie{show.Series, show.Season, show.E1} {
+	for _, m := range []vistest.Movie{show.Series, show.Season, show.E1, show.E3, show.Specials, show.Special, show.Extra} {
 		if got := getTitle(t, h, "p12", m.ID); got != http.StatusOK {
 			t.Errorf("P12 getItem %s %s after the way back: %d, want 200", m.Kind, m.Label, got)
 		}
+	}
+	if d := getDetail(t, h, "p12", show.Series.ID); !slices.Equal(refIDs(d.Seasons), []string{show.Season.ID, show.Specials.ID}) ||
+		!slices.Equal(refIDs(d.Extras), []string{show.Extra.ID}) || d.TrailerCount != 2 {
+		t.Errorf("P12 series after the way back: seasons %v, extras %v, trailers %d", refIDs(d.Seasons), refIDs(d.Extras), d.TrailerCount)
 	}
 	if got := getTitle(t, h, "p12", show.E2.ID); got != http.StatusNotFound {
 		t.Errorf("P12 getItem E2 after the way back: %d, want 404 (own rating 16)", got)
@@ -481,11 +488,33 @@ func TestContractRatingChange(t *testing.T) {
 		t.Fatalf("restore 12: %d", rec.Code)
 	}
 
+	// The extras of a film follow the film: raised to 16, its trailer and featurette vanish for P12.
+	m6 := f.Rated(6)
+	for _, x := range f.Extras {
+		if got := getTitle(t, h, "p12", x.ID); got != http.StatusOK {
+			t.Fatalf("P12 getItem extra %s before the raise: %d", x.Label, got)
+		}
+	}
+	if rec := setRating(t, h, "p18", m6.ID, `{"rating":16}`); rec.Code != http.StatusOK {
+		t.Fatalf("raise the 6-rated film: %d", rec.Code)
+	}
+	for _, x := range f.Extras {
+		if got := getTitle(t, h, "p12", x.ID); got != http.StatusNotFound {
+			t.Errorf("P12 getItem extra %s of the raised film: %d, want 404", x.Label, got)
+		}
+		if got := getTitle(t, h, "p16", x.ID); got != http.StatusOK {
+			t.Errorf("P16 getItem extra %s of the film rated 16: %d, want 200", x.Label, got)
+		}
+	}
+	if rec := setRating(t, h, "p18", m6.ID, `{"rating":6}`); rec.Code != http.StatusOK {
+		t.Fatalf("restore the film to 6: %d", rec.Code)
+	}
+
 	// The guest's profile PG18 allows 18 but its account stops at 12: nothing above 12, nothing
 	// of library X, on every path.
 	for _, token := range []string{"pg", "pg18"} {
 		profile := pf.tokens[token]
-		titles := slices.Concat(f.Movies, show.All())
+		titles := f.All()
 		for _, m := range titles {
 			if want := f.VisibleTo(profile, m); want != (getTitle(t, h, token, m.ID) == http.StatusOK) {
 				t.Errorf("%s getItem %s: want visible %v", profile.Name, m.Label, want)

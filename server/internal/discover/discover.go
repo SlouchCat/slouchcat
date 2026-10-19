@@ -80,8 +80,8 @@ func (s *Service) FirstPick(ctx context.Context, profile model.Profile) (model.I
 	return items[0], nil
 }
 
-// Item returns the detail of a visible title; media files carry their MIME type for the client's
-// canPlayType check.
+// Item returns the detail of a visible title (with its series tree, extras, cast and trailer
+// count); media files carry their MIME type for the client's canPlayType check.
 func (s *Service) Item(ctx context.Context, profile model.Profile, itemID string) (model.ItemDetail, error) {
 	d, err := s.vis.Item(ctx, visibility.Profile(profile), itemID)
 	if err != nil {
@@ -92,6 +92,18 @@ func (s *Service) Item(ctx context.Context, profile model.Profile, itemID string
 		f.MimeType = playback.MimeType(f.Container, f.VideoCodec, f.AudioCodec)
 	}
 	return d, nil
+}
+
+// Trailers returns the trailers of a visible title, the profile language first, or
+// model.ErrNotFound.
+func (s *Service) Trailers(ctx context.Context, profile model.Profile, itemID string) ([]model.Trailer, error) {
+	return s.vis.Trailers(ctx, visibility.Profile(profile), itemID)
+}
+
+// Person returns a person with the credits on titles the profile may see, or model.ErrNotFound
+// when none is visible.
+func (s *Service) Person(ctx context.Context, profile model.Profile, personID int64) (model.Person, error) {
+	return s.vis.Person(ctx, visibility.Profile(profile), personID)
 }
 
 // Image opens a stored image of a visible title: WebP when preferWebP is set and the WebP row

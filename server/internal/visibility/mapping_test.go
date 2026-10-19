@@ -57,6 +57,22 @@ func TestSummaryImagesAndAccent(t *testing.T) {
 	}
 }
 
+// B-5: every version is labelled, from the file name or else from the probed height.
+func TestVersionLabel(t *testing.T) {
+	for _, c := range []struct {
+		parsed string
+		height int64
+		want   string
+	}{
+		{"Director's Cut", 1080, "Director's Cut"}, {"", 2160, "2160p"}, {"", 2000, "2160p"}, {"", 1080, "1080p"},
+		{"", 1000, "1080p"}, {"", 800, "720p"}, {"", 700, "720p"}, {"", 576, "SD"}, {"", 0, ""},
+	} {
+		if got := versionLabel(c.parsed, c.height); got != c.want {
+			t.Errorf("versionLabel(%q, %d) = %q, want %q", c.parsed, c.height, got, c.want)
+		}
+	}
+}
+
 func imgKey(img *model.Image) string {
 	if img == nil {
 		return "<nil>"

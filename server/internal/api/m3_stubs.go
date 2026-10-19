@@ -30,11 +30,9 @@ func (e serviceProblem) VisitSearchMetadataResponse(w http.ResponseWriter) error
 func (e serviceProblem) VisitListMaintenanceIssuesResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
-func (e serviceProblem) VisitListDuplicatesResponse(w http.ResponseWriter) error  { return e.visit(w) }
-func (e serviceProblem) VisitMergeItemsResponse(w http.ResponseWriter) error      { return e.visit(w) }
-func (e serviceProblem) VisitCleanupItemsResponse(w http.ResponseWriter) error    { return e.visit(w) }
-func (e serviceProblem) VisitGetItemTrailersResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitGetPersonResponse(w http.ResponseWriter) error       { return e.visit(w) }
+func (e serviceProblem) VisitListDuplicatesResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitMergeItemsResponse(w http.ResponseWriter) error     { return e.visit(w) }
+func (e serviceProblem) VisitCleanupItemsResponse(w http.ResponseWriter) error   { return e.visit(w) }
 
 func (s *server) CancelLibraryScan(ctx context.Context, _ gen.CancelLibraryScanRequestObject) (gen.CancelLibraryScanResponseObject, error) {
 	return s.problem(ctx, errNotImplemented), nil
@@ -81,13 +79,5 @@ func (s *server) MergeItems(ctx context.Context, _ gen.MergeItemsRequestObject) 
 }
 
 func (s *server) CleanupItems(ctx context.Context, _ gen.CleanupItemsRequestObject) (gen.CleanupItemsResponseObject, error) {
-	return s.problem(ctx, errNotImplemented), nil
-}
-
-func (s *server) GetItemTrailers(ctx context.Context, _ gen.GetItemTrailersRequestObject) (gen.GetItemTrailersResponseObject, error) {
-	return s.problem(ctx, errNotImplemented), nil
-}
-
-func (s *server) GetPerson(ctx context.Context, _ gen.GetPersonRequestObject) (gen.GetPersonResponseObject, error) {
 	return s.problem(ctx, errNotImplemented), nil
 }

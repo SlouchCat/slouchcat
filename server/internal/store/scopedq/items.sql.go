@@ -11,6 +11,24 @@ import (
 	"strings"
 )
 
+const countVisibleTrailers = `-- name: CountVisibleTrailers :one
+SELECT count(*) FROM trailers AS t
+JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
+WHERE t.item_id = ?2
+`
+
+type CountVisibleTrailersParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+func (q *Queries) CountVisibleTrailers(ctx context.Context, arg CountVisibleTrailersParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countVisibleTrailers, arg.ProfileID, arg.ItemID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getItemImage = `-- name: GetItemImage :one
 SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = ?1
@@ -55,6 +73,78 @@ func (q *Queries) GetItemImage(ctx context.Context, arg GetItemImageParams) (Ima
 		&i.Bytes,
 		&i.Accent,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getNextVisibleEpisode = `-- name: GetNextVisibleEpisode :one
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN items AS s ON s.id = i.parent_id AND s.kind = 'season'
+WHERE s.parent_id = ?2 AND i.kind = 'episode' AND i.id <> ?3
+  AND ((COALESCE(i.season_number, s.season_number) = ?4 AND i.episode_number > ?5)
+       OR COALESCE(i.season_number, s.season_number) > ?4)
+  AND (COALESCE(i.season_number, s.season_number) <> 0 OR ?4 = 0)
+ORDER BY COALESCE(i.season_number, s.season_number), i.episode_number, i.id
+LIMIT 1
+`
+
+type GetNextVisibleEpisodeParams struct {
+	ProfileID    int64
+	SeriesID     sql.NullString
+	ItemID       string
+	SeasonNumber sql.NullInt64
+	LastEpisode  sql.NullInt64
+}
+
+// The next visible episode of a series after (season_number, last_episode): a higher number in the
+// same season, else the first episode of a later season. Specials (season 0) only follow a special.
+func (q *Queries) GetNextVisibleEpisode(ctx context.Context, arg GetNextVisibleEpisodeParams) (Item, error) {
+	row := q.db.QueryRowContext(ctx, getNextVisibleEpisode,
+		arg.ProfileID,
+		arg.SeriesID,
+		arg.ItemID,
+		arg.SeasonNumber,
+		arg.LastEpisode,
+	)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.ParentID,
+		&i.LibraryID,
+		&i.Title,
+		&i.SortTitle,
+		&i.OriginalTitle,
+		&i.Year,
+		&i.ReleaseDate,
+		&i.RuntimeMinutes,
+		&i.Genres,
+		&i.TmdbID,
+		&i.ImdbID,
+		&i.OwnRating,
+		&i.EffectiveRating,
+		&i.MinChildRating,
+		&i.Available,
+		&i.RatingSource,
+		&i.EnclosureUrl,
+		&i.LockedFields,
+		&i.MetadataState,
+		&i.MetadataError,
+		&i.MatchedAt,
+		&i.AddedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.SeasonNumber,
+		&i.EpisodeNumber,
+		&i.EpisodeEnd,
+		&i.TvdbID,
+		&i.ExtraKind,
+		&i.TmdbPosterPath,
+		&i.TmdbBackdropPath,
+		&i.TrailerState,
+		&i.TrailerCheckedAt,
 	)
 	return i, err
 }
@@ -367,7 +457,7 @@ FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.item_id = ?2
-ORDER BY m.missing_since IS NOT NULL, m.created_at, m.id
+ORDER BY m.missing_since IS NOT NULL, COALESCE(m.height, 0) DESC, m.created_at, m.id
 `
 
 type ListMediaFilesForItemParams struct {
@@ -393,8 +483,8 @@ type ListMediaFilesForItemRow struct {
 	RootPath     string
 }
 
-// Media files of a visible title with the path of their library root; available files first, then
-// by age, so the first row is the primary file.
+// Media files (versions, B-5) of a visible title with the path of their library root: available
+// files first, then the largest height, then the oldest, so the first row is the primary file.
 func (q *Queries) ListMediaFilesForItem(ctx context.Context, arg ListMediaFilesForItemParams) ([]ListMediaFilesForItemRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMediaFilesForItem, arg.ProfileID, arg.ItemID)
 	if err != nil {
@@ -648,6 +738,662 @@ func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]I
 			&i.TmdbBackdropPath,
 			&i.TrailerState,
 			&i.TrailerCheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleChildCounts = `-- name: ListVisibleChildCounts :many
+SELECT i.id,
+       (SELECT count(*) FROM items AS c
+        JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count
+FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season')
+`
+
+type ListVisibleChildCountsParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+type ListVisibleChildCountsRow struct {
+	ID         string
+	ChildCount int64
+}
+
+// Number of visible content children of visible series and seasons: seasons of a series, episodes
+// of a season (extras never count). One query with a correlated subquery over visible_items.
+func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
+	query := listVisibleChildCounts
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleChildCountsRow{}
+	for rows.Next() {
+		var i ListVisibleChildCountsRow
+		if err := rows.Scan(&i.ID, &i.ChildCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleCredits = `-- name: ListVisibleCredits :many
+SELECT c.person_id, p.name, c.role, c.character, c.ord
+FROM credits AS c
+JOIN visible_items AS v ON v.item_id = c.item_id AND v.profile_id = ?1
+JOIN people AS p ON p.id = c.person_id
+WHERE c.item_id = ?2
+ORDER BY c.ord, c.role, p.name, c.person_id
+`
+
+type ListVisibleCreditsParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+type ListVisibleCreditsRow struct {
+	PersonID  int64
+	Name      string
+	Role      string
+	Character sql.NullString
+	Ord       int64
+}
+
+// Credits of a visible title with the people's names, in the provider's order.
+func (q *Queries) ListVisibleCredits(ctx context.Context, arg ListVisibleCreditsParams) ([]ListVisibleCreditsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleCredits, arg.ProfileID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleCreditsRow{}
+	for rows.Next() {
+		var i ListVisibleCreditsRow
+		if err := rows.Scan(
+			&i.PersonID,
+			&i.Name,
+			&i.Role,
+			&i.Character,
+			&i.Ord,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleEpisodes = `-- name: ListVisibleEpisodes :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.parent_id = ?2 AND i.kind = 'episode'
+ORDER BY i.episode_number IS NULL, i.episode_number, i.sort_title, i.id
+`
+
+type ListVisibleEpisodesParams struct {
+	ProfileID int64
+	SeasonID  sql.NullString
+}
+
+// Visible episodes of a season by number.
+func (q *Queries) ListVisibleEpisodes(ctx context.Context, arg ListVisibleEpisodesParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleEpisodes, arg.ProfileID, arg.SeasonID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleExtras = `-- name: ListVisibleExtras :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.parent_id = ?2 AND i.kind = 'extra'
+ORDER BY i.extra_kind, i.sort_title, i.id
+`
+
+type ListVisibleExtrasParams struct {
+	ProfileID int64
+	ParentID  sql.NullString
+}
+
+// Visible extras of a film, series or season by kind and title.
+func (q *Queries) ListVisibleExtras(ctx context.Context, arg ListVisibleExtrasParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleExtras, arg.ProfileID, arg.ParentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleItems = `-- name: ListVisibleItems :many
+
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.id IN (/*SLICE:item_ids*/?)
+`
+
+type ListVisibleItemsParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+// Series tree, extras, cast and trailers (M3, design 4.1).
+// Visible titles by id, in no particular order (parent chain of seasons and episodes).
+func (q *Queries) ListVisibleItems(ctx context.Context, arg ListVisibleItemsParams) ([]Item, error) {
+	query := listVisibleItems
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleParents = `-- name: ListVisibleParents :many
+SELECT i.id, i.parent_id
+FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+JOIN visible_items AS vp ON vp.item_id = i.parent_id AND vp.profile_id = ?1
+WHERE i.id IN (/*SLICE:item_ids*/?)
+`
+
+type ListVisibleParentsParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+type ListVisibleParentsRow struct {
+	ID       string
+	ParentID sql.NullString
+}
+
+// Parents of visible titles that the profile may see too. A summary names its parent only then:
+// an extra of a series without available episodes (an extra alone keeps the series unavailable)
+// must not reveal the series id.
+func (q *Queries) ListVisibleParents(ctx context.Context, arg ListVisibleParentsParams) ([]ListVisibleParentsRow, error) {
+	query := listVisibleParents
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleParentsRow{}
+	for rows.Next() {
+		var i ListVisibleParentsRow
+		if err := rows.Scan(&i.ID, &i.ParentID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisiblePersonCredits = `-- name: ListVisiblePersonCredits :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, p.name AS person_name, c.role, c.character
+FROM credits AS c
+JOIN people AS p ON p.id = c.person_id
+JOIN items AS i ON i.id = c.item_id
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE c.person_id = ?2
+ORDER BY i.year IS NULL, i.year DESC, i.sort_title, i.id, c.role
+`
+
+type ListVisiblePersonCreditsParams struct {
+	ProfileID int64
+	PersonID  int64
+}
+
+type ListVisiblePersonCreditsRow struct {
+	Item       Item
+	PersonName string
+	Role       string
+	Character  sql.NullString
+}
+
+// Credits of a person on visible titles only (a person without one does not exist for the profile).
+func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisiblePersonCreditsParams) ([]ListVisiblePersonCreditsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisiblePersonCredits, arg.ProfileID, arg.PersonID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisiblePersonCreditsRow{}
+	for rows.Next() {
+		var i ListVisiblePersonCreditsRow
+		if err := rows.Scan(
+			&i.Item.ID,
+			&i.Item.Kind,
+			&i.Item.ParentID,
+			&i.Item.LibraryID,
+			&i.Item.Title,
+			&i.Item.SortTitle,
+			&i.Item.OriginalTitle,
+			&i.Item.Year,
+			&i.Item.ReleaseDate,
+			&i.Item.RuntimeMinutes,
+			&i.Item.Genres,
+			&i.Item.TmdbID,
+			&i.Item.ImdbID,
+			&i.Item.OwnRating,
+			&i.Item.EffectiveRating,
+			&i.Item.MinChildRating,
+			&i.Item.Available,
+			&i.Item.RatingSource,
+			&i.Item.EnclosureUrl,
+			&i.Item.LockedFields,
+			&i.Item.MetadataState,
+			&i.Item.MetadataError,
+			&i.Item.MatchedAt,
+			&i.Item.AddedAt,
+			&i.Item.CreatedAt,
+			&i.Item.UpdatedAt,
+			&i.Item.DeletedAt,
+			&i.Item.SeasonNumber,
+			&i.Item.EpisodeNumber,
+			&i.Item.EpisodeEnd,
+			&i.Item.TvdbID,
+			&i.Item.ExtraKind,
+			&i.Item.TmdbPosterPath,
+			&i.Item.TmdbBackdropPath,
+			&i.Item.TrailerState,
+			&i.Item.TrailerCheckedAt,
+			&i.PersonName,
+			&i.Role,
+			&i.Character,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleSeasons = `-- name: ListVisibleSeasons :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+WHERE i.parent_id = ?2 AND i.kind = 'season'
+ORDER BY COALESCE(i.season_number, 0) = 0, i.season_number, i.sort_title, i.id
+`
+
+type ListVisibleSeasonsParams struct {
+	ProfileID int64
+	SeriesID  sql.NullString
+}
+
+// Visible seasons of a series by number, specials (season 0) last.
+func (q *Queries) ListVisibleSeasons(ctx context.Context, arg ListVisibleSeasonsParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleSeasons, arg.ProfileID, arg.SeriesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleSeriesOf = `-- name: ListVisibleSeriesOf :many
+SELECT i.id AS item_id, s.id AS series_id, s.title AS series_title
+FROM items AS i
+JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
+LEFT JOIN items AS p ON p.id = i.parent_id
+JOIN items AS s ON s.kind = 'series'
+               AND ((i.kind = 'season' AND s.id = i.parent_id) OR (i.kind = 'episode' AND s.id = p.parent_id))
+JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = ?1
+WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('season', 'episode')
+`
+
+type ListVisibleSeriesOfParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+type ListVisibleSeriesOfRow struct {
+	ItemID      string
+	SeriesID    string
+	SeriesTitle string
+}
+
+// The series of visible seasons (parent) and episodes (grandparent), when the series is visible.
+func (q *Queries) ListVisibleSeriesOf(ctx context.Context, arg ListVisibleSeriesOfParams) ([]ListVisibleSeriesOfRow, error) {
+	query := listVisibleSeriesOf
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleSeriesOfRow{}
+	for rows.Next() {
+		var i ListVisibleSeriesOfRow
+		if err := rows.Scan(&i.ItemID, &i.SeriesID, &i.SeriesTitle); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleTrailers = `-- name: ListVisibleTrailers :many
+SELECT t.id, t.item_id, t.lang, t.youtube_id, t.title, t.source, t.official, t.created_at FROM trailers AS t
+JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
+WHERE t.item_id = ?2
+ORDER BY t.lang, t.official DESC, t.id
+`
+
+type ListVisibleTrailersParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+// Trailers of a visible title by language, official first (the reader puts the profile language
+// and English in front).
+func (q *Queries) ListVisibleTrailers(ctx context.Context, arg ListVisibleTrailersParams) ([]Trailer, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleTrailers, arg.ProfileID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Trailer{}
+	for rows.Next() {
+		var i Trailer
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.Lang,
+			&i.YoutubeID,
+			&i.Title,
+			&i.Source,
+			&i.Official,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}

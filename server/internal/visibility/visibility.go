@@ -128,14 +128,15 @@ func (r *Reader) Summary(ctx context.Context, s Scope, itemID string) (model.Ite
 	if err != nil {
 		return model.ItemSummary{}, notFound(err)
 	}
-	extras, err := r.extras(ctx, pid, []string{it.ID})
+	extras, err := r.extras(ctx, pid, s.language, []string{it.ID})
 	if err != nil {
 		return model.ItemSummary{}, err
 	}
 	return summarize(it, extras, s.language), nil
 }
 
-// Item returns the detail of a visible title with its media files.
+// Item returns the detail of a visible title with its media files (versions, primary first) and,
+// by kind, its seasons, episodes, extras, parent chain, next episode, cast and trailer count.
 func (r *Reader) Item(ctx context.Context, s Scope, itemID string) (model.ItemDetail, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -145,7 +146,7 @@ func (r *Reader) Item(ctx context.Context, s Scope, itemID string) (model.ItemDe
 	if err != nil {
 		return model.ItemDetail{}, notFound(err)
 	}
-	extras, err := r.extras(ctx, pid, []string{it.ID})
+	extras, err := r.extras(ctx, pid, s.language, []string{it.ID})
 	if err != nil {
 		return model.ItemDetail{}, err
 	}
@@ -157,6 +158,9 @@ func (r *Reader) Item(ctx context.Context, s Scope, itemID string) (model.ItemDe
 	d.MediaFiles = make([]model.MediaFile, 0, len(files))
 	for _, f := range files {
 		d.MediaFiles = append(d.MediaFiles, mediaFile(f))
+	}
+	if err := r.completeDetail(ctx, s, pid, it, &d); err != nil {
+		return model.ItemDetail{}, err
 	}
 	return d, nil
 }
@@ -221,7 +225,7 @@ type MediaFileLocation struct {
 }
 
 // MediaFile returns a media file of a visible title. An empty fileID selects the primary file: the
-// oldest file that is not missing. A file of another title, an unknown file and a title without an
+// file that is not missing with the largest height, then the oldest (the first of Item's list). A file of another title, an unknown file and a title without an
 // available file return model.ErrNotFound.
 func (r *Reader) MediaFile(ctx context.Context, s Scope, itemID, fileID string) (MediaFileLocation, error) {
 	pid, err := r.profile(ctx, s)
@@ -273,16 +277,24 @@ func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, 
 
 // extras holds the per-item rows that complete a summary.
 type extras struct {
-	texts    map[string][]scopedq.ItemText
-	images   map[string][]scopedq.Image
-	progress map[string]scopedq.Progress
+	texts        map[string][]scopedq.ItemText
+	images       map[string][]scopedq.Image
+	progress     map[string]scopedq.Progress
+	childCounts  map[string]int    // visible seasons of a series, visible episodes of a season
+	seriesTitles map[string]string // title of the series of a season or episode, profile language
+	parents      map[string]string // parent id of an item whose parent is visible too
 }
 
-// extras loads texts, images and progress for a set of visible items in three queries.
-func (r *Reader) extras(ctx context.Context, pid int64, ids []string) (extras, error) {
-	out := extras{texts: map[string][]scopedq.ItemText{}, images: map[string][]scopedq.Image{}, progress: map[string]scopedq.Progress{}}
+// extras loads texts, images, progress, child counts and series titles for a set of visible
+// items; lang picks the series titles.
+func (r *Reader) extras(ctx context.Context, pid int64, lang string, ids []string) (extras, error) {
+	out := extras{texts: map[string][]scopedq.ItemText{}, images: map[string][]scopedq.Image{}, progress: map[string]scopedq.Progress{},
+		childCounts: map[string]int{}, seriesTitles: map[string]string{}, parents: map[string]string{}}
 	if len(ids) == 0 {
 		return out, nil
+	}
+	if err := r.treeExtras(ctx, pid, lang, ids, &out); err != nil {
+		return out, err
 	}
 	texts, err := r.q.ListItemTexts(ctx, scopedq.ListItemTextsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
@@ -313,7 +325,7 @@ func (r *Reader) summaries(ctx context.Context, s Scope, pid int64, items []scop
 	for _, it := range items {
 		ids = append(ids, it.ID)
 	}
-	ex, err := r.extras(ctx, pid, ids)
+	ex, err := r.extras(ctx, pid, s.language, ids)
 	if err != nil {
 		return nil, err
 	}
