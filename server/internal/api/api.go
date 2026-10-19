@@ -12,6 +12,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -54,10 +55,16 @@ type Options struct {
 	Dev     bool         // Development mode: problem details of panics include the panic value.
 
 	Auth     AuthService
+	Profiles ProfileService // Profile picker, PIN and profile management (account operations).
+	Access   AccessService  // Invitations and guest accounts.
 	Admin    AdminService
 	Catalog  CatalogService
 	Playback PlaybackService
 	SpikeDir string // Directory with the spike download files; empty disables the endpoint.
+
+	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
+	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.
+	TrustedProxies []netip.Prefix
 
 	now func() time.Time // Overrides the clock in tests.
 }

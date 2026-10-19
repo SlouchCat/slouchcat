@@ -2,7 +2,9 @@ package config
 
 import (
 	"log/slog"
+	"net/netip"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -22,7 +24,7 @@ func TestDefaults(t *testing.T) {
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
-	if cfg != want {
+	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}
 }
@@ -48,7 +50,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
 		SpikeDir: "/srv/spike", Workers: 6, HW: "software", TranscodeBudget: 6.5}
-	if cfg != want {
+	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}
 	if cfg.TranscodeDir() != filepath.Join(absCache, "transcode") {
@@ -82,4 +84,50 @@ func TestValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTrustedProxies(t *testing.T) {
+	cfg, err := Load(nil, envMap(nil))
+	if err != nil || len(cfg.TrustedProxies) != 0 {
+		t.Fatalf("default: %v, %v (want none: X-Forwarded-For ignored)", cfg.TrustedProxies, err)
+	}
+	cfg, err = Load(nil, envMap(map[string]string{"SLOUCHCAT_TRUSTED_PROXIES": "private"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ip := range []string{"10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.0.9", "127.0.0.1", "::1", "fd12:3456::1"} {
+		if !trusts(cfg.TrustedProxies, ip) {
+			t.Errorf("private must trust %s", ip)
+		}
+	}
+	for _, ip := range []string{"172.32.0.1", "11.0.0.1", "8.8.8.8", "2001:db8::1", "fe80::1"} {
+		if trusts(cfg.TrustedProxies, ip) {
+			t.Errorf("private must not trust %s", ip)
+		}
+	}
+	// A flag wins over the environment; CIDRs and single addresses mix, blanks are ignored.
+	cfg, err = Load([]string{"--trusted-proxies", " 203.0.113.0/24 , 2001:db8::7,,198.51.100.4 "}, envMap(map[string]string{"SLOUCHCAT_TRUSTED_PROXIES": "private"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for ip, want := range map[string]bool{"203.0.113.77": true, "2001:db8::7": true, "2001:db8::8": false, "198.51.100.4": true, "198.51.100.5": false, "10.0.0.1": false} {
+		if trusts(cfg.TrustedProxies, ip) != want {
+			t.Errorf("trusts(%s) = %v, want %v", ip, !want, want)
+		}
+	}
+	for _, bad := range []string{"nonsense", "10.0.0.0/33", "10.0.0.1, x"} {
+		if _, err := Load([]string{"--trusted-proxies", bad}, envMap(nil)); err == nil {
+			t.Errorf("trusted proxies %q accepted", bad)
+		}
+	}
+}
+
+func trusts(prefixes []netip.Prefix, ip string) bool {
+	addr := netip.MustParseAddr(ip)
+	for _, p := range prefixes {
+		if p.Contains(addr) {
+			return true
+		}
+	}
+	return false
 }

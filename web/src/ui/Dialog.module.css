@@ -18,8 +18,10 @@
 }
 
 .modal {
+  display: flex;
   width: 100%;
   max-width: var(--sc-size-form-max);
+  max-height: calc(100dvh - var(--sc-space-8));
 }
 
 .modal[data-entering] {
@@ -28,12 +30,25 @@
 
 .dialog {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--sc-space-4);
+  min-width: 0;
+  overflow-y: auto;
   padding: var(--sc-space-6);
   border-radius: var(--sc-radius-xl);
   background-color: var(--sc-color-bg-elevated);
   outline: none;
+}
+
+.content {
+  display: contents;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
 }
 
 .title {

@@ -1,5 +1,5 @@
 import type { Library, LibraryRequest } from '@slouchcat/api-client';
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
@@ -10,19 +10,8 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
 import { AriaButton, ConfirmDialog, RadioGroup, TextField } from '@/ui/aria';
 import { LibraryCard } from './LibraryCard';
+import { isScanning, librariesQuery } from './queries';
 import styles from './LibrariesPage.module.css';
-
-/** Poll interval while a scan is queued or running. */
-export const SCAN_POLL_MS = 5000;
-
-const isScanning = (library: Library) =>
-  library.scan.state === 'queued' || library.scan.state === 'running';
-
-export const librariesQuery = queryOptions({
-  queryKey: ['admin', 'libraries'],
-  queryFn: ({ signal }): Promise<Library[]> => request(api.GET('/admin/libraries', { signal })),
-  refetchInterval: (query) => (query.state.data?.some(isScanning) ? SCAN_POLL_MS : false),
-});
 
 function AddLibraryForm() {
   const { t } = useTranslation();

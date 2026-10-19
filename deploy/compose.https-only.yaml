@@ -1,0 +1,6 @@
+# Optional override for the https profile: do not publish port 8096 on the host, so that Slouchcat is
+# reachable only through Caddy. Use: docker compose -f compose.yaml -f compose.https-only.yaml --profile https up -d
+# Needs Docker Compose 2.24 or newer (!reset).
+services:
+  slouchcat:
+    ports: !reset []

@@ -19,7 +19,7 @@ import (
 //     delivered without the item whose visibility decides it.
 
 var (
-	visibilities = []string{"public", "scoped", "system", "admin"}
+	visibilities = []string{"public", "account", "scoped", "system", "admin"}
 	httpMethods  = []string{"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
 
@@ -201,7 +201,7 @@ components:
 		"GET /images/{kind}: image path without the item path parameter {id}",
 		`GET /leak: responses contain ItemRef, x-visibility must be scoped, is "public"`,
 		"GET /no-marker: missing x-visibility",
-		`POST /typo: x-visibility "private" not in [public scoped system admin]`,
+		`POST /typo: x-visibility "private" not in [public account scoped system admin]`,
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
@@ -223,5 +223,37 @@ func TestBinaryRoutesMatchContract(t *testing.T) {
 		if got, _ := op["x-visibility"].(string); got != want {
 			t.Errorf("%s: contract says %q, binaryRoutes says %q", route, got, want)
 		}
+	}
+}
+
+// K-1: profiles carry no e-mail and no password; a profile request needs only the name.
+func TestContractProfileHasNoCredentials(t *testing.T) {
+	data, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parseYAML(t, data)
+	for _, name := range []string{"Profile", "ProfileSummary", "ProfileRequest", "ProfileUpdate"} {
+		schema, _ := resolve(doc, "#/components/schemas/"+name).(map[string]any)
+		props, _ := schema["properties"].(map[string]any)
+		if len(props) == 0 {
+			t.Fatalf("schema %s has no properties", name)
+		}
+		for key := range props {
+			lower := strings.ToLower(key)
+			if strings.Contains(lower, "mail") || strings.Contains(lower, "password") {
+				t.Errorf("schema %s has a credential field %q (K-1)", name, key)
+			}
+		}
+	}
+	req, _ := resolve(doc, "#/components/schemas/ProfileRequest").(map[string]any)
+	var required []string
+	if list, ok := req["required"].([]any); ok {
+		for _, r := range list {
+			required = append(required, fmt.Sprint(r))
+		}
+	}
+	if !slices.Equal(required, []string{"name"}) {
+		t.Errorf("ProfileRequest.required = %v, want [name] (K-1: image and everything else optional)", required)
 	}
 }

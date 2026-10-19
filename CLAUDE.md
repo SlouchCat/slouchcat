@@ -40,8 +40,9 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    `VACUUM INTO` (letzte 5 behalten). Ab M1a: eingefrorene DB-Stände in `testdata/db/`.
 6. **Streaming-Endpunkte als `http.Handler`** (Range, HLS, Bilder) mit Beschreibung in `api/openapi.yaml`;
    alle JSON-Endpunkte über den generierten strict server.
-7. **Jede OpenAPI-Operation trägt `x-visibility`** (`public`, `scoped`, `system`, `admin`). Antworten mit
-   `ItemRef` sind `scoped`. Der Schema-Test schlägt sonst fehl.
+7. **Jede OpenAPI-Operation trägt `x-visibility`** (`public`, `account`, `scoped`, `system`, `admin`; `account`
+   = gültige Sitzung ohne gewähltes Profil, ADR 0005). Antworten mit `ItemRef` sind `scoped`. Der Schema-Test
+   schlägt sonst fehl; jede Operation braucht einen Eintrag im Vertragstest (`TestContractCoversEveryOperation`).
 8. **Jede neue Seite hat einen Playwright-Tastaturtest** (Pfeiltasten, Tab, Enter, Zurück, sichtbarer
    Fokus, keine Fokusfalle). Gilt ab M1a.
 9. **Keine Farbe und kein Text hart im Code.** Farben nur aus Tokens (`stylelint`: `color-no-hex`,

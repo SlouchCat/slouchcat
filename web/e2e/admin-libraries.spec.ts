@@ -1,5 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+
+// Other specs add a second library, so the rescan buttons are scoped to the test library.
+const filme = (page: Page) => page.getByRole('article', { name: 'Filme' });
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/admin/libraries');
@@ -17,7 +20,7 @@ test('the scanned test library is listed with its state and counts', async ({ pa
 
 test('Tab reaches header, rescan and the add form in order; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('link', { name: 'Bibliotheken' }));
-  await tabTo(page, page.getByRole('button', { name: 'Erneut scannen' }));
+  await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
   await tabTo(page, page.getByLabel('Name', { exact: true }), 3);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Filme' }));
@@ -31,7 +34,7 @@ test('Tab reaches header, rescan and the add form in order; no focus trap', asyn
 });
 
 test('Enter on "Erneut scannen" queues a scan that finishes', async ({ page }) => {
-  await tabTo(page, page.getByRole('button', { name: 'Erneut scannen' }));
+  await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
   const scan = page.waitForResponse(
     (response) => response.request().method() === 'POST' && response.url().endsWith('/scan'),
   );

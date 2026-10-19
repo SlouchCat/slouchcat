@@ -18,9 +18,12 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	"github.com/slouchcat/slouchcat/server/internal/admin"
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/discover"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -38,20 +41,20 @@ import (
 // The operations come from the contract, so a new scoped operation without an entry in
 // profileRegistry fails the test.
 
-// profileAuth resolves the tokens "p18", "p16", "p12", "p6", "p0" and "px" to sessions of the
-// fixture profiles.
-type profileAuth struct{ sessions map[string]model.Session }
-
-func (profileAuth) SetupRequired(context.Context) (bool, error) { return false, nil }
-func (profileAuth) Login(context.Context, string, string, string) (model.Session, string, error) {
-	return model.Session{}, "", model.ErrInvalidCredentials
+// profileAuth is the real auth service with logical session names: the tokens "p18", "p16", "p12",
+// "p6", "p0", "px" (profiles of the owner account), "none" (owner, no profile chosen), "pg" and
+// "pg18" (profiles of the guest account) resolve to the plain tokens of sessions the fixture
+// started; any other token is resolved as it is.
+type profileAuth struct {
+	*auth.Service
+	tokens map[string]string
 }
-func (profileAuth) Logout(context.Context, int64) error { return nil }
-func (a profileAuth) Resolve(_ context.Context, token string) (model.Session, bool, error) {
-	if s, ok := a.sessions[token]; ok {
-		return s, false, nil
+
+func (a profileAuth) Resolve(ctx context.Context, token string) (model.Session, bool, error) {
+	if real, ok := a.tokens[token]; ok {
+		token = real
 	}
-	return model.Session{}, false, model.ErrNotFound
+	return a.Service.Resolve(ctx, token)
 }
 
 // profileCall is one request of the registry. Path is relative to BasePath; {id} is replaced by
@@ -73,9 +76,7 @@ type profileCall struct {
 }
 
 var profileRegistry = map[string]profileCall{
-	"logout":     {contract: "POST /auth/logout", path: "/auth/logout"},
-	"getSession": {contract: "GET /auth/session", path: "/auth/session"},
-	"getHome":    {contract: "GET /home", path: "/home"},
+	"getHome": {contract: "GET /home", path: "/home"},
 	"getItem": {contract: "GET /items/{id}", path: "/items/{id}", perItem: true, okStatus: http.StatusOK,
 		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var d struct {
@@ -289,6 +290,11 @@ type profileFixture struct {
 	tokens   map[string]model.Profile
 	sessions map[string]model.Session
 	tc       *fakeTranscoder
+	a        *auth.Service
+	pa       profileAuth
+	admin    *admin.Service
+	pb       *playback.Service
+	opts     Options
 }
 
 // testTokenKey is the stream-token key of the contract fixtures.
@@ -304,20 +310,60 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	t.Helper()
 	f := vistest.New(t)
 	f.AddEdgeCases(t)
+	f.AddSeries(t)
+	f.AddGuest(t)
 	log := vistest.Logger()
-	sessions := map[string]model.Session{}
-	tokens := map[string]model.Profile{"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX}
-	for token, p := range tokens {
-		sessions[token] = f.Session(t, p)
+	a := auth.New(f.DB, log)
+	ring, err := secrets.Load(t.TempDir(), log)
+	if err != nil {
+		t.Fatal(err)
 	}
-	tc := newFakeTranscoder()
-	h := NewHandler(Options{
+	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log)
+
+	pa := profileAuth{Service: a, tokens: map[string]string{}}
+	sessions := map[string]model.Session{}
+	tokens := map[string]model.Profile{
+		"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX, "pg": f.PG, "pg18": f.PG18,
+	}
+	pf := profileFixture{f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm}
+	for name, p := range tokens {
+		pf.newSession(t, name, p)
+	}
+	pf.newSession(t, "none", model.Profile{})
+	pf.pb = playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(pf.tc))
+	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
-		Auth:     profileAuth{sessions: sessions},
+		Auth: pa, Profiles: a, Access: a, Admin: adm,
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
-		Playback: playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(tc)),
-	})
-	return profileFixture{f: f, h: h, tokens: tokens, sessions: sessions, tc: tc}
+		Playback: pf.pb,
+	}
+	pf.h = NewHandler(pf.opts)
+	return pf
+}
+
+// handlerWithPlayback is the handler of the fixture with another playback service (a wrapper of
+// pf.pb that observes or interleaves calls).
+func (pf profileFixture) handlerWithPlayback(pb PlaybackService) http.Handler {
+	o := pf.opts
+	o.Playback = pb
+	return NewHandler(o)
+}
+
+// newSession starts a browser session for the account of profile p (owner or guest account; a
+// zero profile starts it without an active profile) and registers it under the logical name.
+func (pf profileFixture) newSession(t *testing.T, name string, p model.Profile) model.Session {
+	t.Helper()
+	account := pf.f.Account
+	if pf.f.Guest.ID != 0 && p.AccountID == pf.f.Guest.ID {
+		account = pf.f.Guest
+	}
+	session, token, err := pf.a.StartSession(context.Background(), account, p, "contract-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pf.pa.tokens[name] = token
+	pf.sessions[name] = session
+	return session
 }
 
 // mint creates a playback session of the given mode for movie m and the browser session of token,
@@ -374,6 +420,8 @@ func TestContractChildProfiles(t *testing.T) {
 
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
+	titles := slices.Concat(f.Movies, f.Show.All())                            // everything a response must not leak
+	playable := slices.Concat(f.Movies, []vistest.Movie{f.Show.E1, f.Show.E2}) // titles with a file
 
 	// Positive checks on the start page come first, before reportProgress changes progress.
 	t.Run("home", func(t *testing.T) {
@@ -433,7 +481,7 @@ func TestContractChildProfiles(t *testing.T) {
 		}
 	})
 
-	for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px"} {
+	for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"} {
 		profile := pf.tokens[token]
 		t.Run(profile.Name, func(t *testing.T) {
 			for _, op := range names {
@@ -448,10 +496,10 @@ func TestContractChildProfiles(t *testing.T) {
 					if rec.Code >= 500 {
 						t.Errorf("%s: status %d (%s)", op, rec.Code, rec.Body.String())
 					}
-					assertOnlyVisible(t, op, profile, f.Movies, itemIDsIn(t, rec, f.Movies))
+					assertOnlyVisible(t, f, op, profile, titles, itemIDsIn(t, rec, titles))
 					continue
 				}
-				for _, m := range f.Movies {
+				for _, m := range playable {
 					path := strings.ReplaceAll(call.path, "{id}", m.ID)
 					if call.mint != "" {
 						ps, st := pf.mint(t, token, m, call.mint)
@@ -462,7 +510,7 @@ func TestContractChildProfiles(t *testing.T) {
 						cookie = ""
 					}
 					rec := send(t, h, method, BasePath+path, cookie, call.body, call.header)
-					if !vistest.VisibleTo(profile, m) {
+					if !f.VisibleTo(profile, m) {
 						switch call.invisibleStatus {
 						case 0:
 							if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
@@ -482,16 +530,42 @@ func TestContractChildProfiles(t *testing.T) {
 					if call.check != nil {
 						call.check(t, f, h, token, m, rec)
 					}
-					assertOnlyVisible(t, op, profile, f.Movies, itemIDsIn(t, rec, f.Movies))
+					assertOnlyVisible(t, f, op, profile, titles, itemIDsIn(t, rec, titles))
 				}
 			}
 		})
 	}
 
+	// The series tree (AN-9): getItem decides per title; the containers have no file, so the
+	// file-based operations above run on the episodes only.
+	t.Run("series tree", func(t *testing.T) {
+		for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"} {
+			profile := pf.tokens[token]
+			for _, m := range f.Show.All() {
+				rec := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID, token, "", nil)
+				if want := f.VisibleTo(profile, m); want != (rec.Code == http.StatusOK) {
+					t.Errorf("%s getItem %s %s: status %d (%s), visible want %v", profile.Name, m.Kind, m.Label, rec.Code, rec.Body.String(), want)
+				}
+				if rec.Code == http.StatusNotFound && problemCode(t, rec) != "not_found" {
+					t.Errorf("%s getItem %s: code %s, want not_found", profile.Name, m.Label, problemCode(t, rec))
+				}
+				img := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/images/poster/w400", token, "", nil)
+				if want := f.VisibleTo(profile, m); want != (img.Code == http.StatusOK) {
+					t.Errorf("%s poster of %s %s: status %d, visible want %v", profile.Name, m.Kind, m.Label, img.Code, want)
+				}
+			}
+			home := send(t, h, http.MethodGet, BasePath+"/home", token, "", nil)
+			assertOnlyVisible(t, f, "getHome", profile, titles, itemIDsIn(t, home, titles))
+			if _, rows := homeRows(t, home); f.VisibleTo(profile, f.Show.Series) != slices.Contains(rows["recent"], f.Show.Series.ID) {
+				t.Errorf("%s: series in recent = %v, visible want %v", profile.Name, slices.Contains(rows["recent"], f.Show.Series.ID), f.VisibleTo(profile, f.Show.Series))
+			}
+		}
+	})
+
 	// None of the rejected progress reports left a raw event behind.
 	for _, p := range pf.tokens {
-		for _, m := range f.Movies {
-			if !vistest.VisibleTo(p, m) && countProgressEvents(t, f, p.ID, m.ID) != 0 {
+		for _, m := range titles {
+			if !f.VisibleTo(p, m) && countProgressEvents(t, f, p.ID, m.ID) != 0 {
 				t.Errorf("%s stored a progress event for invisible movie %s", p.Name, m.Label)
 			}
 		}
@@ -508,10 +582,10 @@ func edgeCase(f *vistest.Fixture, pick func(vistest.Movie) bool) vistest.Movie {
 	panic("contract test: edge case missing from the fixture")
 }
 
-func assertOnlyVisible(t *testing.T, op string, p model.Profile, movies []vistest.Movie, found map[string]bool) {
+func assertOnlyVisible(t *testing.T, f *vistest.Fixture, op string, p model.Profile, movies []vistest.Movie, found map[string]bool) {
 	t.Helper()
 	for _, m := range movies {
-		if found[m.ID] && !vistest.VisibleTo(p, m) {
+		if found[m.ID] && !f.VisibleTo(p, m) {
 			t.Errorf("%s: response for %s contains movie %s", op, p.Name, m.Label)
 		}
 	}

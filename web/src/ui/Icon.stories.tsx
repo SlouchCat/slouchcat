@@ -18,6 +18,9 @@ const names: IconName[] = [
   'plus',
   'warning',
   'folder',
+  'lock',
+  'check',
+  'copy',
   'external',
 ];
 

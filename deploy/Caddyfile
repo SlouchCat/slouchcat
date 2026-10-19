@@ -1,0 +1,24 @@
+# Slouchcat HTTPS front end (plan K-8). Used by the compose profile "https".
+# Environment (from .env): SLOUCHCAT_DOMAIN, ACME_EMAIL.
+#   SLOUCHCAT_DOMAIN=localhost  -> Caddy issues a certificate from its internal CA (for tests).
+#   SLOUCHCAT_DOMAIN=media.example.org -> Let's Encrypt via ACME (ports 80 and 443 must be reachable).
+# ACME_EMAIL is optional; the quotes keep an empty value from breaking the config.
+{
+	email "{$ACME_EMAIL}"
+}
+
+{$SLOUCHCAT_DOMAIN} {
+	# The server already compresses what is worth compressing: no "encode" here.
+	header -Server
+
+	# Browsers must use HTTPS from now on for this host (one year; no includeSubDomains, no preload).
+	header Strict-Transport-Security "max-age=31536000"
+
+	# No request body limit of Caddy's own (the server caps request bodies at 64 KiB itself) and no
+	# read timeout: long HLS and Range responses must not be cut off. flush_interval -1 sends every
+	# chunk at once (Range, HLS).
+	# X-Forwarded-For, X-Forwarded-Proto and X-Forwarded-Host are set by Caddy itself.
+	reverse_proxy slouchcat:8096 {
+		flush_interval -1
+	}
+}

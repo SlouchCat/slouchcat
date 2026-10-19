@@ -1,0 +1,62 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: var(--sc-space-6) var(--page-gutter) var(--sc-space-12);
+  background-color: var(--sc-color-bg-base);
+  background-image: radial-gradient(
+    110% 60% at 50% 0%,
+    var(--sc-color-bg-elevated) 0%,
+    var(--sc-color-bg-base) 70%
+  );
+}
+
+.logo {
+  display: flex;
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-8);
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-items: center;
+  text-align: center;
+}
+
+.skeletonTile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  align-items: center;
+  width: 9.5rem;
+  padding: var(--sc-space-3) var(--sc-space-2) var(--sc-space-4);
+}
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  justify-content: center;
+}

@@ -193,6 +193,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log)
 	libSvc := library.New(db, queue, runner, log, library.WithImageCheck(metaSvc.QueueIncompleteImages))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
+	adminSvc.WithQueue(queue)
 	keys.admin = adminSvc
 
 	var workers sync.WaitGroup
@@ -229,7 +230,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	srv := &http.Server{
 		Handler: api.NewHandler(api.Options{
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
-			Auth: authSvc, Admin: adminSvc,
+			Auth: authSvc, Profiles: authSvc, Access: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
 			Catalog:  discover.New(db, cfg.CacheDir, log),
 			Playback: playbackSvc,
 			SpikeDir: cfg.SpikeDir,

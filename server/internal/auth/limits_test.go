@@ -138,3 +138,36 @@ func TestLoginRejectsOverlongInputWithoutHashing(t *testing.T) {
 		t.Fatalf("password at the limit: %v, want ErrInvalidCredentials", err)
 	}
 }
+
+// The bucket table is capped: addresses beyond maxBuckets push out the least recently used one,
+// which then starts with a full bucket again; the cap holds however many addresses appear.
+func TestAttemptLimiterCapsBuckets(t *testing.T) {
+	var l attemptLimiter
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	for range attemptBurst {
+		if err := l.allow("first", now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := l.allow("first", now); !errors.Is(err, model.ErrTooManyAttempts) {
+		t.Fatalf("first client not limited: %v", err)
+	}
+	for i := range maxBuckets + 500 {
+		now = now.Add(time.Millisecond) // all within the idle window
+		if err := l.allow(fmt.Sprintf("10.%d.%d.%d", i>>16, (i>>8)&255, i&255), now); err != nil {
+			t.Fatal(err)
+		}
+		if len(l.buckets) > maxBuckets {
+			t.Fatalf("%d buckets after %d clients, want at most %d", len(l.buckets), i+1, maxBuckets)
+		}
+	}
+	if len(l.buckets) != maxBuckets {
+		t.Errorf("%d buckets, want the cap %d", len(l.buckets), maxBuckets)
+	}
+	if _, ok := l.buckets["first"]; ok {
+		t.Error("the least recently used bucket was not evicted")
+	}
+	if err := l.allow("first", now); err != nil {
+		t.Errorf("evicted client starts over: %v", err)
+	}
+}

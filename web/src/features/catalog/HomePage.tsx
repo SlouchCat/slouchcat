@@ -28,7 +28,7 @@ import { ItemMeta } from './ItemMeta';
 import { homeQuery } from './queries';
 import styles from './HomePage.module.css';
 
-const authed = getRouteApi('/_authed');
+const authed = getRouteApi('/_authed/_active');
 
 const rowTitleKey = {
   continue: 'home.rows.continue',

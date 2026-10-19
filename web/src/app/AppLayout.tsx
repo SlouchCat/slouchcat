@@ -1,25 +1,42 @@
-import { getRouteApi, Outlet, useLocation } from '@tanstack/react-router';
+import { Outlet, useLocation } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppHeader, type NavItem } from '@/ui';
 import { paths } from './paths';
-import { useLogout } from './session';
+import { useActiveSession, useLogout } from './session';
 import styles from './AppLayout.module.css';
 
-const authed = getRouteApi('/_authed');
-
-/** Header plus page for every signed-in page except the player. */
+/** Header plus page for every signed-in page except the player and the profile picker. */
 export function AppLayout() {
   const { t } = useTranslation();
-  const { session } = authed.useRouteContext();
+  const session = useActiveSession();
   const { pathname } = useLocation();
   const logout = useLogout();
 
+  // Only the account's primary profile manages anything (design 3); the main account's also the
+  // libraries and guests.
+  const isPrimary = session.profile.isPrimary;
+  const isAdmin = isPrimary && session.account.role === 'owner';
+
   const nav: NavItem[] = [{ href: paths.home, label: t('nav.home'), current: pathname === '/' }];
-  if (session.account.role === 'owner') {
+  if (isAdmin) {
+    nav.push(
+      {
+        href: paths.adminLibraries,
+        label: t('nav.libraries'),
+        current: pathname.startsWith(paths.adminLibraries),
+      },
+      {
+        href: paths.adminAccess,
+        label: t('nav.access'),
+        current: pathname.startsWith(paths.adminAccess),
+      },
+    );
+  }
+  if (isPrimary) {
     nav.push({
-      href: paths.adminLibraries,
-      label: t('nav.libraries'),
-      current: pathname.startsWith('/admin/libraries'),
+      href: paths.profileSettings,
+      label: t('nav.profiles'),
+      current: pathname.startsWith(paths.profileSettings),
     });
   }
 
@@ -34,6 +51,8 @@ export function AppLayout() {
         navLabel={t('nav.main')}
         nav={nav}
         profileName={session.profile.name}
+        profileHref={paths.profiles}
+        profileLabel={t('nav.switchProfile', { name: session.profile.name })}
         logoutLabel={t('nav.logout')}
         onLogout={() => logout.mutate()}
       />

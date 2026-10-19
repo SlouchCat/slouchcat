@@ -1,20 +1,27 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 0.2.0
+  version: 0.3.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
 
     Every operation carries the vendor extension `x-visibility` with one of the values
-    `public` (no session needed), `scoped` (filtered through the visibility layer of the active
-    profile), `system` (unfiltered, internal callers only) or `admin` (main account only).
-    A schema test fails when an operation has no marker.
+    `public` (no session needed), `account` (a valid session, no profile needed: profile picker,
+    profile management of the own account), `scoped` (filtered through the visibility layer of the
+    active profile), `system` (unfiltered, internal callers only) or `admin` (main account with its
+    primary profile active). A schema test fails when an operation has no marker.
+
+    Profiles (M2): a login starts a session without an active profile unless the account has exactly
+    one profile without PIN. `selectProfile` activates a profile (with its PIN, K-4) in place; `scoped`
+    operations of a session without profile answer 403 `profile_required`. Each account has one
+    primary profile (`isPrimary`), created with the account, that manages the account's profiles.
 
     Sessions: the web app authenticates with the cookie `slouchcat_session` (HttpOnly, SameSite=Lax).
     Every request with a method other than GET, HEAD or OPTIONS must carry the header
     `X-Requested-With: Slouchcat`, otherwise the server answers 403 `csrf_header_missing`.
-    `scoped` and `admin` operations without a valid session answer 401 `unauthenticated`.
+    `account`, `scoped` and `admin` operations without a valid session answer 401 `unauthenticated`.
+    The cookie `slouchcat_device` identifies the browser (PIN lock per profile and device, AN-11).
 
     Errors use RFC 9457 problem details (`application/problem+json`) with the extra member `code`,
     a stable machine-readable identifier such as `not_found` or `validation_failed`.
@@ -41,6 +48,10 @@ tags:
     description: Login, logout and the active session.
   - name: items
     description: Titles, images and playback, always scoped to the active profile.
+  - name: profiles
+    description: Profile management of the signed-in account (K-2).
+  - name: invitations
+    description: Invitation links for guest accounts (K-6).
   - name: admin
     description: Administration by the main account.
   - name: spike
@@ -159,7 +170,9 @@ paths:
               $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
-          description: Logged in; the response carries the session.
+          description: |
+            Logged in; the response carries the session. `profile` is set only when the account has exactly
+            one profile without PIN; otherwise the client shows the picker (`listMyProfiles`, `selectProfile`).
           headers:
             Set-Cookie:
               description: Session cookie `slouchcat_session`.
@@ -203,10 +216,15 @@ paths:
       operationId: logout
       summary: End the current session
       tags: [auth]
-      x-visibility: scoped
+      x-visibility: account
       responses:
         "204":
           description: Session revoked and cookie cleared. Also 204 without a session.
+          headers:
+            Clear-Site-Data:
+              description: '`"cache"`: the browser drops cached images of the signed-out profile.'
+              schema:
+                type: string
         "403":
           description: CSRF header missing (`csrf_header_missing`).
           content:
@@ -219,7 +237,7 @@ paths:
       operationId: getSession
       summary: Account and active profile of the current session
       tags: [auth]
-      x-visibility: scoped
+      x-visibility: account
       responses:
         "200":
           description: The current session.
@@ -229,6 +247,392 @@ paths:
                 $ref: "#/components/schemas/SessionInfo"
         "401":
           description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /auth/profiles:
+    get:
+      operationId: listMyProfiles
+      summary: Profiles of the signed-in account for the profile picker
+      description: |
+        Every profile of the account with what the picker needs (name, accent, whether a PIN is set).
+        Works before a profile is selected (`account`).
+      tags: [auth]
+      x-visibility: account
+      responses:
+        "200":
+          description: Profiles of the account, primary profile first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfileSummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /auth/profiles/{id}/select:
+    post:
+      operationId: selectProfile
+      summary: Activate a profile of the signed-in account (asks for its PIN)
+      description: |
+        Switches the session to the profile (K-4). A PIN-protected profile needs `pin`; wrong PINs are
+        counted per profile and device (cookie `slouchcat_device`) and lock the profile from the third
+        failure on for 30 s, 60 s, 120 s … up to 15 min (AN-11). Every playback session of the browser
+        session is revoked, so stream tokens of the previous profile stop working, and the response
+        carries `Clear-Site-Data: "cache"`.
+      tags: [auth]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ProfileID"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectProfileRequest"
+      responses:
+        "200":
+          description: The session now runs as this profile.
+          headers:
+            Clear-Site-Data:
+              description: '`"cache"`: the browser drops cached images of the previous profile.'
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: '`pin_required` (profile has a PIN, none sent), `pin_invalid` (wrong PIN) or `csrf_header_missing`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: No such profile in this account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `pin` must be 4 to 8 digits).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: |
+            `pin_locked`: too many wrong PINs for this profile on this device; `Retry-After` and the
+            problem member `retryAfterSeconds` name the remaining lock in seconds. Also
+            `too_many_attempts` for the per-client limit.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /profiles:
+    get:
+      operationId: listProfiles
+      summary: Profiles of the signed-in account with their settings
+      description: Profile management of the own account (K-2); needs the account's primary profile to be active.
+      tags: [profiles]
+      x-visibility: account
+      responses:
+        "200":
+          description: Profiles, primary profile first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+    post:
+      operationId: createProfile
+      summary: Create a profile in the signed-in account
+      tags: [profiles]
+      x-visibility: account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "422":
+          description: |
+            Validation failed (`validation_failed`): `name` required or too long, `maxRating` above the
+            account's limit (`above_account_limit`), unknown `accent` or `language`, `libraryIds` outside the
+            account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /profiles/{id}:
+    patch:
+      operationId: updateProfile
+      summary: Change name, rating, language, accent or library rights of a profile
+      description: Only the fields sent change. Lowering `maxRating` or removing a library right takes effect with the next request of that profile.
+      tags: [profiles]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ProfileID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "404":
+          description: No such profile in this account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`), codes as for createProfile.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteProfile
+      summary: Delete a profile with its progress
+      description: The primary profile cannot be deleted (409 `primary_profile`). Sessions that had the profile active fall back to the profile picker; their playback sessions are revoked.
+      tags: [profiles]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ProfileID"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "404":
+          description: No such profile in this account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The primary profile of the account (`primary_profile`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /profiles/{id}/pin:
+    put:
+      operationId: setProfilePin
+      summary: Set or replace the PIN of a profile
+      tags: [profiles]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ProfileID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PinRequest"
+      responses:
+        "204":
+          description: PIN stored (argon2id); the lock counters of the profile are reset.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "404":
+          description: No such profile in this account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `pin` must be 4 to 8 digits).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: removeProfilePin
+      summary: Remove the PIN of a profile
+      tags: [profiles]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ProfileID"
+      responses:
+        "204":
+          description: PIN removed. Also 204 when the profile had none.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "404":
+          description: No such profile in this account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /libraries:
+    get:
+      operationId: listAccountLibraries
+      summary: Libraries the signed-in account may see, by name
+      description: |
+        Names and kinds of the libraries available to the account (all libraries for the main account, the
+        allowed ones for a guest), for the library choice in profile settings. No titles, so `account`.
+      tags: [profiles]
+      x-visibility: account
+      responses:
+        "200":
+          description: Libraries, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LibrarySummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /invitations/{token}:
+    get:
+      operationId: getInvitation
+      summary: Preview of an invitation link before accepting it
+      description: Public, rate limited per client like login. The token is the last path segment of the invitation URL.
+      tags: [invitations]
+      x-visibility: public
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/InvitationToken"
+      responses:
+        "200":
+          description: The invitation is open.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationPreview"
+        "404":
+          description: Unknown token (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: The link was used, expired or revoked (`invitation_gone`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many requests from this client (`too_many_attempts`).
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Create a guest account from an invitation link
+      description: |
+        Creates the guest account with its primary profile, limited to the rating ceiling and the libraries of
+        the invitation, marks the link used (one-time, AN-14) and starts a session with the new profile
+        active. The second attempt with the same link answers 410.
+      tags: [invitations]
+      x-visibility: public
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/InvitationToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationRequest"
+      responses:
+        "201":
+          description: Guest account created and signed in.
+          headers:
+            Set-Cookie:
+              description: Session cookie `slouchcat_session`.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown token (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: The link was used, expired or revoked (`invitation_gone`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `email` `already_exists` when an account uses it).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`).
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -856,6 +1260,204 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/invitations:
+    get:
+      operationId: listInvitations
+      summary: Invitation links with their state
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Invitations, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: createInvitation
+      summary: Create a one-time invitation link (valid 7 days)
+      description: The link is returned exactly once; the server keeps only a hash of its token (plan 3.8).
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationRequest"
+      responses:
+        "201":
+          description: Created; `url` and `token` appear only in this response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationCreated"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `libraryIds` `unknown_library`, `note` too long).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/invitations/{id}:
+    delete:
+      operationId: revokeInvitation
+      summary: Revoke an invitation link
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/InvitationID"
+      responses:
+        "204":
+          description: Revoked; the link now answers 410. Also 204 when it was already used or revoked.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown invitation (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/guests:
+    get:
+      operationId: listGuests
+      summary: Guest accounts with their limits
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Guest accounts, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Guest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/guests/{id}:
+    patch:
+      operationId: updateGuest
+      summary: Change the rating ceiling or the library rights of a guest account
+      description: Takes effect with the guest's next request; profiles above the new ceiling are capped by the visibility layer.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AccountID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuestUpdate"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Guest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown guest account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `libraryIds` `unknown_library`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: revokeGuest
+      summary: Revoke a guest account (K-7)
+      description: |
+        Ends every running stream of the account, revokes all its sessions and stream tokens and deletes the
+        account with its profiles and progress. From the next request on, cookies and stream tokens of the
+        guest answer 401.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AccountID"
+      responses:
+        "204":
+          description: Revoked and deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown guest account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/rating:
+    put:
+      operationId: setItemRating
+      summary: Override the age rating of a title
+      description: |
+        Sets the own rating of a title (`null` clears the override back to the metadata rating) and locks the
+        field against metadata updates. The effective rating of the title and of every descendant (series →
+        season → episode → extra, AN-9) is recomputed in the same transaction, so profiles above or below the
+        new level see the change with their next request (plan 10.2 "Freigabe-Änderung"). The response is
+        not an `ItemRef`: this is an administration view, unfiltered by any profile.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemRatingRequest"
+      responses:
+        "200":
+          description: The title with its new ratings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItemRating"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /spike/{variant}:
     get:
       operationId: getSpikeFile
@@ -898,6 +1500,24 @@ paths:
 
 components:
   responses:
+    Unauthenticated:
+      description: No valid session (`unauthenticated`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    AdminOnly:
+      description: Not the main account with its primary profile active (`forbidden`), or CSRF header missing.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    PrimaryProfileRequired:
+      description: The session's active profile is not the account's primary profile (`primary_profile_required`), or CSRF header missing.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     StreamUnauthenticated:
       description: Stream token missing, forged, revoked or expired (`unauthenticated`).
       content:
@@ -943,6 +1563,35 @@ components:
         `<playback session id>.<base64url HMAC-SHA256 over id and item>`. No expiry inside the token;
         the playback session expires 12 h after its last request and is revoked on stop and logout.
   parameters:
+    ProfileID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    AccountID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    InvitationID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    InvitationToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{43}$"
+        description: 256-bit token, base64url without padding.
     ItemID:
       name: id
       in: path
@@ -1028,6 +1677,10 @@ components:
           description: Field errors for `validation_failed`.
           items:
             $ref: "#/components/schemas/FieldError"
+        retryAfterSeconds:
+          type: integer
+          minimum: 0
+          description: Remaining lock in seconds for `pin_locked` (same value as `Retry-After`).
 
     FieldError:
       type: object
@@ -1087,16 +1740,17 @@ components:
 
     SessionInfo:
       type: object
-      required: [account, profile]
+      required: [account]
       properties:
         account:
           $ref: "#/components/schemas/Account"
         profile:
           $ref: "#/components/schemas/Profile"
+          description: The active profile; absent until `selectProfile` ran (the client shows the picker).
 
     Account:
       type: object
-      required: [id, email, role]
+      required: [id, email, role, maxRating, allLibraries, libraryIds]
       properties:
         id:
           type: integer
@@ -1106,13 +1760,24 @@ components:
           format: email
         role:
           type: string
-          enum: [owner]
-          description: M1a knows only the main account.
+          enum: [owner, guest]
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+          description: Rating ceiling of every profile of the account (18 for the main account).
+        allLibraries:
+          type: boolean
+          description: True for the main account; guests see only `libraryIds`.
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Libraries a guest account may see; empty when `allLibraries` is true.
 
     Profile:
       type: object
-      description: A viewing profile. Profiles carry no e-mail and no password (K-1); only `name` is required.
-      required: [id, name, maxRating, language]
+      description: A viewing profile with its settings. Profiles carry no e-mail and no password (K-1); only `name` is required.
+      required: [id, name, maxRating, language, allLibraries, libraryIds, hasPin, isPrimary]
       properties:
         id:
           type: integer
@@ -1124,14 +1789,320 @@ components:
         image:
           type: string
           format: uri-reference
-          description: Optional profile image (M2).
+          description: Optional profile image.
         maxRating:
           $ref: "#/components/schemas/Rating"
         language:
           $ref: "#/components/schemas/Language"
         accent:
+          $ref: "#/components/schemas/Accent"
+        allLibraries:
+          type: boolean
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Libraries the profile may see; empty when `allLibraries` is true. The account's own limits apply on top.
+        hasPin:
+          type: boolean
+        isPrimary:
+          type: boolean
+          description: The account's primary profile; it manages the account's profiles and cannot be deleted.
+
+    ProfileSummary:
+      type: object
+      description: A profile as the picker shows it; carries no settings beyond the look and whether a PIN is set.
+      required: [id, name, hasPin, isPrimary]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
           type: string
-          description: Accent colour token name, for example `ember` (M2).
+        image:
+          type: string
+          format: uri-reference
+        accent:
+          $ref: "#/components/schemas/Accent"
+        hasPin:
+          type: boolean
+        isPrimary:
+          type: boolean
+          description: The account's primary profile; it manages the account's profiles and cannot be deleted.
+
+    Accent:
+      type: string
+      enum: [ember, coral, amber, lime, teal, sky, violet, rose]
+      description: Accent colour token of the design system (`packages/design-tokens`); the UI maps it to CSS variables.
+
+    SelectProfileRequest:
+      type: object
+      properties:
+        pin:
+          type: string
+          pattern: "^[0-9]{4,8}$"
+          writeOnly: true
+          description: Required when the profile has a PIN.
+
+    ProfileRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+          description: Default 18, capped by the account's limit for guests.
+        language:
+          $ref: "#/components/schemas/Language"
+          description: Default is the language of the primary profile.
+        accent:
+          $ref: "#/components/schemas/Accent"
+        allLibraries:
+          type: boolean
+          description: Default true. With false, `libraryIds` lists the libraries the profile may see.
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          uniqueItems: true
+        pin:
+          type: string
+          pattern: "^[0-9]{4,8}$"
+          writeOnly: true
+          description: Optional PIN to set right away.
+
+    ProfileUpdate:
+      type: object
+      description: Partial update; every field is optional and only sent fields change.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+        language:
+          $ref: "#/components/schemas/Language"
+        accent:
+          $ref: "#/components/schemas/Accent"
+        allLibraries:
+          type: boolean
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          uniqueItems: true
+
+    PinRequest:
+      type: object
+      required: [pin]
+      properties:
+        pin:
+          type: string
+          pattern: "^[0-9]{4,8}$"
+          writeOnly: true
+
+    InvitationRequest:
+      type: object
+      required: [maxRating, allLibraries]
+      properties:
+        note:
+          type: string
+          maxLength: 120
+          description: Who the link is for; shown to the guest and in the admin list.
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+          description: Rating ceiling of the guest account and all its profiles.
+        allLibraries:
+          type: boolean
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          uniqueItems: true
+          description: Libraries the guest may see when `allLibraries` is false.
+
+    InvitationState:
+      type: string
+      enum: [open, used, expired, revoked]
+
+    Invitation:
+      type: object
+      required: [id, state, maxRating, allLibraries, libraryIds, createdAt, expiresAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        note:
+          type: string
+        state:
+          $ref: "#/components/schemas/InvitationState"
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+        allLibraries:
+          type: boolean
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        usedAt:
+          type: string
+          format: date-time
+        usedByEmail:
+          type: string
+          format: email
+          description: E-mail of the guest account that accepted the link, while that account exists.
+
+    InvitationCreated:
+      allOf:
+        - $ref: "#/components/schemas/Invitation"
+        - type: object
+          required: [url, token]
+          properties:
+            url:
+              type: string
+              format: uri-reference
+              description: Path of the invitation page, relative to the web origin (`/invite/<token>`). Shown once.
+            token:
+              type: string
+              description: The plain token; only a hash is stored.
+
+    InvitationPreview:
+      type: object
+      required: [maxRating, allLibraries, libraries, expiresAt]
+      properties:
+        note:
+          type: string
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+        allLibraries:
+          type: boolean
+        libraries:
+          type: array
+          description: Names of the libraries the guest will see (all libraries when `allLibraries` is true).
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id:
+                type: integer
+                format: int64
+              name:
+                type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    AcceptInvitationRequest:
+      type: object
+      required: [email, password, profileName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 256
+          writeOnly: true
+        profileName:
+          type: string
+          minLength: 1
+          maxLength: 60
+          description: Name of the guest's primary profile.
+        language:
+          $ref: "#/components/schemas/Language"
+          description: UI and metadata language of the primary profile; default de.
+
+    Guest:
+      type: object
+      required: [id, email, maxRating, allLibraries, libraryIds, profileCount, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+        allLibraries:
+          type: boolean
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        profileCount:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: Last request of any session of the account.
+
+    GuestUpdate:
+      type: object
+      properties:
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+        allLibraries:
+          type: boolean
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          uniqueItems: true
+
+    ItemRatingRequest:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          oneOf:
+            - $ref: "#/components/schemas/Rating"
+            - type: "null"
+          description: New own rating, or null to drop the manual override.
+
+    AdminItemRating:
+      type: object
+      description: Administration view of a title's ratings; not an `ItemRef` (unfiltered, admin only).
+      required: [id, kind, title]
+      properties:
+        id:
+          $ref: "#/components/schemas/ItemID"
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        title:
+          type: string
+          description: Parsed title of the item.
+        ownRating:
+          $ref: "#/components/schemas/Rating"
+        effectiveRating:
+          $ref: "#/components/schemas/Rating"
+        ratingSource:
+          type: string
+          description: '`manual` after an override, else the metadata source (`tmdb:DE`, `nfo`) or empty.'
 
     Language:
       type: string
@@ -1162,7 +2133,7 @@ components:
         url:
           type: string
           format: uri-reference
-          description: Relative URL under the API base, including the cache-busting `v` parameter.
+          description: Relative URL under the API base with the cache-busting `v` parameter and the profile id `p`, so a browser cache never serves one profile's image to another.
         width:
           type: integer
           minimum: 1
@@ -1453,6 +2424,18 @@ components:
     LibraryKind:
       type: string
       enum: [movies, series]
+
+    LibrarySummary:
+      type: object
+      required: [id, name, kind]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/LibraryKind"
 
     LibraryRequest:
       type: object

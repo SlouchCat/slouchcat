@@ -16,8 +16,8 @@ SELECT * FROM accounts WHERE email = @email;
 SELECT * FROM accounts WHERE id = @id;
 
 -- name: InsertProfile :one
-INSERT INTO profiles (account_id, name, max_rating, language, all_libraries, is_default, created_at, updated_at)
-VALUES (@account_id, @name, @max_rating, @language, @all_libraries, @is_default, @now, @now)
+INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash, created_at, updated_at)
+VALUES (@account_id, @name, @max_rating, @language, sqlc.narg('accent'), @all_libraries, @is_default, sqlc.narg('pin_hash'), @now, @now)
 RETURNING *;
 
 -- name: GetProfile :one
@@ -27,8 +27,8 @@ SELECT * FROM profiles WHERE id = @id;
 SELECT * FROM profiles WHERE account_id = @account_id ORDER BY is_default DESC, id LIMIT 1;
 
 -- name: InsertSession :one
-INSERT INTO sessions (token_hash, account_id, profile_id, user_agent, created_at, last_seen_at, expires_at)
-VALUES (@token_hash, @account_id, @profile_id, @user_agent, @now, @now, @expires_at)
+INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at)
+VALUES (@token_hash, @account_id, sqlc.narg('profile_id'), sqlc.narg('device_id'), @user_agent, @now, @now, @expires_at)
 RETURNING *;
 
 -- name: GetSessionByTokenHash :one

@@ -3,7 +3,9 @@
 // with a real media file, texts in de and en, a stored poster and backdrop (w1280 and w780),
 // progress rows and top picks, plus the profiles P18, P16, P12, P6 and P0 of one account.
 // AddEdgeCases adds a second library with a profile restricted to the first one, a title whose
-// only file is missing and a soft-deleted title.
+// only file is missing and a soft-deleted title. AddSeries adds a series tree (series rated 12,
+// one season, an episode without own rating and one rated 16) to library 1, and AddGuest a guest
+// account limited to FSK 12 and library 1 with the profiles PG (primary) and PG18.
 //
 // It lives below visibility because seeding writes the title tables directly, which only the
 // packages allowed by the itemsaccess analyzer may do. Only tests import it.
@@ -14,6 +16,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"image"
@@ -23,6 +26,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -49,10 +53,30 @@ type Movie struct {
 	BackdropRel      string // backdrop w1280 JPEG
 	BackdropSmallRel string // backdrop w780 JPEG
 
-	OtherLibrary bool // in library X, which PX may not see
-	Missing      bool // its only file has missing_since set
-	Deleted      bool // soft-deleted
+	LibraryID    int64 // the library the title is in (set when it is seeded)
+	OtherLibrary bool  // in library X, which PX may not see
+	Missing      bool  // its only file has missing_since set
+	Deleted      bool  // soft-deleted
+
+	// Series tree entries (AddSeries): Kind is "series", "season" or "episode" ("" = movie); a
+	// container has no file; Effective and MinChild are the ratings the triggers compute.
+	Kind      string
+	ParentID  string
+	Container bool
+	Effective *int
+	MinChild  *int
 }
+
+// Show is the series tree of AddSeries.
+type Show struct {
+	Series Movie // rated 12
+	Season Movie // season 1, inherits 12
+	E1     Movie // no own rating, effective 12
+	E2     Movie // own rating 16
+}
+
+// All returns the four titles, series first.
+func (s Show) All() []Movie { return []Movie{s.Series, s.Season, s.E1, s.E2} }
 
 // Fixture is the seeded database with its directories.
 type Fixture struct {
@@ -67,13 +91,25 @@ type Fixture struct {
 	P6            model.Profile // max 6, language en
 	P0            model.Profile // max 0, language de, no progress
 	PX            model.Profile // max 18, only library 1 (AddEdgeCases)
+
+	Show  Show          // series tree (AddSeries)
+	Guest model.Account // guest account G: max 12, library 1 only (AddGuest)
+	PG    model.Profile // primary profile of G, max 12, language en
+	PG18  model.Profile // profile of G with max 18, capped to 12 by the account
 	// Movies are ordered by rating 0, 6, 12, 16, 18, unrated; AddEdgeCases appends the
 	// OtherLibrary, Missing and Deleted titles (all rated 0).
 	Movies []Movie
 
-	libraryID int64
-	rootID    int64
+	libraryID      int64
+	rootID         int64
+	otherLibraryID int64 // library X (AddEdgeCases)
 }
+
+// LibraryID is the id of library 1 (the movies and the series).
+func (f *Fixture) LibraryID() int64 { return f.libraryID }
+
+// OtherLibraryID is the id of library X (AddEdgeCases).
+func (f *Fixture) OtherLibraryID() int64 { return f.otherLibraryID }
 
 // Rated returns the movie with the given rating; it panics for a rating the fixture lacks.
 func (f *Fixture) Rated(rating int) Movie {
@@ -95,18 +131,61 @@ func (f *Fixture) Unrated() Movie {
 	panic("vistest: no unrated movie")
 }
 
-// VisibleTo reports whether the profile may see m by the rules of plan 3.3 (unknown counts as 18;
-// missing and deleted titles are invisible; library X needs all libraries, as PX only has
-// library 1).
+// VisibleTo reports whether a profile of the owner account may see m by the rules of plan 3.3
+// (unknown counts as 18; missing and deleted titles are invisible; the library of the title must be in
+// the profile's rights, as PX only has library 1; a container is visible when its own and its smallest child rating fit).
+// Profiles of the guest account need Fixture.VisibleTo.
 func VisibleTo(p model.Profile, m Movie) bool {
-	if m.Missing || m.Deleted || (m.OtherLibrary && !p.AllLibraries) {
+	return visibleTo(p, 18, true, nil, m)
+}
+
+// VisibleTo reports whether the profile may see m, with the limits of its account applied: the
+// ceiling of the guest account G and its library rights (library 1 only) cap the profile.
+func (f *Fixture) VisibleTo(p model.Profile, m Movie) bool {
+	if f.Guest.ID != 0 && p.AccountID == f.Guest.ID {
+		return visibleTo(p, f.Guest.MaxRating, f.Guest.AllLibraries, f.Guest.LibraryIDs, m)
+	}
+	return visibleTo(p, 18, true, nil, m)
+}
+
+func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []int64, m Movie) bool {
+	if m.Missing || m.Deleted {
 		return false
 	}
-	r := 18
-	if m.Rating != nil {
-		r = *m.Rating
+	// Library rights: the profile's own and the account's, both read from the fixture data.
+	if !p.AllLibraries && !slices.Contains(p.LibraryIDs, m.LibraryID) {
+		return false
 	}
-	return r <= p.MaxRating
+	if !accountAll && !slices.Contains(accountLibs, m.LibraryID) {
+		return false
+	}
+	limit := min(p.MaxRating, accountMax)
+	if m.rating() > limit {
+		return false
+	}
+	if m.Container && m.minChild() > limit {
+		return false
+	}
+	return true
+}
+
+// rating is the effective rating of the title, unknown counting as 18.
+func (m Movie) rating() int {
+	r := m.Rating
+	if m.Kind != "" {
+		r = m.Effective
+	}
+	if r == nil {
+		return 18
+	}
+	return *r
+}
+
+func (m Movie) minChild() int {
+	if m.MinChild == nil {
+		return 18
+	}
+	return *m.MinChild
 }
 
 // Logger discards everything.
@@ -134,13 +213,13 @@ func (f *Fixture) seedProfiles(t testing.TB, ctx context.Context) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Account = model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role}
+	f.Account = model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: 18, AllLibraries: true, LibraryIDs: []int64{}}
 	add := func(name string, maxRating int, lang string, isDefault int64) model.Profile {
 		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, Now: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
-		return model.Profile{ID: p.ID, AccountID: acc.ID, Name: name, MaxRating: maxRating, Language: lang, AllLibraries: true}
+		return model.Profile{ID: p.ID, AccountID: acc.ID, Name: name, MaxRating: maxRating, Language: lang, AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: isDefault == 1}
 	}
 	f.P18 = add("P18", 18, "de", 1)
 	f.P16 = add("P16", 16, "de", 0)
@@ -190,7 +269,7 @@ func (f *Fixture) AddEdgeCases(t testing.TB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.PX = model.Profile{ID: p.ID, AccountID: f.Account.ID, Name: "PX", MaxRating: 18, Language: "de"}
+	f.PX = model.Profile{ID: p.ID, AccountID: f.Account.ID, Name: "PX", MaxRating: 18, Language: "de", LibraryIDs: []int64{f.libraryID}}
 	exec(t, f.DB, `INSERT INTO profile_libraries (profile_id, library_id) VALUES (?, ?)`, f.PX.ID, f.libraryID)
 
 	f.OtherMediaDir = t.TempDir()
@@ -202,6 +281,7 @@ func (f *Fixture) AddEdgeCases(t testing.TB) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.otherLibraryID = lib.ID
 	other := f.addMovie(t, Movie{Rating: ptr(0), Label: "X0", OtherLibrary: true}, lib.ID, root.ID, f.OtherMediaDir, 6)
 	missing := f.addMovie(t, Movie{Rating: ptr(0), Label: "M0", Missing: true}, f.libraryID, f.rootID, f.MediaDir, 7)
 	deleted := f.addMovie(t, Movie{Rating: ptr(0), Label: "D0", Deleted: true}, f.libraryID, f.rootID, f.MediaDir, 8)
@@ -223,21 +303,37 @@ func (f *Fixture) addMovie(t testing.TB, m Movie, libraryID, rootID int64, media
 	t.Helper()
 	m.ID = "01J9000000000000000000R0" + m.Label
 	m.FileID = "01J9000000000000000000F0" + m.Label
+	m.LibraryID = libraryID
 	m.RelPath = fmt.Sprintf("Movie %s (20%02d)/Movie %s (20%02d).mp4", m.Label, 10+i, m.Label, 10+i)
-	m.Content = make([]byte, FileSize)
-	if _, err := rand.Read(m.Content); err != nil {
-		t.Fatal(err)
+	if m.Kind == "episode" {
+		m.RelPath = fmt.Sprintf("Show/Season 01/Show - S01%s.mp4", m.Label)
 	}
-	writeFile(t, filepath.Join(mediaDir, filepath.FromSlash(m.RelPath)), m.Content)
-	exec(t, f.DB, `INSERT INTO items (id, kind, library_id, title, sort_title, original_title, year, release_date,
+	if m.Kind == "" {
+		m.Effective = m.Rating
+	}
+	if !m.Container {
+		m.Content = make([]byte, FileSize)
+		if _, err := rand.Read(m.Content); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, filepath.Join(mediaDir, filepath.FromSlash(m.RelPath)), m.Content)
+	}
+	kind := "movie"
+	if m.Kind != "" {
+		kind = m.Kind
+	}
+	exec(t, f.DB, `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date,
 	               runtime_minutes, genres, tmdb_id, own_rating, metadata_state, added_at, created_at, updated_at)
-	               VALUES (?, 'movie', ?, ?, ?, ?, ?, ?, 120, ?, ?, ?, 'matched', ?, 1, 1)`,
-		m.ID, libraryID, "movie "+m.Label, "movie "+m.Label, "Original "+m.Label, 2010+i, fmt.Sprintf("20%02d-05-01", 10+i),
+	               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 120, ?, ?, ?, 'matched', ?, 1, 1)`,
+		m.ID, kind, sql.NullString{String: m.ParentID, Valid: m.ParentID != ""}, libraryID, kind+" "+m.Label, kind+" "+m.Label,
+		"Original "+m.Label, 2010+i, fmt.Sprintf("20%02d-05-01", 10+i),
 		`{"de":["Abenteuer"],"en":["Adventure"]}`, 1000+i, m.Rating, int64(1000*(i+1)))
-	exec(t, f.DB, `INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, video_codec,
-	               audio_codec, width, height, duration_ms, created_at, updated_at)
-	               VALUES (?, ?, ?, ?, ?, 1, 'mp4', 'h264', 'aac', 1920, 1080, ?, 1, 1)`,
-		m.FileID, m.ID, rootID, m.RelPath, FileSize, DurationMs)
+	if !m.Container {
+		exec(t, f.DB, `INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, video_codec,
+		               audio_codec, width, height, duration_ms, created_at, updated_at)
+		               VALUES (?, ?, ?, ?, ?, 1, 'mp4', 'h264', 'aac', 1920, 1080, ?, 1, 1)`,
+			m.FileID, m.ID, rootID, m.RelPath, FileSize, DurationMs)
+	}
 	exec(t, f.DB, `INSERT INTO item_texts (item_id, lang, title, overview, tagline) VALUES (?, 'de', ?, ?, ?), (?, 'en', ?, ?, ?)`,
 		m.ID, "Film "+m.Label, "Handlung "+m.Label, "Leitsatz "+m.Label,
 		m.ID, "Movie "+m.Label, "Plot "+m.Label, "Tagline "+m.Label)
@@ -320,3 +416,47 @@ func exec(t testing.TB, db *store.DB, query string, args ...any) {
 }
 
 func ptr(v int) *int { return &v }
+
+// AddSeries adds the series tree to library 1: the series S rated 12, season 1 (no own rating) and
+// the episodes E1 (no own rating, effective 12) and E2 (own rating 16), each episode with a media
+// file, texts and images like the movies. Series and season carry texts and images too. The
+// container ratings follow plan 3.2 (effective 12 for series, season and E1; E2 is 16; the smallest
+// child of series and season is 12).
+func (f *Fixture) AddSeries(t testing.TB) {
+	t.Helper()
+	twelve, sixteen := ptr(12), ptr(16)
+	series := f.addMovie(t, Movie{Kind: "series", Label: "SS", Rating: twelve, Container: true, Effective: twelve, MinChild: twelve},
+		f.libraryID, f.rootID, f.MediaDir, 20)
+	season := f.addMovie(t, Movie{Kind: "season", Label: "SN", ParentID: series.ID, Container: true, Effective: twelve, MinChild: twelve},
+		f.libraryID, f.rootID, f.MediaDir, 21)
+	e1 := f.addMovie(t, Movie{Kind: "episode", Label: "E1", ParentID: season.ID, Effective: twelve},
+		f.libraryID, f.rootID, f.MediaDir, 22)
+	e2 := f.addMovie(t, Movie{Kind: "episode", Label: "E2", ParentID: season.ID, Rating: sixteen, Effective: sixteen},
+		f.libraryID, f.rootID, f.MediaDir, 23)
+	f.Show = Show{Series: series, Season: season, E1: e1, E2: e2}
+}
+
+// AddGuest adds the guest account G (FSK ceiling 12, only library 1) with its primary profile PG
+// (max 12, language en) and the profile PG18 (max 18, language de), which the account caps to 12.
+func (f *Fixture) AddGuest(t testing.TB) {
+	t.Helper()
+	ctx := context.Background()
+	q := appq.New(f.DB.Write)
+	acc, err := q.InsertGuestAccount(ctx, appq.InsertGuestAccountParams{Email: "guest@example.test", PasswordHash: "x", MaxRating: 12, AllLibraries: 0, Now: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := q.InsertAccountLibrary(ctx, appq.InsertAccountLibraryParams{AccountID: acc.ID, LibraryID: f.libraryID}); err != nil {
+		t.Fatal(err)
+	}
+	f.Guest = model.Account{ID: acc.ID, Email: acc.Email, Role: "guest", MaxRating: 12, LibraryIDs: []int64{f.libraryID}}
+	add := func(name string, maxRating int, lang string, isDefault int64) model.Profile {
+		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, Now: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return model.Profile{ID: p.ID, AccountID: acc.ID, Name: name, MaxRating: maxRating, Language: lang, AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: isDefault == 1}
+	}
+	f.PG = add("PG", 12, "en", 1)
+	f.PG18 = add("PG18", 18, "de", 0)
+}

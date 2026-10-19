@@ -1,0 +1,110 @@
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-items: center;
+  width: 9.5rem;
+  padding: var(--sc-space-3) var(--sc-space-2) var(--sc-space-4);
+  border: 0;
+  border-radius: var(--sc-radius-xl);
+  background-color: transparent;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tile:focus-visible {
+  color: var(--sc-color-text-primary);
+  transform: scale(var(--sc-focus-scale));
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    color: var(--sc-color-text-primary);
+    transform: scale(var(--sc-focus-scale));
+  }
+}
+
+.tile:active {
+  transform: scale(0.97);
+}
+
+.avatarWrap {
+  position: relative;
+  display: flex;
+}
+
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-swatch);
+  color: var(--sc-on-swatch);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: 1;
+  user-select: none;
+}
+
+.md {
+  width: var(--sc-space-10);
+  height: var(--sc-space-10);
+  font-size: var(--sc-font-size-lg);
+}
+
+.lg {
+  width: 6.5rem;
+  height: 6.5rem;
+  font-size: var(--sc-font-size-3xl);
+}
+
+/* The profile the session runs with: a ring in its own colour around the avatar. */
+.tile[data-active] .avatar {
+  outline: var(--sc-space-1) solid var(--sc-swatch);
+  outline-offset: var(--sc-space-1);
+}
+
+.lock {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-bg-elevated);
+  color: var(--sc-color-text-primary);
+}
+
+.name {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-medium);
+  line-height: var(--sc-font-line-height-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caption {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+@media (width < 480px) {
+  .tile {
+    width: 8rem;
+  }
+
+  .lg {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+}

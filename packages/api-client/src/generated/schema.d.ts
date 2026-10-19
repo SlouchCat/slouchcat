@@ -99,6 +99,177 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Profiles of the signed-in account for the profile picker
+         * @description Every profile of the account with what the picker needs (name, accent, whether a PIN is set).
+         *     Works before a profile is selected (`account`).
+         */
+        get: operations["listMyProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/profiles/{id}/select": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate a profile of the signed-in account (asks for its PIN)
+         * @description Switches the session to the profile (K-4). A PIN-protected profile needs `pin`; wrong PINs are
+         *     counted per profile and device (cookie `slouchcat_device`) and lock the profile from the third
+         *     failure on for 30 s, 60 s, 120 s … up to 15 min (AN-11). Every playback session of the browser
+         *     session is revoked, so stream tokens of the previous profile stop working, and the response
+         *     carries `Clear-Site-Data: "cache"`.
+         */
+        post: operations["selectProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Profiles of the signed-in account with their settings
+         * @description Profile management of the own account (K-2); needs the account's primary profile to be active.
+         */
+        get: operations["listProfiles"];
+        put?: never;
+        /** Create a profile in the signed-in account */
+        post: operations["createProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/profiles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a profile with its progress
+         * @description The primary profile cannot be deleted (409 `primary_profile`). Sessions that had the profile active fall back to the profile picker; their playback sessions are revoked.
+         */
+        delete: operations["deleteProfile"];
+        options?: never;
+        head?: never;
+        /**
+         * Change name, rating, language, accent or library rights of a profile
+         * @description Only the fields sent change. Lowering `maxRating` or removing a library right takes effect with the next request of that profile.
+         */
+        patch: operations["updateProfile"];
+        trace?: never;
+    };
+    "/profiles/{id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set or replace the PIN of a profile */
+        put: operations["setProfilePin"];
+        post?: never;
+        /** Remove the PIN of a profile */
+        delete: operations["removeProfilePin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Libraries the signed-in account may see, by name
+         * @description Names and kinds of the libraries available to the account (all libraries for the main account, the
+         *     allowed ones for a guest), for the library choice in profile settings. No titles, so `account`.
+         */
+        get: operations["listAccountLibraries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview of an invitation link before accepting it
+         * @description Public, rate limited per client like login. The token is the last path segment of the invitation URL.
+         */
+        get: operations["getInvitation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/invitations/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a guest account from an invitation link
+         * @description Creates the guest account with its primary profile, limited to the rating ceiling and the libraries of
+         *     the invitation, marks the link used (one-time, AN-14) and starts a session with the new profile
+         *     active. The second attempt with the same link answers 410.
+         */
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/home": {
         parameters: {
             query?: never;
@@ -424,6 +595,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Invitation links with their state */
+        get: operations["listInvitations"];
+        put?: never;
+        /**
+         * Create a one-time invitation link (valid 7 days)
+         * @description The link is returned exactly once; the server keeps only a hash of its token (plan 3.8).
+         */
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/invitations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke an invitation link */
+        delete: operations["revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/guests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guest accounts with their limits */
+        get: operations["listGuests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/guests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a guest account (K-7)
+         * @description Ends every running stream of the account, revokes all its sessions and stream tokens and deletes the
+         *     account with its profiles and progress. From the next request on, cookies and stream tokens of the
+         *     guest answer 401.
+         */
+        delete: operations["revokeGuest"];
+        options?: never;
+        head?: never;
+        /**
+         * Change the rating ceiling or the library rights of a guest account
+         * @description Takes effect with the guest's next request; profiles above the new ceiling are capped by the visibility layer.
+         */
+        patch: operations["updateGuest"];
+        trace?: never;
+    };
+    "/admin/items/{id}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Override the age rating of a title
+         * @description Sets the own rating of a title (`null` clears the override back to the metadata rating) and locks the
+         *     field against metadata updates. The effective rating of the title and of every descendant (series →
+         *     season → episode → extra, AN-9) is recomputed in the same transaction, so profiles above or below the
+         *     new level see the change with their next request (plan 10.2 "Freigabe-Änderung"). The response is
+         *     not an `ItemRef`: this is an administration view, unfiltered by any profile.
+         */
+        put: operations["setItemRating"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/spike/{variant}": {
         parameters: {
             query?: never;
@@ -493,6 +769,8 @@ export interface components {
             code: string;
             /** @description Field errors for `validation_failed`. */
             errors?: components["schemas"]["FieldError"][];
+            /** @description Remaining lock in seconds for `pin_locked` (same value as `Retry-After`). */
+            retryAfterSeconds?: number;
         };
         FieldError: {
             /** @description JSON pointer-like field name, for example `email` or `library.path`. */
@@ -522,33 +800,188 @@ export interface components {
         };
         SessionInfo: {
             account: components["schemas"]["Account"];
-            profile: components["schemas"]["Profile"];
+            /** @description The active profile; absent until `selectProfile` ran (the client shows the picker). */
+            profile?: components["schemas"]["Profile"];
         };
         Account: {
             /** Format: int64 */
             id: number;
             /** Format: email */
             email: string;
-            /**
-             * @description M1a knows only the main account.
-             * @enum {string}
-             */
-            role: "owner";
+            /** @enum {string} */
+            role: "owner" | "guest";
+            /** @description Rating ceiling of every profile of the account (18 for the main account). */
+            maxRating: components["schemas"]["Rating"];
+            /** @description True for the main account; guests see only `libraryIds`. */
+            allLibraries: boolean;
+            /** @description Libraries a guest account may see; empty when `allLibraries` is true. */
+            libraryIds: number[];
         };
-        /** @description A viewing profile. Profiles carry no e-mail and no password (K-1); only `name` is required. */
+        /** @description A viewing profile with its settings. Profiles carry no e-mail and no password (K-1); only `name` is required. */
         Profile: {
             /** Format: int64 */
             id: number;
             name: string;
             /**
              * Format: uri-reference
-             * @description Optional profile image (M2).
+             * @description Optional profile image.
              */
             image?: string;
             maxRating: components["schemas"]["Rating"];
             language: components["schemas"]["Language"];
-            /** @description Accent colour token name, for example `ember` (M2). */
-            accent?: string;
+            accent?: components["schemas"]["Accent"];
+            allLibraries: boolean;
+            /** @description Libraries the profile may see; empty when `allLibraries` is true. The account's own limits apply on top. */
+            libraryIds: number[];
+            hasPin: boolean;
+            /** @description The account's primary profile; it manages the account's profiles and cannot be deleted. */
+            isPrimary: boolean;
+        };
+        /** @description A profile as the picker shows it; carries no settings beyond the look and whether a PIN is set. */
+        ProfileSummary: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** Format: uri-reference */
+            image?: string;
+            accent?: components["schemas"]["Accent"];
+            hasPin: boolean;
+            /** @description The account's primary profile; it manages the account's profiles and cannot be deleted. */
+            isPrimary: boolean;
+        };
+        /**
+         * @description Accent colour token of the design system (`packages/design-tokens`); the UI maps it to CSS variables.
+         * @enum {string}
+         */
+        Accent: "ember" | "coral" | "amber" | "lime" | "teal" | "sky" | "violet" | "rose";
+        SelectProfileRequest: {
+            /** @description Required when the profile has a PIN. */
+            pin?: string;
+        };
+        ProfileRequest: {
+            name: string;
+            /** @description Default 18, capped by the account's limit for guests. */
+            maxRating?: components["schemas"]["Rating"];
+            /** @description Default is the language of the primary profile. */
+            language?: components["schemas"]["Language"];
+            accent?: components["schemas"]["Accent"];
+            /** @description Default true. With false, `libraryIds` lists the libraries the profile may see. */
+            allLibraries?: boolean;
+            libraryIds?: number[];
+            /** @description Optional PIN to set right away. */
+            pin?: string;
+        };
+        /** @description Partial update; every field is optional and only sent fields change. */
+        ProfileUpdate: {
+            name?: string;
+            maxRating?: components["schemas"]["Rating"];
+            language?: components["schemas"]["Language"];
+            accent?: components["schemas"]["Accent"];
+            allLibraries?: boolean;
+            libraryIds?: number[];
+        };
+        PinRequest: {
+            pin: string;
+        };
+        InvitationRequest: {
+            /** @description Who the link is for; shown to the guest and in the admin list. */
+            note?: string;
+            /** @description Rating ceiling of the guest account and all its profiles. */
+            maxRating: components["schemas"]["Rating"];
+            allLibraries: boolean;
+            /** @description Libraries the guest may see when `allLibraries` is false. */
+            libraryIds?: number[];
+        };
+        /** @enum {string} */
+        InvitationState: "open" | "used" | "expired" | "revoked";
+        Invitation: {
+            /** Format: int64 */
+            id: number;
+            note?: string;
+            state: components["schemas"]["InvitationState"];
+            maxRating: components["schemas"]["Rating"];
+            allLibraries: boolean;
+            libraryIds: number[];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            usedAt?: string;
+            /**
+             * Format: email
+             * @description E-mail of the guest account that accepted the link, while that account exists.
+             */
+            usedByEmail?: string;
+        };
+        InvitationCreated: components["schemas"]["Invitation"] & {
+            /**
+             * Format: uri-reference
+             * @description Path of the invitation page, relative to the web origin (`/invite/<token>`). Shown once.
+             */
+            url: string;
+            /** @description The plain token; only a hash is stored. */
+            token: string;
+        };
+        InvitationPreview: {
+            note?: string;
+            maxRating: components["schemas"]["Rating"];
+            allLibraries: boolean;
+            /** @description Names of the libraries the guest will see (all libraries when `allLibraries` is true). */
+            libraries: {
+                /** Format: int64 */
+                id: number;
+                name: string;
+            }[];
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        AcceptInvitationRequest: {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+            /** @description Name of the guest's primary profile. */
+            profileName: string;
+            /** @description UI and metadata language of the primary profile; default de. */
+            language?: components["schemas"]["Language"];
+        };
+        Guest: {
+            /** Format: int64 */
+            id: number;
+            /** Format: email */
+            email: string;
+            maxRating: components["schemas"]["Rating"];
+            allLibraries: boolean;
+            libraryIds: number[];
+            profileCount: number;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last request of any session of the account.
+             */
+            lastSeenAt?: string;
+        };
+        GuestUpdate: {
+            maxRating?: components["schemas"]["Rating"];
+            allLibraries?: boolean;
+            libraryIds?: number[];
+        };
+        ItemRatingRequest: {
+            /** @description New own rating, or null to drop the manual override. */
+            rating: components["schemas"]["Rating"] | null;
+        };
+        /** @description Administration view of a title's ratings; not an `ItemRef` (unfiltered, admin only). */
+        AdminItemRating: {
+            id: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            /** @description Parsed title of the item. */
+            title: string;
+            ownRating?: components["schemas"]["Rating"];
+            effectiveRating?: components["schemas"]["Rating"];
+            /** @description `manual` after an override, else the metadata source (`tmdb:DE`, `nfo`) or empty. */
+            ratingSource?: string;
         };
         /** @enum {string} */
         Language: "de" | "en";
@@ -566,7 +999,7 @@ export interface components {
         ImageRef: {
             /**
              * Format: uri-reference
-             * @description Relative URL under the API base, including the cache-busting `v` parameter.
+             * @description Relative URL under the API base with the cache-busting `v` parameter and the profile id `p`, so a browser cache never serves one profile's image to another.
              */
             url: string;
             width: number;
@@ -742,6 +1175,12 @@ export interface components {
         };
         /** @enum {string} */
         LibraryKind: "movies" | "series";
+        LibrarySummary: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            kind: components["schemas"]["LibraryKind"];
+        };
         LibraryRequest: {
             name: string;
             kind: components["schemas"]["LibraryKind"];
@@ -799,6 +1238,33 @@ export interface components {
         };
     };
     responses: {
+        /** @description No valid session (`unauthenticated`). */
+        Unauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Not the main account with its primary profile active (`forbidden`), or CSRF header missing. */
+        AdminOnly: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The session's active profile is not the account's primary profile (`primary_profile_required`), or CSRF header missing. */
+        PrimaryProfileRequired: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description Stream token missing, forged, revoked or expired (`unauthenticated`). */
         StreamUnauthenticated: {
             headers: {
@@ -833,6 +1299,10 @@ export interface components {
         };
     };
     parameters: {
+        ProfileID: number;
+        AccountID: number;
+        InvitationID: number;
+        InvitationToken: string;
         /** @description Item ID (ULID). */
         ItemID: components["schemas"]["ItemID"];
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
@@ -976,7 +1446,10 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Logged in; the response carries the session. */
+            /**
+             * @description Logged in; the response carries the session. `profile` is set only when the account has exactly
+             *     one profile without PIN; otherwise the client shows the picker (`listMyProfiles`, `selectProfile`).
+             */
             200: {
                 headers: {
                     /** @description Session cookie `slouchcat_session`. */
@@ -1038,6 +1511,8 @@ export interface operations {
             /** @description Session revoked and cookie cleared. Also 204 without a session. */
             204: {
                 headers: {
+                    /** @description `"cache"`: the browser drops cached images of the signed-out profile. */
+                    "Clear-Site-Data"?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -1074,6 +1549,464 @@ export interface operations {
             /** @description No valid session (`unauthenticated`). */
             401: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profiles of the account, primary profile first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileSummary"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    selectProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SelectProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description The session now runs as this profile. */
+            200: {
+                headers: {
+                    /** @description `"cache"`: the browser drops cached images of the previous profile. */
+                    "Clear-Site-Data"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description `pin_required` (profile has a PIN, none sent), `pin_invalid` (wrong PIN) or `csrf_header_missing`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `pin` must be 4 to 8 digits). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `pin_locked`: too many wrong PINs for this profile on this device; `Retry-After` and the
+             *     problem member `retryAfterSeconds` name the remaining lock in seconds. Also
+             *     `too_many_attempts` for the per-client limit.
+             */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profiles, primary profile first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+        };
+    };
+    createProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /**
+             * @description Validation failed (`validation_failed`): `name` required or too long, `maxRating` above the
+             *     account's limit (`above_account_limit`), unknown `accent` or `language`, `libraryIds` outside the
+             *     account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The primary profile of the account (`primary_profile`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Profile"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`), codes as for createProfile. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setProfilePin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinRequest"];
+            };
+        };
+        responses: {
+            /** @description PIN stored (argon2id); the lock counters of the profile are reset. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `pin` must be 4 to 8 digits). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeProfilePin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PIN removed. Also 204 when the profile had none. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAccountLibraries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Libraries, by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibrarySummary"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    getInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: components["parameters"]["InvitationToken"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The invitation is open. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
+                };
+            };
+            /** @description Unknown token (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The link was used, expired or revoked (`invitation_gone`). */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many requests from this client (`too_many_attempts`). */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: components["parameters"]["InvitationToken"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Guest account created and signed in. */
+            201: {
+                headers: {
+                    /** @description Session cookie `slouchcat_session`. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown token (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The link was used, expired or revoked (`invitation_gone`). */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `email` `already_exists` when an account uses it). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`). */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1793,6 +2726,240 @@ export interface operations {
             };
             /** @description Unknown library (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listInvitations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invitations, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created; `url` and `token` appear only in this response. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationCreated"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `libraryIds` `unknown_library`, `note` too long). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    revokeInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["InvitationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked; the link now answers 410. Also 204 when it was already used or revoked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown invitation (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listGuests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Guest accounts, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guest"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    revokeGuest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AccountID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked and deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown guest account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateGuest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AccountID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GuestUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Guest"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown guest account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `libraryIds` `unknown_library`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemRatingRequest"];
+            };
+        };
+        responses: {
+            /** @description The title with its new ratings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItemRating"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

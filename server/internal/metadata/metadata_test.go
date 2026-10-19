@@ -579,6 +579,21 @@ func TestMatchRespectsLockedFieldsAndNFORating(t *testing.T) {
 	if r := e.item(t, idLocked); r.Rating.Int64 != 18 || r.Source.String != "tmdb:US" {
 		t.Fatalf("locked own_rating overwritten: %v %v", r.Rating, r.Source)
 	}
+
+	// The administrator's override (admin.SetItemRating, M2) is source "manual" with the rating
+	// field locked: either mark alone keeps it.
+	for name, set := range map[string]string{
+		"manual source": `rating_source = 'manual', locked_fields = '[]'`,
+		"locked field":  `rating_source = NULL, locked_fields = '["own_rating"]'`,
+	} {
+		mustExec(t, e.db.Write, `UPDATE items SET own_rating = 6, `+set+` WHERE id = ?`, idLocked)
+		if err := e.svc.match(context.Background(), idLocked); err != nil {
+			t.Fatal(err)
+		}
+		if r := e.item(t, idLocked); r.Rating.Int64 != 6 {
+			t.Fatalf("%s: override overwritten by the match: %v %v", name, r.Rating, r.Source)
+		}
+	}
 }
 
 func TestMatchWithoutKeySkipsTMDB(t *testing.T) {

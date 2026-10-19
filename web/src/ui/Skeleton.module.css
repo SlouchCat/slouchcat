@@ -26,6 +26,12 @@
   border-radius: 0;
 }
 
+.avatar {
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: var(--sc-radius-full);
+}
+
 .block {
   width: 100%;
   height: calc(var(--sc-space-24) + var(--sc-space-12));

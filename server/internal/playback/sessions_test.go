@@ -838,10 +838,197 @@ func TestRevokeEndsOpenStream(t *testing.T) {
 	}
 	expectEnd("ended login", ended)
 
-	s.streamsMu.Lock()
-	left := len(s.streams)
-	s.streamsMu.Unlock()
+	// The reader goroutine reports the end first and closes its file right after (deferred), so the
+	// registry empties a moment later.
+	var left int
+	for deadline := time.Now().Add(time.Second); ; {
+		s.streamsMu.Lock()
+		left = len(s.streams)
+		s.streamsMu.Unlock()
+		if left == 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	if left != 0 {
 		t.Errorf("%d playback ids still registered after close", left)
+	}
+}
+
+// EndAccount (guest revocation) and EndProfile (profile deleted) revoke the playback sessions of
+// the account or profile only, stop their output and answer 401 for the tokens at once; a deleted
+// account takes its playback sessions with it (the join with sessions finds nothing).
+func TestEndAccountAndEndProfile(t *testing.T) {
+	f := vistest.New(t)
+	f.AddSeries(t)
+	f.AddGuest(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(6)
+	f.SetMediaFile(t, m.FileID, "mkv", "hevc", "aac", hevcProbe(t), nil)
+
+	start := func(session model.Session) model.PlaybackInfo {
+		t.Helper()
+		info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return info
+	}
+	alive := func(info model.PlaybackInfo) bool {
+		t.Helper()
+		_, err := s.Authorize(ctx, tokenOf(t, info.StreamURL))
+		if err != nil && !errors.Is(err, model.ErrUnauthenticated) {
+			t.Fatal(err)
+		}
+		return err == nil
+	}
+
+	guestSession := browserSession(t, f, f.PG)
+	g1, g2 := start(guestSession), start(browserSession(t, f, f.PG18))
+	p18, p6 := start(browserSession(t, f, f.P18)), start(browserSession(t, f, f.P6))
+	for name, info := range map[string]model.PlaybackInfo{"g1": g1, "g2": g2, "p18": p18, "p6": p6} {
+		if !alive(info) {
+			t.Fatalf("%s not valid before", name)
+		}
+	}
+
+	// A profile: only its playback ends.
+	if err := s.EndProfile(ctx, f.P6.ID); err != nil {
+		t.Fatal(err)
+	}
+	if alive(p6) || !alive(p18) || !alive(g1) {
+		t.Errorf("EndProfile: p6 alive %v, p18 alive %v, g1 alive %v", alive(p6), alive(p18), alive(g1))
+	}
+	if _, running := tc.Get(p6.PlaybackSessionID); running {
+		t.Error("output of the profile still running")
+	}
+
+	// An account: every profile of it, nothing of the owner.
+	if err := s.EndAccount(ctx, f.Guest.ID); err != nil {
+		t.Fatal(err)
+	}
+	if alive(g1) || alive(g2) || !alive(p18) {
+		t.Errorf("EndAccount: g1 alive %v, g2 alive %v, p18 alive %v", alive(g1), alive(g2), alive(p18))
+	}
+	for _, info := range []model.PlaybackInfo{g1, g2} {
+		if _, running := tc.Get(info.PlaybackSessionID); running {
+			t.Errorf("output %s of the account still running", info.PlaybackSessionID)
+		}
+	}
+	// Nothing to end is not an error.
+	if err := s.EndAccount(ctx, 9999); err != nil {
+		t.Errorf("EndAccount of an unknown account: %v", err)
+	}
+
+	// Deleting the account removes the browser sessions: tokens that were not even revoked answer 401.
+	again := start(guestSession)
+	if !alive(again) {
+		t.Fatal("new guest playback not valid")
+	}
+	if _, err := f.DB.Write.ExecContext(ctx, `DELETE FROM accounts WHERE id = ?`, f.Guest.ID); err != nil {
+		t.Fatal(err)
+	}
+	if alive(again) {
+		t.Error("a token of a deleted account is still valid")
+	}
+}
+
+// openDirect starts a direct playback and opens its stream like the Range endpoint does.
+func openDirect(t *testing.T, s *Service, session model.Session, itemID string) (model.PlaybackGrant, model.StreamSource) {
+	t.Helper()
+	ctx := context.Background()
+	info, err := s.Start(ctx, session, itemID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := s.Authorize(ctx, tokenOf(t, info.StreamURL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, err := s.OpenGrant(ctx, g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = src.File.Close() })
+	return g, src
+}
+
+func streamEnded(src model.StreamSource) bool {
+	select {
+	case <-src.File.(interface{ Done() <-chan struct{} }).Done():
+		return true
+	default:
+		return false
+	}
+}
+
+// RecheckVisibility ends exactly the open direct-play streams whose title the profile of the
+// stream may no longer see.
+func TestRecheckVisibilityEndsInvisibleStreams(t *testing.T) {
+	f := vistest.New(t)
+	s := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+	m12, m6 := f.Rated(12), f.Rated(6)
+	_, p12 := openDirect(t, s, browserSession(t, f, f.P12), m12.ID)
+	_, p12other := openDirect(t, s, browserSession(t, f, f.P12), m6.ID)
+	_, p18 := openDirect(t, s, browserSession(t, f, f.P18), m12.ID)
+
+	if err := s.RecheckVisibility(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if streamEnded(p12) || streamEnded(p12other) || streamEnded(p18) {
+		t.Fatal("a stream ended although nothing changed")
+	}
+
+	sixteen := 16
+	f.SetRating(t, m12.ID, &sixteen) // the administrator raises the title for everybody below 16
+	if err := s.RecheckVisibility(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !streamEnded(p12) {
+		t.Error("the stream of P12 on the raised title is still open")
+	}
+	if streamEnded(p12other) || streamEnded(p18) {
+		t.Error("streams of visible titles must stay open")
+	}
+	buf := make([]byte, 16)
+	if _, err := p12.File.Read(buf); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("read of the ended stream: %v, want ErrNotFound", err)
+	}
+	if _, err := p18.File.Read(buf); err != nil {
+		t.Errorf("read of the stream that stays: %v", err)
+	}
+}
+
+// The registry knows account and profile of every open stream: EndAccount and EndProfile reach
+// them in memory even when their playback rows are gone or were revoked before.
+func TestEndAccountAndProfileCancelStreamsInMemory(t *testing.T) {
+	f := vistest.New(t)
+	f.AddSeries(t)
+	f.AddGuest(t)
+	s := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+	m := f.Rated(6)
+	g1, guestStream := openDirect(t, s, browserSession(t, f, f.PG), m.ID)
+	_, ownerStream := openDirect(t, s, browserSession(t, f, f.P6), m.ID)
+	_, otherProfile := openDirect(t, s, browserSession(t, f, f.P12), m.ID)
+
+	// The row is revoked and the stream somehow survived (an open request that was past its checks).
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE playback_sessions SET revoked_at = 1 WHERE id = ?`, g1.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EndAccount(ctx, f.Guest.ID); err != nil {
+		t.Fatal(err)
+	}
+	if !streamEnded(guestStream) || streamEnded(ownerStream) {
+		t.Errorf("EndAccount: guest stream ended %v, owner stream ended %v", streamEnded(guestStream), streamEnded(ownerStream))
+	}
+	if err := s.EndProfile(ctx, f.P6.ID); err != nil {
+		t.Fatal(err)
+	}
+	if !streamEnded(ownerStream) || streamEnded(otherProfile) {
+		t.Errorf("EndProfile: P6 stream ended %v, P12 stream ended %v", streamEnded(ownerStream), streamEnded(otherProfile))
 	}
 }

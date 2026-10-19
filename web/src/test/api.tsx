@@ -30,8 +30,24 @@ export const problem = (status: number, code: string, extra: Partial<Problem> = 
   });
 
 export const session: SessionInfo = {
-  account: { id: 1, email: 'owner@example.test', role: 'owner' },
-  profile: { id: 1, name: 'Marco', maxRating: 18, language: 'de' },
+  account: {
+    id: 1,
+    email: 'owner@example.test',
+    role: 'owner',
+    maxRating: 18,
+    allLibraries: true,
+    libraryIds: [],
+  },
+  profile: {
+    id: 1,
+    name: 'Marco',
+    maxRating: 18,
+    language: 'de',
+    allLibraries: true,
+    libraryIds: [],
+    hasPin: false,
+    isPrimary: true,
+  },
 };
 
 /** Default answers for the guard: logged in (the guard asks `/setup` only without a session). */

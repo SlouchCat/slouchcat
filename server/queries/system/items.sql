@@ -84,3 +84,11 @@ VALUES (@media_file_id, @stream_index, @kind, @codec, @language, @title, @source
 
 -- name: ListMediaFileTracks :many
 SELECT * FROM tracks WHERE media_file_id = @media_file_id ORDER BY source, stream_index;
+
+-- name: UpdateItemRatingOverride :exec
+-- Administrator override of the age rating (M2): own_rating, rating_source ('manual', or the value
+-- the caller restores when the override is cleared) and locked_fields in one statement, so the
+-- triggers recompute the effective rating of the title and its descendants.
+UPDATE items
+SET own_rating = @own_rating, rating_source = @rating_source, locked_fields = @locked_fields, updated_at = @now
+WHERE id = @id AND deleted_at IS NULL;

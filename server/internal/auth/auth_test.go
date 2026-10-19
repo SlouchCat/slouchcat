@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -71,8 +72,8 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 	if acc.Email != "marco@example.ch" || acc.Role != "owner" {
 		t.Fatalf("account = %+v", acc)
 	}
-	want := model.Profile{ID: prof.ID, AccountID: acc.ID, Name: "marco", MaxRating: 18, Language: "en", AllLibraries: true}
-	if prof != want {
+	want := model.Profile{ID: prof.ID, AccountID: acc.ID, Name: "marco", MaxRating: 18, Language: "en", AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: true}
+	if !reflect.DeepEqual(prof, want) {
 		t.Fatalf("profile = %+v, want %+v", prof, want)
 	}
 	if required, _ := s.SetupRequired(ctx); required {
@@ -89,14 +90,14 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 	if len(token) != 43 || strings.ContainsAny(token, "+/=") {
 		t.Fatalf("token %q is not 32 bytes base64url without padding", token)
 	}
-	if sess.Account != acc || sess.Profile != prof {
+	if !reflect.DeepEqual(sess.Account, acc) || !reflect.DeepEqual(sess.Profile, prof) {
 		t.Fatalf("login session = %+v", sess)
 	}
 	got, _, err := s.Resolve(ctx, token)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.ID != sess.ID || got.Account != acc || got.Profile != prof || !got.IsOwner() {
+	if got.ID != sess.ID || !reflect.DeepEqual(got.Account, acc) || !reflect.DeepEqual(got.Profile, prof) || !got.IsOwner() {
 		t.Fatalf("resolved = %+v, want %+v", got, sess)
 	}
 	if err := s.Logout(ctx, sess.ID); err != nil {

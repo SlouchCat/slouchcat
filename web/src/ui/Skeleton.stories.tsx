@@ -23,6 +23,20 @@ export const Shapes: Story = {
   ),
 };
 
+/** The profile picker while the list loads: a round avatar and a name per tile. */
+export const Avatars: Story = {
+  render: () => (
+    <Stack direction="row" gap={6}>
+      {[0, 1, 2].map((index) => (
+        <Stack key={index} gap={2}>
+          <Skeleton shape="avatar" />
+          <Skeleton shape="line" />
+        </Stack>
+      ))}
+    </Stack>
+  ),
+};
+
 export const Hero: Story = {
   parameters: { layout: 'fullscreen' },
   args: { shape: 'hero' },

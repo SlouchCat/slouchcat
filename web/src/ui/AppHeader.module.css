@@ -69,8 +69,22 @@
   display: inline-flex;
   gap: var(--sc-space-2);
   align-items: center;
+  padding: var(--sc-space-1) var(--sc-space-3) var(--sc-space-1) var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
+  text-decoration: none;
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.profile:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .profile:hover {
+    color: var(--sc-color-text-primary);
+  }
 }
 
 .avatar {
@@ -87,12 +101,11 @@
 
 @media (width < 640px) {
   .profileName {
-    position: absolute;
-    overflow: hidden;
-    width: 1px;
-    height: 1px;
-    clip-path: inset(50%);
-    white-space: nowrap;
+    display: none;
+  }
+
+  .profile {
+    padding-right: var(--sc-space-1);
   }
 
   .inner {

@@ -22,7 +22,7 @@ import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { VideoPlayer } from './VideoPlayer';
 import styles from './Player.module.css';
 
-const route = getRouteApi('/_authed/play/$itemId');
+const route = getRouteApi('/_authed/_active/play/$itemId');
 
 const containerMime: Record<string, string> = {
   mp4: 'video/mp4',

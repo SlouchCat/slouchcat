@@ -74,6 +74,24 @@ tasks:
       - mkdir -p config cache
       - "{{.COMPOSE}} up -d"
 
+  up:https:
+    desc: Start Slouchcat with the Caddy HTTPS front end (profile https; needs SLOUCHCAT_DOMAIN in .env)
+    cmds:
+      - mkdir -p config cache
+      - "{{.COMPOSE}} --profile https up -d"
+
+  caddy:validate:
+    desc: Validate the Caddyfile with the pinned caddy image (empty and set ACME_EMAIL)
+    cmds:
+      - >-
+        docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro"
+        -e SLOUCHCAT_DOMAIN=localhost -e ACME_EMAIL=
+        caddy:2.10 caddy validate --config /etc/caddy/Caddyfile
+      - >-
+        docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro"
+        -e SLOUCHCAT_DOMAIN=media.example.org -e ACME_EMAIL=admin@example.org
+        caddy:2.10 caddy validate --config /etc/caddy/Caddyfile
+
   down:
     desc: Stop and remove the compose stack
     cmds:
@@ -85,6 +103,8 @@ tasks:
       RENDER_GID: '{{.RENDER_GID | default "992"}}'
     cmds:
       - docker compose -f compose.yaml config --quiet
+      - docker compose -f compose.yaml --profile https config --quiet
+      - docker compose -f compose.yaml -f compose.https-only.yaml --profile https config --quiet
       - docker compose -f compose.yaml -f compose.nvidia.yaml config --quiet
       - docker compose -f compose.yaml -f compose.intel.yaml config --quiet
       - docker compose -f compose.yaml -f compose.amd.yaml config --quiet

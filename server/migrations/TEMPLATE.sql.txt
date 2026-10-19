@@ -13,6 +13,10 @@
 -- +goose Up
 -- +goose NO TRANSACTION
 PRAGMA foreign_keys=OFF;
+-- PRAGMA foreign_keys must stay outside the transaction (it is a no-op inside one). Put the
+-- statements between BEGIN and COMMIT, so a failure in the middle leaves the schema as it was
+-- instead of half migrated (the pre-migration backup is the second line of defence).
+BEGIN;
 
 -- statements go here, for example:
 -- CREATE TABLE example_new (...) STRICT;
@@ -20,5 +24,6 @@ PRAGMA foreign_keys=OFF;
 -- DROP TABLE example;
 -- ALTER TABLE example_new RENAME TO example;
 
+COMMIT;
 PRAGMA foreign_key_check;
 PRAGMA foreign_keys=ON;

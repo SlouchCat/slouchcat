@@ -161,6 +161,8 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_CACHE_DIR` | `/cache` | Cache-Ordner |
 | `SLOUCHCAT_LOG_FORMAT` | `json` | `json` oder `text` |
 | `SLOUCHCAT_LOG_LEVEL` | `info` | Log-Stufe |
+| `SLOUCHCAT_TRUSTED_PROXIES` | leer | Welche Proxys `X-Forwarded-For` setzen dürfen: leer = niemand, `private` = RFC-1918-Netze, Loopback und `fc00::/7`, sonst eine kommagetrennte CIDR-Liste. Siehe «HTTPS mit Caddy» |
+| `SLOUCHCAT_DOMAIN`, `ACME_EMAIL` | (nur Compose, `.env`) | Host-Name und ACME-Adresse für das Profil `https`; sie lesen Caddy, nicht der Server |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
 | `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES` | `all`, `compute,video,utility` | für das NVIDIA Container Toolkit |
 
@@ -170,6 +172,253 @@ Das Image definiert den Healthcheck selbst (`slouchcat healthcheck` ruft
 `http://127.0.0.1:8096/api/v1/healthz` auf; kein curl im Image), Compose übernimmt ihn:
 Intervall 5 s, Timeout 2 s, Startphase 1 s mit Prüfung jede Sekunde (`--start-interval`, Docker Engine
 ab 25), 3 Versuche.
+
+## HTTPS mit Caddy (Compose-Profil `https`)
+
+Das Profil `https` startet zusätzlich zum Server einen Caddy (`caddy:2.10`), der TLS beendet und an
+`slouchcat:8096` weiterreicht. Ohne das Profil läuft Caddy nicht und es ändert sich nichts. Der Server
+setzt das `Secure`-Attribut am Sitzungs-Cookie anhand von `X-Forwarded-Proto`; Caddy sendet den Header
+selbst. Browser verlangen HTTPS für Dienste wie den Service Worker der PWA (ausser auf `localhost`), für
+Zugriffe von aussen ist das Profil also der vorgesehene Weg.
+
+**Voraussetzungen**
+
+1. Ein DNS-Eintrag (A und gegebenenfalls AAAA) für die Domain, z. B. `media.example.org`, der auf die
+   öffentliche Adresse des Docker-Hosts zeigt. Bei wechselnder Heimadresse ein DynDNS-Name.
+2. Im Router die Ports **80/tcp**, **443/tcp** und **443/udp** (HTTP/3) auf den Docker-Host
+   weiterleiten. Port 80 braucht Let's Encrypt für die Prüfung und Caddy für die Weiterleitung auf HTTPS.
+3. Die Ports 80 und 443 müssen auf dem Host frei sein (kein anderer Webserver).
+
+**Konfiguration** in `.env` (Vorlage `.env.example`):
+
+```bash
+SLOUCHCAT_DOMAIN=media.example.org   # Pflicht; ohne Wert gilt "localhost" (siehe unten)
+ACME_EMAIL=admin@example.org         # optional, für Ablaufhinweise von Let's Encrypt
+SLOUCHCAT_TRUSTED_PROXIES=private    # Caddy läuft im privaten Docker-Netz; nur mit compose.https-only.yaml (s. u.)
+```
+
+`SLOUCHCAT_TRUSTED_PROXIES` ist wichtig: Ohne diese Einstellung ignoriert der Server `X-Forwarded-For` und
+sähe jeden Zugriff als Zugriff von der Caddy-Adresse im Docker-Netz. Das verfälscht die Zuordnung der
+Anmeldeversuche (Begrenzung der Fehlversuche je Client) und das Log.
+
+**`private` ist nur sicher, wenn Port 8096 für nicht vertrauenswürdige Clients unerreichbar ist.** `private`
+vertraut jedem Absender aus einem privaten Netz (RFC 1918, Loopback, `fc00::/7`), nicht nur Caddy. Caddy
+überschreibt `X-Forwarded-For` bei allem, was über ihn läuft, aber ein Gerät im Heimnetz, das direkt auf
+`http://<host>:8096` zugreift, ist ebenfalls ein «privater» Absender und kann den Header selbst setzen und
+sich damit eine beliebige Client-Adresse geben (und so die Begrenzung der Anmeldeversuche je Adresse
+umgehen). Deshalb ist der **normale Weg für das Profil `https`**, den Override `compose.https-only.yaml`
+dazuzunehmen: Dann veröffentlicht der Host Port 8096 gar nicht, und der Server ist nur über Caddy erreichbar.
+Wo 8096 trotzdem im LAN offen bleibt, statt `private` die genaue Adresse oder das Docker-Netz von Caddy als
+CIDR eintragen (`docker network inspect` zeigt es). Die Sperre falscher PINs hängt nicht von dieser
+Einstellung ab (sie zählt je Sitzung und Profil), nur die Begrenzung der Anmeldeversuche je Adresse.
+
+**Start**
+
+```bash
+cd deploy
+mkdir -p config cache
+docker compose --profile https up -d      # oder: task deploy:up:https
+docker compose --profile https logs -f caddy
+```
+
+Caddy startet erst, wenn der Server `healthy` ist (`depends_on`, `service_healthy`).
+
+**Erstes Zertifikat.** Beim ersten Aufruf holt Caddy das Zertifikat von Let's Encrypt (HTTP-01 auf Port 80,
+TLS-ALPN-01 auf Port 443). Das dauert einige Sekunden; im Log erscheint `certificate obtained
+successfully`. Danach ist die Seite unter `https://media.example.org` erreichbar, `http://` leitet
+automatisch um. Die Erneuerung läuft selbstständig (etwa 30 Tage vor Ablauf). Zertifikate und ACME-Konto
+liegen im Volume `caddy_data`: dieses Volume nicht löschen (`docker compose down -v` löscht es), sonst
+fordert Caddy neue Zertifikate an und stösst an die Ratenbegrenzung von Let's Encrypt.
+
+**Konfigurationsprüfung.** `task deploy:caddy:validate` prüft die `Caddyfile` mit dem Caddy-Image (einmal mit
+leerer, einmal mit gesetzter `ACME_EMAIL`).
+
+### Test ohne öffentliche Domain
+
+Mit `SLOUCHCAT_DOMAIN=localhost` stellt Caddy das Zertifikat aus seiner **internen CA** aus; kein DNS, kein
+Router, kein Internet nötig. Der Browser zeigt eine Warnung, solange er der Caddy-CA nicht vertraut (`curl`
+mit `-k`). Das reicht, um Login, `Secure`-Cookie und Streaming über HTTPS zu prüfen. Dasselbe gilt für einen
+Namen im Heimnetz (z. B. `slouchcat.home.arpa` in der lokalen DNS-Auflösung): Let's Encrypt kann ihn nicht
+prüfen, also nimmt man die interne CA. Wer die Warnung auf einem Gerät nicht sehen will, installiert das
+Stammzertifikat der Caddy-CA dort:
+
+```bash
+docker compose --profile https cp caddy:/data/caddy/pki/authorities/local/root.crt ./caddy-root.crt
+```
+
+### Domain nicht aus dem Internet erreichbar
+
+Let's Encrypt prüft über Port 80/443; ist der Host von aussen nicht erreichbar (kein Portforwarding,
+CGNAT), schlägt die Ausstellung fehl. Dann gibt es drei Wege:
+
+- **Interne CA** (siehe oben): `tls internal` im Site-Block der `Caddyfile`, der Name darf beliebig sein.
+- **Eigenes Zertifikat** (z. B. von einer eigenen CA oder per DNS-Prüfung andernorts erzeugt): Dateien in
+  einen Ordner legen, ihn in `compose.yaml` beim Dienst `caddy` einbinden
+  (`- ./certs:/certs:ro`) und in der `Caddyfile` im Site-Block ergänzen:
+
+  ```
+  tls /certs/fullchain.pem /certs/privkey.pem
+  ```
+
+- **DNS-Challenge:** braucht ein Caddy-Image mit dem Plug-in des DNS-Anbieters; das liefert Slouchcat nicht
+  mit. Wer das braucht, nimmt den Weg «Eigener Reverse-Proxy» mit einem selbst gebauten Caddy.
+
+Nach einer Änderung an der `Caddyfile`: `docker compose --profile https up -d --force-recreate caddy`.
+
+### Zugriff im LAN auf Port 8096
+
+`compose.yaml` veröffentlicht den Server weiterhin auf Port **8096** (HTTP, ohne TLS). Das ist für das
+Heimnetz bequem, aber ungeschützt: Passwörter und Sitzungs-Cookie laufen dort im Klartext, und das Cookie
+ist ohne `X-Forwarded-Proto: https` nicht `Secure`. Der Router darf 8096 nie weiterleiten. Mit dem Profil
+`https` ist der Override `compose.https-only.yaml` der empfohlene Normalfall: Er veröffentlicht 8096 nicht
+mehr, der Server ist nur über Caddy erreichbar, und `SLOUCHCAT_TRUSTED_PROXIES=private` ist dann sicher
+(Docker Compose ab 2.24):
+
+```bash
+docker compose -f compose.yaml -f compose.https-only.yaml --profile https up -d
+```
+
+Der Healthcheck im Container und die Verbindung von Caddy laufen im Docker-Netz und brauchen die
+Veröffentlichung nicht. Im LAN lässt sich `https://media.example.org` auch von innen erreichen, wenn der
+Router "NAT loopback" kann oder die lokale DNS-Auflösung den Namen auf die LAN-Adresse des Hosts setzt.
+
+## Eigener Reverse-Proxy
+
+Wer schon einen Reverse-Proxy betreibt (nginx, Traefik, ein externer Caddy, ein Router mit Proxy), lässt
+das Profil `https` weg und leitet auf `http://<Docker-Host>:8096` weiter. Der Server stellt an den Proxy
+diese Anforderungen:
+
+| Anforderung | Grund |
+|---|---|
+| `X-Forwarded-Proto: https` weiterreichen | Der Server setzt das Sitzungs-Cookie nur dann mit `Secure`, wenn die Anfrage über HTTPS kam; ohne den Header bekommt der Browser ein unsicheres Cookie |
+| `X-Forwarded-For` setzen (am besten überschreiben, nicht anhängen) und `SLOUCHCAT_TRUSTED_PROXIES` auf die Adresse des Proxys setzen | Sonst sieht der Server nur die Proxy-Adresse als Client. Eine Adresse oder ein Netz als CIDR (`172.18.0.0/16`), im privaten Netz `private`. Nie `0.0.0.0/0` eintragen: dann kann jeder Aufrufer seine Adresse fälschen |
+| Keine Pufferung von Antworten für `/api/v1/items/*/stream` und `/api/v1/playback/*` | Range-Anfragen (Spulen) und lange HLS-Antworten sollen sofort durchlaufen; Pufferung füllt die Platte des Proxys und verzögert den Start |
+| Anfragekörper mindestens 1 MB erlauben | nginx begrenzt standardmässig auf 1 MB (`client_max_body_size`) |
+| Lese- und Leerlauf-Timeouts mindestens 60 s | Segmentantworten warten auf den Transcoder; nginx `proxy_read_timeout` steht auf 60 s |
+| HTTP/2 und HTTP/3 zum Browser sind in Ordnung | Zum Server genügt HTTP/1.1 |
+| Kein WebSocket nötig | Der Server nutzt keine WebSockets |
+| Keine zusätzliche Kompression nötig | Der Server komprimiert selbst, was sich lohnt; Bilder und Video sind bereits komprimiert |
+
+Der Proxy muss die Anfragen unverändert an die Wurzel weiterreichen (kein Unterpfad wie `/slouchcat/`;
+die PWA erwartet die Wurzel einer Domain). Der Healthcheck-Pfad `/api/v1/healthz` ist nicht
+anmeldepflichtig und eignet sich für die Überwachung durch den Proxy.
+
+### nginx
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name media.example.org;
+    # ssl_certificate / ssl_certificate_key ...
+
+    client_max_body_size 10m;
+
+    location / {
+        proxy_pass http://192.168.1.50:8096;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For   $remote_addr;   # überschreibt, hängt nichts an
+        proxy_set_header Connection        "";
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    location ~ ^/api/v1/(items/[^/]+/stream|playback/) {
+        proxy_pass http://192.168.1.50:8096;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header Connection        "";
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}
+```
+
+`$remote_addr` statt `$proxy_add_x_forwarded_for`: ein Aufrufer kann sonst eigene Einträge vorne anhängen.
+Steht vor nginx noch ein weiterer Proxy, gehört dessen Adresse in `SLOUCHCAT_TRUSTED_PROXIES`.
+
+### Traefik
+
+Traefik setzt `X-Forwarded-Proto` und `X-Forwarded-For` selbst und überschreibt gefälschte Werte von
+Clients. Steht Traefik selbst hinter einem weiteren Proxy (z. B. Cloudflare), muss dessen Netz am
+Einstiegspunkt unter `forwardedHeaders.trustedIPs` stehen, sonst sieht Slouchcat die Adresse dieses
+Proxys. Als Labels am Dienst `slouchcat` (Traefik und Slouchcat im selben Docker-Netz, Port 8096 nicht
+veröffentlichen, `compose.https-only.yaml`):
+
+```yaml
+services:
+  slouchcat:
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.slouchcat.rule=Host(`media.example.org`)
+      - traefik.http.routers.slouchcat.entrypoints=websecure
+      - traefik.http.routers.slouchcat.tls.certresolver=letsencrypt
+      - traefik.http.services.slouchcat.loadbalancer.server.port=8096
+      - traefik.http.services.slouchcat.loadbalancer.responseforwarding.flushinterval=-1ms
+```
+
+Als Datei (dynamische Konfiguration) gleichwertig:
+
+```yaml
+http:
+  routers:
+    slouchcat:
+      rule: Host(`media.example.org`)
+      entryPoints: [websecure]
+      tls: { certResolver: letsencrypt }
+      service: slouchcat
+  services:
+    slouchcat:
+      loadBalancer:
+        servers:
+          - url: http://slouchcat:8096
+        responseForwarding:
+          flushInterval: -1ms
+```
+
+Traefik puffert Antworten nicht, solange keine `buffering`-Middleware gesetzt ist. Am Einstiegspunkt
+`respondingTimeouts.writeTimeout` auf `0` lassen (Standard), sonst bricht Traefik lange Streams ab. In der
+`.env` des Slouchcat-Stacks `SLOUCHCAT_TRUSTED_PROXIES` auf das Docker-Netz von Traefik setzen (`private`
+genügt dort).
+
+### Externer Caddy
+
+Läuft Caddy auf einem anderen Rechner oder ausserhalb von Compose:
+
+```
+media.example.org {
+	reverse_proxy 192.168.1.50:8096 {
+		flush_interval -1
+	}
+}
+```
+
+Caddy setzt `X-Forwarded-For` und `X-Forwarded-Proto` selbst und hat standardmässig weder Körpergrenze
+noch Lese-Timeout. Auf dem Slouchcat-Host `SLOUCHCAT_TRUSTED_PROXIES` auf die Adresse dieses Caddy setzen
+(z. B. `192.168.1.10/32` oder `private`).
+
+### Prüfen
+
+```bash
+curl -sS -D - https://media.example.org/api/v1/auth/session          # 401, Set-Cookie mit "Secure"
+# Der Datenstrom prüft das Stream-Token (?st=), nicht das Cookie: Token und URL kommen aus startPlayback.
+STREAM=$(curl -sS -b cookie.txt -H 'X-Requested-With: Slouchcat' -H 'Content-Type: application/json' \
+  -X POST -d '{}' https://media.example.org/api/v1/items/<id>/play | jq -r .streamUrl)
+curl -sS -D - -o /dev/null -H 'Range: bytes=0-99' "https://media.example.org$STREAM"   # 206 und Content-Range
+```
+
+(`cookie.txt` stammt aus einer Anmeldung mit `curl -c cookie.txt`, danach `selectProfile`, falls das Konto
+mehrere Profile hat; bei HLS-Titeln ist `streamUrl` eine Playlist statt des Direktstroms.)
+
+Das Cookie `slouchcat_session` muss das Attribut `Secure` tragen; fehlt es, kommt `X-Forwarded-Proto` nicht
+an. Im Server-Log steht bei Anmeldungen die Adresse des Clients; steht dort die Adresse des Proxys, fehlt
+`SLOUCHCAT_TRUSTED_PROXIES` oder `X-Forwarded-For`.
 
 ## GPU-Overrides
 

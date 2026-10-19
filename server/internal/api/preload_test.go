@@ -187,15 +187,15 @@ func TestHeroLinkFallsBackToSingleImage(t *testing.T) {
 		want string
 	}{
 		{"large backdrop only", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), Poster: img("poster", "w500")},
-			"</api/v1/items/a/images/backdrop/w1280?v=h>; rel=preload; as=image; fetchpriority=high"},
+			"</api/v1/items/a/images/backdrop/w1280?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
 		{"small backdrop only", model.ItemSummary{ID: "a", BackdropSmall: img("backdrop", "w780")},
-			"</api/v1/items/a/images/backdrop/w780?v=h>; rel=preload; as=image; fetchpriority=high"},
+			"</api/v1/items/a/images/backdrop/w780?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
 		{"poster only", model.ItemSummary{ID: "a", Poster: img("poster", "w500")},
-			"</api/v1/items/a/images/poster/w500?v=h>; rel=preload; as=image; fetchpriority=high"},
+			"</api/v1/items/a/images/poster/w500?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
 		{"no image", model.ItemSummary{ID: "a"}, ""},
 	}
 	for _, tc := range cases {
-		if got := heroLink(tc.item); got != tc.want {
+		if got := heroLink(tc.item, 7); got != tc.want {
 			t.Errorf("%s: heroLink = %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -212,21 +212,21 @@ func TestHeroPrepaint(t *testing.T) {
 		want string
 	}{
 		{"both backdrops", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), BackdropSmall: img("backdrop", "w780")},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h" ` +
-				`srcset="/api/v1/items/a/images/backdrop/w780?v=h 780w, /api/v1/items/a/images/backdrop/w1280?v=h 1280w" sizes="100vw"` + tail},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7" ` +
+				`srcset="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7 780w, /api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7 1280w" sizes="100vw"` + tail},
 		{"large backdrop only", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), Poster: img("poster", "w500")},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280?v=h"` + tail},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7"` + tail},
 		{"small backdrop only", model.ItemSummary{ID: "a", BackdropSmall: img("backdrop", "w780")},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h"` + tail},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7"` + tail},
 		// The carousel blurs a poster; the shell does not paint it ahead.
 		{"poster only", model.ItemSummary{ID: "a", Poster: img("poster", "w500")}, ""},
 		{"no image", model.ItemSummary{ID: "a"}, ""},
 		// Attribute values are escaped even though the URLs are built by the server.
 		{"escaped", model.ItemSummary{ID: "a", Backdrop: &model.Image{Kind: "backdrop", Size: `w1280"><x&`, ContentHash: "h"}},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280&#34;&gt;&lt;x&amp;?v=h"` + tail},
+			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280&#34;&gt;&lt;x&amp;?v=h&amp;p=7"` + tail},
 	}
 	for _, tc := range cases {
-		if got := heroPrepaint(tc.item); got != tc.want {
+		if got := heroPrepaint(tc.item, 7); got != tc.want {
 			t.Errorf("%s: heroPrepaint = %q\nwant %q", tc.name, got, tc.want)
 		}
 	}

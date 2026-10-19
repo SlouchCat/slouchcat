@@ -14,6 +14,14 @@ const problemKeys = {
   csrf_header_missing: 'errors.code.csrf_header_missing',
   validation_failed: 'errors.code.validation_failed',
   transcode_busy: 'errors.code.transcode_busy',
+  pin_required: 'errors.code.pin_required',
+  pin_invalid: 'errors.code.pin_invalid',
+  pin_locked: 'errors.code.pin_locked',
+  profile_required: 'errors.code.profile_required',
+  primary_profile_required: 'errors.code.primary_profile_required',
+  primary_profile: 'errors.code.primary_profile',
+  invitation_gone: 'errors.code.invitation_gone',
+  too_many_attempts: 'errors.code.too_many_attempts',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
@@ -22,6 +30,12 @@ const fieldKeys = {
   too_short: 'errors.field.too_short',
   too_long: 'errors.field.too_long',
   invalid_email: 'errors.field.invalid_email',
+  above_account_limit: 'errors.field.above_account_limit',
+  unknown_library: 'errors.field.unknown_library',
+  too_many_profiles: 'errors.field.too_many_profiles',
+  already_exists: 'errors.field.already_exists',
+  invalid_value: 'errors.field.invalid',
+  invalid_pin: 'errors.field.pin_format',
   not_absolute: 'errors.field.not_absolute',
   library_path_invalid: 'errors.code.library_path_invalid',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
@@ -83,4 +97,16 @@ export function formErrors(
     fields[rename(fieldError.field)] ??= fieldMessage(t, fieldError.code);
   }
   return { fields, form: problemMessage(t, error) };
+}
+
+/**
+ * Whole seconds the server asked the client to wait: `retryAfterSeconds` of a `pin_locked`
+ * problem, else the `Retry-After` header. Null when the server named none.
+ */
+export function retryAfterSeconds(error: unknown): number | null {
+  if (!isApiError(error)) return null;
+  const fromProblem = error.problem?.retryAfterSeconds;
+  if (fromProblem !== undefined) return Math.max(0, Math.ceil(fromProblem));
+  if (error.retryAfterMs !== null) return Math.max(0, Math.ceil(error.retryAfterMs / 1000));
+  return null;
 }

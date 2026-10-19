@@ -4,3 +4,6 @@ export function formText(data: FormData, name: string, trim = true): string {
   if (typeof value !== 'string') return '';
   return trim ? value.trim() : value;
 }
+
+/** Shortest password the server accepts (setup, invitation). */
+export const MIN_PASSWORD = 10;

@@ -20,6 +20,8 @@ func (e serviceProblem) VisitAcceptLibraryLossResponse(w http.ResponseWriter) er
 	return e.visit(w)
 }
 
+func (e serviceProblem) VisitSetItemRatingResponse(w http.ResponseWriter) error { return e.visit(w) }
+
 func (s *server) ListLibraries(ctx context.Context, _ gen.ListLibrariesRequestObject) (gen.ListLibrariesResponseObject, error) {
 	libs, err := s.opts.Admin.ListLibraries(ctx)
 	if err != nil {
@@ -63,6 +65,32 @@ func (s *server) AcceptLibraryLoss(ctx context.Context, req gen.AcceptLibraryLos
 		return s.problem(ctx, err), nil
 	}
 	return gen.AcceptLibraryLoss202JSONResponse(toLibrary(lib)), nil
+}
+
+func (s *server) SetItemRating(ctx context.Context, req gen.SetItemRatingRequestObject) (gen.SetItemRatingResponseObject, error) {
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("rating", "required")), nil
+	}
+	r, err := s.opts.Admin.SetItemRating(ctx, req.Id, ratingPtr(req.Body.Rating))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	if err := s.recheckStreams(ctx); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.AdminItemRating{
+		Id: r.ID, Kind: gen.ItemKind(r.Kind), Title: r.Title, OwnRating: optRating(r.OwnRating),
+		EffectiveRating: optRating(r.EffectiveRating), RatingSource: optString(r.RatingSource),
+	}
+	return gen.SetItemRating200JSONResponse(out), nil
+}
+
+func optRating(v *int) *gen.Rating {
+	if v == nil {
+		return nil
+	}
+	r := gen.Rating(*v)
+	return &r
 }
 
 // toLibrary maps a library to the contract type; times are UTC.

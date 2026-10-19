@@ -1,7 +1,7 @@
 import styles from './Skeleton.module.css';
 
 interface SkeletonProps {
-  shape?: 'poster' | 'line' | 'title' | 'hero' | 'block';
+  shape?: 'poster' | 'line' | 'title' | 'hero' | 'block' | 'avatar';
 }
 
 /** Placeholder with the final size of the content, so loading never shifts the layout. */

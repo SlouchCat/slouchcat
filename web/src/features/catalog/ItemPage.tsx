@@ -29,7 +29,7 @@ import { ItemMeta } from './ItemMeta';
 import { itemQuery } from './queries';
 import styles from './ItemPage.module.css';
 
-const route = getRouteApi('/_authed/_chrome/items/$itemId');
+const route = getRouteApi('/_authed/_active/_chrome/items/$itemId');
 
 const PLAY_KEY = 'detail-play';
 // Rendered poster width (ItemPage.module.css, wide layout only).

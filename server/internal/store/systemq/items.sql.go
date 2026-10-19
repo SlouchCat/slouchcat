@@ -574,6 +574,34 @@ func (q *Queries) SoftDeleteItemsMissingSince(ctx context.Context, arg SoftDelet
 	return result.RowsAffected()
 }
 
+const updateItemRatingOverride = `-- name: UpdateItemRatingOverride :exec
+UPDATE items
+SET own_rating = ?1, rating_source = ?2, locked_fields = ?3, updated_at = ?4
+WHERE id = ?5 AND deleted_at IS NULL
+`
+
+type UpdateItemRatingOverrideParams struct {
+	OwnRating    sql.NullInt64
+	RatingSource sql.NullString
+	LockedFields string
+	Now          int64
+	ID           string
+}
+
+// Administrator override of the age rating (M2): own_rating, rating_source ('manual', or the value
+// the caller restores when the override is cleared) and locked_fields in one statement, so the
+// triggers recompute the effective rating of the title and its descendants.
+func (q *Queries) UpdateItemRatingOverride(ctx context.Context, arg UpdateItemRatingOverrideParams) error {
+	_, err := q.db.ExecContext(ctx, updateItemRatingOverride,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.LockedFields,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
 const updateMediaFileKeyframes = `-- name: UpdateMediaFileKeyframes :exec
 UPDATE media_files SET keyframes = ?1, keyframes_at = ?2, updated_at = ?2 WHERE id = ?3
 `

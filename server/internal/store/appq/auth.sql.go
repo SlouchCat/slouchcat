@@ -51,7 +51,7 @@ func (q *Queries) DeleteSetting(ctx context.Context, key string) error {
 }
 
 const getAccount = `-- name: GetAccount :one
-SELECT id, email, password_hash, role, created_at, updated_at FROM accounts WHERE id = ?1
+SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at FROM accounts WHERE id = ?1
 `
 
 func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
@@ -64,12 +64,16 @@ func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxRating,
+		&i.AllLibraries,
+		&i.InvitedBy,
+		&i.LastSeenAt,
 	)
 	return i, err
 }
 
 const getAccountByEmail = `-- name: GetAccountByEmail :one
-SELECT id, email, password_hash, role, created_at, updated_at FROM accounts WHERE email = ?1
+SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at FROM accounts WHERE email = ?1
 `
 
 func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (Account, error) {
@@ -82,12 +86,16 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (Account,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxRating,
+		&i.AllLibraries,
+		&i.InvitedBy,
+		&i.LastSeenAt,
 	)
 	return i, err
 }
 
 const getDefaultProfile = `-- name: GetDefaultProfile :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id LIMIT 1
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id LIMIT 1
 `
 
 func (q *Queries) GetDefaultProfile(ctx context.Context, accountID int64) (Profile, error) {
@@ -105,12 +113,13 @@ func (q *Queries) GetDefaultProfile(ctx context.Context, accountID int64) (Profi
 		&i.IsDefault,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PinHash,
 	)
 	return i, err
 }
 
 const getProfile = `-- name: GetProfile :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at FROM profiles WHERE id = ?1
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash FROM profiles WHERE id = ?1
 `
 
 func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
@@ -128,12 +137,13 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
 		&i.IsDefault,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PinHash,
 	)
 	return i, err
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT id, token_hash, account_id, profile_id, user_agent, created_at, last_seen_at, expires_at, revoked_at FROM sessions WHERE token_hash = ?1 AND revoked_at IS NULL AND expires_at > ?2
+SELECT id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at FROM sessions WHERE token_hash = ?1 AND revoked_at IS NULL AND expires_at > ?2
 `
 
 type GetSessionByTokenHashParams struct {
@@ -149,6 +159,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, arg GetSessionByTok
 		&i.TokenHash,
 		&i.AccountID,
 		&i.ProfileID,
+		&i.DeviceID,
 		&i.UserAgent,
 		&i.CreatedAt,
 		&i.LastSeenAt,
@@ -172,7 +183,7 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 const insertAccount = `-- name: InsertAccount :one
 INSERT INTO accounts (email, password_hash, role, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?4)
-RETURNING id, email, password_hash, role, created_at, updated_at
+RETURNING id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at
 `
 
 type InsertAccountParams struct {
@@ -197,14 +208,18 @@ func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (A
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MaxRating,
+		&i.AllLibraries,
+		&i.InvitedBy,
+		&i.LastSeenAt,
 	)
 	return i, err
 }
 
 const insertProfile = `-- name: InsertProfile :one
-INSERT INTO profiles (account_id, name, max_rating, language, all_libraries, is_default, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)
-RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at
+INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash
 `
 
 type InsertProfileParams struct {
@@ -212,8 +227,10 @@ type InsertProfileParams struct {
 	Name         string
 	MaxRating    int64
 	Language     string
+	Accent       sql.NullString
 	AllLibraries int64
 	IsDefault    int64
+	PinHash      sql.NullString
 	Now          int64
 }
 
@@ -223,8 +240,10 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 		arg.Name,
 		arg.MaxRating,
 		arg.Language,
+		arg.Accent,
 		arg.AllLibraries,
 		arg.IsDefault,
+		arg.PinHash,
 		arg.Now,
 	)
 	var i Profile
@@ -240,20 +259,22 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 		&i.IsDefault,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PinHash,
 	)
 	return i, err
 }
 
 const insertSession = `-- name: InsertSession :one
-INSERT INTO sessions (token_hash, account_id, profile_id, user_agent, created_at, last_seen_at, expires_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?5, ?6)
-RETURNING id, token_hash, account_id, profile_id, user_agent, created_at, last_seen_at, expires_at, revoked_at
+INSERT INTO sessions (token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6, ?7)
+RETURNING id, token_hash, account_id, profile_id, device_id, user_agent, created_at, last_seen_at, expires_at, revoked_at
 `
 
 type InsertSessionParams struct {
 	TokenHash string
 	AccountID int64
-	ProfileID int64
+	ProfileID sql.NullInt64
+	DeviceID  sql.NullString
 	UserAgent sql.NullString
 	Now       int64
 	ExpiresAt int64
@@ -264,6 +285,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (S
 		arg.TokenHash,
 		arg.AccountID,
 		arg.ProfileID,
+		arg.DeviceID,
 		arg.UserAgent,
 		arg.Now,
 		arg.ExpiresAt,
@@ -274,6 +296,7 @@ func (q *Queries) InsertSession(ctx context.Context, arg InsertSessionParams) (S
 		&i.TokenHash,
 		&i.AccountID,
 		&i.ProfileID,
+		&i.DeviceID,
 		&i.UserAgent,
 		&i.CreatedAt,
 		&i.LastSeenAt,

@@ -54,6 +54,7 @@ type Service struct {
 	params argonParams
 
 	attempts attemptLimiter
+	pinMu    sync.Mutex // serialises PIN checks (pin.go)
 
 	dummyOnce sync.Once
 	dummyHash string
@@ -177,7 +178,7 @@ func (s *Service) CreateOwner(ctx context.Context, email, password, language str
 		return model.Account{}, model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "owner account created", "account_id", acc.ID, "profile_id", prof.ID)
-	return toAccount(acc), toProfile(prof), nil
+	return toAccount(acc, nil), toProfile(prof, nil), nil
 }
 
 // profileName is the local part of the e-mail, cut to the column limit.
@@ -232,14 +233,29 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent string) 
 	if !ok {
 		return model.Session{}, "", model.ErrInvalidCredentials
 	}
-	prof, err := s.read.GetDefaultProfile(ctx, acc.ID)
-	if err != nil {
-		return model.Session{}, "", fmt.Errorf("default profile of account %d: %w", acc.ID, err)
-	}
 	if _, err := s.DeleteExpiredSessions(ctx); err != nil {
 		s.log.WarnContext(ctx, "delete expired sessions", "err", err)
 	}
-	return s.StartSession(ctx, toAccount(acc), toProfile(prof), userAgent)
+	profiles, err := s.read.ListProfilesByAccount(ctx, acc.ID)
+	if err != nil {
+		return model.Session{}, "", fmt.Errorf("profiles of account %d: %w", acc.ID, err)
+	}
+	// Exactly one profile without PIN is chosen right away; otherwise the client shows the picker.
+	var active appq.Profile
+	if len(profiles) == 1 && !profiles[0].PinHash.Valid {
+		active = profiles[0]
+	}
+	account, err := s.accountModel(ctx, s.read, acc)
+	if err != nil {
+		return model.Session{}, "", err
+	}
+	var profile model.Profile
+	if active.ID != 0 {
+		if profile, err = s.profileModel(ctx, s.read, active); err != nil {
+			return model.Session{}, "", err
+		}
+	}
+	return s.StartSession(ctx, account, profile, userAgent)
 }
 
 // verify checks password against encoded (the dummy hash when encoded is empty) in an argon2id
@@ -268,7 +284,9 @@ func (s *Service) dummy() string {
 	return s.dummyHash
 }
 
-// StartSession creates a session for account and profile and returns it with the plain token.
+// StartSession creates a session for account and returns it with the plain token. A zero profile
+// starts the session without an active profile (the client shows the picker). The device of the
+// request (model.DeviceID) is remembered with the session.
 func (s *Service) StartSession(ctx context.Context, account model.Account, profile model.Profile, userAgent string) (model.Session, string, error) {
 	raw := make([]byte, tokenBytes)
 	if _, err := rand.Read(raw); err != nil {
@@ -278,14 +296,20 @@ func (s *Service) StartSession(ctx context.Context, account model.Account, profi
 	now := s.now()
 	expires := now.Add(SessionLifetime)
 	ua := sql.NullString{String: truncate(userAgent, maxUserAgentLen), Valid: userAgent != ""}
+	device, err := s.sessionDevice(ctx, userAgent)
+	if err != nil {
+		return model.Session{}, "", err
+	}
 	row, err := s.write.InsertSession(ctx, appq.InsertSessionParams{
-		TokenHash: hashToken(token), AccountID: account.ID, ProfileID: profile.ID, UserAgent: ua,
-		Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli(),
+		TokenHash: hashToken(token), AccountID: account.ID,
+		ProfileID: sql.NullInt64{Int64: profile.ID, Valid: profile.ID != 0},
+		DeviceID:  sql.NullString{String: device, Valid: true},
+		UserAgent: ua, Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli(),
 	})
 	if err != nil {
 		return model.Session{}, "", fmt.Errorf("insert session: %w", err)
 	}
-	return model.Session{ID: row.ID, Account: account, Profile: profile, ExpiresAt: time.UnixMilli(row.ExpiresAt)}, token, nil
+	return model.Session{ID: row.ID, Account: account, Profile: profile, DeviceID: device, ExpiresAt: time.UnixMilli(row.ExpiresAt)}, token, nil
 }
 
 // Resolve returns the session of a plain token, extending it when it was last touched more than
@@ -303,25 +327,81 @@ func (s *Service) Resolve(ctx context.Context, token string) (session model.Sess
 	if err != nil {
 		return model.Session{}, false, fmt.Errorf("get session: %w", err)
 	}
-	acc, err := s.read.GetAccount(ctx, row.AccountID)
+	session, err = s.loadSession(ctx, s.read, row)
 	if err != nil {
-		return model.Session{}, false, notFoundOr(err, "get account")
+		return model.Session{}, false, err
 	}
-	prof, err := s.read.GetProfile(ctx, row.ProfileID)
-	if err != nil {
-		return model.Session{}, false, notFoundOr(err, "get profile")
-	}
-	expires := time.UnixMilli(row.ExpiresAt)
 	if now.Sub(time.UnixMilli(row.LastSeenAt)) >= touchInterval {
 		next := now.Add(SessionLifetime)
 		if err := s.write.TouchSession(ctx, appq.TouchSessionParams{ID: row.ID, Now: now.UnixMilli(), ExpiresAt: next.UnixMilli()}); err != nil {
 			// The session stays valid until its old expiry; a failed touch must not log the user out.
 			s.log.WarnContext(ctx, "touch session", "session_id", row.ID, "err", err)
 		} else {
-			expires, extended = next, true
+			session.ExpiresAt, extended = next, true
+			if err := s.write.TouchAccount(ctx, appq.TouchAccountParams{ID: row.AccountID, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}); err != nil {
+				s.log.WarnContext(ctx, "touch account", "account_id", row.AccountID, "err", err)
+			}
+			if err := s.write.UpsertDevice(ctx, appq.UpsertDeviceParams{ID: session.DeviceID, Now: now.UnixMilli()}); err != nil {
+				s.log.WarnContext(ctx, "touch device", "session_id", row.ID, "err", err)
+			}
 		}
 	}
-	return model.Session{ID: row.ID, Account: toAccount(acc), Profile: toProfile(prof), ExpiresAt: expires}, extended, nil
+	return session, extended, nil
+}
+
+// loadSession builds the model session of a session row: account and profile with their library
+// rights (loaded only for restricted accounts and profiles).
+func (s *Service) loadSession(ctx context.Context, q *appq.Queries, row appq.Session) (model.Session, error) {
+	acc, err := q.GetAccount(ctx, row.AccountID)
+	if err != nil {
+		return model.Session{}, notFoundOr(err, "get account")
+	}
+	account, err := s.accountModel(ctx, q, acc)
+	if err != nil {
+		return model.Session{}, err
+	}
+	session := model.Session{ID: row.ID, Account: account, DeviceID: row.DeviceID.String, ExpiresAt: time.UnixMilli(row.ExpiresAt)}
+	if !row.DeviceID.Valid {
+		// A session from before migration 00007 gets its device now, fixed for its lifetime.
+		var err error
+		if session.DeviceID, err = s.assignDevice(ctx, row.ID); err != nil {
+			return model.Session{}, err
+		}
+	}
+	if row.ProfileID.Valid {
+		prof, err := q.GetProfile(ctx, row.ProfileID.Int64)
+		if err != nil {
+			return model.Session{}, notFoundOr(err, "get profile")
+		}
+		if session.Profile, err = s.profileModel(ctx, q, prof); err != nil {
+			return model.Session{}, err
+		}
+	}
+	return session, nil
+}
+
+// accountModel maps an account row; guests get their library rights.
+func (s *Service) accountModel(ctx context.Context, q *appq.Queries, a appq.Account) (model.Account, error) {
+	var libs []int64
+	if a.AllLibraries != 1 {
+		var err error
+		if libs, err = q.ListAccountLibraries(ctx, a.ID); err != nil {
+			return model.Account{}, fmt.Errorf("account libraries: %w", err)
+		}
+	}
+	return toAccount(a, libs), nil
+}
+
+// profileModel maps a profile row; a profile with restricted libraries gets them.
+func (s *Service) profileModel(ctx context.Context, q *appq.Queries, p appq.Profile) (model.Profile, error) {
+	var libs []int64
+	if p.AllLibraries != 1 {
+		var err error
+		if libs, err = q.ListProfileLibraries(ctx, p.ID); err != nil {
+			return model.Profile{}, fmt.Errorf("profile libraries: %w", err)
+		}
+	}
+	return toProfile(p, libs), nil
 }
 
 // Logout revokes the session and, in the same transaction, every playback session it started, so
@@ -347,7 +427,11 @@ func (s *Service) Logout(ctx context.Context, sessionID int64) error {
 	return nil
 }
 
-// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago.
+// deviceRetention is how long a device (and its PIN counters) is kept without use.
+const deviceRetention = 400 * 24 * time.Hour
+
+// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago, and
+// devices and PIN counters unused for 400 days (the lifetime of the device cookie).
 func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	now := s.now()
 	n, err := s.write.DeleteExpiredSessions(ctx, appq.DeleteExpiredSessionsParams{
@@ -356,8 +440,17 @@ func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("delete expired sessions: %w", err)
 	}
+	cutoff := now.Add(-deviceRetention).UnixMilli()
+	if _, err := s.write.DeleteStalePinAttempts(ctx, cutoff); err != nil {
+		return n, fmt.Errorf("delete stale pin attempts: %w", err)
+	}
+	if _, err := s.write.DeleteStaleDevices(ctx, cutoff); err != nil {
+		return n, fmt.Errorf("delete stale devices: %w", err)
+	}
 	return n, nil
 }
+
+func nullInt(v int64) sql.NullInt64 { return sql.NullInt64{Int64: v, Valid: true} }
 
 func notFoundOr(err error, what string) error {
 	if errors.Is(err, sql.ErrNoRows) {
@@ -382,13 +475,22 @@ func truncate(s string, n int) string {
 	return s
 }
 
-func toAccount(a appq.Account) model.Account {
-	return model.Account{ID: a.ID, Email: a.Email, Role: a.Role}
+func toAccount(a appq.Account, libs []int64) model.Account {
+	if libs == nil {
+		libs = []int64{}
+	}
+	return model.Account{
+		ID: a.ID, Email: a.Email, Role: a.Role, MaxRating: int(a.MaxRating), AllLibraries: a.AllLibraries == 1, LibraryIDs: libs,
+	}
 }
 
-func toProfile(p appq.Profile) model.Profile {
+func toProfile(p appq.Profile, libs []int64) model.Profile {
+	if libs == nil {
+		libs = []int64{}
+	}
 	return model.Profile{
 		ID: p.ID, AccountID: p.AccountID, Name: p.Name, MaxRating: int(p.MaxRating), Language: p.Language,
-		AllLibraries: p.AllLibraries == 1, Accent: p.Accent.String,
+		AllLibraries: p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
+		HasPin: p.PinHash.Valid, IsPrimary: p.IsDefault == 1,
 	}
 }

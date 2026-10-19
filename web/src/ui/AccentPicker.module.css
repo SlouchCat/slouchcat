@@ -1,0 +1,38 @@
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+}
+
+.option {
+  display: inline-flex;
+  border-radius: var(--sc-radius-full);
+  cursor: pointer;
+}
+
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-size-control-height);
+  height: var(--sc-size-control-height);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-swatch);
+  color: transparent;
+  transition:
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.option[data-hovered] .swatch {
+  transform: scale(var(--sc-focus-scale));
+}
+
+.option[data-selected] .swatch {
+  color: var(--sc-on-swatch);
+}
+
+.option[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}

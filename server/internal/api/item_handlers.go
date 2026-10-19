@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -55,7 +56,7 @@ func (s *server) GetHome(ctx context.Context, _ gen.GetHomeRequestObject) (gen.G
 	for _, row := range rows {
 		items := make([]gen.ItemRef, 0, len(row.Items))
 		for _, it := range row.Items {
-			items = append(items, toItemRef(it))
+			items = append(items, toItemRef(session.Profile.ID, it))
 		}
 		page.Rows = append(page.Rows, gen.HomeRow{Key: gen.HomeRowKey(row.Key), Items: items})
 	}
@@ -71,7 +72,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	ref := toItemRef(d.ItemSummary)
+	ref := toItemRef(session.Profile.ID, d.ItemSummary)
 	out := gen.ItemDetail{
 		Id:             ref.Id,
 		Kind:           ref.Kind,
@@ -120,7 +121,7 @@ func (s *server) StartPlayback(ctx context.Context, req gen.StartPlaybackRequest
 	}
 	out := gen.PlaybackInfo{
 		Mode:              gen.PlaybackInfoMode(info.Mode),
-		Item:              toItemRef(info.Item),
+		Item:              toItemRef(session.Profile.ID, info.Item),
 		MediaFile:         toMediaFileInfo(info.MediaFile),
 		StreamUrl:         info.StreamURL,
 		ResumePositionMs:  info.ResumePositionMs,
@@ -242,19 +243,21 @@ func abortOnRevoke(w http.ResponseWriter, done <-chan struct{}) func() {
 	}
 }
 
-// imageURL is the scoped image URL of an item with the content hash for cache busting.
-func imageURL(itemID string, img model.Image) string {
-	return BasePath + "/items/" + url.PathEscape(itemID) + "/images/" + img.Kind + "/" + img.Size + "?v=" + url.QueryEscape(img.ContentHash)
+// imageURL is the scoped image URL of an item with the content hash for cache busting and the
+// profile id p, so a browser cache never serves one profile's image to another (the server ignores p).
+func imageURL(itemID string, img model.Image, profileID int64) string {
+	return BasePath + "/items/" + url.PathEscape(itemID) + "/images/" + img.Kind + "/" + img.Size + "?v=" + url.QueryEscape(img.ContentHash) +
+		"&p=" + strconv.FormatInt(profileID, 10)
 }
 
-func toImageRef(itemID string, img *model.Image) *gen.ImageRef {
+func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef {
 	if img == nil {
 		return nil
 	}
-	return &gen.ImageRef{Url: imageURL(itemID, *img), Width: img.Width, Height: img.Height}
+	return &gen.ImageRef{Url: imageURL(itemID, *img, profileID), Width: img.Width, Height: img.Height}
 }
 
-func toItemRef(it model.ItemSummary) gen.ItemRef {
+func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 	ref := gen.ItemRef{
 		Id:             it.ID,
 		Kind:           gen.ItemKind(it.Kind),
@@ -262,12 +265,12 @@ func toItemRef(it model.ItemSummary) gen.ItemRef {
 		Year:           it.Year,
 		RuntimeMinutes: it.RuntimeMinutes,
 		Images: gen.ItemImages{
-			Poster:        toImageRef(it.ID, it.Poster),
-			PosterSmall:   toImageRef(it.ID, it.PosterSmall),
-			PosterLarge:   toImageRef(it.ID, it.PosterLarge),
-			Backdrop:      toImageRef(it.ID, it.Backdrop),
-			BackdropSmall: toImageRef(it.ID, it.BackdropSmall),
-			BackdropLarge: toImageRef(it.ID, it.BackdropLarge),
+			Poster:        toImageRef(it.ID, profileID, it.Poster),
+			PosterSmall:   toImageRef(it.ID, profileID, it.PosterSmall),
+			PosterLarge:   toImageRef(it.ID, profileID, it.PosterLarge),
+			Backdrop:      toImageRef(it.ID, profileID, it.Backdrop),
+			BackdropSmall: toImageRef(it.ID, profileID, it.BackdropSmall),
+			BackdropLarge: toImageRef(it.ID, profileID, it.BackdropLarge),
 		},
 	}
 	if it.Accent != "" {

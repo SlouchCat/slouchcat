@@ -33,8 +33,18 @@ const server = spawn(
     '--log-format',
     'text',
   ],
-  // No TMDB key in the e2e run: titles come from the file names.
-  { stdio: 'inherit', env: { ...process.env, SLOUCHCAT_TMDB_API_KEY: '' } },
+  {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      // No TMDB key in the e2e run: titles come from the file names.
+      SLOUCHCAT_TMDB_API_KEY: '',
+      // The specs that log in, try PINs or open invitation links give every test its own client
+      // address (X-Forwarded-For, e2e/fixtures.ts), so the limit of 10 attempts per minute and
+      // address does not couple tests to each other. The browser connects from the loopback.
+      SLOUCHCAT_TRUSTED_PROXIES: 'private',
+    },
+  },
 );
 
 const cleanup = () => rmSync(root, { recursive: true, force: true });

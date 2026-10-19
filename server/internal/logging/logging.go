@@ -5,8 +5,12 @@
 //
 //   - Attributes whose key names a secret (see sensitiveKeys) get the value "[redacted]", at any
 //     depth of nested groups and for attributes added with Logger.With.
+//
 //   - Query parameters that carry secrets (api_key, st) are masked inside every string value,
 //     inside error messages and inside the log message itself, so a logged URL keeps its shape.
+//
+//   - Invitation tokens in URL paths (/invitations/<token>, /invite/<token>) are masked in every
+//     string value.
 //
 // A new key name that can carry a secret belongs in sensitiveKeys and in the test.
 package logging
@@ -36,7 +40,7 @@ const (
 
 // sensitiveKeys are attribute key suffixes that carry secrets. Keys are compared after lower-casing
 // and removing '-' and '_', so "apiKey", "api_key", "X-Api-Key" and "tmdb_api_key" all match.
-var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret"}
+var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash"}
 
 // sensitiveQuery matches the value of the query parameters api_key and st.
 var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|st)=)[^&;#\s"']*`)
@@ -93,8 +97,15 @@ func (h *RedactingHandler) WithGroup(name string) slog.Handler {
 	return &RedactingHandler{inner: h.inner.WithGroup(name)}
 }
 
-// RedactString masks the values of secret query parameters in s.
+// sensitivePath matches the invitation token in a URL path: /invitations/<token>[/accept] of the
+// API and /invite/<token> of the web app.
+var sensitivePath = regexp.MustCompile(`(?i)(/(?:invitations|invite)/)[A-Za-z0-9_-]{16,}`)
+
+// RedactString masks the values of secret query parameters and invitation tokens in paths in s.
 func RedactString(s string) string {
+	if strings.Contains(s, "/invit") {
+		s = sensitivePath.ReplaceAllString(s, "${1}"+Redacted)
+	}
 	if !strings.Contains(s, "=") {
 		return s
 	}

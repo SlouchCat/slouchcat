@@ -280,3 +280,64 @@ func TestFixtureIDsMatchContract(t *testing.T) {
 		}
 	}
 }
+
+// The fixture's rules (VisibleTo) match the view for every profile and title, including the series
+// tree (AN-9: an episode's own rating counts only when higher, a series needs its smallest child
+// to fit) and the guest account's ceiling and library rights.
+func TestFixtureRulesMatchView(t *testing.T) {
+	f := vistest.New(t)
+	f.AddEdgeCases(t)
+	f.AddSeries(t)
+	f.AddGuest(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+
+	titles := slices.Concat(f.Movies, f.Show.All())
+	profiles := []model.Profile{f.P0, f.P6, f.P12, f.P16, f.P18, f.PX, f.PG, f.PG18}
+	for _, p := range profiles {
+		for _, m := range titles {
+			_, err := r.Item(ctx, Profile(p), m.ID)
+			if want := f.VisibleTo(p, m); (err == nil) != want {
+				t.Errorf("%s on %s %s: visible = %v (err %v), want %v", p.Name, m.Kind, m.Label, err == nil, err, want)
+			}
+		}
+	}
+	// Spot checks of the rules themselves.
+	if !f.VisibleTo(f.P12, f.Show.Series) || !f.VisibleTo(f.P12, f.Show.E1) || f.VisibleTo(f.P12, f.Show.E2) {
+		t.Error("P12 must see the series and E1 but not E2 (own rating 16)")
+	}
+	if f.VisibleTo(f.P6, f.Show.Series) || f.VisibleTo(f.P6, f.Show.Season) {
+		t.Error("P6 must not see a 12-rated series")
+	}
+	if !f.VisibleTo(f.PG18, f.Show.E1) || f.VisibleTo(f.PG18, f.Show.E2) || f.VisibleTo(f.PG18, f.Rated(16)) {
+		t.Error("PG18 is capped to 12 by its account")
+	}
+	if f.VisibleTo(f.PG, f.Movies[len(f.Movies)-3]) { // the library X title of AddEdgeCases
+		t.Error("the guest must not see library X")
+	}
+}
+
+func TestSystemItemRating(t *testing.T) {
+	f := vistest.New(t)
+	f.AddSeries(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+
+	got, err := r.SystemItemRating(ctx, System("test"), f.Show.E2.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != f.Show.E2.ID || got.Kind != "episode" || got.OwnRating == nil || *got.OwnRating != 16 ||
+		got.EffectiveRating == nil || *got.EffectiveRating != 16 {
+		t.Errorf("E2 = %+v", got)
+	}
+	if got, err := r.SystemItemRating(ctx, System("test"), f.Show.E1.ID); err != nil || got.OwnRating != nil || *got.EffectiveRating != 12 {
+		t.Errorf("E1 = %+v, %v; want no own rating and effective 12", got, err)
+	}
+	if _, err := r.SystemItemRating(ctx, Profile(f.P18), f.Show.E2.ID); !errors.Is(err, ErrNotSystem) {
+		t.Errorf("profile scope: %v, want ErrNotSystem", err)
+	}
+	if _, err := r.SystemItemRating(ctx, System("test"), "01J0000000000000000000XXXX"); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("unknown item: %v, want ErrNotFound", err)
+	}
+}
