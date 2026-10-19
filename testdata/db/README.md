@@ -16,3 +16,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Fortschritt und eine beendete Wiedergabesitzung in `playback_sessions` (Migration 00005); `images` ist
   leer, weil ohne TMDB-Schlüssel keine Bilder entstehen (Migration 00006 wird vom Test
   `TestImagesMigrationKeepsM1aRows` mit M1a-Zeilen geprüft).
+- `M2.sql`: Stand nach M2 (Konten, Profile, Zugriff; Migration 00007). Erzeugt mit `server/bin/slouchcat dump`
+  nach einem Lauf gegen einen frischen Server: Hauptkonto `frozen@example.test` mit Filmbibliothek auf
+  `testdata/media/Movies` ohne TMDB-Schlüssel und drei Profilen (Hauptprofil, «Kind» mit PIN und Stufe 6,
+  «Teenager» mit Stufe 12), drei per Administrator übersteuerte Freigaben (6, 12, 16; `rating_source`
+  `manual`, `locked_fields` mit `own_rating`), eine eingelöste Einladung und eine offene Einladung, dazu das
+  Gastkonto `frozen-guest@example.test` (Obergrenze 12, nur Bibliothek 1 in `account_libraries`) mit zwei
+  Profilen. Die Tabellen `devices` (Geräte-Cookie) und `invitation_libraries` sind gefüllt, `pin_attempts`
+  bleibt leer. Der Test `TestMigration00007KeepsFrozenData` prüft zusätzlich, dass M1a und M1b durch
+  Migration 00007 gültig bleiben (Hauptkonto: Stufe 18, alle Bibliotheken, Sitzungen und Hauptprofil erhalten).
