@@ -189,8 +189,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	authSvc := auth.New(db, log)
 	// admin stores and reveals the TMDB key, metadata checks and uses it: the key source is
 	// resolved lazily so both can be constructed without a cycle.
-	keys := &lazyKeys{}
-	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log)
+	keys := &lazyKeys{cfg: cfg}
+	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI))
 	libSvc := library.New(db, queue, runner, log, library.WithImageCheck(metaSvc.QueueIncompleteImages))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithQueue(queue)
@@ -258,20 +258,23 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 // lazyKeys hands the admin service to metadata as its key source after both exist.
 type lazyKeys struct {
 	admin *admin.Service
+	cfg   config.Config
 }
 
 func (k *lazyKeys) TMDBKey(ctx context.Context) (string, error) {
 	return k.admin.TMDBKey(ctx)
 }
 
-// TVDBKey reads the environment until the admin service provides TVDBKey (M3, admin package).
+// TVDBKey returns SLOUCHCAT_TVDB_API_KEY and SLOUCHCAT_TVDB_PIN until the admin service provides
+// TVDBKey with the stored settings (M3, admin package).
 func (k *lazyKeys) TVDBKey(context.Context) (key, pin string, err error) {
-	return os.Getenv("SLOUCHCAT_TVDB_API_KEY"), os.Getenv("SLOUCHCAT_TVDB_PIN"), nil
+	return k.cfg.TVDBAPIKey, k.cfg.TVDBPIN, nil
 }
 
-// YouTubeKey reads the environment until the admin service provides YouTubeKey (M3, admin package).
+// YouTubeKey returns SLOUCHCAT_YOUTUBE_API_KEY until the admin service provides YouTubeKey (M3,
+// admin package).
 func (k *lazyKeys) YouTubeKey(context.Context) (string, error) {
-	return os.Getenv("SLOUCHCAT_YOUTUBE_API_KEY"), nil
+	return k.cfg.YouTubeAPIKey, nil
 }
 
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on

@@ -26,6 +26,11 @@ services:
       SLOUCHCAT_LOG_FORMAT: ${SLOUCHCAT_LOG_FORMAT:-json}
       # Optional: TMDB v4 read access token from .env; the wizard can store it encrypted instead.
       SLOUCHCAT_TMDB_API_KEY: ${SLOUCHCAT_TMDB_API_KEY:-}
+      # Optional providers (README «Metadaten-Anbieter und Trailer»); empty = not used.
+      SLOUCHCAT_TVDB_API_KEY: ${SLOUCHCAT_TVDB_API_KEY:-}
+      SLOUCHCAT_TVDB_PIN: ${SLOUCHCAT_TVDB_PIN:-}
+      SLOUCHCAT_YOUTUBE_API_KEY: ${SLOUCHCAT_YOUTUBE_API_KEY:-}
+      SLOUCHCAT_TRAILER_AI: ${SLOUCHCAT_TRAILER_AI:-off}
       # Empty = ignore X-Forwarded-For; "private" = RFC 1918, loopback and fc00::/7; or a CIDR list.
       # Set it to "private" when the https profile or another reverse proxy is in front (README).
       SLOUCHCAT_TRUSTED_PROXIES: ${SLOUCHCAT_TRUSTED_PROXIES:-}

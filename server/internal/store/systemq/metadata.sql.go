@@ -10,6 +10,40 @@ import (
 	"database/sql"
 )
 
+const assignItemMatch = `-- name: AssignItemMatch :exec
+UPDATE items
+SET tmdb_id        = ?1,
+    tvdb_id        = ?2,
+    imdb_id        = NULL,
+    locked_fields  = ?3,
+    metadata_state = 'pending',
+    metadata_error = NULL,
+    trailer_state  = 'pending',
+    updated_at     = ?4
+WHERE id = ?5 AND deleted_at IS NULL
+`
+
+type AssignItemMatchParams struct {
+	TmdbID       sql.NullInt64
+	TvdbID       sql.NullInt64
+	LockedFields string
+	Now          int64
+	ID           string
+}
+
+// Manual match (B-6): the chosen provider ID, the other provider ID and imdb_id cleared, the IDs
+// locked, metadata and trailers pending until the queued match has run.
+func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams) error {
+	_, err := q.db.ExecContext(ctx, assignItemMatch,
+		arg.TmdbID,
+		arg.TvdbID,
+		arg.LockedFields,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
 const deleteImage = `-- name: DeleteImage :exec
 DELETE FROM images WHERE id = ?1
 `
@@ -301,6 +335,34 @@ func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaFileIDsByItem = `-- name: ListMediaFileIDsByItem :many
+SELECT id FROM media_files WHERE item_id = ?1 ORDER BY id
+`
+
+// The files of a title (refresh probes them again).
+func (q *Queries) ListMediaFileIDsByItem(ctx context.Context, itemID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listMediaFileIDsByItem, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

@@ -163,8 +163,39 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_LOG_LEVEL` | `info` | Log-Stufe |
 | `SLOUCHCAT_TRUSTED_PROXIES` | leer | Welche Proxys `X-Forwarded-For` setzen dürfen: leer = niemand, `private` = RFC-1918-Netze, Loopback und `fc00::/7`, sonst eine kommagetrennte CIDR-Liste. Siehe «HTTPS mit Caddy» |
 | `SLOUCHCAT_DOMAIN`, `ACME_EMAIL` | (nur Compose, `.env`) | Host-Name und ACME-Adresse für das Profil `https`; sie lesen Caddy, nicht der Server |
+| `SLOUCHCAT_TMDB_API_KEY` | leer | TMDB-Lesetoken; übersteuert den im Assistenten gespeicherten Schlüssel |
+| `SLOUCHCAT_TVDB_API_KEY`, `SLOUCHCAT_TVDB_PIN` | leer | TheTVDB (optional), siehe «Metadaten-Anbieter und Trailer» |
+| `SLOUCHCAT_YOUTUBE_API_KEY` | leer | YouTube Data API v3 für Trailer (optional) |
+| `SLOUCHCAT_TRAILER_AI` | `off` | KI-Schritt der Trailer-Suche; in dieser Version nur `off` |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
 | `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES` | `all`, `compute,video,utility` | für das NVIDIA Container Toolkit |
+
+### Metadaten-Anbieter und Trailer
+
+Slouchcat holt Titeldaten, Bilder, Besetzung und Freigaben bei externen Anbietern; jede Installation
+bringt ihre eigenen Schlüssel mit (Entscheid 7, ADR 0006). Schlüssel gehören nur in `deploy/.env`,
+nie ins Repository; das Log maskiert sie.
+
+| Anbieter | Pflicht? | Wofür | Schlüssel |
+|---|---|---|---|
+| TMDB | ja | Filme und Serien (Hauptquelle): Texte de/en, Genres, Freigaben, Besetzung, Poster, Hintergründe, Episodenbilder, Trailer-Liste | Lesetoken (v4) im Einrichtungsassistenten oder `SLOUCHCAT_TMDB_API_KEY` |
+| TheTVDB | nein | Serien, die TMDB nicht kennt, und von Hand zugeordnete TVDB-IDs | `SLOUCHCAT_TVDB_API_KEY`, bei einem nutzerfinanzierten Schlüssel («user-supported») zusätzlich die Abonnenten-PIN als `SLOUCHCAT_TVDB_PIN`; die Lizenzbedingungen stehen auf thetvdb.com |
+| YouTube Data API v3 | nein | Trailer für Deutsch und Englisch, wenn TMDB keinen nennt | `SLOUCHCAT_YOUTUBE_API_KEY` (kostenlos) |
+
+YouTube-Schlüssel in drei Schritten: In der Google Cloud Console (`console.cloud.google.com`) ein neues
+Projekt anlegen und unter «APIs & Dienste → Bibliothek» die «YouTube Data API v3» aktivieren. Danach
+unter «Anmeldedaten» mit «Anmeldedaten erstellen → API-Schlüssel» einen Schlüssel erzeugen. Den
+Schlüssel in `deploy/.env` als `SLOUCHCAT_YOUTUBE_API_KEY` eintragen und den Container neu starten.
+
+Das kostenlose Kontingent beträgt 10'000 Einheiten pro Tag; eine Suche kostet 100, die Abfrage der
+Videodetails 1 Einheit, also höchstens rund 100 Suchen täglich. Das Kontingent beginnt um Mitternacht
+pazifischer Zeit (9 Uhr MEZ, 10 Uhr MESZ) neu. Ist es aufgebraucht, bleibt der Trailer eines Titels
+«ausstehend» und wird nach dem nächsten Bibliotheks-Scan erneut gesucht. Slouchcat speichert nur die
+Video-ID und spielt Trailer über `youtube-nocookie.com` ein; es lädt nie etwas von YouTube herunter.
+Von Hand eingetragene Trailer (Verwaltung eines Titels) bleiben bei jeder Aktualisierung erhalten.
+
+`SLOUCHCAT_TRAILER_AI` ist für einen späteren KI-Schritt der Trailer-Suche reserviert; in dieser
+Version gibt es nur `off` (ein anderer Wert erzeugt eine Warnung im Log und bleibt wirkungslos).
 
 ### Healthcheck
 

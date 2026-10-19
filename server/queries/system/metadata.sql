@@ -67,6 +67,24 @@ WHERE i.library_id = @library_id AND i.deleted_at IS NULL AND i.metadata_state =
                   WHERE j.idempotency_key = 'match:' || i.id AND j.state IN ('queued', 'running'))
 ORDER BY i.id;
 
+-- name: AssignItemMatch :exec
+-- Manual match (B-6): the chosen provider ID, the other provider ID and imdb_id cleared, the IDs
+-- locked, metadata and trailers pending until the queued match has run.
+UPDATE items
+SET tmdb_id        = @tmdb_id,
+    tvdb_id        = @tvdb_id,
+    imdb_id        = NULL,
+    locked_fields  = @locked_fields,
+    metadata_state = 'pending',
+    metadata_error = NULL,
+    trailer_state  = 'pending',
+    updated_at     = @now
+WHERE id = @id AND deleted_at IS NULL;
+
+-- name: ListMediaFileIDsByItem :many
+-- The files of a title (refresh probes them again).
+SELECT id FROM media_files WHERE item_id = @item_id ORDER BY id;
+
 -- name: SetItemMetadataState :exec
 UPDATE items
 SET metadata_state = @metadata_state,
