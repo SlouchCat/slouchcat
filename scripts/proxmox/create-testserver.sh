@@ -51,8 +51,10 @@ fi
 
 echo "== template (Debian 13 standard)"
 pveam update >/dev/null
-template="$(pveam available --section system | awk '/debian-13-standard/ {print $2}' | sort | tail -1)"
-[[ -n "$template" ]] || { echo "error: no debian-13-standard template offered by pveam" >&2; exit 1; }
+# Match the host architecture: a plain sort would pick arm64 over amd64 and the CT would never start.
+arch="$(dpkg --print-architecture)"
+template="$(pveam available --section system | awk -v a="_${arch}.tar" '/debian-13-standard/ && index($2, a) {print $2}' | sort -V | tail -1)"
+[[ -n "$template" ]] || { echo "error: no debian-13-standard template for $arch offered by pveam" >&2; exit 1; }
 if ! pveam list "$TEMPLATE_STORAGE" | grep -q "$template"; then
   pveam download "$TEMPLATE_STORAGE" "$template"
 fi

@@ -121,8 +121,10 @@ lokalen Override-Datei `.dev/compose.m1a.yaml` (Testfilme unter `/testfilme`, Sp
 3. Stream-Token (5.4), Bildpipeline (WebP, Grössen, Akzentfarbe), HLS/Remux, Design-Feinschliff, arm64.
 4. `inotify_poll`-Abweichungen und Scan-Fehler erscheinen erst mit dem Dashboard (M8) in der Oberfläche;
    bis dahin Log und `/admin/libraries`.
-5. Proxmox-Testcontainer als schwaches NAS anlegen (Entscheid 2, vor M1b): Spezifikation und Skripte liegen
-   in `docs/dev/TESTSERVER.md` und `scripts/proxmox/`; es fehlt die SSH-Verbindung zum Proxmox-Host in
-   Claude Desktop (Marco), dann legt Claude den Container an und misst SMB.
+5. Proxmox-Testcontainer als schwaches NAS (Entscheid 2, vor M1b): CT 190 `slouchcat-nas` läuft seit
+   2026-10-19 auf `pve2` (Debian 13 amd64, 2 Kerne, 4 GB, Docker 29 mit Compose, Samba-Freigabe `media`,
+   Platzhalterbaum mit 60'800 Dateien unter `/srv/media/placeholder-tree`), siehe `docs/dev/TESTSERVER.md`.
+   Offen: `smbpasswd -a media` im Container (Marco), SMB-Lastmessung mit `watchbench` über CIFS
+   (`docs/perf/M1a.md` 1b).
 6. GitHub Actions: Workflow `.github/workflows/ci.yml` läuft seit dem Push dieses Branches; Ergebnis auf
    GitHub prüfen (der Lauf braucht ffmpeg, Playwright-Browser und `task testdata:media`, alles im Workflow).

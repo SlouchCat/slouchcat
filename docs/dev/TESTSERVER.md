@@ -24,7 +24,7 @@ Zugang, GPU-Durchreichung und Limits sind vor M1b festzulegen; dieses Dokument l
 | Root-Disk | 16 GB | System, Docker-Image (≈ 0.5 GB), Cache |
 | Daten-Disk | Mountpoint `/srv/media`, 64 GB | Platzhalterbaum (leer) und einige echte Testdateien |
 | Features | `nesting=1,keyctl=1` | Docker im unprivilegierten CT |
-| GPU | keine (Startwert) | Software-Transcoding ist die dokumentierte Ausnahme AN-17; `/dev/dri` kann später durchgereicht werden, falls der Proxmox-Host eine iGPU hat |
+| GPU | keine (Startwert) | Software-Transcoding ist die dokumentierte Ausnahme AN-17. Der Host `pve2` hat eine Intel UHD 630 (`/dev/dri/renderD128`); sie wird erst für die QSV/VAAPI-Messung in M1b durchgereicht |
 | Netz | `vmbr0`, DHCP, Hostname `slouchcat-nas` | gleiches LAN wie Entwicklungsrechner und NAS |
 | Dienste | Samba (Freigabe `media`), Docker + Compose-Plugin, Python 3 (Baum-Generator) | NFS-Server läuft in unprivilegierten CTs nicht zuverlässig; NFS bleibt Sache des echten NAS |
 | Zugang | SSH mit Schlüssel als `root` (CT), aus Claude Desktop als gespeicherte SSH-Verbindung | kein Passwort im Repo oder Chat |
@@ -48,8 +48,14 @@ mitgeliefert), nicht über das Netz geschrieben.
 
 ```bash
 # Vorgabe: VMID 190, Storage local-lvm, Bridge vmbr0; alle Werte sind Variablen des Skripts.
-bash create-testserver.sh --vmid 190 --storage local-lvm --bridge vmbr0 --ssh-key ~/.ssh/id_ed25519.pub
+# Auf pve2 heisst der Storage local-zfs.
+bash create-testserver.sh --vmid 190 --storage local-zfs --bridge vmbr0 --ssh-key ~/.ssh/id_ed25519.pub
 ```
+
+Das Skript erwartet `testdata/generate-library-tree.py` zwei Ebenen über sich; auf dem Host also die
+Repo-Struktur unter `/root/slouchcat/` nachbilden (`scripts/proxmox/`, `testdata/`). Das Template wird nach
+Host-Architektur gewählt (`dpkg --print-architecture`); eine reine Sortierung hätte `arm64` vor `amd64`
+genommen, der CT wäre dann nicht gestartet.
 
 Das Skript lädt das Debian-13-Template (`pveam`), erzeugt den CT mit den Werten der Tabelle, startet ihn,
 kopiert `setup-nas.sh` und `generate-library-tree.py` hinein und führt die Einrichtung aus. Am Ende druckt
@@ -78,8 +84,16 @@ MEDIA_DIR=/srv/media docker compose -f deploy/compose.yaml up -d --build
 Messungen nach `docs/perf/M1b.md`: `healthy`-Zeit, Leerlauf-RSS, Scan des Platzhalterbaums, Transcode-Start
 ohne GPU (AN-17).
 
+## Stand
+
+CT 190 `slouchcat-nas` wurde am 2026-10-19 auf `pve2` angelegt (Storage `local-zfs`, DHCP-Adresse im LAN).
+Geprüft: SSH als `root` mit Marcos Schlüssel, Debian 13 amd64, 2 Kerne, 4 GB, Docker 29.9 mit Compose v5
+(`hello-world` läuft), `smbd` aktiv und Freigabe `media` vom Entwicklungsrechner anonym sichtbar,
+Platzhalterbaum mit 60'800 Dateien in 2.7 s erzeugt.
+
 ## Noch offen
 
-- Proxmox-Host: iGPU vorhanden? Falls ja, `/dev/dri` als `lxc.cgroup2.devices.allow` + `lxc.mount.entry`
-  durchreichen (QSV/VAAPI-Messung in M1b); sonst bleibt die GPU-Zeile bei «keine».
-- SSH-Verbindung in Claude Desktop (Marco).
+- `smbpasswd -a media` im Container (Marco, Passwort nur dort).
+- SMB-Lastmessung mit `watchbench` über CIFS (Abschnitt oben), Ergebnis nach `docs/perf/M1a.md` 1b.
+- GPU: `/dev/dri/renderD128` des Hosts erst für die QSV/VAAPI-Messung in M1b per
+  `lxc.cgroup2.devices.allow` + `lxc.mount.entry` durchreichen.
