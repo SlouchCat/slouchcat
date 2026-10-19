@@ -38,6 +38,27 @@ Reserve ist mit rund 12 s knapp. Die Schwankung der Durchläufe (3–11 s) kommt
 kleine Freigabe `/mnt/nerdnas/medien/Testfilme` (13 Ordner, 45 Dateien) braucht 2.6–5.9 ms je Durchlauf.
 SMB ist nicht gemessen (keine SMB-Freigabe eingerichtet); der Proxmox-Testcontainer (Entscheid 2) folgt vor M1b.
 
+### 1b. Derselbe Baum über SMB (Proxmox-Testcontainer, Entscheid 2)
+
+Testcontainer 190 `slouchcat-nas` auf pve2 (`docs/dev/TESTSERVER.md`: 2 vCPU, 4 GB, Debian 13, Samba),
+Baum mit `setup-nas.sh` im Container erzeugt, auf dem Entwicklungsrechner per CIFS gemountet
+(`vers=3.1.1`, `cache=strict`). Messung 19. Oktober 2026, 11:30–11:55, Stand vor dem Poller-Umbau.
+
+| Messung | Wert | Grenzwert |
+|---|---|---|
+| Stat-Durchlauf des Pollers (seriell), 5 Läufe | 48.9 / 48.3 / 48.6 / 49.2 / 49.1 s | < 15 s je 10'000 Dateien, d. h. < 91 s für 60'800 (eingehalten), aber |
+| Adaptives Intervall daraus | 2 min 27 s | |
+| Python-Vergleich: alle 8'212 Ordner nur `stat` | 17.3 s | |
+| Python-Vergleich: alle Listings ohne Attribute / mit Attributen | 52.4 s / 54.5 s | |
+| Voll-Scan `Movies/` (2'500 Filmordner, erste Anlage) über SMB | 73.2 s | |
+| Rescan ohne Änderungen über SMB | 53.9 s | |
+| Neuer Filmordner (im Container angelegt) bis Titel sichtbar | **445 s** | < 60 s (B-4) **verfehlt** |
+
+Befund: CIFS kostet rund 6 ms je Verzeichnislisting und 2 ms je `stat`; Poller und Scanner arbeiten
+seriell. Zwei Massnahmen folgen in diesem Meilenstein: paralleles Listen im Poller (Worker-Pool) und ein
+Pfad-Scan (`scan.path`) nur für die geänderten Ordner, damit nach der Erkennung nicht die ganze Bibliothek
+erneut gelesen wird. Mit Radarr/Sonarr-Webhook (M9) entfällt das Polling ohnehin (AN-12).
+
 ## 2. Scanner
 
 | Messung | Wert |
