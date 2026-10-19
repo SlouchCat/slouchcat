@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -99,7 +100,7 @@ func newAuthEnv(t *testing.T) *authEnv {
 	tmdb := &authTestTMDB{}
 	adm := admin.New(db, a, &authTestLibraries{}, ring, tmdb, func(string) string { return "" }, log)
 	h := NewHandler(Options{
-		Version: "test", Started: time.Now(), Logger: log, Web: http.NotFoundHandler(), Auth: a, Admin: adm,
+		Version: "test", Started: time.Now(), Logger: log, Web: http.NotFoundHandler(), Auth: a, Profiles: a, Access: a, Admin: adm,
 	})
 	return &authEnv{h: h, db: db, auth: a, tmdb: tmdb, logs: &logs}
 }
@@ -183,7 +184,7 @@ func TestSetupFlowEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &info); err != nil {
 		t.Fatal(err)
 	}
-	if info.Account.Email != "marco@example.ch" || info.Account.Role != gen.Owner || info.Profile.Name != "marco" ||
+	if info.Account.Email != "marco@example.ch" || info.Account.Role != gen.AccountRoleOwner || info.Profile == nil || info.Profile.Name != "marco" ||
 		info.Profile.Language != gen.En || info.Profile.MaxRating != 18 {
 		t.Fatalf("session info = %+v", info)
 	}
@@ -200,7 +201,7 @@ func TestSetupFlowEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &again); err != nil {
 		t.Fatal(err)
 	}
-	if again != info {
+	if !reflect.DeepEqual(again, info) {
 		t.Fatalf("GET session = %+v, want %+v", again, info)
 	}
 
@@ -288,7 +289,7 @@ func TestLoginFailures(t *testing.T) {
 		if code := problemCode(t, rec); code != "invalid_credentials" {
 			t.Fatalf("code = %s", code)
 		}
-		if len(rec.Result().Cookies()) != 0 {
+		if len(cookiesNamed(rec, SessionCookie)) != 0 {
 			t.Fatal("failed login set a cookie")
 		}
 	}
@@ -300,7 +301,7 @@ func TestLoginFailures(t *testing.T) {
 }
 
 // The eleventh login of one client within a minute answers 429 too_many_attempts; another client
-// (X-Forwarded-For) still gets through. Setup attempts count the same way.
+// address still gets through. Setup attempts count the same way.
 func TestLoginTooManyAttempts(t *testing.T) {
 	e := newAuthEnv(t)
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
@@ -313,7 +314,7 @@ func TestLoginTooManyAttempts(t *testing.T) {
 	if code := problemCode(t, rec); code != "too_many_attempts" {
 		t.Fatalf("code = %s", code)
 	}
-	if rec.Header().Get("Retry-After") == "" || len(rec.Result().Cookies()) != 0 {
+	if rec.Header().Get("Retry-After") == "" || len(cookiesNamed(rec, SessionCookie)) != 0 {
 		t.Errorf("429 headers = %v", rec.Header())
 	}
 	rec = e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
@@ -322,7 +323,7 @@ func TestLoginTooManyAttempts(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(`{"email":"marco@example.ch","password":"`+authTestPassword+`"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(CSRFHeader, CSRFHeaderValue)
-	req.Header.Set("X-Forwarded-For", "203.0.113.9")
+	req.RemoteAddr = "203.0.113.9:4711"
 	other := httptest.NewRecorder()
 	e.h.ServeHTTP(other, req)
 	wantStatus(t, other, http.StatusOK)

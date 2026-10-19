@@ -8,11 +8,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/config"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -27,12 +29,18 @@ func (fakeAuth) Logout(context.Context, int64) error { return nil }
 func (fakeAuth) Resolve(_ context.Context, token string) (model.Session, bool, error) {
 	switch token {
 	case "owner":
-		return model.Session{ID: 1, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de"}}, false, nil
+		return model.Session{ID: 1, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true}}, false, nil
+	case "nopro":
+		// Signed in as the owner, profile not chosen yet.
+		return model.Session{ID: 4, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}}, false, nil
+	case "kid":
+		// The owner's account with a non-primary profile.
+		return model.Session{ID: 5, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 3, Name: "Kind", MaxRating: 6, Language: "de"}}, false, nil
 	case "guest":
 		return model.Session{ID: 2, Account: model.Account{ID: 2, Email: "g@b.c", Role: "guest"}, Profile: model.Profile{ID: 2, Name: "Gast", MaxRating: 18, Language: "en"}}, false, nil
 	case "sliding":
 		// Resolve moved the expiry of this session.
-		return model.Session{ID: 3, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de"},
+		return model.Session{ID: 3, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true},
 			ExpiresAt: slidingExpiry}, true, nil
 	}
 	return model.Session{}, false, model.ErrNotFound
@@ -89,6 +97,12 @@ func TestAuthorizeByVisibility(t *testing.T) {
 		{name: "scoped without session", method: "GET", path: "/api/v1/auth/session", wantStatus: 401, wantCode: "unauthenticated"},
 		{name: "scoped with bad token", method: "GET", path: "/api/v1/home", token: "nope", wantStatus: 401, wantCode: "unauthenticated"},
 		{name: "scoped with session reaches handler", method: "GET", path: "/api/v1/home", token: "owner", wantStatus: 500, allowInternal: true},
+		{name: "account without profile passes", method: "GET", path: "/api/v1/auth/session", token: "nopro", wantStatus: 200},
+		{name: "account profile list reaches handler", method: "GET", path: "/api/v1/auth/profiles", token: "nopro", wantStatus: 500, allowInternal: true},
+		{name: "scoped without profile", method: "GET", path: "/api/v1/home", token: "nopro", wantStatus: 403, wantCode: "profile_required"},
+		{name: "image without profile", method: "GET", path: "/api/v1/items/01ARZ3NDEKTSV4RRFFQ69G5FAV/images/poster/w400", token: "nopro", wantStatus: 403, wantCode: "profile_required"},
+		{name: "admin with non-primary profile", method: "GET", path: "/api/v1/admin/libraries", token: "kid", wantStatus: 403, wantCode: "forbidden"},
+		{name: "admin without profile", method: "GET", path: "/api/v1/admin/libraries", token: "nopro", wantStatus: 403, wantCode: "forbidden"},
 		{name: "admin as guest", method: "GET", path: "/api/v1/admin/libraries", token: "guest", wantStatus: 403, wantCode: "forbidden"},
 		{name: "admin as owner reaches handler", method: "GET", path: "/api/v1/admin/libraries", token: "owner", wantStatus: 500, allowInternal: true},
 		{name: "post without csrf header", method: "POST", path: "/api/v1/auth/logout", token: "owner", wantStatus: 403, wantCode: "csrf_header_missing"},
@@ -127,7 +141,7 @@ func TestEveryRouteHasVisibility(t *testing.T) {
 		t.Fatalf("only %d routes with x-visibility", len(vis))
 	}
 	for route, v := range vis {
-		if v != "public" && v != "scoped" && v != "admin" {
+		if v != "public" && v != "account" && v != "scoped" && v != "admin" {
 			t.Errorf("%s: unusable x-visibility %q", route, v)
 		}
 	}
@@ -148,6 +162,12 @@ func TestMapError(t *testing.T) {
 		model.ErrLibraryPathInvalid:                              {422, "library_path_invalid"},
 		model.ErrTMDBKeyInvalid:                                  {422, "tmdb_key_invalid"},
 		model.ErrTMDBUnreachable:                                 {422, "tmdb_unreachable"},
+		model.ErrPinRequired:                                     {403, "pin_required"},
+		model.ErrPinInvalid:                                      {403, "pin_invalid"},
+		&model.PinLockedError{RetryAfter: 90 * time.Second}:      {429, "pin_locked"},
+		model.ErrPrimaryProfileRequired:                          {403, "primary_profile_required"},
+		model.ErrPrimaryProfile:                                  {409, "primary_profile"},
+		model.ErrInvitationGone:                                  {410, "invitation_gone"},
 		(&model.ValidationError{}).Add("email", "invalid_email"): {422, "validation_failed"},
 		errors.New("boom"):                                       {500, "internal_error"},
 	}
@@ -214,8 +234,8 @@ func TestAuthorizeReissuesExtendedSessionCookie(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d (%s)", rec.Code, rec.Body.String())
 	}
-	cookies := rec.Result().Cookies()
-	if len(cookies) != 1 || cookies[0].Name != SessionCookie || cookies[0].Value != "sliding" || !cookies[0].HttpOnly {
+	cookies := cookiesNamed(rec, SessionCookie)
+	if len(cookies) != 1 || cookies[0].Value != "sliding" || !cookies[0].HttpOnly {
 		t.Fatalf("cookies = %+v, want the refreshed session cookie", cookies)
 	}
 	if !cookies[0].Expires.Equal(slidingExpiry) || cookies[0].MaxAge <= 0 {
@@ -223,33 +243,71 @@ func TestAuthorizeReissuesExtendedSessionCookie(t *testing.T) {
 	}
 
 	rec = request(t, h, http.MethodGet, "/api/v1/auth/session", "owner", false)
-	if n := len(rec.Result().Cookies()); n != 0 {
-		t.Errorf("unchanged session set %d cookies", n)
+	if n := len(cookiesNamed(rec, SessionCookie)); n != 0 {
+		t.Errorf("unchanged session set %d session cookies", n)
 	}
 
 	// Logout of an extended session leaves only the clearing cookie.
 	rec = request(t, h, http.MethodPost, "/api/v1/auth/logout", "sliding", true)
-	if cookies := rec.Result().Cookies(); len(cookies) != 1 || cookies[0].MaxAge != -1 {
+	if cookies := cookiesNamed(rec, SessionCookie); len(cookies) != 1 || cookies[0].MaxAge != -1 {
 		t.Errorf("logout cookies = %+v, want only the clearing one", cookies)
 	}
 }
 
+func cookiesNamed(rec *httptest.ResponseRecorder, name string) []*http.Cookie {
+	var out []*http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == name {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 func TestClientIP(t *testing.T) {
-	cases := []struct{ remote, xff, want string }{
-		{"192.0.2.1:1234", "", "192.0.2.1"},
-		{"192.0.2.1:1234", "203.0.113.5, 10.0.0.1", "203.0.113.5"},
-		{"[2001:db8::1]:443", "", "2001:db8::1"},
-		{"192.0.2.1:1234", "not-an-ip", "192.0.2.1"},
-		{"192.0.2.1:1234", "::ffff:198.51.100.2", "198.51.100.2"},
+	private, err := config.ParseTrustedProxies("private")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cidr, err := config.ParseTrustedProxies("203.0.113.0/24, 2001:db8::1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name         string
+		trusted      []netip.Prefix
+		remote, xff  string
+		want         string
+		xffHeaderTwo string
+	}{
+		{name: "no proxies: header ignored", remote: "192.0.2.1:1234", xff: "203.0.113.5, 10.0.0.1", want: "192.0.2.1"},
+		{name: "no proxies: plain address", remote: "192.0.2.1:1234", want: "192.0.2.1"},
+		{name: "ipv6 remote", remote: "[2001:db8::1]:443", want: "2001:db8::1"},
+		{name: "private proxy, client in header", trusted: private, remote: "10.0.0.2:1234", xff: "198.51.100.7", want: "198.51.100.7"},
+		{name: "private proxy, chain: nearest untrusted hop", trusted: private, remote: "172.16.0.9:1", xff: "6.6.6.6, 198.51.100.7, 10.0.0.1", want: "198.51.100.7"},
+		{name: "private proxy, forged left entries are skipped", trusted: private, remote: "192.168.1.2:1", xff: "1.2.3.4", xffHeaderTwo: "198.51.100.7", want: "198.51.100.7"},
+		{name: "private proxy, loopback", trusted: private, remote: "127.0.0.1:5", xff: "198.51.100.9", want: "198.51.100.9"},
+		{name: "private proxy, unique local ipv6", trusted: private, remote: "[fd00::5]:5", xff: "2001:db8::77", want: "2001:db8::77"},
+		{name: "untrusted peer: header ignored", trusted: private, remote: "192.0.2.1:1234", xff: "198.51.100.7", want: "192.0.2.1"},
+		{name: "malformed chain is not believed", trusted: private, remote: "10.0.0.2:1", xff: "not-an-ip", want: "10.0.0.2"},
+		{name: "mapped ipv4", trusted: private, remote: "10.0.0.2:1", xff: "::ffff:198.51.100.2", want: "198.51.100.2"},
+		{name: "only trusted hops: first entry", trusted: private, remote: "10.0.0.2:1", xff: "10.1.1.1, 10.0.0.3", want: "10.1.1.1"},
+		{name: "cidr list and single address", trusted: cidr, remote: "203.0.113.9:1", xff: "198.51.100.1", want: "198.51.100.1"},
+		{name: "cidr list: outside", trusted: cidr, remote: "10.0.0.9:1", xff: "198.51.100.1", want: "10.0.0.9"},
 	}
 	for _, tc := range cases {
-		req := httptest.NewRequest(http.MethodPost, "/x", nil)
-		req.RemoteAddr = tc.remote
-		if tc.xff != "" {
-			req.Header.Set("X-Forwarded-For", tc.xff)
-		}
-		if got := clientIP(req); got != tc.want {
-			t.Errorf("clientIP(%q, %q) = %q, want %q", tc.remote, tc.xff, got, tc.want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/x", nil)
+			req.RemoteAddr = tc.remote
+			if tc.xff != "" {
+				req.Header.Add("X-Forwarded-For", tc.xff)
+			}
+			if tc.xffHeaderTwo != "" {
+				req.Header.Add("X-Forwarded-For", tc.xffHeaderTwo)
+			}
+			if got := clientIP(req, tc.trusted); got != tc.want {
+				t.Errorf("clientIP = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

@@ -82,6 +82,7 @@ func TestIsSensitiveKey(t *testing.T) {
 	for key, want := range map[string]bool{
 		"password": true, "PIN": true, "offline_pin": true, "access_token": true, "api_key": true,
 		"apiKey": true, "X-Api-Key": true, "authorization": true, "secret": true,
+		"pin_hash": true, "profile_pin": true, "invitation_token": true, "token_hash": true, "password_hash": true, "device_id": false, "content_hash": false,
 		"user": false, "path": false, "max_tokens": false, "mapping": false, "status": false,
 	} {
 		if got := isSensitiveKey(key); got != want {

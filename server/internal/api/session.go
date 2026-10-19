@@ -2,10 +2,14 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"net"
 	"net/http"
 	"net/netip"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,10 +24,14 @@ import (
 // Session cookie and CSRF header (plan 3.8 point 7, contract description).
 const (
 	SessionCookie     = "slouchcat_session"
+	DeviceCookie      = "slouchcat_device"
 	CSRFHeader        = "X-Requested-With"
 	CSRFHeaderValue   = "Slouchcat"
 	sessionCookieDays = 30
+	deviceCookieDays  = 400
 )
+
+var deviceIDPattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 type sessionKey struct{}
 
@@ -69,9 +77,11 @@ func csrfOK(r *http.Request) bool {
 }
 
 // authorize runs after routing (chi knows the pattern) and enforces the x-visibility of the
-// operation: public passes, scoped needs a session, admin needs the owner. It stores the session
-// in the context for the handlers. The cookie is read for every operation, so a public operation
-// can still see who is logged in.
+// operation: public passes; account needs a session (profile optional); scoped needs a session with
+// an active profile (403 profile_required without); admin needs the owner with the primary profile
+// active (403 forbidden otherwise). It stores the session in the context for the handlers. The
+// cookie is read for every operation, so a public operation can still see who is logged in. A
+// request without a valid device cookie gets one (PIN locks count per profile and device).
 func (p problems) authorize(auth AuthService, visibility map[string]string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +91,7 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				return
 			}
 			ctx := context.WithValue(r.Context(), requestKey{}, r)
+			ctx = model.WithDeviceID(ctx, ensureDeviceCookie(w, r))
 			session, token, extended, hasSession := resolveSession(ctx, auth, r)
 			if hasSession {
 				ctx = context.WithValue(ctx, sessionKey{}, session)
@@ -94,7 +105,7 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 			vis, known := visibility[r.Method+" "+pattern]
 			switch {
 			case known && vis == "public":
-			case !known || vis == "system":
+			case !known || vis == "system" || !validVisibility[vis]:
 				p.log.WarnContext(ctx, "route without usable x-visibility", "method", r.Method, "pattern", pattern, "visibility", vis)
 				p.write(w, r, http.StatusUnauthorized, "unauthenticated", "")
 				return
@@ -102,13 +113,41 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				clearSessionCookie(w, r)
 				p.write(w, r, http.StatusUnauthorized, "unauthenticated", "A valid session is required.")
 				return
-			case vis == "admin" && !session.IsOwner():
-				p.write(w, r, http.StatusForbidden, "forbidden", "Only the main account may do this.")
+			case vis == "admin" && (!session.IsOwner() || !session.IsPrimary()):
+				p.write(w, r, http.StatusForbidden, "forbidden", "Only the main account with its primary profile may do this.")
+				return
+			case vis == "scoped" && !session.HasProfile():
+				p.write(w, r, http.StatusForbidden, "profile_required", "Choose a profile first.")
 				return
 			}
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// validVisibility lists the x-visibility values the middleware enforces; any other value fails
+// closed.
+var validVisibility = map[string]bool{"public": true, "account": true, "scoped": true, "admin": true}
+
+// ensureDeviceCookie returns the device id of the request and sets the cookie when the request has
+// none (or a malformed one): 128 random bits as 32 hex characters.
+func ensureDeviceCookie(w http.ResponseWriter, r *http.Request) string {
+	if c, err := r.Cookie(DeviceCookie); err == nil && deviceIDPattern.MatchString(c.Value) {
+		return c.Value
+	}
+	var b [16]byte
+	_, _ = rand.Read(b[:]) // crypto/rand.Read never fails
+	id := hex.EncodeToString(b[:])
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: Secure depends on the transport, see setSessionCookie
+		Name:     DeviceCookie,
+		Value:    id,
+		Path:     "/",
+		MaxAge:   deviceCookieDays * 24 * 3600,
+		HttpOnly: true,
+		Secure:   isTLS(r),
+		SameSite: http.SameSiteLaxMode,
+	})
+	return id
 }
 
 // resolveSession returns the session of the cookie with its token and whether Resolve extended it.
@@ -127,23 +166,47 @@ func resolveSession(ctx context.Context, auth AuthService, r *http.Request) (ses
 	return s, c.Value, extended, true
 }
 
-// clientIP is the address the login and setup attempt limit counts: the first X-Forwarded-For
-// entry when it is a valid address (reverse proxy), else the host of RemoteAddr.
-func clientIP(r *http.Request) string {
+// clientIP is the address the attempt limits count. Without trusted proxies it is the host of
+// RemoteAddr and X-Forwarded-For is ignored (anyone could set it). When RemoteAddr is a trusted
+// proxy, the address is the last X-Forwarded-For entry that is not itself a trusted proxy (the
+// client as the nearest proxy saw it), or the first entry when every hop is trusted.
+func clientIP(r *http.Request, trusted []netip.Prefix) string {
 	if r == nil {
 		return ""
 	}
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		first, _, _ := strings.Cut(xff, ",")
-		if ip, err := netip.ParseAddr(strings.TrimSpace(first)); err == nil {
-			return ip.Unmap().String()
-		}
-	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
 	}
-	return host
+	remote, err := netip.ParseAddr(host)
+	if err != nil || len(trusted) == 0 || !inPrefixes(trusted, remote.Unmap()) {
+		return host
+	}
+	hops := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
+	for i := len(hops) - 1; i >= 0; i-- {
+		ip, err := netip.ParseAddr(strings.TrimSpace(hops[i]))
+		if err != nil {
+			return remote.Unmap().String() // a malformed chain is not believed
+		}
+		if ip = ip.Unmap(); !inPrefixes(trusted, ip) || i == 0 {
+			return ip.String()
+		}
+	}
+	return remote.Unmap().String()
+}
+
+func inPrefixes(prefixes []netip.Prefix, ip netip.Addr) bool {
+	for _, p := range prefixes {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// clientAddr is clientIP of the request in ctx with the configured trusted proxies.
+func (s *server) clientAddr(ctx context.Context) string {
+	return clientIP(requestFrom(ctx), s.opts.TrustedProxies)
 }
 
 // setSessionCookie writes the session cookie. Secure is set when the request arrived over TLS,
@@ -174,20 +237,53 @@ func isTLS(r *http.Request) bool {
 // sessionExpiry is the sliding lifetime of a browser session.
 func sessionExpiry(now time.Time) time.Time { return now.Add(sessionCookieDays * 24 * time.Hour) }
 
-// toSessionInfo maps a session to the contract type.
+// toSessionInfo maps a session to the contract type; the profile is absent until one is chosen.
 func toSessionInfo(s model.Session) gen.SessionInfo {
-	return gen.SessionInfo{
-		Account: gen.Account{Id: s.Account.ID, Email: types.Email(s.Account.Email), Role: gen.Owner},
-		Profile: toProfile(s.Profile),
+	info := gen.SessionInfo{Account: toAccount(s.Account)}
+	if s.HasProfile() {
+		p := toProfile(s.Profile)
+		info.Profile = &p
+	}
+	return info
+}
+
+func toAccount(a model.Account) gen.Account {
+	role := gen.AccountRoleOwner
+	if a.Role == "guest" {
+		role = gen.AccountRoleGuest
+	}
+	return gen.Account{
+		Id: a.ID, Email: types.Email(a.Email), Role: role, MaxRating: gen.Rating(a.MaxRating),
+		AllLibraries: a.AllLibraries, LibraryIds: nonNil(a.LibraryIDs),
 	}
 }
 
 func toProfile(p model.Profile) gen.Profile {
-	out := gen.Profile{Id: p.ID, Name: p.Name, MaxRating: gen.Rating(p.MaxRating), Language: gen.Language(p.Language)}
+	out := gen.Profile{
+		Id: p.ID, Name: p.Name, MaxRating: gen.Rating(p.MaxRating), Language: gen.Language(p.Language),
+		AllLibraries: p.AllLibraries, LibraryIds: nonNil(p.LibraryIDs), HasPin: p.HasPin, IsPrimary: p.IsPrimary,
+	}
 	if p.Accent != "" {
-		out.Accent = &p.Accent
+		a := gen.Accent(p.Accent)
+		out.Accent = &a
 	}
 	return out
+}
+
+func toProfileSummary(p model.Profile) gen.ProfileSummary {
+	out := gen.ProfileSummary{Id: p.ID, Name: p.Name, HasPin: p.HasPin, IsPrimary: p.IsPrimary}
+	if p.Accent != "" {
+		a := gen.Accent(p.Accent)
+		out.Accent = &a
+	}
+	return out
+}
+
+func nonNil(ids []int64) []int64 {
+	if ids == nil {
+		return []int64{}
+	}
+	return ids
 }
 
 // mapError turns a service error into a problem response. Handlers call it for every error they
@@ -202,6 +298,24 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrTooManyAttempts):
 		w.Header().Set("Retry-After", "60")
 		p.write(w, r, http.StatusTooManyRequests, "too_many_attempts", "Too many attempts; wait a minute and try again.")
+	case errors.Is(err, model.ErrPinLocked):
+		var locked *model.PinLockedError
+		secs := 1
+		if errors.As(err, &locked) {
+			secs = max(1, int((locked.RetryAfter+time.Second-1)/time.Second))
+		}
+		w.Header().Set("Retry-After", strconv.Itoa(secs))
+		p.writeProblem(w, r, http.StatusTooManyRequests, "pin_locked", "Too many wrong PINs; the profile is locked on this device.", nil, &secs)
+	case errors.Is(err, model.ErrPinRequired):
+		p.write(w, r, http.StatusForbidden, "pin_required", "This profile is protected by a PIN.")
+	case errors.Is(err, model.ErrPinInvalid):
+		p.write(w, r, http.StatusForbidden, "pin_invalid", "The PIN is wrong.")
+	case errors.Is(err, model.ErrPrimaryProfileRequired):
+		p.write(w, r, http.StatusForbidden, "primary_profile_required", "Only the account's primary profile may manage profiles.")
+	case errors.Is(err, model.ErrPrimaryProfile):
+		p.write(w, r, http.StatusConflict, "primary_profile", "The primary profile of an account cannot be deleted.")
+	case errors.Is(err, model.ErrInvitationGone):
+		p.write(w, r, http.StatusGone, "invitation_gone", "The invitation link was used, has expired or was revoked.")
 	case errors.Is(err, model.ErrSetupDone):
 		p.write(w, r, http.StatusConflict, "setup_done", "The setup wizard already ran.")
 	case errors.Is(err, model.ErrLibraryPathInvalid):
@@ -232,5 +346,5 @@ func (p problems) writeValidation(w http.ResponseWriter, r *http.Request, verr *
 	for _, f := range verr.Fields {
 		fields = append(fields, gen.FieldError{Field: f.Field, Code: f.Code})
 	}
-	p.writeProblem(w, r, http.StatusUnprocessableEntity, "validation_failed", "One or more fields are invalid.", fields)
+	p.writeProblem(w, r, http.StatusUnprocessableEntity, "validation_failed", "One or more fields are invalid.", fields, nil)
 }

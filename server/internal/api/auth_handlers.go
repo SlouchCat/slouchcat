@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -34,6 +35,24 @@ func (e serviceProblem) VisitLoginResponse(w http.ResponseWriter) error         
 func (e serviceProblem) VisitLogoutResponse(w http.ResponseWriter) error         { return e.visit(w) }
 func (e serviceProblem) VisitGetSessionResponse(w http.ResponseWriter) error     { return e.visit(w) }
 
+// clearSiteDataCache tells the browser to drop cached responses (images of the previous profile).
+const clearSiteDataCache = `"cache"`
+
+// dropSessionCookie removes the session cookie lines the authorize middleware may have written
+// (a sliding refresh) and keeps the others, notably the device cookie.
+func dropSessionCookie(h http.Header) {
+	kept := h.Values("Set-Cookie")[:0:0]
+	for _, c := range h.Values("Set-Cookie") {
+		if !strings.HasPrefix(c, SessionCookie+"=") {
+			kept = append(kept, c)
+		}
+	}
+	h.Del("Set-Cookie")
+	for _, c := range kept {
+		h.Add("Set-Cookie", c)
+	}
+}
+
 func (s *server) problem(ctx context.Context, err error) serviceProblem {
 	return serviceProblem{p: s.p, r: requestFrom(ctx), err: err}
 }
@@ -52,7 +71,7 @@ func (s sessionStarted) visit(w http.ResponseWriter) error {
 	if err := json.NewEncoder(&buf).Encode(toSessionInfo(s.session)); err != nil {
 		return err
 	}
-	w.Header().Del("Set-Cookie") // a cookie refreshed by the middleware gives way to the new one
+	dropSessionCookie(w.Header()) // a cookie refreshed by the middleware gives way to the new one
 	setSessionCookie(w, s.r, s.token, s.session.ExpiresAt)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -63,13 +82,34 @@ func (s sessionStarted) visit(w http.ResponseWriter) error {
 
 func (s sessionStarted) VisitRunSetupResponse(w http.ResponseWriter) error { return s.visit(w) }
 func (s sessionStarted) VisitLoginResponse(w http.ResponseWriter) error    { return s.visit(w) }
+func (s sessionStarted) VisitAcceptInvitationResponse(w http.ResponseWriter) error {
+	return s.visit(w)
+}
+
+// sessionSwitched answers selectProfile: the session continues with the chosen profile (same
+// cookie) and the browser drops its cached images.
+type sessionSwitched struct{ session model.Session }
+
+func (s sessionSwitched) VisitSelectProfileResponse(w http.ResponseWriter) error {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(toSessionInfo(s.session)); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Clear-Site-Data", clearSiteDataCache)
+	w.WriteHeader(http.StatusOK)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 // loggedOut clears the cookie and answers 204.
 type loggedOut struct{ r *http.Request }
 
 func (l loggedOut) VisitLogoutResponse(w http.ResponseWriter) error {
-	w.Header().Del("Set-Cookie") // a cookie refreshed by the middleware must not survive the logout
+	dropSessionCookie(w.Header()) // a cookie refreshed by the middleware must not survive the logout
 	clearSessionCookie(w, l.r)
+	w.Header().Set("Clear-Site-Data", clearSiteDataCache)
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -106,7 +146,7 @@ func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (g
 		TMDBKey:  deref(body.TmdbApiKey),
 		Library:  model.LibraryRequest{Name: body.Library.Name, Kind: string(body.Library.Kind), Path: body.Library.Path},
 	}
-	session, token, err := s.opts.Admin.RunSetup(model.WithClientIP(ctx, clientIP(requestFrom(ctx))), in, userAgent(ctx))
+	session, token, err := s.opts.Admin.RunSetup(model.WithClientIP(ctx, s.clientAddr(ctx)), in, userAgent(ctx))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -115,7 +155,7 @@ func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (g
 
 func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.LoginResponseObject, error) {
 	body := deref(req.Body)
-	session, token, err := s.opts.Auth.Login(model.WithClientIP(ctx, clientIP(requestFrom(ctx))), string(body.Email), deref(body.Password), userAgent(ctx))
+	session, token, err := s.opts.Auth.Login(model.WithClientIP(ctx, s.clientAddr(ctx)), string(body.Email), deref(body.Password), userAgent(ctx))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

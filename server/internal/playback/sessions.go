@@ -85,6 +85,9 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if len(req.DeviceID) > maxClientIDLength {
 		return model.PlaybackInfo{}, (&model.ValidationError{}).Add("deviceId", "too_long")
 	}
+	if !session.HasProfile() {
+		return model.PlaybackInfo{}, model.ErrNotFound // a playback session always belongs to a profile
+	}
 	scope := visibility.Profile(session.Profile)
 	loc, err := s.vis.MediaFile(ctx, scope, itemID, req.MediaFileID)
 	if err != nil {
@@ -328,10 +331,11 @@ func (s *Service) Authorize(ctx context.Context, token string) (model.PlaybackGr
 		ID: row.ID,
 		Session: model.Session{
 			ID:      row.SessionID,
-			Account: model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role},
+			Account: model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: int(acc.MaxRating), AllLibraries: acc.AllLibraries == 1},
 			Profile: model.Profile{
 				ID: prof.ID, AccountID: prof.AccountID, Name: prof.Name, MaxRating: int(prof.MaxRating),
 				Language: prof.Language, AllLibraries: prof.AllLibraries == 1, Accent: prof.Accent.String,
+				HasPin: prof.PinHash.Valid, IsPrimary: prof.IsDefault == 1,
 			},
 		},
 		ItemID:      row.ItemID,
@@ -482,6 +486,37 @@ func (s *Service) EndSession(ctx context.Context, sessionID int64) error {
 	})
 	if err != nil {
 		return fmt.Errorf("revoke playback sessions: %w", err)
+	}
+	for _, id := range ids {
+		s.end(id)
+	}
+	return nil
+}
+
+// EndAccount revokes every playback session of an account (guest revocation, K-7), ends their
+// open streams and stops their HLS output. The browser sessions are revoked by the caller; the
+// stream tokens answer 401 from the next request on either way.
+func (s *Service) EndAccount(ctx context.Context, accountID int64) error {
+	ids, err := s.write.RevokePlaybackSessionsByAccount(ctx, appq.RevokePlaybackSessionsByAccountParams{
+		AccountID: accountID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("revoke playback sessions of account: %w", err)
+	}
+	for _, id := range ids {
+		s.end(id)
+	}
+	return nil
+}
+
+// EndProfile revokes every playback session of a profile (profile deleted), ends their open
+// streams and stops their HLS output.
+func (s *Service) EndProfile(ctx context.Context, profileID int64) error {
+	ids, err := s.write.RevokePlaybackSessionsByProfile(ctx, appq.RevokePlaybackSessionsByProfileParams{
+		ProfileID: profileID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("revoke playback sessions of profile: %w", err)
 	}
 	for _, id := range ids {
 		s.end(id)

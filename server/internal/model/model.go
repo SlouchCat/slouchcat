@@ -23,6 +23,42 @@ var (
 	ErrTooManyAttempts    = errors.New("too many attempts")    // 429 too_many_attempts
 )
 
+// Profile and access errors (M2).
+var (
+	ErrPinRequired            = errors.New("pin required")             // 403 pin_required
+	ErrPinInvalid             = errors.New("pin invalid")              // 403 pin_invalid
+	ErrPinLocked              = errors.New("pin locked")               // 429 pin_locked (see PinLockedError)
+	ErrPrimaryProfileRequired = errors.New("primary profile required") // 403 primary_profile_required
+	ErrPrimaryProfile         = errors.New("primary profile")          // 409 primary_profile
+	ErrInvitationGone         = errors.New("invitation gone")          // 410 invitation_gone
+)
+
+// PinLockedError is ErrPinLocked with the remaining lock; errors.Is(err, ErrPinLocked) holds.
+type PinLockedError struct {
+	RetryAfter time.Duration
+}
+
+func (e *PinLockedError) Error() string {
+	return fmt.Sprintf("pin locked for another %s", e.RetryAfter.Round(time.Second))
+}
+
+// Is makes errors.Is(err, ErrPinLocked) true.
+func (e *PinLockedError) Is(target error) bool { return target == ErrPinLocked }
+
+type deviceIDKey struct{}
+
+// WithDeviceID stores the device id of the request (cookie slouchcat_device): PIN locks count per
+// profile and device, and a new session remembers its device.
+func WithDeviceID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, deviceIDKey{}, id)
+}
+
+// DeviceID returns the id stored by WithDeviceID, or "".
+func DeviceID(ctx context.Context) string {
+	id, _ := ctx.Value(deviceIDKey{}).(string)
+	return id
+}
+
 type clientIPKey struct{}
 
 // WithClientIP stores the client address of the request (login and setup rate limit).
@@ -63,12 +99,16 @@ func (e *ValidationError) Add(field, code string) *ValidationError {
 
 // Account is the main (owner) or a guest account (M2).
 type Account struct {
-	ID    int64
-	Email string
-	Role  string // owner, guest
+	ID           int64
+	Email        string
+	Role         string // owner, guest
+	MaxRating    int    // ceiling of every profile of the account (18 for the owner)
+	AllLibraries bool
+	LibraryIDs   []int64 // libraries of a guest; empty when AllLibraries
 }
 
-// Profile is a viewing profile; its MaxRating and library rights drive the visibility layer.
+// Profile is a viewing profile; its MaxRating and library rights drive the visibility layer
+// (capped by the account's own limits in the view visible_items).
 type Profile struct {
 	ID           int64
 	AccountID    int64
@@ -76,10 +116,14 @@ type Profile struct {
 	MaxRating    int    // 0, 6, 12, 16, 18
 	Language     string // de, en
 	AllLibraries bool
+	LibraryIDs   []int64 // libraries of a profile with AllLibraries false
 	Accent       string
+	HasPin       bool
+	IsPrimary    bool // the account's primary profile: manages profiles, cannot be deleted
 }
 
-// Session is a resolved browser session.
+// Session is a resolved browser session. A session without an active profile (signed in, profile
+// not chosen yet) has the zero Profile; HasProfile tells them apart.
 type Session struct {
 	ID        int64
 	Account   Account
@@ -89,6 +133,101 @@ type Session struct {
 
 // IsOwner reports whether the session belongs to the main account.
 func (s Session) IsOwner() bool { return s.Account.Role == "owner" }
+
+// HasProfile reports whether a profile is active (profile ids start at 1).
+func (s Session) HasProfile() bool { return s.Profile.ID != 0 }
+
+// IsPrimary reports whether the active profile is the account's primary profile.
+func (s Session) IsPrimary() bool { return s.HasProfile() && s.Profile.IsPrimary }
+
+// ProfileInput carries the fields of createProfile and updateProfile; nil fields keep their value
+// (update) or take the default (create).
+type ProfileInput struct {
+	Name         *string
+	MaxRating    *int
+	Language     *string
+	Accent       *string
+	AllLibraries *bool
+	LibraryIDs   *[]int64
+	PIN          *string // create only
+}
+
+// Guest is a guest account with its limits.
+type Guest struct {
+	ID           int64
+	Email        string
+	MaxRating    int
+	AllLibraries bool
+	LibraryIDs   []int64
+	ProfileCount int
+	CreatedAt    time.Time
+	LastSeenAt   *time.Time
+}
+
+// GuestUpdate changes the limits of a guest account; nil fields keep their value.
+type GuestUpdate struct {
+	MaxRating    *int
+	AllLibraries *bool
+	LibraryIDs   *[]int64
+}
+
+// InvitationRequest creates an invitation link.
+type InvitationRequest struct {
+	Note         string
+	MaxRating    int
+	AllLibraries bool
+	LibraryIDs   []int64
+}
+
+// Invitation is an invitation link with its state (open, used, expired, revoked). Token and URL
+// are set only on the created invitation.
+type Invitation struct {
+	ID           int64
+	Note         string
+	State        string
+	MaxRating    int
+	AllLibraries bool
+	LibraryIDs   []int64
+	CreatedAt    time.Time
+	ExpiresAt    time.Time
+	UsedAt       *time.Time
+	UsedByEmail  string
+	Token        string
+}
+
+// InvitationPreview is what the invited person sees before accepting.
+type InvitationPreview struct {
+	Note         string
+	MaxRating    int
+	AllLibraries bool
+	Libraries    []LibraryRef
+	ExpiresAt    time.Time
+}
+
+// LibraryRef names a library.
+type LibraryRef struct {
+	ID   int64
+	Name string
+}
+
+// AcceptInvitation is the input of the guest sign-up.
+type AcceptInvitation struct {
+	Token       string
+	Email       string
+	Password    string
+	ProfileName string
+	Language    string // de, en; empty = de
+}
+
+// ItemRating is the administration view of the ratings of a title (not scoped to a profile).
+type ItemRating struct {
+	ID              string
+	Kind            string
+	Title           string
+	OwnRating       *int
+	EffectiveRating *int
+	RatingSource    string
+}
 
 // Image is a poster or backdrop reference as the client uses it.
 type Image struct {

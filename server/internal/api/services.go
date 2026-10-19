@@ -25,6 +25,43 @@ type AuthService interface {
 	Logout(ctx context.Context, sessionID int64) error
 }
 
+// ProfileService is the profile picker, the PIN check and the profile management of the signed-in
+// account (package auth). Methods that take the session act for its account and require the
+// primary profile to be active (model.ErrPrimaryProfileRequired otherwise).
+type ProfileService interface {
+	// ListMyProfiles returns the account's profiles for the picker; works without an active profile.
+	ListMyProfiles(ctx context.Context, accountID int64) ([]model.Profile, error)
+	// SelectProfile activates a profile in place and returns the updated session. Errors:
+	// model.ErrNotFound (not a profile of the account), model.ErrPinRequired, model.ErrPinInvalid,
+	// *model.PinLockedError, model.ErrTooManyAttempts, *model.ValidationError. The device comes
+	// from model.DeviceID(ctx).
+	SelectProfile(ctx context.Context, session model.Session, profileID int64, pin string) (model.Session, error)
+	ListProfiles(ctx context.Context, session model.Session) ([]model.Profile, error)
+	CreateProfile(ctx context.Context, session model.Session, in model.ProfileInput) (model.Profile, error)
+	UpdateProfile(ctx context.Context, session model.Session, id int64, in model.ProfileInput) (model.Profile, error)
+	// DeleteProfile deletes a non-primary profile; end runs after the checks, before the delete.
+	DeleteProfile(ctx context.Context, session model.Session, id int64, end func(ctx context.Context, profileID int64) error) error
+	SetProfilePIN(ctx context.Context, session model.Session, id int64, pin string) error
+	RemoveProfilePIN(ctx context.Context, session model.Session, id int64) error
+}
+
+// AccessService is the invitation and guest management of the main account plus the public
+// invitation links (package auth).
+type AccessService interface {
+	// GetInvitation is the preview of an open link (model.ErrNotFound, model.ErrInvitationGone,
+	// model.ErrTooManyAttempts for model.ClientIP of ctx).
+	GetInvitation(ctx context.Context, token string) (model.InvitationPreview, error)
+	// AcceptInvitation creates the guest account and starts its session (plain token returned once).
+	AcceptInvitation(ctx context.Context, in model.AcceptInvitation, userAgent string) (model.Session, string, error)
+	CreateInvitation(ctx context.Context, creator model.Account, req model.InvitationRequest) (model.Invitation, error)
+	ListInvitations(ctx context.Context) ([]model.Invitation, error)
+	RevokeInvitation(ctx context.Context, id int64) error
+	ListGuests(ctx context.Context) ([]model.Guest, error)
+	UpdateGuest(ctx context.Context, id int64, in model.GuestUpdate) (model.Guest, error)
+	// RevokeAccount revokes and deletes a guest account; end runs after the checks, before the delete.
+	RevokeAccount(ctx context.Context, accountID int64, end func(ctx context.Context, accountID int64) error) error
+}
+
 // AdminService implements the wizard and library administration (package admin).
 type AdminService interface {
 	// RunSetup creates the owner account, its default profile and the first library, stores the
@@ -40,6 +77,9 @@ type AdminService interface {
 	ScanLibrary(ctx context.Context, id int64) (model.Library, error)
 	// AcceptLibraryLoss lifts the loss protection for the next scan and queues it.
 	AcceptLibraryLoss(ctx context.Context, id int64) (model.Library, error)
+	// SetItemRating overrides (or, with nil, clears) the age rating of a title and returns its
+	// ratings; model.ErrNotFound for an unknown title.
+	SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error)
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer
@@ -74,8 +114,12 @@ type PlaybackService interface {
 	HLS(ctx context.Context, g model.PlaybackGrant, segment int) (model.HLSStream, error)
 	// Stop ends a playback session of the browser session (model.ErrNotFound for any other).
 	Stop(ctx context.Context, session model.Session, playbackID string) error
-	// EndSession ends every playback session of a browser session (logout).
+	// EndSession ends every playback session of a browser session (logout, profile switch).
 	EndSession(ctx context.Context, sessionID int64) error
+	// EndAccount ends every playback session of an account (guest revocation).
+	EndAccount(ctx context.Context, accountID int64) error
+	// EndProfile ends every playback session of a profile (profile deleted).
+	EndProfile(ctx context.Context, profileID int64) error
 	// Report stores a progress event and returns the merged progress.
 	Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error)
 }

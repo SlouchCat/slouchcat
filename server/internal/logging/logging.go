@@ -36,7 +36,7 @@ const (
 
 // sensitiveKeys are attribute key suffixes that carry secrets. Keys are compared after lower-casing
 // and removing '-' and '_', so "apiKey", "api_key", "X-Api-Key" and "tmdb_api_key" all match.
-var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret"}
+var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash"}
 
 // sensitiveQuery matches the value of the query parameters api_key and st.
 var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|st)=)[^&;#\s"']*`)

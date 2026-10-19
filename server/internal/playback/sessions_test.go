@@ -838,10 +838,99 @@ func TestRevokeEndsOpenStream(t *testing.T) {
 	}
 	expectEnd("ended login", ended)
 
-	s.streamsMu.Lock()
-	left := len(s.streams)
-	s.streamsMu.Unlock()
+	// The reader goroutine reports the end first and closes its file right after (deferred), so the
+	// registry empties a moment later.
+	var left int
+	for deadline := time.Now().Add(time.Second); ; {
+		s.streamsMu.Lock()
+		left = len(s.streams)
+		s.streamsMu.Unlock()
+		if left == 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	if left != 0 {
 		t.Errorf("%d playback ids still registered after close", left)
+	}
+}
+
+// EndAccount (guest revocation) and EndProfile (profile deleted) revoke the playback sessions of
+// the account or profile only, stop their output and answer 401 for the tokens at once; a deleted
+// account takes its playback sessions with it (the join with sessions finds nothing).
+func TestEndAccountAndEndProfile(t *testing.T) {
+	f := vistest.New(t)
+	f.AddSeries(t)
+	f.AddGuest(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(6)
+	f.SetMediaFile(t, m.FileID, "mkv", "hevc", "aac", hevcProbe(t), nil)
+
+	start := func(session model.Session) model.PlaybackInfo {
+		t.Helper()
+		info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return info
+	}
+	alive := func(info model.PlaybackInfo) bool {
+		t.Helper()
+		_, err := s.Authorize(ctx, tokenOf(t, info.StreamURL))
+		if err != nil && !errors.Is(err, model.ErrUnauthenticated) {
+			t.Fatal(err)
+		}
+		return err == nil
+	}
+
+	guestSession := browserSession(t, f, f.PG)
+	g1, g2 := start(guestSession), start(browserSession(t, f, f.PG18))
+	p18, p6 := start(browserSession(t, f, f.P18)), start(browserSession(t, f, f.P6))
+	for name, info := range map[string]model.PlaybackInfo{"g1": g1, "g2": g2, "p18": p18, "p6": p6} {
+		if !alive(info) {
+			t.Fatalf("%s not valid before", name)
+		}
+	}
+
+	// A profile: only its playback ends.
+	if err := s.EndProfile(ctx, f.P6.ID); err != nil {
+		t.Fatal(err)
+	}
+	if alive(p6) || !alive(p18) || !alive(g1) {
+		t.Errorf("EndProfile: p6 alive %v, p18 alive %v, g1 alive %v", alive(p6), alive(p18), alive(g1))
+	}
+	if _, running := tc.Get(p6.PlaybackSessionID); running {
+		t.Error("output of the profile still running")
+	}
+
+	// An account: every profile of it, nothing of the owner.
+	if err := s.EndAccount(ctx, f.Guest.ID); err != nil {
+		t.Fatal(err)
+	}
+	if alive(g1) || alive(g2) || !alive(p18) {
+		t.Errorf("EndAccount: g1 alive %v, g2 alive %v, p18 alive %v", alive(g1), alive(g2), alive(p18))
+	}
+	for _, info := range []model.PlaybackInfo{g1, g2} {
+		if _, running := tc.Get(info.PlaybackSessionID); running {
+			t.Errorf("output %s of the account still running", info.PlaybackSessionID)
+		}
+	}
+	// Nothing to end is not an error.
+	if err := s.EndAccount(ctx, 9999); err != nil {
+		t.Errorf("EndAccount of an unknown account: %v", err)
+	}
+
+	// Deleting the account removes the browser sessions: tokens that were not even revoked answer 401.
+	again := start(guestSession)
+	if !alive(again) {
+		t.Fatal("new guest playback not valid")
+	}
+	if _, err := f.DB.Write.ExecContext(ctx, `DELETE FROM accounts WHERE id = ?`, f.Guest.ID); err != nil {
+		t.Fatal(err)
+	}
+	if alive(again) {
+		t.Error("a token of a deleted account is still valid")
 	}
 }

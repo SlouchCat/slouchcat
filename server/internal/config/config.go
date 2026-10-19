@@ -10,10 +10,12 @@ import (
 	"log/slog"
 	"math"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 )
@@ -35,6 +37,9 @@ type Config struct {
 	Workers   int            // Number of job workers.
 	// HW selects the transcode backend: auto (detect), nvenc, qsv, vaapi or software (M1b).
 	HW string
+	// TrustedProxies are the networks whose X-Forwarded-For header the server believes (reverse
+	// proxy in front); empty ignores the header.
+	TrustedProxies []netip.Prefix
 	// TranscodeBudget overrides the admission budget of the transcode backend; 0 = backend default.
 	TranscodeBudget float64
 }
@@ -72,6 +77,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	spikeDir := fs.String("spike-dir", env("SPIKE_DIR", ""), "directory with the offline spike files, empty = disabled (env SLOUCHCAT_SPIKE_DIR)")
 	workers := fs.Int("workers", 0, "number of job workers, 0 = automatic (env SLOUCHCAT_WORKERS)")
 	hw := fs.String("hw", env("HW", "auto"), "transcode backend: auto, nvenc, qsv, vaapi or software (env SLOUCHCAT_HW)")
+	proxies := fs.String("trusted-proxies", env("TRUSTED_PROXIES", ""),
+		"reverse proxies whose X-Forwarded-For is trusted: empty = none, private = RFC 1918, loopback and fc00::/7, or comma-separated CIDRs (env SLOUCHCAT_TRUSTED_PROXIES)")
 	budget := fs.Float64("transcode-budget", 0, "transcode admission budget, 0 = backend default (env SLOUCHCAT_TRANSCODE_BUDGET)")
 	if v := env("TRANSCODE_BUDGET", ""); v != "" {
 		b, err := strconv.ParseFloat(v, 64)
@@ -106,6 +113,9 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 	if cfg.Workers < 0 {
 		return Config{}, errors.New("workers must not be negative")
+	}
+	if cfg.TrustedProxies, err = ParseTrustedProxies(*proxies); err != nil {
+		return Config{}, fmt.Errorf("trusted proxies: %w", err)
 	}
 	cfg.HW, cfg.TranscodeBudget = *hw, *budget
 	if !hwBackends[cfg.HW] {
@@ -157,8 +167,43 @@ func (c Config) LogValue() slog.Value {
 		slog.String("spike_dir", c.SpikeDir),
 		slog.Int("workers", c.Workers),
 		slog.String("hw", c.HW),
+		slog.Any("trusted_proxies", c.TrustedProxies),
 		slog.Float64("transcode_budget", c.TranscodeBudget),
 	)
+}
+
+// privateNetworks are the networks of the value "private": RFC 1918, loopback, IPv6 loopback and
+// unique local addresses.
+var privateNetworks = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128", "fc00::/7"}
+
+// ParseTrustedProxies parses SLOUCHCAT_TRUSTED_PROXIES: empty = no proxy is trusted, "private" =
+// privateNetworks, otherwise a comma-separated list of CIDRs or single addresses.
+func ParseTrustedProxies(value string) ([]netip.Prefix, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	items := strings.Split(value, ",")
+	if strings.EqualFold(value, "private") {
+		items = privateNetworks
+	}
+	out := make([]netip.Prefix, 0, len(items))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		if p, err := netip.ParsePrefix(item); err == nil {
+			out = append(out, p.Masked())
+			continue
+		}
+		ip, err := netip.ParseAddr(item)
+		if err != nil {
+			return nil, fmt.Errorf("%q is neither a CIDR nor an address", item)
+		}
+		out = append(out, netip.PrefixFrom(ip.Unmap(), ip.Unmap().BitLen()))
+	}
+	return out, nil
 }
 
 func absDir(name, dir string) (string, error) {

@@ -69,16 +69,18 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 					// Same as the API middleware: a sliding extension re-issues the cookie.
 					setSessionCookie(w, r, token, session.ExpiresAt)
 				}
-				for _, link := range startPreloads {
-					w.Header().Add("Link", link)
-				}
-				item, err := picker.FirstPick(r.Context(), session.Profile)
-				switch {
-				case err == nil:
-					if link := heroLink(item); link != "" {
+				if session.HasProfile() {
+					for _, link := range startPreloads {
 						w.Header().Add("Link", link)
 					}
-					prepaint = heroPrepaint(item)
+				}
+				item, err := firstPick(r.Context(), picker, session)
+				switch {
+				case err == nil:
+					if link := heroLink(item, session.Profile.ID); link != "" {
+						w.Header().Add("Link", link)
+					}
+					prepaint = heroPrepaint(item, session.Profile.ID)
 				case !errors.Is(err, model.ErrNotFound) && !errors.Is(err, context.Canceled):
 					log.WarnContext(r.Context(), "hero preload skipped", "err", err)
 				}
@@ -88,6 +90,14 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 			shell.flush(prepaint)
 		})
 	}
+}
+
+// firstPick is the first pick of the session's profile; a session without profile has none.
+func firstPick(ctx context.Context, picker heroPicker, session model.Session) (model.ItemSummary, error) {
+	if !session.HasProfile() {
+		return model.ItemSummary{}, model.ErrNotFound
+	}
+	return picker.FirstPick(ctx, session.Profile)
 }
 
 // shellWriter holds back the app shell so startPagePreload can fill in the hero marker. The shell
@@ -121,7 +131,7 @@ func (s *shellWriter) flush(prepaint string) {
 		s.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	}
 	s.ResponseWriter.WriteHeader(s.status)
-	_, _ = s.ResponseWriter.Write(body)
+	_, _ = s.ResponseWriter.Write(body) //nolint:gosec // G705: the only inserted text is heroPrepaint's output, built from html-escaped values and an integer profile id
 }
 
 // heroPrepaint returns the first hero image as markup for the app shell, or "" when the item has
@@ -129,17 +139,17 @@ func (s *shellWriter) flush(prepaint string) {
 // #root with the carousel's geometry (#hero-prepaint in web/src/ui/global.css) and the attributes
 // of the carousel's active image (URLs, srcset, sizes, priority, sync decoding); the start page
 // fades it out once its own image is on screen.
-func heroPrepaint(item model.ItemSummary) string {
+func heroPrepaint(item model.ItemSummary, profileID int64) string {
 	var attrs string
 	switch {
 	case item.Backdrop != nil && item.BackdropSmall != nil:
-		small, large := imageURL(item.ID, *item.BackdropSmall), imageURL(item.ID, *item.Backdrop)
+		small, large := imageURL(item.ID, *item.BackdropSmall, profileID), imageURL(item.ID, *item.Backdrop, profileID)
 		attrs = `src="` + html.EscapeString(small) + `" srcset="` +
 			html.EscapeString(small+" "+heroSmallWidth+", "+large+" "+heroLargeWidth) + `" sizes="100vw"`
 	case item.Backdrop != nil:
-		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.Backdrop)) + `"`
+		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.Backdrop, profileID)) + `"`
 	case item.BackdropSmall != nil:
-		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.BackdropSmall)) + `"`
+		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.BackdropSmall, profileID)) + `"`
 	default:
 		return ""
 	}
@@ -149,15 +159,15 @@ func heroPrepaint(item model.ItemSummary) string {
 
 // heroLink returns the Link header value that preloads the image the hero shows for item, chosen
 // exactly like the carousel does (same URLs, srcset and sizes), or "" when the item has no image.
-func heroLink(item model.ItemSummary) string {
+func heroLink(item model.ItemSummary, profileID int64) string {
 	if item.Backdrop != nil && item.BackdropSmall != nil {
-		small, large := imageURL(item.ID, *item.BackdropSmall), imageURL(item.ID, *item.Backdrop)
+		small, large := imageURL(item.ID, *item.BackdropSmall, profileID), imageURL(item.ID, *item.Backdrop, profileID)
 		return "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " " + heroSmallWidth + ", " +
 			large + " " + heroLargeWidth + `"; imagesizes="100vw"; fetchpriority=high`
 	}
 	for _, img := range []*model.Image{item.Backdrop, item.BackdropSmall, item.Poster} {
 		if img != nil {
-			return "<" + imageURL(item.ID, *img) + ">; rel=preload; as=image; fetchpriority=high"
+			return "<" + imageURL(item.ID, *img, profileID) + ">; rel=preload; as=image; fetchpriority=high"
 		}
 	}
 	return ""

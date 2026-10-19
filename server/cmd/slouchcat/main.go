@@ -229,7 +229,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	srv := &http.Server{
 		Handler: api.NewHandler(api.Options{
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
-			Auth: authSvc, Admin: adminSvc,
+			Auth: authSvc, Profiles: authSvc, Access: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
 			Catalog:  discover.New(db, cfg.CacheDir, log),
 			Playback: playbackSvc,
 			SpikeDir: cfg.SpikeDir,

@@ -15,6 +15,22 @@ type Account struct {
 	Role         string
 	CreatedAt    int64
 	UpdatedAt    int64
+	MaxRating    int64
+	AllLibraries int64
+	InvitedBy    sql.NullInt64
+	LastSeenAt   sql.NullInt64
+}
+
+type AccountLibrary struct {
+	AccountID int64
+	LibraryID int64
+}
+
+type Device struct {
+	ID         string
+	UserAgent  sql.NullString
+	CreatedAt  int64
+	LastSeenAt int64
 }
 
 type Image struct {
@@ -33,6 +49,25 @@ type Image struct {
 	Bytes       int64
 	Accent      sql.NullString
 	CreatedAt   int64
+}
+
+type Invitation struct {
+	ID           int64
+	TokenHash    string
+	Note         sql.NullString
+	MaxRating    int64
+	AllLibraries int64
+	CreatedBy    sql.NullInt64
+	CreatedAt    int64
+	ExpiresAt    int64
+	UsedAt       sql.NullInt64
+	UsedBy       sql.NullInt64
+	RevokedAt    sql.NullInt64
+}
+
+type InvitationLibrary struct {
+	InvitationID int64
+	LibraryID    int64
 }
 
 type Item struct {
@@ -146,6 +181,14 @@ type MediaFile struct {
 	UpdatedAt    int64
 }
 
+type PinAttempt struct {
+	ProfileID   int64
+	DeviceID    string
+	Failures    int64
+	LockedUntil int64
+	UpdatedAt   int64
+}
+
 type PlaybackSession struct {
 	ID             string
 	SessionID      int64
@@ -175,6 +218,7 @@ type Profile struct {
 	IsDefault    int64
 	CreatedAt    int64
 	UpdatedAt    int64
+	PinHash      sql.NullString
 }
 
 type ProfileLibrary struct {
@@ -210,7 +254,8 @@ type Session struct {
 	ID         int64
 	TokenHash  string
 	AccountID  int64
-	ProfileID  int64
+	ProfileID  sql.NullInt64
+	DeviceID   sql.NullString
 	UserAgent  sql.NullString
 	CreatedAt  int64
 	LastSeenAt int64
