@@ -27,5 +27,6 @@ geändert.
 | 2026-10-18 | Testserver = Proxmox-CT mit Ressourcenlimits statt N100; iOS/macOS ungeprüft (keine Apple-Geräte) | Antwort auf Frage 2 | M1a, M1b, AN-7, AN-13 |
 | 2026-10-18 | SMB/NFS sind der Hauptfall für Medien; Eine-Minute-Ziel bleibt, Nachweis in Lastmessung | Antwort auf Frage 3 | M1a, M3, AN-12 |
 | 2026-10-18 | Referenzgrösse der Sammlung: ~2'500 Filme, ~40'000 Folgen; Lastmessung auf ≥ 45'000 Dateien / 8'000 Ordner skaliert; Erst-Scan in Batches, unterbrechbar, mit Fortschritt | Angabe von Marco | M0 (Generator), M1a, M3, B-4, P-4 |
+| 2026-10-19 | Rückfallkriterium 2.5 am Ende von M1b geprüft: Signal 1 (Server-Aufwand M0+M1a+M1b unter einem Arbeitstag, Schwelle 26) und Signal 2 (5 von 23 Review-Befunden Go-spezifisch, alle in einer Runde behoben) treffen nicht zu; kein Prototyp in Option A, Go bleibt | Plan 2.5, `docs/dev/CURRENT_STATUS.md` | Stack, alle Meilensteine |
 | 2026-10-19 | AN-17 bestätigt (Software-Transcode: Start ≤ 10 s, ≤ 1080p-SDR); iGPU von `pve2` (UHD 630, `/dev/dri/renderD128`) wird in CT 190 durchgereicht | Antwort auf Frage 4 und Rückfrage zur GPU des Testservers | M1b, W-2, W-3, AN-17, AN-7 |
 | 2026-10-18 | OMC-Agenten executor und designer laufen auf Opus (`.claude/omc.jsonc`); übrige Stufen Standard | Code wird nicht vom Auftraggeber gegengelesen; Design ist Alleinstellungsmerkmal | alle Meilensteine |
