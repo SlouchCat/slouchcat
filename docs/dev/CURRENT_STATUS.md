@@ -1,8 +1,130 @@
 # Aktueller Stand
 
-Stand: 19. Oktober 2026. M0, M1a und M1b sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1, #2 und #3). **M2 ist in `main` gemerged**
-(Pull Request #4, gemerged am 19. Oktober 2026).
+Stand: 20. Oktober 2026. M0, M1a, M1b und M2 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
+Pull Requests #1 bis #4). **M3 ist auf dem Branch `claude/m3-library-complete` fertig** und wartet als
+Pull Request auf Marcos Wort zum Merge.
+
+## Meilenstein M3 – Bibliothek komplett
+
+Vorab beantwortet (Entscheidungsprotokoll, 19. Oktober 2026): Frage 7 (AN-9 Vererbung, AN-15 eigene
+Schlüssel) wie vom Plan vorgeschlagen; dazu Marcos Wunsch nach weiteren Metadaten-Anbietern als
+Anbieter-Schnittstelle mit TMDB als Hauptquelle und TVDB als optionalem zweiten Anbieter (ADR 0006), Podcast-
+Quellen in M6, Radio nicht in Spec v1. Alle fünf Schritte aus `docs/planning/03-plan-v1.md` (M3) sind
+umgesetzt; der Entwurf liegt in `.omc/plans/m3-design.md` (Kopie in den Sitzungsnotizen). Die Umsetzung
+lief mit vier Executor-Agenten (Opus) parallel in eigenen Worktrees (Scanner, Metadaten, API/Admin, Web)
+auf einer gemeinsamen Basis (Migration, Vertrag, Modelltypen); Commits mit Bereich im Titel:
+
+| Schritt | Commit | Inhalt |
+|---|---|---|
+| Vorab | `docs(decisions)` `8a43da2` | Antwort auf Frage 7 |
+| Basis | `feat(api,store)` `4404f80`, `feat(model)` `c46e5dd` | Migration 00008 (Serienbaum-Spalten, `tvdb_id`, `extra_kind`, TMDB-Bildpfade, Trailer-Zustand, `probe_error`, `ignored_files`, `trailers`, `people`, `credits`; Container-Trigger zählen keine Extras), Vertrag 0.4.0 mit 14 neuen Operationen, gemeinsame Modelltypen |
+| 1 Serien, Staffeln, Folgen | `feat(library)` `adfaf1d`, `ceb58ba` | Serien-Parser (93 Pfade, 100 %, 12 NFO-Fälle: Sonarr, Plex, Scene, Tages-Shows, Specials, Mehrfachfolgen), Serien-Scan in Batches (Voll- und Pfad-Scan), Extras als Items, Scan-Abbruch, ignorierte Dateien, `probe_error`, Sweep leerer Staffeln und Serien |
+| 1b Metadaten | `feat(metadata)` `6a1893c` | `Provider`-Schnittstelle, TMDB für Serien (Staffel-Abfragen, Credits, Bildpfade, `content_ratings` nach AN-8), TVDB v4 optional mit eigenem Schlüssel, `image.fetch` ohne zweiten Titelabruf |
+| 2 Versionen, Extras | `feat(visibility,api)` `153dbc7`, `test(testdata)` `c5c88da` | Versionen mit Label aus Name oder Auflösung (Hauptversion zuerst), Extras am Film, an der Serie oder Staffel, Serienbaum und Personen in der scoped API, Testmedien (720p-Version, Extras-Ordner, Specials, Doppelfolge, kaputte Datei, Duplikat, Titel ohne Jahr) |
+| 3 Zuordnung, Trailer | `feat(metadata)` `900aeaf`, `0c30d57`, `feat(admin,api)` `fd3b8d5` | Trailer-Kette TMDB → YouTube (Tageskontingent `ratelimit.Quota`) → KI (Schnittstelle, aus), manuelle Zuordnung mit gesperrten Provider-IDs, Aktualisieren, manuelle Trailer, Redaction für `key`/`apikey`/TVDB/YouTube, Konfiguration `SLOUCHCAT_TVDB_API_KEY`, `SLOUCHCAT_TVDB_PIN`, `SLOUCHCAT_YOUTUBE_API_KEY`, `SLOUCHCAT_TRAILER_AI` |
+| 4 Pflegewerkzeuge | in `fd3b8d5`, `test(api,store)` `bee4e14` | Listen `unmatched`, `no_images`, `unrated`, `orphaned`, `unplayable`, `rating_mismatch`, Duplikate (Provider-ID, Titel+Jahr, Dateihash), Zusammenführen, Bereinigen, Massenfreigabe, Scan-Abbruch; Vertragstest über alle 55 Operationen, eingefrorener Stand `testdata/db/M3.sql` |
+| Web | `feat(web)` `62cf6cf`, `43a253a` | Detailseite je Art (Serie mit Staffelwahl und Folgenliste, Staffel, Folge mit «Nächste Folge», Extra), Versionen, Extras, Besetzung, Trailer-Dialog (`youtube-nocookie.com`, offline ausgeblendet), Personen-Seite, Player mit Versionsmenü und Stream-Info, `/admin/maintenance`, `/admin/items/$id`, Scan abbrechen; neue UI-Primitive mit Stories |
+| Verdrahtung | `feat(server)` `db380ea` | `main.go`: Schlüsselquelle, Pflege- und Metadaten-Setter, Prüfung ausstehender Metadaten nach dem Scan |
+| 5 Lasttest | `perf(library)` `e1ba3f2`, `perf(jobs)` `563e8e7`, `docs(perf)` `7d8ce53` | `slouchcat scanbench`, Claim-Index (Migration 00009) und Zurückstellen abgelaufener Leases (Claim 14.9 ms → 0.65 ms bei 50'000 wartenden Jobs), `docs/perf/M3.md` |
+| Review-Korrekturen | `fix(web)` `928a78a`, `fix(store,visibility,admin)` `618b315`, `fix(server)` `5100421` | siehe unten; Migration 00010 (Container-Mindeststufe über Staffeln, Extras nur mit sichtbarem Elternteil) |
+
+### Definition of Done (Plan M3 plus 6.2) mit Belegen
+
+| Kriterium | Ergebnis | Beleg |
+|---|---|---|
+| B-1 Bibliothek Film und Serie, `/media` read-only | PASS (seit M1a); Serienbibliotheken werden jetzt gescannt, `/admin/libraries` mit Fortschritt und Abbruch | `web/e2e/admin-libraries.spec.ts`, `go test ./internal/library -run 'TestSeriesScanBuildsTree|TestCancelScan'` |
+| B-2 Namenskorpus ≥ 150 Pfade + 20 NFO-Fälle, ≥ 98 % | PASS: 184 Filmpfade (100 %) + 93 Serienpfade (100 %), 30 Film-NFO + 12 Serien-NFO-Fälle | `go test ./internal/library -run 'TestParseMoviePathCorpus|TestParseSeriesPathCorpus' -v` druckt die Quote |
+| B-3 Texte in Profilsprache, Fallback en; Poster für 25 Referenzfilme | PASS: 25 von 25 Referenzfilmen gegen das echte TMDB erkannt, mit Poster, Hintergrund, Freigabe und Besetzung; Serien, Staffeln und Folgen mit de/en-Texten im Vertragstest | `docs/perf/M3.md` Abschnitt 2, `go test ./internal/metadata`, `go test ./internal/api -run TestContractProfileLanguage` |
+| B-4 Änderungen sichtbar < 60 s | PASS (seit M1a); Pfad-Scan deckt Serienbibliotheken ab | `go test ./internal/library -run TestSeriesPathScanNewSeason` |
+| B-5 4K und 1080p als ein Titel; Versionswahl im Player, Stream-Info zeigt `media_file_id` | PASS: zwei Dateien desselben Films → ein Titel mit zwei Versionen, Wahl «720p» → Player streamt die gewählte Datei, Stream-Info zeigt die Datei-ID | `web/e2e/versions.spec.ts` (Chromium, Firefox), `go test ./internal/visibility -run TestReaderVersionsPrimaryFirst`, `go test ./internal/library -run TestSecondVersionAttachesToSameItem` |
+| B-6 manuelle Zuordnung übersteht 3 Voll-Scans und einen Refresh | PASS: Provider-IDs gesperrt, Dateien über Pfad/Inode/Hash gebunden; laufender Match-Job mit altem Kandidaten schreibt nichts (Review 5) | `go test ./internal/api -run TestSetItemMatchLocksFields`, `go test ./internal/metadata -run 'TestAssignMatchAndRefresh|TestMatchWritesNothingAfterAManualMatchMeanwhile|TestSeasonWriteChecksTheSeriesSnapshot'`, `go test ./internal/library -run TestManualMatchSurvivesScansAndRefresh` |
+| B-7 Extras aus `Trailers/`, `Featurettes/`, `Deleted Scenes/`, `Behind The Scenes/`, Suffix `-trailer` | PASS: fünf Extras am Titel, kein eigener Titel auf der Startseite | `web/e2e/extras.spec.ts`, `go test ./internal/library -run TestExtrasBecomeExtraItemsAndSamplesAreSkipped` |
+| B-8 ≥ 90 % von 25 Referenzfilmen mit automatischem Trailer; de und en verschieden; manueller Ersatz übersteht Refresh | PASS: 25 von 25 mit je einem deutschen und einem englischen Trailer (alle Video-IDs je Sprache verschieden), Profilsprache zuerst; manuelle Zeilen bleiben beim Refresh | `docs/perf/M3.md` Abschnitt 2, `go test ./internal/metadata -run TestTrailersRefreshKeepsManualRows`, `web/e2e/trailer.spec.ts` |
+| B-9 je präpariertem Fehlerfall ein Eintrag und Bereinigung nach Bestätigung | PASS: Duplikat (Dateihash), ohne Metadaten, ohne Bild, ohne Freigabe, verwaist, nicht abspielbar (ffprobe-Fehler) je in der Liste; Bereinigung mit Bestätigung, Massenfreigabe, Zusammenführen | `web/e2e/maintenance.spec.ts`, `go test ./internal/api -run 'TestAdminMaintenance'` |
+| W-10 Trailer-Knopf startet YouTube-IFrame (`youtube-nocookie.com`), offline ausgeblendet | PASS | `web/e2e/trailer.spec.ts` (iframe-URL, Escape, `context.setOffline`) |
+| Lasttest ≥ 45'000 Dateien: keine doppelt ausgeführten Jobs, Startseite < 300 ms p95 | PASS: 60'800 Dateien / 8'212 Ordner; lokal Erst-Scan 33 s, Queue leer nach 47 s, 0 doppelte Jobs, Home p95 99.5 ms (Median aus 3); über SMB (CT 190) 10.4 min, p95 63 ms; im CT 190 (2 vCPU) 73 s, p95 249 ms; Abbruch nach 10 s mit Fortschritt, Wiederaufnahme konvergiert | `docs/perf/M3.md` Abschnitt 1, `server/bin/slouchcat scanbench` |
+| Kinderprofil-Vertragstest 10.2 über alle neuen Operationen | PASS: 55 Operationen (`scoped` 13, `admin` 24, `account` 11, `public` 7), Fixture mit Serie, Specials, Doppelfolge, Extras, Versionen, Trailern de/en, Person mit Rollen in FSK-6- und FSK-18-Film, ignorierter Datei; Personen-Seite 404 ohne sichtbare Rolle | `go test ./internal/api -run 'TestContract'` |
+| Negativtest: Serie 12 → 16 macht Folgen sofort unsichtbar | PASS: Staffeln, Folgen, Special, Doppelfolge und Extras der Serie für P12 aus Listen und per ID 404, Trailer 404; zurück auf 12 wieder sichtbar; Serie, deren Folgen alle über der Stufe liegen, unsichtbar (Review-Befund 1, Migration 00010) | `go test ./internal/api -run 'TestContractRatingChange|TestContractSeriesHiddenWhenEpisodesAbove|TestContractExtrasNeverContainers'` |
+| `task ci` grün (6.2 Pkt. 2) | exit 0 (eigener Lauf, 20. Oktober 2026): gen, gen:check, lint (0 issues), Go-Tests mit `-race`, Vitest (web 168 in 27 Dateien, api-client 4, design-tokens 2), Build, Playwright 178 (Chromium 89, Firefox 89, 20 Specs), Storybook-Screenshots 95 | `task ci` (Storybook-Schritt in Claude-Shells über `sg docker -c`) |
+| Tastaturtest je neue Seite (6.2 Pkt. 3) | PASS: Serie, Staffel, Folge, Extra, Person, Trailer-Dialog, Versionen im Player, `/admin/maintenance`, `/admin/items/$id` | `web/e2e/series.spec.ts`, `episode.spec.ts`, `extras.spec.ts`, `person.spec.ts`, `trailer.spec.ts`, `versions.spec.ts`, `maintenance.spec.ts`, `admin-item.spec.ts` |
+| Eingefrorener DB-Stand (6.2 Pkt. 4) | `testdata/db/M3.sql` (Serienbaum mit Specials und Doppelfolge, Extras, zwei Versionen, Trailer, Personen, manuelle Zuordnung, ignorierte Datei); M1a, M1b, M2 und M3 migrieren bis 00010 | `go test ./internal/store -run 'TestFrozen|TestMigration0000[8]|TestMigration00010'` |
+| Messwerte (6.2 Pkt. 5) | `docs/perf/M3.md`; Gerätecheckliste unverändert (Android durch Marco, Apple ungeprüft) | |
+| Code-Review (separate Passage, Opus) | Server 22 Befunde (1 kritisch, 5 wichtig, 16 klein), Web 23 Befunde (0 kritisch, 4 wichtig, 19 klein); alle behoben oder begründet akzeptiert (siehe unten) | Commits `928a78a`, `618b315`, `5100421` |
+| Verifier-Agent (6.2 Pkt. 6) | «VERIFIER» | Verifier-Bericht |
+
+### Befunde der Review-Passage und ihre Behebung
+
+- **Kritisch (Server) – Serie blieb sichtbar, wenn alle Folgen über der Profilstufe lagen:** die
+  Mindeststufe der Serie las nur die Stufe der Staffeln (immer die eigene), nie deren Mindeststufe.
+  Migration 00010 rechnet Container-Kinder mit `max(effective, min_child)`; `VerifyRatings` und das
+  Orakel der Fixture folgen derselben Formel; Vertragstest ergänzt.
+- **Wichtig (Server):** Extras eines unsichtbaren, nicht verfügbaren oder gelöschten Elterntitels blieben
+  per ID erreichbar (View `visible_items` verlangt jetzt einen sichtbaren Elternteil; der Scanner hängt
+  Extras nicht mehr an soft-gelöschte Filme); `QueuePendingTrailers` wurde nie aufgerufen (jetzt nach jedem
+  Voll-Scan, dazu ein einmaliger Match für Titel aus M1/M2 ohne Bildpfade); Umgebungsfehler (ffprobe
+  fehlt, I/O-Fehler) wurden als dauerhaftes `probe_error` gespeichert (jetzt nur Datei-Fehler, sonst
+  Retry; Datei nach `missing_since` wird neu geprobt); eine manuelle Zuordnung ging verloren, wenn ein
+  Match-Job gerade lief (Job vergleicht Provider-IDs und Sperren mit seinem Schnappschuss und schreibt sonst
+  nichts); Serien zerfielen in Duplikate, wenn das TMDB-Jahr vom Ordnerjahr abwich (Index bevorzugt den
+  Besitzer des Ordners).
+- **Klein (Server):** Bereinigen und Zusammenführen in Batches ≤ 500, Stream-Recheck nach Massenfreigabe,
+  Merge und Cleanup (auch nach Teilfehler), Offset-Überlauf, gemeinsames `internal/youtubeid`, höhere
+  Priorität für wartende Match-Jobs bei Zuordnung/Refresh, Folgen in «unmatched»/«unrated» nur bei
+  gematchter Serie, Hash-Duplikate ohne Kleindateien und mit 200-Gruppen-Deckel, elternlose Extras nur
+  einmal gehasht, Warnung je Ordner statt je Datei, `RestoreItem` nur mit vorhandener Datei, Stream-Recheck
+  nach Freigabe-Änderungen durch Metadaten-Jobs (`WithVisibilityRecheck`), TVDB-Schlüssel und PIN aus
+  einer Quelle. Akzeptiert: Versionslabel leer, solange die Datei nicht geprobt ist; Jobs im Backoff
+  werden je Claim mitgelesen (Beobachtung).
+- **Wichtig (Web):** Massenfreigabe hatte FSK 0 vorgewählt (jetzt keine Vorauswahl, Knopf gesperrt, Text
+  nennt Anzahl und Stufe); Versionsmenü im Vollbild unsichtbar (Popover im Player-Container); Trailer-Dialog
+  öffnete sich nach Rückkehr der Verbindung erneut (offline schliesst ihn und setzt den Fokus zurück);
+  Backspace im Dialog verliess die Seite (Zurück-Tasten ignorieren Dialoge, Dialog schliesst auf Backspace).
+- **Klein (Web):** Versionswechsel wartet auf das Ende der alten Sitzung, sperrt den alten Player und
+  schreibt `?file=` in die URL; Speichermeldungen bleiben stehen; wiederholte Suche lädt neu; externe
+  Kandidatenposter ohne Referrer; Sammel-Refresh mit Teilfehler-Hinweis; Bestätigungen nennen die Anzahl;
+  Pluralformen; tote Schlüssel entfernt; Trenner und Transcode-Gründe aus den Locales; `ui/FactList` und
+  `ui/CandidateCard` statt dreifacher Implementierung; E2E ohne `waitForTimeout`; Steuerleiste bleibt bei
+  offenem Menü sichtbar. Akzeptiert: keine CSP (Server, später), «Alle auswählen» wählt nur die geladene Seite.
+
+### Abweichungen und Entscheide während M3
+
+- **Parallele Umsetzung in Worktrees:** die vier Agenten-Branches wurden per Cherry-Pick in den M3-Branch
+  übernommen; Zwischenstände einzelner Commits bauen nicht für sich allein (z. B. Vertragstest ohne
+  Registry-Einträge zwischen `4404f80` und `bee4e14`); Historie nicht umgeschrieben.
+- **Admin-Setter statt erweitertem `Libraries`-Interface:** `admin.WithLibraryMaintenance`, `admin.WithMetadata`
+  wie `WithQueue`, damit jeder Branch für sich baute.
+- **Serien-Match über Staffelabfragen:** ein Job je Serie füllt vorhandene Staffeln und Folgen (2 Aufrufe je
+  Staffel statt 2 je Folge); Folgen-Jobs nur für bereits gematchte Serien; Staffeln und Extras bekommen
+  keinen Job (`skipped`).
+- **Suche ohne TMDB-Schlüssel** antwortet `422 tmdb_key_invalid`, TVDB ohne Schlüssel `provider_not_configured`.
+- **Schlüssel nur aus der Umgebung** (keine Flags, damit sie nicht in Prozesslisten stehen); die verschlüsselten
+  Einstellungen `tvdb_api_key`, `tvdb_pin`, `youtube_api_key` werden gelesen, die Einstellungsseite folgt in M8.
+- **YouTube-Suche mit `videoDuration=short`** (eine Suche je Sprache), Filter 60–300 s danach.
+- **Job-Claim:** Index `jobs (state, priority DESC, created_at, id)` und `RequeueExpiredLeases` vor dem Claim
+  (Migration 00009); die Lease-Semantik aus ADR 0002 bleibt.
+- **Vertragsbeobachtungen:** `ItemDetail.trailerCount` und `DuplicateGroup.items[].libraryId` sind im Schema
+  optional, der Server setzt sie immer; der strict server validiert `minLength`/`pattern`/`maxItems` nicht,
+  der Admin-Dienst prüft selbst.
+- **Firefox in Playwright:** ein Tab nach dem letzten Element wickelt nicht zum Seitenanfang; Tastaturtests
+  starten daher wie `detail.spec.ts` vom Seitenanfang; der Fokusring eines react-aria-Checkbox/Radio liegt am
+  beschrifteten Wrapper (`data-focus-visible`), der Helfer `expectVisibleFocus` erkennt ihn.
+- **Entscheid 3 («Erst-Scan darf Stunden dauern»):** die Referenzgrösse braucht lokal unter einer Minute,
+  über SMB rund zehn Minuten, auf zwei Kernen gut anderthalb Minuten.
+- **Spike-Seite und `SLOUCHCAT_SPIKE_DIR` bleiben** bis zum Ende von Marcos Android-Lauf (27. Oktober 2026).
+
+### Nicht in M3 (Plan) und offene Punkte für M4
+
+1. Lauf der YouTube-Stufe gegen die echte Data API, sobald `SLOUCHCAT_YOUTUBE_API_KEY` in `deploy/.env`
+   steht (Marco; der im Chat genannte Schlüssel sollte neu erzeugt werden). Einstellungsseite für Schlüssel: M8.
+2. TVDB nur gegen Mocks geprüft (kein Schlüssel); TVDB-Personen ohne TMDB-ID werden nicht gespeichert,
+   Tages-Shows werden nicht nach Sendedatum gematcht.
+3. Filme können bei abweichendem TMDB-Jahr beim Nachliefern einer zweiten Version noch zerfallen (Ordnerregel
+   gilt für Serien); Merge-Werkzeug fängt es auf.
+4. Content-Security-Policy für die Web-App (Server-Header), Autoplay der nächsten Folge, Qualitätsleiter,
+   Spurwechsel: M4.
+5. Nächtlicher `rating.verify`-Job und Dashboard: M8 (`admin.VerifyRatings` und die Pflegeliste
+   `rating_mismatch` existieren).
+6. Spike-Entscheid, K-8 mit echter Domain, Gerätecheckliste Android, NVIDIA-Laufzeit: unverändert aus M2.
 
 ## Meilenstein M2 – Konten, Profile, Zugriff
 
@@ -274,7 +396,9 @@ Profile/PIN (M2), GPU-Erkennung im Assistenten (M8).
 ## Was läuft
 
 ```bash
-task ci                      # alles bauen und prüfen (inkl. Playwright)
+task ci                      # alles bauen und prüfen (inkl. Playwright; Storybook braucht Docker)
+server/bin/slouchcat scanbench --root DIR --workers 4 --json   # Lasttest des Scanners (M3)
+./testdata/generate-reference-movies.sh                        # 25 Referenzfilme als Platzhalter (B-3, B-8)
 task server:dev              # Server auf :8096 mit .dev/config und .dev/cache
 task web:dev                 # Vite auf :5173, Proxy /api → :8096
 task e2e                     # Playwright gegen server/bin/slouchcat (nach task build und testdata:media)
