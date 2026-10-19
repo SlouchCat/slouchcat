@@ -1,8 +1,7 @@
 # Aktueller Stand
 
-Stand: 19. Oktober 2026. M0 ist in `main` gemerged und nach `https://github.com/SlouchCat/slouchcat`
-gepusht. M1a liegt auf dem Branch `claude/m1a-scan-direct-play-home` (nach origin gepusht, nicht gemerged;
-Merge in `main` und Pull Request nur auf Marcos Wort).
+Stand: 19. Oktober 2026. M0 und M1a sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
+M1a über Pull Request #1, GitHub Actions grün).
 
 ## Meilenstein M1a – Durchstich Teil 1: Scan, Direct Play, Startseite
 
