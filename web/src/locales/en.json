@@ -8,7 +8,9 @@
     "retry": "Try again",
     "cancel": "Cancel",
     "loading": "Loading …",
-    "close": "Close"
+    "close": "Close",
+    "save": "Save",
+    "saving": "Saving …"
   },
   "nav": {
     "main": "Main navigation",
@@ -19,7 +21,8 @@
     "skip": "Skip to content",
     "access": "Access",
     "profiles": "Profiles",
-    "switchProfile": "Switch profile, now {{name}}"
+    "switchProfile": "Switch profile, now {{name}}",
+    "maintenance": "Maintenance"
   },
   "system": {
     "server": {
@@ -55,7 +58,8 @@
       "primary_profile_required": "Only the primary profile of this account manages profiles.",
       "primary_profile": "The primary profile cannot be deleted.",
       "invitation_gone": "This invitation link is no longer valid.",
-      "too_many_attempts": "Too many attempts. Wait a moment and try again."
+      "too_many_attempts": "Too many attempts. Wait a moment and try again.",
+      "provider_not_configured": "This provider is not set up. Add its key to the server configuration."
     },
     "field": {
       "required": "Required.",
@@ -286,7 +290,8 @@
         "root_missing": "The folder is missing. Is the drive mounted? Nothing was deleted.",
         "root_empty": "The folder is empty. Nothing was deleted.",
         "loss_over_threshold": "More than 20 % of the files are missing. Nothing was deleted to be safe.",
-        "other": "Last error: {{message}}"
+        "other": "Last error: {{message}}",
+        "cancelled": "The scan was cancelled. The next scan runs normally again."
       },
       "rescan": "Scan again",
       "acceptLoss": {
@@ -299,7 +304,8 @@
         "title": "Add library",
         "submit": "Add",
         "submitting": "Adding …"
-      }
+      },
+      "cancel": "Cancel scan"
     },
     "access": {
       "title": "Access",
@@ -366,7 +372,192 @@
           "confirm": "Remove guest"
         }
       }
-    }
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "intro": "Titles and files that need attention.",
+      "notAllowed": {
+        "title": "Main account only",
+        "body": "Library maintenance is reserved for the primary profile of the main account."
+      },
+      "tabs": "Issue kinds",
+      "tab": {
+        "unmatched": "Unmatched",
+        "no_images": "No images",
+        "unrated": "Unrated",
+        "orphaned": "Orphaned",
+        "unplayable": "Unplayable",
+        "rating_mismatch": "Rating mismatch",
+        "duplicates": "Duplicates"
+      },
+      "tabCount": "{{label}} ({{count}})",
+      "hint": {
+        "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
+        "no_images": "Matched titles without a poster. A refresh loads the artwork again.",
+        "unrated": "Titles without a rating are seen only by 18-rated profiles. Assign a rating to release them.",
+        "orphaned": "Titles without a file or with missing files, empty seasons and series.",
+        "unplayable": "Files that cannot be read. Check them again or remove them from the library.",
+        "rating_mismatch": "The stored rating differs from the computed one. A rating change or the next scan corrects it. There is nothing to select here.",
+        "duplicates": "Titles that exist twice. Pick the title to keep and merge the others into it."
+      },
+      "empty": "Nothing to do.",
+      "selection": "Selection",
+      "selectItem": "Select {{title}}",
+      "selected": "{{count}} selected",
+      "selectAll": "Select all",
+      "selectNone": "Clear selection",
+      "more": "Load more",
+      "shown": "{{shown}} of {{total}}",
+      "action": {
+        "match": "Match",
+        "refresh": "Refresh",
+        "rating": "Assign rating",
+        "cleanup": "Clean up",
+        "recheck": "Check again",
+        "remove": "Remove"
+      },
+      "done": {
+        "refresh_one": "{{count}} title is being refreshed.",
+        "refresh_other": "{{count}} titles are being refreshed.",
+        "rating_one": "Rating set for {{count}} title.",
+        "rating_other": "Rating set for {{count}} titles.",
+        "cleanup": "Removed: {{items}} titles, {{files}} files.",
+        "merge": "Titles merged.",
+        "match": "Match saved, the metadata is being loaded."
+      },
+      "cleanup": {
+        "title": "Clean up titles?",
+        "body": "The selected titles are removed from the library. Files on disk stay untouched.",
+        "confirm": "Clean up"
+      },
+      "remove": {
+        "title": "Remove files?",
+        "body": "The selected files are removed from the library and skipped by future scans. They stay on disk.",
+        "confirm": "Remove"
+      },
+      "rating": {
+        "title": "Assign rating",
+        "description_one": "Applies to {{count}} selected title.",
+        "description_other": "Applies to {{count}} selected titles.",
+        "label": "Age rating",
+        "submit": "Assign",
+        "submitting": "Assigning …"
+      },
+      "duplicates": {
+        "reason": {
+          "provider_id": "Same provider id",
+          "title_year": "Same title and year",
+          "file_hash": "Same file content"
+        },
+        "group": "Group {{index}}",
+        "target": "Keep",
+        "option": "{{index}}: {{title}}",
+        "merge": "Merge",
+        "confirmTitle": "Merge titles?",
+        "confirmBody": "Files, extras, trailers and progress of the other titles move to “{{title}}”. The other titles are deleted.",
+        "empty": "No duplicates found."
+      }
+    },
+    "item": {
+      "title": "Manage title",
+      "notAllowed": {
+        "title": "Main account only",
+        "body": "Titles are managed by the primary profile of the main account."
+      },
+      "notFound": "This title does not exist or no longer exists.",
+      "view": "Open detail page",
+      "facts": {
+        "kind": "Kind",
+        "id": "ID",
+        "library": "Library",
+        "season": "Season",
+        "episode": "Episode",
+        "metadata": "Metadata",
+        "metadataError": "Error",
+        "matchedAt": "Matched at",
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "imdb": "IMDb",
+        "locked": "Locked fields",
+        "children": "Content",
+        "childCounts": "Seasons: {{seasons}} · Episodes: {{episodes}} · Extras: {{extras}}",
+        "none": "–"
+      },
+      "state": {
+        "pending": "Pending",
+        "matched": "Matched",
+        "unmatched": "Unmatched",
+        "failed": "Failed",
+        "skipped": "Skipped"
+      },
+      "rating": {
+        "title": "Rating",
+        "own": "Own rating",
+        "effective": "Effective rating",
+        "source": "Source",
+        "label": "Set own rating",
+        "fromMetadata": "From metadata",
+        "saved": "Rating saved."
+      },
+      "files": {
+        "title": "Files",
+        "path": "Path",
+        "size": "Size",
+        "version": "Version",
+        "probedAt": "Checked at {{date}}",
+        "probeError": "Probe error",
+        "none": "No files."
+      },
+      "refreshed": "Refresh queued.",
+      "trailers": {
+        "title": "Trailers",
+        "state": {
+          "pending": "Search pending",
+          "found": "Found",
+          "none": "None found",
+          "failed": "Search failed"
+        },
+        "empty": "No trailers.",
+        "official": "Official",
+        "source": {
+          "tmdb": "TMDB",
+          "youtube": "YouTube",
+          "ai": "AI",
+          "manual": "Manual"
+        },
+        "add": "Add",
+        "addTitle": "Add trailer",
+        "url": "YouTube link or video id",
+        "urlHint": "youtube.com/watch?v=…, youtu.be/… or the video id.",
+        "lang": "Language",
+        "langOther": "Other",
+        "langCode": "Language code",
+        "langCodeHint": "Two or three lower-case letters, for example fr.",
+        "submit": "Add",
+        "submitting": "Adding …",
+        "delete": {
+          "action": "Delete",
+          "title": "Delete trailer?",
+          "body": "The trailer is removed. An automatically found trailer may come back with the next refresh.",
+          "confirm": "Delete"
+        }
+      }
+    },
+    "match": {
+      "title": "Match title",
+      "description": "Search TMDB or TVDB for the title and pick the right entry.",
+      "provider": "Provider",
+      "kind": "Kind",
+      "query": "Search term",
+      "year": "Year (optional)",
+      "search": "Search",
+      "searching": "Searching …",
+      "results": "Results",
+      "none": "No results.",
+      "choose": "Match {{title}}",
+      "yearInvalid": "A year between 1800 and 2100."
+    },
+    "titleYear": "{{title}} ({{year}})"
   },
   "language": {
     "de": "Deutsch",
@@ -494,6 +685,16 @@
       "title": "Link not found",
       "body": "This invitation link does not exist. Check that you copied all of it."
     }
+  },
+  "kind": {
+    "movie": "Film",
+    "series": "Series",
+    "season": "Season",
+    "episode": "Episode",
+    "extra": "Extra",
+    "audiobook": "Audiobook",
+    "podcast": "Podcast",
+    "podcast_episode": "Podcast episode"
   },
   "extraKind": {
     "trailer": "Trailer",

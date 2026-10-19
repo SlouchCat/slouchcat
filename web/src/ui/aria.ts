@@ -7,5 +7,7 @@ export { ConfirmDialog, FormDialog } from './Dialog';
 export { MenuButton } from './Menu';
 export { PinField } from './PinField';
 export { RadioGroup } from './RadioGroup';
+export { SelectableList, type SelectableItem } from './SelectableList';
+export { Tabs } from './Tabs';
 export { TextField } from './TextField';
 export { TrailerDialog } from './TrailerDialog';

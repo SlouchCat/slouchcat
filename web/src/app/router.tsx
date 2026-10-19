@@ -141,6 +141,21 @@ const personRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/catalog/PersonPage'), 'PersonPage'),
 });
 
+const maintenanceRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/maintenance',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/MaintenancePage'),
+    'MaintenancePage',
+  ),
+});
+
+const adminItemRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/items/$itemId',
+  component: lazyRouteComponent(() => import('@/features/admin/AdminItemPage'), 'AdminItemPage'),
+});
+
 const librariesRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/admin/libraries',
@@ -185,6 +200,8 @@ export const routeTree = rootRoute.addChildren([
         itemRoute,
         personRoute,
         librariesRoute,
+        maintenanceRoute,
+        adminItemRoute,
         accessRoute,
         profileSettingsRoute,
       ]),

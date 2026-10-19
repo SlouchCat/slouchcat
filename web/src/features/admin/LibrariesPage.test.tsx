@@ -126,4 +126,41 @@ describe('admin libraries page', () => {
       path: '/media/Dokus',
     });
   });
+  it('cancels a running scan; a cancelled scan has its own text and no loss button', async () => {
+    const running = library({
+      scan: { state: 'running', itemCount: 3, fileCount: 4, filesSeen: 40, filesTotal: 100 },
+    });
+    let current = running;
+    const user = userEvent.setup();
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([current]),
+      'DELETE /admin/libraries/1/scan': () => {
+        current = library({
+          scan: { state: 'aborted', itemCount: 3, fileCount: 4, lastError: 'cancelled' },
+        });
+        return json(current, 202);
+      },
+    });
+    renderApp('/admin/libraries');
+
+    const card = await screen.findByRole('article', { name: 'Filme' });
+    expect(within(card).getByText('40 von 100 Dateien')).toBeVisible();
+    expect(within(card).getByText('Titel: 3 · Dateien: 4')).toBeVisible();
+    await user.click(within(card).getByRole('button', { name: 'Scan abbrechen' }));
+    await waitFor(() =>
+      expect(
+        calls.some((call) => call.method === 'DELETE' && call.path === '/admin/libraries/1/scan'),
+      ).toBe(true),
+    );
+    expect(
+      await within(card).findByText(
+        'Der Scan wurde abgebrochen. Der nächste Scan läuft wieder normal.',
+      ),
+    ).toBeVisible();
+    expect(within(card).queryByRole('button', { name: 'Scan abbrechen' })).not.toBeInTheDocument();
+    expect(
+      within(card).queryByRole('button', { name: 'Verlust akzeptieren' }),
+    ).not.toBeInTheDocument();
+  });
 });

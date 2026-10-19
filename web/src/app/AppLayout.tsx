@@ -30,6 +30,11 @@ export function AppLayout() {
         label: t('nav.access'),
         current: pathname.startsWith(paths.adminAccess),
       },
+      {
+        href: paths.adminMaintenance,
+        label: t('nav.maintenance'),
+        current: pathname.startsWith(paths.adminMaintenance) || pathname.startsWith('/admin/items'),
+      },
     );
   }
   if (isPrimary) {
