@@ -460,9 +460,17 @@ func TestProbeErrorOnBrokenFile(t *testing.T) {
 	e := newEnv(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "Broken (2024)/Broken (2024).mkv", "this is a text file, not a video\n")
+	writeFile(t, dir, "Empty (2024)/Empty (2024).mkv", "")
 	lib := e.create(dir)
 	e.scan(lib.ID)
-	id := e.str(`SELECT id FROM media_files`)
+	empty := e.str(`SELECT id FROM media_files WHERE size = 0`)
+	if err := e.svc.handleProbe(e.ctx, mediaJob(t, JobProbeFile, empty)); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.str(`SELECT probe_error FROM media_files WHERE id = ? AND probed_at IS NOT NULL`, empty); v != "empty file" {
+		t.Errorf("probe_error of an empty file = %q", v)
+	}
+	id := e.str(`SELECT id FROM media_files WHERE size > 0`)
 	if err := e.svc.handleProbe(e.ctx, mediaJob(t, JobProbeFile, id)); err != nil {
 		t.Fatalf("probe of a broken file = %v, want nil (no retry)", err)
 	}

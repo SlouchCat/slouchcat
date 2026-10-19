@@ -51,10 +51,16 @@ SELECT count(*) AS total,
        CAST(coalesce(sum(state = 'failed' AND last_error LIKE 'lease expired%'), 0) AS INTEGER) AS lease_expired
 FROM jobs WHERE created_at >= @since;
 
--- name: CountDuplicateActiveJobs :one
--- Idempotency keys held by more than one job since a time (a probe queued twice).
+-- name: CountDuplicateJobKeys :one
+-- Idempotency keys with a prefix (for example 'probe:%') held by more than one job created since
+-- a time: work queued twice.
 SELECT count(*) FROM (
     SELECT idempotency_key FROM jobs
-    WHERE created_at >= @since AND idempotency_key IS NOT NULL
+    WHERE created_at >= @since AND idempotency_key LIKE @prefix
     GROUP BY idempotency_key HAVING count(*) > 1
 );
+
+-- name: CountLibraryProbeErrors :one
+SELECT count(*) FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE r.library_id = @library_id AND m.probe_error IS NOT NULL;

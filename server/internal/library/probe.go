@@ -69,6 +69,10 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	if err != nil || !t.found {
 		return err
 	}
+	if t.file.Size == 0 {
+		// Never playable; spares an ffprobe process (placeholder trees of the scan benchmark).
+		return s.storeProbeError(ctx, t, errEmptyFile)
+	}
 	pr, err := s.probe.Probe(ctx, t.abs)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -162,6 +166,8 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 
 // maxProbeError bounds the stored ffprobe message.
 const maxProbeError = 500
+
+var errEmptyFile = errors.New("empty file")
 
 // storeProbeError records a failed ffprobe run (B-9 "unplayable"): probed_at and probe_error
 // with the message, in which the absolute path is replaced by the file name, and no tracks. The

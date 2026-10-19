@@ -10,17 +10,23 @@ import (
 	"database/sql"
 )
 
-const countDuplicateActiveJobs = `-- name: CountDuplicateActiveJobs :one
+const countDuplicateJobKeys = `-- name: CountDuplicateJobKeys :one
 SELECT count(*) FROM (
     SELECT idempotency_key FROM jobs
-    WHERE created_at >= ?1 AND idempotency_key IS NOT NULL
+    WHERE created_at >= ?1 AND idempotency_key LIKE ?2
     GROUP BY idempotency_key HAVING count(*) > 1
 )
 `
 
-// Idempotency keys held by more than one job since a time (a probe queued twice).
-func (q *Queries) CountDuplicateActiveJobs(ctx context.Context, since int64) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countDuplicateActiveJobs, since)
+type CountDuplicateJobKeysParams struct {
+	Since  int64
+	Prefix sql.NullString
+}
+
+// Idempotency keys with a prefix (for example 'probe:%') held by more than one job created since
+// a time: work queued twice.
+func (q *Queries) CountDuplicateJobKeys(ctx context.Context, arg CountDuplicateJobKeysParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDuplicateJobKeys, arg.Since, arg.Prefix)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -58,6 +64,19 @@ func (q *Queries) CountLibraryItemsByKind(ctx context.Context, libraryID int64) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const countLibraryProbeErrors = `-- name: CountLibraryProbeErrors :one
+SELECT count(*) FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE r.library_id = ?1 AND m.probe_error IS NOT NULL
+`
+
+func (q *Queries) CountLibraryProbeErrors(ctx context.Context, libraryID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLibraryProbeErrors, libraryID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const deleteMediaFile = `-- name: DeleteMediaFile :exec
