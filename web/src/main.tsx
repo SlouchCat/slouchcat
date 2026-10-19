@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from '@/app/App';
 import { createQueryClient } from '@/app/queryClient';
 import { createAppRouter } from '@/app/router';
+import { registerServiceWorker } from '@/app/serviceWorker';
 import { sessionQuery } from '@/app/session';
 import { dismissHeroPrepaint, loadSpatialNavigation } from '@/ui';
 
@@ -33,3 +34,5 @@ createRoot(container).render(
     <App router={router} queryClient={queryClient} />
   </StrictMode>,
 );
+
+registerServiceWorker();

@@ -84,15 +84,15 @@ Lighthouse 12.8.2, Mobile-Voreinstellung, simuliert (1.6 Mbit/s, 150 ms RTT, 4×
 12 Titeln (TMDB-Poster w500 50–190 kB, Backdrops w780 58–120 kB bzw. w1280 140–400 kB), Server auf
 127.0.0.1 (HTTP/1.1, gzip), angemeldet (Cookie als Kopfzeile). Median aus drei Läufen.
 
-| Messung | vorher | Runde 1 | Runde 2 | Runde 3 |
-|---|---|---|---|---|
-| LCP | 13.0 s | 3.4 s (3.38 / 3.38 / 3.38 s) | 2.57 s (2.568 / 2.570 / 2.568 s) | 2.55 s (2.552 / 2.551 / 2.459 s) |
-| FCP | 4.4 s | 2.25 s | 1.70 s | 1.65 s (1.652 / 1.651 / 1.709 s) |
-| TBT / CLS | 32 ms / 0 | 7 ms / 0 | 4 ms / 0 | 0–1 ms / 0 |
-| LCP-Phasen (TTFB / Ladeverzug / Ladezeit / Renderverzug) | 0.45 / 10.6 / 0.5 / 1.4 s | 0.45 / 2.25 / 0.02 / 0.66 s | 0.45 / 0–0.14 / 0–0.24 / 1.74–2.12 s | 0.45 / 0.75 / 0.32 / 1.03 s; 0.45 / 0.54 / 0.35 / 1.22 s; 0.45 / 0.58 / 0.53 / 0.89 s |
-| JS beim Start (gzip) | 591 kB ohne Kompression | 190 kB (index 105 kB, ui 85 kB), 3 Dateien | 156 kB, 1 Datei (Übertragung 158 KiB) | 139 kB, 1 Datei (Übertragung 141 KiB); norigin 16.6 kB als eigene Datei nach dem LCP |
-| Anfragen vor dem LCP | – | 11 | 7 (Dokument, Sitzung, Startseite, Hero-Bild, JS, CSS, Manifest) | 7 (unverändert) |
-| LCP-Element | aktives Hero-`<img>` w1280 | aktives Hero-`<img>`, w780 über `srcset` | unverändert | `#hero-prepaint img` aus der App-Hülle (w780 über `srcset`) |
+| Messung | vorher | Runde 1 | Runde 2 | Runde 3 | Runde 4 |
+|---|---|---|---|---|---|
+| LCP | 13.0 s | 3.4 s (3.38 / 3.38 / 3.38 s) | 2.57 s (2.568 / 2.570 / 2.568 s) | 2.55 s (2.552 / 2.551 / 2.459 s) | **1.80 s** (1.802 / 1.802 / 1.802 s) |
+| FCP | 4.4 s | 2.25 s | 1.70 s | 1.65 s (1.652 / 1.651 / 1.709 s) | 0.75 s (0.752 / 0.752 / 0.752 s) |
+| TBT / CLS | 32 ms / 0 | 7 ms / 0 | 4 ms / 0 | 0–1 ms / 0 | 0 ms / 0 |
+| LCP-Phasen (TTFB / Ladeverzug / Ladezeit / Renderverzug) | 0.45 / 10.6 / 0.5 / 1.4 s | 0.45 / 2.25 / 0.02 / 0.66 s | 0.45 / 0–0.14 / 0–0.24 / 1.74–2.12 s | 0.45 / 0.75 / 0.32 / 1.03 s; 0.45 / 0.54 / 0.35 / 1.22 s; 0.45 / 0.58 / 0.53 / 0.89 s | 0.45 / 0.55 / 0.17 / 0.64 s; 0.45 / 0.61 / 0.17 / 0.58 s; 0.45 / 0.60 / 0.24 / 0.51 s |
+| JS beim Start (gzip) | 591 kB ohne Kompression | 190 kB (index 105 kB, ui 85 kB), 3 Dateien | 156 kB, 1 Datei (Übertragung 158 KiB) | 139 kB, 1 Datei (Übertragung 141 KiB); norigin 16.6 kB als eigene Datei nach dem LCP | unverändert 139 kB; die Datei wird erst nach dem gezeichneten Hero-Bild angefordert (Lader 0.3 kB inline) |
+| Anfragen vor dem LCP | – | 11 | 7 (Dokument, Sitzung, Startseite, Hero-Bild, JS, CSS, Manifest) | 7 (unverändert) | 6 (Dokument, Sitzung, Startseite, Hero-Bild, CSS, Manifest); das JS folgt nach dem LCP |
+| LCP-Element | aktives Hero-`<img>` w1280 | aktives Hero-`<img>`, w780 über `srcset` | unverändert | `#hero-prepaint img` aus der App-Hülle (w780 über `srcset`) | unverändert |
 
 Runde 2 (Läufe `lighthouse-home-3-run{1,2,3}.json`):
 
@@ -165,8 +165,35 @@ sobald es geladen ist (laut Simulation bei ≈ 2.25 s), unabhängig vom JS. Gewi
 nur die kleinere Start-Datei (−17 kB): Sie bringt den LCP genau an die Stufe, die je nach CPU-Zeiten des
 Beobachtungslaufs (FCP 1.65 s ↔ LCP 2.55 s, FCP 1.70 s ↔ LCP 2.45 s) mal darunter, mal darüber liegt.
 Ein sicherer Abstand bräuchte nochmals rund 15–30 kB weniger Start-JS, oder das Start-JS erst nach dem
-Hero-Bild anzufordern (nur auf `/` mit Hülle; verschiebt die Interaktivität um etwa eine Anfrage). Beides
-ist nicht umgesetzt.
+Hero-Bild anzufordern; Runde 4 setzt das Zweite um.
+
+Runde 4 (Läufe `lighthouse-home-5-run{1,2,3}.json`):
+
+- **Start-JS erst nach dem Hero-Bild.** Die gebaute App-Hülle trägt statt des `<script type="module">`
+  im `<head>` einen Inline-Lader am Ende von `<body>` (Vite-Plugin `deferStartScript` in
+  `vite.config.ts`; in der Entwicklung bleibt der normale Skript-Tag). Der Lader hängt dasselbe
+  Modul-Skript ein, sobald das Hero-Bild aus der Hülle gezeichnet ist (zwei Frames nach dessen
+  `load`, wie das Karussell), und sofort, wenn die Hülle kein Bild trägt (Anmeldung, andere Seiten),
+  das Bild fehlschlägt oder das Dokument verborgen ist; nach 2.5 s startet er in jedem Fall. Im
+  Beobachtungslauf beginnt die JS-Anfrage damit bei 76 ms, der LCP ist bei 63 ms gezeichnet: Lantern
+  nimmt das JS nicht mehr in den LCP-Graphen, und der simulierte LCP endet mit dem Bild, das sich die
+  Leitung nur noch mit CSS, Manifest und den beiden kleinen JSON-Antworten teilt: 2.55 → 1.80 s, FCP
+  1.65 → 0.75 s, dreimal derselbe Wert.
+- **Service Worker aus der App statt inline.** Die Registrierung (`app/serviceWorker.ts`,
+  `injectRegister: false`) läuft nach `load` in einer Leerlaufphase (`requestIdleCallback`, spätestens
+  nach 5 s). Der Inline-Skript-Weg hätte den Worker beim `load`-Ereignis registriert, das jetzt vor dem
+  Start-JS eintreten kann; die Vorab-Cache-Füllung (654 KiB) hätte dann mit dem Start-JS um die
+  Leitung konkurriert.
+- Was das im echten gedrosselten Browser heisst: Bild und JS wechseln sich auf der Leitung ab, statt sie
+  zu teilen. Das Hero-Bild steht deshalb früher (allein auf der Leitung), das JS kommt ungefähr gleich
+  spät wie bisher an, weil die Leitung dieselben Bytes trägt; auf schnellen Verbindungen beginnt die
+  JS-Anfrage rund zwei Frames nach dem Bild. Kopfzeile und Reihen erscheinen weiterhin, sobald das JS
+  gelaufen ist. Das Start-JS selbst bleibt 139 kB: react-dom (64 kB gzip), TanStack Router (27 kB),
+  i18next mit beiden Sprachen (16 kB + 6 kB) und Query (10 kB) sind Stack-Entscheide (ADR 0001); der
+  eigene Code der Startseite (Features und `ui`) wiegt zusammen rund 15 kB, davon lässt sich nichts
+  im Umfang von 15–30 kB einsparen (Analyse über die Sourcemap, `vite build --sourcemap`).
+
+**P-10 (< 2.5 s) erfüllt: Median 1.80 s, drei Läufe mit demselben Aufbau, 0.7 s Abstand zur Schwelle.**
 
 ## 5. Leerlauf
 
