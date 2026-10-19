@@ -8,8 +8,8 @@
 //
 // Unfiltered reads (scanner, metadata jobs, administration) do not go through this package in M1a;
 // they live in the packages library, metadata and admin on top of store/systemq. System creates the
-// unfiltered scope that later milestones will accept for internal callers; the functions of M1a
-// reject it.
+// unfiltered scope for internal callers: the functions for viewers reject it, SystemItemRating
+// (the administration view of a title's ratings, M2) requires it.
 package visibility
 
 import (
@@ -23,6 +23,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // MaxRowItems caps every list (home rows) at 20 titles.
@@ -56,8 +57,8 @@ func Profile(p model.Profile) Scope {
 
 // System returns an unfiltered scope for internal callers; reason is written to the debug log when
 // the scope is used. The analyzer itemsaccess allows calling it only in visibility, admin,
-// library, metadata, jobs, notify and offline. In M1a every function of this package rejects it
-// with ErrUnscoped, because no viewer-facing read may run unfiltered.
+// library, metadata, jobs, notify and offline. Every viewer-facing function of this package
+// rejects it with ErrUnscoped, because no viewer-facing read may run unfiltered.
 func System(reason string) Scope {
 	return Scope{system: true, reason: reason}
 }
@@ -65,13 +66,14 @@ func System(reason string) Scope {
 // Reader runs scoped reads against the reader pool of the database.
 type Reader struct {
 	q   *scopedq.Queries
+	sys *systemq.Queries // the system scope only (SystemItemRating)
 	log *slog.Logger
 	now func() time.Time
 }
 
 // New returns a Reader on the read connections of db; log is the redacting logger.
 func New(db *store.DB, log *slog.Logger) *Reader {
-	return &Reader{q: scopedq.New(db.Read), log: log, now: time.Now}
+	return &Reader{q: scopedq.New(db.Read), sys: systemq.New(db.Read), log: log, now: time.Now}
 }
 
 // profile returns the profile id of s or ErrUnscoped.
@@ -84,6 +86,36 @@ func (r *Reader) profile(ctx context.Context, s Scope) (int64, error) {
 		return 0, ErrUnscoped
 	}
 	return s.profileID, nil
+}
+
+// ErrNotSystem is returned by SystemItemRating for a viewer scope.
+var ErrNotSystem = errors.New("visibility: the system scope is required")
+
+// SystemItemRating returns the ratings of a title for the administration (rating override). It
+// reads without any profile filter and therefore accepts only the System scope; an unknown or
+// deleted title is model.ErrNotFound.
+func (r *Reader) SystemItemRating(ctx context.Context, s Scope, itemID string) (model.ItemRating, error) {
+	if !s.system {
+		return model.ItemRating{}, ErrNotSystem
+	}
+	r.log.DebugContext(ctx, "system scope read", "reason", s.reason, "item_id", itemID)
+	it, err := r.sys.GetItemSystem(ctx, itemID)
+	if err != nil {
+		return model.ItemRating{}, notFound(err)
+	}
+	if it.DeletedAt.Valid {
+		return model.ItemRating{}, model.ErrNotFound
+	}
+	out := model.ItemRating{ID: it.ID, Kind: it.Kind, Title: it.Title, RatingSource: it.RatingSource.String}
+	if it.OwnRating.Valid {
+		v := int(it.OwnRating.Int64)
+		out.OwnRating = &v
+	}
+	if it.EffectiveRating.Valid {
+		v := int(it.EffectiveRating.Int64)
+		out.EffectiveRating = &v
+	}
+	return out, nil
 }
 
 // Summary returns a visible title as it appears in lists.

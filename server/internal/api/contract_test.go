@@ -19,7 +19,7 @@ import (
 //     delivered without the item whose visibility decides it.
 
 var (
-	visibilities = []string{"public", "scoped", "system", "admin"}
+	visibilities = []string{"public", "account", "scoped", "system", "admin"}
 	httpMethods  = []string{"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
 
@@ -201,7 +201,7 @@ components:
 		"GET /images/{kind}: image path without the item path parameter {id}",
 		`GET /leak: responses contain ItemRef, x-visibility must be scoped, is "public"`,
 		"GET /no-marker: missing x-visibility",
-		`POST /typo: x-visibility "private" not in [public scoped system admin]`,
+		`POST /typo: x-visibility "private" not in [public account scoped system admin]`,
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)

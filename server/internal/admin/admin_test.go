@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"log/slog"
 	"slices"
@@ -303,5 +304,93 @@ func TestLibraryDelegation(t *testing.T) {
 	}
 	if _, err := f.svc.AcceptLibraryLoss(ctx, 1); err != nil || !slices.Equal(f.libs.lost, []int64{1}) {
 		t.Fatalf("AcceptLibraryLoss: %v %v", err, f.libs.lost)
+	}
+}
+
+func (f *fixture) seedItem(t *testing.T, id string, ownRating *int, source, locked string) {
+	t.Helper()
+	ctx := context.Background()
+	for _, q := range []string{
+		`INSERT OR IGNORE INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 0, 0)`,
+	} {
+		if _, err := f.db.Write.ExecContext(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := f.db.Write.ExecContext(ctx, `INSERT INTO items (id, kind, library_id, title, sort_title, own_rating, rating_source, locked_fields, added_at, created_at, updated_at)
+	                                       VALUES (?, 'movie', 1, 'Film', 'film', ?, ?, ?, 0, 0, 0)`, id, ownRating, sql.NullString{String: source, Valid: source != ""}, locked)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func (f *fixture) itemRow(t *testing.T, id string) (own sql.NullInt64, eff sql.NullInt64, source sql.NullString, locked string) {
+	t.Helper()
+	err := f.db.Read.QueryRowContext(context.Background(), `SELECT own_rating, effective_rating, rating_source, locked_fields FROM items WHERE id = ?`, id).Scan(&own, &eff, &source, &locked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return
+}
+
+// SetItemRating overrides the rating, locks the field against metadata updates (keeping other
+// locks), recomputes the effective rating through the triggers and clears the override again.
+func TestSetItemRating(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	const id = "01J0000000000000000000ABCD"
+	twelve, sixteen := 12, 16
+	f.seedItem(t, id, &twelve, "tmdb:DE", `["title"]`)
+
+	got, err := f.svc.SetItemRating(ctx, id, &sixteen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != id || got.Kind != "movie" || got.Title != "Film" || got.OwnRating == nil || *got.OwnRating != 16 ||
+		got.EffectiveRating == nil || *got.EffectiveRating != 16 || got.RatingSource != "manual" {
+		t.Fatalf("override = %+v", got)
+	}
+	own, eff, source, locked := f.itemRow(t, id)
+	if own.Int64 != 16 || eff.Int64 != 16 || source.String != "manual" || locked != `["title","own_rating"]` {
+		t.Fatalf("row after the override: %v %v %v %s", own, eff, source, locked)
+	}
+	// Overriding again does not duplicate the lock.
+	if _, err := f.svc.SetItemRating(ctx, id, &twelve); err != nil {
+		t.Fatal(err)
+	}
+	if _, eff, _, locked := f.itemRow(t, id); eff.Int64 != 12 || locked != `["title","own_rating"]` {
+		t.Fatalf("second override: effective %v locked %s", eff, locked)
+	}
+	// Clearing removes value, source and lock but keeps the other locks.
+	got, err = f.svc.SetItemRating(ctx, id, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.OwnRating != nil || got.EffectiveRating != nil || got.RatingSource != "" {
+		t.Fatalf("cleared = %+v", got)
+	}
+	if own, _, source, locked := f.itemRow(t, id); own.Valid || source.Valid || locked != `["title"]` {
+		t.Fatalf("row after clearing: %v %v %s", own, source, locked)
+	}
+	if _, err := f.svc.SetItemRating(ctx, id, nil); err != nil {
+		t.Fatalf("clearing twice: %v", err)
+	}
+
+	for _, bad := range []int{-1, 5, 7, 17, 99} {
+		bad := bad
+		_, err := f.svc.SetItemRating(ctx, id, &bad)
+		var verr *model.ValidationError
+		if !errors.As(err, &verr) {
+			t.Errorf("rating %d: %v, want a validation error", bad, err)
+		}
+	}
+	if _, err := f.svc.SetItemRating(ctx, "01J0000000000000000000ZZZZ", &twelve); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("unknown item: %v", err)
+	}
+	if _, err := f.db.Write.ExecContext(ctx, `UPDATE items SET deleted_at = 1 WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.SetItemRating(ctx, id, &twelve); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("deleted item: %v", err)
 	}
 }

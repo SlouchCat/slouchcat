@@ -8,9 +8,11 @@ package admin
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -20,6 +22,8 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
 const (
@@ -50,9 +54,11 @@ type TMDBChecker interface {
 
 // Service implements api.AdminService and is the KeySource of package metadata.
 type Service struct {
+	db        *sql.DB // writer, for the rating override transaction
 	write     *appq.Queries
 	read      *appq.Queries
 	auth      *auth.Service
+	vis       *visibility.Reader // system-scope read of the rating override
 	libraries Libraries
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
@@ -66,7 +72,7 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 	getenv func(string) string, log *slog.Logger,
 ) *Service {
 	return &Service{
-		write: appq.New(db.Write), read: appq.New(db.Read), auth: auth, libraries: libraries,
+		db: db.Write, write: appq.New(db.Write), read: appq.New(db.Read), auth: auth, vis: visibility.New(db, log), libraries: libraries,
 		keyring: keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now,
 	}
 }
@@ -215,4 +221,60 @@ func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, err
 // AcceptLibraryLoss lifts the loss protection for the next scan and queues it.
 func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Library, error) {
 	return s.libraries.AcceptLoss(ctx, id)
+}
+
+// ratingLockField is the entry of items.locked_fields that keeps the metadata job from
+// overwriting an override (the job locks by column name).
+const ratingLockField = "own_rating"
+
+// SetItemRating overrides the age rating of a title (M2, plan 10.2 "Freigabe-Änderung"): own_rating
+// and rating_source "manual" are set and own_rating is added to locked_fields, so enrichment keeps
+// the value. The triggers recompute the effective rating of the title and its descendants in the
+// same statement. A nil rating drops the override: own_rating and rating_source become NULL and the
+// lock is removed; the title counts as unrated (18) until the next metadata match restores the
+// rating. The result is the unfiltered administration view. model.ErrNotFound for an unknown title.
+func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error) {
+	if rating != nil && !slices.Contains([]int{0, 6, 12, 16, 18}, *rating) {
+		return model.ItemRating{}, (&model.ValidationError{}).Add("rating", "invalid_value")
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return model.ItemRating{}, fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	item, err := q.GetItemSystem(ctx, itemID)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && item.DeletedAt.Valid) {
+		return model.ItemRating{}, model.ErrNotFound
+	}
+	if err != nil {
+		return model.ItemRating{}, fmt.Errorf("get item: %w", err)
+	}
+	var locked []string
+	if err := json.Unmarshal([]byte(item.LockedFields), &locked); err != nil {
+		locked = nil
+	}
+	locked = slices.DeleteFunc(locked, func(f string) bool { return f == ratingLockField })
+	params := systemq.UpdateItemRatingOverrideParams{ID: itemID, Now: s.now().UnixMilli()}
+	if rating != nil {
+		locked = append(locked, ratingLockField)
+		params.OwnRating = sql.NullInt64{Int64: int64(*rating), Valid: true}
+		params.RatingSource = sql.NullString{String: "manual", Valid: true}
+	}
+	raw, err := json.Marshal(locked)
+	if err != nil {
+		return model.ItemRating{}, fmt.Errorf("locked fields: %w", err)
+	}
+	if locked == nil {
+		raw = []byte("[]")
+	}
+	params.LockedFields = string(raw)
+	if err := q.UpdateItemRatingOverride(ctx, params); err != nil {
+		return model.ItemRating{}, fmt.Errorf("update rating: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return model.ItemRating{}, fmt.Errorf("commit: %w", err)
+	}
+	s.log.InfoContext(ctx, "item rating overridden", "item_id", itemID, "rating_set", rating != nil)
+	return s.vis.SystemItemRating(ctx, visibility.System("admin rating override"), itemID)
 }
