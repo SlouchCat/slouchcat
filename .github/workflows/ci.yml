@@ -21,12 +21,14 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
 
+      # pnpm first: setup-node@v5 caches the package manager named in package.json#packageManager
+      # and needs the binary on PATH.
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v5
         with:
           node-version-file: .tool-versions
-
-      - name: Enable pnpm from package.json#packageManager
-        run: corepack enable && corepack install && pnpm --version
+          cache: pnpm
 
       - name: Install task
         run: go install github.com/go-task/task/v3/cmd/task@v3.54.0
