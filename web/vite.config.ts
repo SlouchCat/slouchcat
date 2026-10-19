@@ -17,14 +17,68 @@ function themeColorMeta(): Plugin {
   };
 }
 
+// Hero image first, start JS second (P-10). The server writes the first hero image into the start
+// page's shell (#hero-prepaint, api/preload.go). This inline loader, placed at the end of <body> by
+// deferStartScript, appends the module script once that image is painted (two frames after its
+// load event, like the carousel) and right away when there is no such image (login, other pages),
+// the image failed or the document is hidden. The image and the JS then no longer share a slow
+// link, so the hero is on screen earlier; the JS arrives about as late as before, since the link
+// carries the same bytes either way. The timer is a safety net for a stalled image.
+const startLoader = (src: string) => `(function () {
+  var img = document.querySelector('#hero-prepaint > img');
+  var started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    var script = document.createElement('script');
+    script.type = 'module';
+    script.crossOrigin = 'anonymous';
+    script.src = ${JSON.stringify(src)};
+    document.head.appendChild(script);
+  }
+  function afterPaint() {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(start);
+    });
+  }
+  if (!img || document.hidden) return start();
+  if (img.complete) return afterPaint();
+  img.addEventListener('load', afterPaint);
+  img.addEventListener('error', start);
+  setTimeout(start, 2500);
+})();`;
+
+const startScriptTag = /<script type="module" crossorigin src="([^"]+)"><\/script>\n?/;
+
+/** Replaces the start script tag of the built shell with the inline loader (see startLoader). */
+function deferStartScript(): Plugin {
+  return {
+    name: 'slouchcat:defer-start-script',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml: {
+      order: 'post',
+      handler: (html) => {
+        const match = startScriptTag.exec(html);
+        if (!match?.[1]) throw new Error('index.html: start script tag not found');
+        return {
+          html: html.replace(match[0], ''),
+          tags: [{ tag: 'script', children: startLoader(match[1]), injectTo: 'body' }],
+        };
+      },
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     themeColorMeta(),
+    deferStartScript(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Inline registration: no extra, parser-blocking script request before the first paint (P-10).
-      injectRegister: 'inline',
+      // The app registers the worker itself once it runs and the browser is idle (app/serviceWorker.ts).
+      injectRegister: false,
       // The glob below already precaches icons; avoid listing them twice.
       includeManifestIcons: false,
       manifest: {

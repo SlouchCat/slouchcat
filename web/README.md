@@ -77,6 +77,14 @@ scripts/icons.mjs     PWA-Icons aus icon.svg
   Karussellbild (gleiche URLs, `imagesrcset` und `imagesizes` wie im Karussell). Lesende API-Aufrufe
   gehen deshalb ohne den CSRF-Kopf `X-Requested-With` (nur schreibende brauchen ihn), sonst nähme der
   Browser die vorgeladenen Antworten nicht.
+- **Start-JS nach dem Hero-Bild (P-10):** Im Build ersetzt das Vite-Plugin `deferStartScript`
+  (`vite.config.ts`) den Skript-Tag der App-Hülle durch einen Inline-Lader am Ende von `<body>`. Er hängt
+  das Modul-Skript ein, sobald das Hero-Bild aus der Hülle gezeichnet ist (zwei Frames nach `load`), und
+  sofort ohne Hülle-Bild, bei einem Bildfehler oder verborgenem Dokument; nach 2.5 s in jedem Fall. Bild
+  und JS teilen sich so keine langsame Leitung mehr. Der Service Worker wird deshalb nicht mehr inline,
+  sondern aus der App registriert (`app/serviceWorker.ts`: nach `load` im Leerlauf), damit die
+  Vorab-Cache-Füllung nicht mit dem Start-JS konkurriert. In der Entwicklung (`vite`) bleibt der normale
+  Skript-Tag.
 - **Hero-Bild in der App-Hülle (P-10):** Am Marker `<!--hero-->` in `index.html` schreibt der Server für
   dieselbe Anfrage `<div id="hero-prepaint">` mit dem ersten Karussellbild (gleiche Attribute) vor
   `#root`; ohne Sitzung oder Bild entfällt der Marker. `#hero-prepaint` in `global.css` hat die Geometrie
@@ -119,7 +127,8 @@ Icons: `public/icons/icon-192.png`, `icon-512.png` (purpose `any`) und `icon-512
 (`scripts/icons.mjs`, ffmpeg mit librsvg). Das Skript bricht ab, wenn `icon.svg` andere Farben als
 `color.bg.base` und `color.accent.ember.base` enthält. Die PNGs liegen im Repository.
 
-Service Worker (Workbox, `generateSW`): vorab gecacht wird nur die App-Hülle (JS, CSS, HTML, Icons, Manifest).
+Service Worker (Workbox, `generateSW`, registriert aus `src/app/serviceWorker.ts` nach `load` im
+Leerlauf): vorab gecacht wird nur die App-Hülle (JS, CSS, HTML, Icons, Manifest).
 `/api/` und `/spike/` erhalten nie die App-Hülle als Navigations-Rückfall. Laufzeit-Caching:
 `/api/v1/items/*/images/*` CacheFirst (höchstens 300 Einträge, 30 Tage); alles andere unter `/api/`
 NetworkOnly (JSON, Streams).
