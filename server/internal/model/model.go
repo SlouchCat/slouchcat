@@ -21,6 +21,8 @@ var (
 	ErrTMDBKeyInvalid     = errors.New("tmdb key invalid")     // 422 tmdb_key_invalid
 	ErrTMDBUnreachable    = errors.New("tmdb unreachable")     // 422 tmdb_unreachable
 	ErrTooManyAttempts    = errors.New("too many attempts")    // 429 too_many_attempts
+	// ErrProviderNotConfigured: a metadata provider without key was asked (422 provider_not_configured).
+	ErrProviderNotConfigured = errors.New("provider not configured")
 )
 
 // Profile and access errors (M2).
@@ -231,6 +233,95 @@ type ItemRating struct {
 	RatingSource    string
 }
 
+// Administration views of M3 (not scoped to a profile; never ItemRef in the contract).
+
+// AdminMediaFile is a media file as the administrator sees it, with its path.
+type AdminMediaFile struct {
+	ID           string
+	RootID       int64
+	Path         string // relative to the library root
+	SizeBytes    int64
+	Available    bool
+	VersionLabel string
+	ProbedAt     *time.Time
+	ProbeError   string
+}
+
+// AdminItem is the unfiltered view of a title.
+type AdminItem struct {
+	ID              string
+	Kind            string
+	Title           string
+	Year            *int
+	LibraryID       int64
+	ParentID        string
+	SeasonNumber    *int
+	EpisodeNumber   *int
+	EpisodeEnd      *int
+	MetadataState   string
+	MetadataError   string
+	MatchedAt       *time.Time
+	TMDBID          *int64
+	TVDBID          *int64
+	IMDBID          string
+	LockedFields    []string
+	OwnRating       *int
+	EffectiveRating *int
+	RatingSource    string
+	TrailerState    string
+	Trailers        []Trailer
+	MediaFiles      []AdminMediaFile
+	Seasons         int // child counts
+	Episodes        int
+	Extras          int
+}
+
+// MetadataCandidate is a search result of a metadata provider (manual match, B-6).
+type MetadataCandidate struct {
+	Provider      string // tmdb, tvdb
+	ProviderID    string
+	Title         string
+	OriginalTitle string
+	Year          *int
+	Overview      string
+	PosterURL     string // small poster at the provider's image host
+}
+
+// Issue is one entry of the maintenance lists (B-9).
+type Issue struct {
+	Kind        string // unmatched, no_images, unrated, orphaned, unplayable, rating_mismatch
+	ItemID      string
+	ItemKind    string
+	Title       string
+	Year        *int
+	LibraryID   int64
+	Path        string
+	MediaFileID string
+	Detail      string
+}
+
+// IssuePage is one page of issues with the total count.
+type IssuePage struct {
+	Total int
+	Items []Issue
+}
+
+// DuplicateItem is one title of a duplicate group with its files.
+type DuplicateItem struct {
+	ItemID    string
+	Kind      string
+	Title     string
+	Year      *int
+	LibraryID int64
+	Files     []AdminMediaFile
+}
+
+// DuplicateGroup is a set of titles or files that exist twice (B-9).
+type DuplicateGroup struct {
+	Reason string // provider_id, title_year, file_hash
+	Items  []DuplicateItem
+}
+
 // Image is a poster or backdrop reference as the client uses it.
 type Image struct {
 	Kind        string // poster, backdrop
@@ -272,6 +363,53 @@ type ItemSummary struct {
 	BackdropLarge  *Image // w1920
 	Accent         string // #rrggbb from the poster palette, "" until the pipeline has run
 	Progress       *Progress
+
+	// Series tree and extras (M3). ParentID is the season of an episode, the series of a season or
+	// the parent title of an extra. SeriesTitle is set on seasons and episodes (profile language).
+	ParentID      string
+	SeasonNumber  *int
+	EpisodeNumber *int
+	EpisodeEnd    *int // last episode of a file that holds several episodes
+	SeriesTitle   string
+	ExtraKind     string // trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other
+	ChildCount    *int   // visible seasons of a series, visible episodes of a season
+}
+
+// CastMember is one credit of a title (B-3).
+type CastMember struct {
+	PersonID  int64
+	Name      string
+	Role      string // cast, director, writer, creator
+	Character string
+}
+
+// Trailer is a YouTube trailer of a title in one language (B-8, W-10).
+type Trailer struct {
+	ID        int64
+	Lang      string // ISO 639-1
+	YouTubeID string
+	Title     string
+	Source    string // tmdb, youtube, ai, manual
+	Official  bool
+}
+
+// EmbedURL is the IFrame player URL of the trailer (youtube-nocookie.com, plan 5.3).
+func (t Trailer) EmbedURL() string {
+	return "https://www.youtube-nocookie.com/embed/" + t.YouTubeID
+}
+
+// PersonCredit is one visible title of a person.
+type PersonCredit struct {
+	Item      ItemSummary
+	Role      string
+	Character string
+}
+
+// Person with the credits the profile may see.
+type Person struct {
+	ID      int64
+	Name    string
+	Credits []PersonCredit
 }
 
 // MediaFile describes one playable file of a title.
@@ -298,7 +436,17 @@ type ItemDetail struct {
 	ReleaseDate   string // YYYY-MM-DD or empty
 	Genres        []string
 	TMDBID        *int64
-	MediaFiles    []MediaFile
+	TVDBID        *int64
+	MediaFiles    []MediaFile // versions, primary first; VersionLabel always set
+
+	Series       *ItemSummary  // of a season or an episode
+	Season       *ItemSummary  // of an episode
+	Seasons      []ItemSummary // of a series, by number, specials last
+	Episodes     []ItemSummary // of a season, by number
+	Extras       []ItemSummary // of a film, series or season
+	NextEpisode  *ItemSummary  // next visible episode of the same series
+	Cast         []CastMember
+	TrailerCount int
 }
 
 // HomeRow is one row of the start page.
