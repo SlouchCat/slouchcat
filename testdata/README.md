@@ -9,7 +9,7 @@ geschützten Medien verwendet: Bild und Ton stammen aus den ffmpeg-Quellen `test
 ## Test-Medien (`task testdata:media`)
 
 `generate-media.sh` erzeugt kurze Dateien für die Wiedergabe-Testmatrix (Plan 10.3) in Plex/Jellyfin-
-Benennung. Voraussetzung ist ffmpeg mit `libx264`, `libx265`, `ac3` und `dca`; das Skript bricht mit einer
+Benennung. Voraussetzung ist ffmpeg mit `libx264`, `libx265`, `ac3`, `dca`, `libmp3lame` und `mjpeg`; das Skript bricht mit einer
 klaren Meldung ab, wenn ffmpeg oder ein Encoder fehlt. Andere Binaries über Umgebungsvariablen:
 
 ```bash
@@ -45,6 +45,10 @@ OUT_DIR=/srv/media task testdata:media
 
 | `TV/Slouchcat Test Intro Show (2024)/Season 01/… - S01E01.mkv` bis `… - S01E05.mkv` | H.264 640×360 + AAC, 98 bis 106 s (E01 98 s, je Folge 2 s mehr); Ton: eigene Sinustöne, ab 5/12/8/15/10 s dasselbe 20-s-Intro (8 Töne à 2.5 s), wieder eigene Töne, die letzten 25 s dasselbe Abspann-Thema (10 Töne à 2.5 s); E03 mit den Kapiteln «Prolog», «Intro» (8–28 s), «Handlung», «Credits» (77–102 s) | Intro-/Abspann-Erkennung (W-9) |
 | `TV/Slouchcat Test Download Show (2024)/Season 01/… S01E01.mp4` bis `… S01E06.mp4` | H.264 1280×720 + AAC, je 8 s; E01 mit Sidecar `… S01E01.de.srt` | Staffel-Download mit einer Aktion (O-2), Auto-Download der nächsten Folge (O-3) |
+| `Audiobooks/Slouchcat Test Author/Slouchcat Test Audio Series/01 - Slouchcat Test Audiobook M4B/….m4b` | AAC mono, 60 s, 12 Kapitel «Kapitel 1» … «Kapitel 12» à 5 s aus einer ffmetadata-Datei, eingebettetes Cover (MJPEG `attached_pic`), Tags wie echte M4B-Dateien: `artist` = Autor, `composer` = Sprecher, `show` = Reihe, `episode_id` = Band, `description` | Hörbuch aus einer Datei (H-1), Kapitelsprung offline (M6) |
+| `Audiobooks/Slouchcat Test Author/Slouchcat Test Audio Series/02 - Slouchcat Test Audiobook MP3/01 - Kapitel 1.mp3` … `10 - Kapitel 10.mp3`, `cover.jpg` | MP3 mono, je 6 s, ID3v2.3 mit `title`, `artist`, `album`, `composer`, `track n/10`; Ordner mit Cover | Hörbuch aus einem Ordner, ein Kapitel je Datei (H-1), Autor/Reihe/Band aus der Ordnerstruktur |
+| `Podcasts/episode-1.mp3` … `episode-3.mp3`, `cover.jpg` | MP3 mono, 8/10/12 s | Enclosures des lokalen Test-Feeds (`testdata/podcasts/feed.xml.tmpl`, Platzhalter `{{BASE}}` für den Mock-Server; Episode 3 ist `itunes:explicit=true`) für H-2, O-3 ohne Netz |
+
 Hinweise:
 
 - Die HDR10-Datei zeigt SDR-Testbalken, die als HDR10 gekennzeichnet sind. Für Erkennung und
