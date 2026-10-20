@@ -279,7 +279,8 @@ func validateRequest(req model.PlaybackRequest) error {
 
 // trackRequest checks the wanted tracks against the tracks of the file: audioTrack must be the
 // stream index of one of its audio tracks, subtitleTrack the id of one of its subtitle tracks,
-// and a text delivery needs a text track (422 unknown_track, not_text).
+// a text delivery needs a text track and a burn-in a burnable track (422 unknown_track,
+// not_text, not_burnable).
 func trackRequest(req model.PlaybackRequest, tracks model.TrackList) (Request, error) {
 	out := Request{AudioStream: -1, Delivery: req.SubtitleDelivery}
 	var verr *model.ValidationError
@@ -298,6 +299,8 @@ func trackRequest(req model.PlaybackRequest, tracks model.TrackList) (Request, e
 			verr = verr.Add("subtitleTrack", "unknown_track")
 		case req.SubtitleDelivery == model.SubtitleText && !tracks.Subtitles[i].Text:
 			verr = verr.Add("subtitleDelivery", "not_text")
+		case (req.SubtitleDelivery == model.SubtitleBurn || !tracks.Subtitles[i].Text) && !burnable(tracks.Subtitles[i]):
+			verr = verr.Add("subtitleDelivery", "not_burnable")
 		default:
 			out.Subtitle = &tracks.Subtitles[i]
 		}
@@ -306,6 +309,13 @@ func trackRequest(req model.PlaybackRequest, tracks model.TrackList) (Request, e
 		return Request{}, verr
 	}
 	return out, nil
+}
+
+// burnable reports whether a transcode can burn the subtitle track in: text tracks through libass
+// (embedded or sidecar), embedded PGS and DVD bitmaps as an overlay. A VobSub sidecar (.sub) and
+// other image formats cannot.
+func burnable(t model.Track) bool {
+	return t.Text || (t.Source != "sidecar" && transcode.BitmapSubtitleCodec(t.Codec))
 }
 
 // directFallback is the decision when HLS is not possible (no transcoder, file not probed): direct
@@ -353,8 +363,9 @@ func (src source) transcode(d Decision, reason string) Decision {
 
 // startHLS starts the output of req. A remux the transcoder rejects for a missing keyframe index
 // (a safety net behind prepare) is transcoded instead and the index job is queued at top priority.
-// An exhausted budget lowers an SDR transcode above 720p once to the 720p rung (plan 3.5,
-// budget_lowered); HDR sources and lower rungs answer model.ErrTranscodeBusy. It returns the output
+// An exhausted budget lowers an SDR transcode above 720p once to the 720p rung when that costs
+// less budget (plan 3.5, budget_lowered); HDR and 4K sources and lower rungs answer
+// model.ErrTranscodeBusy at once. It returns the output
 // and the decision that runs.
 func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HLSSession, Decision, error) {
 	hs, err := s.tc.Start(ctx, *req)
@@ -365,7 +376,7 @@ func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HL
 		hs, err = s.tc.Start(ctx, *req)
 	}
 	if errors.Is(err, model.ErrTranscodeBusy) {
-		if low, ok := lowered(req.Decision, src.w, src.h, src.limits); ok {
+		if low, ok := lowered(req.Decision, src.w, src.h, src.limits); ok && cheaper(*req, low) {
 			s.log.InfoContext(ctx, "transcode budget exhausted, trying one rung lower", "playback_id", req.ID,
 				"from", req.Decision.Quality, "to", low.Quality)
 			req.Decision = low
@@ -373,6 +384,14 @@ func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HL
 		}
 	}
 	return hs, req.Decision, err
+}
+
+// cheaper reports whether the decision low costs less transcode budget than the decision of req
+// (transcode.Cost): a 4K source costs the same on every rung, so lowering it only waits again.
+func cheaper(req HLSRequest, low Decision) bool {
+	lowReq := req
+	lowReq.Decision = low
+	return transcode.Cost(hlsSource(lowReq), hlsTarget(lowReq)) < transcode.Cost(hlsSource(req), hlsTarget(req))
 }
 
 // storedProbe reads the stored probe and keyframe blob of a media file; probe is nil when the file
@@ -579,8 +598,8 @@ func (s *Service) HLS(ctx context.Context, g model.PlaybackGrant, segment int) (
 
 // rebuild starts the output of a valid HLS grant again, one rebuild per playback at a time. The
 // decision is made again from the recorded columns (M4 design 3.7): the reported capabilities,
-// the quality rung, the audio track and the subtitle track with its delivery, under the profile's
-// current limits; a recorded transcode stays a transcode on its rung.
+// the quality rung, the audio track and the subtitle track with its delivery, under the limits of
+// the recorded decision (recordedLimits); a recorded transcode stays a transcode on its rung.
 func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment int) (HLSSession, error) {
 	for {
 		s.rebuildMu.Lock()
@@ -629,7 +648,7 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	if err != nil {
 		return nil, unauthenticatedOr(err, "get playback session")
 	}
-	src, d, err := s.recordedDecision(ctx, scope, loc, probe, row, g.Session.Profile.Effective)
+	src, d, err := s.recordedDecision(ctx, scope, loc, probe, row, recordedLimits(row))
 	if err != nil {
 		return nil, err
 	}
@@ -650,6 +669,22 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	}
 	s.log.InfoContext(ctx, "hls output rebuilt", "playback_id", g.ID, "mode", req.Decision.Mode, "segment", segment)
 	return hs, nil
+}
+
+// recordedLimits are the limits a rebuild decides with. The recorded decision already obeyed the
+// limits of its start, and the client holds the master playlist of that decision (rung, size,
+// BANDWIDTH, CODECS), so the profile's current limits do not apply (a changed limit applies from
+// the next start): no limits, except the bandwidth limit when it capped the recorded bit rate
+// below that of its rung, rebuilt from the bit rate.
+func recordedLimits(row appq.PlaybackSession) model.PlaybackLimits {
+	if row.Mode != ModeTranscode || !row.Bitrate.Valid {
+		return model.PlaybackLimits{}
+	}
+	i := rungIndex(row.Quality.String)
+	if i < 0 || row.Bitrate.Int64 >= int64(ladder[i].Bitrate) {
+		return model.PlaybackLimits{}
+	}
+	return model.PlaybackLimits{MaxBitrateKbps: int((row.Bitrate.Int64 + audioBitrate) / 1000)}
 }
 
 // recordedDecision decides an HLS playback again from its row: the stored capabilities (the
@@ -685,6 +720,9 @@ func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, 
 	d := Decide(loc.File, probe, req)
 	if d.Mode == ModeDirect {
 		d = src.transcode(d, row.Reason.String)
+	}
+	if d.Mode == ModeTranscode && row.Mode == ModeTranscode && row.Reason.Valid {
+		d.Reason = row.Reason.String // the forced rung reads as a manual one to Decide
 	}
 	return src, d, nil
 }

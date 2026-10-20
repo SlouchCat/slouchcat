@@ -51,8 +51,9 @@ type Stream struct {
 	Forced         bool   `json:"forced,omitempty"`
 	AttachedPic    bool   `json:"attachedPic,omitempty"` // cover art stored as a video stream
 	// Dolby Vision (M4): the profile of the DOVI configuration record (5, 7, 8; 0 = none) and the
-	// base-layer compatibility id (1 = HDR10 base layer, profile 8.1). Profile 8 plays its base
-	// layer like HDR10; profiles 5 and 7 are transcoded.
+	// base-layer compatibility id (1 = HDR10 base layer, profile 8.1; 2 = SDR, 8.2/9.2; 4 = HLG,
+	// 8.4). Profile 8 plays its base layer like HDR10 (or SDR, HLG); profiles 5 and 7 are
+	// transcoded.
 	DolbyVisionProfile  int `json:"dvProfile,omitempty"`
 	DolbyVisionBLCompat int `json:"dvBLCompat,omitempty"`
 	// HDR10Plus is set when the first frame carries SMPTE ST 2094-40 dynamic metadata (M4).
@@ -68,11 +69,30 @@ const (
 	HDRHLG         = "hlg"
 )
 
-// HDRFormat classifies the stream: Dolby Vision when a DOVI record exists, HLG by transfer, HDR10+
-// by dynamic metadata, HDR10 for any other PQ stream, empty for SDR.
+// dvCompatSDR is the Dolby Vision base-layer compatibility id of an SDR (BT.709) base layer
+// (profiles 8.2 and 9.2); 0 is none (profile 5), 1 HDR10, 4 HLG, 6 Blu-ray HDR10 (profile 7).
+const dvCompatSDR = 2
+
+// IsHDR reports whether the stream is HDR: PQ (HDR10, HDR10+, a Dolby Vision HDR10 base layer) or
+// HLG transfer, or Dolby Vision without such a tag unless its base layer is SDR (compatibility id
+// 2). Profiles 5 and 7 count as HDR whatever they signal. BT.2020 primaries alone do not count.
+func (s Stream) IsHDR() bool {
+	switch s.ColorTransfer {
+	case "smpte2084", "arib-std-b67":
+		return true
+	}
+	if s.DolbyVisionProfile == 0 {
+		return false
+	}
+	return s.DolbyVisionProfile == 5 || s.DolbyVisionProfile == 7 || s.DolbyVisionBLCompat != dvCompatSDR
+}
+
+// HDRFormat classifies the stream: Dolby Vision when a DOVI record exists and the stream is HDR
+// (a Dolby Vision stream with an SDR base layer is SDR), HLG by transfer, HDR10+ by dynamic
+// metadata, HDR10 for any other PQ stream, empty for SDR.
 func (s Stream) HDRFormat() string {
 	switch {
-	case s.DolbyVisionProfile > 0:
+	case s.DolbyVisionProfile > 0 && s.IsHDR():
 		return HDRDolbyVision
 	case s.ColorTransfer == "arib-std-b67":
 		return HDRHLG

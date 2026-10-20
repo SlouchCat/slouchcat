@@ -130,18 +130,12 @@ func normalizeCapabilities(c *model.PlaybackCapabilities) model.PlaybackCapabili
 	return out
 }
 
-// isHDR reports whether the main video stream is HDR: PQ or HLG transfer (the rule of
-// transcode.NewPlan, so the decision and the plan agree on tonemapping) or a Dolby Vision
-// configuration record; BT.2020 primaries alone (an SDR wide-gamut master) do not count.
+// isHDR reports whether the main video stream is HDR (transcode.Stream.IsHDR, the rule of
+// transcode.NewPlan, so the decision and the plan agree on tonemapping): PQ or HLG transfer or a
+// Dolby Vision configuration record whose base layer is not SDR (8.2/9.2 are SDR); BT.2020
+// primaries alone (an SDR wide-gamut master) do not count.
 func isHDR(v *transcode.Stream) bool {
-	if v == nil {
-		return false
-	}
-	switch strings.ToLower(v.ColorTransfer) {
-	case "smpte2084", "arib-std-b67":
-		return true
-	}
-	return v.DolbyVisionProfile > 0
+	return v != nil && v.IsHDR()
 }
 
 // browserDecodable reports whether browsers decode the pixel format of the main video stream:

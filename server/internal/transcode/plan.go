@@ -314,10 +314,9 @@ func Cost(src Source, t Target) float64 {
 func is4K(v Stream) bool { return v.Width > 2560 || v.Height > 1440 }
 
 // isHDR reports PQ (HDR10, HDR10+, Dolby Vision base layer) and HLG sources, and Dolby Vision
-// without a transfer tag (profile 5 signals IPT-PQ-c2 only in its configuration record).
-func isHDR(v Stream) bool {
-	return v.ColorTransfer == "smpte2084" || v.ColorTransfer == "arib-std-b67" || v.DolbyVisionProfile > 0
-}
+// without a transfer tag (profile 5 signals IPT-PQ-c2 only in its configuration record) unless its
+// base layer is SDR (Stream.IsHDR).
+func isHDR(v Stream) bool { return v.IsHDR() }
 
 // videoStream returns the first real video stream (cover art excluded).
 func videoStream(p Probe) (Stream, bool) {

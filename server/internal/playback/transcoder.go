@@ -37,22 +37,7 @@ func (t *ManagerTranscoder) Backend() string { return string(t.backend) }
 // transcode) and starts the encoder at the segment of req.Resume (else req.StartSegment); an
 // exhausted budget returns model.ErrTranscodeBusy, a remux without keyframe index ErrNoKeyframes.
 func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSession, error) {
-	d := req.Decision
-	src := transcode.Source{Path: req.Path, Probe: req.Probe, Keyframes: req.Keyframes}
-	target := transcode.Target{
-		Mode: transcode.Mode(d.Mode), VideoCopy: d.VideoCopy, AudioCopy: d.AudioCopy,
-		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1, AudioStream: d.AudioStream,
-	}
-	if d.Mode == ModeTranscode {
-		target.Quality, target.MaxBitrate = d.Quality, d.Bitrate
-		if d.SubtitleDelivery == model.SubtitleBurn {
-			if req.BurnInPath != "" {
-				target.BurnInPath = req.BurnInPath
-			} else {
-				target.SubtitleBurnIn = d.BurnStream
-			}
-		}
-	}
+	src, target := hlsSource(req), hlsTarget(req)
 	plan, err := transcode.NewPlan(src, target)
 	if errors.Is(err, transcode.ErrNoKeyframes) {
 		return nil, errors.Join(ErrNoKeyframes, err)
@@ -77,6 +62,32 @@ func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSessi
 	t.sessions[req.ID] = ms
 	t.mu.Unlock()
 	return ms, nil
+}
+
+// hlsSource is the transcode source of an HLS request.
+func hlsSource(req HLSRequest) transcode.Source {
+	return transcode.Source{Path: req.Path, Probe: req.Probe, Keyframes: req.Keyframes}
+}
+
+// hlsTarget is the transcode target of an HLS request: rung, bit-rate cap, audio track and the
+// burned-in subtitle of a transcode.
+func hlsTarget(req HLSRequest) transcode.Target {
+	d := req.Decision
+	target := transcode.Target{
+		Mode: transcode.Mode(d.Mode), VideoCopy: d.VideoCopy, AudioCopy: d.AudioCopy,
+		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1, AudioStream: d.AudioStream,
+	}
+	if d.Mode == ModeTranscode {
+		target.Quality, target.MaxBitrate = d.Quality, d.Bitrate
+		if d.SubtitleDelivery == model.SubtitleBurn {
+			if req.BurnInPath != "" {
+				target.BurnInPath = req.BurnInPath
+			} else {
+				target.SubtitleBurnIn = d.BurnStream
+			}
+		}
+	}
+	return target
 }
 
 // Get returns the output of a playback session while the manager has it; the entry of a session

@@ -59,6 +59,15 @@ func dvProbe(profile int) *transcode.Probe {
 	}}
 }
 
+// dvSDRProbe is Dolby Vision 8.2: an SDR (BT.709) base layer, compatibility id 2, 1080p.
+func dvSDRProbe() *transcode.Probe {
+	return &transcode.Probe{Streams: []transcode.Stream{
+		{Index: 0, Type: "video", Codec: "hevc", Width: 1920, Height: 1080, PixFmt: "yuv420p10le", ColorTransfer: "bt709",
+			DolbyVisionProfile: 8, DolbyVisionBLCompat: 2},
+		{Index: 1, Type: "audio", Codec: "eac3", Default: true},
+	}}
+}
+
 // req is a decision request with the capabilities and no limits, tracks or quality wish.
 func req(caps model.PlaybackCapabilities) Request { return Request{Caps: caps, AudioStream: -1} }
 
@@ -191,6 +200,17 @@ func TestDecideDolbyVision(t *testing.T) {
 			}
 		})
 	}
+	// Profile 8.2 (SDR base layer) is SDR: remuxed for a client without HDR, never tonemapped.
+	sdr := dvSDRProbe()
+	if !isHDR(mainVideo(dvProbe(8))) || isHDR(mainVideo(sdr)) || sdr.Streams[0].HDRFormat() != "" {
+		t.Errorf("hdr: 8.1 %v, 8.2 %v %q", isHDR(mainVideo(dvProbe(8))), isHDR(mainVideo(sdr)), sdr.Streams[0].HDRFormat())
+	}
+	if got, want := Decide(file, sdr, req(capsChromeHEVC)), remux(ReasonContainer, false, "hvc1", 1920, 1080, 0, 1); got != want {
+		t.Errorf("8.2 on chrome hevc without hdr = %+v, want %+v", got, want)
+	}
+	if got := Decide(file, sdr, req(capsFirefox)); got.Mode != ModeTranscode || got.Tonemap || got.Reason != ReasonVideoCodec {
+		t.Errorf("8.2 on firefox = %+v, want a transcode without tonemapping", got)
+	}
 }
 
 // W-8: limits of the profile and the manual quality choice.
@@ -212,11 +232,13 @@ func TestDecideLimitsAndQuality(t *testing.T) {
 		{"max 720p transcodes a 1080p source to 720p", p1080, with(capsChrome, model.PlaybackLimits{MaxHeight: 720}, ""),
 			transcodeTo(ReasonMaxHeight, model.Quality720, 1280, 720, 4_000_000, false, true, 1)},
 		{"max 720p keeps a 720p source", p720, with(capsChrome, model.PlaybackLimits{MaxHeight: 720}, ""), direct(1280, 720, 3_000_000, 1)},
-		{"4 mbit/s caps a 10 mbit/s source at 720p", p1080, with(capsChrome, model.PlaybackLimits{MaxBitrateKbps: 4000}, ""),
+		{"4 mbit/s caps a 10 mbit/s source at 480p (720p video and audio exceed it)", p1080, with(capsChrome, model.PlaybackLimits{MaxBitrateKbps: 4000}, ""),
+			transcodeTo(ReasonBandwidth, model.Quality480, 852, 480, 2_000_000, false, true, 1)},
+		{"4.2 mbit/s fits 720p with audio", p1080, with(capsChrome, model.PlaybackLimits{MaxBitrateKbps: 4200}, ""),
 			transcodeTo(ReasonBandwidth, model.Quality720, 1280, 720, 4_000_000, false, true, 1)},
 		{"3 mbit/s keeps a 3 mbit/s source", p720, with(capsChrome, model.PlaybackLimits{MaxBitrateKbps: 3000}, ""), direct(1280, 720, 3_000_000, 1)},
-		{"500 kbit/s takes the lowest rung at the limit", p1080, with(capsChrome, model.PlaybackLimits{MaxBitrateKbps: 500}, ""),
-			transcodeTo(ReasonBandwidth, model.Quality360, 640, 360, 500_000, false, true, 1)},
+		{"500 kbit/s takes the lowest rung at the limit minus the audio", p1080, with(capsChrome, model.PlaybackLimits{MaxBitrateKbps: 500}, ""),
+			transcodeTo(ReasonBandwidth, model.Quality360, 640, 360, 340_000, false, true, 1)},
 		{"manual 480p transcodes", p1080, with(capsChrome, model.PlaybackLimits{}, model.Quality480),
 			transcodeTo(ReasonQuality, model.Quality480, 852, 480, 2_000_000, false, true, 1)},
 		{"manual 1080p on a 1080p source is auto", p1080, with(capsChrome, model.PlaybackLimits{}, model.Quality1080), direct(1920, 1080, 10_000_000, 1)},
@@ -308,7 +330,7 @@ func TestLoweredRung(t *testing.T) {
 	limits := model.PlaybackLimits{MaxBitrateKbps: 3000}
 	d := transcodeTo(ReasonVideoCodec, model.Quality1080, 1920, 1080, 3_000_000, false, true, 1)
 	got, ok := lowered(d, 1920, 1080, limits)
-	want := transcodeTo(ReasonBudgetLowered, model.Quality720, 1280, 720, 3_000_000, false, true, 1)
+	want := transcodeTo(ReasonBudgetLowered, model.Quality720, 1280, 720, 2_840_000, false, true, 1)
 	if !ok || got != want {
 		t.Errorf("lowered = %+v %v, want %+v", got, ok, want)
 	}

@@ -26,6 +26,10 @@ var bitmapSubtitleCodecs = []string{"hdmv_pgs_subtitle", "dvd_subtitle"}
 // WebVTT and burnable through libass. Image subtitles (PGS, DVD) are not.
 func TextSubtitleCodec(codec string) bool { return slices.Contains(textSubtitleCodecs, codec) }
 
+// BitmapSubtitleCodec reports whether codec is an embedded image subtitle that a transcode burns
+// in as an overlay (PGS, DVD). Other image formats (VobSub sidecars, DVB) cannot be burned in.
+func BitmapSubtitleCodec(codec string) bool { return slices.Contains(bitmapSubtitleCodecs, codec) }
+
 type burnKind int
 
 const (

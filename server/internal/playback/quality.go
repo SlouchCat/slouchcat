@@ -72,9 +72,13 @@ func deviceCap(c model.PlaybackCapabilities) int {
 	return 0
 }
 
+// audioBitrate is the bit rate of the AAC audio of a transcode (transcode's 160 kbit/s); the
+// bandwidth limit covers video and audio.
+const audioBitrate = 160_000
+
 // rungAllowed reports whether rung i fits the limits: the profile's maximum height, the device
-// cap and the bandwidth limit (video bit rate of the rung). The lowest rung is always allowed by
-// bandwidth (the limit then caps its bit rate).
+// cap and the bandwidth limit (video bit rate of the rung plus the audio). The lowest rung is
+// always allowed by bandwidth (the limit then caps its bit rate).
 func rungAllowed(i int, limits model.PlaybackLimits, devCap int) bool {
 	r := ladder[i]
 	if limits.MaxHeight > 0 && r.Height > limits.MaxHeight {
@@ -83,7 +87,7 @@ func rungAllowed(i int, limits model.PlaybackLimits, devCap int) bool {
 	if devCap > 0 && r.Height > devCap {
 		return false
 	}
-	if limits.MaxBitrateKbps > 0 && r.Bitrate > limits.MaxBitrateKbps*1000 && i < len(ladder)-1 {
+	if limits.MaxBitrateKbps > 0 && r.Bitrate+audioBitrate > limits.MaxBitrateKbps*1000 && i < len(ladder)-1 {
 		return false
 	}
 	return true
@@ -116,10 +120,11 @@ func outputSize(srcW, srcH int, r Rung) (w, h int) {
 	return w &^ 1, h &^ 1
 }
 
-// rungBitrate is the peak video bit rate of a transcode on rung r under the bandwidth limit.
+// rungBitrate is the peak video bit rate of a transcode on rung r under the bandwidth limit: the
+// limit minus the audio (the smallest limit, 200 kbit/s, leaves 40 kbit/s of video).
 func rungBitrate(r Rung, limits model.PlaybackLimits) int {
 	if limits.MaxBitrateKbps > 0 {
-		return min(r.Bitrate, limits.MaxBitrateKbps*1000)
+		return max(min(r.Bitrate, limits.MaxBitrateKbps*1000-audioBitrate), 1)
 	}
 	return r.Bitrate
 }
