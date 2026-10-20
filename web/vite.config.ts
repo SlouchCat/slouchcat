@@ -104,9 +104,18 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // The worker takes over the open page at once, not only the next navigation: an app
+        // opened once (and gone offline since) gets the shell and every chunk from the precache
+        // (C-1). `autoUpdate` brings skipWaiting only.
+        clientsClaim: true,
         // Precache the app shell only (built JS, CSS, HTML, icons); never media or API answers.
+        // That includes every lazy chunk (the offline library, its player, the OPFS worker and
+        // the locale files), so the app starts and plays downloads without network (C-1, M5).
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js', 'spike/**'],
+        // Every navigation without network gets the shell, /offline and /offline/play/* included;
+        // the router opens the offline library from there.
+        navigateFallback: 'index.html',
         // The API and the offline spike page are never answered with the app shell.
         navigateFallbackDenylist: [/^\/api\//, /^\/spike\//],
         runtimeCaching: [

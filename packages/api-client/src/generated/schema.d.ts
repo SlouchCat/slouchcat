@@ -207,6 +207,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profiles/{id}/offline-pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or replace the separate offline PIN of a profile (AN-19)
+         * @description A separate, longer PIN (6 to 12 digits) that guards the profile in the offline library instead of
+         *     the normal PIN. The server keeps a PBKDF2-SHA256 verifier (600 000 iterations, random salt) and
+         *     hands it only to devices that hold downloads the profile may play (`syncOffline`). Protection
+         *     goal: a curious child on a shared device, not a manipulated browser (plan 3.3). Online the normal
+         *     PIN keeps guarding the profile. Only the account's primary profile may set it.
+         */
+        put: operations["setOfflinePin"];
+        post?: never;
+        /**
+         * Remove the separate offline PIN of a profile
+         * @description Offline the profile is then guarded by its normal PIN again (if it has one).
+         */
+        delete: operations["removeOfflinePin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/profiles/{id}/watch-time": {
         parameters: {
             query?: never;
@@ -451,6 +479,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/download-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download profiles of a title with size estimates (O-1)
+         * @description The three download profiles (`high` ≤ 1080p, `medium` ≤ 720p, `low` ≤ 480p; H.264 and AAC in
+         *     fragmented MP4) with the expected size, the audio tracks and the text subtitles that travel along
+         *     as WebVTT files. For a season the sizes are the sum over its visible episodes (`episodeCount`) and
+         *     the track lists are empty (each episode takes its default audio track or `audioLanguage`). Movies,
+         *     episodes and seasons only; other kinds answer 422 `not_downloadable`. `existing` is the download of
+         *     this device for a movie or episode, when there is one.
+         */
+        get: operations["getDownloadOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download a movie, an episode or a whole season to this device (O-1, O-2)
+         * @description Creates one download per title on the session's device: a movie or an episode gives one, a season
+         *     all its visible episodes in one action (O-2). The server prepares the file in the background
+         *     (queued → preparing → ready; paused while live playback needs the transcode budget, plan 3.5); the
+         *     client fetches it through `getDownloadManifest` once `ready`. A title the device already has is
+         *     returned as it is (a different quality needs `deleteDownload` first). `audioTrack` and
+         *     `mediaFileId` apply to a single title only; for a season `audioLanguage` picks the track per
+         *     episode (fallback: the default track). `allowedProfileIds` lists the profiles of the account that
+         *     may see the title (plan 3.3).
+         */
+        post: operations["createDownloads"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/stream": {
         parameters: {
             query?: never;
@@ -631,6 +711,214 @@ export interface paths {
         get: operations["getPlaybackSubtitle"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/downloads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a download (O-6)
+         * @description Deletes a download of the session's account (any device of the account) together with the server's
+         *     prepared copy. The device that holds the file learns it from the revocation list at its next sync
+         *     and removes the file. The active profile may delete a download when it may see the title (it is in
+         *     `allowedProfileIds`), when it requested the download, or when it is the account's primary profile.
+         *     Any other download, a download of another account or an unknown id → 404.
+         */
+        delete: operations["deleteDownload"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/downloads/{id}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fragment index and file URL of a prepared download
+         * @description Everything the device needs to fetch and play a download offline: the size, the init segment and
+         *     every media segment of the fragmented MP4 with its time and byte range (the client builds a VOD
+         *     playlist with byte ranges from it and plays through Media Source Extensions; spike decision AN-20),
+         *     the codecs string, the audio track, the WebVTT subtitles and the file URL with the download token
+         *     `dt`. Only for downloads of the session's device. The title must be visible to the active profile
+         *     (404 otherwise); a download that is not prepared yet → 409 `download_not_ready`; a prepared copy the
+         *     server already removed (fetched more than 24 h ago, or not fetched within 7 days) → 410
+         *     `download_evicted` (the next sync prepares it again while the device lacks the file).
+         */
+        get: operations["getDownloadManifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/downloads/{id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The prepared download file (binary, Range)
+         * @description Implemented as an `http.Handler`. Serves the fragmented MP4 of a prepared download with full Range
+         *     support (HTTP 206), authorised by the download token `dt` from `DownloadManifest.fileUrl` only. The
+         *     token names the profile it was issued to; every request checks that the download exists and that
+         *     this profile still belongs to the account and sees the title, so the fetch continues in the
+         *     background after a profile switch, but a child profile never gets a token for a title above its
+         *     rating. Missing or forged token, or a token of an unknown download → 401; title not visible to the
+         *     token's profile → 404; prepared copy removed or not prepared → 410 `download_evicted`. A strong
+         *     `ETag` names the preparation, so `If-Range` never mixes two preparations of the same download.
+         *     `Cache-Control: private, no-store`.
+         */
+        get: operations["getDownloadFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/downloads/{id}/subtitles/{track}.vtt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * WebVTT subtitle of a prepared download (binary)
+         * @description Implemented as an `http.Handler`, authorised by `dt` like `getDownloadFile`. One of the text
+         *     subtitle tracks listed in `DownloadManifest.subtitles`, converted to WebVTT during preparation.
+         *     Any other track → 404. `Cache-Control: private, no-store`.
+         */
+        get: operations["getDownloadSubtitle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/offline/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Synchronise the downloads of this device (O-6, O-7, K-7)
+         * @description The device reports the downloads it holds and whether each file is complete. The server records
+         *     complete fetches (its prepared copy is removed 24 h later, AN-20), applies the auto-download rules of
+         *     the account's profiles on this device (O-3), prepares evicted copies again that the device still
+         *     lacks, recomputes `allowedProfileIds` for every download of the device (plan 3.3) and answers with:
+         *     the state of every download of this device and account (`item` only where the active profile is
+         *     allowed), `revoked`, the reported ids the device must delete (deleted by a profile, by the
+         *     administration, through a revoked guest account or a forgotten device; AN-4), the offline profile
+         *     data of the profiles that may play a download on this device (PIN salt, offline PIN verifier, watch
+         *     time of today with the moment it resets; AN-18, AN-19) and the auto-download rule of the active
+         *     profile. The client never decides visibility itself: it shows a download only to the profiles in its
+         *     `allowedProfileIds` (plan principle 1).
+         */
+        post: operations["syncOffline"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/offline/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Auto-download rule of the active profile on this device (O-3) */
+        get: operations["getDownloadRules"];
+        /**
+         * Set the auto-download rule of the active profile on this device (O-3, AN-13)
+         * @description With `enabled` the server downloads the next episode of every series the profile started (watched in
+         *     the last 60 days) at the next sync, until `maxCount` auto-downloads the profile has not finished are
+         *     on the device. `wifiOnly` is checked by the client before it fetches (`navigator.connection`; iOS
+         *     cannot tell and hides the option, AN-13). `newPodcastEpisodes` is stored for podcasts (M6).
+         */
+        put: operations["setDownloadRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/offline/revocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revocation list of a device without a valid session (K-7, AN-4)
+         * @description After the administration revoked a guest, the guest's sessions are gone and `syncOffline` answers
+         *     401. The device then reports the download ids it holds here, identified only by its device cookie
+         *     `slouchcat_device`, and gets back the ids it must delete (downloads removed by a profile, the
+         *     administration, a revoked account or a forgotten device). The answer contains nothing but ids the
+         *     device named; without the cookie the list is empty.
+         */
+        post: operations["checkOfflineRevocations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/offline/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload the raw progress events of offline playback (O-5, AN-10, AN-18)
+         * @description The events the device buffered while it played downloads, for any profile of the account. The
+         *     server corrects the device clock by the difference between `sentAt` and its own time, stores each
+         *     event with the corrected time (watch time is booked to the right day; an overrun appears in the
+         *     watch-time report, AN-18) and merges the position: per profile and title the event with the latest
+         *     corrected time wins over the stored progress; "completed" stays until a newer event below 90 % comes
+         *     (AN-10). An event of a profile outside the account or of a title the profile may not see is
+         *     `rejected`, and so is an event whose `downloadId` names a download it cannot come from (another
+         *     account, device or title, a profile not in its `allowedProfileIds`, or a corrected time before the
+         *     download was created). A corrected time older than 30 days counts as 30 days ago. The same playback
+         *     id and sequence number again is a `duplicate`. Results come in the order of the events.
+         */
+        post: operations["uploadOfflineEvents"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1291,6 +1579,8 @@ export interface components {
             /** @description Libraries the profile may see; empty when `allLibraries` is true. The account's own limits apply on top. */
             libraryIds: number[];
             hasPin: boolean;
+            /** @description A separate offline PIN is set (AN-19, `setOfflinePin`). */
+            hasOfflinePin: boolean;
             /** @description The account's primary profile; it manages the account's profiles and cannot be deleted. */
             isPrimary: boolean;
             /**
@@ -2185,6 +2475,256 @@ export interface components {
             /** @description Media files that are not missing. */
             fileCount: number;
         };
+        OfflinePinRequest: {
+            pin: string;
+        };
+        /**
+         * @description Download profile (H.264 and AAC in fragmented MP4): `high` ≤ 1080p at 6 Mbit/s, `medium` ≤ 720p at 3 Mbit/s, `low` ≤ 480p at 1.2 Mbit/s.
+         * @enum {string}
+         */
+        DownloadQuality: "high" | "medium" | "low";
+        /** @description ULID of a download. */
+        DownloadID: string;
+        DownloadQualityOption: {
+            quality: components["schemas"]["DownloadQuality"];
+            width: number;
+            height: number;
+            /** @description kbit/s. */
+            videoBitrate: number;
+            /** @description kbit/s. */
+            audioBitrate: number;
+            /**
+             * Format: int64
+             * @description Expected size of the file (O-1 promises ±10 %); for a season the sum over its episodes.
+             */
+            estimatedBytes: number;
+            /** @description The video is copied from the source (no re-encode); for a season true when every episode copies. */
+            copy: boolean;
+        };
+        DownloadOptions: {
+            /** @description Media file the options refer to (movies and episodes). */
+            mediaFileId?: string;
+            /** Format: int64 */
+            durationMs?: number;
+            /** @description Visible episodes of a season. */
+            episodeCount?: number;
+            qualities: components["schemas"]["DownloadQualityOption"][];
+            audioTracks: components["schemas"]["Track"][];
+            /** @description Text subtitle tracks that travel along as WebVTT; bitmap subtitles are not available offline. */
+            subtitles: components["schemas"]["Track"][];
+            existing?: components["schemas"]["DownloadState"];
+        };
+        DownloadRequest: {
+            quality: components["schemas"]["DownloadQuality"];
+            /** @description Stream index of the audio track (`Track.index`), single titles only; default track otherwise. */
+            audioTrack?: number;
+            /** @description Seasons; per episode the first audio track in this language, fallback the default track. */
+            audioLanguage?: string;
+            /** @description Version of a single title; the primary file otherwise. */
+            mediaFileId?: string;
+        };
+        /**
+         * @description Preparation on the server: `queued` (waiting for the worker or for room in the download budget,
+         *     `error` `budget_full`), `preparing`, `paused` (live playback needed the transcode budget; it
+         *     continues by itself), `ready` (the device can fetch it), `failed`, `evicted` (the prepared copy was
+         *     removed; prepared again at the next sync while the device lacks the file).
+         * @enum {string}
+         */
+        DownloadStateValue: "queued" | "preparing" | "paused" | "ready" | "failed" | "evicted";
+        /**
+         * @description A download of this device. `item` is present only when the active profile may see the title; the
+         *     device keeps the title data of downloads of other profiles locally.
+         */
+        DownloadState: {
+            id: components["schemas"]["DownloadID"];
+            state: components["schemas"]["DownloadStateValue"];
+            quality: components["schemas"]["DownloadQuality"];
+            /** @description Created by an auto-download rule (O-3). */
+            auto: boolean;
+            /** @description Profiles of the account that may see the title, computed by the server (plan 3.3). */
+            allowedProfileIds: number[];
+            /** Format: int64 */
+            estimatedBytes: number;
+            /**
+             * Format: int64
+             * @description Size of the prepared file.
+             */
+            sizeBytes?: number;
+            segmentsDone: number;
+            segmentsTotal?: number;
+            /** @description Stable code (`budget_full`, `not_visible`, `encode_failed`). */
+            error?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            readyAt?: string;
+            item?: components["schemas"]["ItemRef"];
+        };
+        DownloadList: {
+            downloads: components["schemas"]["DownloadState"][];
+        };
+        DownloadSegment: {
+            /** Format: int64 */
+            startMs: number;
+            /** Format: int64 */
+            durationMs: number;
+            /** Format: int64 */
+            offset: number;
+            /** Format: int64 */
+            length: number;
+        };
+        DownloadSubtitle: {
+            track: components["schemas"]["Track"];
+            /**
+             * Format: uri-reference
+             * @description Relative URL with the download token (`getDownloadSubtitle`).
+             */
+            url: string;
+        };
+        DownloadManifest: {
+            id: components["schemas"]["DownloadID"];
+            itemId: components["schemas"]["ItemID"];
+            /** Format: int64 */
+            sizeBytes: number;
+            /** Format: int64 */
+            durationMs: number;
+            /** @description Always `video/mp4`. */
+            mimeType: string;
+            /** @description RFC 6381 codecs for `MediaSource.isTypeSupported`, e.g. `avc1.64001f,mp4a.40.2`. */
+            codecs: string;
+            width: number;
+            height: number;
+            /**
+             * Format: int64
+             * @description Length of the init segment (ftyp and moov) at offset 0.
+             */
+            initLength: number;
+            /** @description Media segments in playback order, contiguous after the init segment. */
+            segments: components["schemas"]["DownloadSegment"][];
+            /**
+             * Format: uri-reference
+             * @description Relative URL of the file with the download token `dt` (`getDownloadFile`).
+             */
+            fileUrl: string;
+            /** @description The audio track the file carries. */
+            audio?: components["schemas"]["Track"];
+            subtitles: components["schemas"]["DownloadSubtitle"][];
+        };
+        OfflineSyncRequest: {
+            held: {
+                id: components["schemas"]["DownloadID"];
+                /** @description The device holds the whole file, its subtitles and poster. */
+                complete: boolean;
+            }[];
+            /**
+             * @description What the device knows about its connection (informational; the client applies `wifiOnly`).
+             * @enum {string}
+             */
+            network?: "wifi" | "cellular" | "unknown";
+        };
+        /** @description PBKDF2-SHA256 verifier of the separate offline PIN (AN-19); salt and hash base64url without padding. */
+        OfflinePinVerifier: {
+            salt: string;
+            iterations: number;
+            hash: string;
+        };
+        /**
+         * @description Remaining watch time of today at the moment of the sync (K-5, AN-18). Offline the client subtracts
+         *     what it plays by the device clock and stops at 0 with a hint; from `resetsAt` on (midnight in the
+         *     server's time zone) the full `limitMinutes` apply again, every further 24 h as well.
+         */
+        OfflineWatchTime: {
+            limitMinutes: number;
+            remainingMinutes: number;
+            /** Format: date-time */
+            resetsAt: string;
+        };
+        /**
+         * @description What the offline library needs of a profile that may play a download on this device. `pinSalt`
+         *     lets the client derive its own verifier of the normal PIN at the next successful online PIN entry
+         *     (PBKDF2-SHA256 over the PIN with the hex-decoded salt, `pinIterations`); a new salt means the PIN
+         *     changed and the old verifier is void. `offlinePin` replaces the normal PIN offline when set.
+         */
+        OfflineProfile: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            accent?: components["schemas"]["Accent"];
+            language: components["schemas"]["Language"];
+            isPrimary: boolean;
+            hasPin: boolean;
+            pinSalt?: string;
+            pinIterations?: number;
+            offlinePin?: components["schemas"]["OfflinePinVerifier"];
+            watchTime?: components["schemas"]["OfflineWatchTime"];
+        };
+        DownloadRules: {
+            enabled: boolean;
+            /** @description Download the next episode of every started series. */
+            nextEpisodes: boolean;
+            /** @description New episodes of subscribed podcasts (stored now, effective with podcasts in M6). */
+            newPodcastEpisodes: boolean;
+            wifiOnly: boolean;
+            /** @description Most auto-downloads on this device the profile has not finished watching. */
+            maxCount: number;
+            quality: components["schemas"]["DownloadQuality"];
+        };
+        OfflineSync: {
+            /** Format: date-time */
+            serverTime: string;
+            downloads: components["schemas"]["DownloadState"][];
+            /** @description Reported ids the device must delete. */
+            revoked: components["schemas"]["DownloadID"][];
+            profiles: components["schemas"]["OfflineProfile"][];
+            rules: components["schemas"]["DownloadRules"];
+        };
+        RevocationCheck: {
+            ids: components["schemas"]["DownloadID"][];
+        };
+        RevocationList: {
+            revoked: components["schemas"]["DownloadID"][];
+        };
+        OfflineEvent: {
+            /** Format: int64 */
+            profileId: number;
+            itemId: components["schemas"]["ItemID"];
+            /** @description Id the client created for one offline playback (duplicate check, played-time bound). */
+            playbackId: string;
+            downloadId?: components["schemas"]["DownloadID"];
+            mediaFileId?: string;
+            /** Format: int64 */
+            positionMs: number;
+            /** Format: int64 */
+            durationMs: number;
+            /**
+             * Format: int64
+             * @description Milliseconds actually played since the previous event of this playback.
+             */
+            playedMs: number;
+            /** Format: int64 */
+            seq: number;
+            /** @enum {string} */
+            state: "playing" | "paused" | "ended";
+            /**
+             * Format: date-time
+             * @description Device clock when the event was created.
+             */
+            clientTime: string;
+        };
+        OfflineEventBatch: {
+            /**
+             * Format: date-time
+             * @description Device clock when the batch was sent; the server derives the clock offset from it.
+             */
+            sentAt: string;
+            events: components["schemas"]["OfflineEvent"][];
+        };
+        OfflineEventResult: {
+            accepted: number;
+            duplicates: number;
+            rejected: number;
+            results: ("accepted" | "duplicate" | "rejected")[];
+        };
     };
     responses: {
         /** @description No valid session (`unauthenticated`). */
@@ -2246,6 +2786,39 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /** @description Download token missing, forged or naming an unknown download (`unauthenticated`). */
+        DownloadUnauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description A track the download does not carry, a token of another download than the path names, or the title
+         *     is no longer visible to the profile of the token (`not_found`).
+         */
+        DownloadNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description The server's prepared copy was removed or is not prepared (`download_evicted`); the next sync
+         *     prepares a removed copy again.
+         */
+        DownloadEvicted: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
         ProfileID: number;
@@ -2260,6 +2833,10 @@ export interface components {
         DeviceID: string;
         /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
         StreamToken: string;
+        /** @description Download ID (ULID). */
+        DownloadID: components["schemas"]["DownloadID"];
+        /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
+        DownloadToken: string;
         LibraryID: number;
     };
     requestBodies: never;
@@ -2821,6 +3398,81 @@ export interface operations {
             };
         };
     };
+    setOfflinePin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfflinePinRequest"];
+            };
+        };
+        responses: {
+            /** @description Offline PIN stored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `pin` must be 6 to 12 digits). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeOfflinePin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Offline PIN removed. Also 204 when the profile had none. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getWatchReport: {
         parameters: {
             query?: {
@@ -3339,6 +3991,114 @@ export interface operations {
             };
         };
     };
+    getDownloadOptions: {
+        parameters: {
+            query?: {
+                mediaFileId?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Download options. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadOptions"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, not visible, or the media file does not belong to the title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not a movie, an episode or a season (`not_downloadable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createDownloads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description The downloads of the request, new or existing. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or not visible (`not_found`), also a season without visible episodes. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The session has no device (`device_required`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not downloadable (`not_downloadable`) or validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getItemStream: {
         parameters: {
             query: {
@@ -3661,6 +4421,395 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+        };
+    };
+    deleteDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Download ID (ULID). */
+                id: components["parameters"]["DownloadID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or another account's download, or one the active profile may not delete (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDownloadManifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Download ID (ULID). */
+                id: components["parameters"]["DownloadID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Manifest. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadManifest"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, another device's download, or the title is not visible to the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not prepared yet (`download_not_ready`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The server's prepared copy was removed (`download_evicted`). */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDownloadFile: {
+        parameters: {
+            query: {
+                /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
+                dt: components["parameters"]["DownloadToken"];
+            };
+            header?: {
+                Range?: string;
+            };
+            path: {
+                /** @description Download ID (ULID). */
+                id: components["parameters"]["DownloadID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Whole file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            /** @description Requested byte range. */
+            206: {
+                headers: {
+                    "Content-Range"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            401: components["responses"]["DownloadUnauthenticated"];
+            404: components["responses"]["DownloadNotFound"];
+            410: components["responses"]["DownloadEvicted"];
+            /** @description Range not satisfiable. */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getDownloadSubtitle: {
+        parameters: {
+            query: {
+                /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
+                dt: components["parameters"]["DownloadToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Download ID (ULID). */
+                id: components["parameters"]["DownloadID"];
+                /** @description Track id (`Track.id`). */
+                track: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebVTT file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/vtt": string;
+                };
+            };
+            401: components["responses"]["DownloadUnauthenticated"];
+            404: components["responses"]["DownloadNotFound"];
+            410: components["responses"]["DownloadEvicted"];
+        };
+    };
+    syncOffline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfflineSyncRequest"];
+            };
+        };
+        responses: {
+            /** @description State of the device's downloads. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfflineSync"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The session has no device (`device_required`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getDownloadRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stored rule, or the default rule (disabled). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadRules"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description The session has no device (`device_required`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setDownloadRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadRules"];
+            };
+        };
+        responses: {
+            /** @description Stored rule. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadRules"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The session has no device (`device_required`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    checkOfflineRevocations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevocationCheck"];
+            };
+        };
+        responses: {
+            /** @description Ids to delete. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevocationList"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    uploadOfflineEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OfflineEventBatch"];
+            };
+        };
+        responses: {
+            /** @description Result per event. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfflineEventResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     listLibraries: {

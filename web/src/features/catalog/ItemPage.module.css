@@ -183,6 +183,13 @@
   gap: var(--sc-space-3);
 }
 
+.seasonActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
 .relatedDetail {
   color: var(--sc-color-text-muted);
   font-weight: var(--sc-font-weight-regular);

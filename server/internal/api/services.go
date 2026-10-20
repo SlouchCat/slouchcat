@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
@@ -45,6 +46,11 @@ type ProfileService interface {
 	DeleteProfile(ctx context.Context, session model.Session, id int64, end func(ctx context.Context, profileID int64) error) error
 	SetProfilePIN(ctx context.Context, session model.Session, id int64, pin string) error
 	RemoveProfilePIN(ctx context.Context, session model.Session, id int64) error
+	// SetOfflinePIN stores the PBKDF2 verifier of the separate offline PIN (AN-19, 6 to 12 digits,
+	// *model.ValidationError otherwise); RemoveOfflinePIN clears it. model.ErrNotFound for a profile
+	// of another account.
+	SetOfflinePIN(ctx context.Context, session model.Session, id int64, pin string) error
+	RemoveOfflinePIN(ctx context.Context, session model.Session, id int64) error
 }
 
 // AccessService is the invitation and guest management of the main account plus the public
@@ -185,4 +191,9 @@ type PlaybackService interface {
 	// the primary profile (model.ErrPrimaryProfileRequired), model.ErrNotFound for another
 	// account's profile, *model.ValidationError for days outside 1–90 (0 = 30).
 	WatchReport(ctx context.Context, session model.Session, profileID int64, days int) (model.WatchReport, error)
+	// ReportOffline stores the progress events of offline playback for profiles of the session's
+	// account (O-5, AN-10) and returns one result per event in request order; events of other
+	// accounts' profiles or of invisible titles are rejected, not errors. *model.ValidationError
+	// for an empty or oversized batch or a missing sentAt.
+	ReportOffline(ctx context.Context, session model.Session, sentAt time.Time, events []model.OfflineEvent) (model.OfflineEventResult, error)
 }

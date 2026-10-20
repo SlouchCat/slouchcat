@@ -224,6 +224,11 @@ UPDATE progress_events SET item_id = @target_id WHERE item_id = @source_id;
 -- name: AdminMoveTopPicks :exec
 UPDATE top_picks SET item_id = @target_id WHERE item_id = @source_id;
 
+-- name: AdminMoveDownloads :exec
+-- Downloads follow their file to the target. A device that holds the target already keeps that
+-- download; the source's one goes with the source (its tombstone tells the device to delete it).
+UPDATE OR IGNORE downloads SET item_id = @target_id, updated_at = @now WHERE item_id = @source_id;
+
 -- name: AdminDeleteItem :exec
 DELETE FROM items WHERE id = @id;
 

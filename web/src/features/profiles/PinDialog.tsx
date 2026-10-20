@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage, retryAfterSeconds } from '@/api/errors';
 import { useSelectProfile } from '@/app/session';
+import { offlineSupported } from '@/features/offline/support';
 import { formatCountdown, useCountdown } from '@/lib/useCountdown';
 import { Notice, VisuallyHidden } from '@/ui';
 import { AriaButton, FormDialog, PinField } from '@/ui/aria';
@@ -37,9 +38,19 @@ export function PinDialog({ profile, onClose, onSelected }: PinDialogProps) {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (locked || select.isPending) return;
-    void select.select({ id: profile.id, pin }).then((outcome) => {
-      if (outcome.ok) onSelected();
-      else setPin('');
+    const entered = pin;
+    void select.select({ id: profile.id, pin: entered }).then((outcome) => {
+      if (outcome.ok) {
+        // AN-19: a correct PIN online lets this device open the profile offline later.
+        if (offlineSupported()) {
+          void import('@/features/offline/offlineProfiles')
+            .then(({ rememberPinVerifier }) => rememberPinVerifier(profile.id, entered))
+            .catch(() => undefined);
+        }
+        onSelected();
+      } else {
+        setPin('');
+      }
     });
   };
 

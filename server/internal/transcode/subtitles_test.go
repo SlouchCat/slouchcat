@@ -1,6 +1,7 @@
 package transcode
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -73,6 +74,54 @@ func TestSubtitlesEmbedded(t *testing.T) {
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
 	if _, err := r.Subtitles(cancelled, multi, 3); err == nil || errors.As(err, new(*FileError)) {
+		t.Errorf("cancelled context: %v, want a plain error", err)
+	}
+}
+
+// M5 review K4: a download converts all its embedded text tracks in one ffmpeg run, with the
+// same WebVTT as the per-track conversion and without the 60-s limit of Subtitles.
+func TestSubtitleStreams(t *testing.T) {
+	r := ffmpegFull(t)
+	ctx := context.Background()
+	multi := testMovie(t, "Slouchcat Test Multi Audio (2024)", "Slouchcat Test Multi Audio (2024).mkv")
+	got, err := r.SubtitleStreams(ctx, multi, []int{4, 3, 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("streams = %d, want 2 (duplicates collapse)", len(got))
+	}
+	for _, idx := range []int{3, 4} {
+		one, err := r.Subtitles(ctx, multi, idx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(got[idx], one) {
+			t.Errorf("stream %d in one run differs from the single conversion:\n%s\n---\n%s", idx, got[idx], one)
+		}
+	}
+	// The per-track limit does not apply.
+	old := subtitleTimeout
+	subtitleTimeout = time.Nanosecond
+	defer func() { subtitleTimeout = old }()
+	if _, err := r.SubtitleStreams(ctx, multi, []int{3}); err != nil {
+		t.Errorf("one run under a 1-ns per-track timeout: %v", err)
+	}
+	if empty, err := r.SubtitleStreams(ctx, multi, nil); err != nil || len(empty) != 0 {
+		t.Errorf("no streams: %v, %v", empty, err)
+	}
+	// A bitmap stream among them fails the run as a file error; a cancelled context does not.
+	pgs := testMovie(t, "Slouchcat Test PGS (2024)", "Slouchcat Test PGS (2024).mkv")
+	var fe *FileError
+	if _, err := r.SubtitleStreams(ctx, pgs, []int{2}); !errors.As(err, &fe) {
+		t.Errorf("PGS stream: %v, want a FileError", err)
+	}
+	if _, err := r.SubtitleStreams(ctx, multi, []int{-1}); !errors.As(err, &fe) {
+		t.Errorf("negative index: %v, want a FileError", err)
+	}
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := r.SubtitleStreams(cancelled, multi, []int{3}); err == nil || errors.As(err, &fe) {
 		t.Errorf("cancelled context: %v, want a plain error", err)
 	}
 }

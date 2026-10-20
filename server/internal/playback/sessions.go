@@ -561,7 +561,8 @@ func (s *Service) Authorize(ctx context.Context, token string) (model.PlaybackGr
 			Profile: model.Profile{
 				ID: prof.ID, AccountID: prof.AccountID, Name: prof.Name, MaxRating: int(prof.MaxRating),
 				Language: prof.Language, AllLibraries: prof.AllLibraries == 1, Accent: prof.Accent.String,
-				HasPin: prof.PinHash.Valid, IsPrimary: prof.IsDefault == 1, Limits: limits, Effective: limits.Cap(account.Limits),
+				HasPin: prof.PinHash.Valid, HasOfflinePin: prof.OfflinePin.Valid, IsPrimary: prof.IsDefault == 1,
+				Limits: limits, Effective: limits.Cap(account.Limits),
 			},
 		},
 		ItemID:      row.ItemID,

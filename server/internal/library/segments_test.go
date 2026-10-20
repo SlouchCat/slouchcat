@@ -187,6 +187,15 @@ func TestSegmentsDetectGeneratedSeason(t *testing.T) {
 	if v := e.str(`SELECT segments_state FROM items WHERE id = ?`, other); v != "none" {
 		t.Errorf("test show season = %s, want none", v)
 	}
+	// The download show (six 8-s episodes, a different tone each) was queued too and has none.
+	download := e.str(`SELECT s.id FROM items AS s JOIN items AS r ON r.id = s.parent_id
+	                   WHERE s.kind = 'season' AND r.title = 'Slouchcat Test Download Show'`)
+	if err := e.svc.handleSegments(e.ctx, seasonJob(t, download)); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.str(`SELECT segments_state FROM items WHERE id = ?`, download); v != "none" {
+		t.Errorf("download show season = %s, want none", v)
+	}
 
 	// Done seasons are not queued again; a changed episode sets the season back to pending and
 	// queues the job.

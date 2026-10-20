@@ -81,7 +81,8 @@ func csrfOK(r *http.Request) bool {
 // an active profile (403 profile_required without); admin needs the owner with the primary profile
 // active (403 forbidden otherwise). It stores the session in the context for the handlers. The
 // cookie is read for every operation, so a public operation can still see who is logged in. A
-// request without a valid device cookie gets one (PIN locks count per profile and device).
+// request without a valid device cookie gets one (PIN locks count per profile and device); with a
+// session, the cookie follows the session's device and is renewed whenever the session is.
 func (p problems) authorize(auth AuthService, visibility map[string]string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,8 +92,8 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				return
 			}
 			ctx := context.WithValue(r.Context(), requestKey{}, r)
-			ctx = model.WithDeviceID(ctx, ensureDeviceCookie(w, r))
 			session, token, extended, hasSession := resolveSession(ctx, auth, r)
+			ctx = model.WithDeviceID(ctx, ensureDeviceCookie(w, r, session.DeviceID, extended))
 			if hasSession {
 				ctx = context.WithValue(ctx, sessionKey{}, session)
 			}
@@ -129,15 +130,30 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 // closed.
 var validVisibility = map[string]bool{"public": true, "account": true, "scoped": true, "admin": true}
 
-// ensureDeviceCookie returns the device id of the request and sets the cookie when the request has
-// none (or a malformed one): 128 random bits as 32 hex characters.
-func ensureDeviceCookie(w http.ResponseWriter, r *http.Request) string {
+// ensureDeviceCookie returns the device id of the request and keeps the device cookie in step with
+// it. The device of the request's session (sessionDevice, empty without a session) wins over the
+// cookie, which is rewritten to it: the downloads of a device and the revocation list that
+// checkOfflineRevocations reads by the cookie hang on the session's device (K-7), also when the
+// cookie expired or was dropped while the sliding session lived on. Without either, the id is fresh
+// (128 random bits as 32 hex characters). renew (the session was extended) sets the cookie again
+// with a fresh MaxAge, so it lives as long as the session.
+func ensureDeviceCookie(w http.ResponseWriter, r *http.Request, sessionDevice string, renew bool) string {
+	cookie := ""
 	if c, err := r.Cookie(DeviceCookie); err == nil && deviceIDPattern.MatchString(c.Value) {
-		return c.Value
+		cookie = c.Value
 	}
-	var b [16]byte
-	_, _ = rand.Read(b[:]) // crypto/rand.Read never fails
-	id := hex.EncodeToString(b[:])
+	id := cookie
+	if deviceIDPattern.MatchString(sessionDevice) {
+		id = sessionDevice
+	}
+	if id == "" {
+		var b [16]byte
+		_, _ = rand.Read(b[:]) // crypto/rand.Read never fails
+		id = hex.EncodeToString(b[:])
+	}
+	if id == cookie && !renew {
+		return id
+	}
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: Secure depends on the transport, see setSessionCookie
 		Name:     DeviceCookie,
 		Value:    id,
@@ -261,8 +277,8 @@ func toAccount(a model.Account) gen.Account {
 func toProfile(p model.Profile) gen.Profile {
 	out := gen.Profile{
 		Id: p.ID, Name: p.Name, MaxRating: gen.Rating(p.MaxRating), Language: gen.Language(p.Language),
-		AllLibraries: p.AllLibraries, LibraryIds: nonNil(p.LibraryIDs), HasPin: p.HasPin, IsPrimary: p.IsPrimary,
-		Limits: toPlaybackLimits(p.Limits), EffectiveLimits: toEffectiveLimits(p.Effective),
+		AllLibraries: p.AllLibraries, LibraryIds: nonNil(p.LibraryIDs), HasPin: p.HasPin, HasOfflinePin: p.HasOfflinePin,
+		IsPrimary: p.IsPrimary, Limits: toPlaybackLimits(p.Limits), EffectiveLimits: toEffectiveLimits(p.Effective),
 	}
 	if p.Accent != "" {
 		a := gen.Accent(p.Accent)
@@ -347,6 +363,16 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusServiceUnavailable, "segment_restarted", "A newer seek restarted the encoder; retry the segment.")
 	case errors.Is(err, model.ErrProviderNotConfigured):
 		p.write(w, r, http.StatusUnprocessableEntity, "provider_not_configured", "The metadata provider has no key configured.")
+	case errors.Is(err, model.ErrDeviceRequired):
+		p.write(w, r, http.StatusConflict, "device_required", "The session has no device; sign in again in this browser.")
+	case errors.Is(err, model.ErrNotDownloadable):
+		p.write(w, r, http.StatusUnprocessableEntity, "not_downloadable", "Only movies, episodes and seasons can be downloaded.")
+	case errors.Is(err, model.ErrDownloadNotReady):
+		p.write(w, r, http.StatusConflict, "download_not_ready", "The server is still preparing the download.")
+	case errors.Is(err, model.ErrDownloadEvicted):
+		p.write(w, r, http.StatusGone, "download_evicted", "The server removed its prepared copy; the next sync prepares it again.")
+	case errors.Is(err, model.ErrNotImplemented):
+		p.write(w, r, http.StatusNotImplemented, "not_implemented", "Not implemented yet.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
 	case errors.As(err, &verr):

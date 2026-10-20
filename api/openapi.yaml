@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 0.5.0
+  version: 0.6.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -33,6 +33,14 @@ info:
     Stream tokens (plan 5.4): the media stream and the HLS endpoints are authorised by the query
     parameter `st` from `PlaybackInfo.streamUrl` instead of the cookie, so native players work too.
     Every response carries `Referrer-Policy: no-referrer`, so the token never leaves in a Referer.
+
+    Offline (M5): a profile downloads movies, episodes and seasons to its device (`createDownloads`). The
+    server prepares a fragmented MP4 per title in the background; the device fetches it through
+    `getDownloadManifest` and the download token `dt`, stores it in the browser (OPFS) and plays it
+    without the server. `syncOffline` keeps the device in step: which profiles may see each download
+    (`allowedProfileIds`, computed by the server; the client only looks it up), which downloads it must
+    delete, the offline PIN material and the remaining watch time. Buffered progress events go up with
+    `uploadOfflineEvents`.
   license:
     name: AGPL-3.0-only
     identifier: AGPL-3.0-only
@@ -54,6 +62,8 @@ tags:
     description: Invitation links for guest accounts (K-6).
   - name: admin
     description: Administration by the main account.
+  - name: offline
+    description: Downloads to the device and offline playback (M5).
   - name: spike
     description: Temporary endpoints of the offline spike (M1a, removed after the M1b decision).
 paths:
@@ -500,6 +510,67 @@ paths:
       responses:
         "204":
           description: PIN removed. Also 204 when the profile had none.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "404":
+          description: No such profile in this account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /profiles/{id}/offline-pin:
+    put:
+      operationId: setOfflinePin
+      summary: Set or replace the separate offline PIN of a profile (AN-19)
+      description: |
+        A separate, longer PIN (6 to 12 digits) that guards the profile in the offline library instead of
+        the normal PIN. The server keeps a PBKDF2-SHA256 verifier (600 000 iterations, random salt) and
+        hands it only to devices that hold downloads the profile may play (`syncOffline`). Protection
+        goal: a curious child on a shared device, not a manipulated browser (plan 3.3). Online the normal
+        PIN keeps guarding the profile. Only the account's primary profile may set it.
+      tags: [profiles]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ProfileID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfflinePinRequest"
+      responses:
+        "204":
+          description: Offline PIN stored.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PrimaryProfileRequired"
+        "404":
+          description: No such profile in this account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `pin` must be 6 to 12 digits).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: removeOfflinePin
+      summary: Remove the separate offline PIN of a profile
+      description: Offline the profile is then guarded by its normal PIN again (if it has one).
+      tags: [profiles]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ProfileID"
+      responses:
+        "204":
+          description: Offline PIN removed. Also 204 when the profile had none.
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -979,6 +1050,106 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /items/{id}/download-options:
+    get:
+      operationId: getDownloadOptions
+      summary: Download profiles of a title with size estimates (O-1)
+      description: |
+        The three download profiles (`high` ≤ 1080p, `medium` ≤ 720p, `low` ≤ 480p; H.264 and AAC in
+        fragmented MP4) with the expected size, the audio tracks and the text subtitles that travel along
+        as WebVTT files. For a season the sizes are the sum over its visible episodes (`episodeCount`) and
+        the track lists are empty (each episode takes its default audio track or `audioLanguage`). Movies,
+        episodes and seasons only; other kinds answer 422 `not_downloadable`. `existing` is the download of
+        this device for a movie or episode, when there is one.
+      tags: [offline]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: mediaFileId
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        "200":
+          description: Download options.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadOptions"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown, not visible, or the media file does not belong to the title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Not a movie, an episode or a season (`not_downloadable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /items/{id}/downloads:
+    post:
+      operationId: createDownloads
+      summary: Download a movie, an episode or a whole season to this device (O-1, O-2)
+      description: |
+        Creates one download per title on the session's device: a movie or an episode gives one, a season
+        all its visible episodes in one action (O-2). The server prepares the file in the background
+        (queued → preparing → ready; paused while live playback needs the transcode budget, plan 3.5); the
+        client fetches it through `getDownloadManifest` once `ready`. A title the device already has is
+        returned as it is (a different quality needs `deleteDownload` first). `audioTrack` and
+        `mediaFileId` apply to a single title only; for a season `audioLanguage` picks the track per
+        episode (fallback: the default track). `allowedProfileIds` lists the profiles of the account that
+        may see the title (plan 3.3).
+      tags: [offline]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadRequest"
+      responses:
+        "201":
+          description: The downloads of the request, new or existing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown or not visible (`not_found`), also a season without visible episodes.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The session has no device (`device_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Not downloadable (`not_downloadable`) or validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/stream:
     get:
       operationId: getItemStream
@@ -1294,6 +1465,376 @@ paths:
           $ref: "#/components/responses/StreamUnauthenticated"
         "404":
           $ref: "#/components/responses/StreamNotFound"
+
+  /downloads/{id}:
+    delete:
+      operationId: deleteDownload
+      summary: Delete a download (O-6)
+      description: |
+        Deletes a download of the session's account (any device of the account) together with the server's
+        prepared copy. The device that holds the file learns it from the revocation list at its next sync
+        and removes the file. The active profile may delete a download when it may see the title (it is in
+        `allowedProfileIds`), when it requested the download, or when it is the account's primary profile.
+        Any other download, a download of another account or an unknown id → 404.
+      tags: [offline]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/DownloadID"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            Unknown or another account's download, or one the active profile may not delete (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /downloads/{id}/manifest:
+    get:
+      operationId: getDownloadManifest
+      summary: Fragment index and file URL of a prepared download
+      description: |
+        Everything the device needs to fetch and play a download offline: the size, the init segment and
+        every media segment of the fragmented MP4 with its time and byte range (the client builds a VOD
+        playlist with byte ranges from it and plays through Media Source Extensions; spike decision AN-20),
+        the codecs string, the audio track, the WebVTT subtitles and the file URL with the download token
+        `dt`. Only for downloads of the session's device. The title must be visible to the active profile
+        (404 otherwise); a download that is not prepared yet → 409 `download_not_ready`; a prepared copy the
+        server already removed (fetched more than 24 h ago, or not fetched within 7 days) → 410
+        `download_evicted` (the next sync prepares it again while the device lacks the file).
+      tags: [offline]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/DownloadID"
+      responses:
+        "200":
+          description: Manifest.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadManifest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown, another device's download, or the title is not visible to the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Not prepared yet (`download_not_ready`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "410":
+          description: The server's prepared copy was removed (`download_evicted`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /downloads/{id}/file:
+    get:
+      operationId: getDownloadFile
+      summary: The prepared download file (binary, Range)
+      description: |
+        Implemented as an `http.Handler`. Serves the fragmented MP4 of a prepared download with full Range
+        support (HTTP 206), authorised by the download token `dt` from `DownloadManifest.fileUrl` only. The
+        token names the profile it was issued to; every request checks that the download exists and that
+        this profile still belongs to the account and sees the title, so the fetch continues in the
+        background after a profile switch, but a child profile never gets a token for a title above its
+        rating. Missing or forged token, or a token of an unknown download → 401; title not visible to the
+        token's profile → 404; prepared copy removed or not prepared → 410 `download_evicted`. A strong
+        `ETag` names the preparation, so `If-Range` never mixes two preparations of the same download.
+        `Cache-Control: private, no-store`.
+      tags: [offline]
+      x-visibility: scoped
+      security:
+        - downloadToken: []
+      parameters:
+        - $ref: "#/components/parameters/DownloadID"
+        - $ref: "#/components/parameters/DownloadToken"
+        - name: Range
+          in: header
+          required: false
+          schema:
+            type: string
+            examples: ["bytes=0-8388607"]
+      responses:
+        "200":
+          description: Whole file.
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Requested byte range.
+          headers:
+            Content-Range:
+              schema:
+                type: string
+          content:
+            video/mp4:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/DownloadUnauthenticated"
+        "404":
+          $ref: "#/components/responses/DownloadNotFound"
+        "410":
+          $ref: "#/components/responses/DownloadEvicted"
+        "416":
+          description: Range not satisfiable.
+
+  /downloads/{id}/subtitles/{track}.vtt:
+    get:
+      operationId: getDownloadSubtitle
+      summary: WebVTT subtitle of a prepared download (binary)
+      description: |
+        Implemented as an `http.Handler`, authorised by `dt` like `getDownloadFile`. One of the text
+        subtitle tracks listed in `DownloadManifest.subtitles`, converted to WebVTT during preparation.
+        Any other track → 404. `Cache-Control: private, no-store`.
+      tags: [offline]
+      x-visibility: scoped
+      security:
+        - downloadToken: []
+      parameters:
+        - $ref: "#/components/parameters/DownloadID"
+        - name: track
+          in: path
+          required: true
+          description: Track id (`Track.id`).
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - $ref: "#/components/parameters/DownloadToken"
+      responses:
+        "200":
+          description: WebVTT file.
+          content:
+            text/vtt:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/DownloadUnauthenticated"
+        "404":
+          $ref: "#/components/responses/DownloadNotFound"
+        "410":
+          $ref: "#/components/responses/DownloadEvicted"
+
+  /offline/sync:
+    post:
+      operationId: syncOffline
+      summary: Synchronise the downloads of this device (O-6, O-7, K-7)
+      description: |
+        The device reports the downloads it holds and whether each file is complete. The server records
+        complete fetches (its prepared copy is removed 24 h later, AN-20), applies the auto-download rules of
+        the account's profiles on this device (O-3), prepares evicted copies again that the device still
+        lacks, recomputes `allowedProfileIds` for every download of the device (plan 3.3) and answers with:
+        the state of every download of this device and account (`item` only where the active profile is
+        allowed), `revoked`, the reported ids the device must delete (deleted by a profile, by the
+        administration, through a revoked guest account or a forgotten device; AN-4), the offline profile
+        data of the profiles that may play a download on this device (PIN salt, offline PIN verifier, watch
+        time of today with the moment it resets; AN-18, AN-19) and the auto-download rule of the active
+        profile. The client never decides visibility itself: it shows a download only to the profiles in its
+        `allowedProfileIds` (plan principle 1).
+      tags: [offline]
+      x-visibility: scoped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfflineSyncRequest"
+      responses:
+        "200":
+          description: State of the device's downloads.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfflineSync"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The session has no device (`device_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /offline/rules:
+    get:
+      operationId: getDownloadRules
+      summary: Auto-download rule of the active profile on this device (O-3)
+      tags: [offline]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The stored rule, or the default rule (disabled).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadRules"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          description: The session has no device (`device_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: setDownloadRules
+      summary: Set the auto-download rule of the active profile on this device (O-3, AN-13)
+      description: |
+        With `enabled` the server downloads the next episode of every series the profile started (watched in
+        the last 60 days) at the next sync, until `maxCount` auto-downloads the profile has not finished are
+        on the device. `wifiOnly` is checked by the client before it fetches (`navigator.connection`; iOS
+        cannot tell and hides the option, AN-13). `newPodcastEpisodes` is stored for podcasts (M6).
+      tags: [offline]
+      x-visibility: scoped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DownloadRules"
+      responses:
+        "200":
+          description: Stored rule.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadRules"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The session has no device (`device_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /offline/revocations:
+    post:
+      operationId: checkOfflineRevocations
+      summary: Revocation list of a device without a valid session (K-7, AN-4)
+      description: |
+        After the administration revoked a guest, the guest's sessions are gone and `syncOffline` answers
+        401. The device then reports the download ids it holds here, identified only by its device cookie
+        `slouchcat_device`, and gets back the ids it must delete (downloads removed by a profile, the
+        administration, a revoked account or a forgotten device). The answer contains nothing but ids the
+        device named; without the cookie the list is empty.
+      tags: [offline]
+      x-visibility: public
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevocationCheck"
+      responses:
+        "200":
+          description: Ids to delete.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevocationList"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /offline/events:
+    post:
+      operationId: uploadOfflineEvents
+      summary: Upload the raw progress events of offline playback (O-5, AN-10, AN-18)
+      description: |
+        The events the device buffered while it played downloads, for any profile of the account. The
+        server corrects the device clock by the difference between `sentAt` and its own time, stores each
+        event with the corrected time (watch time is booked to the right day; an overrun appears in the
+        watch-time report, AN-18) and merges the position: per profile and title the event with the latest
+        corrected time wins over the stored progress; "completed" stays until a newer event below 90 % comes
+        (AN-10). An event of a profile outside the account or of a title the profile may not see is
+        `rejected`, and so is an event whose `downloadId` names a download it cannot come from (another
+        account, device or title, a profile not in its `allowedProfileIds`, or a corrected time before the
+        download was created). A corrected time older than 30 days counts as 30 days ago. The same playback
+        id and sequence number again is a `duplicate`. Results come in the order of the events.
+      tags: [offline]
+      x-visibility: account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfflineEventBatch"
+      responses:
+        "200":
+          description: Result per event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfflineEventResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /admin/libraries:
     get:
@@ -2311,6 +2852,28 @@ components:
         application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
+    DownloadUnauthenticated:
+      description: Download token missing, forged or naming an unknown download (`unauthenticated`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    DownloadNotFound:
+      description: |
+        A track the download does not carry, a token of another download than the path names, or the title
+        is no longer visible to the profile of the token (`not_found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    DownloadEvicted:
+      description: |
+        The server's prepared copy was removed or is not prepared (`download_evicted`); the next sync
+        prepares a removed copy again.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   securitySchemes:
     sessionCookie:
       type: apiKey
@@ -2329,6 +2892,14 @@ components:
         Stream token of a playback session (plan 5.4), returned in `PlaybackInfo.streamUrl`:
         `<playback session id>.<base64url HMAC-SHA256 over id and item>`. No expiry inside the token;
         the playback session expires 12 h after its last request and is revoked on stop and logout.
+    downloadToken:
+      type: apiKey
+      in: query
+      name: dt
+      description: |
+        Download token from `DownloadManifest.fileUrl`: `<download id>.<profile id>.<base64url HMAC-SHA256
+        over download, item and profile>`. No expiry; every request checks the download and that the
+        profile still sees the title. Redacted in all logs.
   parameters:
     ProfileID:
       name: id
@@ -2390,6 +2961,21 @@ components:
       schema:
         type: string
         maxLength: 128
+    DownloadID:
+      name: id
+      in: path
+      required: true
+      description: Download ID (ULID).
+      schema:
+        $ref: "#/components/schemas/DownloadID"
+    DownloadToken:
+      name: dt
+      in: query
+      required: true
+      description: Download token from `DownloadManifest.fileUrl`. Redacted in all logs.
+      schema:
+        type: string
+        maxLength: 160
     LibraryID:
       name: id
       in: path
@@ -2560,7 +3146,7 @@ components:
     Profile:
       type: object
       description: A viewing profile with its settings. Profiles carry no e-mail and no password (K-1); only `name` is required.
-      required: [id, name, maxRating, language, allLibraries, libraryIds, hasPin, isPrimary, limits, effectiveLimits]
+      required: [id, name, maxRating, language, allLibraries, libraryIds, hasPin, hasOfflinePin, isPrimary, limits, effectiveLimits]
       properties:
         id:
           type: integer
@@ -2589,6 +3175,9 @@ components:
           description: Libraries the profile may see; empty when `allLibraries` is true. The account's own limits apply on top.
         hasPin:
           type: boolean
+        hasOfflinePin:
+          type: boolean
+          description: A separate offline PIN is set (AN-19, `setOfflinePin`).
         isPrimary:
           type: boolean
           description: The account's primary profile; it manages the account's profiles and cannot be deleted.
@@ -4184,3 +4773,474 @@ components:
         fileCount:
           type: integer
           description: Media files that are not missing.
+
+    OfflinePinRequest:
+      type: object
+      required: [pin]
+      properties:
+        pin:
+          type: string
+          pattern: "^[0-9]{6,12}$"
+          writeOnly: true
+
+    DownloadQuality:
+      type: string
+      enum: [high, medium, low]
+      description: "Download profile (H.264 and AAC in fragmented MP4): `high` ≤ 1080p at 6 Mbit/s, `medium` ≤ 720p at 3 Mbit/s, `low` ≤ 480p at 1.2 Mbit/s."
+
+    DownloadID:
+      type: string
+      description: ULID of a download.
+      pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+
+    DownloadQualityOption:
+      type: object
+      required: [quality, width, height, videoBitrate, audioBitrate, estimatedBytes, copy]
+      properties:
+        quality:
+          $ref: "#/components/schemas/DownloadQuality"
+        width:
+          type: integer
+          minimum: 0
+        height:
+          type: integer
+          minimum: 0
+        videoBitrate:
+          type: integer
+          minimum: 0
+          description: kbit/s.
+        audioBitrate:
+          type: integer
+          minimum: 0
+          description: kbit/s.
+        estimatedBytes:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Expected size of the file (O-1 promises ±10 %); for a season the sum over its episodes.
+        copy:
+          type: boolean
+          description: The video is copied from the source (no re-encode); for a season true when every episode copies.
+
+    DownloadOptions:
+      type: object
+      required: [qualities, audioTracks, subtitles]
+      properties:
+        mediaFileId:
+          type: string
+          description: Media file the options refer to (movies and episodes).
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        episodeCount:
+          type: integer
+          minimum: 0
+          description: Visible episodes of a season.
+        qualities:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadQualityOption"
+        audioTracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Track"
+        subtitles:
+          type: array
+          description: Text subtitle tracks that travel along as WebVTT; bitmap subtitles are not available offline.
+          items:
+            $ref: "#/components/schemas/Track"
+        existing:
+          $ref: "#/components/schemas/DownloadState"
+
+    DownloadRequest:
+      type: object
+      required: [quality]
+      properties:
+        quality:
+          $ref: "#/components/schemas/DownloadQuality"
+        audioTrack:
+          type: integer
+          minimum: 0
+          description: Stream index of the audio track (`Track.index`), single titles only; default track otherwise.
+        audioLanguage:
+          type: string
+          maxLength: 16
+          description: Seasons; per episode the first audio track in this language, fallback the default track.
+        mediaFileId:
+          type: string
+          maxLength: 64
+          description: Version of a single title; the primary file otherwise.
+
+    DownloadStateValue:
+      type: string
+      enum: [queued, preparing, paused, ready, failed, evicted]
+      description: |
+        Preparation on the server: `queued` (waiting for the worker or for room in the download budget,
+        `error` `budget_full`), `preparing`, `paused` (live playback needed the transcode budget; it
+        continues by itself), `ready` (the device can fetch it), `failed`, `evicted` (the prepared copy was
+        removed; prepared again at the next sync while the device lacks the file).
+
+    DownloadState:
+      type: object
+      description: |
+        A download of this device. `item` is present only when the active profile may see the title; the
+        device keeps the title data of downloads of other profiles locally.
+      required: [id, state, quality, auto, allowedProfileIds, estimatedBytes, segmentsDone, createdAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/DownloadID"
+        state:
+          $ref: "#/components/schemas/DownloadStateValue"
+        quality:
+          $ref: "#/components/schemas/DownloadQuality"
+        auto:
+          type: boolean
+          description: Created by an auto-download rule (O-3).
+        allowedProfileIds:
+          type: array
+          description: Profiles of the account that may see the title, computed by the server (plan 3.3).
+          items:
+            type: integer
+            format: int64
+        estimatedBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Size of the prepared file.
+        segmentsDone:
+          type: integer
+          minimum: 0
+        segmentsTotal:
+          type: integer
+          minimum: 0
+        error:
+          type: string
+          description: Stable code (`budget_full`, `not_visible`, `encode_failed`).
+        createdAt:
+          type: string
+          format: date-time
+        readyAt:
+          type: string
+          format: date-time
+        item:
+          $ref: "#/components/schemas/ItemRef"
+
+    DownloadList:
+      type: object
+      required: [downloads]
+      properties:
+        downloads:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadState"
+
+    DownloadSegment:
+      type: object
+      required: [startMs, durationMs, offset, length]
+      properties:
+        startMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 1
+        offset:
+          type: integer
+          format: int64
+          minimum: 0
+        length:
+          type: integer
+          format: int64
+          minimum: 1
+
+    DownloadSubtitle:
+      type: object
+      required: [track, url]
+      properties:
+        track:
+          $ref: "#/components/schemas/Track"
+        url:
+          type: string
+          format: uri-reference
+          description: Relative URL with the download token (`getDownloadSubtitle`).
+
+    DownloadManifest:
+      type: object
+      required: [id, itemId, sizeBytes, durationMs, mimeType, codecs, width, height, initLength, segments, fileUrl, subtitles]
+      properties:
+        id:
+          $ref: "#/components/schemas/DownloadID"
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+        mimeType:
+          type: string
+          description: Always `video/mp4`.
+        codecs:
+          type: string
+          description: RFC 6381 codecs for `MediaSource.isTypeSupported`, e.g. `avc1.64001f,mp4a.40.2`.
+        width:
+          type: integer
+        height:
+          type: integer
+        initLength:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Length of the init segment (ftyp and moov) at offset 0.
+        segments:
+          type: array
+          description: Media segments in playback order, contiguous after the init segment.
+          items:
+            $ref: "#/components/schemas/DownloadSegment"
+        fileUrl:
+          type: string
+          format: uri-reference
+          description: Relative URL of the file with the download token `dt` (`getDownloadFile`).
+        audio:
+          $ref: "#/components/schemas/Track"
+          description: The audio track the file carries.
+        subtitles:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadSubtitle"
+
+    OfflineSyncRequest:
+      type: object
+      required: [held]
+      properties:
+        held:
+          type: array
+          maxItems: 2000
+          items:
+            type: object
+            required: [id, complete]
+            properties:
+              id:
+                $ref: "#/components/schemas/DownloadID"
+              complete:
+                type: boolean
+                description: The device holds the whole file, its subtitles and poster.
+        network:
+          type: string
+          enum: [wifi, cellular, unknown]
+          description: What the device knows about its connection (informational; the client applies `wifiOnly`).
+
+    OfflinePinVerifier:
+      type: object
+      description: PBKDF2-SHA256 verifier of the separate offline PIN (AN-19); salt and hash base64url without padding.
+      required: [salt, iterations, hash]
+      properties:
+        salt:
+          type: string
+        iterations:
+          type: integer
+          minimum: 1
+        hash:
+          type: string
+
+    OfflineWatchTime:
+      type: object
+      description: |
+        Remaining watch time of today at the moment of the sync (K-5, AN-18). Offline the client subtracts
+        what it plays by the device clock and stops at 0 with a hint; from `resetsAt` on (midnight in the
+        server's time zone) the full `limitMinutes` apply again, every further 24 h as well.
+      required: [limitMinutes, remainingMinutes, resetsAt]
+      properties:
+        limitMinutes:
+          type: integer
+          minimum: 1
+        remainingMinutes:
+          type: integer
+          minimum: 0
+        resetsAt:
+          type: string
+          format: date-time
+
+    OfflineProfile:
+      type: object
+      description: |
+        What the offline library needs of a profile that may play a download on this device. `pinSalt`
+        lets the client derive its own verifier of the normal PIN at the next successful online PIN entry
+        (PBKDF2-SHA256 over the PIN with the hex-decoded salt, `pinIterations`); a new salt means the PIN
+        changed and the old verifier is void. `offlinePin` replaces the normal PIN offline when set.
+      required: [id, name, language, isPrimary, hasPin]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        accent:
+          $ref: "#/components/schemas/Accent"
+        language:
+          $ref: "#/components/schemas/Language"
+        isPrimary:
+          type: boolean
+        hasPin:
+          type: boolean
+        pinSalt:
+          type: string
+          pattern: "^[0-9a-f]{32}$"
+        pinIterations:
+          type: integer
+          minimum: 1
+        offlinePin:
+          $ref: "#/components/schemas/OfflinePinVerifier"
+        watchTime:
+          $ref: "#/components/schemas/OfflineWatchTime"
+
+    DownloadRules:
+      type: object
+      required: [enabled, nextEpisodes, newPodcastEpisodes, wifiOnly, maxCount, quality]
+      properties:
+        enabled:
+          type: boolean
+        nextEpisodes:
+          type: boolean
+          description: Download the next episode of every started series.
+        newPodcastEpisodes:
+          type: boolean
+          description: New episodes of subscribed podcasts (stored now, effective with podcasts in M6).
+        wifiOnly:
+          type: boolean
+        maxCount:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: Most auto-downloads on this device the profile has not finished watching.
+        quality:
+          $ref: "#/components/schemas/DownloadQuality"
+
+    OfflineSync:
+      type: object
+      required: [serverTime, downloads, revoked, profiles, rules]
+      properties:
+        serverTime:
+          type: string
+          format: date-time
+        downloads:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadState"
+        revoked:
+          type: array
+          description: Reported ids the device must delete.
+          items:
+            $ref: "#/components/schemas/DownloadID"
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfflineProfile"
+        rules:
+          $ref: "#/components/schemas/DownloadRules"
+
+    RevocationCheck:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          maxItems: 2000
+          items:
+            $ref: "#/components/schemas/DownloadID"
+
+    RevocationList:
+      type: object
+      required: [revoked]
+      properties:
+        revoked:
+          type: array
+          items:
+            $ref: "#/components/schemas/DownloadID"
+
+    OfflineEvent:
+      type: object
+      required: [profileId, itemId, playbackId, positionMs, durationMs, playedMs, seq, state, clientTime]
+      properties:
+        profileId:
+          type: integer
+          format: int64
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+        playbackId:
+          type: string
+          pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+          description: Id the client created for one offline playback (duplicate check, played-time bound).
+        downloadId:
+          $ref: "#/components/schemas/DownloadID"
+        mediaFileId:
+          type: string
+          maxLength: 64
+        positionMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 1
+        playedMs:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Milliseconds actually played since the previous event of this playback.
+        seq:
+          type: integer
+          format: int64
+          minimum: 0
+        state:
+          type: string
+          enum: [playing, paused, ended]
+        clientTime:
+          type: string
+          format: date-time
+          description: Device clock when the event was created.
+
+    OfflineEventBatch:
+      type: object
+      required: [sentAt, events]
+      properties:
+        sentAt:
+          type: string
+          format: date-time
+          description: Device clock when the batch was sent; the server derives the clock offset from it.
+        events:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/OfflineEvent"
+
+    OfflineEventResult:
+      type: object
+      required: [accepted, duplicates, rejected, results]
+      properties:
+        accepted:
+          type: integer
+          minimum: 0
+        duplicates:
+          type: integer
+          minimum: 0
+        rejected:
+          type: integer
+          minimum: 0
+        results:
+          type: array
+          items:
+            type: string
+            enum: [accepted, duplicate, rejected]

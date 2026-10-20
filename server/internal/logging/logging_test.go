@@ -16,6 +16,7 @@ var fakeSecrets = []string{
 	"xapikey-FAKE", "s3cr3t-FAKE", "query-FAKE-key", "st-FAKE-token", "err-FAKE-key", "with-FAKE",
 	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "4711", "pl-FAKE-media", "pl-FAKE-init", "pl-FAKE-seg",
 	"yt-FAKE-key", "ytq-FAKE-key", "tvdb-FAKE-key", "tvdbpin-FAKE", "apikeyq-FAKE",
+	"dt-FAKE-token", "dtsub-FAKE-token", "dterr-FAKE-token", "verifier-FAKE-hash",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -39,6 +40,7 @@ func logAll(t *testing.T, format Format) string {
 		"youtube_api_key", "yt-FAKE-key",
 		"tvdbApiKey", "tvdb-FAKE-key",
 		"TVDB_PIN", "tvdbpin-FAKE",
+		"offline_pin_verifier", "verifier-FAKE-hash",
 		"user", "marco",
 	)
 	log.Info("nested group",
@@ -55,6 +57,10 @@ func logAll(t *testing.T, format Format) string {
 		"first", "first=kept",
 		"youtube", "https://www.googleapis.com/youtube/v3/search?part=snippet&q=x&key=ytq-FAKE-key&maxResults=5",
 		"other", "https://x.test/login?apikey=apikeyq-FAKE",
+		// Download token of M5 (getDownloadFile, getDownloadSubtitle).
+		"download", "/api/v1/downloads/01JZZZZZZZZZZZZZZZZZZZZZZZ/file?dt=dt-FAKE-token",
+		"subtitle", "/api/v1/downloads/01JZZZZZZZZZZZZZZZZZZZZZZZ/subtitles/3.vtt?lang=de&dt=dtsub-FAKE-token",
+		"fetch", fmt.Errorf("fetch: %w", errors.New(`Get "http://x.test/api/v1/downloads/1/file?DT=dterr-FAKE-token": EOF`)),
 		// An HLS playlist quoted in an error: every line carries the stream token (plan 5.4).
 		"playlist", fmt.Errorf("parse playlist: %w", errors.New("#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4?st=pl-FAKE-init\"\nmedia.m3u8?st=pl-FAKE-media\nseg/0?st=pl-FAKE-seg\n")),
 	)
@@ -76,6 +82,7 @@ func TestRedaction(t *testing.T) {
 				"marco", "GET", "attempt", "language=de", "segment=3", "first=kept", "component",
 				"api_key=" + Redacted, "st=" + Redacted, "api.themoviedb.org", "example.org",
 				"key=" + Redacted, "apikey=" + Redacted, "maxResults=5", "q=x",
+				"dt=" + Redacted, "lang=de", "/subtitles/3.vtt",
 			} {
 				if !strings.Contains(out, keep) {
 					t.Errorf("output lost non-secret %q", keep)
@@ -89,7 +96,7 @@ func TestIsSensitiveKey(t *testing.T) {
 	for key, want := range map[string]bool{
 		"password": true, "PIN": true, "offline_pin": true, "access_token": true, "api_key": true, "youtube_api_key": true, "tvdbApiKey": true, "TVDB_PIN": true,
 		"apiKey": true, "X-Api-Key": true, "authorization": true, "secret": true,
-		"pin_hash": true, "profile_pin": true, "invitation_token": true, "token_hash": true, "password_hash": true, "device_id": false, "content_hash": false,
+		"pin_hash": true, "profile_pin": true, "pinVerifier": true, "offline_pin_verifier": true, "invitation_token": true, "token_hash": true, "password_hash": true, "device_id": false, "content_hash": false,
 		"user": false, "path": false, "max_tokens": false, "mapping": false, "status": false,
 	} {
 		if got := isSensitiveKey(key); got != want {

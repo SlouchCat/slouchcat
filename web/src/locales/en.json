@@ -24,7 +24,8 @@
     "switchProfile": "Switch profile, now {{name}}",
     "maintenance": "Maintenance",
     "devices": "Devices",
-    "streams": "Streams"
+    "streams": "Streams",
+    "downloads": "Downloads"
   },
   "system": {
     "server": {
@@ -37,7 +38,8 @@
   "errors": {
     "page": {
       "title": "Slouchcat cannot be reached right now",
-      "body": "The server does not answer. Check that the container is running, then try again."
+      "body": "The server does not answer. Check that the container is running, then try again.",
+      "offline": "Open the offline library"
     },
     "code": {
       "invalid_credentials": "E-mail address or password is wrong.",
@@ -63,7 +65,11 @@
       "too_many_attempts": "Too many attempts. Wait a moment and try again.",
       "provider_not_configured": "This provider is not set up. Add its key to the server configuration.",
       "watch_limit_reached": "This profile has used up today's watch time.",
-      "stream_limit_reached": "This profile already plays as many streams as allowed."
+      "stream_limit_reached": "This profile already plays as many streams as allowed.",
+      "device_required": "This device is not known for the session. Sign in again.",
+      "not_downloadable": "This title cannot be downloaded.",
+      "download_not_ready": "The download is still being prepared on the server.",
+      "download_evicted": "The prepared file is no longer on the server. It is being prepared again."
     },
     "field": {
       "required": "Required.",
@@ -453,7 +459,7 @@
         "remove": {
           "action": "Remove",
           "title": "Remove guest {{email}}?",
-          "body": "Account, profiles and progress are deleted. Running sessions and playback end immediately.",
+          "body": "Account, profiles and progress are deleted. Running sessions and playback end immediately. Downloads on the guest's devices disappear at their next contact with the server. A device that never comes online again keeps them.",
           "confirm": "Remove guest"
         },
         "limitsHint": "Applies to every profile of the guest account."
@@ -920,5 +926,155 @@
     "streamsValue_other": "{{count}} streams",
     "watchValue": "{{count}} min a day",
     "capped": "The guest account limits this profile: {{summary}}."
+  },
+  "offline": {
+    "unknownTitle": "Unknown title",
+    "episodeTitle": "{{code}} · {{title}} · {{series}}",
+    "quality": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "state": {
+      "deleting": "Deleting",
+      "complete": "On this device",
+      "quota": "Storage full",
+      "storage": "Saving failed",
+      "network": "Download interrupted, it tries again soon",
+      "range": "The server does not send the file in parts (check the proxy)",
+      "gone": "No longer available",
+      "evicted": "Being prepared again",
+      "wifi": "Waiting for Wi-Fi",
+      "fetching": "Downloading ({{percent}} %)",
+      "preparing": "Being prepared ({{percent}} %)",
+      "budgetFull": "Waiting for room on the server",
+      "queued": "Waiting for the server",
+      "paused": "Paused, the server is streaming right now",
+      "failed": "Preparation failed"
+    },
+    "downloads": {
+      "title": "Downloads",
+      "intro": "Titles {{name}} saved on this device. They play without a network too.",
+      "unsupported": {
+        "title": "Downloads are not possible here",
+        "body": "This browser cannot save titles. Downloads need a secure connection (HTTPS) and a current browser."
+      },
+      "list": "On this device",
+      "empty": "No downloads on this device yet. Download films, episodes and whole seasons on their detail page.",
+      "columns": {
+        "title": "Title",
+        "state": "State",
+        "size": "Size",
+        "actions": "Actions"
+      },
+      "auto": "Automatic",
+      "sizeOf": "{{done}} of {{total}}",
+      "play": "Play",
+      "playLabel": "Play {{title}}",
+      "delete": {
+        "action": "Delete",
+        "label": "Delete {{title}}",
+        "title": "Delete the download {{title}}?",
+        "body": "The file is removed from this device. You can download the title again later.",
+        "confirm": "Delete download"
+      },
+      "removed": "{{title}} was deleted.",
+      "offline": "No connection to the server. Saved titles still play; changes reach the server at the next contact.",
+      "pinHint": {
+        "title": "PIN for offline use",
+        "body": "So that {{name}} opens offline on this device too, enter the profile's PIN here once.",
+        "action": "Enter PIN"
+      }
+    },
+    "storage": {
+      "title": "Storage",
+      "meter": "Storage use",
+      "downloads": "Downloads: {{size}}",
+      "other": "Other data: {{size}}",
+      "used": "{{used}} of {{quota}} used",
+      "free": "Free: {{free}} of {{quota}}",
+      "unknown": "Downloads: {{size}}. This browser does not tell the available storage.",
+      "persisted": "The browser keeps the downloads for good.",
+      "notPersisted": "The browser may delete the downloads when storage runs low.",
+      "apple": {
+        "title": "Note for iPhone, iPad and Safari",
+        "body": "Safari deletes the data of a web app that was not opened for a while. Open Slouchcat regularly to keep the downloads; as an app on the home screen they are better protected."
+      }
+    },
+    "rules": {
+      "title": "Automatic downloads",
+      "intro": "Downloads the next episode of every series {{name}} watched in the last 60 days to this device.",
+      "options": "Settings",
+      "enabled": "Automatic downloads on this device",
+      "nextEpisodes": "Next episode of started series",
+      "wifiOnly": "Wi-Fi only",
+      "wifiIos": "iPhone and iPad do not tell the browser whether they are on Wi-Fi. Automatic downloads load there while the app is open.",
+      "maxCount": "At most this many unwatched episodes",
+      "maxCountHint": "{{min}} to {{max}}",
+      "maxCountInvalid": "Enter a number from {{min}} to {{max}}.",
+      "quality": "Quality",
+      "save": "Save rule",
+      "saved": "Saved. The rule applies from the next sync."
+    },
+    "dialog": {
+      "button": "Download",
+      "seasonButton": "Download season",
+      "title": "Download {{title}}",
+      "intro": "The title is saved on this device and plays without a network too.",
+      "seasonIntro_one": "The only episode of this season is saved on this device.",
+      "seasonIntro_other": "All {{count}} episodes of this season are saved on this device.",
+      "quality": "Quality",
+      "option": "{{quality}} · {{height}}p · approx. {{size}}",
+      "audio": "Audio track",
+      "subtitles": "Subtitles: {{list}}",
+      "noSubtitles": "No text subtitles.",
+      "submit": "Download",
+      "submitting": "Starting …",
+      "started_one": "Download started. Its state is under Downloads.",
+      "started_other": "{{count}} downloads started. Their state is under Downloads."
+    },
+    "status": {
+      "open": "Go to downloads",
+      "season": "{{done}} of {{total}} episodes on this device"
+    },
+    "library": {
+      "title": "Offline library",
+      "intro": "Who is watching? These profiles have downloads on this device.",
+      "toApp": "Open the app",
+      "offline": "Offline",
+      "profiles": "Profiles",
+      "empty": {
+        "title": "No downloads on this device",
+        "body": "Without a connection to the server only downloaded titles play.",
+        "hint": "Once you download titles online, you find them here without a network too."
+      },
+      "locked": {
+        "title": "Downloads locked",
+        "body": "The account of this device signed out. The downloads stay stored and open again as soon as the same account signs in."
+      },
+      "downloadsOf": "Downloads of {{name}}",
+      "switchProfile": "Switch profile",
+      "list": "Downloaded titles",
+      "noneReady": "No title is completely on this device yet.",
+      "pending": "Not complete yet"
+    },
+    "pin": {
+      "introOffline": "This profile has its own offline PIN.",
+      "offlineLabel": "Offline PIN",
+      "offlineHint": "6 to 12 digits.",
+      "offlineFormat": "The offline PIN has 6 to 12 digits.",
+      "unavailable": {
+        "title": "Locked offline",
+        "body": "Enter this profile's PIN online on this device once, then it opens offline too."
+      }
+    },
+    "player": {
+      "failed": "The saved file cannot be played.",
+      "subtitles": "Subtitles",
+      "missing": {
+        "title": "Download not available",
+        "body": "This download is not (or no longer) on this device, is not complete yet or is not released for this profile."
+      }
+    }
   }
 }

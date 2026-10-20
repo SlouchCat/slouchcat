@@ -5,16 +5,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 // subtitleTimeout bounds one WebVTT conversion: an embedded track needs a full read of the
 // container. A variable for the tests.
 var subtitleTimeout = 60 * time.Second
+
+// streamsTimeout bounds SubtitleStreams, which reads the whole source of a download once: a large
+// remux over SMB takes minutes. A variable for the tests.
+var streamsTimeout = 30 * time.Minute
 
 // textSubtitleCodecs are the subtitle codecs ffmpeg converts to WebVTT and libass renders.
 var textSubtitleCodecs = []string{"subrip", "ass", "ssa", "mov_text", "webvtt", "text"}
@@ -110,6 +117,81 @@ func (r Runner) Subtitles(ctx context.Context, path string, streamIndex int) ([]
 		return nil, &FileError{err: fmt.Errorf("invalid subtitle stream index %d", streamIndex)}
 	}
 	return r.webVTT(ctx, path, "0:"+strconv.Itoa(streamIndex), false)
+}
+
+// SubtitleStreams converts several embedded text subtitle streams of path to WebVTT in one ffmpeg
+// run, so the source is read once (M5 downloads carry every text track), and returns the WebVTT
+// files by stream index. Each stream goes to a pipe of its own (`-map 0:<idx> -f webvtt pipe:N`).
+// The run may take streamsTimeout instead of the 60 s of Subtitles. Errors as for Subtitles; one
+// unconvertible stream fails the whole run, so a caller that wants the others converts them one by
+// one with Subtitles then.
+func (r Runner) SubtitleStreams(ctx context.Context, path string, streamIndexes []int) (map[int][]byte, error) {
+	indexes := slices.Compact(slices.Sorted(slices.Values(streamIndexes)))
+	out := make(map[int][]byte, len(indexes))
+	if len(indexes) == 0 {
+		return out, nil
+	}
+	if indexes[0] < 0 {
+		return nil, &FileError{err: fmt.Errorf("invalid subtitle stream index %d", indexes[0])}
+	}
+	if r.FFmpegPath == "" {
+		return nil, errors.New("ffmpeg path is not configured")
+	}
+	ctx, cancel := context.WithTimeout(ctx, streamsTimeout)
+	defer cancel()
+	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-i", path}
+	readers := make([]*os.File, 0, len(indexes))
+	writers := make([]*os.File, 0, len(indexes))
+	closeAll := func(files []*os.File) {
+		for _, f := range files {
+			_ = f.Close()
+		}
+	}
+	for i, idx := range indexes {
+		pr, pw, err := os.Pipe()
+		if err != nil {
+			closeAll(readers)
+			closeAll(writers)
+			return nil, fmt.Errorf("subtitle pipe: %w", err)
+		}
+		readers, writers = append(readers, pr), append(writers, pw)
+		// ExtraFiles[i] is file descriptor 3+i in ffmpeg.
+		args = append(args, "-map", "0:"+strconv.Itoa(idx), "-c:s", "webvtt", "-f", "webvtt", "pipe:"+strconv.Itoa(3+i))
+	}
+	defer closeAll(readers)
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, r.FFmpegPath, args...) //nolint:gosec // G204: configured binary, fixed argument list, path resolved by package paths
+	cmd.Stderr = &stderr
+	cmd.ExtraFiles = writers
+	err := cmd.Start()
+	closeAll(writers) // ffmpeg holds its own copies; EOF arrives when it closes them
+	if err != nil {
+		return nil, fmt.Errorf("start ffmpeg webvtt: %w", err)
+	}
+	data := make([][]byte, len(indexes))
+	readErrs := make([]error, len(indexes))
+	var wg sync.WaitGroup
+	for i, pr := range readers {
+		wg.Go(func() { data[i], readErrs[i] = io.ReadAll(pr) })
+	}
+	wg.Wait()
+	err = cmd.Wait()
+	msg := strings.TrimSpace(stderr.String())
+	if err != nil {
+		wrapped := fmt.Errorf("ffmpeg webvtt of %d streams: %w: %s", len(indexes), err, tail([]byte(msg), 512))
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && ctx.Err() == nil && !slices.ContainsFunc(systemFailures, func(s string) bool { return strings.Contains(msg, s) }) {
+			return nil, &FileError{err: wrapped}
+		}
+		return nil, wrapped
+	}
+	if err := errors.Join(readErrs...); err != nil {
+		return nil, fmt.Errorf("read webvtt: %w", err)
+	}
+	for i, idx := range indexes {
+		out[idx] = data[i]
+	}
+	return out, nil
 }
 
 // SubtitlesFile converts a sidecar subtitle file (SRT, ASS, SSA, VTT) to WebVTT. A file that is

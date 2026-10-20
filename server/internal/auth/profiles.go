@@ -120,12 +120,16 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	if verr != nil {
 		return model.Profile{}, verr
 	}
+	var salt sql.NullString
 	if in.PIN != nil {
 		hash, err := s.hashPIN(ctx, *in.PIN)
 		if err != nil {
 			return model.Profile{}, err
 		}
 		p.PinHash = sql.NullString{String: hash, Valid: true}
+		if salt, err = newPinSalt(); err != nil {
+			return model.Profile{}, err
+		}
 	}
 	p.Now = s.now().UnixMilli()
 
@@ -147,6 +151,11 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	row, err := q.InsertProfile(ctx, p)
 	if err != nil {
 		return model.Profile{}, fmt.Errorf("insert profile: %w", err)
+	}
+	if salt.Valid {
+		if err := q.SetProfilePinSalt(ctx, appq.SetProfilePinSaltParams{ID: row.ID, PinSalt: salt}); err != nil {
+			return model.Profile{}, fmt.Errorf("set pin salt: %w", err)
+		}
 	}
 	for _, id := range libs {
 		if err := q.InsertProfileLibrary(ctx, appq.InsertProfileLibraryParams{ProfileID: row.ID, LibraryID: id}); err != nil {
@@ -357,6 +366,7 @@ func (s *Service) libraryChoice(ctx context.Context, acc model.Account, all bool
 }
 
 // SetProfilePIN sets or replaces the PIN of a profile of the account and clears its lock counters.
+// Every new PIN gets a new pin_salt, so offline verifiers of the old PIN stop working (AN-19).
 func (s *Service) SetProfilePIN(ctx context.Context, session model.Session, id int64, pin string) error {
 	if err := requirePrimary(session); err != nil {
 		return err
@@ -372,10 +382,15 @@ func (s *Service) SetProfilePIN(ctx context.Context, session model.Session, id i
 	if err != nil {
 		return err
 	}
-	return s.storePIN(ctx, row.ID, sql.NullString{String: hash, Valid: true})
+	salt, err := newPinSalt()
+	if err != nil {
+		return err
+	}
+	return s.storePIN(ctx, row.ID, sql.NullString{String: hash, Valid: true}, salt)
 }
 
-// RemoveProfilePIN removes the PIN of a profile of the account; a profile without PIN is fine.
+// RemoveProfilePIN removes the PIN of a profile of the account together with its salt (the
+// separate offline PIN stays); a profile without PIN is fine.
 func (s *Service) RemoveProfilePIN(ctx context.Context, session model.Session, id int64) error {
 	if err := requirePrimary(session); err != nil {
 		return err
@@ -384,10 +399,12 @@ func (s *Service) RemoveProfilePIN(ctx context.Context, session model.Session, i
 	if err != nil {
 		return notFoundOr(err, "get profile")
 	}
-	return s.storePIN(ctx, row.ID, sql.NullString{})
+	return s.storePIN(ctx, row.ID, sql.NullString{}, sql.NullString{})
 }
 
-func (s *Service) storePIN(ctx context.Context, profileID int64, hash sql.NullString) error {
+// storePIN writes the PIN hash and the salt of the normal PIN (both NULL to remove) and resets the
+// lock counters of the profile.
+func (s *Service) storePIN(ctx context.Context, profileID int64, hash, salt sql.NullString) error {
 	s.pinMu.Lock()
 	defer s.pinMu.Unlock()
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -398,6 +415,9 @@ func (s *Service) storePIN(ctx context.Context, profileID int64, hash sql.NullSt
 	q := s.write.WithTx(tx)
 	if err := q.SetProfilePin(ctx, appq.SetProfilePinParams{ID: profileID, PinHash: hash, Now: s.now().UnixMilli()}); err != nil {
 		return fmt.Errorf("set pin: %w", err)
+	}
+	if err := q.SetProfilePinSalt(ctx, appq.SetProfilePinSaltParams{ID: profileID, PinSalt: salt}); err != nil {
+		return fmt.Errorf("set pin salt: %w", err)
 	}
 	if err := q.DeletePinAttemptsByProfile(ctx, profileID); err != nil {
 		return fmt.Errorf("reset pin attempts: %w", err)

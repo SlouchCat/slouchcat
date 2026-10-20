@@ -123,6 +123,15 @@ var accountRegistry = map[string]accountCall{
 		want: map[string]int{"primary": http.StatusNoContent, "none": http.StatusForbidden, "guest": http.StatusNoContent}},
 	"getWatchReport": {contract: "GET /profiles/{id}/watch-time", path: "/profiles/{profile}/watch-time?days=7",
 		want: map[string]int{"primary": http.StatusOK, "none": http.StatusForbidden, "guest": http.StatusOK}},
+	// M5: the offline PIN (AN-19) like the PIN, and the upload of offline events (O-5), which any
+	// session of an account may send; an event of a profile outside the account is rejected (200).
+	"setOfflinePin": {contract: "PUT /profiles/{id}/offline-pin", path: "/profiles/{profile}/offline-pin", body: `{"pin":"135790"}`, fresh: true,
+		want: map[string]int{"primary": http.StatusNoContent, "none": http.StatusForbidden, "guest": http.StatusNoContent}},
+	"removeOfflinePin": {contract: "DELETE /profiles/{id}/offline-pin", path: "/profiles/{profile}/offline-pin", fresh: true,
+		want: map[string]int{"primary": http.StatusNoContent, "none": http.StatusForbidden, "guest": http.StatusNoContent}},
+	"uploadOfflineEvents": {contract: "POST /offline/events", path: "/offline/events", want: allWant(http.StatusOK),
+		body: `{"sentAt":"2026-10-20T18:00:00Z","events":[{"profileId":999999,"itemId":"` + fixtureFilm6 + `","playbackId":"01JC0000000000000000000009",` +
+			`"positionMs":10000,"durationMs":7200000,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-20T17:59:50Z"}]}`},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for the owner with the
@@ -198,6 +207,9 @@ var publicRegistry = map[string]publicCall{
 	"acceptInvitation": {contract: "POST /invitations/{token}/accept", path: "/invitations/" + unknownInvitationToken + "/accept", status: http.StatusNotFound,
 		body: `{"email":"guest2@example.ch","password":"long-enough-password","profileName":"G"}`},
 	"getSpikeFile": {contract: "GET /spike/{variant}", path: "/spike/fmp4", status: http.StatusNotFound},
+	// M5: without the device cookie the revocation list is empty (K-7).
+	"checkOfflineRevocations": {contract: "POST /offline/revocations", path: "/offline/revocations", status: http.StatusOK,
+		body: `{"ids":["01J9AAAAAAAAAAAAAAAAAAAAAA"]}`},
 }
 
 // A missing registry entry fails the test: every operation of the contract is in exactly the

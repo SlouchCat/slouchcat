@@ -1,10 +1,135 @@
 # Aktueller Stand
 
-Stand: 20. Oktober 2026. M0 bis M3 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #5). **M4 ist in `main` gemerged** (Pull Request #6, `https://github.com/SlouchCat/slouchcat/pull/6`,
-gemerged am 20. Oktober 2026 auf Marcos Wort, Merge-Commit `7b57c52`; GitHub-Checks `ci` und `image` grün, nachdem
-der erste `ci`-Lauf am Software-Budget des 4-vCPU-Runners gescheitert war und die E2E-Fixture seither jeden
-laufenden Stream vor und nach jedem Test beendet).
+Stand: 20. Oktober 2026. M0 bis M4 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
+Pull Requests #1 bis #6; M4 am 20. Oktober 2026 auf Marcos Wort, Merge-Commit `7b57c52`). **M5 (Offline-Wiedergabe)
+ist auf dem Branch `claude/m5-offline` fertig** und wartet als Pull Request gegen `main` auf Marcos Wort.
+
+## Meilenstein M5 – Offline-Wiedergabe
+
+Vorab geklärt mit Marco (20. Oktober 2026, Entscheidungsprotokoll Frage 8): AN-4, AN-10, AN-13, AN-18 und AN-19 wie
+vorgeschlagen; AN-20 geändert: Budget für vorbereitete Downloads **100 GB** (Standard, `SLOUCHCAT_DOWNLOAD_BUDGET_GB`;
+die Einstellungsseite folgt in M8), Löschung 24 h nach dem Abruf. Marcos Android-Lauf des Spikes (19./20. Oktober) ist
+in `docs/perf/M1-ios-offline.md` eingetragen; damit ist der Spike-Entscheid endgültig: **fMP4 bleibt, die Wiedergabe
+läuft über Media Source Extensions mit einem Fragmentindex** (hls.js mit eigenem OPFS-Loader), weil Chrome auf Android
+per Blob-URL und Service-Worker-Range rund 1.7 s, einmal 12.6 s je Sprung brauchte; Schreibweg
+`createSyncAccessHandle` im Worker, `createWritable` als Fallback. Gesamturteil «Go unter Vorbehalt Tag 8» (27. Oktober);
+Spike-Seite und `SLOUCHCAT_SPIKE_DIR` bleiben bis dahin. Der Entwurf liegt in den Sitzungsnotizen (`m5-design.md`).
+Die Umsetzung lief mit vier Executor-Agenten (Opus) in Scratchpad-Kopien (Transcode, Offline-Server, PIN/Ereignisse,
+Web) auf einer gemeinsamen Basis (Migration 00013, Vertrag 0.6.0, Modelltypen); der Koordinator spielte die Patches ein.
+Commits mit Bereich im Titel:
+
+| Schritt | Commit | Inhalt |
+|---|---|---|
+| Vorab | `docs(decisions)` `de5fdc7`, `docs(perf)` `eec942c` | Antwort auf Frage 8; Android-Werte des Spikes, endgültiger Formatentscheid, Protokoll des O-6-Langzeittests |
+| Basis | `feat(api,store,model)` `aace6b4` | Migration 00013 (`downloads` ohne Ablaufspalte, `download_tombstones` per Trigger aus jeder Löschung inklusive Kaskaden, `download_rules`, `profiles.pin_salt` und `offline_pin`, Offline-Spalten an `progress_events`), Vertrag 0.6.0 mit 13 neuen Operationen (75 gesamt), Modelltypen, Konfiguration `DownloadBudgetGB`/`DownloadsDir()`, deklarierte Download-API im Transcode-Paket |
+| 0 Langzeittest | `docs(perf)` `eec942c`, `test(web,perf)` `d76824d` | Protokoll `docs/perf/M5-o6-langzeittest.md`, Skript `web/scripts/o6-longterm.mjs`; Desktop Chromium und Firefox am 20. Oktober gestartet, Tag 0 bestanden |
+| 1 Download-Profile, Job, OPFS | `feat(transcode)` `cfd830a`, `feat(offline,visibility,api,server)` `57a104e`, `feat(web,testdata)` `29be940` | Drei Stufen (H.264/AAC, CBR), gewählte Tonspur, WebVTT-Sidecars aller Textspuren; Job `download.prepare` auf eigenem Worker, segmentweise nach `/cache/downloads`, Budget, Pause bei Live-Wiedergabe, 24-h-Aufräumen; Manifest mit Fragmentindex, Datei und Untertitel hinter dem Download-Token `dt`; im Browser Ablage in OPFS in 8-MiB-Bereichen mit Wiederaufnahme, Metadaten in IndexedDB (`idb`), Offline-Player mit hls.js und Byte-Range-Playlist |
+| 2 Staffel, Auto-Downloads | in `57a104e`, `29be940` | Staffel mit einer Aktion, Regel je Profil und Gerät (nächste Folge, max. Anzahl, nur WLAN im Client, Podcasts für M6 gespeichert), Testserie mit sechs Folgen |
+| 3 Sichtbarkeit, PIN, Schauzeit, Speicher | `feat(auth,playback,api)` `3cc42ef`, `57a104e`, `29be940` | `allowed_profile_ids` über `visibility.AllowedProfiles` bei jedem Sync; Offline-PIN (PBKDF2, separate Offline-PIN 6–12 Stellen, Verifier der normalen PIN entsteht im Client bei der nächsten Online-Eingabe); Tagesrest und Rücksetzzeitpunkt im Sync; Seite `/downloads` mit Speicheranzeige und Apple-Hinweis |
+| 4 Ereignisse, Entzug | `3cc42ef`, `57a104e`, `29be940` | `uploadOfflineEvents` mit Uhrkorrektur, Zusammenführung nach AN-10, Nachbuchung der Schauzeit; Grabsteine als Entzugsliste im Sync und über `checkOfflineRevocations` mit dem Geräte-Cookie |
+| Entscheid geteiltes Gerät | `docs(decisions,testdata)` `b088da4` | siehe «Abweichungen» |
+| DB-Stand | `test(store,testdata)` `0ad5950` | `testdata/db/M5.sql`, `TestFrozenM5StateCoversM5Data` |
+| Review- und E2E-Korrekturen | `fix(offline,api,admin,playback,transcode)` `a623e64`, `fix(web)` `8d2d51f`, `fix(offline)` `295645d` | siehe unten |
+| Verifier-Korrekturen | `test(offline,web)` `20f909c`, `docs(status,perf)` `d2ac1fb`, `test(web)` `5a4e2cb`, `fix(web)` `6c96cef` | Folge in drei Stufen, O-5 mit Startposition und 10-s-Grenze, 10 min offline mit simulierter Zeit, Fortsetzung ab Server-Position, kein stiller Skip |
+| Firefox stumm | `test(web)` `4c00a13` | `media.volume_scale` 0.0 in den Specs und im Langzeittest (Auftrag von Marco) |
+
+### Definition of Done (Plan M5 plus 6.2) mit Belegen
+
+| Kriterium | Ergebnis | Beleg |
+|---|---|---|
+| O-1 (Video) Film und Folge in 3 Stufen, Grösse ±10 % der Schätzung | PASS: Film und Folge je in allen drei Stufen per E2E (Film «MKV Long» −1.7/−1.7/−4.2 %, Folge der Download-Testserie −2.0/−2.0/−0.9 %, Datei in OPFS = Manifest), Integrationstest −1.0 %, echte Quellen −1.8 % (S01E01 «Mittel») und −1.5 % (4K-HDR-Ausschnitt «Hoch»), siehe `docs/perf/M5.md` 2 | `web/e2e/downloads.spec.ts`, `offline-measure.spec.ts`, `go test ./internal/offline -run 'TestPrepareWithRealEncoder|TestDecidePerProfileAndSource|TestEstimateMatchesPlan'` |
+| O-2 Staffel mit 6 Folgen per 1 Aktion → 6 Downloads | PASS | `web/e2e/season-download.spec.ts`, `go test ./internal/offline -run TestCreateSeasonDownloadsVisibleEpisodes` |
+| O-3 Folge n beendet → n+1 lädt; Max.-Anzahl; «nur WLAN» | PASS Desktop, Android ausstehend: Regel per Tastatur, n+1 automatisch, Max.-Anzahl, fehlgeschlagene Auto-Downloads nach 6 h erneut; «nur WLAN» per Vitest (`navigator.connection`), auf Android-Chrome ausstehend (Marco); iOS nach AN-13 ausgeblendet, ungeprüft (Entscheid 2); Podcasts M6 | `web/e2e/auto-download.spec.ts`, `go test ./internal/offline -run 'TestAutoDownloads|TestAutoDownloadRetriesAfterAFailure'`, Vitest `sync.test.ts` (`waitsForWifi`) |
+| O-4 Wiedergabe im Flugmodus mit Untertitel und gewählter Tonspur | PASS Desktop, Android ausstehend: Chromium und Firefox mit Playwright `setOffline` (MSE, englische Tonspur im Manifest, zwei WebVTT-Spuren, deutsche Spur angezeigt, Spulen per Pfeiltaste). In Firefox erfasst `setOffline` die Anfragen des Service Workers nicht; das Server-Log zeigt im Offline-Fenster aber keine Anfrage an Datei, Manifest oder Untertitel. Ganz ohne Server läuft Firefox nur im Langzeittest (Wiedergabe und Sprung, ohne Untertitel und Tonspur). Apple ungeprüft | `web/e2e/offline-playback.spec.ts` |
+| O-5 10 min offline gesehen → zweites Gerät zeigt Position ±10 s; Konfliktfälle AN-10 | PASS: E2E ab 30 s Server-Position, 15 s Wiedergabe im Flugmodus, das zweite Gerät zeigt die neue Position ±10 s innert 10 s nach der Wiederverbindung (gemessen 258–263 ms in Chromium und Firefox, trennscharf gegen die Startposition); 10 min Offline-Wiedergabe mit simulierter Zeit durch Player, Warteschlange und Schauzeit (61 Ereignisse, ein Upload nach der Wiederverbindung); Uhrversatz, ältere und neuere Ereignisse, «fertig» bis zum neueren Ereignis unter 90 % in Go-Tests | `web/e2e/offline-playback.spec.ts`, Vitest `offlineFlow.test.tsx`, `go test ./internal/playback -run 'TestReportOffline'` |
+| O-6 kein Ablauffeld; Download nach 30 Tagen abspielbar | Schema-Test PASS; Langzeittest läuft (Desktop seit 20.10., Tag 0 bestanden; Android nach dem Merge), Abschluss M7 | `go test ./internal/offline -run TestDownloadsHaveNoExpiryColumn`, `docs/perf/M5-o6-langzeittest.md` |
+| O-7 P6 sieht den FSK-18-Download von P18 nicht; Speicheranzeige = `estimate()` ±5 %; iOS-Hinweis | PASS: online und offline auf demselben Gerät mit einem Titel ohne Freigabe (für P6 gesperrt, AN-1), FSK 18 im Go-Test; Speicheranzeige ±5 %; Hinweis mit iPhone-User-Agent, WLAN-Option dort ausgeblendet | `web/e2e/offline-profiles.spec.ts`, `go test ./internal/offline -run 'TestSyncHidesTitlesOfOtherProfiles|TestAllowedProfilesAfterRatingChange'` |
+| C-1 PWA startet offline mit den geladenen Inhalten (< 3 s) | PASS: echter Kaltstart ohne Server im Langzeittest (dauerhaftes Profil, Tag 0) Chromium 1334 ms und 1357 ms, Firefox 1446 ms und 1427 ms; Neuladen im Playwright-Flugmodus bei laufendem Service Worker 76 ms (neue Tabs 88–141 ms, nur Chromium); Start mit stummem Server 2375 ms (Chromium) und 2404 ms (Firefox), diese Spec sperrt den Service Worker, die App-Hülle kommt vom Server; Playwright-Firefox kann den Flugmodus mit Service Worker nicht nachbilden (Kaltstart-Specs nur Chromium, Grund in `playwright.config.ts`) | `web/e2e/offline-cold-start.spec.ts`, `offline-start.spec.ts`, `docs/perf/M5.md` 5 |
+| K-4 offline: Verifier lehnt falsche PIN ab | PASS: Verifier der normalen PIN nach Online-Eingabe, separate Offline-PIN, Bremse nach drei Fehlversuchen, Profil ohne Verifier gesperrt | `web/e2e/offline-pin.spec.ts`, `go test ./internal/auth -run 'TestOfflinePIN|TestPinSaltFollowsPIN'` |
+| K-5 offline: Tagesrest → Stopp ±30 s im Flugmodus, Nachbuchung | PASS mit 1-min-Limit im E2E (Stopp nach 30–90 s mit Hinweis, Bericht zeigt die nachgebuchte Zeit); Abzug und Tageswechsel als Rechnung in `watchTime.test.ts`, Stopp im Player mit simulierter Zeit (`OfflinePlayer.test.tsx`), 10-min-Ablauf siehe Zeile O-5; Nachbuchung langer Läufe in Go | `web/e2e/offline-watch-limit.spec.ts`, Vitest `watchTime.test.ts`, `go test ./internal/playback -run 'TestReportOfflineBooksWatchTime|TestOfflineWatchTime'` |
+| K-7 Entzug eines Gastes → Downloads beim nächsten Kontakt weg | PASS: Grabstein aus der Kaskade, Sync 401 → Entzugsliste über das Geräte-Cookie, Download und OPFS-Ordner weg; auch wenn inzwischen ein anderes Konto angemeldet ist | `web/e2e/offline-revocation.spec.ts`, `go test ./internal/api -run TestOfflineGuestRevocation`, `go test ./internal/offline -run TestTombstonesThroughCascades`; «anderes Konto angemeldet»: Vitest `engine.test.ts` und `OfflineLibraryPage.test.tsx` |
+| Kinderprofil-Vertragstest 10.2 über alle neuen Operationen | PASS: 75 Operationen; unsichtbarer Titel → 404 bei Optionen, Anlegen, Manifest, Datei und Untertitel (Token eines Profils, das ihn nicht sieht); Sync-Antwort ohne fremde Item-IDs; Serie 12 → 16: P12 fällt beim nächsten Sync aus `allowedProfileIds`; `deleteDownload` beim unsichtbaren Titel: Hauptprofil 204 (Review K1), sonst 404 | `go test ./internal/api -run 'TestContract'`, `go test ./internal/offline -run TestAllowedProfilesAfterRatingChange` |
+| Flugmodus-Test (DoD): Film mit Untertitel und Tonspur ohne Server, Fortschritt beim nächsten Kontakt zusammengeführt | PASS Desktop (Chromium und Firefox, Firefox-Vorbehalt wie bei O-4), Android-Gerät ausstehend (Marco) | `web/e2e/offline-playback.spec.ts` |
+| iOS-8-Tage-Test (AN-7) | ungeprüft, keine Hardware (Entscheid 2) | `docs/perf/M5-o6-langzeittest.md` |
+| `task ci` grün (6.2 Pkt. 2) | exit 0 (20. Oktober 2026, Stand `4c00a13` mit den danach committeten Doku-Dateien, Binary `4c00a13-dirty`): gen, gen:check, lint 0 issues, Go `-race` alle 22 Pakete, Vitest 370 (web, 50 Dateien) + 4 + 2, Build, Playwright 250 (Chromium und Firefox, 0 fehlgeschlagen, 0 übersprungen, 12.8 min), Storybook 104; erster Lauf auf `295645d` ebenfalls exit 0 (Playwright 246, Vitest 359) | `sg docker -c 'task ci'` |
+| Tastaturtest je neue Seite (6.2 Pkt. 3) | PASS: `/downloads`, Download-Dialog, `/offline` (Pfeiltasten zwischen Profilen und Karten in beiden Browsern), `/offline/play` | `downloads.spec.ts`, `offline-pin.spec.ts`, `offline-playback.spec.ts`, `offline-cold-start.spec.ts` |
+| Eingefrorener DB-Stand (6.2 Pkt. 4) | `testdata/db/M5.sql`; alle Stände M1a bis M5 migrieren bis 00013 | `go test ./internal/store -run 'TestFrozen|TestMigration00013'` |
+| Messwerte (6.2 Pkt. 5) | `docs/perf/M5.md` (Spulen über MSE, Grösse gegen Schätzung, Vorbereitungszeit, Kaltstart, Abrufrate, Gerätecheckliste) | |
+| Code-Review | Server 20 Befunde (0 kritisch, 6 wichtig, 14 klein), Web 26 Befunde (0 kritisch, 11 wichtig, 15 klein); alle behoben oder begründet (siehe unten) | Sitzungsnotizen `m5-review-server.md`, `m5-review-web.md`, `m5-server-fixes-notes.md`, `m5-web-e2e-notes.md` |
+| Verifier-Agent (6.2 Pkt. 6) | «DoD bestätigt mit Ausnahmen» (O-3, O-4 und O-6 auf Android ausstehend, iOS ungeprüft, Entscheid «geteiltes Gerät» offen); eigene Läufe: Go-Tests der M5-Pakete mit `-race`, Vitest 359, 26 Playwright-Tests in beiden Browsern, `task gen`/`gen:check`, `task lint`; 15 Berichtskorrekturen übernommen (Werte nach `295645d`, O-1 Folge, O-5, K-5, O-4/Firefox, C-1, Langzeittest-Bewertung, O-7, K-7, Vertrag `deleteDownload`, Gerätecheckliste, Beobachtungspunkte, toter Skip-Zweig) | Sitzungsnotizen `m5-verifier.md` |
+
+### Befunde der Review-Passage und ihre Behebung
+
+- **Server (wichtig):** Fortsetzen prüft einen Fingerabdruck des Plans, die Segmentzeiten und das Init (sonst
+  gemischte Encodes nach einem Planwechsel); die Admission wird vor den Untertiteln freigegeben (sonst blockierte die
+  Untertitel-Extraktion einen Live-Start); `Reconcile` reiht hängende Downloads ohne Job neu ein; fehlende Probe
+  wartet statt endgültig zu scheitern, ein neuer Auftrag setzt `failed` zurück; Zusammenführen im Admin behält die
+  Downloads; das Geräte-Cookie folgt dem Gerät der Sitzung und wird erneuert (sonst erreicht die Entzugsliste nach
+  400 Tagen das Gerät nicht mehr).
+- **Server (klein):** Löschen nur durch Anfrager, erlaubtes oder Hauptprofil; `paused` beim Warten auf Admission;
+  Offline-Ereignisse gegen ihren Download geprüft und auf 30 Tage begrenzt; alle Textuntertitel in einem ffmpeg-Lauf;
+  PIN-Material nur für gehaltene Downloads; Regeln im Sync «best effort»; Staffel ohne anlegbare Folge 422; Token für
+  unbekannte Downloads 401; ETag an der Datei; Räumen nur bei fehlender Kopie; Test für das `pin_salt` der Migration.
+- **Web (wichtig):** Offline-Profilwahl schlug die Sitzung (jetzt spielt der Player aus `/downloads` für das
+  Sitzungsprofil, die Wahl verfällt ausserhalb von `/offline`); Offline-Bibliothek nur für das zuletzt angemeldete
+  Konto, Entzugsprüfung für Downloads anderer Konten; PIN-Material nur bei Downloads; Schauzeit-Stopp gegen
+  Medientasten und Bild-in-Bild abgesichert; letztes Ereignis beim Verlassen des Players; Quota- und Worker-Fehler
+  stoppen die Abrufschleife mit Hinweis; Löschen wartet auf den Schreiber; Web Locks für mehrere Tabs; Kaltstart mit
+  stummem Server nach 2 s offline; kein Laufzeit-Skip mehr.
+- **E2E-Befunde:** Die Länge eines Blocks wurde nach der Übergabe des Puffers an den Worker gelesen (jeder Block
+  zählte 0 Byte, der Abruf begann endlos neu); der Service Worker übernahm seine Seite nicht (`clientsClaim`); «Niedrig»
+  wurde bei Quellen mit kleiner Bitrate grösser als die Kopie in «Hoch» (Encode jetzt höchstens mit der Quellbitrate).
+- **Befunde des Verifiers:** fehlende Belege für die Folge in drei Stufen, für O-5 mit Startposition und
+  10-s-Grenze und für einen 10-min-Ablauf ergänzt; dabei fiel auf, dass die Offline-Wiedergabe nur die eigene
+  Position des Geräts kannte (ein online bis 30 s gesehener Film begann offline bei 0). Jeder Sync speichert jetzt den
+  Serverfortschritt des aktiven Profils am Download, der Player nimmt die neuere Position (`6c96cef`). Ein toter
+  Skip-Zweig im Integrationstest ist entfernt, die Bewertung des Langzeittests prüft alle drei Kriterien.
+- **Firefox stumm in Playwright** (Auftrag von Marco): die Sinustöne der Testmedien piepten in jedem Lauf aus den
+  Lautsprechern; Firefox startet in den Specs und im Langzeittest mit `media.volume_scale` 0.0 (`4c00a13`).
+
+### Abweichungen und Entscheide während M5
+
+- **Geteiltes Gerät mit mehreren Konten** (Entscheidungsprotokoll, Vorschlag des Koordinators nach dem Web-Review,
+  von Marco zu bestätigen): die Offline-Bibliothek zeigt nur das zuletzt angemeldete Konto; nach dem Abmelden bleiben
+  die Downloads gesperrt auf dem Gerät; Downloads anderer Konten werden nach jedem Sync gegen die Entzugsliste geprüft;
+  Offline-PIN und lokale Schauzeit gelten im Offline-Player auch online.
+- **Wiedergabe über MSE statt Blob-URL:** siehe Spike-Entscheid; Blob-URL nur noch als Rückfall ohne Media Source
+  (verschiebt die +10-s-Zeitachse der HLS-Segmente).
+- **Eine Zeile je Gerät und Titel:** hält ein anderes Konto denselben Titel auf dem Gerät, antwortet ein Einzeltitel
+  422 `not_downloadable`, eine Staffel überspringt die Folge.
+- **Budget:** angefangene Vorbereitungen zählen mit ihrer Schätzung, wartende nicht; ein Download grösser als das ganze
+  Budget läuft, wenn sonst nichts liegt.
+- **Bild-Untertitel** (PGS, DVD) gibt es offline nicht, nur Textspuren als WebVTT.
+- **Langzeittest O-6:** Start erst mit dem fertigen M5-Server (Desktop am Ende des M5-Tages, Android mit dem Image nach
+  dem Merge), nicht am ersten Tag; `persist()` in den Playwright-Profilen nicht gewährt.
+- **Playwright-Firefox und Flugmodus:** `setOffline` erfasst die Anfragen des Service Workers nicht; die
+  Kaltstart-Specs laufen nur in Chromium, Firefox ist im Langzeittest ohne Server echt offline geprüft.
+- **Messskript gegen das NAS:** ein erster Messlauf legte eine Serienbibliothek irrtümlich auf den ganzen NAS-Ordner
+  `Serien`; der Server wurde nach rund vier Minuten gestoppt, er hatte nur lesend Verzeichnisse durchlaufen (Medien sind
+  read-only eingebunden, geschrieben wurde nur in den eigenen Cache). Gemessen wurde danach an einer lokalen Kopie von
+  S01E01 und am 120-s-HDR-Ausschnitt aus M4.
+
+### Nicht in M5 (Plan) und offene Punkte für M6
+
+1. Android (Marco, nach dem Merge und dem neuen Image): Gerätecheckliste 10.1 für Download und Flugmodus, «nur WLAN»
+   für Auto-Downloads (O-3), Start des O-6-Langzeittests; Spike-Tag 3 und 8 (bis 27. Oktober) und eine gültige
+   30-min-Dauerwiedergabe, danach Spike-Seite und `SLOUCHCAT_SPIKE_DIR` entfernen.
+2. Bestätigung des Entscheids «geteiltes Gerät» durch Marco (Pull Request).
+3. O-6-Langzeittest Tag 1, 3, 8 und 30 (`node web/scripts/o6-longterm.mjs check`, ohne laufenden Server auf 8098);
+   Abschluss in M7.
+4. Hörbücher und Podcast-Episoden als Downloads, Auto-Download neuer Podcast-Episoden (M6; das Regelfeld ist
+   gespeichert).
+5. Admin: Einstellung des Download-Budgets und Belegung im Dashboard (M8); Hinweis zu AN-4 ergänzen, dass auch
+   «Datei ignorieren» (B-9) und das Aufräumen von Geräten nach 400 Tagen Downloads entziehen.
+6. Server: Grabsteine tragen keine Konto-ID (Gerät vergessen, neue Geräte-ID: Downloads bleiben auf dem alten Gerät,
+   O2 des Web-Reviews); `checkOfflineRevocations` ohne Ratenbegrenzung; CBR bei QSV, NVENC und VAAPI nur über die
+   Argumente geprüft, Grösse gegen Schätzung auf CT 190 (QSV) messen; Byte-Gleichheit des Init beim Fortsetzen für
+   Hardware-Encoder (der Fingerabdruck fängt Abweichungen ab).
+7. Web: nach einem Datenbank-Upgrade in einem anderen Tab braucht ein alter Tab ein Neuladen; ob das asynchrone
+   Schreiben beim Schliessen eines Tabs (`pagehide`) in jedem Browser festgeschrieben wird; nach «Speicher voll» wartet
+   der nächste Abrufversuch 5 min, auch wenn inzwischen Platz frei wurde.
+8. Weiter offen aus M4: `AdminDevice.current` und `stoppedBy` im 401, Abspann-Erkennung bei Vorschau nach dem Abspann,
+   Einbrennen eingebetteter Textspuren über Sidecar-Cache, Schriften für libass, Audio-Bitrate in der Probe, CSP.
 
 ## Meilenstein M4 – Wiedergabe komplett
 

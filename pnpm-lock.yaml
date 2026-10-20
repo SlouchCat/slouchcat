@@ -224,6 +224,9 @@ importers:
       i18next:
         specifier: 26.4.7
         version: 26.4.7(typescript@6.0.3)
+      idb:
+        specifier: ^8.0.4
+        version: 8.0.4
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -3044,6 +3047,9 @@ packages:
 
   idb@7.1.1:
     resolution: {integrity: sha512-gchesWBzyvGHRO9W8tzUWFDycow5gwjvFKfyV9FF32Y7F50yZMp7mP+T2mJIWFx49zicqyC4uefHM17o6xKIVQ==}
+
+  idb@8.0.4:
+    resolution: {integrity: sha512-jd0ITCrN+Zah4J7R/Z2jnR3W7A4BXDAjmo62MwWuSjxCiueUAf7X5rbodEdidWzeknwXHmLpdZkoiiCppNi30Q==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -7394,6 +7400,8 @@ snapshots:
       typescript: 6.0.3
 
   idb@7.1.1: {}
+
+  idb@8.0.4: {}
 
   ieee754@1.2.1: {}
 

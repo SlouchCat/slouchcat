@@ -50,6 +50,55 @@ type Device struct {
 	CapabilitiesAt sql.NullInt64
 }
 
+type Download struct {
+	ID                string
+	AccountID         int64
+	ProfileID         sql.NullInt64
+	DeviceID          string
+	ItemID            string
+	MediaFileID       string
+	Quality           string
+	AudioStream       int64
+	Auto              int64
+	State             string
+	Mode              sql.NullString
+	Width             sql.NullInt64
+	Height            sql.NullInt64
+	VideoBitrate      sql.NullInt64
+	AudioBitrate      sql.NullInt64
+	DurationMs        sql.NullInt64
+	EstimatedBytes    int64
+	SizeBytes         sql.NullInt64
+	SegmentsDone      int64
+	SegmentsTotal     sql.NullInt64
+	Error             sql.NullString
+	AllowedProfileIds string
+	AllowedAt         sql.NullInt64
+	CreatedAt         int64
+	UpdatedAt         int64
+	ReadyAt           sql.NullInt64
+	FetchedAt         sql.NullInt64
+	FilesRemovedAt    sql.NullInt64
+}
+
+type DownloadRule struct {
+	ProfileID          int64
+	DeviceID           string
+	Enabled            int64
+	NextEpisodes       int64
+	NewPodcastEpisodes int64
+	WifiOnly           int64
+	MaxCount           int64
+	Quality            string
+	UpdatedAt          int64
+}
+
+type DownloadTombstone struct {
+	ID        string
+	DeviceID  string
+	RemovedAt int64
+}
+
 type IgnoredFile struct {
 	RootID    int64
 	RelPath   string
@@ -288,6 +337,8 @@ type Profile struct {
 	MaxHeight         sql.NullInt64
 	MaxStreams        sql.NullInt64
 	WatchLimitMinutes sql.NullInt64
+	PinSalt           sql.NullString
+	OfflinePin        sql.NullString
 }
 
 type ProfileLibrary struct {
@@ -318,6 +369,9 @@ type ProgressEvent struct {
 	ClientTime        int64
 	ServerTime        int64
 	PlaybackSessionID sql.NullString
+	Offline           int64
+	UploadedAt        sql.NullInt64
+	DownloadID        sql.NullString
 }
 
 type Session struct {

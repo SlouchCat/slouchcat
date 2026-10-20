@@ -56,6 +56,11 @@ type Target struct {
 	Quality string
 	// MaxBitrate caps the video bit rate in bit/s (the profile's bandwidth limit); 0 = the rung's rate.
 	MaxBitrate int
+	// ConstantRate encodes at a constant bit rate (MaxBitrate) so the size of a download is
+	// predictable (M5, O-1: ±10 % of the estimate).
+	ConstantRate bool
+	// AudioBitrate is the AAC bit rate in kbit/s of an audio encode; 0 = the HLS default (M5 downloads).
+	AudioBitrate int
 }
 
 // Segment is one HLS media segment on the source timeline.

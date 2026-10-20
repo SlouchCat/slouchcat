@@ -42,11 +42,18 @@ func (fakeAuth) Resolve(_ context.Context, token string) (model.Session, bool, e
 		// Resolve moved the expiry of this session.
 		return model.Session{ID: 3, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true},
 			ExpiresAt: slidingExpiry}, true, nil
+	case "device", "device-sliding":
+		// A session started on sessionDevice; the second one Resolve extended.
+		return model.Session{ID: 6, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true},
+			DeviceID: sessionDevice, ExpiresAt: slidingExpiry}, token == "device-sliding", nil
 	}
 	return model.Session{}, false, model.ErrNotFound
 }
 
 var slidingExpiry = time.Now().Add(30 * 24 * time.Hour).Truncate(time.Second)
+
+// sessionDevice is the device of the fake sessions "device" and "device-sliding".
+var sessionDevice = strings.Repeat("d", 32)
 
 func newSessionTestHandler() http.Handler {
 	return NewHandler(Options{
@@ -251,6 +258,51 @@ func TestAuthorizeReissuesExtendedSessionCookie(t *testing.T) {
 	rec = request(t, h, http.MethodPost, "/api/v1/auth/logout", "sliding", true)
 	if cookies := cookiesNamed(rec, SessionCookie); len(cookies) != 1 || cookies[0].MaxAge != -1 {
 		t.Errorf("logout cookies = %+v, want only the clearing one", cookies)
+	}
+}
+
+// M5 review W6: the device cookie follows the session's device and lives as long as the session.
+// A cookie that expired or was replaced while the sliding session lived on is rewritten to the
+// session's device (the revocation list of checkOfflineRevocations is read by the cookie, K-7),
+// and an extended session renews it with a fresh MaxAge.
+func TestDeviceCookieFollowsTheSession(t *testing.T) {
+	h := newSessionTestHandler()
+	get := func(token, cookie string) []*http.Cookie {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/session", nil)
+		if token != "" {
+			req.AddCookie(&http.Cookie{Name: SessionCookie, Value: token})
+		}
+		if cookie != "" {
+			req.AddCookie(&http.Cookie{Name: DeviceCookie, Value: cookie})
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return cookiesNamed(rec, DeviceCookie)
+	}
+	renewed := func(name string, got []*http.Cookie, want string) {
+		t.Helper()
+		if len(got) != 1 || got[0].Value != want || got[0].MaxAge != deviceCookieDays*24*3600 || !got[0].HttpOnly || got[0].Path != "/" {
+			t.Errorf("%s: device cookies %+v, want %s for %d days", name, got, want, deviceCookieDays)
+		}
+	}
+	other := strings.Repeat("c", 32)
+	renewed("another cookie", get("device", other), sessionDevice)
+	renewed("no cookie", get("device", ""), sessionDevice)
+	if got := get("device", sessionDevice); len(got) != 0 {
+		t.Errorf("matching cookie re-issued: %+v", got)
+	}
+	renewed("extended session", get("device-sliding", sessionDevice), sessionDevice)
+	// Without a session the cookie stays, and a request without one gets a fresh id.
+	if got := get("", other); len(got) != 0 {
+		t.Errorf("cookie without session re-issued: %+v", got)
+	}
+	if got := get("", ""); len(got) != 1 || !deviceIDPattern.MatchString(got[0].Value) || got[0].Value == sessionDevice {
+		t.Errorf("fresh device cookie = %+v", got)
+	}
+	// A session from before devices (no device id) keeps the cookie.
+	if got := get("owner", other); len(got) != 0 {
+		t.Errorf("session without device re-issued the cookie: %+v", got)
 	}
 }
 

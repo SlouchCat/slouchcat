@@ -51,6 +51,7 @@ export const session: SessionInfo = {
     allLibraries: true,
     libraryIds: [],
     hasPin: false,
+    hasOfflinePin: false,
     isPrimary: true,
     limits: {},
     effectiveLimits: {},
