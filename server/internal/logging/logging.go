@@ -6,9 +6,9 @@
 //   - Attributes whose key names a secret (see sensitiveKeys) get the value "[redacted]", at any
 //     depth of nested groups and for attributes added with Logger.With.
 //
-//   - Query parameters that carry secrets (api_key, apikey, key, st) are masked inside every string
-//     value, inside error messages and inside the log message itself, so a logged URL keeps its
-//     shape.
+//   - Query parameters that carry secrets (api_key, apikey, key, st, dt) are masked inside every
+//     string value, inside error messages and inside the log message itself, so a logged URL keeps
+//     its shape.
 //
 //   - Invitation tokens in URL paths (/invitations/<token>, /invite/<token>) are masked in every
 //     string value.
@@ -42,11 +42,11 @@ const (
 // sensitiveKeys are attribute key suffixes that carry secrets. Keys are compared after lower-casing
 // and removing '-' and '_', so "apiKey", "api_key", "X-Api-Key" and "tmdb_api_key" all match.
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
-	"youtubeapikey", "tvdbapikey", "tvdbpin"}
+	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier"}
 
-// sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API)
-// and st.
-var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|apikey|key|st)=)[^&;#\s"']*`)
+// sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
+// st (stream token) and dt (download token, M5).
+var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|apikey|key|st|dt)=)[^&;#\s"']*`)
 
 // New returns a logger that writes to w in the given format and level, with redaction applied.
 func New(w io.Writer, format Format, level slog.Leveler) (*slog.Logger, error) {

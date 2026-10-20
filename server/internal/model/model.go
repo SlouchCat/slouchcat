@@ -113,16 +113,17 @@ type Account struct {
 // Profile is a viewing profile; its MaxRating and library rights drive the visibility layer
 // (capped by the account's own limits in the view visible_items).
 type Profile struct {
-	ID           int64
-	AccountID    int64
-	Name         string
-	MaxRating    int    // 0, 6, 12, 16, 18
-	Language     string // de, en
-	AllLibraries bool
-	LibraryIDs   []int64 // libraries of a profile with AllLibraries false
-	Accent       string
-	HasPin       bool
-	IsPrimary    bool // the account's primary profile: manages profiles, cannot be deleted
+	ID            int64
+	AccountID     int64
+	Name          string
+	MaxRating     int    // 0, 6, 12, 16, 18
+	Language      string // de, en
+	AllLibraries  bool
+	LibraryIDs    []int64 // libraries of a profile with AllLibraries false
+	Accent        string
+	HasPin        bool
+	HasOfflinePin bool // a separate offline PIN is set (AN-19)
+	IsPrimary     bool // the account's primary profile: manages profiles, cannot be deleted
 	// Limits are the profile's own W-8/K-5 limits (zero = none); Effective applies the account's caps.
 	Limits    PlaybackLimits
 	Effective PlaybackLimits

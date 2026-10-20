@@ -497,7 +497,7 @@ func toProfile(p appq.Profile, libs []int64, account model.PlaybackLimits) model
 	return model.Profile{
 		ID: p.ID, AccountID: p.AccountID, Name: p.Name, MaxRating: int(p.MaxRating), Language: p.Language,
 		AllLibraries: p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
-		HasPin: p.PinHash.Valid, IsPrimary: p.IsDefault == 1,
+		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1,
 		Limits: limits, Effective: limits.Cap(account),
 	}
 }
