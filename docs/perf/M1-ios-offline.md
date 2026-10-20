@@ -1,6 +1,6 @@
 # iOS-Offline-Spike – Protokoll M1a (Entscheid in M1b)
 
-Stand: 19. Oktober 2026 (M1a Schritt 1, Auswertung M1b Schritt 6). Grundlage: Plan `docs/planning/03-plan-v1.md` Abschnitt 10.4,
+Stand: 20. Oktober 2026 (M1a Schritt 1, Auswertung M1b Schritt 6, Android-Werte und endgültiger Formatentscheid vor M5). Grundlage: Plan `docs/planning/03-plan-v1.md` Abschnitt 10.4,
 Annahmen AN-20 (Download-Format) und AN-7 (Testhardware), Entscheid 2 in
 `docs/planning/04-entscheidungen.md` (kein iPhone, kein iPad, kein Mac).
 
@@ -69,14 +69,14 @@ solange Seite und Dateien vom selben Server kommen.
 
 | Prüfung | Schwelle | Android Chrome | Desktop Chrome | Desktop Firefox | iOS Safari (PWA) |
 |---|---|---|---|---|---|
-| `navigator.storage.persist()` | true (in installierter PWA) | ausstehend (Lauf 19.10.) | n/a: Desktop-Chrome gibt `persist()` ohne Installation nicht frei; Funktionsprüfung lief im Tab | n/a (keine Installation; Firefox gewährt `persist()` per Nachfrage) | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
-| `navigator.storage.estimate().quota` | ≥ 5 GB | ausstehend | bestanden (Desktop-Quote weit über 5 GB, Funktionsprüfung) | bestanden (Funktionsprüfung) | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
-| Schreibweg | `createSyncAccessHandle` im Worker oder `createWritable` funktioniert für 1.5 GB; gewählter Weg je Version dokumentiert | ausstehend | bestanden: beide Wege (Funktionsprüfung, Chrome 152) | bestanden: beide Wege (Funktionsprüfung, Firefox 158) | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
-| Download 1.5 GB mit Bildschirmsperre und App-Wechsel | abgeschlossen mit Wiederaufnahme ab letztem Block, ≤ 3 Wiederaufnahmen | ausstehend | teilweise: Wiederaufnahme nach Neuladen ab letztem Commit geprüft; Bildschirmsperre am Desktop nicht prüfbar | teilweise: Abbrechen und Fortsetzen ab Commit geprüft | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
-| Wiedergabe aus OPFS per Blob-URL und per Range-Antwort des Service Workers | Spulen auf 3 Positionen je < 2 s mit mindestens einem der beiden Wege | ausstehend | bestanden per Blob-URL (< 60 ms); Service-Worker-Weg im eingebetteten Chrome nicht prüfbar | bestanden per Blob-URL (< 100 ms); Service-Worker-Weg mit `faststart` bestanden | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
-| Download-Format (AN-20) | dieselbe Spulprüfung mit fMP4 (mit `sidx`) und mit `faststart`-MP4; bestanden mit fMP4 → AN-20 gilt, sonst Fallback `faststart` | ausstehend | fMP4 per Blob-URL bestanden | fMP4 per Blob-URL bestanden; **fMP4 über Service-Worker-Range nicht bestanden** (Dauer instabil, Sprung landet am Ende des gelesenen Bereichs); `faststart` über beide Wege bestanden | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
-| Speicher während 30 min Wiedergabe | kein Neuladen oder Absturz der PWA | ausstehend | nicht gemessen (nur 1-min-Soak in der Funktionsprüfung) | 1-min-Soak «survived» (Funktionsprüfung); 30 min nicht gemessen | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
-| Bestand nach 1, 3, 8 Kalendertagen ohne Öffnen | Datei vorhanden und abspielbar | ausstehend (bis 27.10.) | nicht gemessen | nicht gemessen | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| `navigator.storage.persist()` | true (in installierter PWA) | bestanden: `true`, `persisted()` ja (Chrome 155, Android 10, im Chrome-Tab über `unsafely-treat-insecure-origin-as-secure`, nicht als installierte PWA; im Tab ohne sicheren Kontext vorher `false`) | n/a: Desktop-Chrome gibt `persist()` ohne Installation nicht frei; Funktionsprüfung lief im Tab | n/a (keine Installation; Firefox gewährt `persist()` per Nachfrage) | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| `navigator.storage.estimate().quota` | ≥ 5 GB | bestanden: 13.97 GB (belegt 3.23 GB) | bestanden (Desktop-Quote weit über 5 GB, Funktionsprüfung) | bestanden (Funktionsprüfung) | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| Schreibweg | `createSyncAccessHandle` im Worker oder `createWritable` funktioniert für 1.5 GB; gewählter Weg je Version dokumentiert | bestanden: beide Wege (Probe ok), beide Downloads mit `createSyncAccessHandle` | bestanden: beide Wege (Funktionsprüfung, Chrome 152) | bestanden: beide Wege (Funktionsprüfung, Firefox 158) | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| Download 1.5 GB mit Bildschirmsperre und App-Wechsel | abgeschlossen mit Wiederaufnahme ab letztem Block, ≤ 3 Wiederaufnahmen | bestanden: beide Dateien vollständig und grössengleich trotz 39 Wechseln in den Hintergrund und 10 eingefrorenen Phasen; fMP4 2 Wiederaufnahmen (15 Neuversuche nach Netzfehlern, 17 min aktiv, 12 Mbit/s), `faststart` 3 Wiederaufnahmen (22 Neuversuche, 19 min aktiv, 11 Mbit/s) | teilweise: Wiederaufnahme nach Neuladen ab letztem Commit geprüft; Bildschirmsperre am Desktop nicht prüfbar | teilweise: Abbrechen und Fortsetzen ab Commit geprüft | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| Wiedergabe aus OPFS per Blob-URL und per Range-Antwort des Service Workers | Spulen auf 3 Positionen je < 2 s mit mindestens einem der beiden Wege | bestanden: `faststart` per Blob-URL 82–95 ms und per Service Worker 102–108 ms; fMP4 siehe nächste Zeile | bestanden per Blob-URL (< 60 ms); Service-Worker-Weg im eingebetteten Chrome nicht prüfbar | bestanden per Blob-URL (< 100 ms); Service-Worker-Weg mit `faststart` bestanden | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| Download-Format (AN-20) | dieselbe Spulprüfung mit fMP4 (mit `sidx`) und mit `faststart`-MP4; bestanden mit fMP4 → AN-20 gilt, sonst Fallback `faststart` | fMP4 knapp bestanden: per Service Worker 1774/1795/1782 ms, per Blob-URL am 19.10. 1750 ms je Sprung, am 20.10. 1697/**12634**/1642 ms (nicht bestanden); `faststart` über beide Wege rund 0.1 s | fMP4 per Blob-URL bestanden | fMP4 per Blob-URL bestanden; **fMP4 über Service-Worker-Range nicht bestanden** (Dauer instabil, Sprung landet am Ende des gelesenen Bereichs); `faststart` über beide Wege bestanden | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| Speicher während 30 min Wiedergabe | kein Neuladen oder Absturz der PWA | ungültig: Lauf am 19.10. nach 14 s beendet, weil die Seite verlassen wurde (`pagehide` ohne Absturz, Heap 10 MB); Wiederholung durch Marco offen | nicht gemessen (nur 1-min-Soak in der Funktionsprüfung) | 1-min-Soak «survived» (Funktionsprüfung); 30 min nicht gemessen | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
+| Bestand nach 1, 3, 8 Kalendertagen ohne Öffnen | Datei vorhanden und abspielbar | Tag 1 (20.10.) bestanden: beide Dateien vorhanden (Alter 0.84 und 0.88 Tage), fMP4 spielt; Tag 3 und 8 ausstehend (bis 27.10.) | nicht gemessen | nicht gemessen | ungeprüft, keine Hardware (Entscheid 2, AN-7) |
 
 Gerätebezeichnung, Betriebssystem- und Browserversion stehen in der jeweiligen Gerätezusammenfassung.
 
@@ -114,7 +114,47 @@ Hier die mit "Copy summary" kopierten Blöcke einfügen, je Gerät, Browser und 
 
 ### Android Chrome
 
-_(noch keine)_
+Lauf von Marco am 19. und 20. Oktober 2026, Export `slouchcat-spike-2026-10-20T11-48-30-317Z.json` (nicht im
+Repository). Gerät mit Android 10, Chrome 155, Seite im Browser-Tab (nicht installiert) unter
+`http://192.168.1.143:8096/spike/` mit dem Flag für unsichere Ursprünge.
+
+```
+Device summary 2026-10-20T11:49:11.679Z
+- User agent: Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36
+- Secure context: yes; installed PWA (standalone): no
+- persist(): true; persisted(): yes
+- Quota: 13.97 GB; usage: 3.23 GB
+- createSyncAccessHandle (worker): yes (probe write ok); createWritable: yes (probe write ok)
+- Service worker controls page: yes
+Downloads (variant/path):
+- faststart/sync: complete, size ok, 1.61 GB, attempts 4, resumes after reload 3, retries after error 22, active 19m 02s, avg 1.4 MB/s (11 Mbit/s)
+- fmp4/sync: complete, size ok, 1.61 GB, attempts 3, resumes after reload 2, retries after error 15, active 17m 15s, avg 1.6 MB/s (12 Mbit/s)
+Seek tests (latest per file and way, 25/50/75 %, threshold < 2000 ms):
+- spike-fmp4-sync.mp4 via blob: start 320 ms, duration 3120 s; 25 %: 1697 ms, 50 %: 12634 ms, 75 %: 1642 ms -> fail
+- spike-fmp4-sync.mp4 via sw: start 169 ms, duration 3120 s; 25 %: 1774 ms, 50 %: 1795 ms, 75 %: 1782 ms -> pass
+- spike-faststart-sync.mp4 via blob: start 182 ms, duration 3120 s; 25 %: 95 ms, 50 %: 91 ms, 75 %: 82 ms -> pass
+- spike-faststart-sync.mp4 via sw: start 193 ms, duration 3120 s; 25 %: 108 ms, 50 %: 102 ms, 75 %: 107 ms -> pass
+Soak (30 min playback):
+- 2026-10-19T15:39:32.742Z spike-faststart-sync.mp4 via blob: interrupted (page reloaded or crashed; last heartbeat 2026-10-19T15:39:46.329Z), played 13.6s, waiting events 6, JS heap 10 -> 10 MB (max 10)
+Persistence (OPFS files now):
+- spike-faststart-sync.mp4: 1.61 GB (1614609911 B), downloaded 2026-10-19T15:38:52.967Z, age 0.8 days, last play check ok at 2026-10-19T15:39:38.151Z
+- spike-fmp4-sync.mp4: 1.61 GB (1613262329 B), downloaded 2026-10-19T14:42:09.711Z, age 0.9 days, last play check ok at 2026-10-19T15:39:39.218Z
+Interruptions logged: 123
+```
+
+Auswertung des Protokolls (284 Einträge):
+
+- Der Lauf vor 14:12 Uhr ohne sicheren Kontext zeigt «OPFS nicht verfügbar» und `persist() -> false`; ab dem
+  Flag ist der Kontext sicher und `persist()` liefert `true`.
+- Downloads: 39 Wechsel in den Hintergrund (Bildschirmsperre, App-Wechsel) und 10 eingefrorene Phasen (`freeze`,
+  bis 6.5 min); nach jedem `resume` lief der Download weiter, nach Neuladen ab dem letzten Block.
+- Die 123 Unterbrechungen sind fehlgeschlagene Blockabrufe («Failed to fetch») während der eingefrorenen
+  Phasen; jeder Block wurde danach neu geholt.
+- Spulen fMP4: Chrome auf Android braucht für jeden Sprung in der fragmentierten Datei rund 1.7 s (Blob-URL wie
+  Service Worker), einmal 12.6 s. Die Datei hat ein Fragment je 2 s (rund 1560 Fragmente); Chrome liest offenbar
+  die Fragmentköpfe bis zur Zielposition. In `faststart` stehen alle Positionen im Kopf, ein Sprung kostet 0.1 s.
+- Soak: gestartet 15:39:32, `pagehide` um 15:39:56 (Seite verlassen), erst um 19:16 wieder geöffnet. Kein
+  Absturz, aber keine gültige 30-min-Messung.
 
 ### Desktop Chrome
 
@@ -148,10 +188,10 @@ Bildschirmsperre und ohne installierte PWA und ersetzen keine Zelle der Tabelle 
 
 ## Go/No-Go (Entscheid in M1b)
 
-_Stand 19. Oktober 2026 (M1b, Schritt 6): vorläufiger Entscheid aus den Desktop-Ergebnissen; die
-Android-Zeilen trägt Marco nach (Tag 0 am 19. Oktober, Bestand bis 27. Oktober). Der Entscheid wird
-endgültig, sobald die Android-Spalte vollständig ist; bis dahin bleiben Spike-Seite und
-`SLOUCHCAT_SPIKE_DIR` im Server._
+_Stand 20. Oktober 2026 (M5, Vorabklärung): die Android-Werte von Marco (Tag 0 am 19. Oktober, Tag 1 am
+20. Oktober) sind eingetragen. Format und Schreibweg sind damit endgültig entschieden. Offen bleiben nur der
+Bestand an Tag 3 und Tag 8 (bis 27. Oktober) und eine gültige 30-min-Dauerwiedergabe auf Android; bis dahin
+bleiben Spike-Seite und `SLOUCHCAT_SPIKE_DIR` im Server._
 
 - **Go:** alle Schwellen erfüllt.
 - **No-Go:** Datei fehlt nach 8 Tagen, `persist()` liefert auch in der installierten PWA `false`, Quote
@@ -163,7 +203,7 @@ endgültig, sobald die Android-Spalte vollständig ist; bis dahin bleiben Spike-
 
 | Punkt | Entscheid | Begründung | Datum |
 |---|---|---|---|
-| Spike gesamt (Android/Desktop) | **vorläufig Go** | Auf dem Desktop (Chrome 152, Firefox 158) funktionieren beide Schreibwege für 1.5 GB, die Wiederaufnahme ab dem letzten Block und das Spulen aus OPFS per Blob-URL unter 100 ms. Kein No-Go-Kriterium ist getroffen; die No-Go-relevanten Prüfungen (Bestand nach 8 Tagen, `persist()` in der installierten PWA, Quote ≥ 5 GB, Download bei Sperre) sind nur am Android-Gerät messbar und stehen aus. Scheitert dort nur der Download bei Sperre, gilt die dokumentierte Abweichung (Download nur bei geöffneter App). | 2026-10-19 (vorläufig) |
-| Download-Format AN-20 (fMP4 oder Fallback `faststart`) | **fMP4 bleibt, Wiedergabe per Blob-URL** | fMP4 mit `sidx` spult per Blob-URL in beiden Desktop-Browsern unter 100 ms; über den Service-Worker-Range-Weg meldet Firefox eine instabile Dauer. M5 spielt Downloads deshalb per Blob-URL (bzw. `MediaSource`) aus OPFS ab, nicht über Service-Worker-Range-Antworten; der Fallback `faststart` (Segmente zusammenfügen, doppelter Platz) ist nicht nötig, solange Android dasselbe zeigt. Vorteil von fMP4 bleibt: segmentweise Erzeugung, pausierbar (Plan AN-20). | 2026-10-19 (vorläufig) |
-| Schreibweg für M5 | **`createSyncAccessHandle` im Worker, `createWritable` als Fallback** | Beide Wege funktionieren; `createWritable` kopiert die Datei je Schreibstrom (Wiederöffnen mit `keepExistingData` dauert mit der Grösse bis ~1 s), `createSyncAccessHandle` schreibt in Blöcken ohne Kopie. Endgültig nach dem Android-Lauf. | 2026-10-19 (vorläufig) |
+| Spike gesamt (Android/Desktop) | **Go unter Vorbehalt Tag 8** | Kein No-Go-Kriterium ist getroffen: `persist()` liefert auf Android `true`, die Quote liegt bei 13.97 GB, beide Downloads überstehen Bildschirmsperre und App-Wechsel mit höchstens 3 Wiederaufnahmen, und Spulen aus OPFS besteht mit mindestens einem Weg. Der Bestand nach 8 Tagen (27. Oktober) ist das letzte No-Go-Kriterium; die 30-min-Dauerwiedergabe auf Android ist zu wiederholen (der erste Lauf endete durch Verlassen der Seite). | 2026-10-20 |
+| Download-Format AN-20 (fMP4 oder Fallback `faststart`) | **endgültig: fMP4 bleibt; Wiedergabe über Media Source Extensions mit eigenem Fragmentindex, nicht über Blob-URL oder Service-Worker-Range** | Formal besteht fMP4 die Schwelle von 10.4 (Android per Service Worker unter 1.8 s, Desktop per Blob-URL unter 0.1 s). Beide Wege sind für fMP4 aber unzuverlässig: Chrome auf Android braucht je Sprung rund 1.7 s und einmal 12.6 s, Firefox meldet über den Service-Worker-Weg eine falsche Dauer. Ursache ist, dass der Browser die Fragmente selbst suchen muss. M5 spielt Downloads deshalb mit hls.js aus OPFS: der Server liefert zum Download eine Liste der Fragmente mit Zeit und Byte-Bereich, ein eigener Loader liest genau diesen Bereich aus der Datei. So kennt der Player jede Position im Voraus, wie bei HLS-Streaming. Die fMP4-Vorteile aus AN-20 bleiben: der Server schreibt segmentweise und kann pausieren, das Gerät lädt bereichsweise und setzt nach Abbruch fort. **Fallback `faststart`** (der Server fügt die Segmente am Ende zu einer Datei mit Kopf zusammen, kurzzeitig doppelter Platz auf dem Server, Wiedergabe per Blob-URL wie im Spike mit 0.1 s) gilt nur, wenn die Messung in M5 Sprünge über 2 s zeigt. Die M5-Messung steht in `docs/perf/M5.md`. | 2026-10-20 |
+| Schreibweg für M5 | **endgültig: `createSyncAccessHandle` im Worker, `createWritable` als Fallback** | Beide Wege funktionieren in Chrome 152/155 (Desktop, Android) und Firefox 158; beide Android-Downloads liefen über `createSyncAccessHandle`. `createWritable` kopiert die Datei je Schreibstrom und bleibt nur für Browser ohne Sync-Handle im Worker. | 2026-10-20 |
 | iOS | ungeprüft, keine Hardware | Entscheid 2, AN-7; das iOS-Risiko bleibt offen, die Anleitung oben beschreibt die spätere Prüfung | 2026-10-19 |
