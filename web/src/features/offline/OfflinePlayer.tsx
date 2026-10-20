@@ -7,9 +7,8 @@ import { formatPlayerTime } from '@/lib/format';
 import { AriaButton, AudioPlayer, MenuButton } from '@/ui/aria';
 import { offlineLoader } from './loader';
 import { readFile, subtitleFile } from './opfs';
-import { recordPlayback, type OfflinePlayback, type PlaybackSample } from './playback';
+import { recordPlayback, storeRate, type OfflinePlayback, type PlaybackSample } from './playback';
 import { buildPlaylist } from './playlist';
-import { updateDownload } from './store';
 import type { DownloadManifest, StoredWatchTime } from './types';
 import { remainingMs } from './watchTime';
 import styles from '@/features/player/Player.module.css';
@@ -21,7 +20,7 @@ import styles from '@/features/player/Player.module.css';
 // goes into the event queue (O-5); the offline watch time stops playback at 0 (AN-18), also
 // when the device is online: this player knows no server stop (decision of 2026-10-20, K12).
 // An audio download (manifest `audio/*`, M6) plays in an <audio> element behind the AudioPlayer,
-// with the chapters of the manifest and its speed kept per download.
+// with the chapters of the manifest and its speed kept per profile on the download.
 
 /** Interval of `playing` events, as online (useProgressReporter). */
 export const OFFLINE_PROGRESS_MS = 10_000;
@@ -56,7 +55,7 @@ interface OfflinePlayerProps {
   coverUrl?: string;
   byline?: string;
   accent?: string;
-  /** Audio downloads: the speed to start with (the download's own, else the server's). */
+  /** Audio downloads: the profile's speed to start with (resumeRate). */
   initialRate?: number;
 }
 
@@ -413,14 +412,11 @@ export function OfflinePlayer({
 
   // Keys as in the main player: Space/Enter/K play-pause, ←/→ ±10 s, ↑/↓ volume, F full screen,
   // T subtitles, Escape/Backspace back. Audio downloads have the audio player's keys instead.
-  const storeRate = useCallback(
+  const keepRate = useCallback(
     (rate: number) => {
-      void updateDownload(
-        playback.downloadId,
-        (download) => download && { ...download, playbackRate: rate },
-      ).catch(() => undefined);
+      void storeRate(playback.downloadId, playback.profileId, rate).catch(() => undefined);
     },
-    [playback.downloadId],
+    [playback.downloadId, playback.profileId],
   );
   const audioControls = useAudioControls({
     media: video,
@@ -435,7 +431,7 @@ export function OfflinePlayer({
     seekTo,
     togglePlay,
     onBack,
-    onRateChange: storeRate,
+    onRateChange: keepRate,
   });
   useEffect(() => {
     if (audio) return;

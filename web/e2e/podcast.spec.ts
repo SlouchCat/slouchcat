@@ -15,7 +15,7 @@ import {
 } from './audio';
 import { CSRF } from './catalog';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
+import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 
 // H-2: a podcast subscribed by feed URL shows its episodes; the feed gets a third episode, the
 // admin's "Jetzt abrufen" fetches it, and it appears. The third episode is flagged explicit: a
@@ -165,6 +165,69 @@ test('podcast page by keyboard: episodes, play, "Mehr laden" absent, no focus tr
     await expect(audioPlayer(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 20_000 });
     await page.keyboard.press('Backspace');
     await expect(page).toHaveURL(new RegExp(`/items/${podcast.id}$`));
+  } finally {
+    await unsubscribe(owner, podcast.id);
+  }
+});
+
+test('episode page by keyboard: play, download, "Zum Podcast", back; no focus trap', async ({
+  page,
+  owner,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  const key = feedKey(testInfo);
+  const podcast = await subscribeFeed(owner, key, 2);
+  try {
+    const [newest] = await waitForEpisodes(owner, podcast.id, 2);
+    // From the podcast page, so that back leads there.
+    await page.goto(`/items/${podcast.id}`);
+    await page.goto(`/items/${newest.id}`);
+    await expect(page.getByRole('heading', { level: 1, name: episodeTitle(2) })).toBeVisible();
+    await resetFocus(page);
+    const play = page.getByRole('link', {
+      name: /^(Abspielen|Weiterhören ab \d{2}:\d{2}:\d{2})$/,
+    });
+    const back = page.getByRole('button', { name: 'Zurück' });
+    const download = page.getByRole('button', { name: 'Herunterladen', exact: true });
+    const toPodcast = page.getByRole('link', { name: 'Zum Podcast' });
+    await expect(toPodcast).toHaveAttribute('href', `/items/${podcast.id}`);
+    // The download button loads with the offline chunk.
+    await expect(download).toBeVisible();
+
+    // Arrows: ↓ lands on play, → back and the download, ← returns, ↓ to "Zum Podcast".
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, play);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, back);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, download);
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, play);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, toPodcast);
+
+    // Tab from the top: the header, play, back, the download, then "Zum Podcast"; no trap.
+    await resetFocus(page);
+    await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
+    await tabTo(page, play, 2);
+    await tabTo(page, download, 3);
+    await tabTo(page, toPodcast, 4);
+    await expectNoFocusTrap(page);
+
+    // Enter on "Zum Podcast" opens the podcast; Backspace returns to the episode.
+    await toPodcast.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/items/${podcast.id}$`));
+    await expect(page.getByRole('heading', { level: 1, name: PODCAST_TITLE })).toBeVisible();
+    await page.keyboard.press('Backspace');
+    await expect(page).toHaveURL(new RegExp(`/items/${newest.id}$`));
+    // Enter on play starts the episode; Backspace leaves the player for the episode again.
+    await play.focus();
+    await page.keyboard.press('Enter');
+    await expect(audioPlayer(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 20_000 });
+    await page.keyboard.press('Backspace');
+    await expect(page).toHaveURL(new RegExp(`/items/${newest.id}$`));
   } finally {
     await unsubscribe(owner, podcast.id);
   }

@@ -14,7 +14,13 @@ import {
 } from './audio';
 import { STORAGE_STATE } from './env';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 import { arrowTo } from './playback';
 
 // H-1: the M4B book has its 12 chapter marks ("Kapitel 1" … "Kapitel 12", every 5 s, ±1 s), the
@@ -92,11 +98,69 @@ test('a chapter link on the detail page starts the player at that chapter (±1 s
   const link = page.getByRole('link', { name: 'Kapitel 3 ab 0:10 abspielen' });
   await link.focus();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(new RegExp(`/play/${m4b}\\?at=10000$`));
+  await expect(page).toHaveURL(new RegExp(`/play/${m4b}`));
   await expect(audioPlayer(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 20_000 });
   const started = await time(page);
   expect(Math.abs(started - 10), `started at ${started} s`).toBeLessThanOrEqual(1);
   await expect(audioPlayer(page).getByText(/^Kapitel 3 · /)).toBeVisible();
+  // The start position leaves the URL: a reload resumes from the saved position.
+  await expect(page).toHaveURL(new RegExp(`/play/${m4b}$`));
+});
+
+test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter, back', async ({
+  page,
+  owner,
+}) => {
+  await audioDetail(owner, m4b, 12);
+  await setAudioProgress(page.request, m4b, 0, 60_000);
+  // From the start page, so that back leads there (detail.spec).
+  await page.goto('/');
+  await page.goto(`/items/${m4b}`);
+  await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
+  await resetFocus(page);
+  const play = page.getByRole('link', { name: /^(Abspielen|Weiterhören ab \d{2}:\d{2}:\d{2})$/ });
+  const chapters = page.getByRole('list', { name: 'Kapitel' });
+  const chapter = (n: number) =>
+    chapters.getByRole('link', { name: new RegExp(`^Kapitel ${n} ab 0:\\d\\d abspielen$`) });
+
+  // ↓ lands on play, → reaches back, ← returns; ↓ goes down into the chapter list.
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, play);
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, play);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, chapter(1));
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, chapter(3));
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, chapter(2));
+
+  // Tab from the top: the header, then play and back; the chapters follow; no focus trap. A fresh
+  // load starts the Tab sequence at the top in every browser (Firefox continues from the last
+  // focused element after a blur).
+  await page.goto(`/items/${m4b}`);
+  await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
+  await resetFocus(page);
+  await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
+  await tabTo(page, play, 2);
+  await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 2);
+  await tabTo(page, chapter(1), 6);
+  await expectNoFocusTrap(page);
+
+  // Enter on a chapter starts the player there; Backspace returns to the book, Escape home.
+  await chapter(2).focus();
+  await page.keyboard.press('Enter');
+  await expect(audioPlayer(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 20_000 });
+  await expect(audioPlayer(page).getByText(/^Kapitel 2 · /)).toBeVisible();
+  await page.keyboard.press('Backspace');
+  await expect(page).toHaveURL(new RegExp(`/items/${m4b}$`));
+  await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/$/);
+  await setAudioProgress(page.request, m4b, 0, 60_000);
 });
 
 test('the chapter menu (C) and Shift+→ jump to chapter starts in the player (±1 s)', async ({
@@ -136,8 +200,10 @@ test('the chapter menu (C) and Shift+→ jump to chapter starts in the player (�
   // ←/→ move 15 s.
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => time(page)).toBeGreaterThanOrEqual(34);
-  // Escape closes a menu only; then it leaves the player.
+  // Escape closes a menu only (once it is open and focused); then it leaves the player.
   await page.keyboard.press('c');
+  await expect(menu).toBeVisible();
+  await expectVisibleFocus(page);
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
   await expect(page).toHaveURL(/\/play\//);

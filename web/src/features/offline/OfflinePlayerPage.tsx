@@ -15,7 +15,7 @@ import { downloadTitle } from './labels';
 import { useOfflineChoice, type OfflineChoice } from './offlineSession';
 import { MEDIA_FILE, readFile } from './opfs';
 import { OfflinePlayer } from './OfflinePlayer';
-import { resumePosition } from './playback';
+import { resumePosition, resumeRate } from './playback';
 import { getDownload, getMeta, getProfile } from './store';
 import type { StoredDownload, StoredWatchTime } from './types';
 import { usePosterUrl } from './usePosterUrl';
@@ -155,7 +155,7 @@ function OfflinePlayback({
         coverUrl={cover}
         byline={download.item?.author}
         accent={download.item?.accent}
-        initialRate={download.playbackRate ?? download.item?.progress?.playbackRate ?? 1}
+        initialRate={resumeRate(download, profileId)}
       />
     );
   }

@@ -85,13 +85,20 @@ function clock(ms: number, longest: number): string {
   return longest >= 3_600_000 ? `${hours}:${pad(minutes)}:${seconds}` : `${minutes}:${seconds}`;
 }
 
-/** Book-wide seek bar (an ARIA slider); the page's key map moves it with the arrow keys. */
+/**
+ * Book-wide seek bar (an ARIA slider). Focused, it moves like a slider: ←/↓ and →/↑ 15 s, Home and
+ * End, PageDown/PageUp a chapter (Shift+arrows stay with the page's chapter keys). A drag moves
+ * the thumb only and seeks once, when it is let go.
+ */
 function SeekSlider({
   label,
   valueText,
   currentMs,
   durationMs,
   onSeek,
+  onSkip,
+  onPreviousChapter,
+  onNextChapter,
   isDisabled,
 }: {
   label: string;
@@ -99,42 +106,68 @@ function SeekSlider({
   currentMs: number;
   durationMs: number;
   onSeek: (ms: number) => void;
+  onSkip: (seconds: number) => void;
+  onPreviousChapter: () => void;
+  onNextChapter: () => void;
   isDisabled: boolean;
 }) {
   const track = useRef<HTMLDivElement>(null);
-  const [dragging, setDragging] = useState(false);
-  const fraction = durationMs > 0 ? Math.min(1, Math.max(0, currentMs / durationMs)) : 0;
-  const seekTo = (event: PointerEvent<HTMLDivElement>) => {
+  const [dragMs, setDragMs] = useState<number | null>(null);
+  const shownMs = dragMs ?? currentMs;
+  const fraction = durationMs > 0 ? Math.min(1, Math.max(0, shownMs / durationMs)) : 0;
+  const positionAt = (event: PointerEvent<HTMLDivElement>) => {
     const rect = track.current?.getBoundingClientRect();
-    if (isDisabled || !rect || rect.width === 0 || durationMs <= 0) return;
-    onSeek(Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) * durationMs);
+    if (isDisabled || !rect || rect.width === 0 || durationMs <= 0) return null;
+    return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)) * durationMs;
+  };
+  const keys: Record<string, () => void> = {
+    ArrowLeft: () => onSkip(-15),
+    ArrowDown: () => onSkip(-15),
+    ArrowRight: () => onSkip(15),
+    ArrowUp: () => onSkip(15),
+    Home: () => onSeek(0),
+    End: () => onSeek(durationMs),
+    PageDown: onPreviousChapter,
+    PageUp: onNextChapter,
   };
   return (
     <div
       ref={track}
       className={styles.seek}
       role="slider"
-      tabIndex={0}
+      tabIndex={isDisabled ? -1 : 0}
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={Math.round(durationMs / 1000)}
-      aria-valuenow={Math.round(currentMs / 1000)}
+      aria-valuenow={Math.round(shownMs / 1000)}
       aria-valuetext={valueText}
       aria-disabled={isDisabled || undefined}
-      data-dragging={dragging || undefined}
+      data-dragging={dragMs !== null || undefined}
+      onKeyDown={(event) => {
+        const action = keys[event.key];
+        const modified = event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
+        if (isDisabled || !action || modified) return;
+        event.preventDefault();
+        event.stopPropagation();
+        action();
+      }}
       onPointerDown={(event) => {
+        const ms = positionAt(event);
+        if (ms === null) return;
         event.currentTarget.setPointerCapture(event.pointerId);
-        setDragging(true);
-        seekTo(event);
+        setDragMs(ms);
       }}
       onPointerMove={(event) => {
-        if (dragging) seekTo(event);
+        const ms = dragMs === null ? null : positionAt(event);
+        if (ms !== null) setDragMs(ms);
       }}
       onPointerUp={(event) => {
+        if (dragMs === null) return;
         event.currentTarget.releasePointerCapture(event.pointerId);
-        setDragging(false);
+        onSeek(positionAt(event) ?? dragMs);
+        setDragMs(null);
       }}
-      onPointerCancel={() => setDragging(false)}
+      onPointerCancel={() => setDragMs(null)}
     >
       <div className={styles.seekTrack}>
         <span className={styles.seekPlayed} style={{ width: `${fraction * 100}%` }} />
@@ -262,6 +295,9 @@ export function AudioPlayer({
               currentMs={currentMs}
               durationMs={durationMs}
               onSeek={onSeek}
+              onSkip={onSkip}
+              onPreviousChapter={onPreviousChapter}
+              onNextChapter={onNextChapter}
               isDisabled={isDisabled}
             />
             <div className={styles.times} aria-hidden="true">
@@ -376,15 +412,20 @@ export function AudioPlayer({
                   : t('player.audio.sleep.buttonActive', { left: sleepLeft })
               }
               label={sleepLeft ?? t('player.audio.sleep.short')}
-              options={SLEEP_CHOICES.map((choice) => ({
-                id: choice,
-                label:
-                  choice === 'off'
-                    ? t('player.audio.sleep.off')
-                    : choice === 'chapter'
-                      ? t('player.audio.sleep.chapter')
-                      : t('player.audio.sleep.minutes', { count: Number(choice) }),
-              }))}
+              // The end of the chapter (or title) only once its length is known.
+              options={SLEEP_CHOICES.filter((choice) => choice !== 'chapter' || durationMs > 0).map(
+                (choice) => ({
+                  id: choice,
+                  label:
+                    choice === 'off'
+                      ? t('player.audio.sleep.off')
+                      : choice !== 'chapter'
+                        ? t('player.audio.sleep.minutes', { count: Number(choice) })
+                        : hasChapters
+                          ? t('player.audio.sleep.chapter')
+                          : t('player.audio.sleep.end'),
+                }),
+              )}
               selectedKey={sleepChoice}
               onSelect={onSleep}
               {...menuProps('sleep')}

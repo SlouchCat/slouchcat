@@ -62,7 +62,10 @@ interface AudioControlsOptions {
   positionMs: number;
   /** The element's position on the title's timeline right now (ms), for jumps and the timer. */
   positionOf: () => number;
-  /** Speed to start with: the profile's last one for this title (H-3), else 1. */
+  /**
+   * Speed to start with: the profile's last one for this title (H-3), else 1. A later value (the
+   * title's detail arrived after the start) applies quietly until the listener picks a speed.
+   */
   initialRate: number;
   /** False once the playback was ended (limit, server): only the back keys still work. */
   active: boolean;
@@ -97,6 +100,17 @@ const inMenu = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   target.closest('[role="menu"], [role="menuitemradio"], [role="menuitem"]') !== null;
 
+const isApple = () => /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+
+/**
+ * `[` and `]` typed through AltGr (Swiss and German layouts on Windows and Linux; Windows reports
+ * Ctrl+Alt with it) or Option (macOS): the speed keys, not a shortcut.
+ */
+const isTypedSpeedKey = (event: KeyboardEvent) =>
+  (event.key === '[' || event.key === ']') &&
+  !event.metaKey &&
+  (event.getModifierState('AltGraph') || (isApple() && event.altKey && !event.ctrlKey));
+
 /**
  * State and keys of the audio player (design 4), shared by the player and the offline player:
  * speed (0.5 … 3, presets and ±0.1, kept on the element across reloads of its source), volume,
@@ -120,6 +134,12 @@ export function useAudioControls({
 }: AudioControlsOptions): AudioControlProps {
   const { t, i18n } = useTranslation();
   const [rate, setRate] = useState(() => clampRate(initialRate));
+  const [startRate, setStartRate] = useState(initialRate);
+  const [ratePicked, setRatePicked] = useState(false);
+  if (initialRate !== startRate) {
+    setStartRate(initialRate);
+    if (!ratePicked) setRate(clampRate(initialRate));
+  }
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [sleep, setSleep] = useState<SleepTimer>(SLEEP_OFF);
@@ -153,6 +173,7 @@ export function useAudioControls({
     (next: number) => {
       const value = clampRate(next);
       setRate(value);
+      setRatePicked(true);
       rateChanged.current?.(value);
       showOsd(t('player.audio.rateOsd', { rate: rateText(value) }));
     },
@@ -201,21 +222,48 @@ export function useAudioControls({
   useEffect(() => {
     const element = media.current;
     if (!enabled || !element || sleep.kind === 'off') return;
-    const check = () => {
-      const current = Date.now();
-      setNow(current);
-      if (!sleepDue(sleep, current, position.current())) return;
+    let exact: number | undefined;
+    const fire = () => {
       setSleep(SLEEP_OFF);
       if (!element.paused) element.pause();
       showOsd(t('player.audio.sleep.done'));
     };
+    const check = () => {
+      const current = Date.now();
+      const at = position.current();
+      setNow(current);
+      window.clearTimeout(exact);
+      if (sleepDue(sleep, current, at)) {
+        fire();
+        return;
+      }
+      // Time updates come about every 250 ms of wall time: the last second of a chapter ends on
+      // a timer of its own, at the element's speed, so nothing of the next chapter plays.
+      const left = sleepRemainingMs(sleep, current, at, element.playbackRate);
+      if (sleep.kind === 'chapter' && !element.paused && left !== null && left < SLEEP_TICK_MS) {
+        exact = window.setTimeout(fire, left);
+      }
+    };
+    const stop = () => window.clearTimeout(exact);
+    // A jump to another chapter (seek bar, chapter keys or menu) moves the timer to its end.
+    const onSeeking = () => {
+      stop();
+      if (sleep.kind !== 'chapter') return;
+      const next = startSleep('chapter', Date.now(), chapters, position.current(), durationMs);
+      if (next.kind === 'chapter' && next.endMs !== sleep.endMs) setSleep(next);
+    };
     const timer = window.setInterval(check, SLEEP_TICK_MS);
     element.addEventListener('timeupdate', check);
+    element.addEventListener('seeking', onSeeking);
+    element.addEventListener('pause', stop);
     return () => {
       window.clearInterval(timer);
+      stop();
       element.removeEventListener('timeupdate', check);
+      element.removeEventListener('seeking', onSeeking);
+      element.removeEventListener('pause', stop);
     };
-  }, [enabled, media, showOsd, sleep, t]);
+  }, [chapters, durationMs, enabled, media, showOsd, sleep, t]);
 
   const chooseSleep = useCallback(
     (choice: string) => {
@@ -234,9 +282,11 @@ export function useAudioControls({
           ? t('player.audio.sleep.cancelled')
           : t('player.audio.sleep.set', {
               label:
-                timer.kind === 'chapter'
-                  ? t('player.audio.sleep.chapter')
-                  : t('player.audio.sleep.minutes', { count: timer.minutes }),
+                timer.kind !== 'chapter'
+                  ? t('player.audio.sleep.minutes', { count: timer.minutes })
+                  : chapters.length > 0
+                    ? t('player.audio.sleep.chapter')
+                    : t('player.audio.sleep.end'),
             }),
       );
     },
@@ -264,7 +314,7 @@ export function useAudioControls({
       setOpenMenu(menu);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if ((event.altKey || event.ctrlKey || event.metaKey) && !isTypedSpeedKey(event)) return;
       if (inMenu(event.target)) {
         // Backspace is the remote's back key (C-4): in a menu it closes the menu, like Escape.
         if (event.key === 'Backspace') {

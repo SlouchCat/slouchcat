@@ -82,15 +82,18 @@ export interface StoredDownload {
   positions?: Record<string, { positionMs: number; at: number }>;
   /**
    * The server's progress per profile from the last sync that was made with that profile active
-   * (`DownloadState.item.progress`); `at` is its `updatedAt` on the device's clock. The player
-   * resumes from the newer of this and `positions` (W-5, O-5).
+   * (`DownloadState.item.progress`, with its speed); `at` is its `updatedAt` on the device's clock.
+   * The player resumes from the newer of this and `positions` (W-5, O-5), and so does the speed.
    */
-  serverPositions?: Record<string, { positionMs: number; completed: boolean; at: number }>;
+  serverPositions?: Record<
+    string,
+    { positionMs: number; completed: boolean; at: number; playbackRate?: number }
+  >;
   /**
-   * Speed of the last offline playback of an audiobook or episode (H-3, M6): kept on the device
-   * per download and sent with the offline events as `playbackRate`.
+   * Speed per profile set in offline playback of an audiobook or episode (H-3, M6), `at` on the
+   * device's clock; it goes up with that profile's offline events as `playbackRate`.
    */
-  playbackRate?: number;
+  playbackRates?: Record<string, { rate: number; at: number }>;
   updatedAt: number;
 }
 

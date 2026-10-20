@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from 'node:fs';
 import {
   expect,
   type APIRequestContext,
@@ -6,7 +7,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { CSRF } from './catalog';
-import { FEED_BASE } from './env';
+import { AUDIO_IDS, FEED_BASE } from './env';
 
 // Helpers of the M6 specs (audiobooks, podcasts, audio downloads). Test media from
 // testdata/generate-media.sh: the M4B book (60 s, 12 chapters of 5 s, cover embedded) and the MP3
@@ -59,11 +60,15 @@ export interface AudioItemData {
 }
 
 /**
- * Id of an audiobook (or podcast) by its title. Audio titles are matched from their own tags
- * (never "unmatched"), so they are looked up on the start page's rows; the global setup adds them
- * after the video libraries, so they are among the newest titles.
+ * Id of a test audiobook by its title: from the file the global setup wrote while the books were
+ * the newest titles. Without it (a setup of its own), from the start page's rows: audio titles
+ * are matched from their own tags (never "unmatched") and miss in the maintenance lists.
  */
 export async function audioItemId(api: APIRequestContext, title: string): Promise<string> {
+  const stored = existsSync(AUDIO_IDS)
+    ? (JSON.parse(readFileSync(AUDIO_IDS, 'utf8')) as Record<string, string>)[title]
+    : undefined;
+  if (stored) return stored;
   let found: string | undefined;
   await expect
     .poll(

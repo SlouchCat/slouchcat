@@ -1,9 +1,12 @@
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { request, type APIRequestContext } from '@playwright/test';
+import { M4B_TITLE, MP3_TITLE } from './audio';
 import {
+  AUDIO_IDS,
   AUDIOBOOKS_DIR,
   BASE_URL,
+  EXTERNAL_BASE_URL,
   FEED_BASE,
   FEED_URL,
   MOVIES_DIR,
@@ -40,7 +43,9 @@ async function createLibrary(api: APIRequestContext, data: Record<string, unknow
  * "Podcasts" without a folder, both with the default rating 0 (AN-2).
  */
 async function ensureAudioLibraries(api: APIRequestContext): Promise<void> {
-  if (!existsSync(AUDIOBOOKS_DIR)) return;
+  if (!existsSync(AUDIOBOOKS_DIR)) {
+    throw new Error(`${AUDIOBOOKS_DIR} is missing: run \`task testdata:media\` first`);
+  }
   const libraries = await listLibraries(api);
   if (!libraries.some((library) => library.name === 'Hörbücher')) {
     await createLibrary(api, {
@@ -68,6 +73,10 @@ async function ensureFeed(api: APIRequestContext): Promise<void> {
   const control = await fetch(`${FEED_BASE}/__control`, {
     method: 'POST',
     body: JSON.stringify({ episodes: 2 }),
+  }).catch((error: unknown) => {
+    // start-server.mjs starts the feed; a server of your own needs `node e2e/feed-server.mjs`.
+    const hint = EXTERNAL_BASE_URL ? ' (start `node e2e/feed-server.mjs` next to your server)' : '';
+    throw new Error(`feed server on ${FEED_BASE} not reachable${hint}`, { cause: error });
   });
   if (!control.ok) throw new Error(`feed server answered ${control.status}`);
   const created = await api.post('/api/v1/admin/podcasts', {
@@ -76,6 +85,31 @@ async function ensureFeed(api: APIRequestContext): Promise<void> {
   });
   if (created.status() !== 201) {
     throw new Error(`POST /admin/podcasts answered ${created.status()}: ${await created.text()}`);
+  }
+}
+
+/**
+ * Ids of the two test books, looked up once while they are among the newest titles of the start
+ * page (right after their scan), so later titles of the run cannot push them out of the row.
+ */
+async function storeAudioIds(api: APIRequestContext): Promise<void> {
+  const titles = [M4B_TITLE, MP3_TITLE];
+  const deadline = Date.now() + SCAN_TIMEOUT_MS;
+  for (;;) {
+    const response = await api.get('/api/v1/home');
+    if (!response.ok()) throw new Error(`GET /home answered ${response.status()}`);
+    const home = (await response.json()) as { rows: { items: { id: string; title: string }[] }[] };
+    const items = home.rows.flatMap((row) => row.items);
+    const ids = Object.fromEntries(
+      titles.map((title) => [title, items.find((item) => item.title === title)?.id]),
+    );
+    if (titles.every((title) => ids[title])) {
+      writeFileSync(AUDIO_IDS, JSON.stringify(ids));
+      return;
+    }
+    if (Date.now() > deadline)
+      throw new Error(`test audiobooks not on the start page: ${titles.join(', ')}`);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 }
 
@@ -141,6 +175,7 @@ export default async function globalSetup(): Promise<void> {
     await waitForScan(api);
     await ensureFeed(api);
     mkdirSync(dirname(STORAGE_STATE), { recursive: true });
+    await storeAudioIds(api);
     await api.storageState({ path: STORAGE_STATE });
   } finally {
     await api.dispose();

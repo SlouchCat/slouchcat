@@ -135,7 +135,7 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
             options={qualities.map((option) => ({
               value: option.quality,
               label: audioOnly
-                ? t('offline.dialog.audioOption', {
+                ? t(option.copy ? 'offline.dialog.audioCopy' : 'offline.dialog.audioOption', {
                     quality: qualityLabel(t, option.quality),
                     kbps: option.audioBitrate,
                     size: formatBytes(option.estimatedBytes, language),

@@ -373,6 +373,15 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
     ).toHaveAttribute('href', `/play/${audioIds.book}?at=55000`);
   });
 
+  it('audiobook: the volume is a number of the UI language', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /items/${audioIds.book}`]: () => json({ ...audiobookDetail, seriesIndex: 2.5 }),
+    });
+    renderApp(`/items/${audioIds.book}`);
+    expect(await screen.findByText('Slouchcat Test Audio Series · Band 2,5')).toBeVisible();
+  });
+
   it('podcast: episodes newest first with date, duration and progress; more on demand; no play', async () => {
     const { fetchMock } = mockApi({
       ...signedIn,
@@ -409,6 +418,14 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Mehr laden' }));
     expect(await within(list).findByText('Slouchcat Test Episode 1')).toBeVisible();
+    // Focus moves to the first episode of the page (the button goes away with the last page).
+    await waitFor(() =>
+      expect(
+        within(list)
+          .getAllByRole('link', { name: /^Slouchcat Test Episode 1/ })
+          .find((link) => !link.getAttribute('aria-label')),
+      ).toHaveFocus(),
+    );
     expect(within(list).getByText('06.10.2025 · 8 s')).toBeVisible();
     const page = fetchMock.mock.calls
       .map(([request]) => new URL(request.url))
@@ -418,6 +435,36 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
     // All three are there: nothing more to load.
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('podcast: a failed page keeps the button as a retry, focused while it loads', async () => {
+    let fail = true;
+    mockApi({
+      ...signedIn,
+      [`GET /items/${audioIds.podcast}`]: () => json(podcastDetail),
+      [`GET /items/${audioIds.podcast}/episodes`]: () =>
+        fail
+          ? problem(500, 'internal')
+          : json({ episodes: [podcastEpisodes.ep1], total: 3, offset: 2, limit: 50 }),
+    });
+    renderApp(`/items/${audioIds.podcast}`);
+    const user = userEvent.setup();
+
+    const more = await screen.findByRole('button', { name: 'Mehr laden' });
+    await user.click(more);
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    expect(retry).toHaveFocus();
+    expect(retry).toBeEnabled();
+
+    fail = false;
+    await user.keyboard('{Enter}');
+    const list = screen.getByRole('list', { name: 'Episoden' });
+    expect(await within(list).findByText('Slouchcat Test Episode 1')).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: /^(Mehr laden|Erneut versuchen)$/ }),
+      ).not.toBeInTheDocument(),
     );
   });
 

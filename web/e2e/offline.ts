@@ -41,8 +41,8 @@ export interface StoredDownloadData {
     subtitles: { track: { id: number; language?: string } }[];
   };
   positions?: Record<string, { positionMs: number; at: number }>;
-  /** Speed of the last offline playback of an audio download (M6). */
-  playbackRate?: number;
+  /** Speed per profile set in offline playback of an audio download (M6). */
+  playbackRates?: Record<string, { rate: number; at: number }>;
 }
 
 /** The downloads in the page's IndexedDB; empty while the app has not created it yet. */

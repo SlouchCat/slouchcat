@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
-import { formErrors, problemMessage } from '@/api/errors';
+import { codeMessage, formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { formText } from '@/lib/form';
@@ -200,14 +200,20 @@ export function PodcastsPage() {
     {
       key: 'error',
       header: t('admin.podcasts.columns.error'),
-      cell: (podcast) =>
-        podcast.lastError ? (
-          <Chip tone="danger" icon="warning">
-            {podcast.lastError}
-          </Chip>
-        ) : (
-          t('admin.podcasts.noError')
-        ),
+      cell: (podcast) => {
+        if (!podcast.lastError) return t('admin.podcasts.noError');
+        // `feed_unreachable: HTTP 404`: the code in words, the server's text as the detail.
+        const [code = '', ...detail] = podcast.lastError.split(':');
+        const message = codeMessage(t, code.trim());
+        return (
+          <span className={styles.stack}>
+            <Chip tone="danger" icon="warning">
+              {message ?? podcast.lastError}
+            </Chip>
+            {message && <span className={styles.muted}>{detail.join(':').trim()}</span>}
+          </span>
+        );
+      },
     },
     {
       key: 'actions',

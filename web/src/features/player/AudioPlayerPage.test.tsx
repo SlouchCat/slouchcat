@@ -136,6 +136,30 @@ describe('audio player (M6)', () => {
     expect(progressEvents(calls).at(-1)).toMatchObject({ positionMs: 10_000, playbackRate: 1.6 });
   });
 
+  it('[ and ] typed with AltGr (Windows, Linux) or Option (macOS) change the speed; Ctrl and Meta stay free', async () => {
+    stubMedia();
+    mockApi(routes());
+    const { audio } = await start();
+
+    // Swiss layout on Windows: AltGr reports Ctrl+Alt and the AltGraph modifier.
+    fireEvent.keyDown(window, { key: ']', ctrlKey: true, altKey: true, modifierAltGraph: true });
+    expect(audio.playbackRate).toBe(1.6);
+    // Alt without AltGraph outside macOS is a shortcut.
+    fireEvent.keyDown(window, { key: ']', altKey: true });
+    expect(audio.playbackRate).toBe(1.6);
+    // macOS: Option+5 and Option+6 type [ and ].
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15',
+    );
+    fireEvent.keyDown(window, { key: '[', altKey: true });
+    expect(audio.playbackRate).toBe(1.5);
+    // Ctrl and Meta shortcuts stay with the browser.
+    fireEvent.keyDown(window, { key: ']', ctrlKey: true });
+    fireEvent.keyDown(window, { key: ']', metaKey: true });
+    fireEvent.keyDown(window, { key: ']', metaKey: true, modifierAltGraph: true });
+    expect(audio.playbackRate).toBe(1.5);
+  });
+
   it('C opens the chapter list: a chapter jumps to its start', async () => {
     const media = stubMedia();
     mockApi(routes());
@@ -178,6 +202,166 @@ describe('audio player (M6)', () => {
     expect(media.paused).toBe(true);
     expect(await within(region).findByRole('status')).toHaveTextContent('Sleep-Timer abgelaufen');
     expect(within(region).getByRole('button', { name: 'Sleep-Timer' })).toBeVisible();
+  });
+
+  it('the sleep timer ends the chapter on time, follows a jump and waits for a known length', async () => {
+    const media = stubMedia();
+    mockApi(routes());
+    const { region, audio } = await start();
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+
+    await user.keyboard('t');
+    await user.click(
+      within(await screen.findByRole('menu', { name: 'Sleep-Timer' })).getByRole('menuitemradio', {
+        name: 'Ende des Kapitels',
+      }),
+    );
+    // Shift+→ jumps to chapter 4 (15 … 20 s): the timer follows to its end.
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true });
+    act(() => {
+      audio.dispatchEvent(new Event('seeking'));
+    });
+    media.currentTime = 15.01;
+    act(() => {
+      audio.dispatchEvent(new Event('timeupdate'));
+    });
+    expect(media.paused).toBe(false);
+
+    // 0.45 s of the chapter left at 1.5×: a timer pauses after 0.3 s, not at the next update.
+    media.currentTime = 19.55;
+    act(() => {
+      audio.dispatchEvent(new Event('timeupdate'));
+    });
+    expect(media.paused).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(310);
+    });
+    expect(media.paused).toBe(true);
+    expect(await within(region).findByRole('status')).toHaveTextContent('Sleep-Timer abgelaufen');
+  });
+
+  it('an episode without a known length offers the end of the title only once it is known', async () => {
+    const media = stubMedia();
+    media.duration = NaN;
+    mockApi({
+      ...routes(),
+      [`POST /items/${audioIds.ep2}/play`]: () =>
+        json({
+          ...audioPlayback,
+          item: { ...podcastEpisodeDetail, durationMs: undefined },
+          mediaFile: { ...audioPlayback.mediaFile, durationMs: undefined },
+          chapters: [],
+          streamUrl: `/items/${audioIds.ep2}/stream?st=ps-e.token`,
+          playbackSessionId: 'ps-e',
+          resumePositionMs: 0,
+        }),
+    });
+    const { audio } = await start(`/play/${audioIds.ep2}`);
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+
+    await user.keyboard('t');
+    let menu = await screen.findByRole('menu', { name: 'Sleep-Timer' });
+    expect(within(menu).getAllByRole('menuitemradio')).toHaveLength(5);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+
+    media.duration = 10;
+    act(() => {
+      audio.dispatchEvent(new Event('durationchange'));
+    });
+    await user.keyboard('t');
+    menu = await screen.findByRole('menu', { name: 'Sleep-Timer' });
+    expect(within(menu).getByRole('menuitemradio', { name: 'Ende des Titels' })).toBeVisible();
+  });
+
+  it('a speed that arrives with the detail after the start applies quietly, unless one was picked', async () => {
+    stubMedia();
+    let release: () => void = () => undefined;
+    const detailReady = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const withoutRate = {
+      ...audioPlayback,
+      item: { ...audioPlayback.item, progress: undefined },
+    };
+    mockApi({
+      ...routes(withoutRate),
+      [`GET /items/${audioIds.book}`]: async () => {
+        await detailReady;
+        return json(audiobookDetail);
+      },
+    });
+    const { region, audio } = await start();
+    expect(audio.playbackRate).toBe(1);
+    act(() => release());
+    await waitFor(() => expect(audio.playbackRate).toBe(1.5));
+    // Quietly: no speed confirmation for a speed the listener did not pick.
+    expect(within(region).queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('a speed picked before the detail arrives stays', async () => {
+    stubMedia();
+    let release: () => void = () => undefined;
+    const detailReady = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = mockApi({
+      ...routes({ ...audioPlayback, item: { ...audioPlayback.item, progress: undefined } }),
+      [`GET /items/${audioIds.book}`]: async () => {
+        await detailReady;
+        return json(audiobookDetail);
+      },
+    });
+    const { audio } = await start();
+    fireEvent.keyDown(window, { key: ']' });
+    expect(audio.playbackRate).toBe(1.1);
+    act(() => release());
+    await waitFor(() =>
+      expect(calls.some((call) => call.path === `/items/${audioIds.book}`)).toBe(true),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    expect(audio.playbackRate).toBe(1.1);
+  });
+
+  it('a chapter link starts at the chapter, also in the last seconds, and leaves the URL', async () => {
+    const media = stubMedia();
+    mockApi(routes());
+    const { router } = await start(`/play/${audioIds.book}?at=55000`);
+    // Chapter 12 starts 5 s before the end: no resume rule for an explicit start.
+    expect(media.currentTime).toBe(55);
+    // A reload resumes from the saved position, not from the chapter.
+    await waitFor(() => expect(router.state.location.search).not.toHaveProperty('at'));
+    expect(router.state.location.pathname).toBe(`/play/${audioIds.book}`);
+  });
+
+  it('the focused seek bar moves like a slider; a drag seeks once, when let go', async () => {
+    const media = stubMedia();
+    mockApi(routes());
+    const { region, audio } = await start();
+    const slider = within(region).getByRole('slider', { name: 'Wiedergabeposition' });
+    act(() => slider.focus());
+
+    fireEvent.keyDown(slider, { key: 'ArrowUp' });
+    expect(media.currentTime).toBeCloseTo(27.34);
+    expect(audio.volume).toBe(1);
+    fireEvent.keyDown(slider, { key: 'PageUp' });
+    expect(media.currentTime).toBe(30);
+    fireEvent.keyDown(slider, { key: 'PageDown' });
+    expect(media.currentTime).toBe(25);
+    fireEvent.keyDown(slider, { key: 'Home' });
+    expect(media.currentTime).toBe(0);
+    fireEvent.keyDown(slider, { key: 'ArrowDown' });
+    expect(media.currentTime).toBe(0);
+
+    vi.spyOn(slider, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 100, 10));
+    slider.setPointerCapture = vi.fn();
+    slider.releasePointerCapture = vi.fn();
+    fireEvent.pointerDown(slider, { pointerId: 1, clientX: 25 });
+    fireEvent.pointerMove(slider, { pointerId: 1, clientX: 50 });
+    expect(media.currentTime).toBe(0);
+    expect(slider).toHaveAttribute('aria-valuenow', '30');
+    fireEvent.pointerUp(slider, { pointerId: 1, clientX: 75 });
+    expect(media.currentTime).toBe(45);
   });
 
   it('an episode: the podcast as byline, no chapter controls; Escape goes back', async () => {

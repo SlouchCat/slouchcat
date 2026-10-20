@@ -17,8 +17,11 @@ if (!existsSync(binary)) {
   process.exit(1);
 }
 
-// Before the server: the global setup subscribes to the feed right after the server is up.
-const feed = await startFeedServer();
+// Before the server: the global setup subscribes to the feed right after the server is up. Its
+// port follows the app's (env.ts FEED_PORT), so runs on other ports do not collide.
+const feed = await startFeedServer({
+  port: Number(process.env.SLOUCHCAT_E2E_FEED_PORT ?? Number(port) - 2),
+});
 
 const root = mkdtempSync(join(tmpdir(), 'slouchcat-e2e-'));
 const configDir = join(root, 'config');

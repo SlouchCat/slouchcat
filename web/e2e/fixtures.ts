@@ -1,5 +1,11 @@
 import { test as base, expect, type APIRequestContext } from '@playwright/test';
-import { ownerApi, removeGuests, resetProfiles, stopAllStreams } from './accounts';
+import {
+  ownerApi,
+  removeGuests,
+  removeTestPodcasts,
+  resetProfiles,
+  stopAllStreams,
+} from './accounts';
 import { removeDeviceDownloads } from './offline';
 
 /**
@@ -33,6 +39,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await removeDeviceDownloads(api);
         await resetProfiles(api);
         await removeGuests(api);
+        await removeTestPodcasts(api);
         await provide(api);
       } finally {
         await stopAllStreams(api);
@@ -40,6 +47,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await removeDeviceDownloads(api);
         await resetProfiles(api);
         await removeGuests(api);
+        await removeTestPodcasts(api);
         await api.dispose();
       }
     },

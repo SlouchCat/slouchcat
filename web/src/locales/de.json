@@ -224,23 +224,19 @@
     },
     "resumeListening": "Weiterhören ab {{time}}",
     "listened": "{{percent}} % gehört",
-    "explicit": "Explizit",
     "audio": {
       "by": "von {{author}}",
       "narratedBy": "Gelesen von {{narrator}}",
-      "volume": "{{series}} · Band {{volume}}",
+      "volume": "{{series}} · Band {{volume, number}}",
       "chapters": "Kapitel",
       "chapterPlay": "{{title}} ab {{time}} abspielen"
     },
     "podcast": {
       "episodes": "Episoden",
-      "count_one": "{{count}} Episode",
-      "count_other": "{{count}} Episoden",
       "empty": "Keine Episoden.",
       "more": "Mehr laden",
       "link": "Zum Podcast",
-      "play": "{{title}} abspielen",
-      "caption": "{{date}} · {{duration}}"
+      "play": "{{title}} abspielen"
     }
   },
   "rating": {
@@ -408,6 +404,7 @@
         "minutes_one": "{{count}} Minute",
         "minutes_other": "{{count}} Minuten",
         "chapter": "Ende des Kapitels",
+        "end": "Ende des Titels",
         "set": "Sleep-Timer: {{label}}",
         "cancelled": "Sleep-Timer aus",
         "done": "Sleep-Timer abgelaufen"
@@ -1149,7 +1146,8 @@
       "submitting": "Wird gestartet …",
       "started_one": "Download gestartet. Den Stand siehst du unter Downloads.",
       "started_other": "{{count}} Downloads gestartet. Den Stand siehst du unter Downloads.",
-      "audioOption": "{{quality}} · {{kbps}} kbit/s · ca. {{size}}"
+      "audioOption": "{{quality}} · {{kbps}} kbit/s · ca. {{size}}",
+      "audioCopy": "{{quality}} · AAC kopiert · ca. {{size}}"
     },
     "status": {
       "open": "Zu den Downloads",

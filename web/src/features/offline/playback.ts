@@ -33,6 +33,34 @@ export function resumePosition(download: StoredDownload, profileId: number): num
   return own?.positionMs ?? 0;
 }
 
+/**
+ * The speed the player of `profileId` starts with (H-3): the newer of the one set on this device
+ * offline and the server's from the last sync; 1 without either.
+ */
+export function resumeRate(download: StoredDownload, profileId: number): number {
+  const own = download.playbackRates?.[profileId];
+  const server = download.serverPositions?.[profileId];
+  if (server?.playbackRate !== undefined && (!own || server.at > own.at))
+    return server.playbackRate;
+  return own?.rate ?? 1;
+}
+
+/** Keeps the speed `profileId` set in offline playback on the download (H-3). */
+export function storeRate(
+  downloadId: string,
+  profileId: number,
+  rate: number,
+): Promise<StoredDownload | undefined> {
+  return updateDownload(
+    downloadId,
+    (download) =>
+      download && {
+        ...download,
+        playbackRates: { ...download.playbackRates, [profileId]: { rate, at: Date.now() } },
+      },
+  );
+}
+
 /** Device clock corrected by the offset of the last sync. */
 export async function serverNow(): Promise<number> {
   const offset = await getMeta('serverOffsetMs').catch(() => undefined);

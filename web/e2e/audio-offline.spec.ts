@@ -102,6 +102,19 @@ test('flight mode: the downloaded audiobook plays with its chapters; progress sy
   await expect.poll(() => time(page)).toBeGreaterThanOrEqual(29.5);
   expect(await time(page)).toBeLessThanOrEqual(32);
 
+  // ] sets 1.1× offline: kept for the playing profile on the download (H-3).
+  await page.keyboard.press(']');
+  await expect(player).toHaveAttribute('data-rate', '1.1');
+  const profileId = await player.getAttribute('data-profile-id');
+  await expect
+    .poll(
+      async () =>
+        (await storedDownloads(page)).find((entry) => entry.id === download.id)?.playbackRates?.[
+          profileId!
+        ]?.rate,
+    )
+    .toBe(1.1);
+
   // Pause at a known position, then leave the player with Escape.
   await player.getByRole('button', { name: 'Pause' }).focus();
   await page.keyboard.press('Space');
@@ -111,7 +124,7 @@ test('flight mode: the downloaded audiobook plays with its chapters; progress sy
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/downloads$/);
   await expect.poll(async () => (await queuedEvents(page)).at(-1)?.event.state).toBe('paused');
-  expect((await queuedEvents(page)).at(-1)?.event).toMatchObject({ playbackRate: 1 });
+  expect((await queuedEvents(page)).at(-1)?.event).toMatchObject({ playbackRate: 1.1 });
 
   // Back online: the queue goes up; a second device of the account has the position (±10 s).
   await context.setOffline(false);
@@ -124,9 +137,10 @@ test('flight mode: the downloaded audiobook plays with its chapters; progress sy
   });
   try {
     const item = (await (await second.request.get(`/api/v1/items/${book}`)).json()) as {
-      progress?: { positionMs: number };
+      progress?: { positionMs: number; playbackRate?: number };
     };
     expect(item.progress, 'progress after the reconnect').toBeDefined();
+    expect(item.progress!.playbackRate).toBe(1.1);
     expect(Math.abs(item.progress!.positionMs - position)).toBeLessThanOrEqual(10_000);
     const view = await second.newPage();
     await view.goto(`/items/${book}`);

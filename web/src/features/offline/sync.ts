@@ -78,7 +78,7 @@ export interface SyncProfile {
 
 /**
  * The server's progress per profile after an answer: the item of a download carries the active
- * profile's progress (on the device's clock from here on); without the item (another profile is
+ * profile's progress and speed (on the device's clock from here on); without the item (another profile is
  * active) or without the active profile the stored values stay.
  */
 function mergeServerPositions(
@@ -97,6 +97,7 @@ function mergeServerPositions(
         positionMs: progress.positionMs,
         completed: progress.completed,
         at: Date.parse(progress.updatedAt) - active.offsetMs,
+        ...(progress.playbackRate !== undefined ? { playbackRate: progress.playbackRate } : {}),
       },
     ]);
   }
@@ -131,6 +132,7 @@ export function mergeDownload(
     pendingDelete: local.pendingDelete,
     positions: local.positions,
     serverPositions,
+    playbackRates: local.playbackRates,
     fileReadyAt: local.fileReadyAt,
     fileEtag: local.fileEtag,
     ...keptFetchError(local, state),

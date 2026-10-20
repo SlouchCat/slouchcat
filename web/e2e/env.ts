@@ -34,12 +34,16 @@ export const AUDIOBOOKS_DIR = fileURLToPath(
 
 /**
  * Port of the local podcast feed (feed-server.mjs, started by start-server.mjs): the server
- * subscribes to it instead of the internet (H-2, no network in CI).
+ * subscribes to it instead of the internet (H-2, no network in CI). Two below the app's port
+ * (8095 next to 8097), so parallel runs on other ports do not collide.
  */
-export const FEED_PORT = Number(process.env.SLOUCHCAT_E2E_FEED_PORT ?? 8095);
+export const FEED_PORT = Number(process.env.SLOUCHCAT_E2E_FEED_PORT ?? PORT - 2);
 export const FEED_BASE = `http://127.0.0.1:${FEED_PORT}`;
 /** The feed the global setup subscribes to in the library "Podcasts". */
 export const FEED_URL = `${FEED_BASE}/feed.xml`;
+
+/** Ids of the test audiobooks by title, written by global-setup.ts (e2e/audio.ts audioItemId). */
+export const AUDIO_IDS = `${ARTEFACTS}audio-ids.json`;
 
 /** Fixed test account; exists only in the throw-away config directory of the run. */
 export const OWNER = {

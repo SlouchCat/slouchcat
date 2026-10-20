@@ -23,6 +23,15 @@ interface AudioPlayerPageProps {
 }
 
 /**
+ * Seconds to start from: an explicit position (a chapter link) as it is, within the title; the
+ * resume position without the last seconds of the title (resumeSeconds).
+ */
+export function startSeconds(ms: number, explicit: boolean, durationMs: number): number {
+  if (!explicit) return resumeSeconds(ms, durationMs);
+  return Math.max(0, durationMs > 0 ? Math.min(ms, durationMs - 1) : ms) / 1000;
+}
+
+/**
  * The player of an audiobook or a podcast episode (M6, H-1, H-3): an <audio> element (hls.js for
  * a multi-part book, the Range stream otherwise) behind the AudioPlayer. The speed starts from the
  * profile's last one for the title and goes to the server with every progress event; the watch
@@ -39,6 +48,7 @@ export function AudioPlayerPage({
   const { t } = useTranslation();
   // Fixed for the life of this player (one playback session).
   const [resumeMs] = useState(() => startPositionMs ?? info.resumePositionMs);
+  const [explicitStart] = useState(() => startPositionMs !== undefined);
   const audio = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentMs, setCurrentMs] = useState(resumeMs);
@@ -105,29 +115,19 @@ export function AudioPlayerPage({
     setCurrentMs(element.currentTime * 1000);
   }, []);
 
-  const startRate = info.item.progress?.playbackRate;
   const controls = useAudioControls({
     media: audio,
     chapters: info.chapters,
     durationMs,
     positionMs: currentMs,
     positionOf: () => (audio.current?.currentTime ?? 0) * 1000,
-    initialRate: startRate ?? detail?.progress?.playbackRate ?? 1,
+    // The start answer's speed; without one, the title's detail (fetched after the start).
+    initialRate: info.item.progress?.playbackRate ?? detail?.progress?.playbackRate ?? 1,
     active: ended === null,
     seekTo,
     togglePlay,
     onBack,
   });
-  // The start answer carried no speed, the title's detail (fetched after it) does: take it once.
-  const lateRate = startRate === undefined ? detail?.progress?.playbackRate : undefined;
-  const lateApplied = useRef(false);
-  const { onRate } = controls;
-  useEffect(() => {
-    if (lateRate === undefined || lateApplied.current) return;
-    lateApplied.current = true;
-    onRate(lateRate);
-  }, [lateRate, onRate]);
-
   // hls.js (Chromium, Firefox) for a multi-part book: loaded as its own chunk, from the resume
   // position, as in the video player.
   useEffect(() => {
@@ -138,7 +138,9 @@ export function AudioPlayerPage({
     import('hls.js/light')
       .then(({ default: Hls }) => {
         if (cancelled) return;
-        const hls = new Hls({ startPosition: resumeSeconds(resumeMs, knownDurationMs) });
+        const hls = new Hls({
+          startPosition: startSeconds(resumeMs, explicitStart, knownDurationMs),
+        });
         let mediaRecovered = false;
         let networkRecovered = false;
         hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -168,7 +170,7 @@ export function AudioPlayerPage({
       stopHls.current = () => undefined;
       destroy();
     };
-  }, [engine, info, knownDurationMs, onRevoked, resumeMs]);
+  }, [engine, explicitStart, info, knownDurationMs, onRevoked, resumeMs]);
 
   // Media element events.
   useEffect(() => {
@@ -176,7 +178,7 @@ export function AudioPlayerPage({
     if (!element) return;
     const onLoadedMetadata = () => {
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);
-      const resume = resumeSeconds(resumeMs, element.duration * 1000);
+      const resume = startSeconds(resumeMs, explicitStart, element.duration * 1000);
       // hls.js already started at the resume position.
       if (resume > 0 && Math.abs(element.currentTime - resume) > 1) element.currentTime = resume;
       if (!locked.current) element.play().catch(() => setPlaying(false));
@@ -215,7 +217,7 @@ export function AudioPlayerPage({
       element.removeEventListener('durationchange', onDuration);
       element.removeEventListener('error', onError);
     };
-  }, [engine, info, onRevoked, openedAt, resumeMs]);
+  }, [engine, explicitStart, info, onRevoked, openedAt, resumeMs]);
 
   const { item } = info;
   const limit = ended?.watchTime?.limitMinutes;

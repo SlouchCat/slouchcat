@@ -52,7 +52,12 @@ describe('admin podcasts page (M6, H-2)', () => {
     expect(within(rows[1]!).getByText('2')).toBeVisible();
     expect(within(rows[2]!).getByText('Noch nie')).toBeVisible();
     expect(within(rows[2]!).getByText('Explizit')).toBeVisible();
-    expect(within(rows[2]!).getByText('feed_unreachable: HTTP 404')).toBeVisible();
+    expect(
+      within(rows[2]!).getByText(
+        'Der Feed ist nicht erreichbar. Prüfe die Adresse und versuche es erneut.',
+      ),
+    ).toBeVisible();
+    expect(within(rows[2]!).getByText('HTTP 404')).toBeVisible();
     expect(
       screen
         .getByRole('navigation', { name: 'Hauptnavigation' })

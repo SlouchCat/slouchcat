@@ -110,14 +110,14 @@ describe('download on the detail page', () => {
 
   it('an audiobook: AAC at 128/96/64 kbit/s with the estimate, the whole book (O-1, M6)', async () => {
     const user = userEvent.setup();
-    const audioOption = (quality: 'high' | 'medium' | 'low', kbps: number) => ({
+    const audioOption = (quality: 'high' | 'medium' | 'low', kbps: number, copy = false) => ({
       quality,
       width: 0,
       height: 0,
       videoBitrate: 0,
       audioBitrate: kbps,
       estimatedBytes: Math.round(((kbps * 1000) / 8) * 60 * 1.02),
-      copy: false,
+      copy,
     });
     const { calls } = mockApi({
       ...signedIn,
@@ -125,7 +125,11 @@ describe('download on the detail page', () => {
       [`GET /items/${audioIds.book}/download-options`]: () =>
         json({
           durationMs: 60_000,
-          qualities: [audioOption('high', 128), audioOption('medium', 96), audioOption('low', 64)],
+          qualities: [
+            audioOption('high', 128),
+            audioOption('medium', 96),
+            audioOption('low', 64, true),
+          ],
           audioTracks: [],
           subtitles: [],
         }),
@@ -153,7 +157,8 @@ describe('download on the detail page', () => {
     ).toEqual([
       `Hoch · 128 kbit/s · ca. ${size(979_200)}`,
       `Mittel · 96 kbit/s · ca. ${size(734_400)}`,
-      `Niedrig · 64 kbit/s · ca. ${size(489_600)}`,
+      // A source within the step is copied, not encoded (design 6).
+      `Niedrig · AAC kopiert · ca. ${size(489_600)}`,
     ]);
     // No picture, no tracks to choose, no subtitles.
     expect(within(dialog).queryByRole('radiogroup', { name: 'Tonspur' })).not.toBeInTheDocument();

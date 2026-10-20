@@ -224,23 +224,19 @@
     },
     "resumeListening": "Continue listening from {{time}}",
     "listened": "{{percent}} % listened",
-    "explicit": "Explicit",
     "audio": {
       "by": "by {{author}}",
       "narratedBy": "Read by {{narrator}}",
-      "volume": "{{series}} · Book {{volume}}",
+      "volume": "{{series}} · Book {{volume, number}}",
       "chapters": "Chapters",
       "chapterPlay": "Play {{title}} from {{time}}"
     },
     "podcast": {
       "episodes": "Episodes",
-      "count_one": "{{count}} episode",
-      "count_other": "{{count}} episodes",
       "empty": "No episodes.",
       "more": "Load more",
       "link": "Go to podcast",
-      "play": "Play {{title}}",
-      "caption": "{{date}} · {{duration}}"
+      "play": "Play {{title}}"
     }
   },
   "rating": {
@@ -408,6 +404,7 @@
         "minutes_one": "{{count}} minute",
         "minutes_other": "{{count}} minutes",
         "chapter": "End of chapter",
+        "end": "End of the title",
         "set": "Sleep timer: {{label}}",
         "cancelled": "Sleep timer off",
         "done": "Sleep timer ended"
@@ -1149,7 +1146,8 @@
       "submitting": "Starting …",
       "started_one": "Download started. Its state is under Downloads.",
       "started_other": "{{count}} downloads started. Their state is under Downloads.",
-      "audioOption": "{{quality}} · {{kbps}} kbit/s · approx. {{size}}"
+      "audioOption": "{{quality}} · {{kbps}} kbit/s · approx. {{size}}",
+      "audioCopy": "{{quality}} · AAC copied · approx. {{size}}"
     },
     "status": {
       "open": "Go to downloads",

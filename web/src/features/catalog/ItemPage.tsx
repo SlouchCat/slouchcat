@@ -2,7 +2,7 @@ import type { Chapter, ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -399,7 +399,7 @@ function AudiobookChapters({
         {chapters.map((chapter, index) => {
           const time = formatPlayerTime(chapter.startMs, duration);
           return (
-            <li key={chapter.startMs} className={styles.chapter}>
+            <li key={`${chapter.startMs}-${index}`} className={styles.chapter}>
               {playable ? (
                 <SpatialButtonLink
                   focusKey={`chapter-${index}`}
@@ -439,9 +439,22 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
     ...podcastEpisodesQuery(item.id, first.length),
     enabled: more,
   });
-  const loaded = pages.data?.pages.flatMap((page) => page.episodes) ?? [];
-  const episodes = [...first, ...loaded.filter((entry) => !first.some((e) => e.id === entry.id))];
-  const hasMore = episodes.length < total && (!more || pages.isFetching || pages.hasNextPage);
+  const episodes = useMemo(() => {
+    const newest = item.episodes ?? [];
+    const loaded = pages.data?.pages.flatMap((page) => page.episodes) ?? [];
+    return [...newest, ...loaded.filter((entry) => !newest.some((e) => e.id === entry.id))];
+  }, [item.episodes, pages.data]);
+  // A failed page leaves the button as a retry; while a page loads it stays focusable.
+  const hasMore =
+    episodes.length < total && (!more || pages.isFetching || pages.hasNextPage || pages.isError);
+  // After a page, focus moves to its first episode (the button may go away with the last one).
+  const focusFrom = useRef<number | null>(null);
+  useEffect(() => {
+    const target = focusFrom.current === null ? undefined : episodes[focusFrom.current];
+    if (!target) return;
+    focusFrom.current = null;
+    setSpatialFocus(`podcast-episode-${target.id}`);
+  }, [episodes]);
   const caption = (episode: ItemRef) =>
     [
       episode.publishedAt ? formatDate(episode.publishedAt, i18n.language) : undefined,
@@ -485,13 +498,16 @@ function PodcastEpisodes({ item }: { item: ItemDetail }) {
             focusKey="podcast-more"
             variant="secondary"
             icon="plus"
-            isDisabled={pages.isFetching}
+            aria-disabled={pages.isFetching || undefined}
             onPress={() => {
+              if (pages.isFetching) return;
+              focusFrom.current = episodes.length;
               if (!more) setMore(true);
+              else if (!pages.data) void pages.refetch();
               else void pages.fetchNextPage();
             }}
           >
-            {t('item.podcast.more')}
+            {pages.isError ? t('common.retry') : t('item.podcast.more')}
           </SpatialButton>
         </div>
       )}

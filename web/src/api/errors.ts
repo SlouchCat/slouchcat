@@ -66,6 +66,11 @@ export function problemMessage(t: TFunction, error: unknown): string {
   return has(problemKeys, code) ? t(problemKeys[code]) : t('errors.code.unknown');
 }
 
+/** Translated message for a problem code the server stored as text, or undefined if unknown. */
+export function codeMessage(t: TFunction, code: string): string | undefined {
+  return has(problemKeys, code) ? t(problemKeys[code]) : undefined;
+}
+
 /** Translated message for one field error code. */
 export function fieldMessage(t: TFunction, code: string): string {
   return has(fieldKeys, code) ? t(fieldKeys[code]) : t('errors.field.invalid');

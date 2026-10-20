@@ -48,8 +48,10 @@ async function downloadEachQuality(page: Page, itemId: string, title: string, la
   }
 
   for (const { quality, name } of QUALITIES) {
-    const kbps = options.qualities.find((candidate) => candidate.quality === quality)?.audioBitrate;
-    const optionLabel = new RegExp(`^${name} · ${kbps} kbit/s · ca\\. `);
+    const option = options.qualities.find((candidate) => candidate.quality === quality);
+    const optionLabel = option?.copy
+      ? new RegExp(`^${name} · AAC kopiert · ca\\. `)
+      : new RegExp(`^${name} · ${option?.audioBitrate} kbit/s · ca\\. `);
     await page.goto(`/items/${itemId}`);
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     await downloadButton(page).focus();

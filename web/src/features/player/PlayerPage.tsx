@@ -42,11 +42,17 @@ const containerMime: Record<string, string> = {
   opus: 'audio/ogg',
 };
 
-/** MIME type for the capability check: the server's (with codecs) or one derived from the container. */
+/**
+ * MIME type for the capability check: the server's (with codecs) or one derived from the container.
+ * For audio a known container comes first: an episode's type is the feed's, often non-standard
+ * (`audio/x-mp3`, `audio/mpeg3`), which browsers do not recognise although they play the file.
+ */
 export function playbackMime(info: PlaybackInfo): string {
+  const known = containerMime[info.mediaFile.container.toLowerCase()];
+  if (info.mediaKind === 'audio' && known) return known;
   return (
     info.mediaFile.mimeType ??
-    containerMime[info.mediaFile.container.toLowerCase()] ??
+    known ??
     `${info.mediaKind}/${info.mediaFile.container.toLowerCase()}`
   );
 }
@@ -54,11 +60,14 @@ export function playbackMime(info: PlaybackInfo): string {
 /**
  * How this browser plays the answer of startPlayback: the file directly, HLS natively (Safari) or
  * through hls.js, or not at all. This is a device capability check (W-1), not a visibility rule:
- * the server already decided that the profile may watch the title.
+ * the server already decided that the profile may watch the title. Audio of an unknown container
+ * (a feed's enclosure) is tried directly: the element's error shows a failure.
  */
 export function playbackEngine(info: PlaybackInfo, platform: MediaPlatform): PlaybackEngine {
   if (info.mode === 'hls') return hlsEngine(platform);
-  return platform.canPlayType(playbackMime(info)) !== '' ? 'direct' : 'unsupported';
+  if (platform.canPlayType(playbackMime(info)) !== '') return 'direct';
+  const unknown = !containerMime[info.mediaFile.container.toLowerCase()];
+  return info.mediaKind === 'audio' && unknown ? 'direct' : 'unsupported';
 }
 
 /** Retries of the start request while the server answers 503 `transcode_busy`. */
@@ -180,6 +189,13 @@ function PlayerView({ itemId }: { itemId: string }) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+  // `at` starts this player only: once the session runs it leaves the URL, so a reload (or back
+  // and forward) resumes from the saved position instead of the chapter's start.
+  const started = playback.isSuccess;
+  useEffect(() => {
+    if (at === undefined || !started) return;
+    void navigate({ search: (previous) => ({ ...previous, at: undefined }), replace: true });
+  }, [at, navigate, started]);
   useDocumentTitle(playback.data?.item.title);
   const stopSession = useStopPlaybackOnLeave(playback.data?.playbackSessionId);
   // The versions of the title for the version menu; the detail page usually has them cached.
