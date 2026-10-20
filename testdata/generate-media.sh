@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Generates synthetic test media (plan M0 step 6, test matrix 10.3) with ffmpeg lavfi
-# sources only (testsrc2, smptehdbars, sine): no copyrighted material.
+# sources only (testsrc2, smptehdbars, sine), PGS captions from make-pgs.py and the HDR chart
+# from hdr-quality.py: no copyrighted material.
 # Output: testdata/media/ (gitignored) in Plex/Jellyfin naming.
 #
 # Env: FFMPEG, FFPROBE (binaries, default from PATH), OUT_DIR (default testdata/media),
-#      FORCE=1 regenerates existing files.
+#      FORCE=1 regenerates existing files, LONG=1 adds the 120-s 4K HDR10 clip (slow, ~260 MB).
 set -euo pipefail
 
 FFMPEG="${FFMPEG:-ffmpeg}"
@@ -306,6 +307,81 @@ fi
 f="$(movie_path "Slouchcat Test Unrated" mp4)"
 if want "$f"; then
   clip "$f" 10 testsrc2 330 "Slouchcat Test Unrated"
+fi
+
+# M4 playback cases (W-2, W-4, test matrix 10.3).
+
+# Multiple audio tracks and embedded SRT, 20 s so a track switch mid-play is testable:
+# 0 video, 1 AAC stereo German (default), 2 AC3 5.1 English, 3 SRT German, 4 SRT English.
+write_srt20() { # <file> <word>: five captions "<word> 1" ... "<word> 5", every 4 s
+  local i
+  : >"$1"
+  for i in 1 2 3 4 5; do
+    printf '%d\n00:00:%02d,000 --> 00:00:%02d,000\n%s %d\n\n' "$i" $((i * 4 - 3)) $((i * 4 - 1)) "$2" "$i" >>"$1"
+  done
+}
+write_srt20 "$subs_dir/multi-de.srt" "Deutsch"
+write_srt20 "$subs_dir/multi-en.srt" "English"
+mapfile -t v20 < <(video_1080 20)
+f="$(movie_path "Slouchcat Test Multi Audio (2024)" mkv)"
+if want "$f"; then
+  "${ff[@]}" "${v20[@]}" \
+    -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=20" \
+    -f lavfi -i "sine=frequency=660:sample_rate=48000:duration=20" \
+    -i "$subs_dir/multi-de.srt" -i "$subs_dir/multi-en.srt" \
+    -map 0:v -map 1:a -map 2:a -map 3 -map 4 \
+    "${x264[@]}" -c:a:0 aac -b:a:0 128k -ac:a:0 2 \
+    -filter:a:1 "pan=5.1(side)|FL=c0|FR=c0|FC=c0|LFE=c0|SL=c0|SR=c0" -c:a:1 ac3 -b:a:1 384k \
+    -c:s srt \
+    -metadata:s:a:0 language=ger -metadata:s:a:0 title="Deutsch (AAC 2.0)" \
+    -metadata:s:a:1 language=eng -metadata:s:a:1 title="English (AC3 5.1)" \
+    -metadata:s:s:0 language=ger -metadata:s:s:0 title="Deutsch (SRT)" \
+    -metadata:s:s:1 language=eng -metadata:s:s:1 title="English (SRT)" \
+    -disposition:a:0 default -disposition:a:1 0 -disposition:s:0 0 -disposition:s:1 0 \
+    -metadata title="Slouchcat Test Multi Audio" "$f"
+fi
+
+# PGS image subtitles (ffmpeg has no PGS encoder): two captions from make-pgs.py,
+# "Slouchcat PGS 1" at 2-6 s and "Slouchcat PGS 2" at 8-12 s; stream 2 is hdmv_pgs_subtitle.
+f="$(movie_path "Slouchcat Test PGS (2024)" mkv)"
+if want "$f"; then
+  python3 -I "$script_dir/make-pgs.py" "$subs_dir/captions.sup"
+  "${ff[@]}" "${v20[@]}" -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=20" \
+    -i "$subs_dir/captions.sup" -map 0:v -map 1:a -map 2 \
+    "${x264[@]}" "${aac[@]}" -c:s copy \
+    -metadata:s:s:0 language=eng -metadata:s:s:0 title="English (PGS)" \
+    -metadata title="Slouchcat Test PGS" "$f"
+  [[ "$("$FFPROBE" -v error -select_streams s:0 -show_entries stream=codec_name -of csv=p=0 "$f")" == hdmv_pgs_subtitle ]] ||
+    die "$f has no hdmv_pgs_subtitle stream"
+fi
+
+hdr10=(-c:v libx265 -preset ultrafast -g 48 -pix_fmt yuv420p10le
+  -color_primaries bt2020 -color_trc smpte2084 -colorspace bt2020nc)
+hdr10_params="log-level=error:hdr10=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400"
+
+# HDR10 test chart for P-6 (testdata/hdr-quality.sh): 3840x2160 PQ/BT.2020, 10 s, a grey wedge
+# of 11 PQ steps (0-100 %) across the top half and six skin-tone patches in the bottom half;
+# geometry and values in hdr-quality.py and README.md.
+f="$(movie_path "Slouchcat Test HDR10 Chart (2024)" mkv)"
+if want "$f"; then
+  python3 -I "$script_dir/hdr-quality.py" chart "$subs_dir/chart.ppm"
+  "${ff[@]}" -loop 1 -framerate 24 -t 10 -i "$subs_dir/chart.ppm" \
+    -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=10" \
+    -vf "scale=out_color_matrix=bt2020:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p10le" \
+    "${hdr10[@]}" -crf 16 -x265-params "$hdr10_params" \
+    "${aac[@]}" -metadata title="Slouchcat Test HDR10 Chart" "$f"
+  rm -f "$subs_dir/chart.ppm"
+fi
+
+# The 4K HDR10 pattern at 120 s for the 5-s start measurement (W-3); slow, only with LONG=1.
+if [[ "${LONG:-0}" == "1" ]]; then
+  f="$(movie_path "Slouchcat Test HDR10 4K Long (2024)" mkv)"
+  if want "$f"; then
+    "${ff[@]}" -f lavfi -i "smptehdbars=size=3840x2160:rate=24:duration=120" \
+      -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=120" \
+      -vf "format=yuv420p10le" "${hdr10[@]}" -crf 34 -x265-params "$hdr10_params" \
+      "${aac[@]}" -metadata title="Slouchcat Test HDR10 4K Long" "$f"
+  fi
 fi
 
 # Summary.
