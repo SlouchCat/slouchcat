@@ -315,16 +315,68 @@ func (s *Service) WatchReport(ctx context.Context, session model.Session, profil
 	}
 	now := s.now()
 	today := startOfDay(now)
+	first := today.AddDate(0, 0, -(days - 1))
+	quarters, err := s.read.SumPlayedMsByQuarterHour(ctx, appq.SumPlayedMsByQuarterHourParams{
+		ProfileID: row.ID, FromMs: first.UnixMilli(), ToMs: today.AddDate(0, 0, 1).UnixMilli(),
+	})
+	if err != nil {
+		return model.WatchReport{}, fmt.Errorf("sum played time: %w", err)
+	}
+	perDay := map[string]int64{}
+	for _, q := range quarters {
+		// Calendar days of the server's time zone, also across a DST change.
+		day := startOfDay(time.UnixMilli(q.Quarter * quarterHour).In(now.Location())).Format(time.DateOnly)
+		perDay[day] += q.PlayedMs
+	}
 	out := model.WatchReport{ProfileID: row.ID, LimitMinutes: auth.ProfileLimits(row).Cap(session.Account.Limits).WatchLimitMinutes,
 		Days: make([]model.WatchDay, 0, days)}
-	for i := days - 1; i >= 0; i-- {
-		from := today.AddDate(0, 0, -i)
-		to := from.AddDate(0, 0, 1) // calendar days, also across a DST change
-		ms, err := s.playedMs(ctx, row.ID, from, to)
-		if err != nil {
-			return model.WatchReport{}, err
-		}
-		out.Days = append(out.Days, model.WatchDay{Date: from.Format(time.DateOnly), Minutes: int(ms / time.Minute.Milliseconds())})
+	for i := range days {
+		date := first.AddDate(0, 0, i).Format(time.DateOnly)
+		out.Days = append(out.Days, model.WatchDay{Date: date, Minutes: int(perDay[date] / time.Minute.Milliseconds())})
 	}
 	return out, nil
+}
+
+// quarterHour is the bucket of SumPlayedMsByQuarterHour in milliseconds.
+const quarterHour = int64(15 * time.Minute / time.Millisecond)
+
+// sweepWatchLimits is the K-5 backstop of the sweep: a profile whose daily watch time is used up
+// and that still has running playback sessions (started in a race with the progress event that
+// reached the limit, or played by a client that sends no progress events while another one used
+// up the limit) gets them revoked (stopped_by limit). Played time is only known from progress
+// events, so a client that never reports cannot use up the limit by itself.
+func (s *Service) sweepWatchLimits(ctx context.Context, now time.Time) {
+	ids, err := s.read.ListPlayingProfiles(ctx, now.UnixMilli())
+	if err != nil {
+		s.log.WarnContext(ctx, "list playing profiles", "err", err)
+		return
+	}
+	for _, id := range ids {
+		prof, err := s.read.GetProfile(ctx, id)
+		if err != nil {
+			continue // deleted meanwhile; its sessions end with it
+		}
+		acc, err := s.read.GetAccount(ctx, prof.AccountID)
+		if err != nil {
+			continue
+		}
+		limit := auth.ProfileLimits(prof).Cap(auth.AccountLimits(acc)).WatchLimitMinutes
+		if limit <= 0 {
+			continue
+		}
+		wt, err := s.watchTime(ctx, id, limit, now)
+		if err != nil {
+			s.log.WarnContext(ctx, "watch time of playing profile", "profile_id", id, "err", err)
+			continue
+		}
+		if wt.RemainingMinutes > 0 {
+			continue
+		}
+		if err := s.endProfile(ctx, id, model.StoppedByLimit); err != nil {
+			s.log.WarnContext(ctx, "end playback over the watch-time limit", "profile_id", id, "err", err)
+			continue
+		}
+		s.log.InfoContext(ctx, "watch-time limit reached, playback ended by the sweep", "profile_id", id,
+			"limit_minutes", wt.LimitMinutes, "used_minutes", wt.UsedMinutes)
+	}
 }

@@ -137,6 +137,24 @@ func (q *Queries) GetPlaybackSession(ctx context.Context, arg GetPlaybackSession
 	return i, err
 }
 
+const getPlaybackSessionStart = `-- name: GetPlaybackSessionStart :one
+SELECT started_at FROM playback_sessions WHERE id = ?1 AND profile_id = ?2
+`
+
+type GetPlaybackSessionStartParams struct {
+	ID        string
+	ProfileID int64
+}
+
+// Start of a playback session of the profile, revoked or not; it bounds the played time of the
+// first progress event of the playback (K-5).
+func (q *Queries) GetPlaybackSessionStart(ctx context.Context, arg GetPlaybackSessionStartParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPlaybackSessionStart, arg.ID, arg.ProfileID)
+	var started_at int64
+	err := row.Scan(&started_at)
+	return started_at, err
+}
+
 const insertPlaybackSession = `-- name: InsertPlaybackSession :exec
 
 INSERT INTO playback_sessions (id, session_id, account_id, profile_id, item_id, media_file_id, device_id,
@@ -313,6 +331,34 @@ func (q *Queries) ListEndedPlaybackSessions(ctx context.Context, now int64) ([]s
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPlayingProfiles = `-- name: ListPlayingProfiles :many
+SELECT DISTINCT profile_id FROM playback_sessions WHERE revoked_at IS NULL AND expires_at > ?1
+`
+
+// Profiles with a playback session that is neither revoked nor expired (the sweep's K-5 check).
+func (q *Queries) ListPlayingProfiles(ctx context.Context, now int64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listPlayingProfiles, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var profile_id int64
+		if err := rows.Scan(&profile_id); err != nil {
+			return nil, err
+		}
+		items = append(items, profile_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

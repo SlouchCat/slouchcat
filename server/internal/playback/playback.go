@@ -224,7 +224,9 @@ func validate(ev model.ProgressEvent) error {
 
 // Report stores a progress event of a visible title and returns the merged progress. M1a merges
 // by taking the latest event; offline merging follows in M5. Every event is stored, but a late one
-// does not move the merged position (see late). An event that names its playback session records
+// does not move the merged position (see late); an exact duplicate (same playback session, device,
+// media file, seq, client time, position and state) is not stored again, and the played time counts at most the
+// server time since the previous event of the playback (boundPlayed). An event that names its playback session records
 // the position and the activity of that session (W-6). For a profile with a daily limit (K-5) the
 // answer carries the watch time of today; once it is used up, every playback session of the
 // profile is revoked (stopped_by limit) and the answer says 0 minutes remain.
@@ -271,24 +273,44 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return model.Progress{}, fmt.Errorf("get progress: %w", err)
 	}
+	merged := model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC()}
+	if hasCur {
+		merged = model.Progress{PositionMs: cur.PositionMs, DurationMs: cur.DurationMs, Completed: cur.Completed == 1, UpdatedAt: time.UnixMilli(cur.UpdatedAt).UTC()}
+	}
+	dup, err := q.CountDuplicateProgressEvents(ctx, appq.CountDuplicateProgressEventsParams{
+		PlaybackSessionID: nullString(ev.PlaybackSessionID), Seq: ev.Seq, ProfileID: profile.ID, ItemID: itemID,
+		DeviceID: nullString(ev.DeviceID), MediaFileID: nullString(ev.MediaFileID), ClientTime: ev.ClientTime.UnixMilli(),
+		PositionMs: ev.PositionMs, State: ev.State,
+	})
+	if err != nil {
+		return model.Progress{}, fmt.Errorf("check duplicate progress event: %w", err)
+	}
+	if dup > 0 {
+		return merged, nil // stored already; the answer is the merged progress
+	}
 	isLate := false
 	if hasCur {
 		if isLate, err = late(ctx, q, profile.ID, itemID, ev, cur, now); err != nil {
 			return model.Progress{}, err
 		}
 	}
+	played, err := boundPlayed(ctx, q, profile.ID, itemID, ev, now)
+	if err != nil {
+		return model.Progress{}, err
+	}
 	err = q.InsertProgressEvent(ctx, appq.InsertProgressEventParams{
-		ProfileID:   profile.ID,
-		ItemID:      itemID,
-		MediaFileID: nullString(ev.MediaFileID),
-		DeviceID:    nullString(ev.DeviceID),
-		PositionMs:  ev.PositionMs,
-		DurationMs:  ev.DurationMs,
-		PlayedMs:    ev.PlayedMs,
-		Seq:         ev.Seq,
-		State:       ev.State,
-		ClientTime:  ev.ClientTime.UnixMilli(),
-		ServerTime:  now.UnixMilli(),
+		ProfileID:         profile.ID,
+		ItemID:            itemID,
+		MediaFileID:       nullString(ev.MediaFileID),
+		DeviceID:          nullString(ev.DeviceID),
+		PlaybackSessionID: nullString(ev.PlaybackSessionID),
+		PositionMs:        ev.PositionMs,
+		DurationMs:        ev.DurationMs,
+		PlayedMs:          played,
+		Seq:               ev.Seq,
+		State:             ev.State,
+		ClientTime:        ev.ClientTime.UnixMilli(),
+		ServerTime:        now.UnixMilli(),
 	})
 	if err != nil {
 		return model.Progress{}, fmt.Errorf("insert progress event: %w", err)
@@ -297,7 +319,7 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 		if err := tx.Commit(); err != nil {
 			return model.Progress{}, fmt.Errorf("commit progress: %w", err)
 		}
-		return model.Progress{PositionMs: cur.PositionMs, DurationMs: cur.DurationMs, Completed: cur.Completed == 1, UpdatedAt: time.UnixMilli(cur.UpdatedAt).UTC()}, nil
+		return merged, nil
 	}
 	err = q.UpsertProgress(ctx, appq.UpsertProgressParams{
 		ProfileID:  profile.ID,
@@ -314,6 +336,39 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 		return model.Progress{}, fmt.Errorf("commit progress: %w", err)
 	}
 	return model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC()}, nil
+}
+
+// playedSlack is the tolerance of boundPlayed on the server time between two events.
+const playedSlack = 10 // percent
+
+// boundPlayed returns the played time of ev the watch time counts (K-5): at most the server time
+// since the previous event of the same playback (playback session, device and media file), or
+// since the start of its playback session for the first event, plus playedSlack percent. A client
+// cannot use up a daily limit with one event, and events that a retry delivers late count no more
+// than the time that passed. An event without a reference (no previous event, no known playback
+// session) counts as reported.
+func boundPlayed(ctx context.Context, q *appq.Queries, profileID int64, itemID string, ev model.ProgressEvent, now time.Time) (int64, error) {
+	last, err := q.GetLastPlaybackEventTime(ctx, appq.GetLastPlaybackEventTimeParams{
+		PlaybackSessionID: nullString(ev.PlaybackSessionID), ProfileID: profileID, ItemID: itemID,
+		DeviceID: nullString(ev.DeviceID), MediaFileID: nullString(ev.MediaFileID),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("get last progress event: %w", err)
+	}
+	if last == 0 && ev.PlaybackSessionID != "" {
+		started, err := q.GetPlaybackSessionStart(ctx, appq.GetPlaybackSessionStartParams{ID: ev.PlaybackSessionID, ProfileID: profileID})
+		switch {
+		case err == nil:
+			last = started
+		case !errors.Is(err, sql.ErrNoRows):
+			return 0, fmt.Errorf("get playback session start: %w", err)
+		}
+	}
+	if last == 0 {
+		return ev.PlayedMs, nil
+	}
+	elapsed := max(now.UnixMilli()-last, 0)
+	return min(ev.PlayedMs, elapsed+elapsed*playedSlack/100), nil
 }
 
 // late reports whether ev must not replace the merged progress cur: the merged position is newer

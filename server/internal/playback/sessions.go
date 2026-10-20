@@ -805,9 +805,11 @@ func (s *Service) Run(ctx context.Context) {
 
 // sweep ends what revoked and expired playback sessions left behind, including those whose
 // browser session ended (a client that never sent its stop, a revoked login): open streams and
-// HLS output. It deletes rows that ended more than a day ago.
+// HLS output. It deletes rows that ended more than a day ago. Before that it ends the playback
+// of profiles whose daily watch time is used up (sweepWatchLimits, K-5).
 func (s *Service) sweep(ctx context.Context) {
 	now := s.now()
+	s.sweepWatchLimits(ctx, now)
 	ids, err := s.read.ListEndedPlaybackSessions(ctx, now.UnixMilli())
 	if err != nil {
 		s.log.WarnContext(ctx, "list ended playback sessions", "err", err)

@@ -305,18 +305,19 @@ type Progress struct {
 }
 
 type ProgressEvent struct {
-	ID          int64
-	ProfileID   int64
-	ItemID      string
-	MediaFileID sql.NullString
-	DeviceID    sql.NullString
-	PositionMs  int64
-	DurationMs  int64
-	PlayedMs    int64
-	Seq         int64
-	State       string
-	ClientTime  int64
-	ServerTime  int64
+	ID                int64
+	ProfileID         int64
+	ItemID            string
+	MediaFileID       sql.NullString
+	DeviceID          sql.NullString
+	PositionMs        int64
+	DurationMs        int64
+	PlayedMs          int64
+	Seq               int64
+	State             string
+	ClientTime        int64
+	ServerTime        int64
+	PlaybackSessionID sql.NullString
 }
 
 type Session struct {

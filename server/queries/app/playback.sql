@@ -95,6 +95,15 @@ WHERE ps.revoked_at IS NULL AND ps.expires_at > @now AND ps.last_activity_at >= 
   AND s.revoked_at IS NULL AND s.expires_at > @now
 ORDER BY ps.started_at DESC, ps.id DESC;
 
+-- name: GetPlaybackSessionStart :one
+-- Start of a playback session of the profile, revoked or not; it bounds the played time of the
+-- first progress event of the playback (K-5).
+SELECT started_at FROM playback_sessions WHERE id = @id AND profile_id = @profile_id;
+
+-- name: ListPlayingProfiles :many
+-- Profiles with a playback session that is neither revoked nor expired (the sweep's K-5 check).
+SELECT DISTINCT profile_id FROM playback_sessions WHERE revoked_at IS NULL AND expires_at > @now;
+
 -- name: GetDevice :one
 SELECT * FROM devices WHERE id = @id;
 
