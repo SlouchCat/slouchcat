@@ -50,6 +50,39 @@ type Stream struct {
 	Default        bool   `json:"default,omitempty"`
 	Forced         bool   `json:"forced,omitempty"`
 	AttachedPic    bool   `json:"attachedPic,omitempty"` // cover art stored as a video stream
+	// Dolby Vision (M4): the profile of the DOVI configuration record (5, 7, 8; 0 = none) and the
+	// base-layer compatibility id (1 = HDR10 base layer, profile 8.1). Profile 8 plays its base
+	// layer like HDR10; profiles 5 and 7 are transcoded.
+	DolbyVisionProfile  int `json:"dvProfile,omitempty"`
+	DolbyVisionBLCompat int `json:"dvBLCompat,omitempty"`
+	// HDR10Plus is set when the first frame carries SMPTE ST 2094-40 dynamic metadata (M4).
+	HDR10Plus bool `json:"hdr10plus,omitempty"`
+}
+
+// HDR formats of HDRFormat.
+const (
+	HDRNone        = ""
+	HDR10          = "hdr10"
+	HDR10Plus      = "hdr10plus"
+	HDRDolbyVision = "dolby_vision"
+	HDRHLG         = "hlg"
+)
+
+// HDRFormat classifies the stream: Dolby Vision when a DOVI record exists, HLG by transfer, HDR10+
+// by dynamic metadata, HDR10 for any other PQ stream, empty for SDR.
+func (s Stream) HDRFormat() string {
+	switch {
+	case s.DolbyVisionProfile > 0:
+		return HDRDolbyVision
+	case s.ColorTransfer == "arib-std-b67":
+		return HDRHLG
+	case s.ColorTransfer != "smpte2084":
+		return HDRNone
+	case s.HDR10Plus:
+		return HDR10Plus
+	default:
+		return HDR10
+	}
 }
 
 // Chapter is one chapter mark.
@@ -89,6 +122,11 @@ type rawProbe struct {
 			Forced      int `json:"forced"`
 			AttachedPic int `json:"attached_pic"`
 		} `json:"disposition"`
+		SideData []struct {
+			Type       string `json:"side_data_type"`
+			DVProfile  int    `json:"dv_profile"`
+			DVBLCompat int    `json:"dv_bl_signal_compatibility_id"`
+		} `json:"side_data_list"`
 	} `json:"streams"`
 	Chapters []struct {
 		StartTime string `json:"start_time"`
@@ -150,24 +188,32 @@ func ParseProbe(data []byte) (Probe, error) {
 		Chapters: make([]Chapter, 0, len(raw.Chapters)),
 	}
 	for _, s := range raw.Streams {
+		dvProfile, dvCompat := 0, 0
+		for _, sd := range s.SideData {
+			if strings.HasPrefix(sd.Type, "DOVI configuration") {
+				dvProfile, dvCompat = sd.DVProfile, sd.DVBLCompat
+			}
+		}
 		p.Streams = append(p.Streams, Stream{
-			Index:          s.Index,
-			Type:           s.CodecType,
-			Codec:          s.CodecName,
-			Profile:        s.Profile,
-			Level:          s.Level,
-			Width:          s.Width,
-			Height:         s.Height,
-			PixFmt:         s.PixFmt,
-			ColorTransfer:  s.ColorTransfer,
-			ColorPrimaries: s.ColorPrimaries,
-			Channels:       s.Channels,
-			ChannelLayout:  s.ChannelLayout,
-			Language:       s.Tags.Language,
-			Title:          s.Tags.Title,
-			Default:        s.Disposition.Default == 1,
-			Forced:         s.Disposition.Forced == 1,
-			AttachedPic:    s.Disposition.AttachedPic == 1,
+			DolbyVisionProfile:  dvProfile,
+			DolbyVisionBLCompat: dvCompat,
+			Index:               s.Index,
+			Type:                s.CodecType,
+			Codec:               s.CodecName,
+			Profile:             s.Profile,
+			Level:               s.Level,
+			Width:               s.Width,
+			Height:              s.Height,
+			PixFmt:              s.PixFmt,
+			ColorTransfer:       s.ColorTransfer,
+			ColorPrimaries:      s.ColorPrimaries,
+			Channels:            s.Channels,
+			ChannelLayout:       s.ChannelLayout,
+			Language:            s.Tags.Language,
+			Title:               s.Tags.Title,
+			Default:             s.Disposition.Default == 1,
+			Forced:              s.Disposition.Forced == 1,
+			AttachedPic:         s.Disposition.AttachedPic == 1,
 		})
 	}
 	for _, c := range raw.Chapters {

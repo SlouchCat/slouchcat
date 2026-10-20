@@ -21,3 +21,4 @@ output-options:
     - getPlaybackMedia
     - getPlaybackInit
     - getPlaybackSegment
+    - getPlaybackSubtitle

@@ -35,13 +35,22 @@ type Source struct {
 
 // Target describes the output of an HLS session.
 type Target struct {
-	Mode           Mode
-	VideoCopy      bool   // remux keeps video; transcode encodes H.264
-	AudioCopy      bool   // keep audio (AAC) or encode to AAC stereo
-	MaxHeight      int    // 1080 for M1b, 720 for phone later; 0 = 1080 when encoding
-	Tonemap        bool   // HDR10 → SDR (hable), always with MaxHeight <= 1080
-	VideoTag       string // "hvc1" when remuxing HEVC for Safari
-	SubtitleBurnIn int    // -1 none (M1b has none)
+	Mode      Mode
+	VideoCopy bool   // remux keeps video; transcode encodes H.264
+	AudioCopy bool   // keep audio (AAC) or encode to AAC stereo
+	MaxHeight int    // 1080 for M1b, 720 for phone later; 0 = 1080 when encoding
+	Tonemap   bool   // HDR10 → SDR (hable), always with MaxHeight <= 1080
+	VideoTag  string // "hvc1" when remuxing HEVC for Safari
+	// SubtitleBurnIn is the stream index of an embedded subtitle to burn into the video, or -1 for
+	// none; a sidecar file is named by BurnInPath instead (M4).
+	SubtitleBurnIn int
+	BurnInPath     string // absolute path of a sidecar subtitle to burn in (resolved through paths)
+	// AudioStream is the stream index of the audio track to output; -1 picks the default track.
+	AudioStream int
+	// Quality names the ladder rung (model.Quality*); empty = the rung of MaxHeight.
+	Quality string
+	// MaxBitrate caps the video bit rate in bit/s (the profile's bandwidth limit); 0 = the rung's rate.
+	MaxBitrate int
 }
 
 // Segment is one HLS media segment on the source timeline.

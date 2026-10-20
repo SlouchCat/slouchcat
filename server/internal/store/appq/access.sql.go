@@ -153,7 +153,7 @@ func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int
 }
 
 const getGuestAccount = `-- name: GetGuestAccount :one
-SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at FROM accounts WHERE id = ?1 AND role = 'guest'
+SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1 AND role = 'guest'
 `
 
 func (q *Queries) GetGuestAccount(ctx context.Context, id int64) (Account, error) {
@@ -170,6 +170,9 @@ func (q *Queries) GetGuestAccount(ctx context.Context, id int64) (Account, error
 		&i.AllLibraries,
 		&i.InvitedBy,
 		&i.LastSeenAt,
+		&i.MaxBitrateKbps,
+		&i.MaxHeight,
+		&i.MaxStreams,
 	)
 	return i, err
 }
@@ -243,7 +246,7 @@ func (q *Queries) GetPinAttempt(ctx context.Context, arg GetPinAttemptParams) (P
 }
 
 const getProfileOfAccount = `-- name: GetProfileOfAccount :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash FROM profiles WHERE id = ?1 AND account_id = ?2
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes FROM profiles WHERE id = ?1 AND account_id = ?2
 `
 
 type GetProfileOfAccountParams struct {
@@ -267,6 +270,10 @@ func (q *Queries) GetProfileOfAccount(ctx context.Context, arg GetProfileOfAccou
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PinHash,
+		&i.MaxBitrateKbps,
+		&i.MaxHeight,
+		&i.MaxStreams,
+		&i.WatchLimitMinutes,
 	)
 	return i, err
 }
@@ -288,7 +295,7 @@ func (q *Queries) InsertAccountLibrary(ctx context.Context, arg InsertAccountLib
 const insertGuestAccount = `-- name: InsertGuestAccount :one
 INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
 VALUES (?1, ?2, 'guest', ?3, ?4, ?5, ?6, ?6)
-RETURNING id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at
+RETURNING id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
 `
 
 type InsertGuestAccountParams struct {
@@ -321,6 +328,9 @@ func (q *Queries) InsertGuestAccount(ctx context.Context, arg InsertGuestAccount
 		&i.AllLibraries,
 		&i.InvitedBy,
 		&i.LastSeenAt,
+		&i.MaxBitrateKbps,
+		&i.MaxHeight,
+		&i.MaxStreams,
 	)
 	return i, err
 }
@@ -671,7 +681,7 @@ func (q *Queries) ListProfileLibrariesByAccount(ctx context.Context, accountID i
 }
 
 const listProfilesByAccount = `-- name: ListProfilesByAccount :many
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
 `
 
 func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([]Profile, error) {
@@ -696,6 +706,10 @@ func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PinHash,
+			&i.MaxBitrateKbps,
+			&i.MaxHeight,
+			&i.MaxStreams,
+			&i.WatchLimitMinutes,
 		); err != nil {
 			return nil, err
 		}

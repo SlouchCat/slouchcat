@@ -23,7 +23,7 @@ func (q *Queries) DeleteExpiredPlaybackSessions(ctx context.Context, before int6
 }
 
 const getPlaybackSession = `-- name: GetPlaybackSession :one
-SELECT ps.id, ps.session_id, ps.account_id, ps.profile_id, ps.item_id, ps.media_file_id, ps.device_id, ps.mode, ps.backend, ps.reason, ps.started_at, ps.last_activity_at, ps.expires_at, ps.revoked_at FROM playback_sessions AS ps
+SELECT ps.id, ps.session_id, ps.account_id, ps.profile_id, ps.item_id, ps.media_file_id, ps.device_id, ps.mode, ps.backend, ps.reason, ps.started_at, ps.last_activity_at, ps.expires_at, ps.revoked_at, ps.quality, ps.width, ps.height, ps.bitrate, ps.hardware, ps.audio_track, ps.subtitle_track, ps.subtitle_delivery, ps.capabilities, ps.position_ms, ps.stopped_by FROM playback_sessions AS ps
 JOIN sessions AS s ON s.id = ps.session_id
 WHERE ps.id = ?1 AND ps.revoked_at IS NULL AND ps.expires_at > ?2
   AND s.revoked_at IS NULL AND s.expires_at > ?2
@@ -53,6 +53,17 @@ func (q *Queries) GetPlaybackSession(ctx context.Context, arg GetPlaybackSession
 		&i.LastActivityAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
+		&i.Quality,
+		&i.Width,
+		&i.Height,
+		&i.Bitrate,
+		&i.Hardware,
+		&i.AudioTrack,
+		&i.SubtitleTrack,
+		&i.SubtitleDelivery,
+		&i.Capabilities,
+		&i.PositionMs,
+		&i.StoppedBy,
 	)
 	return i, err
 }
