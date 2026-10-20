@@ -69,7 +69,11 @@ describe('profile limits and watch-time report', () => {
     await user.type(within(dialog).getByLabelText('Bandbreite (kbit/s)'), '50');
     await user.click(within(dialog).getByRole('radio', { name: 'Ohne Limit' }));
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
-    expect(await within(dialog).findByText('Erlaubt sind 200 bis 200000.')).toBeVisible();
+    expect(await within(dialog).findByText('Erlaubt sind 200 bis 200.000.')).toBeVisible();
+    expect(within(dialog).getByText('200 bis 200.000. Leer heisst ohne Limit.')).toBeVisible();
+    // The output never exceeds 1080p (AN-17): 2160p is no limit and not offered.
+    expect(within(dialog).getByRole('radio', { name: '1080p' })).toBeVisible();
+    expect(within(dialog).queryByRole('radio', { name: '2160p' })).toBeNull();
     expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
   });
 

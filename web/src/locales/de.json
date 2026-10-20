@@ -683,7 +683,7 @@
         "action": "Vergessen",
         "label": "{{name}} vergessen",
         "title": "Gerät „{{name}}“ vergessen?",
-        "body": "Laufende Streams enden, die Sitzungen des Geräts werden abgemeldet.",
+        "body": "Laufende Streams enden, die Sitzungen des Geräts werden abgemeldet. Ist es das Gerät, das du gerade benutzt, wirst du hier sofort abgemeldet.",
         "confirm": "Gerät vergessen"
       },
       "forgotten": "Gerät „{{name}}“ vergessen.",
@@ -724,7 +724,8 @@
         "body": "Die Wiedergabe von „{{title}}“ stoppt auf dem Gerät innert Sekunden.",
         "confirm": "Stream beenden"
       },
-      "stopped": "Stream von {{profile}} beendet."
+      "stopped": "Stream von {{profile}} beendet.",
+      "noPosition": "–"
     }
   },
   "language": {
@@ -836,7 +837,8 @@
         "value": "{{count}} min",
         "today": "Heute: {{count}} min",
         "limit": "Limit: {{count}} min pro Tag",
-        "total": "Total: {{count}} min"
+        "total": "Total: {{count}} min",
+        "tooltip": "{{date}}: {{value}}"
       }
     }
   },
@@ -907,11 +909,9 @@
     "maxHeight": "Höchste Qualität",
     "none": "Ohne Limit",
     "bitrate": "Bandbreite (kbit/s)",
-    "bitrateHint": "200 bis 200000. Leer heisst ohne Limit.",
+    "hint": "{{min}} bis {{max}}. Leer heisst ohne Limit.",
     "streams": "Gleichzeitige Streams",
-    "streamsHint": "1 bis 16. Leer heisst ohne Limit.",
     "watch": "Schauzeit pro Tag (Minuten)",
-    "watchHint": "1 bis 1440. Leer heisst ohne Limit.",
     "range": "Erlaubt sind {{min}} bis {{max}}.",
     "height": "bis {{height}}p",
     "bitrateValue": "{{value}} kbit/s",

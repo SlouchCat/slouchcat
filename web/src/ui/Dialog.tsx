@@ -12,6 +12,8 @@ interface ConfirmDialogProps {
   cancelLabel: string;
   onConfirm: () => void;
   tone?: 'primary' | 'danger';
+  /** Told when the dialog opens and closes (a page pauses its polling meanwhile). */
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 /**
@@ -26,9 +28,10 @@ export function ConfirmDialog({
   cancelLabel,
   onConfirm,
   tone = 'primary',
+  onOpenChange,
 }: ConfirmDialogProps) {
   return (
-    <DialogTrigger>
+    <DialogTrigger onOpenChange={onOpenChange}>
       {trigger}
       <ModalOverlay className={styles.overlay} isDismissable>
         <Modal className={styles.modal}>

@@ -683,7 +683,7 @@
         "action": "Forget",
         "label": "Forget {{name}}",
         "title": "Forget the device “{{name}}”?",
-        "body": "Running streams end and the device's sessions are signed out.",
+        "body": "Running streams end and the device's sessions are signed out. If it is the device you are using right now, you are signed out here at once.",
         "confirm": "Forget device"
       },
       "forgotten": "Device “{{name}}” forgotten.",
@@ -724,7 +724,8 @@
         "body": "Playback of “{{title}}” stops on the device within seconds.",
         "confirm": "Stop stream"
       },
-      "stopped": "Stream of {{profile}} stopped."
+      "stopped": "Stream of {{profile}} stopped.",
+      "noPosition": "–"
     }
   },
   "language": {
@@ -836,7 +837,8 @@
         "value": "{{count}} min",
         "today": "Today: {{count}} min",
         "limit": "Limit: {{count}} min a day",
-        "total": "Total: {{count}} min"
+        "total": "Total: {{count}} min",
+        "tooltip": "{{date}}: {{value}}"
       }
     }
   },
@@ -907,11 +909,9 @@
     "maxHeight": "Highest quality",
     "none": "No limit",
     "bitrate": "Bandwidth (kbit/s)",
-    "bitrateHint": "200 to 200000. Empty means no limit.",
+    "hint": "{{min}} to {{max}}. Empty means no limit.",
     "streams": "Concurrent streams",
-    "streamsHint": "1 to 16. Empty means no limit.",
     "watch": "Watch time per day (minutes)",
-    "watchHint": "1 to 1440. Empty means no limit.",
     "range": "Allowed are {{min}} to {{max}}.",
     "height": "up to {{height}}p",
     "bitrateValue": "{{value}} kbit/s",

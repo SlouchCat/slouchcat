@@ -146,9 +146,14 @@ describe('admin devices (W-7)', () => {
         calls.some((call) => call.method === 'DELETE' && call.path === '/admin/devices/dev-1'),
       ).toBe(true),
     );
+    expect(dialog).toHaveTextContent('Ist es das Gerät, das du gerade benutzt');
     expect(await screen.findByText('Gerät „Chrome 156 · Linux“ vergessen.')).toBeVisible();
     await waitFor(() =>
       expect(screen.queryByRole('rowheader', { name: 'Chrome 156 · Linux' })).toBeNull(),
+    );
+    // The button went away with its row: the focus is on the page heading, not lost.
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Geräte' }).parentElement).toHaveFocus(),
     );
   });
 
@@ -245,6 +250,28 @@ describe('admin streams (W-6)', () => {
     );
     expect(await screen.findByText('Stream von Marco beendet.')).toBeVisible();
     await waitFor(() => expect(screen.queryByRole('rowheader', { name: /^Marco/ })).toBeNull());
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Streams' }).parentElement,
+      ).toHaveFocus(),
+    );
+  });
+
+  it('does not poll while a confirmation is open, so its row stays', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { calls } = mockApi(routes(() => streams));
+    renderApp('/admin/streams');
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await user.click(await screen.findByRole('button', { name: 'Stream von Marco beenden' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Stream von Marco beenden?' });
+    const lists = () => calls.filter((call) => call.path === '/admin/streams').length;
+    const before = lists();
+    await act(() => vi.advanceTimersByTimeAsync(12_000));
+    expect(lists()).toBe(before);
+    expect(dialog).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await waitFor(() => expect(lists()).toBeGreaterThan(before));
   });
 
   it('says when nothing is playing', async () => {

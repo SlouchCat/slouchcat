@@ -1,7 +1,7 @@
 import type { AdminStream } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -10,7 +10,7 @@ import { formatBitrate, formatDateTime, formatPlayerTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Skeleton, Text } from '@/ui';
 import { AriaButton, ConfirmDialog, DataTable, type DataColumn } from '@/ui/aria';
-import { streamsQuery } from './queries';
+import { STREAMS_POLL_MS, streamsQuery } from './queries';
 import styles from './AdminTablePage.module.css';
 
 /** "Direct", "Remux" or "Transcode (HW)" / "Transcode (SW)" (W-6). */
@@ -27,7 +27,7 @@ function streamQuality(t: TFunction, stream: AdminStream, language: string): str
     stream.quality && stream.quality !== 'auto'
       ? stream.quality
       : stream.height
-        ? `${stream.height}p`
+        ? t('format.height', { height: stream.height })
         : undefined;
   if (!rung) return t('admin.streams.original');
   return stream.bitrate
@@ -48,14 +48,25 @@ export function StreamsPage() {
   const session = useActiveSession();
   const allowed = session.account.role === 'owner' && session.profile.isPrimary;
   const queryClient = useQueryClient();
-  const streams = useQuery({ ...streamsQuery, enabled: allowed });
+  // A confirmation lives in its row: the poll waits while one is open, so the row (and the
+  // dialog with it) does not go away in the middle of the decision.
+  const [confirming, setConfirming] = useState(false);
+  const streams = useQuery({
+    ...streamsQuery,
+    enabled: allowed,
+    refetchInterval: confirming ? false : STREAMS_POLL_MS,
+    refetchOnWindowFocus: !confirming,
+  });
   const [stopped, setStopped] = useState<string | null>(null);
+  // The row of a stopped stream goes away with its button: the focus moves to the page heading.
+  const header = useRef<HTMLDivElement>(null);
   const stop = useMutation({
     mutationFn: (stream: AdminStream) =>
       request(api.DELETE('/admin/streams/{id}', { params: { path: { id: stream.id } } })),
     onSuccess: async (_data, stream) => {
       setStopped(stream.profileName);
       await queryClient.invalidateQueries({ queryKey: streamsQuery.queryKey });
+      header.current?.focus();
     },
   });
 
@@ -94,7 +105,7 @@ export function StreamsPage() {
       header: t('admin.streams.columns.position'),
       cell: ({ positionMs, durationMs }) =>
         positionMs === undefined ? (
-          '–'
+          t('admin.streams.noPosition')
         ) : (
           <span className={styles.numbers}>
             {durationMs
@@ -136,6 +147,7 @@ export function StreamsPage() {
           cancelLabel={t('common.cancel')}
           tone="danger"
           onConfirm={() => stop.mutate(stream)}
+          onOpenChange={setConfirming}
         />
       ),
     },
@@ -143,7 +155,7 @@ export function StreamsPage() {
 
   return (
     <Page>
-      <div className={styles.header}>
+      <div ref={header} tabIndex={-1} className={styles.header}>
         <Text as="h1" variant="display">
           {t('admin.streams.title')}
         </Text>

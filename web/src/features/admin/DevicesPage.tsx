@@ -1,6 +1,6 @@
 import type { AdminDevice } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -28,6 +28,8 @@ export function DevicesPage() {
   const devices = useQuery({ ...devicesQuery, enabled: allowed });
   const [forgotten, setForgotten] = useState<string | null>(null);
   const nameOf = (device: AdminDevice) => device.name ?? t('admin.devices.unnamed');
+  // The row of a forgotten device goes away with its button: the focus moves to the page heading.
+  const header = useRef<HTMLDivElement>(null);
   const forget = useMutation({
     mutationFn: (device: AdminDevice) =>
       request(api.DELETE('/admin/devices/{id}', { params: { path: { id: device.id } } })),
@@ -37,6 +39,7 @@ export function DevicesPage() {
         queryClient.invalidateQueries({ queryKey: devicesQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: ['admin', 'streams'] }),
       ]);
+      header.current?.focus();
     },
   });
 
@@ -144,7 +147,7 @@ export function DevicesPage() {
 
   return (
     <Page>
-      <div className={styles.header}>
+      <div ref={header} tabIndex={-1} className={styles.header}>
         <Text as="h1" variant="display">
           {t('admin.devices.title')}
         </Text>

@@ -8,8 +8,10 @@ export interface BarDatum {
   /** Short label under the bar; shown for the first, the middle and the last bar only. */
   tick: string;
   value: number;
-  /** The value in words for the table and the tooltip ("42 min"). */
+  /** The value in words for the table ("42 min"). */
   valueText: string;
+  /** Tooltip of the bar ("19.10.2026: 42 min"). */
+  tooltip: string;
 }
 
 interface BarChartProps {
@@ -44,7 +46,7 @@ export function BarChart({ title, bars, columns, threshold }: BarChartProps) {
           </div>
         )}
         {bars.map((bar) => (
-          <div key={bar.key} className={styles.column} title={`${bar.label}: ${bar.valueText}`}>
+          <div key={bar.key} className={styles.column} title={bar.tooltip}>
             <div
               className={styles.bar}
               data-over={threshold !== undefined && bar.value > threshold.value ? '' : undefined}

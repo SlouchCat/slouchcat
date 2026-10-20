@@ -3,8 +3,11 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { RadioGroup, TextField } from '@/ui/aria';
 
-/** Output heights of the contract (`OutputHeight`), lowest first. */
-export const limitHeights = [360, 480, 720, 1080, 2160] as const;
+/**
+ * Output heights a limit can name, lowest first. The output never exceeds 1080p (AN-17), so the
+ * contract's 2160 would be no limit at all and is not offered.
+ */
+export const limitHeights = [360, 480, 720, 1080] as const;
 
 /** Radio value of "no limit" (an empty radio value would not count as a choice). */
 const NO_LIMIT = 'none';
@@ -88,7 +91,12 @@ interface LimitFieldsProps {
  * per day) as form fields; an empty field means no limit.
  */
 export function LimitFields({ value, onChange, withWatch = true }: LimitFieldsProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const numbers = new Intl.NumberFormat(i18n.language);
+  const range = (key: NumberLimit) => ({
+    min: numbers.format(ranges[key].min),
+    max: numbers.format(ranges[key].max),
+  });
   const set = (key: keyof LimitValues) => (text: string) => onChange({ ...value, [key]: text });
   const validate = (key: NumberLimit) => (text: string) => {
     if (text.trim() === '') return null;
@@ -96,13 +104,13 @@ export function LimitFields({ value, onChange, withWatch = true }: LimitFieldsPr
     const { min, max } = ranges[key];
     return number !== undefined && number >= min && number <= max
       ? null
-      : t('limits.range', { min, max });
+      : t('limits.range', range(key));
   };
-  const numberField = (key: NumberLimit, label: string, hint: string) => (
+  const numberField = (key: NumberLimit, label: string) => (
     <TextField
       name={`limits.${key}`}
       label={label}
-      description={hint}
+      description={t('limits.hint', range(key))}
       value={value[key]}
       onChange={set(key)}
       inputMode="numeric"
@@ -119,12 +127,15 @@ export function LimitFields({ value, onChange, withWatch = true }: LimitFieldsPr
         onChange={(height) => set('maxHeight')(height === NO_LIMIT ? '' : height)}
         options={[
           { value: NO_LIMIT, label: t('limits.none') },
-          ...limitHeights.map((height) => ({ value: String(height), label: `${height}p` })),
+          ...limitHeights.map((height) => ({
+            value: String(height),
+            label: t('format.height', { height }),
+          })),
         ]}
       />
-      {numberField('maxBitrateKbps', t('limits.bitrate'), t('limits.bitrateHint'))}
-      {numberField('maxStreams', t('limits.streams'), t('limits.streamsHint'))}
-      {withWatch && numberField('watchLimitMinutes', t('limits.watch'), t('limits.watchHint'))}
+      {numberField('maxBitrateKbps', t('limits.bitrate'))}
+      {numberField('maxStreams', t('limits.streams'))}
+      {withWatch && numberField('watchLimitMinutes', t('limits.watch'))}
     </>
   );
 }

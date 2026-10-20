@@ -64,13 +64,18 @@ export function WatchReport({ profile }: { profile: Profile }) {
           <BarChart
             title={t('profiles.settings.report.chart')}
             columns={[t('profiles.settings.report.date'), t('profiles.settings.report.minutes')]}
-            bars={days.map((day) => ({
-              key: day.date,
-              label: long.format(calendarDay(day.date)),
-              tick: short.format(calendarDay(day.date)),
-              value: day.minutes,
-              valueText: t('profiles.settings.report.value', { count: day.minutes }),
-            }))}
+            bars={days.map((day) => {
+              const label = long.format(calendarDay(day.date));
+              const valueText = t('profiles.settings.report.value', { count: day.minutes });
+              return {
+                key: day.date,
+                label,
+                tick: short.format(calendarDay(day.date)),
+                value: day.minutes,
+                valueText,
+                tooltip: t('profiles.settings.report.tooltip', { date: label, value: valueText }),
+              };
+            })}
             threshold={
               limit !== undefined
                 ? { value: limit, label: t('profiles.settings.report.value', { count: limit }) }

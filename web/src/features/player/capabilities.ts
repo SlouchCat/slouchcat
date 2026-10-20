@@ -229,8 +229,10 @@ export function deviceCapabilities(
   return {
     containers,
     ...playbackCapabilities(platform),
-    maxWidth: deviceSide(width, devicePixelRatio),
-    maxHeight: deviceSide(height, devicePixelRatio),
+    // The long side as the width and the short side as the height: a phone reports the same size
+    // upright and sideways, so the server's quality ladder does not depend on how it is held.
+    maxWidth: deviceSide(Math.max(width, height), devicePixelRatio),
+    maxHeight: deviceSide(Math.min(width, height), devicePixelRatio),
     hdr: platform.matches('(dynamic-range: high)'),
     ...(name ? { name } : {}),
     type: deviceType(platform),

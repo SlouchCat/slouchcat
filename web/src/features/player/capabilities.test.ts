@@ -178,6 +178,19 @@ describe('device capabilities (W-7)', () => {
     expect(deviceType(device())).toBe('desktop');
   });
 
+  it('reports the long side as the width, whichever way the device is held', () => {
+    const upright = deviceCapabilities(
+      device({ screen: { width: 390, height: 844, devicePixelRatio: 3 } }),
+    );
+    const sideways = deviceCapabilities(
+      device({ screen: { width: 844, height: 390, devicePixelRatio: 3 } }),
+    );
+    expect(upright.maxWidth).toBe(2532);
+    expect(upright.maxHeight).toBe(1170);
+    expect(sideways.maxWidth).toBe(upright.maxWidth);
+    expect(sideways.maxHeight).toBe(upright.maxHeight);
+  });
+
   it('keeps the screen size within the contract range', () => {
     const capabilities = deviceCapabilities(
       device({ screen: { width: 9000, height: 0, devicePixelRatio: 3 } }),

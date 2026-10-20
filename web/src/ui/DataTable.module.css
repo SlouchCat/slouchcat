@@ -36,6 +36,10 @@
   white-space: nowrap;
 }
 
+.row {
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
 .row + .row {
   border-top: 1px solid var(--sc-color-border-subtle);
 }

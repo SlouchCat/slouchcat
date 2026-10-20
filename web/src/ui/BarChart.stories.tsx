@@ -14,6 +14,7 @@ const bars: BarDatum[] = minutes.map((value, index) => {
     tick: `${day}.09.`,
     value,
     valueText: `${value} min`,
+    tooltip: `${day}.09.2026: ${value} min`,
   };
 });
 
