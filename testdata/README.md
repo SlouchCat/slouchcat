@@ -44,6 +44,7 @@ OUT_DIR=/srv/media task testdata:media
 | `Movies/Slouchcat Test HDR10 4K Long (2024)/….mkv` | nur mit `LONG=1`: dasselbe Muster wie die HDR10-4K-Datei, 120 s | 5-s-Start (W-3), `hlsbench` |
 
 | `TV/Slouchcat Test Intro Show (2024)/Season 01/… - S01E01.mkv` bis `… - S01E05.mkv` | H.264 640×360 + AAC, 98 bis 106 s (E01 98 s, je Folge 2 s mehr); Ton: eigene Sinustöne, ab 5/12/8/15/10 s dasselbe 20-s-Intro (8 Töne à 2.5 s), wieder eigene Töne, die letzten 25 s dasselbe Abspann-Thema (10 Töne à 2.5 s); E03 mit den Kapiteln «Prolog», «Intro» (8–28 s), «Handlung», «Credits» (77–102 s) | Intro-/Abspann-Erkennung (W-9) |
+| `TV/Slouchcat Test Download Show (2024)/Season 01/… S01E01.mp4` bis `… S01E06.mp4` | H.264 1280×720 + AAC, je 8 s; E01 mit Sidecar `… S01E01.de.srt` | Staffel-Download mit einer Aktion (O-2), Auto-Download der nächsten Folge (O-3) |
 Hinweise:
 
 - Die HDR10-Datei zeigt SDR-Testbalken, die als HDR10 gekennzeichnet sind. Für Erkennung und
