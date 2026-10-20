@@ -84,7 +84,8 @@ test('the version menu of the player switches to the other file', async ({ page 
   const menuButton = page.getByRole('button', { name: /^Version: / });
   await tabTo(page, menuButton, 10);
   await page.keyboard.press('Enter');
-  const menu = page.getByRole('menu', { name: 'Version' });
+  // react-aria names a menu after its button ("Version: 1080p").
+  const menu = page.getByRole('menu', { name: /^Version/ });
   await expect(menu).toBeVisible();
   await expectVisibleFocus(page);
   // The menu opens on the current (primary, first) version; the other one is a step down.
