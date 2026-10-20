@@ -143,6 +143,10 @@ type rawProbe struct {
 // A failure that is a property of the file (ffprobe ran and exited with an error, or its output
 // does not parse) is a *FileError; any other failure (ffprobe missing or not configured, the
 // process could not start, the context ended) is returned as is, so the caller can retry it.
+//
+// HDR10+ metadata is per frame (SEI), invisible in the stream list: for a PQ main video stream a
+// second ffprobe call reads the side data of its first frame (ParseFrameSideData) and sets
+// Stream.HDR10Plus. A file error of that call leaves HDR10Plus false.
 func (r Runner) Probe(ctx context.Context, path string) (Probe, error) {
 	out, err := r.ffprobe(ctx, "-v", "error", "-print_format", "json", "-show_format", "-show_streams", "-show_chapters", path)
 	if err != nil {
@@ -152,7 +156,50 @@ func (r Runner) Probe(ctx context.Context, path string) (Probe, error) {
 	if err != nil {
 		return Probe{}, &FileError{err: err}
 	}
+	i := slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "video" && !s.AttachedPic })
+	if i < 0 || p.Streams[i].ColorTransfer != "smpte2084" {
+		return p, nil
+	}
+	out, err = r.ffprobe(ctx, "-v", "error", "-print_format", "json", "-select_streams", strconv.Itoa(p.Streams[i].Index),
+		"-read_intervals", "%+#1", "-show_entries", "frame=side_data_list:frame_side_data=side_data_type", path)
+	var fe *FileError
+	switch {
+	case errors.As(err, &fe):
+		return p, nil
+	case err != nil:
+		return Probe{}, err
+	}
+	hdr10Plus, perr := ParseFrameSideData(out) // unreadable side data only means no HDR10+
+	p.Streams[i].HDR10Plus = perr == nil && hdr10Plus
 	return p, nil
+}
+
+// hdr10PlusSideData is the prefix ffprobe prints for SMPTE ST 2094-40 dynamic metadata, for
+// example "HDR Dynamic Metadata SMPTE2094-40 (HDR10+)".
+const hdr10PlusSideData = "HDR Dynamic Metadata SMPTE2094-40"
+
+// ParseFrameSideData parses the JSON of `ffprobe -show_entries
+// frame=side_data_list:frame_side_data=side_data_type` and reports whether a frame carries HDR10+
+// (SMPTE ST 2094-40) dynamic metadata.
+func ParseFrameSideData(data []byte) (hdr10Plus bool, err error) {
+	var raw struct {
+		Frames []struct {
+			SideData []struct {
+				Type string `json:"side_data_type"`
+			} `json:"side_data_list"`
+		} `json:"frames"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return false, fmt.Errorf("parse ffprobe frame side data: %w", err)
+	}
+	for _, f := range raw.Frames {
+		for _, sd := range f.SideData {
+			if strings.HasPrefix(sd.Type, hdr10PlusSideData) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // FileError is a probe failure caused by the file itself: ffprobe exited with an error (not a

@@ -138,7 +138,8 @@ func TestNewPlanOutput(t *testing.T) {
 		{"4K SDR", videoSource("hevc", 3840, 1600, "bt709", sec(10)), Target{Mode: ModeTranscode, MaxHeight: 2160}, 2592, 1080, 8_160_000, false, 3, 1080},
 		{"1080p SDR tonemap ignored", videoSource("hevc", 1920, 1080, "bt709", sec(10)), Target{Mode: ModeTranscode, Tonemap: true}, 1920, 1080, 8_160_000, false, 2, 1080},
 		{"1080p to 720p", videoSource("hevc", 1920, 800, "", sec(10)), Target{Mode: ModeTranscode, MaxHeight: 720}, 1728, 720, 4_160_000, false, 1.5, 720},
-		{"odd size", videoSource("mpeg4", 721, 405, "", sec(10)), Target{Mode: ModeTranscode}, 720, 404, 4_160_000, false, 2, 1080},
+		// 405 lines play on the 480p rung (2 Mbit/s) and count as output <= 720p.
+		{"odd size", videoSource("mpeg4", 721, 405, "", sec(10)), Target{Mode: ModeTranscode}, 720, 404, 2_160_000, false, 1.5, 1080},
 		{"remux", videoSource("hevc", 3840, 2160, "smpte2084", sec(10), 0, sec(5)), Target{Mode: ModeRemux, VideoCopy: true}, 3840, 2160, 12_000_000, false, 0.5, 0},
 	}
 	for _, c := range cases {
@@ -192,6 +193,99 @@ func TestCodecsString(t *testing.T) {
 		if got := CodecsString(c.p, c.src); got != c.want {
 			t.Errorf("%s: %q, want %q", c.name, got, c.want)
 		}
+	}
+}
+
+func TestQualityLadder(t *testing.T) {
+	for h, want := range map[int]string{0: "1080p", 2160: "1080p", 1080: "1080p", 800: "1080p", 721: "1080p",
+		720: "720p", 481: "720p", 480: "480p", 405: "480p", 360: "360p", 240: "360p"} {
+		if got := QualityFor(h); got != want {
+			t.Errorf("QualityFor(%d) = %s, want %s", h, got, want)
+		}
+	}
+	names := func(rs []Rung) []string {
+		var s []string
+		for _, r := range rs {
+			s = append(s, r.Quality)
+		}
+		return s
+	}
+	for h, want := range map[int][]string{2160: {"1080p", "720p", "480p", "360p"}, 800: {"1080p", "720p", "480p", "360p"},
+		720: {"720p", "480p", "360p"}, 405: {"480p", "360p"}, 200: {"360p"}, 0: {"1080p", "720p", "480p", "360p"}} {
+		if got := names(Rungs(h)); !slices.Equal(got, want) {
+			t.Errorf("Rungs(%d) = %v, want %v", h, got, want)
+		}
+	}
+	if r := Rungs(1080); r[0] != (Rung{"1080p", 1080, 8_000_000}) || r[3] != (Rung{"360p", 360, 1_000_000}) {
+		t.Errorf("Rungs(1080) = %+v", r)
+	}
+	Rungs(1080)[0].Bitrate = 1 // a copy: the ladder stays intact
+	if Rungs(1080)[0].Bitrate != 8_000_000 {
+		t.Error("Rungs returns the ladder itself")
+	}
+}
+
+func TestNewPlanQuality(t *testing.T) {
+	uhd := videoSource("hevc", 3840, 2160, "bt709", sec(10))
+	wide := videoSource("hevc", 1920, 800, "bt709", sec(10))
+	cases := []struct {
+		name          string
+		src           Source
+		t             Target
+		w, h, br      int
+		quality       string
+		maxHeightWant int
+		cost          float64
+	}{
+		{"auto 4K", uhd, Target{Mode: ModeTranscode}, 1920, 1080, 8_000_000, "1080p", 1080, 3},
+		{"auto keyword", uhd, Target{Mode: ModeTranscode, Quality: "auto"}, 1920, 1080, 8_000_000, "1080p", 1080, 3},
+		{"720p", uhd, Target{Mode: ModeTranscode, Quality: "720p"}, 1280, 720, 4_000_000, "720p", 720, 3},
+		{"480p", wide, Target{Mode: ModeTranscode, Quality: "480p"}, 1152, 480, 2_000_000, "480p", 480, 1.5},
+		{"360p", wide, Target{Mode: ModeTranscode, Quality: "360p"}, 864, 360, 1_000_000, "360p", 360, 1.5},
+		{"quality above the device limit", wide, Target{Mode: ModeTranscode, Quality: "1080p", MaxHeight: 720}, 1728, 720, 4_000_000, "720p", 720, 1.5},
+		{"bandwidth cap", wide, Target{Mode: ModeTranscode, MaxBitrate: 3_000_000}, 1920, 800, 3_000_000, "1080p", 1080, 2},
+		{"cap above the rung", wide, Target{Mode: ModeTranscode, Quality: "720p", MaxBitrate: 6_000_000}, 1728, 720, 4_000_000, "720p", 720, 1.5},
+	}
+	for _, c := range cases {
+		p, err := NewPlan(c.src, c.t)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if p.Width != c.w || p.Height != c.h || p.VideoBitrate != c.br || p.Bandwidth != c.br+audioBitrate ||
+			p.Target.Quality != c.quality || p.Target.MaxHeight != c.maxHeightWant || p.Cost != c.cost {
+			t.Errorf("%s: %dx%d rate %d bw %d quality %s maxHeight %d cost %v", c.name, p.Width, p.Height,
+				p.VideoBitrate, p.Bandwidth, p.Target.Quality, p.Target.MaxHeight, p.Cost)
+		}
+	}
+	if _, err := NewPlan(wide, Target{Mode: ModeTranscode, Quality: "4k"}); err == nil {
+		t.Error("want error for an unknown quality")
+	}
+	// Cost before planning (the playback package asks it for admission) agrees with the plan.
+	if got := Cost(wide, Target{Mode: ModeTranscode, Quality: "720p"}); got != 1.5 {
+		t.Errorf("Cost with Quality 720p = %v, want 1.5", got)
+	}
+	// Remux keeps the source; quality and caps do not apply.
+	p, err := NewPlan(videoSource("hevc", 1920, 1080, "", sec(10), 0, sec(5)), Target{Mode: ModeRemux, VideoCopy: true, MaxBitrate: 1})
+	if err != nil || p.VideoBitrate != 0 || p.Bandwidth != 12_000_000 {
+		t.Errorf("remux: %+v, %v", p, err)
+	}
+}
+
+func TestSelectedAudio(t *testing.T) {
+	src := Source{Probe: Probe{Streams: []Stream{
+		{Index: 0, Type: "video", Codec: "h264"},
+		{Index: 1, Type: "audio", Codec: "aac", Default: true},
+		{Index: 2, Type: "audio", Codec: "ac3"},
+		{Index: 3, Type: "subtitle", Codec: "subrip"},
+	}}}
+	for idx, want := range map[int]int{-1: 1, 0: 1, 1: 1, 2: 2, 3: 1, 9: 1} {
+		if a, ok := selectedAudio(src.Probe, Target{AudioStream: idx}); !ok || a.Index != want {
+			t.Errorf("AudioStream %d: stream %d, want %d", idx, a.Index, want)
+		}
+	}
+	p := Plan{Target: Target{Mode: ModeRemux, VideoCopy: true, AudioCopy: true, AudioStream: 2}}
+	if got := CodecsString(p, src); got != "avc1.640029,ac-3" {
+		t.Errorf("CodecsString with the AC3 track = %q", got)
 	}
 }
 

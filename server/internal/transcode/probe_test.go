@@ -130,6 +130,67 @@ func TestParseKeyframes(t *testing.T) {
 	}
 }
 
+func TestParseFrameSideData(t *testing.T) {
+	cases := map[string]bool{
+		// Dutton Ranch S01E07 (HDR10+), shortened ffprobe output.
+		`{"frames":[{"side_data_list":[{"side_data_type":"H.26[45] User Data Unregistered SEI message"},{"side_data_type":"Mastering display metadata"},{"side_data_type":"Content light level metadata"},{"side_data_type":"HDR Dynamic Metadata SMPTE2094-40 (HDR10+)"}]}]}`: true,
+		// HDR10 only.
+		`{"frames":[{"side_data_list":[{"side_data_type":"Mastering display metadata"},{"side_data_type":"Content light level metadata"}]}]}`: false,
+		// Dolby Vision profile 8 without HDR10+.
+		`{"frames":[{"side_data_list":[{"side_data_type":"Dolby Vision RPU Data"},{"side_data_type":"Dolby Vision Metadata","components":[{"pieces":[{}]}]}]}]}`: false,
+		`{"frames":[]}`: false,
+		`{}`:            false,
+	}
+	for in, want := range cases {
+		got, err := ParseFrameSideData([]byte(in))
+		if err != nil || got != want {
+			t.Errorf("ParseFrameSideData(%s) = %v, %v; want %v", in, got, err, want)
+		}
+	}
+	if _, err := ParseFrameSideData([]byte("not json")); err == nil {
+		t.Error("want error for invalid JSON")
+	}
+}
+
+func TestProbeHDR(t *testing.T) {
+	r := realRunner(t)
+	for _, c := range []struct{ folder, file string }{
+		{"Slouchcat Test HDR10 4K (2024)", "Slouchcat Test HDR10 4K (2024).mkv"},
+		{"Slouchcat Test HDR10 Chart (2024)", "Slouchcat Test HDR10 Chart (2024).mkv"},
+	} {
+		p, err := r.Probe(context.Background(), testMovie(t, c.folder, c.file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		v, ok := videoStream(p)
+		if !ok || v.HDRFormat() != HDR10 || v.HDR10Plus || v.ColorPrimaries != "bt2020" || v.Width != 3840 {
+			t.Errorf("%s: video %+v, format %q", c.file, v, v.HDRFormat())
+		}
+	}
+	// SDR skips the side data call; the multi-audio file keeps its track metadata.
+	p, err := r.Probe(context.Background(), testMovie(t, "Slouchcat Test Multi Audio (2024)", "Slouchcat Test Multi Audio (2024).mkv"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []struct {
+		typ, codec, lang string
+		def              bool
+	}{{"video", "h264", "", false}, {"audio", "aac", "ger", true}, {"audio", "ac3", "eng", false},
+		{"subtitle", "subrip", "ger", false}, {"subtitle", "subrip", "eng", false}}
+	if len(p.Streams) != len(want) {
+		t.Fatalf("multi audio: %+v", p.Streams)
+	}
+	for i, w := range want {
+		s := p.Streams[i]
+		if s.Type != w.typ || s.Codec != w.codec || s.Language != w.lang || (w.typ == "audio" && s.Default != w.def) {
+			t.Errorf("multi audio stream %d: %+v, want %+v", i, s, w)
+		}
+	}
+	if p.Streams[2].Channels != 6 {
+		t.Errorf("AC3 track has %d channels, want 6", p.Streams[2].Channels)
+	}
+}
+
 func TestParseProbeRejectsEmpty(t *testing.T) {
 	if _, err := ParseProbe([]byte(`{}`)); err == nil {
 		t.Error("want error for an empty probe")
