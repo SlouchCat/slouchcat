@@ -78,7 +78,8 @@
       "unknown_library": "Diese Bibliothek gibt es nicht.",
       "too_many_profiles": "Mehr als 10 Profile pro Konto sind nicht möglich.",
       "already_exists": "Diese E-Mail-Adresse ist schon vergeben.",
-      "pin_format": "Die PIN besteht aus 4 bis 8 Ziffern."
+      "pin_format": "Die PIN besteht aus 4 bis 8 Ziffern.",
+      "not_burnable": "Diese Untertitelspur kann nicht eingebrannt werden."
     }
   },
   "setup": {

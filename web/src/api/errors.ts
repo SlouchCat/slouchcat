@@ -39,6 +39,7 @@ const fieldKeys = {
   already_exists: 'errors.field.already_exists',
   invalid_value: 'errors.field.invalid',
   invalid_pin: 'errors.field.pin_format',
+  not_burnable: 'errors.field.not_burnable',
   not_absolute: 'errors.field.not_absolute',
   library_path_invalid: 'errors.code.library_path_invalid',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',

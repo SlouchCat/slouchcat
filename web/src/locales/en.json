@@ -78,7 +78,8 @@
       "unknown_library": "This library does not exist.",
       "too_many_profiles": "An account can have at most 10 profiles.",
       "already_exists": "This e-mail address is already taken.",
-      "pin_format": "The PIN has 4 to 8 digits."
+      "pin_format": "The PIN has 4 to 8 digits.",
+      "not_burnable": "This subtitle track cannot be burned in."
     }
   },
   "setup": {
