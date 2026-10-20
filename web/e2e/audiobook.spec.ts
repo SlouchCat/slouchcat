@@ -27,7 +27,7 @@ import { arrowTo } from './playback';
 // MP3 folder is one book with a chapter per file; author, narrator and cover show on the detail
 // page; a chapter starts the player there. H-3: the speed is kept per profile and title: after a
 // reload and on a second device the player starts at 2.0, at the position ±2 s. The start page
-// lists the book under "Neu hinzugefügt" with a square cover.
+// lists a started book under "Weiterschauen" with a square cover.
 
 const time = async (page: Page) => (await audioState(page)).time;
 
@@ -348,22 +348,28 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
   await setAudioProgress(page.request, m4b, 0, 60_000, 1);
 });
 
-test('the start page lists the book under "Neu hinzugefügt" with a square cover', async ({
+test('the start page lists a started book under "Weiterschauen" with a square cover', async ({
   page,
 }) => {
+  // "Neu hinzugefügt" holds the 20 newest titles, and the global setup scans the films and series
+  // after the books (global-setup.ts): a started book shows in the continue row instead.
+  await setAudioProgress(page.request, m4b, 20_000, 60_000);
   await page.goto('/');
-  const row = page.getByRole('region', { name: 'Neu hinzugefügt' });
+  const row = page.getByRole('region', { name: 'Weiterschauen' });
   const card = row
     .getByRole('link')
     .filter({ has: page.getByText(M4B_TITLE, { exact: true }) })
     .first();
   await expect(card).toBeVisible();
   await expect(card).toHaveAttribute('href', `/items/${m4b}`);
-  await expect(card.getByText(AUDIO_AUTHOR)).toBeVisible();
+  // In the continue row the caption is the time left; the progress says "gehört" for audio.
+  await expect(card.getByText(/^Noch /)).toBeVisible();
+  await expect(card.getByRole('progressbar', { name: /^\d+ % gehört$/ })).toBeVisible();
   // The card's frame (its first child) holds the cover, square for audio titles.
   const frame = await card.evaluate((link) => {
     const box = link.firstElementChild!.getBoundingClientRect();
     return { width: box.width, height: box.height };
   });
   expect(Math.abs(frame.width - frame.height)).toBeLessThanOrEqual(1);
+  await setAudioProgress(page.request, m4b, 0, 60_000);
 });

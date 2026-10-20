@@ -113,12 +113,18 @@ async function storeAudioIds(api: APIRequestContext): Promise<void> {
   }
 }
 
-/** The series library of M3 (testdata/media/TV), added next to "Filme" once per run. */
-async function ensureSeriesLibrary(api: APIRequestContext): Promise<void> {
-  if (!existsSync(TV_DIR)) return;
+/**
+ * The video libraries, once per run: "Filme" on testdata/media/Movies and the series library of M3
+ * on testdata/media/TV.
+ */
+async function ensureVideoLibraries(api: APIRequestContext): Promise<void> {
   const libraries = await listLibraries(api);
-  if (libraries.some((library) => library.name === 'Serien')) return;
-  await createLibrary(api, { name: 'Serien', kind: 'series', path: TV_DIR });
+  if (!libraries.some((library) => library.name === 'Filme')) {
+    await createLibrary(api, { name: 'Filme', kind: 'movies', path: MOVIES_DIR });
+  }
+  if (existsSync(TV_DIR) && !libraries.some((library) => library.name === 'Serien')) {
+    await createLibrary(api, { name: 'Serien', kind: 'series', path: TV_DIR });
+  }
 }
 
 async function waitForScan(api: APIRequestContext): Promise<void> {
@@ -143,10 +149,12 @@ async function waitForScan(api: APIRequestContext): Promise<void> {
 
 /**
  * Builds nothing and expects the server from start-server.mjs: runs the setup wizard through the
- * API (main account, library on testdata/media/Movies, no TMDB key), adds the series library on
- * testdata/media/TV, waits for the first scans, adds the audiobook and podcast libraries (M6;
- * after the video scans, so the books are the newest titles), subscribes to the local feed, waits
- * again, logs in and stores the session for the specs.
+ * API (main account, the audiobook library on testdata/media/Audiobooks, no TMDB key), adds the
+ * podcast library, subscribes to the local feed and notes the ids of the test books, then adds
+ * the video libraries on testdata/media/Movies and testdata/media/TV and waits for their scans.
+ * The order matters: the start page's "Neu hinzugefügt" holds the 20 newest titles, and the test
+ * media have exactly 20 films and series; scanned last, they fill the row in every run (titles of
+ * one scan batch share their time, so the row would otherwise drop an arbitrary older title).
  */
 export default async function globalSetup(): Promise<void> {
   const api = await request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: CSRF });
@@ -158,7 +166,12 @@ export default async function globalSetup(): Promise<void> {
           email: OWNER.email,
           password: OWNER.password,
           language: 'de',
-          library: { name: 'Filme', kind: 'movies', path: MOVIES_DIR },
+          library: {
+            name: 'Hörbücher',
+            kind: 'audiobooks',
+            path: AUDIOBOOKS_DIR,
+            defaultRating: 0,
+          },
         },
       });
       if (setup.status() !== 201) {
@@ -169,13 +182,13 @@ export default async function globalSetup(): Promise<void> {
       data: { email: OWNER.email, password: OWNER.password },
     });
     if (!login.ok()) throw new Error(`login answered ${login.status()}: ${await login.text()}`);
-    await ensureSeriesLibrary(api);
-    await waitForScan(api);
     await ensureAudioLibraries(api);
     await waitForScan(api);
     await ensureFeed(api);
     mkdirSync(dirname(STORAGE_STATE), { recursive: true });
     await storeAudioIds(api);
+    await ensureVideoLibraries(api);
+    await waitForScan(api);
     await api.storageState({ path: STORAGE_STATE });
   } finally {
     await api.dispose();
