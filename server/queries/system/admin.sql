@@ -240,3 +240,23 @@ FROM items AS i WHERE i.id = @id;
 
 -- name: AdminSoftDeleteItem :execrows
 UPDATE items SET deleted_at = @now, updated_at = @now WHERE id = @id AND deleted_at IS NULL;
+
+-- Stream overview (W-6, M4): titles and durations of running playback sessions. The overview is
+-- unfiltered (owner only) and names titles in plain text, never as ItemRef.
+
+-- name: AdminStreamItems :many
+-- Title (German text, else English, else the parsed title) with, for an episode, the series title
+-- and the season and episode numbers.
+SELECT i.id, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.season_number, i.episode_number, i.episode_end,
+       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, s.title, '') AS series_title
+FROM items AS i
+LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
+LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
+LEFT JOIN items AS p ON p.id = i.parent_id
+LEFT JOIN items AS s ON s.kind = 'series' AND (s.id = p.parent_id OR s.id = p.id)
+LEFT JOIN item_texts AS sd ON sd.item_id = s.id AND sd.lang = 'de'
+LEFT JOIN item_texts AS se ON se.item_id = s.id AND se.lang = 'en'
+WHERE i.id IN (sqlc.slice('item_ids'));
+
+-- name: AdminMediaFileDurations :many
+SELECT id, duration_ms FROM media_files WHERE id IN (sqlc.slice('ids'));

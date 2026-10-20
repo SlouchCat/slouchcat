@@ -87,6 +87,18 @@ func (q *Queries) DeleteAccountLibraries(ctx context.Context, accountID int64) e
 	return err
 }
 
+const deleteDevice = `-- name: DeleteDevice :execrows
+DELETE FROM devices WHERE id = ?1
+`
+
+func (q *Queries) DeleteDevice(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteDevice, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deletePinAttempt = `-- name: DeletePinAttempt :exec
 DELETE FROM pin_attempts WHERE profile_id = ?1 AND device_id = ?2
 `
@@ -98,6 +110,15 @@ type DeletePinAttemptParams struct {
 
 func (q *Queries) DeletePinAttempt(ctx context.Context, arg DeletePinAttemptParams) error {
 	_, err := q.db.ExecContext(ctx, deletePinAttempt, arg.ProfileID, arg.DeviceID)
+	return err
+}
+
+const deletePinAttemptsByDevice = `-- name: DeletePinAttemptsByDevice :exec
+DELETE FROM pin_attempts WHERE device_id = ?1
+`
+
+func (q *Queries) DeletePinAttemptsByDevice(ctx context.Context, deviceID string) error {
+	_, err := q.db.ExecContext(ctx, deletePinAttemptsByDevice, deviceID)
 	return err
 }
 
@@ -153,7 +174,7 @@ func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int
 }
 
 const getGuestAccount = `-- name: GetGuestAccount :one
-SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at FROM accounts WHERE id = ?1 AND role = 'guest'
+SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1 AND role = 'guest'
 `
 
 func (q *Queries) GetGuestAccount(ctx context.Context, id int64) (Account, error) {
@@ -170,6 +191,9 @@ func (q *Queries) GetGuestAccount(ctx context.Context, id int64) (Account, error
 		&i.AllLibraries,
 		&i.InvitedBy,
 		&i.LastSeenAt,
+		&i.MaxBitrateKbps,
+		&i.MaxHeight,
+		&i.MaxStreams,
 	)
 	return i, err
 }
@@ -243,7 +267,7 @@ func (q *Queries) GetPinAttempt(ctx context.Context, arg GetPinAttemptParams) (P
 }
 
 const getProfileOfAccount = `-- name: GetProfileOfAccount :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash FROM profiles WHERE id = ?1 AND account_id = ?2
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes FROM profiles WHERE id = ?1 AND account_id = ?2
 `
 
 type GetProfileOfAccountParams struct {
@@ -267,6 +291,10 @@ func (q *Queries) GetProfileOfAccount(ctx context.Context, arg GetProfileOfAccou
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PinHash,
+		&i.MaxBitrateKbps,
+		&i.MaxHeight,
+		&i.MaxStreams,
+		&i.WatchLimitMinutes,
 	)
 	return i, err
 }
@@ -288,7 +316,7 @@ func (q *Queries) InsertAccountLibrary(ctx context.Context, arg InsertAccountLib
 const insertGuestAccount = `-- name: InsertGuestAccount :one
 INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
 VALUES (?1, ?2, 'guest', ?3, ?4, ?5, ?6, ?6)
-RETURNING id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at
+RETURNING id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
 `
 
 type InsertGuestAccountParams struct {
@@ -321,6 +349,9 @@ func (q *Queries) InsertGuestAccount(ctx context.Context, arg InsertGuestAccount
 		&i.AllLibraries,
 		&i.InvitedBy,
 		&i.LastSeenAt,
+		&i.MaxBitrateKbps,
+		&i.MaxHeight,
+		&i.MaxStreams,
 	)
 	return i, err
 }
@@ -423,8 +454,80 @@ func (q *Queries) ListAccountLibraries(ctx context.Context, accountID int64) ([]
 	return items, nil
 }
 
+const listDevicesAdmin = `-- name: ListDevicesAdmin :many
+
+SELECT d.id, d.user_agent, d.created_at, d.last_seen_at, d.name, d.type, d.capabilities, d.capabilities_at,
+       a.email AS owner_email, p.name AS owner_profile,
+       (SELECT count(*) FROM playback_sessions AS ps
+        JOIN sessions AS s ON s.id = ps.session_id
+        WHERE ps.device_id = d.id AND ps.revoked_at IS NULL AND ps.expires_at > ?1
+          AND ps.last_activity_at >= ?2 AND s.revoked_at IS NULL AND s.expires_at > ?1) AS active_streams
+FROM devices AS d
+LEFT JOIN accounts AS a ON a.id = d.account_id
+LEFT JOIN profiles AS p ON p.id = d.profile_id
+ORDER BY d.last_seen_at DESC, d.id
+`
+
+type ListDevicesAdminParams struct {
+	Now         int64
+	ActiveAfter int64
+}
+
+type ListDevicesAdminRow struct {
+	ID             string
+	UserAgent      sql.NullString
+	CreatedAt      int64
+	LastSeenAt     int64
+	Name           sql.NullString
+	Type           sql.NullString
+	Capabilities   sql.NullString
+	CapabilitiesAt sql.NullInt64
+	OwnerEmail     sql.NullString
+	OwnerProfile   sql.NullString
+	ActiveStreams  int64
+}
+
+// Device overview of the administration (W-7, M4).
+// Devices, last contact first, with the owner of the last playback start and the number of running
+// streams (the activity window of CountActivePlaybackSessions).
+func (q *Queries) ListDevicesAdmin(ctx context.Context, arg ListDevicesAdminParams) ([]ListDevicesAdminRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDevicesAdmin, arg.Now, arg.ActiveAfter)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDevicesAdminRow{}
+	for rows.Next() {
+		var i ListDevicesAdminRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserAgent,
+			&i.CreatedAt,
+			&i.LastSeenAt,
+			&i.Name,
+			&i.Type,
+			&i.Capabilities,
+			&i.CapabilitiesAt,
+			&i.OwnerEmail,
+			&i.OwnerProfile,
+			&i.ActiveStreams,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGuestAccounts = `-- name: ListGuestAccounts :many
 SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
+       a.max_bitrate_kbps, a.max_height, a.max_streams,
        (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
 FROM accounts AS a
 WHERE a.role = 'guest'
@@ -432,13 +535,16 @@ ORDER BY a.created_at DESC, a.id DESC
 `
 
 type ListGuestAccountsRow struct {
-	ID           int64
-	Email        string
-	MaxRating    int64
-	AllLibraries int64
-	CreatedAt    int64
-	LastSeenAt   sql.NullInt64
-	ProfileCount int64
+	ID             int64
+	Email          string
+	MaxRating      int64
+	AllLibraries   int64
+	CreatedAt      int64
+	LastSeenAt     sql.NullInt64
+	MaxBitrateKbps sql.NullInt64
+	MaxHeight      sql.NullInt64
+	MaxStreams     sql.NullInt64
+	ProfileCount   int64
 }
 
 func (q *Queries) ListGuestAccounts(ctx context.Context) ([]ListGuestAccountsRow, error) {
@@ -457,6 +563,9 @@ func (q *Queries) ListGuestAccounts(ctx context.Context) ([]ListGuestAccountsRow
 			&i.AllLibraries,
 			&i.CreatedAt,
 			&i.LastSeenAt,
+			&i.MaxBitrateKbps,
+			&i.MaxHeight,
+			&i.MaxStreams,
 			&i.ProfileCount,
 		); err != nil {
 			return nil, err
@@ -671,7 +780,7 @@ func (q *Queries) ListProfileLibrariesByAccount(ctx context.Context, accountID i
 }
 
 const listProfilesByAccount = `-- name: ListProfilesByAccount :many
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
 `
 
 func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([]Profile, error) {
@@ -696,6 +805,10 @@ func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PinHash,
+			&i.MaxBitrateKbps,
+			&i.MaxHeight,
+			&i.MaxStreams,
+			&i.WatchLimitMinutes,
 		); err != nil {
 			return nil, err
 		}
@@ -730,6 +843,39 @@ func (q *Queries) MarkInvitationUsed(ctx context.Context, arg MarkInvitationUsed
 	return result.RowsAffected()
 }
 
+const revokeDeviceSessions = `-- name: RevokeDeviceSessions :many
+UPDATE sessions SET revoked_at = ?1 WHERE device_id = ?2 AND revoked_at IS NULL
+RETURNING id
+`
+
+type RevokeDeviceSessionsParams struct {
+	Now      sql.NullInt64
+	DeviceID sql.NullString
+}
+
+func (q *Queries) RevokeDeviceSessions(ctx context.Context, arg RevokeDeviceSessionsParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, revokeDeviceSessions, arg.Now, arg.DeviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeInvitation = `-- name: RevokeInvitation :execrows
 UPDATE invitations SET revoked_at = ?1 WHERE id = ?2 AND used_at IS NULL AND revoked_at IS NULL
 `
@@ -748,18 +894,19 @@ func (q *Queries) RevokeInvitation(ctx context.Context, arg RevokeInvitationPara
 }
 
 const revokePlaybackSessionsByAccount = `-- name: RevokePlaybackSessionsByAccount :many
-UPDATE playback_sessions SET revoked_at = ?1
-WHERE account_id = ?2 AND revoked_at IS NULL
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE account_id = ?3 AND revoked_at IS NULL
 RETURNING id
 `
 
 type RevokePlaybackSessionsByAccountParams struct {
 	Now       sql.NullInt64
+	StoppedBy sql.NullString
 	AccountID int64
 }
 
 func (q *Queries) RevokePlaybackSessionsByAccount(ctx context.Context, arg RevokePlaybackSessionsByAccountParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByAccount, arg.Now, arg.AccountID)
+	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByAccount, arg.Now, arg.StoppedBy, arg.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -782,18 +929,20 @@ func (q *Queries) RevokePlaybackSessionsByAccount(ctx context.Context, arg Revok
 }
 
 const revokePlaybackSessionsByProfile = `-- name: RevokePlaybackSessionsByProfile :many
-UPDATE playback_sessions SET revoked_at = ?1
-WHERE profile_id = ?2 AND revoked_at IS NULL
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE profile_id = ?3 AND revoked_at IS NULL
 RETURNING id
 `
 
 type RevokePlaybackSessionsByProfileParams struct {
 	Now       sql.NullInt64
+	StoppedBy sql.NullString
 	ProfileID int64
 }
 
+// stopped_by: revoked when the profile is deleted, limit when its daily watch time is used up.
 func (q *Queries) RevokePlaybackSessionsByProfile(ctx context.Context, arg RevokePlaybackSessionsByProfileParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByProfile, arg.Now, arg.ProfileID)
+	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByProfile, arg.Now, arg.StoppedBy, arg.ProfileID)
 	if err != nil {
 		return nil, err
 	}
@@ -867,20 +1016,29 @@ func (q *Queries) TouchAccount(ctx context.Context, arg TouchAccountParams) erro
 }
 
 const updateAccountLimits = `-- name: UpdateAccountLimits :exec
-UPDATE accounts SET max_rating = ?1, all_libraries = ?2, updated_at = ?3 WHERE id = ?4
+UPDATE accounts
+SET max_rating = ?1, all_libraries = ?2, max_bitrate_kbps = ?3,
+    max_height = ?4, max_streams = ?5, updated_at = ?6
+WHERE id = ?7
 `
 
 type UpdateAccountLimitsParams struct {
-	MaxRating    int64
-	AllLibraries int64
-	Now          int64
-	ID           int64
+	MaxRating      int64
+	AllLibraries   int64
+	MaxBitrateKbps sql.NullInt64
+	MaxHeight      sql.NullInt64
+	MaxStreams     sql.NullInt64
+	Now            int64
+	ID             int64
 }
 
 func (q *Queries) UpdateAccountLimits(ctx context.Context, arg UpdateAccountLimitsParams) error {
 	_, err := q.db.ExecContext(ctx, updateAccountLimits,
 		arg.MaxRating,
 		arg.AllLibraries,
+		arg.MaxBitrateKbps,
+		arg.MaxHeight,
+		arg.MaxStreams,
 		arg.Now,
 		arg.ID,
 	)
@@ -890,18 +1048,23 @@ func (q *Queries) UpdateAccountLimits(ctx context.Context, arg UpdateAccountLimi
 const updateProfile = `-- name: UpdateProfile :exec
 UPDATE profiles
 SET name = ?1, max_rating = ?2, language = ?3, accent = ?4,
-    all_libraries = ?5, updated_at = ?6
-WHERE id = ?7
+    all_libraries = ?5, max_bitrate_kbps = ?6, max_height = ?7,
+    max_streams = ?8, watch_limit_minutes = ?9, updated_at = ?10
+WHERE id = ?11
 `
 
 type UpdateProfileParams struct {
-	Name         string
-	MaxRating    int64
-	Language     string
-	Accent       sql.NullString
-	AllLibraries int64
-	Now          int64
-	ID           int64
+	Name              string
+	MaxRating         int64
+	Language          string
+	Accent            sql.NullString
+	AllLibraries      int64
+	MaxBitrateKbps    sql.NullInt64
+	MaxHeight         sql.NullInt64
+	MaxStreams        sql.NullInt64
+	WatchLimitMinutes sql.NullInt64
+	Now               int64
+	ID                int64
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) error {
@@ -911,6 +1074,10 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) er
 		arg.Language,
 		arg.Accent,
 		arg.AllLibraries,
+		arg.MaxBitrateKbps,
+		arg.MaxHeight,
+		arg.MaxStreams,
+		arg.WatchLimitMinutes,
 		arg.Now,
 		arg.ID,
 	)

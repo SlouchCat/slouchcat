@@ -69,6 +69,8 @@ type rootScan struct {
 	known    []systemq.MediaFile
 	ignored  map[string]bool // rel paths of ignored_files
 	deferred []diskFile      // unchanged extras an earlier scan skipped for want of a parent
+	// subs lists the subtitle files of every directory the scan read (I-5 sidecar sync).
+	subs map[string][]string
 }
 
 // fileStamp is the size and mtime of a file on disk.
@@ -267,6 +269,13 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 			s.log.InfoContext(ctx, "titles queued for metadata.match or trailer.find", "library_id", lib.ID, "titles", n)
 		}
 	}
+	if lib.Kind == "series" {
+		if n, err := s.QueuePendingSegments(ctx, lib.ID); err != nil {
+			s.log.WarnContext(ctx, "segments check after scan failed", "library_id", lib.ID, "err", err)
+		} else if n > 0 {
+			s.log.InfoContext(ctx, "seasons queued for segments.detect", "library_id", lib.ID, "seasons", n)
+		}
+	}
 	return nil
 }
 
@@ -381,7 +390,7 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 		if err != nil {
 			return stats, scanAbort{abortRootMissing}
 		}
-		if rs.disk, err = walkRoot(ctx, rs.proot, lib.Kind, rs.ignored, s.log); err != nil {
+		if rs.disk, rs.subs, err = walkRoot(ctx, rs.proot, lib.Kind, rs.ignored, s.log); err != nil {
 			if errors.Is(err, errRootMissing) {
 				return stats, scanAbort{abortRootMissing}
 			}
@@ -433,6 +442,11 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 			return stats, err
 		}
 	}
+	for _, rs := range scans {
+		if err := s.syncSidecars(ctx, rs, nil); err != nil {
+			return stats, err
+		}
+	}
 	return stats, s.finish(ctx, lib, "done", "", seen, total)
 }
 
@@ -478,21 +492,23 @@ func orderOps(ops []scanOp) {
 var errRootMissing = errors.New("library root missing")
 
 // walkRoot collects the video files of a root that become titles or extras of the library kind
-// (see wanted); samples, ignored entries and ignored files are skipped. A root that cannot be
+// (see wanted) and the subtitle files by directory (sidecars, I-5); samples, ignored entries and
+// ignored files are skipped. A root that cannot be
 // opened is errRootMissing; any other walk error fails the scan, because a partial walk would
 // look like lost files. Symlinked directories are not followed; a symlinked file whose target
 // cannot be read inside the root (it leaves the root, dangles, or is not readable) is logged and
 // skipped.
-func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[string]bool, log *slog.Logger) ([]diskFile, error) {
+func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[string]bool, log *slog.Logger) ([]diskFile, map[string][]string, error) {
 	r, err := paths.Open(root)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errRootMissing, err)
+		return nil, nil, fmt.Errorf("%w: %w", errRootMissing, err)
 	}
 	defer r.Close()
 	if fi, err := r.Stat("."); err != nil || !fi.IsDir() {
-		return nil, errRootMissing
+		return nil, nil, errRootMissing
 	}
 	var files []diskFile
+	subs := map[string][]string{}
 	noMarker := map[string]int{}
 	err = paths.Walk(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -513,6 +529,10 @@ func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[str
 		if d.IsDir() {
 			return nil
 		}
+		if isSubtitle(d.Name()) {
+			subs[path.Dir(p)] = append(subs[path.Dir(p)], d.Name())
+			return nil
+		}
 		f, ok, err := videoFile(ctx, r, p, d, kind, ignored, noMarker, log)
 		if ok {
 			files = append(files, f)
@@ -520,10 +540,10 @@ func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[str
 		return err
 	})
 	if err != nil {
-		return nil, fmt.Errorf("walk %s: %w", root.Dir(), err)
+		return nil, nil, fmt.Errorf("walk %s: %w", root.Dir(), err)
 	}
 	logNoMarker(ctx, log, noMarker)
-	return files, nil
+	return files, subs, nil
 }
 
 // wanted reports whether a parsed video file is scanned: never a sample; in a movie library a

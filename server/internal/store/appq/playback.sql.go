@@ -10,6 +10,53 @@ import (
 	"database/sql"
 )
 
+const countActiveAccountPlaybackSessions = `-- name: CountActiveAccountPlaybackSessions :one
+SELECT count(*) FROM playback_sessions AS ps
+JOIN sessions AS s ON s.id = ps.session_id
+WHERE ps.account_id = ?1 AND ps.revoked_at IS NULL AND ps.expires_at > ?2
+  AND ps.last_activity_at >= ?3
+  AND s.revoked_at IS NULL AND s.expires_at > ?2
+`
+
+type CountActiveAccountPlaybackSessionsParams struct {
+	AccountID   int64
+	Now         int64
+	ActiveAfter int64
+}
+
+// Running streams of every profile of an account (W-8 guest cap maxStreams), as
+// CountActivePlaybackSessions.
+func (q *Queries) CountActiveAccountPlaybackSessions(ctx context.Context, arg CountActiveAccountPlaybackSessionsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveAccountPlaybackSessions, arg.AccountID, arg.Now, arg.ActiveAfter)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countActivePlaybackSessions = `-- name: CountActivePlaybackSessions :one
+SELECT count(*) FROM playback_sessions AS ps
+JOIN sessions AS s ON s.id = ps.session_id
+WHERE ps.profile_id = ?1 AND ps.revoked_at IS NULL AND ps.expires_at > ?2
+  AND ps.last_activity_at >= ?3
+  AND s.revoked_at IS NULL AND s.expires_at > ?2
+`
+
+type CountActivePlaybackSessionsParams struct {
+	ProfileID   int64
+	Now         int64
+	ActiveAfter int64
+}
+
+// Running streams of a profile (W-8 maxStreams): not revoked, not expired, a request within the
+// activity window, browser session valid. A start revokes the playback it replaces (same browser
+// session and title, RevokeReplacedPlaybackSessions) before it counts.
+func (q *Queries) CountActivePlaybackSessions(ctx context.Context, arg CountActivePlaybackSessionsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActivePlaybackSessions, arg.ProfileID, arg.Now, arg.ActiveAfter)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteExpiredPlaybackSessions = `-- name: DeleteExpiredPlaybackSessions :execrows
 DELETE FROM playback_sessions WHERE expires_at < ?1 OR revoked_at IS NOT NULL AND revoked_at < ?1
 `
@@ -22,8 +69,30 @@ func (q *Queries) DeleteExpiredPlaybackSessions(ctx context.Context, before int6
 	return result.RowsAffected()
 }
 
+const getDevice = `-- name: GetDevice :one
+SELECT id, user_agent, created_at, last_seen_at, name, type, account_id, profile_id, capabilities, capabilities_at FROM devices WHERE id = ?1
+`
+
+func (q *Queries) GetDevice(ctx context.Context, id string) (Device, error) {
+	row := q.db.QueryRowContext(ctx, getDevice, id)
+	var i Device
+	err := row.Scan(
+		&i.ID,
+		&i.UserAgent,
+		&i.CreatedAt,
+		&i.LastSeenAt,
+		&i.Name,
+		&i.Type,
+		&i.AccountID,
+		&i.ProfileID,
+		&i.Capabilities,
+		&i.CapabilitiesAt,
+	)
+	return i, err
+}
+
 const getPlaybackSession = `-- name: GetPlaybackSession :one
-SELECT ps.id, ps.session_id, ps.account_id, ps.profile_id, ps.item_id, ps.media_file_id, ps.device_id, ps.mode, ps.backend, ps.reason, ps.started_at, ps.last_activity_at, ps.expires_at, ps.revoked_at FROM playback_sessions AS ps
+SELECT ps.id, ps.session_id, ps.account_id, ps.profile_id, ps.item_id, ps.media_file_id, ps.device_id, ps.mode, ps.backend, ps.reason, ps.started_at, ps.last_activity_at, ps.expires_at, ps.revoked_at, ps.quality, ps.width, ps.height, ps.bitrate, ps.hardware, ps.audio_track, ps.subtitle_track, ps.subtitle_delivery, ps.capabilities, ps.position_ms, ps.stopped_by FROM playback_sessions AS ps
 JOIN sessions AS s ON s.id = ps.session_id
 WHERE ps.id = ?1 AND ps.revoked_at IS NULL AND ps.expires_at > ?2
   AND s.revoked_at IS NULL AND s.expires_at > ?2
@@ -53,36 +122,82 @@ func (q *Queries) GetPlaybackSession(ctx context.Context, arg GetPlaybackSession
 		&i.LastActivityAt,
 		&i.ExpiresAt,
 		&i.RevokedAt,
+		&i.Quality,
+		&i.Width,
+		&i.Height,
+		&i.Bitrate,
+		&i.Hardware,
+		&i.AudioTrack,
+		&i.SubtitleTrack,
+		&i.SubtitleDelivery,
+		&i.Capabilities,
+		&i.PositionMs,
+		&i.StoppedBy,
 	)
 	return i, err
+}
+
+const getPlaybackSessionStart = `-- name: GetPlaybackSessionStart :one
+SELECT started_at FROM playback_sessions WHERE id = ?1 AND profile_id = ?2
+`
+
+type GetPlaybackSessionStartParams struct {
+	ID        string
+	ProfileID int64
+}
+
+// Start of a playback session of the profile, revoked or not; it bounds the played time of the
+// first progress event of the playback (K-5).
+func (q *Queries) GetPlaybackSessionStart(ctx context.Context, arg GetPlaybackSessionStartParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getPlaybackSessionStart, arg.ID, arg.ProfileID)
+	var started_at int64
+	err := row.Scan(&started_at)
+	return started_at, err
 }
 
 const insertPlaybackSession = `-- name: InsertPlaybackSession :exec
 
 INSERT INTO playback_sessions (id, session_id, account_id, profile_id, item_id, media_file_id, device_id,
-                               mode, backend, reason, started_at, last_activity_at, expires_at)
+                               mode, backend, reason, quality, width, height, bitrate, hardware, audio_track,
+                               subtitle_track, subtitle_delivery, capabilities, position_ms,
+                               started_at, last_activity_at, expires_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7,
-        ?8, ?9, ?10, ?11, ?11, ?12)
+        ?8, ?9, ?10, ?11, ?12, ?13, ?14,
+        ?15, ?16, ?17, ?18,
+        ?19, ?20, ?21, ?21, ?22)
 `
 
 type InsertPlaybackSessionParams struct {
-	ID          string
-	SessionID   int64
-	AccountID   int64
-	ProfileID   int64
-	ItemID      string
-	MediaFileID string
-	DeviceID    sql.NullString
-	Mode        string
-	Backend     sql.NullString
-	Reason      sql.NullString
-	Now         int64
-	ExpiresAt   int64
+	ID               string
+	SessionID        int64
+	AccountID        int64
+	ProfileID        int64
+	ItemID           string
+	MediaFileID      string
+	DeviceID         sql.NullString
+	Mode             string
+	Backend          sql.NullString
+	Reason           sql.NullString
+	Quality          sql.NullString
+	Width            sql.NullInt64
+	Height           sql.NullInt64
+	Bitrate          sql.NullInt64
+	Hardware         int64
+	AudioTrack       sql.NullInt64
+	SubtitleTrack    sql.NullInt64
+	SubtitleDelivery sql.NullString
+	Capabilities     sql.NullString
+	PositionMs       sql.NullInt64
+	Now              int64
+	ExpiresAt        int64
 }
 
 // Playback sessions and stream tokens (package store/appq). Owner: playback package. The item of a
 // row is re-checked through the visibility package on every request; these queries never read
 // title tables. Times are Unix milliseconds.
+// The decision of a start (M4): quality rung, output size and bit rate, hardware encoder, the
+// chosen tracks and how subtitles are delivered, and the capabilities the client reported, so a
+// rebuild after a restart repeats the same decision.
 func (q *Queries) InsertPlaybackSession(ctx context.Context, arg InsertPlaybackSessionParams) error {
 	_, err := q.db.ExecContext(ctx, insertPlaybackSession,
 		arg.ID,
@@ -95,10 +210,103 @@ func (q *Queries) InsertPlaybackSession(ctx context.Context, arg InsertPlaybackS
 		arg.Mode,
 		arg.Backend,
 		arg.Reason,
+		arg.Quality,
+		arg.Width,
+		arg.Height,
+		arg.Bitrate,
+		arg.Hardware,
+		arg.AudioTrack,
+		arg.SubtitleTrack,
+		arg.SubtitleDelivery,
+		arg.Capabilities,
+		arg.PositionMs,
 		arg.Now,
 		arg.ExpiresAt,
 	)
 	return err
+}
+
+const listActivePlaybackSessions = `-- name: ListActivePlaybackSessions :many
+SELECT ps.id, ps.item_id, ps.media_file_id, ps.device_id, ps.mode, ps.backend, ps.reason, ps.quality,
+       ps.width, ps.height, ps.bitrate, ps.hardware, ps.started_at, ps.last_activity_at, ps.position_ms,
+       a.email AS account_email, p.name AS profile_name, d.name AS device_name
+FROM playback_sessions AS ps
+JOIN sessions AS s ON s.id = ps.session_id
+JOIN accounts AS a ON a.id = ps.account_id
+JOIN profiles AS p ON p.id = ps.profile_id
+LEFT JOIN devices AS d ON d.id = ps.device_id
+WHERE ps.revoked_at IS NULL AND ps.expires_at > ?1 AND ps.last_activity_at >= ?2
+  AND s.revoked_at IS NULL AND s.expires_at > ?1
+ORDER BY ps.started_at DESC, ps.id DESC
+`
+
+type ListActivePlaybackSessionsParams struct {
+	Now         int64
+	ActiveAfter int64
+}
+
+type ListActivePlaybackSessionsRow struct {
+	ID             string
+	ItemID         string
+	MediaFileID    string
+	DeviceID       sql.NullString
+	Mode           string
+	Backend        sql.NullString
+	Reason         sql.NullString
+	Quality        sql.NullString
+	Width          sql.NullInt64
+	Height         sql.NullInt64
+	Bitrate        sql.NullInt64
+	Hardware       int64
+	StartedAt      int64
+	LastActivityAt int64
+	PositionMs     sql.NullInt64
+	AccountEmail   string
+	ProfileName    string
+	DeviceName     sql.NullString
+}
+
+// Running streams for the administration (W-6), newest first.
+func (q *Queries) ListActivePlaybackSessions(ctx context.Context, arg ListActivePlaybackSessionsParams) ([]ListActivePlaybackSessionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listActivePlaybackSessions, arg.Now, arg.ActiveAfter)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListActivePlaybackSessionsRow{}
+	for rows.Next() {
+		var i ListActivePlaybackSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ItemID,
+			&i.MediaFileID,
+			&i.DeviceID,
+			&i.Mode,
+			&i.Backend,
+			&i.Reason,
+			&i.Quality,
+			&i.Width,
+			&i.Height,
+			&i.Bitrate,
+			&i.Hardware,
+			&i.StartedAt,
+			&i.LastActivityAt,
+			&i.PositionMs,
+			&i.AccountEmail,
+			&i.ProfileName,
+			&i.DeviceName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listEndedPlaybackSessions = `-- name: ListEndedPlaybackSessions :many
@@ -133,8 +341,109 @@ func (q *Queries) ListEndedPlaybackSessions(ctx context.Context, now int64) ([]s
 	return items, nil
 }
 
+const listPlayingProfiles = `-- name: ListPlayingProfiles :many
+SELECT DISTINCT profile_id FROM playback_sessions WHERE revoked_at IS NULL AND expires_at > ?1
+`
+
+// Profiles with a playback session that is neither revoked nor expired (the sweep's K-5 check).
+func (q *Queries) ListPlayingProfiles(ctx context.Context, now int64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listPlayingProfiles, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var profile_id int64
+		if err := rows.Scan(&profile_id); err != nil {
+			return nil, err
+		}
+		items = append(items, profile_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const recordDeviceProfile = `-- name: RecordDeviceProfile :exec
+INSERT INTO devices (id, user_agent, created_at, last_seen_at, name, type, account_id, profile_id, capabilities, capabilities_at)
+VALUES (?1, ?2, ?3, ?3, ?4, ?5, ?6, ?7,
+        ?8, ?9)
+ON CONFLICT (id) DO UPDATE SET
+    last_seen_at = excluded.last_seen_at,
+    account_id = excluded.account_id,
+    profile_id = excluded.profile_id,
+    name = COALESCE(excluded.name, devices.name),
+    type = COALESCE(excluded.type, devices.type),
+    capabilities = COALESCE(excluded.capabilities, devices.capabilities),
+    capabilities_at = COALESCE(excluded.capabilities_at, devices.capabilities_at),
+    user_agent = COALESCE(devices.user_agent, excluded.user_agent)
+`
+
+type RecordDeviceProfileParams struct {
+	ID             string
+	UserAgent      sql.NullString
+	Now            int64
+	Name           sql.NullString
+	Type           sql.NullString
+	AccountID      sql.NullInt64
+	ProfileID      sql.NullInt64
+	Capabilities   sql.NullString
+	CapabilitiesAt sql.NullInt64
+}
+
+// The device of a playback start (W-7): owner (account and profile of the start) and, when the
+// client reported them, its capability profile, name and type. A device without a row (a
+// third-party client without the device cookie) gets one.
+func (q *Queries) RecordDeviceProfile(ctx context.Context, arg RecordDeviceProfileParams) error {
+	_, err := q.db.ExecContext(ctx, recordDeviceProfile,
+		arg.ID,
+		arg.UserAgent,
+		arg.Now,
+		arg.Name,
+		arg.Type,
+		arg.AccountID,
+		arg.ProfileID,
+		arg.Capabilities,
+		arg.CapabilitiesAt,
+	)
+	return err
+}
+
+const recordPlaybackPosition = `-- name: RecordPlaybackPosition :execrows
+UPDATE playback_sessions SET position_ms = ?1, last_activity_at = ?2, expires_at = ?3
+WHERE id = ?4 AND profile_id = ?5 AND revoked_at IS NULL
+`
+
+type RecordPlaybackPositionParams struct {
+	PositionMs sql.NullInt64
+	Now        int64
+	ExpiresAt  int64
+	ID         string
+	ProfileID  int64
+}
+
+// A progress event of the playback (W-6 position, activity of the stream overview).
+func (q *Queries) RecordPlaybackPosition(ctx context.Context, arg RecordPlaybackPositionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, recordPlaybackPosition,
+		arg.PositionMs,
+		arg.Now,
+		arg.ExpiresAt,
+		arg.ID,
+		arg.ProfileID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const revokePlaybackSession = `-- name: RevokePlaybackSession :execrows
-UPDATE playback_sessions SET revoked_at = ?1
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = 'client'
 WHERE id = ?2 AND session_id = ?3 AND revoked_at IS NULL
 `
 
@@ -153,19 +462,23 @@ func (q *Queries) RevokePlaybackSession(ctx context.Context, arg RevokePlaybackS
 	return result.RowsAffected()
 }
 
-const revokePlaybackSessionsBySession = `-- name: RevokePlaybackSessionsBySession :many
-UPDATE playback_sessions SET revoked_at = ?1
-WHERE session_id = ?2 AND revoked_at IS NULL
+const revokePlaybackSessionsByDevice = `-- name: RevokePlaybackSessionsByDevice :many
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE revoked_at IS NULL
+  AND (playback_sessions.device_id = ?3
+       OR playback_sessions.session_id IN (SELECT s.id FROM sessions AS s WHERE s.device_id = ?3))
 RETURNING id
 `
 
-type RevokePlaybackSessionsBySessionParams struct {
+type RevokePlaybackSessionsByDeviceParams struct {
 	Now       sql.NullInt64
-	SessionID int64
+	StoppedBy sql.NullString
+	DeviceID  sql.NullString
 }
 
-func (q *Queries) RevokePlaybackSessionsBySession(ctx context.Context, arg RevokePlaybackSessionsBySessionParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsBySession, arg.Now, arg.SessionID)
+// Playback sessions of a device: recorded for it or started by one of its browser sessions.
+func (q *Queries) RevokePlaybackSessionsByDevice(ctx context.Context, arg RevokePlaybackSessionsByDeviceParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByDevice, arg.Now, arg.StoppedBy, arg.DeviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +498,99 @@ func (q *Queries) RevokePlaybackSessionsBySession(ctx context.Context, arg Revok
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokePlaybackSessionsBySession = `-- name: RevokePlaybackSessionsBySession :many
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE session_id = ?3 AND revoked_at IS NULL
+RETURNING id
+`
+
+type RevokePlaybackSessionsBySessionParams struct {
+	Now       sql.NullInt64
+	StoppedBy sql.NullString
+	SessionID int64
+}
+
+// stopped_by is logout for a logout and a profile switch.
+func (q *Queries) RevokePlaybackSessionsBySession(ctx context.Context, arg RevokePlaybackSessionsBySessionParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsBySession, arg.Now, arg.StoppedBy, arg.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const revokeReplacedPlaybackSessions = `-- name: RevokeReplacedPlaybackSessions :many
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = 'client'
+WHERE session_id = ?2 AND item_id = ?3 AND revoked_at IS NULL
+RETURNING id
+`
+
+type RevokeReplacedPlaybackSessionsParams struct {
+	Now       sql.NullInt64
+	SessionID int64
+	ItemID    string
+}
+
+// A start replaces the playback of the same browser session and title (a track, quality or
+// version switch): the replaced one ends (stopped_by client) before the new one is counted.
+func (q *Queries) RevokeReplacedPlaybackSessions(ctx context.Context, arg RevokeReplacedPlaybackSessionsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, revokeReplacedPlaybackSessions, arg.Now, arg.SessionID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const stopPlaybackSession = `-- name: StopPlaybackSession :execrows
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE id = ?3 AND revoked_at IS NULL AND expires_at > ?1
+`
+
+type StopPlaybackSessionParams struct {
+	Now       sql.NullInt64
+	StoppedBy sql.NullString
+	ID        string
+}
+
+// Ends a running playback session of any browser session (administration, W-6).
+func (q *Queries) StopPlaybackSession(ctx context.Context, arg StopPlaybackSessionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, stopPlaybackSession, arg.Now, arg.StoppedBy, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const touchPlaybackSession = `-- name: TouchPlaybackSession :exec

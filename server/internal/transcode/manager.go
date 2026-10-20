@@ -191,12 +191,12 @@ func (m *Manager) Start(ctx context.Context, id string, src Source, plan Plan, s
 			return nil, fmt.Errorf("transcode session %s exists", id)
 		}
 		first := len(m.waiting) == 0 || m.waiting[0] == w
-		if first && (m.used == 0 || m.used+plan.Cost <= m.budget) {
+		if first && (m.used == 0 || m.used+m.cost(plan) <= m.budget) {
 			m.leaveLocked(w)
 			break
 		}
 		if w == nil {
-			w = &admission{cost: plan.Cost}
+			w = &admission{cost: m.cost(plan)}
 			m.waiting = append(m.waiting, w)
 		}
 		freed := m.freed
@@ -206,7 +206,7 @@ func (m *Manager) Start(ctx context.Context, id string, src Source, plan Plan, s
 		case <-ctx.Done():
 			err = ctx.Err()
 		case <-timer.C:
-			m.log.Warn("transcode budget exhausted", "session", id, "cost", plan.Cost, "budget", m.budget)
+			m.log.Warn("transcode budget exhausted", "session", id, "cost", m.cost(plan), "budget", m.budget)
 			err = ErrBusy
 		case <-freed:
 		}
@@ -223,7 +223,7 @@ func (m *Manager) Start(ctx context.Context, id string, src Source, plan Plan, s
 		live: map[*run]struct{}{}, failures: map[int]failure{}, lastUse: time.Now(), active: true,
 		front: startSegment,
 	}
-	m.used += plan.Cost
+	m.used += m.cost(plan)
 	m.sessions[id] = s
 	m.mu.Unlock()
 
@@ -243,7 +243,7 @@ func (m *Manager) Start(ctx context.Context, id string, src Source, plan Plan, s
 		return nil, err
 	}
 	m.log.Info("transcode session started", "session", id, "mode", plan.Target.Mode, "backend", s.Backend(),
-		"segments", len(plan.Segments), "start", startSegment, "cost", plan.Cost)
+		"segments", len(plan.Segments), "start", startSegment, "cost", m.cost(plan))
 	return s, nil
 }
 
@@ -338,6 +338,15 @@ func (m *Manager) Stats() Stats {
 		return nil
 	})
 	return st
+}
+
+// cost is the admission cost of a plan on this manager's backend: the plan's cost (plan 3.5),
+// raised to costHDRCPU for an HDR transcode whose tonemapping runs on the CPU.
+func (m *Manager) cost(p Plan) float64 {
+	if p.Target.Tonemap && !p.Target.VideoCopy && !m.caps.HWTonemap && p.Cost < costHDRCPU {
+		return costHDRCPU
+	}
+	return p.Cost
 }
 
 // acquire takes budget without waiting (resume of an admitted session).

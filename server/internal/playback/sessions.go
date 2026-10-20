@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
@@ -55,6 +57,9 @@ type HLSRequest struct {
 	// a position (0) it starts at StartSegment.
 	Resume       time.Duration
 	StartSegment int
+	// BurnInPath is the absolute path of a sidecar subtitle to burn in (resolved through package
+	// paths); embedded subtitles are named by Decision.BurnStream.
+	BurnInPath string
 }
 
 // HLSSession is a running HLS output.
@@ -79,11 +84,15 @@ type Transcoder interface {
 
 // Start decides how the client plays a visible title, starts its HLS output if needed, records the
 // playback session and returns the playback description with the token URL. mediaFileID may be
-// empty for the primary file. The resume position is the profile's position unless the title was
+// empty for the primary file. The limits of the profile are checked here (plan 3.5): a used-up
+// daily watch time answers model.WatchLimitError, a profile (or guest account) running its
+// maximum of streams model.StreamLimitError. A start replaces the playback of the same browser
+// session and title (a track, quality or version switch): that one ends before the limits are
+// counted. The start position is req.PositionMs, else the profile's position unless the title was
 // completed; the HLS output starts at its segment.
 func (s *Service) Start(ctx context.Context, session model.Session, itemID string, req model.PlaybackRequest) (model.PlaybackInfo, error) {
-	if len(req.DeviceID) > maxClientIDLength {
-		return model.PlaybackInfo{}, (&model.ValidationError{}).Add("deviceId", "too_long")
+	if err := validateRequest(req); err != nil {
+		return model.PlaybackInfo{}, err
 	}
 	if !session.HasProfile() {
 		return model.PlaybackInfo{}, model.ErrNotFound // a playback session always belongs to a profile
@@ -100,38 +109,93 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
-
-	file := loc.File
-	file.MimeType = MimeType(file.Container, file.VideoCodec, file.AudioCodec)
-	hls, decision, err := s.hlsRequest(ctx, scope, loc, normalizeCapabilities(req.Capabilities))
+	tracks, err := s.vis.Tracks(ctx, scope, item.ID, loc.File.ID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
+	probe, kfBlob, err := s.storedProbe(ctx, scope, loc)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	dreq, err := trackRequest(req, tracks)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	// Everything that can fail without side effects is read before the replaced playback ends and
+	// the output starts.
+	segments, err := s.vis.Segments(ctx, scope, item.ID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	next, err := s.vis.NextEpisode(ctx, scope, item.ID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	limits := session.Profile.Effective
+	watch, slot, err := s.admit(ctx, session, item.ID, limits, s.now())
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	defer slot.release()
+	caps := normalizeCapabilities(req.Capabilities)
+	dreq.Caps, dreq.Limits, dreq.Quality = caps, limits, req.Quality
+
+	file := loc.File
+	file.MimeType = MimeType(file.Container, file.VideoCodec, file.AudioCodec)
+	file.Bitrate, file.HDR = probeDetails(probe)
+	src := newSource(file, probe, limits, caps)
+	d := Decide(file, probe, dreq)
+	var hls *HLSRequest
+	if d.Mode != ModeDirect {
+		if s.tc == nil || probe == nil {
+			s.log.InfoContext(ctx, "hls unavailable, falling back to direct play", "media_file_id", file.ID,
+				"transcoder", s.tc != nil, "probed", probe != nil)
+			d = directFallback(d)
+		} else if hls, d, err = s.prepare(ctx, loc, src, kfBlob, d); err != nil {
+			return model.PlaybackInfo{}, err
+		}
+	}
 	var resume int64
-	if p := item.Progress; p != nil && !p.Completed && p.PositionMs > 0 {
+	switch p := item.Progress; {
+	case req.PositionMs != nil:
+		resume = *req.PositionMs
+	case p != nil && !p.Completed && p.PositionMs > 0:
 		resume = p.PositionMs
 	}
 
 	id := ulid.Make().String()
 	if hls != nil {
 		// The output starts before the row exists, so the row records the final decision (a remux
-		// may turn into a transcode); a logout during the admission wait is caught below.
+		// may turn into a transcode, a transcode may run one rung lower); a logout during the
+		// admission wait is caught below.
 		hls.ID = id
 		hls.Resume = time.Duration(resume) * time.Millisecond
-		if _, decision, err = s.startHLS(ctx, hls, loc.File); err != nil {
+		if _, d, err = s.startHLS(ctx, hls, src); err != nil {
 			return model.PlaybackInfo{}, err
 		}
 	}
 	now := s.now()
-	backend := ""
-	if decision.Mode == ModeTranscode {
+	backend, hardware := "", false
+	if d.Mode == ModeTranscode {
 		backend = s.tc.Backend()
+		hardware = backend != "" && backend != "software"
 	}
-	err = s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
-		ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
-		ItemID: item.ID, MediaFileID: file.ID, DeviceID: nullString(req.DeviceID), Mode: decision.Mode,
-		Backend: nullString(backend), Reason: nullString(decision.Reason),
-		Now: now.UnixMilli(), ExpiresAt: now.Add(SessionLifetime).UnixMilli(),
+	device, rowDevice := s.recordDevice(ctx, session, req, caps, now)
+	capsJSON, err := json.Marshal(caps)
+	if err != nil {
+		return model.PlaybackInfo{}, fmt.Errorf("encode capabilities: %w", err)
+	}
+	err = slot.insert(ctx, func() error {
+		return s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
+			ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
+			ItemID: item.ID, MediaFileID: file.ID, DeviceID: nullString(rowDevice), Mode: d.Mode,
+			Backend: nullString(backend), Reason: nullString(d.Reason), Quality: nullString(d.Quality),
+			Width: nullPositive(d.Width), Height: nullPositive(d.Height), Bitrate: nullPositive(d.Bitrate),
+			Hardware: boolInt(hardware), AudioTrack: sql.NullInt64{Int64: int64(d.AudioStream), Valid: d.AudioStream >= 0},
+			SubtitleTrack: sql.NullInt64{Int64: d.SubtitleTrack, Valid: d.SubtitleTrack > 0}, SubtitleDelivery: nullString(d.SubtitleDelivery),
+			Capabilities: sql.NullString{String: string(capsJSON), Valid: true}, PositionMs: sql.NullInt64{Int64: resume, Valid: true},
+			Now: now.UnixMilli(), ExpiresAt: now.Add(SessionLifetime).UnixMilli(),
+		})
 	})
 	if err != nil {
 		s.stopOutput(id)
@@ -144,6 +208,11 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 			return model.PlaybackInfo{}, unauthenticatedOr(err, "recheck playback session")
 		}
 	}
+	if limits.WatchLimitMinutes > 0 {
+		if err := s.recheckWatchLimit(context.WithoutCancel(ctx), session.Profile.ID, limits.WatchLimitMinutes, id); err != nil {
+			return model.PlaybackInfo{}, err
+		}
+	}
 
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
 	info := model.PlaybackInfo{
@@ -153,36 +222,176 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		StreamURL:         "/api/v1/items/" + url.PathEscape(item.ID) + "/stream?st=" + st,
 		PlaybackSessionID: id,
 		ResumePositionMs:  resume,
+		Tracks:            tracks,
+		Selection:         model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery},
+		Qualities:         QualityOptions(d, src.w, src.h, limits, caps, req.Quality),
+		Chapters:          chapters(probe),
+		WatchTime:         watch,
+		Device:            device,
+		Segments:          segments,
+		NextEpisode:       next,
+	}
+	if d.SubtitleDelivery == model.SubtitleText {
+		info.SubtitleURL = fmt.Sprintf("/api/v1/playback/sessions/%s/subtitles/%d.vtt?st=%s", id, d.SubtitleTrack, st)
 	}
 	if hls != nil {
 		info.Mode = "hls"
 		info.StreamURL = "/api/v1/playback/sessions/" + id + "/master.m3u8?st=" + st
-		info.Transcoding = &model.Transcoding{Mode: decision.Mode, Backend: backend, Reason: decision.Reason}
+		info.Transcoding = &model.Transcoding{
+			Mode: d.Mode, Backend: backend, Hardware: hardware, Quality: d.Quality, Width: d.Width, Height: d.Height,
+			Bitrate: d.Bitrate, Tonemap: d.Tonemap, Reason: d.Reason,
+		}
 	}
 	s.log.InfoContext(ctx, "playback started", "playback_id", id, "item_id", item.ID, "media_file_id", file.ID,
-		"mode", decision.Mode, "backend", backend, "reason", decision.Reason)
+		"mode", d.Mode, "backend", backend, "reason", d.Reason, "quality", d.Quality, "audio_track", d.AudioStream,
+		"subtitle_track", d.SubtitleTrack, "subtitle_delivery", d.SubtitleDelivery)
 	return info, nil
 }
 
+// validateRequest checks the fields of a start request that need no lookup.
+func validateRequest(req model.PlaybackRequest) error {
+	var verr *model.ValidationError
+	if len(req.DeviceID) > maxClientIDLength {
+		verr = verr.Add("deviceId", "too_long")
+	}
+	if !validQuality(req.Quality) {
+		verr = verr.Add("quality", "invalid_value")
+	}
+	switch req.SubtitleDelivery {
+	case "", model.SubtitleAuto, model.SubtitleText, model.SubtitleBurn:
+	default:
+		verr = verr.Add("subtitleDelivery", "invalid_value")
+	}
+	if req.AudioTrack != nil && *req.AudioTrack < 0 {
+		verr = verr.Add("audioTrack", "too_small")
+	}
+	if req.SubtitleTrack < 0 {
+		verr = verr.Add("subtitleTrack", "too_small")
+	}
+	if req.PositionMs != nil && *req.PositionMs < 0 {
+		verr = verr.Add("positionMs", "too_small")
+	}
+	if verr != nil {
+		return verr
+	}
+	return nil
+}
+
+// trackRequest checks the wanted tracks against the tracks of the file: audioTrack must be the
+// stream index of one of its audio tracks, subtitleTrack the id of one of its subtitle tracks,
+// a text delivery needs a text track and a burn-in a burnable track (422 unknown_track,
+// not_text, not_burnable).
+func trackRequest(req model.PlaybackRequest, tracks model.TrackList) (Request, error) {
+	out := Request{AudioStream: -1, Delivery: req.SubtitleDelivery}
+	var verr *model.ValidationError
+	if req.AudioTrack != nil {
+		i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == *req.AudioTrack })
+		if i < 0 {
+			verr = verr.Add("audioTrack", "unknown_track")
+		} else {
+			out.AudioStream = tracks.Audio[i].Index
+		}
+	}
+	if req.SubtitleTrack > 0 {
+		i := slices.IndexFunc(tracks.Subtitles, func(t model.Track) bool { return t.ID == req.SubtitleTrack })
+		switch {
+		case i < 0:
+			verr = verr.Add("subtitleTrack", "unknown_track")
+		case req.SubtitleDelivery == model.SubtitleText && !tracks.Subtitles[i].Text:
+			verr = verr.Add("subtitleDelivery", "not_text")
+		case (req.SubtitleDelivery == model.SubtitleBurn || !tracks.Subtitles[i].Text) && !burnable(tracks.Subtitles[i]):
+			verr = verr.Add("subtitleDelivery", "not_burnable")
+		default:
+			out.Subtitle = &tracks.Subtitles[i]
+		}
+	}
+	if verr != nil {
+		return Request{}, verr
+	}
+	return out, nil
+}
+
+// burnable reports whether a transcode can burn the subtitle track in: text tracks through libass
+// (embedded or sidecar), embedded PGS and DVD bitmaps as an overlay. A VobSub sidecar (.sub) and
+// other image formats cannot.
+func burnable(t model.Track) bool {
+	return t.Text || (t.Source != "sidecar" && transcode.BitmapSubtitleCodec(t.Codec))
+}
+
+// directFallback is the decision when HLS is not possible (no transcoder, file not probed): direct
+// play of the default audio track; a text subtitle stays, a burn-in is dropped.
+func directFallback(d Decision) Decision {
+	out := Decision{Mode: ModeDirect, AudioStream: -1, BurnStream: -1, Width: d.Width, Height: d.Height}
+	if d.SubtitleDelivery == model.SubtitleText {
+		out.SubtitleTrack, out.SubtitleDelivery = d.SubtitleTrack, d.SubtitleDelivery
+	}
+	return out
+}
+
+// source is what the fallbacks after Decide need about the file and the client: a remux whose
+// keyframe index is missing and a transcode the budget lowers are decided again from it.
+type source struct {
+	file   model.MediaFile
+	probe  *transcode.Probe
+	w, h   int
+	limits model.PlaybackLimits
+	caps   model.PlaybackCapabilities
+}
+
+func newSource(file model.MediaFile, probe *transcode.Probe, limits model.PlaybackLimits, caps model.PlaybackCapabilities) source {
+	src := source{file: file, probe: probe, w: file.Width, h: file.Height, limits: limits, caps: caps}
+	if v := mainVideo(probe); v != nil && v.Height > 0 {
+		src.w, src.h = v.Width, v.Height
+	}
+	return src
+}
+
+// transcode turns d into a transcode on its rung (a transcode) or on the highest rung the source
+// and the limits allow (a remux), tonemapped for HDR sources; AAC audio stays copied.
+func (src source) transcode(d Decision, reason string) Decision {
+	audio := strings.ToLower(src.file.AudioCodec)
+	if a := audioStream(src.probe, d.AudioStream); a != nil {
+		audio = strings.ToLower(a.Codec)
+	}
+	from := sourceTop(src.h)
+	if i := rungIndex(d.Quality); i >= 0 {
+		from = i
+	}
+	audioCopy := audio == "aac" && slices.Contains(src.caps.Audio, audio)
+	return transcodeOn(d, pickRung(from, src.limits, deviceCap(src.caps)), reason, isHDR(mainVideo(src.probe)), audioCopy, src.w, src.h, src.limits)
+}
+
 // startHLS starts the output of req. A remux the transcoder rejects for a missing keyframe index
-// (a safety net behind hlsRequest) is transcoded instead and the index job is queued at top
-// priority. It returns the output and the decision that runs.
-func (s *Service) startHLS(ctx context.Context, req *HLSRequest, file model.MediaFile) (HLSSession, Decision, error) {
+// (a safety net behind prepare) is transcoded instead and the index job is queued at top priority.
+// An exhausted budget lowers an SDR transcode above 720p once to the 720p rung when that costs
+// less budget (plan 3.5, budget_lowered); HDR and 4K sources and lower rungs answer
+// model.ErrTranscodeBusy at once. It returns the output
+// and the decision that runs.
+func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HLSSession, Decision, error) {
 	hs, err := s.tc.Start(ctx, *req)
 	if errors.Is(err, ErrNoKeyframes) && req.Decision.Mode == ModeRemux {
-		s.queueKeyframes(ctx, file.ID)
-		req.Decision = transcodeFallback(file, isHDR(mainVideo(&req.Probe)))
+		s.queueKeyframes(ctx, src.file.ID)
+		req.Decision = src.transcode(req.Decision, ReasonKeyframesPending)
 		req.Keyframes = nil
 		hs, err = s.tc.Start(ctx, *req)
+	}
+	if errors.Is(err, model.ErrTranscodeBusy) {
+		if low, ok := lowered(req.Decision, src.w, src.h, src.limits); ok && cheaper(*req, low) {
+			s.log.InfoContext(ctx, "transcode budget exhausted, trying one rung lower", "playback_id", req.ID,
+				"from", req.Decision.Quality, "to", low.Quality)
+			req.Decision = low
+			hs, err = s.tc.Start(ctx, *req)
+		}
 	}
 	return hs, req.Decision, err
 }
 
-// transcodeFallback is the transcode that replaces a remux while the keyframe index is pending.
-// Tonemapping follows the source (a Safari HDR passthrough is tonemapped as well).
-func transcodeFallback(file model.MediaFile, hdr bool) Decision {
-	return Decision{Mode: ModeTranscode, MaxHeight: MaxTranscodeHeight, Tonemap: hdr,
-		AudioCopy: strings.EqualFold(file.AudioCodec, "aac"), Reason: ReasonKeyframesPending}
+// cheaper reports whether the decision low costs less transcode budget than the decision of req
+// (transcode.Cost): a 4K source costs the same on every rung, so lowering it only waits again.
+func cheaper(req HLSRequest, low Decision) bool {
+	lowReq := req
+	lowReq.Decision = low
+	return transcode.Cost(hlsSource(lowReq), hlsTarget(lowReq)) < transcode.Cost(hlsSource(req), hlsTarget(req))
 }
 
 // storedProbe reads the stored probe and keyframe blob of a media file; probe is nil when the file
@@ -203,50 +412,64 @@ func (s *Service) storedProbe(ctx context.Context, scope visibility.Scope, loc v
 	return &p, pf.Keyframes, nil
 }
 
+// probeDetails returns the container bit rate and the HDR format of the main video stream.
+func probeDetails(p *transcode.Probe) (int64, string) {
+	if p == nil {
+		return 0, ""
+	}
+	hdr := ""
+	if v := mainVideo(p); v != nil {
+		hdr = v.HDRFormat()
+	}
+	return p.Format.BitRate, hdr
+}
+
+// chapters maps the chapter marks of the probe.
+func chapters(p *transcode.Probe) []model.Chapter {
+	out := []model.Chapter{}
+	if p == nil {
+		return out
+	}
+	for _, c := range p.Chapters {
+		out = append(out, model.Chapter{StartMs: c.Start.Milliseconds(), EndMs: c.End.Milliseconds(), Title: c.Title})
+	}
+	return out
+}
+
 // sourcePath resolves the absolute path of a media file through package paths.
 func sourcePath(loc visibility.MediaFileLocation) (string, error) {
-	root, err := paths.NewRoot(loc.RootPath)
+	return rootPath(loc.RootPath, loc.RelPath, loc.File.ID)
+}
+
+// rootPath resolves rel below a library root through package paths.
+func rootPath(rootDir, rel, what string) (string, error) {
+	root, err := paths.NewRoot(rootDir)
 	if err != nil {
 		return "", err
 	}
-	abs, err := paths.Resolve(root, loc.RelPath)
+	abs, err := paths.Resolve(root, rel)
 	if err != nil {
-		return "", fmt.Errorf("resolve media file %s: %w", loc.File.ID, err)
+		return "", fmt.Errorf("resolve %s: %w", what, err)
 	}
 	return abs, nil
 }
 
-// hlsRequest decides the mode and, for remux and transcode, prepares the transcoder request. It
-// falls back to direct play when no transcoder is configured or the file is not probed yet, so the
-// client checks the file itself (the M1a behaviour). A remux needs the keyframe index
-// (ensureKeyframes); without it the file is transcoded.
-func (s *Service) hlsRequest(ctx context.Context, scope visibility.Scope, loc visibility.MediaFileLocation, caps model.PlaybackCapabilities) (*HLSRequest, Decision, error) {
-	probe, kfBlob, err := s.storedProbe(ctx, scope, loc)
-	if err != nil {
-		return nil, Decision{}, err
-	}
-	d := Decide(loc.File, probe, caps)
-	if d.Mode == ModeDirect {
-		return nil, d, nil
-	}
-	if s.tc == nil || probe == nil {
-		s.log.InfoContext(ctx, "hls unavailable, falling back to direct play", "media_file_id", loc.File.ID,
-			"transcoder", s.tc != nil, "probed", probe != nil)
-		return nil, Decision{Mode: ModeDirect}, nil
-	}
-	return s.prepare(ctx, loc, probe, kfBlob, d)
-}
-
-// prepare resolves the source and, for a remux, the keyframe index of an HLS request.
-func (s *Service) prepare(ctx context.Context, loc visibility.MediaFileLocation, probe *transcode.Probe, kfBlob []byte, d Decision) (*HLSRequest, Decision, error) {
+// prepare resolves the source (and a sidecar subtitle to burn in) and, for a remux, the keyframe
+// index of an HLS request. A remux without index is transcoded (ensureKeyframes).
+func (s *Service) prepare(ctx context.Context, loc visibility.MediaFileLocation, src source, kfBlob []byte, d Decision) (*HLSRequest, Decision, error) {
 	abs, err := sourcePath(loc)
 	if err != nil {
 		return nil, Decision{}, err
 	}
-	req := &HLSRequest{Path: abs, Probe: *probe, Decision: d}
+	req := &HLSRequest{Path: abs, Probe: *src.probe, Decision: d}
+	if d.SubtitleDelivery == model.SubtitleBurn && d.BurnSidecar != "" {
+		if req.BurnInPath, err = rootPath(loc.RootPath, d.BurnSidecar, "sidecar subtitle"); err != nil {
+			return nil, Decision{}, err
+		}
+	}
 	if d.Mode == ModeRemux {
 		if req.Keyframes = s.ensureKeyframes(ctx, loc.File.ID, abs, kfBlob); req.Keyframes == nil {
-			req.Decision = transcodeFallback(loc.File, isHDR(mainVideo(probe)))
+			req.Decision = src.transcode(d, ReasonKeyframesPending)
 		}
 	}
 	return req, req.Decision, nil
@@ -327,21 +550,28 @@ func (s *Service) Authorize(ctx context.Context, token string) (model.PlaybackGr
 			s.log.WarnContext(ctx, "touch playback session", "playback_id", row.ID, "err", err)
 		}
 	}
-	return model.PlaybackGrant{
+	account := model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: int(acc.MaxRating), AllLibraries: acc.AllLibraries == 1,
+		Limits: auth.AccountLimits(acc)}
+	limits := auth.ProfileLimits(prof)
+	g := model.PlaybackGrant{
 		ID: row.ID,
 		Session: model.Session{
 			ID:      row.SessionID,
-			Account: model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: int(acc.MaxRating), AllLibraries: acc.AllLibraries == 1},
+			Account: account,
 			Profile: model.Profile{
 				ID: prof.ID, AccountID: prof.AccountID, Name: prof.Name, MaxRating: int(prof.MaxRating),
 				Language: prof.Language, AllLibraries: prof.AllLibraries == 1, Accent: prof.Accent.String,
-				HasPin: prof.PinHash.Valid, IsPrimary: prof.IsDefault == 1,
+				HasPin: prof.PinHash.Valid, IsPrimary: prof.IsDefault == 1, Limits: limits, Effective: limits.Cap(account.Limits),
 			},
 		},
 		ItemID:      row.ItemID,
 		MediaFileID: row.MediaFileID,
 		Mode:        row.Mode,
-	}, nil
+	}
+	if row.SubtitleDelivery.String == model.SubtitleText {
+		g.SubtitleTrack = row.SubtitleTrack.Int64
+	}
+	return g, nil
 }
 
 // HLS returns the HLS output of a grant after checking that its title is still visible to the
@@ -367,8 +597,9 @@ func (s *Service) HLS(ctx context.Context, g model.PlaybackGrant, segment int) (
 }
 
 // rebuild starts the output of a valid HLS grant again, one rebuild per playback at a time. The
-// mode is the recorded one; the client's capabilities are not stored, so a remux copies only AAC
-// audio and encodes anything else (always playable, at worst a different audio codec than before).
+// decision is made again from the recorded columns (M4 design 3.7): the reported capabilities,
+// the quality rung, the audio track and the subtitle track with its delivery, under the limits of
+// the recorded decision (recordedLimits); a recorded transcode stays a transcode on its rung.
 func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment int) (HLSSession, error) {
 	for {
 		s.rebuildMu.Lock()
@@ -413,13 +644,21 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	if probe == nil {
 		return nil, model.ErrNotFound
 	}
-	req, _, err := s.prepare(ctx, loc, probe, kfBlob, recordedDecision(loc.File, probe, g.Mode))
+	row, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: g.ID, Now: s.now().UnixMilli()})
+	if err != nil {
+		return nil, unauthenticatedOr(err, "get playback session")
+	}
+	src, d, err := s.recordedDecision(ctx, scope, loc, probe, row, recordedLimits(row))
+	if err != nil {
+		return nil, err
+	}
+	req, _, err := s.prepare(ctx, loc, src, kfBlob, d)
 	if err != nil {
 		return nil, err
 	}
 	req.ID = g.ID
 	req.StartSegment = segment
-	hs, _, err := s.startHLS(ctx, req, loc.File)
+	hs, _, err := s.startHLS(ctx, req, src)
 	if err != nil {
 		return nil, err
 	}
@@ -432,18 +671,60 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	return hs, nil
 }
 
-// recordedDecision rebuilds the decision of a recorded HLS mode from the stored probe.
-// Tonemapping is requested for every transcode; transcode.NewPlan drops it for SDR sources.
-func recordedDecision(file model.MediaFile, probe *transcode.Probe, mode string) Decision {
-	audio := strings.ToLower(file.AudioCodec)
-	if mode == ModeRemux {
-		d := Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: audio == "" || audio == "aac"}
-		if strings.EqualFold(file.VideoCodec, "hevc") {
-			d.VideoTag = "hvc1"
-		}
-		return d
+// recordedLimits are the limits a rebuild decides with. The recorded decision already obeyed the
+// limits of its start, and the client holds the master playlist of that decision (rung, size,
+// BANDWIDTH, CODECS), so the profile's current limits do not apply (a changed limit applies from
+// the next start): no limits, except the bandwidth limit when it capped the recorded bit rate
+// below that of its rung, rebuilt from the bit rate.
+func recordedLimits(row appq.PlaybackSession) model.PlaybackLimits {
+	if row.Mode != ModeTranscode || !row.Bitrate.Valid {
+		return model.PlaybackLimits{}
 	}
-	return Decision{Mode: ModeTranscode, MaxHeight: MaxTranscodeHeight, Tonemap: isHDR(mainVideo(probe)), AudioCopy: audio == "aac"}
+	i := rungIndex(row.Quality.String)
+	if i < 0 || row.Bitrate.Int64 >= int64(ladder[i].Bitrate) {
+		return model.PlaybackLimits{}
+	}
+	return model.PlaybackLimits{MaxBitrateKbps: int((row.Bitrate.Int64 + audioBitrate) / 1000)}
+}
+
+// recordedDecision decides an HLS playback again from its row: the stored capabilities (the
+// defaults for a row without), quality rung, audio track and subtitle track with its delivery. A
+// recorded transcode stays one; a decision that turns out direct (it cannot, with the same input)
+// is transcoded, because the client fetches HLS.
+func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, loc visibility.MediaFileLocation, probe *transcode.Probe,
+	row appq.PlaybackSession, limits model.PlaybackLimits,
+) (source, Decision, error) {
+	var reported *model.PlaybackCapabilities
+	if row.Capabilities.Valid {
+		var c model.PlaybackCapabilities
+		if err := json.Unmarshal([]byte(row.Capabilities.String), &c); err == nil {
+			reported = &c
+		}
+	}
+	caps := normalizeCapabilities(reported)
+	req := Request{Caps: caps, Limits: limits, AudioStream: -1, Quality: row.Quality.String, Delivery: row.SubtitleDelivery.String,
+		ForceTranscode: row.Mode == ModeTranscode}
+	if row.AudioTrack.Valid {
+		req.AudioStream = int(row.AudioTrack.Int64)
+	}
+	if row.SubtitleTrack.Valid {
+		tracks, err := s.vis.Tracks(ctx, scope, loc.ItemID, loc.File.ID)
+		if err != nil {
+			return source{}, Decision{}, err
+		}
+		if i := slices.IndexFunc(tracks.Subtitles, func(t model.Track) bool { return t.ID == row.SubtitleTrack.Int64 }); i >= 0 {
+			req.Subtitle = &tracks.Subtitles[i]
+		}
+	}
+	src := newSource(loc.File, probe, limits, caps)
+	d := Decide(loc.File, probe, req)
+	if d.Mode == ModeDirect {
+		d = src.transcode(d, row.Reason.String)
+	}
+	if d.Mode == ModeTranscode && row.Mode == ModeTranscode && row.Reason.Valid {
+		d.Reason = row.Reason.String // the forced rung reads as a manual one to Decide
+	}
+	return src, d, nil
 }
 
 // OpenGrant opens the media file of a direct-play grant for the Range endpoint; HLS grants and
@@ -482,7 +763,7 @@ func (s *Service) Stop(ctx context.Context, session model.Session, id string) er
 // streams and stops their HLS output.
 func (s *Service) EndSession(ctx context.Context, sessionID int64) error {
 	ids, err := s.write.RevokePlaybackSessionsBySession(ctx, appq.RevokePlaybackSessionsBySessionParams{
-		SessionID: sessionID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
+		SessionID: sessionID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, StoppedBy: nullString(model.StoppedByLogout),
 	})
 	if err != nil {
 		return fmt.Errorf("revoke playback sessions: %w", err)
@@ -498,7 +779,7 @@ func (s *Service) EndSession(ctx context.Context, sessionID int64) error {
 // stream tokens answer 401 from the next request on either way.
 func (s *Service) EndAccount(ctx context.Context, accountID int64) error {
 	ids, err := s.write.RevokePlaybackSessionsByAccount(ctx, appq.RevokePlaybackSessionsByAccountParams{
-		AccountID: accountID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
+		AccountID: accountID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, StoppedBy: nullString(model.StoppedByRevoked),
 	})
 	if err != nil {
 		return fmt.Errorf("revoke playback sessions of account: %w", err)
@@ -513,8 +794,13 @@ func (s *Service) EndAccount(ctx context.Context, accountID int64) error {
 // EndProfile revokes every playback session of a profile (profile deleted), ends their open
 // streams and stops their HLS output.
 func (s *Service) EndProfile(ctx context.Context, profileID int64) error {
+	return s.endProfile(ctx, profileID, model.StoppedByRevoked)
+}
+
+// endProfile ends the playback of a profile; stoppedBy is revoked (profile deleted) or limit (K-5).
+func (s *Service) endProfile(ctx context.Context, profileID int64, stoppedBy string) error {
 	ids, err := s.write.RevokePlaybackSessionsByProfile(ctx, appq.RevokePlaybackSessionsByProfileParams{
-		ProfileID: profileID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
+		ProfileID: profileID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, StoppedBy: nullString(stoppedBy),
 	})
 	if err != nil {
 		return fmt.Errorf("revoke playback sessions of profile: %w", err)
@@ -526,10 +812,12 @@ func (s *Service) EndProfile(ctx context.Context, profileID int64) error {
 	return nil
 }
 
-// end closes the open streams of an ended playback session and stops its HLS output.
+// end closes the open streams of an ended playback session, stops its HLS output and removes its
+// cached subtitles.
 func (s *Service) end(id string) {
 	s.cancelStreams(id)
 	s.stopOutput(id)
+	s.removeSubtitles(id)
 }
 
 func (s *Service) stopOutput(id string) {
@@ -555,15 +843,18 @@ func (s *Service) Run(ctx context.Context) {
 
 // sweep ends what revoked and expired playback sessions left behind, including those whose
 // browser session ended (a client that never sent its stop, a revoked login): open streams and
-// HLS output. It deletes rows that ended more than a day ago.
+// HLS output. It deletes rows that ended more than a day ago. Before that it ends the playback
+// of profiles whose daily watch time is used up (sweepWatchLimits, K-5).
 func (s *Service) sweep(ctx context.Context) {
 	now := s.now()
+	s.sweepWatchLimits(ctx, now)
 	ids, err := s.read.ListEndedPlaybackSessions(ctx, now.UnixMilli())
 	if err != nil {
 		s.log.WarnContext(ctx, "list ended playback sessions", "err", err)
 	}
 	for _, id := range ids {
 		s.cancelStreams(id)
+		s.removeSubtitles(id)
 		if s.tc == nil {
 			continue
 		}
@@ -574,6 +865,7 @@ func (s *Service) sweep(ctx context.Context) {
 	if _, err := s.write.DeleteExpiredPlaybackSessions(ctx, now.Add(-endedRetention).UnixMilli()); err != nil {
 		s.log.WarnContext(ctx, "delete ended playback sessions", "err", err)
 	}
+	s.sweepSubtitles(time.Now()) // file times are wall-clock times
 }
 
 func unauthenticatedOr(err error, what string) error {

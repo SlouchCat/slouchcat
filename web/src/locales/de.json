@@ -22,7 +22,9 @@
     "access": "Zugriff",
     "profiles": "Profile",
     "switchProfile": "Profil wechseln, aktuell {{name}}",
-    "maintenance": "Pflege"
+    "maintenance": "Pflege",
+    "devices": "Geräte",
+    "streams": "Streams"
   },
   "system": {
     "server": {
@@ -59,7 +61,9 @@
       "primary_profile": "Das Hauptprofil kann nicht gelöscht werden.",
       "invitation_gone": "Dieser Einladungslink ist nicht mehr gültig.",
       "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut.",
-      "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers."
+      "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers.",
+      "watch_limit_reached": "Die Schauzeit dieses Profils für heute ist aufgebraucht.",
+      "stream_limit_reached": "Dieses Profil spielt schon so viele Streams wie erlaubt."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -74,7 +78,8 @@
       "unknown_library": "Diese Bibliothek gibt es nicht.",
       "too_many_profiles": "Mehr als 10 Profile pro Konto sind nicht möglich.",
       "already_exists": "Diese E-Mail-Adresse ist schon vergeben.",
-      "pin_format": "Die PIN besteht aus 4 bis 8 Ziffern."
+      "pin_format": "Die PIN besteht aus 4 bis 8 Ziffern.",
+      "not_burnable": "Diese Untertitelspur kann nicht eingebrannt werden."
     }
   },
   "setup": {
@@ -211,7 +216,9 @@
     "uhd": "4K",
     "fhd": "1080p",
     "hd": "720p",
-    "sd": "SD"
+    "sd": "SD",
+    "height": "{{height}}p",
+    "separator": " · "
   },
   "player": {
     "region": "Videoplayer",
@@ -238,8 +245,7 @@
       "body": "Die Datei konnte nicht geladen werden."
     },
     "info": "Stream-Info",
-    "version": "Version",
-    "switching": "Version wird gewechselt …",
+    "switching": "Wird umgestellt …",
     "streamInfo": {
       "title": "Stream-Info",
       "mode": "Modus",
@@ -248,7 +254,6 @@
       "transcoding": "Umwandlung",
       "remux": "Remux",
       "transcode": "Transcode",
-      "backend": "Backend",
       "reason": "Grund",
       "reasons": {
         "container": "Container",
@@ -256,7 +261,14 @@
         "audio_codec": "Audiocodec",
         "hdr": "HDR-Video",
         "pixel_format": "Pixelformat (10 Bit, 4:2:2 oder 4:4:4)",
-        "keyframes_pending": "Keyframe-Index wird erstellt"
+        "keyframes_pending": "Keyframe-Index wird erstellt",
+        "dolby_vision": "Dolby Vision (Profil 5 oder 7)",
+        "bandwidth": "Bandbreiten-Limit",
+        "max_height": "Qualitäts-Limit",
+        "quality": "Gewählte Qualität",
+        "audio_track": "Gewählte Tonspur",
+        "subtitle_burn": "Eingebrannte Untertitel",
+        "budget_lowered": "Server ausgelastet, Qualität gesenkt"
       },
       "mediaFile": "Datei-ID",
       "version": "Version",
@@ -264,9 +276,74 @@
       "video": "Video",
       "audio": "Audio",
       "resolution": "Auflösung",
-      "none": "–"
+      "none": "–",
+      "encoder": "Encoder",
+      "hardware": "Hardware ({{backend}})",
+      "software": "Software",
+      "tonemap": "Tonemapping",
+      "yes": "Ja",
+      "no": "Nein",
+      "quality": "Qualität",
+      "original": "Original",
+      "output": "Ausgabe",
+      "bitrate": "Bitrate",
+      "audioTrack": "Tonspur",
+      "subtitle": "Untertitel",
+      "delivery": "Untertitel als",
+      "deliveryText": "Text (WebVTT)",
+      "deliveryBurn": "Eingebrannt"
     },
-    "versionButton": "Version: {{label}}"
+    "versionButton": "Version: {{label}}",
+    "tracks": {
+      "button": "Spuren",
+      "audio": "Ton",
+      "subtitles": "Untertitel",
+      "off": "Aus",
+      "unknown": "Spur {{n}}",
+      "forced": "erzwungen",
+      "external": "extern"
+    },
+    "quality": {
+      "button": "Qualität: {{label}}",
+      "auto": "Automatisch",
+      "autoWith": "Automatisch ({{quality}})"
+    },
+    "chapters": {
+      "button": "Kapitel",
+      "untitled": "Kapitel {{n}}",
+      "item": "{{title}} · {{time}}"
+    },
+    "skipIntro": "Intro überspringen",
+    "skipOutro": "Abspann überspringen",
+    "next": {
+      "title": "Nächste Folge",
+      "countdown_one": "Startet in {{count}} Sekunde",
+      "countdown_other": "Startet in {{count}} Sekunden",
+      "play": "Jetzt ansehen",
+      "cancel": "Abbrechen",
+      "announce_one": "Nächste Folge: {{name}}. Startet in {{count}} Sekunde.",
+      "announce_other": "Nächste Folge: {{name}}. Startet in {{count}} Sekunden."
+    },
+    "watchLimit": {
+      "title": "Schauzeit für heute aufgebraucht",
+      "body_one": "Dieses Profil darf {{count}} Minute pro Tag schauen. Morgen geht es weiter.",
+      "body_other": "Dieses Profil darf {{count}} Minuten pro Tag schauen. Morgen geht es weiter.",
+      "bodyUnknown": "Das Tageslimit dieses Profils ist erreicht. Morgen geht es weiter.",
+      "used_one": "Heute geschaut: {{count}} Minute.",
+      "used_other": "Heute geschaut: {{count}} Minuten."
+    },
+    "streamLimit": {
+      "title": "Zu viele gleichzeitige Streams",
+      "body_one": "Dieses Profil darf {{count}} Stream gleichzeitig abspielen. Beende eine andere Wiedergabe und versuche es erneut.",
+      "body_other": "Dieses Profil darf {{count}} Streams gleichzeitig abspielen. Beende eine andere Wiedergabe und versuche es erneut.",
+      "bodyUnknown": "Dieses Profil spielt schon so viele Streams wie erlaubt. Beende eine andere Wiedergabe und versuche es erneut.",
+      "active_one": "Gerade läuft {{count}} Stream.",
+      "active_other": "Gerade laufen {{count}} Streams."
+    },
+    "ended": {
+      "title": "Wiedergabe beendet",
+      "body": "Die Wiedergabe wurde beendet."
+    }
   },
   "admin": {
     "libraries": {
@@ -378,7 +455,8 @@
           "title": "Gast {{email}} entfernen?",
           "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort.",
           "confirm": "Gast entfernen"
-        }
+        },
+        "limitsHint": "Gilt für alle Profile des Gastkontos."
       }
     },
     "maintenance": {
@@ -573,7 +651,83 @@
       "choose": "{{title}} zuordnen",
       "yearInvalid": "Ein Jahr zwischen 1800 und 2100."
     },
-    "titleYear": "{{title}} ({{year}})"
+    "titleYear": "{{title}} ({{year}})",
+    "devices": {
+      "title": "Geräte",
+      "intro": "Browser und Geräte, die sich angemeldet haben, mit dem Fähigkeitsprofil ihres letzten Wiedergabestarts.",
+      "list": "Geräte",
+      "empty": "Noch keine Geräte.",
+      "columns": {
+        "name": "Gerät",
+        "type": "Typ",
+        "owner": "Eigentümer",
+        "lastSeen": "Letzter Kontakt",
+        "containers": "Container",
+        "video": "Video",
+        "audio": "Audio",
+        "resolution": "Max. Auflösung",
+        "hdr": "HDR",
+        "streams": "Streams",
+        "actions": "Aktionen"
+      },
+      "unnamed": "Unbekanntes Gerät",
+      "owner": "{{email}} · {{profile}}",
+      "noOwner": "Noch keine Wiedergabe",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Anderes"
+      },
+      "forget": {
+        "action": "Vergessen",
+        "label": "{{name}} vergessen",
+        "title": "Gerät „{{name}}“ vergessen?",
+        "body": "Laufende Streams enden, die Sitzungen des Geräts werden abgemeldet. Ist es das Gerät, das du gerade benutzt, wirst du hier sofort abgemeldet.",
+        "confirm": "Gerät vergessen"
+      },
+      "forgotten": "Gerät „{{name}}“ vergessen.",
+      "yes": "Ja",
+      "no": "Nein",
+      "unknown": "–"
+    },
+    "streams": {
+      "title": "Streams",
+      "intro": "Laufende Wiedergaben. Die Liste aktualisiert sich alle 5 Sekunden.",
+      "list": "Laufende Streams",
+      "empty": "Gerade läuft nichts.",
+      "columns": {
+        "profile": "Profil",
+        "device": "Gerät",
+        "title": "Titel",
+        "quality": "Qualität",
+        "mode": "Modus",
+        "position": "Position",
+        "since": "Seit",
+        "actions": "Aktionen"
+      },
+      "unknownDevice": "Unbekanntes Gerät",
+      "original": "Original",
+      "qualityValue": "{{quality}} · {{bitrate}}",
+      "modes": {
+        "direct": "Direct",
+        "remux": "Remux",
+        "transcode": "Transcode ({{encoder}})"
+      },
+      "hw": "HW",
+      "sw": "SW",
+      "position": "{{position}} von {{duration}}",
+      "stop": {
+        "action": "Beenden",
+        "label": "Stream von {{profile}} beenden",
+        "title": "Stream von {{profile}} beenden?",
+        "body": "Die Wiedergabe von „{{title}}“ stoppt auf dem Gerät innert Sekunden.",
+        "confirm": "Stream beenden"
+      },
+      "stopped": "Stream von {{profile}} beendet.",
+      "noPosition": "–"
+    }
   },
   "language": {
     "de": "Deutsch",
@@ -672,7 +826,21 @@
         "save": "Speichern",
         "saving": "Wird gespeichert …"
       },
-      "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}"
+      "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}",
+      "report": {
+        "show": "Schauzeit anzeigen",
+        "hide": "Schauzeit ausblenden",
+        "title": "Schauzeit von {{name}}",
+        "intro": "Minuten pro Tag in den letzten 30 Tagen.",
+        "chart": "Schauzeit pro Tag",
+        "date": "Tag",
+        "minutes": "Minuten",
+        "value": "{{count}} min",
+        "today": "Heute: {{count}} min",
+        "limit": "Limit: {{count}} min pro Tag",
+        "total": "Total: {{count}} min",
+        "tooltip": "{{date}}: {{value}}"
+      }
     }
   },
   "invite": {
@@ -736,5 +904,21 @@
       "title": "Person nicht gefunden",
       "body": "Zu dieser Person gibt es hier keine Titel."
     }
+  },
+  "limits": {
+    "title": "Wiedergabe-Limits",
+    "maxHeight": "Höchste Qualität",
+    "none": "Ohne Limit",
+    "bitrate": "Bandbreite (kbit/s)",
+    "hint": "{{min}} bis {{max}}. Leer heisst ohne Limit.",
+    "streams": "Gleichzeitige Streams",
+    "watch": "Schauzeit pro Tag (Minuten)",
+    "range": "Erlaubt sind {{min}} bis {{max}}.",
+    "height": "bis {{height}}p",
+    "bitrateValue": "{{value}} kbit/s",
+    "streamsValue_one": "{{count}} Stream",
+    "streamsValue_other": "{{count}} Streams",
+    "watchValue": "{{count}} min pro Tag",
+    "capped": "Das Gastkonto begrenzt dieses Profil: {{summary}}."
   }
 }

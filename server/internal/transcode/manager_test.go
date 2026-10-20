@@ -214,3 +214,25 @@ func TestNewManagerWipesWorkDir(t *testing.T) {
 		t.Errorf("Start after Close: %v", err)
 	}
 }
+
+// An HDR transcode whose tonemapping runs on the CPU costs costHDRCPU on the manager; a GPU
+// tonemapper and a remux keep the plan's cost.
+func TestManagerCostOfCPUTonemap(t *testing.T) {
+	hdr := Plan{Cost: cost4KHDR, Target: Target{Mode: ModeTranscode, Tonemap: true}}
+	remux := Plan{Cost: costRemux, Target: Target{Mode: ModeRemux, VideoCopy: true, Tonemap: true}}
+	sdr := Plan{Cost: costHD, Target: Target{Mode: ModeTranscode}}
+	cpu := &Manager{caps: Capabilities{Backend: BackendQSV, Tonemapper: TonemapCPU}}
+	gpu := &Manager{caps: Capabilities{Backend: BackendQSV, Tonemapper: TonemapVPP, HWTonemap: true}}
+	if got := cpu.cost(hdr); got != costHDRCPU {
+		t.Errorf("cpu tonemap: cost %v, want %v", got, costHDRCPU)
+	}
+	if got := gpu.cost(hdr); got != cost4KHDR {
+		t.Errorf("gpu tonemap: cost %v, want %v", got, cost4KHDR)
+	}
+	if got := cpu.cost(remux); got != costRemux {
+		t.Errorf("remux: cost %v, want %v", got, costRemux)
+	}
+	if got := cpu.cost(sdr); got != costHD {
+		t.Errorf("sdr: cost %v, want %v", got, costHD)
+	}
+}

@@ -106,7 +106,8 @@ type Account struct {
 	Role         string // owner, guest
 	MaxRating    int    // ceiling of every profile of the account (18 for the owner)
 	AllLibraries bool
-	LibraryIDs   []int64 // libraries of a guest; empty when AllLibraries
+	LibraryIDs   []int64        // libraries of a guest; empty when AllLibraries
+	Limits       PlaybackLimits // W-8 caps of a guest account (WatchLimitMinutes unused)
 }
 
 // Profile is a viewing profile; its MaxRating and library rights drive the visibility layer
@@ -122,6 +123,38 @@ type Profile struct {
 	Accent       string
 	HasPin       bool
 	IsPrimary    bool // the account's primary profile: manages profiles, cannot be deleted
+	// Limits are the profile's own W-8/K-5 limits (zero = none); Effective applies the account's caps.
+	Limits    PlaybackLimits
+	Effective PlaybackLimits
+}
+
+// PlaybackLimits are the W-8 limits (bandwidth, output height, concurrent streams) and the K-5
+// daily watch-time limit; a zero value means no limit. Accounts (guests) carry the first three as
+// caps over every profile of the account.
+type PlaybackLimits struct {
+	MaxBitrateKbps    int
+	MaxHeight         int // 360, 480, 720, 1080, 2160
+	MaxStreams        int
+	WatchLimitMinutes int
+}
+
+// Cap returns the stricter of l and other per field (zero = no limit).
+func (l PlaybackLimits) Cap(other PlaybackLimits) PlaybackLimits {
+	minLimit := func(a, b int) int {
+		switch {
+		case a == 0:
+			return b
+		case b == 0:
+			return a
+		}
+		return min(a, b)
+	}
+	return PlaybackLimits{
+		MaxBitrateKbps:    minLimit(l.MaxBitrateKbps, other.MaxBitrateKbps),
+		MaxHeight:         minLimit(l.MaxHeight, other.MaxHeight),
+		MaxStreams:        minLimit(l.MaxStreams, other.MaxStreams),
+		WatchLimitMinutes: minLimit(l.WatchLimitMinutes, other.WatchLimitMinutes),
+	}
 }
 
 // Session is a resolved browser session. A session without an active profile (signed in, profile
@@ -152,7 +185,8 @@ type ProfileInput struct {
 	Accent       *string
 	AllLibraries *bool
 	LibraryIDs   *[]int64
-	PIN          *string // create only
+	PIN          *string         // create only
+	Limits       *PlaybackLimits // replaces all limits at once; nil keeps them
 }
 
 // Guest is a guest account with its limits.
@@ -165,6 +199,7 @@ type Guest struct {
 	ProfileCount int
 	CreatedAt    time.Time
 	LastSeenAt   *time.Time
+	Limits       PlaybackLimits // W-8 caps (WatchLimitMinutes unused)
 }
 
 // GuestUpdate changes the limits of a guest account; nil fields keep their value.
@@ -172,6 +207,7 @@ type GuestUpdate struct {
 	MaxRating    *int
 	AllLibraries *bool
 	LibraryIDs   *[]int64
+	Limits       *PlaybackLimits // replaces the three W-8 caps at once; nil keeps them
 }
 
 // InvitationRequest creates an invitation link.
@@ -337,6 +373,27 @@ type Progress struct {
 	DurationMs int64
 	Completed  bool
 	UpdatedAt  time.Time
+	WatchTime  *WatchTime // K-5: present when the profile has a daily limit
+}
+
+// WatchTime is the watch time of a profile today against its daily limit (K-5).
+type WatchTime struct {
+	LimitMinutes     int
+	UsedMinutes      int
+	RemainingMinutes int
+}
+
+// WatchDay is one day of the watch-time report (K-5).
+type WatchDay struct {
+	Date    string // YYYY-MM-DD in the server's local time zone
+	Minutes int
+}
+
+// WatchReport is the watch-time report of one profile, oldest day first.
+type WatchReport struct {
+	ProfileID    int64
+	LimitMinutes int // 0 = none
+	Days         []WatchDay
 }
 
 // Percent returns the position as a percentage of the duration (0 when the duration is unknown).
@@ -425,7 +482,79 @@ type MediaFile struct {
 	SizeBytes    int64
 	VersionLabel string
 	Available    bool
+	Bitrate      int64  // container bit rate in bit/s, 0 unknown
+	HDR          string // hdr10, hdr10plus, dolby_vision, hlg; empty for SDR
+	Tracks       *TrackList
 }
+
+// Track is one audio or subtitle track of a media file (embedded stream or sidecar file).
+type Track struct {
+	ID       int64
+	Index    int    // stream index; -1 for a sidecar
+	Kind     string // audio, subtitle
+	Codec    string
+	Language string
+	Title    string
+	Default  bool
+	Forced   bool
+	Source   string // embedded, sidecar
+	RelPath  string // sidecar file relative to the library root (never sent to clients)
+	Text     bool   // text subtitle format deliverable as WebVTT
+	Channels int
+}
+
+// TrackList are the tracks of one media file.
+type TrackList struct {
+	MediaFileID string
+	Audio       []Track
+	Subtitles   []Track
+}
+
+// Chapter is a chapter mark of a media file.
+type Chapter struct {
+	StartMs int64
+	EndMs   int64
+	Title   string
+}
+
+// Segment is a detected intro or outro of an episode (W-9).
+type Segment struct {
+	StartMs int64
+	EndMs   int64
+	Source  string // fingerprint, chapter, manual
+}
+
+// Segments are the intro and outro of a title; nil when unknown.
+type Segments struct {
+	Intro *Segment
+	Outro *Segment
+}
+
+// Quality rungs of the ladder (W-8, plan 3.5). QualityAuto picks the highest allowed rung.
+const (
+	QualityAuto = "auto"
+	Quality1080 = "1080p"
+	Quality720  = "720p"
+	Quality480  = "480p"
+	Quality360  = "360p"
+)
+
+// QualityOption is one rung of the ladder as offered to the player.
+type QualityOption struct {
+	Quality   string
+	Width     int
+	Height    int
+	Bitrate   int // peak video bit rate in bit/s
+	Available bool
+	Current   bool
+}
+
+// Subtitle delivery modes.
+const (
+	SubtitleAuto = "auto"
+	SubtitleText = "text"
+	SubtitleBurn = "burn"
+)
 
 // ItemDetail is a title with everything the detail page shows.
 type ItemDetail struct {
@@ -464,18 +593,41 @@ type PlaybackInfo struct {
 	ResumePositionMs  int64
 	PlaybackSessionID string
 	Transcoding       *Transcoding // nil for direct play
+	Tracks            TrackList
+	Selection         TrackSelection
+	SubtitleURL       string // WebVTT URL with the stream token when a text track is selected
+	Qualities         []QualityOption
+	Chapters          []Chapter
+	Segments          Segments
+	NextEpisode       *ItemSummary
+	WatchTime         *WatchTime
+	Device            *DeviceRef
+}
+
+// TrackSelection names the tracks a playback delivers.
+type TrackSelection struct {
+	AudioTrack       int    // stream index, -1 when the file has no audio
+	SubtitleTrack    int64  // track id, 0 = none
+	SubtitleDelivery string // text, burn; empty = none
+}
+
+// DeviceRef names the device of a playback.
+type DeviceRef struct {
+	ID   string
+	Name string
 }
 
 // ProgressEvent is one raw event from a client.
 type ProgressEvent struct {
-	MediaFileID string
-	DeviceID    string
-	PositionMs  int64
-	DurationMs  int64
-	PlayedMs    int64
-	Seq         int64
-	State       string // playing, paused, ended
-	ClientTime  time.Time
+	MediaFileID       string
+	PlaybackSessionID string // optional: the session whose position is recorded (W-6)
+	DeviceID          string
+	PositionMs        int64
+	DurationMs        int64
+	PlayedMs          int64
+	Seq               int64
+	State             string // playing, paused, ended
+	ClientTime        time.Time
 }
 
 // StreamSource is an opened media or image file ready for http.ServeContent. The caller closes it.
@@ -550,24 +702,122 @@ var (
 // PlaybackCapabilities are the codecs and the HLS support the client reports with startPlayback
 // (canPlayType checks; device profiles follow in M4).
 type PlaybackCapabilities struct {
-	Video []string // h264, hevc, …
-	Audio []string // aac, ac3, eac3, …
-	HLS   string   // native, mse, none
+	Containers []string `json:"containers,omitempty"` // mp4, webm, mkv; empty = MP4 family only
+	Video      []string `json:"video"`                // h264, hevc, …
+	Audio      []string `json:"audio"`                // aac, ac3, eac3, …
+	HLS        string   `json:"hls"`                  // native, mse, none
+	MaxWidth   int      `json:"maxWidth,omitempty"`   // screen size in device pixels, 0 unknown
+	MaxHeight  int      `json:"maxHeight,omitempty"`
+	HDR        bool     `json:"hdr"` // the display shows HDR (false is stored and shown as such)
+	Name       string   `json:"name,omitempty"`
+	Type       string   `json:"type,omitempty"` // desktop, phone, tablet, tv, other
 }
 
 // PlaybackRequest is the body of startPlayback.
 type PlaybackRequest struct {
-	MediaFileID  string // empty = primary file
-	DeviceID     string
-	Capabilities *PlaybackCapabilities // nil = H.264/AAC with MSE (a browser of the M1a client)
+	MediaFileID      string // empty = primary file
+	DeviceID         string
+	Capabilities     *PlaybackCapabilities // nil = H.264/AAC with MSE (a browser of the M1a client)
+	AudioTrack       *int                  // stream index; nil = the file's default track
+	SubtitleTrack    int64                 // track id; 0 = none
+	SubtitleDelivery string                // auto, text, burn; empty = auto
+	Quality          string                // auto, 1080p, …; empty = auto
+	PositionMs       *int64                // start position; nil = the stored resume position
 }
 
 // Transcoding describes an HLS playback: remux (copy video) or transcode, the encoder backend and
 // why the file is not played directly.
 type Transcoding struct {
-	Mode    string // remux, transcode
-	Backend string // nvenc, qsv, vaapi, software; empty for remux
-	Reason  string
+	Mode     string // remux, transcode
+	Backend  string // nvenc, qsv, vaapi, software; empty for remux
+	Hardware bool   // encoded on a GPU
+	Quality  string
+	Width    int
+	Height   int
+	Bitrate  int // peak video bit rate in bit/s
+	Tonemap  bool
+	Reason   string
+}
+
+// Playback session end reasons (playback_sessions.stopped_by).
+const (
+	StoppedByClient  = "client"
+	StoppedByAdmin   = "admin"
+	StoppedByLimit   = "limit"
+	StoppedByLogout  = "logout"
+	StoppedByRevoked = "revoked"
+)
+
+// Errors of the W-8 and K-5 limits. ErrStreamLimit: the profile runs as many streams as allowed
+// (409 stream_limit_reached). ErrWatchLimit: the daily watch time is used up (403
+// watch_limit_reached).
+var (
+	ErrStreamLimit = errors.New("stream limit reached")
+	ErrWatchLimit  = errors.New("watch-time limit reached")
+)
+
+// StreamLimitError is ErrStreamLimit with the numbers of the problem extensions (maxStreams,
+// activeStreams).
+type StreamLimitError struct {
+	MaxStreams    int
+	ActiveStreams int
+}
+
+func (e *StreamLimitError) Error() string {
+	return fmt.Sprintf("%v: %d of %d streams running", ErrStreamLimit, e.ActiveStreams, e.MaxStreams)
+}
+
+func (e *StreamLimitError) Is(target error) bool { return target == ErrStreamLimit }
+
+// WatchLimitError is ErrWatchLimit with the numbers of the problem extensions (limitMinutes,
+// usedMinutes).
+type WatchLimitError struct {
+	LimitMinutes int
+	UsedMinutes  int
+}
+
+func (e *WatchLimitError) Error() string {
+	return fmt.Sprintf("%v: %d of %d minutes used", ErrWatchLimit, e.UsedMinutes, e.LimitMinutes)
+}
+
+func (e *WatchLimitError) Is(target error) bool { return target == ErrWatchLimit }
+
+// AdminDevice is a device as the administration sees it (W-7).
+type AdminDevice struct {
+	ID             string
+	Name           string
+	Type           string
+	UserAgent      string
+	OwnerEmail     string
+	OwnerProfile   string
+	CreatedAt      time.Time
+	LastSeenAt     time.Time
+	Capabilities   *PlaybackCapabilities
+	CapabilitiesAt *time.Time
+	ActiveStreams  int
+}
+
+// AdminStream is a running playback session as the administration sees it (W-6).
+type AdminStream struct {
+	ID             string
+	AccountEmail   string
+	ProfileName    string
+	Device         *DeviceRef
+	ItemID         string
+	ItemTitle      string
+	MediaFileID    string
+	Mode           string // direct, remux, transcode
+	Backend        string
+	Hardware       bool
+	Quality        string
+	Width          int
+	Height         int
+	Bitrate        int
+	Reason         string
+	StartedAt      time.Time
+	LastActivityAt time.Time
+	PositionMs     *int64
+	DurationMs     *int64
 }
 
 // PlaybackGrant is a valid stream token resolved to its playback session: the browser session
@@ -578,6 +828,9 @@ type PlaybackGrant struct {
 	ItemID      string
 	MediaFileID string
 	Mode        string // direct, remux, transcode
+	// SubtitleTrack is the text subtitle track the playback delivers (0 = none), for the WebVTT
+	// endpoint, which serves only that track.
+	SubtitleTrack int64
 }
 
 // HLSStream serves the playlists and fMP4 segments of one HLS playback. URLs inside playlists are

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -72,6 +73,8 @@ type profileCall struct {
 	invisibleStatus int // expected status for an invisible item; 0 = 404 not_found
 	mint            string
 	streamOnly      bool
+	// subtitle mints the playback with the text track {track} of the file selected for WebVTT.
+	subtitle bool
 	// want is the expected status of a call without {id} for a profile; nil = any status below 500.
 	want  func(f *vistest.Fixture, p model.Profile) int
 	check func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder)
@@ -262,6 +265,44 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("segment 3: %v %x", rec.Header(), rec.Body.Bytes())
 			}
 		}},
+	"getItemTracks": {contract: "GET /items/{id}/tracks", path: "/items/{id}/tracks", perItem: true, okStatus: http.StatusOK,
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			var list struct {
+				MediaFileID string `json:"mediaFileId"`
+				Audio       []struct {
+					ID      int64 `json:"id"`
+					Index   int   `json:"index"`
+					Default bool  `json:"default"`
+				} `json:"audio"`
+				Subtitles []struct {
+					ID     int64  `json:"id"`
+					Index  int    `json:"index"`
+					Source string `json:"source"`
+					Text   bool   `json:"text"`
+				} `json:"subtitles"`
+			}
+			decode(t, rec, &list)
+			if list.MediaFileID != m.FileID || len(list.Audio) != 2 || !list.Audio[0].Default || len(list.Subtitles) != 3 {
+				t.Errorf("getItemTracks %s = %s", m.Label, rec.Body.String())
+			}
+			for _, s := range list.Subtitles {
+				if s.Source == "sidecar" && (s.Index != -1 || !s.Text) {
+					t.Errorf("getItemTracks %s sidecar = %+v", m.Label, s)
+				}
+			}
+			// The sidecar's path never leaves the server.
+			if strings.Contains(rec.Body.String(), ".srt") || strings.Contains(rec.Body.String(), "relPath") {
+				t.Errorf("getItemTracks %s leaks the sidecar path: %s", m.Label, rec.Body.String())
+			}
+		}},
+	"getPlaybackSubtitle": {contract: "GET /playback/sessions/{id}/subtitles/{track}.vtt", path: "/playback/sessions/{ps}/subtitles/{track}.vtt?st={st}",
+		perItem: true, okStatus: http.StatusOK, mint: "direct", subtitle: true, streamOnly: true,
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			if ct := rec.Header().Get("Content-Type"); ct != "text/vtt; charset=utf-8" || rec.Header().Get("Cache-Control") != "private, no-store" ||
+				!strings.HasPrefix(rec.Body.String(), "WEBVTT") {
+				t.Errorf("subtitle of %s: %s %q", m.Label, ct, rec.Body.String())
+			}
+		}},
 	"reportProgress": {contract: "POST /items/{id}/progress", path: "/items/{id}/progress", perItem: true, okStatus: http.StatusOK,
 		body: fmt.Sprintf(`{"positionMs":%d,"durationMs":%d,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-18T20:00:00Z"}`,
 			vistest.DurationMs/10, vistest.DurationMs),
@@ -373,6 +414,7 @@ type profileFixture struct {
 	tokens   map[string]model.Profile
 	sessions map[string]model.Session
 	tc       *fakeTranscoder
+	tracks   map[string]vistest.FileTracks // track ids by media file id (vistest.AddTracks)
 	a        *auth.Service
 	pa       profileAuth
 	admin    *admin.Service
@@ -395,6 +437,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	f.AddEdgeCases(t)
 	f.AddSeries(t)
 	f.AddGuest(t)
+	tracks := f.AddTracks(t)
+	f.AddSegments(t, f.Show.E1.ID)
 	log := vistest.Logger()
 	a := auth.New(f.DB, log)
 	ring, err := secrets.Load(t.TempDir(), log)
@@ -409,12 +453,14 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	tokens := map[string]model.Profile{
 		"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX, "pg": f.PG, "pg18": f.PG18,
 	}
-	pf := profileFixture{f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm}
+	pf := profileFixture{f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm, tracks: tracks}
 	for name, p := range tokens {
 		pf.newSession(t, name, p)
 	}
 	pf.newSession(t, "none", model.Profile{})
-	pf.pb = playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(pf.tc))
+	pf.pb = playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(pf.tc),
+		playback.WithSubtitleConverter(fakeEmbeddedVTT, fakeSidecarVTT), playback.WithCacheDir(t.TempDir()))
+	adm.WithStreams(pf.pb)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
@@ -454,12 +500,23 @@ func (pf profileFixture) newSession(t *testing.T, name string, p model.Profile) 
 // directly in the store, and returns its id and stream token.
 func (pf profileFixture) mint(t *testing.T, token string, m vistest.Movie, mode string) (id, st string) {
 	t.Helper()
+	return pf.mintWith(t, token, m, mode, 0)
+}
+
+// mintWith is mint with a text subtitle track selected for WebVTT delivery (0 = none).
+func (pf profileFixture) mintWith(t *testing.T, token string, m vistest.Movie, mode string, subtitle int64) (id, st string) {
+	t.Helper()
 	session := pf.sessions[token]
 	id = ulid.Make().String()
-	err := appq.New(pf.f.DB.Write).InsertPlaybackSession(context.Background(), appq.InsertPlaybackSessionParams{
+	p := appq.InsertPlaybackSessionParams{
 		ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
 		ItemID: m.ID, MediaFileID: m.FileID, Mode: mode, Now: time.Now().UnixMilli(), ExpiresAt: time.Now().Add(time.Hour).UnixMilli(),
-	})
+	}
+	if subtitle > 0 {
+		p.SubtitleTrack = sql.NullInt64{Int64: subtitle, Valid: true}
+		p.SubtitleDelivery = sql.NullString{String: model.SubtitleText, Valid: true}
+	}
+	err := appq.New(pf.f.DB.Write).InsertPlaybackSession(context.Background(), p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -596,8 +653,12 @@ func TestContractChildProfiles(t *testing.T) {
 				for _, m := range playable {
 					path := strings.ReplaceAll(call.path, "{id}", m.ID)
 					if call.mint != "" {
-						ps, st := pf.mint(t, token, m, call.mint)
-						path = strings.NewReplacer("{ps}", ps, "{st}", url.QueryEscape(st)).Replace(path)
+						var sub int64
+						if call.subtitle {
+							sub = pf.tracks[m.FileID].Text
+						}
+						ps, st := pf.mintWith(t, token, m, call.mint, sub)
+						path = strings.NewReplacer("{ps}", ps, "{st}", url.QueryEscape(st), "{track}", fmt.Sprint(sub)).Replace(path)
 					}
 					cookie := token
 					if call.streamOnly {
@@ -794,4 +855,17 @@ func TestContractStreamAndImageEdges(t *testing.T) {
 	if img := send(t, h, http.MethodGet, d.Images.Poster.URL, "p6", "", nil); img.Code != http.StatusOK {
 		t.Errorf("poster URL from the detail: status %d", img.Code)
 	}
+}
+
+// fakeEmbeddedVTT and fakeSidecarVTT stand for transcode.Runner's WebVTT conversion.
+func fakeEmbeddedVTT(_ context.Context, path string, idx int) ([]byte, error) {
+	return []byte(fmt.Sprintf("WEBVTT\n\nNOTE stream %d of %s\n", idx, filepath.Base(path))), nil
+}
+
+func fakeSidecarVTT(_ context.Context, path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return append([]byte("WEBVTT\n\n"), data...), nil
 }

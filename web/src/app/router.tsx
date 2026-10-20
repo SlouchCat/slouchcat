@@ -150,6 +150,18 @@ const maintenanceRoute = createRoute({
   ),
 });
 
+const devicesRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/devices',
+  component: lazyRouteComponent(() => import('@/features/admin/DevicesPage'), 'DevicesPage'),
+});
+
+const streamsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/streams',
+  component: lazyRouteComponent(() => import('@/features/admin/StreamsPage'), 'StreamsPage'),
+});
+
 const adminItemRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/admin/items/$itemId',
@@ -201,6 +213,8 @@ export const routeTree = rootRoute.addChildren([
         personRoute,
         librariesRoute,
         maintenanceRoute,
+        devicesRoute,
+        streamsRoute,
         adminItemRoute,
         accessRoute,
         profileSettingsRoute,

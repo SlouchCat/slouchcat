@@ -1,0 +1,66 @@
+.frame {
+  overflow-x: auto;
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sc-font-size-sm);
+}
+
+/* Caption and hidden headers: for screen readers only. */
+.caption {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.head {
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border-bottom: 1px solid var(--sc-color-border-subtle);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.row {
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.row + .row {
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.row:focus-within {
+  background-color: var(--sc-color-surface-2);
+}
+
+.cell {
+  padding: var(--sc-space-3) var(--sc-space-4);
+  color: var(--sc-color-text-secondary);
+  font-weight: var(--sc-font-weight-regular);
+  text-align: left;
+  vertical-align: top;
+}
+
+th.cell {
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.end {
+  text-align: right;
+}

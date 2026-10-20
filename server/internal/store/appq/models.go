@@ -9,16 +9,19 @@ import (
 )
 
 type Account struct {
-	ID           int64
-	Email        string
-	PasswordHash string
-	Role         string
-	CreatedAt    int64
-	UpdatedAt    int64
-	MaxRating    int64
-	AllLibraries int64
-	InvitedBy    sql.NullInt64
-	LastSeenAt   sql.NullInt64
+	ID             int64
+	Email          string
+	PasswordHash   string
+	Role           string
+	CreatedAt      int64
+	UpdatedAt      int64
+	MaxRating      int64
+	AllLibraries   int64
+	InvitedBy      sql.NullInt64
+	LastSeenAt     sql.NullInt64
+	MaxBitrateKbps sql.NullInt64
+	MaxHeight      sql.NullInt64
+	MaxStreams     sql.NullInt64
 }
 
 type AccountLibrary struct {
@@ -35,10 +38,16 @@ type Credit struct {
 }
 
 type Device struct {
-	ID         string
-	UserAgent  sql.NullString
-	CreatedAt  int64
-	LastSeenAt int64
+	ID             string
+	UserAgent      sql.NullString
+	CreatedAt      int64
+	LastSeenAt     int64
+	Name           sql.NullString
+	Type           sql.NullString
+	AccountID      sql.NullInt64
+	ProfileID      sql.NullInt64
+	Capabilities   sql.NullString
+	CapabilitiesAt sql.NullInt64
 }
 
 type IgnoredFile struct {
@@ -86,42 +95,44 @@ type InvitationLibrary struct {
 }
 
 type Item struct {
-	ID               string
-	Kind             string
-	ParentID         sql.NullString
-	LibraryID        int64
-	Title            string
-	SortTitle        string
-	OriginalTitle    sql.NullString
-	Year             sql.NullInt64
-	ReleaseDate      sql.NullString
-	RuntimeMinutes   sql.NullInt64
-	Genres           string
-	TmdbID           sql.NullInt64
-	ImdbID           sql.NullString
-	OwnRating        sql.NullInt64
-	EffectiveRating  sql.NullInt64
-	MinChildRating   sql.NullInt64
-	Available        int64
-	RatingSource     sql.NullString
-	EnclosureUrl     sql.NullString
-	LockedFields     string
-	MetadataState    string
-	MetadataError    sql.NullString
-	MatchedAt        sql.NullInt64
-	AddedAt          int64
-	CreatedAt        int64
-	UpdatedAt        int64
-	DeletedAt        sql.NullInt64
-	SeasonNumber     sql.NullInt64
-	EpisodeNumber    sql.NullInt64
-	EpisodeEnd       sql.NullInt64
-	TvdbID           sql.NullInt64
-	ExtraKind        sql.NullString
-	TmdbPosterPath   sql.NullString
-	TmdbBackdropPath sql.NullString
-	TrailerState     string
-	TrailerCheckedAt sql.NullInt64
+	ID                string
+	Kind              string
+	ParentID          sql.NullString
+	LibraryID         int64
+	Title             string
+	SortTitle         string
+	OriginalTitle     sql.NullString
+	Year              sql.NullInt64
+	ReleaseDate       sql.NullString
+	RuntimeMinutes    sql.NullInt64
+	Genres            string
+	TmdbID            sql.NullInt64
+	ImdbID            sql.NullString
+	OwnRating         sql.NullInt64
+	EffectiveRating   sql.NullInt64
+	MinChildRating    sql.NullInt64
+	Available         int64
+	RatingSource      sql.NullString
+	EnclosureUrl      sql.NullString
+	LockedFields      string
+	MetadataState     string
+	MetadataError     sql.NullString
+	MatchedAt         sql.NullInt64
+	AddedAt           int64
+	CreatedAt         int64
+	UpdatedAt         int64
+	DeletedAt         sql.NullInt64
+	SeasonNumber      sql.NullInt64
+	EpisodeNumber     sql.NullInt64
+	EpisodeEnd        sql.NullInt64
+	TvdbID            sql.NullInt64
+	ExtraKind         sql.NullString
+	TmdbPosterPath    sql.NullString
+	TmdbBackdropPath  sql.NullString
+	TrailerState      string
+	TrailerCheckedAt  sql.NullInt64
+	SegmentsState     string
+	SegmentsCheckedAt sql.NullInt64
 }
 
 type ItemText struct {
@@ -206,6 +217,16 @@ type MediaFile struct {
 	ProbeError   sql.NullString
 }
 
+type MediaSegment struct {
+	ItemID     string
+	Kind       string
+	StartMs    int64
+	EndMs      int64
+	Source     string
+	Confidence sql.NullFloat64
+	CreatedAt  int64
+}
+
 type Person struct {
 	ID          int64
 	TmdbID      sql.NullInt64
@@ -223,35 +244,50 @@ type PinAttempt struct {
 }
 
 type PlaybackSession struct {
-	ID             string
-	SessionID      int64
-	AccountID      int64
-	ProfileID      int64
-	ItemID         string
-	MediaFileID    string
-	DeviceID       sql.NullString
-	Mode           string
-	Backend        sql.NullString
-	Reason         sql.NullString
-	StartedAt      int64
-	LastActivityAt int64
-	ExpiresAt      int64
-	RevokedAt      sql.NullInt64
+	ID               string
+	SessionID        int64
+	AccountID        int64
+	ProfileID        int64
+	ItemID           string
+	MediaFileID      string
+	DeviceID         sql.NullString
+	Mode             string
+	Backend          sql.NullString
+	Reason           sql.NullString
+	StartedAt        int64
+	LastActivityAt   int64
+	ExpiresAt        int64
+	RevokedAt        sql.NullInt64
+	Quality          sql.NullString
+	Width            sql.NullInt64
+	Height           sql.NullInt64
+	Bitrate          sql.NullInt64
+	Hardware         int64
+	AudioTrack       sql.NullInt64
+	SubtitleTrack    sql.NullInt64
+	SubtitleDelivery sql.NullString
+	Capabilities     sql.NullString
+	PositionMs       sql.NullInt64
+	StoppedBy        sql.NullString
 }
 
 type Profile struct {
-	ID           int64
-	AccountID    int64
-	Name         string
-	Image        sql.NullString
-	MaxRating    int64
-	Language     string
-	Accent       sql.NullString
-	AllLibraries int64
-	IsDefault    int64
-	CreatedAt    int64
-	UpdatedAt    int64
-	PinHash      sql.NullString
+	ID                int64
+	AccountID         int64
+	Name              string
+	Image             sql.NullString
+	MaxRating         int64
+	Language          string
+	Accent            sql.NullString
+	AllLibraries      int64
+	IsDefault         int64
+	CreatedAt         int64
+	UpdatedAt         int64
+	PinHash           sql.NullString
+	MaxBitrateKbps    sql.NullInt64
+	MaxHeight         sql.NullInt64
+	MaxStreams        sql.NullInt64
+	WatchLimitMinutes sql.NullInt64
 }
 
 type ProfileLibrary struct {
@@ -269,18 +305,19 @@ type Progress struct {
 }
 
 type ProgressEvent struct {
-	ID          int64
-	ProfileID   int64
-	ItemID      string
-	MediaFileID sql.NullString
-	DeviceID    sql.NullString
-	PositionMs  int64
-	DurationMs  int64
-	PlayedMs    int64
-	Seq         int64
-	State       string
-	ClientTime  int64
-	ServerTime  int64
+	ID                int64
+	ProfileID         int64
+	ItemID            string
+	MediaFileID       sql.NullString
+	DeviceID          sql.NullString
+	PositionMs        int64
+	DurationMs        int64
+	PlayedMs          int64
+	Seq               int64
+	State             string
+	ClientTime        int64
+	ServerTime        int64
+	PlaybackSessionID sql.NullString
 }
 
 type Session struct {

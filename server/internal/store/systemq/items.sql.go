@@ -43,8 +43,17 @@ func (q *Queries) DeleteMediaFileTracks(ctx context.Context, mediaFileID string)
 	return err
 }
 
+const deleteTrack = `-- name: DeleteTrack :exec
+DELETE FROM tracks WHERE id = ?1
+`
+
+func (q *Queries) DeleteTrack(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteTrack, id)
+	return err
+}
+
 const getItemSystem = `-- name: GetItemSystem :one
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at FROM items WHERE id = ?1
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at FROM items WHERE id = ?1
 `
 
 func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
@@ -87,6 +96,8 @@ func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
 		&i.TmdbBackdropPath,
 		&i.TrailerState,
 		&i.TrailerCheckedAt,
+		&i.SegmentsState,
+		&i.SegmentsCheckedAt,
 	)
 	return i, err
 }
@@ -135,7 +146,7 @@ INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, ?15, ?16,
         ?17, ?18, ?19, ?19, ?19)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at
 `
 
 type InsertItemParams struct {
@@ -222,6 +233,8 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		&i.TmdbBackdropPath,
 		&i.TrailerState,
 		&i.TrailerCheckedAt,
+		&i.SegmentsState,
+		&i.SegmentsCheckedAt,
 	)
 	return i, err
 }
@@ -294,6 +307,34 @@ func (q *Queries) InsertMediaFile(ctx context.Context, arg InsertMediaFileParams
 	return i, err
 }
 
+const insertSidecarTrack = `-- name: InsertSidecarTrack :exec
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
+VALUES (?1, -1, 'subtitle', ?2, ?3, ?4, 'sidecar', ?5, 0, ?6)
+ON CONFLICT DO NOTHING
+`
+
+type InsertSidecarTrackParams struct {
+	MediaFileID string
+	Codec       sql.NullString
+	Language    sql.NullString
+	Title       sql.NullString
+	RelPath     sql.NullString
+	IsForced    int64
+}
+
+// A sidecar found by a scan; stream_index -1 like the API reports sidecars.
+func (q *Queries) InsertSidecarTrack(ctx context.Context, arg InsertSidecarTrackParams) error {
+	_, err := q.db.ExecContext(ctx, insertSidecarTrack,
+		arg.MediaFileID,
+		arg.Codec,
+		arg.Language,
+		arg.Title,
+		arg.RelPath,
+		arg.IsForced,
+	)
+	return err
+}
+
 const insertTrack = `-- name: InsertTrack :exec
 INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
@@ -329,7 +370,7 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 }
 
 const listItemsByLibrary = `-- name: ListItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]Item, error) {
@@ -378,7 +419,41 @@ func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]It
 			&i.TmdbBackdropPath,
 			&i.TrailerState,
 			&i.TrailerCheckedAt,
+			&i.SegmentsState,
+			&i.SegmentsCheckedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaFileSidecarTracks = `-- name: ListMediaFileSidecarTracks :many
+SELECT id, rel_path FROM tracks WHERE media_file_id = ?1 AND source = 'sidecar' ORDER BY rel_path
+`
+
+type ListMediaFileSidecarTracksRow struct {
+	ID      int64
+	RelPath sql.NullString
+}
+
+func (q *Queries) ListMediaFileSidecarTracks(ctx context.Context, mediaFileID string) ([]ListMediaFileSidecarTracksRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMediaFileSidecarTracks, mediaFileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMediaFileSidecarTracksRow{}
+	for rows.Next() {
+		var i ListMediaFileSidecarTracksRow
+		if err := rows.Scan(&i.ID, &i.RelPath); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -484,7 +559,7 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 }
 
 const listRecentlyDeletedItemsByLibrary = `-- name: ListRecentlyDeletedItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at FROM items
 WHERE library_id = ?1 AND deleted_at IS NOT NULL AND deleted_at >= ?2
 ORDER BY deleted_at DESC, id
 `
@@ -541,7 +616,48 @@ func (q *Queries) ListRecentlyDeletedItemsByLibrary(ctx context.Context, arg Lis
 			&i.TmdbBackdropPath,
 			&i.TrailerState,
 			&i.TrailerCheckedAt,
+			&i.SegmentsState,
+			&i.SegmentsCheckedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSidecarTracksByRoot = `-- name: ListSidecarTracksByRoot :many
+
+SELECT t.id, t.media_file_id, t.rel_path FROM tracks AS t
+JOIN media_files AS m ON m.id = t.media_file_id
+WHERE m.root_id = ?1 AND t.source = 'sidecar'
+ORDER BY t.media_file_id, t.rel_path
+`
+
+type ListSidecarTracksByRootRow struct {
+	ID          int64
+	MediaFileID string
+	RelPath     sql.NullString
+}
+
+// Sidecar subtitle sync of the scans (I-5, M4): sidecar rows are compared with the files on disk
+// without probing again.
+func (q *Queries) ListSidecarTracksByRoot(ctx context.Context, rootID int64) ([]ListSidecarTracksByRootRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSidecarTracksByRoot, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSidecarTracksByRootRow{}
+	for rows.Next() {
+		var i ListSidecarTracksByRootRow
+		if err := rows.Scan(&i.ID, &i.MediaFileID, &i.RelPath); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

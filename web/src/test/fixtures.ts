@@ -7,6 +7,7 @@ import type {
   PlaybackInfo,
   Profile,
   ProfileSummary,
+  TrackList,
 } from '@slouchcat/api-client';
 
 // Contract-shaped fixtures (api/openapi.yaml). IDs are valid ULIDs.
@@ -90,6 +91,62 @@ export const alienDetail: ItemDetail = {
   ],
 };
 
+/** Tracks of the Alien file: two audio tracks, a text and a bitmap subtitle (W-4). */
+export const alienTracks: TrackList = {
+  mediaFileId: 'mf-1',
+  audio: [
+    {
+      id: 11,
+      index: 1,
+      kind: 'audio',
+      codec: 'aac',
+      language: 'ger',
+      default: true,
+      forced: false,
+      source: 'embedded',
+      text: false,
+      channels: 2,
+    },
+    {
+      id: 12,
+      index: 2,
+      kind: 'audio',
+      codec: 'ac3',
+      language: 'eng',
+      default: false,
+      forced: false,
+      source: 'embedded',
+      text: false,
+      channels: 6,
+    },
+  ],
+  subtitles: [
+    {
+      id: 21,
+      index: 3,
+      kind: 'subtitle',
+      codec: 'subrip',
+      language: 'ger',
+      title: 'Deutsch (SRT)',
+      default: false,
+      forced: false,
+      source: 'embedded',
+      text: true,
+    },
+    {
+      id: 22,
+      index: 4,
+      kind: 'subtitle',
+      codec: 'hdmv_pgs_subtitle',
+      language: 'eng',
+      default: false,
+      forced: false,
+      source: 'embedded',
+      text: false,
+    },
+  ],
+};
+
 export const playback: PlaybackInfo = {
   mode: 'direct',
   item: alien,
@@ -97,6 +154,45 @@ export const playback: PlaybackInfo = {
   streamUrl: `/items/${ids.alien}/stream?st=ps-1.token`,
   resumePositionMs: 2_533_000,
   playbackSessionId: 'ps-1',
+  tracks: alienTracks,
+  selection: { audioTrack: 1 },
+  qualities: [
+    { quality: 'auto', available: true, current: true },
+    {
+      quality: '1080p',
+      width: 1920,
+      height: 1080,
+      bitrate: 8_000_000,
+      available: true,
+      current: false,
+    },
+    {
+      quality: '720p',
+      width: 1280,
+      height: 720,
+      bitrate: 4_000_000,
+      available: true,
+      current: false,
+    },
+    {
+      quality: '480p',
+      width: 854,
+      height: 480,
+      bitrate: 2_000_000,
+      available: true,
+      current: false,
+    },
+    {
+      quality: '360p',
+      width: 640,
+      height: 360,
+      bitrate: 1_000_000,
+      available: false,
+      current: false,
+    },
+  ],
+  chapters: [],
+  segments: {},
 };
 
 /** The same title as HLS (remux of an MKV), master playlist with the stream token. */
@@ -105,7 +201,7 @@ export const hlsPlayback: PlaybackInfo = {
   mode: 'hls',
   streamUrl: '/api/v1/playback/sessions/ps-2/master.m3u8?st=ps-2.token',
   playbackSessionId: 'ps-2',
-  transcoding: { mode: 'remux', reason: 'container' },
+  transcoding: { mode: 'remux', reason: 'container', hardware: false },
 };
 
 export const library = (overrides: Partial<Library> = {}): Library => ({
@@ -137,6 +233,8 @@ export const profiles: Profile[] = [
     libraryIds: [],
     hasPin: false,
     isPrimary: true,
+    limits: {},
+    effectiveLimits: {},
   },
   {
     id: 2,
@@ -148,6 +246,8 @@ export const profiles: Profile[] = [
     libraryIds: [1],
     hasPin: true,
     isPrimary: false,
+    limits: { maxHeight: 720, watchLimitMinutes: 60 },
+    effectiveLimits: { maxHeight: 720, watchLimitMinutes: 60 },
   },
 ];
 

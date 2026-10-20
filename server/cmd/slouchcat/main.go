@@ -203,7 +203,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
-	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc)
+	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc)
 	keys.admin = adminSvc
 
 	var workers sync.WaitGroup
@@ -293,11 +293,18 @@ func (k *lazyKeys) YouTubeKey(ctx context.Context) (string, error) {
 
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on
 // <cache>/transcode and returns the playback service with the stream-token key of the key file
-// (plan 5.4). Without a usable ffmpeg the server still runs: titles then play directly only. The
-// returned function stops every transcode on shutdown.
+// (plan 5.4) and the subtitle cache below <cache>/subtitles. Without a usable ffmpeg the server
+// still runs: titles then play directly only. Without a subtitle converter
+// (playback.WithSubtitleConverter) text subtitles answer 404. The returned function stops every
+// transcode on shutdown.
 func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner transcode.Runner, keyring *secrets.Keyring, log *slog.Logger) (*playback.Service, func()) {
-	opts := []playback.Option{playback.WithTokenKey(keyring.Derive("stream-token"))}
-	backend, caps, err := transcode.Detect(ctx, runner, cfg.HW, log)
+	opts := []playback.Option{
+		playback.WithTokenKey(keyring.Derive("stream-token")), playback.WithCacheDir(cfg.CacheDir),
+		// WebVTT conversion of text subtitles (W-4) runs through ffmpeg even when no transcode
+		// backend is usable: the converter only needs the binary.
+		playback.WithSubtitleConverter(runner.Subtitles, runner.SubtitlesFile),
+	}
+	backend, caps, err := transcode.DetectTonemap(ctx, runner, cfg.HW, cfg.HDRTonemap, log)
 	if err != nil {
 		log.Error("transcode backend detection failed; HLS disabled, titles play directly only", "hw", cfg.HW, "err", err)
 		return playback.New(db, log, opts...), func() {}
@@ -311,7 +318,8 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 		return playback.New(db, log, opts...), func() {}
 	}
 	stats := mgr.Stats()
-	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap, "ffmpeg", caps.Version)
+	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap,
+		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version)
 	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)), playback.WithKeyframeIndex(runner.Keyframes))
 	return playback.New(db, log, opts...), mgr.Close
 }

@@ -35,6 +35,16 @@ export function AppLayout() {
         label: t('nav.maintenance'),
         current: pathname.startsWith(paths.adminMaintenance) || pathname.startsWith('/admin/items'),
       },
+      {
+        href: paths.adminDevices,
+        label: t('nav.devices'),
+        current: pathname.startsWith(paths.adminDevices),
+      },
+      {
+        href: paths.adminStreams,
+        label: t('nav.streams'),
+        current: pathname.startsWith(paths.adminStreams),
+      },
     );
   }
   if (isPrimary) {

@@ -207,6 +207,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/profiles/{id}/watch-time": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Watch-time report of a profile (K-5)
+         * @description Minutes watched per calendar day (server's local time zone) for one profile of the account, from
+         *     the raw progress events (`playedMs`), the last `days` days including today. Only the account's
+         *     primary profile may read it, like every profile setting.
+         */
+        get: operations["getWatchReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/libraries": {
         parameters: {
             query?: never;
@@ -407,6 +429,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audio and subtitle tracks of a media file
+         * @description The tracks of a media file of a visible title (embedded streams and sidecar subtitles). The player
+         *     asks again while its track menu is open, so a subtitle Bazarr placed next to the file (I-5) appears
+         *     within the watcher latency without restarting the playback. Without `mediaFileId` the primary file.
+         */
+        get: operations["getItemTracks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/stream": {
         parameters: {
             query?: never;
@@ -560,6 +604,31 @@ export interface paths {
          *     it; a seek further away restarts the encoder at that segment (plan 3.5).
          */
         get: operations["getPlaybackSegment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/playback/sessions/{id}/subtitles/{track}.vtt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Text subtitle track as WebVTT (binary)
+         * @description Implemented as an `http.Handler`, authorised by `st` (W-4). Converts an embedded text subtitle
+         *     stream (SubRip, ASS/SSA, MOV text, WebVTT) or a sidecar file of the playback's media file to WebVTT
+         *     with ffmpeg once per playback session and caches the result in the session's work directory. ASS
+         *     styling is dropped. Works for direct and HLS playbacks alike: the client attaches the URL as a
+         *     `<track>` element. `track` is the `id` of a `Track` with `kind` `subtitle` and `text` true; a bitmap
+         *     track (PGS, DVD) or a track of another file answers 404. `Cache-Control: private, no-store`.
+         */
+        get: operations["getPlaybackSubtitle"];
         put?: never;
         post?: never;
         delete?: never;
@@ -984,6 +1053,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Devices with owner, last contact and capability profile (W-7)
+         * @description Every browser (device cookie) that signed in, newest contact first: the name and type the client
+         *     reported, the account and profile of its last playback start (owner), the last contact of any
+         *     session of the device (±1 min, the session middleware touches it at most once a minute), the
+         *     capability profile the client reported with its last playback start (containers, video and audio
+         *     codecs, maximum resolution, HDR) and the number of its running streams.
+         */
+        get: operations["listDevices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/devices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Forget a device
+         * @description Revokes the sessions of the device, ends its running streams, deletes its PIN counters and its row.
+         *     The browser keeps its device cookie: its next sign-in recreates the device under the same id (without
+         *     name, capabilities and owner until its next playback start). The reserved device of the per-profile
+         *     PIN ceiling is not listed and answers 404.
+         */
+        delete: operations["deleteDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/streams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Running playback sessions (W-6)
+         * @description Every playback session that is neither revoked nor expired and had a request (token or progress
+         *     event) within the last two minutes, newest first: profile, device, title (a plain title, not an
+         *     `ItemRef`: the admin view is unfiltered), quality (output size and bit rate), mode (direct, remux or
+         *     transcode), hardware or software encoder, backend, reason, start, last activity and the last
+         *     reported position.
+         */
+        get: operations["listStreams"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/streams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End a running stream (W-6)
+         * @description Revokes the playback session (`stopped_by` admin), closes an open Range response, stops the ffmpeg
+         *     process of its HLS output and removes its files. The client's next stream request answers 401, so it
+         *     stops within seconds and shows that the administrator ended the stream.
+         */
+        delete: operations["stopStream"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/spike/{variant}": {
         parameters: {
             query?: never;
@@ -1055,6 +1217,17 @@ export interface components {
             errors?: components["schemas"]["FieldError"][];
             /** @description Remaining lock in seconds for `pin_locked` (same value as `Retry-After`). */
             retryAfterSeconds?: number;
+            /**
+             * @description Whole-number details of a limit problem: `limitMinutes` and `usedMinutes` for `watch_limit_reached`,
+             *     `maxStreams` and `activeStreams` for `stream_limit_reached`. Absent for other problems.
+             * @example {
+             *       "maxStreams": 1,
+             *       "activeStreams": 1
+             *     }
+             */
+            extensions?: {
+                [key: string]: number;
+            };
         };
         FieldError: {
             /** @description JSON pointer-like field name, for example `email` or `library.path`. */
@@ -1120,6 +1293,12 @@ export interface components {
             hasPin: boolean;
             /** @description The account's primary profile; it manages the account's profiles and cannot be deleted. */
             isPrimary: boolean;
+            /**
+             * @description The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
+             *     clears that limit (no limit); an omitted `limits` keeps the stored limits.
+             */
+            limits: components["schemas"]["PlaybackLimits"];
+            effectiveLimits: components["schemas"]["EffectiveLimits"];
         };
         /** @description A profile as the picker shows it; carries no settings beyond the look and whether a PIN is set. */
         ProfileSummary: {
@@ -1154,6 +1333,11 @@ export interface components {
             libraryIds?: number[];
             /** @description Optional PIN to set right away. */
             pin?: string;
+            /**
+             * @description The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
+             *     clears that limit (no limit); an omitted `limits` keeps the stored limits.
+             */
+            limits?: components["schemas"]["PlaybackLimits"];
         };
         /** @description Partial update; every field is optional and only sent fields change. */
         ProfileUpdate: {
@@ -1163,6 +1347,57 @@ export interface components {
             accent?: components["schemas"]["Accent"];
             allLibraries?: boolean;
             libraryIds?: number[];
+            /**
+             * @description The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
+             *     clears that limit (no limit); an omitted `limits` keeps the stored limits.
+             */
+            limits?: components["schemas"]["PlaybackLimits"];
+        };
+        /** @description Bandwidth limit in kbit/s (W-8). A source above the limit is transcoded to a rung that fits. */
+        BitrateKbps: number;
+        /**
+         * @description Maximum output height (W-8). A source above it is transcoded to that rung.
+         * @enum {integer}
+         */
+        OutputHeight: 360 | 480 | 720 | 1080 | 2160;
+        /** @description Concurrent streams a profile may run (W-8). */
+        StreamCount: number;
+        /** @description Daily watch-time limit in minutes (K-5). The day follows the server's local time zone. */
+        WatchMinutes: number;
+        /** @description Playback limits (W-8, K-5); an absent field means no limit. */
+        PlaybackLimits: {
+            maxBitrateKbps?: components["schemas"]["BitrateKbps"];
+            maxHeight?: components["schemas"]["OutputHeight"];
+            maxStreams?: components["schemas"]["StreamCount"];
+            watchLimitMinutes?: components["schemas"]["WatchMinutes"];
+        };
+        /** @description The limits that apply to the profile: its own capped by the account's (guests). */
+        EffectiveLimits: {
+            maxBitrateKbps?: number;
+            maxHeight?: number;
+            maxStreams?: number;
+            watchLimitMinutes?: number;
+        };
+        /** @description Watch time of the active profile today against its limit (K-5). */
+        WatchTime: {
+            limitMinutes: number;
+            usedMinutes: number;
+            remainingMinutes: number;
+        };
+        /** @description Minutes watched per day for one profile (K-5), oldest day first, today last. */
+        WatchReport: {
+            /** Format: int64 */
+            profileId: number;
+            /** @description The profile's limit, when set. */
+            limitMinutes?: number;
+            days: {
+                /**
+                 * Format: date
+                 * @description Calendar day in the server's local time zone.
+                 */
+                date: string;
+                minutes: number;
+            }[];
         };
         PinRequest: {
             pin: string;
@@ -1246,11 +1481,23 @@ export interface components {
              * @description Last request of any session of the account.
              */
             lastSeenAt?: string;
+            /**
+             * @description Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
+             *     profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
+             *     the object replaces all three at once: a field left out clears that limit.
+             */
+            limits: components["schemas"]["PlaybackLimits"];
         };
         GuestUpdate: {
             maxRating?: components["schemas"]["Rating"];
             allLibraries?: boolean;
             libraryIds?: number[];
+            /**
+             * @description Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
+             *     profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
+             *     the object replaces all three at once: a field left out clears that limit.
+             */
+            limits?: components["schemas"]["PlaybackLimits"];
         };
         ItemRatingRequest: {
             /** @description New own rating, or null to drop the manual override. */
@@ -1310,6 +1557,12 @@ export interface components {
             completed: boolean;
             /** Format: date-time */
             updatedAt: string;
+            /**
+             * @description Present in the answer of `reportProgress` when the active profile has a daily limit (K-5). With
+             *     `remainingMinutes` 0 the server has revoked every playback session of the profile; the client
+             *     stops and shows the hint.
+             */
+            watchTime?: components["schemas"]["WatchTime"];
         };
         /**
          * @description A title as it appears in lists. Every response that contains an ItemRef is `scoped`; the
@@ -1430,6 +1683,18 @@ export interface components {
             versionLabel?: string;
             /** @description False while the file is missing (24 h grace period). */
             available: boolean;
+            /**
+             * Format: int64
+             * @description Container bit rate in bit/s from the probe.
+             */
+            bitrate?: number;
+            /**
+             * @description HDR format of the main video stream; absent for SDR.
+             * @enum {string}
+             */
+            hdr?: "hdr10" | "hdr10plus" | "dolby_vision" | "hlg";
+            /** @description Audio and subtitle tracks of the file (detail page and versions). */
+            tracks?: components["schemas"]["TrackList"];
         };
         /** @enum {string} */
         HomeRowKey: "picks" | "continue" | "recent";
@@ -1443,24 +1708,143 @@ export interface components {
         PlaybackRequest: {
             /** @description Which file to play; defaults to the primary file. */
             mediaFileId?: string;
-            /** @description Stable client identifier (used for progress merging in M5). */
+            /**
+             * @description Stable client identifier of a third-party client without the device cookie (used for progress
+             *     merging in M5). Browsers need not send it: the device cookie names the device.
+             */
             deviceId?: string;
             capabilities?: components["schemas"]["PlaybackCapabilities"];
+            /** @description Stream index of the audio track to play (`Track.index`); default the file's default track. */
+            audioTrack?: number;
+            /** @description Id of the subtitle track to show (`Track.id`); absent or null = no subtitles. */
+            subtitleTrack?: components["schemas"]["TrackID"] | null;
+            /**
+             * @description `text`: the client renders the track from `subtitleUrl` (text tracks only); `burn`: burned into
+             *     the video (always a transcode); `auto`: text for text tracks, burned for bitmap tracks (PGS, DVD).
+             * @default auto
+             * @enum {string}
+             */
+            subtitleDelivery: "auto" | "text" | "burn";
+            quality?: components["schemas"]["Quality"];
+            /**
+             * Format: int64
+             * @description Start position instead of the stored resume position (a track or quality switch restarts the
+             *     playback where it was). Also the resume position in the answer.
+             */
+            positionMs?: number;
         };
         /**
-         * @description What the client can play, from `canPlayType` / `MediaSource.isTypeSupported` (device profiles
-         *     follow in M4). Without it the server assumes H.264 and AAC through MSE.
+         * Format: int64
+         * @description Id of a track row (`Track.id`).
+         */
+        TrackID: number;
+        /**
+         * @description Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
+         *     a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
+         *     (video) plus 160 kbit/s AAC.
+         * @enum {string}
+         */
+        Quality: "auto" | "1080p" | "720p" | "480p" | "360p";
+        /**
+         * @description The device's capability profile (W-7): what it plays, from `canPlayType` /
+         *     `MediaSource.isTypeSupported`, its screen and HDR support. The server stores it with the device
+         *     (admin device overview) and decides direct play, remux or transcode from it. Without it the server
+         *     assumes H.264 and AAC in MP4 through MSE.
          */
         PlaybackCapabilities: {
+            /** @description Containers the media element plays directly (`mp4`, `webm`, `mkv`); default MP4 only. */
+            containers?: string[];
             /** @description Decodable video codecs, ffprobe names (`h264`, `hevc`, `av1`, `vp9`). */
             video: string[];
-            /** @description Decodable audio codecs, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`). */
+            /** @description Decodable audio codecs, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`, `dts`, `truehd`). */
             audio: string[];
             /**
              * @description `native`: the media element plays HLS itself (Safari); `mse`: through hls.js; `none`: no HLS.
              * @enum {string}
              */
             hls: "native" | "mse" | "none";
+            /** @description Screen width in device pixels (CSS width × devicePixelRatio). */
+            maxWidth?: number;
+            /** @description Screen height in device pixels; a device under 1080 gets at most the 720p rung (phone profile, plan 3.5). */
+            maxHeight?: number;
+            /** @description The display and the browser show HDR (the media query dynamic-range high); only then an HDR stream passes through. */
+            hdr?: boolean;
+            /** @description Display name of the device, for example `Chrome 156 · Linux`. */
+            name?: string;
+            /** @enum {string} */
+            type?: "desktop" | "phone" | "tablet" | "tv" | "other";
+        };
+        /** @description One audio or subtitle track of a media file. */
+        Track: {
+            /**
+             * Format: int64
+             * @description Stable id of the track row.
+             */
+            id: number;
+            /** @description Stream index inside the file; -1 for a sidecar file. */
+            index: number;
+            /** @enum {string} */
+            kind: "audio" | "subtitle";
+            /** @description ffprobe codec name (`aac`, `ac3`, `eac3`, `dts`, `truehd`, `subrip`, `ass`, `hdmv_pgs_subtitle`, `dvd_subtitle`, …). */
+            codec: string;
+            /** @description ISO 639 code as stored in the file or the sidecar name (`de`, `en`, `ger`). */
+            language?: string;
+            title?: string;
+            default: boolean;
+            forced: boolean;
+            /** @enum {string} */
+            source: "embedded" | "sidecar";
+            /** @description A text format (SubRip, ASS/SSA, WebVTT, MOV text) that can be delivered as WebVTT; false for bitmap subtitles, which are burned in. Always false for audio. */
+            text: boolean;
+            /** @description Audio channels. */
+            channels?: number;
+        };
+        TrackList: {
+            mediaFileId: string;
+            audio: components["schemas"]["Track"][];
+            subtitles: components["schemas"]["Track"][];
+        };
+        /** @description The tracks this playback delivers. */
+        TrackSelection: {
+            /** @description Stream index of the audio track in the output. */
+            audioTrack?: number;
+            /**
+             * Format: int64
+             * @description Id of the subtitle track; absent when none.
+             */
+            subtitleTrack?: number;
+            /** @enum {string} */
+            subtitleDelivery?: "text" | "burn";
+        };
+        QualityOption: {
+            quality: components["schemas"]["Quality"];
+            width?: number;
+            height?: number;
+            /** @description Peak video bit rate of the rung in bit/s (the source bit rate for `auto` without transcode). */
+            bitrate?: number;
+            /** @description False when the source, the device or the profile's limits rule the rung out. */
+            available: boolean;
+            current: boolean;
+        };
+        Chapter: {
+            /** Format: int64 */
+            startMs: number;
+            /** Format: int64 */
+            endMs: number;
+            title?: string;
+        };
+        /** @description A detected intro or outro (W-9). */
+        Segment: {
+            /** Format: int64 */
+            startMs: number;
+            /** Format: int64 */
+            endMs: number;
+            /** @enum {string} */
+            source: "fingerprint" | "chapter" | "manual";
+        };
+        Segments: {
+            intro?: components["schemas"]["Segment"];
+            outro?: components["schemas"]["Segment"];
         };
         PlaybackInfo: {
             /**
@@ -1484,6 +1868,25 @@ export interface components {
              * @description Position to resume from; 0 when the title was never started or was completed.
              */
             resumePositionMs: number;
+            tracks: components["schemas"]["TrackList"];
+            selection: components["schemas"]["TrackSelection"];
+            /**
+             * Format: uri-reference
+             * @description Relative WebVTT URL with the stream token when a text subtitle track is selected (`getPlaybackSubtitle`).
+             */
+            subtitleUrl?: string;
+            /** @description The quality rungs of this playback, highest first (W-8 manual choice). */
+            qualities: components["schemas"]["QualityOption"][];
+            chapters: components["schemas"]["Chapter"][];
+            segments: components["schemas"]["Segments"];
+            /** @description The next visible episode of the same series (auto-next, W-9). */
+            nextEpisode?: components["schemas"]["ItemRef"];
+            watchTime?: components["schemas"]["WatchTime"];
+            /** @description The device this playback was recorded for (W-7). */
+            device?: {
+                id: string;
+                name?: string;
+            };
         };
         /** @description How an `hls` playback is produced; absent for direct play. */
         Transcoding: {
@@ -1494,15 +1897,85 @@ export interface components {
             mode: "remux" | "transcode";
             /** @description Encoder backend of a transcode (`nvenc`, `qsv`, `vaapi`, `software`). */
             backend?: string;
+            /** @description The video is encoded on a GPU (false for remux and software). */
+            hardware: boolean;
+            quality?: components["schemas"]["Quality"];
+            width?: number;
+            height?: number;
+            /** @description Peak video bit rate of the output in bit/s. */
+            bitrate?: number;
+            /** @description HDR → SDR tonemapping is applied. */
+            tonemap?: boolean;
             /**
              * @description Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`,
              *     `pixel_format` for H.264 High 10 and 4:2:2/4:4:4 sources, `keyframes_pending` for a remux
-             *     candidate that is transcoded until its keyframe index exists).
+             *     candidate that is transcoded until its keyframe index exists, `dolby_vision` for profiles 5 and
+             *     7, `bandwidth` and `max_height` for the profile's limits, `quality` for a manual rung below the
+             *     source, `audio_track` for a non-default audio track in a container that cannot be played
+             *     directly with it, `subtitle_burn` for burned-in subtitles, `budget_lowered` when the transcode
+             *     budget forced the next lower rung).
              */
             reason: string;
         };
+        /** @description A device as the administration sees it (W-7); not an `ItemRef`. */
+        AdminDevice: {
+            id: string;
+            name?: string;
+            /** @enum {string} */
+            type?: "desktop" | "phone" | "tablet" | "tv" | "other";
+            userAgent?: string;
+            /** @description Account of the last playback start on this device. */
+            ownerEmail?: string;
+            /** @description Profile of the last playback start on this device. */
+            ownerProfile?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @description Last request of any session of the device.
+             */
+            lastSeenAt: string;
+            capabilities?: components["schemas"]["PlaybackCapabilities"];
+            /** Format: date-time */
+            capabilitiesAt?: string;
+            activeStreams: number;
+        };
+        /** @description A running playback session as the administration sees it (W-6); not an `ItemRef`. */
+        AdminStream: {
+            /** @description Playback session id. */
+            id: string;
+            accountEmail: string;
+            profileName: string;
+            device?: {
+                id: string;
+                name?: string;
+            };
+            itemId: components["schemas"]["ItemID"];
+            /** @description Title of the item in the default language, with series, season and episode for an episode. */
+            itemTitle: string;
+            mediaFileId: string;
+            /** @enum {string} */
+            mode: "direct" | "remux" | "transcode";
+            backend?: string;
+            hardware: boolean;
+            quality?: components["schemas"]["Quality"];
+            width?: number;
+            height?: number;
+            bitrate?: number;
+            reason?: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            lastActivityAt: string;
+            /** Format: int64 */
+            positionMs?: number;
+            /** Format: int64 */
+            durationMs?: number;
+        };
         ProgressEvent: {
             mediaFileId?: string;
+            /** @description The playback session this event belongs to; the server records the position for the stream overview (W-6). */
+            playbackSessionId?: string;
             /** Format: int64 */
             positionMs: number;
             /** Format: int64 */
@@ -1783,6 +2256,8 @@ export interface components {
         ItemID: components["schemas"]["ItemID"];
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
         PlaybackSessionID: string;
+        /** @description Device id (32 characters, the device cookie value). */
+        DeviceID: string;
         /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
         StreamToken: string;
         LibraryID: number;
@@ -2346,6 +2821,41 @@ export interface operations {
             };
         };
     };
+    getWatchReport: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ProfileID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchReport"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["PrimaryProfileRequired"];
+            /** @description No such profile in this account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listAccountLibraries: {
         parameters: {
             query?: never;
@@ -2724,7 +3234,10 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description CSRF header missing (`csrf_header_missing`). */
+            /**
+             * @description CSRF header missing (`csrf_header_missing`), or the profile's daily watch-time limit is reached
+             *     (`watch_limit_reached`, K-5; `extensions.limitMinutes` and `extensions.usedMinutes`).
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2742,7 +3255,24 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation failed (`validation_failed`), for example an over-long `deviceId`. */
+            /**
+             * @description The profile already runs as many streams as its limit allows (`stream_limit_reached`, W-8);
+             *     `extensions.maxStreams` and `extensions.activeStreams` say how many. The client shows the hint and
+             *     does not retry by itself.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`), for example an over-long `deviceId`, an `audioTrack` or
+             *     `subtitleTrack` that does not belong to the media file, or a `subtitleDelivery` of `text` for a
+             *     bitmap track.
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2751,8 +3281,55 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The transcode budget stayed exhausted for 10 s (`transcode_busy`); the client may retry later. */
+            /**
+             * @description The transcode budget stayed exhausted for 10 s (`transcode_busy`); the client may retry later.
+             *     For SDR sources the server first retries one rung lower (`budget_lowered`, plan 3.5); only an
+             *     HDR source or an exhausted budget at the lowest rung answers 503.
+             */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getItemTracks: {
+        parameters: {
+            query?: {
+                mediaFileId?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tracks of the file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackList"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown, not visible, or the media file does not belong to the title (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3054,6 +3631,36 @@ export interface operations {
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
             503: components["responses"]["StreamUnavailable"];
+        };
+    };
+    getPlaybackSubtitle: {
+        parameters: {
+            query: {
+                /** @description Stream token from `PlaybackInfo.streamUrl` (plan 5.4). Redacted in all logs. */
+                st: components["parameters"]["StreamToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+                /** @description Track id (`Track.id`). */
+                track: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebVTT file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/vtt": string;
+                };
+            };
+            401: components["responses"]["StreamUnauthenticated"];
+            404: components["responses"]["StreamNotFound"];
         };
     };
     listLibraries: {
@@ -3960,6 +4567,114 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listDevices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Devices, last contact first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDevice"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    deleteDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Device id (32 characters, the device cookie value). */
+                id: components["parameters"]["DeviceID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Forgotten. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown device (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listStreams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Running streams. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminStream"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    stopStream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ended. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown or already ended playback session (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

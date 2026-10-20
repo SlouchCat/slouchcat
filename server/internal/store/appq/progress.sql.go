@@ -10,6 +10,76 @@ import (
 	"database/sql"
 )
 
+const countDuplicateProgressEvents = `-- name: CountDuplicateProgressEvents :one
+SELECT count(*) FROM progress_events
+WHERE playback_session_id IS ?1 AND seq = ?2
+  AND profile_id = ?3 AND item_id = ?4
+  AND device_id IS ?5 AND media_file_id IS ?6
+  AND client_time = ?7 AND position_ms = ?8 AND state = ?9
+`
+
+type CountDuplicateProgressEventsParams struct {
+	PlaybackSessionID sql.NullString
+	Seq               int64
+	ProfileID         int64
+	ItemID            string
+	DeviceID          sql.NullString
+	MediaFileID       sql.NullString
+	ClientTime        int64
+	PositionMs        int64
+	State             string
+}
+
+// An event the client sent again (a retry after a lost answer): the same playback session, device
+// and media file with the same seq, client time, position and state (K-5: it must not count
+// twice).
+func (q *Queries) CountDuplicateProgressEvents(ctx context.Context, arg CountDuplicateProgressEventsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDuplicateProgressEvents,
+		arg.PlaybackSessionID,
+		arg.Seq,
+		arg.ProfileID,
+		arg.ItemID,
+		arg.DeviceID,
+		arg.MediaFileID,
+		arg.ClientTime,
+		arg.PositionMs,
+		arg.State,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getLastPlaybackEventTime = `-- name: GetLastPlaybackEventTime :one
+SELECT CAST(COALESCE(MAX(server_time), 0) AS INTEGER) AS server_time FROM progress_events
+WHERE playback_session_id IS ?1
+  AND profile_id = ?2 AND item_id = ?3
+  AND device_id IS ?4 AND media_file_id IS ?5
+`
+
+type GetLastPlaybackEventTimeParams struct {
+	PlaybackSessionID sql.NullString
+	ProfileID         int64
+	ItemID            string
+	DeviceID          sql.NullString
+	MediaFileID       sql.NullString
+}
+
+// Server time of the newest event of the same playback (playback session, device and media file),
+// 0 without one; the played time of the next event is bounded by the time since (K-5).
+func (q *Queries) GetLastPlaybackEventTime(ctx context.Context, arg GetLastPlaybackEventTimeParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getLastPlaybackEventTime,
+		arg.PlaybackSessionID,
+		arg.ProfileID,
+		arg.ItemID,
+		arg.DeviceID,
+		arg.MediaFileID,
+	)
+	var server_time int64
+	err := row.Scan(&server_time)
+	return server_time, err
+}
+
 const getLatestDeviceProgressEvent = `-- name: GetLatestDeviceProgressEvent :one
 SELECT seq, client_time FROM progress_events
 WHERE profile_id = ?1 AND item_id = ?2 AND device_id = ?3
@@ -71,24 +141,25 @@ func (q *Queries) GetProgress(ctx context.Context, arg GetProgressParams) (Progr
 }
 
 const insertProgressEvent = `-- name: InsertProgressEvent :exec
-INSERT INTO progress_events (profile_id, item_id, media_file_id, device_id, position_ms, duration_ms,
-                             played_ms, seq, state, client_time, server_time)
+INSERT INTO progress_events (profile_id, item_id, media_file_id, device_id, playback_session_id, position_ms,
+                             duration_ms, played_ms, seq, state, client_time, server_time)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6,
-        ?7, ?8, ?9, ?10, ?11)
+        ?7, ?8, ?9, ?10, ?11, ?12)
 `
 
 type InsertProgressEventParams struct {
-	ProfileID   int64
-	ItemID      string
-	MediaFileID sql.NullString
-	DeviceID    sql.NullString
-	PositionMs  int64
-	DurationMs  int64
-	PlayedMs    int64
-	Seq         int64
-	State       string
-	ClientTime  int64
-	ServerTime  int64
+	ProfileID         int64
+	ItemID            string
+	MediaFileID       sql.NullString
+	DeviceID          sql.NullString
+	PlaybackSessionID sql.NullString
+	PositionMs        int64
+	DurationMs        int64
+	PlayedMs          int64
+	Seq               int64
+	State             string
+	ClientTime        int64
+	ServerTime        int64
 }
 
 func (q *Queries) InsertProgressEvent(ctx context.Context, arg InsertProgressEventParams) error {
@@ -97,6 +168,7 @@ func (q *Queries) InsertProgressEvent(ctx context.Context, arg InsertProgressEve
 		arg.ItemID,
 		arg.MediaFileID,
 		arg.DeviceID,
+		arg.PlaybackSessionID,
 		arg.PositionMs,
 		arg.DurationMs,
 		arg.PlayedMs,
@@ -106,6 +178,69 @@ func (q *Queries) InsertProgressEvent(ctx context.Context, arg InsertProgressEve
 		arg.ServerTime,
 	)
 	return err
+}
+
+const sumPlayedMs = `-- name: SumPlayedMs :one
+SELECT CAST(COALESCE(SUM(played_ms), 0) AS INTEGER) AS played_ms FROM progress_events
+WHERE profile_id = ?1 AND server_time >= ?2 AND server_time < ?3
+`
+
+type SumPlayedMsParams struct {
+	ProfileID int64
+	FromMs    int64
+	ToMs      int64
+}
+
+// Played time of a profile in [from, to) by server time (K-5 watch time, one calendar day).
+func (q *Queries) SumPlayedMs(ctx context.Context, arg SumPlayedMsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, sumPlayedMs, arg.ProfileID, arg.FromMs, arg.ToMs)
+	var played_ms int64
+	err := row.Scan(&played_ms)
+	return played_ms, err
+}
+
+const sumPlayedMsByQuarterHour = `-- name: SumPlayedMsByQuarterHour :many
+SELECT CAST(server_time / 900000 AS INTEGER) AS quarter, CAST(SUM(played_ms) AS INTEGER) AS played_ms
+FROM progress_events
+WHERE profile_id = ?1 AND server_time >= ?2 AND server_time < ?3
+GROUP BY quarter
+ORDER BY quarter
+`
+
+type SumPlayedMsByQuarterHourParams struct {
+	ProfileID int64
+	FromMs    int64
+	ToMs      int64
+}
+
+type SumPlayedMsByQuarterHourRow struct {
+	Quarter  int64
+	PlayedMs int64
+}
+
+// Played time of a profile in [from, to) per quarter hour of server time (K-5 report): every UTC
+// offset is a multiple of 15 minutes, so each quarter hour lies within one local calendar day.
+func (q *Queries) SumPlayedMsByQuarterHour(ctx context.Context, arg SumPlayedMsByQuarterHourParams) ([]SumPlayedMsByQuarterHourRow, error) {
+	rows, err := q.db.QueryContext(ctx, sumPlayedMsByQuarterHour, arg.ProfileID, arg.FromMs, arg.ToMs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumPlayedMsByQuarterHourRow{}
+	for rows.Next() {
+		var i SumPlayedMsByQuarterHourRow
+		if err := rows.Scan(&i.Quarter, &i.PlayedMs); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const upsertProgress = `-- name: UpsertProgress :exec

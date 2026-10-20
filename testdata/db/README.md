@@ -39,3 +39,13 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `min_child_rating` stammen aus den Triggern. `TestFrozenM3StateCoversM3Data` prüft, dass jede dieser Datenarten vorhanden ist;
   `TestMigration00008KeepsFrozenData` prüft M1b und M2 nach Migration 00008 (Zeilen von `items`, `media_files`,
   `playback_sessions` erhalten, Container nach der neuen Regel berechnet).
+- `M4.sql`: Stand nach M4 (Wiedergabe komplett; Migration 00012). Erzeugt mit `server/bin/slouchcat dump` nach
+  einem Lauf gegen einen frischen Server (Skript in den Sitzungsnotizen `freeze-m4.sh`): Assistent mit
+  Hauptkonto `owner@example.test`, Filmbibliothek auf `testdata/media/Movies` und Serienbibliothek auf
+  `testdata/media/TV` ohne TMDB-Schlüssel (Scan, Probe, Keyframes, Sidecar-Spuren und die Intro-Erkennung
+  `segments.detect` durch die echten Dienste: zehn `media_segments`-Zeilen der Intro-Testsaison), ein Profil
+  «Kind» (Stufe 12) mit allen vier Limits (720p, 4000 kbit/s, 1 Stream, 60 min pro Tag), ein Gerät mit
+  Fähigkeitsprofil («Chrome 156 · Linux», `capabilities` als JSON) und eine beendete Wiedergabesitzung des
+  Multi-Audio-Films mit Qualität 720p, AC3-Tonspur und deutscher SRT-Spur (`subtitle_delivery` `text`,
+  `stopped_by` `client`) samt Fortschrittsereignis mit `playback_session_id`. `TestFrozenStatesMigrate` lädt
+  ihn; die Migrationen 00011 und 00012 sind in M1a bis M3 ebenfalls geprüft (Spalten mit Standardwerten).

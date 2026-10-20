@@ -26,6 +26,7 @@ const guest: Guest = {
   profileCount: 2,
   createdAt: '2026-10-19T10:00:00Z',
   lastSeenAt: '2026-10-19T11:00:00Z',
+  limits: { maxHeight: 720 },
 };
 
 const access = (invitations: Invitation[] = [], guests: Guest[] = []): Routes => ({
@@ -171,6 +172,8 @@ describe('access page', () => {
       maxRating: 6,
       allLibraries: false,
       libraryIds: [1],
+      // The stored limits go along unchanged (the object replaces all three).
+      limits: { maxHeight: 720 },
     });
 
     await user.click(screen.getByRole('button', { name: 'Entfernen' }));
@@ -180,6 +183,30 @@ describe('access page', () => {
     expect(dialog).toHaveTextContent('enden sofort');
     await user.click(within(dialog).getByRole('button', { name: 'Gast entfernen' }));
     await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
+  });
+
+  it('sets the three playback limits of a guest account (W-8), without a watch time', async () => {
+    const { calls } = mockApi({
+      ...access([], [guest]),
+      'PATCH /admin/guests/5': () => json(guest),
+    });
+    renderApp('/admin/access');
+    const user = userEvent.setup();
+
+    const row = (await screen.findByText('oma@example.test')).closest('li')!;
+    expect(within(row).getByText('bis 720p')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
+    const edit = await screen.findByRole('dialog', { name: 'Gast oma@example.test bearbeiten' });
+    expect(within(edit).getByText('Gilt für alle Profile des Gastkontos.')).toBeVisible();
+    expect(within(edit).queryByLabelText('Schauzeit pro Tag (Minuten)')).not.toBeInTheDocument();
+    await user.click(within(edit).getByRole('radio', { name: '480p' }));
+    await user.type(within(edit).getByLabelText('Bandbreite (kbit/s)'), '4000');
+    await user.type(within(edit).getByLabelText('Gleichzeitige Streams'), '1');
+    await user.click(within(edit).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(edit).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
+      limits: { maxHeight: 480, maxBitrateKbps: 4000, maxStreams: 1 },
+    });
   });
 
   it('offers no invitation form while the library list is missing, so no right is widened', async () => {

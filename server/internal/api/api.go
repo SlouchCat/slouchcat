@@ -34,6 +34,10 @@ const (
 	hlsMediaPath     = "/playback/sessions/{id}/media.m3u8"
 	hlsInitPath      = "/playback/sessions/{id}/init.mp4"
 	hlsSegmentPath   = "/playback/sessions/{id}/seg/{n}"
+	subtitlePath     = "/playback/sessions/{id}/subtitles/{track}.vtt"
+	// subtitleRoute mounts subtitlePath: chi does not split "{track}.vtt" inside one segment, so the
+	// handler parses the segment (getPlaybackSubtitle).
+	subtitleRoute = "/playback/sessions/{id}/subtitles/{track}"
 )
 
 var binaryRoutes = map[string]string{
@@ -44,6 +48,7 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + hlsMediaPath:     "scoped",
 	"GET " + BasePath + hlsInitPath:      "scoped",
 	"GET " + BasePath + hlsSegmentPath:   "scoped",
+	"GET " + BasePath + subtitlePath:     "scoped",
 }
 
 // Options configure NewHandler.
@@ -114,6 +119,7 @@ func NewHandler(o Options) http.Handler {
 		r.With(streamAuth).Get(hlsMediaPath, s.getPlaybackMedia)
 		r.With(streamAuth).Get(hlsInitPath, s.getPlaybackInit)
 		r.With(streamAuth).Get(hlsSegmentPath, s.getPlaybackSegment)
+		r.With(streamAuth).Get(subtitleRoute, s.getPlaybackSubtitle)
 	})
 	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
 	// the start page's app shell then carries a preload header for its image (preload.go).

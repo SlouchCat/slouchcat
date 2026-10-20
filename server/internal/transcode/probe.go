@@ -50,6 +50,59 @@ type Stream struct {
 	Default        bool   `json:"default,omitempty"`
 	Forced         bool   `json:"forced,omitempty"`
 	AttachedPic    bool   `json:"attachedPic,omitempty"` // cover art stored as a video stream
+	// Dolby Vision (M4): the profile of the DOVI configuration record (5, 7, 8; 0 = none) and the
+	// base-layer compatibility id (1 = HDR10 base layer, profile 8.1; 2 = SDR, 8.2/9.2; 4 = HLG,
+	// 8.4). Profile 8 plays its base layer like HDR10 (or SDR, HLG); profiles 5 and 7 are
+	// transcoded.
+	DolbyVisionProfile  int `json:"dvProfile,omitempty"`
+	DolbyVisionBLCompat int `json:"dvBLCompat,omitempty"`
+	// HDR10Plus is set when the first frame carries SMPTE ST 2094-40 dynamic metadata (M4).
+	HDR10Plus bool `json:"hdr10plus,omitempty"`
+}
+
+// HDR formats of HDRFormat.
+const (
+	HDRNone        = ""
+	HDR10          = "hdr10"
+	HDR10Plus      = "hdr10plus"
+	HDRDolbyVision = "dolby_vision"
+	HDRHLG         = "hlg"
+)
+
+// dvCompatSDR is the Dolby Vision base-layer compatibility id of an SDR (BT.709) base layer
+// (profiles 8.2 and 9.2); 0 is none (profile 5), 1 HDR10, 4 HLG, 6 Blu-ray HDR10 (profile 7).
+const dvCompatSDR = 2
+
+// IsHDR reports whether the stream is HDR: PQ (HDR10, HDR10+, a Dolby Vision HDR10 base layer) or
+// HLG transfer, or Dolby Vision without such a tag unless its base layer is SDR (compatibility id
+// 2). Profiles 5 and 7 count as HDR whatever they signal. BT.2020 primaries alone do not count.
+func (s Stream) IsHDR() bool {
+	switch s.ColorTransfer {
+	case "smpte2084", "arib-std-b67":
+		return true
+	}
+	if s.DolbyVisionProfile == 0 {
+		return false
+	}
+	return s.DolbyVisionProfile == 5 || s.DolbyVisionProfile == 7 || s.DolbyVisionBLCompat != dvCompatSDR
+}
+
+// HDRFormat classifies the stream: Dolby Vision when a DOVI record exists and the stream is HDR
+// (a Dolby Vision stream with an SDR base layer is SDR), HLG by transfer, HDR10+ by dynamic
+// metadata, HDR10 for any other PQ stream, empty for SDR.
+func (s Stream) HDRFormat() string {
+	switch {
+	case s.DolbyVisionProfile > 0 && s.IsHDR():
+		return HDRDolbyVision
+	case s.ColorTransfer == "arib-std-b67":
+		return HDRHLG
+	case s.ColorTransfer != "smpte2084":
+		return HDRNone
+	case s.HDR10Plus:
+		return HDR10Plus
+	default:
+		return HDR10
+	}
 }
 
 // Chapter is one chapter mark.
@@ -89,6 +142,11 @@ type rawProbe struct {
 			Forced      int `json:"forced"`
 			AttachedPic int `json:"attached_pic"`
 		} `json:"disposition"`
+		SideData []struct {
+			Type       string `json:"side_data_type"`
+			DVProfile  int    `json:"dv_profile"`
+			DVBLCompat int    `json:"dv_bl_signal_compatibility_id"`
+		} `json:"side_data_list"`
 	} `json:"streams"`
 	Chapters []struct {
 		StartTime string `json:"start_time"`
@@ -105,6 +163,10 @@ type rawProbe struct {
 // A failure that is a property of the file (ffprobe ran and exited with an error, or its output
 // does not parse) is a *FileError; any other failure (ffprobe missing or not configured, the
 // process could not start, the context ended) is returned as is, so the caller can retry it.
+//
+// HDR10+ metadata is per frame (SEI), invisible in the stream list: for a PQ main video stream a
+// second ffprobe call reads the side data of its first frame (ParseFrameSideData) and sets
+// Stream.HDR10Plus. A file error of that call leaves HDR10Plus false.
 func (r Runner) Probe(ctx context.Context, path string) (Probe, error) {
 	out, err := r.ffprobe(ctx, "-v", "error", "-print_format", "json", "-show_format", "-show_streams", "-show_chapters", path)
 	if err != nil {
@@ -114,7 +176,50 @@ func (r Runner) Probe(ctx context.Context, path string) (Probe, error) {
 	if err != nil {
 		return Probe{}, &FileError{err: err}
 	}
+	i := slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "video" && !s.AttachedPic })
+	if i < 0 || p.Streams[i].ColorTransfer != "smpte2084" {
+		return p, nil
+	}
+	out, err = r.ffprobe(ctx, "-v", "error", "-print_format", "json", "-select_streams", strconv.Itoa(p.Streams[i].Index),
+		"-read_intervals", "%+#1", "-show_entries", "frame=side_data_list:frame_side_data=side_data_type", path)
+	var fe *FileError
+	switch {
+	case errors.As(err, &fe):
+		return p, nil
+	case err != nil:
+		return Probe{}, err
+	}
+	hdr10Plus, perr := ParseFrameSideData(out) // unreadable side data only means no HDR10+
+	p.Streams[i].HDR10Plus = perr == nil && hdr10Plus
 	return p, nil
+}
+
+// hdr10PlusSideData is the prefix ffprobe prints for SMPTE ST 2094-40 dynamic metadata, for
+// example "HDR Dynamic Metadata SMPTE2094-40 (HDR10+)".
+const hdr10PlusSideData = "HDR Dynamic Metadata SMPTE2094-40"
+
+// ParseFrameSideData parses the JSON of `ffprobe -show_entries
+// frame=side_data_list:frame_side_data=side_data_type` and reports whether a frame carries HDR10+
+// (SMPTE ST 2094-40) dynamic metadata.
+func ParseFrameSideData(data []byte) (hdr10Plus bool, err error) {
+	var raw struct {
+		Frames []struct {
+			SideData []struct {
+				Type string `json:"side_data_type"`
+			} `json:"side_data_list"`
+		} `json:"frames"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return false, fmt.Errorf("parse ffprobe frame side data: %w", err)
+	}
+	for _, f := range raw.Frames {
+		for _, sd := range f.SideData {
+			if strings.HasPrefix(sd.Type, hdr10PlusSideData) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // FileError is a probe failure caused by the file itself: ffprobe exited with an error (not a
@@ -150,24 +255,32 @@ func ParseProbe(data []byte) (Probe, error) {
 		Chapters: make([]Chapter, 0, len(raw.Chapters)),
 	}
 	for _, s := range raw.Streams {
+		dvProfile, dvCompat := 0, 0
+		for _, sd := range s.SideData {
+			if strings.HasPrefix(sd.Type, "DOVI configuration") {
+				dvProfile, dvCompat = sd.DVProfile, sd.DVBLCompat
+			}
+		}
 		p.Streams = append(p.Streams, Stream{
-			Index:          s.Index,
-			Type:           s.CodecType,
-			Codec:          s.CodecName,
-			Profile:        s.Profile,
-			Level:          s.Level,
-			Width:          s.Width,
-			Height:         s.Height,
-			PixFmt:         s.PixFmt,
-			ColorTransfer:  s.ColorTransfer,
-			ColorPrimaries: s.ColorPrimaries,
-			Channels:       s.Channels,
-			ChannelLayout:  s.ChannelLayout,
-			Language:       s.Tags.Language,
-			Title:          s.Tags.Title,
-			Default:        s.Disposition.Default == 1,
-			Forced:         s.Disposition.Forced == 1,
-			AttachedPic:    s.Disposition.AttachedPic == 1,
+			DolbyVisionProfile:  dvProfile,
+			DolbyVisionBLCompat: dvCompat,
+			Index:               s.Index,
+			Type:                s.CodecType,
+			Codec:               s.CodecName,
+			Profile:             s.Profile,
+			Level:               s.Level,
+			Width:               s.Width,
+			Height:              s.Height,
+			PixFmt:              s.PixFmt,
+			ColorTransfer:       s.ColorTransfer,
+			ColorPrimaries:      s.ColorPrimaries,
+			Channels:            s.Channels,
+			ChannelLayout:       s.ChannelLayout,
+			Language:            s.Tags.Language,
+			Title:               s.Tags.Title,
+			Default:             s.Disposition.Default == 1,
+			Forced:              s.Disposition.Forced == 1,
+			AttachedPic:         s.Disposition.AttachedPic == 1,
 		})
 	}
 	for _, c := range raw.Chapters {

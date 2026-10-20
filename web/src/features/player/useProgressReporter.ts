@@ -1,4 +1,4 @@
-import type { ProgressEvent } from '@slouchcat/api-client';
+import type { Progress, ProgressEvent } from '@slouchcat/api-client';
 import { useEffect, useRef, type RefObject } from 'react';
 import { api } from '@/api/client';
 
@@ -8,11 +8,15 @@ export const PROGRESS_INTERVAL_MS = 10_000;
 interface ReporterOptions {
   itemId: string;
   mediaFileId: string;
+  /** The playback session the events belong to (stream overview, W-6). */
+  playbackSessionId: string;
   /** Duration from the media file, used until the element knows its own. */
   fallbackDurationMs: number;
   video: RefObject<HTMLVideoElement | null>;
   /** False until the <video> element is mounted. */
   enabled: boolean;
+  /** The server's answer to an event (merged progress, today's watch time of K-5). */
+  onProgress?: (progress: Progress) => void;
 }
 
 /**
@@ -24,11 +28,17 @@ interface ReporterOptions {
 export function useProgressReporter({
   itemId,
   mediaFileId,
+  playbackSessionId,
   fallbackDurationMs,
   video,
   enabled,
+  onProgress,
 }: ReporterOptions): void {
   const seq = useRef(1);
+  const answer = useRef(onProgress);
+  useEffect(() => {
+    answer.current = onProgress;
+  });
   const playedMs = useRef(0);
   const playingSince = useRef<number | null>(null);
   const started = useRef(false);
@@ -54,6 +64,7 @@ export function useProgressReporter({
       stopClock();
       const body: ProgressEvent = {
         mediaFileId,
+        playbackSessionId,
         positionMs: Math.max(0, Math.round(element.currentTime * 1000)),
         durationMs: Number.isFinite(element.duration)
           ? Math.round(element.duration * 1000)
@@ -69,6 +80,9 @@ export function useProgressReporter({
       // Progress is best effort: a lost event is repaired by the next one.
       api
         .POST('/items/{id}/progress', { params: { path: { id: itemId } }, body, keepalive })
+        .then(({ data }) => {
+          if (data) answer.current?.(data);
+        })
         .catch(() => undefined);
     };
 
@@ -114,5 +128,5 @@ export function useProgressReporter({
       // Leaving the player: report where the viewer stopped.
       if (!element.ended) send('paused', true);
     };
-  }, [enabled, fallbackDurationMs, itemId, mediaFileId, video]);
+  }, [enabled, fallbackDurationMs, itemId, mediaFileId, playbackSessionId, video]);
 }

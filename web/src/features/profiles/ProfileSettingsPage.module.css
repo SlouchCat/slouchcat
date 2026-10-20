@@ -59,3 +59,25 @@
   flex-wrap: wrap;
   gap: var(--sc-space-2);
 }
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding-top: var(--sc-space-4);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.reportTitle {
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.reportFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-4);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}

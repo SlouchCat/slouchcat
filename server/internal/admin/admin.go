@@ -115,6 +115,7 @@ type Service struct {
 	libraries Libraries
 	maint     LibraryMaintenance // nil until WithLibraryMaintenance
 	meta      Metadata           // nil until WithMetadata
+	streams   Streams            // nil until WithStreams
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
 	getenv    func(string) string

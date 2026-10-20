@@ -26,9 +26,11 @@ import (
 type fakeTranscoder struct {
 	mu          sync.Mutex
 	busy        bool
+	busyAbove   int // > 0: budget exhausted for outputs above this height (transcodes)
 	rejectRemux bool
 	onStart     func(HLSRequest) // called before Start returns, outside the lock
 	started     []HLSRequest
+	attempts    []HLSRequest // starts refused as busy
 	running     map[string]*fakeHLS
 	stopped     []string
 	touched     int
@@ -48,7 +50,8 @@ func (f *fakeTranscoder) Backend() string { return f.backend }
 
 func (f *fakeTranscoder) Start(_ context.Context, req HLSRequest) (HLSSession, error) {
 	f.mu.Lock()
-	if f.busy {
+	if f.busy || (f.busyAbove > 0 && req.Decision.Mode == ModeTranscode && req.Decision.MaxHeight > f.busyAbove) {
+		f.attempts = append(f.attempts, req)
 		f.mu.Unlock()
 		return nil, model.ErrTranscodeBusy
 	}
@@ -253,7 +256,8 @@ func TestStopAndLogoutRevoke(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := s.Start(ctx, mine, m.ID, model.PlaybackRequest{})
+	// A second title (the same title would replace a).
+	b, err := s.Start(ctx, mine, f.Rated(6).ID, model.PlaybackRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +340,8 @@ func TestStartHLSRequestAndVisibilityRecheck(t *testing.T) {
 	req := tc.started[0]
 	if req.ID != info.PlaybackSessionID || !filepath.IsAbs(req.Path) || filepath.Base(req.Path) != filepath.Base(m.RelPath) ||
 		len(req.Keyframes) != len(kf) || req.Keyframes[2] != 7*time.Second || req.Probe.Format.Duration != 90*time.Second ||
-		req.Decision != (Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: true, Reason: ReasonContainer}) {
+		req.Decision != (Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: true, Reason: ReasonContainer, Quality: model.QualityAuto,
+			Width: 1280, Height: 720, AudioStream: 1, BurnStream: -1}) {
 		t.Errorf("request = %+v", req)
 	}
 
@@ -589,7 +594,9 @@ func TestRemuxFallsBackWhileKeyframesPending(t *testing.T) {
 		t.Fatalf("pending index = %+v", info.Transcoding)
 	}
 	got := tc.starts()
-	if len(got) != 1 || got[0].Decision != (Decision{Mode: ModeTranscode, MaxHeight: 1080, Reason: ReasonKeyframesPending}) || got[0].Keyframes != nil {
+	want := Decision{Mode: ModeTranscode, MaxHeight: 720, AudioCopy: true, Reason: ReasonKeyframesPending, Quality: model.Quality720,
+		Width: 1280, Height: 720, Bitrate: 4_000_000, AudioStream: 1, BurnStream: -1}
+	if len(got) != 1 || got[0].Decision != want || got[0].Keyframes != nil {
 		t.Errorf("started = %+v", got)
 	}
 	if prio, state := keyframeJob(t, f, m.FileID); prio != 9 || state != "queued" {
@@ -722,14 +729,16 @@ func TestHLSRebuildsLostOutput(t *testing.T) {
 	if len(got) != 4 {
 		t.Fatalf("started %d outputs", len(got))
 	}
+	// The rebuild repeats the decision of the start from the recorded columns (capabilities,
+	// quality, tracks), including the Safari audio copy.
 	ra, rb := got[2], got[3]
-	if ra.ID != a.PlaybackSessionID || ra.StartSegment != 7 || ra.Resume != 0 ||
-		ra.Decision != (Decision{Mode: ModeTranscode, MaxHeight: 1080, AudioCopy: true}) {
-		t.Errorf("rebuilt transcode = %+v", ra)
+	if ra.ID != a.PlaybackSessionID || ra.StartSegment != 7 || ra.Resume != 0 || ra.Decision != got[0].Decision ||
+		ra.Decision.Mode != ModeTranscode || ra.Decision.Quality != model.Quality720 {
+		t.Errorf("rebuilt transcode = %+v, started %+v", ra.Decision, got[0].Decision)
 	}
-	if rb.ID != b.PlaybackSessionID || len(rb.Keyframes) != 3 ||
-		rb.Decision != (Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: false}) {
-		t.Errorf("rebuilt remux = %+v", rb)
+	if rb.ID != b.PlaybackSessionID || len(rb.Keyframes) != 3 || rb.Decision != got[1].Decision ||
+		rb.Decision.Mode != ModeRemux || !rb.Decision.AudioCopy {
+		t.Errorf("rebuilt remux = %+v, started %+v", rb.Decision, got[1].Decision)
 	}
 	// A running output is not started again.
 	if _, err := s.HLS(ctx, ga, 3); err != nil || len(tc.starts()) != 4 {

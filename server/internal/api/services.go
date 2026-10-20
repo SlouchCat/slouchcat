@@ -111,6 +111,18 @@ type AdminService interface {
 	MergeItems(ctx context.Context, targetID string, sourceIDs []string) (model.AdminItem, error)
 	// CleanupItems soft-deletes orphaned titles and removes media files as ignored.
 	CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []string) (items, files int, err error)
+
+	// M4 (design section 8): devices (W-7) and running streams (W-6).
+
+	// ListDevices returns the devices with owner, capability profile and running streams.
+	ListDevices(ctx context.Context) ([]model.AdminDevice, error)
+	// DeleteDevice ends the device's streams, revokes its sessions and PIN counters and deletes it
+	// (model.ErrNotFound for an unknown device).
+	DeleteDevice(ctx context.Context, id string) error
+	// ListStreams returns the running playback sessions with plain titles, newest first.
+	ListStreams(ctx context.Context) ([]model.AdminStream, error)
+	// StopStream ends a running playback session (model.ErrNotFound for an unknown or ended one).
+	StopStream(ctx context.Context, id string) error
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer
@@ -134,7 +146,8 @@ type CatalogService interface {
 type PlaybackService interface {
 	// Start decides the playback mode, creates a playback session of the browser session and
 	// returns the playback description with the token URL. Errors: model.ErrNotFound,
-	// *model.ValidationError, model.ErrTranscodeBusy.
+	// *model.ValidationError, model.ErrTranscodeBusy, *model.WatchLimitError (K-5),
+	// *model.StreamLimitError (W-8).
 	Start(ctx context.Context, session model.Session, itemID string, req model.PlaybackRequest) (model.PlaybackInfo, error)
 	// Authorize resolves a stream token; model.ErrUnauthenticated when it is missing, forged,
 	// revoked or expired.
@@ -159,6 +172,17 @@ type PlaybackService interface {
 	// RecheckVisibility ends the open direct-play streams whose title their profile may no longer
 	// see; called after a change of ratings, ceilings or library rights.
 	RecheckVisibility(ctx context.Context) error
-	// Report stores a progress event and returns the merged progress.
+	// Report stores a progress event and returns the merged progress (with the watch time of a
+	// profile with a daily limit; at the limit its playback sessions are revoked).
 	Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error)
+	// Tracks returns the audio and subtitle tracks of a media file of a visible title (empty id:
+	// the primary file), or model.ErrNotFound.
+	Tracks(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.TrackList, error)
+	// Subtitle returns the WebVTT file of the text subtitle track a grant selected; any other
+	// track, a bitmap track and an invisible title return model.ErrNotFound.
+	Subtitle(ctx context.Context, g model.PlaybackGrant, trackID int64) (model.StreamSource, error)
+	// WatchReport returns the minutes per day of a profile of the session's account (K-5); only
+	// the primary profile (model.ErrPrimaryProfileRequired), model.ErrNotFound for another
+	// account's profile, *model.ValidationError for days outside 1–90 (0 = 30).
+	WatchReport(ctx context.Context, session model.Session, profileID int64, days int) (model.WatchReport, error)
 }

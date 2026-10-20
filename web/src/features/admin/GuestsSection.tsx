@@ -11,6 +11,13 @@ import { AriaButton, ConfirmDialog, FormDialog, RadioGroup } from '@/ui/aria';
 import { ratingOf, ratingOptions } from '../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
 import {
+  LimitFields,
+  limitParts,
+  limitsOf,
+  limitValues,
+  type LimitValues,
+} from '../shared/LimitFields';
+import {
   describeLibraries,
   libraryIdsOf,
   type LibraryOption,
@@ -35,6 +42,7 @@ function GuestForm({
     all: guest.allLibraries,
     ids: guest.libraryIds.map(String),
   });
+  const [limits, setLimits] = useState<LimitValues>(() => limitValues(guest.limits));
   const save = useMutation({
     mutationFn: (body: GuestUpdate): Promise<Guest> =>
       request(api.PATCH('/admin/guests/{id}', { params: { path: { id: guest.id } }, body })),
@@ -51,6 +59,8 @@ function GuestForm({
       maxRating: ratingOf(rating),
       allLibraries: selection.all,
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
+      // W-8: bandwidth, quality and streams cap every profile of the guest account.
+      limits: limitsOf(limits, false),
     });
   };
 
@@ -70,6 +80,13 @@ function GuestForm({
         onChange={setSelection}
         options={options}
       />
+      <fieldset className={styles.group}>
+        <legend className={styles.legend}>{t('limits.title')}</legend>
+        <Text tone="secondary" variant="caption">
+          {t('admin.access.guests.limitsHint')}
+        </Text>
+        <LimitFields value={limits} onChange={setLimits} withWatch={false} />
+      </fieldset>
       <div className={styles.dialogActions}>
         <AriaButton variant="ghost" onPress={onClose}>
           {t('common.cancel')}
@@ -140,6 +157,11 @@ export function GuestsSection({ libraries }: { libraries: LibraryOptions }) {
                         <Chip tone="info">
                           {t('admin.access.guests.profiles', { count: guest.profileCount })}
                         </Chip>
+                        {limitParts(t, guest.limits).map((part) => (
+                          <Chip key={part} tone="outline">
+                            {part}
+                          </Chip>
+                        ))}
                       </div>
                       <span className={styles.muted}>{describeLibraries(t, guest, options)}</span>
                       <span className={styles.muted}>

@@ -38,7 +38,8 @@ func (s *server) UpdateGuest(ctx context.Context, req gen.UpdateGuestRequestObje
 		return nil, err
 	}
 	b := deref(req.Body)
-	g, err := svc.UpdateGuest(ctx, req.Id, model.GuestUpdate{MaxRating: ratingPtr(b.MaxRating), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds})
+	g, err := svc.UpdateGuest(ctx, req.Id, model.GuestUpdate{MaxRating: ratingPtr(b.MaxRating), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds,
+		Limits: fromPlaybackLimits(b.Limits)})
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -69,5 +70,6 @@ func toGuest(g model.Guest) gen.Guest {
 	return gen.Guest{
 		Id: g.ID, Email: openapi_types.Email(g.Email), MaxRating: gen.Rating(g.MaxRating), AllLibraries: g.AllLibraries,
 		LibraryIds: nonNil(g.LibraryIDs), ProfileCount: g.ProfileCount, CreatedAt: g.CreatedAt.UTC(), LastSeenAt: utc(g.LastSeenAt),
+		Limits: toPlaybackLimits(g.Limits),
 	}
 }

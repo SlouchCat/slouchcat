@@ -28,6 +28,27 @@ func (p problems) write(w http.ResponseWriter, r *http.Request, status int, code
 // writeProblem sends a problem with optional field errors and, for pin_locked, the remaining lock
 // in seconds (retryAfterSeconds).
 func (p problems) writeProblem(w http.ResponseWriter, r *http.Request, status int, code, detail string, fields []gen.FieldError, retryAfter *int) {
+	p.send(w, status, problemBody(r, status, code, detail, fields, retryAfter))
+}
+
+// writeExtended sends a problem with extension numbers under "extensions" (Problem.extensions: the
+// limits of K-5 and W-8, limitMinutes and usedMinutes, maxStreams and activeStreams).
+func (p problems) writeExtended(w http.ResponseWriter, r *http.Request, status int, code, detail string, ext map[string]int) {
+	body := problemBody(r, status, code, detail, nil, nil)
+	body.Extensions = &ext
+	p.send(w, status, body)
+}
+
+func (p problems) send(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", ContentTypeProblem)
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		p.log.Debug("write problem response", "err", err)
+	}
+}
+
+func problemBody(r *http.Request, status int, code, detail string, fields []gen.FieldError, retryAfter *int) gen.Problem {
 	instance := logging.RedactString(r.URL.Path) // an invitation token in the path stays out of the body
 	body := gen.Problem{
 		Type:     "about:blank",
@@ -43,12 +64,7 @@ func (p problems) writeProblem(w http.ResponseWriter, r *http.Request, status in
 		body.Errors = &fields
 	}
 	body.RetryAfterSeconds = retryAfter
-	w.Header().Set("Content-Type", ContentTypeProblem)
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(body); err != nil {
-		p.log.Debug("write problem response", "err", err)
-	}
+	return body
 }
 
 func (p problems) badRequest(w http.ResponseWriter, r *http.Request, err error) {

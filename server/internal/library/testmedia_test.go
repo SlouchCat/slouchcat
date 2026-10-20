@@ -42,15 +42,17 @@ func TestScanGeneratedMedia(t *testing.T) {
 	}
 
 	tv := e.createSeries(filepath.Join(filepath.Dir(testMedia(t)), "TV"))
-	if got := e.scan(tv.ID); got.Scan.State != "done" || got.Scan.FileCount != 4 {
+	// Four files of the test show and five of the intro season (TestSegmentsDetectGeneratedSeason).
+	if got := e.scan(tv.ID); got.Scan.State != "done" || got.Scan.FileCount != 9 {
 		t.Fatalf("series scan = %+v", got.Scan)
 	}
 	if v := e.str(`SELECT group_concat(season_number || 'x' || episode_number || '-' || coalesce(episode_end, 0), ',') FROM (
 	               SELECT season_number, episode_number, episode_end FROM items WHERE kind = 'episode' AND library_id = ?
+	               AND parent_id IN (SELECT s.id FROM items AS s JOIN items AS r ON r.id = s.parent_id WHERE r.title = 'Slouchcat Test Show')
 	               ORDER BY season_number, episode_number)`, tv.ID); v != "0x1-0,1x1-0,1x2-0,1x3-4" {
 		t.Errorf("episodes = %q", v)
 	}
-	if v := e.str(`SELECT group_concat(title, ',') FROM (SELECT title FROM items WHERE kind = 'season' AND library_id = ? ORDER BY sort_title)`, tv.ID); v != "Season 1,Specials" {
+	if v := e.str(`SELECT group_concat(title, ',') FROM (SELECT title FROM items WHERE kind = 'season' AND library_id = ? ORDER BY sort_title)`, tv.ID); v != "Season 1,Season 1,Specials" {
 		t.Errorf("seasons = %q", v)
 	}
 }

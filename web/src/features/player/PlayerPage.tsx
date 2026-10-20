@@ -1,10 +1,10 @@
-import type { PlaybackInfo } from '@slouchcat/api-client';
+import type { ItemRef, PlaybackInfo, PlaybackRequest, Quality } from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
-import { problemMessage } from '@/api/errors';
+import { problemExtension, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { itemQuery } from '@/features/catalog/queries';
 import { useBackKeys } from '@/lib/useBackKeys';
@@ -14,13 +14,13 @@ import { Notice } from '@/ui';
 import { AriaButton } from '@/ui/aria';
 import {
   browserPlatform,
+  deviceCapabilities,
   hlsEngine,
-  playbackCapabilities,
   type MediaPlatform,
   type PlaybackEngine,
 } from './capabilities';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
-import { VideoPlayer } from './VideoPlayer';
+import { VideoPlayer, type PlaybackChange } from './VideoPlayer';
 import styles from './Player.module.css';
 
 const route = getRouteApi('/_authed/_active/play/$itemId');
@@ -57,16 +57,61 @@ const BUSY_RETRIES = 3;
 /** Wait between those retries when the answer carries no `Retry-After`. */
 const BUSY_RETRY_FALLBACK_MS = 1000;
 
-/** How long a version switch waits for the old session to end before it starts the next one. */
+/** How long a switch waits for the old session to end before it starts the next one. */
 const STOP_WAIT_MS = 2000;
 
 const isTranscodeBusy = (error: unknown) =>
   isApiError(error, 503) && error.code === 'transcode_busy';
 
-/** Video player route (W-1 direct play, W-5 progress and resume). */
+/** The tracks the viewer picked, for the file that was playing then (W-4). */
+interface TrackChoice {
+  /** `?file` of the URL at the time; a choice does not carry over to another version. */
+  file: string | null;
+  audioTrack?: number;
+  subtitleTrack?: number | null;
+}
+
+/** Body of startPlayback: the device profile, the version and the viewer's choices. */
+export function playbackRequest(
+  file: string | undefined,
+  tracks: Omit<TrackChoice, 'file'>,
+  quality: Quality | undefined,
+  positionMs: number | undefined,
+): PlaybackRequest {
+  return {
+    ...(file ? { mediaFileId: file } : {}),
+    capabilities: deviceCapabilities(),
+    ...(tracks.audioTrack !== undefined ? { audioTrack: tracks.audioTrack } : {}),
+    ...(tracks.subtitleTrack !== undefined ? { subtitleTrack: tracks.subtitleTrack } : {}),
+    subtitleDelivery: 'auto',
+    ...(quality ? { quality } : {}),
+    ...(positionMs !== undefined ? { positionMs } : {}),
+  };
+}
+
+/**
+ * The item an auto-next navigation is heading for; the next player marks itself with
+ * `data-autonext="navigated"` (W-9 measurement) and clears it.
+ */
+let autoNextTarget: string | null = null;
+
+/** Video player route (W-1 direct play, W-4 tracks, W-5 progress, W-8 quality, W-9 auto-next). */
 export function PlayerPage() {
-  const { t } = useTranslation();
   const { itemId } = route.useParams();
+  // Full screen belongs to the document so that it survives switches and auto-next (W-2); it
+  // ends with the player route.
+  useEffect(
+    () => () => {
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    },
+    [],
+  );
+  // Auto-next stays on this route with another id: a fresh player, session and measurement.
+  return <PlayerView key={itemId} itemId={itemId} />;
+}
+
+function PlayerView({ itemId }: { itemId: string }) {
+  const { t } = useTranslation();
   // The version to play (B-5): from the link of the detail page or the version menu, kept in
   // the URL so a reload plays the chosen one. The menu also hands over the position.
   const { file } = route.useSearch();
@@ -74,6 +119,17 @@ export function PlayerPage() {
   const queryClient = useQueryClient();
   const [startMs, setStartMs] = useState<number | undefined>(undefined);
   const [switchingTo, setSwitchingTo] = useState<string | undefined>(undefined);
+  const [stopping, setStopping] = useState(false);
+  const [switchStartedAt, setSwitchStartedAt] = useState<number | undefined>(undefined);
+  const [trackChoice, setTrackChoice] = useState<TrackChoice>({ file: null });
+  const [quality, setQuality] = useState<Quality | undefined>(undefined);
+  // A new session with the same choices (a second switch back) must not reuse a cached answer.
+  const [generation, setGeneration] = useState(0);
+  const [autoNext] = useState(() => {
+    const arrived = autoNextTarget === itemId;
+    if (arrived) autoNextTarget = null;
+    return arrived;
+  });
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -85,25 +141,28 @@ export function PlayerPage() {
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
 
+  const tracks =
+    trackChoice.file === (file ?? null)
+      ? { audioTrack: trackChoice.audioTrack, subtitleTrack: trackChoice.subtitleTrack }
+      : {};
+
   // Starting playback creates a session and may start a transcode on the server, so the request
-  // runs once per mount: never refetched on reconnect, focus or staleness (a second session would
-  // rebuild the player mid-stream). Only a busy transcoder is retried, after the server's delay.
+  // runs once per mount and choice: never refetched on reconnect, focus or staleness (a second
+  // session would rebuild the player mid-stream). Only a busy transcoder is retried, after the
+  // server's delay.
   const playback = useQuery({
-    queryKey: ['playback', itemId, file ?? null],
+    queryKey: ['playback', itemId, file ?? null, tracks, quality ?? null, generation],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
       request(
         api.POST('/items/{id}/play', {
           params: { path: { id: itemId } },
-          body: {
-            ...(file ? { mediaFileId: file } : {}),
-            capabilities: playbackCapabilities(),
-          },
+          body: playbackRequest(file, tracks, quality, startMs),
           signal,
         }),
       ),
     staleTime: Infinity,
     gcTime: 0,
-    // A version switch keeps the paused player on screen until the new session answers.
+    // A switch keeps the paused player on screen until the new session answers.
     placeholderData: keepPreviousData,
     retry: (failureCount, error) => isTranscodeBusy(error) && failureCount < BUSY_RETRIES,
     retryDelay: (_failureCount, error) =>
@@ -121,22 +180,54 @@ export function PlayerPage() {
 
   // From the menu until the new session answered; the old player is paused and locked meanwhile.
   const switching =
-    playback.isPlaceholderData || (switchingTo !== undefined && switchingTo !== file);
+    playback.isPlaceholderData || stopping || (switchingTo !== undefined && switchingTo !== file);
+
+  /**
+   * The running session (and its transcode) ends before the next one starts: with few transcode
+   * slots the server would otherwise answer the start with 503, and a stream limit of one would
+   * answer 409. A slow answer holds the switch up for STOP_WAIT_MS at most.
+   */
+  const endCurrent = async () => {
+    setSwitchStartedAt(performance.now());
+    setStopping(true);
+    await Promise.race([
+      stopSession(),
+      new Promise((resolve) => window.setTimeout(resolve, STOP_WAIT_MS)),
+    ]);
+    return mounted.current;
+  };
 
   const switchVersion = async (fileId: string, positionMs: number) => {
     const current = playback.data;
     if (!current || current.mediaFile.id === fileId || switching) return;
     setSwitchingTo(fileId);
-    // The running session (and its transcode) ends before the next one starts: with few transcode
-    // slots the server would otherwise answer the start with 503. A slow answer holds the switch
-    // up for STOP_WAIT_MS at most.
-    await Promise.race([
-      stopSession(),
-      new Promise((resolve) => window.setTimeout(resolve, STOP_WAIT_MS)),
-    ]);
-    if (!mounted.current) return;
+    if (!(await endCurrent())) return;
     setStartMs(positionMs);
+    setStopping(false);
     await navigate({ search: (previous) => ({ ...previous, file: fileId }), replace: true });
+  };
+
+  // Another track or quality (W-4, W-8): a new session of the same file at the same position.
+  const switchPlayback = async (change: PlaybackChange, positionMs: number) => {
+    if (!playback.data || switching) return;
+    if (!(await endCurrent())) return;
+    setStartMs(positionMs);
+    if (change.quality !== undefined) setQuality(change.quality);
+    if (change.audioTrack !== undefined || change.subtitleTrack !== undefined) {
+      setTrackChoice({
+        ...tracks,
+        file: file ?? null,
+        ...(change.audioTrack !== undefined ? { audioTrack: change.audioTrack } : {}),
+        ...(change.subtitleTrack !== undefined ? { subtitleTrack: change.subtitleTrack } : {}),
+      });
+    }
+    setGeneration((value) => value + 1);
+    setStopping(false);
+  };
+
+  const playNext = (next: ItemRef) => {
+    autoNextTarget = next.id;
+    void navigate({ to: '/play/$itemId', params: { itemId: next.id }, search: {}, replace: true });
   };
 
   const engine = useMemo(
@@ -156,7 +247,7 @@ export function PlayerPage() {
   if (playback.data && engine && engine !== 'unsupported') {
     return (
       <VideoPlayer
-        // A new session (another version) gets a fresh element and progress reporter.
+        // A new session (another version, track or quality) gets a fresh element and reporter.
         key={playback.data.playbackSessionId}
         info={playback.data}
         engine={engine}
@@ -168,12 +259,19 @@ export function PlayerPage() {
         onToggleInfo={() => setInfoOpen((open) => !open)}
         switching={switching}
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
+        onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}
+        switchStartedAt={switchStartedAt}
+        onNextEpisode={playNext}
+        autoNext={autoNext}
       />
     );
   }
 
   return (
-    <PlayerMessage onBack={goBack}>
+    <PlayerMessage
+      onBack={goBack}
+      errorCode={playback.isError && isApiError(playback.error) ? playback.error.code : undefined}
+    >
       {playback.isPending && !isTranscodeBusy(playback.failureReason) && (
         <p className={styles.loading}>{t('player.loading')}</p>
       )}
@@ -182,11 +280,7 @@ export function PlayerPage() {
           {t('player.busy.body')}
         </Notice>
       )}
-      {playback.isError && (
-        <Notice tone="danger" title={t('player.error.title')}>
-          {problemMessage(t, playback.error)}
-        </Notice>
-      )}
+      {playback.isError && <StartError error={playback.error} />}
       {playback.data && engine === 'unsupported' && (
         <Notice tone="warning" title={t('player.unsupported.title')}>
           <p>{t('player.unsupported.body')}</p>
@@ -203,11 +297,60 @@ export function PlayerPage() {
   );
 }
 
-function PlayerMessage({ children, onBack }: { children: ReactNode; onBack: () => void }) {
+/**
+ * Why the server did not start the playback. The limits (K-5 watch time, W-8 streams) carry
+ * their numbers in the problem's extensions; the client only shows them.
+ */
+function StartError({ error }: { error: Error }) {
+  const { t } = useTranslation();
+  if (isApiError(error, 403) && error.code === 'watch_limit_reached') {
+    const limit = problemExtension(error, 'limitMinutes');
+    const used = problemExtension(error, 'usedMinutes');
+    return (
+      <Notice tone="warning" title={t('player.watchLimit.title')}>
+        <p>
+          {limit !== undefined
+            ? t('player.watchLimit.body', { count: limit })
+            : t('player.watchLimit.bodyUnknown')}
+        </p>
+        {used !== undefined && <p>{t('player.watchLimit.used', { count: used })}</p>}
+      </Notice>
+    );
+  }
+  if (isApiError(error, 409) && error.code === 'stream_limit_reached') {
+    const max = problemExtension(error, 'maxStreams');
+    const active = problemExtension(error, 'activeStreams');
+    return (
+      <Notice tone="warning" title={t('player.streamLimit.title')}>
+        <p>
+          {max !== undefined
+            ? t('player.streamLimit.body', { count: max })
+            : t('player.streamLimit.bodyUnknown')}
+        </p>
+        {active !== undefined && <p>{t('player.streamLimit.active', { count: active })}</p>}
+      </Notice>
+    );
+  }
+  return (
+    <Notice tone="danger" title={t('player.error.title')}>
+      {problemMessage(t, error)}
+    </Notice>
+  );
+}
+
+function PlayerMessage({
+  children,
+  onBack,
+  errorCode,
+}: {
+  children: ReactNode;
+  onBack: () => void;
+  errorCode?: string;
+}) {
   const { t } = useTranslation();
   useBackKeys(onBack);
   return (
-    <main className={styles.messagePage}>
+    <main className={styles.messagePage} data-error-code={errorCode}>
       <div className={styles.messageBox}>
         {children}
         <div>

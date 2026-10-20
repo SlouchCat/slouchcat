@@ -1,5 +1,5 @@
 import { test as base, expect, type APIRequestContext } from '@playwright/test';
-import { ownerApi, removeGuests, resetProfiles } from './accounts';
+import { ownerApi, removeGuests, resetProfiles, stopAllStreams } from './accounts';
 
 /**
  * A client address of its own for every test (10.x.y.z from the test's name and browser). The
@@ -16,7 +16,8 @@ function clientAddress(key: string): string {
 // pass it on.
 // `owner`: an API client with the shared session of the main account (primary profile, never
 // switched), for setting up and tidying data. It needs no login. It runs for every test (`auto`):
-// before and after each one the account is left with its primary profile only and without guests.
+// before and after each one the account is left with its primary profile only, without guests and
+// without running streams.
 export const test = base.extend<{ owner: APIRequestContext }>({
   extraHTTPHeaders: async ({ browserName }, provide, testInfo) => {
     const address = clientAddress(`${browserName}/${testInfo.titlePath.join('/')}`);
@@ -27,10 +28,12 @@ export const test = base.extend<{ owner: APIRequestContext }>({
       if (!baseURL) throw new Error('baseURL is not set');
       const api = await ownerApi(playwright, baseURL, extraHTTPHeaders);
       try {
+        await stopAllStreams(api);
         await resetProfiles(api);
         await removeGuests(api);
         await provide(api);
       } finally {
+        await stopAllStreams(api);
         await resetProfiles(api);
         await removeGuests(api);
         await api.dispose();

@@ -99,7 +99,7 @@ func (s *server) CreateProfile(ctx context.Context, req gen.CreateProfileRequest
 	b := deref(req.Body)
 	in := model.ProfileInput{
 		Name: &b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), Accent: accentPtr(b.Accent),
-		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, PIN: b.Pin,
+		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, PIN: b.Pin, Limits: fromPlaybackLimits(b.Limits),
 	}
 	p, err := svc.CreateProfile(ctx, session, in)
 	if err != nil {
@@ -116,7 +116,7 @@ func (s *server) UpdateProfile(ctx context.Context, req gen.UpdateProfileRequest
 	b := deref(req.Body)
 	in := model.ProfileInput{
 		Name: b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), Accent: accentPtr(b.Accent),
-		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds,
+		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, Limits: fromPlaybackLimits(b.Limits),
 	}
 	p, err := svc.UpdateProfile(ctx, session, req.Id, in)
 	if err != nil {

@@ -84,7 +84,8 @@ test('the version menu of the player switches to the other file', async ({ page 
   const menuButton = page.getByRole('button', { name: /^Version: / });
   await tabTo(page, menuButton, 10);
   await page.keyboard.press('Enter');
-  const menu = page.getByRole('menu', { name: 'Version' });
+  // react-aria names a menu after its button ("Version: 1080p").
+  const menu = page.getByRole('menu', { name: /^Version/ });
   await expect(menu).toBeVisible();
   await expectVisibleFocus(page);
   // The menu opens on the current (primary, first) version; the other one is a step down.
@@ -93,7 +94,8 @@ test('the version menu of the player switches to the other file', async ({ page 
   const second = await startedFile(page, () => page.keyboard.press('Enter'));
   expect(second).not.toBe(first);
   await expect(player(page)).toHaveAttribute('data-media-file-id', second);
-  await expect(player(page)).toHaveAttribute('data-start-ms', /\d+/);
+  // A switch measures from the menu choice; data-start-ms belongs to the first session only.
+  await expect(player(page)).toHaveAttribute('data-switch-ms', /\d+/);
   // The player stays (same route) with the focus on play/pause, as after any start.
   await expect(page).toHaveURL(/\/play\//);
   await expectFocusOn(page, page.getByRole('button', { name: /^(Pause|Abspielen)$/ }));

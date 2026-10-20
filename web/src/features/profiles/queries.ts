@@ -1,4 +1,4 @@
-import type { Profile, ProfileSummary } from '@slouchcat/api-client';
+import type { Profile, ProfileSummary, WatchReport } from '@slouchcat/api-client';
 import { queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
 
@@ -16,3 +16,16 @@ export const manageProfilesQuery = queryOptions({
   queryKey: ['profiles'],
   queryFn: ({ signal }): Promise<Profile[]> => request(api.GET('/profiles', { signal })),
 });
+
+/** Watch time per day of one profile (K-5), for the primary profile's settings page. */
+export const watchReportQuery = (id: number, days: number) =>
+  queryOptions({
+    queryKey: ['profiles', id, 'watch-time', days],
+    queryFn: ({ signal }): Promise<WatchReport> =>
+      request(
+        api.GET('/profiles/{id}/watch-time', {
+          params: { path: { id }, query: { days } },
+          signal,
+        }),
+      ),
+  });

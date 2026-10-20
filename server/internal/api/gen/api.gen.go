@@ -78,6 +78,33 @@ func (e AccountRole) Valid() bool {
 	}
 }
 
+// Defines values for AdminDeviceType.
+const (
+	AdminDeviceTypeDesktop AdminDeviceType = "desktop"
+	AdminDeviceTypeOther   AdminDeviceType = "other"
+	AdminDeviceTypePhone   AdminDeviceType = "phone"
+	AdminDeviceTypeTablet  AdminDeviceType = "tablet"
+	AdminDeviceTypeTv      AdminDeviceType = "tv"
+)
+
+// Valid indicates whether the value is a known member of the AdminDeviceType enum.
+func (e AdminDeviceType) Valid() bool {
+	switch e {
+	case AdminDeviceTypeDesktop:
+		return true
+	case AdminDeviceTypeOther:
+		return true
+	case AdminDeviceTypePhone:
+		return true
+	case AdminDeviceTypeTablet:
+		return true
+	case AdminDeviceTypeTv:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminItemMetadataState.
 const (
 	AdminItemMetadataStateFailed    AdminItemMetadataState = "failed"
@@ -123,6 +150,27 @@ func (e AdminItemTrailerState) Valid() bool {
 	case AdminItemTrailerStateNone:
 		return true
 	case AdminItemTrailerStatePending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdminStreamMode.
+const (
+	AdminStreamModeDirect    AdminStreamMode = "direct"
+	AdminStreamModeRemux     AdminStreamMode = "remux"
+	AdminStreamModeTranscode AdminStreamMode = "transcode"
+)
+
+// Valid indicates whether the value is a known member of the AdminStreamMode enum.
+func (e AdminStreamMode) Valid() bool {
+	switch e {
+	case AdminStreamModeDirect:
+		return true
+	case AdminStreamModeRemux:
+		return true
+	case AdminStreamModeTranscode:
 		return true
 	default:
 		return false
@@ -393,6 +441,30 @@ func (e LibraryRootWatch) Valid() bool {
 	}
 }
 
+// Defines values for MediaFileInfoHdr.
+const (
+	DolbyVision MediaFileInfoHdr = "dolby_vision"
+	Hdr10       MediaFileInfoHdr = "hdr10"
+	Hdr10plus   MediaFileInfoHdr = "hdr10plus"
+	Hlg         MediaFileInfoHdr = "hlg"
+)
+
+// Valid indicates whether the value is a known member of the MediaFileInfoHdr enum.
+func (e MediaFileInfoHdr) Valid() bool {
+	switch e {
+	case DolbyVision:
+		return true
+	case Hdr10:
+		return true
+	case Hdr10plus:
+		return true
+	case Hlg:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MetadataProvider.
 const (
 	MetadataProviderTmdb MetadataProvider = "tmdb"
@@ -405,6 +477,33 @@ func (e MetadataProvider) Valid() bool {
 	case MetadataProviderTmdb:
 		return true
 	case MetadataProviderTvdb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OutputHeight.
+const (
+	N1080 OutputHeight = 1080
+	N2160 OutputHeight = 2160
+	N360  OutputHeight = 360
+	N480  OutputHeight = 480
+	N720  OutputHeight = 720
+)
+
+// Valid indicates whether the value is a known member of the OutputHeight enum.
+func (e OutputHeight) Valid() bool {
+	switch e {
+	case N1080:
+		return true
+	case N2160:
+		return true
+	case N360:
+		return true
+	case N480:
+		return true
+	case N720:
 		return true
 	default:
 		return false
@@ -456,18 +555,66 @@ func (e PlaybackCapabilitiesHls) Valid() bool {
 	}
 }
 
+// Defines values for PlaybackCapabilitiesType.
+const (
+	PlaybackCapabilitiesTypeDesktop PlaybackCapabilitiesType = "desktop"
+	PlaybackCapabilitiesTypeOther   PlaybackCapabilitiesType = "other"
+	PlaybackCapabilitiesTypePhone   PlaybackCapabilitiesType = "phone"
+	PlaybackCapabilitiesTypeTablet  PlaybackCapabilitiesType = "tablet"
+	PlaybackCapabilitiesTypeTv      PlaybackCapabilitiesType = "tv"
+)
+
+// Valid indicates whether the value is a known member of the PlaybackCapabilitiesType enum.
+func (e PlaybackCapabilitiesType) Valid() bool {
+	switch e {
+	case PlaybackCapabilitiesTypeDesktop:
+		return true
+	case PlaybackCapabilitiesTypeOther:
+		return true
+	case PlaybackCapabilitiesTypePhone:
+		return true
+	case PlaybackCapabilitiesTypeTablet:
+		return true
+	case PlaybackCapabilitiesTypeTv:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PlaybackInfoMode.
 const (
-	Direct PlaybackInfoMode = "direct"
-	Hls    PlaybackInfoMode = "hls"
+	PlaybackInfoModeDirect PlaybackInfoMode = "direct"
+	PlaybackInfoModeHls    PlaybackInfoMode = "hls"
 )
 
 // Valid indicates whether the value is a known member of the PlaybackInfoMode enum.
 func (e PlaybackInfoMode) Valid() bool {
 	switch e {
-	case Direct:
+	case PlaybackInfoModeDirect:
 		return true
-	case Hls:
+	case PlaybackInfoModeHls:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlaybackRequestSubtitleDelivery.
+const (
+	PlaybackRequestSubtitleDeliveryAuto PlaybackRequestSubtitleDelivery = "auto"
+	PlaybackRequestSubtitleDeliveryBurn PlaybackRequestSubtitleDelivery = "burn"
+	PlaybackRequestSubtitleDeliveryText PlaybackRequestSubtitleDelivery = "text"
+)
+
+// Valid indicates whether the value is a known member of the PlaybackRequestSubtitleDelivery enum.
+func (e PlaybackRequestSubtitleDelivery) Valid() bool {
+	switch e {
+	case PlaybackRequestSubtitleDeliveryAuto:
+		return true
+	case PlaybackRequestSubtitleDeliveryBurn:
+		return true
+	case PlaybackRequestSubtitleDeliveryText:
 		return true
 	default:
 		return false
@@ -489,6 +636,33 @@ func (e ProgressEventState) Valid() bool {
 	case Paused:
 		return true
 	case Playing:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Quality.
+const (
+	QualityAuto   Quality = "auto"
+	QualityN1080p Quality = "1080p"
+	QualityN360p  Quality = "360p"
+	QualityN480p  Quality = "480p"
+	QualityN720p  Quality = "720p"
+)
+
+// Valid indicates whether the value is a known member of the Quality enum.
+func (e Quality) Valid() bool {
+	switch e {
+	case QualityAuto:
+		return true
+	case QualityN1080p:
+		return true
+	case QualityN360p:
+		return true
+	case QualityN480p:
+		return true
+	case QualityN720p:
 		return true
 	default:
 		return false
@@ -552,6 +726,81 @@ func (e ScanState) Valid() bool {
 	}
 }
 
+// Defines values for SegmentSource.
+const (
+	SegmentSourceChapter     SegmentSource = "chapter"
+	SegmentSourceFingerprint SegmentSource = "fingerprint"
+	SegmentSourceManual      SegmentSource = "manual"
+)
+
+// Valid indicates whether the value is a known member of the SegmentSource enum.
+func (e SegmentSource) Valid() bool {
+	switch e {
+	case SegmentSourceChapter:
+		return true
+	case SegmentSourceFingerprint:
+		return true
+	case SegmentSourceManual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TrackKind.
+const (
+	Audio    TrackKind = "audio"
+	Subtitle TrackKind = "subtitle"
+)
+
+// Valid indicates whether the value is a known member of the TrackKind enum.
+func (e TrackKind) Valid() bool {
+	switch e {
+	case Audio:
+		return true
+	case Subtitle:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TrackSource.
+const (
+	Embedded TrackSource = "embedded"
+	Sidecar  TrackSource = "sidecar"
+)
+
+// Valid indicates whether the value is a known member of the TrackSource enum.
+func (e TrackSource) Valid() bool {
+	switch e {
+	case Embedded:
+		return true
+	case Sidecar:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TrackSelectionSubtitleDelivery.
+const (
+	TrackSelectionSubtitleDeliveryBurn TrackSelectionSubtitleDelivery = "burn"
+	TrackSelectionSubtitleDeliveryText TrackSelectionSubtitleDelivery = "text"
+)
+
+// Valid indicates whether the value is a known member of the TrackSelectionSubtitleDelivery enum.
+func (e TrackSelectionSubtitleDelivery) Valid() bool {
+	switch e {
+	case TrackSelectionSubtitleDeliveryBurn:
+		return true
+	case TrackSelectionSubtitleDeliveryText:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrailerSource.
 const (
 	TrailerSourceAi      TrailerSource = "ai"
@@ -578,16 +827,16 @@ func (e TrailerSource) Valid() bool {
 
 // Defines values for TranscodingMode.
 const (
-	Remux     TranscodingMode = "remux"
-	Transcode TranscodingMode = "transcode"
+	TranscodingModeRemux     TranscodingMode = "remux"
+	TranscodingModeTranscode TranscodingMode = "transcode"
 )
 
 // Valid indicates whether the value is a known member of the TranscodingMode enum.
 func (e TranscodingMode) Valid() bool {
 	switch e {
-	case Remux:
+	case TranscodingModeRemux:
 		return true
-	case Transcode:
+	case TranscodingModeTranscode:
 		return true
 	default:
 		return false
@@ -644,6 +893,35 @@ type Account struct {
 
 // AccountRole defines model for Account.Role.
 type AccountRole string
+
+// AdminDevice A device as the administration sees it (W-7); not an `ItemRef`.
+type AdminDevice struct {
+	ActiveStreams int `json:"activeStreams"`
+
+	// Capabilities The device's capability profile (W-7): what it plays, from `canPlayType` /
+	// `MediaSource.isTypeSupported`, its screen and HDR support. The server stores it with the device
+	// (admin device overview) and decides direct play, remux or transcode from it. Without it the server
+	// assumes H.264 and AAC in MP4 through MSE.
+	Capabilities   *PlaybackCapabilities `json:"capabilities,omitempty"`
+	CapabilitiesAt *time.Time            `json:"capabilitiesAt,omitempty"`
+	CreatedAt      time.Time             `json:"createdAt"`
+	Id             string                `json:"id"`
+
+	// LastSeenAt Last request of any session of the device.
+	LastSeenAt time.Time `json:"lastSeenAt"`
+	Name       *string   `json:"name,omitempty"`
+
+	// OwnerEmail Account of the last playback start on this device.
+	OwnerEmail *string `json:"ownerEmail,omitempty"`
+
+	// OwnerProfile Profile of the last playback start on this device.
+	OwnerProfile *string          `json:"ownerProfile,omitempty"`
+	Type         *AdminDeviceType `json:"type,omitempty"`
+	UserAgent    *string          `json:"userAgent,omitempty"`
+}
+
+// AdminDeviceType defines model for AdminDevice.Type.
+type AdminDeviceType string
 
 // AdminItem Administration view of a title; not an `ItemRef` (unfiltered, admin only).
 type AdminItem struct {
@@ -727,6 +1005,48 @@ type AdminMediaFile struct {
 	VersionLabel *string    `json:"versionLabel,omitempty"`
 }
 
+// AdminStream A running playback session as the administration sees it (W-6); not an `ItemRef`.
+type AdminStream struct {
+	AccountEmail string  `json:"accountEmail"`
+	Backend      *string `json:"backend,omitempty"`
+	Bitrate      *int    `json:"bitrate,omitempty"`
+	Device       *struct {
+		Id   string  `json:"id"`
+		Name *string `json:"name,omitempty"`
+	} `json:"device,omitempty"`
+	DurationMs *int64 `json:"durationMs,omitempty"`
+	Hardware   bool   `json:"hardware"`
+	Height     *int   `json:"height,omitempty"`
+
+	// Id Playback session id.
+	Id string `json:"id"`
+
+	// ItemId ULID of an item.
+	ItemId ItemID `json:"itemId"`
+
+	// ItemTitle Title of the item in the default language, with series, season and episode for an episode.
+	ItemTitle      string          `json:"itemTitle"`
+	LastActivityAt time.Time       `json:"lastActivityAt"`
+	MediaFileId    string          `json:"mediaFileId"`
+	Mode           AdminStreamMode `json:"mode"`
+	PositionMs     *int64          `json:"positionMs,omitempty"`
+	ProfileName    string          `json:"profileName"`
+
+	// Quality Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
+	// a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
+	// (video) plus 160 kbit/s AAC.
+	Quality   *Quality  `json:"quality,omitempty"`
+	Reason    *string   `json:"reason,omitempty"`
+	StartedAt time.Time `json:"startedAt"`
+	Width     *int      `json:"width,omitempty"`
+}
+
+// AdminStreamMode defines model for AdminStream.Mode.
+type AdminStreamMode string
+
+// BitrateKbps Bandwidth limit in kbit/s (W-8). A source above the limit is transcoded to a rung that fits.
+type BitrateKbps = int
+
 // CastMember defines model for CastMember.
 type CastMember struct {
 	Character *string        `json:"character,omitempty"`
@@ -737,6 +1057,13 @@ type CastMember struct {
 
 // CastMemberRole defines model for CastMember.Role.
 type CastMemberRole string
+
+// Chapter defines model for Chapter.
+type Chapter struct {
+	EndMs   int64   `json:"endMs"`
+	StartMs int64   `json:"startMs"`
+	Title   *string `json:"title,omitempty"`
+}
 
 // CleanupRequest defines model for CleanupRequest.
 type CleanupRequest struct {
@@ -762,6 +1089,14 @@ type DuplicateGroup struct {
 // DuplicateGroupReason defines model for DuplicateGroup.Reason.
 type DuplicateGroupReason string
 
+// EffectiveLimits The limits that apply to the profile: its own capped by the account's (guests).
+type EffectiveLimits struct {
+	MaxBitrateKbps    *int `json:"maxBitrateKbps,omitempty"`
+	MaxHeight         *int `json:"maxHeight,omitempty"`
+	MaxStreams        *int `json:"maxStreams,omitempty"`
+	WatchLimitMinutes *int `json:"watchLimitMinutes,omitempty"`
+}
+
 // ExtraKind defines model for ExtraKind.
 type ExtraKind string
 
@@ -785,6 +1120,11 @@ type Guest struct {
 	LastSeenAt *time.Time `json:"lastSeenAt,omitempty"`
 	LibraryIds []int64    `json:"libraryIds"`
 
+	// Limits Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
+	// profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
+	// the object replaces all three at once: a field left out clears that limit.
+	Limits PlaybackLimits `json:"limits"`
+
 	// MaxRating FSK age rating.
 	MaxRating    Rating `json:"maxRating"`
 	ProfileCount int    `json:"profileCount"`
@@ -794,6 +1134,11 @@ type Guest struct {
 type GuestUpdate struct {
 	AllLibraries *bool    `json:"allLibraries,omitempty"`
 	LibraryIds   *[]int64 `json:"libraryIds,omitempty"`
+
+	// Limits Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
+	// profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
+	// the object replaces all three at once: a field left out clears that limit.
+	Limits *PlaybackLimits `json:"limits,omitempty"`
 
 	// MaxRating FSK age rating.
 	MaxRating *Rating `json:"maxRating,omitempty"`
@@ -1186,21 +1531,33 @@ type MediaFileInfo struct {
 	// Available False while the file is missing (24 h grace period).
 	Available bool `json:"available"`
 
+	// Bitrate Container bit rate in bit/s from the probe.
+	Bitrate *int64 `json:"bitrate,omitempty"`
+
 	// Container Container by extension, for example `mp4`, `mkv`.
 	Container  string `json:"container"`
 	DurationMs *int64 `json:"durationMs,omitempty"`
-	Height     *int   `json:"height,omitempty"`
-	Id         string `json:"id"`
+
+	// Hdr HDR format of the main video stream; absent for SDR.
+	Hdr    *MediaFileInfoHdr `json:"hdr,omitempty"`
+	Height *int              `json:"height,omitempty"`
+	Id     string            `json:"id"`
 
 	// MimeType MIME type with codecs parameter when known, for example `video/mp4; codecs="avc1.640028, mp4a.40.2"`.
 	MimeType  *string `json:"mimeType,omitempty"`
 	SizeBytes int64   `json:"sizeBytes"`
+
+	// Tracks Audio and subtitle tracks of the file (detail page and versions).
+	Tracks *TrackList `json:"tracks,omitempty"`
 
 	// VersionLabel Version label parsed from the file name, for example `1080p` (B-5 in M3).
 	VersionLabel *string `json:"versionLabel,omitempty"`
 	VideoCodec   *string `json:"videoCodec,omitempty"`
 	Width        *int    `json:"width,omitempty"`
 }
+
+// MediaFileInfoHdr HDR format of the main video stream; absent for SDR.
+type MediaFileInfoHdr string
 
 // MergeRequest defines model for MergeRequest.
 type MergeRequest struct {
@@ -1226,6 +1583,9 @@ type MetadataCandidate struct {
 // MetadataProvider defines model for MetadataProvider.
 type MetadataProvider string
 
+// OutputHeight Maximum output height (W-8). A source above it is transcoded to that rung.
+type OutputHeight int
+
 // Person defines model for Person.
 type Person struct {
 	Credits []struct {
@@ -1248,14 +1608,32 @@ type PinRequest struct {
 	Pin *string `json:"pin,omitempty"`
 }
 
-// PlaybackCapabilities What the client can play, from `canPlayType` / `MediaSource.isTypeSupported` (device profiles
-// follow in M4). Without it the server assumes H.264 and AAC through MSE.
+// PlaybackCapabilities The device's capability profile (W-7): what it plays, from `canPlayType` /
+// `MediaSource.isTypeSupported`, its screen and HDR support. The server stores it with the device
+// (admin device overview) and decides direct play, remux or transcode from it. Without it the server
+// assumes H.264 and AAC in MP4 through MSE.
 type PlaybackCapabilities struct {
-	// Audio Decodable audio codecs, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`).
+	// Audio Decodable audio codecs, ffprobe names (`aac`, `ac3`, `eac3`, `mp3`, `opus`, `flac`, `dts`, `truehd`).
 	Audio []string `json:"audio"`
+
+	// Containers Containers the media element plays directly (`mp4`, `webm`, `mkv`); default MP4 only.
+	Containers *[]string `json:"containers,omitempty"`
+
+	// Hdr The display and the browser show HDR (the media query dynamic-range high); only then an HDR stream passes through.
+	Hdr *bool `json:"hdr,omitempty"`
 
 	// Hls `native`: the media element plays HLS itself (Safari); `mse`: through hls.js; `none`: no HLS.
 	Hls PlaybackCapabilitiesHls `json:"hls"`
+
+	// MaxHeight Screen height in device pixels; a device under 1080 gets at most the 720p rung (phone profile, plan 3.5).
+	MaxHeight *int `json:"maxHeight,omitempty"`
+
+	// MaxWidth Screen width in device pixels (CSS width × devicePixelRatio).
+	MaxWidth *int `json:"maxWidth,omitempty"`
+
+	// Name Display name of the device, for example `Chrome 156 · Linux`.
+	Name *string                   `json:"name,omitempty"`
+	Type *PlaybackCapabilitiesType `json:"type,omitempty"`
 
 	// Video Decodable video codecs, ffprobe names (`h264`, `hevc`, `av1`, `vp9`).
 	Video []string `json:"video"`
@@ -1264,8 +1642,19 @@ type PlaybackCapabilities struct {
 // PlaybackCapabilitiesHls `native`: the media element plays HLS itself (Safari); `mse`: through hls.js; `none`: no HLS.
 type PlaybackCapabilitiesHls string
 
+// PlaybackCapabilitiesType defines model for PlaybackCapabilities.Type.
+type PlaybackCapabilitiesType string
+
 // PlaybackInfo defines model for PlaybackInfo.
 type PlaybackInfo struct {
+	Chapters []Chapter `json:"chapters"`
+
+	// Device The device this playback was recorded for (W-7).
+	Device *struct {
+		Id   string  `json:"id"`
+		Name *string `json:"name,omitempty"`
+	} `json:"device,omitempty"`
+
 	// Item A title as it appears in lists. Every response that contains an ItemRef is `scoped`; the
 	// contract test enforces this.
 	Item      ItemRef       `json:"item"`
@@ -1274,35 +1663,93 @@ type PlaybackInfo struct {
 	// Mode `direct`: the file as it is through the Range endpoint; `hls`: fMP4-HLS (remux or transcode).
 	Mode PlaybackInfoMode `json:"mode"`
 
+	// NextEpisode The next visible episode of the same series (auto-next, W-9).
+	NextEpisode *ItemRef `json:"nextEpisode,omitempty"`
+
 	// PlaybackSessionId ID of the playback session, for `DELETE /playback/sessions/{id}` when playback ends.
 	PlaybackSessionId string `json:"playbackSessionId"`
 
+	// Qualities The quality rungs of this playback, highest first (W-8 manual choice).
+	Qualities []QualityOption `json:"qualities"`
+
 	// ResumePositionMs Position to resume from; 0 when the title was never started or was completed.
-	ResumePositionMs int64 `json:"resumePositionMs"`
+	ResumePositionMs int64    `json:"resumePositionMs"`
+	Segments         Segments `json:"segments"`
+
+	// Selection The tracks this playback delivers.
+	Selection TrackSelection `json:"selection"`
 
 	// StreamUrl Relative URL with the stream token `st`: the Range endpoint (`direct`) or the HLS master
 	// playlist (`hls`).
 	StreamUrl string `json:"streamUrl"`
 
+	// SubtitleUrl Relative WebVTT URL with the stream token when a text subtitle track is selected (`getPlaybackSubtitle`).
+	SubtitleUrl *string   `json:"subtitleUrl,omitempty"`
+	Tracks      TrackList `json:"tracks"`
+
 	// Transcoding How an `hls` playback is produced; absent for direct play.
 	Transcoding *Transcoding `json:"transcoding,omitempty"`
+
+	// WatchTime Watch time of the active profile today against its limit (K-5).
+	WatchTime *WatchTime `json:"watchTime,omitempty"`
 }
 
 // PlaybackInfoMode `direct`: the file as it is through the Range endpoint; `hls`: fMP4-HLS (remux or transcode).
 type PlaybackInfoMode string
 
+// PlaybackLimits Playback limits (W-8, K-5); an absent field means no limit.
+type PlaybackLimits struct {
+	// MaxBitrateKbps Bandwidth limit in kbit/s (W-8). A source above the limit is transcoded to a rung that fits.
+	MaxBitrateKbps *BitrateKbps `json:"maxBitrateKbps,omitempty"`
+
+	// MaxHeight Maximum output height (W-8). A source above it is transcoded to that rung.
+	MaxHeight *OutputHeight `json:"maxHeight,omitempty"`
+
+	// MaxStreams Concurrent streams a profile may run (W-8).
+	MaxStreams *StreamCount `json:"maxStreams,omitempty"`
+
+	// WatchLimitMinutes Daily watch-time limit in minutes (K-5). The day follows the server's local time zone.
+	WatchLimitMinutes *WatchMinutes `json:"watchLimitMinutes,omitempty"`
+}
+
 // PlaybackRequest defines model for PlaybackRequest.
 type PlaybackRequest struct {
-	// Capabilities What the client can play, from `canPlayType` / `MediaSource.isTypeSupported` (device profiles
-	// follow in M4). Without it the server assumes H.264 and AAC through MSE.
+	// AudioTrack Stream index of the audio track to play (`Track.index`); default the file's default track.
+	AudioTrack *int `json:"audioTrack,omitempty"`
+
+	// Capabilities The device's capability profile (W-7): what it plays, from `canPlayType` /
+	// `MediaSource.isTypeSupported`, its screen and HDR support. The server stores it with the device
+	// (admin device overview) and decides direct play, remux or transcode from it. Without it the server
+	// assumes H.264 and AAC in MP4 through MSE.
 	Capabilities *PlaybackCapabilities `json:"capabilities,omitempty"`
 
-	// DeviceId Stable client identifier (used for progress merging in M5).
+	// DeviceId Stable client identifier of a third-party client without the device cookie (used for progress
+	// merging in M5). Browsers need not send it: the device cookie names the device.
 	DeviceId *string `json:"deviceId,omitempty"`
 
 	// MediaFileId Which file to play; defaults to the primary file.
 	MediaFileId *string `json:"mediaFileId,omitempty"`
+
+	// PositionMs Start position instead of the stored resume position (a track or quality switch restarts the
+	// playback where it was). Also the resume position in the answer.
+	PositionMs *int64 `json:"positionMs,omitempty"`
+
+	// Quality Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
+	// a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
+	// (video) plus 160 kbit/s AAC.
+	Quality *Quality `json:"quality,omitempty"`
+
+	// SubtitleDelivery `text`: the client renders the track from `subtitleUrl` (text tracks only); `burn`: burned into
+	// the video (always a transcode); `auto`: text for text tracks, burned for bitmap tracks (PGS, DVD).
+	SubtitleDelivery *PlaybackRequestSubtitleDelivery `json:"subtitleDelivery,omitempty"`
+
+	// SubtitleTrack Id of the subtitle track to show (`Track.id`); absent or null = no subtitles.
+	SubtitleTrack *TrackID `json:"subtitleTrack,omitempty"`
 }
+
+// PlaybackRequestSubtitleDelivery `text`: the client renders the track from `subtitleUrl` (text tracks only); `burn`: burned into
+// the video (always a transcode); `auto`: text for text tracks, burned for bitmap tracks (PGS, DVD).
+type PlaybackRequestSubtitleDelivery string
 
 // Problem RFC 9457 problem details with a stable `code`.
 type Problem struct {
@@ -1316,6 +1763,13 @@ type Problem struct {
 
 	// Errors Field errors for `validation_failed`.
 	Errors *[]FieldError `json:"errors,omitempty"`
+
+	// Extensions Whole-number details of a limit problem: `limitMinutes` and `usedMinutes` for `watch_limit_reached`,
+	// `maxStreams` and `activeStreams` for `stream_limit_reached`. Absent for other problems.
+	//
+	//
+	// Examples: {"activeStreams":1,"maxStreams":1}
+	Extensions *map[string]int `json:"extensions,omitempty"`
 
 	// Instance Request path that produced the problem.
 	Instance *string `json:"instance,omitempty"`
@@ -1340,8 +1794,11 @@ type Profile struct {
 	// Accent Accent colour token of the design system (`packages/design-tokens`); the UI maps it to CSS variables.
 	Accent       *Accent `json:"accent,omitempty"`
 	AllLibraries bool    `json:"allLibraries"`
-	HasPin       bool    `json:"hasPin"`
-	Id           int64   `json:"id"`
+
+	// EffectiveLimits The limits that apply to the profile: its own capped by the account's (guests).
+	EffectiveLimits EffectiveLimits `json:"effectiveLimits"`
+	HasPin          bool            `json:"hasPin"`
+	Id              int64           `json:"id"`
 
 	// Image Optional profile image.
 	Image *string `json:"image,omitempty"`
@@ -1352,6 +1809,10 @@ type Profile struct {
 
 	// LibraryIds Libraries the profile may see; empty when `allLibraries` is true. The account's own limits apply on top.
 	LibraryIds []int64 `json:"libraryIds"`
+
+	// Limits The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
+	// clears that limit (no limit); an omitted `limits` keeps the stored limits.
+	Limits PlaybackLimits `json:"limits"`
 
 	// MaxRating FSK age rating.
 	MaxRating Rating `json:"maxRating"`
@@ -1369,6 +1830,10 @@ type ProfileRequest struct {
 	// Language Default is the language of the primary profile.
 	Language   *Language `json:"language,omitempty"`
 	LibraryIds *[]int64  `json:"libraryIds,omitempty"`
+
+	// Limits The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
+	// clears that limit (no limit); an omitted `limits` keeps the stored limits.
+	Limits *PlaybackLimits `json:"limits,omitempty"`
 
 	// MaxRating Default 18, capped by the account's limit for guests.
 	MaxRating *Rating `json:"maxRating,omitempty"`
@@ -1399,6 +1864,10 @@ type ProfileUpdate struct {
 	Language     *Language `json:"language,omitempty"`
 	LibraryIds   *[]int64  `json:"libraryIds,omitempty"`
 
+	// Limits The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
+	// clears that limit (no limit); an omitted `limits` keeps the stored limits.
+	Limits *PlaybackLimits `json:"limits,omitempty"`
+
 	// MaxRating FSK age rating.
 	MaxRating *Rating `json:"maxRating,omitempty"`
 	Name      *string `json:"name,omitempty"`
@@ -1411,6 +1880,11 @@ type Progress struct {
 	Percent    float32   `json:"percent"`
 	PositionMs int64     `json:"positionMs"`
 	UpdatedAt  time.Time `json:"updatedAt"`
+
+	// WatchTime Present in the answer of `reportProgress` when the active profile has a daily limit (K-5). With
+	// `remainingMinutes` 0 the server has revoked every playback session of the profile; the client
+	// stops and shows the hint.
+	WatchTime *WatchTime `json:"watchTime,omitempty"`
 }
 
 // ProgressEvent defines model for ProgressEvent.
@@ -1419,6 +1893,9 @@ type ProgressEvent struct {
 	ClientTime  time.Time `json:"clientTime"`
 	DurationMs  int64     `json:"durationMs"`
 	MediaFileId *string   `json:"mediaFileId,omitempty"`
+
+	// PlaybackSessionId The playback session this event belongs to; the server records the position for the stream overview (W-6).
+	PlaybackSessionId *string `json:"playbackSessionId,omitempty"`
 
 	// PlayedMs Milliseconds actually played since the previous event.
 	PlayedMs   int64 `json:"playedMs"`
@@ -1432,6 +1909,28 @@ type ProgressEvent struct {
 // ProgressEventState defines model for ProgressEvent.State.
 type ProgressEventState string
 
+// Quality Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
+// a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
+// (video) plus 160 kbit/s AAC.
+type Quality string
+
+// QualityOption defines model for QualityOption.
+type QualityOption struct {
+	// Available False when the source, the device or the profile's limits rule the rung out.
+	Available bool `json:"available"`
+
+	// Bitrate Peak video bit rate of the rung in bit/s (the source bit rate for `auto` without transcode).
+	Bitrate *int `json:"bitrate,omitempty"`
+	Current bool `json:"current"`
+	Height  *int `json:"height,omitempty"`
+
+	// Quality Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
+	// a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
+	// (video) plus 160 kbit/s AAC.
+	Quality Quality `json:"quality"`
+	Width   *int    `json:"width,omitempty"`
+}
+
 // Rating FSK age rating.
 type Rating int
 
@@ -1439,6 +1938,25 @@ type Rating int
 // the files vanished) or the administrator cancelled it (`lastError` `cancelled`); `lastError` carries
 // the reason and `acceptLibraryLoss` lifts the block.
 type ScanState string
+
+// Segment A detected intro or outro (W-9).
+type Segment struct {
+	EndMs   int64         `json:"endMs"`
+	Source  SegmentSource `json:"source"`
+	StartMs int64         `json:"startMs"`
+}
+
+// SegmentSource defines model for Segment.Source.
+type SegmentSource string
+
+// Segments defines model for Segments.
+type Segments struct {
+	// Intro A detected intro or outro (W-9).
+	Intro *Segment `json:"intro,omitempty"`
+
+	// Outro A detected intro or outro (W-9).
+	Outro *Segment `json:"outro,omitempty"`
+}
 
 // SelectProfileRequest defines model for SelectProfileRequest.
 type SelectProfileRequest struct {
@@ -1471,6 +1989,64 @@ type SetupStatus struct {
 	SetupRequired bool `json:"setupRequired"`
 }
 
+// StreamCount Concurrent streams a profile may run (W-8).
+type StreamCount = int
+
+// Track One audio or subtitle track of a media file.
+type Track struct {
+	// Channels Audio channels.
+	Channels *int `json:"channels,omitempty"`
+
+	// Codec ffprobe codec name (`aac`, `ac3`, `eac3`, `dts`, `truehd`, `subrip`, `ass`, `hdmv_pgs_subtitle`, `dvd_subtitle`, …).
+	Codec   string `json:"codec"`
+	Default bool   `json:"default"`
+	Forced  bool   `json:"forced"`
+
+	// Id Stable id of the track row.
+	Id int64 `json:"id"`
+
+	// Index Stream index inside the file; -1 for a sidecar file.
+	Index int       `json:"index"`
+	Kind  TrackKind `json:"kind"`
+
+	// Language ISO 639 code as stored in the file or the sidecar name (`de`, `en`, `ger`).
+	Language *string     `json:"language,omitempty"`
+	Source   TrackSource `json:"source"`
+
+	// Text A text format (SubRip, ASS/SSA, WebVTT, MOV text) that can be delivered as WebVTT; false for bitmap subtitles, which are burned in. Always false for audio.
+	Text  bool    `json:"text"`
+	Title *string `json:"title,omitempty"`
+}
+
+// TrackKind defines model for Track.Kind.
+type TrackKind string
+
+// TrackSource defines model for Track.Source.
+type TrackSource string
+
+// TrackID Id of a track row (`Track.id`).
+type TrackID = int64
+
+// TrackList defines model for TrackList.
+type TrackList struct {
+	Audio       []Track `json:"audio"`
+	MediaFileId string  `json:"mediaFileId"`
+	Subtitles   []Track `json:"subtitles"`
+}
+
+// TrackSelection The tracks this playback delivers.
+type TrackSelection struct {
+	// AudioTrack Stream index of the audio track in the output.
+	AudioTrack       *int                            `json:"audioTrack,omitempty"`
+	SubtitleDelivery *TrackSelectionSubtitleDelivery `json:"subtitleDelivery,omitempty"`
+
+	// SubtitleTrack Id of the subtitle track; absent when none.
+	SubtitleTrack *int64 `json:"subtitleTrack,omitempty"`
+}
+
+// TrackSelectionSubtitleDelivery defines model for TrackSelection.SubtitleDelivery.
+type TrackSelectionSubtitleDelivery string
+
 // Trailer defines model for Trailer.
 type Trailer struct {
 	// EmbedUrl `https://www.youtube-nocookie.com/embed/<youtubeId>` for the IFrame player.
@@ -1502,20 +2078,66 @@ type Transcoding struct {
 	// Backend Encoder backend of a transcode (`nvenc`, `qsv`, `vaapi`, `software`).
 	Backend *string `json:"backend,omitempty"`
 
+	// Bitrate Peak video bit rate of the output in bit/s.
+	Bitrate *int `json:"bitrate,omitempty"`
+
+	// Hardware The video is encoded on a GPU (false for remux and software).
+	Hardware bool `json:"hardware"`
+	Height   *int `json:"height,omitempty"`
+
 	// Mode `remux`: the video is copied into fMP4; `transcode`: encoded to H.264/AAC.
 	Mode TranscodingMode `json:"mode"`
 
+	// Quality Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
+	// a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
+	// (video) plus 160 kbit/s AAC.
+	Quality *Quality `json:"quality,omitempty"`
+
 	// Reason Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`,
 	// `pixel_format` for H.264 High 10 and 4:2:2/4:4:4 sources, `keyframes_pending` for a remux
-	// candidate that is transcoded until its keyframe index exists).
+	// candidate that is transcoded until its keyframe index exists, `dolby_vision` for profiles 5 and
+	// 7, `bandwidth` and `max_height` for the profile's limits, `quality` for a manual rung below the
+	// source, `audio_track` for a non-default audio track in a container that cannot be played
+	// directly with it, `subtitle_burn` for burned-in subtitles, `budget_lowered` when the transcode
+	// budget forced the next lower rung).
 	Reason string `json:"reason"`
+
+	// Tonemap HDR → SDR tonemapping is applied.
+	Tonemap *bool `json:"tonemap,omitempty"`
+	Width   *int  `json:"width,omitempty"`
 }
 
 // TranscodingMode `remux`: the video is copied into fMP4; `transcode`: encoded to H.264/AAC.
 type TranscodingMode string
 
+// WatchMinutes Daily watch-time limit in minutes (K-5). The day follows the server's local time zone.
+type WatchMinutes = int
+
+// WatchReport Minutes watched per day for one profile (K-5), oldest day first, today last.
+type WatchReport struct {
+	Days []struct {
+		// Date Calendar day in the server's local time zone.
+		Date    openapi_types.Date `json:"date"`
+		Minutes int                `json:"minutes"`
+	} `json:"days"`
+
+	// LimitMinutes The profile's limit, when set.
+	LimitMinutes *int  `json:"limitMinutes,omitempty"`
+	ProfileId    int64 `json:"profileId"`
+}
+
+// WatchTime Watch time of the active profile today against its limit (K-5).
+type WatchTime struct {
+	LimitMinutes     int `json:"limitMinutes"`
+	RemainingMinutes int `json:"remainingMinutes"`
+	UsedMinutes      int `json:"usedMinutes"`
+}
+
 // AccountID defines model for AccountID.
 type AccountID = int64
+
+// DeviceID defines model for DeviceID.
+type DeviceID = string
 
 // InvitationID defines model for InvitationID.
 type InvitationID = int64
@@ -1564,6 +2186,16 @@ type SearchMetadataParams struct {
 
 // SearchMetadataParamsKind defines parameters for SearchMetadata.
 type SearchMetadataParamsKind string
+
+// GetItemTracksParams defines parameters for GetItemTracks.
+type GetItemTracksParams struct {
+	MediaFileId *string `form:"mediaFileId,omitempty" json:"mediaFileId,omitempty"`
+}
+
+// GetWatchReportParams defines parameters for GetWatchReport.
+type GetWatchReportParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
 
 // UpdateGuestJSONRequestBody defines body for UpdateGuest for application/json ContentType.
 type UpdateGuestJSONRequestBody = GuestUpdate
@@ -1621,6 +2253,12 @@ type RunSetupJSONRequestBody = SetupRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListDevices Devices with owner, last contact and capability profile (W-7)
+	// (GET /admin/devices)
+	ListDevices(w http.ResponseWriter, r *http.Request)
+	// DeleteDevice Forget a device
+	// (DELETE /admin/devices/{id})
+	DeleteDevice(w http.ResponseWriter, r *http.Request, id DeviceID)
 	// ListGuests Guest accounts with their limits
 	// (GET /admin/guests)
 	ListGuests(w http.ResponseWriter, r *http.Request)
@@ -1693,6 +2331,12 @@ type ServerInterface interface {
 	// SearchMetadata Search a metadata provider for the manual assignment (B-6)
 	// (GET /admin/metadata/search)
 	SearchMetadata(w http.ResponseWriter, r *http.Request, params SearchMetadataParams)
+	// ListStreams Running playback sessions (W-6)
+	// (GET /admin/streams)
+	ListStreams(w http.ResponseWriter, r *http.Request)
+	// StopStream End a running stream (W-6)
+	// (DELETE /admin/streams/{id})
+	StopStream(w http.ResponseWriter, r *http.Request, id PlaybackSessionID)
 	// Login Log in with e-mail and password
 	// (POST /auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -1729,6 +2373,9 @@ type ServerInterface interface {
 	// ReportProgress Report a playback progress event
 	// (POST /items/{id}/progress)
 	ReportProgress(w http.ResponseWriter, r *http.Request, id ItemID)
+	// GetItemTracks Audio and subtitle tracks of a media file
+	// (GET /items/{id}/tracks)
+	GetItemTracks(w http.ResponseWriter, r *http.Request, id ItemID, params GetItemTracksParams)
 	// GetItemTrailers Trailers of a title (B-8, W-10)
 	// (GET /items/{id}/trailers)
 	GetItemTrailers(w http.ResponseWriter, r *http.Request, id ItemID)
@@ -1759,6 +2406,9 @@ type ServerInterface interface {
 	// SetProfilePin Set or replace the PIN of a profile
 	// (PUT /profiles/{id}/pin)
 	SetProfilePin(w http.ResponseWriter, r *http.Request, id ProfileID)
+	// GetWatchReport Watch-time report of a profile (K-5)
+	// (GET /profiles/{id}/watch-time)
+	GetWatchReport(w http.ResponseWriter, r *http.Request, id ProfileID, params GetWatchReportParams)
 	// GetSetupStatus Whether the first-start wizard still has to run
 	// (GET /setup)
 	GetSetupStatus(w http.ResponseWriter, r *http.Request)
@@ -1770,6 +2420,18 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// ListDevices Devices with owner, last contact and capability profile (W-7)
+// (GET /admin/devices)
+func (_ Unimplemented) ListDevices(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DeleteDevice Forget a device
+// (DELETE /admin/devices/{id})
+func (_ Unimplemented) DeleteDevice(w http.ResponseWriter, r *http.Request, id DeviceID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // ListGuests Guest accounts with their limits
 // (GET /admin/guests)
@@ -1915,6 +2577,18 @@ func (_ Unimplemented) SearchMetadata(w http.ResponseWriter, r *http.Request, pa
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// ListStreams Running playback sessions (W-6)
+// (GET /admin/streams)
+func (_ Unimplemented) ListStreams(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StopStream End a running stream (W-6)
+// (DELETE /admin/streams/{id})
+func (_ Unimplemented) StopStream(w http.ResponseWriter, r *http.Request, id PlaybackSessionID) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Login Log in with e-mail and password
 // (POST /auth/login)
 func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request) {
@@ -1987,6 +2661,12 @@ func (_ Unimplemented) ReportProgress(w http.ResponseWriter, r *http.Request, id
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// GetItemTracks Audio and subtitle tracks of a media file
+// (GET /items/{id}/tracks)
+func (_ Unimplemented) GetItemTracks(w http.ResponseWriter, r *http.Request, id ItemID, params GetItemTracksParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetItemTrailers Trailers of a title (B-8, W-10)
 // (GET /items/{id}/trailers)
 func (_ Unimplemented) GetItemTrailers(w http.ResponseWriter, r *http.Request, id ItemID) {
@@ -2047,6 +2727,12 @@ func (_ Unimplemented) SetProfilePin(w http.ResponseWriter, r *http.Request, id 
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// GetWatchReport Watch-time report of a profile (K-5)
+// (GET /profiles/{id}/watch-time)
+func (_ Unimplemented) GetWatchReport(w http.ResponseWriter, r *http.Request, id ProfileID, params GetWatchReportParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetSetupStatus Whether the first-start wizard still has to run
 // (GET /setup)
 func (_ Unimplemented) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
@@ -2067,6 +2753,46 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListDevices operation middleware
+func (siw *ServerInterfaceWrapper) ListDevices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDevices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDevice operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDevice(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id DeviceID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDevice(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // ListGuests operation middleware
 func (siw *ServerInterfaceWrapper) ListGuests(w http.ResponseWriter, r *http.Request) {
@@ -2704,6 +3430,46 @@ func (siw *ServerInterfaceWrapper) SearchMetadata(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListStreams operation middleware
+func (siw *ServerInterfaceWrapper) ListStreams(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListStreams(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StopStream operation middleware
+func (siw *ServerInterfaceWrapper) StopStream(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id PlaybackSessionID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StopStream(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
 
@@ -2944,6 +3710,48 @@ func (siw *ServerInterfaceWrapper) ReportProgress(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// GetItemTracks operation middleware
+func (siw *ServerInterfaceWrapper) GetItemTracks(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id ItemID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetItemTracksParams
+
+	// ------------- Optional query parameter "mediaFileId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "mediaFileId", r.URL.Query(), &params.MediaFileId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "mediaFileId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaFileId", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetItemTracks(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetItemTrailers operation middleware
 func (siw *ServerInterfaceWrapper) GetItemTrailers(w http.ResponseWriter, r *http.Request) {
 
@@ -3168,6 +3976,48 @@ func (siw *ServerInterfaceWrapper) SetProfilePin(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetWatchReport operation middleware
+func (siw *ServerInterfaceWrapper) GetWatchReport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id ProfileID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetWatchReportParams
+
+	// ------------- Optional query parameter "days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWatchReport(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSetupStatus operation middleware
 func (siw *ServerInterfaceWrapper) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 
@@ -3352,6 +4202,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/profiles/{id}/pin", wrapper.SetProfilePin)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/profiles/{id}/watch-time", wrapper.GetWatchReport)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/libraries", wrapper.ListAccountLibraries)
 	})
 	r.Group(func(r chi.Router) {
@@ -3374,6 +4227,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/items/{id}/play", wrapper.StartPlayback)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/items/{id}/tracks", wrapper.GetItemTracks)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/items/{id}/progress", wrapper.ReportProgress)
@@ -3453,6 +4309,18 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/admin/maintenance/cleanup", wrapper.CleanupItems)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/devices", wrapper.ListDevices)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/devices/{id}", wrapper.DeleteDevice)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/streams", wrapper.ListStreams)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/admin/streams/{id}", wrapper.StopStream)
+	})
 
 	return r
 }
@@ -3462,6 +4330,121 @@ type AdminOnlyApplicationProblemPlusJSONResponse Problem
 type PrimaryProfileRequiredApplicationProblemPlusJSONResponse Problem
 
 type UnauthenticatedApplicationProblemPlusJSONResponse Problem
+
+type ListDevicesRequestObject struct {
+}
+
+type ListDevicesResponseObject interface {
+	VisitListDevicesResponse(w http.ResponseWriter) error
+}
+
+type ListDevices200JSONResponse []AdminDevice
+
+func (response ListDevices200JSONResponse) VisitListDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDevices401ApplicationProblemPlusJSONResponse struct {
+	UnauthenticatedApplicationProblemPlusJSONResponse
+}
+
+func (response ListDevices401ApplicationProblemPlusJSONResponse) VisitListDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDevices403ApplicationProblemPlusJSONResponse struct {
+	AdminOnlyApplicationProblemPlusJSONResponse
+}
+
+func (response ListDevices403ApplicationProblemPlusJSONResponse) VisitListDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDeviceRequestObject struct {
+	Id DeviceID `json:"id"`
+}
+
+type DeleteDeviceResponseObject interface {
+	VisitDeleteDeviceResponse(w http.ResponseWriter) error
+}
+
+type DeleteDevice204Response struct {
+}
+
+func (response DeleteDevice204Response) VisitDeleteDeviceResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteDevice401ApplicationProblemPlusJSONResponse struct {
+	UnauthenticatedApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteDevice401ApplicationProblemPlusJSONResponse) VisitDeleteDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDevice403ApplicationProblemPlusJSONResponse struct {
+	AdminOnlyApplicationProblemPlusJSONResponse
+}
+
+func (response DeleteDevice403ApplicationProblemPlusJSONResponse) VisitDeleteDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDevice404ApplicationProblemPlusJSONResponse Problem
+
+func (response DeleteDevice404ApplicationProblemPlusJSONResponse) VisitDeleteDeviceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
 
 type ListGuestsRequestObject struct {
 }
@@ -5078,6 +6061,121 @@ func (response SearchMetadata422ApplicationProblemPlusJSONResponse) VisitSearchM
 	return err
 }
 
+type ListStreamsRequestObject struct {
+}
+
+type ListStreamsResponseObject interface {
+	VisitListStreamsResponse(w http.ResponseWriter) error
+}
+
+type ListStreams200JSONResponse []AdminStream
+
+func (response ListStreams200JSONResponse) VisitListStreamsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStreams401ApplicationProblemPlusJSONResponse struct {
+	UnauthenticatedApplicationProblemPlusJSONResponse
+}
+
+func (response ListStreams401ApplicationProblemPlusJSONResponse) VisitListStreamsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListStreams403ApplicationProblemPlusJSONResponse struct {
+	AdminOnlyApplicationProblemPlusJSONResponse
+}
+
+func (response ListStreams403ApplicationProblemPlusJSONResponse) VisitListStreamsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StopStreamRequestObject struct {
+	Id PlaybackSessionID `json:"id"`
+}
+
+type StopStreamResponseObject interface {
+	VisitStopStreamResponse(w http.ResponseWriter) error
+}
+
+type StopStream204Response struct {
+}
+
+func (response StopStream204Response) VisitStopStreamResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type StopStream401ApplicationProblemPlusJSONResponse struct {
+	UnauthenticatedApplicationProblemPlusJSONResponse
+}
+
+func (response StopStream401ApplicationProblemPlusJSONResponse) VisitStopStreamResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StopStream403ApplicationProblemPlusJSONResponse struct {
+	AdminOnlyApplicationProblemPlusJSONResponse
+}
+
+func (response StopStream403ApplicationProblemPlusJSONResponse) VisitStopStreamResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StopStream404ApplicationProblemPlusJSONResponse Problem
+
+func (response StopStream404ApplicationProblemPlusJSONResponse) VisitStopStreamResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type LoginRequestObject struct {
 	Body *LoginJSONRequestBody
 }
@@ -5772,6 +6870,20 @@ func (response StartPlayback404ApplicationProblemPlusJSONResponse) VisitStartPla
 	return err
 }
 
+type StartPlayback409ApplicationProblemPlusJSONResponse Problem
+
+func (response StartPlayback409ApplicationProblemPlusJSONResponse) VisitStartPlaybackResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type StartPlayback422ApplicationProblemPlusJSONResponse Problem
 
 func (response StartPlayback422ApplicationProblemPlusJSONResponse) VisitStartPlaybackResponse(w http.ResponseWriter) error {
@@ -5875,6 +6987,57 @@ func (response ReportProgress422ApplicationProblemPlusJSONResponse) VisitReportP
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetItemTracksRequestObject struct {
+	Id     ItemID `json:"id"`
+	Params GetItemTracksParams
+}
+
+type GetItemTracksResponseObject interface {
+	VisitGetItemTracksResponse(w http.ResponseWriter) error
+}
+
+type GetItemTracks200JSONResponse TrackList
+
+func (response GetItemTracks200JSONResponse) VisitGetItemTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetItemTracks401ApplicationProblemPlusJSONResponse Problem
+
+func (response GetItemTracks401ApplicationProblemPlusJSONResponse) VisitGetItemTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetItemTracks404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetItemTracks404ApplicationProblemPlusJSONResponse) VisitGetItemTracksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -6493,6 +7656,75 @@ func (response SetProfilePin422ApplicationProblemPlusJSONResponse) VisitSetProfi
 	return err
 }
 
+type GetWatchReportRequestObject struct {
+	Id     ProfileID `json:"id"`
+	Params GetWatchReportParams
+}
+
+type GetWatchReportResponseObject interface {
+	VisitGetWatchReportResponse(w http.ResponseWriter) error
+}
+
+type GetWatchReport200JSONResponse WatchReport
+
+func (response GetWatchReport200JSONResponse) VisitGetWatchReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetWatchReport401ApplicationProblemPlusJSONResponse struct {
+	UnauthenticatedApplicationProblemPlusJSONResponse
+}
+
+func (response GetWatchReport401ApplicationProblemPlusJSONResponse) VisitGetWatchReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetWatchReport403ApplicationProblemPlusJSONResponse struct {
+	PrimaryProfileRequiredApplicationProblemPlusJSONResponse
+}
+
+func (response GetWatchReport403ApplicationProblemPlusJSONResponse) VisitGetWatchReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetWatchReport404ApplicationProblemPlusJSONResponse Problem
+
+func (response GetWatchReport404ApplicationProblemPlusJSONResponse) VisitGetWatchReportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSetupStatusRequestObject struct {
 }
 
@@ -6614,6 +7846,12 @@ func (response RunSetup429ApplicationProblemPlusJSONResponse) VisitRunSetupRespo
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// ListDevices Devices with owner, last contact and capability profile (W-7)
+	// (GET /admin/devices)
+	ListDevices(ctx context.Context, request ListDevicesRequestObject) (ListDevicesResponseObject, error)
+	// DeleteDevice Forget a device
+	// (DELETE /admin/devices/{id})
+	DeleteDevice(ctx context.Context, request DeleteDeviceRequestObject) (DeleteDeviceResponseObject, error)
 	// ListGuests Guest accounts with their limits
 	// (GET /admin/guests)
 	ListGuests(ctx context.Context, request ListGuestsRequestObject) (ListGuestsResponseObject, error)
@@ -6686,6 +7924,12 @@ type StrictServerInterface interface {
 	// SearchMetadata Search a metadata provider for the manual assignment (B-6)
 	// (GET /admin/metadata/search)
 	SearchMetadata(ctx context.Context, request SearchMetadataRequestObject) (SearchMetadataResponseObject, error)
+	// ListStreams Running playback sessions (W-6)
+	// (GET /admin/streams)
+	ListStreams(ctx context.Context, request ListStreamsRequestObject) (ListStreamsResponseObject, error)
+	// StopStream End a running stream (W-6)
+	// (DELETE /admin/streams/{id})
+	StopStream(ctx context.Context, request StopStreamRequestObject) (StopStreamResponseObject, error)
 	// Login Log in with e-mail and password
 	// (POST /auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -6722,6 +7966,9 @@ type StrictServerInterface interface {
 	// ReportProgress Report a playback progress event
 	// (POST /items/{id}/progress)
 	ReportProgress(ctx context.Context, request ReportProgressRequestObject) (ReportProgressResponseObject, error)
+	// GetItemTracks Audio and subtitle tracks of a media file
+	// (GET /items/{id}/tracks)
+	GetItemTracks(ctx context.Context, request GetItemTracksRequestObject) (GetItemTracksResponseObject, error)
 	// GetItemTrailers Trailers of a title (B-8, W-10)
 	// (GET /items/{id}/trailers)
 	GetItemTrailers(ctx context.Context, request GetItemTrailersRequestObject) (GetItemTrailersResponseObject, error)
@@ -6752,6 +7999,9 @@ type StrictServerInterface interface {
 	// SetProfilePin Set or replace the PIN of a profile
 	// (PUT /profiles/{id}/pin)
 	SetProfilePin(ctx context.Context, request SetProfilePinRequestObject) (SetProfilePinResponseObject, error)
+	// GetWatchReport Watch-time report of a profile (K-5)
+	// (GET /profiles/{id}/watch-time)
+	GetWatchReport(ctx context.Context, request GetWatchReportRequestObject) (GetWatchReportResponseObject, error)
 	// GetSetupStatus Whether the first-start wizard still has to run
 	// (GET /setup)
 	GetSetupStatus(ctx context.Context, request GetSetupStatusRequestObject) (GetSetupStatusResponseObject, error)
@@ -6797,6 +8047,56 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListDevices operation middleware
+func (sh *strictHandler) ListDevices(w http.ResponseWriter, r *http.Request) {
+	var request ListDevicesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDevices(ctx, request.(ListDevicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDevices")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListDevicesResponseObject); ok {
+		if err := validResponse.VisitListDevicesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDevice operation middleware
+func (sh *strictHandler) DeleteDevice(w http.ResponseWriter, r *http.Request, id DeviceID) {
+	var request DeleteDeviceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDevice(ctx, request.(DeleteDeviceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDevice")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteDeviceResponseObject); ok {
+		if err := validResponse.VisitDeleteDeviceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // ListGuests operation middleware
@@ -7471,6 +8771,56 @@ func (sh *strictHandler) SearchMetadata(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// ListStreams operation middleware
+func (sh *strictHandler) ListStreams(w http.ResponseWriter, r *http.Request) {
+	var request ListStreamsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListStreams(ctx, request.(ListStreamsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListStreams")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListStreamsResponseObject); ok {
+		if err := validResponse.VisitListStreamsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StopStream operation middleware
+func (sh *strictHandler) StopStream(w http.ResponseWriter, r *http.Request, id PlaybackSessionID) {
+	var request StopStreamRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StopStream(ctx, request.(StopStreamRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StopStream")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StopStreamResponseObject); ok {
+		if err := validResponse.VisitStopStreamResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Login operation middleware
 func (sh *strictHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var request LoginRequestObject
@@ -7812,6 +9162,33 @@ func (sh *strictHandler) ReportProgress(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// GetItemTracks operation middleware
+func (sh *strictHandler) GetItemTracks(w http.ResponseWriter, r *http.Request, id ItemID, params GetItemTracksParams) {
+	var request GetItemTracksRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetItemTracks(ctx, request.(GetItemTracksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetItemTracks")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetItemTracksResponseObject); ok {
+		if err := validResponse.VisitGetItemTracksResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetItemTrailers operation middleware
 func (sh *strictHandler) GetItemTrailers(w http.ResponseWriter, r *http.Request, id ItemID) {
 	var request GetItemTrailersRequestObject
@@ -8087,6 +9464,33 @@ func (sh *strictHandler) SetProfilePin(w http.ResponseWriter, r *http.Request, i
 	}
 }
 
+// GetWatchReport operation middleware
+func (sh *strictHandler) GetWatchReport(w http.ResponseWriter, r *http.Request, id ProfileID, params GetWatchReportParams) {
+	var request GetWatchReportRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetWatchReport(ctx, request.(GetWatchReportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetWatchReport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetWatchReportResponseObject); ok {
+		if err := validResponse.VisitGetWatchReportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetSetupStatus operation middleware
 func (sh *strictHandler) GetSetupStatus(w http.ResponseWriter, r *http.Request) {
 	var request GetSetupStatusRequestObject
@@ -8147,268 +9551,339 @@ func (sh *strictHandler) RunSetup(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"++rY8anBx/cf//cA",
+	"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",
+	"14c8CWa8Unrm68Mhy8RIwv6Vx45vdT68+/D/DwA=",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

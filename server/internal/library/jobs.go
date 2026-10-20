@@ -162,6 +162,7 @@ func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobProbeFile, s.handleProbe)
 	w.Handle(JobProbeKeyframes, s.handleKeyframes)
 	w.Handle(JobSweep, s.handleSweep)
+	w.Handle(JobSegmentsDetect, s.handleSegments)
 }
 
 func decodePayload(j *jobs.Job, v any) error {

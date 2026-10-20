@@ -26,7 +26,9 @@ func (s *Service) ListGuests(ctx context.Context) ([]model.Guest, error) {
 	}
 	out := make([]model.Guest, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, toGuest(r.ID, r.Email, r.MaxRating, r.AllLibraries, r.CreatedAt, r.LastSeenAt.Int64, r.LastSeenAt.Valid, int(r.ProfileCount), libs[r.ID]))
+		g := toGuest(r.ID, r.Email, r.MaxRating, r.AllLibraries, r.CreatedAt, r.LastSeenAt.Int64, r.LastSeenAt.Valid, int(r.ProfileCount), libs[r.ID])
+		g.Limits = AccountLimits(appq.Account{MaxBitrateKbps: r.MaxBitrateKbps, MaxHeight: r.MaxHeight, MaxStreams: r.MaxStreams})
+		out = append(out, g)
 	}
 	return out, nil
 }
@@ -46,8 +48,10 @@ func toGuest(id int64, email string, maxRating, all, created, lastSeen int64, se
 	return g
 }
 
-// UpdateGuest changes the rating ceiling and library rights of a guest account (model.ErrNotFound
-// for an unknown id or an owner). The view visible_items applies them from the next request on.
+// UpdateGuest changes the rating ceiling, the library rights and the W-8 caps (bandwidth, output
+// height, concurrent streams; they bound every profile of the account) of a guest account
+// (model.ErrNotFound for an unknown id or an owner). The view visible_items applies the rights
+// from the next request on, the caps apply from the next playback start.
 func (s *Service) UpdateGuest(ctx context.Context, id int64, in model.GuestUpdate) (model.Guest, error) {
 	acc, err := s.read.GetGuestAccount(ctx, id)
 	if err != nil {
@@ -64,6 +68,13 @@ func (s *Service) UpdateGuest(ctx context.Context, id int64, in model.GuestUpdat
 	}
 	if in.AllLibraries != nil {
 		all = boolInt(*in.AllLibraries)
+	}
+	bitrate, height, streams := acc.MaxBitrateKbps, acc.MaxHeight, acc.MaxStreams
+	if in.Limits != nil {
+		caps := *in.Limits
+		caps.WatchLimitMinutes = 0 // a profile setting; ignored for accounts
+		verr = validateLimits(caps, false, verr)
+		bitrate, height, streams, _ = limitColumns(caps)
 	}
 	libs, err := s.read.ListAccountLibraries(ctx, acc.ID)
 	if err != nil {
@@ -90,7 +101,9 @@ func (s *Service) UpdateGuest(ctx context.Context, id int64, in model.GuestUpdat
 	defer func() { _ = tx.Rollback() }()
 	q := s.write.WithTx(tx)
 	now := s.now().UnixMilli()
-	if err := q.UpdateAccountLimits(ctx, appq.UpdateAccountLimitsParams{ID: acc.ID, MaxRating: maxRating, AllLibraries: all, Now: now}); err != nil {
+	if err := q.UpdateAccountLimits(ctx, appq.UpdateAccountLimitsParams{
+		ID: acc.ID, MaxRating: maxRating, AllLibraries: all, MaxBitrateKbps: bitrate, MaxHeight: height, MaxStreams: streams, Now: now,
+	}); err != nil {
 		return model.Guest{}, fmt.Errorf("update limits: %w", err)
 	}
 	// A lowered ceiling also lowers the guest's profiles, so the profile list never shows a level
@@ -113,7 +126,10 @@ func (s *Service) UpdateGuest(ctx context.Context, id int64, in model.GuestUpdat
 	if err != nil {
 		return model.Guest{}, fmt.Errorf("count profiles: %w", err)
 	}
-	return toGuest(acc.ID, acc.Email, maxRating, all, acc.CreatedAt, acc.LastSeenAt.Int64, acc.LastSeenAt.Valid, int(n), libs), nil
+	g := toGuest(acc.ID, acc.Email, maxRating, all, acc.CreatedAt, acc.LastSeenAt.Int64, acc.LastSeenAt.Valid, int(n), libs)
+	acc.MaxBitrateKbps, acc.MaxHeight, acc.MaxStreams = bitrate, height, streams
+	g.Limits = AccountLimits(acc)
+	return g, nil
 }
 
 // RevokeAccount revokes a guest account (K-7). The order is deliberate: first every session of the

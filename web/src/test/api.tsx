@@ -16,14 +16,19 @@ export interface Call {
   keepalive: boolean;
 }
 
-type Reply = Response | (() => Response) | ((call: Call) => Response);
+type Reply =
+  Response | (() => Response | Promise<Response>) | ((call: Call) => Response | Promise<Response>);
 
 /** Route table "METHOD /path" → reply; paths are relative to /api/v1 and may contain `*`. */
 export type Routes = Record<string, Reply>;
 
 export const json = (body: unknown, status = 200) => Response.json(body, { status });
 
-export const problem = (status: number, code: string, extra: Partial<Problem> = {}) =>
+export const problem = (
+  status: number,
+  code: string,
+  extra: Partial<Problem> & { extensions?: Record<string, number> } = {},
+) =>
   Response.json({ type: 'about:blank', title: code, status, code, ...extra } satisfies Problem, {
     status,
     headers: { 'Content-Type': 'application/problem+json' },
@@ -47,6 +52,8 @@ export const session: SessionInfo = {
     libraryIds: [],
     hasPin: false,
     isPrimary: true,
+    limits: {},
+    effectiveLimits: {},
   },
 };
 

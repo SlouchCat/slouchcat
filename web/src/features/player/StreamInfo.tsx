@@ -1,8 +1,9 @@
 import type { PlaybackInfo } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { formatResolution } from '@/lib/format';
+import { formatBitrate, formatResolution } from '@/lib/format';
 import { FactList } from '@/ui';
+import { selectedAudio, selectedSubtitle, trackLabel } from './labels';
 import styles from './Player.module.css';
 
 const reasons = [
@@ -12,6 +13,13 @@ const reasons = [
   'hdr',
   'pixel_format',
   'keyframes_pending',
+  'dolby_vision',
+  'bandwidth',
+  'max_height',
+  'quality',
+  'audio_track',
+  'subtitle_burn',
+  'budget_lowered',
 ] as const;
 type Reason = (typeof reasons)[number];
 
@@ -22,11 +30,12 @@ const reasonText = (t: TFunction, reason: string): string =>
     : reason;
 
 /**
- * "Stream-Info" overlay of the player (B-5): how the server delivers this playback and which file
- * it plays. Shows the server's answer only; the client decides nothing here.
+ * "Stream-Info" overlay of the player (B-5, W-4, W-8): how the server delivers this playback, in
+ * which quality and with which tracks, and which file it plays. Shows the server's answer only;
+ * the client decides nothing here.
  */
 export function StreamInfo({ info }: { info: PlaybackInfo }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const file = info.mediaFile;
   const none = t('player.streamInfo.none');
   const rows: [string, string][] = [
@@ -35,13 +44,67 @@ export function StreamInfo({ info }: { info: PlaybackInfo }) {
       info.mode === 'direct' ? t('player.streamInfo.modeDirect') : t('player.streamInfo.modeHls'),
     ],
   ];
-  if (info.transcoding) {
+  const transcoding = info.transcoding;
+  if (transcoding) {
     rows.push(
-      [t('player.streamInfo.transcoding'), t(`player.streamInfo.${info.transcoding.mode}`)],
-      [t('player.streamInfo.backend'), info.transcoding.backend ?? none],
-      [t('player.streamInfo.reason'), reasonText(t, info.transcoding.reason)],
+      [t('player.streamInfo.transcoding'), t(`player.streamInfo.${transcoding.mode}`)],
+      [t('player.streamInfo.reason'), reasonText(t, transcoding.reason)],
     );
+    if (transcoding.mode === 'transcode') {
+      rows.push(
+        [
+          t('player.streamInfo.encoder'),
+          transcoding.hardware
+            ? t('player.streamInfo.hardware', { backend: transcoding.backend ?? none })
+            : t('player.streamInfo.software'),
+        ],
+        [
+          t('player.streamInfo.tonemap'),
+          transcoding.tonemap ? t('player.streamInfo.yes') : t('player.streamInfo.no'),
+        ],
+      );
+    }
+    rows.push([t('player.streamInfo.quality'), transcoding.quality ?? t('player.quality.auto')]);
+    if (transcoding.width && transcoding.height) {
+      rows.push([
+        t('player.streamInfo.output'),
+        formatResolution(t, transcoding.width, transcoding.height),
+      ]);
+    }
+    if (transcoding.bitrate) {
+      rows.push([
+        t('player.streamInfo.bitrate'),
+        formatBitrate(transcoding.bitrate, i18n.language),
+      ]);
+    }
+  } else {
+    rows.push([t('player.streamInfo.quality'), t('player.streamInfo.original')]);
   }
+
+  const audioIndex = info.tracks.audio.findIndex((track) => track === selectedAudio(info));
+  const audio = info.tracks.audio[audioIndex];
+  const subtitle = selectedSubtitle(info);
+  rows.push(
+    [
+      t('player.streamInfo.audioTrack'),
+      audio ? trackLabel(t, audio, audioIndex, i18n.language) : none,
+    ],
+    [
+      t('player.streamInfo.subtitle'),
+      subtitle
+        ? trackLabel(t, subtitle, info.tracks.subtitles.indexOf(subtitle), i18n.language)
+        : t('player.tracks.off'),
+    ],
+  );
+  if (subtitle && info.selection.subtitleDelivery) {
+    rows.push([
+      t('player.streamInfo.delivery'),
+      info.selection.subtitleDelivery === 'burn'
+        ? t('player.streamInfo.deliveryBurn')
+        : t('player.streamInfo.deliveryText'),
+    ]);
+  }
+
   rows.push(
     [t('player.streamInfo.mediaFile'), file.id],
     [t('player.streamInfo.version'), file.versionLabel ?? none],

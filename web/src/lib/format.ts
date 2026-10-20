@@ -62,6 +62,16 @@ export function formatResolution(t: TFunction, width: number, height: number): s
   });
 }
 
+/** Bit rate in bit/s as megabits per second, localised ("4 Mbit/s", "2,5 Mbit/s"). */
+export function formatBitrate(bitsPerSecond: number, language: string): string {
+  return new Intl.NumberFormat(language, {
+    style: 'unit',
+    unit: 'megabit-per-second',
+    unitDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(bitsPerSecond / 1_000_000);
+}
+
 export function formatDateTime(iso: string, language: string): string {
   return new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'short' }).format(
     new Date(iso),

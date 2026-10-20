@@ -161,7 +161,7 @@ describe('player: versions and stream info (B-5)', () => {
     const { calls } = mockApi({
       ...routes(),
       // The DELETE answers when the test says so.
-      'DELETE /playback/sessions/*': (() => ended) as unknown as () => Response,
+      'DELETE /playback/sessions/*': () => ended,
     });
     const { container } = renderApp(`/play/${ids.alien}`);
     const first = await videoOf(container);
@@ -174,7 +174,7 @@ describe('player: versions and stream info (B-5)', () => {
     await user.click(await screen.findByRole('menuitemradio', { name: '720p' }));
     const seekedTo = media.currentTime;
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Version wird gewechselt …');
+    expect(await screen.findByRole('status')).toHaveTextContent('Wird umgestellt …');
     expect(screen.getByRole('button', { name: 'Abspielen' })).toBeDisabled();
     fireEvent.keyDown(document.body, { key: ' ' });
     fireEvent.keyDown(document.body, { key: 'ArrowRight' });

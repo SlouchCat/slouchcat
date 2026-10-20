@@ -121,6 +121,8 @@ var accountRegistry = map[string]accountCall{
 		want: map[string]int{"primary": http.StatusNoContent, "none": http.StatusForbidden, "guest": http.StatusNoContent}},
 	"removeProfilePin": {contract: "DELETE /profiles/{id}/pin", path: "/profiles/{profile}/pin", fresh: true,
 		want: map[string]int{"primary": http.StatusNoContent, "none": http.StatusForbidden, "guest": http.StatusNoContent}},
+	"getWatchReport": {contract: "GET /profiles/{id}/watch-time", path: "/profiles/{profile}/watch-time?days=7",
+		want: map[string]int{"primary": http.StatusOK, "none": http.StatusForbidden, "guest": http.StatusOK}},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for the owner with the
@@ -165,6 +167,11 @@ var adminRegistry = map[string]adminCall{
 		body: `{"targetId":"` + fixtureFilm6 + `","sourceIds":["` + fixtureSeries + `"]}`, ownerStatus: http.StatusUnprocessableEntity},
 	"cleanupItems": {contract: "POST /admin/maintenance/cleanup", path: "/admin/maintenance/cleanup",
 		body: `{"itemIds":["` + fixtureFilm6 + `"]}`, ownerStatus: http.StatusOK},
+	// M4: device and stream overviews (W-6, W-7).
+	"listDevices":  {contract: "GET /admin/devices", path: "/admin/devices", ownerStatus: http.StatusOK},
+	"deleteDevice": {contract: "DELETE /admin/devices/{id}", path: "/admin/devices/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", ownerStatus: http.StatusNotFound},
+	"listStreams":  {contract: "GET /admin/streams", path: "/admin/streams", ownerStatus: http.StatusOK},
+	"stopStream":   {contract: "DELETE /admin/streams/{id}", path: "/admin/streams/01JZZZZZZZZZZZZZZZZZZZZZZZ", ownerStatus: http.StatusNotFound},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

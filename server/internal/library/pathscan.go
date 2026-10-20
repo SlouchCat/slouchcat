@@ -195,6 +195,13 @@ func (s *Service) scanLibraryPaths(ctx context.Context, lib appq.Library, req []
 			return stats, 0, false, err
 		}
 	}
+	for _, rs := range scans {
+		if scope := scopes[rs]; scope != nil {
+			if err := s.syncSidecars(ctx, rs, scope); err != nil {
+				return stats, 0, false, err
+			}
+		}
+	}
 	return stats, dirCount, usedLoss, nil
 }
 
@@ -243,11 +250,12 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 	}
 
 	scope := &dirScope{listed: map[string]bool{}}
+	rs.subs = map[string][]string{}
 	for _, dir := range dirs {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		files, isGone, err := listDirFiles(ctx, r, dir, lib.Kind, rs.ignored, s.log)
+		files, subs, isGone, err := listDirFiles(ctx, r, dir, lib.Kind, rs.ignored, s.log)
 		if err != nil {
 			return nil, fmt.Errorf("list %s in root %d: %w", dir, rs.root.ID, err)
 		}
@@ -257,51 +265,56 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 		}
 		scope.listed[dir] = true
 		rs.disk = append(rs.disk, files...)
+		rs.subs[dir] = subs
 	}
 	return scope, nil
 }
 
-// listDirFiles lists the video files directly in dir that a full scan would pick up (videoFile);
-// subdirectories are not entered (a path scan names every directory it reads). isGone reports a
-// directory that does not exist any more. A symlinked directory is not read, like in the walk of
-// a full scan.
-func listDirFiles(ctx context.Context, r *os.Root, dir, kind string, ignored map[string]bool, log *slog.Logger) (files []diskFile, isGone bool, err error) {
+// listDirFiles lists the video files directly in dir that a full scan would pick up (videoFile)
+// and the names of its subtitle files (sidecars, I-5); subdirectories are not entered (a path scan
+// names every directory it reads). isGone reports a directory that does not exist any more. A
+// symlinked directory is not read, like in the walk of a full scan.
+func listDirFiles(ctx context.Context, r *os.Root, dir, kind string, ignored map[string]bool, log *slog.Logger) (files []diskFile, subs []string, isGone bool, err error) {
 	fi, err := r.Lstat(dir)
 	switch {
 	case gone(err):
-		return nil, true, nil
+		return nil, nil, true, nil
 	case err != nil:
-		return nil, false, err
+		return nil, nil, false, err
 	case fi.Mode()&fs.ModeSymlink != 0:
-		return nil, false, nil
+		return nil, nil, false, nil
 	case !fi.IsDir():
-		return nil, true, nil
+		return nil, nil, true, nil
 	}
 	f, err := r.Open(dir)
 	if gone(err) {
-		return nil, true, nil
+		return nil, nil, true, nil
 	}
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	entries, err := f.ReadDir(-1)
 	_ = f.Close()
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	noMarker := map[string]int{}
 	for _, e := range entries {
 		if e.IsDir() || Ignored(e.Name()) {
 			continue
 		}
+		if isSubtitle(e.Name()) {
+			subs = append(subs, e.Name())
+			continue
+		}
 		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, kind, ignored, noMarker, log)
 		if err != nil {
-			return nil, false, err
+			return nil, nil, false, err
 		}
 		if ok {
 			files = append(files, df)
 		}
 	}
 	logNoMarker(ctx, log, noMarker)
-	return files, false, nil
+	return files, subs, false, nil
 }

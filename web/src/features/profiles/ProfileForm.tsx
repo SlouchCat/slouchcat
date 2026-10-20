@@ -14,6 +14,14 @@ import { isAccentName, Notice } from '@/ui';
 import { AccentPicker, AriaButton, PinField, RadioGroup, TextField } from '@/ui/aria';
 import { accentOptions, languageOptions, ratingOf, ratingOptions } from '../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
+import {
+  isCapped,
+  LimitFields,
+  limitParts,
+  limitsOf,
+  limitValues,
+  type LimitValues,
+} from '../shared/LimitFields';
 import { libraryIdsOf, type LibraryOption } from '../shared/useLibraryOptions';
 import styles from './ProfileForm.module.css';
 
@@ -46,6 +54,7 @@ export function ProfileForm({ profile, profiles, session, libraries, onClose }: 
     ids: (profile?.libraryIds ?? []).map(String),
   });
   const [pin, setPin] = useState('');
+  const [limits, setLimits] = useState<LimitValues>(() => limitValues(profile?.limits));
 
   const save = useTransientMutation(
     (body: ProfileRequest): Promise<Profile> =>
@@ -75,6 +84,7 @@ export function ProfileForm({ profile, profiles, session, libraries, onClose }: 
       ...(isAccentName(accent) ? { accent } : {}),
       allLibraries: selection.all,
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
+      limits: limitsOf(limits),
       ...(!profile && pin ? { pin } : {}),
     });
   };
@@ -124,6 +134,15 @@ export function ProfileForm({ profile, profiles, session, libraries, onClose }: 
         onChange={setSelection}
         options={libraries}
       />
+      <fieldset className={styles.group}>
+        <legend className={styles.legend}>{t('limits.title')}</legend>
+        <LimitFields value={limits} onChange={setLimits} />
+        {profile && isCapped(profile.limits, profile.effectiveLimits) && (
+          <Notice>
+            {t('limits.capped', { summary: limitParts(t, profile.effectiveLimits).join(' · ') })}
+          </Notice>
+        )}
+      </fieldset>
       {!profile && (
         <PinField
           name="pin"

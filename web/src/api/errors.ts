@@ -23,6 +23,8 @@ const problemKeys = {
   primary_profile: 'errors.code.primary_profile',
   invitation_gone: 'errors.code.invitation_gone',
   too_many_attempts: 'errors.code.too_many_attempts',
+  watch_limit_reached: 'errors.code.watch_limit_reached',
+  stream_limit_reached: 'errors.code.stream_limit_reached',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
@@ -37,6 +39,7 @@ const fieldKeys = {
   already_exists: 'errors.field.already_exists',
   invalid_value: 'errors.field.invalid',
   invalid_pin: 'errors.field.pin_format',
+  not_burnable: 'errors.field.not_burnable',
   not_absolute: 'errors.field.not_absolute',
   library_path_invalid: 'errors.code.library_path_invalid',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
@@ -110,4 +113,16 @@ export function retryAfterSeconds(error: unknown): number | null {
   if (fromProblem !== undefined) return Math.max(0, Math.ceil(fromProblem));
   if (error.retryAfterMs !== null) return Math.max(0, Math.ceil(error.retryAfterMs / 1000));
   return null;
+}
+
+/**
+ * A whole-number member of the problem's `extensions` object (RFC 9457 extension members, for
+ * example `limitMinutes` of `watch_limit_reached`), or undefined when the server sent none.
+ */
+export function problemExtension(error: unknown, name: string): number | undefined {
+  if (!isApiError(error)) return undefined;
+  const extensions = (error.problem as { extensions?: unknown } | null)?.extensions;
+  if (typeof extensions !== 'object' || extensions === null) return undefined;
+  const value = (extensions as Record<string, unknown>)[name];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

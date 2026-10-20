@@ -110,6 +110,21 @@ export async function revokeInvitation(api: APIRequestContext, id: number): Prom
 }
 
 /** Deletes every guest account (the ones the specs created). */
+/**
+ * Ends every running stream of the server (`DELETE /admin/streams/{id}`), so a transcode a spec
+ * left behind (a page closed before its stop reached the server) does not hold the admission
+ * budget of the next spec: on the CI runner the software budget is 2, one HDR transcode with CPU
+ * tonemapping costs 6 and an idle session keeps its budget until it turns cold.
+ */
+export async function stopAllStreams(api: APIRequestContext): Promise<void> {
+  const response = await api.get('/api/v1/admin/streams');
+  if (!response.ok()) return;
+  const streams = (await response.json()) as { id: string }[];
+  for (const stream of streams) {
+    await api.delete(`/api/v1/admin/streams/${stream.id}`, { headers: CSRF });
+  }
+}
+
 export async function removeGuests(api: APIRequestContext): Promise<void> {
   const guests = await json<{ id: number }[]>(await api.get('/api/v1/admin/guests'), [200]);
   for (const guest of guests)

@@ -33,7 +33,8 @@ SELECT count(*) FROM profiles WHERE account_id = @account_id;
 -- name: UpdateProfile :exec
 UPDATE profiles
 SET name = @name, max_rating = @max_rating, language = @language, accent = @accent,
-    all_libraries = @all_libraries, updated_at = @now
+    all_libraries = @all_libraries, max_bitrate_kbps = sqlc.narg('max_bitrate_kbps'), max_height = sqlc.narg('max_height'),
+    max_streams = sqlc.narg('max_streams'), watch_limit_minutes = sqlc.narg('watch_limit_minutes'), updated_at = @now
 WHERE id = @id;
 
 -- name: SetProfilePin :exec
@@ -93,13 +94,17 @@ SELECT * FROM accounts WHERE id = @id AND role = 'guest';
 
 -- name: ListGuestAccounts :many
 SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
+       a.max_bitrate_kbps, a.max_height, a.max_streams,
        (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
 FROM accounts AS a
 WHERE a.role = 'guest'
 ORDER BY a.created_at DESC, a.id DESC;
 
 -- name: UpdateAccountLimits :exec
-UPDATE accounts SET max_rating = @max_rating, all_libraries = @all_libraries, updated_at = @now WHERE id = @id;
+UPDATE accounts
+SET max_rating = @max_rating, all_libraries = @all_libraries, max_bitrate_kbps = sqlc.narg('max_bitrate_kbps'),
+    max_height = sqlc.narg('max_height'), max_streams = sqlc.narg('max_streams'), updated_at = @now
+WHERE id = @id;
 
 -- name: DeleteAccount :execrows
 DELETE FROM accounts WHERE id = @id;
@@ -120,14 +125,41 @@ DELETE FROM account_libraries WHERE account_id = @account_id;
 INSERT INTO account_libraries (account_id, library_id) VALUES (@account_id, @library_id);
 
 -- name: RevokePlaybackSessionsByAccount :many
-UPDATE playback_sessions SET revoked_at = @now
+UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
 WHERE account_id = @account_id AND revoked_at IS NULL
 RETURNING id;
 
 -- name: RevokePlaybackSessionsByProfile :many
-UPDATE playback_sessions SET revoked_at = @now
+-- stopped_by: revoked when the profile is deleted, limit when its daily watch time is used up.
+UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
 WHERE profile_id = @profile_id AND revoked_at IS NULL
 RETURNING id;
+
+-- Device overview of the administration (W-7, M4).
+
+-- name: ListDevicesAdmin :many
+-- Devices, last contact first, with the owner of the last playback start and the number of running
+-- streams (the activity window of CountActivePlaybackSessions).
+SELECT d.id, d.user_agent, d.created_at, d.last_seen_at, d.name, d.type, d.capabilities, d.capabilities_at,
+       a.email AS owner_email, p.name AS owner_profile,
+       (SELECT count(*) FROM playback_sessions AS ps
+        JOIN sessions AS s ON s.id = ps.session_id
+        WHERE ps.device_id = d.id AND ps.revoked_at IS NULL AND ps.expires_at > @now
+          AND ps.last_activity_at >= @active_after AND s.revoked_at IS NULL AND s.expires_at > @now) AS active_streams
+FROM devices AS d
+LEFT JOIN accounts AS a ON a.id = d.account_id
+LEFT JOIN profiles AS p ON p.id = d.profile_id
+ORDER BY d.last_seen_at DESC, d.id;
+
+-- name: RevokeDeviceSessions :many
+UPDATE sessions SET revoked_at = @now WHERE device_id = @device_id AND revoked_at IS NULL
+RETURNING id;
+
+-- name: DeletePinAttemptsByDevice :exec
+DELETE FROM pin_attempts WHERE device_id = @device_id;
+
+-- name: DeleteDevice :execrows
+DELETE FROM devices WHERE id = @id;
 
 -- name: InsertInvitation :one
 INSERT INTO invitations (token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at)

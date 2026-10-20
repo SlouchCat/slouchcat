@@ -321,7 +321,7 @@ func (s *Session) startLocked(i int) error {
 	s.gen++
 	s.front = i
 	if !s.active {
-		s.m.acquire(s.plan.Cost)
+		s.m.acquire(s.m.cost(s.plan))
 		s.active = true
 	}
 	s.broadcastLocked()
@@ -350,7 +350,7 @@ func (s *Session) killLocked(r *run, keepBudget bool) {
 func (s *Session) releaseLocked() {
 	if s.active {
 		s.active = false
-		s.m.release(s.plan.Cost)
+		s.m.release(s.m.cost(s.plan))
 	}
 }
 
