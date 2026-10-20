@@ -7,16 +7,6 @@
   outline: none;
 }
 
-.popover[data-entering] {
-  animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
-}
-
-/* A closing menu leaves the tab order at once: react-aria keeps the popover mounted while a
-   transition of an item is still running (Chromium, up to a second), and Tab must not land in it. */
-.popover[data-exiting] {
-  visibility: hidden;
-}
-
 .menu {
   display: flex;
   flex-direction: column;
@@ -24,6 +14,14 @@
   max-height: min(60vh, 28rem);
   overflow-y: auto;
   outline: none;
+}
+
+/* The fade runs on the menu inside, not on the popover element: react-aria waits for the popover's
+   own running animations before it unmounts a closing popover, and an enter animation that is still
+   running when the menu closes (a quick keyboard pick) is cancelled, so the popover would stay
+   mounted, and focusable, until the next open. */
+.popover[data-entering] .menu {
+  animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
 }
 
 .section {
