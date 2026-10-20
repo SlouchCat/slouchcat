@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -315,6 +317,19 @@ func TestHTTPSubtitles(t *testing.T) {
 	noExt := strings.Replace(info.SubtitleURL, ".vtt?", "?", 1)
 	if rec := send(t, h, http.MethodGet, noExt, "", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("without .vtt: %d", rec.Code)
+	}
+	// A sidecar deleted after the scan answers 404, not 500.
+	m0 := f.Rated(0)
+	gone := pf.tracks[m0.FileID]
+	if err := os.Remove(filepath.Join(f.MediaDir, filepath.FromSlash(gone.SidecarRel))); err != nil {
+		t.Fatal(err)
+	}
+	info, code, _ = play(t, h, "p18", m0.ID, fmt.Sprintf(`{"subtitleTrack":%d}`, gone.Sidecar))
+	if code != http.StatusOK {
+		t.Fatalf("start with the deleted sidecar = %d", code)
+	}
+	if rec := send(t, h, http.MethodGet, info.SubtitleURL, "", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("deleted sidecar: %d %s", rec.Code, rec.Body.String())
 	}
 	// An episode with an intro and a next episode.
 	info, code, _ = play(t, h, "p18", f.Show.E1.ID, `{}`)

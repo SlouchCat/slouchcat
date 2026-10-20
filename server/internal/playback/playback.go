@@ -59,9 +59,12 @@ type Service struct {
 	rebuildMu  sync.Mutex
 	rebuilding map[string]chan struct{} // HLS outputs being rebuilt, closed when done
 
-	subs     SubtitleConverter // WebVTT conversion; zero = no text subtitles
-	cacheDir string            // converted subtitles below <cacheDir>/subtitles; empty = uncached
-	starts   startLocks        // stream counts of starts under a stream limit
+	subs       SubtitleConverter // WebVTT conversion; zero = no text subtitles
+	cacheDir   string            // converted subtitles below <cacheDir>/subtitles; empty = uncached
+	subMu      sync.Mutex
+	subFlights map[string]*subtitleFlight // running conversions per playback id and track
+	subSlots   chan struct{}              // maxSubtitleConversions slots
+	starts     startLocks                 // stream counts of starts under a stream limit
 }
 
 // Option configures New.
@@ -96,6 +99,7 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 		db: db, read: appq.New(db.Read), write: appq.New(db.Write), vis: visibility.New(db, log), log: log, now: time.Now,
 		keyframeTimeout: KeyframeTimeout, grantRecheck: grantRecheckInterval,
 		streams: map[string]map[*grantFile]struct{}{}, rebuilding: map[string]chan struct{}{},
+		subFlights: map[string]*subtitleFlight{}, subSlots: make(chan struct{}, maxSubtitleConversions),
 	}
 	for _, o := range opts {
 		o(s)

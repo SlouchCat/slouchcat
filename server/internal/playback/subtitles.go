@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
@@ -47,8 +48,9 @@ var playbackID = regexp.MustCompile(`^[0-9A-HJKMNP-TV-Z]{26}$`)
 
 // Subtitle returns the WebVTT file of a text subtitle track of a grant. Only the track the
 // playback selected for text delivery is served (PlaybackGrant.SubtitleTrack); any other track, a
-// bitmap track, a title that is no longer visible and a server without converter return
-// model.ErrNotFound.
+// bitmap track, a title that is no longer visible, a missing source file and a server without
+// converter return model.ErrNotFound. Concurrent requests of the same playback and track share one
+// conversion (convertShared).
 func (s *Service) Subtitle(ctx context.Context, g model.PlaybackGrant, trackID int64) (model.StreamSource, error) {
 	if trackID <= 0 || trackID != g.SubtitleTrack || !playbackID.MatchString(g.ID) {
 		return model.StreamSource{}, model.ErrNotFound
@@ -57,6 +59,9 @@ func (s *Service) Subtitle(ctx context.Context, g model.PlaybackGrant, trackID i
 	loc, err := s.vis.MediaFile(ctx, scope, g.ItemID, g.MediaFileID)
 	if err != nil {
 		return model.StreamSource{}, err
+	}
+	if !loc.File.Available {
+		return model.StreamSource{}, model.ErrNotFound
 	}
 	tracks, err := s.vis.Tracks(ctx, scope, g.ItemID, g.MediaFileID)
 	if err != nil {
@@ -78,16 +83,73 @@ func (s *Service) Subtitle(ctx context.Context, g model.PlaybackGrant, trackID i
 			return vttSource(data, trackID), nil
 		}
 	}
-	data, err := s.convert(ctx, loc, *track)
+	data, err := s.convertShared(ctx, g.ID+"/"+strconv.FormatInt(trackID, 10), loc, *track, cached)
 	if err != nil {
 		return model.StreamSource{}, err
 	}
-	if cached != "" {
-		if err := writeAtomic(cached, data); err != nil {
-			s.log.WarnContext(ctx, "cache subtitles", "playback_id", g.ID, "track_id", trackID, "err", err)
+	return vttSource(data, trackID), nil
+}
+
+const (
+	// maxSubtitleConversions bounds the WebVTT conversions (ffmpeg processes) that run at once;
+	// they are not part of the transcode budget.
+	maxSubtitleConversions = 4
+	// subtitleConvertTimeout bounds one shared conversion including its wait for a slot (the
+	// converter has its own 60-s bound).
+	subtitleConvertTimeout = 2 * time.Minute
+)
+
+// subtitleFlight is one running conversion; done is closed when data and err are set.
+type subtitleFlight struct {
+	done chan struct{}
+	data []byte
+	err  error
+}
+
+// convertShared converts track once for all concurrent requests of the same playback session and
+// track (key): the first request starts the conversion, the others wait for its result. The
+// conversion runs detached from the requests (a client that goes away does not cancel it for the
+// others), waits for one of maxSubtitleConversions slots and writes the cache file (cached, empty =
+// uncached) before the waiters get the result.
+func (s *Service) convertShared(ctx context.Context, key string, loc visibility.MediaFileLocation, track model.Track, cached string) ([]byte, error) {
+	s.subMu.Lock()
+	f, running := s.subFlights[key]
+	if !running {
+		f = &subtitleFlight{done: make(chan struct{})}
+		s.subFlights[key] = f
+		go s.runConversion(context.WithoutCancel(ctx), key, f, loc, track, cached)
+	}
+	s.subMu.Unlock()
+	select {
+	case <-f.done:
+		return f.data, f.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func (s *Service) runConversion(ctx context.Context, key string, f *subtitleFlight, loc visibility.MediaFileLocation, track model.Track, cached string) {
+	ctx, cancel := context.WithTimeout(ctx, subtitleConvertTimeout)
+	defer cancel()
+	defer func() {
+		s.subMu.Lock()
+		delete(s.subFlights, key)
+		s.subMu.Unlock()
+		close(f.done)
+	}()
+	select {
+	case s.subSlots <- struct{}{}:
+		defer func() { <-s.subSlots }()
+	case <-ctx.Done():
+		f.err = fmt.Errorf("wait for a subtitle conversion slot: %w", ctx.Err())
+		return
+	}
+	f.data, f.err = s.convert(ctx, loc, track)
+	if f.err == nil && cached != "" {
+		if err := writeAtomic(cached, f.data); err != nil {
+			s.log.WarnContext(ctx, "cache subtitles", "key", key, "err", err)
 		}
 	}
-	return vttSource(data, trackID), nil
 }
 
 // Tracks returns the audio and subtitle tracks of a media file of a visible title (getItemTracks,
@@ -104,11 +166,15 @@ func (s *Service) Tracks(ctx context.Context, profile model.Profile, itemID, med
 	return s.vis.Tracks(ctx, scope, loc.ItemID, loc.File.ID)
 }
 
-// convert runs the converter of the track's source.
+// convert runs the converter of the track's source. A source file that no longer exists is
+// model.ErrNotFound.
 func (s *Service) convert(ctx context.Context, loc visibility.MediaFileLocation, t model.Track) ([]byte, error) {
 	if t.Source == "sidecar" {
 		if s.subs.Sidecar == nil {
 			return nil, model.ErrNotFound
+		}
+		if err := fileExists(loc.RootPath, t.RelPath); err != nil {
+			return nil, err
 		}
 		abs, err := rootPath(loc.RootPath, t.RelPath, "sidecar subtitle")
 		if err != nil {
@@ -123,6 +189,9 @@ func (s *Service) convert(ctx context.Context, loc visibility.MediaFileLocation,
 	if s.subs.Embedded == nil {
 		return nil, model.ErrNotFound
 	}
+	if err := fileExists(loc.RootPath, loc.RelPath); err != nil {
+		return nil, err
+	}
 	abs, err := sourcePath(loc)
 	if err != nil {
 		return nil, err
@@ -132,6 +201,28 @@ func (s *Service) convert(ctx context.Context, loc visibility.MediaFileLocation,
 		return nil, fmt.Errorf("convert subtitle stream %d of %s: %w", t.Index, loc.File.ID, err)
 	}
 	return data, nil
+}
+
+// fileExists checks through package paths that rel is a file below the library root rootDir; a
+// missing file (or a directory) is model.ErrNotFound.
+func fileExists(rootDir, rel string) error {
+	root, err := paths.NewRoot(rootDir)
+	if err != nil {
+		return err
+	}
+	dir, err := paths.Open(root)
+	if err != nil {
+		return notFoundIfMissing(err)
+	}
+	defer dir.Close()
+	info, err := dir.Stat(rel)
+	if err != nil {
+		return notFoundIfMissing(err)
+	}
+	if info.IsDir() {
+		return model.ErrNotFound
+	}
+	return nil
 }
 
 type vttReader struct{ *bytes.Reader }
