@@ -11,17 +11,18 @@ import {
 } from './keyboard';
 import {
   createDownload,
+  DOWNLOAD_SHOW_TITLE,
   downloadRow,
   downloadsTable,
   offlinePlayer,
   storedDownloads,
   waitForComplete,
 } from './offline';
-import { arrowBetweenRows, CHAPTERS_TITLE, itemIdByTitle } from './playback';
+import { arrowBetweenRows, CHAPTERS_TITLE, episodeIds, itemIdByTitle } from './playback';
 
-// O-1: a film in each of the three download profiles. The detail page offers them with the size
-// the server expects; the device fetches the prepared file into OPFS, and its size lies within
-// ±10 % of that estimate. Keyboard on the dialog and on /downloads (rule 8).
+// O-1: a film and an episode in each of the three download profiles. The detail page offers them
+// with the size the server expects; the device fetches the prepared file into OPFS, and its size
+// lies within ±10 % of that estimate. Keyboard on the dialog and on /downloads (rule 8).
 
 const QUALITIES = [
   { quality: 'low', label: /^Niedrig · \d+p · ca\. / },
@@ -96,6 +97,74 @@ test('three download profiles, each within ±10 % of its estimate (O-1)', async 
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: `Download ${H264_TITLE} löschen?` });
     await expect(confirm).toBeVisible();
+    await expectFocusOn(page, confirm.getByRole('button', { name: 'Download löschen' }));
+    await page.keyboard.press('Enter');
+    await expect(row).toHaveCount(0);
+    await expect.poll(async () => (await storedDownloads(page)).length).toBe(0);
+  }
+});
+
+test('an episode in each of the three download profiles, within ±10 % of its estimate (O-1)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(420_000);
+  const seriesId = await itemIdByTitle(owner, DOWNLOAD_SHOW_TITLE);
+  const [episodeId] = await episodeIds(owner, seriesId);
+  expect(episodeId, 'S01E01').toBeDefined();
+  const options = (await (
+    await owner.get(`/api/v1/items/${episodeId}/download-options`)
+  ).json()) as { qualities: { quality: string; estimatedBytes: number }[] };
+  expect(options.qualities.map((option) => option.quality)).toEqual(['high', 'medium', 'low']);
+
+  for (const { quality, label } of QUALITIES) {
+    await page.goto(`/items/${episodeId}`);
+    await downloadButton(page).focus();
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: / herunterladen$/ });
+    const radios = dialog.getByRole('radiogroup', { name: 'Qualität' });
+    await expect(radios.getByRole('radio')).toHaveCount(3);
+    await radios.getByRole('radio', { checked: true }).focus();
+    const target = radios.getByRole('radio', { name: label });
+    for (let presses = 0; presses < 3 && !(await target.isChecked()); presses += 1) {
+      await page.keyboard.press('ArrowRight');
+    }
+    await expect(target).toBeChecked();
+    await tabTo(page, dialog.getByRole('button', { name: 'Herunterladen' }), 6);
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+
+    const [download] = await waitForComplete(
+      page,
+      1,
+      (entry) => entry.quality === quality && entry.item?.id === episodeId,
+    );
+    const estimate = options.qualities.find((option) => option.quality === quality)!.estimatedBytes;
+    const size = download.manifest!.sizeBytes;
+    const stored = await page.evaluate(async (id) => {
+      const root = await navigator.storage.getDirectory();
+      const dir = await (await root.getDirectoryHandle('downloads')).getDirectoryHandle(id);
+      return (await (await dir.getFileHandle('media.mp4')).getFile()).size;
+    }, download.id);
+    const deviation = (size - estimate) / estimate;
+    test.info().annotations.push({
+      type: `episode-${quality}`,
+      description: JSON.stringify({ estimate, size, stored, deviation }),
+    });
+    console.log(
+      `MEASURE ${test.info().project.name} episode-size ${JSON.stringify({ quality, estimate, size, stored, deviation })}`,
+    );
+    expect(download.bytesWritten).toBe(size);
+    expect(stored).toBe(size);
+    expect(Math.abs(deviation), `${quality}: ${size} B vs ${estimate} B`).toBeLessThanOrEqual(0.1);
+
+    // One download per title: delete it on /downloads by keyboard before the next profile.
+    await page.goto('/downloads');
+    const row = downloadRow(page, new RegExp(`^S01E01 · .* · ${DOWNLOAD_SHOW_TITLE}`));
+    await expect(row.getByText('Auf diesem Gerät')).toBeVisible();
+    await row.getByRole('button', { name: / löschen$/ }).focus();
+    await page.keyboard.press('Enter');
+    const confirm = page.getByRole('alertdialog', { name: /^Download .* löschen\?$/ });
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Download löschen' }));
     await page.keyboard.press('Enter');
     await expect(row).toHaveCount(0);

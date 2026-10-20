@@ -1,8 +1,10 @@
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
+import { CSRF, H264_MKV_LONG_TITLE } from './catalog';
 import { STORAGE_STATE } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus } from './keyboard';
 import {
+  createDownload,
   downloadRow,
   offlinePlayer,
   prepareOffline,
@@ -14,7 +16,8 @@ import { itemIdByTitle, MULTI_AUDIO_TITLE, resetProgress } from './playback';
 
 // O-4 and O-5: a film downloaded with the English audio track plays in flight mode from the
 // device, with its subtitles; the progress of that offline playback reaches the server after the
-// reconnect and shows in a second browser of the same account (±10 s).
+// reconnect and shows in a second browser of the same account (±10 s). The second test starts
+// from a known server position and times the reconnect until the second browser has the new one.
 
 /** Queued offline events in the page's IndexedDB. */
 const queuedEvents = (page: Page) =>
@@ -148,4 +151,115 @@ test('flight mode: the download plays with subtitles and the chosen audio; progr
     await second.close();
   }
   expect((await storedDownloads(page)).map((entry) => entry.id)).toEqual([download.id]);
+});
+
+/** Sets the profile's server position of a title (an online progress event). */
+async function setProgress(
+  api: APIRequestContext,
+  itemId: string,
+  positionMs: number,
+  durationMs: number,
+): Promise<void> {
+  const response = await api.post(`/api/v1/items/${itemId}/progress`, {
+    headers: CSRF,
+    data: {
+      positionMs,
+      durationMs,
+      playedMs: 0,
+      seq: 0,
+      state: 'paused',
+      clientTime: new Date().toISOString(),
+    },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+}
+
+test('O-5: from 30 s on the server, 15 s offline; a second browser has the new position within 10 s', async ({
+  page,
+  context,
+  owner,
+  browser,
+  baseURL,
+  extraHTTPHeaders,
+}, testInfo) => {
+  test.setTimeout(240_000);
+  // 90 s of 720p H.264 ("Hoch" copies it): room for a start at 30 s and 15 s of play after it.
+  const itemId = await itemIdByTitle(owner, H264_MKV_LONG_TITLE);
+  const startMs = 30_000;
+  await setProgress(owner, itemId, startMs, 90_000);
+
+  await page.goto('/downloads');
+  const [created] = await createDownload(page, itemId, { quality: 'high' });
+  await waitForComplete(page, 1, (entry) => entry.id === created.id);
+  await page.goto('/downloads');
+  await prepareOffline(page);
+  const row = downloadRow(page, new RegExp(H264_MKV_LONG_TITLE));
+  await expect(row.getByText('Auf diesem Gerät')).toBeVisible();
+
+  await context.setOffline(true);
+  await expect(page.getByText(/Keine Verbindung zum Server/)).toBeVisible();
+  await row.getByRole('link', { name: `${H264_MKV_LONG_TITLE} abspielen` }).focus();
+  await page.keyboard.press('Enter');
+  const player = offlinePlayer(page);
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/, { timeout: 15_000 });
+  // The offline player resumes from the device's own position (none yet): go to the server's.
+  await page.locator('video').evaluate((video: HTMLVideoElement, at) => {
+    video.currentTime = at;
+  }, startMs / 1000);
+  await expect.poll(() => videoTime(page)).toBeGreaterThanOrEqual(startMs / 1000);
+  // At least 10 s of play from there; 15 s, so the ±10 s window cannot reach the start value.
+  const playedFrom = Date.now();
+  await expect
+    .poll(() => videoTime(page), { timeout: 40_000, intervals: [500] })
+    .toBeGreaterThanOrEqual(startMs / 1000 + 15);
+  const playedForMs = Date.now() - playedFrom;
+  expect(playedForMs).toBeGreaterThanOrEqual(10_000);
+  await expectFocusOn(page, player.getByRole('button', { name: 'Pause' }));
+  await page.keyboard.press(' ');
+  await expect
+    .poll(() => page.locator('video').evaluate((v: HTMLVideoElement) => v.paused))
+    .toBe(true);
+  const position = Math.round((await videoTime(page)) * 1000);
+  expect(position - 10_000).toBeGreaterThan(startMs);
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/downloads$/);
+  await expect.poll(async () => (await queuedEvents(page)).at(-1)?.event.state).toBe('paused');
+  expect((await queuedEvents(page)).at(-1)?.event.positionMs).toBe(position);
+
+  // The second browser exists before the reconnect; the clock runs from setOffline(false).
+  const second = await browser.newContext({
+    baseURL,
+    locale: 'de-CH',
+    extraHTTPHeaders,
+    storageState: STORAGE_STATE,
+  });
+  try {
+    const serverPosition = async () => {
+      const item = (await (await second.request.get(`/api/v1/items/${itemId}`)).json()) as {
+        progress?: { positionMs: number };
+      };
+      return item.progress?.positionMs ?? -1;
+    };
+    expect(await serverPosition()).toBe(startMs);
+    const reconnectAt = Date.now();
+    await context.setOffline(false);
+    await expect
+      .poll(async () => Math.abs((await serverPosition()) - position), {
+        timeout: 10_000,
+        intervals: [250],
+      })
+      .toBeLessThanOrEqual(10_000);
+    const seenAfterMs = Date.now() - reconnectAt;
+    const seen = await serverPosition();
+    const measured = { startMs, playedForMs, position, seen, seenAfterMs };
+    testInfo.annotations.push({ type: 'o5-reconnect', description: JSON.stringify(measured) });
+    console.log(`MEASURE ${testInfo.project.name} o5-reconnect ${JSON.stringify(measured)}`);
+    expect(Math.abs(seen - startMs)).toBeGreaterThan(10_000);
+    const view = await second.newPage();
+    await view.goto(`/items/${itemId}`);
+    await expect(view.getByRole('link', { name: /^Weiterschauen ab 00:00:\d{2}$/ })).toBeVisible();
+  } finally {
+    await second.close();
+  }
+  await expect.poll(async () => (await queuedEvents(page)).length).toBe(0);
 });
