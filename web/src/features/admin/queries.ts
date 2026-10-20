@@ -1,5 +1,7 @@
 import type {
+  AdminDevice,
   AdminItem,
+  AdminStream,
   DuplicateGroup,
   Guest,
   Invitation,
@@ -92,3 +94,19 @@ export const adminItemQuery = (id: string) =>
     queryFn: ({ signal }): Promise<AdminItem> =>
       request(api.GET('/admin/items/{id}', { params: { path: { id } }, signal })),
   });
+
+/** W-7: devices with owner, last contact and capability profile. */
+export const devicesQuery = queryOptions({
+  queryKey: ['admin', 'devices'],
+  queryFn: ({ signal }): Promise<AdminDevice[]> => request(api.GET('/admin/devices', { signal })),
+});
+
+/** Poll interval of the stream overview (W-6). */
+export const STREAMS_POLL_MS = 5000;
+
+/** W-6: running playback sessions, asked again every 5 s while the page is open. */
+export const streamsQuery = queryOptions({
+  queryKey: ['admin', 'streams'],
+  queryFn: ({ signal }): Promise<AdminStream[]> => request(api.GET('/admin/streams', { signal })),
+  refetchInterval: STREAMS_POLL_MS,
+});

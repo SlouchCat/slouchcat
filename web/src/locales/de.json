@@ -22,7 +22,9 @@
     "access": "Zugriff",
     "profiles": "Profile",
     "switchProfile": "Profil wechseln, aktuell {{name}}",
-    "maintenance": "Pflege"
+    "maintenance": "Pflege",
+    "devices": "Geräte",
+    "streams": "Streams"
   },
   "system": {
     "server": {
@@ -648,7 +650,82 @@
       "choose": "{{title}} zuordnen",
       "yearInvalid": "Ein Jahr zwischen 1800 und 2100."
     },
-    "titleYear": "{{title}} ({{year}})"
+    "titleYear": "{{title}} ({{year}})",
+    "devices": {
+      "title": "Geräte",
+      "intro": "Browser und Geräte, die sich angemeldet haben, mit dem Fähigkeitsprofil ihres letzten Wiedergabestarts.",
+      "list": "Geräte",
+      "empty": "Noch keine Geräte.",
+      "columns": {
+        "name": "Gerät",
+        "type": "Typ",
+        "owner": "Eigentümer",
+        "lastSeen": "Letzter Kontakt",
+        "containers": "Container",
+        "video": "Video",
+        "audio": "Audio",
+        "resolution": "Max. Auflösung",
+        "hdr": "HDR",
+        "streams": "Streams",
+        "actions": "Aktionen"
+      },
+      "unnamed": "Unbekanntes Gerät",
+      "owner": "{{email}} · {{profile}}",
+      "noOwner": "Noch keine Wiedergabe",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Telefon",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Anderes"
+      },
+      "forget": {
+        "action": "Vergessen",
+        "label": "{{name}} vergessen",
+        "title": "Gerät „{{name}}“ vergessen?",
+        "body": "Laufende Streams enden, die Sitzungen des Geräts werden abgemeldet.",
+        "confirm": "Gerät vergessen"
+      },
+      "forgotten": "Gerät „{{name}}“ vergessen.",
+      "yes": "Ja",
+      "no": "Nein",
+      "unknown": "–"
+    },
+    "streams": {
+      "title": "Streams",
+      "intro": "Laufende Wiedergaben. Die Liste aktualisiert sich alle 5 Sekunden.",
+      "list": "Laufende Streams",
+      "empty": "Gerade läuft nichts.",
+      "columns": {
+        "profile": "Profil",
+        "device": "Gerät",
+        "title": "Titel",
+        "quality": "Qualität",
+        "mode": "Modus",
+        "position": "Position",
+        "since": "Seit",
+        "actions": "Aktionen"
+      },
+      "unknownDevice": "Unbekanntes Gerät",
+      "original": "Original",
+      "qualityValue": "{{quality}} · {{bitrate}}",
+      "modes": {
+        "direct": "Direct",
+        "remux": "Remux",
+        "transcode": "Transcode ({{encoder}})"
+      },
+      "hw": "HW",
+      "sw": "SW",
+      "position": "{{position}} von {{duration}}",
+      "stop": {
+        "action": "Beenden",
+        "label": "Stream von {{profile}} beenden",
+        "title": "Stream von {{profile}} beenden?",
+        "body": "Die Wiedergabe von „{{title}}“ stoppt auf dem Gerät innert Sekunden.",
+        "confirm": "Stream beenden"
+      },
+      "stopped": "Stream von {{profile}} beendet."
+    }
   },
   "language": {
     "de": "Deutsch",

@@ -8,6 +8,8 @@ export const paths = {
   adminLibraries: '/admin/libraries',
   adminAccess: '/admin/access',
   adminMaintenance: '/admin/maintenance',
+  adminDevices: '/admin/devices',
+  adminStreams: '/admin/streams',
   item: (id: string) => `/items/${encodeURIComponent(id)}`,
   /** The player; `file` picks a version (media file) of the title (B-5). */
   play: (id: string, file?: string) =>

@@ -22,7 +22,9 @@
     "access": "Access",
     "profiles": "Profiles",
     "switchProfile": "Switch profile, now {{name}}",
-    "maintenance": "Maintenance"
+    "maintenance": "Maintenance",
+    "devices": "Devices",
+    "streams": "Streams"
   },
   "system": {
     "server": {
@@ -648,7 +650,82 @@
       "choose": "Match {{title}}",
       "yearInvalid": "A year between 1800 and 2100."
     },
-    "titleYear": "{{title}} ({{year}})"
+    "titleYear": "{{title}} ({{year}})",
+    "devices": {
+      "title": "Devices",
+      "intro": "Browsers and devices that signed in, with the capability profile of their last playback start.",
+      "list": "Devices",
+      "empty": "No devices yet.",
+      "columns": {
+        "name": "Device",
+        "type": "Type",
+        "owner": "Owner",
+        "lastSeen": "Last contact",
+        "containers": "Containers",
+        "video": "Video",
+        "audio": "Audio",
+        "resolution": "Max. resolution",
+        "hdr": "HDR",
+        "streams": "Streams",
+        "actions": "Actions"
+      },
+      "unnamed": "Unknown device",
+      "owner": "{{email}} · {{profile}}",
+      "noOwner": "No playback yet",
+      "types": {
+        "desktop": "Computer",
+        "phone": "Phone",
+        "tablet": "Tablet",
+        "tv": "TV",
+        "other": "Other"
+      },
+      "forget": {
+        "action": "Forget",
+        "label": "Forget {{name}}",
+        "title": "Forget the device “{{name}}”?",
+        "body": "Running streams end and the device's sessions are signed out.",
+        "confirm": "Forget device"
+      },
+      "forgotten": "Device “{{name}}” forgotten.",
+      "yes": "Yes",
+      "no": "No",
+      "unknown": "–"
+    },
+    "streams": {
+      "title": "Streams",
+      "intro": "Running playbacks. The list refreshes every 5 seconds.",
+      "list": "Running streams",
+      "empty": "Nothing is playing right now.",
+      "columns": {
+        "profile": "Profile",
+        "device": "Device",
+        "title": "Title",
+        "quality": "Quality",
+        "mode": "Mode",
+        "position": "Position",
+        "since": "Since",
+        "actions": "Actions"
+      },
+      "unknownDevice": "Unknown device",
+      "original": "Original",
+      "qualityValue": "{{quality}} · {{bitrate}}",
+      "modes": {
+        "direct": "Direct",
+        "remux": "Remux",
+        "transcode": "Transcode ({{encoder}})"
+      },
+      "hw": "HW",
+      "sw": "SW",
+      "position": "{{position}} of {{duration}}",
+      "stop": {
+        "action": "Stop",
+        "label": "Stop the stream of {{profile}}",
+        "title": "Stop the stream of {{profile}}?",
+        "body": "Playback of “{{title}}” stops on the device within seconds.",
+        "confirm": "Stop stream"
+      },
+      "stopped": "Stream of {{profile}} stopped."
+    }
   },
   "language": {
     "de": "Deutsch",
