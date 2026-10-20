@@ -203,26 +203,22 @@ func (s *server) StartPlayback(ctx context.Context, req gen.StartPlaybackRequest
 	if b := req.Body; b != nil {
 		in.MediaFileID = deref(b.MediaFileId)
 		in.DeviceID = deref(b.DeviceId)
-		if c := b.Capabilities; c != nil {
-			in.Capabilities = &model.PlaybackCapabilities{Video: c.Video, Audio: c.Audio, HLS: string(c.Hls)}
+		in.Capabilities = fromCapabilities(b.Capabilities)
+		in.AudioTrack = b.AudioTrack
+		in.SubtitleTrack = deref(b.SubtitleTrack)
+		if b.SubtitleDelivery != nil {
+			in.SubtitleDelivery = string(*b.SubtitleDelivery)
 		}
+		if b.Quality != nil {
+			in.Quality = string(*b.Quality)
+		}
+		in.PositionMs = b.PositionMs
 	}
 	info, err := s.opts.Playback.Start(ctx, session, req.Id, in)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.PlaybackInfo{
-		Mode:              gen.PlaybackInfoMode(info.Mode),
-		Item:              toItemRef(session.Profile.ID, info.Item),
-		MediaFile:         toMediaFileInfo(info.MediaFile),
-		StreamUrl:         info.StreamURL,
-		ResumePositionMs:  info.ResumePositionMs,
-		PlaybackSessionId: info.PlaybackSessionID,
-	}
-	if tr := info.Transcoding; tr != nil {
-		out.Transcoding = &gen.Transcoding{Mode: gen.TranscodingMode(tr.Mode), Backend: optString(tr.Backend), Reason: tr.Reason}
-	}
-	return gen.StartPlayback200JSONResponse(out), nil
+	return gen.StartPlayback200JSONResponse(toPlaybackInfo(session.Profile.ID, info)), nil
 }
 
 func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressRequestObject) (gen.ReportProgressResponseObject, error) {
@@ -235,13 +231,14 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 	}
 	b := req.Body
 	p, err := s.opts.Playback.Report(ctx, session.Profile, req.Id, model.ProgressEvent{
-		MediaFileID: deref(b.MediaFileId),
-		PositionMs:  b.PositionMs,
-		DurationMs:  b.DurationMs,
-		PlayedMs:    b.PlayedMs,
-		Seq:         b.Seq,
-		State:       string(b.State),
-		ClientTime:  b.ClientTime,
+		MediaFileID:       deref(b.MediaFileId),
+		PlaybackSessionID: deref(b.PlaybackSessionId),
+		PositionMs:        b.PositionMs,
+		DurationMs:        b.DurationMs,
+		PlayedMs:          b.PlayedMs,
+		Seq:               b.Seq,
+		State:             string(b.State),
+		ClientTime:        b.ClientTime,
 	})
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -395,6 +392,7 @@ func toProgress(p model.Progress) gen.Progress {
 		Percent:    float32(p.Percent()),
 		Completed:  p.Completed,
 		UpdatedAt:  p.UpdatedAt.UTC(),
+		WatchTime:  toWatchTime(p.WatchTime),
 	}
 }
 
@@ -414,6 +412,17 @@ func toMediaFileInfo(f model.MediaFile) gen.MediaFileInfo {
 	}
 	if f.DurationMs > 0 {
 		out.DurationMs = &f.DurationMs
+	}
+	if f.Bitrate > 0 {
+		out.Bitrate = &f.Bitrate
+	}
+	if f.HDR != "" {
+		hdr := gen.MediaFileInfoHdr(f.HDR)
+		out.Hdr = &hdr
+	}
+	if f.Tracks != nil {
+		tracks := toTrackList(*f.Tracks)
+		out.Tracks = &tracks
 	}
 	return out
 }

@@ -97,7 +97,7 @@ func (c *fakeConverter) sidecar(_ context.Context, path string) ([]byte, error) 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.calls = append(c.calls, filepath.Base(path))
-	data, err := os.ReadFile(path) //nolint:gosec // test file below the fixture root
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

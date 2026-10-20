@@ -262,6 +262,7 @@ func toProfile(p model.Profile) gen.Profile {
 	out := gen.Profile{
 		Id: p.ID, Name: p.Name, MaxRating: gen.Rating(p.MaxRating), Language: gen.Language(p.Language),
 		AllLibraries: p.AllLibraries, LibraryIds: nonNil(p.LibraryIDs), HasPin: p.HasPin, IsPrimary: p.IsPrimary,
+		Limits: toPlaybackLimits(p.Limits), EffectiveLimits: toEffectiveLimits(p.Effective),
 	}
 	if p.Accent != "" {
 		a := gen.Accent(p.Accent)
@@ -324,6 +325,20 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_key_invalid", "TMDB rejected the key.")
 	case errors.Is(err, model.ErrUnauthenticated):
 		p.write(w, r, http.StatusUnauthorized, "unauthenticated", "The stream token is missing, invalid, revoked or expired.")
+	case errors.Is(err, model.ErrWatchLimit):
+		ext := map[string]int{}
+		var wl *model.WatchLimitError
+		if errors.As(err, &wl) {
+			ext["limitMinutes"], ext["usedMinutes"] = wl.LimitMinutes, wl.UsedMinutes
+		}
+		p.writeExtended(w, r, http.StatusForbidden, "watch_limit_reached", "The profile's daily watch time is used up.", ext)
+	case errors.Is(err, model.ErrStreamLimit):
+		ext := map[string]int{}
+		var sl *model.StreamLimitError
+		if errors.As(err, &sl) {
+			ext["maxStreams"], ext["activeStreams"] = sl.MaxStreams, sl.ActiveStreams
+		}
+		p.writeExtended(w, r, http.StatusConflict, "stream_limit_reached", "The profile already runs as many streams as it may.", ext)
 	case errors.Is(err, model.ErrTranscodeBusy):
 		w.Header().Set("Retry-After", "30")
 		p.write(w, r, http.StatusServiceUnavailable, "transcode_busy", "The server is busy transcoding; try again later.")

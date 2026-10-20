@@ -90,6 +90,20 @@ func (s *Service) Subtitle(ctx context.Context, g model.PlaybackGrant, trackID i
 	return vttSource(data, trackID), nil
 }
 
+// Tracks returns the audio and subtitle tracks of a media file of a visible title (getItemTracks,
+// I-5); an empty mediaFileID selects the primary file. Sidecar paths stay on the server.
+func (s *Service) Tracks(ctx context.Context, profile model.Profile, itemID, mediaFileID string) (model.TrackList, error) {
+	if len(mediaFileID) > maxClientIDLength {
+		return model.TrackList{}, model.ErrNotFound
+	}
+	scope := visibility.Profile(profile)
+	loc, err := s.vis.MediaFile(ctx, scope, itemID, mediaFileID)
+	if err != nil {
+		return model.TrackList{}, err
+	}
+	return s.vis.Tracks(ctx, scope, loc.ItemID, loc.File.ID)
+}
+
 // convert runs the converter of the track's source.
 func (s *Service) convert(ctx context.Context, loc visibility.MediaFileLocation, t model.Track) ([]byte, error) {
 	if t.Source == "sidecar" {

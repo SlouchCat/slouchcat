@@ -783,6 +783,48 @@ func (q *Queries) AdminListUnrated(ctx context.Context, arg AdminListUnratedPara
 	return items, nil
 }
 
+const adminMediaFileDurations = `-- name: AdminMediaFileDurations :many
+SELECT id, duration_ms FROM media_files WHERE id IN (/*SLICE:ids*/?)
+`
+
+type AdminMediaFileDurationsRow struct {
+	ID         string
+	DurationMs sql.NullInt64
+}
+
+func (q *Queries) AdminMediaFileDurations(ctx context.Context, ids []string) ([]AdminMediaFileDurationsRow, error) {
+	query := adminMediaFileDurations
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminMediaFileDurationsRow{}
+	for rows.Next() {
+		var i AdminMediaFileDurationsRow
+		if err := rows.Scan(&i.ID, &i.DurationMs); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminMergeProgress = `-- name: AdminMergeProgress :exec
 INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
 SELECT p.profile_id, ?1, p.position_ms, p.duration_ms, p.completed, p.updated_at
@@ -910,4 +952,75 @@ func (q *Queries) AdminSoftDeleteItem(ctx context.Context, arg AdminSoftDeleteIt
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const adminStreamItems = `-- name: AdminStreamItems :many
+
+SELECT i.id, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.season_number, i.episode_number, i.episode_end,
+       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, s.title, '') AS series_title
+FROM items AS i
+LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
+LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
+LEFT JOIN items AS p ON p.id = i.parent_id
+LEFT JOIN items AS s ON s.kind = 'series' AND (s.id = p.parent_id OR s.id = p.id)
+LEFT JOIN item_texts AS sd ON sd.item_id = s.id AND sd.lang = 'de'
+LEFT JOIN item_texts AS se ON se.item_id = s.id AND se.lang = 'en'
+WHERE i.id IN (/*SLICE:item_ids*/?)
+`
+
+type AdminStreamItemsRow struct {
+	ID                 string
+	Kind               string
+	Title              string
+	SeasonNumber       sql.NullInt64
+	EpisodeNumber      sql.NullInt64
+	EpisodeEnd         sql.NullInt64
+	ParentSeasonNumber sql.NullInt64
+	SeriesTitle        string
+}
+
+// Stream overview (W-6, M4): titles and durations of running playback sessions. The overview is
+// unfiltered (owner only) and names titles in plain text, never as ItemRef.
+// Title (German text, else English, else the parsed title) with, for an episode, the series title
+// and the season and episode numbers.
+func (q *Queries) AdminStreamItems(ctx context.Context, itemIds []string) ([]AdminStreamItemsRow, error) {
+	query := adminStreamItems
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminStreamItemsRow{}
+	for rows.Next() {
+		var i AdminStreamItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.Title,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.ParentSeasonNumber,
+			&i.SeriesTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

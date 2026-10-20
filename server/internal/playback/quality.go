@@ -3,7 +3,7 @@ package playback
 import "github.com/slouchcat/slouchcat/server/internal/model"
 
 // Quality ladder (W-8, plan 3.5, M4 design section 3.1). Transcodes encode H.264 on one rung; the
-// rung caps the output height and the peak video bit rate, audio is AAC at audioBitrate. The
+// rung caps the output height and the peak video bit rate, audio is AAC at 160 kbit/s. The
 // output never exceeds 1080p (AN-17): 4K sources are scaled when transcoded.
 //
 // The table is the playback package's own until package transcode exposes its rungs (stream A of
@@ -23,9 +23,6 @@ var ladder = []Rung{
 	{Quality: model.Quality480, Height: 480, Bitrate: 2_000_000},
 	{Quality: model.Quality360, Height: 360, Bitrate: 1_000_000},
 }
-
-// audioBitrate is the AAC bit rate of transcoded audio.
-const audioBitrate = 160_000
 
 // phoneRung is the highest rung of a device whose screen is smaller than 1080 lines (phone
 // profile, plan 3.5).
