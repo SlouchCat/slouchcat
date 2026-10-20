@@ -452,7 +452,8 @@
           "title": "Gast {{email}} entfernen?",
           "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort.",
           "confirm": "Gast entfernen"
-        }
+        },
+        "limitsHint": "Gilt für alle Profile des Gastkontos."
       }
     },
     "maintenance": {
@@ -746,7 +747,20 @@
         "save": "Speichern",
         "saving": "Wird gespeichert …"
       },
-      "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}"
+      "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}",
+      "report": {
+        "show": "Schauzeit anzeigen",
+        "hide": "Schauzeit ausblenden",
+        "title": "Schauzeit von {{name}}",
+        "intro": "Minuten pro Tag in den letzten 30 Tagen.",
+        "chart": "Schauzeit pro Tag",
+        "date": "Tag",
+        "minutes": "Minuten",
+        "value": "{{count}} min",
+        "today": "Heute: {{count}} min",
+        "limit": "Limit: {{count}} min pro Tag",
+        "total": "Total: {{count}} min"
+      }
     }
   },
   "invite": {
@@ -810,5 +824,23 @@
       "title": "Person nicht gefunden",
       "body": "Zu dieser Person gibt es hier keine Titel."
     }
+  },
+  "limits": {
+    "title": "Wiedergabe-Limits",
+    "maxHeight": "Höchste Qualität",
+    "none": "Ohne Limit",
+    "bitrate": "Bandbreite (kbit/s)",
+    "bitrateHint": "200 bis 200000. Leer heisst ohne Limit.",
+    "streams": "Gleichzeitige Streams",
+    "streamsHint": "1 bis 16. Leer heisst ohne Limit.",
+    "watch": "Schauzeit pro Tag (Minuten)",
+    "watchHint": "1 bis 1440. Leer heisst ohne Limit.",
+    "range": "Erlaubt sind {{min}} bis {{max}}.",
+    "height": "bis {{height}}p",
+    "bitrateValue": "{{value}} kbit/s",
+    "streamsValue_one": "{{count}} Stream",
+    "streamsValue_other": "{{count}} Streams",
+    "watchValue": "{{count}} min pro Tag",
+    "capped": "Das Gastkonto begrenzt dieses Profil: {{summary}}."
   }
 }

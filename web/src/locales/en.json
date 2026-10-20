@@ -452,7 +452,8 @@
           "title": "Remove guest {{email}}?",
           "body": "Account, profiles and progress are deleted. Running sessions and playback end immediately.",
           "confirm": "Remove guest"
-        }
+        },
+        "limitsHint": "Applies to every profile of the guest account."
       }
     },
     "maintenance": {
@@ -746,7 +747,20 @@
         "save": "Save",
         "saving": "Saving …"
       },
-      "ratingAboveAccount": "FSK {{age}} · Account at most FSK {{max}}"
+      "ratingAboveAccount": "FSK {{age}} · Account at most FSK {{max}}",
+      "report": {
+        "show": "Show watch time",
+        "hide": "Hide watch time",
+        "title": "Watch time of {{name}}",
+        "intro": "Minutes per day over the last 30 days.",
+        "chart": "Watch time per day",
+        "date": "Day",
+        "minutes": "Minutes",
+        "value": "{{count}} min",
+        "today": "Today: {{count}} min",
+        "limit": "Limit: {{count}} min a day",
+        "total": "Total: {{count}} min"
+      }
     }
   },
   "invite": {
@@ -810,5 +824,23 @@
       "title": "Person not found",
       "body": "There are no titles for this person here."
     }
+  },
+  "limits": {
+    "title": "Playback limits",
+    "maxHeight": "Highest quality",
+    "none": "No limit",
+    "bitrate": "Bandwidth (kbit/s)",
+    "bitrateHint": "200 to 200000. Empty means no limit.",
+    "streams": "Concurrent streams",
+    "streamsHint": "1 to 16. Empty means no limit.",
+    "watch": "Watch time per day (minutes)",
+    "watchHint": "1 to 1440. Empty means no limit.",
+    "range": "Allowed are {{min}} to {{max}}.",
+    "height": "up to {{height}}p",
+    "bitrateValue": "{{value}} kbit/s",
+    "streamsValue_one": "{{count}} stream",
+    "streamsValue_other": "{{count}} streams",
+    "watchValue": "{{count}} min a day",
+    "capped": "The guest account limits this profile: {{summary}}."
   }
 }

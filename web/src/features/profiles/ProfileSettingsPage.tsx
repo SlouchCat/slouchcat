@@ -9,10 +9,12 @@ import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ButtonLink, Chip, Notice, Page, Panel, ProfileAvatar, Skeleton, Text } from '@/ui';
 import { AriaButton, ConfirmDialog, FormDialog } from '@/ui/aria';
+import { limitParts } from '../shared/LimitFields';
 import { describeLibraries, useLibraryOptions } from '../shared/useLibraryOptions';
 import { PinSetDialog } from './PinSetDialog';
 import { ProfileForm } from './ProfileForm';
 import { manageProfilesQuery } from './queries';
+import { WatchReport } from './WatchReport';
 import styles from './ProfileSettingsPage.module.css';
 
 type Editing = Profile | 'new' | null;
@@ -28,6 +30,14 @@ export function ProfileSettingsPage() {
   const libraries = useLibraryOptions(isPrimary);
   const [editing, setEditing] = useState<Editing>(null);
   const [pinFor, setPinFor] = useState<Profile | null>(null);
+  // Profiles whose watch-time report is open (K-5).
+  const [reports, setReports] = useState<ReadonlySet<number>>(() => new Set());
+  const toggleReport = (id: number) =>
+    setReports((open) => {
+      const next = new Set(open);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
 
   const invalidate = async () => {
     await Promise.all([
@@ -147,6 +157,11 @@ export function ProfileSettingsPage() {
                           {t('profiles.settings.hasPin')}
                         </Chip>
                       )}
+                      {limitParts(t, profile.effectiveLimits).map((part) => (
+                        <Chip key={part} tone="outline">
+                          {part}
+                        </Chip>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -156,6 +171,16 @@ export function ProfileSettingsPage() {
                 <div className={styles.actions}>
                   <AriaButton isDisabled={!libraries.isReady} onPress={() => setEditing(profile)}>
                     {t('profiles.settings.edit')}
+                  </AriaButton>
+                  <AriaButton
+                    variant="ghost"
+                    aria-expanded={reports.has(profile.id)}
+                    aria-describedby={headingId}
+                    onPress={() => toggleReport(profile.id)}
+                  >
+                    {reports.has(profile.id)
+                      ? t('profiles.settings.report.hide')
+                      : t('profiles.settings.report.show')}
                   </AriaButton>
                   <AriaButton variant="ghost" onPress={() => setPinFor(profile)}>
                     {profile.hasPin
@@ -192,6 +217,7 @@ export function ProfileSettingsPage() {
                     />
                   )}
                 </div>
+                {reports.has(profile.id) && <WatchReport profile={profile} />}
               </Panel>
             </li>
           );

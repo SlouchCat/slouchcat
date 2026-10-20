@@ -69,6 +69,10 @@ describe('profile settings page', () => {
     await user.click(within(dialog).getByRole('radio', { name: 'Auswahl' }));
     await user.click(within(dialog).getByRole('checkbox', { name: 'Serien' }));
     await user.type(within(dialog).getByLabelText(/^PIN/), '4321');
+    // W-8 and K-5: the limits go as one object; an empty field means no limit.
+    await user.click(within(dialog).getByRole('radio', { name: '720p' }));
+    await user.type(within(dialog).getByLabelText('Bandbreite (kbit/s)'), '4000');
+    await user.type(within(dialog).getByLabelText('Schauzeit pro Tag (Minuten)'), '60');
     await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
 
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
@@ -79,6 +83,7 @@ describe('profile settings page', () => {
       accent: 'teal',
       allLibraries: false,
       libraryIds: [2],
+      limits: { maxHeight: 720, maxBitrateKbps: 4000, watchLimitMinutes: 60 },
       pin: '4321',
     });
   });
