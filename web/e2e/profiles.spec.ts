@@ -357,6 +357,11 @@ test.describe('profile management', () => {
     await page.keyboard.press('Tab');
     await expectFocusOn(
       page,
+      article(page, OWNER_PROFILE).getByRole('button', { name: 'Schauzeit anzeigen' }),
+    );
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
       article(page, OWNER_PROFILE).getByRole('button', { name: 'PIN setzen' }),
     );
 
@@ -389,6 +394,18 @@ test.describe('profile management', () => {
     await expect(form.getByRole('radiogroup', { name: 'Farbe' }).locator(':focus')).toHaveCount(1);
     await page.keyboard.press('Tab');
     await expectFocusOn(page, form.getByRole('radio', { name: 'Alle', exact: true }));
+    // The playback limits (W-8, K-5): the quality radios, then the three number fields.
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByRole('radio', { name: 'Ohne Limit' }));
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, form.getByRole('radio', { name: '360p' }));
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByLabel('Bandbreite (kbit/s)'));
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByLabel('Gleichzeitige Streams'));
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByLabel('Schauzeit pro Tag (Minuten)'));
     await page.keyboard.press('Tab');
     await expectFocusOn(page, form.getByLabel(/^PIN/));
     await page.keyboard.press('Tab');

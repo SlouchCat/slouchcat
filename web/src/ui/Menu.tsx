@@ -115,7 +115,14 @@ export function MenuButton({
         UNSTABLE_portalContainer={portalContainer}
       >
         {groups ? (
-          <AriaMenu aria-label={ariaLabel} className={styles.menu} onAction={onAction}>
+          <AriaMenu
+            aria-label={ariaLabel}
+            className={styles.menu}
+            onAction={onAction}
+            // The sections hold the selection, so the menu has no selected key to land on: the
+            // first item takes the focus (and its ring) when the menu opens.
+            autoFocus="first"
+          >
             {groups.map((group) => (
               <MenuSection
                 key={group.id}

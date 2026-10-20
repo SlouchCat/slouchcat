@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CSRF, H264_MKV_LONG_TITLE, HEVC_LONG_TITLE, itemPath } from './catalog';
 import { expectFocusOn } from './keyboard';
+import { limitCapabilities } from './playback';
 
 /**
  * DoD M1b (plan 3.5, W-3): HEVC transcode starts in under 5 s; seeking to 20/50/80 % plays again
@@ -43,24 +44,12 @@ const videoState = (page: Page) =>
     paused: video.paused,
   }));
 
-/**
- * Firefox on Linux decodes HEVC through the system ffmpeg and reports it, so the server would
- * remux. The DoD measures the transcode path (plan 10.3 assumes Firefox without HEVC): `h264Only`
- * reports H.264 as the only video codec for that case.
- */
-async function reportH264Only(page: Page): Promise<void> {
-  await page.route(/\/api\/v1\/items\/[^/]+\/play$/, async (route) => {
-    const body = (route.request().postDataJSON() ?? {}) as {
-      capabilities?: { video: string[]; audio: string[]; hls: string };
-    };
-    if (body.capabilities) body.capabilities.video = ['h264'];
-    await route.continue({ postData: JSON.stringify(body) });
-  });
-}
-
-for (const { title, mode, h264Only } of [
-  { title: HEVC_LONG_TITLE, mode: 'transcode', h264Only: true },
-  { title: H264_MKV_LONG_TITLE, mode: 'remux', h264Only: false },
+// The DoD measures the transcode and the remux path (plan 10.3 assumes a browser without HEVC and
+// without the MKV container): both browsers claim MKV and Firefox on Linux decodes HEVC, so the
+// page reports neither (limitCapabilities); the server would otherwise play the files directly.
+for (const { title, mode, video } of [
+  { title: HEVC_LONG_TITLE, mode: 'transcode', video: ['h264'] },
+  { title: H264_MKV_LONG_TITLE, mode: 'remux', video: undefined },
 ]) {
   test(`${title}: HLS ${mode} starts and seeks to 20/50/80 % within budget`, async ({
     page,
@@ -70,7 +59,7 @@ for (const { title, mode, h264Only } of [
     const detail = await itemPath(page, title);
     const itemId = detail.split('/').pop() ?? '';
     await resetProgress(page, itemId);
-    if (h264Only) await reportH264Only(page);
+    await limitCapabilities(page, { video, containers: ['mp4'] });
     await page.goto(detail);
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 

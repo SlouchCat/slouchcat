@@ -13,6 +13,7 @@ import {
 import {
   H264_TITLE,
   itemIdByTitle,
+  limitCapabilities,
   play,
   player,
   resetProgress,
@@ -73,6 +74,8 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
       ).status(),
     ).toBe(200);
     const viewer = await other.newPage();
+    // Without HEVC and MKV in the profile the viewer's stream is a transcode in both browsers.
+    await limitCapabilities(viewer, { video: ['h264'], containers: ['mp4'] });
     const hevc = await itemIdByTitle(owner, HEVC_LONG_TITLE);
     const second: PlaybackData = await play(viewer, hevc);
 

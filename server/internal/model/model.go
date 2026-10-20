@@ -708,7 +708,7 @@ type PlaybackCapabilities struct {
 	HLS        string   `json:"hls"`                  // native, mse, none
 	MaxWidth   int      `json:"maxWidth,omitempty"`   // screen size in device pixels, 0 unknown
 	MaxHeight  int      `json:"maxHeight,omitempty"`
-	HDR        bool     `json:"hdr,omitempty"` // the display shows HDR
+	HDR        bool     `json:"hdr"` // the display shows HDR (false is stored and shown as such)
 	Name       string   `json:"name,omitempty"`
 	Type       string   `json:"type,omitempty"` // desktop, phone, tablet, tv, other
 }

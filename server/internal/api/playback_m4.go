@@ -244,10 +244,9 @@ func toCapabilities(c model.PlaybackCapabilities) gen.PlaybackCapabilities {
 		containers := c.Containers
 		out.Containers = &containers
 	}
-	if c.HDR {
-		hdr := true
-		out.Hdr = &hdr
-	}
+	// Always sent: a device that reported no HDR display shows "no" in the admin list, not "unknown".
+	hdr := c.HDR
+	out.Hdr = &hdr
 	if c.Type != "" {
 		typ := gen.PlaybackCapabilitiesType(c.Type)
 		out.Type = &typ

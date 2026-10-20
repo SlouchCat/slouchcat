@@ -307,6 +307,7 @@ test('keyboard: form, link panel, revoke dialog and guest dialog; no focus trap'
     await tabTo(page, edit, 60);
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: `Gast ${GUEST.email} bearbeiten` });
+    await expect(dialog).toBeVisible();
     await expectFocusOn(page, dialog.getByRole('radio', { name: 'FSK 18' }));
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();

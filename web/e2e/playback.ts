@@ -129,6 +129,28 @@ export async function arrowTo(
   throw new Error(`${key} did not reach the element within ${max} presses`);
 }
 
+/**
+ * Narrows what the page reports with startPlayback (W-1): Chromium and Firefox claim the MKV
+ * container, and Firefox on Linux decodes HEVC through the system ffmpeg, so the server would
+ * play such files directly. Specs that measure the remux or transcode path report only `video`
+ * and `containers` given here (the other fields stay as the browser reports them).
+ */
+export async function limitCapabilities(
+  page: Page,
+  limits: { video?: string[]; containers?: string[] },
+): Promise<void> {
+  await page.route(/\/api\/v1\/items\/[^/]+\/play$/, async (route) => {
+    const body = (route.request().postDataJSON() ?? {}) as {
+      capabilities?: { video: string[]; containers?: string[] };
+    };
+    if (body.capabilities) {
+      if (limits.video) body.capabilities.video = limits.video;
+      if (limits.containers) body.capabilities.containers = limits.containers;
+    }
+    await route.continue({ postData: JSON.stringify(body) });
+  });
+}
+
 /** Opens the player of `itemId` and returns the started playback; waits until it plays. */
 export async function play(page: Page, itemId: string, search = ''): Promise<PlaybackData> {
   const { status, body } = await startOf(page, () => page.goto(`/play/${itemId}${search}`));

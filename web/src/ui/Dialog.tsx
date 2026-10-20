@@ -90,12 +90,12 @@ export function FormDialog({
   // before the dialog's own effect looks at the focus.
   const focusFirstField = useCallback((root: HTMLDivElement | null) => {
     if (!root) return;
+    // The first field in document order: a text field, or the checked radio of a group that
+    // comes first (a dialog may start with radios and have text fields further down).
     const field =
       root.querySelector<HTMLElement>(
-        'input:not([type="radio"]):not([type="checkbox"]), textarea, select',
-      ) ??
-      root.querySelector<HTMLElement>('input:checked') ??
-      root.querySelector<HTMLElement>('input, button');
+        'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), textarea, select, input:checked',
+      ) ?? root.querySelector<HTMLElement>('input, button');
     field?.focus();
   }, []);
 
