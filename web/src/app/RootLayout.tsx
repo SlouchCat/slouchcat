@@ -1,10 +1,15 @@
 import { Outlet, useRouter, type ErrorComponentProps } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button, LinkRouterProvider, Notice, Page } from '@/ui';
+import { useOfflineEngine } from './useOfflineEngine';
 
-/** Lets the app's links (`href`) navigate through the app router instead of reloading. */
+/**
+ * Lets the app's links (`href`) navigate through the app router instead of reloading, and runs
+ * the offline engine of the page (M5).
+ */
 export function RootLayout() {
   const router = useRouter();
+  useOfflineEngine();
   return (
     <LinkRouterProvider navigate={(href) => void router.navigate({ href })}>
       <Outlet />

@@ -1,0 +1,156 @@
+/* Downloads page (in the app frame) */
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 44rem;
+  margin-bottom: var(--sc-space-8);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-10);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  max-width: 56rem;
+}
+
+.sectionTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 10rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  max-width: var(--sc-size-form-max);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* Offline library (no app frame) */
+
+.library {
+  min-height: 100dvh;
+  padding: var(--sc-space-6) var(--page-gutter) var(--sc-space-16);
+  background-color: var(--sc-color-bg-base);
+  background-image: radial-gradient(
+    110% 60% at 50% 0%,
+    var(--sc-color-bg-elevated) 0%,
+    var(--sc-color-bg-base) 70%
+  );
+}
+
+.libraryTop {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.libraryBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-8);
+  max-width: var(--sc-size-content-max);
+  margin: var(--sc-space-12) auto 0;
+}
+
+.libraryHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3) var(--sc-space-6);
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.libraryActions {
+  display: flex;
+  gap: var(--sc-space-2);
+}
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--sc-size-poster-sm), 1fr));
+  gap: var(--sc-space-6) var(--sc-space-4);
+  margin: 0;
+
+  /* Room for the focus ring and the focus scale of the cards. */
+  padding: var(--sc-space-2);
+  list-style: none;
+}
+
+@media (width >= 768px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(var(--sc-size-poster-md), 1fr));
+  }
+}
+
+.pendingList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pendingItem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+}

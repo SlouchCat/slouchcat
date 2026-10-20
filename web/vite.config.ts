@@ -105,8 +105,13 @@ export default defineConfig({
       },
       workbox: {
         // Precache the app shell only (built JS, CSS, HTML, icons); never media or API answers.
+        // That includes every lazy chunk (the offline library, its player, the OPFS worker and
+        // the locale files), so the app starts and plays downloads without network (C-1, M5).
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js', 'spike/**'],
+        // Every navigation without network gets the shell, /offline and /offline/play/* included;
+        // the router opens the offline library from there.
+        navigateFallback: 'index.html',
         // The API and the offline spike page are never answered with the app shell.
         navigateFallbackDenylist: [/^\/api\//, /^\/spike\//],
         runtimeCaching: [

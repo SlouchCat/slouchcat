@@ -1,5 +1,6 @@
 import { test as base, expect, type APIRequestContext } from '@playwright/test';
 import { ownerApi, removeGuests, resetProfiles, stopAllStreams } from './accounts';
+import { removeDeviceDownloads } from './offline';
 
 /**
  * A client address of its own for every test (10.x.y.z from the test's name and browser). The
@@ -16,8 +17,8 @@ function clientAddress(key: string): string {
 // pass it on.
 // `owner`: an API client with the shared session of the main account (primary profile, never
 // switched), for setting up and tidying data. It needs no login. It runs for every test (`auto`):
-// before and after each one the account is left with its primary profile only, without guests and
-// without running streams.
+// before and after each one the account is left with its primary profile only, without guests,
+// without running streams and without downloads on the shared session's device.
 export const test = base.extend<{ owner: APIRequestContext }>({
   extraHTTPHeaders: async ({ browserName }, provide, testInfo) => {
     const address = clientAddress(`${browserName}/${testInfo.titlePath.join('/')}`);
@@ -29,11 +30,14 @@ export const test = base.extend<{ owner: APIRequestContext }>({
       const api = await ownerApi(playwright, baseURL, extraHTTPHeaders);
       try {
         await stopAllStreams(api);
+        await removeDeviceDownloads(api);
         await resetProfiles(api);
         await removeGuests(api);
         await provide(api);
       } finally {
         await stopAllStreams(api);
+        // Downloads of the shared device would come back into every later spec's browser (M5).
+        await removeDeviceDownloads(api);
         await resetProfiles(api);
         await removeGuests(api);
         await api.dispose();

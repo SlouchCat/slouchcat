@@ -17,7 +17,15 @@ export function AppLayout() {
   const isPrimary = session.profile.isPrimary;
   const isAdmin = isPrimary && session.account.role === 'owner';
 
-  const nav: NavItem[] = [{ href: paths.home, label: t('nav.home'), current: pathname === '/' }];
+  const nav: NavItem[] = [
+    { href: paths.home, label: t('nav.home'), current: pathname === '/' },
+    // Every profile has its downloads on this device (M5).
+    {
+      href: paths.downloads,
+      label: t('nav.downloads'),
+      current: pathname.startsWith(paths.downloads),
+    },
+  ];
   if (isAdmin) {
     nav.push(
       {

@@ -24,7 +24,8 @@
     "switchProfile": "Profil wechseln, aktuell {{name}}",
     "maintenance": "Pflege",
     "devices": "Geräte",
-    "streams": "Streams"
+    "streams": "Streams",
+    "downloads": "Downloads"
   },
   "system": {
     "server": {
@@ -63,7 +64,11 @@
       "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut.",
       "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers.",
       "watch_limit_reached": "Die Schauzeit dieses Profils für heute ist aufgebraucht.",
-      "stream_limit_reached": "Dieses Profil spielt schon so viele Streams wie erlaubt."
+      "stream_limit_reached": "Dieses Profil spielt schon so viele Streams wie erlaubt.",
+      "device_required": "Dieses Gerät ist für die Sitzung nicht bekannt. Melde dich erneut an.",
+      "not_downloadable": "Diesen Titel kann man nicht herunterladen.",
+      "download_not_ready": "Der Download wird auf dem Server noch vorbereitet.",
+      "download_evicted": "Die vorbereitete Datei ist nicht mehr auf dem Server. Sie wird neu vorbereitet."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -454,7 +459,8 @@
           "action": "Entfernen",
           "title": "Gast {{email}} entfernen?",
           "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort.",
-          "confirm": "Gast entfernen"
+          "confirm": "Gast entfernen",
+          "offline": "Downloads auf den Geräten des Gastes verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie."
         },
         "limitsHint": "Gilt für alle Profile des Gastkontos."
       }
@@ -920,5 +926,149 @@
     "streamsValue_other": "{{count}} Streams",
     "watchValue": "{{count}} min pro Tag",
     "capped": "Das Gastkonto begrenzt dieses Profil: {{summary}}."
+  },
+  "offline": {
+    "unknownTitle": "Unbekannter Titel",
+    "episodeTitle": "{{code}} · {{title}} · {{series}}",
+    "quality": {
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
+    "state": {
+      "deleting": "Wird gelöscht",
+      "complete": "Auf diesem Gerät",
+      "quota": "Speicher voll",
+      "storage": "Speichern fehlgeschlagen",
+      "gone": "Nicht mehr verfügbar",
+      "evicted": "Wird neu vorbereitet",
+      "wifi": "Wartet auf WLAN",
+      "fetching": "Wird geladen ({{percent}} %)",
+      "preparing": "Wird vorbereitet ({{percent}} %)",
+      "budgetFull": "Wartet auf Platz auf dem Server",
+      "queued": "Wartet auf den Server",
+      "paused": "Pausiert, der Server spielt gerade Streams ab",
+      "failed": "Vorbereitung fehlgeschlagen"
+    },
+    "downloads": {
+      "title": "Downloads",
+      "intro": "Titel, die {{name}} auf diesem Gerät gespeichert hat. Sie spielen auch ohne Netz.",
+      "unsupported": {
+        "title": "Downloads sind hier nicht möglich",
+        "body": "Dieser Browser kann keine Titel speichern. Downloads brauchen eine sichere Verbindung (HTTPS) und einen aktuellen Browser."
+      },
+      "list": "Auf diesem Gerät",
+      "empty": "Noch keine Downloads auf diesem Gerät. Filme, Folgen und ganze Staffeln lädst du auf ihrer Detailseite herunter.",
+      "columns": {
+        "title": "Titel",
+        "state": "Stand",
+        "size": "Grösse",
+        "actions": "Aktionen"
+      },
+      "auto": "Automatisch",
+      "sizeOf": "{{done}} von {{total}}",
+      "play": "Abspielen",
+      "playLabel": "{{title}} abspielen",
+      "delete": {
+        "action": "Löschen",
+        "label": "{{title}} löschen",
+        "title": "Download {{title}} löschen?",
+        "body": "Die Datei wird von diesem Gerät entfernt. Du kannst den Titel später wieder herunterladen.",
+        "confirm": "Download löschen"
+      },
+      "removed": "{{title}} wurde gelöscht.",
+      "offline": "Keine Verbindung zum Server. Gespeicherte Titel spielen trotzdem; Änderungen gehen beim nächsten Kontakt an den Server.",
+      "pinHint": {
+        "title": "PIN für die Offline-Nutzung",
+        "body": "Damit {{name}} auf diesem Gerät auch offline geöffnet werden kann, gib die PIN des Profils hier einmal ein.",
+        "action": "PIN eingeben"
+      }
+    },
+    "storage": {
+      "title": "Speicher",
+      "meter": "Speicherbelegung",
+      "downloads": "Downloads: {{size}}",
+      "other": "Andere Daten: {{size}}",
+      "used": "{{used}} von {{quota}} belegt",
+      "free": "Frei: {{free}} von {{quota}}",
+      "unknown": "Downloads: {{size}}. Dieser Browser nennt den verfügbaren Speicher nicht.",
+      "persisted": "Der Browser behält die Downloads dauerhaft.",
+      "notPersisted": "Der Browser darf die Downloads löschen, wenn der Speicher knapp wird.",
+      "apple": {
+        "title": "Hinweis für iPhone, iPad und Safari",
+        "body": "Safari löscht die Daten einer Web-App, die längere Zeit nicht geöffnet wurde. Öffne Slouchcat regelmässig, damit die Downloads erhalten bleiben; als App auf dem Home-Bildschirm sind sie besser geschützt."
+      }
+    },
+    "rules": {
+      "title": "Automatische Downloads",
+      "intro": "Lädt auf diesem Gerät die nächste Folge jeder Serie, die {{name}} in den letzten 60 Tagen geschaut hat.",
+      "options": "Einstellungen",
+      "enabled": "Automatische Downloads auf diesem Gerät",
+      "nextEpisodes": "Nächste Folge begonnener Serien",
+      "wifiOnly": "Nur im WLAN",
+      "wifiIos": "iPhone und iPad verraten dem Browser nicht, ob sie im WLAN sind. Automatische Downloads laden dort, solange die App geöffnet ist.",
+      "maxCount": "Höchstens so viele ungesehene Folgen",
+      "maxCountHint": "{{min}} bis {{max}}",
+      "maxCountInvalid": "Gib eine Zahl von {{min}} bis {{max}} an.",
+      "quality": "Qualität",
+      "save": "Regel speichern",
+      "saved": "Gespeichert. Die Regel gilt ab dem nächsten Abgleich."
+    },
+    "dialog": {
+      "button": "Herunterladen",
+      "seasonButton": "Staffel herunterladen",
+      "title": "{{title}} herunterladen",
+      "intro": "Der Titel wird auf diesem Gerät gespeichert und spielt auch ohne Netz.",
+      "seasonIntro_one": "Die {{count}} Folge dieser Staffel wird auf diesem Gerät gespeichert.",
+      "seasonIntro_other": "Alle {{count}} Folgen dieser Staffel werden auf diesem Gerät gespeichert.",
+      "quality": "Qualität",
+      "option": "{{quality}} · {{height}}p · ca. {{size}}",
+      "audio": "Tonspur",
+      "subtitles": "Untertitel: {{list}}",
+      "noSubtitles": "Keine Textuntertitel.",
+      "submit": "Herunterladen",
+      "submitting": "Wird gestartet …",
+      "started_one": "Download gestartet. Den Stand siehst du unter Downloads.",
+      "started_other": "{{count}} Downloads gestartet. Den Stand siehst du unter Downloads."
+    },
+    "status": {
+      "open": "Zu den Downloads",
+      "season": "{{done}} von {{total}} Folgen auf diesem Gerät"
+    },
+    "library": {
+      "title": "Offline-Bibliothek",
+      "intro": "Wer schaut? Diese Profile haben Downloads auf diesem Gerät.",
+      "toApp": "Zur App",
+      "offline": "Offline",
+      "profiles": "Profile",
+      "empty": {
+        "title": "Keine Downloads auf diesem Gerät",
+        "body": "Ohne Verbindung zum Server spielen nur heruntergeladene Titel.",
+        "hint": "Sobald du online Titel herunterlädst, findest du sie hier auch ohne Netz."
+      },
+      "downloadsOf": "Downloads von {{name}}",
+      "switchProfile": "Profil wechseln",
+      "list": "Heruntergeladene Titel",
+      "noneReady": "Noch kein Titel ist ganz auf diesem Gerät.",
+      "pending": "Noch nicht vollständig"
+    },
+    "pin": {
+      "introOffline": "Dieses Profil hat eine eigene Offline-PIN.",
+      "offlineLabel": "Offline-PIN",
+      "offlineHint": "6 bis 12 Ziffern.",
+      "offlineFormat": "Die Offline-PIN besteht aus 6 bis 12 Ziffern.",
+      "unavailable": {
+        "title": "Offline gesperrt",
+        "body": "Gib die PIN dieses Profils einmal online auf diesem Gerät ein, dann lässt es sich auch offline öffnen."
+      }
+    },
+    "player": {
+      "failed": "Die gespeicherte Datei lässt sich nicht abspielen.",
+      "subtitles": "Untertitel",
+      "missing": {
+        "title": "Download nicht verfügbar",
+        "body": "Diesen Download gibt es auf diesem Gerät nicht (mehr), er ist noch nicht vollständig oder für dieses Profil nicht freigegeben."
+      }
+    }
   }
 }

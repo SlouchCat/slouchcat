@@ -474,6 +474,26 @@ META
     "${x264[@]}" "${aac[@]}" -metadata title="Episode $ep" "$f"
 done
 
+# M5 offline (O-2 season download): six short episodes, 1280x720 H.264/AAC MP4 of 8 s each, a
+# tone of its own per episode; episode 1 has a German SRT next to it (a WebVTT sidecar of the
+# download). The web e2e specs use these names.
+download_show="Slouchcat Test Download Show (2024)"
+write_srt "$subs_dir/download-de.srt" "Erster Untertitel der Download-Serie" \
+  "Zweiter Untertitel mit Umlauten: äöü" "Dritter Untertitel"
+for ep in 1 2 3 4 5 6; do
+  f="$(printf '%s/TV/%s/Season 01/%s S01E%02d.mp4' "$OUT_DIR" "$download_show" "$download_show" "$ep")"
+  if want "$f"; then
+    "${ff[@]}" -f lavfi -i "testsrc2=size=1280x720:rate=24:duration=8" \
+      -f lavfi -i "sine=frequency=$((300 + 50 * ep)):sample_rate=48000:duration=8" \
+      "${x264[@]}" "${aac[@]}" -movflags +faststart \
+      -metadata title="Episode $ep" -metadata show="Slouchcat Test Download Show" \
+      -metadata season_number=1 -metadata episode_sort="$ep" "$f"
+    if ((ep == 1)); then
+      cp "$subs_dir/download-de.srt" "${f%.mp4}.de.srt"
+    fi
+  fi
+done
+
 # Summary.
 echo
 echo "== ffprobe summary ($OUT_DIR)"

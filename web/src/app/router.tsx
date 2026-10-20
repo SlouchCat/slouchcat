@@ -1,3 +1,4 @@
+import type { SessionInfo } from '@slouchcat/api-client';
 import type { QueryClient } from '@tanstack/react-query';
 import {
   createRootRouteWithContext,
@@ -10,6 +11,8 @@ import {
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
+import { offlineChoice } from '@/features/offline/offlineSession';
+import { offlineSupported } from '@/features/offline/support';
 import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
 import { paths } from './paths';
@@ -27,14 +30,36 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
+/** The offline library and its player: they never ask the server (C-1, O-4). */
+const isOfflinePath = (pathname: string) =>
+  pathname === paths.offline || pathname.startsWith(`${paths.offline}/`);
+
+/** fetch rejects with a TypeError when the network or the server cannot be reached. */
+const isNetworkError = (error: unknown) => error instanceof TypeError;
+
 // Guard: the session first. A session exists only after the wizard ran, so `/setup` is asked only
 // when there is none (401). On the start page its data is requested in parallel with the session
 // instead of after the guard (P-10: two round trips less before the hero image). The prefetch is
 // not awaited, so the page renders its skeleton as soon as the session is known.
+// Offline start (C-1): an app started without network (no session known yet and the browser
+// offline, or the session request fails at the network) opens the offline library right away,
+// where the browser can keep downloads. Online nothing changes: a known session is never asked
+// for again, and any other failure still shows the error page.
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   beforeLoad: async ({ context: { queryClient }, location }) => {
+    if (isOfflinePath(location.pathname)) return;
+    // Without download storage (plain HTTP) there is no offline library: the error page stays.
+    const offline = offlineSupported();
+    const known = queryClient.getQueryData<SessionInfo | null>(sessionQuery.queryKey);
+    if (offline && known === undefined && !navigator.onLine) throw redirect({ to: '/offline' });
     if (location.pathname === paths.home) void queryClient.prefetchQuery(homeQuery);
-    const session = await queryClient.ensureQueryData(sessionQuery);
+    let session: SessionInfo | null;
+    try {
+      session = await queryClient.ensureQueryData(sessionQuery);
+    } catch (error) {
+      if (offline && isNetworkError(error)) throw redirect({ to: '/offline' });
+      throw error;
+    }
     const setupRequired =
       !session && (await queryClient.ensureQueryData(setupStatusQuery)).setupRequired;
     const onSetup = location.pathname === paths.setup;
@@ -68,6 +93,37 @@ const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/invite/$token',
   component: lazyRouteComponent(() => import('@/features/invite/InvitePage'), 'InvitePage'),
+});
+
+/**
+ * The offline library (O-4, C-1): the downloads of this device for a profile chosen here, with
+ * the PIN checked against the stored verifier. Reachable without a session and without network.
+ */
+const offlineRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/offline',
+  beforeLoad: () => loadSpatialNavigation(),
+  component: lazyRouteComponent(
+    () => import('@/features/offline/OfflineLibraryPage'),
+    'OfflineLibraryPage',
+  ),
+});
+
+/**
+ * The player of a download, online and offline. It plays for the profile chosen in the offline
+ * library, else for the session's active profile; without either the library comes first.
+ */
+const offlinePlayRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/offline/play/$downloadId',
+  beforeLoad: ({ context: { queryClient } }) => {
+    const session = queryClient.getQueryData<SessionInfo | null>(sessionQuery.queryKey);
+    if (!offlineChoice() && !session?.profile) throw redirect({ to: '/offline' });
+  },
+  component: lazyRouteComponent(
+    () => import('@/features/offline/OfflinePlayerPage'),
+    'OfflinePlayerPage',
+  ),
 });
 
 /** Everything behind the login: a session, with or without a chosen profile. */
@@ -189,6 +245,12 @@ const accessRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/AccessPage'), 'AccessPage'),
 });
 
+const downloadsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/downloads',
+  component: lazyRouteComponent(() => import('@/features/offline/DownloadsPage'), 'DownloadsPage'),
+});
+
 const playRoute = createRoute({
   getParentRoute: () => activeRoute,
   path: '/play/$itemId',
@@ -204,6 +266,8 @@ export const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,
   inviteRoute,
+  offlineRoute,
+  offlinePlayRoute,
   authedRoute.addChildren([
     profilesRoute,
     activeRoute.addChildren([
@@ -218,6 +282,7 @@ export const routeTree = rootRoute.addChildren([
         adminItemRoute,
         accessRoute,
         profileSettingsRoute,
+        downloadsRoute,
       ]),
       playRoute,
     ]),

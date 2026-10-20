@@ -36,6 +36,7 @@ src/features/auth/    Anmeldung /login (K-1)
 src/features/catalog/ Startseite / (E-1) und Detailseite /items/$itemId
 src/features/player/  Player /play/$itemId (W-1 Direct Play, W-5 Fortschritt)
 src/features/admin/   Bibliotheken /admin/libraries (A-1, B-1)
+src/features/offline/ Downloads /downloads, Offline-Bibliothek /offline, Offline-Player (M5)
 src/features/system/  Serverstatus (Anmelde- und Einrichtungsseite)
 e2e/                  Playwright: eine Tastatursuite je Seite, globale Einrichtung, Serverstart
 scripts/icons.mjs     PWA-Icons aus icon.svg
@@ -135,6 +136,19 @@ Leerlauf): vorab gecacht wird nur die App-Hülle (JS, CSS, HTML, Icons, Manifest
 `/api/` und `/spike/` erhalten nie die App-Hülle als Navigations-Rückfall. Laufzeit-Caching:
 `/api/v1/items/*/images/*` CacheFirst (höchstens 300 Einträge, 30 Tage); alles andere unter `/api/`
 NetworkOnly (JSON, Streams).
+
+## Offline (M5)
+
+`src/features/offline/`: IndexedDB `slouchcat-offline` (`idb`, Stores `downloads`, `profiles`, `events`,
+`meta`), Dateien in OPFS unter `/downloads/<id>/` (`media.mp4`, `<track>.vtt`, `poster`), geschrieben im
+Worker `opfs.worker.ts` mit `createSyncAccessHandle` (Rückfall `createWritable`). Die Engine
+(`engine.ts`, eigener Chunk, startet im Leerlauf aus `RootLayout`) gleicht beim Start, bei `online`, bei
+Fokus und alle 60 s ab (`POST /offline/sync`), holt fertige Downloads in 8-MiB-Bereichen mit
+Wiederaufnahme und lädt die Ereignisse der Offline-Wiedergabe hoch. Der Offline-Player spielt über
+hls.js mit einer aus dem Manifest erzeugten Playlist (Byte-Bereiche) und einem Loader, der aus OPFS
+liest. Ohne Netz beim Start (Sitzungsabfrage scheitert am Netz oder `navigator.onLine` ist falsch)
+öffnet der Wächter `/offline`; online ändert sich nichts. Sichtbarkeit entscheidet nur der Server:
+angezeigt wird ein Download nur den Profilen in seinen `allowedProfileIds`.
 
 ## Tastatursuite (Playwright)
 

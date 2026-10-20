@@ -22,6 +22,8 @@ const names: IconName[] = [
   'check',
   'copy',
   'external',
+  'download',
+  'trash',
 ];
 
 const meta = {

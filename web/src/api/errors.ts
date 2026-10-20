@@ -25,6 +25,10 @@ const problemKeys = {
   too_many_attempts: 'errors.code.too_many_attempts',
   watch_limit_reached: 'errors.code.watch_limit_reached',
   stream_limit_reached: 'errors.code.stream_limit_reached',
+  device_required: 'errors.code.device_required',
+  not_downloadable: 'errors.code.not_downloadable',
+  download_not_ready: 'errors.code.download_not_ready',
+  download_evicted: 'errors.code.download_evicted',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

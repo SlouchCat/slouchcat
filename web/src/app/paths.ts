@@ -10,6 +10,11 @@ export const paths = {
   adminMaintenance: '/admin/maintenance',
   adminDevices: '/admin/devices',
   adminStreams: '/admin/streams',
+  /** Downloads of the active profile on this device (M5). */
+  downloads: '/downloads',
+  /** The offline library: works without a session and without network (C-1, O-4). */
+  offline: '/offline',
+  offlinePlay: (downloadId: string) => `/offline/play/${encodeURIComponent(downloadId)}`,
   item: (id: string) => `/items/${encodeURIComponent(id)}`,
   /** The player; `file` picks a version (media file) of the title (B-5). */
   play: (id: string, file?: string) =>

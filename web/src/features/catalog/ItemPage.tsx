@@ -8,6 +8,7 @@ import { apiUrl, imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
+import { isDownloadable, offlineSupported } from '@/features/offline/support';
 import { formatBytes, formatClock, formatResolution, formatRuntime } from '@/lib/format';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -48,9 +49,18 @@ const TrailerPanel = lazy(() =>
   import('./TrailerPanel').then((module) => ({ default: module.TrailerPanel })),
 );
 
+// "Herunterladen" and the download state (M5) read the offline database: a chunk of their own,
+// loaded only where the browser can keep downloads.
+const DownloadAction = lazy(() =>
+  import('@/features/offline/DownloadAction').then((module) => ({
+    default: module.DownloadAction,
+  })),
+);
+
 const PLAY_KEY = 'detail-play';
 const BACK_KEY = 'detail-back';
 const TRAILER_KEY = 'detail-trailer';
+const DOWNLOAD_KEY = 'detail-download';
 // Rendered poster width (ItemPage.module.css, wide layout only).
 const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
 
@@ -143,6 +153,17 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
         >
           {t('item.trailer')}
         </SpatialButton>
+      )}
+      {/* After play, back and trailer, so their order for arrows and Tab stays as it was. */}
+      {offlineSupported() && isDownloadable(item.kind) && (
+        <Suspense fallback={null}>
+          <DownloadAction
+            target={item}
+            mediaFileId={item.mediaFiles.length > 1 ? file?.id : undefined}
+            available={item.kind === 'season' || file?.available === true}
+            focusKey={DOWNLOAD_KEY}
+          />
+        </Suspense>
       )}
       {canManage && (
         <SpatialButtonLink href={paths.adminItem(item.id)} variant="ghost" size="lg" icon="info">
@@ -293,6 +314,19 @@ function Seasons({ seasons }: { seasons: readonly ItemRef[] }) {
         options={seasons.map((season) => ({ value: season.id, label: season.title }))}
       />
       <SeasonEpisodes seasonId={current.id} />
+      {/* Below the episodes: the arrows from the season chips still land on the episodes. */}
+      {offlineSupported() && (
+        <Suspense fallback={null}>
+          <SpatialGroup className={styles.seasonActions}>
+            <DownloadAction
+              key={current.id}
+              target={current}
+              focusKey="detail-season-download"
+              size="md"
+            />
+          </SpatialGroup>
+        </Suspense>
+      )}
     </section>
   );
 }

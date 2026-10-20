@@ -187,7 +187,7 @@ export function GuestsSection({ libraries }: { libraries: LibraryOptions }) {
                           </AriaButton>
                         }
                         title={t('admin.access.guests.remove.title', { email: guest.email })}
-                        body={t('admin.access.guests.remove.body')}
+                        body={`${t('admin.access.guests.remove.body')} ${t('admin.access.guests.remove.offline')}`}
                         confirmLabel={t('admin.access.guests.remove.confirm')}
                         cancelLabel={t('common.cancel')}
                         tone="danger"
