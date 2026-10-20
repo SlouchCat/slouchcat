@@ -469,7 +469,14 @@ func TestOrderPartsAndChapters(t *testing.T) {
 		t.Errorf("single file chapters %+v", single)
 	}
 	// M6 review m-9: a book with more marks than maxBookChapters keeps that many, the last one runs
-	// to the end of the book.
+	// to the end of the book; a real long book (544 marks, verifier finding) keeps every chapter.
+	var long []transcode.Chapter
+	for i := range 544 {
+		long = append(long, transcode.Chapter{Start: time.Duration(i) * time.Second, End: time.Duration(i+1) * time.Second})
+	}
+	if got := bookChapters([]bookPart{{id: "l", rel: "l.m4b", durationMs: 544_000, probe: probe("", 544*time.Second, long...)}}, "Buch"); len(got) != 544 {
+		t.Errorf("a book with 544 chapter marks keeps %d chapters, want 544", len(got))
+	}
 	var marks []transcode.Chapter
 	for i := range maxBookChapters + 20 {
 		marks = append(marks, transcode.Chapter{Start: time.Duration(i) * time.Second, End: time.Duration(i+1) * time.Second})

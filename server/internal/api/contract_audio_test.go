@@ -42,6 +42,16 @@ func TestContractAudio(t *testing.T) {
 				assertOnlyVisible(t, f, "getItem "+m.Label, profile, titles, itemIDsIn(t, rec, titles))
 			}
 		}
+		// The explicit podcast (AN-2: channel itunes:explicit = FSK 18): its episode list and its
+		// inheriting episode answer 404 below 18, with the episode's play and stream as well.
+		rec18 := send(t, h, http.MethodGet, BasePath+"/items/"+a.ExplicitPodcast.ID+"/episodes", token, "", nil)
+		if want := f.VisibleTo(profile, a.ExplicitPodcast); want != (rec18.Code == http.StatusOK) {
+			t.Errorf("%s: episodes of the explicit podcast: status %d, visible want %v", profile.Name, rec18.Code, want)
+		}
+		play := send(t, h, http.MethodPost, BasePath+"/items/"+a.ExplicitPodcastEpisode.ID+"/play", token, `{}`, nil)
+		if want := f.VisibleTo(profile, a.ExplicitPodcastEpisode); !want && play.Code != http.StatusNotFound {
+			t.Errorf("%s: play of the episode of the explicit podcast: %d, want 404", profile.Name, play.Code)
+		}
 		// The episodes of the podcast, newest first (published one day apart in fixture order).
 		rec := send(t, h, http.MethodGet, BasePath+"/items/"+a.Podcast.ID+"/episodes?limit=200", token, "", nil)
 		if !f.VisibleTo(profile, a.Podcast) {
@@ -220,7 +230,7 @@ func TestContractAudioAdmin(t *testing.T) {
 	for _, p := range list {
 		counts[p.ID] = p.EpisodeCount
 	}
-	if len(list) != 2 || counts[a.Podcast.ID] != 6 || counts[a.Empty.ID] != 0 {
+	if len(list) != 3 || counts[a.Podcast.ID] != 6 || counts[a.Empty.ID] != 0 || counts[a.ExplicitPodcast.ID] != 1 {
 		t.Errorf("listPodcasts = %+v", list)
 	}
 	if rec := send(t, h, http.MethodPost, BasePath+"/admin/podcasts/"+a.Podcast.ID+"/refresh", "p18", "", nil); rec.Code != http.StatusAccepted {

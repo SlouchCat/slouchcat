@@ -427,9 +427,13 @@ type chapterRow struct {
 // partNumberPrefix is the number before the title in a part's file name ("01 - Kapitel 1").
 var partNumberPrefix = regexp.MustCompile(`^\d+\s*[-._]?\s*`)
 
-// maxBookChapters bounds the chapter list of a book (it is written in one transaction): the last
-// kept chapter runs to the end of the book.
-const maxBookChapters = 500
+// maxBookChapters bounds the chapter list of a book against broken files with absurd chapter
+// marks: the last kept chapter runs to the end of the book. The list is replaced in one transaction
+// so a reader never sees half of it; that deliberately exceeds the 500-row batch guideline of the
+// job queue (package jobs), whose aim is a transaction far below the lease: a few thousand small
+// inserts take milliseconds. Real books stay far below the bound (the largest of the reference
+// collection has 544 chapters, docs/perf/M6.md).
+const maxBookChapters = 5000
 
 // bookChapters computes the book-wide chapters of the ordered, probed parts of a book: the chapter
 // marks of a part with at least two, clamped to the part (transcode.PartChapters, shared with

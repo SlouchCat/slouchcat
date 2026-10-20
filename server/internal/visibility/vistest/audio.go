@@ -38,6 +38,11 @@ type Audio struct {
 	EnclosureOnly Movie
 	// Empty is a podcast without episodes: no content, so it is unavailable and invisible.
 	Empty Movie
+	// ExplicitPodcast is a podcast whose channel is itunes:explicit (FSK 18, rating_source feed,
+	// AN-2) with one episode that has no explicit flag of its own and inherits the 18.
+	ExplicitPodcast Movie
+	// ExplicitPodcastEpisode is that episode (file and enclosure).
+	ExplicitPodcastEpisode Movie
 	// EnclosureServer serves every episode's Content at its Enclosure URL with Range support.
 	EnclosureServer *httptest.Server
 }
@@ -50,7 +55,7 @@ func (a Audio) Titles() []Movie {
 	out := append([]Movie{}, a.Books...)
 	out = append(out, a.Parts, a.Podcast)
 	out = append(out, a.Episodes...)
-	return append(out, a.Explicit, a.EnclosureOnly, a.Empty)
+	return append(out, a.Explicit, a.EnclosureOnly, a.Empty, a.ExplicitPodcast, a.ExplicitPodcastEpisode)
 }
 
 // EnclosureType is the MIME type of every fixture enclosure.
@@ -152,8 +157,9 @@ func (f *Fixture) AddAudio(t testing.TB) {
 	exec(t, f.DB, `UPDATE items SET rating_source = 'library', author = 'Podcasterin', feed_url = ?, feed_checked_at = 1 WHERE id = ?`,
 		a.EnclosureServer.URL+"/feed.xml", a.Podcast.ID)
 	day := time.Date(2026, 10, 1, 6, 0, 0, 0, time.UTC)
+	parent := a.Podcast.ID
 	episode := func(label string, own, effective *int, withFile, explicit bool) Movie {
-		m := add(Movie{Kind: "podcast_episode", Label: label, ParentID: a.Podcast.ID, Rating: own, Effective: effective}, pods.ID)
+		m := add(Movie{Kind: "podcast_episode", Label: label, ParentID: parent, Rating: own, Effective: effective}, pods.ID)
 		day = day.Add(24 * time.Hour)
 		name := "episode-" + strings.ToLower(label) + ".mp3"
 		m.Enclosure = a.EnclosureServer.URL + "/episodes/" + name
@@ -197,6 +203,13 @@ func (f *Fixture) AddAudio(t testing.TB) {
 	a.Empty = add(Movie{Kind: "podcast", Label: "PE", Rating: zero, Effective: zero, MinChild: zero, Container: true, Unavailable: true}, pods.ID)
 	exec(t, f.DB, `UPDATE items SET rating_source = 'library', feed_url = ?, feed_checked_at = 1 WHERE id = ?`,
 		a.EnclosureServer.URL+"/empty.xml", a.Empty.ID)
+
+	eighteen := ptr(18)
+	a.ExplicitPodcast = add(Movie{Kind: "podcast", Label: "PY", Rating: eighteen, Effective: eighteen, MinChild: eighteen, Container: true}, pods.ID)
+	exec(t, f.DB, `UPDATE items SET rating_source = 'feed', explicit = 1, author = 'Podcaster', feed_url = ?, feed_checked_at = 1 WHERE id = ?`,
+		a.EnclosureServer.URL+"/explicit.xml", a.ExplicitPodcast.ID)
+	parent = a.ExplicitPodcast.ID
+	a.ExplicitPodcastEpisode = episode("QY", nil, eighteen, true, false)
 	f.Audio = a
 }
 

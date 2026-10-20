@@ -1,4 +1,4 @@
-import { feedEpisodes, feedKey, feedUrl, PODCAST_TITLE, unsubscribe } from './audio';
+import { feedEpisodes, feedKey, feedUrl, PODCAST_TITLE, subscribeFeed, unsubscribe } from './audio';
 import { FEED_BASE } from './env';
 import { expect, test } from './fixtures';
 import {
@@ -8,6 +8,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { arrowTo } from './playback';
 
 // /admin/podcasts (M6, H-2) by keyboard (rule 8): subscribe through the dialog (a feed the
 // server cannot fetch is reported at the URL field, an address without http(s) already in the
@@ -104,6 +105,37 @@ test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at th
     await expectNoFocusTrap(page);
   } finally {
     if (created) await unsubscribe(owner, created);
+  }
+});
+
+test('podcasts table: arrows move between the rows; browser back leaves the page', async ({
+  page,
+  owner,
+}, testInfo) => {
+  const key = feedKey(testInfo);
+  const second = await subscribeFeed(owner, key);
+  try {
+    // Both pages must have rendered before going back (Firefox, see admin-libraries.spec).
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
+    await page.goto('/admin/podcasts');
+    const table = page.getByRole('table', { name: 'Abonnierte Podcasts' });
+    const row = (url: string) =>
+      table.getByRole('row').filter({ has: page.getByRole('rowheader').filter({ hasText: url }) });
+    const fetchOf = (url: string) =>
+      row(url).getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` });
+    await expect(row(feedUrl(key))).toBeVisible();
+    // ↓/↑ move between the rows like in the other admin tables (DataTable); the newest
+    // subscription is listed first, the global setup's feed below it.
+    await fetchOf(feedUrl(key)).focus();
+    await arrowTo(page, fetchOf(`${FEED_BASE}/feed.xml`), 'ArrowDown');
+    await expectVisibleFocus(page);
+    await arrowTo(page, fetchOf(feedUrl(key)), 'ArrowUp');
+    await expectVisibleFocus(page);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+  } finally {
+    await unsubscribe(owner, second.id);
   }
 });
 

@@ -163,6 +163,33 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await setAudioProgress(page.request, m4b, 0, 60_000);
 });
 
+test('the MP3 folder plays as one HLS timeline across its files (ADR 0007)', async ({
+  page,
+  owner,
+}) => {
+  await audioDetail(owner, mp3, 10);
+  await setAudioProgress(page.request, mp3, 0, 60_000);
+  const info = await playAudio(page, mp3);
+  // A book of ten files streams as one HLS playlist over a concat source, never file by file.
+  expect(info.streamUrl).toContain('/master.m3u8');
+  expect(info.chapters).toHaveLength(10);
+  const player = audioPlayer(page);
+  await expect(player.getByText(/^Kapitel 1 · /)).toBeVisible();
+  // The chapter menu jumps into the eighth file; playback runs on into the ninth by itself, so
+  // the part boundary is seamless on the book's timeline.
+  await page.keyboard.press('c');
+  const menu = page.getByRole('menu', { name: 'Kapitel' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitemradio')).toHaveCount(10);
+  await arrowTo(page, menu.getByRole('menuitemradio', { name: /^Kapitel 8 · / }));
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveCount(0);
+  await expect(player.getByText(/^Kapitel 8 · /)).toBeVisible();
+  if ((await audioState(page)).paused) await page.keyboard.press('k');
+  await expect(player.getByText(/^Kapitel 9 · /)).toBeVisible({ timeout: 20_000 });
+  expect((await audioState(page)).paused).toBe(false);
+});
+
 test('the chapter menu (C) and Shift+→ jump to chapter starts in the player (±1 s)', async ({
   page,
   owner,
