@@ -97,7 +97,15 @@ Koordinaten auf die Ausgabegrösse um.
 testdata/hdr-quality.sh software            # zuerst: Software-Referenz für ΔE
 testdata/hdr-quality.sh nvenc               # Entwicklungsrechner: libplacebo über Vulkan
 SLOUCHCAT_BIN=server/bin/slouchcat testdata/hdr-quality.sh qsv /usr/lib/jellyfin-ffmpeg/ffmpeg
+# im laufenden Container (Image-ffmpeg, NVENC mit tonemap_cuda), testdata/media lesend unter /media/testdata:
+CONTAINER=slouchcat-nvbench CONTAINER_MEDIA_DIR=/media/testdata VARIANT=cuda testdata/hdr-quality.sh nvenc
 ```
+
+Mit `CONTAINER=<Name>` holt das Skript die Kette mit `docker exec … slouchcat hlsbench --print-chain`,
+rendert die Bilder im Container mit dessen ffmpeg und kopiert sie mit `docker cp` heraus (das Host-ffmpeg
+rechnet nur noch SSIM); `CONTAINER_MEDIA_DIR` ist der Pfad von `testdata/media` im Container (Standard
+`/media`). `VARIANT` hängt einen Zusatz an das Ausgabe- und Referenzverzeichnis an: `nvenc` ist die
+`libplacebo`-Referenz des Host-Builds, `nvenc-cuda` die `tonemap_cuda`-Referenz des Images.
 
 Das zweite Argument wählt das ffmpeg (für `tonemap_cuda` und QSV das jellyfin-ffmpeg), `SLOUCHCAT_BIN`
 ein gebautes Binary statt `go run ./cmd/slouchcat`; die Software-Bilder für (b) müssen mit demselben
@@ -107,7 +115,7 @@ Das Skript holt die Pipeline des Servers über `slouchcat hlsbench --print-chain
 `transcode.Detect` und `transcode.HDRChain` wie der Server), rendert damit 10 Bilder (eines je Sekunde,
 1920×1080) nach `testdata/out/hdr/<backend>/frame-NN.png` (ignoriert) und vergleicht:
 
-- (a) SSIM gegen `testdata/reference/hdr/<backend>/` (`ffmpeg -lavfi ssim`). Fehlt die Referenz, legt
+- (a) SSIM gegen `testdata/reference/hdr/<backend>[-<VARIANT>]/` (`ffmpeg -lavfi ssim`). Fehlt die Referenz, legt
   der erste Lauf sie an und meldet «reference created, approve by inspection»; nach der Sichtprüfung
   wird sie eingecheckt. Schwelle: kleinster Wert ≥ 0.95.
 - (b) mittleres ΔE2000 (CIEDE2000, sRGB → Lab D65) des Graustufenkeils und der Hautton-Felder gegen

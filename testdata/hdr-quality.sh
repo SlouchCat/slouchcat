@@ -5,9 +5,9 @@
 #
 # Renders 10 frames (one per second) of "Slouchcat Test HDR10 Chart (2024)" through exactly the
 # filter chain the server runs on that backend (`slouchcat hlsbench --print-chain`, which calls
-# transcode.Detect and transcode.HDRChain), writes testdata/out/hdr/<backend>/frame-NN.png and
-# compares them:
-#   (a) SSIM against the approved reference testdata/reference/hdr/<backend>/ (the first run
+# transcode.Detect and transcode.HDRChain), writes testdata/out/hdr/<name>/frame-NN.png (name =
+# backend, or backend-VARIANT) and compares them:
+#   (a) SSIM against the approved reference testdata/reference/hdr/<name>/ (the first run
 #       creates it from the current frames: approve it by inspection, then commit it);
 #   (b) mean CIEDE2000 of the grey wedge and the skin patches against testdata/out/hdr/software/
 #       (run the software backend first).
@@ -15,7 +15,13 @@
 #
 # Env: FFPROBE (default: ffprobe next to FFMPEG, else from PATH), SLOUCHCAT_BIN (a built
 # slouchcat binary; default `go run ./cmd/slouchcat` in server/), OUT_DIR (default testdata/out/hdr),
-# MEDIA_DIR (default testdata/media).
+# MEDIA_DIR (default testdata/media), VARIANT (suffix of the output and reference directory, e.g.
+# "cuda" for nvenc with tonemap_cuda next to the libplacebo reference of the host build).
+#
+# Container mode: CONTAINER=<name of a running Slouchcat container> prints the chain and renders the
+# frames inside that container with the image's ffmpeg (e.g. tonemap_cuda of jellyfin-ffmpeg) and
+# copies them out with docker cp; the chart is read at CONTAINER_MEDIA_DIR (default /media, the
+# testdata/media tree mounted read-only). FFMPEG on the host only computes SSIM.
 set -euo pipefail
 
 backend="${1:-}"
@@ -40,21 +46,30 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(dirname "$script_dir")"
 MEDIA_DIR="${MEDIA_DIR:-$script_dir/media}"
 OUT_DIR="${OUT_DIR:-$script_dir/out/hdr}"
-chart="$MEDIA_DIR/Movies/Slouchcat Test HDR10 Chart (2024)/Slouchcat Test HDR10 Chart (2024).mkv"
-[[ -f "$chart" ]] || {
-  echo "error: $chart missing; run task testdata:media" >&2
-  exit 1
-}
-out="$OUT_DIR/$backend"
-ref="$script_dir/reference/hdr/$backend"
+chart_path="Movies/Slouchcat Test HDR10 Chart (2024)/Slouchcat Test HDR10 Chart (2024).mkv"
+name="$backend${VARIANT:+-$VARIANT}"
+out="$OUT_DIR/$name"
+ref="$script_dir/reference/hdr/$name"
 
-if [[ -n "${SLOUCHCAT_BIN:-}" ]]; then
-  slouchcat=("$SLOUCHCAT_BIN")
+container="${CONTAINER:-}"
+if [[ -n "$container" ]]; then
+  chart="${CONTAINER_MEDIA_DIR:-/media}/$chart_path"
+  slouchcat=(docker exec "$container" slouchcat)
+  tool_flags=()
 else
-  slouchcat=(go -C "$repo/server" run ./cmd/slouchcat)
+  chart="$MEDIA_DIR/$chart_path"
+  [[ -f "$chart" ]] || {
+    echo "error: $chart missing; run task testdata:media" >&2
+    exit 1
+  }
+  if [[ -n "${SLOUCHCAT_BIN:-}" ]]; then
+    slouchcat=("$SLOUCHCAT_BIN")
+  else
+    slouchcat=(go -C "$repo/server" run ./cmd/slouchcat)
+  fi
+  tool_flags=(--ffmpeg "$FFMPEG" --ffprobe "$FFPROBE")
 fi
-chain_json="$("${slouchcat[@]}" hlsbench --print-chain --file "$chart" --hw "$backend" \
-  --ffmpeg "$FFMPEG" --ffprobe "$FFPROBE")"
+chain_json="$("${slouchcat[@]}" hlsbench --print-chain --file "$chart" --hw "$backend" "${tool_flags[@]}")"
 
 # The chain as NUL-separated fields: backend, tonemapper, filter, then the input options.
 mapfile -d '' -t fields < <(python3 -I -c '
@@ -72,14 +87,22 @@ if [[ "$got" != "$backend" ]]; then
   echo "error: transcode.Detect chose $got instead of $backend (see the log above)" >&2
   exit 1
 fi
-echo "backend $backend, tonemapper $tonemapper" >&2
+echo "backend $backend, tonemapper $tonemapper${container:+, container $container}" >&2
 echo "chain: ${input[*]} -vf $filter" >&2
 
 rm -rf "$out"
 mkdir -p "$out"
-"$FFMPEG" -nostdin -hide_banner -loglevel error -y "${input[@]}" -i "$chart" -map 0:v:0 \
-  -vf "$filter,fps=1,scale=in_color_matrix=bt709:in_range=limited:out_range=full:flags=accurate_rnd+full_chroma_int,format=rgb24" \
-  -frames:v 10 -start_number 0 "$out/frame-%02d.png"
+render=(-nostdin -hide_banner -loglevel error -y "${input[@]}" -i "$chart" -map 0:v:0
+  -vf "$filter,fps=1,scale=in_color_matrix=bt709:in_range=limited:out_range=full:flags=accurate_rnd+full_chroma_int,format=rgb24"
+  -frames:v 10 -start_number 0)
+if [[ -n "$container" ]]; then
+  tmp="$(docker exec "$container" mktemp -d)"
+  docker exec "$container" ffmpeg "${render[@]}" "$tmp/frame-%02d.png"
+  docker cp -q "$container:$tmp/." "$out/"
+  docker exec "$container" rm -rf "$tmp"
+else
+  "$FFMPEG" "${render[@]}" "$out/frame-%02d.png"
+fi
 
 ssim=()
 if compgen -G "$ref/frame-*.png" >/dev/null; then
@@ -99,7 +122,7 @@ else
   echo "reference created, approve by inspection: $ref" >&2
 fi
 
-report=(python3 -I "$script_dir/hdr-quality.py" report --backend "$backend" --test "$out")
+report=(python3 -I "$script_dir/hdr-quality.py" report --backend "$name" --test "$out")
 if ((${#ssim[@]} > 0)); then
   report+=(--ssim "${ssim[@]}")
 fi
