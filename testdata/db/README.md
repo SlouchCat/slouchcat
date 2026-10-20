@@ -49,3 +49,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Multi-Audio-Films mit Qualität 720p, AC3-Tonspur und deutscher SRT-Spur (`subtitle_delivery` `text`,
   `stopped_by` `client`) samt Fortschrittsereignis mit `playback_session_id`. `TestFrozenStatesMigrate` lädt
   ihn; die Migrationen 00011 und 00012 sind in M1a bis M3 ebenfalls geprüft (Spalten mit Standardwerten).
+- `M5.sql`: Stand nach M5 (Offline-Wiedergabe; Migration 00013). Erzeugt mit `server/bin/slouchcat dump` nach
+  einem Lauf gegen einen frischen Server (Skript in den Sitzungsnotizen `freeze-m5.sh`): Assistent wie M4,
+  Profil «Kind» (Stufe 12, 60 min pro Tag) mit PIN (`pin_salt`) und separater Offline-PIN (`offline_pin`,
+  PBKDF2-Verifier), Downloads des Hauptprofils auf einem Gerät: der H264-Film in `medium` (vorbereitet, über den
+  Sync als vollständig abgerufen gemeldet, `fetched_at`) und die Staffel der «Slouchcat Test Download Show» in
+  `low` (fünf vorbereitete Folgen, die sechste gelöscht und damit ein Grabstein in `download_tombstones`),
+  `allowed_profile_ids` vom Server berechnet, eine aktive Auto-Download-Regel und ein hochgeladenes
+  Offline-Fortschrittsereignis (`offline`, `uploaded_at`, `download_id`). `TestFrozenM5StateCoversM5Data` prüft,
+  dass jede dieser Datenarten nach der Migration vorhanden ist.
