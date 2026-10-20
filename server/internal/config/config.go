@@ -44,6 +44,9 @@ type Config struct {
 	TrustedProxies []netip.Prefix
 	// TranscodeBudget overrides the admission budget of the transcode backend; 0 = backend default.
 	TranscodeBudget float64
+	// DownloadBudgetGB caps the prepared downloads in <cache>/downloads (AN-20, decision 8: 100 GB);
+	// when full, new preparations wait. The admin setting follows in M8.
+	DownloadBudgetGB int
 	// TVDBAPIKey and TVDBPIN enable the optional TVDB provider for series (M3); empty = off.
 	// Secrets come from the environment only: command-line flags show up in process lists.
 	TVDBAPIKey string
@@ -56,6 +59,13 @@ type Config struct {
 
 // TranscodeDir is the work directory of HLS output: <cache>/transcode, wiped at every start.
 func (c Config) TranscodeDir() string { return filepath.Join(c.CacheDir, "transcode") }
+
+// DownloadsDir holds the prepared downloads (M5, AN-20): <cache>/downloads. Unlike the transcode
+// directory it survives restarts, so an interrupted preparation continues.
+func (c Config) DownloadsDir() string { return filepath.Join(c.CacheDir, "downloads") }
+
+// DefaultDownloadBudgetGB is the download budget without SLOUCHCAT_DOWNLOAD_BUDGET_GB (decision 8).
+const DefaultDownloadBudgetGB = 100
 
 // hwBackends are the values of SLOUCHCAT_HW / --hw.
 var hwBackends = map[string]bool{"auto": true, "nvenc": true, "qsv": true, "vaapi": true, "software": true}
@@ -94,6 +104,7 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	proxies := fs.String("trusted-proxies", env("TRUSTED_PROXIES", ""),
 		"reverse proxies whose X-Forwarded-For is trusted: empty = none, private = RFC 1918, loopback and fc00::/7, or comma-separated CIDRs (env SLOUCHCAT_TRUSTED_PROXIES)")
 	budget := fs.Float64("transcode-budget", 0, "transcode admission budget, 0 = backend default (env SLOUCHCAT_TRANSCODE_BUDGET)")
+	downloadBudget := fs.Int("download-budget-gb", DefaultDownloadBudgetGB, "space for prepared downloads in GB (env SLOUCHCAT_DOWNLOAD_BUDGET_GB)")
 	trailerAI := fs.String("trailer-ai", env("TRAILER_AI", "off"), "AI step of the trailer search: off (env SLOUCHCAT_TRAILER_AI)")
 	if v := env("TRANSCODE_BUDGET", ""); v != "" {
 		b, err := strconv.ParseFloat(v, 64)
@@ -101,6 +112,13 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 			return Config{}, fmt.Errorf("%sTRANSCODE_BUDGET: invalid number %q", EnvPrefix, v)
 		}
 		*budget = b
+	}
+	if v := env("DOWNLOAD_BUDGET_GB", ""); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("%sDOWNLOAD_BUDGET_GB: invalid number %q", EnvPrefix, v)
+		}
+		*downloadBudget = n
 	}
 	if v := env("WORKERS", ""); v != "" {
 		n, err := strconv.Atoi(v)
@@ -132,7 +150,7 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	if cfg.TrustedProxies, err = ParseTrustedProxies(*proxies); err != nil {
 		return Config{}, fmt.Errorf("trusted proxies: %w", err)
 	}
-	cfg.HW, cfg.TranscodeBudget = *hw, *budget
+	cfg.HW, cfg.TranscodeBudget, cfg.DownloadBudgetGB = *hw, *budget, *downloadBudget
 	cfg.HDRTonemap = strings.ToLower(strings.TrimSpace(*hdrTonemap))
 	cfg.TVDBAPIKey, cfg.TVDBPIN = strings.TrimSpace(env("TVDB_API_KEY", "")), strings.TrimSpace(env("TVDB_PIN", ""))
 	cfg.YouTubeAPIKey = strings.TrimSpace(env("YOUTUBE_API_KEY", ""))
@@ -148,6 +166,9 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 	if cfg.TranscodeBudget < 0 || math.IsNaN(cfg.TranscodeBudget) || math.IsInf(cfg.TranscodeBudget, 0) {
 		return Config{}, errors.New("transcode budget must be a finite number >= 0")
+	}
+	if cfg.DownloadBudgetGB < 1 || cfg.DownloadBudgetGB > 100_000 {
+		return Config{}, errors.New("download budget must be between 1 and 100000 GB")
 	}
 	if cfg.Workers == 0 {
 		cfg.Workers = max(2, min(4, runtime.NumCPU()))
@@ -195,6 +216,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("hdr_tonemap", c.HDRTonemap),
 		slog.Any("trusted_proxies", c.TrustedProxies),
 		slog.Float64("transcode_budget", c.TranscodeBudget),
+		slog.Int("download_budget_gb", c.DownloadBudgetGB),
 		slog.Bool("tvdb_configured", c.TVDBAPIKey != ""),
 		slog.Bool("youtube_configured", c.YouTubeAPIKey != ""),
 		slog.String("trailer_ai", c.TrailerAI),

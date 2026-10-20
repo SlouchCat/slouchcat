@@ -21,7 +21,8 @@ func TestDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
-		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off"}
+		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off",
+		DownloadBudgetGB: DefaultDownloadBudgetGB}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -32,21 +33,22 @@ func TestDefaults(t *testing.T) {
 
 func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	env := envMap(map[string]string{
-		"SLOUCHCAT_LISTEN":           "127.0.0.1:9000",
-		"SLOUCHCAT_CONFIG_DIR":       "/srv/config",
-		"SLOUCHCAT_LOG_LEVEL":        "debug",
-		"SLOUCHCAT_LOG_FORMAT":       "text",
-		"SLOUCHCAT_DEV":              "true",
-		"SLOUCHCAT_FFPROBE":          "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		"SLOUCHCAT_SPIKE_DIR":        "/srv/spike",
-		"SLOUCHCAT_WORKERS":          "3",
-		"SLOUCHCAT_HW":               "nvenc",
-		"SLOUCHCAT_HDR_TONEMAP":      "gpu",
-		"SLOUCHCAT_TRANSCODE_BUDGET": "6.5",
-		"SLOUCHCAT_TVDB_API_KEY":     " tvdb-key ",
-		"SLOUCHCAT_TVDB_PIN":         "1234",
-		"SLOUCHCAT_YOUTUBE_API_KEY":  "yt-key",
-		"SLOUCHCAT_TRAILER_AI":       "off",
+		"SLOUCHCAT_LISTEN":             "127.0.0.1:9000",
+		"SLOUCHCAT_CONFIG_DIR":         "/srv/config",
+		"SLOUCHCAT_LOG_LEVEL":          "debug",
+		"SLOUCHCAT_LOG_FORMAT":         "text",
+		"SLOUCHCAT_DEV":                "true",
+		"SLOUCHCAT_FFPROBE":            "/usr/lib/jellyfin-ffmpeg/ffprobe",
+		"SLOUCHCAT_SPIKE_DIR":          "/srv/spike",
+		"SLOUCHCAT_WORKERS":            "3",
+		"SLOUCHCAT_HW":                 "nvenc",
+		"SLOUCHCAT_HDR_TONEMAP":        "gpu",
+		"SLOUCHCAT_TRANSCODE_BUDGET":   "6.5",
+		"SLOUCHCAT_DOWNLOAD_BUDGET_GB": "250",
+		"SLOUCHCAT_TVDB_API_KEY":       " tvdb-key ",
+		"SLOUCHCAT_TVDB_PIN":           "1234",
+		"SLOUCHCAT_YOUTUBE_API_KEY":    "yt-key",
+		"SLOUCHCAT_TRAILER_AI":         "off",
 	})
 	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
 		"--trailer-ai", "Experimental"}, env)
@@ -56,7 +58,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	absCache, _ := filepath.Abs("rel/cache")
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		SpikeDir: "/srv/spike", Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5,
+		SpikeDir: "/srv/spike", Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
 		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental"}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
@@ -74,6 +76,9 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	if cfg.TranscodeDir() != filepath.Join(absCache, "transcode") {
 		t.Errorf("transcode dir = %q", cfg.TranscodeDir())
 	}
+	if cfg.DownloadsDir() != filepath.Join(absCache, "downloads") {
+		t.Errorf("downloads dir = %q", cfg.DownloadsDir())
+	}
 }
 
 func TestValidation(t *testing.T) {
@@ -81,20 +86,22 @@ func TestValidation(t *testing.T) {
 		args []string
 		env  map[string]string
 	}{
-		"bad level":       {args: []string{"--log-level", "loud"}},
-		"bad format":      {args: []string{"--log-format", "xml"}},
-		"bad listen":      {args: []string{"--listen", "8096"}},
-		"empty config":    {args: []string{"--config-dir", ""}},
-		"same dirs":       {args: []string{"--config-dir", "/data", "--cache-dir", "/data"}},
-		"bad dev env":     {env: map[string]string{"SLOUCHCAT_DEV": "maybe"}},
-		"bad workers":     {env: map[string]string{"SLOUCHCAT_WORKERS": "many"}},
-		"empty ffmpeg":    {args: []string{"--ffmpeg", ""}},
-		"bad hw":          {env: map[string]string{"SLOUCHCAT_HW": "cuda"}},
-		"bad hdr tonemap": {env: map[string]string{"SLOUCHCAT_HDR_TONEMAP": "fast"}},
-		"bad budget":      {env: map[string]string{"SLOUCHCAT_TRANSCODE_BUDGET": "lots"}},
-		"negative budget": {args: []string{"--transcode-budget", "-1"}},
-		"unknown flag":    {args: []string{"--nope"}},
-		"extra arguments": {args: []string{"serve"}},
+		"bad level":            {args: []string{"--log-level", "loud"}},
+		"bad format":           {args: []string{"--log-format", "xml"}},
+		"bad listen":           {args: []string{"--listen", "8096"}},
+		"empty config":         {args: []string{"--config-dir", ""}},
+		"same dirs":            {args: []string{"--config-dir", "/data", "--cache-dir", "/data"}},
+		"bad dev env":          {env: map[string]string{"SLOUCHCAT_DEV": "maybe"}},
+		"bad workers":          {env: map[string]string{"SLOUCHCAT_WORKERS": "many"}},
+		"empty ffmpeg":         {args: []string{"--ffmpeg", ""}},
+		"bad hw":               {env: map[string]string{"SLOUCHCAT_HW": "cuda"}},
+		"bad hdr tonemap":      {env: map[string]string{"SLOUCHCAT_HDR_TONEMAP": "fast"}},
+		"bad budget":           {env: map[string]string{"SLOUCHCAT_TRANSCODE_BUDGET": "lots"}},
+		"negative budget":      {args: []string{"--transcode-budget", "-1"}},
+		"bad download budget":  {env: map[string]string{"SLOUCHCAT_DOWNLOAD_BUDGET_GB": "big"}},
+		"zero download budget": {args: []string{"--download-budget-gb", "0"}},
+		"unknown flag":         {args: []string{"--nope"}},
+		"extra arguments":      {args: []string{"serve"}},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

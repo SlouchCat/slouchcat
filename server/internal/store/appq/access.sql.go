@@ -267,7 +267,7 @@ func (q *Queries) GetPinAttempt(ctx context.Context, arg GetPinAttemptParams) (P
 }
 
 const getProfileOfAccount = `-- name: GetProfileOfAccount :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes FROM profiles WHERE id = ?1 AND account_id = ?2
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin FROM profiles WHERE id = ?1 AND account_id = ?2
 `
 
 type GetProfileOfAccountParams struct {
@@ -295,6 +295,8 @@ func (q *Queries) GetProfileOfAccount(ctx context.Context, arg GetProfileOfAccou
 		&i.MaxHeight,
 		&i.MaxStreams,
 		&i.WatchLimitMinutes,
+		&i.PinSalt,
+		&i.OfflinePin,
 	)
 	return i, err
 }
@@ -780,7 +782,7 @@ func (q *Queries) ListProfileLibrariesByAccount(ctx context.Context, accountID i
 }
 
 const listProfilesByAccount = `-- name: ListProfilesByAccount :many
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
 `
 
 func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([]Profile, error) {
@@ -809,6 +811,8 @@ func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([
 			&i.MaxHeight,
 			&i.MaxStreams,
 			&i.WatchLimitMinutes,
+			&i.PinSalt,
+			&i.OfflinePin,
 		); err != nil {
 			return nil, err
 		}

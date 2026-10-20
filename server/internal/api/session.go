@@ -347,6 +347,16 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusServiceUnavailable, "segment_restarted", "A newer seek restarted the encoder; retry the segment.")
 	case errors.Is(err, model.ErrProviderNotConfigured):
 		p.write(w, r, http.StatusUnprocessableEntity, "provider_not_configured", "The metadata provider has no key configured.")
+	case errors.Is(err, model.ErrDeviceRequired):
+		p.write(w, r, http.StatusConflict, "device_required", "The session has no device; sign in again in this browser.")
+	case errors.Is(err, model.ErrNotDownloadable):
+		p.write(w, r, http.StatusUnprocessableEntity, "not_downloadable", "Only movies, episodes and seasons can be downloaded.")
+	case errors.Is(err, model.ErrDownloadNotReady):
+		p.write(w, r, http.StatusConflict, "download_not_ready", "The server is still preparing the download.")
+	case errors.Is(err, model.ErrDownloadEvicted):
+		p.write(w, r, http.StatusGone, "download_evicted", "The server removed its prepared copy; the next sync prepares it again.")
+	case errors.Is(err, model.ErrNotImplemented):
+		p.write(w, r, http.StatusNotImplemented, "not_implemented", "Not implemented yet.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
 	case errors.As(err, &verr):

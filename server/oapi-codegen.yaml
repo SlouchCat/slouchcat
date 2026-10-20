@@ -22,3 +22,5 @@ output-options:
     - getPlaybackInit
     - getPlaybackSegment
     - getPlaybackSubtitle
+    - getDownloadFile
+    - getDownloadSubtitle
