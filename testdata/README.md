@@ -3,7 +3,8 @@
 Generatoren für Test-Medien und Lasttest-Bäume (Plan M0, Schritt 6). Alles, was sie erzeugen, landet in
 `testdata/media/` und ist per `.gitignore` vom Repository ausgeschlossen. Es werden keine urheberrechtlich
 geschützten Medien verwendet: Bild und Ton stammen aus den ffmpeg-Quellen `testsrc2`, `smptebars`,
-`smptehdbars` und `sine`.
+`smptehdbars` und `sine`, die PGS-Untertitel aus `make-pgs.py` und das HDR-Testbild aus
+`hdr-quality.py` (beide nur Python-Standardbibliothek, Aufruf mit `python3 -I`).
 
 ## Test-Medien (`task testdata:media`)
 
@@ -14,6 +15,7 @@ klaren Meldung ab, wenn ffmpeg oder ein Encoder fehlt. Andere Binaries über Umg
 ```bash
 FFMPEG=/usr/lib/jellyfin-ffmpeg/ffmpeg FFPROBE=/usr/lib/jellyfin-ffmpeg/ffprobe task testdata:media
 FORCE=1 task testdata:media      # bestehende Dateien neu erzeugen
+LONG=1 task testdata:media       # zusätzlich der 120-s-4K-HDR10-Clip (langsam, rund 260 MB)
 OUT_DIR=/srv/media task testdata:media
 ```
 
@@ -36,15 +38,23 @@ OUT_DIR=/srv/media task testdata:media
 | `Movies/Slouchcat Test Broken (2024)/….mkv` | Textdatei mit Video-Endung; ffprobe scheitert | nicht abspielbar, `probe_error` (B-9) |
 | `Movies/Slouchcat Test H264 Copy (2024)/….mp4` | Byte-Kopie der H.264-Datei (gleicher Teil-Hash) | Duplikat nach Hash (B-9) |
 | `Movies/Slouchcat Test Unrated/Slouchcat Test Unrated.mp4` | H.264/AAC, 10 s, ohne Jahr, ohne NFO | Titel ohne Freigabe (B-9 «unrated») |
+| `Movies/Slouchcat Test Multi Audio (2024)/….mkv` | H.264 1080p, 20 s; Stream 1 AAC Stereo `ger` (Standard, 440 Hz), Stream 2 AC3 5.1 `eng` (660 Hz), Streams 3/4 SRT `ger`/`eng` mit je fünf Untertiteln («Deutsch 1» … «Deutsch 5» bei 1–3, 5–7, 9–11, 13–15, 17–19 s) | Ton- und Untertitelwechsel (W-4), Spur-Mapping |
+| `Movies/Slouchcat Test PGS (2024)/….mkv` | H.264/AAC 1080p, 20 s, Stream 2 `hdmv_pgs_subtitle` (`eng`): «Slouchcat PGS 1» 2–6 s, «Slouchcat PGS 2» 8–12 s | Bild-Untertitel einbrennen (10.3 «H.264 + PGS») |
+| `Movies/Slouchcat Test HDR10 Chart (2024)/….mkv` | HEVC Main 10 3840×2160, BT.2020/PQ, Mastering Display und MaxCLL wie die HDR10-Datei, 10 s, Standbild: Graustufenkeil und sechs Hautton-Felder (Geometrie unten) | P-6 (`hdr-quality.sh`) |
+| `Movies/Slouchcat Test HDR10 4K Long (2024)/….mkv` | nur mit `LONG=1`: dasselbe Muster wie die HDR10-4K-Datei, 120 s | 5-s-Start (W-3), `hlsbench` |
 
 Hinweise:
 
 - Die HDR10-Datei zeigt SDR-Testbalken, die als HDR10 gekennzeichnet sind. Für Erkennung und
-  Tonemapping-Pipeline genügt das; für die visuelle Beurteilung des Tonemappings ist sie nicht geeignet.
+  Tonemapping-Pipeline genügt das; für die visuelle Beurteilung des Tonemappings dient das HDR10-Testbild.
 - H.264 nutzt `-preset veryfast` statt `ultrafast`, weil `ultrafast` nur Constrained Baseline erzeugt;
   echte Dateien sind High Profile. HEVC nutzt `-preset ultrafast`. Keyframes alle 2 s (`-g 48`).
-- PGS-Untertitel (Zeile "H.264 + PGS" in 10.3) kann ffmpeg nicht erzeugen (kein PGS-Encoder); eine
-  freie PGS-Testdatei wird bei Bedarf in M4 ergänzt.
+- PGS-Untertitel (Zeile "H.264 + PGS" in 10.3) kann ffmpeg nicht erzeugen (kein PGS-Encoder).
+  `make-pgs.py` schreibt deshalb eine `.sup`-Datei selbst: je Untertitel ein Display Set (PCS, WDS,
+  PDS, ODS, END) mit einem RLE-Bild aus einer eingebauten 5×7-Pixelschrift (achtfach vergrössert,
+  weiss auf halbtransparentem Schwarz, unten mittig) und ein leerendes Display Set am Ende; am Anfang
+  steht ein leeres Display Set bei 0 s, damit ffmpeg die Spur beim Muxen nicht um ihre Startzeit
+  verschiebt. `python3 -I testdata/make-pgs.py out.sup [--caption START END TEXT ...]`.
 - Am Ende druckt das Skript eine ffprobe-Zusammenfassung je Datei und die HDR-Metadaten des ersten
   Frames der 4K-Datei. Die absichtlich kaputte Datei «Slouchcat Test Broken» fehlt in der
   Zusammenfassung, weil ffprobe sie nicht lesen kann.
@@ -54,7 +64,52 @@ Hinweise:
 
 Laufzeit auf dem Entwicklungsrechner (ffmpeg 6.1.1 aus Ubuntu): rund 18 s für die Dateien aus M0,
 zusammen 22 MB; mit den langen Clips aus M1b und den Fällen aus M3 belegt `media/Movies` und
-`media/TV` zusammen rund 55 MB.
+`media/TV` zusammen rund 55 MB. Die Dateien aus M4 (Mehrspur, PGS, HDR-Testbild) brauchen rund 11 s.
+
+### HDR10-Testbild (P-6)
+
+`python3 -I hdr-quality.py chart OUT.ppm` schreibt ein 16-Bit-PPM (3840×2160), dessen R'G'B'-Werte
+bereits PQ-codiert in BT.2020 sind; `generate-media.sh` wandelt es mit der BT.2020-Matrix in
+`yuv420p10le` (begrenzter Bereich) und codiert es mit x265 (`-crf 16`, HDR10-Signalisierung und
+Metadaten wie die HDR10-Datei). Gemessen weichen die decodierten Codewerte um höchstens 3 von den
+Sollwerten ab. Koordinaten in Pixeln des 4K-Bilds (x nach rechts, y nach unten, Ende exklusiv):
+
+| Bereich | Lage | Wert |
+|---|---|---|
+| Graustufenkeil, Feld i = 0 … 10 | x = round(i × 3840 / 11) bis round((i + 1) × 3840 / 11), y = 0 bis 1080 | R' = G' = B' = i / 10 des PQ-Signals (Luma-Code 64 + 87.6 × i; 50 % ≈ 92 cd/m², 70 % ≈ 620 cd/m², 100 % = 10'000 cd/m²) |
+| Hautton-Feld k = 0 … 5 | Spalte c = k mod 3, Zeile r = k div 3: x = 240 + 1200 c bis + 960, y = 1200 + 480 r bis + 360 | 8-Bit-sRGB-Vorlage, linear nach BT.2020, sRGB-Weiss = 203 cd/m² (BT.2408), PQ-codiert |
+| Hintergrund | übrige Fläche der unteren Hälfte | Schwarz (PQ 0) |
+
+Hautton-Vorlagen (k = 0 … 5): ColorChecker «light skin» (194, 150, 130), «dark skin» (115, 82, 68),
+Monk Skin Tone 2 (243, 231, 219), 4 (234, 218, 186), 6 (160, 126, 86), 8 (96, 65, 52).
+Die ΔE-Auswertung mittelt je Feld nur die inneren 60 % (20 % Rand auf jeder Seite) und rechnet die
+Koordinaten auf die Ausgabegrösse um.
+
+### P-6: HDR → SDR je Backend (`hdr-quality.sh`)
+
+```bash
+testdata/hdr-quality.sh software            # zuerst: Software-Referenz für ΔE
+testdata/hdr-quality.sh nvenc               # Entwicklungsrechner: libplacebo über Vulkan
+SLOUCHCAT_BIN=server/bin/slouchcat testdata/hdr-quality.sh qsv /usr/lib/jellyfin-ffmpeg/ffmpeg
+```
+
+Das zweite Argument wählt das ffmpeg (für `tonemap_cuda` und QSV das jellyfin-ffmpeg), `SLOUCHCAT_BIN`
+ein gebautes Binary statt `go run ./cmd/slouchcat`; die Software-Bilder für (b) müssen mit demselben
+Stand erzeugt sein.
+
+Das Skript holt die Pipeline des Servers über `slouchcat hlsbench --print-chain` (dieselben Funktionen
+`transcode.Detect` und `transcode.HDRChain` wie der Server), rendert damit 10 Bilder (eines je Sekunde,
+1920×1080) nach `testdata/out/hdr/<backend>/frame-NN.png` (ignoriert) und vergleicht:
+
+- (a) SSIM gegen `testdata/reference/hdr/<backend>/` (`ffmpeg -lavfi ssim`). Fehlt die Referenz, legt
+  der erste Lauf sie an und meldet «reference created, approve by inspection»; nach der Sichtprüfung
+  wird sie eingecheckt. Schwelle: kleinster Wert ≥ 0.95.
+- (b) mittleres ΔE2000 (CIEDE2000, sRGB → Lab D65) des Graustufenkeils und der Hautton-Felder gegen
+  die Software-Bilder in `testdata/out/hdr/software/`. Schwelle: je Bereich ≤ 5.
+
+Ausgabe als JSON (`ssim.min/mean`, `deltaE2000.wedge/skin` mit Mittelwert und Werten je Feld,
+`pass`). Die Software-Pipeline nutzt `tonemap=hable` (ffmpegs `tonemap` kennt kein BT.2390), NVENC mit
+libplacebo und `tonemap_cuda` BT.2390; die Abweichung zeigt sich vor allem in den hellen Keilfeldern.
 
 ## Platzhalter-Baum für Lasttests (`task testdata:tree`)
 
