@@ -219,6 +219,21 @@ func TestDetectChapters(t *testing.T) {
 	if r := Detect(only, DefaultOptions())["x"]; r.Intro == nil || r.Intro.Start != time.Minute || r.Outro != nil {
 		t.Errorf("chapters only = %+v", r)
 	}
+	// Chapters outside the segment bounds do not count: an "Opening" over prologue and titles
+	// (6 min), credits of 10 s; the fingerprints decide.
+	eps[1].Chapters = []Chapter{
+		{Start: 0, End: 6 * time.Minute, Title: "Opening"},
+		{Start: 6 * time.Minute, End: eps[1].Duration - 10*time.Second, Title: "Kapitel 2"},
+		{Start: eps[1].Duration - 10*time.Second, End: eps[1].Duration, Title: "Credits"},
+	}
+	r = Detect(eps, DefaultOptions())["e2"]
+	if r.Intro == nil || r.Intro.Source != SourceFingerprint || r.Outro == nil || r.Outro.Source != SourceFingerprint {
+		t.Errorf("chapters out of bounds = %+v, %+v; want fingerprint segments", r.Intro, r.Outro)
+	}
+	long := []Episode{{ID: "y", Duration: time.Hour, Chapters: []Chapter{{Start: 0, End: 8 * time.Minute, Title: "Intro"}}}}
+	if r := Detect(long, DefaultOptions())["y"]; r.Intro != nil {
+		t.Errorf("8-min intro chapter = %+v, want none", r.Intro)
+	}
 }
 
 func TestChapterKind(t *testing.T) {

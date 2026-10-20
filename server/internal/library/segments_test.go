@@ -216,7 +216,13 @@ func TestSegmentsDetectGeneratedSeason(t *testing.T) {
 	if n, err := e.svc.QueuePendingSegments(e.ctx, lib.ID); err != nil || n != 1 {
 		t.Errorf("QueuePendingSegments = %d, %v; want 1 (the intro season)", n, err)
 	}
-	// A probe during the run leaves the season pending.
+	// A probe during the run leaves the season pending and keeps the stored segments: the stale
+	// result is rolled back (the intros deleted here are not written again).
+	if _, err := e.db.Write.ExecContext(e.ctx, `DELETE FROM media_segments WHERE kind = 'intro'`); err != nil {
+		t.Fatal(err)
+	}
+	stored := e.count(`SELECT count(*) FROM media_segments`)
+	before := e.count(`SELECT COALESCE(max(created_at), 0) FROM media_segments`)
 	e.clock.Advance(time.Second)
 	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE media_files SET probed_at = ? WHERE id = ?`, e.clock.Now().Add(time.Hour).UnixMilli(), file); err != nil {
 		t.Fatal(err)
@@ -226,6 +232,9 @@ func TestSegmentsDetectGeneratedSeason(t *testing.T) {
 	}
 	if v := e.str(`SELECT segments_state FROM items WHERE id = ?`, season); v != "pending" {
 		t.Errorf("season changed during the run = %s, want pending", v)
+	}
+	if n, newest := e.count(`SELECT count(*) FROM media_segments`), e.count(`SELECT COALESCE(max(created_at), 0) FROM media_segments`); n != stored || newest != before {
+		t.Errorf("segments after the stale run: %d rows (want %d), newest %d (want %d)", n, stored, newest, before)
 	}
 }
 

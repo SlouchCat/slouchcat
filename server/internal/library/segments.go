@@ -159,12 +159,13 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return fmt.Errorf("store segments state: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
-		return err
-	}
 	if n == 0 {
+		// The segments of this run are stale: keep the stored ones (rollback) for the next run.
 		s.log.InfoContext(ctx, "season changed during segment detection, stays pending", "season_id", p.SeasonID)
 		return nil
+	}
+	if err := tx.Commit(); err != nil {
+		return err
 	}
 	s.log.InfoContext(ctx, "segments detected", "season_id", p.SeasonID, "episodes", len(rows), "with_segments", len(res),
 		"state", state, "duration", s.now().Sub(started))

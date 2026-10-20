@@ -5,7 +5,8 @@
 // Two sources, chapter names first:
 //
 //   - Chapter: a chapter titled like an intro (intro, opening, vorspann, titles) or like the end
-//     credits (credits, abspann, ending, outro, end titles) is taken as it is, source "chapter".
+//     credits (credits, abspann, ending, outro, end titles) is taken as it is, source "chapter",
+//     when its length is within the bounds of the fingerprint segments.
 //   - Fingerprint: every pair of episodes is aligned on the Chromaprint values of the start of the
 //     episodes (Options.HeadLength) and of their end (Options.TailRange). The shift with the most
 //     values within MaxBitErrors bits of each other wins; at that shift (and its best neighbours)
@@ -143,7 +144,7 @@ func Detect(episodes []Episode, o Options) map[string]Result {
 	}
 	out := map[string]Result{}
 	for i, e := range episodes {
-		ci, co := chapterSpans(e.Chapters)
+		ci, co := chapterSpans(e.Chapters, o)
 		r := Result{Intro: ci, Outro: co}
 		if r.Intro == nil {
 			r.Intro = majority(intros[i], headPairs[i], o.Agreement)
@@ -416,20 +417,25 @@ func ChapterKind(title string) string {
 	return ""
 }
 
-// chapterSpans returns the first intro chapter and the last outro chapter.
-func chapterSpans(chapters []Chapter) (intro, outro *Span) {
+// chapterSpans returns the first intro chapter and the last outro chapter whose length is within
+// the bounds of the fingerprint segments (MinIntro..MaxIntro, MinOutro..MaxOutro): an "Opening"
+// chapter that also covers the prologue is no intro to skip; the fingerprints decide then.
+func chapterSpans(chapters []Chapter, o Options) (intro, outro *Span) {
 	for _, c := range chapters {
 		if c.End <= c.Start || c.Start < 0 {
 			continue
 		}
 		s := &Span{Start: c.Start, End: c.End, Source: SourceChapter, Confidence: 1}
+		l := c.End - c.Start
 		switch ChapterKind(c.Title) {
 		case "intro":
-			if intro == nil {
+			if intro == nil && l >= o.MinIntro && l <= o.MaxIntro {
 				intro = s
 			}
 		case "outro":
-			outro = s
+			if l >= o.MinOutro && l <= o.MaxOutro {
+				outro = s
+			}
 		}
 	}
 	return intro, outro
