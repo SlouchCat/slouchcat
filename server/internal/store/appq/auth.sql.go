@@ -234,21 +234,27 @@ func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (A
 }
 
 const insertProfile = `-- name: InsertProfile :one
-INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)
+INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash,
+                      max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
+        ?9, ?10, ?11, ?12, ?13, ?13)
 RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes
 `
 
 type InsertProfileParams struct {
-	AccountID    int64
-	Name         string
-	MaxRating    int64
-	Language     string
-	Accent       sql.NullString
-	AllLibraries int64
-	IsDefault    int64
-	PinHash      sql.NullString
-	Now          int64
+	AccountID         int64
+	Name              string
+	MaxRating         int64
+	Language          string
+	Accent            sql.NullString
+	AllLibraries      int64
+	IsDefault         int64
+	PinHash           sql.NullString
+	MaxBitrateKbps    sql.NullInt64
+	MaxHeight         sql.NullInt64
+	MaxStreams        sql.NullInt64
+	WatchLimitMinutes sql.NullInt64
+	Now               int64
 }
 
 func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (Profile, error) {
@@ -261,6 +267,10 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 		arg.AllLibraries,
 		arg.IsDefault,
 		arg.PinHash,
+		arg.MaxBitrateKbps,
+		arg.MaxHeight,
+		arg.MaxStreams,
+		arg.WatchLimitMinutes,
 		arg.Now,
 	)
 	var i Profile

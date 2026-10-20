@@ -74,13 +74,18 @@ func (s *Service) profilesOf(ctx context.Context, q *appq.Queries, accountID int
 	if err != nil {
 		return nil, fmt.Errorf("list profile libraries: %w", err)
 	}
+	acc, err := q.GetAccount(ctx, accountID)
+	if err != nil {
+		return nil, notFoundOr(err, "get account")
+	}
+	caps := AccountLimits(acc)
 	byProfile := map[int64][]int64{}
 	for _, l := range libs {
 		byProfile[l.ProfileID] = append(byProfile[l.ProfileID], l.LibraryID)
 	}
 	out := make([]model.Profile, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, toProfile(r, byProfile[r.ID]))
+		out = append(out, toProfile(r, byProfile[r.ID], caps))
 	}
 	return out, nil
 }
@@ -104,6 +109,10 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	}
 	if in.PIN != nil && !ValidPIN(*in.PIN) {
 		verr = verr.Add("pin", "invalid_pin")
+	}
+	if in.Limits != nil {
+		verr = validateLimits(*in.Limits, true, verr)
+		p.MaxBitrateKbps, p.MaxHeight, p.MaxStreams, p.WatchLimitMinutes = limitColumns(*in.Limits)
 	}
 	if p.AllLibraries == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
 		verr = verr.Add("libraryIds", "required")
@@ -147,7 +156,7 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	if err := tx.Commit(); err != nil {
 		return model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
-	return toProfile(row, libs), nil
+	return toProfile(row, libs, acc.Limits), nil
 }
 
 // UpdateProfile changes the sent fields of a profile of the account (model.ErrNotFound for any
@@ -160,15 +169,20 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	if err != nil {
 		return model.Profile{}, notFoundOr(err, "get profile")
 	}
-	current, err := s.profileModel(ctx, s.read, row)
+	current, err := s.profileModel(ctx, s.read, row, session.Account)
 	if err != nil {
 		return model.Profile{}, err
 	}
 	acc := session.Account
 	p := appq.UpdateProfileParams{
 		ID: row.ID, Name: row.Name, MaxRating: row.MaxRating, Language: row.Language, Accent: row.Accent, AllLibraries: row.AllLibraries,
+		MaxBitrateKbps: row.MaxBitrateKbps, MaxHeight: row.MaxHeight, MaxStreams: row.MaxStreams, WatchLimitMinutes: row.WatchLimitMinutes,
 	}
 	verr := applyInput(acc, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
+	if in.Limits != nil {
+		verr = validateLimits(*in.Limits, true, verr)
+		p.MaxBitrateKbps, p.MaxHeight, p.MaxStreams, p.WatchLimitMinutes = limitColumns(*in.Limits)
+	}
 	// A profile with all libraries keeps no rows; library ids that are sent are checked against
 	// the libraries and the account's rights, otherwise a restricted profile keeps its rights.
 	libs := current.LibraryIDs
@@ -206,7 +220,8 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 		return model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
 	row.Name, row.MaxRating, row.Language, row.Accent, row.AllLibraries = p.Name, p.MaxRating, p.Language, p.Accent, p.AllLibraries
-	return toProfile(row, libs), nil
+	row.MaxBitrateKbps, row.MaxHeight, row.MaxStreams, row.WatchLimitMinutes = p.MaxBitrateKbps, p.MaxHeight, p.MaxStreams, p.WatchLimitMinutes
+	return toProfile(row, libs, acc.Limits), nil
 }
 
 // applyInput validates the scalar fields of in and writes the accepted values through the
@@ -257,6 +272,52 @@ func applyInput(acc model.Account, name *string, maxRating *int64, language *str
 		}
 	}
 	return verr
+}
+
+// Bounds of the W-8 and K-5 limits (contract schemas BitrateKbps, OutputHeight, StreamCount,
+// WatchMinutes and the CHECK constraints of migration 00011).
+const (
+	minBitrateKbps    = 200
+	maxBitrateKbps    = 200_000
+	maxStreamCount    = 16
+	maxWatchLimitMins = 1440
+)
+
+var outputHeights = []int{360, 480, 720, 1080, 2160}
+
+// validateLimits checks limits (zero = no limit); withWatch is false for the caps of a guest
+// account, which ignore the watch-time limit. Field names are "limits.<field>".
+func validateLimits(l model.PlaybackLimits, withWatch bool, verr *model.ValidationError) *model.ValidationError {
+	switch {
+	case l.MaxBitrateKbps < 0, l.MaxBitrateKbps > 0 && l.MaxBitrateKbps < minBitrateKbps:
+		verr = verr.Add("limits.maxBitrateKbps", "too_small")
+	case l.MaxBitrateKbps > maxBitrateKbps:
+		verr = verr.Add("limits.maxBitrateKbps", "too_large")
+	}
+	if l.MaxHeight != 0 && !slices.Contains(outputHeights, l.MaxHeight) {
+		verr = verr.Add("limits.maxHeight", "invalid_value")
+	}
+	switch {
+	case l.MaxStreams < 0:
+		verr = verr.Add("limits.maxStreams", "too_small")
+	case l.MaxStreams > maxStreamCount:
+		verr = verr.Add("limits.maxStreams", "too_large")
+	}
+	if withWatch {
+		switch {
+		case l.WatchLimitMinutes < 0:
+			verr = verr.Add("limits.watchLimitMinutes", "too_small")
+		case l.WatchLimitMinutes > maxWatchLimitMins:
+			verr = verr.Add("limits.watchLimitMinutes", "too_large")
+		}
+	}
+	return verr
+}
+
+// limitColumns maps limits to nullable columns (zero = NULL = no limit).
+func limitColumns(l model.PlaybackLimits) (bitrate, height, streams, watch sql.NullInt64) {
+	col := func(v int) sql.NullInt64 { return sql.NullInt64{Int64: int64(v), Valid: v > 0} }
+	return col(l.MaxBitrateKbps), col(l.MaxHeight), col(l.MaxStreams), col(l.WatchLimitMinutes)
 }
 
 // hasField reports whether verr already has an error for field.

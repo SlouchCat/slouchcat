@@ -251,7 +251,7 @@ func (s *Service) SelectProfile(ctx context.Context, session model.Session, prof
 	if n == 0 {
 		return model.Session{}, model.ErrNotFound // session revoked or profile deleted meanwhile
 	}
-	prof, err := s.profileModel(ctx, s.write, row)
+	prof, err := s.profileModel(ctx, s.write, row, session.Account)
 	if err != nil {
 		return model.Session{}, err
 	}

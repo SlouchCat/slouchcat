@@ -435,6 +435,7 @@ func (q *Queries) ListAccountLibraries(ctx context.Context, accountID int64) ([]
 
 const listGuestAccounts = `-- name: ListGuestAccounts :many
 SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
+       a.max_bitrate_kbps, a.max_height, a.max_streams,
        (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
 FROM accounts AS a
 WHERE a.role = 'guest'
@@ -442,13 +443,16 @@ ORDER BY a.created_at DESC, a.id DESC
 `
 
 type ListGuestAccountsRow struct {
-	ID           int64
-	Email        string
-	MaxRating    int64
-	AllLibraries int64
-	CreatedAt    int64
-	LastSeenAt   sql.NullInt64
-	ProfileCount int64
+	ID             int64
+	Email          string
+	MaxRating      int64
+	AllLibraries   int64
+	CreatedAt      int64
+	LastSeenAt     sql.NullInt64
+	MaxBitrateKbps sql.NullInt64
+	MaxHeight      sql.NullInt64
+	MaxStreams     sql.NullInt64
+	ProfileCount   int64
 }
 
 func (q *Queries) ListGuestAccounts(ctx context.Context) ([]ListGuestAccountsRow, error) {
@@ -467,6 +471,9 @@ func (q *Queries) ListGuestAccounts(ctx context.Context) ([]ListGuestAccountsRow
 			&i.AllLibraries,
 			&i.CreatedAt,
 			&i.LastSeenAt,
+			&i.MaxBitrateKbps,
+			&i.MaxHeight,
+			&i.MaxStreams,
 			&i.ProfileCount,
 		); err != nil {
 			return nil, err
@@ -881,20 +888,29 @@ func (q *Queries) TouchAccount(ctx context.Context, arg TouchAccountParams) erro
 }
 
 const updateAccountLimits = `-- name: UpdateAccountLimits :exec
-UPDATE accounts SET max_rating = ?1, all_libraries = ?2, updated_at = ?3 WHERE id = ?4
+UPDATE accounts
+SET max_rating = ?1, all_libraries = ?2, max_bitrate_kbps = ?3,
+    max_height = ?4, max_streams = ?5, updated_at = ?6
+WHERE id = ?7
 `
 
 type UpdateAccountLimitsParams struct {
-	MaxRating    int64
-	AllLibraries int64
-	Now          int64
-	ID           int64
+	MaxRating      int64
+	AllLibraries   int64
+	MaxBitrateKbps sql.NullInt64
+	MaxHeight      sql.NullInt64
+	MaxStreams     sql.NullInt64
+	Now            int64
+	ID             int64
 }
 
 func (q *Queries) UpdateAccountLimits(ctx context.Context, arg UpdateAccountLimitsParams) error {
 	_, err := q.db.ExecContext(ctx, updateAccountLimits,
 		arg.MaxRating,
 		arg.AllLibraries,
+		arg.MaxBitrateKbps,
+		arg.MaxHeight,
+		arg.MaxStreams,
 		arg.Now,
 		arg.ID,
 	)
@@ -904,18 +920,23 @@ func (q *Queries) UpdateAccountLimits(ctx context.Context, arg UpdateAccountLimi
 const updateProfile = `-- name: UpdateProfile :exec
 UPDATE profiles
 SET name = ?1, max_rating = ?2, language = ?3, accent = ?4,
-    all_libraries = ?5, updated_at = ?6
-WHERE id = ?7
+    all_libraries = ?5, max_bitrate_kbps = ?6, max_height = ?7,
+    max_streams = ?8, watch_limit_minutes = ?9, updated_at = ?10
+WHERE id = ?11
 `
 
 type UpdateProfileParams struct {
-	Name         string
-	MaxRating    int64
-	Language     string
-	Accent       sql.NullString
-	AllLibraries int64
-	Now          int64
-	ID           int64
+	Name              string
+	MaxRating         int64
+	Language          string
+	Accent            sql.NullString
+	AllLibraries      int64
+	MaxBitrateKbps    sql.NullInt64
+	MaxHeight         sql.NullInt64
+	MaxStreams        sql.NullInt64
+	WatchLimitMinutes sql.NullInt64
+	Now               int64
+	ID                int64
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) error {
@@ -925,6 +946,10 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) er
 		arg.Language,
 		arg.Accent,
 		arg.AllLibraries,
+		arg.MaxBitrateKbps,
+		arg.MaxHeight,
+		arg.MaxStreams,
+		arg.WatchLimitMinutes,
 		arg.Now,
 		arg.ID,
 	)

@@ -178,7 +178,7 @@ func (s *Service) CreateOwner(ctx context.Context, email, password, language str
 		return model.Account{}, model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "owner account created", "account_id", acc.ID, "profile_id", prof.ID)
-	return toAccount(acc, nil), toProfile(prof, nil), nil
+	return toAccount(acc, nil), toProfile(prof, nil, model.PlaybackLimits{}), nil
 }
 
 // profileName is the local part of the e-mail, cut to the column limit.
@@ -251,7 +251,7 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent string) 
 	}
 	var profile model.Profile
 	if active.ID != 0 {
-		if profile, err = s.profileModel(ctx, s.read, active); err != nil {
+		if profile, err = s.profileModel(ctx, s.read, active, account); err != nil {
 			return model.Session{}, "", err
 		}
 	}
@@ -373,7 +373,7 @@ func (s *Service) loadSession(ctx context.Context, q *appq.Queries, row appq.Ses
 		if err != nil {
 			return model.Session{}, notFoundOr(err, "get profile")
 		}
-		if session.Profile, err = s.profileModel(ctx, q, prof); err != nil {
+		if session.Profile, err = s.profileModel(ctx, q, prof, account); err != nil {
 			return model.Session{}, err
 		}
 	}
@@ -392,8 +392,8 @@ func (s *Service) accountModel(ctx context.Context, q *appq.Queries, a appq.Acco
 	return toAccount(a, libs), nil
 }
 
-// profileModel maps a profile row; a profile with restricted libraries gets them.
-func (s *Service) profileModel(ctx context.Context, q *appq.Queries, p appq.Profile) (model.Profile, error) {
+// profileModel maps a profile row of account; a profile with restricted libraries gets them.
+func (s *Service) profileModel(ctx context.Context, q *appq.Queries, p appq.Profile, account model.Account) (model.Profile, error) {
 	var libs []int64
 	if p.AllLibraries != 1 {
 		var err error
@@ -401,7 +401,7 @@ func (s *Service) profileModel(ctx context.Context, q *appq.Queries, p appq.Prof
 			return model.Profile{}, fmt.Errorf("profile libraries: %w", err)
 		}
 	}
-	return toProfile(p, libs), nil
+	return toProfile(p, libs, account.Limits), nil
 }
 
 // Logout revokes the session and, in the same transaction, every playback session it started, so
@@ -481,16 +481,37 @@ func toAccount(a appq.Account, libs []int64) model.Account {
 	}
 	return model.Account{
 		ID: a.ID, Email: a.Email, Role: a.Role, MaxRating: int(a.MaxRating), AllLibraries: a.AllLibraries == 1, LibraryIDs: libs,
+		Limits: AccountLimits(a),
 	}
 }
 
-func toProfile(p appq.Profile, libs []int64) model.Profile {
+// toProfile maps a profile row; account are the caps of its account (Account.Limits), which
+// bound the effective limits.
+func toProfile(p appq.Profile, libs []int64, account model.PlaybackLimits) model.Profile {
 	if libs == nil {
 		libs = []int64{}
 	}
+	limits := ProfileLimits(p)
 	return model.Profile{
 		ID: p.ID, AccountID: p.AccountID, Name: p.Name, MaxRating: int(p.MaxRating), Language: p.Language,
 		AllLibraries: p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
 		HasPin: p.PinHash.Valid, IsPrimary: p.IsDefault == 1,
+		Limits: limits, Effective: limits.Cap(account),
+	}
+}
+
+// AccountLimits are the W-8 caps of an account row (guests); the watch-time limit is a profile
+// setting and stays zero.
+func AccountLimits(a appq.Account) model.PlaybackLimits {
+	return model.PlaybackLimits{
+		MaxBitrateKbps: int(a.MaxBitrateKbps.Int64), MaxHeight: int(a.MaxHeight.Int64), MaxStreams: int(a.MaxStreams.Int64),
+	}
+}
+
+// ProfileLimits are the W-8 and K-5 limits of a profile row (zero = none).
+func ProfileLimits(p appq.Profile) model.PlaybackLimits {
+	return model.PlaybackLimits{
+		MaxBitrateKbps: int(p.MaxBitrateKbps.Int64), MaxHeight: int(p.MaxHeight.Int64), MaxStreams: int(p.MaxStreams.Int64),
+		WatchLimitMinutes: int(p.WatchLimitMinutes.Int64),
 	}
 }

@@ -332,5 +332,6 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 		return model.Session{}, "", fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "guest account created", "account_id", acc.ID, "invitation_id", inv.ID, "max_rating", inv.MaxRating)
-	return s.StartSession(ctx, toAccount(acc, libs), toProfile(prof, nil), userAgent)
+	account := toAccount(acc, libs)
+	return s.StartSession(ctx, account, toProfile(prof, nil, account.Limits), userAgent)
 }

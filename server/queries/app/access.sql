@@ -33,7 +33,8 @@ SELECT count(*) FROM profiles WHERE account_id = @account_id;
 -- name: UpdateProfile :exec
 UPDATE profiles
 SET name = @name, max_rating = @max_rating, language = @language, accent = @accent,
-    all_libraries = @all_libraries, updated_at = @now
+    all_libraries = @all_libraries, max_bitrate_kbps = sqlc.narg('max_bitrate_kbps'), max_height = sqlc.narg('max_height'),
+    max_streams = sqlc.narg('max_streams'), watch_limit_minutes = sqlc.narg('watch_limit_minutes'), updated_at = @now
 WHERE id = @id;
 
 -- name: SetProfilePin :exec
@@ -93,13 +94,17 @@ SELECT * FROM accounts WHERE id = @id AND role = 'guest';
 
 -- name: ListGuestAccounts :many
 SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
+       a.max_bitrate_kbps, a.max_height, a.max_streams,
        (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
 FROM accounts AS a
 WHERE a.role = 'guest'
 ORDER BY a.created_at DESC, a.id DESC;
 
 -- name: UpdateAccountLimits :exec
-UPDATE accounts SET max_rating = @max_rating, all_libraries = @all_libraries, updated_at = @now WHERE id = @id;
+UPDATE accounts
+SET max_rating = @max_rating, all_libraries = @all_libraries, max_bitrate_kbps = sqlc.narg('max_bitrate_kbps'),
+    max_height = sqlc.narg('max_height'), max_streams = sqlc.narg('max_streams'), updated_at = @now
+WHERE id = @id;
 
 -- name: DeleteAccount :execrows
 DELETE FROM accounts WHERE id = @id;

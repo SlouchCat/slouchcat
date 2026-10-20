@@ -16,8 +16,10 @@ SELECT * FROM accounts WHERE email = @email;
 SELECT * FROM accounts WHERE id = @id;
 
 -- name: InsertProfile :one
-INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash, created_at, updated_at)
-VALUES (@account_id, @name, @max_rating, @language, sqlc.narg('accent'), @all_libraries, @is_default, sqlc.narg('pin_hash'), @now, @now)
+INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash,
+                      max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, created_at, updated_at)
+VALUES (@account_id, @name, @max_rating, @language, sqlc.narg('accent'), @all_libraries, @is_default, sqlc.narg('pin_hash'),
+        sqlc.narg('max_bitrate_kbps'), sqlc.narg('max_height'), sqlc.narg('max_streams'), sqlc.narg('watch_limit_minutes'), @now, @now)
 RETURNING *;
 
 -- name: GetProfile :one
