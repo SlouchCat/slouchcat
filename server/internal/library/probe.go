@@ -350,19 +350,36 @@ func findSidecars(r *os.Root, rel string) ([]sidecar, error) {
 	if err != nil {
 		return nil, err
 	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() && !Ignored(e.Name()) {
+			names = append(names, e.Name())
+		}
+	}
+	return sidecarsOf(rel, names), nil
+}
+
+// sidecarsOf returns the sidecars of the media file rel among the file names of its directory,
+// sorted by path.
+func sidecarsOf(rel string, names []string) []sidecar {
+	dir := path.Dir(rel)
 	stem := strings.TrimSuffix(path.Base(rel), path.Ext(rel))
 	var out []sidecar
-	for _, e := range entries {
-		if e.IsDir() || Ignored(e.Name()) {
-			continue
-		}
-		if sc, ok := parseSidecar(stem, e.Name()); ok {
-			sc.rel = path.Join(dir, e.Name())
+	for _, name := range names {
+		if sc, ok := parseSidecar(stem, name); ok {
+			sc.rel = path.Join(dir, name)
 			out = append(out, sc)
 		}
 	}
 	slices.SortFunc(out, func(a, b sidecar) int { return strings.Compare(a.rel, b.rel) })
-	return out, nil
+	return out
+}
+
+// isSubtitle reports whether name has a subtitle extension (a sidecar candidate).
+func isSubtitle(name string) bool {
+	ext := strings.TrimPrefix(path.Ext(name), ".")
+	_, ok := subtitleCodecs[strings.ToLower(ext)]
+	return ok && !Ignored(name)
 }
 
 func parseSidecar(stem, name string) (sidecar, bool) {

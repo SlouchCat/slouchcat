@@ -97,6 +97,27 @@ VALUES (@media_file_id, @stream_index, @kind, @codec, @language, @title, @source
 -- name: ListMediaFileTracks :many
 SELECT * FROM tracks WHERE media_file_id = @media_file_id ORDER BY source, stream_index;
 
+-- Sidecar subtitle sync of the scans (I-5, M4): sidecar rows are compared with the files on disk
+-- without probing again.
+
+-- name: ListSidecarTracksByRoot :many
+SELECT t.id, t.media_file_id, t.rel_path FROM tracks AS t
+JOIN media_files AS m ON m.id = t.media_file_id
+WHERE m.root_id = @root_id AND t.source = 'sidecar'
+ORDER BY t.media_file_id, t.rel_path;
+
+-- name: ListMediaFileSidecarTracks :many
+SELECT id, rel_path FROM tracks WHERE media_file_id = @media_file_id AND source = 'sidecar' ORDER BY rel_path;
+
+-- name: InsertSidecarTrack :exec
+-- A sidecar found by a scan; stream_index -1 like the API reports sidecars.
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
+VALUES (@media_file_id, -1, 'subtitle', @codec, @language, @title, 'sidecar', @rel_path, 0, @is_forced)
+ON CONFLICT DO NOTHING;
+
+-- name: DeleteTrack :exec
+DELETE FROM tracks WHERE id = @id;
+
 -- name: UpdateItemRatingOverride :exec
 -- Administrator override of the age rating (M2): own_rating, rating_source ('manual', or the value
 -- the caller restores when the override is cleared) and locked_fields in one statement, so the
