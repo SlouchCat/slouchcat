@@ -7,6 +7,7 @@ import {
   PGS_TITLE,
   play,
   player,
+  recordEndedReason,
   resetProgress,
   startOf,
 } from './playback';
@@ -43,6 +44,7 @@ test('switching the audio track to AC3 English: new session within 3 s, Stream-I
   await arrowTo(page, target);
   await expectVisibleFocus(page);
 
+  const endedReason = await recordEndedReason(page);
   const second = await startOf(page, () => page.keyboard.press('Enter'));
   expect(second.status).toBe(200);
   expect(second.request.audioTrack).toBe(ac3!.index);
@@ -55,6 +57,10 @@ test('switching the audio track to AC3 English: new session within 3 s, Stream-I
     second.body.playbackSessionId,
   );
   await expect(player(page)).toHaveAttribute('data-switch-ms', /\d+/, { timeout: 15_000 });
+  // The end of the old session was the viewer's own switch, not a stop by the server (W-1).
+  await expect(player(page)).not.toHaveAttribute('data-ended-reason', /.+/);
+  expect(await endedReason()).toBeNull();
+  await expect(page.getByRole('alert')).toHaveCount(0);
   const switchMs = Number(await player(page).getAttribute('data-switch-ms'));
   expect(switchMs).toBeLessThanOrEqual(SWITCH_BUDGET_MS);
 
@@ -127,6 +133,7 @@ test('a PGS track is burned in: transcode with reason subtitle_burn, and it play
   await page.keyboard.press('t');
   const target = tracksMenu(page).getByRole('menuitemradio', { name: /PGS/ });
   await arrowTo(page, target);
+  const endedReason = await recordEndedReason(page);
   const second = await startOf(page, () => page.keyboard.press('Enter'));
   expect(second.status).toBe(200);
   expect(second.body.mode).toBe('hls');
@@ -140,6 +147,8 @@ test('a PGS track is burned in: transcode with reason subtitle_burn, and it play
     second.body.playbackSessionId,
   );
   await expect(player(page)).toHaveAttribute('data-switch-ms', /\d+/, { timeout: 30_000 });
+  await expect(player(page)).not.toHaveAttribute('data-ended-reason', /.+/);
+  expect(await endedReason()).toBeNull();
   await expect(page.locator('video track')).toHaveCount(0);
   await expect
     .poll(() => page.locator('video').evaluate((video: HTMLVideoElement) => video.paused))

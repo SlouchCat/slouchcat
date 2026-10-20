@@ -16,7 +16,8 @@ export interface Call {
   keepalive: boolean;
 }
 
-type Reply = Response | (() => Response) | ((call: Call) => Response);
+type Reply =
+  Response | (() => Response | Promise<Response>) | ((call: Call) => Response | Promise<Response>);
 
 /** Route table "METHOD /path" → reply; paths are relative to /api/v1 and may contain `*`. */
 export type Routes = Record<string, Reply>;

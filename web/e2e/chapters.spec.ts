@@ -103,6 +103,10 @@ test.describe('intro show', () => {
     await resetProgress(page.request, episodes[1]);
     const info = await play(page, episodes[0]);
     expect(info.nextEpisode?.id).toBe(episodes[1]);
+    // Binge in full screen: the next episode stays in full screen (W-2).
+    const inFullscreen = () => page.evaluate(() => document.fullscreenElement !== null);
+    await page.keyboard.press('f');
+    await expect.poll(inFullscreen).toBe(true);
     const at = info.segments.outro ? info.segments.outro.startMs / 1000 + 0.5 : undefined;
     await page.locator('video').evaluate((video: HTMLVideoElement, seconds: number | undefined) => {
       video.currentTime = seconds ?? Math.max(0, video.duration - 2);
@@ -122,6 +126,8 @@ test.describe('intro show', () => {
     await expect(player(page)).toHaveAttribute('data-autonext', 'navigated');
     await expect(player(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 15_000 });
     await expectFocusOn(page, page.getByRole('button', { name: /^(Pause|Abspielen)$/ }));
+    expect(await inFullscreen()).toBe(true);
+    await expect(page.getByRole('button', { name: 'Vollbild beenden' })).toBeAttached();
   });
 
   test('Escape cancels the countdown; N plays the next episode at once', async ({ page }) => {

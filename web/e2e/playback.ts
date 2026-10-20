@@ -151,6 +151,31 @@ export async function limitCapabilities(
   });
 }
 
+/**
+ * Records from now on whether any player showed `data-ended-reason` (the server ended the
+ * playback), even for a moment: during a switch the old player is replaced as soon as the new
+ * session answers, so a check afterwards would miss it (W-1). Returns a reader of the record.
+ */
+export async function recordEndedReason(page: Page): Promise<() => Promise<string | null>> {
+  await page.evaluate(() => {
+    const record = window as unknown as { endedReasonSeen: string | null };
+    record.endedReasonSeen = null;
+    const check = () => {
+      const ended = document.querySelector('[data-ended-reason]');
+      if (ended) record.endedReasonSeen ??= ended.getAttribute('data-ended-reason');
+    };
+    new MutationObserver(check).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-ended-reason'],
+    });
+    check();
+  });
+  return () =>
+    page.evaluate(() => (window as unknown as { endedReasonSeen: string | null }).endedReasonSeen);
+}
+
 /** Opens the player of `itemId` and returns the started playback; waits until it plays. */
 export async function play(page: Page, itemId: string, search = ''): Promise<PlaybackData> {
   const { status, body } = await startOf(page, () => page.goto(`/play/${itemId}${search}`));

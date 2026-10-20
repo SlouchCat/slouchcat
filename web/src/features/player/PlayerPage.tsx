@@ -98,6 +98,14 @@ let autoNextTarget: string | null = null;
 /** Video player route (W-1 direct play, W-4 tracks, W-5 progress, W-8 quality, W-9 auto-next). */
 export function PlayerPage() {
   const { itemId } = route.useParams();
+  // Full screen belongs to the document so that it survives switches and auto-next (W-2); it
+  // ends with the player route.
+  useEffect(
+    () => () => {
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    },
+    [],
+  );
   // Auto-next stays on this route with another id: a fresh player, session and measurement.
   return <PlayerView key={itemId} itemId={itemId} />;
 }

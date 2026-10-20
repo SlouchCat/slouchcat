@@ -156,7 +156,8 @@ export function VideoPlayer({
   const [currentMs, setCurrentMs] = useState(resumeMs);
   const [durationMs, setDurationMs] = useState(info.mediaFile.durationMs ?? 0);
   const [buffered, setBuffered] = useState<[number, number][]>([]);
-  const [fullscreen, setFullscreen] = useState(false);
+  // Full screen belongs to the document, so it survives a new session or episode (W-2).
+  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
   const [idle, setIdle] = useState(false);
   const [osd, setOsd] = useState<string | null>(null);
   const [startMs, setStartMs] = useState<number | null>(null);
@@ -181,8 +182,12 @@ export function VideoPlayer({
   }, []);
   // During a switch the old session is ended already: playing or seeking it would fail.
   const locked = useRef(switching);
+  // The viewer switched away from this session (track, quality, version): the old session ends on
+  // the server, and its 401 or a failed request is the switch, not a stop by the server (W-1).
+  const switchedAway = useRef(false);
   useEffect(() => {
     locked.current = switching || ended !== null;
+    if (switching) switchedAway.current = true;
   }, [switching, ended]);
   const watchTime = useRef<WatchTime | undefined>(info.watchTime);
   const stopHls = useRef<() => void>(() => undefined);
@@ -202,6 +207,7 @@ export function VideoPlayer({
 
   /** A 401 of the stream: the watch-time limit when the day's minutes were (nearly) used up. */
   const onRevoked = useCallback(() => {
+    if (switchedAway.current) return;
     const remaining = watchTime.current?.remainingMinutes;
     endPlayback(remaining !== undefined && remaining <= 1 ? 'limit' : 'admin');
   }, [endPlayback]);
@@ -309,15 +315,17 @@ export function VideoPlayer({
     [t],
   );
 
+  // The whole document goes full screen, not this player: a switch or auto-next replaces the
+  // player, and removing the full-screen element would end full screen (W-2). The player covers
+  // the viewport and its menus render inside it, so nothing else shows.
   const toggleFullscreen = useCallback(() => {
-    const node = container.current;
-    if (!node) return;
+    const root = document.documentElement;
     if (document.fullscreenElement) void document.exitFullscreen();
-    else if (typeof node.requestFullscreen === 'function') void node.requestFullscreen();
+    else if (typeof root.requestFullscreen === 'function') void root.requestFullscreen();
   }, []);
 
   useEffect(() => {
-    const onChange = () => setFullscreen(document.fullscreenElement !== null);
+    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
@@ -534,6 +542,7 @@ export function VideoPlayer({
         let mediaRecovered = false;
         let networkRecovered = false;
         hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (switchedAway.current) return;
           if (data.response?.code === 401) {
             onRevoked();
             return;
@@ -614,7 +623,7 @@ export function VideoPlayer({
     // With hls.js the element's errors reach hls.js as well, which reports them (and recovers).
     // A direct stream that the server closed answers 401 to the element's next range request.
     const onError = () => {
-      if (engine === 'hlsjs') return;
+      if (engine === 'hlsjs' || switchedAway.current) return;
       void streamRevoked(info.streamUrl).then((revoked) => {
         if (revoked) onRevoked();
         else setFailed(true);
@@ -645,17 +654,23 @@ export function VideoPlayer({
     };
   }, [engine, info, onRevoked, openedAt, resumeMs, switchFrom]);
 
-  // Another version, track or quality: pause here and hand the position over to the next session.
+  // Another version, track or quality: pause and stop loading here (the session is about to end)
+  // and hand the position over to the next session.
   const positionNow = () => Math.round((video.current?.currentTime ?? 0) * 1000);
+  const leaveSession = () => {
+    switchedAway.current = true;
+    const position = positionNow();
+    video.current?.pause();
+    stopHls.current();
+    return position;
+  };
   const switchVersion = (mediaFileId: string) => {
     if (!onSwitchVersion || switching) return;
-    video.current?.pause();
-    onSwitchVersion(mediaFileId, positionNow());
+    onSwitchVersion(mediaFileId, leaveSession());
   };
   const switchPlayback = (change: PlaybackChange) => {
     if (!onSwitch || switching) return;
-    video.current?.pause();
-    onSwitch(change, positionNow());
+    onSwitch(change, leaveSession());
   };
 
   const currentVersion = info.mediaFile.versionLabel ?? info.mediaFile.container.toUpperCase();

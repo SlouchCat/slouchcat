@@ -471,6 +471,139 @@ describe('player M4', () => {
     expect(calls.find((call) => call.path === `/items/${ids.alien}/stream`)?.method).toBe('GET');
   });
 
+  it('ignores the old session after a switch: its 401 is no stop by the server (W-1)', async () => {
+    stubMedia();
+    vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation((type) =>
+      type === 'application/vnd.apple.mpegurl' ? '' : 'probably',
+    );
+    vi.stubGlobal('MediaSource', { isTypeSupported: () => true });
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let count = 0;
+    const { calls } = mockApi({
+      ...routes(hlsPlayback),
+      [`POST ${playPath}`]: async () => {
+        count += 1;
+        if (count === 1) return json(hlsPlayback);
+        await held;
+        return json({ ...hlsPlayback, playbackSessionId: 'ps-480' });
+      },
+    });
+    renderApp(`/play/${ids.alien}`);
+    await waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+    fireEvent.keyDown(document.body, { key: 'q' });
+    const menu = await screen.findByRole('menu', { name: /^Qualität/ });
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await user.click(within(menu).getByRole('menuitemradio', { name: '480p' }));
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    // The old player stopped loading; the server's 401 for the ended session changes nothing.
+    expect(hlsMock.instances[0]!.stopped).toBeGreaterThanOrEqual(1);
+    act(() => {
+      hlsMock.instances[0]!.emitError({
+        type: 'networkError',
+        details: 'fragLoadError',
+        fatal: true,
+        response: { code: 401 },
+      });
+    });
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    release();
+    await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-480'));
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('ignores a direct-play error of the old session during a switch (W-1)', async () => {
+    stubMedia();
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let count = 0;
+    const { calls } = mockApi({
+      ...routes(playback),
+      [`POST ${playPath}`]: async () => {
+        count += 1;
+        if (count === 1) return json(playback);
+        await held;
+        return json({ ...playback, playbackSessionId: 'ps-en', selection: { audioTrack: 2 } });
+      },
+      [`GET /items/${ids.alien}/stream`]: () => problem(401, 'unauthenticated'),
+    });
+    const { container } = renderApp(`/play/${ids.alien}`);
+    const video = await startPlayer(container);
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await user.click(screen.getByRole('button', { name: 'Spuren' }));
+    await user.click(await screen.findByRole('menuitemradio', { name: 'Englisch · AC3 · 5.1' }));
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    act(() => {
+      video.dispatchEvent(new Event('error'));
+    });
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(calls.some((call) => call.path === `/items/${ids.alien}/stream`)).toBe(false);
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    expect(screen.queryByRole('alert')).toBeNull();
+    release();
+    await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-en'));
+  });
+
+  it('keeps full screen across a switch: the document is in full screen, not the player (W-2)', async () => {
+    stubMedia();
+    let fullscreenElement: Element | null = null;
+    const changed = () => document.dispatchEvent(new Event('fullscreenchange'));
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    });
+    const request = vi.fn(() => {
+      fullscreenElement = document.documentElement;
+      changed();
+      return Promise.resolve();
+    });
+    const exit = vi.fn(() => {
+      fullscreenElement = null;
+      changed();
+      return Promise.resolve();
+    });
+    document.documentElement.requestFullscreen = request;
+    document.exitFullscreen = exit;
+    try {
+      const { calls } = mockApi(
+        routes(playback, () => ({ ...playback, playbackSessionId: 'ps-2' })),
+      );
+      const { container, unmount } = renderApp(`/play/${ids.alien}`);
+      await startPlayer(container);
+      fireEvent.keyDown(document.body, { key: 'f' });
+      expect(request).toHaveBeenCalledTimes(1);
+      // Called on the document element, which no switch replaces.
+      expect(request.mock.contexts[0]).toBe(document.documentElement);
+      expect(screen.getByRole('button', { name: 'Vollbild beenden' })).toBeVisible();
+
+      const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+      fireEvent.keyDown(document.body, { key: 'q' });
+      const menu = await screen.findByRole('menu', { name: /^Qualität/ });
+      await user.click(within(menu).getByRole('menuitemradio', { name: '480p' }));
+      await waitFor(() => expect(starts(calls)).toHaveLength(2));
+      await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-2'));
+      // A new player, still in full screen, and it knows.
+      expect(fullscreenElement).toBe(document.documentElement);
+      expect(exit).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Vollbild beenden' })).toBeVisible();
+
+      // Leaving the player ends full screen.
+      unmount();
+      expect(exit).toHaveBeenCalledTimes(1);
+    } finally {
+      Reflect.deleteProperty(document, 'fullscreenElement');
+      Reflect.deleteProperty(document.documentElement, 'requestFullscreen');
+      Reflect.deleteProperty(document, 'exitFullscreen');
+    }
+  });
+
   it('shows the watch-time limit when the start answers 403 watch_limit_reached', async () => {
     stubMedia();
     const { container } = (() => {
