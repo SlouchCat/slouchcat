@@ -7,7 +7,8 @@ Pull Requests #1 bis #5). **M4 ist gebaut** auf dem Branch `claude/m4-playback-c
 ## Meilenstein M4 – Wiedergabe komplett
 
 Vorab geklärt mit Marco (20. Oktober 2026): die NVIDIA-Container-Laufzeit installiert er mit
-`scripts/install-nvidia-container-toolkit.sh` (am Ende von M4 noch ausstehend, siehe offene Punkte); echte
+`scripts/install-nvidia-container-toolkit.sh` (nachträglich am 20. Oktober 2026 installiert, `tonemap_cuda`
+im Container gemessen, siehe W-2 und W-3); echte
 Dolby-Vision- und HDR-Dateien vom NAS dürfen lesend für Messungen genutzt werden (nichts davon im
 Repository). Alle fünf Schritte aus `docs/planning/03-plan-v1.md` (M4) sind umgesetzt; der Entwurf liegt in
 den Sitzungsnotizen (`m4-design.md`). Die Umsetzung lief mit vier Executor-Agenten (Opus) parallel
@@ -34,8 +35,8 @@ mit Bereich im Titel:
 | Kriterium | Ergebnis | Beleg |
 |---|---|---|
 | W-1 H.264/AAC-MP4 → Direct Play, 0 ffmpeg | PASS (seit M1a); neu: Direct Play folgt dem gemeldeten Geräteprofil (Container, Codecs, HDR, Auflösung); Chromium und Firefox melden MKV und spielen H.264-MKV direkt | `go test ./internal/playback -run TestDecide`, `web/e2e/player.spec.ts` |
-| W-2 Testmatrix 10.3, HDR → SDR nach P-6 auf NVENC und QSV | PASS mit einer Ausnahme: Software-Referenz, NVENC (`libplacebo`, SSIM 0.9915, ΔE Keil 2.91 / Hautton 3.71) und QSV-Hybrid (ΔE 0.00) bestanden; `vpp_qsv` (ΔE Hautton 10.25) nicht bestanden und deshalb nicht mehr Standard; Sichtfreigabe der Referenzbilder (P-6 a) durch Marco ausstehend; `tonemap_cuda` im Container **ausstehend** (NVIDIA-Laufzeit) | `docs/perf/M4.md` 1, `testdata/hdr-quality.sh`, Referenzbilder `testdata/reference/hdr/` |
-| W-3 4K-HEVC-HDR startet im Handy-Profil < 5 s (NVENC, QSV); Spulen < 3 s | PASS: echte 4K-HDR10+-Quelle → 720p: NVENC `libplacebo` 1.55 s (CPU-Tonemapping 0.80 s), QSV-Hybrid 1.85 s (`vpp_qsv` 0.80 s), zwei gleichzeitige Streams im CT 3.0 s (gemessen mit `--budget 1000`; im Betrieb lässt das QSV-Budget 8 bei Kosten 6 nur einen zu); Spulen unverändert aus M1b; im Browser `hdr.spec.ts` (generierter 4K-Clip); Start auf dem Android-Handy (Stoppuhr) ausstehend, iPhone ungeprüft (Entscheid 2) | `docs/perf/M4.md` 2, `web/e2e/hdr.spec.ts`, `hls.spec.ts` |
+| W-2 Testmatrix 10.3, HDR → SDR nach P-6 auf NVENC und QSV | PASS mit einer Ausnahme: Software-Referenz, NVENC (`libplacebo`, SSIM 0.9915, ΔE Keil 2.91 / Hautton 3.71) und QSV-Hybrid (ΔE 0.00) bestanden; `vpp_qsv` (ΔE Hautton 10.25) nicht bestanden und deshalb nicht mehr Standard; `tonemap_cuda` im Container (Standard im Image): SSIM 1.000, ΔE Keil 3.22 / Hautton 5.87, knapp über der Grenze gegen die `hable`-Referenz, gegen die Ausgangsfarben aber am genauesten (3.78); Abweichung von Marco akzeptiert, Referenz `nvenc-cuda`; Sichtfreigabe der Referenzbilder (P-6 a) durch Marco ausstehend | `docs/perf/M4.md` 1, `testdata/hdr-quality.sh`, Referenzbilder `testdata/reference/hdr/` |
+| W-3 4K-HEVC-HDR startet im Handy-Profil < 5 s (NVENC, QSV); Spulen < 3 s | PASS: echte 4K-HDR10+-Quelle → 720p: NVENC `tonemap_cuda` im Container 0.50 s (zwei Streams 0.75 s, 1080p 0.50 s), NVENC `libplacebo` auf dem Host 1.55 s (CPU-Tonemapping 0.80 s), QSV-Hybrid 1.85 s (`vpp_qsv` 0.80 s), zwei gleichzeitige Streams im CT 3.0 s (gemessen mit `--budget 1000`; im Betrieb lässt das QSV-Budget 8 bei Kosten 6 nur einen zu); Spulen unverändert aus M1b; im Browser `hdr.spec.ts` (generierter 4K-Clip); Start auf dem Android-Handy (Stoppuhr) ausstehend, iPhone ungeprüft (Entscheid 2) | `docs/perf/M4.md` 2, `web/e2e/hdr.spec.ts`, `hls.spec.ts` |
 | W-4 Tonspurwechsel ≤ 3 s; SRT/ASS als WebVTT; PGS eingebrannt | PASS: AC3-Spur gewählt → neue Sitzung an derselben Position, `data-switch-ms` ≤ 3000 in Chromium und Firefox; SRT als `<track>` (`text/vtt`); PGS → `reason subtitle_burn`, spielt | `web/e2e/tracks.spec.ts`, `go test ./internal/transcode -run 'BurnIn|Subtitles'`, `go test ./internal/playback -run 'Subtitle|Track'` |
 | W-5 Fortschritt | PASS (seit M1a) | `web/e2e/resume.spec.ts` |
 | W-6 Stream-Übersicht mit Beenden, Client stoppt < 5 s, ffmpeg endet | PASS: zwei Streams (Hauptprofil Direct Play, zweites Profil Transcode) mit Profil, Gerät, Titel, Qualität, Modus HW/SW; Beenden per Tastatur → Player zeigt «Die Wiedergabe wurde beendet.» innert 5 s, Zeile verschwindet, Transcoder gestoppt (Go-Test mit Fake-Transcoder) | `web/e2e/admin-streams.spec.ts`, `go test ./internal/playback -run 'StreamOverview|Streams'`, `go test ./internal/api -run 'Streams'` |
@@ -94,7 +95,12 @@ mit Bereich im Titel:
   GPU-Variante bleibt per `SLOUCHCAT_HDR_TONEMAP=gpu` wählbar. OpenCL-Tonemapping (Weg von Jellyfin) scheitert
   am fehlenden Intel-OpenCL-Treiber im Image (nicht in Debian `main`).
 - **NVENC auf dem Host über `libplacebo`** (ffmpeg 6.1.1 ohne `tonemap_cuda`): Start 1.55 s statt 0.80 s mit
-  CPU-Tonemapping, dafür ein Drittel der CPU-Zeit; das Image nutzt `tonemap_cuda`, sobald die Laufzeit steht.
+  CPU-Tonemapping, dafür ein Drittel der CPU-Zeit; das Image nutzt `tonemap_cuda`.
+- **`tonemap_cuda` mit Abweichung akzeptiert** (Nachtrag 20. Oktober 2026, Entscheid Marco): im Container
+  ΔE Hautton 5.87 gegen die `hable`-Referenz (Grenze 5), weil BT.2390 die Mitten heller lässt; gegen die
+  Ausgangsfarben des Testbilds ist es die genaueste Kette (3.78 gegen 7.02 für `hable`). Start 0.50 s, 1.2 CPU-s
+  je 20 s. Referenzbilder als eigenes Verzeichnis `testdata/reference/hdr/nvenc-cuda/`, `hdr-quality.sh` misst
+  mit `CONTAINER=` im laufenden Container.
 - **Direct Play von MKV:** Chromium und Firefox melden den Matroska-Container; H.264/AAC-MKV spielt dort
   direkt (W-1), die Remux-Messung schränkt das gemeldete Profil deshalb ein (`limitCapabilities`).
 - **HDR-Durchleitung nur mit `hdr: true`** des Geräts (M1b remuxte HDR für Safari immer).
@@ -116,9 +122,10 @@ mit Bereich im Titel:
 
 ### Nicht in M4 (Plan) und offene Punkte für M5
 
-1. NVIDIA-Container-Laufzeit auf dem Entwicklungsrechner (Skript liegt bereit, `sudo` durch Marco); danach
-   P-6 und W-3 mit `tonemap_cuda` im Container nachtragen (`docs/perf/M4.md` 1 und 2) und die
-   NVENC-Referenzbilder dafür anlegen.
+1. Erledigt (20. Oktober 2026): NVIDIA-Container-Laufzeit installiert, P-6 und W-3 mit `tonemap_cuda` im
+   Container gemessen (`docs/perf/M4.md` 1 und 2), Referenzbilder `testdata/reference/hdr/nvenc-cuda/`. Offen
+   bleibt nur die Frage, ob die P-6-Referenz für ΔE langfristig `hable` bleibt (sie dunkelt Hauttöne ab, siehe
+   `docs/perf/M4.md` 1).
 2. Sichtprüfung der P-6-Referenzbilder durch Marco (`testdata/reference/hdr/`), Android-Startzeit (Stoppuhr),
    Gerätecheckliste Android; Safari/iOS ungeprüft (Entscheid 2).
 3. Vertrag: `AdminDevice.current` (eigenes Gerät markieren) und ein Grund (`stoppedBy`) im 401 der
@@ -529,6 +536,7 @@ Profile/PIN (M2), GPU-Erkennung im Assistenten (M8).
 task ci                      # alles bauen und prüfen (inkl. Playwright; Storybook braucht Docker)
 server/bin/slouchcat scanbench --root DIR --workers 4 --json   # Lasttest des Scanners (M3)
 testdata/hdr-quality.sh software|nvenc|qsv                     # P-6: HDR-Testbild durch die Server-Kette, SSIM und ΔE (M4)
+CONTAINER=slouchcat-nvbench CONTAINER_MEDIA_DIR=/media/testdata VARIANT=cuda testdata/hdr-quality.sh nvenc   # P-6 im Container (tonemap_cuda)
 server/bin/slouchcat hlsbench --file F --mode transcode --max-height 720 --hdr-tonemap auto|gpu|cpu --json   # W-3-Startzeit (M4)
 SLOUCHCAT_REAL_SEASON=DIR go test ./internal/segments -run TestRealSeason -v   # Intro-Erkennung an einer echten Staffel (M4)
 ./testdata/generate-reference-movies.sh                        # 25 Referenzfilme als Platzhalter (B-3, B-8)
