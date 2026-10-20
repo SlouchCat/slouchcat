@@ -256,7 +256,8 @@ func TestStopAndLogoutRevoke(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := s.Start(ctx, mine, m.ID, model.PlaybackRequest{})
+	// A second title (the same title would replace a).
+	b, err := s.Start(ctx, mine, f.Rated(6).ID, model.PlaybackRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -253,6 +253,40 @@ func TestHTTPPlaybackLimits(t *testing.T) {
 	}
 }
 
+// W-8 guest cap over HTTP: a guest with maxStreams 1 gets 409 for a stream of a second profile; a
+// switch of the same browser session and title replaces the playback (its token answers 401, its
+// own stop 404) instead of counting as a second stream.
+func TestHTTPGuestStreamCapAndSwitch(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	if _, err := f.DB.Write.Exec(`UPDATE accounts SET max_streams = 1 WHERE id = ?`, f.Guest.ID); err != nil {
+		t.Fatal(err)
+	}
+	m0, m6 := f.Rated(0), f.Rated(6)
+	first, code, p := play(t, h, "pg", m0.ID, `{}`)
+	if code != http.StatusOK {
+		t.Fatalf("first stream = %d %+v", code, p)
+	}
+	_, code, p = play(t, h, "pg18", m6.ID, `{}`)
+	if code != http.StatusConflict || p.Code != "stream_limit_reached" || p.Extensions["maxStreams"] != 1 || p.Extensions["activeStreams"] != 1 {
+		t.Errorf("second profile of the guest = %d %+v", code, p)
+	}
+	switched, code, p := play(t, h, "pg", m0.ID, `{"quality":"480p"}`)
+	if code != http.StatusOK {
+		t.Fatalf("switch = %d %+v", code, p)
+	}
+	if st := streamStatus(t, h, first.StreamURL); st != http.StatusUnauthorized {
+		t.Errorf("replaced stream = %d", st)
+	}
+	if st := streamStatus(t, h, switched.StreamURL); st != http.StatusPartialContent {
+		t.Errorf("new stream = %d", st)
+	}
+	rec := send(t, h, http.MethodDelete, BasePath+"/playback/sessions/"+first.PlaybackSessionID, "pg", "", nil)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("stop of the replaced playback = %d %s", rec.Code, rec.Body.String())
+	}
+}
+
 // W-4 over HTTP: the subtitle URL of a text track works without the cookie; another track of the
 // playback answers 404, a forged token 401; the selection names the track.
 func TestHTTPSubtitles(t *testing.T) {

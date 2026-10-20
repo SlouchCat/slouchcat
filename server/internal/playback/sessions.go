@@ -85,9 +85,11 @@ type Transcoder interface {
 // Start decides how the client plays a visible title, starts its HLS output if needed, records the
 // playback session and returns the playback description with the token URL. mediaFileID may be
 // empty for the primary file. The limits of the profile are checked here (plan 3.5): a used-up
-// daily watch time answers model.WatchLimitError, a profile running its maximum of streams
-// model.StreamLimitError. The start position is req.PositionMs, else the profile's position unless
-// the title was completed; the HLS output starts at its segment.
+// daily watch time answers model.WatchLimitError, a profile (or guest account) running its
+// maximum of streams model.StreamLimitError. A start replaces the playback of the same browser
+// session and title (a track, quality or version switch): that one ends before the limits are
+// counted. The start position is req.PositionMs, else the profile's position unless the title was
+// completed; the HLS output starts at its segment.
 func (s *Service) Start(ctx context.Context, session model.Session, itemID string, req model.PlaybackRequest) (model.PlaybackInfo, error) {
 	if err := validateRequest(req); err != nil {
 		return model.PlaybackInfo{}, err
@@ -107,17 +109,6 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
-	limits := session.Profile.Effective
-	if limits.MaxStreams > 0 {
-		// Count and insert under one lock, so two starts of the profile cannot both take the
-		// last stream.
-		unlock := s.lockProfile(session.Profile.ID)
-		defer unlock()
-	}
-	watch, err := s.admit(ctx, session, item.ID, limits, s.now())
-	if err != nil {
-		return model.PlaybackInfo{}, err
-	}
 	tracks, err := s.vis.Tracks(ctx, scope, item.ID, loc.File.ID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
@@ -130,6 +121,22 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
+	// Everything that can fail without side effects is read before the replaced playback ends and
+	// the output starts.
+	segments, err := s.vis.Segments(ctx, scope, item.ID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	next, err := s.vis.NextEpisode(ctx, scope, item.ID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	limits := session.Profile.Effective
+	watch, slot, err := s.admit(ctx, session, item.ID, limits, s.now())
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	defer slot.release()
 	caps := normalizeCapabilities(req.Capabilities)
 	dreq.Caps, dreq.Limits, dreq.Quality = caps, limits, req.Quality
 
@@ -178,15 +185,17 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, fmt.Errorf("encode capabilities: %w", err)
 	}
-	err = s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
-		ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
-		ItemID: item.ID, MediaFileID: file.ID, DeviceID: nullString(rowDevice), Mode: d.Mode,
-		Backend: nullString(backend), Reason: nullString(d.Reason), Quality: nullString(d.Quality),
-		Width: nullPositive(d.Width), Height: nullPositive(d.Height), Bitrate: nullPositive(d.Bitrate),
-		Hardware: boolInt(hardware), AudioTrack: sql.NullInt64{Int64: int64(d.AudioStream), Valid: d.AudioStream >= 0},
-		SubtitleTrack: sql.NullInt64{Int64: d.SubtitleTrack, Valid: d.SubtitleTrack > 0}, SubtitleDelivery: nullString(d.SubtitleDelivery),
-		Capabilities: sql.NullString{String: string(capsJSON), Valid: true}, PositionMs: sql.NullInt64{Int64: resume, Valid: true},
-		Now: now.UnixMilli(), ExpiresAt: now.Add(SessionLifetime).UnixMilli(),
+	err = slot.insert(ctx, func() error {
+		return s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
+			ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
+			ItemID: item.ID, MediaFileID: file.ID, DeviceID: nullString(rowDevice), Mode: d.Mode,
+			Backend: nullString(backend), Reason: nullString(d.Reason), Quality: nullString(d.Quality),
+			Width: nullPositive(d.Width), Height: nullPositive(d.Height), Bitrate: nullPositive(d.Bitrate),
+			Hardware: boolInt(hardware), AudioTrack: sql.NullInt64{Int64: int64(d.AudioStream), Valid: d.AudioStream >= 0},
+			SubtitleTrack: sql.NullInt64{Int64: d.SubtitleTrack, Valid: d.SubtitleTrack > 0}, SubtitleDelivery: nullString(d.SubtitleDelivery),
+			Capabilities: sql.NullString{String: string(capsJSON), Valid: true}, PositionMs: sql.NullInt64{Int64: resume, Valid: true},
+			Now: now.UnixMilli(), ExpiresAt: now.Add(SessionLifetime).UnixMilli(),
+		})
 	})
 	if err != nil {
 		s.stopOutput(id)
@@ -197,6 +206,11 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		if _, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: s.now().UnixMilli()}); err != nil {
 			s.stopOutput(id)
 			return model.PlaybackInfo{}, unauthenticatedOr(err, "recheck playback session")
+		}
+	}
+	if limits.WatchLimitMinutes > 0 {
+		if err := s.recheckWatchLimit(context.WithoutCancel(ctx), session.Profile.ID, limits.WatchLimitMinutes, id); err != nil {
+			return model.PlaybackInfo{}, err
 		}
 	}
 
@@ -214,6 +228,8 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		Chapters:          chapters(probe),
 		WatchTime:         watch,
 		Device:            device,
+		Segments:          segments,
+		NextEpisode:       next,
 	}
 	if d.SubtitleDelivery == model.SubtitleText {
 		info.SubtitleURL = fmt.Sprintf("/api/v1/playback/sessions/%s/subtitles/%d.vtt?st=%s", id, d.SubtitleTrack, st)
@@ -225,12 +241,6 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 			Mode: d.Mode, Backend: backend, Hardware: hardware, Quality: d.Quality, Width: d.Width, Height: d.Height,
 			Bitrate: d.Bitrate, Tonemap: d.Tonemap, Reason: d.Reason,
 		}
-	}
-	if info.Segments, err = s.vis.Segments(ctx, scope, item.ID); err != nil {
-		return model.PlaybackInfo{}, err
-	}
-	if info.NextEpisode, err = s.vis.NextEpisode(ctx, scope, item.ID); err != nil {
-		return model.PlaybackInfo{}, err
 	}
 	s.log.InfoContext(ctx, "playback started", "playback_id", id, "item_id", item.ID, "media_file_id", file.ID,
 		"mode", d.Mode, "backend", backend, "reason", d.Reason, "quality", d.Quality, "audio_track", d.AudioStream,

@@ -465,9 +465,38 @@ func TestStartLimits(t *testing.T) {
 	if !errors.Is(err, model.ErrStreamLimit) || !errors.As(err, &sl) || *sl != (model.StreamLimitError{MaxStreams: 1, ActiveStreams: 1}) {
 		t.Fatalf("second stream: %v", err)
 	}
-	// A track or quality switch (same browser session and title) is not a second stream.
-	if _, err := s.Start(ctx, a, m6.ID, model.PlaybackRequest{Quality: model.Quality720}); err != nil {
-		t.Errorf("switch: %v", err)
+	// A track or quality switch (same browser session and title) replaces the playback: the old
+	// one ends (stopped_by client, 401 for its token, 404 for the client's own stop).
+	switched, err := s.Start(ctx, a, m6.ID, model.PlaybackRequest{Quality: model.Quality720})
+	if err != nil {
+		t.Fatalf("switch: %v", err)
+	}
+	if _, err := s.Authorize(ctx, tokenOf(t, first.StreamURL)); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("token of the replaced playback: %v", err)
+	}
+	if by := stoppedBy(t, f, first.PlaybackSessionID); by != model.StoppedByClient {
+		t.Errorf("replaced playback stopped_by = %q", by)
+	}
+	if err := s.Stop(ctx, a, first.PlaybackSessionID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("stop of the replaced playback: %v", err)
+	}
+	// Repeated starts of the same title never run more than one stream.
+	tokens := []string{tokenOf(t, switched.StreamURL)}
+	for range 5 {
+		again, err := s.Start(ctx, a, m6.ID, model.PlaybackRequest{})
+		if err != nil {
+			t.Fatalf("repeated start: %v", err)
+		}
+		tokens = append(tokens, tokenOf(t, again.StreamURL))
+	}
+	valid := 0
+	for _, st := range tokens {
+		if _, err := s.Authorize(ctx, st); err == nil {
+			valid++
+		}
+	}
+	if valid != 1 {
+		t.Errorf("%d of %d tokens valid after repeated starts, want 1", valid, len(tokens))
 	}
 	// Streams without a request for two minutes do not count.
 	clock.Advance(ActiveWindow + time.Second)

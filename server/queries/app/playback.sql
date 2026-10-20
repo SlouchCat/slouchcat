@@ -52,14 +52,29 @@ RETURNING id;
 
 -- name: CountActivePlaybackSessions :one
 -- Running streams of a profile (W-8 maxStreams): not revoked, not expired, a request within the
--- activity window, browser session valid. A playback of the same browser session and title is a
--- track or quality switch and does not count.
+-- activity window, browser session valid. A start revokes the playback it replaces (same browser
+-- session and title, RevokeReplacedPlaybackSessions) before it counts.
 SELECT count(*) FROM playback_sessions AS ps
 JOIN sessions AS s ON s.id = ps.session_id
 WHERE ps.profile_id = @profile_id AND ps.revoked_at IS NULL AND ps.expires_at > @now
   AND ps.last_activity_at >= @active_after
-  AND s.revoked_at IS NULL AND s.expires_at > @now
-  AND NOT (ps.session_id = @session_id AND ps.item_id = @item_id);
+  AND s.revoked_at IS NULL AND s.expires_at > @now;
+
+-- name: CountActiveAccountPlaybackSessions :one
+-- Running streams of every profile of an account (W-8 guest cap maxStreams), as
+-- CountActivePlaybackSessions.
+SELECT count(*) FROM playback_sessions AS ps
+JOIN sessions AS s ON s.id = ps.session_id
+WHERE ps.account_id = @account_id AND ps.revoked_at IS NULL AND ps.expires_at > @now
+  AND ps.last_activity_at >= @active_after
+  AND s.revoked_at IS NULL AND s.expires_at > @now;
+
+-- name: RevokeReplacedPlaybackSessions :many
+-- A start replaces the playback of the same browser session and title (a track, quality or
+-- version switch): the replaced one ends (stopped_by client) before the new one is counted.
+UPDATE playback_sessions SET revoked_at = @now, stopped_by = 'client'
+WHERE session_id = @session_id AND item_id = @item_id AND revoked_at IS NULL
+RETURNING id;
 
 -- name: RecordPlaybackPosition :execrows
 -- A progress event of the playback (W-6 position, activity of the stream overview).

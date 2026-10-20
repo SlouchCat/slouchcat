@@ -10,34 +10,48 @@ import (
 	"database/sql"
 )
 
+const countActiveAccountPlaybackSessions = `-- name: CountActiveAccountPlaybackSessions :one
+SELECT count(*) FROM playback_sessions AS ps
+JOIN sessions AS s ON s.id = ps.session_id
+WHERE ps.account_id = ?1 AND ps.revoked_at IS NULL AND ps.expires_at > ?2
+  AND ps.last_activity_at >= ?3
+  AND s.revoked_at IS NULL AND s.expires_at > ?2
+`
+
+type CountActiveAccountPlaybackSessionsParams struct {
+	AccountID   int64
+	Now         int64
+	ActiveAfter int64
+}
+
+// Running streams of every profile of an account (W-8 guest cap maxStreams), as
+// CountActivePlaybackSessions.
+func (q *Queries) CountActiveAccountPlaybackSessions(ctx context.Context, arg CountActiveAccountPlaybackSessionsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveAccountPlaybackSessions, arg.AccountID, arg.Now, arg.ActiveAfter)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countActivePlaybackSessions = `-- name: CountActivePlaybackSessions :one
 SELECT count(*) FROM playback_sessions AS ps
 JOIN sessions AS s ON s.id = ps.session_id
 WHERE ps.profile_id = ?1 AND ps.revoked_at IS NULL AND ps.expires_at > ?2
   AND ps.last_activity_at >= ?3
   AND s.revoked_at IS NULL AND s.expires_at > ?2
-  AND NOT (ps.session_id = ?4 AND ps.item_id = ?5)
 `
 
 type CountActivePlaybackSessionsParams struct {
 	ProfileID   int64
 	Now         int64
 	ActiveAfter int64
-	SessionID   int64
-	ItemID      string
 }
 
 // Running streams of a profile (W-8 maxStreams): not revoked, not expired, a request within the
-// activity window, browser session valid. A playback of the same browser session and title is a
-// track or quality switch and does not count.
+// activity window, browser session valid. A start revokes the playback it replaces (same browser
+// session and title, RevokeReplacedPlaybackSessions) before it counts.
 func (q *Queries) CountActivePlaybackSessions(ctx context.Context, arg CountActivePlaybackSessionsParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countActivePlaybackSessions,
-		arg.ProfileID,
-		arg.Now,
-		arg.ActiveAfter,
-		arg.SessionID,
-		arg.ItemID,
-	)
+	row := q.db.QueryRowContext(ctx, countActivePlaybackSessions, arg.ProfileID, arg.Now, arg.ActiveAfter)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -455,6 +469,43 @@ type RevokePlaybackSessionsBySessionParams struct {
 // stopped_by is logout for a logout and a profile switch.
 func (q *Queries) RevokePlaybackSessionsBySession(ctx context.Context, arg RevokePlaybackSessionsBySessionParams) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsBySession, arg.Now, arg.StoppedBy, arg.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const revokeReplacedPlaybackSessions = `-- name: RevokeReplacedPlaybackSessions :many
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = 'client'
+WHERE session_id = ?2 AND item_id = ?3 AND revoked_at IS NULL
+RETURNING id
+`
+
+type RevokeReplacedPlaybackSessionsParams struct {
+	Now       sql.NullInt64
+	SessionID int64
+	ItemID    string
+}
+
+// A start replaces the playback of the same browser session and title (a track, quality or
+// version switch): the replaced one ends (stopped_by client) before the new one is counted.
+func (q *Queries) RevokeReplacedPlaybackSessions(ctx context.Context, arg RevokeReplacedPlaybackSessionsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, revokeReplacedPlaybackSessions, arg.Now, arg.SessionID, arg.ItemID)
 	if err != nil {
 		return nil, err
 	}

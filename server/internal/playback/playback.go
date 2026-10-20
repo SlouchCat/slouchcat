@@ -61,7 +61,7 @@ type Service struct {
 
 	subs     SubtitleConverter // WebVTT conversion; zero = no text subtitles
 	cacheDir string            // converted subtitles below <cacheDir>/subtitles; empty = uncached
-	profiles profileLocks      // starts of profiles with a stream limit
+	starts   startLocks        // stream counts of starts under a stream limit
 }
 
 // Option configures New.
