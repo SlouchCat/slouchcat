@@ -3,9 +3,13 @@ import type { ItemRef } from '@slouchcat/api-client';
 // What the device offers for offline playback. Imported by the start bundle (detail page, root
 // layout), so it stays free of IndexedDB and OPFS code: those load with the offline chunk.
 
-/** Kinds the server downloads (O-1, O-2); audiobooks and podcasts follow in M6. */
+/** Kinds the server downloads (O-1, O-2; audiobooks and podcast episodes since M6). */
 export const isDownloadable = (kind: ItemRef['kind']) =>
-  kind === 'movie' || kind === 'episode' || kind === 'season';
+  kind === 'movie' ||
+  kind === 'episode' ||
+  kind === 'season' ||
+  kind === 'audiobook' ||
+  kind === 'podcast_episode';
 
 /** The parts of the browser the checks read; injectable for tests. */
 export interface UserAgentPlatform {

@@ -25,7 +25,8 @@
     "maintenance": "Pflege",
     "devices": "Geräte",
     "streams": "Streams",
-    "downloads": "Downloads"
+    "downloads": "Downloads",
+    "podcasts": "Podcasts"
   },
   "system": {
     "server": {
@@ -69,7 +70,11 @@
       "device_required": "Dieses Gerät ist für die Sitzung nicht bekannt. Melde dich erneut an.",
       "not_downloadable": "Diesen Titel kann man nicht herunterladen.",
       "download_not_ready": "Der Download wird auf dem Server noch vorbereitet.",
-      "download_evicted": "Die vorbereitete Datei ist nicht mehr auf dem Server. Sie wird neu vorbereitet."
+      "download_evicted": "Die vorbereitete Datei ist nicht mehr auf dem Server. Sie wird neu vorbereitet.",
+      "feed_unreachable": "Der Feed ist nicht erreichbar. Prüfe die Adresse und versuche es erneut.",
+      "feed_invalid": "Unter dieser Adresse liegt kein RSS-Podcast-Feed.",
+      "feed_exists": "Diese Bibliothek hat den Feed bereits abonniert.",
+      "rating_below_library_default": "Die Altersstufe darf nicht unter dem Standard der Bibliothek liegen."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -85,7 +90,9 @@
       "too_many_profiles": "Mehr als 10 Profile pro Konto sind nicht möglich.",
       "already_exists": "Diese E-Mail-Adresse ist schon vergeben.",
       "pin_format": "Die PIN besteht aus 4 bis 8 Ziffern.",
-      "not_burnable": "Diese Untertitelspur kann nicht eingebrannt werden."
+      "not_burnable": "Diese Untertitelspur kann nicht eingebrannt werden.",
+      "invalid_url": "Gib eine Adresse mit http:// oder https:// an.",
+      "library_kind": "Wähle eine Podcast-Bibliothek."
     }
   },
   "setup": {
@@ -132,7 +139,10 @@
       "series": "Serien",
       "audiobooks": "Hörbücher",
       "podcasts": "Podcasts"
-    }
+    },
+    "defaultRating": "Standard-Altersstufe",
+    "defaultRatingHint": "Gilt für jeden Titel dieser Bibliothek. Einzelne Titel lassen sich danach nur strenger einstufen.",
+    "podcastsHint": "Podcasts brauchen keinen Ordner: Du abonnierst ihre Feeds unter Podcasts."
   },
   "home": {
     "title": "Startseite",
@@ -193,7 +203,8 @@
     "episodeOf": "{{code}} · {{series}}",
     "docTitle": {
       "season": "{{title}} – {{series}}",
-      "episode": "{{code}} {{title}} – {{series}}"
+      "episode": "{{code}} {{title}} – {{series}}",
+      "podcastEpisode": "{{title}} – {{podcast}}"
     },
     "versions": "Versionen",
     "extras": "Extras",
@@ -210,6 +221,26 @@
     "episodes": {
       "title": "Folgen",
       "empty": "Keine Folgen."
+    },
+    "resumeListening": "Weiterhören ab {{time}}",
+    "listened": "{{percent}} % gehört",
+    "explicit": "Explizit",
+    "audio": {
+      "by": "von {{author}}",
+      "narratedBy": "Gelesen von {{narrator}}",
+      "volume": "{{series}} · Band {{volume}}",
+      "chapters": "Kapitel",
+      "chapterPlay": "{{title}} ab {{time}} abspielen"
+    },
+    "podcast": {
+      "episodes": "Episoden",
+      "count_one": "{{count}} Episode",
+      "count_other": "{{count}} Episoden",
+      "empty": "Keine Episoden.",
+      "more": "Mehr laden",
+      "link": "Zum Podcast",
+      "play": "{{title}} abspielen",
+      "caption": "{{date}} · {{duration}}"
     }
   },
   "rating": {
@@ -226,7 +257,8 @@
     "hd": "720p",
     "sd": "SD",
     "height": "{{height}}p",
-    "separator": " · "
+    "separator": " · ",
+    "seconds": "{{seconds}} s"
   },
   "player": {
     "region": "Videoplayer",
@@ -351,6 +383,35 @@
     "ended": {
       "title": "Wiedergabe beendet",
       "body": "Die Wiedergabe wurde beendet."
+    },
+    "audioRegion": "Audioplayer",
+    "audio": {
+      "back15": "15 Sekunden zurück",
+      "forward30": "30 Sekunden vor",
+      "previousChapter": "Vorheriges Kapitel",
+      "nextChapter": "Nächstes Kapitel",
+      "chapterLine": "{{title}} · {{position}} / {{length}}",
+      "rate": "{{rate}}×",
+      "rateOsd": "Geschwindigkeit {{rate}}",
+      "speedButton": "Geschwindigkeit: {{rate}}",
+      "slower": "Langsamer",
+      "faster": "Schneller",
+      "minus": "−0,1",
+      "plus": "+0,1",
+      "mute": "Ton aus",
+      "volume": "Lautstärke",
+      "sleep": {
+        "button": "Sleep-Timer",
+        "buttonActive": "Sleep-Timer: noch {{left}}",
+        "short": "Sleep-Timer",
+        "off": "Aus",
+        "minutes_one": "{{count}} Minute",
+        "minutes_other": "{{count}} Minuten",
+        "chapter": "Ende des Kapitels",
+        "set": "Sleep-Timer: {{label}}",
+        "cancelled": "Sleep-Timer aus",
+        "done": "Sleep-Timer abgelaufen"
+      }
     }
   },
   "admin": {
@@ -398,7 +459,17 @@
         "submit": "Hinzufügen",
         "submitting": "Wird hinzugefügt …"
       },
-      "cancel": "Scan abbrechen"
+      "cancel": "Scan abbrechen",
+      "defaultRating": "Standard: {{rating}}",
+      "noRoots": "Kein Ordner: Die Titel kommen aus abonnierten Feeds.",
+      "changeRating": {
+        "action": "Standardstufe ändern",
+        "label": "Standardstufe von {{name}} ändern",
+        "title": "Standardstufe von {{name}}",
+        "description": "Alle Titel, deren Stufe von der Bibliothek kommt, folgen sofort. Von Hand gesetzte Stufen bleiben.",
+        "submit": "Speichern",
+        "saved": "Die Standardstufe von {{name}} ist jetzt {{rating}}."
+      }
     },
     "access": {
       "title": "Zugriff",
@@ -735,6 +806,49 @@
       },
       "stopped": "Stream von {{profile}} beendet.",
       "noPosition": "–"
+    },
+    "podcasts": {
+      "title": "Podcasts",
+      "intro": "Abonnierte Feeds. Slouchcat ruft jeden Feed stündlich ab und legt neue Episoden an.",
+      "empty": "Noch kein Podcast abonniert.",
+      "list": "Abonnierte Podcasts",
+      "noLibrary": "Lege zuerst eine Bibliothek der Art Podcasts an.",
+      "librariesLink": "Zu den Bibliotheken",
+      "never": "Noch nie",
+      "noError": "–",
+      "explicit": "Explizit",
+      "columns": {
+        "title": "Titel",
+        "library": "Bibliothek",
+        "episodes": "Episoden",
+        "lastFetch": "Letzter Abruf",
+        "error": "Fehler",
+        "actions": "Aktionen"
+      },
+      "subscribe": {
+        "action": "Feed abonnieren",
+        "title": "Feed abonnieren",
+        "description": "Slouchcat ruft den Feed sofort ab und legt den Podcast mit seinen Episoden an.",
+        "library": "Bibliothek",
+        "url": "Feed-Adresse",
+        "urlHint": "RSS-Feed des Podcasts, zum Beispiel https://example.org/feed.xml.",
+        "submit": "Abonnieren",
+        "submitting": "Feed wird abgerufen …",
+        "done": "{{title}} ist abonniert."
+      },
+      "refresh": {
+        "action": "Jetzt abrufen",
+        "label": "{{title}} jetzt abrufen",
+        "queued": "{{title}} wird abgerufen."
+      },
+      "remove": {
+        "action": "Abo löschen",
+        "label": "Abo {{title}} löschen",
+        "title": "Abo {{title}} löschen?",
+        "body": "Der Podcast und seine Episoden verschwinden aus der Bibliothek. Downloads der Episoden werden beim nächsten Abgleich entfernt.",
+        "confirm": "Abo löschen",
+        "done": "Das Abo {{title}} ist gelöscht."
+      }
     }
   },
   "language": {
@@ -1005,7 +1119,7 @@
     },
     "rules": {
       "title": "Automatische Downloads",
-      "intro": "Lädt auf diesem Gerät die nächste Folge jeder Serie, die {{name}} in den letzten 60 Tagen geschaut hat.",
+      "intro": "Lädt auf diesem Gerät die nächste Folge jeder Serie, die {{name}} in den letzten 60 Tagen geschaut hat, und neue Episoden der Podcasts, die {{name}} in dieser Zeit gehört hat.",
       "options": "Einstellungen",
       "enabled": "Automatische Downloads auf diesem Gerät",
       "nextEpisodes": "Nächste Folge begonnener Serien",
@@ -1016,7 +1130,8 @@
       "maxCountInvalid": "Gib eine Zahl von {{min}} bis {{max}} an.",
       "quality": "Qualität",
       "save": "Regel speichern",
-      "saved": "Gespeichert. Die Regel gilt ab dem nächsten Abgleich."
+      "saved": "Gespeichert. Die Regel gilt ab dem nächsten Abgleich.",
+      "newPodcastEpisodes": "Neue Episoden gehörter Podcasts"
     },
     "dialog": {
       "button": "Herunterladen",
@@ -1033,7 +1148,8 @@
       "submit": "Herunterladen",
       "submitting": "Wird gestartet …",
       "started_one": "Download gestartet. Den Stand siehst du unter Downloads.",
-      "started_other": "{{count}} Downloads gestartet. Den Stand siehst du unter Downloads."
+      "started_other": "{{count}} Downloads gestartet. Den Stand siehst du unter Downloads.",
+      "audioOption": "{{quality}} · {{kbps}} kbit/s · ca. {{size}}"
     },
     "status": {
       "open": "Zu den Downloads",

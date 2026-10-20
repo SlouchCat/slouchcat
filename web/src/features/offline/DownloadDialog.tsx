@@ -18,7 +18,7 @@ import styles from './OfflinePages.module.css';
 const DEFAULT_QUALITY: DownloadQuality = 'medium';
 
 interface DownloadDialogProps {
-  /** A movie, an episode or a season. */
+  /** A movie, an episode, a season, an audiobook or a podcast episode. */
   target: Pick<ItemRef, 'id' | 'kind' | 'title'>;
   /** The version of a single title (B-5); the primary file otherwise. */
   mediaFileId?: string;
@@ -35,6 +35,8 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
   const { t, i18n } = useTranslation();
   const session = useActiveSession();
   const season = target.kind === 'season';
+  // Audiobooks and podcast episodes (M6): AAC at 128/96/64 kbit/s, no picture, no subtitles.
+  const audioOnly = target.kind === 'audiobook' || target.kind === 'podcast_episode';
   const options = useQuery(downloadOptionsQuery(target.id, season ? undefined : mediaFileId));
   const [quality, setQuality] = useState<string | null>(null);
   const [audio, setAudio] = useState<string | null>(null);
@@ -132,11 +134,17 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
             onChange={setQuality}
             options={qualities.map((option) => ({
               value: option.quality,
-              label: t('offline.dialog.option', {
-                quality: qualityLabel(t, option.quality),
-                height: option.height,
-                size: formatBytes(option.estimatedBytes, language),
-              }),
+              label: audioOnly
+                ? t('offline.dialog.audioOption', {
+                    quality: qualityLabel(t, option.quality),
+                    kbps: option.audioBitrate,
+                    size: formatBytes(option.estimatedBytes, language),
+                  })
+                : t('offline.dialog.option', {
+                    quality: qualityLabel(t, option.quality),
+                    height: option.height,
+                    size: formatBytes(option.estimatedBytes, language),
+                  }),
             }))}
           />
           {audioTracks.length > 1 && (
@@ -151,7 +159,7 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
               }))}
             />
           )}
-          {!season && (
+          {!season && !audioOnly && (
             <Text tone="secondary" variant="caption">
               {subtitleNames.length > 0
                 ? t('offline.dialog.subtitles', { list: subtitleNames.join(t('format.separator')) })

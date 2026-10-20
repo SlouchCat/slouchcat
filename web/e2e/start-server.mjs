@@ -1,11 +1,13 @@
 // Starts the Slouchcat binary for the Playwright suite with fresh temporary config and cache
 // directories, so every run begins at the setup wizard. Playwright's `webServer` runs this script
-// and stops it after the run; the temporary directories are removed on exit.
+// and stops it after the run; the temporary directories are removed on exit. The local podcast
+// feed (feed-server.mjs, M6) runs in this process and stops with the server.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startFeedServer } from './feed-server.mjs';
 
 const binary = fileURLToPath(new URL('../../server/bin/slouchcat', import.meta.url));
 const port = process.env.SLOUCHCAT_E2E_PORT ?? '8097';
@@ -14,6 +16,9 @@ if (!existsSync(binary)) {
   console.error(`slouchcat binary not found at ${binary}; run \`task build\` first.`);
   process.exit(1);
 }
+
+// Before the server: the global setup subscribes to the feed right after the server is up.
+const feed = await startFeedServer();
 
 const root = mkdtempSync(join(tmpdir(), 'slouchcat-e2e-'));
 const configDir = join(root, 'config');
@@ -54,5 +59,5 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 }
 server.on('exit', (code) => {
   cleanup();
-  process.exit(code ?? 0);
+  void feed.close().finally(() => process.exit(code ?? 0));
 });

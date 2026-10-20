@@ -24,6 +24,23 @@ export const MOVIES_DIR = fileURLToPath(new URL('../../testdata/media/Movies', i
 /** Generated series (`task testdata:media`), scanned as the series library "Serien" (M3). */
 export const TV_DIR = fileURLToPath(new URL('../../testdata/media/TV', import.meta.url));
 
+/**
+ * Generated audiobooks (`task testdata:media`, M6): one M4B with 12 chapters and one folder of 10
+ * MP3 files, scanned as the library "Hörbücher" (kind audiobooks, default rating 0).
+ */
+export const AUDIOBOOKS_DIR = fileURLToPath(
+  new URL('../../testdata/media/Audiobooks', import.meta.url),
+);
+
+/**
+ * Port of the local podcast feed (feed-server.mjs, started by start-server.mjs): the server
+ * subscribes to it instead of the internet (H-2, no network in CI).
+ */
+export const FEED_PORT = Number(process.env.SLOUCHCAT_E2E_FEED_PORT ?? 8095);
+export const FEED_BASE = `http://127.0.0.1:${FEED_PORT}`;
+/** The feed the global setup subscribes to in the library "Podcasts". */
+export const FEED_URL = `${FEED_BASE}/feed.xml`;
+
 /** Fixed test account; exists only in the throw-away config directory of the run. */
 export const OWNER = {
   email: 'e2e-owner@slouchcat.test',

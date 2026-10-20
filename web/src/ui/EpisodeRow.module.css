@@ -1,0 +1,51 @@
+.row {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  padding: var(--sc-space-2) 0;
+  border-bottom: 1px solid var(--sc-color-border-subtle);
+}
+
+.link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  color: inherit;
+  text-decoration: none;
+  outline-offset: var(--sc-focus-ring-offset);
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    background-color: var(--sc-color-surface-1);
+  }
+}
+
+.link:focus-visible {
+  background-color: var(--sc-color-surface-2);
+}
+
+.title {
+  overflow: hidden;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-medium);
+  line-height: var(--sc-font-line-height-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caption {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress {
+  max-width: 16rem;
+}

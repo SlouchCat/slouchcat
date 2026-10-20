@@ -1,4 +1,6 @@
 import type {
+  AdminPodcast,
+  Chapter,
   HomePage,
   ItemDetail,
   ItemRef,
@@ -435,4 +437,155 @@ export const alienVersions: ItemDetail = {
   ],
   cast: [{ personId: 3, name: 'Sigourney Weaver', role: 'cast', character: 'Ellen Ripley' }],
   trailerCount: 2,
+};
+
+// M6: an audiobook with twelve 5-s chapters (like the M4B test book), a podcast with three
+// episodes (the newest explicit) and the playback of the book.
+export const audioIds = {
+  book: '01JB8Z6Q4M7N9P2R3S5T7V9A01',
+  podcast: '01JB8Z6Q4M7N9P2R3S5T7V9A02',
+  ep1: '01JB8Z6Q4M7N9P2R3S5T7V9A03',
+  ep2: '01JB8Z6Q4M7N9P2R3S5T7V9A04',
+  ep3: '01JB8Z6Q4M7N9P2R3S5T7V9A05',
+} as const;
+
+export const bookChapters: Chapter[] = Array.from({ length: 12 }, (_, index) => ({
+  startMs: index * 5000,
+  endMs: (index + 1) * 5000,
+  title: `Kapitel ${index + 1}`,
+}));
+
+export const audiobook: ItemRef = {
+  id: audioIds.book,
+  kind: 'audiobook',
+  title: 'Slouchcat Test Audiobook M4B',
+  year: 2024,
+  rating: 0,
+  author: 'Slouchcat Test Author',
+  durationMs: 60_000,
+  accent: '#2f6fb3',
+  images: {
+    poster: { url: `/items/${audioIds.book}/images/poster/w400?v=a1`, width: 400, height: 400 },
+  },
+  progress: {
+    positionMs: 12_340,
+    durationMs: 60_000,
+    percent: 20,
+    completed: false,
+    updatedAt: '2026-10-20T19:00:00Z',
+    playbackRate: 1.5,
+  },
+};
+
+export const audiobookDetail: ItemDetail = {
+  ...audiobook,
+  overview: 'Ein Testhoerbuch mit zwoelf Kapiteln aus Sinustoenen.',
+  genres: ['Test'],
+  narrator: 'Slouchcat Test Narrator',
+  seriesName: 'Slouchcat Test Audio Series',
+  seriesIndex: 1,
+  chapters: bookChapters,
+  mediaFiles: [
+    {
+      id: 'mf-a1',
+      container: 'm4b',
+      mimeType: 'audio/mp4; codecs="mp4a.40.2"',
+      audioCodec: 'aac',
+      durationMs: 60_000,
+      sizeBytes: 520_000,
+      available: true,
+    },
+  ],
+};
+
+const podcastEpisodeRef = (
+  id: string,
+  number: number,
+  publishedAt: string,
+  durationMs: number,
+  extra: Partial<ItemRef> = {},
+): ItemRef => ({
+  id,
+  kind: 'podcast_episode',
+  title: `Slouchcat Test Episode ${number}`,
+  parentId: audioIds.podcast,
+  author: 'Slouchcat Test Author',
+  publishedAt,
+  durationMs,
+  rating: 0,
+  images: {},
+  ...extra,
+});
+
+export const podcastEpisodes = {
+  ep1: podcastEpisodeRef(audioIds.ep1, 1, '2025-10-06T12:00:00Z', 8_000),
+  ep2: podcastEpisodeRef(audioIds.ep2, 2, '2025-10-13T12:00:00Z', 10_000, {
+    progress: {
+      positionMs: 4000,
+      durationMs: 10_000,
+      percent: 40,
+      completed: false,
+      updatedAt: '2026-10-20T19:00:00Z',
+    },
+  }),
+  ep3: podcastEpisodeRef(audioIds.ep3, 3, '2025-10-20T12:00:00Z', 12_000, {
+    rating: 18,
+    explicit: true,
+  }),
+};
+
+export const podcast: ItemRef = {
+  id: audioIds.podcast,
+  kind: 'podcast',
+  title: 'Slouchcat Test Podcast',
+  author: 'Slouchcat Test Author',
+  rating: 0,
+  images: {
+    poster: { url: `/items/${audioIds.podcast}/images/poster/w400?v=p1`, width: 400, height: 400 },
+  },
+};
+
+/** The podcast's detail carries its newest episodes; "Mehr laden" fetches the third. */
+export const podcastDetail: ItemDetail = {
+  ...podcast,
+  overview: 'Ein Test-Podcast aus Sinustoenen.',
+  genres: [],
+  mediaFiles: [],
+  episodes: [podcastEpisodes.ep3, podcastEpisodes.ep2],
+  episodeCount: 3,
+};
+
+export const podcastEpisodeDetail: ItemDetail = {
+  ...podcastEpisodes.ep2,
+  overview: 'Zweite Episode, zehn Sekunden.',
+  genres: [],
+  mediaFiles: [],
+  podcast,
+};
+
+export const audioPlayback: PlaybackInfo = {
+  mode: 'direct',
+  mediaKind: 'audio',
+  item: audiobook,
+  mediaFile: audiobookDetail.mediaFiles[0]!,
+  streamUrl: `/items/${audioIds.book}/stream?st=ps-a.token`,
+  resumePositionMs: 12_340,
+  playbackSessionId: 'ps-a',
+  tracks: { mediaFileId: 'mf-a1', audio: [], subtitles: [] },
+  selection: {},
+  qualities: [],
+  chapters: bookChapters,
+  segments: {},
+};
+
+export const adminPodcast: AdminPodcast = {
+  id: audioIds.podcast,
+  libraryId: 3,
+  title: 'Slouchcat Test Podcast',
+  author: 'Slouchcat Test Author',
+  feedUrl: 'http://127.0.0.1:8095/feed.xml',
+  episodeCount: 2,
+  explicit: false,
+  lastCheckedAt: '2026-10-20T18:00:00Z',
+  createdAt: '2026-10-20T17:00:00Z',
 };

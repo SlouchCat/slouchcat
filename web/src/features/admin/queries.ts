@@ -1,5 +1,6 @@
 import type {
   AdminDevice,
+  AdminPodcast,
   AdminItem,
   AdminStream,
   DuplicateGroup,
@@ -109,4 +110,10 @@ export const streamsQuery = queryOptions({
   queryKey: ['admin', 'streams'],
   queryFn: ({ signal }): Promise<AdminStream[]> => request(api.GET('/admin/streams', { signal })),
   refetchInterval: STREAMS_POLL_MS,
+});
+
+/** Podcast subscriptions with their feed state (M6, H-2), newest first. */
+export const podcastsQuery = queryOptions({
+  queryKey: ['admin', 'podcasts'],
+  queryFn: ({ signal }): Promise<AdminPodcast[]> => request(api.GET('/admin/podcasts', { signal })),
 });

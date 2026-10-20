@@ -86,6 +86,11 @@ export interface StoredDownload {
    * resumes from the newer of this and `positions` (W-5, O-5).
    */
   serverPositions?: Record<string, { positionMs: number; completed: boolean; at: number }>;
+  /**
+   * Speed of the last offline playback of an audiobook or episode (H-3, M6): kept on the device
+   * per download and sent with the offline events as `playbackRate`.
+   */
+  playbackRate?: number;
   updatedAt: number;
 }
 

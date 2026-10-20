@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAppleStorage, isIos, offlineSupported } from './support';
+import { isAppleStorage, isDownloadable, isIos, offlineSupported } from './support';
 
 const agents = {
   iphone:
@@ -45,5 +45,16 @@ describe('storage hint for Apple devices and Safari (O-7)', () => {
 
   it('needs IndexedDB, OPFS and a secure context for downloads (jsdom has none)', () => {
     expect(offlineSupported()).toBe(false);
+  });
+});
+
+describe('downloadable kinds', () => {
+  it('films, episodes, seasons, audiobooks and podcast episodes; never a container', () => {
+    for (const kind of ['movie', 'episode', 'season', 'audiobook', 'podcast_episode'] as const) {
+      expect(isDownloadable(kind)).toBe(true);
+    }
+    for (const kind of ['series', 'extra', 'podcast'] as const) {
+      expect(isDownloadable(kind)).toBe(false);
+    }
   });
 });

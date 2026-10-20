@@ -19,6 +19,7 @@ import {
   type MediaPlatform,
   type PlaybackEngine,
 } from './capabilities';
+import { AudioPlayerPage } from './AudioPlayerPage';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { VideoPlayer, type PlaybackChange } from './VideoPlayer';
 import styles from './Player.module.css';
@@ -31,6 +32,14 @@ const containerMime: Record<string, string> = {
   mov: 'video/quicktime',
   webm: 'video/webm',
   mkv: 'video/x-matroska',
+  // Audiobooks and podcast episodes (M6).
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  m4b: 'audio/mp4',
+  aac: 'audio/aac',
+  flac: 'audio/flac',
+  ogg: 'audio/ogg',
+  opus: 'audio/ogg',
 };
 
 /** MIME type for the capability check: the server's (with codecs) or one derived from the container. */
@@ -38,7 +47,7 @@ export function playbackMime(info: PlaybackInfo): string {
   return (
     info.mediaFile.mimeType ??
     containerMime[info.mediaFile.container.toLowerCase()] ??
-    `video/${info.mediaFile.container.toLowerCase()}`
+    `${info.mediaKind}/${info.mediaFile.container.toLowerCase()}`
   );
 }
 
@@ -113,11 +122,12 @@ export function PlayerPage() {
 function PlayerView({ itemId }: { itemId: string }) {
   const { t } = useTranslation();
   // The version to play (B-5): from the link of the detail page or the version menu, kept in
-  // the URL so a reload plays the chosen one. The menu also hands over the position.
-  const { file } = route.useSearch();
+  // the URL so a reload plays the chosen one. The menu also hands over the position; `at` starts
+  // at a chapter of an audiobook (its link on the detail page).
+  const { file, at } = route.useSearch();
   const navigate = route.useNavigate();
   const queryClient = useQueryClient();
-  const [startMs, setStartMs] = useState<number | undefined>(undefined);
+  const [startMs, setStartMs] = useState<number | undefined>(at);
   const [switchingTo, setSwitchingTo] = useState<string | undefined>(undefined);
   const [stopping, setStopping] = useState(false);
   const [switchStartedAt, setSwitchStartedAt] = useState<number | undefined>(undefined);
@@ -243,6 +253,20 @@ function PlayerView({ itemId }: { itemId: string }) {
     },
     [itemId, queryClient],
   );
+
+  if (playback.data && engine && engine !== 'unsupported' && playback.data.mediaKind === 'audio') {
+    return (
+      <AudioPlayerPage
+        key={playback.data.playbackSessionId}
+        info={playback.data}
+        engine={engine}
+        openedAt={openedAt}
+        onBack={goBack}
+        startPositionMs={startMs}
+        detail={detail.data}
+      />
+    );
+  }
 
   if (playback.data && engine && engine !== 'unsupported') {
     return (

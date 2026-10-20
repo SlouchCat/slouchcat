@@ -16,12 +16,13 @@ import styles from './OfflinePages.module.css';
 const QUALITIES: DownloadQuality[] = ['high', 'medium', 'low'];
 const MAX_COUNT = { min: 1, max: 20 };
 
-type Flag = 'enabled' | 'nextEpisodes' | 'wifiOnly';
+type Flag = 'enabled' | 'nextEpisodes' | 'newPodcastEpisodes' | 'wifiOnly';
 
 function flagsOf(rules: DownloadRules): Flag[] {
   const flags: Flag[] = [];
   if (rules.enabled) flags.push('enabled');
   if (rules.nextEpisodes) flags.push('nextEpisodes');
+  if (rules.newPodcastEpisodes) flags.push('newPodcastEpisodes');
   if (rules.wifiOnly) flags.push('wifiOnly');
   return flags;
 }
@@ -52,8 +53,7 @@ function RulesFields({ initial }: { initial: DownloadRules }) {
     save.mutate({
       enabled: flags.includes('enabled'),
       nextEpisodes: flags.includes('nextEpisodes'),
-      // Podcasts come with M6; the stored value goes back unchanged.
-      newPodcastEpisodes: initial.newPodcastEpisodes,
+      newPodcastEpisodes: flags.includes('newPodcastEpisodes'),
       wifiOnly: ios ? initial.wifiOnly : flags.includes('wifiOnly'),
       maxCount: count,
       quality: quality as DownloadQuality,
@@ -63,6 +63,7 @@ function RulesFields({ initial }: { initial: DownloadRules }) {
   const options = [
     { value: 'enabled', label: t('offline.rules.enabled') },
     { value: 'nextEpisodes', label: t('offline.rules.nextEpisodes') },
+    { value: 'newPodcastEpisodes', label: t('offline.rules.newPodcastEpisodes') },
     ...(ios ? [] : [{ value: 'wifiOnly', label: t('offline.rules.wifiOnly') }]),
   ];
 

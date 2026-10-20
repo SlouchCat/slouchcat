@@ -18,7 +18,7 @@ export interface OfflinePlayback {
 
 export type PlaybackSample = Pick<
   OfflineEvent,
-  'positionMs' | 'durationMs' | 'playedMs' | 'seq' | 'state'
+  'positionMs' | 'durationMs' | 'playedMs' | 'seq' | 'state' | 'playbackRate'
 >;
 
 /**

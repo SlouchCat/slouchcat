@@ -14,6 +14,10 @@ export function episodeCode(t: TFunction, item: ItemRef): string | undefined {
   return t('item.episodeCode', { season, episode });
 }
 
+/** Audiobooks, podcasts and their episodes (M6): square covers, "gehört", the audio player. */
+export const isAudioKind = (kind: ItemRef['kind']): boolean =>
+  kind === 'audiobook' || kind === 'podcast' || kind === 'podcast_episode';
+
 export const extraKindLabel = (t: TFunction, kind: ExtraKind | undefined): string =>
   t(`extraKind.${kind ?? 'other'}`);
 

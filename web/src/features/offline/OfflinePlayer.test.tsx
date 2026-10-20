@@ -1,9 +1,9 @@
 import { onlineManager } from '@tanstack/react-query';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isUlid } from '@/lib/ulid';
 import { mockApi, renderApp, signedIn } from '@/test/api';
-import { ids } from '@/test/fixtures';
+import { audiobook, bookChapters, ids } from '@/test/fixtures';
 import { resetOfflineFiles, seedFile } from '@/test/offlineFiles';
 import {
   downloadIds,
@@ -403,6 +403,70 @@ describe('offline player', () => {
     mockApi({});
     renderApp(`/offline/play/${downloadIds.alien}`);
     expect(await screen.findByText('Download nicht verfügbar')).toBeVisible();
+  });
+
+  it('an audio download plays behind the audio player: chapters, speed kept per download (M6)', async () => {
+    const media = stubMedia(60);
+    const bookId = '01JB8Z6Q4M7N9P2R3S5T7V9D05';
+    await putDownloads([
+      storedDownload({
+        id: bookId,
+        item: audiobook,
+        manifest: {
+          ...manifest(bookId, audiobook.id),
+          durationMs: 60_000,
+          mimeType: 'audio/mp4',
+          codecs: 'mp4a.40.2',
+          width: 0,
+          height: 0,
+          chapters: bookChapters,
+          subtitles: [],
+        },
+        subtitlesStored: [],
+        playbackRate: 1.25,
+      }),
+    ]);
+    seedFile(bookId, 'media.mp4', new Uint8Array(9000));
+    mockApi({});
+    const { container } = renderApp(`/offline/play/${bookId}`);
+    const region = await screen.findByRole('main', { name: 'Audioplayer' });
+    await waitFor(() => expect(region).toHaveAttribute('data-engine', 'mse'));
+    const audio = container.querySelector('audio')!;
+    expect(container.querySelector('video')).toBeNull();
+    expect(within(region).getByRole('heading', { name: audiobook.title })).toBeVisible();
+    await waitFor(() => {
+      act(() => {
+        audio.dispatchEvent(new Event('loadedmetadata'));
+      });
+      expect(region).toHaveAttribute('data-start-ms');
+    });
+    // The download's own speed.
+    expect(audio.playbackRate).toBe(1.25);
+
+    // Chapters from the manifest: Shift+→ jumps to the next one, offline.
+    media.currentTime = 6;
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true });
+    expect(media.currentTime).toBe(10);
+    act(() => {
+      audio.dispatchEvent(new Event('timeupdate'));
+    });
+    expect(within(region).getByText('Kapitel 3 · 0:00 / 0:05')).toBeVisible();
+
+    // A new speed is kept on the download and goes into the offline events.
+    fireEvent.keyDown(window, { key: ']' });
+    expect(audio.playbackRate).toBe(1.35);
+    await waitFor(() =>
+      expect(storedDownloads().find((download) => download.id === bookId)?.playbackRate).toBe(1.35),
+    );
+    act(() => audio.pause());
+    await waitFor(() => expect(queuedEvents().length).toBeGreaterThan(0));
+    expect(queuedEvents().at(-1)?.event).toMatchObject({
+      itemId: audiobook.id,
+      downloadId: bookId,
+      state: 'paused',
+      positionMs: 10_000,
+      playbackRate: 1.35,
+    });
   });
 
   it('refuses a download the profile may not see (allowedProfileIds)', async () => {

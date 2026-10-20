@@ -74,6 +74,23 @@ const paths = {
       fill="none"
     />
   ),
+  // Audio player (M6): chapter back and forward, −15 s and +30 s, chapter list, sleep timer.
+  previous: (
+    <>
+      <path d="M18 6.5v11a1 1 0 0 1-1.5.86L8.4 13.3a1.5 1.5 0 0 1 0-2.6l8.1-5.06A1 1 0 0 1 18 6.5Z" />
+      <path d="M6 5.5v13" fill="none" />
+    </>
+  ),
+  next: (
+    <>
+      <path d="M6 6.5v11a1 1 0 0 0 1.5.86l8.1-5.06a1.5 1.5 0 0 0 0-2.6L7.5 5.64A1 1 0 0 0 6 6.5Z" />
+      <path d="M18 5.5v13" fill="none" />
+    </>
+  ),
+  replay: <path d="M4 12a8 8 0 1 0 2.3-5.7M4 5v5h5" fill="none" />,
+  forward: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 5v5h-5" fill="none" />,
+  list: <path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.1M4.5 12h.1M4.5 17.5h.1" fill="none" />,
+  moon: <path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z" fill="none" />,
 } as const;
 
 export type IconName = keyof typeof paths;

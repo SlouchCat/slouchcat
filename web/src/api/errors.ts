@@ -29,6 +29,10 @@ const problemKeys = {
   not_downloadable: 'errors.code.not_downloadable',
   download_not_ready: 'errors.code.download_not_ready',
   download_evicted: 'errors.code.download_evicted',
+  feed_unreachable: 'errors.code.feed_unreachable',
+  feed_invalid: 'errors.code.feed_invalid',
+  feed_exists: 'errors.code.feed_exists',
+  rating_below_library_default: 'errors.code.rating_below_library_default',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
@@ -48,6 +52,8 @@ const fieldKeys = {
   library_path_invalid: 'errors.code.library_path_invalid',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
+  invalid_url: 'errors.field.invalid_url',
+  library_kind: 'errors.field.library_kind',
 } as const;
 
 const has = <K extends string>(map: Record<K, string>, key: string): key is K =>
@@ -73,6 +79,9 @@ const fieldOfCode: Record<string, string> = {
   library_path_invalid: 'library.path',
   tmdb_key_invalid: 'tmdbApiKey',
   tmdb_unreachable: 'tmdbApiKey',
+  feed_unreachable: 'feedUrl',
+  feed_invalid: 'feedUrl',
+  feed_exists: 'feedUrl',
 };
 
 export interface FormErrors {

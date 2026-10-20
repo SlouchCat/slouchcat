@@ -35,10 +35,14 @@ export interface StoredDownloadData {
   manifest?: {
     sizeBytes: number;
     durationMs: number;
+    mimeType?: string;
+    chapters?: { startMs: number; endMs: number; title?: string }[];
     audio?: { index: number; language?: string };
     subtitles: { track: { id: number; language?: string } }[];
   };
   positions?: Record<string, { positionMs: number; at: number }>;
+  /** Speed of the last offline playback of an audio download (M6). */
+  playbackRate?: number;
 }
 
 /** The downloads in the page's IndexedDB; empty while the app has not created it yet. */

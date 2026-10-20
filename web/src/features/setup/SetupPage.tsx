@@ -12,7 +12,8 @@ import { currentLanguage } from '@/i18n';
 import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Logo, Notice, Page, Panel, Stack, Text, TextLink } from '@/ui';
-import { AriaButton, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, TextField } from '@/ui/aria';
+import { LibraryFields, libraryRequest, type LibraryKind } from '../shared/LibraryFields';
 import styles from './SetupPage.module.css';
 
 const TMDB_KEY_URL = 'https://www.themoviedb.org/settings/api';
@@ -56,7 +57,8 @@ export function SetupPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
-  const [kind, setKind] = useState<'movies' | 'series'>('movies');
+  const [kind, setKind] = useState<LibraryKind>('movies');
+  const [rating, setRating] = useState('0');
 
   const setup = useMutation({
     mutationFn: (body: SetupRequest): Promise<SessionInfo> => request(api.POST('/setup', { body })),
@@ -82,7 +84,7 @@ export function SetupPage() {
     setup.mutate({
       email: field('email'),
       password: formText(data, 'password', false),
-      library: { name: field('library.name'), kind, path: field('library.path') },
+      library: libraryRequest(field('library.name'), kind, field('library.path'), rating),
       ...(tmdbApiKey ? { tmdbApiKey } : {}),
       language: currentLanguage(),
     });
@@ -153,28 +155,12 @@ export function SetupPage() {
               isRequired
               validate={required}
             />
-            <RadioGroup
-              name="library.kind"
-              label={t('setup.library.kind')}
-              value={kind}
-              onChange={(value) => setKind(value === 'series' ? 'series' : 'movies')}
-              options={[
-                { value: 'movies', label: t('library.kind.movies') },
-                { value: 'series', label: t('library.kind.series') },
-              ]}
-            />
-            <TextField
-              name="library.path"
-              label={t('setup.library.path')}
-              description={t('setup.library.pathHint')}
-              autoComplete="off"
-              spellCheck="false"
-              mono
-              isRequired
-              validate={(value) => {
-                if (!value.trim()) return t('errors.field.required');
-                return value.trim().startsWith('/') ? null : t('errors.field.not_absolute');
-              }}
+            <LibraryFields
+              prefix="library."
+              kind={kind}
+              onKindChange={setKind}
+              rating={rating}
+              onRatingChange={setRating}
             />
           </Step>
 

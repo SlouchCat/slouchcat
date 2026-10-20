@@ -21,8 +21,8 @@ test('the scanned test library is listed with its state and counts', async ({ pa
 test('Tab reaches header, rescan and the add form in order; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('link', { name: 'Bibliotheken' }));
   await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
-  // Other specs add libraries ("Serien", "E2E leer"): their buttons come in between.
-  await tabTo(page, page.getByLabel('Name', { exact: true }), 6);
+  // Other libraries ("Serien", "Hörbücher", "Podcasts", "E2E leer") have their buttons in between.
+  await tabTo(page, page.getByLabel('Name', { exact: true }), 12);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Filme' }));
   await page.keyboard.press('ArrowRight');

@@ -16,3 +16,4 @@ export { StorageMeter, type StoragePart } from './StorageMeter';
 export { Tabs } from './Tabs';
 export { TextField } from './TextField';
 export { TrailerDialog } from './TrailerDialog';
+export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
