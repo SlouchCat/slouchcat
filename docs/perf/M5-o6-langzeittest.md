@@ -43,8 +43,8 @@ node web/scripts/o6-longterm.mjs check
 verlangt, dass kein Server auf Port 8098 antwortet (die Browser sind damit wirklich offline, auch Firefox, dessen
 Flugmodus in Playwright den Service Worker nicht erfasst), öffnet die App in beiden Profilen, erwartet die
 Offline-Bibliothek, wählt das Profil, spielt den Download ab, springt auf 50 % und schreibt Kaltstartzeit,
-Sprungzeit und Ergebnis ins Log. Bestanden heisst: Offline-Bibliothek erscheint, Download vollständig, Wiedergabe
-und Sprung unter 2 s.
+Sprungzeit und Ergebnis ins Log. Bestanden heisst: Offline-Bibliothek in unter 3 s, Download vollständig mit allen
+Bytes, Wiedergabe und Sprung auf 50 % in unter 2 s (das Skript bewertet alle drei).
 
 `persist()` ist in diesen Playwright-Profilen nicht gewährt (`persisted: false`, Chrome gewährt die Dauerhaftigkeit
 nach Nutzung oder Installation). Der Desktop-Test prüft damit den schwächeren Fall: Der Browser darf den Speicher
@@ -71,3 +71,5 @@ unter Speicherdruck räumen, auf dem Entwicklungsrechner mit rund 10 GB Quote un
 | 20.10.2026 | Desktop Firefox 157 | `start` | Download vollständig (2'658'803 Byte), Belegung 4'818'205 Byte von 10'737'418'240 | `persisted: false` |
 | 20.10.2026 | Desktop Chromium 156 | `check` (Tag 0, kein Server) | bestanden: Kaltstart 1334 ms, Sprung 41 ms | – |
 | 20.10.2026 | Desktop Firefox 157 | `check` (Tag 0, kein Server) | bestanden: Kaltstart 1446 ms, Sprung 19 ms | – |
+| 20.10.2026 | Desktop Chromium 156 | `check` (Tag 0, zweiter Lauf mit der strengeren Bewertung) | bestanden: Kaltstart 1357 ms, Download vollständig, Sprung 42 ms | – |
+| 20.10.2026 | Desktop Firefox 157 | `check` (Tag 0, zweiter Lauf mit der strengeren Bewertung) | bestanden: Kaltstart 1427 ms, Download vollständig, Sprung 18 ms | – |
