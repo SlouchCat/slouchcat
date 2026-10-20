@@ -80,9 +80,16 @@ test('forgets a throw-away device by keyboard; its session ends', async ({
   baseURL,
   extraHTTPHeaders,
 }) => {
-  // A browser of its own (a device cookie of its own) that starts one playback.
+  // A browser of its own that starts one playback. `browser.newContext` applies the config's
+  // `use` options, so the storage state (and with it the shared session's device cookie) is
+  // emptied explicitly: forgetting this device must not sign the shared session out.
   const name = `E2E Wegwerf ${test.info().project.name}`;
-  const throwaway = await browser.newContext({ baseURL, locale: 'de-CH', extraHTTPHeaders });
+  const throwaway = await browser.newContext({
+    baseURL,
+    locale: 'de-CH',
+    extraHTTPHeaders,
+    storageState: { cookies: [], origins: [] },
+  });
   try {
     await loginOwner(throwaway.request);
     const itemId = await itemIdByTitle(owner, H264_TITLE);
