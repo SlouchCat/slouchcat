@@ -30,3 +30,4 @@ werden kann. Nichts hier ist beauftragt.
 
 | Nr. | Idee | Status | Konzept | Issue |
 |---|---|---|---|---|
+| 01 | Metadaten- und Scraper-Einstellungen je Bibliothek (Sprachen, Bildarten, Anbieter) | Ausgearbeitet | [01-metadaten-einstellungen.md](01-metadaten-einstellungen.md) | [#8](https://github.com/SlouchCat/slouchcat/issues/8) |
