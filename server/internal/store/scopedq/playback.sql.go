@@ -39,3 +39,194 @@ func (q *Queries) GetVisibleMediaFileProbe(ctx context.Context, arg GetVisibleMe
 	err := row.Scan(&i.ID, &i.Probe, &i.Keyframes)
 	return i, err
 }
+
+const listVisibleItemTracks = `-- name: ListVisibleItemTracks :many
+SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced FROM tracks AS t
+JOIN media_files AS m ON m.id = t.media_file_id
+JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
+WHERE m.item_id = ?2 AND t.kind IN ('audio', 'subtitle')
+ORDER BY t.media_file_id, t.kind, t.source, t.stream_index, t.rel_path
+`
+
+type ListVisibleItemTracksParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+// Audio and subtitle tracks of every media file of a visible title (detail page, versions).
+func (q *Queries) ListVisibleItemTracks(ctx context.Context, arg ListVisibleItemTracksParams) ([]Track, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleItemTracks, arg.ProfileID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Track{}
+	for rows.Next() {
+		var i Track
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaFileID,
+			&i.StreamIndex,
+			&i.Kind,
+			&i.Codec,
+			&i.Language,
+			&i.Title,
+			&i.Source,
+			&i.RelPath,
+			&i.IsDefault,
+			&i.IsForced,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleMediaFileProbes = `-- name: ListVisibleMediaFileProbes :many
+SELECT m.id, m.probe FROM media_files AS m
+JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
+WHERE m.item_id = ?2
+`
+
+type ListVisibleMediaFileProbesParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+type ListVisibleMediaFileProbesRow struct {
+	ID    string
+	Probe sql.NullString
+}
+
+// Stored probes of the media files of a visible title (bit rate, HDR format and audio channels of
+// the detail page).
+func (q *Queries) ListVisibleMediaFileProbes(ctx context.Context, arg ListVisibleMediaFileProbesParams) ([]ListVisibleMediaFileProbesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleMediaFileProbes, arg.ProfileID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleMediaFileProbesRow{}
+	for rows.Next() {
+		var i ListVisibleMediaFileProbesRow
+		if err := rows.Scan(&i.ID, &i.Probe); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleMediaFileTracks = `-- name: ListVisibleMediaFileTracks :many
+
+SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced FROM tracks AS t
+JOIN media_files AS m ON m.id = t.media_file_id
+JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
+WHERE m.item_id = ?2 AND m.id = ?3 AND t.kind IN ('audio', 'subtitle')
+ORDER BY t.kind, t.source, t.stream_index, t.rel_path
+`
+
+type ListVisibleMediaFileTracksParams struct {
+	ProfileID   int64
+	ItemID      string
+	MediaFileID string
+}
+
+// Tracks, segments and file details of M4 (W-4, W-9, I-5).
+// Audio and subtitle tracks of a media file of a visible title: embedded streams by index, then
+// sidecar files by path.
+func (q *Queries) ListVisibleMediaFileTracks(ctx context.Context, arg ListVisibleMediaFileTracksParams) ([]Track, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleMediaFileTracks, arg.ProfileID, arg.ItemID, arg.MediaFileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Track{}
+	for rows.Next() {
+		var i Track
+		if err := rows.Scan(
+			&i.ID,
+			&i.MediaFileID,
+			&i.StreamIndex,
+			&i.Kind,
+			&i.Codec,
+			&i.Language,
+			&i.Title,
+			&i.Source,
+			&i.RelPath,
+			&i.IsDefault,
+			&i.IsForced,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleSegments = `-- name: ListVisibleSegments :many
+SELECT s.kind, s.start_ms, s.end_ms, s.source FROM media_segments AS s
+JOIN visible_items AS v ON v.item_id = s.item_id AND v.profile_id = ?1
+WHERE s.item_id = ?2
+ORDER BY s.kind
+`
+
+type ListVisibleSegmentsParams struct {
+	ProfileID int64
+	ItemID    string
+}
+
+type ListVisibleSegmentsRow struct {
+	Kind    string
+	StartMs int64
+	EndMs   int64
+	Source  string
+}
+
+// Detected intro and outro of a visible title (W-9).
+func (q *Queries) ListVisibleSegments(ctx context.Context, arg ListVisibleSegmentsParams) ([]ListVisibleSegmentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleSegments, arg.ProfileID, arg.ItemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVisibleSegmentsRow{}
+	for rows.Next() {
+		var i ListVisibleSegmentsRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.StartMs,
+			&i.EndMs,
+			&i.Source,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

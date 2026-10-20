@@ -58,6 +58,10 @@ type Service struct {
 
 	rebuildMu  sync.Mutex
 	rebuilding map[string]chan struct{} // HLS outputs being rebuilt, closed when done
+
+	subs     SubtitleConverter // WebVTT conversion; zero = no text subtitles
+	cacheDir string            // converted subtitles below <cacheDir>/subtitles; empty = uncached
+	profiles profileLocks      // starts of profiles with a stream limit
 }
 
 // Option configures New.
@@ -209,6 +213,9 @@ func validate(ev model.ProgressEvent) error {
 	if len(ev.DeviceID) > maxClientIDLength {
 		verr = verr.Add("deviceId", "too_long")
 	}
+	if ev.PlaybackSessionID != "" && !playbackID.MatchString(ev.PlaybackSessionID) {
+		verr = verr.Add("playbackSessionId", "invalid_value")
+	}
 	if verr != nil {
 		return verr
 	}
@@ -217,8 +224,33 @@ func validate(ev model.ProgressEvent) error {
 
 // Report stores a progress event of a visible title and returns the merged progress. M1a merges
 // by taking the latest event; offline merging follows in M5. Every event is stored, but a late one
-// does not move the merged position (see late).
+// does not move the merged position (see late). An event that names its playback session records
+// the position and the activity of that session (W-6). For a profile with a daily limit (K-5) the
+// answer carries the watch time of today; once it is used up, every playback session of the
+// profile is revoked (stopped_by limit) and the answer says 0 minutes remain.
 func (s *Service) Report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error) {
+	p, err := s.report(ctx, profile, itemID, ev)
+	if err != nil {
+		return model.Progress{}, err
+	}
+	if ev.PlaybackSessionID != "" {
+		now := s.now()
+		_, err := s.write.RecordPlaybackPosition(ctx, appq.RecordPlaybackPositionParams{
+			ID: ev.PlaybackSessionID, ProfileID: profile.ID, PositionMs: sql.NullInt64{Int64: ev.PositionMs, Valid: true},
+			Now: now.UnixMilli(), ExpiresAt: now.Add(SessionLifetime).UnixMilli(),
+		})
+		if err != nil {
+			s.log.WarnContext(ctx, "record playback position", "playback_id", ev.PlaybackSessionID, "err", err)
+		}
+	}
+	if p.WatchTime, err = s.checkWatchLimit(ctx, profile); err != nil {
+		return model.Progress{}, err
+	}
+	return p, nil
+}
+
+// report validates and stores the event and merges the progress.
+func (s *Service) report(ctx context.Context, profile model.Profile, itemID string, ev model.ProgressEvent) (model.Progress, error) {
 	if err := validate(ev); err != nil {
 		return model.Progress{}, err
 	}

@@ -25,3 +25,8 @@ WHERE profile_id = @profile_id AND item_id = @item_id AND device_id = @device_id
   AND media_file_id IS @media_file_id
 ORDER BY client_time DESC, seq DESC
 LIMIT 1;
+
+-- name: SumPlayedMs :one
+-- Played time of a profile in [from, to) by server time (K-5 watch time, one calendar day).
+SELECT CAST(COALESCE(SUM(played_ms), 0) AS INTEGER) AS played_ms FROM progress_events
+WHERE profile_id = @profile_id AND server_time >= @from_ms AND server_time < @to_ms;

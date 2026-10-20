@@ -87,6 +87,18 @@ func (q *Queries) DeleteAccountLibraries(ctx context.Context, accountID int64) e
 	return err
 }
 
+const deleteDevice = `-- name: DeleteDevice :execrows
+DELETE FROM devices WHERE id = ?1
+`
+
+func (q *Queries) DeleteDevice(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteDevice, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deletePinAttempt = `-- name: DeletePinAttempt :exec
 DELETE FROM pin_attempts WHERE profile_id = ?1 AND device_id = ?2
 `
@@ -98,6 +110,15 @@ type DeletePinAttemptParams struct {
 
 func (q *Queries) DeletePinAttempt(ctx context.Context, arg DeletePinAttemptParams) error {
 	_, err := q.db.ExecContext(ctx, deletePinAttempt, arg.ProfileID, arg.DeviceID)
+	return err
+}
+
+const deletePinAttemptsByDevice = `-- name: DeletePinAttemptsByDevice :exec
+DELETE FROM pin_attempts WHERE device_id = ?1
+`
+
+func (q *Queries) DeletePinAttemptsByDevice(ctx context.Context, deviceID string) error {
+	_, err := q.db.ExecContext(ctx, deletePinAttemptsByDevice, deviceID)
 	return err
 }
 
@@ -433,6 +454,77 @@ func (q *Queries) ListAccountLibraries(ctx context.Context, accountID int64) ([]
 	return items, nil
 }
 
+const listDevicesAdmin = `-- name: ListDevicesAdmin :many
+
+SELECT d.id, d.user_agent, d.created_at, d.last_seen_at, d.name, d.type, d.capabilities, d.capabilities_at,
+       a.email AS owner_email, p.name AS owner_profile,
+       (SELECT count(*) FROM playback_sessions AS ps
+        JOIN sessions AS s ON s.id = ps.session_id
+        WHERE ps.device_id = d.id AND ps.revoked_at IS NULL AND ps.expires_at > ?1
+          AND ps.last_activity_at >= ?2 AND s.revoked_at IS NULL AND s.expires_at > ?1) AS active_streams
+FROM devices AS d
+LEFT JOIN accounts AS a ON a.id = d.account_id
+LEFT JOIN profiles AS p ON p.id = d.profile_id
+ORDER BY d.last_seen_at DESC, d.id
+`
+
+type ListDevicesAdminParams struct {
+	Now         int64
+	ActiveAfter int64
+}
+
+type ListDevicesAdminRow struct {
+	ID             string
+	UserAgent      sql.NullString
+	CreatedAt      int64
+	LastSeenAt     int64
+	Name           sql.NullString
+	Type           sql.NullString
+	Capabilities   sql.NullString
+	CapabilitiesAt sql.NullInt64
+	OwnerEmail     sql.NullString
+	OwnerProfile   sql.NullString
+	ActiveStreams  int64
+}
+
+// Device overview of the administration (W-7, M4).
+// Devices, last contact first, with the owner of the last playback start and the number of running
+// streams (the activity window of CountActivePlaybackSessions).
+func (q *Queries) ListDevicesAdmin(ctx context.Context, arg ListDevicesAdminParams) ([]ListDevicesAdminRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDevicesAdmin, arg.Now, arg.ActiveAfter)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDevicesAdminRow{}
+	for rows.Next() {
+		var i ListDevicesAdminRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserAgent,
+			&i.CreatedAt,
+			&i.LastSeenAt,
+			&i.Name,
+			&i.Type,
+			&i.Capabilities,
+			&i.CapabilitiesAt,
+			&i.OwnerEmail,
+			&i.OwnerProfile,
+			&i.ActiveStreams,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGuestAccounts = `-- name: ListGuestAccounts :many
 SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
        a.max_bitrate_kbps, a.max_height, a.max_streams,
@@ -751,6 +843,39 @@ func (q *Queries) MarkInvitationUsed(ctx context.Context, arg MarkInvitationUsed
 	return result.RowsAffected()
 }
 
+const revokeDeviceSessions = `-- name: RevokeDeviceSessions :many
+UPDATE sessions SET revoked_at = ?1 WHERE device_id = ?2 AND revoked_at IS NULL
+RETURNING id
+`
+
+type RevokeDeviceSessionsParams struct {
+	Now      sql.NullInt64
+	DeviceID sql.NullString
+}
+
+func (q *Queries) RevokeDeviceSessions(ctx context.Context, arg RevokeDeviceSessionsParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, revokeDeviceSessions, arg.Now, arg.DeviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeInvitation = `-- name: RevokeInvitation :execrows
 UPDATE invitations SET revoked_at = ?1 WHERE id = ?2 AND used_at IS NULL AND revoked_at IS NULL
 `
@@ -769,18 +894,19 @@ func (q *Queries) RevokeInvitation(ctx context.Context, arg RevokeInvitationPara
 }
 
 const revokePlaybackSessionsByAccount = `-- name: RevokePlaybackSessionsByAccount :many
-UPDATE playback_sessions SET revoked_at = ?1
-WHERE account_id = ?2 AND revoked_at IS NULL
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE account_id = ?3 AND revoked_at IS NULL
 RETURNING id
 `
 
 type RevokePlaybackSessionsByAccountParams struct {
 	Now       sql.NullInt64
+	StoppedBy sql.NullString
 	AccountID int64
 }
 
 func (q *Queries) RevokePlaybackSessionsByAccount(ctx context.Context, arg RevokePlaybackSessionsByAccountParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByAccount, arg.Now, arg.AccountID)
+	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByAccount, arg.Now, arg.StoppedBy, arg.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -803,18 +929,20 @@ func (q *Queries) RevokePlaybackSessionsByAccount(ctx context.Context, arg Revok
 }
 
 const revokePlaybackSessionsByProfile = `-- name: RevokePlaybackSessionsByProfile :many
-UPDATE playback_sessions SET revoked_at = ?1
-WHERE profile_id = ?2 AND revoked_at IS NULL
+UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
+WHERE profile_id = ?3 AND revoked_at IS NULL
 RETURNING id
 `
 
 type RevokePlaybackSessionsByProfileParams struct {
 	Now       sql.NullInt64
+	StoppedBy sql.NullString
 	ProfileID int64
 }
 
+// stopped_by: revoked when the profile is deleted, limit when its daily watch time is used up.
 func (q *Queries) RevokePlaybackSessionsByProfile(ctx context.Context, arg RevokePlaybackSessionsByProfileParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByProfile, arg.Now, arg.ProfileID)
+	rows, err := q.db.QueryContext(ctx, revokePlaybackSessionsByProfile, arg.Now, arg.StoppedBy, arg.ProfileID)
 	if err != nil {
 		return nil, err
 	}

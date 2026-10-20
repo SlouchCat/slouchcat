@@ -418,7 +418,9 @@ func (s *Service) Logout(ctx context.Context, sessionID int64) error {
 	if _, err := q.RevokeSession(ctx, appq.RevokeSessionParams{ID: sessionID, Now: now}); err != nil {
 		return fmt.Errorf("revoke session: %w", err)
 	}
-	if _, err := q.RevokePlaybackSessionsBySession(ctx, appq.RevokePlaybackSessionsBySessionParams{SessionID: sessionID, Now: now}); err != nil {
+	if _, err := q.RevokePlaybackSessionsBySession(ctx, appq.RevokePlaybackSessionsBySessionParams{
+		SessionID: sessionID, Now: now, StoppedBy: sql.NullString{String: model.StoppedByLogout, Valid: true},
+	}); err != nil {
 		return fmt.Errorf("revoke playback sessions: %w", err)
 	}
 	if err := tx.Commit(); err != nil {

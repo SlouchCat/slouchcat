@@ -756,6 +756,32 @@ var (
 	ErrWatchLimit  = errors.New("watch-time limit reached")
 )
 
+// StreamLimitError is ErrStreamLimit with the numbers of the problem extensions (maxStreams,
+// activeStreams).
+type StreamLimitError struct {
+	MaxStreams    int
+	ActiveStreams int
+}
+
+func (e *StreamLimitError) Error() string {
+	return fmt.Sprintf("%v: %d of %d streams running", ErrStreamLimit, e.ActiveStreams, e.MaxStreams)
+}
+
+func (e *StreamLimitError) Is(target error) bool { return target == ErrStreamLimit }
+
+// WatchLimitError is ErrWatchLimit with the numbers of the problem extensions (limitMinutes,
+// usedMinutes).
+type WatchLimitError struct {
+	LimitMinutes int
+	UsedMinutes  int
+}
+
+func (e *WatchLimitError) Error() string {
+	return fmt.Sprintf("%v: %d of %d minutes used", ErrWatchLimit, e.UsedMinutes, e.LimitMinutes)
+}
+
+func (e *WatchLimitError) Is(target error) bool { return target == ErrWatchLimit }
+
 // AdminDevice is a device as the administration sees it (W-7).
 type AdminDevice struct {
 	ID             string

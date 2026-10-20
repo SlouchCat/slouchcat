@@ -135,8 +135,8 @@ func (r *Reader) Summary(ctx context.Context, s Scope, itemID string) (model.Ite
 	return summarize(it, extras, s.language), nil
 }
 
-// Item returns the detail of a visible title with its media files (versions, primary first) and,
-// by kind, its seasons, episodes, extras, parent chain, next episode, cast and trailer count.
+// Item returns the detail of a visible title with its media files (versions, primary first, with
+// their tracks, bit rate and HDR format) and, by kind, its seasons, episodes, extras, parent chain, next episode, cast and trailer count.
 func (r *Reader) Item(ctx context.Context, s Scope, itemID string) (model.ItemDetail, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -158,6 +158,9 @@ func (r *Reader) Item(ctx context.Context, s Scope, itemID string) (model.ItemDe
 	d.MediaFiles = make([]model.MediaFile, 0, len(files))
 	for _, f := range files {
 		d.MediaFiles = append(d.MediaFiles, mediaFile(f))
+	}
+	if err := r.fileDetails(ctx, pid, it.ID, d.MediaFiles); err != nil {
+		return model.ItemDetail{}, err
 	}
 	if err := r.completeDetail(ctx, s, pid, it, &d); err != nil {
 		return model.ItemDetail{}, err

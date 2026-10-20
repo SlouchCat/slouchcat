@@ -108,6 +108,25 @@ func (q *Queries) InsertProgressEvent(ctx context.Context, arg InsertProgressEve
 	return err
 }
 
+const sumPlayedMs = `-- name: SumPlayedMs :one
+SELECT CAST(COALESCE(SUM(played_ms), 0) AS INTEGER) AS played_ms FROM progress_events
+WHERE profile_id = ?1 AND server_time >= ?2 AND server_time < ?3
+`
+
+type SumPlayedMsParams struct {
+	ProfileID int64
+	FromMs    int64
+	ToMs      int64
+}
+
+// Played time of a profile in [from, to) by server time (K-5 watch time, one calendar day).
+func (q *Queries) SumPlayedMs(ctx context.Context, arg SumPlayedMsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, sumPlayedMs, arg.ProfileID, arg.FromMs, arg.ToMs)
+	var played_ms int64
+	err := row.Scan(&played_ms)
+	return played_ms, err
+}
+
 const upsertProgress = `-- name: UpsertProgress :exec
 INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6)

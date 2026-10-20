@@ -3,6 +3,7 @@ package playback
 import (
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -28,49 +29,110 @@ const (
 	// ReasonKeyframesPending: a remux candidate whose keyframe index is not computed yet; it is
 	// transcoded on the 4-s grid while the index job runs (see Service.ensureKeyframes).
 	ReasonKeyframesPending = "keyframes_pending"
+	// ReasonDolbyVision: Dolby Vision profile 5 or 7 has no base layer a browser can show; it is
+	// transcoded with tonemapping (profile 8 remuxes its HDR10 base layer).
+	ReasonDolbyVision = "dolby_vision"
+	ReasonBandwidth   = "bandwidth"     // the source bit rate exceeds the profile's bandwidth limit
+	ReasonMaxHeight   = "max_height"    // the source is higher than the profile's maximum height
+	ReasonQuality     = "quality"       // a manual rung below the source
+	ReasonAudioTrack  = "audio_track"   // a non-default audio track: remuxed with that track
+	ReasonBurnIn      = "subtitle_burn" // burned-in subtitles need a transcode
+	// ReasonBudgetLowered: the transcode budget was exhausted, an SDR source runs one rung lower
+	// (plan 3.5).
+	ReasonBudgetLowered = "budget_lowered"
 )
 
-// MaxTranscodeHeight caps transcode output in M1b (AN-17: software transcode up to 1080p SDR).
+// MaxTranscodeHeight caps transcode output (AN-17: up to 1080p, 4K sources are scaled).
 const MaxTranscodeHeight = 1080
 
-// Decision is how a media file is played on a client.
+// Decision is how a media file is played on a client. It is comparable, so tests compare it as a
+// whole.
 type Decision struct {
 	Mode      string // ModeDirect, ModeRemux, ModeTranscode
 	VideoCopy bool   // remux: keep the video stream
 	AudioCopy bool   // keep the audio stream (else encode AAC)
-	MaxHeight int    // transcode output height cap, 0 = keep
-	Tonemap   bool   // HDR10/HLG → SDR
+	MaxHeight int    // transcode output height cap (the rung), 0 = keep
+	Tonemap   bool   // HDR10/HLG/Dolby Vision → SDR
 	VideoTag  string // "hvc1" when remuxing HEVC (Safari)
 	Reason    string // empty for direct play
+
+	// Quality is the rung of a transcode, model.QualityAuto for a remux and empty for direct play
+	// (playback_sessions.quality). Width, Height and Bitrate describe the output: the rung's size
+	// and peak video bit rate for a transcode, the source's for direct play and remux (0 unknown).
+	Quality          string
+	Width, Height    int
+	Bitrate          int
+	AudioStream      int    // stream index of the audio track to output; -1 = default (or no audio)
+	SubtitleTrack    int64  // tracks.id of the selected subtitle track, 0 = none
+	SubtitleDelivery string // model.SubtitleText or model.SubtitleBurn; empty without subtitles
+	BurnStream       int    // stream index of an embedded subtitle to burn in, -1 = none
+	BurnSidecar      string // sidecar subtitle to burn in, relative to the library root
+}
+
+// Request is the client's side of a decision: its capability profile, the effective limits of
+// the profile and the wanted tracks and quality.
+type Request struct {
+	Caps   model.PlaybackCapabilities // normalized (normalizeCapabilities)
+	Limits model.PlaybackLimits       // effective W-8 limits of the profile
+	// AudioStream is the stream index of the wanted audio track; -1 = the file's default track.
+	AudioStream int
+	// Subtitle is the wanted subtitle track (nil = none) and Delivery how it is shown: auto, text
+	// or burn. Text for a bitmap track is rejected before (Start validates).
+	Subtitle *model.Track
+	Delivery string
+	// Quality is auto (or empty) or a rung; a rung below the source forces a transcode.
+	Quality string
+	// ForceTranscode rebuilds a recorded transcode (Service.rebuild): the decision stays a
+	// transcode on the recorded rung even where the client could remux now.
+	ForceTranscode bool
 }
 
 // defaultCapabilities stand for a client that reports nothing: a browser with MSE that plays
-// H.264 and AAC (every browser the M1a client supports).
+// H.264 and AAC in MP4 (every browser the M1a client supports).
 var defaultCapabilities = model.PlaybackCapabilities{Video: []string{"h264"}, Audio: []string{"aac"}, HLS: "mse"}
 
-// normalizeCapabilities lower-cases the codec names and fills in the defaults of an absent report.
+// maxDeviceName caps the reported device name (devices.name CHECK).
+const maxDeviceName = 80
+
+var deviceTypes = []string{"desktop", "phone", "tablet", "tv", "other"}
+
+// normalizeCapabilities lower-cases the codec and container names, fills in the defaults of an
+// absent report and drops what the store would reject (an over-long name, an unknown type).
 func normalizeCapabilities(c *model.PlaybackCapabilities) model.PlaybackCapabilities {
 	if c == nil {
 		return defaultCapabilities
 	}
-	out := model.PlaybackCapabilities{HLS: strings.ToLower(c.HLS)}
-	for _, v := range c.Video {
-		out.Video = append(out.Video, strings.ToLower(v))
+	out := model.PlaybackCapabilities{
+		HLS: strings.ToLower(c.HLS), MaxWidth: max(c.MaxWidth, 0), MaxHeight: max(c.MaxHeight, 0), HDR: c.HDR,
+		Name: strings.TrimSpace(c.Name), Type: strings.ToLower(c.Type),
 	}
-	for _, a := range c.Audio {
-		out.Audio = append(out.Audio, strings.ToLower(a))
+	lower := func(in []string) []string {
+		var r []string
+		for _, v := range in {
+			if v = strings.ToLower(strings.TrimSpace(v)); v != "" && !slices.Contains(r, v) {
+				r = append(r, v)
+			}
+		}
+		return r
 	}
+	out.Containers, out.Video, out.Audio = lower(c.Containers), lower(c.Video), lower(c.Audio)
 	switch out.HLS {
 	case "native", "mse", "none":
 	default:
 		out.HLS = "mse"
 	}
+	if utf8.RuneCountInString(out.Name) > maxDeviceName {
+		out.Name = string([]rune(out.Name)[:maxDeviceName])
+	}
+	if !slices.Contains(deviceTypes, out.Type) {
+		out.Type = ""
+	}
 	return out
 }
 
-// isHDR reports whether the main video stream is HDR10/HLG: PQ or HLG transfer. It is the rule of
-// transcode.NewPlan (plan.go isHDR), so the decision and the plan agree on tonemapping; BT.2020
-// primaries alone (an SDR wide-gamut master) do not count.
+// isHDR reports whether the main video stream is HDR: PQ or HLG transfer (the rule of
+// transcode.NewPlan, so the decision and the plan agree on tonemapping) or a Dolby Vision
+// configuration record; BT.2020 primaries alone (an SDR wide-gamut master) do not count.
 func isHDR(v *transcode.Stream) bool {
 	if v == nil {
 		return false
@@ -79,7 +141,7 @@ func isHDR(v *transcode.Stream) bool {
 	case "smpte2084", "arib-std-b67":
 		return true
 	}
-	return false
+	return v.DolbyVisionProfile > 0
 }
 
 // browserDecodable reports whether browsers decode the pixel format of the main video stream:
@@ -121,6 +183,40 @@ func mainVideo(p *transcode.Probe) *transcode.Stream {
 	return nil
 }
 
+// defaultAudio returns the stream index of the default audio track (the first flagged default,
+// else the first audio stream), or -1 without audio or probe.
+func defaultAudio(p *transcode.Probe) int {
+	if p == nil {
+		return -1
+	}
+	first := -1
+	for _, s := range p.Streams {
+		if s.Type != "audio" {
+			continue
+		}
+		if s.Default {
+			return s.Index
+		}
+		if first < 0 {
+			first = s.Index
+		}
+	}
+	return first
+}
+
+// audioStream returns the audio stream with the index, or nil.
+func audioStream(p *transcode.Probe, index int) *transcode.Stream {
+	if p == nil {
+		return nil
+	}
+	for i := range p.Streams {
+		if p.Streams[i].Type == "audio" && p.Streams[i].Index == index {
+			return &p.Streams[i]
+		}
+	}
+	return nil
+}
+
 func mp4Family(container string) bool {
 	switch strings.ToLower(container) {
 	case "mp4", "m4v", "mov":
@@ -129,60 +225,191 @@ func mp4Family(container string) bool {
 	return false
 }
 
-// Decide picks the playback mode for a media file on a client (plan 10.3 rows 1–3; subtitles,
-// rows 4–6, follow in M4). probe may be nil when the file is not probed yet; the codec columns of
-// the file are used then and the source counts as SDR.
+// containerPlayable reports whether the client's media element plays the container directly:
+// the reported containers ("mp4" stands for the MP4 family), MP4 only without a report.
+func containerPlayable(container string, caps model.PlaybackCapabilities) bool {
+	c := strings.ToLower(container)
+	if mp4Family(c) {
+		c = "mp4"
+	}
+	if len(caps.Containers) == 0 {
+		return c == "mp4"
+	}
+	return slices.Contains(caps.Containers, c)
+}
+
+// directVideo reports whether the client plays the video codec without remuxing: H.264, and the
+// other codecs it lists (HEVC, AV1, VP9), except HEVC on a native-HLS client (Safari), which needs
+// the hvc1 tag of a remux.
+func directVideo(codec string, caps model.PlaybackCapabilities) bool {
+	switch codec {
+	case "h264":
+		return true
+	case "hevc":
+		return caps.HLS != "native"
+	case "av1", "vp9":
+		return true
+	}
+	return false
+}
+
+// Decide picks the playback mode for a media file on a client (M4 design section 3, plan 10.3).
+// probe may be nil when the file is not probed yet; the codec columns of the file are used then
+// and the source counts as SDR with its default audio track.
 //
-//   - MP4/M4V/MOV with 8-bit 4:2:0 H.264 and AAC (or no audio) on a client that plays H.264 →
-//     direct.
+//   - Direct play: the container is one the client plays, it decodes the video (H.264, or HEVC,
+//     AV1, VP9 when listed; never HEVC on Safari) and the pixel format, the audio track is the
+//     default one and decodable, subtitles are off or delivered as text, an HDR source only on an
+//     HDR display (never Dolby Vision 5/7), the source within the profile's height and bandwidth
+//     limits, and the quality auto (or a rung the source does not exceed).
 //   - A client without HLS support (neither native nor MSE) → direct; the client checks the file
 //     itself and shows that it cannot play it.
-//   - H.264 High 10 and 4:2:2/4:4:4 sources (probe profile and pix_fmt) → transcode, reason
-//     pixel_format: no browser decodes them.
-//   - HDR source → transcode with tonemapping to SDR (<= 1080p), except on a native-HLS client
-//     (Safari) that decodes the codec: remux, the HDR stream passes through.
-//   - H.264 or HEVC video the client decodes → remux (video copied, HEVC tagged hvc1); the audio
-//     is copied when the client lists its codec, else encoded to AAC.
-//   - Everything else → transcode to H.264/AAC, at most 1080p; AAC audio is copied.
-func Decide(file model.MediaFile, probe *transcode.Probe, caps model.PlaybackCapabilities) Decision {
+//   - Transcode, in the order of the reason codes: Dolby Vision 5/7 (dolby_vision); HDR without
+//     passthrough (hdr: an HDR display and native HLS, or HEVC through MSE); H.264 High 10 and
+//     4:2:2/4:4:4 (pixel_format); burned-in subtitles (subtitle_burn); a manual rung below the
+//     source (quality); the source above the height limit (max_height) or the bandwidth limit
+//     (bandwidth); a video codec the client cannot decode or remux (video_codec). The rung is the
+//     highest the source fills and the limits and the device allow (a screen below 1080 lines:
+//     720p), or the manual one; HDR is tonemapped; AAC audio is copied.
+//   - Remux otherwise (H.264 or HEVC the client decodes, HEVC tagged hvc1, Dolby Vision 8 as its
+//     HDR10 base layer): reason container, video_codec (HEVC for Safari), audio_track (a
+//     non-default track) or audio_codec; the audio is copied when the client decodes it, else
+//     encoded to AAC.
+func Decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision {
+	caps, limits := req.Caps, req.Limits
 	video := strings.ToLower(file.VideoCodec)
-	audio := strings.ToLower(file.AudioCodec)
+	v := mainVideo(probe)
+	srcW, srcH := file.Width, file.Height
+	if v != nil && v.Height > 0 {
+		srcW, srcH = v.Width, v.Height
+	}
+	srcBitrate := int(file.Bitrate)
+	if srcBitrate == 0 && probe != nil {
+		srcBitrate = int(probe.Format.BitRate)
+	}
+
+	d := Decision{AudioStream: -1, BurnStream: -1, Width: srcW, Height: srcH, Bitrate: srcBitrate}
+
+	// Audio: the wanted track or the default one.
+	defAudio := defaultAudio(probe)
+	audio, isDefaultAudio := strings.ToLower(file.AudioCodec), true
+	if req.AudioStream >= 0 && req.AudioStream != defAudio {
+		if a := audioStream(probe, req.AudioStream); a != nil {
+			audio, isDefaultAudio = strings.ToLower(a.Codec), false
+			d.AudioStream = a.Index
+		}
+	} else if defAudio >= 0 {
+		d.AudioStream = defAudio
+		if a := audioStream(probe, defAudio); a != nil && a.Codec != "" {
+			audio = strings.ToLower(a.Codec)
+		}
+	}
+
+	// Subtitles: text where the client renders the track, else burned in.
+	if sub := req.Subtitle; sub != nil {
+		d.SubtitleTrack = sub.ID
+		d.SubtitleDelivery = model.SubtitleBurn
+		switch {
+		case sub.Text && req.Delivery != model.SubtitleBurn:
+			d.SubtitleDelivery = model.SubtitleText
+		case sub.Source == "sidecar":
+			d.BurnSidecar = sub.RelPath
+		default:
+			d.BurnStream = sub.Index
+		}
+	}
+	burn := d.SubtitleDelivery == model.SubtitleBurn
+
+	if caps.HLS == "none" && !req.ForceTranscode {
+		d.Mode = ModeDirect
+		return d
+	}
+
 	videoOK := video != "" && slices.Contains(caps.Video, video)
 	audioOK := audio == "" || slices.Contains(caps.Audio, audio)
-	v := mainVideo(probe)
 	pixelsOK := browserDecodable(video, v)
-
-	if mp4Family(file.Container) && video == "h264" && (audio == "" || audio == "aac") && videoOK && audioOK && pixelsOK {
-		return Decision{Mode: ModeDirect}
-	}
-	if caps.HLS == "none" {
-		return Decision{Mode: ModeDirect}
-	}
-	hdr := isHDR(v)
 	remuxable := video == "h264" || video == "hevc"
-	passthrough := caps.HLS == "native" && videoOK && remuxable
-	if hdr && !passthrough {
-		return Decision{Mode: ModeTranscode, MaxHeight: MaxTranscodeHeight, Tonemap: true,
-			AudioCopy: audio == "aac" && audioOK, Reason: ReasonHDR}
+	hdr := isHDR(v)
+	dvNoBase := v != nil && (v.DolbyVisionProfile == 5 || v.DolbyVisionProfile == 7)
+	hdrDirect := !hdr || (caps.HDR && videoOK && !dvNoBase)
+	hdrRemux := !hdr || (caps.HDR && videoOK && !dvNoBase && (caps.HLS == "native" || video == "hevc"))
+	heightOK := limits.MaxHeight == 0 || srcH == 0 || srcH <= limits.MaxHeight
+	bitrateOK := limits.MaxBitrateKbps == 0 || srcBitrate == 0 || srcBitrate <= limits.MaxBitrateKbps*1000
+	top := sourceTop(srcH)
+	wanted := rungIndex(req.Quality)
+	manual := wanted > top
+
+	containerOK := containerPlayable(file.Container, caps)
+	direct := containerOK && videoOK && directVideo(video, caps) && pixelsOK && isDefaultAudio && audioOK &&
+		!burn && hdrDirect && heightOK && bitrateOK && !manual && !req.ForceTranscode
+	if direct {
+		d.Mode = ModeDirect
+		return d
 	}
-	if !pixelsOK {
-		return Decision{Mode: ModeTranscode, MaxHeight: MaxTranscodeHeight, Tonemap: hdr,
-			AudioCopy: audio == "aac" && audioOK, Reason: ReasonPixelFormat}
+
+	var reason string
+	switch {
+	case dvNoBase:
+		reason = ReasonDolbyVision
+	case !hdrRemux:
+		reason = ReasonHDR
+	case !pixelsOK:
+		reason = ReasonPixelFormat
+	case burn:
+		reason = ReasonBurnIn
+	case manual:
+		reason = ReasonQuality
+	case !heightOK:
+		reason = ReasonMaxHeight
+	case !bitrateOK:
+		reason = ReasonBandwidth
+	case !videoOK || !remuxable:
+		reason = ReasonVideoCodec
+	case req.ForceTranscode:
+		reason = ReasonQuality
 	}
-	if videoOK && remuxable {
-		d := Decision{Mode: ModeRemux, VideoCopy: true, AudioCopy: audioOK}
+	if reason == "" {
+		d.Mode, d.VideoCopy, d.AudioCopy, d.Quality = ModeRemux, true, audioOK, model.QualityAuto
 		if video == "hevc" {
 			d.VideoTag = "hvc1"
 		}
 		switch {
-		case !mp4Family(file.Container):
+		case !containerOK:
 			d.Reason = ReasonContainer
-		case video != "h264":
+		case !directVideo(video, caps):
 			d.Reason = ReasonVideoCodec
+		case !isDefaultAudio:
+			d.Reason = ReasonAudioTrack
 		default:
 			d.Reason = ReasonAudioCodec
 		}
 		return d
 	}
-	return Decision{Mode: ModeTranscode, MaxHeight: MaxTranscodeHeight, AudioCopy: audio == "aac" && audioOK, Reason: ReasonVideoCodec}
+	from := top
+	if wanted > top || (req.ForceTranscode && wanted >= 0) {
+		from = wanted
+	}
+	return transcodeOn(d, pickRung(from, limits, deviceCap(caps)), reason, hdr, audio == "aac" && audioOK, srcW, srcH, limits)
+}
+
+// transcodeOn turns d into a transcode on ladder rung i.
+func transcodeOn(d Decision, i int, reason string, hdr, audioCopy bool, srcW, srcH int, limits model.PlaybackLimits) Decision {
+	r := ladder[i]
+	d.Mode, d.VideoCopy, d.VideoTag, d.Reason = ModeTranscode, false, "", reason
+	d.AudioCopy, d.Tonemap = audioCopy, hdr
+	d.Quality, d.MaxHeight = r.Quality, r.Height
+	d.Width, d.Height = outputSize(srcW, srcH, r)
+	d.Bitrate = rungBitrate(r, limits)
+	return d
+}
+
+// lowered returns the decision one budget step lower (plan 3.5): an SDR transcode above 720p runs
+// on the 720p rung instead (reason budget_lowered); ok is false when that saves nothing (HDR
+// sources, remux, rungs at or below 720p).
+func lowered(d Decision, srcW, srcH int, limits model.PlaybackLimits) (Decision, bool) {
+	i := rungIndex(model.Quality720)
+	if d.Mode != ModeTranscode || d.Tonemap || d.MaxHeight <= ladder[i].Height {
+		return d, false
+	}
+	return transcodeOn(d, i, ReasonBudgetLowered, false, d.AudioCopy, srcW, srcH, limits), true
 }

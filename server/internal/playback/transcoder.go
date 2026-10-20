@@ -33,15 +33,25 @@ func NewManagerTranscoder(m *transcode.Manager, backend transcode.Backend) *Mana
 // Backend names the encoder backend of transcodes.
 func (t *ManagerTranscoder) Backend() string { return string(t.backend) }
 
-// Start plans the HLS output of req and starts the encoder at the segment of req.Resume (else
-// req.StartSegment); an exhausted budget returns model.ErrTranscodeBusy, a remux without keyframe
-// index ErrNoKeyframes.
+// Start plans the HLS output of req (rung, bit-rate cap, audio track, burned-in subtitle of a
+// transcode) and starts the encoder at the segment of req.Resume (else req.StartSegment); an
+// exhausted budget returns model.ErrTranscodeBusy, a remux without keyframe index ErrNoKeyframes.
 func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSession, error) {
 	d := req.Decision
 	src := transcode.Source{Path: req.Path, Probe: req.Probe, Keyframes: req.Keyframes}
 	target := transcode.Target{
 		Mode: transcode.Mode(d.Mode), VideoCopy: d.VideoCopy, AudioCopy: d.AudioCopy,
-		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1,
+		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1, AudioStream: d.AudioStream,
+	}
+	if d.Mode == ModeTranscode {
+		target.Quality, target.MaxBitrate = d.Quality, d.Bitrate
+		if d.SubtitleDelivery == model.SubtitleBurn {
+			if req.BurnInPath != "" {
+				target.BurnInPath = req.BurnInPath
+			} else {
+				target.SubtitleBurnIn = d.BurnStream
+			}
+		}
 	}
 	plan, err := transcode.NewPlan(src, target)
 	if errors.Is(err, transcode.ErrNoKeyframes) {
