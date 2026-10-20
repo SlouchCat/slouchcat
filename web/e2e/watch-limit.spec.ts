@@ -14,29 +14,26 @@ interface ProgressAnswer {
 }
 
 /** Six `playing` events of 10 s each: one minute of watch time for the session's profile. */
-async function watchOneMinute(
-  api: APIRequestContext,
-  itemId: string,
-  playbackSessionId?: string,
-): Promise<ProgressAnswer> {
-  let answer: ProgressAnswer = {};
-  for (let seq = 1; seq <= 6; seq += 1) {
-    const response = await api.post(`/api/v1/items/${itemId}/progress`, {
-      headers: CSRF,
-      data: {
-        ...(playbackSessionId ? { playbackSessionId } : {}),
-        positionMs: seq * 1000,
-        durationMs: 10_000,
-        playedMs: 10_000,
-        seq,
-        state: 'playing',
-        clientTime: new Date().toISOString(),
-      },
-    });
-    expect(response.status(), await response.text()).toBe(200);
-    answer = (await response.json()) as ProgressAnswer;
-  }
-  return answer;
+/**
+ * One minute as another device of the profile would report it: a single first event of 60 s.
+ * The server trusts the first event of a playback (device, file, session) as reported and caps
+ * every later one to the time that really passed since the previous event, so six quick events of
+ * 10 s from one browser would count as about 10 s.
+ */
+async function watchOneMinute(api: APIRequestContext, itemId: string): Promise<ProgressAnswer> {
+  const response = await api.post(`/api/v1/items/${itemId}/progress`, {
+    headers: CSRF,
+    data: {
+      positionMs: 6000,
+      durationMs: 10_000,
+      playedMs: 60_000,
+      seq: 1,
+      state: 'playing',
+      clientTime: new Date().toISOString(),
+    },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+  return (await response.json()) as ProgressAnswer;
 }
 
 test('one minute played: the start answers 403 with the hint; the report shows the minute', async ({
@@ -106,11 +103,11 @@ test('a running player stops with the hint once the limit is reached', async ({ 
   test.setTimeout(60_000);
   const itemId = await itemIdByTitle(owner, H264_TITLE);
   await useFreshProfile(page, owner, 'E2E Stopp', { watchLimitMinutes: 1 });
-  const info = await play(page, itemId);
+  await play(page, itemId);
 
   // Another device of the profile used up the minute; the player learns it from the answer to
   // its next progress event (every 10 s, at the latest on pause) or from the revoked stream.
-  const answer = await watchOneMinute(page.request, itemId, info.playbackSessionId);
+  const answer = await watchOneMinute(page.request, itemId);
   expect(answer.watchTime?.remainingMinutes).toBe(0);
   await page.locator('video').evaluate((video: HTMLVideoElement) => {
     video.loop = true;
