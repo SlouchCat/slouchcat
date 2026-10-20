@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { heat } from '@/test/fixtures';
+import { alien, heat } from '@/test/fixtures';
 import {
   downloadIds,
   downloadState,
@@ -371,5 +371,83 @@ describe('waitsForWifi (AN-13)', () => {
     const auto = storedDownload({ auto: true });
     const off = storedProfile({ rules: { ...rules, enabled: true, wifiOnly: false } });
     expect(waitsForWifi(auto, [off], 'cellular')).toBe(false);
+  });
+});
+
+describe('server progress of the active profile (W-5, O-5)', () => {
+  const progress = (positionMs: number, updatedAt: string, completed = false) => ({
+    positionMs,
+    durationMs: 90_000,
+    percent: Math.round((positionMs / 90_000) * 100),
+    completed,
+    updatedAt,
+  });
+
+  it('stores the item’s progress for the active profile, on the device’s clock', () => {
+    const [merged] = applySync(
+      input({
+        downloads: [storedDownload()],
+        answer: answer({
+          downloads: [
+            downloadState({
+              item: { ...alien, progress: progress(30_000, '2026-10-20T11:59:00Z') },
+            }),
+          ],
+        }),
+      }),
+    ).put;
+    // serverTime is 5 s ahead of the device (answer()): updatedAt moves 5 s back.
+    expect(merged?.serverPositions).toEqual({
+      '1': { positionMs: 30_000, completed: false, at: Date.parse('2026-10-20T11:58:55Z') },
+    });
+    // The device's own position stays as it was.
+    expect(merged?.positions).toBeUndefined();
+  });
+
+  it('keeps the other profiles’ entries and replaces only the active one', () => {
+    const local = storedDownload({
+      serverPositions: {
+        '1': { positionMs: 1000, completed: false, at: 1 },
+        '2': { positionMs: 2000, completed: true, at: 2 },
+      },
+    });
+    const merged = mergeDownload(
+      local,
+      downloadState({ item: { ...alien, progress: progress(45_000, '2026-10-20T12:00:00Z') } }),
+      1,
+      NOW,
+      { profileId: 1, offsetMs: 0 },
+    );
+    expect(merged.serverPositions).toEqual({
+      '1': { positionMs: 45_000, completed: false, at: Date.parse('2026-10-20T12:00:00Z') },
+      '2': { positionMs: 2000, completed: true, at: 2 },
+    });
+  });
+
+  it('keeps the stored values without the item (another profile is active) or without a profile', () => {
+    const serverPositions = { '1': { positionMs: 30_000, completed: false, at: 1 } };
+    const local = storedDownload({ serverPositions });
+    expect(
+      mergeDownload(local, downloadState({ item: undefined }), 1, NOW, {
+        profileId: 2,
+        offsetMs: 0,
+      }).serverPositions,
+    ).toEqual(serverPositions);
+    // createDownloads merges without a sync profile.
+    expect(mergeDownload(local, downloadState(), 1, NOW).serverPositions).toEqual(serverPositions);
+  });
+
+  it('drops the active profile’s entry when the server has no progress for it', () => {
+    const local = storedDownload({
+      serverPositions: { '1': { positionMs: 30_000, completed: false, at: 1 } },
+    });
+    const merged = mergeDownload(
+      local,
+      downloadState({ item: { ...alien, progress: undefined } }),
+      1,
+      NOW,
+      { profileId: 1, offsetMs: 0 },
+    );
+    expect(merged.serverPositions).toBeUndefined();
   });
 });

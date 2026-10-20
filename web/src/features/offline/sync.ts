@@ -70,19 +70,55 @@ export function newDownload(state: DownloadState, accountId: number, now: number
   };
 }
 
+/** The active profile of a sync and the server's clock offset (server time minus device time). */
+export interface SyncProfile {
+  profileId: number;
+  offsetMs: number;
+}
+
+/**
+ * The server's progress per profile after an answer: the item of a download carries the active
+ * profile's progress (on the device's clock from here on); without the item (another profile is
+ * active) or without the active profile the stored values stay.
+ */
+function mergeServerPositions(
+  stored: StoredDownload['serverPositions'],
+  state: DownloadState,
+  active: SyncProfile | undefined,
+): StoredDownload['serverPositions'] {
+  if (!active || !state.item) return stored;
+  const key = String(active.profileId);
+  const entries = Object.entries(stored ?? {}).filter(([id]) => id !== key);
+  const progress = state.item.progress;
+  if (progress) {
+    entries.push([
+      key,
+      {
+        positionMs: progress.positionMs,
+        completed: progress.completed,
+        at: Date.parse(progress.updatedAt) - active.offsetMs,
+      },
+    ]);
+  }
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 /**
  * The server's state of a download merged into what the device keeps: the server owns state,
  * sizes and `allowedProfileIds`; the device keeps its manifest, its progress in bytes and the
- * title data when the answer has none (another profile is active, DownloadState.item).
+ * title data when the answer has none (another profile is active, DownloadState.item). With the
+ * sync's active profile, its server progress is stored as well (W-5, O-5).
  */
 export function mergeDownload(
   local: StoredDownload | undefined,
   state: DownloadState,
   accountId: number,
   now: number,
+  active?: SyncProfile,
 ): StoredDownload {
   const fresh = newDownload(state, accountId, now);
-  if (!local) return fresh;
+  const serverPositions = mergeServerPositions(local?.serverPositions, state, active);
+  if (!local) return serverPositions ? { ...fresh, serverPositions } : fresh;
   return {
     ...local,
     ...fresh,
@@ -94,6 +130,7 @@ export function mergeDownload(
     complete: local.complete,
     pendingDelete: local.pendingDelete,
     positions: local.positions,
+    serverPositions,
     fileReadyAt: local.fileReadyAt,
     fileEtag: local.fileEtag,
     ...keptFetchError(local, state),
@@ -228,7 +265,12 @@ export function applySync(input: SyncInput): SyncResult {
   const local = new Map(input.downloads.map((download) => [download.id, download]));
   const put = answer.downloads
     .filter((state) => !revoked.has(state.id))
-    .map((state) => mergeDownload(local.get(state.id), state, accountId, now));
+    .map((state) =>
+      mergeDownload(local.get(state.id), state, accountId, now, {
+        profileId: activeProfileId,
+        offsetMs: serverOffsetMs,
+      }),
+    );
   const listed = new Set(answer.profiles.map((profile) => profile.id));
   const localProfiles = new Map(input.profiles.map((profile) => [profile.id, profile]));
   // What the device holds after the answer: the merged ones and the others it keeps.

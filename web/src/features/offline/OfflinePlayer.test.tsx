@@ -9,6 +9,7 @@ import {
   downloadIds,
   episodeDownload,
   heatDownload,
+  manifest,
   offlineProfile,
   storedDownload,
   storedProfile,
@@ -196,6 +197,22 @@ describe('offline player', () => {
       ).toBe(4000),
     );
     expect(engine.flush).toHaveBeenCalled();
+  });
+
+  it('starts at the newer server position the sync stored (W-5, O-5)', async () => {
+    stubMedia(90);
+    await putDownloads([
+      storedDownload({
+        manifest: { ...manifest(), durationMs: 90_000 },
+        positions: { '1': { positionMs: 12_000, at: 1000 } },
+        serverPositions: { '1': { positionMs: 30_000, completed: false, at: 2000 } },
+      }),
+    ]);
+    mockApi({});
+    renderApp(`/offline/play/${downloadIds.alien}`);
+    const region = await player();
+    await waitFor(() => expect(region).toHaveAttribute('data-engine', 'mse'));
+    expect(hls.state.instances[0]?.config.startPosition).toBe(30);
   });
 
   it('stops with the hint when the offline watch time is used up (AN-18)', async () => {

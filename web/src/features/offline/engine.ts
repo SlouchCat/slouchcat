@@ -316,7 +316,9 @@ async function sync(accountId: number, profileId: number): Promise<void> {
   for (const state of answer.downloads) {
     // Revoked, or deleted here after the server wrote this answer (K5).
     if (revoked.has(state.id) || deleted[state.id] !== undefined) continue;
-    await updateDownload(state.id, (local) => mergeDownload(local, state, accountId, now));
+    await updateDownload(state.id, (local) =>
+      mergeDownload(local, state, accountId, now, { profileId, offsetMs: result.serverOffsetMs }),
+    );
   }
   // PIN material stays only for profiles a download on the device names (AN-19).
   const stored = await listDownloads();

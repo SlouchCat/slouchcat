@@ -17,7 +17,8 @@ import { itemIdByTitle, MULTI_AUDIO_TITLE, resetProgress } from './playback';
 // O-4 and O-5: a film downloaded with the English audio track plays in flight mode from the
 // device, with its subtitles; the progress of that offline playback reaches the server after the
 // reconnect and shows in a second browser of the same account (±10 s). The second test starts
-// from a known server position and times the reconnect until the second browser has the new one.
+// from a known server position, which the offline player resumes from (W-5), and times the
+// reconnect until the second browser has the new one.
 
 /** Queued offline events in the page's IndexedDB. */
 const queuedEvents = (page: Page) =>
@@ -202,11 +203,11 @@ test('O-5: from 30 s on the server, 15 s offline; a second browser has the new p
   await page.keyboard.press('Enter');
   const player = offlinePlayer(page);
   await expect(player).toHaveAttribute('data-start-ms', /\d+/, { timeout: 15_000 });
-  // The offline player resumes from the device's own position (none yet): go to the server's.
-  await page.locator('video').evaluate((video: HTMLVideoElement, at) => {
-    video.currentTime = at;
-  }, startMs / 1000);
-  await expect.poll(() => videoTime(page)).toBeGreaterThanOrEqual(startMs / 1000);
+  // The device has no position of its own yet: the player starts at the server's from the sync.
+  const startedAt = await videoTime(page);
+  expect(Math.abs(startedAt - startMs / 1000), `offline start ${startedAt} s`).toBeLessThanOrEqual(
+    2,
+  );
   // At least 10 s of play from there; 15 s, so the ±10 s window cannot reach the start value.
   const playedFrom = Date.now();
   await expect
@@ -251,7 +252,7 @@ test('O-5: from 30 s on the server, 15 s offline; a second browser has the new p
       .toBeLessThanOrEqual(10_000);
     const seenAfterMs = Date.now() - reconnectAt;
     const seen = await serverPosition();
-    const measured = { startMs, playedForMs, position, seen, seenAfterMs };
+    const measured = { startMs, startedAt, playedForMs, position, seen, seenAfterMs };
     testInfo.annotations.push({ type: 'o5-reconnect', description: JSON.stringify(measured) });
     console.log(`MEASURE ${testInfo.project.name} o5-reconnect ${JSON.stringify(measured)}`);
     expect(Math.abs(seen - startMs)).toBeGreaterThan(10_000);

@@ -80,6 +80,12 @@ export interface StoredDownload {
   pendingDelete?: boolean;
   /** Last position per profile (offline playback), so the player resumes without the server. */
   positions?: Record<string, { positionMs: number; at: number }>;
+  /**
+   * The server's progress per profile from the last sync that was made with that profile active
+   * (`DownloadState.item.progress`); `at` is its `updatedAt` on the device's clock. The player
+   * resumes from the newer of this and `positions` (W-5, O-5).
+   */
+  serverPositions?: Record<string, { positionMs: number; completed: boolean; at: number }>;
   updatedAt: number;
 }
 

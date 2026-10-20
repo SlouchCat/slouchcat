@@ -15,6 +15,7 @@ import { downloadTitle } from './labels';
 import { useOfflineChoice, type OfflineChoice } from './offlineSession';
 import { MEDIA_FILE, readFile } from './opfs';
 import { OfflinePlayer } from './OfflinePlayer';
+import { resumePosition } from './playback';
 import { getDownload, getMeta, getProfile } from './store';
 import type { StoredDownload, StoredWatchTime } from './types';
 import styles from '@/features/player/Player.module.css';
@@ -130,7 +131,7 @@ function OfflinePlayback({
 
   if (state.status === 'ready' && accountId !== undefined && profileId !== undefined) {
     const { download } = state;
-    const resume = download.positions?.[profileId]?.positionMs ?? 0;
+    const resume = resumePosition(download, profileId);
     return (
       <OfflinePlayer
         title={title ?? ''}

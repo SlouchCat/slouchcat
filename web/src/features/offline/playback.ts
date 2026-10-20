@@ -1,6 +1,6 @@
 import { flushEventsSoon } from './engine';
 import { getMeta, queueEvents, updateDownload, updateProfile } from './store';
-import type { OfflineEvent, StoredWatchTime } from './types';
+import type { OfflineEvent, StoredDownload, StoredWatchTime } from './types';
 import { addPlayed } from './watchTime';
 
 // What the offline player writes: progress events into the queue (uploaded at the next contact,
@@ -20,6 +20,18 @@ export type PlaybackSample = Pick<
   OfflineEvent,
   'positionMs' | 'durationMs' | 'playedMs' | 'seq' | 'state'
 >;
+
+/**
+ * Where the player of `profileId` starts (source timeline, ms): the newer of the device's own
+ * position (offline playback) and the server's progress from the last sync (online play, another
+ * device; W-5, O-5). A title the server has as completed starts at 0, as online.
+ */
+export function resumePosition(download: StoredDownload, profileId: number): number {
+  const own = download.positions?.[profileId];
+  const server = download.serverPositions?.[profileId];
+  if (server && (!own || server.at > own.at)) return server.completed ? 0 : server.positionMs;
+  return own?.positionMs ?? 0;
+}
 
 /** Device clock corrected by the offset of the last sync. */
 export async function serverNow(): Promise<number> {
