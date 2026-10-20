@@ -7,6 +7,20 @@ export const POSTER_FILE = 'poster';
 export const subtitleFile = (track: number) => `${track}.vtt`;
 
 const folders = new Map<string, Map<string, Blob>>();
+/** Writers open per download: like a sync access handle, they lock the folder against removal. */
+const openWriters = new Map<string, number>();
+let writeFailure: Error | null = null;
+let removalFailures = 0;
+
+/** The next writes throw `error` (null: they work again), e.g. a QuotaExceededError. */
+export function failWrites(error: Error | null): void {
+  writeFailure = error;
+}
+
+/** The next `count` removals fail as if another tab held the file. */
+export function failRemovals(count: number): void {
+  removalFailures = count;
+}
 
 function folder(id: string): Map<string, Blob> {
   let files = folders.get(id);
@@ -27,6 +41,10 @@ export async function mediaSize(id: string): Promise<number> {
 }
 
 export async function removeFiles(id: string): Promise<void> {
+  if ((openWriters.get(id) ?? 0) > 0 || removalFailures > 0) {
+    removalFailures = Math.max(0, removalFailures - 1);
+    return Promise.reject(new DOMException('file in use', 'NoModificationAllowedError'));
+  }
   folders.delete(id);
   return Promise.resolve();
 }
@@ -42,8 +60,11 @@ export async function syncPathAvailable(): Promise<boolean> {
 export async function openMediaWriter(id: string): Promise<BlockWriter> {
   const files = folder(id);
   let durable: number | null = null;
+  let open = true;
+  openWriters.set(id, (openWriters.get(id) ?? 0) + 1);
   return Promise.resolve({
     async write(offset: number, data: ArrayBuffer) {
+      if (writeFailure) throw writeFailure;
       const current = new Uint8Array(await (files.get(MEDIA_FILE) ?? new Blob()).arrayBuffer());
       const next = new Uint8Array(Math.max(current.length, offset + data.byteLength));
       next.set(current);
@@ -52,7 +73,13 @@ export async function openMediaWriter(id: string): Promise<BlockWriter> {
       durable = offset + data.byteLength;
       return durable;
     },
-    close: () => Promise.resolve(durable),
+    close: () => {
+      if (open) {
+        open = false;
+        openWriters.set(id, (openWriters.get(id) ?? 1) - 1);
+      }
+      return Promise.resolve(durable);
+    },
   });
 }
 
@@ -75,6 +102,9 @@ export function seedFile(id: string, name: string, data: BlobPart): void {
 
 export function resetOfflineFiles(): void {
   folders.clear();
+  openWriters.clear();
+  writeFailure = null;
+  removalFailures = 0;
 }
 
 export const storedFiles = (id: string) => [...(folders.get(id)?.keys() ?? [])];

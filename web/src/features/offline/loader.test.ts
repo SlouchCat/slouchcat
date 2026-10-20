@@ -9,6 +9,7 @@ function callbacks() {
     onSuccess: vi.fn<LoaderCallbacks<LoaderContext>['onSuccess']>(),
     onError: vi.fn<LoaderCallbacks<LoaderContext>['onError']>(),
     onTimeout: vi.fn<LoaderCallbacks<LoaderContext>['onTimeout']>(),
+    onAbort: vi.fn<NonNullable<LoaderCallbacks<LoaderContext>['onAbort']>>(),
   };
 }
 
@@ -66,16 +67,22 @@ describe('offlineLoader', () => {
     fetchSpy.mockRestore();
   });
 
-  it('reports nothing after abort', async () => {
+  it('an abort settles through onAbort once, and the read reports nothing after it (K1)', async () => {
     const Loader = offlineLoader({ playlist: '', media: file });
     const loader = new Loader({} as never);
     const aborted = callbacks();
-    loader.load(context({ rangeStart: 0, rangeEnd: 8 }), config, aborted);
+    const request = context({ rangeStart: 0, rangeEnd: 8 });
+    loader.load(request, config, aborted);
     loader.abort();
+    // hls.js's fragment loader resolves its promise only in onAbort.
+    expect(aborted.onAbort).toHaveBeenCalledTimes(1);
+    expect(aborted.onAbort).toHaveBeenCalledWith(loader.stats, request, null);
+    loader.abort();
+    expect(aborted.onAbort).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(loader.stats.aborted).toBe(true));
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(aborted.onSuccess).not.toHaveBeenCalled();
     expect(aborted.onError).not.toHaveBeenCalled();
-    expect(loader.stats.aborted).toBe(true);
   });
 
   it('reports an error for a range outside the file', async () => {

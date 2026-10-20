@@ -46,7 +46,9 @@ test('a 1-min limit stops offline playback after a minute and is booked later', 
 
     await context.setOffline(true);
     await openOfflineLibrary(page);
-    await page.getByRole('button', { name: /E2E Offline-Limit/ }).click();
+    // By keyboard (rule 8): the tile, Enter, then the focus moves to the first title.
+    await page.getByRole('button', { name: /E2E Offline-Limit/ }).focus();
+    await page.keyboard.press('Enter');
     const card = page.getByRole('list', { name: 'Heruntergeladene Titel' }).getByRole('link');
     await expectFocusOn(page, card);
     await page.keyboard.press('Enter');

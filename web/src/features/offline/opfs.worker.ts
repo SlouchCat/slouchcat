@@ -97,7 +97,10 @@ async function probe(): Promise<{ ok: boolean }> {
   if (typeof FileSystemFileHandle === 'undefined') return { ok: false };
   if (!('createSyncAccessHandle' in FileSystemFileHandle.prototype)) return { ok: false };
   const root = await navigator.storage.getDirectory();
-  const name = 'probe-sync.tmp';
+  // One name per probe: two tabs that start together must not lock each other's probe file.
+  const unique =
+    typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Math.random()).slice(2);
+  const name = `probe-${unique}.tmp`;
   const target = await (
     (await root.getFileHandle(name, { create: true })) as unknown as SyncFileHandle
   ).createSyncAccessHandle();
@@ -130,10 +133,15 @@ scope.onmessage = (event) => {
   const command = event.data;
   run(command).then(
     (result) => scope.postMessage({ id: command.id, result }),
+    // Name and message separately: the page rebuilds a DOMException (QuotaExceededError,
+    // NoModificationAllowedError …) so the engine can tell storage trouble from the network.
     (error: unknown) =>
       scope.postMessage({
         id: command.id,
-        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+        error:
+          error instanceof Error
+            ? { name: error.name, message: error.message }
+            : { name: 'Error', message: String(error) },
       }),
   );
 };

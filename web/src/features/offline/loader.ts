@@ -52,6 +52,7 @@ export function offlineLoader(source: OfflineSource): LoaderClass {
     context: LoaderContext | null = null;
     stats: LoaderStats = emptyStats();
     private done = false;
+    private callbacks: LoaderCallbacks<LoaderContext> | null = null;
 
     load(
       context: LoaderContext,
@@ -59,6 +60,7 @@ export function offlineLoader(source: OfflineSource): LoaderClass {
       callbacks: LoaderCallbacks<LoaderContext>,
     ): void {
       this.context = context;
+      this.callbacks = callbacks;
       this.done = false;
       const stats = emptyStats();
       this.stats = stats;
@@ -93,14 +95,22 @@ export function offlineLoader(source: OfflineSource): LoaderClass {
       );
     }
 
+    /**
+     * hls.js's fragment loader settles its promise only through onAbort (after a seek it aborts
+     * the fragment in flight); without the call that promise would hang (K1).
+     */
     abort(): void {
+      if (this.done) return;
       this.done = true;
       this.stats.aborted = true;
+      const { callbacks, context } = this;
+      if (callbacks?.onAbort && context) callbacks.onAbort(this.stats, context, null);
     }
 
     destroy(): void {
       this.done = true;
       this.context = null;
+      this.callbacks = null;
     }
   };
 }

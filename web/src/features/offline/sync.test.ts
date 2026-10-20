@@ -13,10 +13,12 @@ import {
 import {
   applySync,
   downloadsForProfile,
+  FETCH_RETRY_MS,
   fetchOrder,
   heldDownloads,
   mergeDownload,
   offlineProfiles,
+  otherAccountDownloads,
   waitsForWifi,
   type SyncInput,
 } from './sync';
@@ -151,6 +153,34 @@ describe('applySync', () => {
     expect(fetchOrder([merged])).toEqual([downloadIds.alien]);
   });
 
+  it('retries errors of the device only after FETCH_RETRY_MS, not at every sync (W7, K4)', () => {
+    for (const code of ['quota', 'storage', 'network', 'range']) {
+      const failed = storedDownload({ complete: false, fetchError: code, fetchErrorAt: NOW });
+      const merged = mergeDownload(failed, downloadState({ state: 'ready' }), 1, NOW);
+      expect(merged.fetchError, code).toBe(code);
+      expect(fetchOrder([merged], NOW + FETCH_RETRY_MS - 1), code).toEqual([]);
+      expect(fetchOrder([merged], NOW + FETCH_RETRY_MS), code).toEqual([downloadIds.alien]);
+    }
+  });
+
+  it('clears any error once the server prepared the copy again (new readyAt, O1)', () => {
+    const failed = storedDownload({ complete: false, fetchError: 'quota', fetchErrorAt: NOW });
+    const merged = mergeDownload(
+      failed,
+      downloadState({ state: 'ready', readyAt: '2026-10-21T08:00:00Z' }),
+      1,
+      NOW,
+    );
+    expect(merged.fetchError).toBeUndefined();
+    expect(merged.readyAt).toBe('2026-10-21T08:00:00Z');
+  });
+
+  it('keeps where the stored bytes came from (readyAt and ETag of the copy)', () => {
+    const local = storedDownload({ fileReadyAt: '2026-10-20T10:05:00Z', fileEtag: '"a-1"' });
+    const merged = mergeDownload(local, downloadState(), 1, NOW);
+    expect(merged).toMatchObject({ fileReadyAt: '2026-10-20T10:05:00Z', fileEtag: '"a-1"' });
+  });
+
   it('measures the clock offset from serverTime', () => {
     expect(applySync(input()).serverOffsetMs).toBe(5000);
   });
@@ -177,6 +207,7 @@ describe('applySync', () => {
     const local = storedProfile({ pinVerifier: verifier });
     const same = applySync(
       input({
+        downloads: [storedDownload()],
         profiles: [local],
         answer: answer({ profiles: [offlineProfile({ hasPin: true, pinSalt: 'a'.repeat(32) })] }),
       }),
@@ -184,11 +215,45 @@ describe('applySync', () => {
     expect(same?.pinVerifier).toEqual(verifier);
     const changed = applySync(
       input({
+        downloads: [storedDownload()],
         profiles: [local],
         answer: answer({ profiles: [offlineProfile({ hasPin: true, pinSalt: 'b'.repeat(32) })] }),
       }),
     ).putProfiles[0];
     expect(changed?.pinVerifier).toBeUndefined();
+  });
+
+  it('keeps PIN material only for profiles a download on the device names (AN-19, W4)', () => {
+    const verifier = { salt: 'a'.repeat(32), iterations: 1, hash: 'x' };
+    const offlinePin = { salt: 'c2FsdA', iterations: 1, hash: 'aGFzaA' };
+    const snapshot = offlineProfile({
+      hasPin: true,
+      pinSalt: 'a'.repeat(32),
+      pinIterations: 600_000,
+      offlinePin,
+    });
+    const withDownload = applySync(
+      input({
+        downloads: [storedDownload()],
+        profiles: [storedProfile({ pinVerifier: verifier })],
+        answer: answer({ downloads: [downloadState()], profiles: [snapshot] }),
+      }),
+    ).putProfiles[0];
+    expect(withDownload?.snapshot).toMatchObject({ pinSalt: 'a'.repeat(32), offlinePin });
+    expect(withDownload?.pinVerifier).toEqual(verifier);
+    // The active profile on a device without its downloads: no salt, no offline PIN, no verifier.
+    const without = applySync(
+      input({
+        downloads: [heatDownload()],
+        profiles: [storedProfile({ pinVerifier: verifier })],
+        answer: answer({ profiles: [snapshot] }),
+      }),
+    ).putProfiles[0];
+    expect(without?.snapshot.hasPin).toBe(true);
+    expect(without?.snapshot.pinSalt).toBeUndefined();
+    expect(without?.snapshot.pinIterations).toBeUndefined();
+    expect(without?.snapshot.offlinePin).toBeUndefined();
+    expect(without?.pinVerifier).toBeUndefined();
   });
 
   it('counts today’s queued play against the snapshot’s remaining watch time', () => {
@@ -261,7 +326,30 @@ describe('looking up what a profile may see (O-7)', () => {
       storedProfile({ id: 2, snapshot: offlineProfile({ id: 2, name: 'Anna', isPrimary: false }) }),
       storedProfile({ id: 3, snapshot: offlineProfile({ id: 3, name: 'Ohne', isPrimary: false }) }),
     ];
-    expect(offlineProfiles(profiles, downloads).map((profile) => profile.id)).toEqual([1, 2]);
+    expect(offlineProfiles(profiles, downloads, 1).map((profile) => profile.id)).toEqual([1, 2]);
+  });
+
+  it('offers only the profiles of the account last signed in on the device (W2)', () => {
+    const profiles = [
+      storedProfile(),
+      storedProfile({ id: 9, accountId: 2, snapshot: offlineProfile({ id: 9, name: 'Gast' }) }),
+    ];
+    const both = [
+      storedDownload(),
+      storedDownload({ id: downloadIds.e1, accountId: 2, allowedProfileIds: [9] }),
+    ];
+    expect(offlineProfiles(profiles, both, 1).map((profile) => profile.id)).toEqual([1]);
+    expect(offlineProfiles(profiles, both, 2).map((profile) => profile.id)).toEqual([9]);
+    expect(offlineProfiles(profiles, both, undefined)).toEqual([]);
+  });
+
+  it('names the downloads of other accounts for the revocation list (W3)', () => {
+    expect(otherAccountDownloads(downloads, 1)).toEqual([downloadIds.e1]);
+    expect(otherAccountDownloads(downloads, 2)).toEqual([
+      downloadIds.alien,
+      downloadIds.heat,
+      downloadIds.e2,
+    ]);
   });
 });
 

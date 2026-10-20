@@ -44,6 +44,19 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
       asked.current = value;
     });
   }, []);
+  const form = useRef<HTMLFormElement>(null);
+  const loaded = options.data !== undefined;
+  // The options arrive after the dialog opened: FormDialog found no field then, and the focus
+  // stayed on the dialog itself. The chosen quality takes it now (visible focus, rule 8).
+  useEffect(() => {
+    const element = form.current;
+    if (!loaded || !element) return;
+    const active = document.activeElement;
+    const onDialog =
+      !active || active === document.body || active.getAttribute('role') === 'dialog';
+    if (!onDialog || element.contains(active)) return;
+    element.querySelector<HTMLElement>('input:checked, input, button')?.focus();
+  }, [loaded]);
   const create = useMutation({
     mutationFn: (body: DownloadRequest) => createDownloads(target.id, body, session.account.id),
     onSuccess: onCreated,
@@ -105,7 +118,12 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
         </div>
       )}
       {data && (
-        <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
+        <Form
+          ref={form}
+          className={styles.form}
+          onSubmit={onSubmit}
+          validationErrors={errors?.fields}
+        >
           {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
           <RadioGroup
             name="quality"

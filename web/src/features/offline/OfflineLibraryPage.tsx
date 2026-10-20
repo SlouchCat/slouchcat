@@ -28,7 +28,7 @@ import { pinRequirement } from './pin';
 import { offlineSupported } from './support';
 import { downloadsForProfile, offlineProfiles } from './sync';
 import type { StoredDownload, StoredProfile } from './types';
-import { useStoredDownloads, useStoredProfiles } from './useOfflineData';
+import { useDeviceAccount, useStoredDownloads, useStoredProfiles } from './useOfflineData';
 import { usePosterUrl } from './usePosterUrl';
 import styles from './OfflinePages.module.css';
 
@@ -50,8 +50,9 @@ function captionOf(t: TFunction, download: StoredDownload): string | undefined {
 
 /**
  * The offline library (/offline, O-4, C-1): without a session and without network. First the
- * profiles that may play a download on this device (the server's `allowedProfileIds`), with the
- * PIN checked locally (AN-19); then that profile's downloads.
+ * profiles of the device's account that may play a download here (the server's
+ * `allowedProfileIds`), with the PIN checked locally (AN-19) also when the device is online
+ * (decision of 2026-10-20, K12); then that profile's downloads.
  */
 export function OfflineLibraryPage() {
   const { t } = useTranslation();
@@ -94,15 +95,18 @@ export function OfflineLibraryPage() {
 function LibraryContent() {
   const downloads = useStoredDownloads();
   const profiles = useStoredProfiles();
+  const device = useDeviceAccount();
   const choice = useOfflineChoice();
-  if (!downloads || !profiles) {
+  if (!downloads || !profiles || !device) {
     return (
       <div className={styles.libraryBody} aria-busy="true">
         <Skeleton shape="block" />
       </div>
     );
   }
-  const candidates = offlineProfiles(profiles, downloads);
+  // Only the profiles of the account last signed in here, and none after it signed out (W2).
+  if (device.signedOut) return <LockedLibrary />;
+  const candidates = offlineProfiles(profiles, downloads, device.accountId);
   const chosen = choice
     ? candidates.find(
         (profile) => profile.id === choice.profileId && profile.accountId === choice.accountId,
@@ -116,6 +120,23 @@ function LibraryContent() {
     />
   ) : (
     <OfflinePicker profiles={candidates} />
+  );
+}
+
+/** The device's account signed out: its downloads wait for its next sign-in (O-6, W2). */
+function LockedLibrary() {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.libraryBody}>
+      <div className={styles.libraryHead}>
+        <Text as="h1" variant="display">
+          {t('offline.library.title')}
+        </Text>
+      </div>
+      <Notice tone="info" title={t('offline.library.locked.title')}>
+        {t('offline.library.locked.body')}
+      </Notice>
+    </div>
   );
 }
 

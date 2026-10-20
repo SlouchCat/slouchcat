@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listDownloads, listProfiles, subscribe } from './store';
+import { getMeta, listDownloads, listProfiles, subscribe } from './store';
 import type { StoredDownload, StoredProfile } from './types';
 
 /**
@@ -43,4 +43,21 @@ export function useStoredDownloads(): StoredDownload[] | undefined {
 /** Every profile snapshot the device holds. */
 export function useStoredProfiles(): StoredProfile[] | undefined {
   return useStored(listProfiles, NO_PROFILES);
+}
+
+/** The device's account (the last one signed in) and whether it signed out here (W2). */
+export interface DeviceAccount {
+  accountId: number | undefined;
+  signedOut: boolean;
+}
+
+const NO_ACCOUNT: DeviceAccount = { accountId: undefined, signedOut: false };
+
+async function loadDeviceAccount(): Promise<DeviceAccount> {
+  const [accountId, signedOut] = await Promise.all([getMeta('accountId'), getMeta('signedOut')]);
+  return { accountId, signedOut: signedOut === true };
+}
+
+export function useDeviceAccount(): DeviceAccount | undefined {
+  return useStored(loadDeviceAccount, NO_ACCOUNT);
 }

@@ -16,7 +16,8 @@ import styles from '@/features/player/Player.module.css';
 // through a loader that reads the byte ranges from OPFS (spike decision AN-20), so seeking needs
 // no network and no search through the fragments. Without MediaSource the whole file plays from a
 // blob URL. Subtitles are <track> elements of the stored WebVTT files with a local menu. Progress
-// goes into the event queue (O-5); the offline watch time stops playback at 0 (AN-18).
+// goes into the event queue (O-5); the offline watch time stops playback at 0 (AN-18), also
+// when the device is online: this player knows no server stop (decision of 2026-10-20, K12).
 
 /** Interval of `playing` events, as online (useProgressReporter). */
 export const OFFLINE_PROGRESS_MS = 10_000;
@@ -73,6 +74,26 @@ export function timelineOffset(
   return extra > 0.5 ? extra : 0;
 }
 
+/** The media session (notification, media keys) offers no play: the limit is reached (W5). */
+function blockMediaSession(): void {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.playbackState = 'paused';
+    navigator.mediaSession.setActionHandler('play', () => undefined);
+  } catch {
+    // A browser without the play action: the play listener pauses again.
+  }
+}
+
+function releaseMediaSession(): void {
+  if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.setActionHandler('play', null);
+  } catch {
+    // Nothing to give back.
+  }
+}
+
 export function OfflinePlayer({
   title,
   manifest,
@@ -114,6 +135,10 @@ export function OfflinePlayer({
   const offset = useRef(0);
   const watchRef = useRef(watch);
   const locked = useRef(usedUp);
+  // hls.js of the MSE path, to stop and detach it at the limit.
+  const hlsRef = useRef<{ stopLoad: () => void; detachMedia: () => void } | null>(null);
+  // Source position (s) kept once the media is detached (limit, unmount): currentTime is 0 then.
+  const frozenAt = useRef<number | null>(null);
 
   // ---------- watch time (AN-18) ----------
 
@@ -137,16 +162,18 @@ export function OfflinePlayer({
 
   const seq = useRef(1);
   const sendEvent = useCallback(
-    (state: PlaybackSample['state']) => {
-      const element = video.current;
+    // `target`: the element the caller captured; while the player unmounts the ref is null (W6).
+    (state: PlaybackSample['state'], target?: HTMLVideoElement) => {
+      const element = target ?? video.current;
       if (!element || startMs === null) return;
       const running = playedSince.current !== null;
       stopClock();
       const played = Math.round(unrecordedMs.current);
       unrecordedMs.current = 0;
       if (running) playedSince.current = performance.now();
+      const position = frozenAt.current ?? element.currentTime - offset.current;
       const sample: PlaybackSample = {
-        positionMs: Math.max(0, Math.round((element.currentTime - offset.current) * 1000)),
+        positionMs: Math.max(0, Math.round(position * 1000)),
         durationMs: Math.max(1, durationMs),
         playedMs: played,
         seq: seq.current,
@@ -167,13 +194,34 @@ export function OfflinePlayer({
     sendLater.current = sendEvent;
   });
 
+  /**
+   * After the limit nothing may start the video again (media keys, the media notification, the
+   * context menu, picture-in-picture, W5): hls.js stops and lets go of the element, the blob
+   * fallback loses its source, and the media session offers no play.
+   */
+  const release = useCallback((element: HTMLVideoElement | null) => {
+    if (element && frozenAt.current === null) {
+      frozenAt.current = element.currentTime - offset.current;
+    }
+    if (hlsRef.current) {
+      hlsRef.current.stopLoad();
+      hlsRef.current.detachMedia();
+    } else if (element?.getAttribute('src')) {
+      element.removeAttribute('src');
+      element.load();
+    }
+    blockMediaSession();
+  }, []);
+
   /** The day's watch time is used up: stop for good, with the hint. */
   const stopForLimit = useCallback(() => {
     const element = video.current;
     locked.current = true;
     setLimitReached(true);
+    // A playing video is released after its pause event booked the position (onPause).
     if (element && !element.paused) element.pause();
-  }, []);
+    else release(element);
+  }, [release]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -217,12 +265,18 @@ export function OfflinePlayer({
         // The URL only names the playlist for hls.js; the loader never fetches it.
         hls.loadSource(`${window.location.origin}/offline/media/${playback.downloadId}/index.m3u8`);
         hls.attachMedia(element);
-        destroy = () => hls.destroy();
+        hlsRef.current = hls;
+        destroy = () => {
+          hlsRef.current = null;
+          hls.destroy();
+        };
         setEngine('mse');
       })
       .catch(() => setFailed(true));
     return () => {
       cancelled = true;
+      // The last progress event (unmount) needs the position the element loses with hls.js.
+      if (frozenAt.current === null) frozenAt.current = element.currentTime - offset.current;
       destroy();
     };
   }, [durationMs, manifest, media, playback.downloadId, resumeMs]);
@@ -466,11 +520,16 @@ export function OfflinePlayer({
     const onSeeked = () => {
       seeked = true;
     };
+    const onPlay = () => {
+      // Nothing outside the player's own buttons (media keys, notification) plays past the limit.
+      if (locked.current) element.pause();
+    };
     const onPause = () => {
       setPlaying(false);
       if (element.ended) return;
       stopClock();
-      sendLater.current('paused');
+      sendLater.current('paused', element);
+      if (locked.current) release(element);
     };
     const onEnded = () => {
       setPlaying(false);
@@ -495,6 +554,7 @@ export function OfflinePlayer({
       if (engine === 'blob') setFailed(true);
     };
     element.addEventListener('loadedmetadata', onLoadedMetadata);
+    element.addEventListener('play', onPlay);
     element.addEventListener('playing', onPlaying);
     element.addEventListener('waiting', onWaiting);
     element.addEventListener('seeking', onSeeking);
@@ -509,6 +569,7 @@ export function OfflinePlayer({
     return () => {
       element.removeEventListener('load', shiftCues, true);
       element.removeEventListener('loadedmetadata', onLoadedMetadata);
+      element.removeEventListener('play', onPlay);
       element.removeEventListener('playing', onPlaying);
       element.removeEventListener('waiting', onWaiting);
       element.removeEventListener('seeking', onSeeking);
@@ -519,30 +580,34 @@ export function OfflinePlayer({
       element.removeEventListener('progress', onProgress);
       element.removeEventListener('error', onError);
     };
-  }, [durationMs, engine, openedAt, resumeMs, stopClock]);
+  }, [durationMs, engine, openedAt, release, resumeMs, stopClock]);
 
   // Every 10 s while playing, when the page is hidden or left, and when the player closes.
   useEffect(() => {
     const element = video.current;
     if (!element || startMs === null) return;
     const interval = window.setInterval(() => {
-      if (!element.paused && !element.ended) sendLater.current('playing');
+      if (!element.paused && !element.ended) sendLater.current('playing', element);
     }, OFFLINE_PROGRESS_MS);
     const onHidden = () => {
       if (document.visibilityState === 'hidden') {
-        sendLater.current(element.paused ? 'paused' : 'playing');
+        sendLater.current(element.paused ? 'paused' : 'playing', element);
       }
     };
-    const onPageHide = () => sendLater.current('paused');
+    const onPageHide = () => sendLater.current('paused', element);
     document.addEventListener('visibilitychange', onHidden);
     window.addEventListener('pagehide', onPageHide);
     return () => {
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onHidden);
       window.removeEventListener('pagehide', onPageHide);
-      if (!element.ended) sendLater.current('paused');
+      // Leaving the player books what played since the last event (W6).
+      if (!element.ended) sendLater.current('paused', element);
     };
   }, [startMs]);
+
+  // The media session offers play again once the player is gone.
+  useEffect(() => () => releaseMediaSession(), []);
 
   const language = i18n.language;
   const elapsed = formatPlayerTime(currentMs, durationMs);
@@ -583,6 +648,7 @@ export function OfflinePlayer({
         preload="auto"
         playsInline
         disableRemotePlayback
+        disablePictureInPicture
         onPointerUp={(event) => {
           if (event.button === 0) togglePlay();
         }}

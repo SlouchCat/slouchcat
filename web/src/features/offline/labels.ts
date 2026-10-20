@@ -35,11 +35,16 @@ export function downloadStatus(
       return { text: t('offline.state.quota'), tone: 'danger' };
     case 'storage':
       return { text: t('offline.state.storage'), tone: 'danger' };
+    case 'network':
+      return { text: t('offline.state.network'), tone: 'warning' };
+    case 'range':
+      return { text: t('offline.state.range'), tone: 'warning' };
     case 'gone':
     case 'unauthorized':
       return { text: t('offline.state.gone'), tone: 'warning' };
     case 'evicted':
     case 'size':
+    case 'changed':
       return { text: t('offline.state.evicted'), tone: 'info' };
     default:
   }

@@ -132,7 +132,8 @@ Icons: `public/icons/icon-192.png`, `icon-512.png` (purpose `any`) und `icon-512
 `color.bg.base` und `color.accent.ember.base` enthält. Die PNGs liegen im Repository.
 
 Service Worker (Workbox, `generateSW`, registriert aus `src/app/serviceWorker.ts` nach `load` im
-Leerlauf): vorab gecacht wird nur die App-Hülle (JS, CSS, HTML, Icons, Manifest).
+Leerlauf, mit `clientsClaim` übernimmt er die offene Seite sofort): vorab gecacht wird nur die
+App-Hülle (JS, CSS, HTML, Icons, Manifest).
 `/api/` und `/spike/` erhalten nie die App-Hülle als Navigations-Rückfall. Laufzeit-Caching:
 `/api/v1/items/*/images/*` CacheFirst (höchstens 300 Einträge, 30 Tage); alles andere unter `/api/`
 NetworkOnly (JSON, Streams).
@@ -144,11 +145,19 @@ NetworkOnly (JSON, Streams).
 Worker `opfs.worker.ts` mit `createSyncAccessHandle` (Rückfall `createWritable`). Die Engine
 (`engine.ts`, eigener Chunk, startet im Leerlauf aus `RootLayout`) gleicht beim Start, bei `online`, bei
 Fokus und alle 60 s ab (`POST /offline/sync`), holt fertige Downloads in 8-MiB-Bereichen mit
-Wiederaufnahme und lädt die Ereignisse der Offline-Wiedergabe hoch. Der Offline-Player spielt über
-hls.js mit einer aus dem Manifest erzeugten Playlist (Byte-Bereiche) und einem Loader, der aus OPFS
-liest. Ohne Netz beim Start (Sitzungsabfrage scheitert am Netz oder `navigator.onLine` ist falsch)
-öffnet der Wächter `/offline`; online ändert sich nichts. Sichtbarkeit entscheidet nur der Server:
-angezeigt wird ein Download nur den Profilen in seinen `allowedProfileIds`.
+Wiederaufnahme (`If-Range` mit dem ETag der Kopie; neues `readyAt` heisst von vorn) und lädt die
+Ereignisse der Offline-Wiedergabe hoch. Web Locks sorgen dafür, dass nur ein Tab zugleich abgleicht und
+abruft. Nach jedem Abgleich fragt die Engine die Downloads anderer Konten auf dem Gerät über die
+öffentliche Entzugsliste ab. Der Offline-Player spielt über hls.js mit einer aus dem Manifest
+erzeugten Playlist (Byte-Bereiche) und einem Loader, der aus OPFS liest. Scheitert die
+Sitzungsabfrage beim Start am Netz oder kommt sie nicht innerhalb von 2 s, öffnet der Wächter
+`/offline`; online ändert sich nichts. Sichtbarkeit entscheidet nur der Server: angezeigt wird ein
+Download nur den Profilen in seinen `allowedProfileIds`. Die Offline-Bibliothek zeigt nur die Profile
+des zuletzt angemeldeten Kontos; nach dem Abmelden bleiben dessen Downloads gesperrt, bis es sich wieder
+anmeldet. Aus `/downloads` spielt der Player für das Profil der Sitzung (`?as=session`), aus der
+Bibliothek für das dort gewählte. In Playwright-Firefox lässt sich der Flugmodus mit Service Worker nicht
+nachbilden (`setOffline` erreicht die Anfragen des Workers nicht); `e2e/offline-cold-start.spec.ts` läuft
+deshalb nur in Chromium (`testIgnore` in `playwright.config.ts`).
 
 ## Tastatursuite (Playwright)
 

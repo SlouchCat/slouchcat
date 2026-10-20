@@ -31,18 +31,24 @@ interface Loaded {
 type LoadState = { status: 'loading' } | { status: 'missing' } | ({ status: 'ready' } & Loaded);
 
 /**
- * Who plays: the profile chosen in the offline library, else the session's active profile (the
- * route's guard sends anyone without either to the library).
+ * Who plays: from /downloads (`as=session`) the session's active profile, never a profile chosen
+ * in the offline library; from the library the profile chosen there (W1). The route's guard sends
+ * anyone without one to the library.
  */
-function usePlayer(): OfflineChoice | null {
+function usePlayer(fromSession: boolean): OfflineChoice | null {
   const choice = useOfflineChoice();
   const queryClient = useQueryClient();
   const session = queryClient.getQueryData<SessionInfo | null>(sessionQuery.queryKey);
-  if (choice) return choice;
+  if (!fromSession) return choice;
   return session?.profile ? { accountId: session.account.id, profileId: session.profile.id } : null;
 }
 
-async function load(id: string, who: OfflineChoice): Promise<LoadState> {
+async function load(id: string, who: OfflineChoice, fromSession: boolean): Promise<LoadState> {
+  if (!fromSession) {
+    // The library's choice counts only for the device's account while it is signed in (W2).
+    const [accountId, signedOut] = await Promise.all([getMeta('accountId'), getMeta('signedOut')]);
+    if (accountId !== who.accountId || signedOut === true) return { status: 'missing' };
+  }
   const download = await getDownload(id);
   // Only the server's decision counts: the profile must be in allowedProfileIds (O-7).
   if (
@@ -73,10 +79,23 @@ async function load(id: string, who: OfflineChoice): Promise<LoadState> {
 /** Route /offline/play/$downloadId: a download played from this device, online or offline. */
 export function OfflinePlayerPage() {
   const { downloadId } = route.useParams();
-  const who = usePlayer();
+  const { as } = route.useSearch();
+  // Another download in the same route (history back and forth) is another playback (K10).
+  return (
+    <OfflinePlayback key={downloadId} downloadId={downloadId} fromSession={as === 'session'} />
+  );
+}
+
+function OfflinePlayback({
+  downloadId,
+  fromSession,
+}: {
+  downloadId: string;
+  fromSession: boolean;
+}) {
+  const who = usePlayer(fromSession);
   const { t } = useTranslation();
-  const choice = useOfflineChoice();
-  const goBack = useGoBack(choice ? paths.offline : paths.downloads);
+  const goBack = useGoBack(fromSession ? paths.downloads : paths.offline);
   // One playback per mount (OfflineEvent.playbackId).
   const [playbackId] = useState(() => ulid());
   const accountId = who?.accountId;
@@ -87,7 +106,7 @@ export function OfflinePlayerPage() {
   useEffect(() => {
     if (accountId === undefined || profileId === undefined) return;
     let active = true;
-    load(downloadId, { accountId, profileId }).then(
+    load(downloadId, { accountId, profileId }, fromSession).then(
       (next) => {
         if (active) setLoaded({ key, state: next });
       },
@@ -98,7 +117,7 @@ export function OfflinePlayerPage() {
     return () => {
       active = false;
     };
-  }, [accountId, downloadId, key, profileId]);
+  }, [accountId, downloadId, fromSession, key, profileId]);
 
   const state: LoadState = !who
     ? { status: 'missing' }

@@ -57,7 +57,10 @@ test('a season of six episodes downloads in one action (O-2)', async ({ page, ow
   // All six on /downloads; the rows are reachable and the page has no focus trap.
   await page.goto('/downloads');
   await expect(downloadsTable(page).getByRole('row')).toHaveCount(7);
-  await expect(downloadsTable(page).getByText('Auf diesem Gerät')).toHaveCount(6);
+  // The state chips (the table's caption reads "Auf diesem Gerät" as well).
+  await expect(
+    downloadsTable(page).getByRole('row').filter({ hasText: 'Auf diesem Gerät' }),
+  ).toHaveCount(6);
   for (let episode = 1; episode <= 6; episode += 1) {
     await expect(
       downloadsTable(page).getByRole('rowheader', {

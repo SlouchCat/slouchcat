@@ -22,6 +22,23 @@ function notify(): void {
   broadcast()?.postMessage('changed');
 }
 
+/** Fetch progress tells the pages at most this often (each listener reads every download, K8). */
+const PROGRESS_NOTIFY_MS = 1000;
+let notifyTimer: ReturnType<typeof setTimeout> | undefined;
+
+function notifySoon(): void {
+  if (notifyTimer !== undefined) return;
+  notifyTimer = setTimeout(() => {
+    notifyTimer = undefined;
+    notify();
+  }, PROGRESS_NOTIFY_MS);
+}
+
+export interface UpdateOptions {
+  /** A progress write (a block of the fetch): the listeners hear of it at most once a second. */
+  progress?: boolean;
+}
+
 /** Calls `listener` after every change of the offline data; returns the unsubscribe. */
 export function subscribe(listener: () => void): () => void {
   broadcast();
@@ -52,13 +69,17 @@ export async function putDownloads(downloads: readonly StoredDownload[]): Promis
 export async function updateDownload(
   id: string,
   change: (download: StoredDownload | undefined) => StoredDownload | undefined,
+  options: UpdateOptions = {},
 ): Promise<StoredDownload | undefined> {
   const tx = (await offlineDb()).transaction('downloads', 'readwrite');
   const current = await tx.store.get(id);
   const next = change(current);
   if (next) await tx.store.put(next);
   await tx.done;
-  if (next) notify();
+  if (next) {
+    if (options.progress) notifySoon();
+    else notify();
+  }
   return next ?? current;
 }
 
@@ -137,4 +158,14 @@ export async function getMeta<K extends MetaKey>(key: K): Promise<MetaValues[K] 
 
 export async function setMeta<K extends MetaKey>(key: K, value: MetaValues[K]): Promise<void> {
   await (await offlineDb()).put('meta', value, key);
+  // The offline library follows the device's account and its sign-out lock.
+  if (key === 'accountId' || key === 'signedOut') notify();
+}
+
+/**
+ * The account signed out on this device (useLogout): its downloads stay (O-6), but the offline
+ * library keeps them locked until the same account signs in again (decision of 2026-10-20).
+ */
+export async function lockSignedOutAccount(): Promise<void> {
+  await setMeta('signedOut', true);
 }

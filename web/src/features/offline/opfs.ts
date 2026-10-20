@@ -70,7 +70,15 @@ export async function listDownloadFolders(): Promise<string[]> {
 interface WorkerReply {
   id: number;
   result?: Record<string, unknown>;
-  error?: string;
+  error?: { name: string; message: string };
+}
+
+/**
+ * The worker's error as the DOMException it was (QuotaExceededError, NoModificationAllowedError
+ * …), so the engine can tell a full disk or a locked file from the network.
+ */
+export function workerError(error: { name: string; message: string }): Error {
+  return new DOMException(error.message, error.name);
 }
 
 interface WorkerClient {
@@ -90,7 +98,7 @@ function startWorker(): WorkerClient {
     const entry = pending.get(id);
     if (!entry) return;
     pending.delete(id);
-    if (error) entry.reject(new Error(error));
+    if (error) entry.reject(workerError(error));
     else entry.resolve(result);
   };
   worker.onerror = (event) => {
@@ -145,8 +153,10 @@ async function syncWriter(id: string): Promise<BlockWriter> {
   let durable: number | null = null;
   return {
     async write(offset, data) {
+      // The buffer is transferred to the worker: it is detached (0 bytes) after postMessage.
+      const length = data.byteLength;
       await worker.call('write', { offset, buffer: data }, [data]);
-      durable = offset + data.byteLength;
+      durable = offset + length;
       return durable;
     },
     async close() {

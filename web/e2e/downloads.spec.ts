@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
 import { H264_TITLE, idOf, itemPath } from './catalog';
+import { OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -120,6 +121,24 @@ test('downloads page by keyboard: rows, play, back; no focus trap', async ({ pag
   // A second title so the table has two rows to move between.
   await createDownload(page, await itemIdByTitle(owner, CHAPTERS_TITLE));
   await waitForComplete(page, 2);
+
+  // The offline library by arrows (rule 8, W11): the profile tile, then between the two titles.
+  await page.goto('/offline');
+  const tile = page
+    .getByRole('list', { name: 'Profile' })
+    .getByRole('button', { name: new RegExp(OWNER_PROFILE) });
+  await expectFocusOn(page, tile);
+  await page.keyboard.press('Enter');
+  const cards = page.getByRole('list', { name: 'Heruntergeladene Titel' }).getByRole('link');
+  await expect(cards).toHaveCount(2);
+  await expectFocusOn(page, cards.first());
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, cards.nth(1));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, cards.first());
+  // Escape goes back to the profiles.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('list', { name: 'Profile' })).toBeVisible();
 
   await page.goto('/downloads');
   await expect(page.getByRole('heading', { level: 1, name: 'Downloads' })).toBeVisible();

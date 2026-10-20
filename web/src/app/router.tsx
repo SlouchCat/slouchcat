@@ -11,7 +11,7 @@ import {
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
-import { offlineChoice } from '@/features/offline/offlineSession';
+import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
 import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
@@ -34,28 +34,82 @@ export interface RouterContext {
 const isOfflinePath = (pathname: string) =>
   pathname === paths.offline || pathname.startsWith(`${paths.offline}/`);
 
-/** fetch rejects with a TypeError when the network or the server cannot be reached. */
-const isNetworkError = (error: unknown) => error instanceof TypeError;
+/**
+ * Longest wait for the session before an app that can keep downloads opens the offline library
+ * (C-1: the library within 3 s, also when the server does not answer at all, W10).
+ */
+export const SESSION_TIMEOUT_MS = 2000;
+
+/** The session did not come within SESSION_TIMEOUT_MS. */
+class SessionTimeout extends Error {
+  constructor() {
+    super(`no session within ${SESSION_TIMEOUT_MS} ms`);
+    this.name = 'SessionTimeout';
+  }
+}
+
+/**
+ * fetch rejects with a TypeError when the network or the server cannot be reached; a session
+ * that does not come in time counts the same.
+ */
+const isNetworkError = (error: unknown) =>
+  error instanceof TypeError || error instanceof SessionTimeout;
+
+/**
+ * The session, asked at most SESSION_TIMEOUT_MS (a known one at once). Without network the
+ * request fails at once and is not retried; a server that never answers is given up.
+ */
+async function sessionWithin(queryClient: QueryClient): Promise<SessionInfo | null> {
+  const known = queryClient.getQueryData<SessionInfo | null>(sessionQuery.queryKey);
+  if (known !== undefined) return known;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new SessionTimeout()), SESSION_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([
+      // `always`: a browser that claims to be offline still asks (the server may be on this
+      // machine, K11); without network the request fails at once, so no retry then.
+      queryClient.fetchQuery({
+        ...sessionQuery,
+        networkMode: 'always',
+        ...(navigator.onLine ? {} : { retry: false }),
+      }),
+      timeout,
+    ]);
+  } catch (error) {
+    if (error instanceof SessionTimeout) {
+      void queryClient.cancelQueries({ queryKey: sessionQuery.queryKey });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // Guard: the session first. A session exists only after the wizard ran, so `/setup` is asked only
 // when there is none (401). On the start page its data is requested in parallel with the session
 // instead of after the guard (P-10: two round trips less before the hero image). The prefetch is
 // not awaited, so the page renders its skeleton as soon as the session is known.
-// Offline start (C-1): an app started without network (no session known yet and the browser
-// offline, or the session request fails at the network) opens the offline library right away,
-// where the browser can keep downloads. Online nothing changes: a known session is never asked
-// for again, and any other failure still shows the error page.
+// Offline start (C-1): where the browser can keep downloads, an app whose session request fails
+// at the network (no network, the server unreachable) or does not answer within 2 s opens the
+// offline library. A browser that only claims to be offline still reaches a server on the same
+// machine (K11). Online nothing changes: a known session is never asked for again, and any other
+// failure shows the error page (with the way to the offline library for a 5xx).
 const rootRoute = createRootRouteWithContext<RouterContext>()({
-  beforeLoad: async ({ context: { queryClient }, location }) => {
+  beforeLoad: async ({ context: { queryClient }, location, preload }) => {
     if (isOfflinePath(location.pathname)) return;
+    // The profile chosen in the offline library stays there: the app plays for the session's (W1).
+    // A preload (hovering "Zur App" in the library) is not leaving it yet.
+    if (!preload) leaveOfflineProfile();
     // Without download storage (plain HTTP) there is no offline library: the error page stays.
     const offline = offlineSupported();
-    const known = queryClient.getQueryData<SessionInfo | null>(sessionQuery.queryKey);
-    if (offline && known === undefined && !navigator.onLine) throw redirect({ to: '/offline' });
     if (location.pathname === paths.home) void queryClient.prefetchQuery(homeQuery);
     let session: SessionInfo | null;
     try {
-      session = await queryClient.ensureQueryData(sessionQuery);
+      session = offline
+        ? await sessionWithin(queryClient)
+        : await queryClient.ensureQueryData(sessionQuery);
     } catch (error) {
       if (offline && isNetworkError(error)) throw redirect({ to: '/offline' });
       throw error;
@@ -110,15 +164,22 @@ const offlineRoute = createRoute({
 });
 
 /**
- * The player of a download, online and offline. It plays for the profile chosen in the offline
- * library, else for the session's active profile; without either the library comes first.
+ * The player of a download, online and offline. From the offline library it plays for the
+ * profile chosen there; with `as=session` (from /downloads) for the session's active profile,
+ * asking the server for the session after a reload (K9). Without either the library comes first.
  */
 const offlinePlayRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/offline/play/$downloadId',
-  beforeLoad: ({ context: { queryClient } }) => {
-    const session = queryClient.getQueryData<SessionInfo | null>(sessionQuery.queryKey);
-    if (!offlineChoice() && !session?.profile) throw redirect({ to: '/offline' });
+  validateSearch: (search: Record<string, unknown>): { as?: 'session' } =>
+    search.as === 'session' ? { as: 'session' } : {},
+  beforeLoad: async ({ context: { queryClient }, search }) => {
+    if (search.as !== 'session') {
+      if (!offlineChoice()) throw redirect({ to: '/offline' });
+      return;
+    }
+    const session = await sessionWithin(queryClient).catch(() => undefined);
+    if (!session?.profile) throw redirect({ to: '/offline' });
   },
   component: lazyRouteComponent(
     () => import('@/features/offline/OfflinePlayerPage'),

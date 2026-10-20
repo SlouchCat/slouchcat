@@ -104,6 +104,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // The worker takes over the open page at once, not only the next navigation: an app
+        // opened once (and gone offline since) gets the shell and every chunk from the precache
+        // (C-1). `autoUpdate` brings skipWaiting only.
+        clientsClaim: true,
         // Precache the app shell only (built JS, CSS, HTML, icons); never media or API answers.
         // That includes every lazy chunk (the offline library, its player, the OPFS worker and
         // the locale files), so the app starts and plays downloads without network (C-1, M5).

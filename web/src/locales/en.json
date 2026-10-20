@@ -38,7 +38,8 @@
   "errors": {
     "page": {
       "title": "Slouchcat cannot be reached right now",
-      "body": "The server does not answer. Check that the container is running, then try again."
+      "body": "The server does not answer. Check that the container is running, then try again.",
+      "offline": "Open the offline library"
     },
     "code": {
       "invalid_credentials": "E-mail address or password is wrong.",
@@ -458,9 +459,8 @@
         "remove": {
           "action": "Remove",
           "title": "Remove guest {{email}}?",
-          "body": "Account, profiles and progress are deleted. Running sessions and playback end immediately.",
-          "confirm": "Remove guest",
-          "offline": "Downloads on the guest's devices disappear at their next contact with the server. A device that never comes online again keeps them."
+          "body": "Account, profiles and progress are deleted. Running sessions and playback end immediately. Downloads on the guest's devices disappear at their next contact with the server. A device that never comes online again keeps them.",
+          "confirm": "Remove guest"
         },
         "limitsHint": "Applies to every profile of the guest account."
       }
@@ -940,6 +940,8 @@
       "complete": "On this device",
       "quota": "Storage full",
       "storage": "Saving failed",
+      "network": "Download interrupted, it tries again soon",
+      "range": "The server does not send the file in parts (check the proxy)",
       "gone": "No longer available",
       "evicted": "Being prepared again",
       "wifi": "Waiting for Wi-Fi",
@@ -1019,7 +1021,7 @@
       "seasonButton": "Download season",
       "title": "Download {{title}}",
       "intro": "The title is saved on this device and plays without a network too.",
-      "seasonIntro_one": "The {{count}} episode of this season is saved on this device.",
+      "seasonIntro_one": "The only episode of this season is saved on this device.",
       "seasonIntro_other": "All {{count}} episodes of this season are saved on this device.",
       "quality": "Quality",
       "option": "{{quality}} · {{height}}p · approx. {{size}}",
@@ -1045,6 +1047,10 @@
         "title": "No downloads on this device",
         "body": "Without a connection to the server only downloaded titles play.",
         "hint": "Once you download titles online, you find them here without a network too."
+      },
+      "locked": {
+        "title": "Downloads locked",
+        "body": "The account of this device signed out. The downloads stay stored and open again as soon as the same account signs in."
       },
       "downloadsOf": "Downloads of {{name}}",
       "switchProfile": "Switch profile",

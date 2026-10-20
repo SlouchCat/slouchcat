@@ -66,9 +66,19 @@ test('offline PIN: the verifier of the normal PIN, the separate offline PIN, the
     await openOfflineLibrary(page);
     const tiles = page.getByRole('list', { name: 'Profile' });
     await expect(tiles.getByRole('button')).toHaveCount(4);
+    // The arrow keys move between the tiles (rule 8, W11).
+    const allTiles = tiles.getByRole('button');
+    await expectFocusOn(page, allTiles.first());
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, allTiles.nth(1));
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, allTiles.nth(2));
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, allTiles.nth(1));
 
     // A profile whose PIN was never entered on this device is locked offline.
-    await tiles.getByRole('button', { name: /E2E Gesperrt/ }).click();
+    await tiles.getByRole('button', { name: /E2E Gesperrt/ }).focus();
+    await page.keyboard.press('Enter');
     const locked = page.getByRole('dialog', { name: 'PIN für E2E Gesperrt' });
     await expect(locked.getByText('Offline gesperrt')).toBeVisible();
     await page.keyboard.press('Escape');
@@ -105,8 +115,10 @@ test('offline PIN: the verifier of the normal PIN, the separate offline PIN, the
     await expectNoFocusTrap(page);
 
     // The separate offline PIN replaces the normal one offline.
-    await page.getByRole('button', { name: 'Profil wechseln' }).click();
-    await tiles.getByRole('button', { name: /E2E Offline-PIN/ }).click();
+    await page.getByRole('button', { name: 'Profil wechseln' }).focus();
+    await page.keyboard.press('Enter');
+    await tiles.getByRole('button', { name: /E2E Offline-PIN/ }).focus();
+    await page.keyboard.press('Enter');
     const separateDialog = page.getByRole('dialog', { name: 'PIN für E2E Offline-PIN' });
     await expect(
       separateDialog.getByText('Dieses Profil hat eine eigene Offline-PIN.'),

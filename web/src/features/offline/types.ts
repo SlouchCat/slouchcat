@@ -62,8 +62,20 @@ export interface StoredDownload {
   posterStored: boolean;
   /** File, subtitles and poster are on the device (`complete` of the next sync). */
   complete: boolean;
-  /** Error code of the last local fetch attempt (`network`, `evicted`, `gone`, `storage`). */
+  /**
+   * Error code of the last local fetch attempt (FetchErrorCode, `quota`, `storage`); server-side
+   * ones wait for the next sync, device-side ones for FETCH_RETRY_MS after `fetchErrorAt`.
+   */
   fetchError?: string;
+  /** Device time of `fetchError`. */
+  fetchErrorAt?: number;
+  /**
+   * `readyAt` of the server copy the bytes in OPFS come from; another readyAt means the server
+   * prepared the file again, and the fetch starts over (O1).
+   */
+  fileReadyAt?: string;
+  /** Strong ETag of that copy (getDownloadFile); a resume asks with If-Range. */
+  fileEtag?: string;
   /** Deleted on this device while offline; the engine sends the delete when it is online again. */
   pendingDelete?: boolean;
   /** Last position per profile (offline playback), so the player resumes without the server. */

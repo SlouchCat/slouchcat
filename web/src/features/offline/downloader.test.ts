@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { backoffMs, FetchError, fetchFile, type BlockWriter } from './downloader';
+import { backoffMs, FetchError, fetchFile, strongEtag, type BlockWriter } from './downloader';
 import { blockCount, blockRange, parseContentRange, resumeOffset } from './range';
 
 const BLOCK = 10;
@@ -291,5 +291,90 @@ describe('fetchFile', () => {
         blockSize: BLOCK,
       }),
     ).rejects.toThrow(RangeError);
+  });
+});
+
+describe('fetchFile against a copy prepared again (O1) and a proxy without Range (K4)', () => {
+  /** Answers like getDownloadFile with an ETag; If-Range with another one gets the whole file. */
+  function etagServer(current: string) {
+    const seen: { range: string; ifRange: string | null }[] = [];
+    const fetchImpl = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      const range = headers.get('Range') ?? '';
+      const ifRange = headers.get('If-Range');
+      seen.push({ range, ifRange });
+      if (ifRange && ifRange !== current) {
+        return Promise.resolve(new Response(FILE, { status: 200, headers: { ETag: current } }));
+      }
+      const match = /^bytes=(\d+)-(\d+)$/.exec(range);
+      const start = Number(match?.[1]);
+      const end = Number(match?.[2]);
+      return Promise.resolve(
+        new Response(FILE.slice(start, end + 1), {
+          status: 206,
+          headers: { 'Content-Range': `bytes ${start}-${end}/${TOTAL}`, ETag: current },
+        }),
+      );
+    });
+    return { seen, fetchImpl: fetchImpl as unknown as typeof fetch };
+  }
+
+  it('keeps the first ETag and asks every later block with If-Range', async () => {
+    const { seen, fetchImpl } = etagServer('"v1"');
+    const onEtag = vi.fn();
+    await fetchFile({
+      url: '/f',
+      total: TOTAL,
+      start: 0,
+      writer: writer().target,
+      signal: new AbortController().signal,
+      fetchImpl,
+      onEtag,
+      blockSize: BLOCK,
+    });
+    expect(onEtag).toHaveBeenCalledTimes(1);
+    expect(onEtag).toHaveBeenCalledWith('"v1"');
+    expect(seen.map((entry) => entry.ifRange)).toEqual([null, '"v1"', '"v1"', '"v1"']);
+  });
+
+  it('a resume against another preparation stops with `changed` instead of mixing bytes', async () => {
+    const { seen, fetchImpl } = etagServer('"v2"');
+    const error = await fetchFile({
+      url: '/f',
+      total: TOTAL,
+      start: 20,
+      etag: '"v1"',
+      writer: writer().target,
+      signal: new AbortController().signal,
+      fetchImpl,
+      wait: noWait,
+      blockSize: BLOCK,
+    }).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: 'changed' });
+    // No retry: the bytes of the old copy are worthless.
+    expect(seen).toEqual([{ range: 'bytes=20-29', ifRange: '"v1"' }]);
+  });
+
+  it('answers without the range on every attempt end as `range`, not as a network error', async () => {
+    const { fetchImpl } = server({ fail: () => new Response(FILE, { status: 200 }) });
+    await expect(
+      fetchFile({
+        url: '/f',
+        total: TOTAL,
+        start: 0,
+        writer: writer().target,
+        signal: new AbortController().signal,
+        fetchImpl,
+        wait: noWait,
+        maxAttempts: 2,
+        blockSize: BLOCK,
+      }),
+    ).rejects.toMatchObject({ code: 'range' });
+  });
+
+  it('weak ETags are not used for If-Range', () => {
+    expect(strongEtag('W/"v1"')).toBeUndefined();
+    expect(strongEtag(null)).toBeUndefined();
+    expect(strongEtag(' "v1" ')).toBe('"v1"');
   });
 });

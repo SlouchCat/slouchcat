@@ -14,14 +14,21 @@ import {
   storedDownload,
   storedProfile,
 } from '@/test/offlineFixtures';
-import { putDownloads, putProfiles, resetOfflineStore, storedDownloads } from '@/test/offlineStore';
+import {
+  getMeta,
+  putDownloads,
+  putProfiles,
+  resetOfflineStore,
+  storedDownloads,
+} from '@/test/offlineStore';
 
 vi.mock('@/features/offline/store', () => import('@/test/offlineStore'));
 vi.mock('@/features/offline/opfs', () => import('@/test/offlineFiles'));
 vi.mock('@/features/offline/engine', () => ({
   startOfflineEngine: () => () => undefined,
   kickOfflineEngine: vi.fn(),
-  cancelFetch: vi.fn(),
+  cancelFetch: vi.fn(() => Promise.resolve()),
+  rememberDeleted: vi.fn(() => Promise.resolve()),
   flushEventsSoon: vi.fn(),
 }));
 vi.mock('@/features/offline/support', async (importOriginal) => ({
@@ -83,9 +90,10 @@ describe('downloads page', () => {
     expect(within(list).queryByText('Heat')).not.toBeInTheDocument();
     const alienRow = within(list).getByRole('rowheader', { name: /Alien/ }).closest('tr')!;
     expect(within(alienRow).getByText('Auf diesem Gerät')).toBeVisible();
+    // It plays for the session's profile, never for one chosen in the offline library (W1).
     expect(within(alienRow).getByRole('link', { name: 'Alien abspielen' })).toHaveAttribute(
       'href',
-      `/offline/play/${downloadIds.alien}`,
+      `/offline/play/${downloadIds.alien}?as=session`,
     );
     const episodeRow = within(list)
       .getByRole('rowheader', { name: /S01E01 · Pilot · Slouchcat Test Show/ })
@@ -148,6 +156,36 @@ describe('downloads page', () => {
     );
     expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
     await waitFor(() => expect(within(list).queryByText('Alien')).not.toBeInTheDocument());
+  });
+
+  it('a delete the server fails waits as pendingDelete for the next contact (K3)', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...routes,
+      'DELETE /downloads/*': () => Response.json({ code: 'internal' }, { status: 500 }),
+    });
+    renderApp('/downloads');
+    const list = await table();
+    await user.click(within(list).getByRole('button', { name: 'Alien löschen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Download Alien löschen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Download löschen' }));
+    await waitFor(() =>
+      expect(storedDownloads().find((download) => download.id === downloadIds.alien)).toMatchObject(
+        { pendingDelete: true, complete: false },
+      ),
+    );
+    // No play button for files that are gone.
+    await waitFor(() => expect(within(list).queryByText('Alien')).not.toBeInTheDocument());
+  });
+
+  it('signing out keeps the downloads but locks them on this device (W2)', async () => {
+    const user = userEvent.setup();
+    mockApi({ ...routes, 'POST /auth/logout': () => new Response(null, { status: 204 }) });
+    renderApp('/downloads');
+    await table();
+    await user.click(screen.getByRole('button', { name: 'Abmelden' }));
+    await waitFor(async () => expect(await getMeta('signedOut')).toBe(true));
+    expect(storedDownloads().map((download) => download.id)).toContain(downloadIds.alien);
   });
 
   it('shows the storage: estimate, the downloads’ share and whether it is kept', async () => {

@@ -14,7 +14,8 @@ const engine = vi.hoisted(() => ({ kick: vi.fn() }));
 vi.mock('@/features/offline/engine', () => ({
   startOfflineEngine: () => () => undefined,
   kickOfflineEngine: engine.kick,
-  cancelFetch: vi.fn(),
+  cancelFetch: vi.fn(() => Promise.resolve()),
+  rememberDeleted: vi.fn(() => Promise.resolve()),
   flushEventsSoon: vi.fn(),
 }));
 vi.mock('@/features/offline/support', async (importOriginal) => ({

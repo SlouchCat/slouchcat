@@ -1,5 +1,6 @@
 import { api, isApiError, request } from '@/api/client';
-import { cancelFetch, kickOfflineEngine } from './engine';
+import { cancelFetch, kickOfflineEngine, rememberDeleted } from './engine';
+import { dropUnusedPinMaterial } from './offlineProfiles';
 import { removeFiles } from './opfs';
 import { deleteDownloads, getMeta, setMeta, updateDownload } from './store';
 import { mergeDownload } from './sync';
@@ -42,24 +43,27 @@ export const persistAsked = async (): Promise<boolean> =>
   (await getMeta('persistRequested').catch(() => undefined)) === true;
 
 /**
- * Deletes a download (O-6): the files at once, the server's row with deleteDownload. Offline (or
- * when the request fails on the way) the entry stays hidden as `pendingDelete` and the engine
- * sends the delete when the device is online again.
+ * Deletes a download (O-6): the files at once (after a running fetch closed them, W8), the
+ * server's row with deleteDownload. Offline, or when the request fails (network, 5xx, K3), the
+ * entry stays hidden as `pendingDelete` and the engine sends the delete at the next contact; a
+ * folder that could not be removed goes at the engine's next run.
  */
 export async function removeDownload(id: string, online: boolean): Promise<void> {
-  cancelFetch(id);
+  await cancelFetch(id);
   await removeFiles(id).catch(() => undefined);
+  await rememberDeleted([id]);
   if (online) {
     try {
       await request(api.DELETE('/downloads/{id}', { params: { path: { id } } }));
       await deleteDownloads([id]);
+      await dropUnusedPinMaterial();
       return;
     } catch (error) {
       if (isApiError(error, 404)) {
         await deleteDownloads([id]);
+        await dropUnusedPinMaterial();
         return;
       }
-      if (isApiError(error)) throw error;
     }
   }
   await updateDownload(
@@ -75,4 +79,6 @@ export async function removeDownload(id: string, online: boolean): Promise<void>
         updatedAt: Date.now(),
       },
   );
+  await dropUnusedPinMaterial();
+  kickOfflineEngine();
 }

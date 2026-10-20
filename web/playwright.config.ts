@@ -39,7 +39,16 @@ export default defineConfig({
       },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+      // Flight mode cannot be emulated with a service worker in Playwright's Firefox: setOffline
+      // does not reach the worker's own requests (the app still gets its session), and a route
+      // that cuts the API makes Firefox bypass the worker for the page (NS_ERROR_OFFLINE). The
+      // cold start in flight mode (C-1) therefore runs in Chromium; the offline specs that run
+      // here prove the worker's control and its precache (prepareOffline, offline playback).
+      testIgnore: ['**/offline-cold-start.spec.ts'],
+    },
     ...(withWebkit ? [{ name: 'webkit', use: { ...devices['Desktop Safari'] } }] : []),
   ],
 });

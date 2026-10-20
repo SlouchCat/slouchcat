@@ -153,7 +153,7 @@ function DownloadsContent() {
           <span className={styles.rowActions}>
             {download.complete && (
               <ButtonLink
-                href={paths.offlinePlay(download.id)}
+                href={paths.offlinePlay(download.id, 'session')}
                 variant="secondary"
                 icon="play"
                 aria-label={t('offline.downloads.playLabel', { title })}

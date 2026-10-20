@@ -23,18 +23,6 @@ export async function storageInfo(): Promise<StorageInfo> {
   };
 }
 
-/** Asks for persistent storage (best effort; some browsers ask the viewer). */
-export async function requestPersistence(): Promise<boolean> {
-  try {
-    const storage = navigator.storage;
-    if (!storage?.persist) return false;
-    if (await storage.persisted()) return true;
-    return await storage.persist();
-  } catch {
-    return false;
-  }
-}
-
 /** Bytes the downloads take on this device: whole files, plus what incomplete ones hold so far. */
 export function downloadsBytes(downloads: readonly StoredDownload[]): number {
   return downloads.reduce(

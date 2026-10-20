@@ -21,6 +21,12 @@ export type FetchErrorCode =
   | 'unauthorized'
   /** The server's file has another size than the manifest: it was prepared again. */
   | 'size'
+  /** The ETag (If-Range) no longer matches: the server prepared the file again. */
+  | 'changed'
+  /** Every attempt got an answer without the requested range (a proxy dropping Range?). */
+  | 'range'
+  /** The device could not keep the bytes (the writer confirmed less than the whole file). */
+  | 'storage'
   /** The network failed on every attempt. */
   | 'network';
 
@@ -62,6 +68,20 @@ export function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+/** An answer that is not the requested range; retried, then reported as `range`. */
+class RangeProblem extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RangeProblem';
+  }
+}
+
+/** A strong ETag (If-Range needs one); weak or missing gives undefined. */
+export function strongEtag(value: string | null): string | undefined {
+  const etag = value?.trim();
+  return etag && !etag.startsWith('W/') ? etag : undefined;
+}
+
 const fatalStatus: Partial<Record<number, FetchErrorCode>> = {
   401: 'unauthorized',
   403: 'unauthorized',
@@ -79,6 +99,14 @@ export interface FetchFileOptions {
   start: number;
   writer: BlockWriter;
   signal: AbortSignal;
+  /**
+   * Strong ETag of the copy the bytes before `start` came from. Every block asks with If-Range,
+   * so a copy the server prepared again meanwhile answers 200 and the fetch stops with `changed`
+   * instead of mixing bytes of two preparations.
+   */
+  etag?: string;
+  /** Called once with the ETag of the first answer that carried one (store it for a resume). */
+  onEtag?: (etag: string) => Promise<void> | void;
   /** Called whenever more bytes are durable, to record the progress. */
   onDurable?: (bytes: number) => Promise<void> | void;
   /** Called after every fetched block with the bytes fetched so far (for the progress bar). */
@@ -96,7 +124,8 @@ export interface FetchFileOptions {
 async function fetchBlock(
   options: FetchFileOptions,
   range: { start: number; end: number; length: number },
-): Promise<ArrayBuffer> {
+  etag: string | undefined,
+): Promise<{ data: ArrayBuffer; etag: string | undefined }> {
   const { signal, fetchImpl = fetch, blockTimeoutMs = BLOCK_TIMEOUT_MS } = options;
   signal.throwIfAborted();
   const controller = new AbortController();
@@ -107,8 +136,10 @@ async function fetchBlock(
     blockTimeoutMs,
   );
   try {
+    const headers: Record<string, string> = { Range: rangeHeader(range.start, range.end) };
+    if (etag) headers['If-Range'] = etag;
     const response = await fetchImpl(options.url, {
-      headers: { Range: rangeHeader(range.start, range.end) },
+      headers,
       cache: 'no-store',
       credentials: 'same-origin',
       signal: controller.signal,
@@ -121,7 +152,15 @@ async function fetchBlock(
     if (response.status !== 206) {
       // A 200 would be the whole file: never read it into memory.
       void response.body?.cancel();
-      throw new Error(`HTTP ${response.status} instead of 206`);
+      if (etag && response.status === 200) {
+        throw new FetchError('changed', `If-Range ${etag} no longer matches`, 200);
+      }
+      throw new RangeProblem(`HTTP ${response.status} instead of 206`);
+    }
+    const answered = strongEtag(response.headers.get('ETag'));
+    if (etag && answered && answered !== etag) {
+      void response.body?.cancel();
+      throw new FetchError('changed', `ETag ${answered} instead of ${etag}`, 206);
     }
     const contentRange = parseContentRange(response.headers.get('Content-Range'));
     if (contentRange?.total != null && contentRange.total !== options.total) {
@@ -132,7 +171,8 @@ async function fetchBlock(
       );
     }
     if (contentRange && (contentRange.start !== range.start || contentRange.end !== range.end)) {
-      throw new Error(
+      void response.body?.cancel();
+      throw new RangeProblem(
         `Content-Range ${contentRange.start}-${contentRange.end} != ${range.start}-${range.end}`,
       );
     }
@@ -140,7 +180,7 @@ async function fetchBlock(
     if (data.byteLength !== range.length) {
       throw new Error(`body ${data.byteLength} B != ${range.length} B`);
     }
-    return data;
+    return { data, etag: etag ?? answered };
   } finally {
     clearTimeout(timer);
     signal.removeEventListener('abort', onAbort);
@@ -149,8 +189,9 @@ async function fetchBlock(
 
 /**
  * Fetches the file from `start` to its end block by block into `writer` (spike runDownload):
- * every block is retried with backoff (network errors, 5xx, a wrong range); 401, 404, 410 and a
- * changed size stop at once with a FetchError. Resolves with the durable bytes at the end.
+ * every block is retried with backoff (network errors, 5xx, a wrong range); 401, 404, 410, a
+ * changed size and a changed ETag stop at once with a FetchError. After the last attempt a block
+ * fails with `range` (answers without the range) or `network`. Resolves with the durable bytes.
  */
 export async function fetchFile(options: FetchFileOptions): Promise<number> {
   const {
@@ -172,6 +213,7 @@ export async function fetchFile(options: FetchFileOptions): Promise<number> {
     await options.onDurable?.(bytes);
   };
   let closed = false;
+  let etag = options.etag;
   try {
     const blocks = blockCount(total, blockSize);
     for (let index = start / blockSize; index < blocks; index += 1) {
@@ -180,11 +222,19 @@ export async function fetchFile(options: FetchFileOptions): Promise<number> {
       let data: ArrayBuffer | undefined;
       for (let attempt = 0; data === undefined; attempt += 1) {
         try {
-          data = await fetchBlock(options, range);
+          const answer = await fetchBlock(options, range, etag);
+          data = answer.data;
+          if (!etag && answer.etag) {
+            etag = answer.etag;
+            await options.onEtag?.(answer.etag);
+          }
         } catch (error) {
           if (signal.aborted || error instanceof FetchError) throw error;
           if (attempt + 1 >= maxAttempts) {
-            throw new FetchError('network', error instanceof Error ? error.message : 'failed');
+            throw new FetchError(
+              error instanceof RangeProblem ? 'range' : 'network',
+              error instanceof Error ? error.message : 'failed',
+            );
           }
           options.onRetry?.(attempt + 1, error);
           await wait(backoffMs(attempt), signal);

@@ -2,11 +2,12 @@ import { onlineManager } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isUlid } from '@/lib/ulid';
-import { mockApi, renderApp } from '@/test/api';
+import { mockApi, renderApp, signedIn } from '@/test/api';
 import { ids } from '@/test/fixtures';
 import { resetOfflineFiles, seedFile } from '@/test/offlineFiles';
 import {
   downloadIds,
+  episodeDownload,
   heatDownload,
   offlineProfile,
   storedDownload,
@@ -29,7 +30,8 @@ const engine = vi.hoisted(() => ({ flush: vi.fn() }));
 vi.mock('@/features/offline/engine', () => ({
   startOfflineEngine: () => () => undefined,
   kickOfflineEngine: vi.fn(),
-  cancelFetch: vi.fn(),
+  cancelFetch: vi.fn(() => Promise.resolve()),
+  rememberDeleted: vi.fn(() => Promise.resolve()),
   flushEventsSoon: engine.flush,
 }));
 vi.mock('@/features/offline/support', async (importOriginal) => ({
@@ -41,13 +43,18 @@ vi.mock('@/features/offline/support', async (importOriginal) => ({
 const hls = vi.hoisted(() => {
   const state = {
     supported: true,
-    instances: [] as { config: Record<string, unknown>; source?: string }[],
+    instances: [] as {
+      config: Record<string, unknown>;
+      source?: string;
+      stopped?: boolean;
+      detached?: boolean;
+    }[],
   };
   class FakeHls {
     static Events = { ERROR: 'hlsError' };
     static ErrorTypes = { NETWORK_ERROR: 'networkError', MEDIA_ERROR: 'mediaError' };
     static isSupported = () => state.supported;
-    readonly record: { config: Record<string, unknown>; source?: string };
+    readonly record: (typeof state.instances)[number];
     constructor(config: Record<string, unknown>) {
       this.record = { config };
       state.instances.push(this.record);
@@ -57,6 +64,12 @@ const hls = vi.hoisted(() => {
       this.record.source = source;
     }
     attachMedia() {}
+    stopLoad() {
+      this.record.stopped = true;
+    }
+    detachMedia() {
+      this.record.detached = true;
+    }
     recoverMediaError() {}
     destroy() {}
   }
@@ -105,6 +118,7 @@ beforeEach(async () => {
   await putDownloads([storedDownload(), heatDownload()]);
   await putProfiles([storedProfile()]);
   await setMeta('serverOffsetMs', 0);
+  await setMeta('accountId', 1);
   seedFile(downloadIds.alien, 'media.mp4', new Uint8Array(9000));
   seedFile(downloadIds.alien, '21.vtt', 'WEBVTT\n');
   chooseOfflineProfile({ accountId: 1, profileId: 1 });
@@ -118,6 +132,20 @@ afterEach(() => {
 });
 
 const player = () => screen.findByRole('main', { name: 'Videoplayer' });
+
+/**
+ * Starts playback once the player listens: its media effect runs after the commit that shows the
+ * engine, so loadedmetadata is sent until the start is recorded.
+ */
+async function startPlaying(container: HTMLElement, region: HTMLElement) {
+  await waitFor(() => expect(region).toHaveAttribute('data-engine'));
+  await waitFor(() => {
+    act(() => {
+      container.querySelector('video')!.dispatchEvent(new Event('loadedmetadata'));
+    });
+    expect(region).toHaveAttribute('data-start-ms');
+  });
+}
 
 describe('offline player', () => {
   it('plays from OPFS through hls.js with the generated playlist and queues the progress', async () => {
@@ -250,6 +278,114 @@ describe('offline player', () => {
     await act(() => vi.advanceTimersByTimeAsync(10_000));
     await waitFor(() => expect(queuedEvents()).toHaveLength(1));
     expect(queuedEvents()[0]?.event.positionMs).toBe(3000);
+  });
+
+  it('after the limit nothing plays on: media keys pause again, hls.js lets go (W5)', async () => {
+    const media = stubMedia();
+    const now = Date.now();
+    await putProfiles([
+      storedProfile({
+        watch: {
+          limitMinutes: 60,
+          remainingMinutes: 1,
+          resetsAt: now + 3_600_000,
+          syncedAt: now,
+          period: -1,
+          playedMs: 55_000,
+        },
+      }),
+    ]);
+    mockApi({});
+    const { container } = renderApp(`/offline/play/${downloadIds.alien}`);
+    const region = await player();
+    await waitFor(() => expect(region).toHaveAttribute('data-engine', 'mse'));
+    const video = container.querySelector('video')!;
+    expect(video).toHaveAttribute('disablepictureinpicture');
+    await startPlaying(container, region);
+    media.currentTime = 3;
+    await act(() => vi.advanceTimersByTimeAsync(6_000));
+    expect(region).toHaveAttribute('data-ended-reason', 'limit');
+    expect(media.paused).toBe(true);
+    expect(hls.state.instances[0]).toMatchObject({ stopped: true, detached: true });
+    // The media notification or a media key plays the element: it pauses at once.
+    act(() => {
+      media.paused = false;
+      video.dispatchEvent(new Event('play'));
+    });
+    expect(media.paused).toBe(true);
+    // The pause at the limit booked the position before hls.js let go.
+    const paused = queuedEvents().filter((entry) => entry.event.state === 'paused');
+    expect(paused[0]?.event.positionMs).toBe(3000);
+  });
+
+  it('leaving the player while it plays books the last stretch (W6)', async () => {
+    const media = stubMedia();
+    mockApi({});
+    const { container, router } = renderApp(`/offline/play/${downloadIds.alien}`);
+    const region = await player();
+    await startPlaying(container, region);
+    media.currentTime = 3;
+    // Less than the 10-s interval: only the leave books it.
+    await act(() => vi.advanceTimersByTimeAsync(4_000));
+    expect(queuedEvents()).toHaveLength(0);
+    await act(() => router.navigate({ to: '/offline' }));
+    await waitFor(() => expect(queuedEvents()).toHaveLength(1));
+    expect(queuedEvents()[0]?.event).toMatchObject({ state: 'paused', positionMs: 3000 });
+    expect(queuedEvents()[0]!.event.playedMs).toBeGreaterThanOrEqual(3_500);
+  });
+
+  it('another download in the same route is another playback (K10)', async () => {
+    const media = stubMedia();
+    await putDownloads([episodeDownload('e1')]);
+    seedFile(downloadIds.e1, 'media.mp4', new Uint8Array(9000));
+    mockApi({});
+    const { container, router } = renderApp(`/offline/play/${downloadIds.alien}`);
+    let region = await player();
+    await waitFor(() => expect(region).toHaveAttribute('data-download-id', downloadIds.alien));
+    await startPlaying(container, region);
+    await act(() =>
+      router.navigate({
+        to: '/offline/play/$downloadId',
+        params: { downloadId: downloadIds.e1 },
+      }),
+    );
+    region = await player();
+    await waitFor(() => expect(region).toHaveAttribute('data-download-id', downloadIds.e1));
+    await startPlaying(container, region);
+    act(() => container.querySelector('video')!.pause());
+    await waitFor(() => expect(queuedEvents()).toHaveLength(2));
+    const [first, second] = queuedEvents().map((entry) => entry.event);
+    expect(first?.downloadId).toBe(downloadIds.alien);
+    expect(second?.downloadId).toBe(downloadIds.e1);
+    expect(second?.playbackId).not.toBe(first?.playbackId);
+    expect(second?.seq).toBe(1);
+    expect(media.paused).toBe(true);
+  });
+
+  it('from /downloads it plays for the session’s profile, not the library’s choice (W1)', async () => {
+    stubMedia();
+    // Profile 2 was opened in the offline library; the session's active profile is 1.
+    chooseOfflineProfile({ accountId: 1, profileId: 2 });
+    mockApi(signedIn);
+    renderApp(`/offline/play/${downloadIds.alien}?as=session`);
+    const region = await player();
+    expect(region).toHaveAttribute('data-profile-id', '1');
+  });
+
+  it('from /downloads a title the session’s profile may not see stays closed (W1)', async () => {
+    stubMedia();
+    chooseOfflineProfile({ accountId: 1, profileId: 2 });
+    mockApi(signedIn);
+    renderApp(`/offline/play/${downloadIds.heat}?as=session`);
+    expect(await screen.findByText('Download nicht verfügbar')).toBeVisible();
+  });
+
+  it('the library’s choice does not open the downloads of a signed-out account (W2)', async () => {
+    stubMedia();
+    await setMeta('signedOut', true);
+    mockApi({});
+    renderApp(`/offline/play/${downloadIds.alien}`);
+    expect(await screen.findByText('Download nicht verfügbar')).toBeVisible();
   });
 
   it('refuses a download the profile may not see (allowedProfileIds)', async () => {

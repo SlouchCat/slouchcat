@@ -14,7 +14,12 @@ export const paths = {
   downloads: '/downloads',
   /** The offline library: works without a session and without network (C-1, O-4). */
   offline: '/offline',
-  offlinePlay: (downloadId: string) => `/offline/play/${encodeURIComponent(downloadId)}`,
+  /**
+   * The player of a download. From the offline library it plays for the profile chosen there;
+   * `session` (from /downloads) plays for the session's active profile instead (W1, K9).
+   */
+  offlinePlay: (downloadId: string, from?: 'session') =>
+    `/offline/play/${encodeURIComponent(downloadId)}${from ? `?as=${from}` : ''}`,
   item: (id: string) => `/items/${encodeURIComponent(id)}`,
   /** The player; `file` picks a version (media file) of the title (B-5). */
   play: (id: string, file?: string) =>

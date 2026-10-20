@@ -17,6 +17,23 @@ import { snapshotDayStart, watchFromSnapshot } from './watchTime';
 /** Most ids one sync may report (OfflineSyncRequest.held). */
 export const MAX_HELD = 2000;
 
+/**
+ * Fetch errors the server side resolves (it prepares the copy again, a new manifest brings a new
+ * token): the next sync that lists the download as ready clears them.
+ */
+const SERVER_ERRORS = new Set(['evicted', 'gone', 'unauthorized', 'size', 'changed']);
+
+/**
+ * Fetch errors of the device or of the way to the server (full storage, a locked file, a proxy
+ * without Range, a network that failed on every attempt): tried again after this long, not at
+ * every sync, so a full disk does not pull a block per minute (W7, K4).
+ */
+export const FETCH_RETRY_MS = 5 * 60_000;
+
+const retryDue = (download: StoredDownload, now: number) =>
+  download.fetchError === undefined ||
+  (!SERVER_ERRORS.has(download.fetchError) && now - (download.fetchErrorAt ?? 0) >= FETCH_RETRY_MS);
+
 /** The downloads the device reports for an account, with whether each is complete. */
 export function heldDownloads(
   downloads: readonly StoredDownload[],
@@ -77,9 +94,50 @@ export function mergeDownload(
     complete: local.complete,
     pendingDelete: local.pendingDelete,
     positions: local.positions,
-    // A sync is a new chance for a fetch that stopped (evicted copies come back as `ready`).
-    fetchError: state.state === 'ready' ? undefined : local.fetchError,
+    fileReadyAt: local.fileReadyAt,
+    fileEtag: local.fileEtag,
+    ...keptFetchError(local, state),
   };
+}
+
+/**
+ * A sync that lists the download as ready is a new chance after a server-side error (evicted
+ * copies come back as `ready`); a copy prepared again (new readyAt) clears every error. Errors of
+ * the device wait for FETCH_RETRY_MS.
+ */
+function keptFetchError(
+  local: StoredDownload,
+  state: DownloadState,
+): Pick<StoredDownload, 'fetchError' | 'fetchErrorAt'> {
+  const error = local.fetchError;
+  const preparedAgain = state.readyAt !== undefined && state.readyAt !== local.readyAt;
+  const cleared =
+    error === undefined || (state.state === 'ready' && (SERVER_ERRORS.has(error) || preparedAgain));
+  return cleared
+    ? { fetchError: undefined, fetchErrorAt: undefined }
+    : { fetchError: error, fetchErrorAt: local.fetchErrorAt };
+}
+
+/** `accountId:profileId` of every profile a download on the device names (not being deleted). */
+export function profilesWithDownloads(downloads: readonly StoredDownload[]): Set<string> {
+  const keys = new Set<string>();
+  for (const download of downloads) {
+    if (download.pendingDelete) continue;
+    for (const id of download.allowedProfileIds) keys.add(`${download.accountId}:${id}`);
+  }
+  return keys;
+}
+
+/**
+ * A snapshot without the PIN material (salt and the separate offline PIN): a profile keeps it
+ * only on a device with downloads it may play (AN-19, plan 3.3).
+ */
+export function withoutPinMaterial(snapshot: OfflineProfile): OfflineProfile {
+  const rest = { ...snapshot };
+  delete rest.pinSalt;
+  delete rest.pinIterations;
+  delete rest.offlinePin;
+  return rest;
 }
 
 /** Played milliseconds of queued events of a profile since `since` (server time). */
@@ -107,10 +165,13 @@ export function mergeProfile(
     offsetMs: number;
     queued: readonly QueuedEvent[];
     rules?: StoredProfile['rules'];
+    /** A download on the device names the profile: only then it keeps PIN material (AN-19). */
+    holdsDownloads: boolean;
   },
 ): StoredProfile {
+  const kept = context.holdsDownloads ? snapshot : withoutPinMaterial(snapshot);
   const verifier =
-    snapshot.hasPin && snapshot.pinSalt && local?.pinVerifier?.salt === snapshot.pinSalt
+    kept.hasPin && kept.pinSalt && local?.pinVerifier?.salt === kept.pinSalt
       ? local.pinVerifier
       : undefined;
   const pending = snapshot.watchTime
@@ -124,7 +185,7 @@ export function mergeProfile(
   return {
     id: snapshot.id,
     accountId: context.accountId,
-    snapshot,
+    snapshot: kept,
     syncedAt: context.now,
     pinVerifier: verifier,
     watch: watchFromSnapshot(snapshot.watchTime, context.now, pending),
@@ -170,6 +231,12 @@ export function applySync(input: SyncInput): SyncResult {
     .map((state) => mergeDownload(local.get(state.id), state, accountId, now));
   const listed = new Set(answer.profiles.map((profile) => profile.id));
   const localProfiles = new Map(input.profiles.map((profile) => [profile.id, profile]));
+  // What the device holds after the answer: the merged ones and the others it keeps.
+  const merged = new Set(put.map((download) => download.id));
+  const withDownloads = profilesWithDownloads([
+    ...put,
+    ...input.downloads.filter((download) => !merged.has(download.id) && !revoked.has(download.id)),
+  ]);
   const putProfiles = answer.profiles.map((snapshot) =>
     mergeProfile(localProfiles.get(snapshot.id), snapshot, {
       accountId,
@@ -177,6 +244,7 @@ export function applySync(input: SyncInput): SyncResult {
       offsetMs: serverOffsetMs,
       queued: input.queued,
       rules: snapshot.id === activeProfileId ? answer.rules : undefined,
+      holdsDownloads: withDownloads.has(`${accountId}:${snapshot.id}`),
     }),
   );
   return {
@@ -187,19 +255,22 @@ export function applySync(input: SyncInput): SyncResult {
       .filter((profile) => profile.accountId === accountId && !listed.has(profile.id))
       .map((profile) => profile.id),
     serverOffsetMs,
-    fetch: fetchOrder(put),
+    fetch: fetchOrder(put, now),
   };
 }
 
-/** Downloads ready on the server whose file the device lacks, oldest first. */
-export function fetchOrder(downloads: readonly StoredDownload[]): string[] {
+/**
+ * Downloads ready on the server whose file the device lacks, oldest first; a download whose
+ * last fetch failed waits as `retryDue` says.
+ */
+export function fetchOrder(downloads: readonly StoredDownload[], now = Date.now()): string[] {
   return downloads
     .filter(
       (download) =>
         download.state === 'ready' &&
         !download.complete &&
         !download.pendingDelete &&
-        download.fetchError === undefined,
+        retryDue(download, now),
     )
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     .map((download) => download.id);
@@ -224,25 +295,47 @@ export function downloadsForProfile(
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Profiles that may open the offline library: listed by the server and allowed for a download. */
+/**
+ * Profiles that may open the offline library: of the device's account (the last one signed in,
+ * decision of 2026-10-20 on shared devices), listed by the server and allowed for a download.
+ * Without an account (none yet, or it signed out) the library shows no profile.
+ */
 export function offlineProfiles(
   profiles: readonly StoredProfile[],
   downloads: readonly StoredDownload[],
+  accountId: number | undefined,
 ): StoredProfile[] {
+  if (accountId === undefined) return [];
   return profiles
-    .filter((profile) =>
-      downloads.some(
-        (download) =>
-          download.accountId === profile.accountId &&
-          !download.pendingDelete &&
-          download.allowedProfileIds.includes(profile.id),
-      ),
+    .filter(
+      (profile) =>
+        profile.accountId === accountId &&
+        downloads.some(
+          (download) =>
+            download.accountId === profile.accountId &&
+            !download.pendingDelete &&
+            download.allowedProfileIds.includes(profile.id),
+        ),
     )
     .sort(
       (a, b) =>
         Number(b.snapshot.isPrimary) - Number(a.snapshot.isPrimary) ||
         a.snapshot.name.localeCompare(b.snapshot.name),
     );
+}
+
+/**
+ * Downloads of other accounts on this device (a guest who used it before): the device asks the
+ * public revocation list about them after every sync of the signed-in account (AN-4, K-7).
+ */
+export function otherAccountDownloads(
+  downloads: readonly StoredDownload[],
+  accountId: number,
+): string[] {
+  return downloads
+    .filter((download) => download.accountId !== accountId)
+    .slice(0, MAX_HELD)
+    .map((download) => download.id);
 }
 
 /**

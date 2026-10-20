@@ -74,6 +74,47 @@ export async function syncNow(page: Page): Promise<void> {
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
 }
 
+/** `meta.lastSyncAt` of the page's offline database (0 before the first sync). */
+export function lastSyncAt(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const name = 'slouchcat-offline';
+    const known = await indexedDB.databases();
+    if (!known.some((entry) => entry.name === name)) return 0;
+    return new Promise<number>((resolve, reject) => {
+      const open = indexedDB.open(name);
+      open.onerror = () => reject(open.error ?? new Error('open failed'));
+      open.onsuccess = () => {
+        const db = open.result;
+        if (!db.objectStoreNames.contains('meta')) {
+          db.close();
+          resolve(0);
+          return;
+        }
+        const read = db.transaction('meta').objectStore('meta').get('lastSyncAt');
+        read.onerror = () => reject(read.error ?? new Error('read failed'));
+        read.onsuccess = () => {
+          db.close();
+          resolve(typeof read.result === 'number' ? read.result : 0);
+        };
+      };
+    });
+  });
+}
+
+/** Wakes the engine and waits until its sync went through (K2: assert after, not before). */
+export async function syncAndWait(page: Page): Promise<void> {
+  const before = await lastSyncAt(page);
+  await expect
+    .poll(
+      async () => {
+        await syncNow(page);
+        return lastSyncAt(page);
+      },
+      { timeout: 30_000, intervals: [500] },
+    )
+    .toBeGreaterThan(before);
+}
+
 /**
  * Waits until the device holds `count` complete downloads (matching `filter`), syncing every
  * 2 s so the device learns of ready copies before the 60-s interval.
@@ -172,8 +213,8 @@ export async function freshDevice(
 }
 
 /**
- * Opens the offline library inside the running app (history push, no document load), so it
- * works offline also where no service worker controls the page yet.
+ * Opens the offline library inside the running app (history push, no document load), as a
+ * link of the app does.
  */
 export async function openOfflineLibrary(page: Page): Promise<void> {
   await page.evaluate(() => {
@@ -184,33 +225,15 @@ export async function openOfflineLibrary(page: Page): Promise<void> {
 }
 
 /**
- * Makes sure the offline pages load without network before a spec goes offline: once the
- * service worker controls the page every app chunk comes from its precache (as for a viewer, who
- * opened the app before). Where it does not (yet), the pages are visited online once, which
- * loads their chunks into the page; `downloadId` also warms the offline player and hls.js.
+ * Makes sure the offline pages load without network before a spec goes offline: the service
+ * worker controls the page (clientsClaim takes over the page it was registered from), so every
+ * app chunk comes from its precache, as for a viewer who opened the app before. Fails when no
+ * worker takes over (W11: no silent fallback).
  */
-export async function prepareOffline(page: Page, downloadId?: string): Promise<void> {
-  const controlled = await page
-    .waitForFunction(() => navigator.serviceWorker?.controller != null, undefined, {
-      timeout: 15_000,
-    })
-    .then(() => true)
-    .catch(() => false);
-  if (controlled) return;
-  const back = page.url();
-  await openOfflineLibrary(page);
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  if (downloadId) {
-    await page.evaluate((id) => {
-      window.history.pushState({}, '', `/offline/play/${id}`);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    }, downloadId);
-    await expect(offlinePlayer(page)).toHaveAttribute('data-engine', /mse|blob/);
-  }
-  await page.evaluate((url) => {
-    window.history.pushState({}, '', new URL(url).pathname);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  }, back);
+export async function prepareOffline(page: Page): Promise<void> {
+  await page.waitForFunction(() => navigator.serviceWorker?.controller != null, undefined, {
+    timeout: 30_000,
+  });
 }
 
 /** Time of the video element (seconds). */

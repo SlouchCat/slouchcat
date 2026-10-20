@@ -38,7 +38,8 @@
   "errors": {
     "page": {
       "title": "Slouchcat ist gerade nicht erreichbar",
-      "body": "Der Server antwortet nicht. Prüfe, ob der Container läuft, und versuche es dann erneut."
+      "body": "Der Server antwortet nicht. Prüfe, ob der Container läuft, und versuche es dann erneut.",
+      "offline": "Offline-Bibliothek öffnen"
     },
     "code": {
       "invalid_credentials": "E-Mail-Adresse oder Passwort stimmen nicht.",
@@ -458,9 +459,8 @@
         "remove": {
           "action": "Entfernen",
           "title": "Gast {{email}} entfernen?",
-          "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort.",
-          "confirm": "Gast entfernen",
-          "offline": "Downloads auf den Geräten des Gastes verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie."
+          "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort. Downloads auf den Geräten des Gastes verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.",
+          "confirm": "Gast entfernen"
         },
         "limitsHint": "Gilt für alle Profile des Gastkontos."
       }
@@ -940,6 +940,8 @@
       "complete": "Auf diesem Gerät",
       "quota": "Speicher voll",
       "storage": "Speichern fehlgeschlagen",
+      "network": "Abruf unterbrochen, neuer Versuch folgt",
+      "range": "Der Server liefert die Datei nicht in Teilen (Proxy prüfen)",
       "gone": "Nicht mehr verfügbar",
       "evicted": "Wird neu vorbereitet",
       "wifi": "Wartet auf WLAN",
@@ -1019,7 +1021,7 @@
       "seasonButton": "Staffel herunterladen",
       "title": "{{title}} herunterladen",
       "intro": "Der Titel wird auf diesem Gerät gespeichert und spielt auch ohne Netz.",
-      "seasonIntro_one": "Die {{count}} Folge dieser Staffel wird auf diesem Gerät gespeichert.",
+      "seasonIntro_one": "Die einzige Folge dieser Staffel wird auf diesem Gerät gespeichert.",
       "seasonIntro_other": "Alle {{count}} Folgen dieser Staffel werden auf diesem Gerät gespeichert.",
       "quality": "Qualität",
       "option": "{{quality}} · {{height}}p · ca. {{size}}",
@@ -1045,6 +1047,10 @@
         "title": "Keine Downloads auf diesem Gerät",
         "body": "Ohne Verbindung zum Server spielen nur heruntergeladene Titel.",
         "hint": "Sobald du online Titel herunterlädst, findest du sie hier auch ohne Netz."
+      },
+      "locked": {
+        "title": "Downloads gesperrt",
+        "body": "Das Konto dieses Geräts hat sich abgemeldet. Die Downloads bleiben gespeichert und öffnen sich wieder, sobald sich dasselbe Konto anmeldet."
       },
       "downloadsOf": "Downloads von {{name}}",
       "switchProfile": "Profil wechseln",

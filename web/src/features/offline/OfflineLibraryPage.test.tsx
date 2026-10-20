@@ -12,7 +12,7 @@ import {
   storedDownload,
   storedProfile,
 } from '@/test/offlineFixtures';
-import { putDownloads, putProfiles, resetOfflineStore } from '@/test/offlineStore';
+import { putDownloads, putProfiles, resetOfflineStore, setMeta } from '@/test/offlineStore';
 import { leaveOfflineProfile } from './offlineSession';
 import { deriveLocalVerifier } from './pin';
 
@@ -21,7 +21,8 @@ vi.mock('@/features/offline/opfs', () => import('@/test/offlineFiles'));
 vi.mock('@/features/offline/engine', () => ({
   startOfflineEngine: () => () => undefined,
   kickOfflineEngine: vi.fn(),
-  cancelFetch: vi.fn(),
+  cancelFetch: vi.fn(() => Promise.resolve()),
+  rememberDeleted: vi.fn(() => Promise.resolve()),
   flushEventsSoon: vi.fn(),
 }));
 vi.mock('@/features/offline/support', async (importOriginal) => ({
@@ -60,12 +61,58 @@ beforeEach(async () => {
       snapshot: offlineProfile({ id: 3, name: 'Ohne Downloads', isPrimary: false }),
     }),
   ]);
+  // The account last signed in on this device.
+  await setMeta('accountId', 1);
 });
 
 afterEach(() => {
   leaveOfflineProfile();
   vi.restoreAllMocks();
   onlineManager.setOnline(true);
+});
+
+describe('offline library on a shared device (decision of 2026-10-20, W2)', () => {
+  beforeEach(async () => {
+    // A guest (account 2) used the device before; its profile has no PIN.
+    await putDownloads([
+      storedDownload({ id: downloadIds.e2, accountId: 2, allowedProfileIds: [9] }),
+    ]);
+    await putProfiles([
+      storedProfile({
+        id: 9,
+        accountId: 2,
+        snapshot: offlineProfile({ id: 9, name: 'Gast', isPrimary: true }),
+      }),
+    ]);
+  });
+
+  it('shows only the profiles of the account last signed in here', async () => {
+    mockApi({});
+    renderApp('/offline');
+    const profiles = await screen.findByRole('list', { name: 'Profile' });
+    expect(within(profiles).queryByRole('button', { name: /Gast/ })).not.toBeInTheDocument();
+    expect(within(profiles).getAllByRole('button')).toHaveLength(2);
+  });
+
+  it('another account signed in last: only its profiles', async () => {
+    await setMeta('accountId', 2);
+    mockApi({});
+    renderApp('/offline');
+    const profiles = await screen.findByRole('list', { name: 'Profile' });
+    expect(
+      within(profiles)
+        .getAllByRole('button')
+        .map((tile) => tile.textContent),
+    ).toEqual([expect.stringContaining('Gast')]);
+  });
+
+  it('after a sign-out the downloads stay, but the library is locked', async () => {
+    await setMeta('signedOut', true);
+    mockApi({});
+    renderApp('/offline');
+    expect(await screen.findByText('Downloads gesperrt')).toBeVisible();
+    expect(screen.queryByRole('list', { name: 'Profile' })).not.toBeInTheDocument();
+  });
 });
 
 describe('offline library', () => {

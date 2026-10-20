@@ -2,6 +2,7 @@
 // module with `vi.mock('@/features/offline/store', () => import('@/test/offlineStore'))` and use
 // the helpers below to seed and read it.
 import type { MetaKey, MetaValues } from '@/features/offline/db';
+import type { UpdateOptions } from '@/features/offline/store';
 import type { QueuedEvent, StoredDownload, StoredProfile } from '@/features/offline/types';
 
 const downloads = new Map<string, StoredDownload>();
@@ -40,7 +41,10 @@ export async function putDownloads(list: readonly StoredDownload[]): Promise<voi
 export async function updateDownload(
   id: string,
   change: (download: StoredDownload | undefined) => StoredDownload | undefined,
+  // Progress writes notify at once here: the tests wait on the store, not on a timer.
+  options?: UpdateOptions,
 ): Promise<StoredDownload | undefined> {
+  void options;
   const current = downloads.get(id);
   const next = change(current && copy(current));
   if (next) {
@@ -122,7 +126,12 @@ export async function getMeta<K extends MetaKey>(key: K): Promise<MetaValues[K] 
 
 export async function setMeta<K extends MetaKey>(key: K, value: MetaValues[K]): Promise<void> {
   meta.set(key, value);
+  if (key === 'accountId' || key === 'signedOut') notify();
   return Promise.resolve();
+}
+
+export async function lockSignedOutAccount(): Promise<void> {
+  return setMeta('signedOut', true);
 }
 
 /** Empties the store (call in beforeEach). */

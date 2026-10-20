@@ -8,6 +8,8 @@ import {
 } from '@tanstack/react-query';
 import { getRouteApi, useNavigate } from '@tanstack/react-router';
 import { api, isApiError, request } from '@/api/client';
+import { leaveOfflineProfile } from '@/features/offline/offlineSession';
+import { offlineSupported } from '@/features/offline/support';
 import { detectLanguage, setLanguage } from '@/i18n';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { isAccentName } from '@/ui/accent';
@@ -108,6 +110,8 @@ export async function adoptSession(
   session: SessionInfo,
   options: ClearOptions = {},
 ): Promise<void> {
+  // A profile chosen in the offline library does not outlive another session (W1).
+  leaveOfflineProfile();
   await clearProfileData(queryClient, options);
   queryClient.setQueryData(sessionQuery.queryKey, session);
   applyProfileAccent(session);
@@ -138,6 +142,13 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => request(api.POST('/auth/logout')),
     onSettled: async () => {
+      leaveOfflineProfile();
+      // The downloads stay on the device, locked until this account signs in again.
+      if (offlineSupported()) {
+        await import('@/features/offline/store')
+          .then(({ lockSignedOutAccount }) => lockSignedOutAccount())
+          .catch(() => undefined);
+      }
       await clearProfileData(queryClient);
       queryClient.setQueryData(sessionQuery.queryKey, null);
       applyProfileAccent(null);

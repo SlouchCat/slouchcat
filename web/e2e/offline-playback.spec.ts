@@ -71,7 +71,7 @@ test('flight mode: the download plays with subtitles and the chosen audio; progr
 
   // Flight mode. The app is already open: the downloads page and the player need no network.
   await page.goto('/downloads');
-  await prepareOffline(page, download.id);
+  await prepareOffline(page);
   const row = downloadRow(page, new RegExp(MULTI_AUDIO_TITLE));
   await expect(row.getByText('Auf diesem Gerät')).toBeVisible();
   await context.setOffline(true);

@@ -9,6 +9,7 @@ import {
   freshDevice,
   removeDeviceDownloads,
   storedDownloads,
+  syncAndWait,
   syncNow,
   waitForComplete,
 } from './offline';
@@ -102,7 +103,8 @@ test('episode n watched → the next sync downloads n+1 by itself (O-3)', async 
     await tabTo(page, row.getByRole('link', { name: /abspielen$/ }), 40);
 
     // At most one unwatched auto-download: nothing more until episode 2 is watched, then n+1.
-    await syncNow(page);
+    // The check runs after a sync that went through, not before it (K2).
+    await syncAndWait(page);
     expect((await storedDownloads(page)).filter((download) => download.auto)).toHaveLength(1);
     await watched(page, episodes[1]);
     await waitForComplete(
