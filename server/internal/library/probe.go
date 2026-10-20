@@ -69,9 +69,19 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	if err != nil || !t.found {
 		return err
 	}
+	if t.file.Size == 0 {
+		// Never playable; spares an ffprobe process (placeholder trees of the scan benchmark).
+		return s.storeProbeError(ctx, t, errEmptyFile)
+	}
 	pr, err := s.probe.Probe(ctx, t.abs)
 	if err != nil {
-		return fmt.Errorf("probe media file %s: %w", t.file.ID, err)
+		var fileErr *transcode.FileError
+		if ctx.Err() != nil || !errors.As(err, &fileErr) {
+			// Interrupted, or the environment failed (ffprobe missing or not configured, no
+			// process, an I/O error): not a property of the file, so the job retries with backoff.
+			return fmt.Errorf("probe %s: %w", t.file.ID, err)
+		}
+		return s.storeProbeError(ctx, t, err)
 	}
 	r, err := paths.Open(t.root)
 	if err != nil {
@@ -153,6 +163,38 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	}
 	if err := enqueueTx(ctx, q, now, keyframesJob(t.file.ID)); err != nil {
 		return err
+	}
+	return tx.Commit()
+}
+
+// maxProbeError bounds the stored ffprobe message.
+const maxProbeError = 500
+
+var errEmptyFile = errors.New("empty file")
+
+// storeProbeError records a failed ffprobe run (B-9 "unplayable"): probed_at and probe_error
+// with the message, in which the absolute path is replaced by the file name, and no tracks. The
+// job ends successfully, so a broken file is not retried; a changed file or a refresh probes again.
+func (s *Service) storeProbeError(ctx context.Context, t probeTarget, cause error) error {
+	msg := strings.ReplaceAll(cause.Error(), t.abs, path.Base(t.file.RelPath))
+	msg = strings.ReplaceAll(msg, t.root.Dir(), "")
+	if len(msg) > maxProbeError {
+		msg = strings.ToValidUTF8(msg[:maxProbeError], "")
+	}
+	s.log.WarnContext(ctx, "probe failed, file marked unplayable", "media_file_id", t.file.ID, "err", msg)
+	tx, err := s.db.Write.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	if err := q.UpdateMediaFileProbeError(ctx, systemq.UpdateMediaFileProbeErrorParams{
+		ProbeError: sql.NullString{String: msg, Valid: true}, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, ID: t.file.ID,
+	}); err != nil {
+		return fmt.Errorf("store probe error: %w", err)
+	}
+	if err := q.DeleteMediaFileTracks(ctx, t.file.ID); err != nil {
+		return fmt.Errorf("delete tracks: %w", err)
 	}
 	return tx.Commit()
 }

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 
 // Other specs add a second library, so the rescan buttons are scoped to the test library.
@@ -21,7 +21,8 @@ test('the scanned test library is listed with its state and counts', async ({ pa
 test('Tab reaches header, rescan and the add form in order; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('link', { name: 'Bibliotheken' }));
   await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
-  await tabTo(page, page.getByLabel('Name', { exact: true }), 3);
+  // Other specs add libraries ("Serien", "E2E leer"): their buttons come in between.
+  await tabTo(page, page.getByLabel('Name', { exact: true }), 6);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Filme' }));
   await page.keyboard.press('ArrowRight');
@@ -63,4 +64,48 @@ test('browser back leaves the page to the start page', async ({ page }) => {
   await expect(page.getByRole('article', { name: 'Filme' })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
+});
+
+test('"Scan abbrechen" shows while a scan is queued or running and cancels it', async ({
+  page,
+}) => {
+  // Hold the list requests back a little, so the queued state the scan request answered with
+  // stays on screen long enough to act on (the test library scans in well under a second).
+  // The handler may still be waiting when the test unroutes it: then the request is gone already.
+  const delay = async (route: Route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue().catch(() => undefined);
+  };
+  await page.route('**/api/v1/admin/libraries', delay);
+  await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
+  await page.keyboard.press('Enter');
+  const cancel = filme(page).getByRole('button', { name: 'Scan abbrechen' });
+  await expect(cancel).toBeVisible();
+  const cancelled = page.waitForResponse(
+    (response) => response.request().method() === 'DELETE' && response.url().endsWith('/scan'),
+  );
+  await cancel.focus();
+  await page.keyboard.press('Enter');
+  const response = await cancelled;
+  expect(response.status()).toBe(202);
+  const library = (await response.json()) as { scan: { state: string; lastError?: string } };
+  await page.unroute('**/api/v1/admin/libraries', delay);
+
+  // The cancel either stopped the scan, or the (small) scan finished just before it arrived;
+  // anything else, or a finished scan with an error, is a failure.
+  expect(['aborted', 'done']).toContain(library.scan.state);
+  if (library.scan.state === 'done') expect(library.scan.lastError).toBeUndefined();
+  if (library.scan.state === 'aborted') {
+    expect(library.scan.lastError).toBe('cancelled');
+    await expect(
+      filme(page).getByText('Der Scan wurde abgebrochen. Der nächste Scan läuft wieder normal.'),
+    ).toBeVisible();
+    // A cancelled scan needs no loss acceptance.
+    await expect(filme(page).getByRole('button', { name: 'Verlust akzeptieren' })).toHaveCount(0);
+  }
+  await expect(cancel).toHaveCount(0);
+
+  // Leave the library scanned for the other specs.
+  await filme(page).getByRole('button', { name: 'Erneut scannen' }).click();
+  await expect(filme(page).getByText('Aktuell')).toBeVisible({ timeout: 60_000 });
 });

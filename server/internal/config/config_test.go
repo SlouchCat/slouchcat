@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -20,7 +21,7 @@ func TestDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
-		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto"}
+		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", TrailerAI: "off"}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -41,17 +42,33 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_WORKERS":          "3",
 		"SLOUCHCAT_HW":               "nvenc",
 		"SLOUCHCAT_TRANSCODE_BUDGET": "6.5",
+		"SLOUCHCAT_TVDB_API_KEY":     " tvdb-key ",
+		"SLOUCHCAT_TVDB_PIN":         "1234",
+		"SLOUCHCAT_YOUTUBE_API_KEY":  "yt-key",
+		"SLOUCHCAT_TRAILER_AI":       "off",
 	})
-	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software"}, env)
+	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software",
+		"--trailer-ai", "Experimental"}, env)
 	if err != nil {
 		t.Fatal(err)
 	}
 	absCache, _ := filepath.Abs("rel/cache")
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		SpikeDir: "/srv/spike", Workers: 6, HW: "software", TranscodeBudget: 6.5}
+		SpikeDir: "/srv/spike", Workers: 6, HW: "software", TranscodeBudget: 6.5,
+		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental"}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
+	}
+	// The startup log line names which providers are configured, never their keys.
+	logged := cfg.LogValue().String()
+	for _, secret := range []string{"tvdb-key", "1234", "yt-key"} {
+		if strings.Contains(logged, secret) {
+			t.Errorf("LogValue contains the secret %q: %s", secret, logged)
+		}
+	}
+	if !strings.Contains(logged, "tvdb_configured=true") || !strings.Contains(logged, "youtube_configured=true") {
+		t.Errorf("LogValue without provider state: %s", logged)
 	}
 	if cfg.TranscodeDir() != filepath.Join(absCache, "transcode") {
 		t.Errorf("transcode dir = %q", cfg.TranscodeDir())

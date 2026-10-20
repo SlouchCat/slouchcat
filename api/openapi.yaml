@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 0.3.0
+  version: 0.4.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -752,6 +752,80 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /items/{id}/trailers:
+    get:
+      operationId: getItemTrailers
+      summary: Trailers of a title (B-8, W-10)
+      description: |
+        The YouTube trailers found for a film or series, one or more per language, the profile language
+        first. Trailers come from the chain of plan 5.3 (TMDB videos, then the YouTube Data API, an optional
+        AI provider) or were set by the administrator (`source` `manual`). The client plays them only in the
+        YouTube IFrame player at `embedUrl` (`youtube-nocookie.com`); the server never downloads a video.
+        An invisible title answers 404 like every other ID endpoint.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "200":
+          description: Trailers, profile language first; empty when none is known.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trailer"
+        "401":
+          description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /people/{id}:
+    get:
+      operationId: getPerson
+      summary: A person with the titles the active profile may see
+      description: |
+        Cast and crew come from the metadata provider (B-3). The credits list only visible titles; a person
+        without any visible credit does not exist for the profile and answers 404 (plan 10.2: a person with
+        roles in an FSK-6 and an FSK-18 film shows only the FSK-6 role to a 6-rated profile).
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "200":
+          description: The person and the visible credits.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+        "401":
+          description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown person, or no visible credit for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/play:
     post:
       operationId: startPlayback
@@ -1223,6 +1297,35 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+    delete:
+      operationId: cancelLibraryScan
+      summary: Cancel the queued or running scan of a library
+      description: |
+        Cancels the active scan job (M3: the first scan of a large collection may take hours and must be
+        interruptible, decision 3). The scan ends with state `aborted` and `lastError` `cancelled`; the next
+        scheduled or triggered scan runs normally. Without an active scan the library is returned unchanged.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+      responses:
+        "202":
+          description: Cancellation requested; the library with its scan state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Library"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown library (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/libraries/{id}/accept-loss:
     post:
       operationId: acceptLibraryLoss
@@ -1451,6 +1554,435 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}:
+    get:
+      operationId: getAdminItem
+      summary: Administration view of a title
+      description: |
+        Unfiltered view for the administrator (metadata state, provider ids, locked fields, ratings, trailers,
+        media files with their paths). Not an `ItemRef`. Deleted titles answer 404.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "200":
+          description: The title.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/match:
+    put:
+      operationId: setItemMatch
+      summary: Assign a title manually to a provider entry (B-6)
+      description: |
+        Stores the provider id on the title, locks the provider ids against enrichment and queues a metadata
+        refresh at high priority; images and trailers follow from it. The assignment survives every later scan
+        and refresh: files are matched by path, inode and hash, never by title, and locked fields are never
+        overwritten. Only films and series can be assigned; `tvdb` only series.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemMatchRequest"
+      responses:
+        "202":
+          description: Assignment stored, refresh queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/refresh:
+    post:
+      operationId: refreshItem
+      summary: Refresh metadata, images, trailers and probes of a title
+      description: |
+        Queues `metadata.match` at high priority (which queues `image.fetch` and `trailer.find`) and a probe
+        of every media file of the title. Locked fields and manual trailers are kept.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "202":
+          description: Jobs queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/trailers:
+    post:
+      operationId: createItemTrailer
+      summary: Set a trailer manually (B-8 "manueller Ersatz")
+      description: |
+        Adds a manual trailer for the language from a YouTube URL (`youtube.com/watch?v=…`, `youtu.be/…`,
+        `youtube-nocookie.com/embed/…`) or a bare video id. Manual trailers survive refreshes; an automatic
+        trailer of the same language and id is replaced by the manual row.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrailerRequest"
+      responses:
+        "201":
+          description: The stored trailer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trailer"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/trailers/{trailerId}:
+    delete:
+      operationId: deleteItemTrailer
+      summary: Remove a trailer of a title
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: trailerId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title or trailer (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/rating:
+    post:
+      operationId: setItemsRating
+      summary: Assign an age rating to many titles at once (B-9, AN-1)
+      description: |
+        The same semantics as `setItemRating` for every id in the list, in transactions of at most 500 rows.
+        Unknown ids are skipped and not counted. `null` clears the overrides.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemsRatingRequest"
+      responses:
+        "200":
+          description: Number of titles changed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [updated]
+                properties:
+                  updated:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/metadata/search:
+    get:
+      operationId: searchMetadata
+      summary: Search a metadata provider for the manual assignment (B-6)
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/MetadataProvider"
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [movie, series]
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1800
+            maximum: 2100
+      responses:
+        "200":
+          description: Candidates, best first (at most 20).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MetadataCandidate"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Provider not configured or key rejected (`tmdb_key_invalid`, `tmdb_unreachable`, `provider_not_configured`), or validation failed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/maintenance/issues:
+    get:
+      operationId: listMaintenanceIssues
+      summary: Titles and files that need attention (B-9)
+      description: |
+        `unmatched`: no provider match (or pending for more than 24 h); `no_images`: matched film or series
+        without a poster; `unrated`: effective rating unknown (hidden from every profile under 18, AN-1);
+        `orphaned`: titles without a file or with only missing files, seasons without episodes, series
+        without seasons; `unplayable`: media files ffprobe cannot read (one entry per file);
+        `rating_mismatch`: stored derived rating columns differ from a fresh computation (plan 3.2
+        `rating.verify`).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/IssueKind"
+        - name: libraryId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: One page of issues.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssuePage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/maintenance/duplicates:
+    get:
+      operationId: listDuplicates
+      summary: Titles and files that exist twice (B-9)
+      description: |
+        Groups of films or series of one library with the same provider id, with the same title and year
+        (without provider id), and media files with the same content hash (also across titles).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: libraryId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Duplicate groups.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DuplicateGroup"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/maintenance/merge:
+    post:
+      operationId: mergeItems
+      summary: Merge duplicate titles into one (B-9)
+      description: |
+        Moves the media files, children, extras, trailers and credits of the source titles to the target,
+        merges the progress per profile (the larger position wins) and deletes the sources. Sources must be
+        of the same kind and library as the target.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MergeRequest"
+      responses:
+        "200":
+          description: The merged title.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/maintenance/cleanup:
+    post:
+      operationId: cleanupItems
+      summary: Remove orphaned titles and unplayable files (B-9)
+      description: |
+        Titles in the list are soft-deleted when they have no file or only missing files (others are skipped).
+        Media files in the list are removed from the library and recorded as ignored, so the next scan does
+        not add them again; a title left without a file is soft-deleted too.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CleanupRequest"
+      responses:
+        "200":
+          description: What was removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, files]
+                properties:
+                  items:
+                    type: integer
+                  files:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
         "422":
           description: Validation failed (`validation_failed`).
           content:
@@ -2216,6 +2748,29 @@ components:
             poster tint and the backdrop scrim; omitted while no poster is processed.
         progress:
           $ref: "#/components/schemas/Progress"
+        parentId:
+          $ref: "#/components/schemas/ItemID"
+          description: Season of an episode, series of a season, parent title of an extra.
+        seasonNumber:
+          type: integer
+          minimum: 0
+          description: Seasons and episodes; 0 = specials.
+        episodeNumber:
+          type: integer
+          minimum: 0
+        episodeEnd:
+          type: integer
+          minimum: 0
+          description: Last episode number of a file that holds several episodes (S01E01-E02).
+        seriesTitle:
+          type: string
+          description: Title of the series in the profile language (seasons and episodes).
+        extraKind:
+          $ref: "#/components/schemas/ExtraKind"
+        childCount:
+          type: integer
+          minimum: 0
+          description: Visible seasons of a series, visible episodes of a season.
 
     ItemDetail:
       allOf:
@@ -2241,8 +2796,111 @@ components:
               format: int64
             mediaFiles:
               type: array
+              description: Versions of the title (B-5), the primary version first; `versionLabel` is always set.
               items:
                 $ref: "#/components/schemas/MediaFileInfo"
+            tvdbId:
+              type: integer
+              format: int64
+            series:
+              $ref: "#/components/schemas/ItemRef"
+              description: The series of a season or an episode.
+            season:
+              $ref: "#/components/schemas/ItemRef"
+              description: The season of an episode.
+            seasons:
+              type: array
+              description: Visible seasons of a series by number, specials last.
+              items:
+                $ref: "#/components/schemas/ItemRef"
+            episodes:
+              type: array
+              description: Visible episodes of a season by number.
+              items:
+                $ref: "#/components/schemas/ItemRef"
+            extras:
+              type: array
+              description: Visible extras of a film, series or season (B-7).
+              items:
+                $ref: "#/components/schemas/ItemRef"
+            nextEpisode:
+              $ref: "#/components/schemas/ItemRef"
+              description: The next visible episode of the same series after this episode.
+            cast:
+              type: array
+              description: Cast and crew in provider order (B-3).
+              items:
+                $ref: "#/components/schemas/CastMember"
+            trailerCount:
+              type: integer
+              minimum: 0
+              description: Trailers known for the title (`getItemTrailers`).
+
+    ExtraKind:
+      type: string
+      enum: [trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other]
+
+    CastMember:
+      type: object
+      required: [personId, name, role]
+      properties:
+        personId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        role:
+          type: string
+          enum: [cast, director, writer, creator]
+        character:
+          type: string
+
+    Person:
+      type: object
+      required: [id, name, credits]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        credits:
+          type: array
+          items:
+            type: object
+            required: [item, role]
+            properties:
+              item:
+                $ref: "#/components/schemas/ItemRef"
+              role:
+                type: string
+                enum: [cast, director, writer, creator]
+              character:
+                type: string
+
+    Trailer:
+      type: object
+      required: [id, lang, youtubeId, embedUrl, source, official]
+      properties:
+        id:
+          type: integer
+          format: int64
+        lang:
+          type: string
+          description: ISO 639-1 language of the trailer (`de`, `en`, …).
+        youtubeId:
+          type: string
+        embedUrl:
+          type: string
+          format: uri
+          description: '`https://www.youtube-nocookie.com/embed/<youtubeId>` for the IFrame player.'
+        title:
+          type: string
+        source:
+          type: string
+          enum: [tmdb, youtube, ai, manual]
+        official:
+          type: boolean
 
     MediaFileInfo:
       type: object
@@ -2421,6 +3079,271 @@ components:
           format: date-time
           description: Device clock when the event was created.
 
+    MetadataProvider:
+      type: string
+      enum: [tmdb, tvdb]
+
+    ItemMatchRequest:
+      type: object
+      required: [provider, providerId]
+      properties:
+        provider:
+          $ref: "#/components/schemas/MetadataProvider"
+        providerId:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Id at the provider (TMDB and TVDB ids are numeric).
+
+    TrailerRequest:
+      type: object
+      required: [lang]
+      properties:
+        lang:
+          type: string
+          pattern: "^[a-z]{2,3}$"
+        youtubeId:
+          type: string
+          minLength: 8
+          maxLength: 16
+        url:
+          type: string
+          maxLength: 512
+          description: YouTube URL as an alternative to `youtubeId`.
+
+    ItemsRatingRequest:
+      type: object
+      required: [itemIds, rating]
+      properties:
+        itemIds:
+          type: array
+          minItems: 1
+          maxItems: 5000
+          items:
+            $ref: "#/components/schemas/ItemID"
+        rating:
+          oneOf:
+            - $ref: "#/components/schemas/Rating"
+            - type: "null"
+
+    MetadataCandidate:
+      type: object
+      required: [provider, providerId, title]
+      properties:
+        provider:
+          $ref: "#/components/schemas/MetadataProvider"
+        providerId:
+          type: string
+        title:
+          type: string
+        originalTitle:
+          type: string
+        year:
+          type: integer
+        overview:
+          type: string
+        posterUrl:
+          type: string
+          format: uri
+          description: Small poster at the provider's image host (administration only).
+
+    AdminMediaFile:
+      type: object
+      required: [id, path, sizeBytes, available]
+      properties:
+        id:
+          type: string
+        rootId:
+          type: integer
+          format: int64
+        path:
+          type: string
+          description: Path relative to the library root (administration only).
+        sizeBytes:
+          type: integer
+          format: int64
+        available:
+          type: boolean
+        versionLabel:
+          type: string
+        probedAt:
+          type: string
+          format: date-time
+        probeError:
+          type: string
+          description: Last ffprobe failure; set means unplayable (B-9).
+
+    AdminItem:
+      type: object
+      description: Administration view of a title; not an `ItemRef` (unfiltered, admin only).
+      required: [id, kind, title, libraryId, metadataState, lockedFields, trailerState, trailers, mediaFiles, children]
+      properties:
+        id:
+          $ref: "#/components/schemas/ItemID"
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        title:
+          type: string
+          description: Parsed title of the item.
+        year:
+          type: integer
+        libraryId:
+          type: integer
+          format: int64
+        parentId:
+          $ref: "#/components/schemas/ItemID"
+        seasonNumber:
+          type: integer
+        episodeNumber:
+          type: integer
+        episodeEnd:
+          type: integer
+        metadataState:
+          type: string
+          enum: [pending, matched, unmatched, failed, skipped]
+        metadataError:
+          type: string
+        matchedAt:
+          type: string
+          format: date-time
+        tmdbId:
+          type: integer
+          format: int64
+        tvdbId:
+          type: integer
+          format: int64
+        imdbId:
+          type: string
+        lockedFields:
+          type: array
+          items:
+            type: string
+        ownRating:
+          $ref: "#/components/schemas/Rating"
+        effectiveRating:
+          $ref: "#/components/schemas/Rating"
+        ratingSource:
+          type: string
+        trailerState:
+          type: string
+          enum: [pending, found, none, failed]
+        trailers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trailer"
+        mediaFiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminMediaFile"
+        children:
+          type: object
+          required: [seasons, episodes, extras]
+          properties:
+            seasons:
+              type: integer
+            episodes:
+              type: integer
+            extras:
+              type: integer
+
+    IssueKind:
+      type: string
+      enum: [unmatched, no_images, unrated, orphaned, unplayable, rating_mismatch]
+
+    Issue:
+      type: object
+      required: [kind, itemId, itemKind, title, libraryId]
+      properties:
+        kind:
+          $ref: "#/components/schemas/IssueKind"
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+        itemKind:
+          $ref: "#/components/schemas/ItemKind"
+        title:
+          type: string
+        year:
+          type: integer
+        libraryId:
+          type: integer
+          format: int64
+        path:
+          type: string
+          description: Path of the file concerned, relative to its library root.
+        mediaFileId:
+          type: string
+        detail:
+          type: string
+          description: Stable code or message, for example the metadata error or the probe error.
+
+    IssuePage:
+      type: object
+      required: [total, items]
+      properties:
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Issue"
+
+    DuplicateGroup:
+      type: object
+      required: [reason, items]
+      properties:
+        reason:
+          type: string
+          enum: [provider_id, title_year, file_hash]
+        items:
+          type: array
+          minItems: 2
+          items:
+            type: object
+            required: [itemId, kind, title, files]
+            properties:
+              itemId:
+                $ref: "#/components/schemas/ItemID"
+              kind:
+                $ref: "#/components/schemas/ItemKind"
+              title:
+                type: string
+              year:
+                type: integer
+              libraryId:
+                type: integer
+                format: int64
+              files:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminMediaFile"
+
+    MergeRequest:
+      type: object
+      required: [targetId, sourceIds]
+      properties:
+        targetId:
+          $ref: "#/components/schemas/ItemID"
+        sourceIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/ItemID"
+
+    CleanupRequest:
+      type: object
+      properties:
+        itemIds:
+          type: array
+          maxItems: 5000
+          items:
+            $ref: "#/components/schemas/ItemID"
+        mediaFileIds:
+          type: array
+          maxItems: 5000
+          items:
+            type: string
+
     LibraryKind:
       type: string
       enum: [movies, series]
@@ -2458,7 +3381,8 @@ components:
       enum: [never, queued, running, done, failed, aborted]
       description: |
         `aborted` means the loss protection stopped the scan (root missing or empty, or more than 20 % of
-        the files vanished); `lastError` carries the reason and `acceptLibraryLoss` lifts the block.
+        the files vanished) or the administrator cancelled it (`lastError` `cancelled`); `lastError` carries
+        the reason and `acceptLibraryLoss` lifts the block.
 
     Library:
       type: object

@@ -135,6 +135,27 @@ const itemRoute = createRoute({
   component: ItemPage,
 });
 
+const personRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/people/$personId',
+  component: lazyRouteComponent(() => import('@/features/catalog/PersonPage'), 'PersonPage'),
+});
+
+const maintenanceRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/maintenance',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/MaintenancePage'),
+    'MaintenancePage',
+  ),
+});
+
+const adminItemRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/items/$itemId',
+  component: lazyRouteComponent(() => import('@/features/admin/AdminItemPage'), 'AdminItemPage'),
+});
+
 const librariesRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/admin/libraries',
@@ -159,6 +180,9 @@ const accessRoute = createRoute({
 const playRoute = createRoute({
   getParentRoute: () => activeRoute,
   path: '/play/$itemId',
+  // `file` picks a version of the title (B-5); anything else is dropped.
+  validateSearch: (search: Record<string, unknown>): { file?: string } =>
+    typeof search.file === 'string' && search.file !== '' ? { file: search.file } : {},
   component: lazyRouteComponent(() => import('@/features/player/PlayerPage'), 'PlayerPage'),
 });
 
@@ -174,7 +198,10 @@ export const routeTree = rootRoute.addChildren([
       chromeRoute.addChildren([
         homeRoute,
         itemRoute,
+        personRoute,
         librariesRoute,
+        maintenanceRoute,
+        adminItemRoute,
         accessRoute,
         profileSettingsRoute,
       ]),

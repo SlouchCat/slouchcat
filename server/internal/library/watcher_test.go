@@ -387,12 +387,12 @@ func TestStartRunsWatchersAndSchedules(t *testing.T) {
 		st, ok := e.svc.WatcherStats()[lib.Roots[0].ID]
 		return ok && (st.Dirs > 0 || st.LastPass.Dirs > 0)
 	})
-	if n := e.queuedScans(); n != 1 {
-		t.Errorf("scans queued by Start = %d, want 1", n)
-	}
-	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = 'sweep'`, JobSweep); n != 1 {
-		t.Errorf("sweep jobs = %d, want 1", n)
-	}
+	// Start queues the scan and the sweep after the watchers are up; on a slow runner the watcher
+	// reports its first pass before those rows exist, so wait for them like for the watcher.
+	waitFor(t, 5*time.Second, "the scan queued by Start", func() bool { return e.queuedScans() == 1 })
+	waitFor(t, 5*time.Second, "the sweep queued by Start", func() bool {
+		return e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = 'sweep'`, JobSweep) == 1
+	})
 	// A library created while Start runs gets its watcher.
 	dir2 := t.TempDir()
 	lib2, err := e.svc.Create(e.ctx, testRequest("Zweite", dir2))

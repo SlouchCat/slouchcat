@@ -7,6 +7,7 @@ const problemKeys = {
   library_path_invalid: 'errors.code.library_path_invalid',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
+  provider_not_configured: 'errors.code.provider_not_configured',
   setup_done: 'errors.code.setup_done',
   not_found: 'errors.code.not_found',
   unauthenticated: 'errors.code.unauthenticated',

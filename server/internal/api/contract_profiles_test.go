@@ -72,23 +72,106 @@ type profileCall struct {
 	invisibleStatus int // expected status for an invisible item; 0 = 404 not_found
 	mint            string
 	streamOnly      bool
-	check           func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder)
+	// want is the expected status of a call without {id} for a profile; nil = any status below 500.
+	want  func(f *vistest.Fixture, p model.Profile) int
+	check func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder)
+}
+
+// fixtureProfile returns the profile behind a logical session name of profileAuth.
+func fixtureProfile(f *vistest.Fixture, token string) model.Profile {
+	return map[string]model.Profile{
+		"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX, "pg": f.PG, "pg18": f.PG18,
+	}[token]
+}
+
+// personCredits returns the credits of the fixture person that p may see: the cast credit in the
+// film rated 6 and the director credit of the film rated 18.
+func personCredits(f *vistest.Fixture, p model.Profile) []string {
+	var out []string
+	for _, c := range []struct {
+		m    vistest.Movie
+		role string
+	}{{f.Rated(18), "director"}, {f.Rated(6), "cast"}} {
+		if f.VisibleTo(p, c.m) {
+			out = append(out, c.m.ID+"/"+c.role)
+		}
+	}
+	return out
 }
 
 var profileRegistry = map[string]profileCall{
 	"getHome": {contract: "GET /home", path: "/home"},
 	"getItem": {contract: "GET /items/{id}", path: "/items/{id}", perItem: true, okStatus: http.StatusOK,
-		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var d struct {
 				ID         string `json:"id"`
 				MediaFiles []struct {
-					ID string `json:"id"`
+					ID           string `json:"id"`
+					VersionLabel string `json:"versionLabel"`
 				} `json:"mediaFiles"`
-				Genres []string `json:"genres"`
+				Genres       []string `json:"genres"`
+				TrailerCount *int     `json:"trailerCount"`
 			}
 			decode(t, rec, &d)
-			if d.ID != m.ID || len(d.MediaFiles) != 1 || d.MediaFiles[0].ID != m.FileID || d.Genres == nil {
+			files := 1
+			if m.ID == f.Rated(12).ID {
+				files = 2 // the 720p version (B-5) after the 1080p primary file
+			}
+			if d.ID != m.ID || len(d.MediaFiles) != files || d.MediaFiles[0].ID != m.FileID || d.Genres == nil ||
+				d.TrailerCount == nil || *d.TrailerCount != f.Trailers[m.ID] {
 				t.Errorf("getItem %s = %s", m.Label, rec.Body.String())
+			}
+			for _, mf := range d.MediaFiles {
+				if mf.VersionLabel == "" {
+					t.Errorf("getItem %s: file %s without version label", m.Label, mf.ID)
+				}
+			}
+		}},
+	"getItemTrailers": {contract: "GET /items/{id}/trailers", path: "/items/{id}/trailers", perItem: true, okStatus: http.StatusOK,
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			var list []struct {
+				Lang      string `json:"lang"`
+				YoutubeID string `json:"youtubeId"`
+				EmbedURL  string `json:"embedUrl"`
+			}
+			decode(t, rec, &list)
+			if len(list) != f.Trailers[m.ID] {
+				t.Errorf("getItemTrailers %s: %d trailers, want %d", m.Label, len(list), f.Trailers[m.ID])
+			}
+			for _, tr := range list {
+				if tr.EmbedURL != "https://www.youtube-nocookie.com/embed/"+tr.YoutubeID {
+					t.Errorf("getItemTrailers %s: embedUrl %q", m.Label, tr.EmbedURL)
+				}
+			}
+			if m.ID == f.Rated(6).ID && (len(list) != 2 || list[0].Lang != fixtureProfile(f, token).Language) {
+				t.Errorf("getItemTrailers %s for %s: %s, want de and en with the profile language first", m.Label, token, rec.Body.String())
+			}
+		}},
+	"getPerson": {contract: "GET /people/{id}", path: "/people/1",
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if len(personCredits(f, p)) == 0 {
+				return http.StatusNotFound
+			}
+			return http.StatusOK
+		},
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			var person struct {
+				ID      int64  `json:"id"`
+				Name    string `json:"name"`
+				Credits []struct {
+					Item struct {
+						ID string `json:"id"`
+					} `json:"item"`
+					Role string `json:"role"`
+				} `json:"credits"`
+			}
+			decode(t, rec, &person)
+			var got []string
+			for _, c := range person.Credits {
+				got = append(got, c.Item.ID+"/"+c.Role)
+			}
+			if want := personCredits(f, fixtureProfile(f, token)); person.ID != f.Person.ID || person.Name != f.Person.Name || !slices.Equal(got, want) {
+				t.Errorf("getPerson for %s = %s, want credits %v", token, rec.Body.String(), want)
 			}
 		}},
 	"getItemImage": {contract: "GET /items/{id}/images/{kind}/{size}", path: "/items/{id}/images/poster/w400", perItem: true, okStatus: http.StatusOK,
@@ -318,7 +401,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log)
+	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
+		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{})
 
 	pa := profileAuth{Service: a, tokens: map[string]string{}}
 	sessions := map[string]model.Session{}
@@ -420,8 +504,8 @@ func TestContractChildProfiles(t *testing.T) {
 
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
-	titles := slices.Concat(f.Movies, f.Show.All())                            // everything a response must not leak
-	playable := slices.Concat(f.Movies, []vistest.Movie{f.Show.E1, f.Show.E2}) // titles with a file
+	titles := f.All()        // everything a response must not leak
+	playable := f.Playable() // titles with a file
 
 	// Positive checks on the start page come first, before reportProgress changes progress.
 	t.Run("home", func(t *testing.T) {
@@ -496,6 +580,16 @@ func TestContractChildProfiles(t *testing.T) {
 					if rec.Code >= 500 {
 						t.Errorf("%s: status %d (%s)", op, rec.Code, rec.Body.String())
 					}
+					if call.want != nil {
+						if want := call.want(f, profile); rec.Code != want {
+							t.Errorf("%s: status %d (%s), want %d", op, rec.Code, rec.Body.String(), want)
+						} else if want == http.StatusNotFound && problemCode(t, rec) != "not_found" {
+							t.Errorf("%s: code %s, want not_found", op, problemCode(t, rec))
+						}
+					}
+					if call.check != nil && rec.Code == http.StatusOK {
+						call.check(t, f, h, token, vistest.Movie{}, rec)
+					}
 					assertOnlyVisible(t, f, op, profile, titles, itemIDsIn(t, rec, titles))
 					continue
 				}
@@ -548,6 +642,14 @@ func TestContractChildProfiles(t *testing.T) {
 				}
 				if rec.Code == http.StatusNotFound && problemCode(t, rec) != "not_found" {
 					t.Errorf("%s getItem %s: code %s, want not_found", profile.Name, m.Label, problemCode(t, rec))
+				}
+				if rec.Code == http.StatusOK { // a 404 names the requested id in its instance only
+					// seasons, episodes, extras, series, season and nextEpisode name visible titles only
+					assertOnlyVisible(t, f, "getItem "+m.Label, profile, titles, itemIDsIn(t, rec, titles))
+				}
+				trailers := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/trailers", token, "", nil)
+				if want := f.VisibleTo(profile, m); want != (trailers.Code == http.StatusOK) {
+					t.Errorf("%s getItemTrailers %s %s: status %d, visible want %v", profile.Name, m.Kind, m.Label, trailers.Code, want)
 				}
 				img := send(t, h, http.MethodGet, BasePath+"/items/"+m.ID+"/images/poster/w400", token, "", nil)
 				if want := f.VisibleTo(profile, m); want != (img.Code == http.StatusOK) {

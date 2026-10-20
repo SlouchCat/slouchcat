@@ -34,11 +34,16 @@ var discard = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 func newTestQueue(t *testing.T) (*Queue, *clock) {
 	t.Helper()
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: discard})
+	return newBenchQueue(t)
+}
+
+func newBenchQueue(tb testing.TB) (*Queue, *clock) {
+	tb.Helper()
+	db, err := store.Open(context.Background(), store.Options{ConfigDir: tb.TempDir(), Version: "test", Logger: discard})
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
+	tb.Cleanup(func() { _ = db.Close() })
 	c := &clock{now: time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)}
 	return NewQueue(db.Write, c.Now), c
 }

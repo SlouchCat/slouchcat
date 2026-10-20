@@ -19,6 +19,7 @@ const knownErrors = {
   root_missing: 'admin.libraries.error.root_missing',
   root_empty: 'admin.libraries.error.root_empty',
   loss_over_threshold: 'admin.libraries.error.loss_over_threshold',
+  cancelled: 'admin.libraries.error.cancelled',
 } as const;
 
 const watchKeys = {
@@ -92,7 +93,15 @@ export function LibraryCard({ library, actions }: LibraryCardProps) {
       </div>
 
       {scan.lastError && (scan.state === 'failed' || scan.state === 'aborted') && (
-        <Notice tone={scan.state === 'aborted' ? 'warning' : 'danger'}>
+        <Notice
+          tone={
+            scan.lastError === 'cancelled'
+              ? 'info'
+              : scan.state === 'aborted'
+                ? 'warning'
+                : 'danger'
+          }
+        >
           {errorText(t, scan.lastError)}
         </Notice>
       )}

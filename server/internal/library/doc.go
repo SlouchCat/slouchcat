@@ -1,32 +1,76 @@
 // Package library manages the media libraries of Slouchcat: their roots, the scanner that turns
 // files into titles, the probe jobs, the watchers that notice changes and the sweep of titles whose
-// files are gone (plan sections 3.2, 3.4 and 3.6, milestone M1a).
+// files are gone (plan sections 3.2, 3.4 and 3.6, milestones M1a and M3).
 //
 // # Scan (job scan.library)
 //
 // A full scan of a library runs in two phases, so that nothing is written when it aborts:
 //
-//  1. Read: for every root, open it through package paths (os.Root), walk it and collect the video
-//     files (extras, samples, hidden entries and NAS metadata folders are skipped), then match them
+//  1. Read: for every root, open it through package paths (os.Root), load its ignored_files, walk
+//     it and collect the video files of the library kind: movies and extras inside movie folders
+//     (ParseMoviePath), or episodes and extras below series folders (ParseSeriesPath); samples,
+//     ignored files, hidden entries and NAS metadata folders are skipped, and the files of a series
+//     library without an episode marker are skipped and logged once per directory. Then match them
 //     against the known media files of the root: the same rel_path is the same file (size and
 //     mtime are updated, a changed file is probed again); otherwise an equal (dev, inode, size)
 //     means renamed or moved on the same device; otherwise an equal partial_hash (SHA-256 over the
 //     first and last 64 KiB and the size) means moved across devices; everything else is new.
 //     Known files without a match are missing.
 //  2. Write: in transactions of at most 500 rows on the writer connection, with the context
-//     checked between batches. A new file joins the undeleted item of the library with the same
-//     TMDB id, else IMDb id, else (sort_title, year), or creates a movie item and queues
-//     metadata.match; every new or changed file queues probe.file. Jobs are inserted in the same
-//     transaction as the rows they refer to. Renames keep the media file id and therefore the item
-//     and all user data (progress hangs on the item). Missing files get missing_since; a file that
-//     reappears clears it and restores a soft-deleted item.
+//     checked between batches and the progress recorded with each. New extras are written after
+//     everything else, so their parent exists. Jobs are inserted in the same transaction as the
+//     rows they refer to; every new or changed file queues probe.file. Renames keep the media file
+//     id and therefore the item and all user data (progress hangs on the item). Missing files get
+//     missing_since; a file that reappears clears it, is probed again and restores a soft-deleted
+//     item with its soft-deleted season and series (a film above an extra only with a present file
+//     of its own).
+//
+// A new movie file joins the undeleted movie of the library with the same TMDB id, else IMDb id,
+// else (sort_title, year), or creates a movie item and queues metadata.match. A new episode file
+// finds or creates its series in the same way (TVDB id first, then the series that owns the series
+// folder, whose year the metadata job may have changed, then (sort_title, year); a new series
+// queues metadata.match with priority 4), then the season by (series, season number) with items.title "Season N" or
+// "Specials" (no metadata job), then the episode by (season, episode number) with the title from
+// the name or the NFO, else "Episode N", the numbers, episode_end of a multi-episode file and the
+// release date of a daily show. A second file of the same episode is a version of it. A new
+// episode queues its own metadata.match (priority 3) only when the series is matched already;
+// otherwise the series job fills it. NFO files: movie.nfo or <stem>.nfo of a movie, tvshow.nfo in
+// the series folder, <stem>.nfo (episodedetails) of an episode; a German rating in them becomes
+// own_rating with rating_source nfo. Titles soft-deleted within 30 days come back through a new
+// file with the same provider id, a series with its seasons and episodes.
+//
+// An extra (Trailers/, Featurettes/, … folders or a -trailer, -featurette, … suffix) becomes an
+// item of kind extra with extra_kind, its own media file and probe.file and no metadata job. Its
+// parent is the movie of its movie folder, or the season of its season folder, else the series of
+// its series folder; a soft-deleted title is never a parent. An extra without such a title (two
+// movies in one folder, a Trailers/ folder in the root of a series library, a series not scanned
+// yet) is skipped and remembered while the server runs: later scans without other changes neither
+// hash nor plan it, a scan with other changes tries it again.
 //
 // A second scan of an unchanged tree finds every file by its path and writes nothing except the
 // scan state, so scans converge and can run again after an interrupted job.
 //
 // After a successful scan the optional image check (WithImageCheck, metadata's
 // QueueIncompleteImages) queues image.fetch for matched titles whose stored images miss a size
-// (a size added in a later release) or whose image files were deleted from the cache.
+// (a size added in a later release) or whose image files were deleted from the cache, and the
+// optional metadata check (WithMetadataCheck, metadata's QueuePendingMetadata) queues
+// metadata.match for titles still pending, so enrichment converges after aborted scans.
+//
+// # Cancel and ignored files
+//
+// CancelScan cancels the scan.library and scan.path jobs of a library and the context of a
+// running scan; the scan ends with state aborted and last_scan_error "cancelled" (a server
+// shutdown leaves it queued instead). IgnoreFiles enters media files into ignored_files, deletes
+// their rows and soft-deletes titles left without a file; the scanner skips ignored files.
+//
+// # Probe
+//
+// probe.file stores codecs, resolution, duration, the probe JSON and the tracks. When ffprobe
+// rejects the file (transcode.FileError: an exit error that is not an operating system failure,
+// or output that does not parse), it records probed_at and probe_error (the message without the
+// host path), stores no tracks and ends without retry; a later successful probe clears
+// probe_error. Any other failure (ffprobe missing or not configured, no process, a share that
+// dropped) is returned, so the job retries with backoff.
 //
 // # Path scan (job scan.path)
 //
@@ -80,7 +124,8 @@
 // The administrator lifts the last two once with AcceptLoss: the next scan applies the loss and
 // clears loss_accepted_at (a path scan clears it only when it needed it). A missing root is never
 // accepted. Titles whose files all stayed missing
-// for 24 h are soft-deleted by the hourly job library.sweep.
+// for 24 h are soft-deleted by the hourly job library.sweep, together with seasons and series left
+// without undeleted children.
 //
 // # Change detection
 //

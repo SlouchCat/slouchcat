@@ -145,7 +145,33 @@ var adminRegistry = map[string]adminCall{
 	"updateGuest":       {contract: "PATCH /admin/guests/{id}", path: "/admin/guests/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
 	"revokeGuest":       {contract: "DELETE /admin/guests/{id}", path: "/admin/guests/9999", ownerStatus: http.StatusNotFound},
 	"setItemRating":     {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
+	// M3: requests against fixture titles that leave the fixture unchanged (the fake metadata and
+	// library services of the contract fixture record nothing).
+	"cancelLibraryScan": {contract: "DELETE /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
+	"getAdminItem":      {contract: "GET /admin/items/{id}", path: "/admin/items/" + fixtureFilm6, ownerStatus: http.StatusOK},
+	"setItemMatch": {contract: "PUT /admin/items/{id}/match", path: "/admin/items/" + fixtureFilm6 + "/match",
+		body: `{"provider":"tmdb","providerId":"603"}`, ownerStatus: http.StatusAccepted},
+	"refreshItem": {contract: "POST /admin/items/{id}/refresh", path: "/admin/items/" + fixtureFilm6 + "/refresh", ownerStatus: http.StatusAccepted},
+	"createItemTrailer": {contract: "POST /admin/items/{id}/trailers", path: "/admin/items/" + fixtureFilm6 + "/trailers",
+		body: `{"lang":"de","url":"https://youtu.be/dQw4w9WgXcQ"}`, ownerStatus: http.StatusCreated},
+	"deleteItemTrailer": {contract: "DELETE /admin/items/{id}/trailers/{trailerId}", path: "/admin/items/" + fixtureFilm6 + "/trailers/999", ownerStatus: http.StatusNotFound},
+	"setItemsRating": {contract: "POST /admin/items/rating", path: "/admin/items/rating",
+		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
+	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",
+		ownerStatus: http.StatusUnprocessableEntity},
+	"listMaintenanceIssues": {contract: "GET /admin/maintenance/issues", path: "/admin/maintenance/issues?kind=unrated", ownerStatus: http.StatusOK},
+	"listDuplicates":        {contract: "GET /admin/maintenance/duplicates", path: "/admin/maintenance/duplicates", ownerStatus: http.StatusOK},
+	"mergeItems": {contract: "POST /admin/maintenance/merge", path: "/admin/maintenance/merge",
+		body: `{"targetId":"` + fixtureFilm6 + `","sourceIds":["` + fixtureSeries + `"]}`, ownerStatus: http.StatusUnprocessableEntity},
+	"cleanupItems": {contract: "POST /admin/maintenance/cleanup", path: "/admin/maintenance/cleanup",
+		body: `{"itemIds":["` + fixtureFilm6 + `"]}`, ownerStatus: http.StatusOK},
 }
+
+// Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).
+const (
+	fixtureFilm6  = "01J9000000000000000000R006"
+	fixtureSeries = "01J9000000000000000000R0SS"
+)
 
 // publicCall is one call of the public registry (no session).
 type publicCall struct {
@@ -241,7 +267,7 @@ func TestContractAccountOperations(t *testing.T) {
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
-	titles := slices.Concat(f.Movies, f.Show.All())
+	titles := f.All()
 	q := appq.New(f.DB.Write)
 
 	ids := keysOf(accountRegistry)
@@ -293,7 +319,6 @@ func TestContractAdminOperations(t *testing.T) {
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	h := pf.h
-	titles := slices.Concat(pf.f.Movies, pf.f.Show.All())
 
 	ids := keysOf(adminRegistry)
 	sort.Strings(ids)
@@ -317,8 +342,13 @@ func TestContractAdminOperations(t *testing.T) {
 			if rec.Code != call.ownerStatus {
 				t.Errorf("owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}
-			if found := itemIDsIn(t, rec, titles); len(found) != 0 {
-				t.Errorf("response contains title ids %v", found)
+			// Administration views name titles by id (unfiltered, owner only) but never as ItemRef,
+			// which carries scoped image URLs.
+			if refs := itemRefsIn(t, rec); len(refs) != 0 {
+				t.Errorf("response contains ItemRef objects %v", refs)
+			}
+			if strings.Contains(rec.Body.String(), "/images/") {
+				t.Errorf("response contains image URLs: %s", rec.Body.String())
 			}
 			assertNoSecrets(t, id, rec)
 		})
@@ -329,7 +359,7 @@ func TestContractAdminOperations(t *testing.T) {
 func TestContractPublicOperations(t *testing.T) {
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
-	titles := slices.Concat(pf.f.Movies, pf.f.Show.All())
+	titles := pf.f.All()
 	ids := keysOf(publicRegistry)
 	sort.Strings(ids)
 	for _, id := range ids {
@@ -436,6 +466,9 @@ func TestContractRatingChange(t *testing.T) {
 	if got := segment(ps, st); got != http.StatusNotFound {
 		t.Errorf("segment of the running stream after the raise: %d, want 404", got)
 	}
+	if rec := send(t, h, http.MethodGet, BasePath+"/items/"+show.Series.ID+"/trailers", "p12", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("P12 trailers of the raised series: %d, want 404", rec.Code)
+	}
 	if got := getTitle(t, h, "p16", show.Series.ID); got != http.StatusOK {
 		t.Errorf("P16 must see the series rated 16: %d", got)
 	}
@@ -448,10 +481,14 @@ func TestContractRatingChange(t *testing.T) {
 		t.Fatalf("setItemRating 12 = %d %s", rec.Code, rec.Body.String())
 	}
 	home = homeIDs(t, h, "p12")
-	for _, m := range []vistest.Movie{show.Series, show.Season, show.E1} {
+	for _, m := range []vistest.Movie{show.Series, show.Season, show.E1, show.E3, show.Specials, show.Special, show.Extra} {
 		if got := getTitle(t, h, "p12", m.ID); got != http.StatusOK {
 			t.Errorf("P12 getItem %s %s after the way back: %d, want 200", m.Kind, m.Label, got)
 		}
+	}
+	if d := getDetail(t, h, "p12", show.Series.ID); !slices.Equal(refIDs(d.Seasons), []string{show.Season.ID, show.Specials.ID}) ||
+		!slices.Equal(refIDs(d.Extras), []string{show.Extra.ID}) || d.TrailerCount != 2 {
+		t.Errorf("P12 series after the way back: seasons %v, extras %v, trailers %d", refIDs(d.Seasons), refIDs(d.Extras), d.TrailerCount)
 	}
 	if got := getTitle(t, h, "p12", show.E2.ID); got != http.StatusNotFound {
 		t.Errorf("P12 getItem E2 after the way back: %d, want 404 (own rating 16)", got)
@@ -481,11 +518,33 @@ func TestContractRatingChange(t *testing.T) {
 		t.Fatalf("restore 12: %d", rec.Code)
 	}
 
+	// The extras of a film follow the film: raised to 16, its trailer and featurette vanish for P12.
+	m6 := f.Rated(6)
+	for _, x := range f.Extras {
+		if got := getTitle(t, h, "p12", x.ID); got != http.StatusOK {
+			t.Fatalf("P12 getItem extra %s before the raise: %d", x.Label, got)
+		}
+	}
+	if rec := setRating(t, h, "p18", m6.ID, `{"rating":16}`); rec.Code != http.StatusOK {
+		t.Fatalf("raise the 6-rated film: %d", rec.Code)
+	}
+	for _, x := range f.Extras {
+		if got := getTitle(t, h, "p12", x.ID); got != http.StatusNotFound {
+			t.Errorf("P12 getItem extra %s of the raised film: %d, want 404", x.Label, got)
+		}
+		if got := getTitle(t, h, "p16", x.ID); got != http.StatusOK {
+			t.Errorf("P16 getItem extra %s of the film rated 16: %d, want 200", x.Label, got)
+		}
+	}
+	if rec := setRating(t, h, "p18", m6.ID, `{"rating":6}`); rec.Code != http.StatusOK {
+		t.Fatalf("restore the film to 6: %d", rec.Code)
+	}
+
 	// The guest's profile PG18 allows 18 but its account stops at 12: nothing above 12, nothing
 	// of library X, on every path.
 	for _, token := range []string{"pg", "pg18"} {
 		profile := pf.tokens[token]
-		titles := slices.Concat(f.Movies, show.All())
+		titles := f.All()
 		for _, m := range titles {
 			if want := f.VisibleTo(profile, m); want != (getTitle(t, h, token, m.ID) == http.StatusOK) {
 				t.Errorf("%s getItem %s: want visible %v", profile.Name, m.Label, want)
@@ -885,6 +944,24 @@ func TestContractRatingChangeEndsOpenDirectStream(t *testing.T) {
 	if got := send(t, h, http.MethodGet, BasePath+"/items/"+e1.ID+"/stream?st="+url.QueryEscape(st), "", "", map[string]string{"Range": "bytes=0-9"}).Code; got != http.StatusNotFound {
 		t.Errorf("new Range request after the change: %d, want 404", got)
 	}
+}
+
+// M3 review, findings 9 and 10: merging a title into another deletes the source, so an open
+// direct stream of the source ends like after a rating change.
+func TestContractMergeEndsOpenDirectStream(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	source, target := f.Rated(6), f.Rated(0)
+	if err := os.Truncate(filepath.Join(f.MediaDir, filepath.FromSlash(source.RelPath)), 1<<30); err != nil {
+		t.Fatal(err)
+	}
+	_, st := pf.mint(t, "p18", source, "direct")
+	closed, _ := openRange(t, h, BasePath+"/items/"+source.ID+"/stream?st="+url.QueryEscape(st))
+	body := `{"targetId":"` + target.ID + `","sourceIds":["` + source.ID + `"]}`
+	if rec := send(t, h, http.MethodPost, BasePath+"/admin/maintenance/merge", "p18", body, nil); rec.Code != http.StatusOK {
+		t.Fatalf("merge: %d %s", rec.Code, rec.Body.String())
+	}
+	expectClosed(t, "open Range response of the merged source", closed)
 }
 
 // Lowering a guest's ceiling, taking a library right from a profile and changing a profile's

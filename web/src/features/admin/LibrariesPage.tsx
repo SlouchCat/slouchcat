@@ -111,7 +111,12 @@ export function LibrariesPage() {
       request(api.POST('/admin/libraries/{id}/accept-loss', { params: { path: { id } } })),
     onSuccess: refresh,
   });
-  const actionError = scan.error ?? acceptLoss.error;
+  const cancel = useMutation({
+    mutationFn: (id: number): Promise<Library> =>
+      request(api.DELETE('/admin/libraries/{id}/scan', { params: { path: { id } } })),
+    onSuccess: refresh,
+  });
+  const actionError = scan.error ?? acceptLoss.error ?? cancel.error;
 
   return (
     <Page>
@@ -152,7 +157,16 @@ export function LibrariesPage() {
                   >
                     {t('admin.libraries.rescan')}
                   </AriaButton>
-                  {library.scan.state === 'aborted' && (
+                  {isScanning(library) && (
+                    <AriaButton
+                      variant="ghost"
+                      isPending={cancel.isPending && cancel.variables === library.id}
+                      onPress={() => cancel.mutate(library.id)}
+                    >
+                      {t('admin.libraries.cancel')}
+                    </AriaButton>
+                  )}
+                  {library.scan.state === 'aborted' && library.scan.lastError !== 'cancelled' && (
                     <ConfirmDialog
                       trigger={
                         <AriaButton variant="ghost" icon="warning">

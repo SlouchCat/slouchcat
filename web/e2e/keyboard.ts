@@ -17,13 +17,23 @@ export async function focused(
   });
 }
 
-/** P-15: the focused element shows a ring (computed outline is not `none` and wider than 0). */
+/**
+ * P-15: the focused element shows a ring (computed outline is not `none` and wider than 0). A
+ * react-aria checkbox or radio keeps the focus on its visually hidden input and draws the ring on
+ * the label it marks `data-focus-visible`; that ring counts too.
+ */
 export async function expectVisibleFocus(page: Page): Promise<void> {
   const outline = await page.evaluate(() => {
     const element = document.activeElement;
     if (!element || element === document.body) return null;
-    const style = getComputedStyle(element);
-    return { style: style.outlineStyle, width: parseFloat(style.outlineWidth) };
+    const ring = (candidate: Element) => {
+      const style = getComputedStyle(candidate);
+      return { style: style.outlineStyle, width: parseFloat(style.outlineWidth) };
+    };
+    const own = ring(element);
+    if (own.style !== 'none' && own.width > 0) return own;
+    const wrapper = element.closest('[data-focus-visible]');
+    return wrapper ? ring(wrapper) : own;
   });
   expect(outline, 'an element has focus').not.toBeNull();
   expect(outline?.style).not.toBe('none');

@@ -42,6 +42,14 @@ type Config struct {
 	TrustedProxies []netip.Prefix
 	// TranscodeBudget overrides the admission budget of the transcode backend; 0 = backend default.
 	TranscodeBudget float64
+	// TVDBAPIKey and TVDBPIN enable the optional TVDB provider for series (M3); empty = off.
+	// Secrets come from the environment only: command-line flags show up in process lists.
+	TVDBAPIKey string
+	TVDBPIN    string
+	// YouTubeAPIKey enables the YouTube step of the trailer chain (M3); empty = off.
+	YouTubeAPIKey string
+	// TrailerAI selects the AI step of the trailer chain; "off" (default) is the only provider in M3.
+	TrailerAI string
 }
 
 // TranscodeDir is the work directory of HLS output: <cache>/transcode, wiped at every start.
@@ -80,6 +88,7 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	proxies := fs.String("trusted-proxies", env("TRUSTED_PROXIES", ""),
 		"reverse proxies whose X-Forwarded-For is trusted: empty = none, private = RFC 1918, loopback and fc00::/7, or comma-separated CIDRs (env SLOUCHCAT_TRUSTED_PROXIES)")
 	budget := fs.Float64("transcode-budget", 0, "transcode admission budget, 0 = backend default (env SLOUCHCAT_TRANSCODE_BUDGET)")
+	trailerAI := fs.String("trailer-ai", env("TRAILER_AI", "off"), "AI step of the trailer search: off (env SLOUCHCAT_TRAILER_AI)")
 	if v := env("TRANSCODE_BUDGET", ""); v != "" {
 		b, err := strconv.ParseFloat(v, 64)
 		if err != nil {
@@ -118,6 +127,12 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("trusted proxies: %w", err)
 	}
 	cfg.HW, cfg.TranscodeBudget = *hw, *budget
+	cfg.TVDBAPIKey, cfg.TVDBPIN = strings.TrimSpace(env("TVDB_API_KEY", "")), strings.TrimSpace(env("TVDB_PIN", ""))
+	cfg.YouTubeAPIKey = strings.TrimSpace(env("YOUTUBE_API_KEY", ""))
+	cfg.TrailerAI = strings.ToLower(strings.TrimSpace(*trailerAI))
+	if cfg.TrailerAI == "" {
+		cfg.TrailerAI = "off"
+	}
 	if !hwBackends[cfg.HW] {
 		return Config{}, fmt.Errorf("hw %q: want auto, nvenc, qsv, vaapi or software", cfg.HW)
 	}
@@ -169,6 +184,9 @@ func (c Config) LogValue() slog.Value {
 		slog.String("hw", c.HW),
 		slog.Any("trusted_proxies", c.TrustedProxies),
 		slog.Float64("transcode_budget", c.TranscodeBudget),
+		slog.Bool("tvdb_configured", c.TVDBAPIKey != ""),
+		slog.Bool("youtube_configured", c.YouTubeAPIKey != ""),
+		slog.String("trailer_ai", c.TrailerAI),
 	)
 }
 

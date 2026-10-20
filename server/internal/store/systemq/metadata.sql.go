@@ -10,6 +10,40 @@ import (
 	"database/sql"
 )
 
+const assignItemMatch = `-- name: AssignItemMatch :exec
+UPDATE items
+SET tmdb_id        = ?1,
+    tvdb_id        = ?2,
+    imdb_id        = NULL,
+    locked_fields  = ?3,
+    metadata_state = 'pending',
+    metadata_error = NULL,
+    trailer_state  = 'pending',
+    updated_at     = ?4
+WHERE id = ?5 AND deleted_at IS NULL
+`
+
+type AssignItemMatchParams struct {
+	TmdbID       sql.NullInt64
+	TvdbID       sql.NullInt64
+	LockedFields string
+	Now          int64
+	ID           string
+}
+
+// Manual match (B-6): the chosen provider ID, the other provider ID and imdb_id cleared, the IDs
+// locked, metadata and trailers pending until the queued match has run.
+func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams) error {
+	_, err := q.db.ExecContext(ctx, assignItemMatch,
+		arg.TmdbID,
+		arg.TvdbID,
+		arg.LockedFields,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
 const deleteImage = `-- name: DeleteImage :exec
 DELETE FROM images WHERE id = ?1
 `
@@ -18,6 +52,107 @@ DELETE FROM images WHERE id = ?1
 func (q *Queries) DeleteImage(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteImage, id)
 	return err
+}
+
+const listChildItems = `-- name: ListChildItems :many
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at FROM items
+WHERE parent_id = ?1 AND deleted_at IS NULL
+ORDER BY season_number, episode_number, id
+`
+
+// The children of a series (seasons, episodes without season folder, extras) or of a season.
+func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listChildItems, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEpisodesToMatch = `-- name: ListEpisodesToMatch :many
+SELECT e.id FROM items AS e
+WHERE e.kind = 'episode' AND e.deleted_at IS NULL
+  AND (e.metadata_state = 'pending' OR (e.metadata_state = 'skipped' AND e.metadata_error = 'series_unmatched'))
+  AND (e.parent_id = ?1
+       OR e.parent_id IN (SELECT s.id FROM items AS s WHERE s.parent_id = ?1 AND s.kind = 'season'))
+ORDER BY e.season_number, e.episode_number, e.id
+`
+
+// Episodes of a series (below a season or directly below the series) that still wait for their
+// metadata: pending, or skipped because the series was not matched yet.
+func (q *Queries) ListEpisodesToMatch(ctx context.Context, seriesID sql.NullString) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listEpisodesToMatch, seriesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listImagesByItem = `-- name: ListImagesByItem :many
@@ -97,6 +232,63 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 	return items, nil
 }
 
+const listItemsMissingImages = `-- name: ListItemsMissingImages :many
+SELECT i.id, i.kind, i.locked_fields,
+       CAST(i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster') AS INTEGER) AS poster_missing,
+       CAST(i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing
+FROM items AS i
+WHERE i.library_id = ?1
+  AND i.deleted_at IS NULL
+  AND i.metadata_state = 'matched'
+  AND ((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster'))
+    OR (i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop')))
+ORDER BY i.id
+`
+
+type ListItemsMissingImagesRow struct {
+	ID              string
+	Kind            string
+	LockedFields    string
+	PosterMissing   int64
+	BackdropMissing int64
+}
+
+// Matched titles of a library with a stored provider image path but no row of that kind yet
+// (their image.fetch failed or never ran): poster for movies, series and seasons, backdrop (still)
+// for movies, series and episodes.
+func (q *Queries) ListItemsMissingImages(ctx context.Context, libraryID int64) ([]ListItemsMissingImagesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listItemsMissingImages, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListItemsMissingImagesRow{}
+	for rows.Next() {
+		var i ListItemsMissingImagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.LockedFields,
+			&i.PosterMissing,
+			&i.BackdropMissing,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMatchedItemImages = `-- name: ListMatchedItemImages :many
 SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent
 FROM items AS i
@@ -104,7 +296,6 @@ JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = ?1
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
-  AND i.tmdb_id IS NOT NULL
 ORDER BY i.id, im.kind, im.size, im.format
 `
 
@@ -120,8 +311,8 @@ type ListMatchedItemImagesRow struct {
 }
 
 // Stored images of the matched titles of a library, for the image check after a scan
-// (QueueIncompleteImages). Titles without any image row are not listed: TMDB has none for them,
-// or their first image.fetch is still pending.
+// (QueueIncompleteImages). Titles without any image row are not listed here (ListItemsMissingImages
+// covers those with a stored path).
 func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([]ListMatchedItemImagesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listMatchedItemImages, libraryID)
 	if err != nil {
@@ -144,6 +335,122 @@ func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaFileIDsByItem = `-- name: ListMediaFileIDsByItem :many
+SELECT id FROM media_files WHERE item_id = ?1 ORDER BY id
+`
+
+// The files of a title (refresh probes them again).
+func (q *Queries) ListMediaFileIDsByItem(ctx context.Context, itemID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listMediaFileIDsByItem, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingMatchItems = `-- name: ListPendingMatchItems :many
+SELECT i.id, i.kind FROM items AS i
+LEFT JOIN items AS p ON p.id = i.parent_id
+LEFT JOIN items AS g ON g.id = p.parent_id
+WHERE i.library_id = ?1 AND i.deleted_at IS NULL AND i.metadata_state = 'pending'
+  AND (i.kind IN ('movie', 'series')
+       OR (i.kind = 'episode' AND ((p.kind = 'series' AND p.metadata_state = 'matched')
+                                   OR (g.kind = 'series' AND g.metadata_state = 'matched'))))
+  AND NOT EXISTS (SELECT 1 FROM jobs AS j
+                  WHERE j.idempotency_key = 'match:' || i.id AND j.state IN ('queued', 'running'))
+ORDER BY i.id
+`
+
+type ListPendingMatchItemsRow struct {
+	ID   string
+	Kind string
+}
+
+// Titles of a library whose metadata is pending without an active match job (QueuePendingMetadata):
+// movies and series, and episodes whose series is matched (the series job fills the others).
+func (q *Queries) ListPendingMatchItems(ctx context.Context, libraryID int64) ([]ListPendingMatchItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingMatchItems, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPendingMatchItemsRow{}
+	for rows.Next() {
+		var i ListPendingMatchItemsRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUpgradeMatchItems = `-- name: ListUpgradeMatchItems :many
+SELECT i.id FROM items AS i
+WHERE i.library_id = ?1 AND i.deleted_at IS NULL
+  AND i.kind IN ('movie', 'series') AND i.metadata_state = 'matched' AND i.tmdb_id IS NOT NULL
+  AND i.tmdb_poster_path IS NULL AND i.tmdb_backdrop_path IS NULL AND i.trailer_checked_at IS NULL
+  AND instr(i.locked_fields, '"trailer"') = 0
+  AND NOT EXISTS (SELECT 1 FROM jobs AS j
+                  WHERE j.idempotency_key IN ('match:' || i.id, 'trailer:' || i.id) AND j.state IN ('queued', 'running'))
+ORDER BY i.id
+LIMIT ?2
+`
+
+type ListUpgradeMatchItemsParams struct {
+	LibraryID  int64
+	LimitCount int64
+}
+
+// Matched TMDB movies and series of a library without image paths and without a finished trailer
+// check: titles matched before M3, which lack the image paths, credits and trailers only a match
+// writes (QueuePendingMetadata queues one match each, at most @limit_count per run). The M3 match
+// stores the paths or queues trailer.find, whose check sets trailer_checked_at, so a title is
+// queued once.
+func (q *Queries) ListUpgradeMatchItems(ctx context.Context, arg ListUpgradeMatchItemsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listUpgradeMatchItems, arg.LibraryID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -182,53 +489,99 @@ func (q *Queries) SetItemMetadataState(ctx context.Context, arg SetItemMetadataS
 	return err
 }
 
-const updateItemFromTMDB = `-- name: UpdateItemFromTMDB :exec
-
+const updateChildMatch = `-- name: UpdateChildMatch :exec
 UPDATE items
-SET original_title  = ?1,
-    year            = ?2,
-    release_date    = ?3,
-    runtime_minutes = ?4,
-    genres          = ?5,
-    tmdb_id         = ?6,
-    imdb_id         = ?7,
-    own_rating      = ?8,
-    rating_source   = ?9,
-    metadata_state  = 'matched',
-    metadata_error  = NULL,
-    matched_at      = ?10,
-    updated_at      = ?10
-WHERE id = ?11 AND deleted_at IS NULL
+SET release_date       = ?1,
+    runtime_minutes    = ?2,
+    tmdb_poster_path   = ?3,
+    tmdb_backdrop_path = ?4,
+    metadata_state     = 'matched',
+    metadata_error     = NULL,
+    matched_at         = ?5,
+    updated_at         = ?5
+WHERE id = ?6 AND deleted_at IS NULL
 `
 
-type UpdateItemFromTMDBParams struct {
-	OriginalTitle  sql.NullString
-	Year           sql.NullInt64
-	ReleaseDate    sql.NullString
-	RuntimeMinutes sql.NullInt64
-	Genres         string
-	TmdbID         sql.NullInt64
-	ImdbID         sql.NullString
-	OwnRating      sql.NullInt64
-	RatingSource   sql.NullString
-	Now            sql.NullInt64
-	ID             string
+type UpdateChildMatchParams struct {
+	ReleaseDate      sql.NullString
+	RuntimeMinutes   sql.NullInt64
+	TmdbPosterPath   sql.NullString
+	TmdbBackdropPath sql.NullString
+	Now              sql.NullInt64
+	ID               string
+}
+
+// Writes the provider data of a season or episode (series job or episode match). The caller has
+// already kept the values of locked fields.
+func (q *Queries) UpdateChildMatch(ctx context.Context, arg UpdateChildMatchParams) error {
+	_, err := q.db.ExecContext(ctx, updateChildMatch,
+		arg.ReleaseDate,
+		arg.RuntimeMinutes,
+		arg.TmdbPosterPath,
+		arg.TmdbBackdropPath,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const updateItemMatch = `-- name: UpdateItemMatch :exec
+
+UPDATE items
+SET original_title     = ?1,
+    year               = ?2,
+    release_date       = ?3,
+    runtime_minutes    = ?4,
+    genres             = ?5,
+    tmdb_id            = ?6,
+    tvdb_id            = ?7,
+    imdb_id            = ?8,
+    own_rating         = ?9,
+    rating_source      = ?10,
+    tmdb_poster_path   = ?11,
+    tmdb_backdrop_path = ?12,
+    metadata_state     = 'matched',
+    metadata_error     = NULL,
+    matched_at         = ?13,
+    updated_at         = ?13
+WHERE id = ?14 AND deleted_at IS NULL
+`
+
+type UpdateItemMatchParams struct {
+	OriginalTitle    sql.NullString
+	Year             sql.NullInt64
+	ReleaseDate      sql.NullString
+	RuntimeMinutes   sql.NullInt64
+	Genres           string
+	TmdbID           sql.NullInt64
+	TvdbID           sql.NullInt64
+	ImdbID           sql.NullString
+	OwnRating        sql.NullInt64
+	RatingSource     sql.NullString
+	TmdbPosterPath   sql.NullString
+	TmdbBackdropPath sql.NullString
+	Now              sql.NullInt64
+	ID               string
 }
 
 // Unfiltered title queries for metadata enrichment and image storage (package store/systemq).
 // Owner: metadata package. Times are Unix milliseconds.
-// Writes the matched TMDB data. The caller has already kept the values of locked fields.
-func (q *Queries) UpdateItemFromTMDB(ctx context.Context, arg UpdateItemFromTMDBParams) error {
-	_, err := q.db.ExecContext(ctx, updateItemFromTMDB,
+// Writes the matched provider data of a movie or series. The caller has already kept the values
+// of locked fields.
+func (q *Queries) UpdateItemMatch(ctx context.Context, arg UpdateItemMatchParams) error {
+	_, err := q.db.ExecContext(ctx, updateItemMatch,
 		arg.OriginalTitle,
 		arg.Year,
 		arg.ReleaseDate,
 		arg.RuntimeMinutes,
 		arg.Genres,
 		arg.TmdbID,
+		arg.TvdbID,
 		arg.ImdbID,
 		arg.OwnRating,
 		arg.RatingSource,
+		arg.TmdbPosterPath,
+		arg.TmdbBackdropPath,
 		arg.Now,
 		arg.ID,
 	)

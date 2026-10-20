@@ -2,9 +2,11 @@
 -- Times are Unix milliseconds.
 
 -- name: InsertItem :one
-INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, tmdb_id, imdb_id,
+INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date,
+                   tmdb_id, tvdb_id, imdb_id, season_number, episode_number, episode_end, extra_kind,
                    own_rating, rating_source, added_at, created_at, updated_at)
-VALUES (@id, @kind, @parent_id, @library_id, @title, @sort_title, @original_title, @year, @tmdb_id, @imdb_id,
+VALUES (@id, @kind, @parent_id, @library_id, @title, @sort_title, @original_title, @year, @release_date,
+        @tmdb_id, @tvdb_id, @imdb_id, @season_number, @episode_number, @episode_end, @extra_kind,
         @own_rating, @rating_source, @now, @now, @now)
 RETURNING *;
 
@@ -60,8 +62,17 @@ SET rel_path = @rel_path, dev = @dev, inode = @inode, size = @size, mtime = @mti
 WHERE id = @id;
 
 -- name: RestoreItem :exec
--- A file of a soft-deleted item reappeared: the item comes back with its user data.
-UPDATE items SET deleted_at = NULL, updated_at = @now WHERE id = @id AND deleted_at IS NOT NULL;
+-- A file of a soft-deleted item reappeared: the item comes back with its user data, and with it
+-- its soft-deleted parent and grandparent (the season and series of an episode or a season
+-- extra), so the tree stays whole. An ancestor that is not a container (the film of an extra)
+-- comes back only with a present file of its own; otherwise the next sweep would delete it again.
+UPDATE items SET deleted_at = NULL, updated_at = @now
+WHERE items.deleted_at IS NOT NULL
+  AND (items.id = @id
+       OR (items.id IN ((SELECT p.parent_id FROM items AS p WHERE p.id = @id),
+                        (SELECT g.parent_id FROM items AS g WHERE g.id = (SELECT p.parent_id FROM items AS p WHERE p.id = @id)))
+           AND (items.kind IN ('series', 'season', 'podcast')
+                OR EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL))));
 
 -- name: GetMediaFileSystem :one
 SELECT * FROM media_files WHERE id = @id;
@@ -69,7 +80,8 @@ SELECT * FROM media_files WHERE id = @id;
 -- name: UpdateMediaFileProbe :exec
 UPDATE media_files
 SET container = @container, video_codec = @video_codec, audio_codec = @audio_codec, width = @width,
-    height = @height, duration_ms = @duration_ms, probe = @probe, probed_at = @now, updated_at = @now
+    height = @height, duration_ms = @duration_ms, probe = @probe, probe_error = NULL, probed_at = @now,
+    updated_at = @now
 WHERE id = @id;
 
 -- name: UpdateMediaFileKeyframes :exec

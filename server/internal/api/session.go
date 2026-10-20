@@ -330,6 +330,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrSegmentRestarted):
 		w.Header().Set("Retry-After", "1")
 		p.write(w, r, http.StatusServiceUnavailable, "segment_restarted", "A newer seek restarted the encoder; retry the segment.")
+	case errors.Is(err, model.ErrProviderNotConfigured):
+		p.write(w, r, http.StatusUnprocessableEntity, "provider_not_configured", "The metadata provider has no key configured.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
 	case errors.As(err, &verr):

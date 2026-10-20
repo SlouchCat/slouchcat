@@ -1,0 +1,40 @@
+.modal {
+  max-width: min(64rem, 100%);
+}
+
+.head {
+  display: flex;
+  gap: var(--sc-space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-media-backdrop);
+}
+
+.iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--sc-space-6);
+  color: var(--sc-color-text-secondary);
+}
+
+.note {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}

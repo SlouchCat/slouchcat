@@ -23,15 +23,20 @@ SET state = 'failed', lease_owner = NULL, lease_until = NULL,
     last_error = 'lease expired after the last attempt', updated_at = @now
 WHERE state = 'running' AND lease_until < @now AND attempts >= max_attempts;
 
+-- Expired leases of jobs that may still run go back to the queue (the attempt stays counted), so
+-- the claim below reads only queued rows in the order of the index jobs_claim.
+-- name: RequeueExpiredLeases :execrows
+UPDATE jobs
+SET state = 'queued', lease_owner = NULL, lease_until = NULL, updated_at = @now
+WHERE state = 'running' AND lease_until < @now AND attempts < max_attempts;
+
 -- name: ClaimJob :one
 UPDATE jobs
 SET state = 'running', lease_owner = @worker_id, lease_until = @lease_until,
     attempts = attempts + 1, updated_at = @now
 WHERE id = (
     SELECT j.id FROM jobs AS j
-    WHERE j.type IN (sqlc.slice('types'))
-      AND ((j.state = 'queued' AND j.run_after <= @now)
-        OR (j.state = 'running' AND j.lease_until < @now AND j.attempts < j.max_attempts))
+    WHERE j.state = 'queued' AND j.run_after <= @now AND j.type IN (sqlc.slice('types'))
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )

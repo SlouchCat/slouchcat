@@ -1,6 +1,6 @@
 // Package ratelimit holds the shared request limiters per external provider (plan section 3.1:
-// TMDB at most 20 requests per second, later TVDB, Trakt and YouTube) and the backoff after
-// HTTP 429.
+// TMDB at most 20 requests per second, TVDB 5, later Trakt), the backoff after HTTP 429 and the
+// daily unit quota of the YouTube Data API (Quota, quota.go).
 //
 // A Limiter is a token bucket: it refills perSecond tokens per second up to burst, and every Wait
 // takes one token, blocking until it is available. Backoff pauses the bucket until a point in

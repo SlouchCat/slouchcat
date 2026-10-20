@@ -26,11 +26,26 @@ type AccountLibrary struct {
 	LibraryID int64
 }
 
+type Credit struct {
+	ItemID    string
+	PersonID  int64
+	Role      string
+	Character sql.NullString
+	Ord       int64
+}
+
 type Device struct {
 	ID         string
 	UserAgent  sql.NullString
 	CreatedAt  int64
 	LastSeenAt int64
+}
+
+type IgnoredFile struct {
+	RootID    int64
+	RelPath   string
+	Reason    string
+	CreatedAt int64
 }
 
 type Image struct {
@@ -71,33 +86,42 @@ type InvitationLibrary struct {
 }
 
 type Item struct {
-	ID              string
-	Kind            string
-	ParentID        sql.NullString
-	LibraryID       int64
-	Title           string
-	SortTitle       string
-	OriginalTitle   sql.NullString
-	Year            sql.NullInt64
-	ReleaseDate     sql.NullString
-	RuntimeMinutes  sql.NullInt64
-	Genres          string
-	TmdbID          sql.NullInt64
-	ImdbID          sql.NullString
-	OwnRating       sql.NullInt64
-	EffectiveRating sql.NullInt64
-	MinChildRating  sql.NullInt64
-	Available       int64
-	RatingSource    sql.NullString
-	EnclosureUrl    sql.NullString
-	LockedFields    string
-	MetadataState   string
-	MetadataError   sql.NullString
-	MatchedAt       sql.NullInt64
-	AddedAt         int64
-	CreatedAt       int64
-	UpdatedAt       int64
-	DeletedAt       sql.NullInt64
+	ID               string
+	Kind             string
+	ParentID         sql.NullString
+	LibraryID        int64
+	Title            string
+	SortTitle        string
+	OriginalTitle    sql.NullString
+	Year             sql.NullInt64
+	ReleaseDate      sql.NullString
+	RuntimeMinutes   sql.NullInt64
+	Genres           string
+	TmdbID           sql.NullInt64
+	ImdbID           sql.NullString
+	OwnRating        sql.NullInt64
+	EffectiveRating  sql.NullInt64
+	MinChildRating   sql.NullInt64
+	Available        int64
+	RatingSource     sql.NullString
+	EnclosureUrl     sql.NullString
+	LockedFields     string
+	MetadataState    string
+	MetadataError    sql.NullString
+	MatchedAt        sql.NullInt64
+	AddedAt          int64
+	CreatedAt        int64
+	UpdatedAt        int64
+	DeletedAt        sql.NullInt64
+	SeasonNumber     sql.NullInt64
+	EpisodeNumber    sql.NullInt64
+	EpisodeEnd       sql.NullInt64
+	TvdbID           sql.NullInt64
+	ExtraKind        sql.NullString
+	TmdbPosterPath   sql.NullString
+	TmdbBackdropPath sql.NullString
+	TrailerState     string
+	TrailerCheckedAt sql.NullInt64
 }
 
 type ItemText struct {
@@ -179,6 +203,15 @@ type MediaFile struct {
 	MissingSince sql.NullInt64
 	CreatedAt    int64
 	UpdatedAt    int64
+	ProbeError   sql.NullString
+}
+
+type Person struct {
+	ID          int64
+	TmdbID      sql.NullInt64
+	Name        string
+	ProfilePath sql.NullString
+	CreatedAt   int64
 }
 
 type PinAttempt struct {
@@ -292,6 +325,17 @@ type Track struct {
 	RelPath     sql.NullString
 	IsDefault   int64
 	IsForced    int64
+}
+
+type Trailer struct {
+	ID        int64
+	ItemID    string
+	Lang      string
+	YoutubeID string
+	Title     sql.NullString
+	Source    string
+	Official  int64
+	CreatedAt int64
 }
 
 type VisibleItem struct {

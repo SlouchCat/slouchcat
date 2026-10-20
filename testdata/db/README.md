@@ -25,3 +25,17 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Profilen. Die Tabellen `devices` (Geräte-Cookie) und `invitation_libraries` sind gefüllt, `pin_attempts`
   bleibt leer. Der Test `TestMigration00007KeepsFrozenData` prüft zusätzlich, dass M1a und M1b durch
   Migration 00007 gültig bleiben (Hauptkonto: Stufe 18, alle Bibliotheken, Sitzungen und Hauptprofil erhalten).
+- `M3.sql`: Stand nach M3 (Bibliothek komplett; Migration 00008). Erzeugt mit `server/bin/slouchcat dump` nach
+  einem Lauf gegen einen frischen Server: Assistent mit Hauptkonto `frozen@example.test` und Filmbibliothek auf
+  `testdata/media/Movies` ohne TMDB-Schlüssel (10 Titel, Scan, Probe und Keyframes durch die echten Dienste), eine
+  Serienbibliothek auf `testdata/media/TV`, die Profile «Teenager» (12) und «Kind» (6) und fünf Freigaben über die
+  Massenzuweisung `POST /admin/items/rating`. Weil der Scanner und die Metadaten-Jobs dieses Branches noch keine
+  Serien kennen, sind die M3-Daten danach per SQL ergänzt (Skript in der Übergabe `m3-api-notes.md`): Serie mit
+  Staffel 1 (Folgen E01, E02 mit eigener Stufe 16, Mehrfachfolge S01E03-E04) und Specials (S00E01), Extras an der
+  Serie (`behind_the_scenes`) und am H264-Film (`trailer`), eine zweite Version (720p) des H264-Films, Trailer
+  automatisch (`tmdb`, `youtube`) und manuell, zwei Personen mit Rollen (Besetzung, Regie, Idee), eine manuelle
+  Zuordnung (`tmdb_id` 603, gesperrte Anbieter-IDs, `metadata_state` `pending`), eine ignorierte Datei und eine
+  nicht abspielbare Datei (`probe_error`). Die abgeleiteten Spalten `effective_rating`, `available` und
+  `min_child_rating` stammen aus den Triggern. `TestFrozenM3StateCoversM3Data` prüft, dass jede dieser Datenarten vorhanden ist;
+  `TestMigration00008KeepsFrozenData` prüft M1b und M2 nach Migration 00008 (Zeilen von `items`, `media_files`,
+  `playback_sessions` erhalten, Container nach der neuen Regel berechnet).

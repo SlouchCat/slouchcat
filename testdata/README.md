@@ -28,6 +28,14 @@ OUT_DIR=/srv/media task testdata:media
 | `Movies/Slouchcat Test Sidecar Subtitles (2024)/` | dieselbe Datei ohne eingebettete Untertitel, daneben `.de.srt`, `.en.srt`, `.de.ass`, `.en.ass` | externe Untertitel |
 | `Movies/Slouchcat Test Chapters (2024)/….mkv` | H.264 + AAC mit 3 Kapiteln aus einer ffmetadata-Datei | Kapitel |
 | `TV/Slouchcat Test Show (2024)/Season 01/… S01E01.mp4`, `… S01E02.mp4` | H.264/AAC, 10 s | Serien-Erkennung |
+| `TV/Slouchcat Test Show (2024)/Specials/… S00E01.mp4` | H.264/AAC, 10 s | Specials (Staffel 0) |
+| `TV/Slouchcat Test Show (2024)/Season 01/… S01E03-E04.mp4` | H.264/AAC, 10 s | Mehrfachfolge (ein Item E03 mit `episode_end = 4`) |
+| `Movies/Slouchcat Test H264 (2024)/… - 720p.mp4` | dieselbe Quelle wie die H.264-Datei, 1280×720, H.264/AAC, 10 s | zweite Version desselben Titels (B-5) |
+| `Movies/Slouchcat Test Extras (2024)/….mp4` | H.264/AAC, 10 s | Film mit Extras (B-7) |
+| `Movies/Slouchcat Test Extras (2024)/Trailers/Slouchcat Test Extras Trailer.mp4`, `Featurettes/Making Of.mp4`, `Deleted Scenes/Scene 1.mp4`, `Behind The Scenes/On Set.mp4`, `Slouchcat Test Extras (2024)-trailer.mp4` | H.264/AAC, je 5 s | fünf Extras: zwei Trailer, Featurette, entfernte Szene, Hinter den Kulissen (B-7) |
+| `Movies/Slouchcat Test Broken (2024)/….mkv` | Textdatei mit Video-Endung; ffprobe scheitert | nicht abspielbar, `probe_error` (B-9) |
+| `Movies/Slouchcat Test H264 Copy (2024)/….mp4` | Byte-Kopie der H.264-Datei (gleicher Teil-Hash) | Duplikat nach Hash (B-9) |
+| `Movies/Slouchcat Test Unrated/Slouchcat Test Unrated.mp4` | H.264/AAC, 10 s, ohne Jahr, ohne NFO | Titel ohne Freigabe (B-9 «unrated») |
 
 Hinweise:
 
@@ -38,10 +46,15 @@ Hinweise:
 - PGS-Untertitel (Zeile "H.264 + PGS" in 10.3) kann ffmpeg nicht erzeugen (kein PGS-Encoder); eine
   freie PGS-Testdatei wird bei Bedarf in M4 ergänzt.
 - Am Ende druckt das Skript eine ffprobe-Zusammenfassung je Datei und die HDR-Metadaten des ersten
-  Frames der 4K-Datei.
+  Frames der 4K-Datei. Die absichtlich kaputte Datei «Slouchcat Test Broken» fehlt in der
+  Zusammenfassung, weil ffprobe sie nicht lesen kann.
+- Die Fälle aus M3 (Versionen, Extras, Specials, Mehrfachfolge, kaputte Datei, Duplikat, Titel ohne
+  Jahr) prüft `TestScanGeneratedMedia` im Paket `library`; die Web-E2E-Tests verwenden dieselben Namen.
+  Eine Bibliothek vom Typ «Serien» gehört auf `media/TV`, eine vom Typ «Filme» auf `media/Movies`.
 
-Laufzeit auf dem Entwicklungsrechner (ffmpeg 6.1.1 aus Ubuntu): rund 18 s für alle Dateien, zusammen
-22 MB.
+Laufzeit auf dem Entwicklungsrechner (ffmpeg 6.1.1 aus Ubuntu): rund 18 s für die Dateien aus M0,
+zusammen 22 MB; mit den langen Clips aus M1b und den Fällen aus M3 belegt `media/Movies` und
+`media/TV` zusammen rund 55 MB.
 
 ## Platzhalter-Baum für Lasttests (`task testdata:tree`)
 

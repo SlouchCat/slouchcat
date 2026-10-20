@@ -4,7 +4,7 @@ import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { apiUrl } from '@/api/client';
+import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { formatRuntime } from '@/lib/format';
@@ -40,7 +40,6 @@ const rowTitleKey = {
 const EAGER_POSTERS = 6;
 
 const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
-const imageUrl = (image: { url: string } | undefined) => (image ? apiUrl(image.url) : undefined);
 
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
   if (row.key === 'continue' && item.progress) {

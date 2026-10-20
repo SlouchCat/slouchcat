@@ -1,29 +1,53 @@
-// Package metadata enriches titles from TMDB (plan sections 3.1 and 3.4 step 4, B-3, B-6, AN-8)
-// and runs the image pipeline into <cache>/images (M1b: scaled WebP and JPEG through ffmpeg).
+// Package metadata enriches titles from the metadata providers (plan sections 3.1 and 3.4 step 4,
+// design M3 section 3, B-3, B-6, AN-8, AN-15) and runs the image pipeline into <cache>/images
+// (M1b: scaled WebP and JPEG through ffmpeg).
+//
+// Providers (provider.go): TMDB is the main source for movies and series (tmdb.go,
+// tmdb_provider.go); TVDB v4 (tvdb.go) is optional with its own key and is asked for series only,
+// when TMDB finds nothing or the administrator assigned a TVDB ID. Every request runs through the
+// provider's ratelimit.Limiter (TMDB 20/s, TVDB 5/s).
 //
 // Jobs:
 //
-//   - metadata.match, payload {"itemId": "<ULID>"}, key match:<itemId> (enqueued by library):
-//     resolves the TMDB ID (tmdb_id, else imdb_id through /find, else a title search with the
-//     parsed year ±1), fetches de-DE and en-US, writes item_texts for de and en and the item
-//     columns, maps the certification after AN-8 and enqueues image.fetch.
-//   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2: downloads the
-//     TMDB original of the poster and the backdrop once, scales it with ffmpeg (poster w200, w400,
-//     w800; backdrop w780, w1280, w1920) into WebP and JPEG, computes the accent colour from the
-//     w200 poster and upserts one images row per kind, size and format (images.go). A kind whose
-//     derived rows stem from the current original and whose files exist is skipped, so the job
-//     also fills in a size added later and regenerates deleted files; the library scan enqueues
-//     it for such titles. A locked kind is not fetched from TMDB, but its sizes are scaled from
-//     the stored image. A palette failure keeps the previous accent; a poster without accent is
-//     retried a bounded number of times (maxAccentRetries).
+//   - metadata.match, payload {"itemId": "<ULID>"}, key match:<itemId> (enqueued by library, by
+//     QueuePendingMetadata and by the series job). Movie: resolves the TMDB ID (tmdb_id, else
+//     imdb_id through /find, else a title search with the parsed year ±1), fetches de-DE and
+//     en-US with release dates and credits, writes item_texts for de and en, the item columns, the
+//     image paths and the credits, maps the certification after AN-8 and enqueues image.fetch.
+//     Series: resolves TMDB (tmdb_id, else tvdb_id or imdb_id through /find, else a title search
+//     with year ±1), else TVDB; writes the series like a movie (rating from the content ratings,
+//     rating_source "tmdb:DE" or "tvdb:DE"), then every season of the library with its episodes
+//     (one transaction per season), and enqueues image.fetch for the series, seasons and episode
+//     stills and metadata.match for episodes that still wait. Season: skipped
+//     (season_via_series) unless the series job already matched it. Episode: needs a matched
+//     series (else skipped/series_unmatched); an episode that is already matched makes no
+//     provider call. Other kinds: skipped (unsupported_kind). A write that finds other provider
+//     ids or locked fields on the title (or its series) than the job resolved with, because a
+//     manual match or refresh came in meanwhile, writes nothing and fails the attempt, so the queue
+//     retries with the new ids. A manual match or refresh raises a queued match job to priority 7.
+//   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2 (episode stills 1):
+//     downloads the original of the stored image paths (items.tmdb_poster_path for movies, series
+//     and seasons; items.tmdb_backdrop_path for movies, series and episode stills) once, scales it
+//     with ffmpeg (poster w200, w400, w800; backdrop w780, w1280, w1920) into WebP and JPEG,
+//     computes the accent colour from the w200 poster and upserts one images row per kind, size
+//     and format (images.go). A kind whose derived rows stem from the current original and whose
+//     files exist is skipped, so the job also fills in a size added later and regenerates deleted
+//     files; the library scan enqueues it for such titles. A locked kind is not fetched, but its
+//     sizes are scaled from the stored image. A palette failure keeps the previous accent; a
+//     poster without accent is retried a bounded number of times (maxAccentRetries).
+//   - trailer.find, payload {"itemId": "<ULID>"}, key trailer:<itemId>, priority 1: the trailer
+//     chain TMDB videos → YouTube Data API (daily quota) → AI (off in M3) for movies and series
+//     with a tmdb_id (trailers.go, youtube.go). metadata.match enqueues it after every match;
+//     QueuePendingMetadata (after every full scan) enqueues it for titles still pending.
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
-// runtime_minutes, genres, tmdb_id, imdb_id, own_rating, the text fields title, overview and
-// tagline (item_texts, both languages) and the image kinds poster and backdrop. A rating whose
-// rating_source is nfo or manual is never replaced either.
+// runtime_minutes, genres, tmdb_id, tvdb_id, imdb_id, own_rating, the text fields title, overview
+// and tagline (item_texts, both languages), the image kinds poster and backdrop, cast (the
+// credits of the title) and trailer (the automatic trailers). A rating whose rating_source is nfo
+// or manual is never replaced either.
 //
-// Genres: items.genres holds the TMDB genre names per language as a JSON object
+// Genres: items.genres holds the provider genre names per language as a JSON object
 // {"de": ["Drama", …], "en": ["Drama", …]}; the API layer picks the profile language.
 package metadata
 
@@ -38,6 +62,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
+	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -52,10 +77,15 @@ const (
 // imageFetchPriority runs image downloads before bulk work but after interactive jobs.
 const imageFetchPriority = 2
 
-// KeySource returns the configured TMDB key (v4 read access token). An empty key without error
-// means that no key is configured.
+// KeySource returns the configured provider keys. An empty key without error means that no key
+// is configured (the provider is then not used).
 type KeySource interface {
+	// TMDBKey returns the TMDB v4 read access token.
 	TMDBKey(ctx context.Context) (string, error)
+	// TVDBKey returns the TVDB v4 API key and the optional subscriber PIN.
+	TVDBKey(ctx context.Context) (key, pin string, err error)
+	// YouTubeKey returns the YouTube Data API v3 key.
+	YouTubeKey(ctx context.Context) (string, error)
 }
 
 // Service runs the metadata jobs and checks TMDB keys.
@@ -70,17 +100,32 @@ type Service struct {
 	runner transcode.Runner
 	log    *slog.Logger
 	client *Client
+	tmdb   *tmdbProvider
+	tvdb   *tvdbProvider
 	now    func() time.Time
+
+	trailersTMDB    TrailerProvider
+	trailersYouTube TrailerProvider
+	trailersAI      AITrailerProvider
+
+	// recheck ends open direct-play streams whose title became invisible (WithVisibilityRecheck).
+	recheck func(ctx context.Context) error
 
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
 }
 
 type options struct {
-	apiBase   string
-	imageBase string
-	http      *http.Client
-	now       func() time.Time
+	apiBase     string
+	imageBase   string
+	tvdbBase    string
+	tvdbArtBase string
+	youtubeBase string
+	quota       *ratelimit.Quota
+	trailerAI   string
+	http        *http.Client
+	now         func() time.Time
+	recheck     func(ctx context.Context) error
 }
 
 // Option configures New.
@@ -89,6 +134,36 @@ type Option func(*options)
 // WithBaseURL replaces the TMDB API and image base URLs (tests use an httptest.Server).
 func WithBaseURL(api, images string) Option {
 	return func(o *options) { o.apiBase, o.imageBase = api, images }
+}
+
+// WithTVDBBaseURL replaces the TVDB API and artwork base URLs (tests use an httptest.Server).
+func WithTVDBBaseURL(api, artworks string) Option {
+	return func(o *options) { o.tvdbBase, o.tvdbArtBase = api, artworks }
+}
+
+// WithYouTubeBaseURL replaces the YouTube Data API base URL (tests use an httptest.Server).
+func WithYouTubeBaseURL(api string) Option {
+	return func(o *options) { o.youtubeBase = api }
+}
+
+// WithYouTubeQuota replaces the daily YouTube quota (default 10'000 units, reset at midnight
+// Pacific time); tests pass one with a mock clock.
+func WithYouTubeQuota(q *ratelimit.Quota) Option {
+	return func(o *options) { o.quota = q }
+}
+
+// WithTrailerAI sets the AI step of the trailer chain (SLOUCHCAT_TRAILER_AI). M3 knows only
+// "off"; any other value logs a warning and stays off.
+func WithTrailerAI(mode string) Option {
+	return func(o *options) { o.trailerAI = mode }
+}
+
+// WithVisibilityRecheck sets the function a match calls after it changed the own rating of a
+// title (the triggers pass it on to seasons, episodes and extras), so open direct-play streams of
+// a title that became invisible end (playback.Service.RecheckVisibility). Without it nothing is
+// rechecked.
+func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
+	return func(o *options) { o.recheck = recheck }
 }
 
 // WithHTTPClient replaces the HTTP client (default: 15 s timeout).
@@ -104,13 +179,18 @@ func WithClock(now func() time.Time) Option {
 // New returns the service. cacheDir is the absolute, existing cache directory; images go to
 // <cacheDir>/images. runner scales the images (ffmpeg).
 func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
-	o := options{apiBase: DefaultAPIBase, imageBase: DefaultImageBase, now: time.Now}
+	o := options{apiBase: DefaultAPIBase, imageBase: DefaultImageBase, tvdbBase: DefaultTVDBBase,
+		tvdbArtBase: DefaultTVDBArtworkBase, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now}
 	for _, opt := range opts {
 		opt(&o)
 	}
 	root, err := paths.NewRoot(cacheDir)
 	if err != nil {
 		err = fmt.Errorf("metadata cache dir: %w", err)
+	}
+	client := NewClient(o.apiBase, o.imageBase, o.http)
+	if o.quota == nil {
+		o.quota = ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific)
 	}
 	return &Service{
 		db:     db,
@@ -122,17 +202,25 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		cacheE: err,
 		runner: runner,
 		log:    log,
-		client: NewClient(o.apiBase, o.imageBase, o.http),
+		client: client,
+		tmdb:   &tmdbProvider{client: client, keys: keys},
+		tvdb:   newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys),
 		now:    o.now,
+
+		trailersTMDB:    &tmdbTrailers{client: client, keys: keys},
+		trailersYouTube: newYouTubeTrailers(o.youtubeBase, o.http, o.quota, keys),
+		trailersAI:      newAITrailers(o.trailerAI, log),
+		recheck:         o.recheck,
 
 		accentRetries: map[string]int{},
 	}
 }
 
-// RegisterJobs registers the handlers of metadata.match and image.fetch on w.
+// RegisterJobs registers the handlers of metadata.match, image.fetch and trailer.find on w.
 func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobMatch, s.handleMatch)
 	w.Handle(JobImageFetch, s.handleImageFetch)
+	w.Handle(JobTrailerFind, s.handleTrailerFind)
 }
 
 // CheckKey validates a TMDB key. It returns nil, model.ErrTMDBKeyInvalid or

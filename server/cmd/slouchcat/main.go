@@ -7,6 +7,7 @@
 //	slouchcat dump [flags]        write a replayable SQL snapshot of the database to stdout
 //	slouchcat watchbench --root DIR [--passes N] [--inotify]  measure change detection of a root
 //	slouchcat hlsbench --file F [--streams N] [--mode transcode|remux]  measure concurrent HLS sessions
+//	slouchcat scanbench --root DIR [--kind movies|series|both] [--workers N] [--json]  measure scans
 //
 // The healthcheck subcommand serves the container HEALTHCHECK, so the image needs no curl. dump
 // produces the frozen milestone states in testdata/db (plan 6.2 point 4). All subcommands read the
@@ -66,6 +67,9 @@ func run(args []string) int {
 	}
 	if cmd == "hlsbench" {
 		return hlsbench(args) // own flags, no server configuration
+	}
+	if cmd == "scanbench" {
+		return scanbench(args) // own flags, temporary database
 	}
 	cfg, err := config.Load(args, os.Getenv)
 	if errors.Is(err, flag.ErrHelp) {
@@ -189,11 +193,17 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	authSvc := auth.New(db, log)
 	// admin stores and reveals the TMDB key, metadata checks and uses it: the key source is
 	// resolved lazily so both can be constructed without a cycle.
-	keys := &lazyKeys{}
-	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log)
-	libSvc := library.New(db, queue, runner, log, library.WithImageCheck(metaSvc.QueueIncompleteImages))
+	keys := &lazyKeys{cfg: cfg}
+	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
+	// direct-play streams of titles that became invisible (M3 review, finding 20).
+	playbackSvc, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
+		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility))
+	libSvc := library.New(db, queue, runner, log,
+		library.WithImageCheck(metaSvc.QueueIncompleteImages),
+		library.WithMetadataCheck(metaSvc.QueuePendingMetadata))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
-	adminSvc.WithQueue(queue)
+	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc)
 	keys.admin = adminSvc
 
 	var workers sync.WaitGroup
@@ -213,7 +223,6 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		workers.Wait()
 	}()
 
-	playbackSvc, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
 	sweepCtx, stopSweep := context.WithCancel(ctx)
 	var sweeper sync.WaitGroup
 	sweeper.Go(func() { playbackSvc.Run(sweepCtx) })
@@ -258,10 +267,28 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 // lazyKeys hands the admin service to metadata as its key source after both exist.
 type lazyKeys struct {
 	admin *admin.Service
+	cfg   config.Config
 }
 
 func (k *lazyKeys) TMDBKey(ctx context.Context) (string, error) {
 	return k.admin.TMDBKey(ctx)
+}
+
+// TVDBKey returns the TVDB key and PIN from one source: both from the environment (config) when
+// the key is set there, else both from the stored settings (admin.TVDBKey applies the same rule).
+func (k *lazyKeys) TVDBKey(ctx context.Context) (key, pin string, err error) {
+	if k.cfg.TVDBAPIKey != "" {
+		return k.cfg.TVDBAPIKey, k.cfg.TVDBPIN, nil
+	}
+	return k.admin.TVDBKey(ctx)
+}
+
+// YouTubeKey returns the YouTube Data API key: the environment (config) wins, else the stored setting.
+func (k *lazyKeys) YouTubeKey(ctx context.Context) (string, error) {
+	if k.cfg.YouTubeAPIKey != "" {
+		return k.cfg.YouTubeAPIKey, nil
+	}
+	return k.admin.YouTubeKey(ctx)
 }
 
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on

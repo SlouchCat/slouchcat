@@ -4,8 +4,10 @@
 // progress rows and top picks, plus the profiles P18, P16, P12, P6 and P0 of one account.
 // AddEdgeCases adds a second library with a profile restricted to the first one, a title whose
 // only file is missing and a soft-deleted title. AddSeries adds a series tree (series rated 12,
-// one season, an episode without own rating and one rated 16) to library 1, and AddGuest a guest
-// account limited to FSK 12 and library 1 with the profiles PG (primary) and PG18.
+// season 1 with an episode without own rating, one rated 16 and a multi-episode file, the specials
+// season with one episode, an extra) to library 1 with the M3 data around the movies (extras,
+// versions, trailers, a person, an ignored file), and AddGuest a guest account limited to FSK 12
+// and library 1 with the profiles PG (primary) and PG18.
 //
 // It lives below visibility because seeding writes the title tables directly, which only the
 // packages allowed by the itemsaccess analyzer may do. Only tests import it.
@@ -56,10 +58,12 @@ type Movie struct {
 	LibraryID    int64 // the library the title is in (set when it is seeded)
 	OtherLibrary bool  // in library X, which PX may not see
 	Missing      bool  // its only file has missing_since set
+	Unavailable  bool  // a container without available content children (AddLoneExtraSeries)
 	Deleted      bool  // soft-deleted
 
-	// Series tree entries (AddSeries): Kind is "series", "season" or "episode" ("" = movie); a
-	// container has no file; Effective and MinChild are the ratings the triggers compute.
+	// Series tree entries and extras (AddSeries): Kind is "series", "season", "episode" or "extra"
+	// ("" = movie); a container has no file; Effective and MinChild are the ratings the triggers
+	// compute (an extra inherits the effective rating of its parent).
 	Kind      string
 	ParentID  string
 	Container bool
@@ -69,14 +73,27 @@ type Movie struct {
 
 // Show is the series tree of AddSeries.
 type Show struct {
-	Series Movie // rated 12
-	Season Movie // season 1, inherits 12
-	E1     Movie // no own rating, effective 12
-	E2     Movie // own rating 16
+	Series   Movie // rated 12
+	Season   Movie // season 1, inherits 12
+	E1       Movie // S01E01, no own rating, effective 12
+	E2       Movie // S01E02, own rating 16
+	E3       Movie // S01E03-E04: one file, episode_end 4, effective 12
+	Specials Movie // season 0, inherits 12
+	Special  Movie // S00E01, effective 12
+	Extra    Movie // behind_the_scenes extra of the series, effective 12
 }
 
-// All returns the four titles, series first.
-func (s Show) All() []Movie { return []Movie{s.Series, s.Season, s.E1, s.E2} }
+// All returns the titles of the tree, series first.
+func (s Show) All() []Movie {
+	return []Movie{s.Series, s.Season, s.E1, s.E2, s.E3, s.Specials, s.Special, s.Extra}
+}
+
+// Person is the fixture person of AddSeries: a cast credit in the film rated 6 and the director
+// credit of the film rated 18.
+type Person struct {
+	ID   int64
+	Name string
+}
 
 // Fixture is the seeded database with its directories.
 type Fixture struct {
@@ -92,21 +109,56 @@ type Fixture struct {
 	P0            model.Profile // max 0, language de, no progress
 	PX            model.Profile // max 18, only library 1 (AddEdgeCases)
 
-	Show  Show          // series tree (AddSeries)
-	Guest model.Account // guest account G: max 12, library 1 only (AddGuest)
-	PG    model.Profile // primary profile of G, max 12, language en
-	PG18  model.Profile // profile of G with max 18, capped to 12 by the account
+	Show Show // series tree (AddSeries)
+	// Extras of the film rated 6 (AddSeries): a trailer and a featurette, effective 6.
+	Extras []Movie
+	// Version2FileID is the second media file of the film rated 12 (1280x720, AddSeries); the
+	// first file (1920x1080) stays the primary one.
+	Version2FileID string
+	Person         Person // AddSeries
+	// Trailers counts the trailer rows per item id (AddSeries).
+	Trailers map[string]int
+	// IgnoredRelPath is the ignored_files row of library 1 (AddSeries).
+	IgnoredRelPath string
+	Guest          model.Account // guest account G: max 12, library 1 only (AddGuest)
+	PG             model.Profile // primary profile of G, max 12, language en
+	PG18           model.Profile // profile of G with max 18, capped to 12 by the account
 	// Movies are ordered by rating 0, 6, 12, 16, 18, unrated; AddEdgeCases appends the
 	// OtherLibrary, Missing and Deleted titles (all rated 0).
 	Movies []Movie
 
 	libraryID      int64
 	rootID         int64
-	otherLibraryID int64 // library X (AddEdgeCases)
+	otherLibraryID int64   // library X (AddEdgeCases)
+	loose          []Movie // titles outside All that the oracle looks up (AddLoneExtraSeries)
 }
 
 // LibraryID is the id of library 1 (the movies and the series).
 func (f *Fixture) LibraryID() int64 { return f.libraryID }
+
+// RootID is the id of the root of library 1.
+func (f *Fixture) RootID() int64 { return f.rootID }
+
+// All returns every fixture title: the movies with the edge cases, the extras of the film rated 6
+// and the series tree, so a leak of any of them is detected.
+func (f *Fixture) All() []Movie {
+	out := slices.Concat(f.Movies, f.Extras)
+	if f.Show.Series.ID != "" {
+		out = append(out, f.Show.All()...)
+	}
+	return out
+}
+
+// Playable returns the titles with a media file (movies, episodes, extras).
+func (f *Fixture) Playable() []Movie {
+	var out []Movie
+	for _, m := range f.All() {
+		if !m.Container {
+			out = append(out, m)
+		}
+	}
+	return out
+}
 
 // OtherLibraryID is the id of library X (AddEdgeCases).
 func (f *Fixture) OtherLibraryID() int64 { return f.otherLibraryID }
@@ -131,25 +183,75 @@ func (f *Fixture) Unrated() Movie {
 	panic("vistest: no unrated movie")
 }
 
-// VisibleTo reports whether a profile of the owner account may see m by the rules of plan 3.3
-// (unknown counts as 18; missing and deleted titles are invisible; the library of the title must be in
-// the profile's rights, as PX only has library 1; a container is visible when its own and its smallest child rating fit).
-// Profiles of the guest account need Fixture.VisibleTo.
+// VisibleTo reports whether a profile of the owner account may see the movie m by the rules of
+// plan 3.3 (unknown counts as 18; missing and deleted titles are invisible; the library of the
+// title must be in the profile's rights, as PX only has library 1; a container is visible when its
+// own rating and its stored MinChild fit). Series trees, extras and profiles of the guest account
+// need Fixture.VisibleTo.
 func VisibleTo(p model.Profile, m Movie) bool {
-	return visibleTo(p, 18, true, nil, m)
+	return visibleTo(p, 18, true, nil, m, m.minChild())
 }
 
 // VisibleTo reports whether the profile may see m, with the limits of its account applied: the
-// ceiling of the guest account G and its library rights (library 1 only) cap the profile.
+// ceiling of the guest account G and its library rights (library 1 only) cap the profile. The
+// container rule is derived from the fixture tree (migration 00010): a container's smallest child
+// rating is the minimum over its live content children, a leaf counting with its rating and a
+// container child with the stricter of its rating and its own smallest child rating. An extra is
+// visible only while its parent is.
 func (f *Fixture) VisibleTo(p model.Profile, m Movie) bool {
 	if f.Guest.ID != 0 && p.AccountID == f.Guest.ID {
-		return visibleTo(p, f.Guest.MaxRating, f.Guest.AllLibraries, f.Guest.LibraryIDs, m)
+		return f.visible(p, f.Guest.MaxRating, f.Guest.AllLibraries, f.Guest.LibraryIDs, m, 0)
 	}
-	return visibleTo(p, 18, true, nil, m)
+	return f.visible(p, 18, true, nil, m, 0)
 }
 
-func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []int64, m Movie) bool {
-	if m.Missing || m.Deleted {
+func (f *Fixture) visible(p model.Profile, accountMax int, accountAll bool, accountLibs []int64, m Movie, depth int) bool {
+	if !visibleTo(p, accountMax, accountAll, accountLibs, m, f.minChild(m, depth)) {
+		return false
+	}
+	if m.Kind != "extra" {
+		return true
+	}
+	parent, ok := f.lookup(m.ParentID)
+	return ok && depth < 4 && f.visible(p, accountMax, accountAll, accountLibs, parent, depth+1)
+}
+
+// lookup finds a fixture title by id, including the titles that are not part of All.
+func (f *Fixture) lookup(id string) (Movie, bool) {
+	for _, m := range slices.Concat(f.All(), f.loose) {
+		if m.ID == id {
+			return m, true
+		}
+	}
+	return Movie{}, false
+}
+
+// minChild derives the smallest child rating of a container from the tree (18 without content
+// children); a title without children in the fixture keeps its stored MinChild.
+func (f *Fixture) minChild(m Movie, depth int) int {
+	if !m.Container {
+		return m.minChild()
+	}
+	out, found := 18, false
+	for _, c := range slices.Concat(f.All(), f.loose) {
+		if c.ParentID != m.ID || c.ID == "" || c.Kind == "extra" || c.Missing || c.Deleted || c.Unavailable {
+			continue
+		}
+		found = true
+		v := c.rating()
+		if c.Container && depth < 4 {
+			v = max(v, f.minChild(c, depth+1))
+		}
+		out = min(out, v)
+	}
+	if !found {
+		return m.minChild()
+	}
+	return out
+}
+
+func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []int64, m Movie, minChild int) bool {
+	if m.Missing || m.Deleted || m.Unavailable {
 		return false
 	}
 	// Library rights: the profile's own and the account's, both read from the fixture data.
@@ -163,7 +265,7 @@ func visibleTo(p model.Profile, accountMax int, accountAll bool, accountLibs []i
 	if m.rating() > limit {
 		return false
 	}
-	if m.Container && m.minChild() > limit {
+	if m.Container && minChild > limit {
 		return false
 	}
 	return true
@@ -304,9 +406,11 @@ func (f *Fixture) addMovie(t testing.TB, m Movie, libraryID, rootID int64, media
 	m.ID = "01J9000000000000000000R0" + m.Label
 	m.FileID = "01J9000000000000000000F0" + m.Label
 	m.LibraryID = libraryID
-	m.RelPath = fmt.Sprintf("Movie %s (20%02d)/Movie %s (20%02d).mp4", m.Label, 10+i, m.Label, 10+i)
-	if m.Kind == "episode" {
-		m.RelPath = fmt.Sprintf("Show/Season 01/Show - S01%s.mp4", m.Label)
+	if m.RelPath == "" {
+		m.RelPath = fmt.Sprintf("Movie %s (20%02d)/Movie %s (20%02d).mp4", m.Label, 10+i, m.Label, 10+i)
+		if m.Kind == "episode" {
+			m.RelPath = fmt.Sprintf("Show/Season 01/Show - S01%s.mp4", m.Label)
+		}
 	}
 	if m.Kind == "" {
 		m.Effective = m.Rating
@@ -417,11 +521,17 @@ func exec(t testing.TB, db *store.DB, query string, args ...any) {
 
 func ptr(v int) *int { return &v }
 
-// AddSeries adds the series tree to library 1: the series S rated 12, season 1 (no own rating) and
-// the episodes E1 (no own rating, effective 12) and E2 (own rating 16), each episode with a media
-// file, texts and images like the movies. Series and season carry texts and images too. The
-// container ratings follow plan 3.2 (effective 12 for series, season and E1; E2 is 16; the smallest
-// child of series and season is 12).
+// AddSeries adds the series tree to library 1: the series S rated 12, season 1 (no own rating)
+// with the episodes E1 (no own rating, effective 12), E2 (own rating 16) and the multi-episode file
+// E3 (S01E03-E04), the specials season 0 with S00E01, and a behind-the-scenes extra of the series;
+// every episode and extra with a media file, texts and images like the movies, series and seasons
+// with texts and images too. The container ratings follow plan 3.2 (effective 12 for the tree
+// except E2 with 16; the smallest content child of series and seasons is 12; extras never count).
+//
+// It also adds the M3 data around the movies: a trailer and a featurette extra of the film rated 6,
+// a second version (1280x720) of the film rated 12, trailers in de and en of the film rated 6 and
+// of the series plus one of the film rated 18, the person "Pat Example" with a cast credit in the
+// film rated 6 and the director credit of the film rated 18, and an ignored file of library 1.
 func (f *Fixture) AddSeries(t testing.TB) {
 	t.Helper()
 	twelve, sixteen := ptr(12), ptr(16)
@@ -433,7 +543,75 @@ func (f *Fixture) AddSeries(t testing.TB) {
 		f.libraryID, f.rootID, f.MediaDir, 22)
 	e2 := f.addMovie(t, Movie{Kind: "episode", Label: "E2", ParentID: season.ID, Rating: sixteen, Effective: sixteen},
 		f.libraryID, f.rootID, f.MediaDir, 23)
-	f.Show = Show{Series: series, Season: season, E1: e1, E2: e2}
+	e3 := f.addMovie(t, Movie{Kind: "episode", Label: "E3", ParentID: season.ID, Effective: twelve, RelPath: "Show/Season 01/Show - S01E03-E04.mp4"},
+		f.libraryID, f.rootID, f.MediaDir, 24)
+	specials := f.addMovie(t, Movie{Kind: "season", Label: "SP", ParentID: series.ID, Container: true, Effective: twelve, MinChild: twelve},
+		f.libraryID, f.rootID, f.MediaDir, 25)
+	special := f.addMovie(t, Movie{Kind: "episode", Label: "P1", ParentID: specials.ID, Effective: twelve, RelPath: "Show/Specials/Show - S00E01.mp4"},
+		f.libraryID, f.rootID, f.MediaDir, 26)
+	extra := f.addMovie(t, Movie{Kind: "extra", Label: "XB", ParentID: series.ID, Effective: twelve, RelPath: "Show/Behind The Scenes/Making of.mp4"},
+		f.libraryID, f.rootID, f.MediaDir, 27)
+	f.Show = Show{Series: series, Season: season, E1: e1, E2: e2, E3: e3, Specials: specials, Special: special, Extra: extra}
+	exec(t, f.DB, `UPDATE items SET season_number = 1 WHERE id IN (?, ?, ?, ?)`, season.ID, e1.ID, e2.ID, e3.ID)
+	exec(t, f.DB, `UPDATE items SET season_number = 0 WHERE id IN (?, ?)`, specials.ID, special.ID)
+	exec(t, f.DB, `UPDATE items SET episode_number = 1 WHERE id IN (?, ?)`, e1.ID, special.ID)
+	exec(t, f.DB, `UPDATE items SET episode_number = 2 WHERE id = ?`, e2.ID)
+	exec(t, f.DB, `UPDATE items SET episode_number = 3, episode_end = 4 WHERE id = ?`, e3.ID)
+	exec(t, f.DB, `UPDATE items SET extra_kind = 'behind_the_scenes', metadata_state = 'skipped' WHERE id = ?`, extra.ID)
+
+	// Extras of the film rated 6: they inherit its rating (effective 6).
+	m6, six := f.Rated(6), ptr(6)
+	for i, x := range []struct{ label, kind, rel string }{
+		{"XT", "trailer", "Movie 06 (2011)/Trailers/Teaser.mp4"},
+		{"XF", "featurette", "Movie 06 (2011)/Featurettes/On set.mp4"},
+	} {
+		m := f.addMovie(t, Movie{Kind: "extra", Label: x.label, ParentID: m6.ID, Effective: six, RelPath: x.rel}, f.libraryID, f.rootID, f.MediaDir, 28+i)
+		exec(t, f.DB, `UPDATE items SET extra_kind = ?, metadata_state = 'skipped' WHERE id = ?`, x.kind, m.ID)
+		f.Extras = append(f.Extras, m)
+	}
+
+	// Second version of the film rated 12 (B-5): 720p by its probed height, so the 1080p file
+	// stays the primary one.
+	m12 := f.Rated(12)
+	f.Version2FileID = "01J9000000000000000000F0V2"
+	rel := "Movie 12 (2012)/Movie 12 (2012) - 720p.mp4"
+	content := make([]byte, FileSize)
+	if _, err := rand.Read(content); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(f.MediaDir, filepath.FromSlash(rel)), content)
+	exec(t, f.DB, `INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, video_codec,
+	               audio_codec, width, height, duration_ms, probed_at, created_at, updated_at)
+	               VALUES (?, ?, ?, ?, ?, 1, 'mp4', 'h264', 'aac', 1280, 720, ?, 2, 2, 2)`,
+		f.Version2FileID, m12.ID, f.rootID, rel, FileSize, DurationMs)
+
+	// Trailers (B-8): de and en of the film rated 6 and of the series, one of the film rated 18.
+	f.Trailers = map[string]int{}
+	for _, tr := range []struct {
+		itemID, lang, youtubeID, source string
+		official                        int
+	}{
+		{m6.ID, "en", "EnTrailer06", "tmdb", 1},
+		{m6.ID, "de", "DeTrailer06", "youtube", 0},
+		{series.ID, "de", "DeTrailerSS", "manual", 0},
+		{series.ID, "en", "EnTrailerSS", "tmdb", 1},
+		{f.Rated(18).ID, "en", "EnTrailer18", "tmdb", 1},
+	} {
+		exec(t, f.DB, `INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, created_at) VALUES (?, ?, ?, ?, ?, ?, 1)`,
+			tr.itemID, tr.lang, tr.youtubeID, "Trailer "+tr.lang, tr.source, tr.official)
+		f.Trailers[tr.itemID]++
+	}
+	exec(t, f.DB, `UPDATE items SET trailer_state = 'found' WHERE id IN (?, ?, ?)`, m6.ID, series.ID, f.Rated(18).ID)
+
+	// A person with roles in the films rated 6 (cast) and 18 (director).
+	f.Person = Person{ID: 1, Name: "Pat Example"}
+	exec(t, f.DB, `INSERT INTO people (id, tmdb_id, name, created_at) VALUES (?, 9001, ?, 1)`, f.Person.ID, f.Person.Name)
+	exec(t, f.DB, `INSERT INTO credits (item_id, person_id, role, character, ord) VALUES (?, ?, 'cast', 'Hero', 0), (?, ?, 'director', NULL, 0)`,
+		m6.ID, f.Person.ID, f.Rated(18).ID, f.Person.ID)
+
+	// A file the administrator removed (B-9); the scanner skips it.
+	f.IgnoredRelPath = "Broken (2024)/Broken (2024).mkv"
+	exec(t, f.DB, `INSERT INTO ignored_files (root_id, rel_path, reason, created_at) VALUES (?, ?, 'unplayable', 1)`, f.rootID, f.IgnoredRelPath)
 }
 
 // AddGuest adds the guest account G (FSK ceiling 12, only library 1) with its primary profile PG

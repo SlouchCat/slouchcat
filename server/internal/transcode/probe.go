@@ -101,13 +101,37 @@ type rawProbe struct {
 
 // Probe runs `ffprobe -v error -print_format json -show_format -show_streams -show_chapters` on
 // the absolute path (resolved through package paths by the caller) and parses the result.
+//
+// A failure that is a property of the file (ffprobe ran and exited with an error, or its output
+// does not parse) is a *FileError; any other failure (ffprobe missing or not configured, the
+// process could not start, the context ended) is returned as is, so the caller can retry it.
 func (r Runner) Probe(ctx context.Context, path string) (Probe, error) {
 	out, err := r.ffprobe(ctx, "-v", "error", "-print_format", "json", "-show_format", "-show_streams", "-show_chapters", path)
 	if err != nil {
 		return Probe{}, err
 	}
-	return ParseProbe(out)
+	p, err := ParseProbe(out)
+	if err != nil {
+		return Probe{}, &FileError{err: err}
+	}
+	return p, nil
 }
+
+// FileError is a probe failure caused by the file itself: ffprobe exited with an error (not a
+// media file, damaged) or printed output that does not parse.
+type FileError struct{ err error }
+
+// systemFailures are the operating system messages ffprobe prints when it cannot open or read its
+// input (a network share that dropped, a file gone for a moment); such an exit says nothing about
+// the file, so it is not a FileError.
+var systemFailures = []string{
+	"Input/output error", "No such file or directory", "Permission denied", "Resource temporarily unavailable",
+	"Stale file handle", "Host is down", "Connection timed out",
+}
+
+func (e *FileError) Error() string { return e.err.Error() }
+
+func (e *FileError) Unwrap() error { return e.err }
 
 // ParseProbe parses the JSON output of ffprobe.
 func ParseProbe(data []byte) (Probe, error) {
@@ -196,7 +220,13 @@ func (r Runner) ffprobe(ctx context.Context, args ...string) ([]byte, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("ffprobe: %w: %s", err, strings.TrimSpace(stderr.String()))
+		msg := strings.TrimSpace(stderr.String())
+		wrapped := fmt.Errorf("ffprobe: %w: %s", err, msg)
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && ctx.Err() == nil && !slices.ContainsFunc(systemFailures, func(s string) bool { return strings.Contains(msg, s) }) {
+			return nil, &FileError{err: wrapped}
+		}
+		return nil, wrapped
 	}
 	return out, nil
 }

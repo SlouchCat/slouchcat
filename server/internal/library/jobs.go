@@ -25,12 +25,14 @@ const (
 
 // Job priorities (0 lowest, 9 highest).
 const (
-	prioPathScan  = 6
-	prioScan      = 5
-	prioMatch     = 4
-	prioProbe     = 3
-	prioSweep     = 2
-	prioKeyframes = 1
+	prioPathScan = 6
+	prioScan     = 5
+	prioMatch    = 4
+	prioProbe    = 3
+	// prioEpisodeMatch: a new episode of a matched series (the series job fills the others).
+	prioEpisodeMatch = 3
+	prioSweep        = 2
+	prioKeyframes    = 1
 	// prioKeyframesPlayback: a playback fell back to transcoding because the index is missing;
 	// the index runs before everything else so the next start remuxes.
 	prioKeyframesPlayback = 9
@@ -121,6 +123,10 @@ func StoreKeyframes(ctx context.Context, db *sql.DB, mediaFileID string, kf []ti
 
 func matchJob(itemID string) newJob {
 	return newJob{JobMetadataMatch, prioMatch, "match:" + itemID, itemPayload{itemID}}
+}
+
+func episodeMatchJob(itemID string) newJob {
+	return newJob{JobMetadataMatch, prioEpisodeMatch, "match:" + itemID, itemPayload{itemID}}
 }
 
 // enqueueTx adds a job in the caller's transaction, so rows and their follow-up jobs commit

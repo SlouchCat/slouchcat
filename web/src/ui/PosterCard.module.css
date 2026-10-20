@@ -63,6 +63,12 @@
   object-fit: cover;
 }
 
+.badge {
+  position: absolute;
+  top: var(--sc-space-2);
+  left: var(--sc-space-2);
+}
+
 .progress {
   position: absolute;
   right: var(--sc-space-3);

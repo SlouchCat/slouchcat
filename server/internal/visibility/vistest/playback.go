@@ -61,3 +61,33 @@ func (f *Fixture) ItemFlags(t testing.TB, itemID string) (lockedFields, ratingSo
 	}
 	return lockedFields, src.String
 }
+
+// AddLoneExtraSeries adds the series "LX" rated 0 to library 1 whose only child is a trailer extra
+// with a media file (design 1: an extra alone keeps a series unavailable). It returns the series
+// and the extra; neither is part of All.
+func (f *Fixture) AddLoneExtraSeries(t testing.TB) (series, extra Movie) {
+	t.Helper()
+	zero := ptr(0)
+	series = f.addMovie(t, Movie{Kind: "series", Label: "LX", Rating: zero, Container: true, Effective: zero, Unavailable: true},
+		f.libraryID, f.rootID, f.MediaDir, 40)
+	extra = f.addMovie(t, Movie{Kind: "extra", Label: "LT", ParentID: series.ID, Effective: zero, RelPath: "Lone/Trailers/Lone.mp4"},
+		f.libraryID, f.rootID, f.MediaDir, 41)
+	exec(t, f.DB, `UPDATE items SET extra_kind = 'trailer' WHERE id = ?`, extra.ID)
+	f.loose = append(f.loose, series, extra)
+	return series, extra
+}
+
+// ContainerState returns the available flag and min_child_rating (nil = NULL) of a title.
+func (f *Fixture) ContainerState(t testing.TB, itemID string) (available bool, minChild *int) {
+	t.Helper()
+	var avail int
+	var mc sql.NullInt64
+	if err := f.DB.Read.QueryRowContext(context.Background(), `SELECT available, min_child_rating FROM items WHERE id = ?`, itemID).Scan(&avail, &mc); err != nil {
+		t.Fatal(err)
+	}
+	if mc.Valid {
+		v := int(mc.Int64)
+		minChild = &v
+	}
+	return avail == 1, minChild
+}

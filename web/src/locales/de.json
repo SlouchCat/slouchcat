@@ -7,7 +7,10 @@
     "back": "Zurück",
     "retry": "Erneut versuchen",
     "cancel": "Abbrechen",
-    "loading": "Wird geladen …"
+    "loading": "Wird geladen …",
+    "close": "Schliessen",
+    "save": "Speichern",
+    "saving": "Wird gespeichert …"
   },
   "nav": {
     "main": "Hauptnavigation",
@@ -18,7 +21,8 @@
     "skip": "Zum Inhalt springen",
     "access": "Zugriff",
     "profiles": "Profile",
-    "switchProfile": "Profil wechseln, aktuell {{name}}"
+    "switchProfile": "Profil wechseln, aktuell {{name}}",
+    "maintenance": "Pflege"
   },
   "system": {
     "server": {
@@ -54,7 +58,8 @@
       "primary_profile_required": "Profile verwaltet nur das Hauptprofil dieses Kontos.",
       "primary_profile": "Das Hauptprofil kann nicht gelöscht werden.",
       "invitation_gone": "Dieser Einladungslink ist nicht mehr gültig.",
-      "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut."
+      "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut.",
+      "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -163,6 +168,35 @@
       "version": "Version",
       "unavailable": "nicht verfügbar",
       "none": "Zu diesem Titel ist gerade keine Datei verfügbar."
+    },
+    "manage": "Verwalten",
+    "trailer": "Trailer",
+    "seriesLink": "Zur Serie",
+    "parentLink": "Zum Haupttitel",
+    "nextEpisode": "Nächste Folge",
+    "nextEpisodeLabel": "{{code}} · {{title}}",
+    "episodeCode": "S{{season}}E{{episode}}",
+    "episodeCodeRange": "S{{season}}E{{episode}}–E{{end}}",
+    "episodeOf": "{{code}} · {{series}}",
+    "docTitle": {
+      "season": "{{title}} – {{series}}",
+      "episode": "{{code}} {{title}} – {{series}}"
+    },
+    "versions": "Versionen",
+    "extras": "Extras",
+    "cast": {
+      "title": "Besetzung",
+      "role": {
+        "director": "Regie",
+        "writer": "Drehbuch",
+        "creator": "Idee"
+      }
+    },
+    "seasons": "Staffeln",
+    "seasonChoice": "Staffel wählen",
+    "episodes": {
+      "title": "Folgen",
+      "empty": "Keine Folgen."
     }
   },
   "rating": {
@@ -173,6 +207,7 @@
     "minutes": "{{minutes}} min",
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "resolution": "{{width}} × {{height}}",
+    "resolutionWithClass": "{{resolution}} · {{class}}",
     "uhd": "4K",
     "fhd": "1080p",
     "hd": "720p",
@@ -201,7 +236,37 @@
     "error": {
       "title": "Wiedergabe nicht möglich",
       "body": "Die Datei konnte nicht geladen werden."
-    }
+    },
+    "info": "Stream-Info",
+    "version": "Version",
+    "switching": "Version wird gewechselt …",
+    "streamInfo": {
+      "title": "Stream-Info",
+      "mode": "Modus",
+      "modeDirect": "Direkt",
+      "modeHls": "HLS",
+      "transcoding": "Umwandlung",
+      "remux": "Remux",
+      "transcode": "Transcode",
+      "backend": "Backend",
+      "reason": "Grund",
+      "reasons": {
+        "container": "Container",
+        "video_codec": "Videocodec",
+        "audio_codec": "Audiocodec",
+        "hdr": "HDR-Video",
+        "pixel_format": "Pixelformat (10 Bit, 4:2:2 oder 4:4:4)",
+        "keyframes_pending": "Keyframe-Index wird erstellt"
+      },
+      "mediaFile": "Datei-ID",
+      "version": "Version",
+      "container": "Container",
+      "video": "Video",
+      "audio": "Audio",
+      "resolution": "Auflösung",
+      "none": "–"
+    },
+    "versionButton": "Version: {{label}}"
   },
   "admin": {
     "libraries": {
@@ -233,7 +298,8 @@
         "root_missing": "Der Ordner fehlt. Ist das Laufwerk eingehängt? Es wurde nichts gelöscht.",
         "root_empty": "Der Ordner ist leer. Es wurde nichts gelöscht.",
         "loss_over_threshold": "Mehr als 20 % der Dateien fehlen. Zum Schutz wurde nichts gelöscht.",
-        "other": "Letzter Fehler: {{message}}"
+        "other": "Letzter Fehler: {{message}}",
+        "cancelled": "Der Scan wurde abgebrochen. Der nächste Scan läuft wieder normal."
       },
       "rescan": "Erneut scannen",
       "acceptLoss": {
@@ -246,7 +312,8 @@
         "title": "Bibliothek hinzufügen",
         "submit": "Hinzufügen",
         "submitting": "Wird hinzugefügt …"
-      }
+      },
+      "cancel": "Scan abbrechen"
     },
     "access": {
       "title": "Zugriff",
@@ -313,7 +380,200 @@
           "confirm": "Gast entfernen"
         }
       }
-    }
+    },
+    "maintenance": {
+      "title": "Pflege",
+      "intro": "Titel und Dateien, die Aufmerksamkeit brauchen.",
+      "notAllowed": {
+        "title": "Nur für das Hauptkonto",
+        "body": "Die Pflege der Bibliothek ist dem Hauptprofil des Hauptkontos vorbehalten."
+      },
+      "tabs": "Problemarten",
+      "tab": {
+        "unmatched": "Nicht zugeordnet",
+        "no_images": "Ohne Bilder",
+        "unrated": "Ohne Freigabe",
+        "orphaned": "Verwaist",
+        "unplayable": "Nicht abspielbar",
+        "rating_mismatch": "Freigabe abweichend",
+        "duplicates": "Duplikate"
+      },
+      "tabCount": "{{label}} ({{count}})",
+      "hint": {
+        "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.",
+        "no_images": "Zugeordnete Titel ohne Poster. Eine Aktualisierung lädt die Bilder neu.",
+        "unrated": "Titel ohne Freigabe sehen nur Profile mit FSK 18. Weise eine Freigabe zu, um sie freizugeben.",
+        "orphaned": "Titel ohne Datei oder mit fehlenden Dateien, leere Staffeln und Serien.",
+        "unplayable": "Dateien, die sich nicht lesen lassen. Prüfe sie erneut oder entferne sie aus der Bibliothek.",
+        "rating_mismatch": "Die gespeicherte Freigabe weicht von der berechneten ab. Eine Freigabe-Änderung oder der nächste Scan korrigiert sie. Hier gibt es nichts auszuwählen.",
+        "duplicates": "Titel, die doppelt vorkommen. Wähle den Titel, der bleiben soll, und führe die anderen mit ihm zusammen."
+      },
+      "empty": "Nichts zu tun.",
+      "selection": "Auswahl",
+      "selectItem": "{{title}} auswählen",
+      "selected": "{{count}} ausgewählt",
+      "selectAll": "Alle auswählen",
+      "selectNone": "Auswahl aufheben",
+      "more": "Mehr laden",
+      "shown": "{{shown}} von {{total}}",
+      "titleCount_one": "{{count}} Titel",
+      "titleCount_other": "{{count}} Titel",
+      "fileCount_one": "{{count}} Datei",
+      "fileCount_other": "{{count}} Dateien",
+      "action": {
+        "match": "Zuordnen",
+        "refresh": "Aktualisieren",
+        "rating": "Freigabe zuweisen",
+        "cleanup": "Bereinigen",
+        "recheck": "Erneut prüfen",
+        "remove": "Entfernen"
+      },
+      "done": {
+        "refresh_one": "{{count}} Titel wird aktualisiert.",
+        "refresh_other": "{{count}} Titel werden aktualisiert.",
+        "refreshFailed_one": "{{failed}} von {{count}} Titel nicht aktualisiert: {{error}}",
+        "refreshFailed_other": "{{failed}} von {{count}} Titeln nicht aktualisiert: {{error}}",
+        "rating_one": "Freigabe für {{count}} Titel gesetzt.",
+        "rating_other": "Freigabe für {{count}} Titel gesetzt.",
+        "cleanup": "Entfernt: {{items}}, {{files}}.",
+        "merge": "Titel zusammengeführt.",
+        "match": "Zuordnung gespeichert, die Metadaten werden geladen."
+      },
+      "cleanup": {
+        "title": "Titel bereinigen?",
+        "body_one": "Der ausgewählte Titel wird aus der Bibliothek entfernt. Dateien auf der Platte bleiben unberührt.",
+        "body_other": "Die {{count}} ausgewählten Titel werden aus der Bibliothek entfernt. Dateien auf der Platte bleiben unberührt.",
+        "confirm": "Bereinigen"
+      },
+      "remove": {
+        "title": "Dateien entfernen?",
+        "body_one": "Die ausgewählte Datei wird aus der Bibliothek entfernt und bei künftigen Scans übersprungen. Auf der Platte bleibt sie.",
+        "body_other": "Die {{count}} ausgewählten Dateien werden aus der Bibliothek entfernt und bei künftigen Scans übersprungen. Auf der Platte bleiben sie.",
+        "confirm": "Entfernen"
+      },
+      "rating": {
+        "title": "Freigabe zuweisen",
+        "description_one": "Gilt für {{count}} ausgewählten Titel.",
+        "description_other": "Gilt für {{count}} ausgewählte Titel.",
+        "label": "Altersfreigabe",
+        "summary_one": "{{count}} Titel erhält {{rating}}.",
+        "summary_other": "{{count}} Titel erhalten {{rating}}.",
+        "submit": "Zuweisen",
+        "submitting": "Wird zugewiesen …"
+      },
+      "duplicates": {
+        "reason": {
+          "provider_id": "Gleiche Anbieter-ID",
+          "title_year": "Gleicher Titel und gleiches Jahr",
+          "file_hash": "Gleicher Dateiinhalt"
+        },
+        "group": "Gruppe {{index}}",
+        "target": "Behalten",
+        "option": "{{index}}: {{title}}",
+        "merge": "Zusammenführen",
+        "confirmTitle": "Titel zusammenführen?",
+        "confirmBody_one": "Dateien, Extras, Trailer und Fortschritt des anderen Titels wandern zu «{{title}}». Der andere Titel wird gelöscht.",
+        "confirmBody_other": "Dateien, Extras, Trailer und Fortschritt der {{count}} anderen Titel wandern zu «{{title}}». Die anderen Titel werden gelöscht.",
+        "empty": "Keine Duplikate gefunden."
+      }
+    },
+    "item": {
+      "title": "Titel verwalten",
+      "notAllowed": {
+        "title": "Nur für das Hauptkonto",
+        "body": "Titel verwaltet das Hauptprofil des Hauptkontos."
+      },
+      "notFound": "Diesen Titel gibt es nicht oder nicht mehr.",
+      "view": "Zur Detailseite",
+      "facts": {
+        "kind": "Art",
+        "id": "ID",
+        "library": "Bibliothek",
+        "season": "Staffel",
+        "episode": "Folge",
+        "metadata": "Metadaten",
+        "metadataError": "Fehler",
+        "matchedAt": "Zugeordnet am",
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "imdb": "IMDb",
+        "locked": "Gesperrte Felder",
+        "children": "Inhalt",
+        "childCounts": "Staffeln: {{seasons}} · Folgen: {{episodes}} · Extras: {{extras}}",
+        "none": "–"
+      },
+      "state": {
+        "pending": "Ausstehend",
+        "matched": "Zugeordnet",
+        "unmatched": "Nicht zugeordnet",
+        "failed": "Fehlgeschlagen",
+        "skipped": "Übersprungen"
+      },
+      "rating": {
+        "title": "Freigabe",
+        "own": "Eigene Freigabe",
+        "effective": "Wirksame Freigabe",
+        "source": "Quelle",
+        "label": "Eigene Freigabe setzen",
+        "fromMetadata": "Aus Metadaten",
+        "saved": "Freigabe gespeichert."
+      },
+      "files": {
+        "title": "Dateien",
+        "probedAt": "Geprüft am {{date}}",
+        "probeError": "Prüffehler",
+        "none": "Keine Dateien."
+      },
+      "refreshed": "Aktualisierung eingereiht.",
+      "trailers": {
+        "title": "Trailer",
+        "state": {
+          "pending": "Suche ausstehend",
+          "found": "Gefunden",
+          "none": "Keiner gefunden",
+          "failed": "Suche fehlgeschlagen"
+        },
+        "empty": "Keine Trailer.",
+        "official": "Offiziell",
+        "source": {
+          "tmdb": "TMDB",
+          "youtube": "YouTube",
+          "ai": "KI",
+          "manual": "Manuell"
+        },
+        "add": "Hinzufügen",
+        "addTitle": "Trailer hinzufügen",
+        "url": "YouTube-Link oder Video-ID",
+        "urlHint": "youtube.com/watch?v=…, youtu.be/… oder die Video-ID.",
+        "lang": "Sprache",
+        "langOther": "Andere",
+        "langCode": "Sprachcode",
+        "langCodeHint": "Zwei oder drei Kleinbuchstaben, zum Beispiel fr.",
+        "submit": "Hinzufügen",
+        "submitting": "Wird hinzugefügt …",
+        "delete": {
+          "action": "Löschen",
+          "title": "Trailer löschen?",
+          "body": "Der Trailer wird entfernt. Ein automatisch gefundener Trailer kann beim nächsten Aktualisieren zurückkommen.",
+          "confirm": "Löschen"
+        }
+      }
+    },
+    "match": {
+      "title": "Titel zuordnen",
+      "description": "Suche den Titel bei TMDB oder TVDB und wähle den passenden Eintrag.",
+      "provider": "Anbieter",
+      "kind": "Art",
+      "query": "Suchbegriff",
+      "year": "Jahr (optional)",
+      "search": "Suchen",
+      "searching": "Wird gesucht …",
+      "results": "Treffer",
+      "none": "Keine Treffer.",
+      "choose": "{{title}} zuordnen",
+      "yearInvalid": "Ein Jahr zwischen 1800 und 2100."
+    },
+    "titleYear": "{{title}} ({{year}})"
   },
   "language": {
     "de": "Deutsch",
@@ -440,6 +700,41 @@
     "notFound": {
       "title": "Link nicht gefunden",
       "body": "Diesen Einladungslink gibt es nicht. Prüfe, ob du ihn vollständig kopiert hast."
+    }
+  },
+  "kind": {
+    "movie": "Film",
+    "series": "Serie",
+    "season": "Staffel",
+    "episode": "Folge",
+    "extra": "Extra",
+    "audiobook": "Hörbuch",
+    "podcast": "Podcast",
+    "podcast_episode": "Podcast-Folge"
+  },
+  "extraKind": {
+    "trailer": "Trailer",
+    "featurette": "Featurette",
+    "deleted_scene": "Entfallene Szene",
+    "behind_the_scenes": "Hinter den Kulissen",
+    "interview": "Interview",
+    "scene": "Szene",
+    "short": "Kurzfilm",
+    "other": "Extra"
+  },
+  "trailer": {
+    "title": "Trailer: {{title}}",
+    "language": "Sprache",
+    "frame": "Trailer von {{title}} (YouTube)",
+    "none": "Kein Trailer verfügbar.",
+    "privacy": "Der Trailer wird von YouTube abgespielt (youtube-nocookie.com)."
+  },
+  "person": {
+    "credits": "Filme und Serien",
+    "as": "als {{character}}",
+    "notFound": {
+      "title": "Person nicht gefunden",
+      "body": "Zu dieser Person gibt es hier keine Titel."
     }
   }
 }

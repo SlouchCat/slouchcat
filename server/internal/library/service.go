@@ -49,13 +49,24 @@ type Service struct {
 	now   func() time.Time
 	// imageCheck queues image.fetch for titles with incomplete images after a scan (optional).
 	imageCheck func(ctx context.Context, libraryID int64) (int, error)
+	// metadataCheck queues metadata.match for titles still pending after a scan (optional).
+	metadataCheck func(ctx context.Context, libraryID int64) (int, error)
 
 	mu        sync.Mutex
 	runCtx    context.Context // context of Start; watchers of libraries created later run under it
 	wg        sync.WaitGroup
-	watchers  map[int64]*Watcher      // by root id
-	retrying  map[int64]bool          // library ids with a pending re-queue (scan was running)
-	scanLocks map[int64]chan struct{} // by library id; see lockScan
+	watchers  map[int64]*Watcher          // by root id
+	retrying  map[int64]bool              // library ids with a pending re-queue (scan was running)
+	scanLocks map[int64]chan struct{}     // by library id; see lockScan
+	runs      map[int64]map[*scanRun]bool // running scans by library id; see CancelScan
+
+	statsMu    sync.Mutex
+	writeStats WriteStats // see TakeWriteStats
+
+	// orphanMu guards orphans: extras files a scan skipped because no title owns their folder,
+	// by root id and rel path, with the size and mtime they had (see deferOrphan).
+	orphanMu sync.Mutex
+	orphans  map[int64]map[string]fileStamp
 
 	// pathMu guards the coalescing of watcher changes into scan.path jobs.
 	pathMu       sync.Mutex
@@ -77,12 +88,22 @@ func WithImageCheck(check func(ctx context.Context, libraryID int64) (int, error
 	return func(s *Service) { s.imageCheck = check }
 }
 
+// WithMetadataCheck runs check after every successful full scan of a library; metadata's
+// QueuePendingMetadata queues metadata.match for titles with metadata_state 'pending' and no
+// active job, a one-time match for titles matched before M3 and trailer.find for pending trailers,
+// so the enrichment converges after interrupted or cancelled scans (design 2.2).
+func WithMetadataCheck(check func(ctx context.Context, libraryID int64) (int, error)) Option {
+	return func(s *Service) { s.metadataCheck = check }
+}
+
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		db: db, queue: queue, probe: probe, log: log, now: time.Now,
 		watchers: map[int64]*Watcher{}, retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
+		runs:        map[int64]map[*scanRun]bool{},
 		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
+		orphans: map[int64]map[string]fileStamp{},
 	}
 	for _, o := range opts {
 		o(s)
@@ -246,6 +267,104 @@ func (s *Service) AcceptLoss(ctx context.Context, id int64) (model.Library, erro
 	}
 	s.log.InfoContext(ctx, "library loss accepted", "library_id", id)
 	return s.QueueScan(ctx, id)
+}
+
+// CancelScan stops the queued and running scans of a library (scan.library and scan.path,
+// design 2.2): their jobs are cancelled and a running scan sees its context cancelled at once.
+// The scan ends with state aborted and last_scan_error "cancelled"; changes it wrote before
+// stay, and the next scan converges. Without an active scan nothing changes. It returns
+// model.ErrNotFound for an unknown library.
+func (s *Service) CancelScan(ctx context.Context, libraryID int64) (model.Library, error) {
+	if _, err := s.Get(ctx, libraryID); err != nil {
+		return model.Library{}, err
+	}
+	cancelled := false
+	sq := systemq.New(s.db.Write)
+	for _, key := range []string{scanKey(libraryID), pathScanKey(libraryID)} {
+		id, err := sq.GetActiveJobIDByKey(ctx, sql.NullString{String: key, Valid: true})
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return model.Library{}, fmt.Errorf("find scan job %s: %w", key, err)
+		}
+		ok, err := s.queue.Cancel(ctx, id)
+		if err != nil {
+			return model.Library{}, err
+		}
+		cancelled = cancelled || ok
+	}
+	// After the jobs: a scan that registers later checks its job and does not start.
+	s.mu.Lock()
+	runs := slices.Collect(maps.Keys(s.runs[libraryID]))
+	s.mu.Unlock()
+	for _, r := range runs {
+		r.cancel(errScanCancelled)
+	}
+	if cancelled || len(runs) > 0 {
+		if err := s.setState(ctx, libraryID, "aborted", abortCancelled); err != nil {
+			return model.Library{}, err
+		}
+		s.log.InfoContext(ctx, "scan cancelled", "library_id", libraryID, "running", len(runs))
+	}
+	return s.Get(ctx, libraryID)
+}
+
+// ignoreBatch bounds the media files IgnoreFiles handles per transaction (about three rows each).
+const ignoreBatch = batchRows / 3
+
+// IgnoreFiles removes media files from the library for good (B-9 cleanup): each existing file is
+// entered into ignored_files (so the scanner skips it from now on) and its media_files row is
+// deleted; a movie, episode or extra left without any media file is soft-deleted. Unknown ids are
+// skipped. It returns the number of files removed and of items soft-deleted.
+func (s *Service) IgnoreFiles(ctx context.Context, mediaFileIDs []string, reason string) (files, itemsDeleted int, err error) {
+	for chunk := range slices.Chunk(mediaFileIDs, ignoreBatch) {
+		f, d, err := s.ignoreChunk(ctx, chunk, reason)
+		files += f
+		itemsDeleted += d
+		if err != nil {
+			return files, itemsDeleted, err
+		}
+	}
+	if files > 0 {
+		s.log.InfoContext(ctx, "media files ignored", "files", files, "items_deleted", itemsDeleted, "reason", reason)
+	}
+	return files, itemsDeleted, nil
+}
+
+func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) (files, itemsDeleted int, err error) {
+	now := s.now().UnixMilli()
+	tx, err := s.db.Write.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	for _, id := range ids {
+		mf, err := q.GetMediaFileSystem(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return 0, 0, fmt.Errorf("load media file %s: %w", id, err)
+		}
+		if err := q.InsertIgnoredFile(ctx, systemq.InsertIgnoredFileParams{RootID: mf.RootID, RelPath: mf.RelPath, Reason: reason, Now: now}); err != nil {
+			return 0, 0, fmt.Errorf("ignore media file %s: %w", id, err)
+		}
+		if err := q.DeleteMediaFile(ctx, id); err != nil {
+			return 0, 0, fmt.Errorf("delete media file %s: %w", id, err)
+		}
+		n, err := q.SoftDeleteItemWithoutFiles(ctx, systemq.SoftDeleteItemWithoutFilesParams{Now: sql.NullInt64{Int64: now, Valid: true}, ID: mf.ItemID})
+		if err != nil {
+			return 0, 0, fmt.Errorf("soft delete item %s: %w", mf.ItemID, err)
+		}
+		files++
+		itemsDeleted += int(n)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, 0, fmt.Errorf("store ignored files: %w", err)
+	}
+	return files, itemsDeleted, nil
 }
 
 // enqueueScan queues scan.library and marks the library queued. It returns the job.

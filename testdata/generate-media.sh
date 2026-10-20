@@ -244,6 +244,70 @@ for ep in 1 2; do
   fi
 done
 
+# M3 library cases (B-5, B-7, B-9). The web e2e specs use these names.
+
+# clip <file> <seconds> <lavfi video source> <tone Hz> <title>: short H.264/AAC 1080p MP4.
+clip() {
+  "${ff[@]}" -f lavfi -i "$3=size=1920x1080:rate=24:duration=$2" \
+    -f lavfi -i "sine=frequency=$4:sample_rate=48000:duration=$2" \
+    "${x264[@]}" "${aac[@]}" -movflags +faststart -metadata title="$5" "$1"
+}
+
+# Specials and a file with two episodes.
+f="$OUT_DIR/TV/$show/Specials/$show S00E01.mp4"
+if want "$f"; then
+  clip "$f" 10 smptebars 660 "Special 1"
+fi
+f="$OUT_DIR/TV/$show/Season 01/$show S01E03-E04.mp4"
+if want "$f"; then
+  clip "$f" 10 testsrc2 550 "Episode 3 and 4"
+fi
+
+# Second version of the H.264 movie (B-5): the same source at 1280x720.
+h264="$(movie_path "Slouchcat Test H264 (2024)" mp4)"
+f="$OUT_DIR/Movies/Slouchcat Test H264 (2024)/Slouchcat Test H264 (2024) - 720p.mp4"
+if want "$f"; then
+  "${ff[@]}" "${v10[@]}" "${a10[@]}" -vf scale=1280:720 "${x264[@]}" "${aac[@]}" -movflags +faststart \
+    -metadata title="Slouchcat Test H264 720p" "$f"
+fi
+
+# A movie with extras in every supported form (B-7): five-second clips.
+extras_dir="$OUT_DIR/Movies/Slouchcat Test Extras (2024)"
+f="$(movie_path "Slouchcat Test Extras (2024)" mp4)"
+if want "$f"; then
+  clip "$f" 10 testsrc2 440 "Slouchcat Test Extras"
+fi
+for extra in "Trailers/Slouchcat Test Extras Trailer" "Featurettes/Making Of" "Deleted Scenes/Scene 1" \
+  "Behind The Scenes/On Set" "Slouchcat Test Extras (2024)-trailer"; do
+  f="$extras_dir/$extra.mp4"
+  if want "$f"; then
+    clip "$f" 5 smptebars 880 "$(basename "$extra")"
+  fi
+done
+
+# Unplayable file (B-9): a text file with a video extension; ffprobe fails on it. Not part of the
+# ffprobe summary below.
+broken="$(movie_path "Slouchcat Test Broken (2024)" mkv)"
+if [[ ! -f "$broken" || "$FORCE" == "1" ]]; then
+  mkdir -p "$(dirname "$broken")"
+  echo "generate: ${broken#"$OUT_DIR"/}"
+  printf 'Slouchcat test file: this is text, not a Matroska video.\n' >"$broken"
+else
+  echo "skip (exists): ${broken#"$OUT_DIR"/}"
+fi
+
+# Duplicate (B-9): a byte copy of the H.264 movie, so both have the same partial hash.
+f="$(movie_path "Slouchcat Test H264 Copy (2024)" mp4)"
+if want "$f"; then
+  cp "$h264" "$f"
+fi
+
+# A movie without year and without rating (B-9 "unrated").
+f="$(movie_path "Slouchcat Test Unrated" mp4)"
+if want "$f"; then
+  clip "$f" 10 testsrc2 330 "Slouchcat Test Unrated"
+fi
+
 # Summary.
 echo
 echo "== ffprobe summary ($OUT_DIR)"

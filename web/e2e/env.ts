@@ -21,6 +21,9 @@ export const STORAGE_STATE = `${ARTEFACTS}owner.json`;
 /** Generated test media (`task testdata:media`), scanned as the first library. */
 export const MOVIES_DIR = fileURLToPath(new URL('../../testdata/media/Movies', import.meta.url));
 
+/** Generated series (`task testdata:media`), scanned as the series library "Serien" (M3). */
+export const TV_DIR = fileURLToPath(new URL('../../testdata/media/TV', import.meta.url));
+
 /** Fixed test account; exists only in the throw-away config directory of the run. */
 export const OWNER = {
   email: 'e2e-owner@slouchcat.test',
