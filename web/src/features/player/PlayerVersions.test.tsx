@@ -161,7 +161,7 @@ describe('player: versions and stream info (B-5)', () => {
     const { calls } = mockApi({
       ...routes(),
       // The DELETE answers when the test says so.
-      'DELETE /playback/sessions/*': (() => ended) as unknown as () => Response,
+      'DELETE /playback/sessions/*': () => ended,
     });
     const { container } = renderApp(`/play/${ids.alien}`);
     const first = await videoOf(container);

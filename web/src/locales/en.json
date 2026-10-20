@@ -215,7 +215,9 @@
     "uhd": "4K",
     "fhd": "1080p",
     "hd": "720p",
-    "sd": "SD"
+    "sd": "SD",
+    "height": "{{height}}p",
+    "separator": " · "
   },
   "player": {
     "region": "Video player",
@@ -242,7 +244,6 @@
       "body": "The file could not be loaded."
     },
     "info": "Stream info",
-    "version": "Version",
     "switching": "Switching …",
     "streamInfo": {
       "title": "Stream info",
@@ -293,7 +294,6 @@
     },
     "versionButton": "Version: {{label}}",
     "tracks": {
-      "menu": "Tracks",
       "button": "Tracks",
       "audio": "Audio",
       "subtitles": "Subtitles",
@@ -303,13 +303,11 @@
       "external": "external"
     },
     "quality": {
-      "menu": "Quality",
       "button": "Quality: {{label}}",
       "auto": "Automatic",
       "autoWith": "Automatic ({{quality}})"
     },
     "chapters": {
-      "menu": "Chapters",
       "button": "Chapters",
       "untitled": "Chapter {{n}}",
       "item": "{{title}} · {{time}}"
@@ -321,7 +319,9 @@
       "countdown_one": "Starts in {{count}} second",
       "countdown_other": "Starts in {{count}} seconds",
       "play": "Watch now",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "announce_one": "Next episode: {{name}}. Starts in {{count}} second.",
+      "announce_other": "Next episode: {{name}}. Starts in {{count}} seconds."
     },
     "watchLimit": {
       "title": "Today's watch time is used up",
@@ -339,9 +339,9 @@
       "active_one": "{{count}} stream is running.",
       "active_other": "{{count}} streams are running."
     },
-    "endedByAdmin": {
+    "ended": {
       "title": "Playback ended",
-      "body": "The administrator ended this stream."
+      "body": "The playback was ended."
     }
   },
   "admin": {

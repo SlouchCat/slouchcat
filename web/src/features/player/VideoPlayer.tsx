@@ -8,11 +8,12 @@ import type {
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, request } from '@/api/client';
 import { episodeCode } from '@/features/catalog/labels';
 import { formatPlayerTime } from '@/lib/format';
+import { VisuallyHidden } from '@/ui';
 import { AriaButton, MenuButton } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
 import {
@@ -36,6 +37,8 @@ export const CONTROLS_HIDE_MS = 3000;
 export const TRACKS_REFRESH_MS = 30_000;
 /** Seconds the next-episode countdown runs (W-9). */
 export const AUTO_NEXT_SECONDS = 10;
+/** The countdown is announced when it starts and once more this many seconds before its end. */
+const ANNOUNCE_LAST_SECONDS = 3;
 const SEEK_STEP_S = 10;
 const VOLUME_STEP = 0.1;
 /** Resume only when the position is not within the last seconds of the file. */
@@ -52,7 +55,11 @@ export interface PlaybackChange {
   quality?: Quality;
 }
 
-/** Why the server ended a running playback: the watch-time limit (K-5) or the admin (W-6). */
+/**
+ * Why the server ended a running playback: the watch-time limit (K-5), or `admin` for any other
+ * stop by the server (the admin, W-6; a sign-out elsewhere; a revoked guest). The 401 of the
+ * stream names no reason yet, so the player says neutrally that the playback ended.
+ */
 export type EndedReason = 'limit' | 'admin';
 
 type MenuName = 'tracks' | 'quality' | 'chapters' | 'version';
@@ -73,8 +80,6 @@ interface VideoPlayerProps {
   onSwitchVersion?: (mediaFileId: string, positionMs: number) => void;
   /** Another audio or subtitle track or quality: a new session at the position. */
   onSwitch?: (change: PlaybackChange, positionMs: number) => void;
-  /** The quality the viewer asked for (the server's default is `auto`). */
-  quality?: Quality;
   /** performance.now() of the menu choice that led to this session (data-switch-ms, W-4). */
   switchStartedAt?: number;
   /** Plays the next episode (auto-next, W-9). */
@@ -136,7 +141,6 @@ export function VideoPlayer({
   switching = false,
   onSwitchVersion,
   onSwitch,
-  quality = 'auto',
   switchStartedAt,
   onNextEpisode,
   autoNext = false,
@@ -149,6 +153,8 @@ export function VideoPlayer({
   const [switchFrom] = useState(() => switchStartedAt);
   const video = useRef<HTMLVideoElement>(null);
   const container = useRef<HTMLDivElement>(null);
+  const playButton = useRef<HTMLButtonElement>(null);
+  const nextPanel = useRef<HTMLElement>(null);
   const hideTimer = useRef<number | undefined>(undefined);
   const osdTimer = useRef<number | undefined>(undefined);
 
@@ -387,6 +393,21 @@ export function VideoPlayer({
   const hasChapters = info.chapters.length > 0;
   const hasVersions = versions.length > 1 && onSwitchVersion !== undefined;
 
+  // react-aria buttons keep Enter and Space to themselves, so the window never sees them: during
+  // the countdown a capture listener lets a press of any other focused button (play/pause on the
+  // remote's OK) cancel it as well; the button still does its job.
+  useEffect(() => {
+    if (!countdownActive) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if (!isActivatable(event.target)) return;
+      if (event.target instanceof Node && nextPanel.current?.contains(event.target)) return;
+      cancelCountdown();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [cancelCountdown, countdownActive]);
+
   // Key map (W-1, C-4, W-4, W-9): Space/Enter play-pause, ←/→ ±10 s, ↑/↓ volume, F full screen,
   // I stream info, T tracks, Q quality, C chapters, S skip intro, N next episode, Escape/Backspace
   // back to the detail page. During the next-episode countdown any other key cancels it.
@@ -399,7 +420,14 @@ export function VideoPlayer({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       poke();
-      if (inMenu(event.target)) return;
+      if (inMenu(event.target)) {
+        // Backspace is the remote's back key (C-4): in a menu it closes the menu, like Escape.
+        if (event.key === 'Backspace') {
+          event.preventDefault();
+          setOpenMenu(null);
+        }
+        return;
+      }
       const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
       if (countdownActive) {
         if (key === 'n') {
@@ -407,13 +435,21 @@ export function VideoPlayer({
           playNext();
           return;
         }
-        // The countdown's own buttons take Enter and Space; Tab moves between them.
-        if (key === 'Tab' || (isActivatable(event.target) && (key === 'Enter' || key === ' '))) {
+        // Tab moves between the controls; modifier keys alone do nothing.
+        if (key === 'Tab' || ['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return;
+        const activates = key === 'Enter' || key === ' ';
+        // The countdown's own buttons take Enter and Space.
+        if (
+          activates &&
+          event.target instanceof Node &&
+          nextPanel.current?.contains(event.target)
+        ) {
           return;
         }
-        if (['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return;
-        event.preventDefault();
         cancelCountdown();
+        // Any other focused button (play/pause on the remote's OK) still does its job.
+        if (activates && isActivatable(event.target)) return;
+        event.preventDefault();
         return;
       }
       switch (key) {
@@ -466,7 +502,7 @@ export function VideoPlayer({
           skipIntro();
           return;
         case 'n':
-          if (!next || !onNextEpisode) return;
+          if (!next || !onNextEpisode || ended !== null) return;
           event.preventDefault();
           playNext();
           return;
@@ -592,8 +628,11 @@ export function VideoPlayer({
     };
     const onPlaying = () => {
       setPlaying(true);
-      setStartMs((value) => value ?? Math.round(performance.now() - openedAt));
-      if (switchFrom !== undefined) {
+      // The start of the route's first session (data-start-ms); a later session of a switch
+      // measures from the menu choice instead (data-switch-ms).
+      if (switchFrom === undefined) {
+        setStartMs((value) => value ?? Math.round(performance.now() - openedAt));
+      } else {
         setSwitchMs((value) => value ?? Math.round(performance.now() - switchFrom));
       }
       finishSeek();
@@ -714,10 +753,14 @@ export function VideoPlayer({
     label: qualityLabel(t, option, info),
     disabled: !option.available,
   }));
+  // The rung the server says it delivers (rule 12), not the viewer's wish.
+  const qualityKey = info.qualities.find((option) => option.current)?.quality ?? 'auto';
   const currentQuality =
-    qualityOptions.find((option) => option.id === quality)?.label ?? t('player.quality.auto');
+    qualityOptions.find((option) => option.id === qualityKey)?.label ?? t('player.quality.auto');
   const chapterIndex = chapterAt(info.chapters, currentMs);
   const menuProps = (menu: MenuName) => ({
+    // After the server ended the playback a pick would start a new session behind the notice.
+    isDisabled: ended !== null,
     isOpen: openMenu === menu,
     onOpenChange: (isOpen: boolean) =>
       setOpenMenu((current) => (isOpen ? menu : current === menu ? null : current)),
@@ -730,6 +773,31 @@ export function VideoPlayer({
   const hidden = idle && playing && openMenu === null && !countdownActive;
   const limit = ended?.watchTime?.limitMinutes;
   const nextCode = next ? episodeCode(t, next) : undefined;
+  const nextName = next
+    ? nextCode
+      ? t('item.nextEpisodeLabel', { code: nextCode, title: next.title })
+      : next.title
+    : '';
+  // Screen readers hear the countdown when it starts and shortly before its end, not every second.
+  const announcement =
+    countdownActive && next
+      ? t('player.next.announce', {
+          name: nextName,
+          count: countdownLeft > ANNOUNCE_LAST_SECONDS ? AUTO_NEXT_SECONDS : ANNOUNCE_LAST_SECONDS,
+        })
+      : '';
+
+  // The skip buttons and the countdown disappear with their state; a focus inside them would fall
+  // back to the page, so it moves to the play button (C-4).
+  const overlays = [
+    inIntro && ended === null,
+    inOutro && !next && ended === null,
+    countdownActive,
+  ].join();
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    if (active === null || active === document.body) playButton.current?.focus();
+  }, [overlays]);
 
   return (
     <main
@@ -788,13 +856,11 @@ export function VideoPlayer({
       {ended && (
         <div className={styles.center} role="alert">
           <p className={styles.failTitle}>
-            {ended.reason === 'limit'
-              ? t('player.watchLimit.title')
-              : t('player.endedByAdmin.title')}
+            {ended.reason === 'limit' ? t('player.watchLimit.title') : t('player.ended.title')}
           </p>
           <p>
             {ended.reason === 'admin'
-              ? t('player.endedByAdmin.body')
+              ? t('player.ended.body')
               : limit !== undefined
                 ? t('player.watchLimit.body', { count: limit })
                 : t('player.watchLimit.bodyUnknown')}
@@ -837,6 +903,7 @@ export function VideoPlayer({
         />
         <div className={styles.bar}>
           <AriaButton
+            ref={playButton}
             variant="ghost"
             icon={playing ? 'pause' : 'play'}
             iconOnly
@@ -871,7 +938,6 @@ export function VideoPlayer({
           )}
           {hasTracks && onSwitch && (
             <MenuButton
-              aria-label={t('player.tracks.menu')}
               buttonLabel={t('player.tracks.button')}
               label={t('player.tracks.button')}
               groups={trackGroups}
@@ -881,18 +947,16 @@ export function VideoPlayer({
           )}
           {hasQualities && (
             <MenuButton
-              aria-label={t('player.quality.menu')}
               buttonLabel={t('player.quality.button', { label: currentQuality })}
               label={currentQuality}
               options={qualityOptions}
-              selectedKey={quality}
+              selectedKey={qualityKey}
               onSelect={(id) => switchPlayback({ quality: id as Quality })}
               {...menuProps('quality')}
             />
           )}
           {hasChapters && (
             <MenuButton
-              aria-label={t('player.chapters.menu')}
               buttonLabel={t('player.chapters.button')}
               label={t('player.chapters.button')}
               options={info.chapters.map((chapter, index) => ({
@@ -910,7 +974,6 @@ export function VideoPlayer({
           )}
           {hasVersions && (
             <MenuButton
-              aria-label={t('player.version')}
               buttonLabel={t('player.versionButton', { label: currentVersion })}
               label={currentVersion}
               options={versions.map((version, index) => ({
@@ -939,16 +1002,15 @@ export function VideoPlayer({
           </AriaButton>
         </div>
       )}
+      <div aria-live="polite" aria-atomic="true">
+        <VisuallyHidden>{announcement}</VisuallyHidden>
+      </div>
       {countdownActive && next && (
-        <section className={styles.next} aria-labelledby="next-episode-title" aria-live="polite">
+        <section ref={nextPanel} className={styles.next} aria-labelledby="next-episode-title">
           <h2 id="next-episode-title" className={styles.nextTitle}>
             {t('player.next.title')}
           </h2>
-          <p className={styles.nextName}>
-            {nextCode
-              ? t('item.nextEpisodeLabel', { code: nextCode, title: next.title })
-              : next.title}
-          </p>
+          <p className={styles.nextName}>{nextName}</p>
           <p className={styles.nextCountdown}>
             {t('player.next.countdown', { count: countdownLeft })}
           </p>

@@ -30,9 +30,10 @@ export interface MenuGroup {
 interface MenuButtonProps {
   /** Text of the button (the current choice, "1080p"). */
   label: string;
-  /** Spoken name of the menu ("Version"). */
-  'aria-label': string;
-  /** Spoken name of the button, with the current choice ("Version: 1080p"). */
+  /**
+   * Spoken name of the button, with the current choice ("Version: 1080p"). react-aria labels the
+   * menu by its button, so the menu has the same name.
+   */
   buttonLabel: string;
   /** One list with one choice; or `groups`. */
   options?: readonly MenuOption[];
@@ -53,6 +54,7 @@ interface MenuButtonProps {
   /** Open state when the page opens the menu itself (a shortcut key); uncontrolled without. */
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
+  isDisabled?: boolean;
 }
 
 function Item({ option }: { option: MenuOption }) {
@@ -82,7 +84,6 @@ function Item({ option }: { option: MenuOption }) {
  */
 export function MenuButton({
   label,
-  'aria-label': ariaLabel,
   buttonLabel,
   options = [],
   selectedKey,
@@ -94,6 +95,7 @@ export function MenuButton({
   portalContainer,
   isOpen,
   onOpenChange,
+  isDisabled,
 }: MenuButtonProps) {
   const groupOf = (key: string) =>
     groups?.find((group) => group.options.some((option) => option.id === key));
@@ -105,7 +107,7 @@ export function MenuButton({
   };
   return (
     <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-      <AriaButton variant={variant} icon={icon} aria-label={buttonLabel}>
+      <AriaButton variant={variant} icon={icon} aria-label={buttonLabel} isDisabled={isDisabled}>
         {label}
       </AriaButton>
       <Popover
@@ -116,7 +118,6 @@ export function MenuButton({
       >
         {groups ? (
           <AriaMenu
-            aria-label={ariaLabel}
             className={styles.menu}
             onAction={onAction}
             // The sections hold the selection, so the menu has no selected key to land on: the
@@ -140,7 +141,6 @@ export function MenuButton({
           </AriaMenu>
         ) : (
           <AriaMenu
-            aria-label={ariaLabel}
             className={styles.menu}
             selectionMode="single"
             selectedKeys={selectedKey === undefined ? [] : [selectedKey]}

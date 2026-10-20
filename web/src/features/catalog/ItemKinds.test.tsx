@@ -253,12 +253,12 @@ describe('detail page: series, season, episode, extra', () => {
     let fail = true;
     mockApi({
       ...seriesRoutes,
-      [`GET /items/${seriesIds.specials}`]: (() => {
+      [`GET /items/${seriesIds.specials}`]: () => {
         if (!fail) return json(specialsDetail);
         return new Promise<Response>((resolve) => {
           answer = resolve;
         });
-      }) as unknown as () => Response,
+      },
     });
     renderApp(`/items/${seriesIds.show}`);
     const user = userEvent.setup();

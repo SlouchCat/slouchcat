@@ -260,7 +260,6 @@ function PlayerView({ itemId }: { itemId: string }) {
         switching={switching}
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
         onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}
-        quality={quality ?? 'auto'}
         switchStartedAt={switchStartedAt}
         onNextEpisode={playNext}
         autoNext={autoNext}

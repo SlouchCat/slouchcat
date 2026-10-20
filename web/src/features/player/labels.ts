@@ -77,7 +77,7 @@ export function trackLabel(t: TFunction, track: Track, position: number, uiLangu
   if (track.kind === 'audio' && track.channels) parts.push(channelLayout(track.channels));
   if (track.forced) parts.push(t('player.tracks.forced'));
   if (track.source === 'sidecar') parts.push(t('player.tracks.external'));
-  return parts.join(' · ');
+  return parts.join(t('format.separator'));
 }
 
 /** Menu key of an audio track (its stream index) and of a subtitle track (its id), or "off". */
@@ -103,7 +103,7 @@ export function qualityLabel(t: TFunction, option: QualityOption, info: Playback
   if (option.quality !== 'auto') return option.quality;
   const height = info.transcoding?.height;
   return height
-    ? t('player.quality.autoWith', { quality: `${height}p` })
+    ? t('player.quality.autoWith', { quality: t('format.height', { height }) })
     : t('player.quality.auto');
 }
 

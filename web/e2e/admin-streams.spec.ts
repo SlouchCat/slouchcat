@@ -139,9 +139,8 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     });
     const stopMs = Date.now() - before;
     expect(stopMs).toBeLessThan(STOP_BUDGET_MS);
-    await expect(viewer.getByRole('alert')).toContainText(
-      'Die Verwaltung hat diesen Stream beendet.',
-    );
+    // The 401 names no reason yet: the player says neutrally that the playback ended.
+    await expect(viewer.getByRole('alert')).toContainText('Die Wiedergabe wurde beendet.');
     await expect
       .poll(() => viewer.locator('video').evaluate((video: HTMLVideoElement) => video.paused))
       .toBe(true);

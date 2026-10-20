@@ -12,7 +12,6 @@ function Versions() {
   return (
     <div style={{ paddingTop: '8rem' }}>
       <MenuButton
-        aria-label="Version"
         buttonLabel="Version wählen"
         label={versions.find((version) => version.id === selected)?.label ?? ''}
         options={versions}
@@ -37,7 +36,6 @@ function Qualities() {
   return (
     <div style={{ paddingTop: '16rem' }}>
       <MenuButton
-        aria-label="Qualität"
         buttonLabel="Qualität wählen"
         label={qualities.find((quality) => quality.id === selected)?.label ?? ''}
         options={qualities}
@@ -55,7 +53,6 @@ function Tracks() {
   return (
     <div style={{ paddingTop: '18rem' }}>
       <MenuButton
-        aria-label="Spuren"
         buttonLabel="Spuren"
         label="Spuren"
         groups={[
@@ -89,7 +86,6 @@ const meta = {
   title: 'UI/MenuButton',
   component: MenuButton,
   args: {
-    'aria-label': 'Version',
     buttonLabel: 'Version wählen',
     label: '1080p',
     options: versions,

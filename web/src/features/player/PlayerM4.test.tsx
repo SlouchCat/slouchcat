@@ -191,7 +191,9 @@ describe('player M4', () => {
 
     await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-en'));
     await startPlayer(container);
-    expect(Number(region().getAttribute('data-switch-ms'))).toBeGreaterThanOrEqual(0);
+    expect(region()).toHaveAttribute('data-switch-ms', expect.stringMatching(/^\d+$/));
+    // data-start-ms belongs to the route's first session only.
+    expect(region()).not.toHaveAttribute('data-start-ms');
     // The new session starts where the viewer was.
     expect(media.currentTime).toBeCloseTo(3000);
   });
@@ -252,6 +254,11 @@ describe('player M4', () => {
     const sd: PlaybackInfo = {
       ...hlsPlayback,
       playbackSessionId: 'ps-480',
+      // The server names the rung it delivers; the button and the tick follow it (rule 12).
+      qualities: hlsPlayback.qualities.map((option) => ({
+        ...option,
+        current: option.quality === '480p',
+      })),
       transcoding: {
         mode: 'transcode',
         backend: 'nvenc',
@@ -285,6 +292,15 @@ describe('player M4', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Qualität: 480p' })).toBeVisible(),
     );
+    fireEvent.keyDown(document.body, { key: 'q' });
+    const again = await screen.findByRole('menu', { name: /^Qualität/ });
+    expect(within(again).getByRole('menuitemradio', { name: '480p' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    fireEvent.keyDown(within(again).getByRole('menuitemradio', { name: '480p' }), {
+      key: 'Escape',
+    });
 
     fireEvent.keyDown(document.body, { key: 'i' });
     const info = screen.getByRole('region', { name: 'Stream-Info' });
@@ -406,6 +422,118 @@ describe('player M4', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e2.id}`));
   });
 
+  it('Backspace closes an open player menu and stays in the player', async () => {
+    stubMedia();
+    mockApi(routes(playback));
+    const { router, container } = renderApp(`/play/${ids.alien}`);
+    await startPlayer(container);
+    fireEvent.keyDown(document.body, { key: 'q' });
+    const menu = await screen.findByRole('menu', { name: /^Qualität/ });
+    fireEvent.keyDown(within(menu).getAllByRole('menuitemradio')[0]!, { key: 'Backspace' });
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    expect(router.state.location.pathname).toBe(`/play/${ids.alien}`);
+  });
+
+  it('hands the focus to the play button when the skip button or the countdown goes away', async () => {
+    const media = stubMedia();
+    const intro: PlaybackInfo = {
+      ...playback,
+      resumePositionMs: 0,
+      nextEpisode: episodes.e2,
+      segments: { intro: { startMs: 5000, endMs: 25_000, source: 'fingerprint' } },
+    };
+    mockApi(routes(intro));
+    const { container } = renderApp(`/play/${ids.alien}`);
+    const video = await startPlayer(container);
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    media.currentTime = 6;
+    act(() => {
+      video.dispatchEvent(new Event('timeupdate'));
+    });
+    await user.click(screen.getByRole('button', { name: 'Intro überspringen' }));
+    expect(media.currentTime).toBeCloseTo(25);
+    expect(screen.queryByRole('button', { name: 'Intro überspringen' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pause' })).toHaveFocus();
+
+    media.currentTime = 7020;
+    act(() => {
+      video.dispatchEvent(new Event('ended'));
+    });
+    const panel = screen.getByRole('region', { name: 'Nächste Folge' });
+    await user.click(within(panel).getByRole('button', { name: 'Abbrechen' }));
+    expect(screen.queryByRole('region', { name: 'Nächste Folge' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Abspielen' })).toHaveFocus();
+  });
+
+  it('Enter on the focused play button cancels the countdown and plays', async () => {
+    const media = stubMedia();
+    const { router, container } = (() => {
+      mockApi(routes({ ...playback, resumePositionMs: 0, nextEpisode: episodes.e2 }));
+      return renderApp(`/play/${ids.alien}`);
+    })();
+    const video = await startPlayer(container);
+    act(() => {
+      video.pause();
+      video.dispatchEvent(new Event('ended'));
+    });
+    expect(screen.getByRole('region', { name: 'Nächste Folge' })).toBeVisible();
+    const play = screen.getByRole('button', { name: 'Abspielen' });
+    play.focus();
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await user.keyboard('{Enter}');
+    expect(screen.queryByRole('region', { name: 'Nächste Folge' })).toBeNull();
+    expect(media.paused).toBe(false);
+    await act(() => vi.advanceTimersByTimeAsync(11_000));
+    expect(router.state.location.pathname).toBe(`/play/${ids.alien}`);
+  });
+
+  it('announces the countdown once at its start and once 3 s before its end', async () => {
+    stubMedia();
+    mockApi(routes({ ...playback, resumePositionMs: 0, nextEpisode: episodes.e2 }));
+    const { container } = renderApp(`/play/${ids.alien}`);
+    const video = await startPlayer(container);
+    // A polite live region that is always there; its text changes twice.
+    const live = () => region().querySelector<HTMLElement>('[aria-live="polite"]')!;
+    expect(live().textContent).toBe('');
+    act(() => {
+      video.dispatchEvent(new Event('ended'));
+    });
+    const panel = screen.getByRole('region', { name: 'Nächste Folge' });
+    // The visible seconds are no live region of their own.
+    expect(panel).not.toHaveAttribute('aria-live');
+    expect(live()).toHaveTextContent(
+      'Nächste Folge: S01E02 · Die lange Nacht. Startet in 10 Sekunden.',
+    );
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(within(panel).getByText('Startet in 5 Sekunden')).toBeVisible();
+    expect(live()).toHaveTextContent('Startet in 10 Sekunden.');
+    await act(() => vi.advanceTimersByTimeAsync(2500));
+    expect(live()).toHaveTextContent(
+      'Nächste Folge: S01E02 · Die lange Nacht. Startet in 3 Sekunden.',
+    );
+  });
+
+  it('N plays no next episode after the server ended the playback', async () => {
+    stubMedia();
+    mockApi(
+      routes({ ...playback, nextEpisode: episodes.e2 }, undefined, {
+        [`POST /items/${ids.alien}/progress`]: () =>
+          json(
+            progressAnswer({
+              watchTime: { limitMinutes: 30, usedMinutes: 30, remainingMinutes: 0 },
+            }),
+          ),
+      }),
+    );
+    const { router, container } = renderApp(`/play/${ids.alien}`);
+    await startPlayer(container);
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+    await waitFor(() => expect(region()).toHaveAttribute('data-ended-reason', 'limit'));
+    fireEvent.keyDown(document.body, { key: 'n' });
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(router.state.location.pathname).toBe(`/play/${ids.alien}`);
+  });
+
   it('stops with the watch-time notice when the server reports no minutes left (K-5)', async () => {
     const media = stubMedia();
     mockApi(
@@ -430,7 +558,7 @@ describe('player M4', () => {
     expect(media.paused).toBe(true);
   });
 
-  it('shows that the admin ended the stream when hls.js gets a 401 (W-6)', async () => {
+  it('shows that the playback ended when hls.js gets a 401 (W-6)', async () => {
     stubMedia();
     vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation((type) =>
       type === 'application/vnd.apple.mpegurl' ? '' : 'probably',
@@ -449,10 +577,15 @@ describe('player M4', () => {
       }),
     );
     expect(region()).toHaveAttribute('data-ended-reason', 'admin');
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Die Verwaltung hat diesen Stream beendet.',
-    );
+    // The 401 names no reason: the notice says neutrally that the playback ended.
+    expect(screen.getByRole('alert')).toHaveTextContent('Wiedergabe beendet');
+    expect(screen.getByRole('alert')).toHaveTextContent('Die Wiedergabe wurde beendet.');
     expect(hlsMock.instances[0]!.stopped).toBe(1);
+    // Nothing starts behind the notice: the menus are off and N does nothing.
+    expect(screen.getByRole('button', { name: /^Qualität/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Spuren' })).toBeDisabled();
+    fireEvent.keyDown(document.body, { key: 'q' });
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 
   it('asks the stream after a direct-play error: 401 means ended, anything else a failure', async () => {

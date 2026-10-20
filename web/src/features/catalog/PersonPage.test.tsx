@@ -30,10 +30,10 @@ describe('person page', () => {
     let answer: (response: Response) => void = () => undefined;
     mockApi({
       ...signedIn,
-      'GET /people/3': (() =>
+      'GET /people/3': () =>
         new Promise<Response>((resolve) => {
           answer = resolve;
-        })) as unknown as () => Response,
+        }),
     });
     renderApp('/people/3');
     await waitFor(() => expect(document.querySelector('[aria-busy="true"]')).not.toBeNull());
