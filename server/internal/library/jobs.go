@@ -21,6 +21,7 @@ const (
 	JobProbeKeyframes = "probe.keyframes" // payload {"mediaFileId": "<ULID>"}, key keyframes:<id>
 	JobSweep          = "library.sweep"   // key sweep
 	JobMetadataMatch  = "metadata.match"  // handled by package metadata; payload {"itemId": "<ULID>"}
+	JobImageFetch     = "image.fetch"     // handled by package metadata; payload {"itemId": "<ULID>"}, key image:<id>
 )
 
 // Job priorities (0 lowest, 9 highest).
@@ -32,7 +33,9 @@ const (
 	// prioEpisodeMatch: a new episode of a matched series (the series job fills the others).
 	prioEpisodeMatch = 3
 	prioSweep        = 2
-	prioKeyframes    = 1
+	// prioImage is the priority of image.fetch for the cover of an audiobook (metadata's posters).
+	prioImage     = 2
+	prioKeyframes = 1
 	// prioKeyframesPlayback: a playback fell back to transcoding because the index is missing;
 	// the index runs before everything else so the next start remuxes.
 	prioKeyframesPlayback = 9
@@ -123,6 +126,10 @@ func StoreKeyframes(ctx context.Context, db *sql.DB, mediaFileID string, kf []ti
 
 func matchJob(itemID string) newJob {
 	return newJob{JobMetadataMatch, prioMatch, "match:" + itemID, itemPayload{itemID}}
+}
+
+func imageJob(itemID string) newJob {
+	return newJob{JobImageFetch, prioImage, "image:" + itemID, itemPayload{itemID}}
 }
 
 func episodeMatchJob(itemID string) newJob {

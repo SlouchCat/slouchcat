@@ -30,7 +30,12 @@ const minTail = time.Second
 
 // Source is the input of an HLS session.
 type Source struct {
-	Path      string          // absolute path, resolved by the caller through package paths
+	Path string // absolute path, resolved by the caller through package paths
+	// Parts are the ordered absolute paths of a multi-part audiobook (M6). When set, Path is
+	// ignored for the input: ffmpeg reads a concat list (-f concat -safe 0) written into the work
+	// directory of the run, and Probe describes the whole book (ConcatProbe: Duration is the sum of
+	// the parts, Streams are the first part's audio).
+	Parts     []string
 	Probe     Probe           // stored ffprobe result (media_files.probe)
 	Keyframes []time.Duration // decoded keyframe index (library.DecodeKeyframes), may be nil
 }
@@ -179,6 +184,10 @@ func heightLimit(t Target) (int, error) {
 var ErrNoKeyframes = errors.New("remux needs the keyframe index of the source")
 
 // NewPlan computes the segment list and the admission cost for src and t.
+//
+// An audio-only source (no video stream; cover art does not count) is planned in transcode mode
+// with AudioCopy (AAC within 1.1 × the target rate) or AudioBitrate (kbit/s); MaxHeight, Quality
+// and the video fields are ignored, the plan has no size and costs costAudioOnly.
 //
 // Transcode cuts on a 4-s grid from 0 (keyframes are forced there); a remainder shorter than 1 s is
 // merged into the last segment. Remux cuts on source keyframes: the next boundary is the first
@@ -381,9 +390,17 @@ func outputSize(v Stream, t Target) (w, h int) {
 }
 
 // bandwidth is the peak bit rate for the master playlist: the encoder cap plus audio when
-// encoding, the container bit rate with 20 % headroom when copying.
+// encoding, the container bit rate with 20 % headroom when copying (and for copied audio-only
+// sources), the AAC rate for encoded audio-only sources.
 func bandwidth(p Probe, t Target, videoBitrate int) int {
-	if _, ok := videoStream(p); !ok || t.VideoCopy {
+	_, hasVideo := videoStream(p)
+	if !hasVideo && !t.AudioCopy && t.Mode == ModeTranscode {
+		if t.AudioBitrate > 0 {
+			return t.AudioBitrate * 1000
+		}
+		return audioBitrate
+	}
+	if !hasVideo || t.VideoCopy {
 		br := int(p.Format.BitRate)
 		if br <= 0 {
 			br = ladder[0].Bitrate

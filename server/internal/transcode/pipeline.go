@@ -79,7 +79,11 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 		}
 		args = append(args, "-ss", seconds6(b))
 	}
-	args = append(args, "-i", src.Path)
+	if len(src.Parts) > 0 {
+		args = append(args, "-f", "concat", "-safe", "0", "-i", filepath.Join(outDir, concatList))
+	} else {
+		args = append(args, "-i", src.Path)
+	}
 	if complexGraph != "" {
 		args = append(args, "-filter_complex", complexGraph, "-map", videoOut)
 	} else if hasVideo {
@@ -118,7 +122,7 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 			if p.Target.AudioBitrate > 0 {
 				kbps = p.Target.AudioBitrate
 			}
-			args = append(args, "-c:a", "aac", "-b:a", strconv.Itoa(kbps)+"k", "-ac", "2")
+			args = append(args, "-c:a", "aac", "-b:a", strconv.Itoa(kbps)+"k", "-ac", strconv.Itoa(outputChannels(a, hasVideo)))
 		}
 	}
 
@@ -170,6 +174,15 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 		filepath.Join(outDir, segmentPattern),
 	)
 	return args, nil
+}
+
+// outputChannels is the channel count of encoded AAC: stereo next to video; for audio-only
+// sources the source's count up to stereo (a mono audiobook stays mono), stereo when unknown.
+func outputChannels(a Stream, hasVideo bool) int {
+	if hasVideo || a.Channels <= 0 {
+		return 2
+	}
+	return min(a.Channels, 2)
 }
 
 // boundaryList returns the starts of the segments after start, relative to base, comma-separated.

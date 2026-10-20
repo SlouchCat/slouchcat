@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -163,12 +164,25 @@ type scanAbort struct{ code string }
 
 func (a scanAbort) Error() string { return "scan aborted: " + a.code }
 
-// parsePath parses rel with the name parser of the library kind.
+// parsePath parses rel with the name parser of the library kind. Audio files have no name parser
+// (bookFiles reads their folders).
 func parsePath(kind, rel string) ParsedName {
-	if kind == "series" {
+	switch kind {
+	case "series":
 		return ParseSeriesPath(rel)
+	case model.LibraryAudiobooks:
+		return ParsedName{}
 	}
 	return ParseMoviePath(rel)
+}
+
+// scannedExt reports whether a file name has an extension the scanner picks up in a library of
+// the kind: audio in an audiobook library, video otherwise.
+func scannedExt(kind, name string) bool {
+	if kind == model.LibraryAudiobooks {
+		return IsAudio(name)
+	}
+	return IsVideo(name)
 }
 
 func (s *Service) handleScan(ctx context.Context, j *jobs.Job) error {
@@ -577,7 +591,7 @@ func logNoMarker(ctx context.Context, log *slog.Logger, noMarker map[string]int)
 // marker are counted in noMarker), a vanished entry, anything but a regular file, and a symlink
 // whose target cannot be read inside the root (logged).
 func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, kind string, ignored map[string]bool, noMarker map[string]int, log *slog.Logger) (diskFile, bool, error) {
-	if !IsVideo(d.Name()) || ignored[p] {
+	if !scannedExt(kind, d.Name()) || ignored[p] {
 		return diskFile{}, false, nil
 	}
 	parsed := parsePath(kind, p)

@@ -29,6 +29,10 @@ type Format struct {
 	Duration time.Duration `json:"duration"` // nanoseconds in JSON
 	Size     int64         `json:"size"`
 	BitRate  int64         `json:"bitRate"`
+	// Tags are the container tags (ffprobe format.tags) with lower-case keys: title, album,
+	// artist, album_artist, composer, show, episode_id, track, date, genre, description, comment
+	// and the like; nil when the file has none. Audiobooks take their metadata from them (M6).
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
 // Stream is one elementary stream of the container.
@@ -115,10 +119,11 @@ type Chapter struct {
 // ffprobe JSON output; numbers that ffprobe prints as strings stay strings here.
 type rawProbe struct {
 	Format struct {
-		FormatName string `json:"format_name"`
-		Duration   string `json:"duration"`
-		Size       string `json:"size"`
-		BitRate    string `json:"bit_rate"`
+		FormatName string            `json:"format_name"`
+		Duration   string            `json:"duration"`
+		Size       string            `json:"size"`
+		BitRate    string            `json:"bit_rate"`
+		Tags       map[string]string `json:"tags"`
 	} `json:"format"`
 	Streams []struct {
 		Index          int    `json:"index"`
@@ -250,6 +255,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Duration: seconds(raw.Format.Duration),
 			Size:     integer(raw.Format.Size),
 			BitRate:  integer(raw.Format.BitRate),
+			Tags:     lowerKeys(raw.Format.Tags),
 		},
 		Streams:  make([]Stream, 0, len(raw.Streams)),
 		Chapters: make([]Chapter, 0, len(raw.Chapters)),
@@ -342,6 +348,32 @@ func (r Runner) ffprobe(ctx context.Context, args ...string) ([]byte, error) {
 		return nil, wrapped
 	}
 	return out, nil
+}
+
+// lowerKeys returns the tags with lower-case keys and trimmed values, without empty values; nil
+// for none. Of two keys that differ in case only, the first in key order wins.
+func lowerKeys(tags map[string]string) map[string]string {
+	if len(tags) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(tags))
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		v := strings.TrimSpace(tags[k])
+		lk := strings.ToLower(k)
+		if _, dup := out[lk]; v == "" || dup {
+			continue
+		}
+		out[lk] = v
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func seconds(s string) time.Duration {

@@ -63,6 +63,9 @@ func (r Runner) Download(ctx context.Context, caps Capabilities, src Source, pla
 		return fmt.Errorf("create download work dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
+	if err := writeConcatList(src, dir); err != nil {
+		return err
+	}
 	args, err := ffmpegArgs(caps, src, plan, startSegment, dir)
 	if err != nil {
 		return err

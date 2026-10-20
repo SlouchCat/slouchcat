@@ -60,6 +60,10 @@ type HLSRequest struct {
 	// BurnInPath is the absolute path of a sidecar subtitle to burn in (resolved through package
 	// paths); embedded subtitles are named by Decision.BurnStream.
 	BurnInPath string
+	// Parts are the absolute paths of the parts of a multi-part audiobook in order (resolved
+	// through package paths); the output reads them as one timeline and Probe describes the whole
+	// book (transcode.ConcatProbe). Nil for every other title.
+	Parts []string
 }
 
 // HLSSession is a running HLS output.
@@ -106,18 +110,16 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		// An episode has no library file; it streams through the server from its enclosure (M6).
 		return s.startEnclosure(ctx, session, item, req)
 	}
-	loc, err := s.vis.MediaFile(ctx, scope, itemID, req.MediaFileID)
+	in, err := s.loadInput(ctx, scope, item, req.MediaFileID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
-	if !loc.File.Available {
-		return model.PlaybackInfo{}, model.ErrNotFound
-	}
+	loc, probe, kfBlob := in.loc, in.probe, in.kf
 	tracks, err := s.vis.Tracks(ctx, scope, item.ID, loc.File.ID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
-	probe, kfBlob, err := s.storedProbe(ctx, scope, loc)
+	bookChapters, err := s.bookChapters(ctx, scope, item)
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
@@ -142,20 +144,27 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 	defer slot.release()
 	caps := normalizeCapabilities(req.Capabilities)
-	dreq.Caps, dreq.Limits, dreq.Quality = caps, limits, req.Quality
+	dreq.Caps, dreq.Limits, dreq.Quality, dreq.MultiPart = caps, limits, req.Quality, in.multiPart()
 
-	file := loc.File
+	file := in.file()
 	file.MimeType = MimeType(file.Container, file.VideoCodec, file.AudioCodec)
 	file.Bitrate, file.HDR = probeDetails(probe)
 	src := newSource(file, probe, limits, caps)
 	d := Decide(file, probe, dreq)
 	var hls *HLSRequest
+	if d.Mode != ModeDirect && in.multiPart() && (s.tc == nil || probe == nil) {
+		// One file of a book alone is not the book: without HLS (or before every part is probed)
+		// it cannot play.
+		s.log.WarnContext(ctx, "multi-part audiobook needs hls and probed parts", "item_id", item.ID,
+			"transcoder", s.tc != nil, "probed", probe != nil)
+		return model.PlaybackInfo{}, model.ErrNotFound
+	}
 	if d.Mode != ModeDirect {
 		if s.tc == nil || probe == nil {
 			s.log.InfoContext(ctx, "hls unavailable, falling back to direct play", "media_file_id", file.ID,
 				"transcoder", s.tc != nil, "probed", probe != nil)
 			d = directFallback(d)
-		} else if hls, d, err = s.prepare(ctx, loc, src, kfBlob, d); err != nil {
+		} else if hls, d, err = s.prepare(ctx, in, src, kfBlob, d); err != nil {
 			return model.PlaybackInfo{}, err
 		}
 	}
@@ -219,8 +228,16 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
+	mediaKind := model.MediaKindVideo
+	if d.Audio || item.Kind == "audiobook" {
+		mediaKind = model.MediaKindAudio
+	}
+	if bookChapters == nil {
+		bookChapters = chapters(probe)
+	}
 	info := model.PlaybackInfo{
-		MediaKind:         model.MediaKindVideo,
+		MediaKind:         mediaKind,
+		Parts:             in.playbackParts(),
 		Mode:              ModeDirect,
 		Item:              item,
 		MediaFile:         file,
@@ -230,7 +247,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		Tracks:            tracks,
 		Selection:         model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery},
 		Qualities:         QualityOptions(d, src.w, src.h, limits, caps, req.Quality),
-		Chapters:          chapters(probe),
+		Chapters:          bookChapters,
 		WatchTime:         watch,
 		Device:            device,
 		Segments:          segments,
@@ -461,12 +478,22 @@ func rootPath(rootDir, rel, what string) (string, error) {
 
 // prepare resolves the source (and a sidecar subtitle to burn in) and, for a remux, the keyframe
 // index of an HLS request. A remux without index is transcoded (ensureKeyframes).
-func (s *Service) prepare(ctx context.Context, loc visibility.MediaFileLocation, src source, kfBlob []byte, d Decision) (*HLSRequest, Decision, error) {
+func (s *Service) prepare(ctx context.Context, in input, src source, kfBlob []byte, d Decision) (*HLSRequest, Decision, error) {
+	loc := in.loc
 	abs, err := sourcePath(loc)
 	if err != nil {
 		return nil, Decision{}, err
 	}
 	req := &HLSRequest{Path: abs, Probe: *src.probe, Decision: d}
+	if in.multiPart() {
+		for _, p := range in.parts {
+			pabs, err := sourcePath(p)
+			if err != nil {
+				return nil, Decision{}, err
+			}
+			req.Parts = append(req.Parts, pabs)
+		}
+	}
 	if d.SubtitleDelivery == model.SubtitleBurn && d.BurnSidecar != "" {
 		if req.BurnInPath, err = rootPath(loc.RootPath, d.BurnSidecar, "sidecar subtitle"); err != nil {
 			return nil, Decision{}, err
@@ -636,17 +663,15 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	}
 
 	scope := visibility.Profile(g.Session.Profile)
-	loc, err := s.vis.MediaFile(ctx, scope, g.ItemID, g.MediaFileID)
+	item, err := s.vis.Summary(ctx, scope, g.ItemID)
 	if err != nil {
 		return nil, err
 	}
-	if !loc.File.Available {
-		return nil, model.ErrNotFound
-	}
-	probe, kfBlob, err := s.storedProbe(ctx, scope, loc)
+	in, err := s.loadInput(ctx, scope, item, g.MediaFileID)
 	if err != nil {
 		return nil, err
 	}
+	probe, kfBlob := in.probe, in.kf
 	if probe == nil {
 		return nil, model.ErrNotFound
 	}
@@ -654,11 +679,11 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	if err != nil {
 		return nil, unauthenticatedOr(err, "get playback session")
 	}
-	src, d, err := s.recordedDecision(ctx, scope, loc, probe, row, recordedLimits(row))
+	src, d, err := s.recordedDecision(ctx, scope, in, probe, row, recordedLimits(row))
 	if err != nil {
 		return nil, err
 	}
-	req, _, err := s.prepare(ctx, loc, src, kfBlob, d)
+	req, _, err := s.prepare(ctx, in, src, kfBlob, d)
 	if err != nil {
 		return nil, err
 	}
@@ -697,9 +722,10 @@ func recordedLimits(row appq.PlaybackSession) model.PlaybackLimits {
 // defaults for a row without), quality rung, audio track and subtitle track with its delivery. A
 // recorded transcode stays one; a decision that turns out direct (it cannot, with the same input)
 // is transcoded, because the client fetches HLS.
-func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, loc visibility.MediaFileLocation, probe *transcode.Probe,
+func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, in input, probe *transcode.Probe,
 	row appq.PlaybackSession, limits model.PlaybackLimits,
 ) (source, Decision, error) {
+	loc := in.loc
 	var reported *model.PlaybackCapabilities
 	if row.Capabilities.Valid {
 		var c model.PlaybackCapabilities
@@ -709,7 +735,7 @@ func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, 
 	}
 	caps := normalizeCapabilities(reported)
 	req := Request{Caps: caps, Limits: limits, AudioStream: -1, Quality: row.Quality.String, Delivery: row.SubtitleDelivery.String,
-		ForceTranscode: row.Mode == ModeTranscode}
+		ForceTranscode: row.Mode == ModeTranscode, MultiPart: in.multiPart()}
 	if row.AudioTrack.Valid {
 		req.AudioStream = int(row.AudioTrack.Int64)
 	}
@@ -722,8 +748,9 @@ func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, 
 			req.Subtitle = &tracks.Subtitles[i]
 		}
 	}
-	src := newSource(loc.File, probe, limits, caps)
-	d := Decide(loc.File, probe, req)
+	file := in.file()
+	src := newSource(file, probe, limits, caps)
+	d := Decide(file, probe, req)
 	if d.Mode == ModeDirect {
 		d = src.transcode(d, row.Reason.String)
 	}

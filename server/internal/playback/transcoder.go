@@ -66,7 +66,7 @@ func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSessi
 
 // hlsSource is the transcode source of an HLS request.
 func hlsSource(req HLSRequest) transcode.Source {
-	return transcode.Source{Path: req.Path, Probe: req.Probe, Keyframes: req.Keyframes}
+	return transcode.Source{Path: req.Path, Parts: req.Parts, Probe: req.Probe, Keyframes: req.Keyframes}
 }
 
 // hlsTarget is the transcode target of an HLS request: rung, bit-rate cap, audio track and the
@@ -76,6 +76,13 @@ func hlsTarget(req HLSRequest) transcode.Target {
 	target := transcode.Target{
 		Mode: transcode.Mode(d.Mode), VideoCopy: d.VideoCopy, AudioCopy: d.AudioCopy,
 		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1, AudioStream: d.AudioStream,
+	}
+	if d.Audio {
+		// Audio-only output: AAC copy or audioOnlyKbps; the video fields do not apply.
+		if !d.AudioCopy {
+			target.AudioBitrate = audioOnlyKbps
+		}
+		return target
 	}
 	if d.Mode == ModeTranscode {
 		target.Quality, target.MaxBitrate = d.Quality, d.Bitrate
