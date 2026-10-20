@@ -43,6 +43,7 @@ OUT_DIR=/srv/media task testdata:media
 | `Movies/Slouchcat Test HDR10 Chart (2024)/….mkv` | HEVC Main 10 3840×2160, BT.2020/PQ, Mastering Display und MaxCLL wie die HDR10-Datei, 10 s, Standbild: Graustufenkeil und sechs Hautton-Felder (Geometrie unten) | P-6 (`hdr-quality.sh`) |
 | `Movies/Slouchcat Test HDR10 4K Long (2024)/….mkv` | nur mit `LONG=1`: dasselbe Muster wie die HDR10-4K-Datei, 120 s | 5-s-Start (W-3), `hlsbench` |
 
+| `TV/Slouchcat Test Intro Show (2024)/Season 01/… - S01E01.mkv` bis `… - S01E05.mkv` | H.264 640×360 + AAC, 98 bis 106 s (E01 98 s, je Folge 2 s mehr); Ton: eigene Sinustöne, ab 5/12/8/15/10 s dasselbe 20-s-Intro (8 Töne à 2.5 s), wieder eigene Töne, die letzten 25 s dasselbe Abspann-Thema (10 Töne à 2.5 s); E03 mit den Kapiteln «Prolog», «Intro» (8–28 s), «Handlung», «Credits» (77–102 s) | Intro-/Abspann-Erkennung (W-9) |
 Hinweise:
 
 - Die HDR10-Datei zeigt SDR-Testbalken, die als HDR10 gekennzeichnet sind. Für Erkennung und
@@ -61,6 +62,11 @@ Hinweise:
 - Die Fälle aus M3 (Versionen, Extras, Specials, Mehrfachfolge, kaputte Datei, Duplikat, Titel ohne
   Jahr) prüft `TestScanGeneratedMedia` im Paket `library`; die Web-E2E-Tests verwenden dieselben Namen.
   Eine Bibliothek vom Typ «Serien» gehört auf `media/TV`, eine vom Typ «Filme» auf `media/Movies`.
+- Die Intro-Staffel prüft `TestSegmentsDetectGeneratedSeason` im Paket `library` (Intro und Abspann auf
+  ±2 s bei mindestens 4 von 5 Folgen, E03 aus den Kapiteln). Die Längen folgen den Regeln der Erkennung
+  (Paket `segments`): das Intro liegt in den ersten 40 % der Folge, ein Abspann dauert mindestens 20 s.
+  Die Töne zwischen Intro und Abspann sind je Folge pseudozufällig, aber für einen festen Startwert
+  deterministisch (linearer Kongruenzgenerator im Skript, kein `$RANDOM`).
 
 Laufzeit auf dem Entwicklungsrechner (ffmpeg 6.1.1 aus Ubuntu): rund 18 s für die Dateien aus M0,
 zusammen 22 MB; mit den langen Clips aus M1b und den Fällen aus M3 belegt `media/Movies` und

@@ -384,6 +384,96 @@ if [[ "${LONG:-0}" == "1" ]]; then
   fi
 fi
 
+# Intro and end-credits season (M4, W-9): five episodes of about 100 s with the same 20-s intro
+# melody at different offsets and the same 25-s outro melody at the end, between tones of their
+# own; E03 also carries the chapters "Intro" and "Credits". Lengths follow the detection rules
+# (package segments): the intro lies in the first 40 %, an outro is at least 20 s long.
+
+# melody <out.wav> <seconds per tone> <Hz>...: sine tones one after the other.
+melody() {
+  local out="$1" len="$2" in=() labels="" n=0
+  shift 2
+  for hz in "$@"; do
+    in+=(-f lavfi -i "sine=frequency=$hz:sample_rate=48000:duration=$len")
+    labels+="[$n:a]"
+    n=$((n + 1))
+  done
+  "${ff[@]}" "${in[@]}" -filter_complex "${labels}concat=n=$n:v=0:a=1" "$out"
+}
+
+# own_tones <out.wav> <seconds> <seed>: tones of 0.5 to 1.5 s at pseudo-random 150 to 1800 Hz,
+# deterministic for a seed (a linear congruential generator, no $RANDOM).
+own_tones() {
+  local out="$1" left=$(($2 * 1000)) seed="$3" in=() labels="" n=0 ms hz
+  while ((left > 0)); do
+    seed=$(((seed * 1103515245 + 12345) % 2147483648))
+    ms=$((500 + seed % 1000))
+    ((ms > left)) && ms=$left
+    seed=$(((seed * 1103515245 + 12345) % 2147483648))
+    hz=$((150 + seed % 1650))
+    in+=(-f lavfi -i "sine=frequency=$hz:sample_rate=48000:duration=$((ms / 1000)).$(printf '%03d' $((ms % 1000)))")
+    labels+="[$n:a]"
+    n=$((n + 1))
+    left=$((left - ms))
+  done
+  "${ff[@]}" "${in[@]}" -filter_complex "${labels}concat=n=$n:v=0:a=1" "$out"
+}
+
+intro_show="Slouchcat Test Intro Show (2024)"
+intro_starts=(5 12 8 15 10) # seconds of own tones before the intro, per episode
+intro_wav="$subs_dir/intro.wav"
+outro_wav="$subs_dir/outro.wav"
+for ep in 1 2 3 4 5; do
+  f="$(printf '%s/TV/%s/Season 01/%s - S01E%02d.mkv' "$OUT_DIR" "$intro_show" "$intro_show" "$ep")"
+  if ! want "$f"; then
+    continue
+  fi
+  if [[ ! -f "$intro_wav" ]]; then
+    melody "$intro_wav" 2.5 523.25 659.25 783.99 1046.5 880 698.46 587.33 493.88
+    melody "$outro_wav" 2.5 392 440 493.88 523.25 587.33 659.25 698.46 783.99 880 987.77
+  fi
+  start=${intro_starts[ep - 1]}
+  dur=$((96 + 2 * ep))
+  credits=$((dur - 25))
+  own_tones "$subs_dir/pre.wav" "$start" $((ep * 7919))
+  own_tones "$subs_dir/mid.wav" $((credits - start - 20)) $((ep * 104729))
+  chapters=()
+  if ((ep == 3)); then
+    cat >"$subs_dir/intro-chapters.ffmeta" <<META
+;FFMETADATA1
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=0
+END=$((start * 1000))
+title=Prolog
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=$((start * 1000))
+END=$(((start + 20) * 1000))
+title=Intro
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=$(((start + 20) * 1000))
+END=$((credits * 1000))
+title=Handlung
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=$((credits * 1000))
+END=$((dur * 1000))
+title=Credits
+META
+    chapters=(-i "$subs_dir/intro-chapters.ffmeta" -map_chapters 5)
+  fi
+  "${ff[@]}" -f lavfi -i "testsrc2=size=640x360:rate=24:duration=$dur" \
+    -i "$subs_dir/pre.wav" -i "$intro_wav" -i "$subs_dir/mid.wav" -i "$outro_wav" "${chapters[@]}" \
+    -filter_complex "[1:a][2:a][3:a][4:a]concat=n=4:v=0:a=1[a]" -map 0:v -map "[a]" \
+    "${x264[@]}" "${aac[@]}" -metadata title="Episode $ep" "$f"
+done
+
 # Summary.
 echo
 echo "== ffprobe summary ($OUT_DIR)"
