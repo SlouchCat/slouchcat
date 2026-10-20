@@ -1,8 +1,10 @@
 # Aktueller Stand
 
 Stand: 20. Oktober 2026. M0 bis M3 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #5). **M4 ist gebaut** auf dem Branch `claude/m4-playback-complete` (Pull Request
-#6, `https://github.com/SlouchCat/slouchcat/pull/6`, gegen `main`, nicht gemerged: wartet auf Marcos Wort).
+Pull Requests #1 bis #5). **M4 ist in `main` gemerged** (Pull Request #6, `https://github.com/SlouchCat/slouchcat/pull/6`,
+gemerged am 20. Oktober 2026 auf Marcos Wort, Merge-Commit `7b57c52`; GitHub-Checks `ci` und `image` grün, nachdem
+der erste `ci`-Lauf am Software-Budget des 4-vCPU-Runners gescheitert war und die E2E-Fixture seither jeden
+laufenden Stream vor und nach jedem Test beendet).
 
 ## Meilenstein M4 – Wiedergabe komplett
 
