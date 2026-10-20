@@ -69,8 +69,32 @@ var gpuTonemappers = map[Backend][]struct{ name, filter string }{
 // passes a one-frame test encode of its HDR chain on a PQ source (each bounded by
 // testEncodeTimeout); otherwise the CPU chain.
 func Detect(ctx context.Context, r Runner, override string, log *slog.Logger) (Backend, Capabilities, error) {
+	return DetectTonemap(ctx, r, override, TonemapPrefAuto, log)
+}
+
+// Tonemap preferences of DetectTonemap (SLOUCHCAT_HDR_TONEMAP): auto picks the GPU tonemapper
+// where it passed P-6 (NVENC: tonemap_cuda or libplacebo; VAAPI best effort) and the CPU chain
+// on QSV, whose vpp_qsv tonemapping flattens colours (docs/perf/M4.md: mean dE2000 10 on skin
+// against the reference, the CPU chain 0); gpu forces the GPU tonemapper of the backend when it
+// passes its test encode; cpu forces the CPU chain everywhere.
+const (
+	TonemapPrefAuto = "auto"
+	TonemapPrefGPU  = "gpu"
+	TonemapPrefCPU  = "cpu"
+)
+
+// DetectTonemap is Detect with a tonemap preference (see the TonemapPref* constants).
+func DetectTonemap(ctx context.Context, r Runner, override, tonemapPref string, log *slog.Logger) (Backend, Capabilities, error) {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
+	}
+	tonemapPref = strings.ToLower(strings.TrimSpace(tonemapPref))
+	switch tonemapPref {
+	case "", TonemapPrefAuto:
+		tonemapPref = TonemapPrefAuto
+	case TonemapPrefGPU, TonemapPrefCPU:
+	default:
+		return "", Capabilities{}, fmt.Errorf("unknown tonemap preference %q (want auto, gpu or cpu)", tonemapPref)
 	}
 	override = strings.ToLower(strings.TrimSpace(override))
 	candidates := []Backend{BackendNVENC, BackendQSV, BackendVAAPI}
@@ -127,7 +151,17 @@ func Detect(ctx context.Context, r Runner, override string, log *slog.Logger) (B
 	}
 	caps.HardwareEncode = caps.Backend != BackendSoftware
 	caps.Tonemapper = TonemapCPU
-	for _, tm := range gpuTonemappers[caps.Backend] {
+	gpuCandidates := gpuTonemappers[caps.Backend]
+	switch {
+	case tonemapPref == TonemapPrefCPU:
+		gpuCandidates = nil
+	case tonemapPref == TonemapPrefAuto && caps.Backend == BackendQSV:
+		// vpp_qsv tonemaps with a flat curve (P-6 fails on the reference NAS); the hybrid chain
+		// decodes and scales on the GPU and tonemaps on the CPU (SLOUCHCAT_HDR_TONEMAP=gpu opts in).
+		gpuCandidates = nil
+		log.Info("qsv tonemaps on the CPU (vpp_qsv flattens colours); set SLOUCHCAT_HDR_TONEMAP=gpu to use vpp_qsv")
+	}
+	for _, tm := range gpuCandidates {
 		if !slices.Contains(filters, tm.filter) {
 			continue
 		}

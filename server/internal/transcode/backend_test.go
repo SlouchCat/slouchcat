@@ -51,6 +51,9 @@ func TestDetectFake(t *testing.T) {
 	if _, _, err := Detect(ctx, r, "cuda", nil); err == nil {
 		t.Error("want error for an unknown override")
 	}
+	if _, _, err := DetectTonemap(ctx, r, "auto", "fast", nil); err == nil {
+		t.Error("want error for an unknown tonemap preference")
+	}
 	if _, _, err := Detect(ctx, Runner{}, "auto", nil); err == nil {
 		t.Error("want error without ffmpeg path")
 	}
@@ -72,18 +75,21 @@ func TestDetectTonemapper(t *testing.T) {
 esac
 `
 	cases := []struct {
-		name, rules, override string
-		want                  string
+		name, rules, override, pref string
+		want                        string
 	}{
-		{"cuda", `*tonemap_cuda*h264_nvenc*) exit 0;; *libplacebo*) exit 1;; *h264_nvenc*) exit 0;;`, "nvenc", TonemapCUDA},
-		{"placebo when tonemap_cuda fails", `*tonemap_cuda*) exit 1;; *vulkan=vk@cu*libplacebo*h264_nvenc*) exit 0;; *h264_nvenc*) exit 0;;`, "nvenc", TonemapPlacebo},
-		{"cpu when both fail", `*tonemap_cuda*) exit 1;; *libplacebo*) exit 1;; *h264_nvenc*) exit 0;;`, "nvenc", TonemapCPU},
-		{"vpp_qsv", `*vpp_qsv*tonemap=1*h264_qsv*) exit 0;; *h264_qsv*) exit 0;;`, "qsv", TonemapVPP},
-		{"qsv without hdr", `*tonemap=1*) exit 1;; *h264_qsv*) exit 0;;`, "qsv", TonemapCPU},
+		{"cuda", `*tonemap_cuda*h264_nvenc*) exit 0;; *libplacebo*) exit 1;; *h264_nvenc*) exit 0;;`, "nvenc", "", TonemapCUDA},
+		{"placebo when tonemap_cuda fails", `*tonemap_cuda*) exit 1;; *vulkan=vk@cu*libplacebo*h264_nvenc*) exit 0;; *h264_nvenc*) exit 0;;`, "nvenc", "auto", TonemapPlacebo},
+		{"cpu when both fail", `*tonemap_cuda*) exit 1;; *libplacebo*) exit 1;; *h264_nvenc*) exit 0;;`, "nvenc", "auto", TonemapCPU},
+		{"cpu preference on nvenc", `*tonemap_cuda*h264_nvenc*) exit 0;; *h264_nvenc*) exit 0;;`, "nvenc", TonemapPrefCPU, TonemapCPU},
+		// QSV: auto prefers the CPU chain (vpp_qsv flattens colours, P-6); gpu opts into vpp_qsv.
+		{"qsv auto", `*vpp_qsv*tonemap=1*h264_qsv*) exit 0;; *h264_qsv*) exit 0;;`, "qsv", "auto", TonemapCPU},
+		{"vpp_qsv with gpu preference", `*vpp_qsv*tonemap=1*h264_qsv*) exit 0;; *h264_qsv*) exit 0;;`, "qsv", TonemapPrefGPU, TonemapVPP},
+		{"qsv gpu preference without hdr", `*tonemap=1*) exit 1;; *h264_qsv*) exit 0;;`, "qsv", TonemapPrefGPU, TonemapCPU},
 	}
 	for _, c := range cases {
 		bin := fakeBinary(t, fmt.Sprintf(script, c.rules))
-		_, caps, err := Detect(context.Background(), Runner{FFmpegPath: bin}, c.override, nil)
+		_, caps, err := DetectTonemap(context.Background(), Runner{FFmpegPath: bin}, c.override, c.pref, nil)
 		if err != nil || caps.Tonemapper != c.want || caps.HWTonemap != (c.want != TonemapCPU) || string(caps.Backend) != c.override {
 			t.Errorf("%s: %+v, %v; want tonemapper %s", c.name, caps, err, c.want)
 		}

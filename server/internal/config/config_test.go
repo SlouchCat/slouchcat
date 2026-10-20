@@ -21,7 +21,7 @@ func TestDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
-		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", TrailerAI: "off"}
+		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off"}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -41,13 +41,14 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_SPIKE_DIR":        "/srv/spike",
 		"SLOUCHCAT_WORKERS":          "3",
 		"SLOUCHCAT_HW":               "nvenc",
+		"SLOUCHCAT_HDR_TONEMAP":      "gpu",
 		"SLOUCHCAT_TRANSCODE_BUDGET": "6.5",
 		"SLOUCHCAT_TVDB_API_KEY":     " tvdb-key ",
 		"SLOUCHCAT_TVDB_PIN":         "1234",
 		"SLOUCHCAT_YOUTUBE_API_KEY":  "yt-key",
 		"SLOUCHCAT_TRAILER_AI":       "off",
 	})
-	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software",
+	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
 		"--trailer-ai", "Experimental"}, env)
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +56,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	absCache, _ := filepath.Abs("rel/cache")
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		SpikeDir: "/srv/spike", Workers: 6, HW: "software", TranscodeBudget: 6.5,
+		SpikeDir: "/srv/spike", Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5,
 		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental"}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
@@ -89,6 +90,7 @@ func TestValidation(t *testing.T) {
 		"bad workers":     {env: map[string]string{"SLOUCHCAT_WORKERS": "many"}},
 		"empty ffmpeg":    {args: []string{"--ffmpeg", ""}},
 		"bad hw":          {env: map[string]string{"SLOUCHCAT_HW": "cuda"}},
+		"bad hdr tonemap": {env: map[string]string{"SLOUCHCAT_HDR_TONEMAP": "fast"}},
 		"bad budget":      {env: map[string]string{"SLOUCHCAT_TRANSCODE_BUDGET": "lots"}},
 		"negative budget": {args: []string{"--transcode-budget", "-1"}},
 		"unknown flag":    {args: []string{"--nope"}},

@@ -304,7 +304,7 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 		// backend is usable: the converter only needs the binary.
 		playback.WithSubtitleConverter(runner.Subtitles, runner.SubtitlesFile),
 	}
-	backend, caps, err := transcode.Detect(ctx, runner, cfg.HW, log)
+	backend, caps, err := transcode.DetectTonemap(ctx, runner, cfg.HW, cfg.HDRTonemap, log)
 	if err != nil {
 		log.Error("transcode backend detection failed; HLS disabled, titles play directly only", "hw", cfg.HW, "err", err)
 		return playback.New(db, log, opts...), func() {}

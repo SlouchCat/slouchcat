@@ -37,6 +37,8 @@ type Config struct {
 	Workers   int            // Number of job workers.
 	// HW selects the transcode backend: auto (detect), nvenc, qsv, vaapi or software (M1b).
 	HW string
+	// HDRTonemap selects where HDR → SDR tonemapping runs: auto, gpu or cpu (M4, transcode.TonemapPref*).
+	HDRTonemap string
 	// TrustedProxies are the networks whose X-Forwarded-For header the server believes (reverse
 	// proxy in front); empty ignores the header.
 	TrustedProxies []netip.Prefix
@@ -57,6 +59,9 @@ func (c Config) TranscodeDir() string { return filepath.Join(c.CacheDir, "transc
 
 // hwBackends are the values of SLOUCHCAT_HW / --hw.
 var hwBackends = map[string]bool{"auto": true, "nvenc": true, "qsv": true, "vaapi": true, "software": true}
+
+// hdrTonemaps are the values of SLOUCHCAT_HDR_TONEMAP / --hdr-tonemap.
+var hdrTonemaps = map[string]bool{"auto": true, "gpu": true, "cpu": true}
 
 // Load parses args (without the program name and subcommand) and the environment read through
 // getenv, then validates the result.
@@ -85,6 +90,7 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	spikeDir := fs.String("spike-dir", env("SPIKE_DIR", ""), "directory with the offline spike files, empty = disabled (env SLOUCHCAT_SPIKE_DIR)")
 	workers := fs.Int("workers", 0, "number of job workers, 0 = automatic (env SLOUCHCAT_WORKERS)")
 	hw := fs.String("hw", env("HW", "auto"), "transcode backend: auto, nvenc, qsv, vaapi or software (env SLOUCHCAT_HW)")
+	hdrTonemap := fs.String("hdr-tonemap", env("HDR_TONEMAP", "auto"), "HDR to SDR tonemapping: auto, gpu or cpu (env SLOUCHCAT_HDR_TONEMAP)")
 	proxies := fs.String("trusted-proxies", env("TRUSTED_PROXIES", ""),
 		"reverse proxies whose X-Forwarded-For is trusted: empty = none, private = RFC 1918, loopback and fc00::/7, or comma-separated CIDRs (env SLOUCHCAT_TRUSTED_PROXIES)")
 	budget := fs.Float64("transcode-budget", 0, "transcode admission budget, 0 = backend default (env SLOUCHCAT_TRANSCODE_BUDGET)")
@@ -127,6 +133,7 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("trusted proxies: %w", err)
 	}
 	cfg.HW, cfg.TranscodeBudget = *hw, *budget
+	cfg.HDRTonemap = strings.ToLower(strings.TrimSpace(*hdrTonemap))
 	cfg.TVDBAPIKey, cfg.TVDBPIN = strings.TrimSpace(env("TVDB_API_KEY", "")), strings.TrimSpace(env("TVDB_PIN", ""))
 	cfg.YouTubeAPIKey = strings.TrimSpace(env("YOUTUBE_API_KEY", ""))
 	cfg.TrailerAI = strings.ToLower(strings.TrimSpace(*trailerAI))
@@ -135,6 +142,9 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 	if !hwBackends[cfg.HW] {
 		return Config{}, fmt.Errorf("hw %q: want auto, nvenc, qsv, vaapi or software", cfg.HW)
+	}
+	if !hdrTonemaps[cfg.HDRTonemap] {
+		return Config{}, fmt.Errorf("hdr-tonemap %q: want auto, gpu or cpu", cfg.HDRTonemap)
 	}
 	if cfg.TranscodeBudget < 0 || math.IsNaN(cfg.TranscodeBudget) || math.IsInf(cfg.TranscodeBudget, 0) {
 		return Config{}, errors.New("transcode budget must be a finite number >= 0")
@@ -182,6 +192,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("spike_dir", c.SpikeDir),
 		slog.Int("workers", c.Workers),
 		slog.String("hw", c.HW),
+		slog.String("hdr_tonemap", c.HDRTonemap),
 		slog.Any("trusted_proxies", c.TrustedProxies),
 		slog.Float64("transcode_budget", c.TranscodeBudget),
 		slog.Bool("tvdb_configured", c.TVDBAPIKey != ""),

@@ -82,7 +82,11 @@ type Plan struct {
 
 // Admission costs of plan 3.5 (start values, calibrated in docs/perf/M1b.md).
 const (
-	cost4KHDR      = 4
+	cost4KHDR = 4
+	// costHDRCPU replaces the HDR cost when the tonemapping runs on the CPU (software backend,
+	// QSV hybrid chain): on the reference NAS (2 cores) one 1080p stream uses 1.2 cores
+	// (docs/perf/M4.md), so the QSV budget of 8 admits one such stream plus one SDR transcode.
+	costHDRCPU     = 6
 	cost4KSDR      = 3
 	costHD         = 2
 	costHDSmallOut = 1.5

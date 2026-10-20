@@ -40,6 +40,7 @@ func hlsbench(args []string) int {
 	streams := fs.Int("streams", 1, "concurrent sessions on the file")
 	mode := fs.String("mode", "transcode", "transcode or remux")
 	hw := fs.String("hw", "auto", "backend: auto, nvenc, qsv, vaapi or software")
+	hdrTonemap := fs.String("hdr-tonemap", "auto", "HDR to SDR tonemapping: auto, gpu or cpu")
 	maxHeight := fs.Int("max-height", 1080, "output height limit of a transcode")
 	seconds := fs.Int("seconds", 60, "film seconds each stream reads")
 	budget := fs.Float64("budget", 1000, "admission budget (default: high enough to admit every stream)")
@@ -52,7 +53,7 @@ func hlsbench(args []string) int {
 	}
 	if *printChain && *file != "" {
 		runner := transcode.Runner{FFmpegPath: *ffmpeg, FFprobePath: *ffprobe}
-		if err := printHDRChain(context.Background(), os.Stdout, runner, *file, *hw, *maxHeight); err != nil {
+		if err := printHDRChain(context.Background(), os.Stdout, runner, *file, *hw, *hdrTonemap, *maxHeight); err != nil {
 			fmt.Fprintln(os.Stderr, "hlsbench:", err)
 			return 1
 		}
@@ -62,7 +63,7 @@ func hlsbench(args []string) int {
 		fmt.Fprintln(os.Stderr, "usage: slouchcat hlsbench --file F [--streams N] [--mode transcode|remux] [--hw auto] [--max-height 1080] [--seconds 60] [--budget 1000] [--json]")
 		return 2
 	}
-	o := benchOptions{file: *file, streams: *streams, mode: transcode.Mode(*mode), hw: *hw, maxHeight: *maxHeight,
+	o := benchOptions{file: *file, streams: *streams, mode: transcode.Mode(*mode), hw: *hw, hdrTonemap: *hdrTonemap, maxHeight: *maxHeight,
 		seconds: time.Duration(*seconds) * time.Second, budget: *budget,
 		runner: transcode.Runner{FFmpegPath: *ffmpeg, FFprobePath: *ffprobe}}
 	rep, err := runHLSBench(context.Background(), o)
@@ -83,14 +84,15 @@ func hlsbench(args []string) int {
 }
 
 type benchOptions struct {
-	file      string
-	streams   int
-	mode      transcode.Mode
-	hw        string
-	maxHeight int
-	seconds   time.Duration
-	budget    float64
-	runner    transcode.Runner
+	file       string
+	streams    int
+	mode       transcode.Mode
+	hw         string
+	hdrTonemap string
+	maxHeight  int
+	seconds    time.Duration
+	budget     float64
+	runner     transcode.Runner
 }
 
 type benchReport struct {
@@ -134,7 +136,7 @@ func runHLSBench(ctx context.Context, o benchOptions) (benchReport, error) {
 		return benchReport{}, err
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	backend, caps, err := transcode.Detect(ctx, o.runner, o.hw, log)
+	backend, caps, err := transcode.DetectTonemap(ctx, o.runner, o.hw, o.hdrTonemap, log)
 	if err != nil {
 		return benchReport{}, err
 	}
@@ -207,7 +209,7 @@ type hdrChain struct {
 
 // printHDRChain detects the backend (hw as for the bench), plans a tonemapping transcode of file
 // and writes its video chain as JSON.
-func printHDRChain(ctx context.Context, w io.Writer, r transcode.Runner, file, hw string, maxHeight int) error {
+func printHDRChain(ctx context.Context, w io.Writer, r transcode.Runner, file, hw, hdrTonemap string, maxHeight int) error {
 	path, err := filepath.Abs(file)
 	if err != nil {
 		return err
@@ -217,7 +219,7 @@ func printHDRChain(ctx context.Context, w io.Writer, r transcode.Runner, file, h
 		return err
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	backend, caps, err := transcode.Detect(ctx, r, hw, log)
+	backend, caps, err := transcode.DetectTonemap(ctx, r, hw, hdrTonemap, log)
 	if err != nil {
 		return err
 	}
