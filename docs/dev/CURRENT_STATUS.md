@@ -1,8 +1,130 @@
 # Aktueller Stand
 
-Stand: 20. Oktober 2026. M0, M1a, M1b und M2 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #4). **M3 ist in `main` gemerged** (Pull Request #5, gemerged am 20. Oktober 2026 auf
-Marcos Wort; GitHub-Checks `ci` und `image` grün, nach einer Korrektur eines zeitabhängigen Watcher-Tests aus M1a).
+Stand: 20. Oktober 2026. M0 bis M3 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
+Pull Requests #1 bis #5). **M4 ist gebaut** auf dem Branch `claude/m4-playback-complete` (Pull Request
+PR_PLACEHOLDER gegen `main`, nicht gemerged: wartet auf Marcos Wort).
+
+## Meilenstein M4 – Wiedergabe komplett
+
+Vorab geklärt mit Marco (20. Oktober 2026): die NVIDIA-Container-Laufzeit installiert er mit
+`scripts/install-nvidia-container-toolkit.sh` (am Ende von M4 noch ausstehend, siehe offene Punkte); echte
+Dolby-Vision- und HDR-Dateien vom NAS dürfen lesend für Messungen genutzt werden (nichts davon im
+Repository). Alle fünf Schritte aus `docs/planning/03-plan-v1.md` (M4) sind umgesetzt; der Entwurf liegt in
+den Sitzungsnotizen (`m4-design.md`). Die Umsetzung lief mit vier Executor-Agenten (Opus) parallel
+(Transcode, Playback/API, Intro-Erkennung, Web) auf einer gemeinsamen Basis (Migration 00011, Vertrag 0.5.0,
+Modelltypen); die Patches der Ströme A, C und D wurden vom Koordinator eingespielt und committet. Commits
+mit Bereich im Titel:
+
+| Schritt | Commit | Inhalt |
+|---|---|---|
+| Vorab | `chore(scripts)` `52d9515` | Installationsskript für das NVIDIA Container Toolkit |
+| Basis | `feat(api,store,model)` `14b04fa` | Migration 00011 (Geräteprofile, Entscheidungsspalten der Wiedergabesitzung, Limits an Profil und Konto, `media_segments`, Index für den Schauzeit-Bericht), Vertrag 0.5.0 mit 7 neuen Operationen (62 gesamt), Modelltypen, `transcode.Target`-Felder, DV-Erkennung in der Probe |
+| 1 Geräteprofile, Entscheidungstabelle | `feat(auth)` `778c568`, `feat(playback,visibility)` `dfa264f` | Fähigkeitsprofil je Gerät (Container, Codecs, Auflösung, HDR, Name, Typ) wird beim Start gespeichert; Entscheidungstabelle Direct/Remux/Transcode aus Probe, Profil, Wunsch und Limits; Dolby Vision 8 über die Basisschicht, 5/7 Transcode; Entscheidung in `playback_sessions` gespeichert, Wiederaufbau nach Neustart aus den gespeicherten Spalten (M1b-Punkt «nur AAC» erledigt) |
+| 2 HDR-Pipelines | `feat(transcode)` `413cbff`, `feat(transcode,config)` `10a2a81`, `feat(testdata)` `16d77b1`, `test(testdata)` `af180fd`, `cf5f05a` | NVENC: `tonemap_cuda`, sonst `libplacebo` über Vulkan (bt.2390), sonst CPU; QSV: Hybrid (GPU-Skalierung, CPU-Tonemapping) als Standard, `vpp_qsv` über `SLOUCHCAT_HDR_TONEMAP=gpu`; VAAPI best effort; Skalierung vor dem Tonemapping; `Detect` mit HDR-Testencode je Tonemapper; HDR10+-Erkennung aus dem ersten Frame; P-6-Skript `testdata/hdr-quality.sh` mit Testbild und Referenzbildern je Backend |
+| 3 Spuren, Untertitel, Sidecars | in `dfa264f`, `413cbff`, `feat(library)` `6a6f75d`, `chore(server)` `48fdbf1`, `97d2b7a` | Tonspur-Mapping, Einbrennen (Text über libass, PGS/DVD über `overlay`, auf allen Backends, Zeitstempel über `-copyts` auch nach Neustart), WebVTT-Endpunkt `getPlaybackSubtitle` (Cache je Wiedergabesitzung), `getItemTracks`, Sidecar-Abgleich bei Pfad- und Voll-Scan ohne erneute Probe (I-5), Testmedien Multi Audio, PGS (`make-pgs.py`) |
+| 4 W-8, K-5, Admission | in `778c568`, `dfa264f`, `1e70c9e` | Qualitätsleiter 1080p/720p/480p/360p, manuelle Wahl, Limits je Profil und Gast (`limits`-Objekt), `maxStreams` → 409, Schauzeit-Limit → 403 und Widerruf laufender Sitzungen, Bericht `getWatchReport`; `budget_lowered` bei SDR-Quellen, Kosten 6 für HDR mit CPU-Tonemapping |
+| 5 Intro, Abspann, Kapitel, Stream-Übersicht | `feat(segments)` `4423738`, `feat(library)` `7d0c477`, `test(testdata)` `7ee9914`, `feat(admin,api)` `1e70c9e`, `test(api)` `4c175da` | Chromaprint über ffmpeg, Paarvergleich je Staffel, Kapitelnamen mit Vorrang, Job `segments.detect` nach Probe und Serien-Scan, Testsaison «Slouchcat Test Intro Show»; `listStreams`/`stopStream`, `listDevices`/`deleteDevice`; Vertragstest über alle 62 Operationen |
+| Web | `feat(web)` `9e0d8a2`, `c9cedf6`, `d61a76c`, `test(web)` `52cb289` | Player mit Menüs Spuren (T), Qualität (Q), Kapitel (C), `<track>`-Untertitel, «Intro überspringen» (S), Auto-Next-Countdown (N), Hinweise für Schauzeit, Stream-Limit und beendete Streams, Geräteprofil aus `canPlayType`/MSE/`dynamic-range`; `/settings/profiles` mit Limits und Schauzeit-Bericht (`ui/BarChart`), Gast-Limits; `/admin/devices`, `/admin/streams` (`ui/DataTable`); zehn neue Playwright-Specs |
+| Messungen | `test(segments)` `3f76fd1` | `TestRealSeason` (hinter `SLOUCHCAT_REAL_SEASON`) für die W-9-Messung an einer echten Staffel |
+| E2E-Korrekturen | `fix(web)` `e89721c`, `fix(web,api)` `b55e326`, `11c94fb` | siehe «Abweichungen» |
+| Review-Korrekturen | `fix(playback)` `21771b6`, `384bce2`, `fix(playback,api)` `c662fa8`, `fix(transcode,playback)` `a2f96d1`, `fix(segments,library)` `e5607e5`, `fix(admin,api)` `9f6d592`, `fix(web)` `4144744`, `0ad7987`, `cf36bed`, `test(web)` `f893d7a` | siehe unten; Migration 00012 (`progress_events.playback_session_id`) |
+
+### Definition of Done (Plan M4 plus 6.2) mit Belegen
+
+| Kriterium | Ergebnis | Beleg |
+|---|---|---|
+| W-1 H.264/AAC-MP4 → Direct Play, 0 ffmpeg | PASS (seit M1a); neu: Direct Play folgt dem gemeldeten Geräteprofil (Container, Codecs, HDR, Auflösung); Chromium und Firefox melden MKV und spielen H.264-MKV direkt | `go test ./internal/playback -run TestDecide`, `web/e2e/player.spec.ts` |
+| W-2 Testmatrix 10.3, HDR → SDR nach P-6 auf NVENC und QSV | PASS mit einer Ausnahme: Software-Referenz, NVENC (`libplacebo`, SSIM 0.9915, ΔE Keil 2.91 / Hautton 3.71) und QSV-Hybrid (ΔE 0.00) bestanden; `vpp_qsv` (ΔE Hautton 10.25) nicht bestanden und deshalb nicht mehr Standard; `tonemap_cuda` im Container **ausstehend** (NVIDIA-Laufzeit) | `docs/perf/M4.md` 1, `testdata/hdr-quality.sh`, Referenzbilder `testdata/reference/hdr/` |
+| W-3 4K-HEVC-HDR startet im Handy-Profil < 5 s (NVENC, QSV); Spulen < 3 s | PASS: echte 4K-HDR10+-Quelle → 720p: NVENC `libplacebo` 1.55 s (CPU-Tonemapping 0.80 s), QSV-Hybrid 1.85 s (`vpp_qsv` 0.80 s), zwei Streams im CT 3.0 s; Spulen unverändert aus M1b; im Browser `hdr.spec.ts` (generierter 4K-Clip) | `docs/perf/M4.md` 2, `web/e2e/hdr.spec.ts`, `hls.spec.ts` |
+| W-4 Tonspurwechsel ≤ 3 s; SRT/ASS als WebVTT; PGS eingebrannt | PASS: AC3-Spur gewählt → neue Sitzung an derselben Position, `data-switch-ms` ≤ 3000 in Chromium und Firefox; SRT als `<track>` (`text/vtt`); PGS → `reason subtitle_burn`, spielt | `web/e2e/tracks.spec.ts`, `go test ./internal/transcode -run 'BurnIn|Subtitles'`, `go test ./internal/playback -run 'Subtitle|Track'` |
+| W-5 Fortschritt | PASS (seit M1a) | `web/e2e/resume.spec.ts` |
+| W-6 Stream-Übersicht mit Beenden, Client stoppt < 5 s, ffmpeg endet | PASS: zwei Streams (Hauptprofil Direct Play, zweites Profil Transcode) mit Profil, Gerät, Titel, Qualität, Modus HW/SW; Beenden per Tastatur → Player zeigt «Die Wiedergabe wurde beendet.» innert 5 s, Zeile verschwindet, Transcoder gestoppt | `web/e2e/admin-streams.spec.ts`, `go test ./internal/playback -run 'Streams|StopStream'`, `go test ./internal/api -run 'Streams'` |
+| W-7 Gerät mit Eigentümer, letztem Kontakt ±1 min, Fähigkeitsprofil | PASS: nach einer Wiedergabe zeigt `/admin/devices` Name, Typ, «E-Mail · Profil», letzten Kontakt, Container, Codecs, Auflösung, HDR; Vergessen beendet die Sitzungen des Geräts | `web/e2e/admin-devices.spec.ts`, `go test ./internal/playback -run Device`, `go test ./internal/api -run Devices` |
+| W-8 max. 720p → ≤ 720p; max. 1 Stream → 409 mit Hinweis; 4 Mbit/s → ≤ 4 Mbit/s; manuelle Wahl | PASS: Limit 720p → `reason max_height`, 1080p nicht verfügbar; Bandbreite 4000 kbit/s → 480p (Ton zählt mit); 1 Stream → zweiter Start 409 `stream_limit_reached` mit Hinweis (je Profil und je Gastkonto); 480p gewählt → Transcode 480p; `budget_lowered` nur, wenn die Kosten sinken | `web/e2e/quality.spec.ts`, `go test ./internal/playback -run 'Limit|Quality|Budget'`, `go test ./internal/api -run 'Quality|StreamLimit'` |
+| W-9 Intro ±2 s bei ≥ 80 % einer Test-Staffel; Auto-Next nach 10 s; Kapitelsprung ±1 s | PASS: generierte Staffel 5/5 Intros und 5/5 Abspänne ±2 s; echte Staffel (9 Folgen) 8/9 Intros, Stichprobe per Standbild ±1 s Start; Countdown und Navigation, Kapitelsprung | `docs/perf/M4.md` 3, `go test ./internal/segments`, `go test ./internal/library -run TestSegmentsDetectGeneratedSeason`, `web/e2e/chapters.spec.ts` |
+| K-5 Limit 30 min → Stopp innert 30 s mit Hinweis; Bericht ≤ 1 min Abweichung | PASS: Uhr-Mock (Ereignisse à 10 s, Widerruf beim Erreichen, Start danach 403, nächster Tag frei, Bericht), E2E mit 1-min-Limit (403 mit Hinweis, laufender Player stoppt, Bericht zeigt die Minute); `playedMs` serverseitig gekappt, Duplikate ignoriert, Sweep als Rückhalt | `go test ./internal/playback -run 'Watch'`, `go test ./internal/api -run 'WatchLimit|WatchReport'`, `web/e2e/watch-limit.spec.ts` |
+| I-5 Sidecar `.de.srt` → im Player < 60 s | PASS: Datei während der Wiedergabe abgelegt → Spurmenü zeigt sie (lokal innert Sekunden) | `web/e2e/sidecar.spec.ts`, `go test ./internal/library -run Sidecar` |
+| Testmatrix 10.3 auf Chromium und Firefox, Safari ungeprüft | PASS: Direct Play (`player.spec.ts`), HEVC SDR Transcode/Remux (`hls.spec.ts`, mit eingeschränktem Profil), HDR10 4K Tonemap (`hdr.spec.ts`), DTS/AC3 Audio-Transcode (`audio-transcode.spec.ts`), PGS Einbrennen und SRT/ASS WebVTT (`tracks.spec.ts`); Safari/WebKit ungeprüft (Entscheid 2) | `task e2e` |
+| Kinderprofil-Vertragstest 10.2 über alle neuen Operationen | PASS: 62 Operationen; `getItemTracks` und `getPlaybackSubtitle` bei unsichtbarem Titel 404, fremdes Token 401; `getWatchReport` nur Hauptprofil; Geräte- und Stream-Übersicht nur Admin (Gast 403) | `go test ./internal/api -run 'TestContract'` |
+| `task ci` grün (6.2 Pkt. 2) | exit 0 (Lauf 4, 20. Oktober 2026, Stand `c124ab8`): gen, gen:check, lint (0 issues), Go-Tests mit `-race` (alle Pakete ok), Vitest (web 216 in 31 Dateien, api-client 4, design-tokens 2), Build, Playwright 220 (Chromium 110, Firefox 110, 29 Specs), Storybook-Screenshots 101; Protokoll `.dev/ci-m4-run4.log` | `task ci` (Storybook-Schritt über `sg docker -c`) |
+| Tastaturtest je neue Seite (6.2 Pkt. 3) | PASS: Player-Menüs Spuren/Qualität/Kapitel, Intro-/Countdown-Knöpfe, `/admin/devices`, `/admin/streams`, Profil-Limits und Schauzeit-Bericht, Gast-Limits | `tracks.spec.ts`, `quality.spec.ts`, `chapters.spec.ts`, `admin-devices.spec.ts`, `admin-streams.spec.ts`, `profiles.spec.ts`, `access.spec.ts` |
+| Eingefrorener DB-Stand (6.2 Pkt. 4) | `testdata/db/M4.sql` (Profil mit Limits, Gerät mit Fähigkeitsprofil, Wiedergabesitzung mit Qualität und Spuren, Segmente der Intro-Staffel); M1a bis M3 migrieren bis 00012 | `go test ./internal/store -run TestFrozen` |
+| Messwerte (6.2 Pkt. 5) | `docs/perf/M4.md` (P-6, W-3 je Backend, W-9 generiert und echt, Gerätecheckliste) | |
+| Code-Review (separate Passage, Opus) | Server 20 Befunde (0 kritisch, 4 wichtig, 16 klein), Web 23 Befunde (0 kritisch, 2 wichtig, 21 klein); alle behoben bis auf zwei Vertragsergänzungen (siehe unten) | Review-Berichte `m4-review-server.md`, `m4-review-web.md`, Fix-Notizen in den Sitzungsnotizen |
+| Verifier-Agent (6.2 Pkt. 6) | VERIFIER_PLACEHOLDER | Verifier-Bericht `m4-verifier.md` |
+
+### Befunde der Review-Passage und ihre Behebung
+
+- **Wichtig (Server):** `maxStreams` war über «gleiche Sitzung, gleicher Titel» umgehbar (ein Start ersetzt
+  jetzt die alte Wiedergabe desselben Titels serverseitig, `stopped_by client`); der Gast-Deckel zählte je
+  Profil statt je Konto (jetzt beides); die WebVTT-Konvertierung lief je Anfrage (jetzt gemeinsam je Sitzung
+  und Spur, höchstens 4 parallel, fehlende Quelle 404); K-5 hing allein an `playedMs` des Clients (Duplikate
+  werden ignoriert, `playedMs` auf die Serverzeit seit dem letzten Ereignis plus 10 % gekappt, der Sweep
+  beendet überzogene Profile auch ohne Ereignisse; Migration 00012 speichert die Wiedergabesitzung am
+  Ereignis).
+- **Klein (Server):** `budget_lowered` nur bei sinkenden Kosten; Dolby Vision 8.2/9.2 (SDR-Basisschicht)
+  gilt als SDR; reserviertes PIN-Gerät nicht in der Geräteliste; `deleteDevice`-Text korrigiert;
+  `deviceId` aus dem Request nur im Cookie-Muster und nur für eigene oder neue Geräte; Bandbreitenlimit
+  zählt den Ton mit; `.sub`-Sidecars und DVB → 422 `not_burnable`; Kapitel-Segmente längenbegrenzt;
+  Segment-Job rollt bei veralteter Staffel zurück; `Problem.extensions` im Schema; Startsperre mit
+  Kontext; K-5-Nachprüfung nach dem Einfügen; Wiederaufbau mit aufgezeichneter Stufe; Bericht in einer
+  Abfrage. Akzeptiert: kopierte AAC-5.1-Spuren über 160 kbit/s unter einem Bandbreitenlimit (Audio-Bitrate
+  nicht in der Probe); ein Client ohne Fortschrittsereignisse wird nur über den Sweep gestoppt.
+- **Wichtig (Web):** ein eigener Spur-, Qualitäts- oder Versionswechsel meldete «Verwaltung hat beendet»
+  (die alte Sitzung gilt jetzt als verlassen, hls.js stoppt das Laden); Vollbild endete bei jedem Wechsel
+  und beim Auto-Next (jetzt auf `document.documentElement`).
+- **Klein (Web):** Menüs und N nach einem Ende gesperrt; Qualitätsknopf zeigt die vom Server gelieferte Stufe
+  (Regel 12); neutraler Text «Die Wiedergabe wurde beendet.» bei 401 (der Vertrag kennt noch keinen Grund);
+  Fokus nach Überspringen und Countdown; Enter/Space bricht den Countdown ab; Live-Region nur beim Start und
+  bei 3 s; Backspace schliesst Menüs; `data-start-ms` nur für die erste Sitzung; Admin-Seiten: Fokus nach
+  Beenden/Vergessen, kein Polling bei offenem Dialog, Warnung beim eigenen Gerät; Gerätegrösse unabhängig
+  von der Ausrichtung; 2160p nicht mehr als Limit; Texte und Trenner aus den Locales; DataTable mit
+  180-ms-Fokusübergang; Specs ohne Zusicherungen, die nicht fehlschlagen können. Offen: `AdminDevice.current`
+  und ein Grund im 401 (`stoppedBy`) als Vertragsergänzung.
+
+### Abweichungen und Entscheide während M4
+
+- **Agenten im selben Worktree:** die Sitzungsisolierung verweigerte den vier Executor-Agenten Git-Befehle und
+  teils Schreibzugriffe in eigenen Worktrees; drei Ströme arbeiteten in Kopien und lieferten Patches, die der
+  Koordinator einspielte und committete; der Playback-Strom und die Fix-Agenten committeten direkt im
+  M4-Worktree. Zwischenstände einzelner Commits bauen nicht für sich (api erst mit `1e70c9e`).
+- **QSV tonemappt auf der CPU** (`SLOUCHCAT_HDR_TONEMAP=auto`): `vpp_qsv` reisst die ΔE-Grenze von P-6
+  (Hautton 10.25); die Hybrid-Kette trifft die Referenz exakt, kostet aber 12 CPU-s je 20 s auf dem CT
+  (2.4× Echtzeit bei 720p, 1.2× bei 1080p). Kosten eines HDR-Transcodes mit CPU-Tonemapping: 6 statt 4. Die
+  GPU-Variante bleibt per `SLOUCHCAT_HDR_TONEMAP=gpu` wählbar. OpenCL-Tonemapping (Weg von Jellyfin) scheitert
+  am fehlenden Intel-OpenCL-Treiber im Image (nicht in Debian `main`).
+- **NVENC auf dem Host über `libplacebo`** (ffmpeg 6.1.1 ohne `tonemap_cuda`): Start 1.55 s statt 0.80 s mit
+  CPU-Tonemapping, dafür ein Drittel der CPU-Zeit; das Image nutzt `tonemap_cuda`, sobald die Laufzeit steht.
+- **Direct Play von MKV:** Chromium und Firefox melden den Matroska-Container; H.264/AAC-MKV spielt dort
+  direkt (W-1), die Remux-Messung schränkt das gemeldete Profil deshalb ein (`limitCapabilities`).
+- **HDR-Durchleitung nur mit `hdr: true`** des Geräts (M1b remuxte HDR für Safari immer).
+- **Handy-Deckel 720p nur für Transcodes**, nicht für Direct Play und Remux (10.3 Zeile 1).
+- **Limits als ein Objekt** (`limits`) in Profil- und Gast-Anfragen: ein weggelassenes Feld löscht das
+  Limit; `oneOf`-Nullwerte liessen sich im Codegen nicht von «fehlt» unterscheiden.
+- **Testsaison länger als geplant** (98–106 s statt 60 s, Abspann 25 s): die Erkennungsregeln (Kopf 40 %,
+  Abspann ≥ 20 s) hätten bei 60 s nichts finden dürfen.
+- **Abspann-Erkennung an echten Folgen** scheitert an der Vorschau nach dem Abspann (endet > 5 s vor dem
+  Dateiende); offener Punkt.
+- **`TestScanbench`** (cmd) ist bei Einzelläufen zeitabhängig (Beobachtung des Playback-Stroms, im vollen
+  Lauf grün).
+- **Spike-Seite und `SLOUCHCAT_SPIKE_DIR` bleiben** bis zum Ende von Marcos Android-Lauf (27. Oktober 2026).
+
+### Nicht in M4 (Plan) und offene Punkte für M5
+
+1. NVIDIA-Container-Laufzeit auf dem Entwicklungsrechner (Skript liegt bereit, `sudo` durch Marco); danach
+   P-6 und W-3 mit `tonemap_cuda` im Container nachtragen (`docs/perf/M4.md` 1 und 2) und die
+   NVENC-Referenzbilder dafür anlegen.
+2. Sichtprüfung der P-6-Referenzbilder durch Marco (`testdata/reference/hdr/`), Android-Startzeit (Stoppuhr),
+   Gerätecheckliste Android; Safari/iOS ungeprüft (Entscheid 2).
+3. Vertrag: `AdminDevice.current` (eigenes Gerät markieren) und ein Grund (`stoppedBy`) im 401 der
+   Stream-Endpunkte, damit der Player «Verwaltung» von «Schauzeit» und «Abmeldung» unterscheidet.
+4. Abspann-Erkennung bei Vorschau nach dem Abspann (Stille-/Schwarzbild-Erkennung); Paarvergleich O(n²)
+   bei grossen Staffeln (24 Folgen ≈ 10 s CPU).
+5. Einbrennen eingebetteter Textspuren liest die Quelle bei jedem ffmpeg-Start (kalt rund 12 s bei 3 GB über
+   NFS); Vorschlag: Spur einmal extrahieren und als Sidecar einbrennen. Schriften für libass im Image prüfen.
+6. Audio-Bitrate in der Probe (Bandbreitenlimit mit kopiertem Mehrkanalton), Admin-Dashboard und
+   Budget-Einstellungen (M8), CSP-Header (M8/M10), YouTube-Stufe und TVDB gegen echte Dienste (seit M3),
+   Spike-Entscheid nach dem 27. Oktober.
 
 ## Meilenstein M3 – Bibliothek komplett
 
@@ -401,6 +523,9 @@ Profile/PIN (M2), GPU-Erkennung im Assistenten (M8).
 ```bash
 task ci                      # alles bauen und prüfen (inkl. Playwright; Storybook braucht Docker)
 server/bin/slouchcat scanbench --root DIR --workers 4 --json   # Lasttest des Scanners (M3)
+testdata/hdr-quality.sh software|nvenc|qsv                     # P-6: HDR-Testbild durch die Server-Kette, SSIM und ΔE (M4)
+server/bin/slouchcat hlsbench --file F --mode transcode --max-height 720 --hdr-tonemap auto|gpu|cpu --json   # W-3-Startzeit (M4)
+SLOUCHCAT_REAL_SEASON=DIR go test ./internal/segments -run TestRealSeason -v   # Intro-Erkennung an einer echten Staffel (M4)
 ./testdata/generate-reference-movies.sh                        # 25 Referenzfilme als Platzhalter (B-3, B-8)
 task server:dev              # Server auf :8096 mit .dev/config und .dev/cache
 task web:dev                 # Vite auf :5173, Proxy /api → :8096
