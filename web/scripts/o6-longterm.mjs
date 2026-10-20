@@ -25,6 +25,9 @@ const base = `http://localhost:${port}`;
 const title = 'Slouchcat Test H264';
 const csrf = { 'X-Requested-With': 'Slouchcat' };
 const browsers = { chromium, firefox };
+// Chromium plays muted under Playwright, Firefox does not (the test film's sine tone would beep).
+const launchOptions = (name) =>
+  name === 'firefox' ? { firefoxUserPrefs: { 'media.volume_scale': '0.0' } } : {};
 const accountFile = join(dir, 'account.json');
 const logFile = join(dir, 'o6-log.json');
 
@@ -114,6 +117,7 @@ async function start() {
       const context = await type.launchPersistentContext(join(dir, name), {
         baseURL: base,
         locale: 'de-CH',
+        ...launchOptions(name),
       });
       try {
         const page = context.pages()[0] ?? (await context.newPage());
@@ -172,6 +176,7 @@ async function check() {
     const context = await type.launchPersistentContext(join(dir, name), {
       baseURL: base,
       locale: 'de-CH',
+      ...launchOptions(name),
     });
     const entry = { mode: 'check', browser: name };
     try {

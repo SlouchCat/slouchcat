@@ -41,7 +41,12 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        // Chromium runs muted in Playwright, Firefox does not: the sine tones of the test media
+        // would beep through the speakers during every run.
+        launchOptions: { firefoxUserPrefs: { 'media.volume_scale': '0.0' } },
+      },
       // Flight mode cannot be emulated with a service worker in Playwright's Firefox: setOffline
       // does not reach the worker's own requests (the app still gets its session), and a route
       // that cuts the API makes Firefox bypass the worker for the page (NS_ERROR_OFFLINE). The
