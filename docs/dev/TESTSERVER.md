@@ -22,7 +22,8 @@ Zugang, GPU-Durchreichung und Limits sind vor M1b festzulegen; dieses Dokument l
 | vCPU | 2 Kerne, `cpuunits` 512 | schwächer als ein N100 (4 Kerne) |
 | RAM | 4 GB, Swap 1 GB | Hälfte des N100-Vorschlags (8 GB); SQLite + Server + ffmpeg-Software-Transcode müssen damit auskommen |
 | Root-Disk | 16 GB | System, Docker-Image (≈ 0.5 GB), Cache |
-| Daten-Disk | Mountpoint `/srv/media`, 64 GB | Platzhalterbaum (leer) und einige echte Testdateien |
+| Daten-Disk | Mountpoint `/srv/media`, 64 GB | Platzhalterbaum (leer) und einige echte Testdateien (`calib/`) |
+| NAS-Medien | Bind-Mount `mp1` des Host-NFS-Mounts `/mnt/pve/Medien` (NAS `192.168.1.50:/mnt/nerdnas/medien`) nach `/srv/media/nas`, `ro=1`, seit 2026-10-20 | Echte Bibliotheken (`Filme`, `Serien`, `KinderFilme`, …) für den Stack im Container unter `/media/nas/…`; NFS im unprivilegierten CT geht nur so. Schreibgeschützt, damit der Testserver die Sammlung nie verändert |
 | Features | `nesting=1,keyctl=1` | Docker im unprivilegierten CT |
 | GPU | Intel UHD 630 des Hosts (`/dev/dri/renderD128`, `card1`), seit 2026-10-19 durchgereicht | Für die QSV/VAAPI-Messung in M1b (Entscheid 4). Ohne GPU gilt die dokumentierte Ausnahme AN-17; die Software-Messung läuft mit `SLOUCHCAT_HW=software` |
 | Netz | `vmbr0`, DHCP, Hostname `slouchcat-nas` | gleiches LAN wie Entwicklungsrechner und NAS |
@@ -84,6 +85,20 @@ MEDIA_DIR=/srv/media docker compose -f deploy/compose.yaml up -d --build
 Messungen nach `docs/perf/M1b.md`: `healthy`-Zeit, Leerlauf-RSS, Scan des Platzhalterbaums, Transcode-Start
 ohne GPU (AN-17).
 
+### NAS-Medien in den Container einbinden (auf dem Proxmox-Host, als root)
+
+```bash
+# Host hat die NAS-Freigabe bereits als Proxmox-Storage «Medien» unter /mnt/pve/Medien (NFS 4.2).
+pct exec 190 -- mkdir -p /srv/media/nas
+pct set 190 -mp1 /mnt/pve/Medien,mp=/srv/media/nas,ro=1
+pct reboot 190   # ein Bind-Mount unterhalb von mp0 wird nicht live eingehängt
+```
+
+Im Stack erscheinen die Bibliotheken unter `/media/nas/Filme`, `/media/nas/Serien` usw. (Compose mountet
+`/srv/media` nach `/media`). Alle Dateien der Video-Ordner sind `o+r`, die UID-Verschiebung des
+unprivilegierten CT (Host-UID 1000 erscheint als `nobody`) stört das Lesen also nicht. Die Samba-Freigabe
+`media` zeigt den Ordner `nas` mit (Gäste lesen); das NAS exportiert dieselben Daten ohnehin ins LAN.
+
 ## Stand
 
 CT 190 `slouchcat-nas` wurde am 2026-10-19 auf `pve2` angelegt (Storage `local-zfs`, DHCP-Adresse im LAN).
@@ -115,6 +130,14 @@ hält das Listing von `Movies/` danach bis zu `dir_cache_timeout` (30 s, bei lau
 Eine im Container angelegte Datei war über das Mount erst nach 218–445 s sichtbar, obwohl Poller (3 s)
 und Pfad-Scan (2 s) längst schnell genug sind. Für Messungen und für den Betrieb gilt die Abhilfe aus
 `deploy/README.md` («Medien auf SMB-Freigaben»): `dir_cache_timeout=0` auf dem Client.
+
+## NAS-Medien eingebunden (20. Oktober 2026)
+
+Auf Marcos Wunsch sind die echten Bibliotheken im CT verfügbar (Abschnitt oben). Geprüft: Mount nach
+Neustart aktiv und schreibgeschützt (`touch` scheitert mit «Read-only file system»), Stack nach dem
+Neustart `healthy`, im Stack-Container lesbar (`/media/nas/Filme` 1771 Ordner, 1 MB aus einem Testfilm
+gelesen). Der Stack hat noch keine Bibliotheken: Marco legt sie in `/admin/libraries` mit den Pfaden
+`/media/nas/Filme`, `/media/nas/KinderFilme`, `/media/nas/Serien` usw. an.
 
 ## Noch offen
 

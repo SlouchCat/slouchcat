@@ -131,6 +131,10 @@ Commits mit Bereich im Titel:
 8. Weiter offen aus M4: `AdminDevice.current` und `stoppedBy` im 401, Abspann-Erkennung bei Vorschau nach dem Abspann,
    Einbrennen eingebetteter Textspuren über Sidecar-Cache, Schriften für libass, Audio-Bitrate in der Probe, CSP.
 
+Testserver: seit dem 20. Oktober 2026 sind die echten NAS-Bibliotheken schreibgeschützt in den CT 190 eingebunden
+(`/media/nas/Filme`, `/media/nas/Serien`, …), damit Marco den Stack dort mit seiner Sammlung nutzen kann; die
+Bibliotheken sind in `/admin/libraries` noch anzulegen (`docs/dev/TESTSERVER.md`).
+
 ## Meilenstein M4 – Wiedergabe komplett
 
 Vorab geklärt mit Marco (20. Oktober 2026): die NVIDIA-Container-Laufzeit installiert er mit
