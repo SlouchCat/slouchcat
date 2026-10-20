@@ -185,21 +185,26 @@ ORDER BY listened_at DESC, podcast_id;
 
 -- name: ListDownloadParts :many
 -- The parts of a multi-file audiobook in their order (part_index) with their roots and stored
--- probes; a single file has no part index and lists nothing.
+-- probes; a single file has no part index and lists nothing. A part whose probe failed is left out,
+-- like in playback and in the chapters.
 SELECT m.id, m.rel_path, m.size, m.duration_ms, m.probe, r.path AS root_path
 FROM media_files AS m
 JOIN library_roots AS r ON r.id = m.root_id
-WHERE m.item_id = @item_id AND m.part_index IS NOT NULL AND m.missing_since IS NULL
+WHERE m.item_id = @item_id AND m.part_index IS NOT NULL AND m.missing_since IS NULL AND m.probe_error IS NULL
 ORDER BY m.part_index, m.id;
 
 -- name: GetDownloadItem :one
--- The kind and the feed duration of the title of a download (audio branch of the preparation).
-SELECT kind, duration_ms, enclosure_type FROM items WHERE id = @id;
+-- The kind, the feed duration and type, the current enclosure and the feed URL of the podcast of the
+-- title of a download (audio branch of the preparation).
+SELECT i.kind, i.duration_ms, i.enclosure_type, i.enclosure_url, p.feed_url
+FROM items AS i LEFT JOIN items AS p ON p.id = i.parent_id
+WHERE i.id = @id;
 
 -- name: GetDownloadSource :one
--- The source of a preparation: library root, path, stored probe and keyframe index of the file.
+-- The source of a preparation: library root, path, stored probe (or probe error) and keyframe index
+-- of the file.
 SELECT m.id, m.item_id, m.rel_path, m.size, m.video_codec, m.audio_codec, m.width, m.height, m.duration_ms,
-       m.probe, m.keyframes, r.path AS root_path
+       m.probe, m.probe_error, m.keyframes, r.path AS root_path
 FROM media_files AS m
 JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.id = @id;

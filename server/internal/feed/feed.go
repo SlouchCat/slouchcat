@@ -6,8 +6,9 @@
 // guid that appears twice keeps its first item. Dates accept RFC 1123/822 with numeric or named
 // zones and ISO 8601; itunes:duration accepts seconds and h:mm:ss. Descriptions prefer
 // content:encoded over description over itunes:summary and are reduced from HTML to text
-// (paragraphs as blank lines, links as their text, at most MaxDescription characters). Atom and
-// RSS 1.0 are not supported (ErrNotRSS).
+// (paragraphs as blank lines, links as their text, at most MaxDescription characters); titles,
+// authors, guids and URLs are bounded as well (MaxTitle, MaxURL). Atom and RSS 1.0 are not
+// supported (ErrNotRSS).
 package feed
 
 import (
@@ -26,6 +27,14 @@ import (
 
 // MaxDescription is the maximum length of a description in characters.
 const MaxDescription = 4000
+
+// Limits of the other fields a feed names (a feed may be 16 MiB): titles, authors and MIME types are
+// clipped to MaxTitle characters, a guid to MaxURL; an image URL longer than MaxURL bytes is dropped,
+// and so is an episode whose enclosure URL is.
+const (
+	MaxTitle = 500
+	MaxURL   = 2048
+)
 
 // Namespaces of the podcast extensions.
 const (
@@ -97,10 +106,10 @@ func Parse(r io.Reader) (Feed, error) {
 		return Feed{}, ErrNotRSS
 	}
 	f := Feed{
-		Title:    ch.text("", "title"),
-		Author:   first(ch.text(nsITunes, "author"), ch.text("", "managingEditor")),
-		Language: ch.text("", "language"),
-		ImageURL: first(ch.attr(nsITunes, "image", "href"), ch.childText("", "image", "url")),
+		Title:    truncate(ch.text("", "title"), MaxTitle),
+		Author:   truncate(first(ch.text(nsITunes, "author"), ch.text("", "managingEditor")), MaxTitle),
+		Language: truncate(ch.text("", "language"), MaxTitle),
+		ImageURL: shortURL(first(ch.attr(nsITunes, "image", "href"), ch.childText("", "image", "url"))),
 		Explicit: isExplicit(ch.text(nsITunes, "explicit")),
 		Type:     strings.ToLower(ch.text(nsITunes, "type")),
 		Description: Text(first(ch.raw("", "description"), ch.raw(nsITunes, "summary"),
@@ -129,15 +138,15 @@ func episode(it *node) (Episode, bool) {
 		return Episode{}, false
 	}
 	e := Episode{Enclosure: Enclosure{URL: strings.TrimSpace(enc.attrValue("", "url")),
-		Type: strings.TrimSpace(enc.attrValue("", "type"))}}
-	if e.Enclosure.URL == "" {
+		Type: truncate(strings.TrimSpace(enc.attrValue("", "type")), MaxTitle)}}
+	if e.Enclosure.URL == "" || len(e.Enclosure.URL) > MaxURL {
 		return Episode{}, false
 	}
 	if n, err := strconv.ParseInt(strings.TrimSpace(enc.attrValue("", "length")), 10, 64); err == nil && n > 0 {
 		e.Enclosure.Length = n
 	}
-	e.GUID = first(it.text("", "guid"), e.Enclosure.URL)
-	e.Title = first(it.text("", "title"), it.text(nsITunes, "title"))
+	e.GUID = truncate(first(it.text("", "guid"), e.Enclosure.URL), MaxURL)
+	e.Title = truncate(first(it.text("", "title"), it.text(nsITunes, "title")), MaxTitle)
 	e.Description = Text(first(it.raw(nsContent, "encoded"), it.raw("", "description"), it.raw(nsITunes, "summary")))
 	e.PublishedAt = ParseDate(it.text("", "pubDate"))
 	e.Duration = ParseDuration(it.text(nsITunes, "duration"))
@@ -145,7 +154,7 @@ func episode(it *node) (Episode, bool) {
 		x := isExplicit(v)
 		e.Explicit = &x
 	}
-	e.ImageURL = it.attr(nsITunes, "image", "href")
+	e.ImageURL = shortURL(it.attr(nsITunes, "image", "href"))
 	e.Number, _ = strconv.Atoi(it.text(nsITunes, "episode"))
 	e.Season, _ = strconv.Atoi(it.text(nsITunes, "season"))
 	return e, true
@@ -197,6 +206,22 @@ func (n *node) attrValue(space, name string) string {
 	return ""
 }
 
+// truncate keeps at most n characters of s.
+func truncate(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	return string([]rune(s)[:n])
+}
+
+// shortURL keeps a URL of at most MaxURL bytes and drops a longer one.
+func shortURL(s string) string {
+	if len(s) > MaxURL {
+		return ""
+	}
+	return s
+}
+
 func first(vals ...string) string {
 	for _, v := range vals {
 		if strings.TrimSpace(v) != "" {
@@ -224,6 +249,10 @@ var dateLayouts = []string{
 	time.RFC3339, "2006-01-02T15:04:05Z0700", "2006-01-02T15:04:05", "2006-01-02 15:04:05", time.DateOnly,
 }
 
+// usZones are the named zones RFC 822 allows besides UT and GMT. time.Parse knows only the
+// abbreviations of the local location and reads any other with offset 0.
+var usZones = map[string]int{"EST": -5, "EDT": -4, "CST": -6, "CDT": -5, "MST": -7, "MDT": -6, "PST": -8, "PDT": -7}
+
 // ParseDate parses a pubDate; it returns the zero time when no layout fits.
 func ParseDate(v string) time.Time {
 	v = strings.Join(strings.Fields(v), " ")
@@ -232,6 +261,11 @@ func ParseDate(v string) time.Time {
 	}
 	for _, layout := range dateLayouts {
 		if t, err := time.Parse(layout, v); err == nil {
+			if name, offset := t.Zone(); offset == 0 {
+				if h, ok := usZones[name]; ok {
+					t = t.Add(-time.Duration(h) * time.Hour)
+				}
+			}
 			return t.UTC()
 		}
 	}

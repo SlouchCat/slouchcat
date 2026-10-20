@@ -85,6 +85,8 @@ func (a audioFixture) rating(t *testing.T, id string) (own, effective sql.NullIn
 }
 
 // AN-2: a new default rating reaches the titles rated by the library; manual and feed ratings stay.
+// The manual 6 of Books[1] lies below the new default 12: it is raised to 12 (M6 review m-8, AN-2
+// "only stricter"); the manual 16 stays.
 func TestUpdateLibraryDefaultRating(t *testing.T) {
 	a := newAudioFixture(t)
 	au := a.f.Audio
@@ -97,7 +99,7 @@ func TestUpdateLibraryDefaultRating(t *testing.T) {
 		m      vistest.Movie
 		own    int64
 		source string
-	}{{au.Books[0], 12, "library"}, {au.Parts, 12, "library"}, {au.Books[1], 6, "manual"}, {au.Books[3], 16, "manual"}} {
+	}{{au.Books[0], 12, "library"}, {au.Parts, 12, "library"}, {au.Books[1], 12, "manual"}, {au.Books[3], 16, "manual"}} {
 		own, eff, src := a.rating(t, tc.m.ID)
 		if own.Int64 != tc.own || eff.Int64 != tc.own || src.String != tc.source {
 			t.Errorf("%s: own %v effective %v source %v, want %d %s", tc.m.Label, own, eff, src, tc.own, tc.source)

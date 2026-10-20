@@ -1,12 +1,13 @@
 package offline
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"net"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -48,6 +50,10 @@ const downloadErrSourceUnavailable = "source_unavailable"
 // source_unavailable.
 var errSourceUnavailable = errors.New("offline: enclosure not available")
 
+// errSourceBroken marks a source file whose probe failed: it will not become usable by waiting, so
+// the download fails with encode_failed at once.
+var errSourceBroken = errors.New("offline: download source cannot be read as media")
+
 // audioReader is the part of package visibility that audio downloads read (M6 stream A,
 // visibility/audio.go): the parts of an audiobook in order and its book-wide chapters.
 type audioReader interface {
@@ -55,24 +61,17 @@ type audioReader interface {
 	Chapters(ctx context.Context, s visibility.Scope, itemID string) ([]model.Chapter, error)
 }
 
-// sourceClient fetches enclosures: the response headers within 30 s, at most 5 redirects, http and
-// https only, no overall limit (the body is capped at 2 GiB).
-var sourceClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           (&net.Dialer{Timeout: sourceHeaderTimeout, KeepAlive: 30 * time.Second}).DialContext,
-		ForceAttemptHTTP2:     true,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ResponseHeaderTimeout: sourceHeaderTimeout,
-		IdleConnTimeout:       90 * time.Second,
-	},
+// sourceClients fetch enclosures: the response headers within 30 s, at most 5 redirects, http and
+// https only, no overall limit (the body is capped at 2 GiB), no address in the local network
+// unless the podcast's feed is there itself (package netguard).
+var sourceClients = netguard.NewClients(http.Client{
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= maxSourceRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
+		if len(via) > maxSourceRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
 			return fmt.Errorf("%w: too many redirects or another scheme", errSourceUnavailable)
 		}
 		return nil
 	},
-}
+}, sourceHeaderTimeout)
 
 // isAudio reports whether a title kind downloads as audio.
 func isAudio(kind string) bool { return kind == "audiobook" || kind == "podcast_episode" }
@@ -131,14 +130,35 @@ func (src source) choose(prof model.DownloadProfile, audio int) choice {
 	if !isAudio(src.item.Kind) {
 		return decide(src.loc.File, src.probe, prof, audio)
 	}
+	multi := len(src.parts) > 1
 	d := durationOf(src.loc.File, src.probe)
+	if multi && src.probe == nil {
+		d = 0 // the first part's duration is not the book's: the summed one of the item applies
+	}
 	if d <= 0 && src.enclosure != nil {
 		d = time.Duration(src.enclosure.DurationMs) * time.Millisecond
 	}
 	if d <= 0 && src.item.DurationMs != nil {
 		d = time.Duration(*src.item.DurationMs) * time.Millisecond
 	}
-	return decideAudio(src.probe, prof, d, len(src.parts) > 1, src.loc.File.SizeBytes)
+	p, size := src.probe, src.loc.File.SizeBytes
+	if p == nil && src.enclosure != nil {
+		p, size = enclosureProbe(*src.enclosure, d), src.enclosure.Length
+	}
+	return decideAudio(p, prof, d, multi, size)
+}
+
+// enclosureProbe stands for the probe of an enclosure that is not fetched yet: one stereo audio
+// stream of the codec its MIME type implies, the size and duration the feed names, so the estimate
+// takes the copy decision the preparation will take. nil when the type names no known codec.
+func enclosureProbe(enc visibility.Enclosure, d time.Duration) *transcode.Probe {
+	mt, _, _ := mime.ParseMediaType(enc.Type)
+	codec := map[string]string{"audio/mp4": "aac", "audio/x-m4a": "aac", "audio/aac": "aac", "audio/mpeg": "mp3", "audio/mp3": "mp3"}[mt]
+	if codec == "" {
+		return nil
+	}
+	return &transcode.Probe{Format: transcode.Format{Duration: d, Size: enc.Length},
+		Streams: []transcode.Stream{{Index: 0, Type: "audio", Codec: codec, Channels: 2, Default: true}}}
 }
 
 // decideAudio picks the AAC target of an audio download in profile prof and estimates its size
@@ -177,9 +197,11 @@ func sourceAudioKbps(p *transcode.Probe, d time.Duration, size int64) int {
 }
 
 // planAudio resolves the source of an audio download and plans it: the parts of a multi-part
-// audiobook (concatenated), its single file, or the enclosure of a podcast episode, fetched first.
-// A file that is not probed yet or not readable is errSourceWait; a failed fetch errSourceUnavailable.
-func (s *Service) planAudio(ctx context.Context, row systemq.Download) (planned, error) {
+// audiobook (concatenated; parts whose probe failed are left out), its single file, or the
+// enclosure of a podcast episode, fetched first from the URL the feed names now (the one stored
+// with the download when the episode has none). A file that is not probed yet or not readable is
+// errSourceWait, one whose probe failed errSourceBroken; a failed fetch errSourceUnavailable.
+func (s *Service) planAudio(ctx context.Context, row systemq.Download, item systemq.GetDownloadItemRow) (planned, error) {
 	prof, ok := model.DownloadProfileFor(row.Quality)
 	if !ok {
 		return planned{}, fmt.Errorf("download %s has unknown quality %q", row.ID, row.Quality)
@@ -189,7 +211,7 @@ func (s *Service) planAudio(ctx context.Context, row systemq.Download) (planned,
 	multi, cleanup := false, ""
 	switch {
 	case row.SourceUrl.Valid && !row.MediaFileID.Valid:
-		name, err := s.fetchSource(ctx, row.ID, row.SourceUrl.String)
+		name, err := s.fetchSource(ctx, row.ID, item.FeedUrl.String, cmp.Or(item.EnclosureUrl.String, row.SourceUrl.String))
 		if err != nil {
 			return planned{}, err
 		}
@@ -208,10 +230,13 @@ func (s *Service) planAudio(ctx context.Context, row systemq.Download) (planned,
 		if err != nil {
 			return planned{}, fmt.Errorf("list parts: %w", err)
 		}
-		if len(parts) < 2 {
+		if len(parts) == 0 {
 			m, err := s.write.GetDownloadSource(ctx, row.MediaFileID.String)
 			if err != nil {
 				return planned{}, fmt.Errorf("get download source: %w", err)
+			}
+			if m.ProbeError.Valid {
+				return planned{}, fmt.Errorf("%w: media file %s", errSourceBroken, m.ID)
 			}
 			parts = []systemq.ListDownloadPartsRow{{ID: m.ID, RelPath: m.RelPath, Size: m.Size, DurationMs: m.DurationMs, Probe: m.Probe, RootPath: m.RootPath}}
 		}
@@ -253,8 +278,11 @@ func (s *Service) planAudio(ctx context.Context, row systemq.Download) (planned,
 
 // fetchSource fetches the enclosure of a download into <dir>/<id>/source.<ext> and returns the file
 // name. A complete file is reused; a partial one (source.<ext>.part) continues with a Range
-// request. Failures are errSourceUnavailable.
-func (s *Service) fetchSource(ctx context.Context, id, rawURL string) (string, error) {
+// request guarded by If-Range with the validator (strong ETag, else Last-Modified) stored next to
+// it, and only when the answer resumes at the byte the partial file ends with; anything else
+// starts over. Failures are errSourceUnavailable; they name the enclosure's host only. feedURL is
+// the podcast's feed: an enclosure in the local network is fetched only when the feed is there too.
+func (s *Service) fetchSource(ctx context.Context, id, feedURL, rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", fmt.Errorf("%w: invalid enclosure URL", errSourceUnavailable)
@@ -272,6 +300,7 @@ func (s *Service) fetchSource(ctx context.Context, id, rawURL string) (string, e
 		return name, nil
 	}
 	part := id + "/" + name + ".part"
+	validator := part + ".validator"
 	f, err := root.OpenFile(part, os.O_RDWR|os.O_CREATE, 0o640)
 	if err != nil {
 		return "", err
@@ -283,27 +312,47 @@ func (s *Service) fetchSource(ctx context.Context, id, rawURL string) (string, e
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", errSourceUnavailable, err)
+		return "", fmt.Errorf("%w: %w", errSourceUnavailable, netguard.Clean(err))
 	}
 	req.Header.Set("User-Agent", "Slouchcat")
+	// The bytes of a resume must count the same representation: no transparent gzip.
+	req.Header.Set("Accept-Encoding", "identity")
 	if have > 0 {
 		req.Header.Set("Range", "bytes="+strconv.FormatInt(have, 10)+"-")
+		if v, err := root.ReadFile(validator); err == nil && len(v) > 0 {
+			req.Header.Set("If-Range", string(v))
+		}
 	}
-	resp, err := sourceClient.Do(req)
+	resp, err := sourceClients.For(ctx, feedURL).Do(req)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", errSourceUnavailable, err)
+		return "", fmt.Errorf("%w: %w", errSourceUnavailable, netguard.Clean(err))
 	}
 	defer resp.Body.Close()
+	first, total, rangeOK := contentRange(resp.Header.Get("Content-Range"))
 	switch {
-	case resp.StatusCode == http.StatusPartialContent && have > 0:
-	case resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && have > 0:
+	case resp.StatusCode == http.StatusPartialContent && have > 0 && rangeOK && first == have:
+	case resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && have > 0 && rangeOK && total == have:
 		// The partial file already holds everything.
-		return name, root.Rename(part, id+"/"+name)
+		return name, s.completeSource(root, part, validator, id+"/"+name)
+	case resp.StatusCode == http.StatusPartialContent || resp.StatusCode == http.StatusRequestedRangeNotSatisfiable:
+		// The host resumed elsewhere or the file changed size: start over with the next attempt.
+		if err := f.Truncate(0); err != nil {
+			return "", err
+		}
+		return "", fmt.Errorf("%w: resume at byte %d answered HTTP %d with range %q", errSourceUnavailable, have,
+			resp.StatusCode, resp.Header.Get("Content-Range"))
 	case resp.StatusCode == http.StatusOK:
 		if err := f.Truncate(0); err != nil {
 			return "", err
 		}
 		if have, err = f.Seek(0, io.SeekStart); err != nil {
+			return "", err
+		}
+		v := resp.Header.Get("ETag")
+		if v == "" || strings.HasPrefix(v, "W/") {
+			v = resp.Header.Get("Last-Modified")
+		}
+		if err := root.WriteFile(validator, []byte(v), 0o640); err != nil {
 			return "", err
 		}
 	default:
@@ -312,18 +361,63 @@ func (s *Service) fetchSource(ctx context.Context, id, rawURL string) (string, e
 	n, err := io.Copy(f, io.LimitReader(resp.Body, maxSourceBytes-have+1))
 	switch {
 	case err != nil:
-		return "", fmt.Errorf("%w: %w", errSourceUnavailable, err)
+		return "", fmt.Errorf("%w: %w", errSourceUnavailable, netguard.Clean(err))
 	case have+n > maxSourceBytes:
 		return "", fmt.Errorf("%w: enclosure larger than 2 GiB", errSourceUnavailable)
 	}
 	if err := f.Sync(); err != nil {
 		return "", err
 	}
-	if err := root.Rename(part, id+"/"+name); err != nil {
+	if err := s.completeSource(root, part, validator, id+"/"+name); err != nil {
 		return "", err
 	}
 	s.log.InfoContext(ctx, "download source fetched", "download_id", id, "bytes", have+n)
 	return name, nil
+}
+
+// completeSource renames the partial enclosure to its final name and drops its validator.
+func (s *Service) completeSource(root *os.Root, part, validator, final string) error {
+	if err := root.Rename(part, final); err != nil {
+		return err
+	}
+	if err := root.Remove(validator); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		s.log.Warn("remove download source validator", "path", validator, "err", err)
+	}
+	return nil
+}
+
+// contentRange parses a Content-Range header, "bytes first-last/total" or "bytes */total"; first
+// is -1 in the second form, total -1 when it is "*".
+func contentRange(v string) (first, total int64, ok bool) {
+	spec, found := strings.CutPrefix(strings.TrimSpace(v), "bytes ")
+	rng, size, found2 := strings.Cut(spec, "/")
+	if !found || !found2 {
+		return 0, 0, false
+	}
+	total = -1
+	if size != "*" {
+		if total, ok = parseBytes(size); !ok {
+			return 0, 0, false
+		}
+	}
+	if rng == "*" {
+		return -1, total, true
+	}
+	lo, hi, found := strings.Cut(rng, "-")
+	if !found {
+		return 0, 0, false
+	}
+	first, ok = parseBytes(lo)
+	last, ok2 := parseBytes(hi)
+	if !ok || !ok2 || last < first {
+		return 0, 0, false
+	}
+	return first, total, true
+}
+
+func parseBytes(v string) (int64, bool) {
+	n, err := strconv.ParseInt(v, 10, 64)
+	return n, err == nil && n >= 0
 }
 
 // sourceExt is the file extension of an enclosure from its URL path ("audio" when it has none of

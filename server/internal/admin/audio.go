@@ -40,7 +40,8 @@ func (s *Service) WithPodcasts(p Podcasts) *Service {
 
 // UpdateLibrary renames a library or sets the default rating of an audio library (updateLibrary).
 // A new default reaches every title of the library whose rating still comes from the library
-// (rating_source library) in the same transaction; manual, feed and tag ratings stay. Errors:
+// (rating_source library) in the same transaction, and a manual rating below it is raised to it
+// (AN-2: a manual rating may only be stricter); feed and tag ratings stay. Errors:
 // model.ErrNotFound, *model.ValidationError (name required or too_long, defaultRating
 // invalid_value, not_allowed for video libraries).
 func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.LibraryUpdate) (model.Library, error) {

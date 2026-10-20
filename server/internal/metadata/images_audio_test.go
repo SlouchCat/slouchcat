@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"image"
 	"image/png"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -84,29 +86,30 @@ func (e *env) checkCover(t *testing.T, id, sourcePrefix string, w, h int) {
 
 func TestImageFetchFolderCover(t *testing.T) {
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, "Verfasser", "Buch"), 0o750); err != nil {
+	// A "?" in a folder name stays part of the path (the version follows the last "?").
+	if err := os.MkdirAll(filepath.Join(root, "Verfasser", "Buch?"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "Verfasser", "Buch", "cover.jpg"), jpegBytes(t, 500, 500), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "Verfasser", "Buch?", "cover.jpg"), jpegBytes(t, 500, 500), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	e := audioEnv(t, root)
-	e.addAudio(t, idBookFolder, "audiobook", 3, nil, "Verfasser/Buch/cover.jpg", nil)
-	e.addMediaFile(t, "01JTESTFILE00000000000000A", idBookFolder, "Verfasser/Buch/01.mp3")
+	e.addAudio(t, idBookFolder, "audiobook", 3, nil, "Verfasser/Buch?/cover.jpg", nil)
+	e.addMediaFile(t, "01JTESTFILE00000000000000A", idBookFolder, "Verfasser/Buch?/01.mp3")
 	ctx := context.Background()
 	if err := e.svc.fetchImages(ctx, idBookFolder); err != nil {
 		t.Fatal(err)
 	}
-	e.checkCover(t, idBookFolder, "file:Verfasser/Buch/cover.jpg?", 500, 500)
+	e.checkCover(t, idBookFolder, "file:Verfasser/Buch?/cover.jpg?", 500, 500)
 	// Unchanged: nothing is read again; a replaced cover file is.
 	before := e.images(t, idBookFolder)["poster/w200/jpeg"].Hash
 	if err := e.svc.fetchImages(ctx, idBookFolder); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "Verfasser", "Buch", "cover.jpg"), jpegBytes(t, 300, 300), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "Verfasser", "Buch?", "cover.jpg"), jpegBytes(t, 300, 300), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chtimes(filepath.Join(root, "Verfasser", "Buch", "cover.jpg"), testNow, testNow); err != nil {
+	if err := os.Chtimes(filepath.Join(root, "Verfasser", "Buch?", "cover.jpg"), testNow, testNow); err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.fetchImages(ctx, idBookFolder); err != nil {
@@ -173,6 +176,8 @@ func TestImageFetchRemoteCover(t *testing.T) {
 	e := audioEnv(t, t.TempDir())
 	ctx := context.Background()
 	e.addAudio(t, idPodcast, "podcast", 4, nil, nil, srv.URL+"/feed/cover.png")
+	// The feed itself lives on the loopback address, so its images may too (package netguard).
+	mustExec(t, e.db.Write, `UPDATE items SET feed_url = ? WHERE id = ?`, srv.URL+"/feed.xml", idPodcast)
 	if err := e.svc.fetchImages(ctx, idPodcast); err != nil {
 		t.Fatal(err)
 	}
@@ -192,6 +197,17 @@ func TestImageFetchRemoteCover(t *testing.T) {
 		if n := len(e.images(t, idEpisode)); n != 0 {
 			t.Errorf("%s: %d image rows", c, n)
 		}
+	}
+	// M6 review OQ-1: the image of a public feed that points into the local network is refused,
+	// for the episode (through its podcast) and the podcast.
+	mustExec(t, e.db.Write, `UPDATE items SET feed_url = 'https://203.0.113.5/feed.xml?token=x' WHERE id = ?`, idPodcast)
+	mustExec(t, e.db.Write, `UPDATE items SET cover_url = ? WHERE id = ?`, srv.URL+"/feed/cover.png", idEpisode)
+	if err := e.svc.fetchImages(ctx, idEpisode); !errors.Is(err, netguard.ErrRefused) || len(e.images(t, idEpisode)) != 0 {
+		t.Errorf("local image of a public feed: %v", err)
+	}
+	mustExec(t, e.db.Write, `UPDATE items SET cover_url = ? WHERE id = ?`, srv.URL+"/feed/other.png", idPodcast)
+	if err := e.svc.fetchImages(ctx, idPodcast); !errors.Is(err, netguard.ErrRefused) {
+		t.Errorf("local image of a public podcast: %v", err)
 	}
 	// Not http(s): nothing to fetch.
 	mustExec(t, e.db.Write, `UPDATE items SET cover_url = 'ftp://example.test/c.jpg' WHERE id = ?`, idEpisode)

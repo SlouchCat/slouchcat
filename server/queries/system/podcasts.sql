@@ -3,7 +3,8 @@
 -- other owners never collide. Times are Unix milliseconds.
 
 -- name: PodcastFindByFeed :one
--- A live subscription of the library to the feed URL (feed_exists).
+-- A live subscription of the library to the feed URL (feed_exists; the unique index
+-- items_podcast_feed refuses a second one).
 SELECT id FROM items
 WHERE kind = 'podcast' AND library_id = @library_id AND feed_url = @feed_url AND deleted_at IS NULL
 LIMIT 1;
@@ -57,9 +58,9 @@ ORDER BY feed_checked_at IS NOT NULL, feed_checked_at, id
 LIMIT 500;
 
 -- name: PodcastListEpisodes :many
--- The stored episodes of a podcast with what an update compares, soft-deleted ones included: their
--- guid stays taken, so the fetch neither inserts nor restores them.
-SELECT id, guid, own_rating, rating_source, locked_fields, deleted_at FROM items
+-- The stored episodes of a podcast with what an update compares and keeps (locked fields),
+-- soft-deleted ones included: their guid stays taken, so the fetch neither inserts nor restores them.
+SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at FROM items
 WHERE parent_id = @podcast_id AND kind = 'podcast_episode' AND guid IS NOT NULL;
 
 -- name: PodcastInsertEpisode :exec

@@ -270,6 +270,8 @@ SELECT id, duration_ms FROM media_files WHERE id IN (sqlc.slice('ids'));
 
 -- name: AdminApplyLibraryRating :execrows
 -- A new default rating of an audio library reaches every live title whose rating still comes from
--- the library; manual, feed and tag ratings stay. The triggers pass it on to the descendants.
+-- the library, and raises a manual rating below it to it (AN-2: a manual rating is only stricter);
+-- feed and tag ratings (18) stay. The triggers pass it on to the descendants.
 UPDATE items SET own_rating = @own_rating, updated_at = @now
-WHERE library_id = @library_id AND rating_source = 'library' AND deleted_at IS NULL;
+WHERE library_id = @library_id AND deleted_at IS NULL
+  AND (rating_source = 'library' OR (rating_source = 'manual' AND own_rating < @own_rating));

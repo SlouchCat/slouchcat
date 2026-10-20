@@ -111,6 +111,9 @@ type Enclosure struct {
 	Type       string // MIME type the feed names; empty when it names none
 	Length     int64  // bytes the feed names; 0 when unknown
 	DurationMs int64  // itunes:duration; 0 when unknown
+	// FeedURL is the feed of the podcast: when its host is local, the enclosure may be too
+	// (package netguard).
+	FeedURL string
 }
 
 // Enclosure returns the enclosure of a visible podcast episode; model.ErrNotFound for an unknown or
@@ -125,7 +128,7 @@ func (r *Reader) Enclosure(ctx context.Context, s Scope, itemID string) (Enclosu
 		return Enclosure{}, notFound(err)
 	}
 	return Enclosure{ItemID: row.ID, URL: row.EnclosureUrl.String, Type: row.EnclosureType.String,
-		Length: row.EnclosureLength.Int64, DurationMs: row.DurationMs.Int64}, nil
+		Length: row.EnclosureLength.Int64, DurationMs: row.DurationMs.Int64, FeedURL: row.FeedUrl.String}, nil
 }
 
 // podcastImages gives the visible episodes among ids that have no image of their own the images of

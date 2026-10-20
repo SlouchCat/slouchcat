@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -19,6 +20,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/feed"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -38,8 +40,8 @@ const (
 	// JobPodcastFetch fetches the feed of one subscription; payload {"podcastId"}.
 	JobPodcastFetch = "podcast.fetch"
 	// FeedInterval is the age after which the poller fetches a feed again (H-2: a new episode
-	// appears in less than 65 minutes).
-	FeedInterval = 60 * time.Minute
+	// appears in less than 65 minutes, with the 5-minute poller tick and the job's wait).
+	FeedInterval = 55 * time.Minute
 
 	podcastFetchPriority = 4
 	feedPollInterval     = 5 * time.Minute
@@ -50,7 +52,8 @@ const (
 	maxFeedURL           = 2048
 	maxFeedEpisodes      = 2000 // the newest episodes of a feed that are stored
 	maxFeedError         = 200  // characters of items.feed_error
-	feedBatch            = 500  // episodes per transaction (plan 3.6)
+	feedBatch            = 150  // episodes per transaction (each also writes two texts and fires triggers)
+	maxEpisodeCovers     = 50   // new episodes with an image of their own queued for image.fetch per fetch
 )
 
 // Errors of a fetch.
@@ -64,35 +67,49 @@ type errFeedStatus int
 
 func (e errFeedStatus) Error() string { return fmt.Sprintf("feed answered HTTP %d", int(e)) }
 
-// feedFetcher fetches feeds: one client (30 s, at most 5 redirects, http and https only), one
-// limiter for every feed host, the clock of the poller and the User-Agent.
+// feedFetcher fetches feeds: clients with one policy (30 s, at most 5 redirects, http and https
+// only, no address in the local network unless the feed's own host is local; package netguard),
+// one limiter for every feed host, the clock of the poller and the User-Agent.
 type feedFetcher struct {
-	client  *http.Client
+	clients netguard.Clients
+	test    *http.Client // WithFeedHTTPClient: used for every feed instead of clients
 	limiter *ratelimit.Limiter
 	now     func() time.Time
 	agent   string
 }
 
 func newFeedFetcher(c *http.Client, now func() time.Time, agent string) feedFetcher {
-	client := &http.Client{Timeout: feedTimeout}
-	if c != nil {
-		cp := *c
-		client = &cp
-	}
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if len(via) >= maxFeedRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
+	checkRedirect := func(req *http.Request, via []*http.Request) error {
+		if len(via) > maxFeedRedirects || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
 			return errFeedRedirect
 		}
 		return nil
 	}
-	if now == nil {
-		now = time.Now
+	f := feedFetcher{
+		clients: netguard.NewClients(http.Client{Timeout: feedTimeout, CheckRedirect: checkRedirect}, 0),
+		limiter: ratelimit.New("feeds", 2, 4), now: now, agent: cmp.Or(agent, "Slouchcat"),
 	}
-	return feedFetcher{client: client, limiter: ratelimit.New("feeds", 2, 4), now: now, agent: cmp.Or(agent, "Slouchcat")}
+	if c != nil {
+		cp := *c
+		cp.CheckRedirect = checkRedirect
+		f.test = &cp
+	}
+	if f.now == nil {
+		f.now = time.Now
+	}
+	return f
 }
 
-// WithFeedHTTPClient replaces the HTTP client of the feed fetches (tests); the redirect policy is
-// always the service's own.
+// client is the HTTP client of a fetch of feedURL.
+func (f feedFetcher) client(ctx context.Context, feedURL string) *http.Client {
+	if f.test != nil {
+		return f.test
+	}
+	return f.clients.For(ctx, feedURL)
+}
+
+// WithFeedHTTPClient replaces the HTTP client of the feed fetches (tests): the address guard of
+// package netguard does not apply then; the redirect policy is always the service's own.
 func WithFeedHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.feedHTTP = c }
 }
@@ -115,11 +132,13 @@ type fetched struct {
 	notModified bool
 }
 
-// fetch gets and parses a feed; etag and modified make it conditional (304 → notModified).
+// fetch gets and parses a feed; etag and modified make it conditional (304 → notModified). Errors
+// name the scheme and host of the feed only (netguard.Clean): a private feed carries its
+// credentials in the path or query.
 func (f feedFetcher) fetch(ctx context.Context, feedURL, etag, modified string) (fetched, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
-		return fetched{}, err
+		return fetched{}, netguard.Clean(err)
 	}
 	req.Header.Set("User-Agent", f.agent)
 	req.Header.Set("Accept", "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.5")
@@ -129,9 +148,9 @@ func (f feedFetcher) fetch(ctx context.Context, feedURL, etag, modified string) 
 	if modified != "" {
 		req.Header.Set("If-Modified-Since", modified)
 	}
-	resp, err := f.limiter.Do(ctx, f.client, req)
+	resp, err := f.limiter.Do(ctx, f.client(ctx, feedURL), req)
 	if err != nil {
-		return fetched{}, err
+		return fetched{}, netguard.Clean(err)
 	}
 	defer resp.Body.Close()
 	switch resp.StatusCode {
@@ -143,12 +162,12 @@ func (f feedFetcher) fetch(ctx context.Context, feedURL, etag, modified string) 
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFeedBytes+1))
 	if err != nil {
-		return fetched{}, err
+		return fetched{}, netguard.Clean(err)
 	}
 	if len(body) > maxFeedBytes {
 		return fetched{}, errFeedTooLarge
 	}
-	parsed, err := feed.Parse(strings.NewReader(string(body)))
+	parsed, err := feed.Parse(bytes.NewReader(body))
 	if err != nil {
 		return fetched{}, err
 	}
@@ -162,7 +181,7 @@ func feedInvalid(err error) bool {
 }
 
 // feedErrorText is the stored feed_error: a stable code and a short text without credentials (the
-// URL has none, validateFeedURL).
+// URL has no user info, validateFeedURL, and fetch errors name only its scheme and host).
 func feedErrorText(err error) string {
 	code := "feed_unreachable"
 	if feedInvalid(err) {
@@ -238,9 +257,14 @@ func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string
 		Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, OwnRating: rating, RatingSource: source,
 	})
 	if err != nil {
+		// The unique index items_podcast_feed refuses a second live subscription that a concurrent
+		// request inserted while this one fetched the feed.
+		if _, ferr := s.write.PodcastFindByFeed(ctx, systemq.PodcastFindByFeedParams{LibraryID: libraryID, FeedUrl: nullStr(clean)}); ferr == nil {
+			return model.AdminPodcast{}, model.ErrFeedExists
+		}
 		return model.AdminPodcast{}, fmt.Errorf("insert podcast: %w", err)
 	}
-	if err := s.storeEpisodes(ctx, p.ID, libraryID, title, res.feed, now); err != nil {
+	if _, err := s.storeEpisodes(ctx, p.ID, libraryID, title, res.feed, nil, now); err != nil {
 		// Without its episodes the subscription is of no use; it goes again, so a retry is possible.
 		if _, derr := s.write.PodcastSoftDelete(context.WithoutCancel(ctx), systemq.PodcastSoftDeleteParams{
 			Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, ID: p.ID}); derr != nil {
@@ -416,14 +440,19 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 	if locked["poster"] {
 		cover = p.CoverUrl
 	}
+	author := nullStr(res.feed.Author)
+	if locked["author"] {
+		author = p.Author
+	}
 	if err := s.write.PodcastUpdateChannel(ctx, systemq.PodcastUpdateChannelParams{
-		Title: title, SortTitle: sortTitle(title), Author: nullStr(res.feed.Author), Explicit: boolInt(res.feed.Explicit),
+		Title: title, SortTitle: sortTitle(title), Author: author, Explicit: boolInt(res.feed.Explicit),
 		CoverUrl: cover, OwnRating: rating, RatingSource: source, FeedEtag: nullStr(res.etag), FeedModified: nullStr(res.modified),
 		Now: checked, ID: id,
 	}); err != nil {
 		return fmt.Errorf("update podcast %s: %w", id, err)
 	}
-	if err := s.storeEpisodes(ctx, id, p.LibraryID, title, res.feed, now); err != nil {
+	rerated, err := s.storeEpisodes(ctx, id, p.LibraryID, title, res.feed, locked, now)
+	if err != nil {
 		return err
 	}
 	if cover.String != p.CoverUrl.String && cover.Valid {
@@ -431,45 +460,61 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 			s.log.WarnContext(ctx, "queue podcast cover", "item_id", id, "err", err)
 		}
 	}
-	if rating != p.OwnRating {
+	if rating != p.OwnRating || rerated {
+		// A stricter podcast or episode ends the streams of profiles that may no longer hear it.
 		s.recheckVisibility(ctx)
 	}
 	return nil
 }
 
-// storeEpisodes writes the channel texts and the newest episodes of a feed below a podcast, in
-// transactions of 500 episodes: new guids are inserted, known ones updated (titles, texts,
-// enclosure, date, duration, the explicit rating unless manual or locked).
-func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID int64, title string, f feed.Feed, now time.Time) error {
+// storeEpisodes writes the channel texts (locked ones stay) and the newest episodes of a feed below
+// a podcast, in transactions of feedBatch episodes: new guids are inserted, known ones updated
+// (titles, texts, enclosure, date, duration, cover, the explicit rating unless manual or locked).
+// An episode keeps an image only when it differs from the channel's; image.fetch is queued for the
+// newest maxEpisodeCovers new episodes with one. rerated reports a changed rating of a known episode.
+func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID int64, title string, f feed.Feed,
+	locked map[string]bool, now time.Time,
+) (rerated bool, err error) {
 	eps := newestEpisodes(f.Episodes, maxFeedEpisodes)
 	parent := sql.NullString{String: podcastID, Valid: true}
 	known, err := s.write.PodcastListEpisodes(ctx, parent)
 	if err != nil {
-		return fmt.Errorf("list episodes of %s: %w", podcastID, err)
+		return false, fmt.Errorf("list episodes of %s: %w", podcastID, err)
 	}
 	byGUID := make(map[string]systemq.PodcastListEpisodesRow, len(known))
 	for _, k := range known {
 		byGUID[k.Guid.String] = k
 	}
-	if err := upsertTexts(ctx, s.write, podcastID, title, f.Description); err != nil {
-		return err
+	if err := upsertTexts(ctx, s.write, podcastID, title, f.Description, locked); err != nil {
+		return false, err
 	}
-	ms := now.UnixMilli()
-	nowN := sql.NullInt64{Int64: ms, Valid: true}
+	w := episodeWrite{parent: parent, libraryID: libraryID, channelImage: httpURL(f.ImageURL), byGUID: byGUID,
+		ms: now.UnixMilli(), now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}
+	var covers []string
 	for chunk := range slices.Chunk(eps, feedBatch) {
 		err := s.inTx(ctx, func(q *systemq.Queries) error {
 			for _, e := range chunk {
-				if err := storeEpisode(ctx, q, parent, libraryID, e, byGUID, ms, nowN); err != nil {
+				c, err := w.store(ctx, q, e)
+				if err != nil {
 					return err
+				}
+				rerated = rerated || c.rerated
+				if c.newCover != "" && len(covers) < maxEpisodeCovers {
+					covers = append(covers, c.newCover)
 				}
 			}
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("store episodes of %s: %w", podcastID, err)
+			return false, fmt.Errorf("store episodes of %s: %w", podcastID, err)
 		}
 	}
-	return nil
+	for _, id := range covers {
+		if err := s.enqueueImages(ctx, id, stillPriority); err != nil {
+			s.log.WarnContext(ctx, "queue episode cover", "item_id", id, "err", err)
+		}
+	}
+	return rerated, nil
 }
 
 // newestEpisodes returns at most limit episodes, newest first (undated ones last, in feed order).
@@ -479,15 +524,32 @@ func newestEpisodes(eps []feed.Episode, limit int) []feed.Episode {
 	return out[:min(len(out), limit)]
 }
 
-// storeEpisode inserts or updates one episode inside the caller's transaction.
-func storeEpisode(ctx context.Context, q *systemq.Queries, parent sql.NullString, libraryID int64, e feed.Episode,
-	byGUID map[string]systemq.PodcastListEpisodesRow, ms int64, now sql.NullInt64,
-) error {
+// episodeWrite is what storing the episodes of one fetch shares.
+type episodeWrite struct {
+	parent       sql.NullString
+	libraryID    int64
+	channelImage string // the channel's image URL; an episode with the same image has none of its own
+	byGUID       map[string]systemq.PodcastListEpisodesRow
+	ms           int64
+	now          sql.NullInt64
+}
+
+// episodeChange is what storing one episode changed: the rating of a known episode, or a new
+// episode with an image of its own (its id).
+type episodeChange struct {
+	rerated  bool
+	newCover string
+}
+
+// store inserts or updates one episode inside the caller's transaction; locked fields (title,
+// poster, overview, own_rating) keep their stored values.
+func (w episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Episode) (episodeChange, error) {
 	enclosure := httpURL(e.Enclosure.URL)
 	if enclosure == "" {
-		return nil // only http and https enclosures are played and downloaded
+		return episodeChange{}, nil // only http and https enclosures are played and downloaded
 	}
 	title := cmp.Or(strings.TrimSpace(e.Title), e.GUID)
+	sort := sortTitle(title)
 	var published sql.NullInt64
 	if !e.PublishedAt.IsZero() {
 		published = sql.NullInt64{Int64: e.PublishedAt.UnixMilli(), Valid: true}
@@ -495,47 +557,78 @@ func storeEpisode(ctx context.Context, q *systemq.Queries, parent sql.NullString
 	explicit := e.Explicit != nil && *e.Explicit
 	rating, source := episodeRating(explicit)
 	cover := nullStr(httpURL(e.ImageURL))
-	known, ok := byGUID[e.GUID]
+	if cover.String == w.channelImage {
+		cover = sql.NullString{}
+	}
+	known, ok := w.byGUID[e.GUID]
 	if ok {
 		if known.DeletedAt.Valid {
-			return nil
+			return episodeChange{}, nil
 		}
 		locked := lockedFields(known.LockedFields)
 		if locked["own_rating"] || known.RatingSource.String == "manual" {
 			rating, source = known.OwnRating, known.RatingSource
 		}
+		if locked["title"] {
+			title, sort = known.Title, known.SortTitle
+		}
+		if locked["poster"] {
+			cover = known.CoverUrl
+		}
 		if err := q.PodcastUpdateEpisode(ctx, systemq.PodcastUpdateEpisodeParams{
-			Title: title, SortTitle: sortTitle(title), PublishedAt: published, DurationMs: positive(e.Duration.Milliseconds()),
+			Title: title, SortTitle: sort, PublishedAt: published, DurationMs: positive(e.Duration.Milliseconds()),
 			EnclosureUrl: nullStr(enclosure), EnclosureType: nullStr(e.Enclosure.Type), EnclosureLength: positive(e.Enclosure.Length),
 			Explicit: boolInt(explicit), CoverUrl: cover, SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
-			OwnRating: rating, RatingSource: source, Now: ms, ID: known.ID,
+			OwnRating: rating, RatingSource: source, Now: w.ms, ID: known.ID,
 		}); err != nil {
-			return fmt.Errorf("update episode: %w", err)
+			return episodeChange{}, fmt.Errorf("update episode: %w", err)
 		}
-		if locked["title"] {
-			return nil
-		}
-		return upsertTexts(ctx, q, known.ID, title, e.Description)
+		return episodeChange{rerated: rating != known.OwnRating}, upsertTexts(ctx, q, known.ID, title, e.Description, locked)
 	}
 	id := ulid.Make().String()
 	if err := q.PodcastInsertEpisode(ctx, systemq.PodcastInsertEpisodeParams{
-		ID: id, ParentID: parent, LibraryID: libraryID, Title: title, SortTitle: sortTitle(title),
+		ID: id, ParentID: w.parent, LibraryID: w.libraryID, Title: title, SortTitle: sort,
 		Guid: nullStr(e.GUID), PublishedAt: published, DurationMs: positive(e.Duration.Milliseconds()),
 		EnclosureUrl: nullStr(enclosure), EnclosureType: nullStr(e.Enclosure.Type), EnclosureLength: positive(e.Enclosure.Length),
 		Explicit: boolInt(explicit), CoverUrl: cover, SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
-		OwnRating: rating, RatingSource: source, Now: now,
+		OwnRating: rating, RatingSource: source, Now: w.now,
 	}); err != nil {
-		return fmt.Errorf("insert episode: %w", err)
+		return episodeChange{}, fmt.Errorf("insert episode: %w", err)
 	}
-	byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: id, Guid: nullStr(e.GUID), LockedFields: "[]"}
-	return upsertTexts(ctx, q, id, title, e.Description)
+	w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: id, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]"}
+	c := episodeChange{}
+	if cover.Valid {
+		c.newCover = id
+	}
+	return c, upsertTexts(ctx, q, id, title, e.Description, nil)
 }
 
 // upsertTexts writes title and description for both languages (a feed has one language; the
-// profile language picks the row, so both carry the feed's text).
-func upsertTexts(ctx context.Context, q *systemq.Queries, itemID, title, description string) error {
+// profile language picks the row, so both carry the feed's text). A locked title or overview keeps
+// the stored text.
+func upsertTexts(ctx context.Context, q *systemq.Queries, itemID, title, description string, locked map[string]bool) error {
+	stored := map[string]systemq.ItemText{}
+	if locked["title"] || locked["overview"] {
+		rows, err := q.ListItemTextsByItem(ctx, itemID)
+		if err != nil {
+			return fmt.Errorf("list texts of %s: %w", itemID, err)
+		}
+		for _, r := range rows {
+			stored[r.Lang] = r
+		}
+	}
 	for _, lang := range []string{"de", "en"} {
-		if err := q.UpsertItemText(ctx, systemq.UpsertItemTextParams{ItemID: itemID, Lang: lang, Title: title, Overview: nullStr(description)}); err != nil {
+		p := systemq.UpsertItemTextParams{ItemID: itemID, Lang: lang, Title: title, Overview: nullStr(description)}
+		if old, ok := stored[lang]; ok {
+			p.Tagline = old.Tagline
+			if locked["title"] {
+				p.Title = old.Title
+			}
+			if locked["overview"] {
+				p.Overview = old.Overview
+			}
+		}
+		if err := q.UpsertItemText(ctx, p); err != nil {
 			return fmt.Errorf("store texts of %s: %w", itemID, err)
 		}
 	}

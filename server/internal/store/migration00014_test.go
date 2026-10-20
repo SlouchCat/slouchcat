@@ -82,3 +82,33 @@ func TestMigration00014KeepsFrozenData(t *testing.T) {
 		t.Errorf("podcast episode with a file is not available (available = %d)", got)
 	}
 }
+
+// M6 review m-7 and m-2: an episode with an enclosure stays available when its local file goes
+// missing (as when it is deleted), and a library has one live subscription per feed URL.
+func TestMigration00014EpisodeAvailabilityAndFeedIndex(t *testing.T) {
+	db := openTestDB(t)
+	w := db.Write
+	mustExec(t, w, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (1, 'Podcasts', 'podcasts', 0, 0, 0)`)
+	mustExec(t, w, `INSERT INTO library_roots (id, library_id, path, created_at) VALUES (1, 1, '/media/podcasts', 0)`)
+	item := `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, own_rating, feed_url, enclosure_url, added_at, created_at, updated_at)
+	         VALUES (?, ?, ?, 1, 'T', 't', ?, ?, ?, 0, 0, 0)`
+	const podcast, episode, local = "01PODCAST0000000000000000A", "01EPISODE00000000000000ENC", "01EPISODE0000000000000FILE"
+	mustExec(t, w, item, podcast, "podcast", nil, 0, "https://feeds.example.org/a.xml", nil)
+	mustExec(t, w, item, episode, "podcast_episode", podcast, nil, nil, "https://cdn.example.org/1.mp3")
+	mustExec(t, w, item, local, "podcast_episode", podcast, nil, nil, nil)
+	addFile(t, w, "01FILE0000000000000000ENC1", episode, "a/1.mp3")
+	addFile(t, w, "01FILE0000000000000000LOC1", local, "a/2.mp3")
+	mustExec(t, w, `UPDATE media_files SET missing_since = 1`)
+	if available(t, w, episode) != 1 || available(t, w, local) != 0 {
+		t.Errorf("missing files: episode with enclosure available %d, without %d; want 1 and 0", available(t, w, episode), available(t, w, local))
+	}
+	mustExec(t, w, `UPDATE media_files SET missing_since = NULL`)
+	if available(t, w, episode) != 1 || available(t, w, local) != 1 {
+		t.Error("files back: both episodes must be available")
+	}
+	if _, err := w.Exec(item, "01PODCAST0000000000000000B", "podcast", nil, 0, "https://feeds.example.org/a.xml", nil); err == nil {
+		t.Error("a second live subscription of the same feed was stored")
+	}
+	mustExec(t, w, `UPDATE items SET deleted_at = 1 WHERE id = ?`, podcast)
+	mustExec(t, w, item, "01PODCAST0000000000000000B", "podcast", nil, 0, "https://feeds.example.org/a.xml", nil)
+}

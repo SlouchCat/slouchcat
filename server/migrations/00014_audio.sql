@@ -9,10 +9,12 @@
 --                  or 'tags'); duration_ms (book-wide sum of the parts, or the feed duration of an
 --                  episode); cover_url (feed image) and cover_path (folder image relative to the root, or
 --                  'embedded:<media_file_id>'); the feed state of a podcast (feed_url, feed_etag,
---                  feed_modified, feed_checked_at, feed_error); guid, published_at, enclosure_type and
---                  enclosure_length of an episode (enclosure_url exists since 00003).
+--                  feed_modified, feed_checked_at, feed_error; one live subscription per library and feed
+--                  URL); guid, published_at, enclosure_type and enclosure_length of an episode
+--                  (enclosure_url exists since 00003).
 --   media_files    part_index: order of the parts of a multi-file audiobook (NULL for versions and
---                  single files). The availability triggers now also cover podcast_episode.
+--                  single files). The availability triggers now also cover podcast_episode (an episode
+--                  with an enclosure stays available without its file).
 --   chapters       book-wide chapter list of an audiobook (from chapter marks or one per part), with the
 --                  part the chapter starts in and its start inside that part.
 --   progress       playback_rate: speed per profile and title (H-3).
@@ -78,6 +80,7 @@ ALTER TABLE items ADD COLUMN enclosure_length INTEGER CHECK (enclosure_length IS
 
 CREATE UNIQUE INDEX items_episode_guid ON items (parent_id, guid) WHERE guid IS NOT NULL;
 CREATE INDEX items_feed_due ON items (kind, feed_checked_at) WHERE kind = 'podcast' AND deleted_at IS NULL;
+CREATE UNIQUE INDEX items_podcast_feed ON items (library_id, feed_url) WHERE kind = 'podcast' AND deleted_at IS NULL;
 CREATE INDEX items_published ON items (parent_id, published_at DESC) WHERE kind = 'podcast_episode';
 
 -- ---------------------------------------------------------------------------------------------
@@ -92,7 +95,9 @@ DROP TRIGGER media_files_delete;
 -- +goose StatementBegin
 CREATE TRIGGER media_files_insert AFTER INSERT ON media_files
 BEGIN
-    UPDATE items SET available = EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL)
+    UPDATE items SET available = CASE
+            WHEN kind = 'podcast_episode' AND enclosure_url IS NOT NULL THEN 1
+            ELSE EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL) END
     WHERE id = NEW.item_id AND kind IN ('movie', 'episode', 'extra', 'audiobook', 'podcast_episode');
 END;
 -- +goose StatementEnd
@@ -100,7 +105,9 @@ END;
 -- +goose StatementBegin
 CREATE TRIGGER media_files_update AFTER UPDATE OF missing_since, item_id ON media_files
 BEGIN
-    UPDATE items SET available = EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL)
+    UPDATE items SET available = CASE
+            WHEN kind = 'podcast_episode' AND enclosure_url IS NOT NULL THEN 1
+            ELSE EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL) END
     WHERE id IN (NEW.item_id, OLD.item_id) AND kind IN ('movie', 'episode', 'extra', 'audiobook', 'podcast_episode');
 END;
 -- +goose StatementEnd

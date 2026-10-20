@@ -67,6 +67,75 @@ func TestConcatProbe(t *testing.T) {
 	if empty := ConcatProbe(nil); empty.Format.Duration != 0 || len(empty.Chapters) != 0 {
 		t.Errorf("empty %+v", empty)
 	}
+	// M6 review n-7: marks are clamped to their part (an end never before its start).
+	marks := PartChapters(Probe{Chapters: []Chapter{{Start: -sec(1), End: sec(2), Title: "A"}, {Start: sec(8), End: sec(7), Title: "B"}}}, sec(5))
+	if want := []Chapter{{Start: 0, End: sec(2), Title: "A"}, {Start: sec(5), End: sec(5), Title: "B"}}; !slices.Equal(marks, want) {
+		t.Errorf("clamped marks %+v, want %+v", marks, want)
+	}
+	if PartChapters(Probe{Chapters: []Chapter{{End: sec(1)}}}, sec(1)) != nil {
+		t.Error("one mark counts as none")
+	}
+
+	// M6 review M-4: parts whose streams differ are Mixed (concat filter); equal ones are not.
+	if !p.Mixed() {
+		t.Error("cover art in the first part only: not mixed")
+	}
+	same := []Probe{parts[1], parts[2]}
+	for _, tc := range []struct {
+		name  string
+		edit  func(*Stream)
+		mixed bool
+	}{
+		{"equal", func(*Stream) {}, false},
+		{"codec", func(s *Stream) { s.Codec = "aac" }, true},
+		{"channels", func(s *Stream) { s.Channels = 2 }, true},
+		{"sample rate", func(s *Stream) { s.SampleRate = 22050 }, true},
+		{"position", func(s *Stream) { s.Index = 1 }, true},
+	} {
+		second := same[1]
+		second.Streams = []Stream{audio}
+		tc.edit(&second.Streams[0])
+		if got := ConcatProbe([]Probe{same[0], second}).Mixed(); got != tc.mixed {
+			t.Errorf("%s: mixed %v, want %v", tc.name, got, tc.mixed)
+		}
+	}
+}
+
+// Mixed parts: one input per part with the concat filter; a restart reads from the part that holds
+// its boundary, shifted onto the book's timeline, and the audio is encoded even when copy was asked.
+func TestMixedPartsArgs(t *testing.T) {
+	audio := Stream{Index: 0, Type: "audio", Codec: "aac", Channels: 2}
+	book := ConcatProbe([]Probe{
+		{Format: Format{Duration: sec(10)}, Streams: []Stream{{Index: 0, Type: "video", Codec: "mjpeg", AttachedPic: true}, {Index: 1, Type: "audio", Codec: "aac", Channels: 2}}},
+		{Format: Format{Duration: sec(10)}, Streams: []Stream{audio}},
+		{Format: Format{Duration: sec(10)}, Streams: []Stream{audio}},
+	})
+	src := Source{Parts: []string{"/m/01.m4a", "/m/02.m4a", "/m/03.m4a"}, Probe: book}
+	p, err := NewPlan(src, Target{Mode: ModeTranscode, AudioCopy: true, AudioStream: -1, SubtitleBurnIn: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Target.AudioCopy {
+		t.Error("mixed parts planned as a copy")
+	}
+	for _, tc := range []struct {
+		start int
+		want  string
+	}{
+		{0, "-i /m/01.m4a -i /m/02.m4a -i /m/03.m4a -filter_complex [0:a:0][1:a:0][2:a:0]concat=n=3:v=0:a=1[aout] -map [aout]"},
+		{0, "-ac 2 -ar 48000"}, // encoded at one rate in every run, whichever part it starts in
+		{3, "-ss 2.000000 -itsoffset 10.000000 -i /m/02.m4a -i /m/03.m4a -filter_complex [0:a:0][1:a:0]concat=n=2:v=0:a=1[aout] -map [aout]"},
+		{5, "-itsoffset 20.000000 -i /m/03.m4a -filter_complex [0:a:0]concat=n=1:v=0:a=1[aout] -map [aout]"},
+	} {
+		args, err := ffmpegArgs(Capabilities{}, src, p, tc.start, "/w/run")
+		if err != nil {
+			t.Fatal(err)
+		}
+		joined := strings.Join(args, " ")
+		if !strings.Contains(joined, tc.want) || strings.Contains(joined, "-f concat") || strings.Contains(joined, "-c:a copy") {
+			t.Errorf("segment %d: %s\nwant %s", tc.start, joined, tc.want)
+		}
+	}
 }
 
 func TestAudioOnlyPlanAndArgs(t *testing.T) {
@@ -231,6 +300,75 @@ func TestAudioHLSConcatEndToEnd(t *testing.T) {
 	stopAndForget(t, s, 2)
 	seg := read(s.OpenSegment(ctx, 2))
 	if a, ok := parseFragment(t, seg, tracks)[false]; !ok || a.pts < 18-0.3 || a.pts > 18+0.3 {
+		t.Errorf("restarted segment 2: %+v, want it near 18 s", a)
+	}
+}
+
+// M6 review M-4: the first part carries its cover as an attached picture after the audio (AAC mono
+// 44.1 kHz, stream 0), the second has the picture as its first stream and the audio (AAC stereo
+// 22.05 kHz) as stream 1. The concat demuxer maps packets by stream index, so the second part's
+// audio would land in the picture slot and its picture in the audio decoder; the concat filter
+// plays the whole book on its timeline.
+func TestAudioHLSMixedPartsEndToEnd(t *testing.T) {
+	r := hlsRunner(t)
+	dir := t.TempDir()
+	cover := filepath.Join(dir, "cover.jpg")
+	runFFmpeg(t, r, "-f", "lavfi", "-i", "color=c=red:s=64x48", "-frames:v", "1", cover)
+	first := filepath.Join(dir, "01 - Teil.m4a")
+	runFFmpeg(t, r, "-f", "lavfi", "-i", "sine=frequency=300:sample_rate=44100", "-i", cover, "-t", "5", "-map", "0:a", "-map", "1:v",
+		"-c:v", "copy", "-disposition:v:0", "attached_pic", "-ac", "1", "-c:a", "aac", "-b:a", "64k", "-f", "mp4", first)
+	second := filepath.Join(dir, "02 - Teil.mka")
+	runFFmpeg(t, r, "-i", cover, "-f", "lavfi", "-i", "sine=frequency=500:sample_rate=22050", "-t", "6", "-map", "0:v", "-map", "1:a",
+		"-c:v", "copy", "-ac", "2", "-c:a", "aac", "-b:a", "64k", "-f", "matroska", second)
+	ctx := context.Background()
+	var probes []Probe
+	for _, path := range []string{first, second} {
+		pr, err := r.Probe(ctx, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		probes = append(probes, pr)
+	}
+	if len(probes[0].Streams) != 2 || !probes[0].Streams[1].AttachedPic || len(probes[1].Streams) != 2 ||
+		probes[1].Streams[0].Type != "video" || probes[1].Streams[1].Type != "audio" || probes[1].Streams[1].SampleRate != 22050 {
+		t.Fatalf("fixture streams %+v / %+v", probes[0].Streams, probes[1].Streams)
+	}
+	book := ConcatProbe(probes)
+	if !book.Mixed() {
+		t.Fatal("parts with different streams are not mixed")
+	}
+	src := Source{Path: first, Parts: []string{first, second}, Probe: book}
+	p, err := NewPlan(src, Target{Mode: ModeTranscode, AudioBitrate: 128, AudioStream: -1, SubtitleBurnIn: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := newFFmpegManager(t, r, BackendSoftware)
+	s, err := m.Start(ctx, "01J9AUDIOMIXED000000000000", src, p, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := reader(t)
+	init := read(s.OpenInit(ctx))
+	tracks := parseInit(t, init)
+	var segs [][]byte
+	for i := range p.Segments {
+		seg := read(s.OpenSegment(ctx, i))
+		a, ok := parseFragment(t, seg, tracks)[false]
+		if want := (p.Segments[i].Start + timelineOffset).Seconds(); !ok || a.pts < want-0.3 || a.pts > want+0.3 {
+			t.Errorf("segment %d: audio fragment %+v, want it near %.3f s", i, a, want)
+		}
+		segs = append(segs, seg)
+	}
+	out := probeBytes(t, r, init, segs)
+	if a, ok := audioStream(out); !ok || a.Codec != "aac" || a.Channels != 1 || len(out.Streams) != 1 {
+		t.Errorf("output streams %+v, want one mono AAC stream", out.Streams)
+	}
+	if d := out.Format.Duration - timelineOffset - book.Format.Duration; d < -500*time.Millisecond || d > 500*time.Millisecond {
+		t.Errorf("output duration %v, want %v ±0.5 s", out.Format.Duration-timelineOffset, book.Format.Duration)
+	}
+	// A restart inside the second part keeps the book timeline.
+	stopAndForget(t, s, 2)
+	if a, ok := parseFragment(t, read(s.OpenSegment(ctx, 2)), tracks)[false]; !ok || a.pts < 18-0.3 || a.pts > 18+0.3 {
 		t.Errorf("restarted segment 2: %+v, want it near 18 s", a)
 	}
 }

@@ -17,7 +17,7 @@ SELECT m.id, m.item_id, m.rel_path, m.size, m.mtime, m.container, m.video_codec,
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 JOIN library_roots AS r ON r.id = m.root_id
-WHERE m.item_id = ?2 AND m.missing_since IS NULL
+WHERE m.item_id = ?2 AND m.missing_since IS NULL AND m.probe_error IS NULL
 ORDER BY COALESCE(m.part_index, 0), m.rel_path, m.id
 `
 
@@ -46,7 +46,8 @@ type ListVisibleAudiobookPartsRow struct {
 }
 
 // Present parts of a visible audiobook with the path of their library root, in playback order
-// (part_index; a single-file book has none).
+// (part_index; a single-file book has none). A part whose probe failed is left out, like in the
+// chapters and the downloads.
 func (q *Queries) ListVisibleAudiobookParts(ctx context.Context, arg ListVisibleAudiobookPartsParams) ([]ListVisibleAudiobookPartsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisibleAudiobookParts, arg.ProfileID, arg.ItemID)
 	if err != nil {

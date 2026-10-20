@@ -187,6 +187,8 @@ func TestScanAudiobookFixtures(t *testing.T) {
 			m4bTitle + "|" + testAuthor + "|Slouchcat Test Narrator|" + testSeries + "|1.0|2024"},
 		{`SELECT metadata_state || '|' || own_rating || '|' || rating_source || '|' || explicit FROM items WHERE id = ?`, "matched|6|library|0"},
 		{`SELECT overview FROM item_texts WHERE item_id = ? AND lang = 'de'`, "Ein Testhoerbuch mit zwoelf Kapiteln aus Sinustoenen."},
+		// M6 review n-9: the English row is every other language's fallback.
+		{`SELECT overview FROM item_texts WHERE item_id = ? AND lang = 'en'`, "Ein Testhoerbuch mit zwoelf Kapiteln aus Sinustoenen."},
 		{`SELECT count(*) || '|' || coalesce(max(part_index), 'null') FROM media_files WHERE item_id = ?`, "1|null"},
 		{`SELECT duration_ms FROM items WHERE id = ?`, "60000"},
 	}
@@ -465,6 +467,17 @@ func TestOrderPartsAndChapters(t *testing.T) {
 	single := bookChapters([]bookPart{{id: "x", rel: "x.m4b", durationMs: 9000, probe: probe("", 9*time.Second)}}, "Buch")
 	if len(single) != 1 || single[0].title != "Buch" || single[0].endMs != 9000 {
 		t.Errorf("single file chapters %+v", single)
+	}
+	// M6 review m-9: a book with more marks than maxBookChapters keeps that many, the last one runs
+	// to the end of the book.
+	var marks []transcode.Chapter
+	for i := range maxBookChapters + 20 {
+		marks = append(marks, transcode.Chapter{Start: time.Duration(i) * time.Second, End: time.Duration(i+1) * time.Second})
+	}
+	end := int64(maxBookChapters+20) * 1000
+	many := bookChapters([]bookPart{{id: "m", rel: "m.m4b", durationMs: end, probe: probe("", time.Duration(end)*time.Millisecond, marks...)}}, "Buch")
+	if len(many) != maxBookChapters || many[len(many)-1].endMs != end {
+		t.Errorf("%d chapters ending at %d, want %d ending at %d", len(many), many[len(many)-1].endMs, maxBookChapters, end)
 	}
 	if naturalCompare("Teil 2", "teil 10") >= 0 || naturalCompare("b/9 - x", "b/10 - x") >= 0 {
 		t.Errorf("naturalCompare")

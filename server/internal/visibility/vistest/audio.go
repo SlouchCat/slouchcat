@@ -220,6 +220,25 @@ func (f *Fixture) SetEnclosure(t testing.TB, itemID, enclosureURL string) {
 	exec(t, f.DB, `UPDATE items SET enclosure_url = ? WHERE id = ?`, enclosureURL, itemID)
 }
 
+// SetEnclosureType sets the MIME type the feed names for the enclosure of an episode ("" for none).
+func (f *Fixture) SetEnclosureType(t testing.TB, itemID, mime string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE items SET enclosure_type = NULLIF(?, '') WHERE id = ?`, mime, itemID)
+}
+
+// SetFeedURL points a podcast at another feed URL (its host decides whether enclosures and covers
+// may lie in the local network, package netguard).
+func (f *Fixture) SetFeedURL(t testing.TB, podcastID, feedURL string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE items SET feed_url = ? WHERE id = ?`, feedURL, podcastID)
+}
+
+// SetProbeError marks the probe of a media file as failed.
+func (f *Fixture) SetProbeError(t testing.TB, fileID, msg string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE media_files SET probe_error = ? WHERE id = ?`, msg, fileID)
+}
+
 // audioProbeJSON is the stored ffprobe result of a fixture audio file: one audio stream, no video,
 // the fixture duration at 256 kbit/s, so every download profile encodes (an AAC source within 1.1× of
 // a profile would be copied). Multi-part books need a probe per part before they can play (the server

@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -426,20 +427,29 @@ type chapterRow struct {
 // partNumberPrefix is the number before the title in a part's file name ("01 - Kapitel 1").
 var partNumberPrefix = regexp.MustCompile(`^\d+\s*[-._]?\s*`)
 
+// maxBookChapters bounds the chapter list of a book (it is written in one transaction): the last
+// kept chapter runs to the end of the book.
+const maxBookChapters = 500
+
 // bookChapters computes the book-wide chapters of the ordered, probed parts of a book: the chapter
-// marks of a part with at least two (an empty title becomes "Kapitel n"); one chapter for a part
+// marks of a part with at least two, clamped to the part (transcode.PartChapters, shared with
+// transcode.ConcatProbe; an empty title becomes "Kapitel n"); one chapter for a part
 // without marks, titled by its title tag, else its file name without number prefix and extension,
 // else "Teil n"; one chapter over a book of one file without marks, titled with the book title.
-// Starts count from the start of the book (the durations of the parts before).
+// Starts count from the start of the book (the durations of the parts before); at most
+// maxBookChapters.
 func bookChapters(parts []bookPart, bookTitle string) []chapterRow {
 	var rows []chapterRow
 	var offset int64
 	for i, p := range parts {
 		dur := p.durationMs
-		if p.probe != nil && len(p.probe.Chapters) >= 2 {
-			for _, c := range p.probe.Chapters {
-				start := min(max(c.Start.Milliseconds(), 0), dur)
-				end := min(max(c.End.Milliseconds(), start), dur)
+		var marks []transcode.Chapter
+		if p.probe != nil {
+			marks = transcode.PartChapters(*p.probe, time.Duration(dur)*time.Millisecond)
+		}
+		if marks != nil {
+			for _, c := range marks {
+				start, end := c.Start.Milliseconds(), c.End.Milliseconds()
 				title := strings.TrimSpace(c.Title)
 				if title == "" {
 					title = "Kapitel " + strconv.Itoa(len(rows)+1)
@@ -454,6 +464,10 @@ func bookChapters(parts []bookPart, bookTitle string) []chapterRow {
 			rows = append(rows, chapterRow{title: title, startMs: offset, endMs: offset + dur, mediaFileID: p.id})
 		}
 		offset += dur
+	}
+	if len(rows) > maxBookChapters {
+		rows = rows[:maxBookChapters]
+		rows[maxBookChapters-1].endMs = offset
 	}
 	return rows
 }

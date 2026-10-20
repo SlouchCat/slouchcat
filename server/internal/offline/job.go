@@ -159,13 +159,16 @@ func (s *Service) planFor(ctx context.Context, row systemq.Download) (planned, e
 		return planned{}, fmt.Errorf("get download item: %w", err)
 	}
 	if isAudio(item.Kind) {
-		return s.planAudio(ctx, row)
+		return s.planAudio(ctx, row, item)
 	}
 	m, err := s.write.GetDownloadSource(ctx, row.MediaFileID.String)
 	if err != nil {
 		return planned{}, fmt.Errorf("get download source: %w", err)
 	}
 	probe := parseProbe(m.Probe.String)
+	if probe == nil && m.ProbeError.Valid {
+		return planned{}, fmt.Errorf("%w: media file %s", errSourceBroken, m.ID)
+	}
 	if probe == nil {
 		return planned{}, fmt.Errorf("%w: media file %s is not probed yet", errSourceWait, m.ID)
 	}
@@ -426,6 +429,15 @@ func (s *Service) encode(ctx context.Context, j *jobs.Job, row systemq.Download)
 	if errors.Is(err, errSourceWait) && ctx.Err() == nil {
 		s.log.InfoContext(ctx, "download source not available, waiting", "download_id", id, "err", err)
 		return s.wait(ctx, j, id, model.DownloadQueued, "", sourceWait)
+	}
+	if errors.Is(err, errSourceBroken) {
+		// Waiting does not help a file ffprobe cannot read; a rescan that probes it again allows a
+		// new download.
+		s.log.WarnContext(ctx, "download source cannot be read as media", "download_id", id, "err", err)
+		if err := s.setState(ctx, id, model.DownloadFailed, model.DownloadErrEncodeFailed); err != nil {
+			return s.attemptFailed(ctx, j, id, err)
+		}
+		return nil
 	}
 	if err != nil {
 		return s.attemptFailed(ctx, j, id, err)

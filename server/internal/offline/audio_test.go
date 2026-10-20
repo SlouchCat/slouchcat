@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -210,7 +213,8 @@ func TestFetchSourceResumes(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(e.dir, id, "source.mp3.part"), ep.Content[:1000], 0o600); err != nil {
 		t.Fatal(err)
 	}
-	name, err := e.svc.fetchSource(context.Background(), id, ep.Enclosure)
+	feedURL := e.f.Audio.EnclosureServer.URL + "/feed.xml"
+	name, err := e.svc.fetchSource(context.Background(), id, feedURL, ep.Enclosure)
 	if err != nil || name != "source.mp3" {
 		t.Fatalf("fetch = %q %v", name, err)
 	}
@@ -219,10 +223,10 @@ func TestFetchSourceResumes(t *testing.T) {
 	}
 	// A complete file is reused without a request.
 	e.f.SetEnclosure(t, ep.ID, "http://127.0.0.1:9/unused.mp3")
-	if name, err := e.svc.fetchSource(context.Background(), id, ep.Enclosure); err != nil || name != "source.mp3" {
+	if name, err := e.svc.fetchSource(context.Background(), id, feedURL, ep.Enclosure); err != nil || name != "source.mp3" {
 		t.Errorf("second fetch = %q %v", name, err)
 	}
-	if _, err := e.svc.fetchSource(context.Background(), id, "ftp://example.test/x.mp3"); !errors.Is(err, errSourceUnavailable) {
+	if _, err := e.svc.fetchSource(context.Background(), id, feedURL, "ftp://example.test/x.mp3"); !errors.Is(err, errSourceUnavailable) {
 		t.Errorf("ftp enclosure: %v", err)
 	}
 }
@@ -278,5 +282,163 @@ func TestPodcastAutoDownloads(t *testing.T) {
 	// The next sync adds nothing: both places are taken by unfinished auto-downloads.
 	if got := auto(e.sync(e.f.P18, e.devB)); len(got) != 2 {
 		t.Errorf("P18 after a second sync = %v", got)
+	}
+}
+
+// M6 review m-4: a resume sends If-Range with the stored validator and Accept-Encoding identity;
+// an answer that does not continue at the end of the partial file starts over. OQ-1 and M-2: the
+// enclosure of a public feed in the local network is refused, and the error names the host only.
+func TestFetchSourceResumeChecks(t *testing.T) {
+	e := newAudioEnv(t)
+	content := bytes.Repeat([]byte("0123456789"), 300)
+	var ifRange, encoding, answerRange string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ifRange, encoding = r.Header.Get("If-Range"), r.Header.Get("Accept-Encoding")
+		if r.Header.Get("Range") != "" && answerRange != "" {
+			w.Header().Set("Content-Range", answerRange)
+			if strings.HasPrefix(answerRange, "bytes */") {
+				w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
+				return
+			}
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write(content[:100])
+			return
+		}
+		w.Header().Set("ETag", `"v2"`)
+		_, _ = w.Write(content)
+	}))
+	defer srv.Close()
+	ctx := context.Background()
+	feedURL := srv.URL + "/feed.xml"
+	id := "01J9AAAAAAAAAAAAAAAAAAAAAB"
+	if err := os.MkdirAll(filepath.Join(e.dir, id), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name string, data []byte) {
+		if err := os.WriteFile(filepath.Join(e.dir, id, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("source.mp3.part", content[:1000])
+	write("source.mp3.part.validator", []byte(`"v1"`))
+	answerRange = fmt.Sprintf("bytes 0-99/%d", len(content)) // the host ignores the start
+	if _, err := e.svc.fetchSource(ctx, id, feedURL, srv.URL+"/ep.mp3"); !errors.Is(err, errSourceUnavailable) {
+		t.Errorf("resume at the wrong byte: %v", err)
+	}
+	if ifRange != `"v1"` || encoding != "identity" {
+		t.Errorf("If-Range %q, Accept-Encoding %q", ifRange, encoding)
+	}
+	if got := e.file(id, "source.mp3.part"); len(got) != 0 {
+		t.Errorf("partial file kept %d bytes after a wrong resume", len(got))
+	}
+	// The next attempt starts over and stores the new validator until the file is complete.
+	answerRange = ""
+	if name, err := e.svc.fetchSource(ctx, id, feedURL, srv.URL+"/ep.mp3"); err != nil || !bytes.Equal(e.file(id, name), content) {
+		t.Fatalf("fresh fetch: %q %v", name, err)
+	}
+	if _, err := os.Stat(filepath.Join(e.dir, id, "source.mp3.part.validator")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("validator kept after the fetch: %v", err)
+	}
+	// 416 completes a partial file only when the host's size matches it.
+	id2 := "01J9AAAAAAAAAAAAAAAAAAAAAC"
+	if err := os.MkdirAll(filepath.Join(e.dir, id2), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	answerRange = fmt.Sprintf("bytes */%d", len(content))
+	for _, tc := range []struct {
+		have int
+		ok   bool
+	}{{500, false}, {len(content), true}} {
+		if err := os.WriteFile(filepath.Join(e.dir, id2, "source.mp3.part"), content[:tc.have], 0o600); err != nil {
+			t.Fatal(err)
+		}
+		name, err := e.svc.fetchSource(ctx, id2, feedURL, srv.URL+"/ep.mp3")
+		if tc.ok != (err == nil) || (tc.ok && !bytes.Equal(e.file(id2, name), content)) {
+			t.Errorf("416 after %d bytes: %q %v", tc.have, name, err)
+		}
+	}
+	if err := os.Remove(filepath.Join(e.dir, id2, "source.mp3")); err != nil {
+		t.Fatal(err)
+	}
+	if first, total, ok := contentRange("bytes */3000"); !ok || first != -1 || total != 3000 {
+		t.Errorf("contentRange(*/3000) = %d %d %v", first, total, ok)
+	}
+	if first, total, ok := contentRange("bytes 500-2999/*"); !ok || first != 500 || total != -1 {
+		t.Errorf("contentRange(500-2999/*) = %d %d %v", first, total, ok)
+	}
+	for _, bad := range []string{"", "bytes", "bytes 9-1/10", "items 0-1/2", "bytes a-b/c"} {
+		if _, _, ok := contentRange(bad); ok {
+			t.Errorf("contentRange(%q) accepted", bad)
+		}
+	}
+
+	// A public feed whose enclosure lies in the local network: refused; the private query of the
+	// enclosure stays out of the error.
+	_, err := e.svc.fetchSource(ctx, id2, "https://203.0.113.5/feed.xml", srv.URL+"/ep.mp3?auth=s3cr3t")
+	if !errors.Is(err, errSourceUnavailable) || !errors.Is(err, netguard.ErrRefused) || strings.Contains(err.Error(), "s3cr3t") {
+		t.Errorf("local enclosure of a public feed: %v", err)
+	}
+}
+
+// M6 review m-3: the job fetches the enclosure the feed names now; the URL stored with the download
+// is only the fallback.
+func TestEpisodeDownloadUsesCurrentEnclosure(t *testing.T) {
+	e := newAudioEnv(t)
+	a := e.f.Audio
+	st := e.create(e.f.P12, e.devA, a.EnclosureOnly.ID, model.DownloadMedium)
+	dead := httptest.NewServer(http.NotFoundHandler())
+	dead.Close()
+	e.exec(`UPDATE downloads SET source_url = ? WHERE id = ?`, dead.URL+"/old.mp3", st.ID)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady {
+		t.Errorf("row %+v", r)
+	}
+}
+
+// M6 review M-3: a part whose probe failed is left out of a multi-part download (as of playback and
+// the chapters); a single file whose probe failed fails the download with encode_failed instead of
+// waiting forever.
+func TestAudioDownloadProbeErrors(t *testing.T) {
+	e := newAudioEnv(t)
+	a := e.f.Audio
+	st := e.create(e.f.P18, e.devA, a.Parts.ID, model.DownloadLow)
+	e.exec(`UPDATE media_files SET probe = NULL, probe_error = 'invalid data' WHERE id = ?`, a.Parts.PartIDs[1])
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady || r.total != 2*5 {
+		t.Errorf("book with a broken part: %+v", r)
+	}
+	st = e.create(e.f.P18, e.devA, a.Books[0].ID, model.DownloadLow)
+	e.exec(`UPDATE media_files SET probe = NULL, probe_error = 'invalid data' WHERE id = ?`, a.Books[0].FileID)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadFailed || r.err != model.DownloadErrEncodeFailed {
+		t.Errorf("book with a broken file: %+v", r)
+	}
+}
+
+// M6 review m-5: the estimate of an enclosure takes the copy decision of its MIME type and feed
+// size; a book whose parts are not all probed counts its summed duration, not the first part's.
+func TestAudioEstimates(t *testing.T) {
+	e := newAudioEnv(t)
+	ctx := context.Background()
+	a := e.f.Audio
+	d := vistest.DurationMs * time.Millisecond
+	length := int64(100_000 / 8 * d.Seconds()) // 100 kbit/s
+	e.exec(`UPDATE items SET enclosure_type = 'audio/mp4', enclosure_length = ? WHERE id = ?`, length, a.EnclosureOnly.ID)
+	o, err := e.svc.Options(ctx, e.session(e.f.P18, e.devA), a.EnclosureOnly.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []struct {
+		kbps int
+		copy bool
+	}{{100, true}, {100, true}, {64, false}} {
+		if q := o.Qualities[i]; q.AudioBitrate != want.kbps || q.Copy != want.copy {
+			t.Errorf("enclosure %s: %d kbit/s copy %v, want %d %v", q.Quality, q.AudioBitrate, q.Copy, want.kbps, want.copy)
+		}
+	}
+	e.exec(`UPDATE media_files SET probe = NULL WHERE id = ?`, a.Parts.PartIDs[2])
+	o, err = e.svc.Options(ctx, e.session(e.f.P18, e.devA), a.Parts.ID, "")
+	if err != nil || o.DurationMs != 3*vistest.DurationMs {
+		t.Errorf("book with an unprobed part: %d ms %v, want %d", o.DurationMs, err, 3*vistest.DurationMs)
 	}
 }

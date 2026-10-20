@@ -971,15 +971,20 @@ CREATE INDEX download_tombstones_device ON download_tombstones (device_id);
 CREATE INDEX download_rules_device ON download_rules (device_id);
 CREATE UNIQUE INDEX items_episode_guid ON items (parent_id, guid) WHERE guid IS NOT NULL;
 CREATE INDEX items_feed_due ON items (kind, feed_checked_at) WHERE kind = 'podcast' AND deleted_at IS NULL;
+CREATE UNIQUE INDEX items_podcast_feed ON items (library_id, feed_url) WHERE kind = 'podcast' AND deleted_at IS NULL;
 CREATE INDEX items_published ON items (parent_id, published_at DESC) WHERE kind = 'podcast_episode';
 CREATE TRIGGER media_files_insert AFTER INSERT ON media_files
 BEGIN
-    UPDATE items SET available = EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL)
+    UPDATE items SET available = CASE
+            WHEN kind = 'podcast_episode' AND enclosure_url IS NOT NULL THEN 1
+            ELSE EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL) END
     WHERE id = NEW.item_id AND kind IN ('movie', 'episode', 'extra', 'audiobook', 'podcast_episode');
 END;
 CREATE TRIGGER media_files_update AFTER UPDATE OF missing_since, item_id ON media_files
 BEGIN
-    UPDATE items SET available = EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL)
+    UPDATE items SET available = CASE
+            WHEN kind = 'podcast_episode' AND enclosure_url IS NOT NULL THEN 1
+            ELSE EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.missing_since IS NULL) END
     WHERE id IN (NEW.item_id, OLD.item_id) AND kind IN ('movie', 'episode', 'extra', 'audiobook', 'podcast_episode');
 END;
 CREATE TRIGGER media_files_delete AFTER DELETE ON media_files

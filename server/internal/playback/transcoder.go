@@ -78,9 +78,10 @@ func hlsTarget(req HLSRequest) transcode.Target {
 		MaxHeight: d.MaxHeight, Tonemap: d.Tonemap, VideoTag: d.VideoTag, SubtitleBurnIn: -1, AudioStream: d.AudioStream,
 	}
 	if d.Audio {
-		// Audio-only output: AAC copy or audioOnlyKbps; the video fields do not apply.
+		// Audio-only output: AAC copy or the decided rate (audioOnlyKbps, lower under a bandwidth
+		// limit); the video fields do not apply.
 		if !d.AudioCopy {
-			target.AudioBitrate = audioOnlyKbps
+			target.AudioBitrate = cmp.Or(d.Bitrate/1000, audioOnlyKbps)
 		}
 		return target
 	}

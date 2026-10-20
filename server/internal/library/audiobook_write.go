@@ -304,31 +304,39 @@ func (s *Service) writeBook(ctx context.Context, q *systemq.Queries, item system
 	return nil
 }
 
-// writeBookText stores the title, description and subtitle of a book in its language; locked
-// texts keep the stored value.
+// writeBookText stores the title, description and subtitle of a book in its language and, for a
+// book in another language, in English as well: English is the fallback of every profile language
+// (visibility.pickTexts), so an English profile sees a German book's description. Locked texts
+// keep the stored value.
 func writeBookText(ctx context.Context, q *systemq.Queries, itemID, title string, meta bookMeta, locked map[string]bool) error {
 	texts, err := q.ListItemTextsByItem(ctx, itemID)
 	if err != nil {
 		return fmt.Errorf("list audiobook texts: %w", err)
 	}
-	p := systemq.UpsertItemTextParams{ItemID: itemID, Lang: meta.lang, Title: title,
-		Overview: nullString(meta.description), Tagline: nullString(meta.subtitle)}
-	for _, t := range texts {
-		if t.Lang != meta.lang {
-			continue
-		}
-		if locked["title"] {
-			p.Title = t.Title
-		}
-		if locked["overview"] || meta.description == "" {
-			p.Overview = t.Overview
-		}
-		if locked["tagline"] || meta.subtitle == "" {
-			p.Tagline = t.Tagline
-		}
+	langs := []string{meta.lang}
+	if meta.lang != "en" {
+		langs = append(langs, "en")
 	}
-	if err := q.UpsertItemText(ctx, p); err != nil {
-		return fmt.Errorf("store audiobook text: %w", err)
+	for _, lang := range langs {
+		p := systemq.UpsertItemTextParams{ItemID: itemID, Lang: lang, Title: title,
+			Overview: nullString(meta.description), Tagline: nullString(meta.subtitle)}
+		for _, t := range texts {
+			if t.Lang != lang {
+				continue
+			}
+			if locked["title"] {
+				p.Title = t.Title
+			}
+			if locked["overview"] || meta.description == "" {
+				p.Overview = t.Overview
+			}
+			if locked["tagline"] || meta.subtitle == "" {
+				p.Tagline = t.Tagline
+			}
+		}
+		if err := q.UpsertItemText(ctx, p); err != nil {
+			return fmt.Errorf("store audiobook text: %w", err)
+		}
 	}
 	return nil
 }

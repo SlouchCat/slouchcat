@@ -33,8 +33,9 @@ type Source struct {
 	Path string // absolute path, resolved by the caller through package paths
 	// Parts are the ordered absolute paths of a multi-part audiobook (M6). When set, Path is
 	// ignored for the input: ffmpeg reads a concat list (-f concat -safe 0) written into the work
-	// directory of the run, and Probe describes the whole book (ConcatProbe: Duration is the sum of
-	// the parts, Streams are the first part's audio).
+	// directory of the run, or each part with the concat filter when the parts differ
+	// (Probe.Mixed), and Probe describes the whole book (ConcatProbe: Duration is the sum of the
+	// parts, Streams are the first part's audio).
 	Parts     []string
 	Probe     Probe           // stored ffprobe result (media_files.probe)
 	Keyframes []time.Duration // decoded keyframe index (library.DecodeKeyframes), may be nil
@@ -211,6 +212,9 @@ func NewPlan(src Source, t Target) (Plan, error) {
 	d := src.Probe.Format.Duration
 	if d <= 0 {
 		return Plan{}, errors.New("source duration unknown")
+	}
+	if src.Probe.Mixed() {
+		t.AudioCopy = false // the concat filter decodes the parts
 	}
 	v, hasVideo := videoStream(src.Probe)
 	_, hasAudio := audioStream(src.Probe)

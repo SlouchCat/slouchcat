@@ -33,6 +33,7 @@ func audioProbe(codec string, channels int, bitrate int64, cover bool) *transcod
 }
 
 func TestDecideAudio(t *testing.T) {
+	mixedAAC := transcode.ConcatProbe([]transcode.Probe{*audioProbe("aac", 2, 96_000, true), *audioProbe("aac", 2, 96_000, false)})
 	file := func(container, codec string) model.MediaFile {
 		return model.MediaFile{Container: container, AudioCodec: codec}
 	}
@@ -69,6 +70,12 @@ func TestDecideAudio(t *testing.T) {
 			Request{Caps: capsChrome, AudioStream: -1, Limits: model.PlaybackLimits{MaxBitrateKbps: 200}}, hls(ReasonBandwidth, false, 128_000)},
 		{"rebuild of a transcode", file("m4b", "aac"), audioProbe("aac", 2, 64_000, false), Request{Caps: capsChrome, AudioStream: -1, ForceTranscode: true},
 			hls(ReasonContainer, true, 64_000)},
+		// M6 review n-6: a limit below the AAC rate caps the encode.
+		{"bandwidth limit below the aac rate", file("m4b", "aac"), audioProbe("aac", 2, 256_000, false),
+			Request{Caps: capsChrome, AudioStream: -1, Limits: model.PlaybackLimits{MaxBitrateKbps: 96}}, hls(ReasonBandwidth, false, 96_000)},
+		// M6 review M-4: m4a parts that differ (cover art in one) go through the concat filter, no copy.
+		{"multi-part m4a parts that differ", file("m4a", "aac"), &mixedAAC, Request{Caps: capsChrome, AudioStream: -1, MultiPart: true},
+			hls(ReasonContainer, false, 128_000)},
 	}
 	for _, c := range cases {
 		if got := Decide(c.file, c.probe, c.req); got != c.want {
@@ -88,6 +95,9 @@ func TestDecideAudio(t *testing.T) {
 	target := hlsTarget(HLSRequest{Decision: hls(ReasonContainer, false, 128_000)})
 	if target.Mode != transcode.ModeTranscode || target.AudioBitrate != audioOnlyKbps || target.MaxBitrate != 0 || target.Quality != "" {
 		t.Errorf("audio target %+v", target)
+	}
+	if target := hlsTarget(HLSRequest{Decision: hls(ReasonBandwidth, false, 96_000)}); target.AudioBitrate != 96 {
+		t.Errorf("audio target under a bandwidth limit %+v", target)
 	}
 }
 
@@ -204,6 +214,13 @@ func TestStartAudiobookParts(t *testing.T) {
 	f.SetMediaFile(t, parts[2].id, "mp3", "", "mp3", "", nil)
 	if _, err := s.Start(ctx, browserSession(t, f, f.P6), book, model.PlaybackRequest{Capabilities: &capsChrome}); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("unprobed part: %v", err)
+	}
+	// M6 review M-3: a part whose probe failed is left out, like in the chapters and the downloads;
+	// the book plays its other parts.
+	f.SetProbeError(t, parts[2].id, "invalid data")
+	info, err = s.Start(ctx, browserSession(t, f, f.P6), book, model.PlaybackRequest{Capabilities: &capsChrome})
+	if err != nil || len(info.Parts) != 2 || info.MediaFile.DurationMs != 13000 {
+		t.Errorf("book with a broken part: %+v %v", info.Parts, err)
 	}
 	// A book rated 18 is invisible for P6: 404.
 	eighteen := 18

@@ -3,6 +3,7 @@ package feed_test
 import (
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -135,6 +136,33 @@ func TestParseDate(t *testing.T) {
 	}
 	if !feed.ParseDate("gestern").IsZero() {
 		t.Error("garbage date parsed")
+	}
+	// M6 review n-2: the named zones of RFC 822 keep their offset.
+	for in, hours := range map[string]int{"EST": 1, "EDT": 2, "CST": 0, "CDT": 1, "MST": -1, "MDT": 0, "PST": -2, "PDT": -1} {
+		if got := feed.ParseDate("Mon, 06 Oct 2025 0" + strconv.Itoa(5+hours) + ":00:00 " + in); !got.Equal(want.Add(5 * time.Hour)) {
+			t.Errorf("ParseDate(%s) = %v, want %v", in, got, want.Add(5*time.Hour))
+		}
+	}
+}
+
+// M6 review m-10: titles, authors and guids are clipped, overlong URLs dropped.
+func TestParseClipsFields(t *testing.T) {
+	long := strings.Repeat("x", 3000)
+	src := rssHead + `<itunes:author>` + strings.Repeat("A", 600) + `</itunes:author><itunes:image href="http://img.test/` + long + `"/>
+<item><title>` + strings.Repeat("ü", 600) + `</title><guid>` + long + `</guid><enclosure url="http://x.test/1.mp3"/>
+  <itunes:image href="http://img.test/` + long + `"/></item>
+<item><title>Too long</title><enclosure url="http://x.test/` + long + `.mp3"/></item>
+</channel></rss>`
+	f, err := feed.Parse(strings.NewReader(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Author) != feed.MaxTitle || f.ImageURL != "" || len(f.Episodes) != 1 {
+		t.Fatalf("channel author %d, image %q, %d episodes", len(f.Author), f.ImageURL, len(f.Episodes))
+	}
+	e := f.Episodes[0]
+	if n := len([]rune(e.Title)); n != feed.MaxTitle || len(e.GUID) != feed.MaxURL || e.ImageURL != "" {
+		t.Errorf("episode title %d runes, guid %d, image %q", n, len(e.GUID), e.ImageURL)
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -117,8 +118,10 @@ func newPodcastEnv(t *testing.T, episodes int) *podcastEnv {
 	clock := &testClock{t: time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)}
 	q := jobs.NewQueue(db.Write, nil)
 	f := newFakeFeed(t, episodes)
+	// No WithFeedHTTPClient: the feed lives on the loopback address, which the address guard
+	// (package netguard) allows for a feed whose own host is local.
 	svc := New(db, q, staticKey(""), t.TempDir(), transcode.Runner{}, log,
-		WithFeedClock(clock.now), WithFeedHTTPClient(f.srv.Client()), WithFeedUserAgent("Slouchcat/test"))
+		WithFeedClock(clock.now), WithFeedUserAgent("Slouchcat/test"))
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (1, 'Filme', 'movies', NULL, 0, 0)`)
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (3, 'Podcasts', 'podcasts', 6, 0, 0)`)
 	return &podcastEnv{db: db, svc: svc, queue: q, feed: f, clock: clock}
@@ -358,8 +361,12 @@ func TestNewestEpisodes(t *testing.T) {
 	}
 }
 
-// The poller queues a subscription once its last fetch is FeedInterval old (H-2: < 65 min).
+// The poller queues a subscription once its last fetch is FeedInterval old (H-2: < 65 min with the
+// 5-minute tick and the wait of the job).
 func TestQueueDuePodcasts(t *testing.T) {
+	if FeedInterval+feedPollInterval > 60*time.Minute {
+		t.Errorf("FeedInterval %v plus the poller tick %v leaves no reserve below 65 minutes", FeedInterval, feedPollInterval)
+	}
 	e := newPodcastEnv(t, 1)
 	ctx := context.Background()
 	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
@@ -369,7 +376,7 @@ func TestQueueDuePodcasts(t *testing.T) {
 	for _, step := range []struct {
 		advance time.Duration
 		want    int
-	}{{0, 0}, {59 * time.Minute, 0}, {time.Minute, 1}} {
+	}{{0, 0}, {FeedInterval - time.Minute, 0}, {time.Minute, 1}} {
 		e.clock.set(e.clock.now().Add(step.advance))
 		n, err := e.svc.QueueDuePodcasts(ctx)
 		if err != nil || n != step.want {
@@ -412,5 +419,145 @@ func TestQueueDuePodcasts(t *testing.T) {
 	var live int
 	if err := e.db.Read.QueryRow(`SELECT count(*) FROM items WHERE deleted_at IS NULL AND kind IN ('podcast', 'podcast_episode')`).Scan(&live); err != nil || live != 0 {
 		t.Errorf("live podcast items after unsubscribe: %d %v", live, err)
+	}
+}
+
+// M6 review m-1, m-6, m-11: locked fields of the channel and of an episode stay; an episode that
+// turns explicit ends open streams; an episode keeps an image only when it differs from the
+// channel's, and a new episode with its own image is queued for image.fetch.
+func TestFetchPodcastLocksAndEpisodeCovers(t *testing.T) {
+	e := newPodcastEnv(t, 2)
+	rechecks := 0
+	e.svc.recheck = func(context.Context) error { rechecks++; return nil }
+	ctx := context.Background()
+	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ep1 := e.episodes(t, p.ID)["ep-1"].ID
+	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["author","overview"]' WHERE id = ?`, p.ID)
+	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '["title","poster","overview"]', cover_url = 'https://img.test/kept.jpg' WHERE id = ?`, ep1)
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	e.feed.set(func(f *fakeFeed) {
+		f.n, f.title[1], f.explicit[2] = 3, "Episode 1 (neu)", true
+		body := strings.NewReplacer(
+			"<itunes:author>Autorin</itunes:author>", "<itunes:author>Neue Autorin</itunes:author>",
+			"<description>&lt;p&gt;Ein Test.&lt;/p&gt;</description>", "<description>Neu.</description>",
+			"<description>Folge 1</description>", "<description>Folge eins, neu</description>",
+			"<guid>ep-1</guid>", `<guid>ep-1</guid><itunes:image href="https://img.test/ep1-new.jpg"/>`,
+			"<guid>ep-2</guid>", `<guid>ep-2</guid><itunes:image href="`+f.srv.URL+`/cover.jpg"/>`,
+			"<guid>ep-3</guid>", `<guid>ep-3</guid><itunes:image href="https://img.test/ep3.jpg"/>`,
+		).Replace(f.xml())
+		f.body = body
+	})
+	if err := e.svc.FetchPodcast(ctx, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	var author, overview string
+	if err := e.db.Read.QueryRow(`SELECT i.author, t.overview FROM items AS i JOIN item_texts AS t ON t.item_id = i.id AND t.lang = 'de' WHERE i.id = ?`, p.ID).
+		Scan(&author, &overview); err != nil || author != "Autorin" || overview != "Ein Test." {
+		t.Errorf("locked channel: author %q, overview %q, %v", author, overview, err)
+	}
+	type row struct{ title, text, overview, cover string }
+	get := func(id string) row {
+		var r row
+		if err := e.db.Read.QueryRow(`SELECT i.title, t.title, COALESCE(t.overview, ''), COALESCE(i.cover_url, '') FROM items AS i
+		    JOIN item_texts AS t ON t.item_id = i.id AND t.lang = 'en' WHERE i.id = ?`, id).Scan(&r.title, &r.text, &r.overview, &r.cover); err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	if r := get(ep1); r != (row{"Episode 1", "Episode 1", "Folge 1", "https://img.test/kept.jpg"}) {
+		t.Errorf("locked episode = %+v", r)
+	}
+	eps := e.episodes(t, p.ID)
+	if r := get(eps["ep-2"].ID); r.cover != "" || eps["ep-2"].Rating.Int64 != 18 {
+		t.Errorf("episode with the channel's image = %+v, rating %v", r, eps["ep-2"].Rating)
+	}
+	if r := get(eps["ep-3"].ID); r.cover != "https://img.test/ep3.jpg" {
+		t.Errorf("new episode with its own image = %+v", r)
+	}
+	if got := e.jobs(t, JobImageFetch); len(got) != 1 || got[0] != "image:"+eps["ep-3"].ID {
+		t.Errorf("image jobs = %v", got)
+	}
+	if rechecks != 1 {
+		t.Errorf("open streams rechecked %d times after an episode turned explicit, want 1", rechecks)
+	}
+
+	// M6 review M-2: the credentials of a private feed never reach feed_error or the error.
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+	mustExec(t, e.db.Write, `UPDATE items SET feed_url = ? WHERE id = ?`, closed.URL+"/private/s3cr3t-path.xml?auth=s3cr3t-token", p.ID)
+	err = e.svc.FetchPodcast(ctx, p.ID)
+	_, _, feedErr, _, _ := e.podcast(t, p.ID)
+	if err == nil || strings.Contains(err.Error(), "s3cr3t") || strings.Contains(feedErr.String, "s3cr3t") ||
+		!strings.Contains(feedErr.String, closed.URL) {
+		t.Errorf("fetch error %v, feed_error %q", err, feedErr.String)
+	}
+}
+
+// M6 review m-2: two subscriptions of one feed at once store one podcast (unique index
+// items_podcast_feed); the other request answers feed_exists.
+func TestSubscribeConcurrently(t *testing.T) {
+	e := newPodcastEnv(t, 1)
+	body := e.feed.xml()
+	var arrived sync.WaitGroup
+	arrived.Add(2)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		arrived.Done()
+		arrived.Wait() // both requests passed the existence check before either stores
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, err := e.svc.Subscribe(context.Background(), 3, srv.URL+"/feed.xml")
+			errs <- err
+		}()
+	}
+	var ok, exists int
+	for range 2 {
+		switch err := <-errs; {
+		case err == nil:
+			ok++
+		case errors.Is(err, model.ErrFeedExists):
+			exists++
+		default:
+			t.Errorf("subscribe: %v", err)
+		}
+	}
+	if list, _ := e.svc.ListPodcasts(context.Background()); ok != 1 || exists != 1 || len(list) != 1 {
+		t.Errorf("%d subscribed, %d feed_exists, %d stored", ok, exists, len(list))
+	}
+}
+
+// M6 review m-12: at most 5 redirects, only to http and https, and a feed of at most 16 MiB.
+func TestFeedFetchLimits(t *testing.T) {
+	e := newPodcastEnv(t, 1)
+	body := e.feed.xml()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/r/") && r.URL.Path != "/r/0":
+			n, _ := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/r/"))
+			http.Redirect(w, r, "/r/"+strconv.Itoa(n-1), http.StatusFound)
+		case r.URL.Path == "/ftp":
+			http.Redirect(w, r, "ftp://example.test/feed.xml", http.StatusFound)
+		case r.URL.Path == "/big":
+			_, _ = w.Write([]byte(body[:200]))
+			_, _ = w.Write(make([]byte, maxFeedBytes))
+		default:
+			_, _ = w.Write([]byte(body))
+		}
+	}))
+	defer srv.Close()
+	ctx := context.Background()
+	if _, err := e.svc.Subscribe(ctx, 3, srv.URL+"/r/5"); err != nil {
+		t.Errorf("5 redirects: %v", err)
+	}
+	for path, want := range map[string]error{"/r/6": model.ErrFeedUnreachable, "/ftp": model.ErrFeedUnreachable, "/big": model.ErrFeedInvalid} {
+		if _, err := e.svc.Subscribe(ctx, 3, srv.URL+path); !errors.Is(err, want) {
+			t.Errorf("%s: %v, want %v", path, err, want)
+		}
 	}
 }

@@ -327,7 +327,7 @@ func Decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 	burn := d.SubtitleDelivery == model.SubtitleBurn
 
 	if v == nil && video == "" && audio != "" {
-		return decideAudio(d, file, req, audio, isDefaultAudio)
+		return decideAudio(d, file, req, audio, isDefaultAudio, probe != nil && probe.Mixed())
 	}
 	if caps.HLS == "none" && !req.ForceTranscode {
 		d.Mode = ModeDirect
@@ -409,9 +409,10 @@ const audioOnlyKbps = 128
 // default one and the bit rate fits the profile's bandwidth limit; a client without HLS also gets
 // the file. Anything else, and every audiobook of several parts, is an audio-only HLS transcode:
 // AAC is copied when the client decodes it (and the bit rate fits), other codecs are encoded to
-// AAC at audioOnlyKbps. Reasons: container (several parts, or a container the client does not
-// play directly), audio_codec, audio_track, bandwidth.
-func decideAudio(d Decision, file model.MediaFile, req Request, audio string, isDefaultAudio bool) Decision {
+// AAC at audioOnlyKbps (also for the parts of a book that differ in their streams, mixed: the
+// concat filter decodes them; transcode.Probe.Mixed). Reasons: container (several parts, or a
+// container the client does not play directly), audio_codec, audio_track, bandwidth.
+func decideAudio(d Decision, file model.MediaFile, req Request, audio string, isDefaultAudio, mixed bool) Decision {
 	caps, limits := req.Caps, req.Limits
 	d.Audio, d.Width, d.Height = true, 0, 0
 	container := strings.ToLower(file.Container)
@@ -424,7 +425,7 @@ func decideAudio(d Decision, file model.MediaFile, req Request, audio string, is
 		return d
 	}
 	d.Mode, d.Quality = ModeTranscode, model.QualityAuto
-	d.AudioCopy = audio == "aac" && codecOK && bitrateOK
+	d.AudioCopy = audio == "aac" && codecOK && bitrateOK && !mixed
 	switch {
 	case req.MultiPart:
 		d.Reason = ReasonContainer
@@ -438,7 +439,11 @@ func decideAudio(d Decision, file model.MediaFile, req Request, audio string, is
 		d.Reason = ReasonContainer
 	}
 	if !d.AudioCopy {
+		// A bandwidth limit below the AAC rate caps the encode too.
 		d.Bitrate = audioOnlyKbps * 1000
+		if limits.MaxBitrateKbps > 0 {
+			d.Bitrate = min(d.Bitrate, limits.MaxBitrateKbps*1000)
+		}
 	}
 	return d
 }

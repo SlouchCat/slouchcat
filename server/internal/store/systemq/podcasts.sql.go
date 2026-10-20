@@ -25,7 +25,8 @@ type PodcastFindByFeedParams struct {
 // Unfiltered podcast queries (package store/systemq, M6 design 3.4). Owner: metadata package
 // (subscriptions and the job podcast.fetch). Every query name starts with Podcast so the files of the
 // other owners never collide. Times are Unix milliseconds.
-// A live subscription of the library to the feed URL (feed_exists).
+// A live subscription of the library to the feed URL (feed_exists; the unique index
+// items_podcast_feed refuses a second one).
 func (q *Queries) PodcastFindByFeed(ctx context.Context, arg PodcastFindByFeedParams) (string, error) {
 	row := q.db.QueryRowContext(ctx, podcastFindByFeed, arg.LibraryID, arg.FeedUrl)
 	var id string
@@ -409,21 +410,24 @@ func (q *Queries) PodcastListDue(ctx context.Context, checkedBefore sql.NullInt6
 }
 
 const podcastListEpisodes = `-- name: PodcastListEpisodes :many
-SELECT id, guid, own_rating, rating_source, locked_fields, deleted_at FROM items
+SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at FROM items
 WHERE parent_id = ?1 AND kind = 'podcast_episode' AND guid IS NOT NULL
 `
 
 type PodcastListEpisodesRow struct {
 	ID           string
 	Guid         sql.NullString
+	Title        string
+	SortTitle    string
+	CoverUrl     sql.NullString
 	OwnRating    sql.NullInt64
 	RatingSource sql.NullString
 	LockedFields string
 	DeletedAt    sql.NullInt64
 }
 
-// The stored episodes of a podcast with what an update compares, soft-deleted ones included: their
-// guid stays taken, so the fetch neither inserts nor restores them.
+// The stored episodes of a podcast with what an update compares and keeps (locked fields),
+// soft-deleted ones included: their guid stays taken, so the fetch neither inserts nor restores them.
 func (q *Queries) PodcastListEpisodes(ctx context.Context, podcastID sql.NullString) ([]PodcastListEpisodesRow, error) {
 	rows, err := q.db.QueryContext(ctx, podcastListEpisodes, podcastID)
 	if err != nil {
@@ -436,6 +440,9 @@ func (q *Queries) PodcastListEpisodes(ctx context.Context, podcastID sql.NullStr
 		if err := rows.Scan(
 			&i.ID,
 			&i.Guid,
+			&i.Title,
+			&i.SortTitle,
+			&i.CoverUrl,
 			&i.OwnRating,
 			&i.RatingSource,
 			&i.LockedFields,

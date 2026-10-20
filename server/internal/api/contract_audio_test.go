@@ -118,6 +118,21 @@ func TestContractAudio(t *testing.T) {
 	} else if img := send(t, h, http.MethodGet, ep.Images.Poster.URL, "p0", "", nil); img.Code != http.StatusOK {
 		t.Errorf("episode poster (the podcast's): %d", img.Code)
 	}
+	// M6 review m-12: an episode without a file downloads from its enclosure; the image of the
+	// explicit episode is not found for P12 (404, never 403).
+	if rec := send(t, h, http.MethodPost, BasePath+"/items/"+a.EnclosureOnly.ID+"/downloads", "p12", `{"quality":"low"}`, nil); rec.Code != http.StatusCreated {
+		t.Errorf("p12 createDownloads of the enclosure episode: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := send(t, h, http.MethodPost, BasePath+"/items/"+a.Explicit.ID+"/downloads", "p12", `{"quality":"low"}`, nil); rec.Code != http.StatusNotFound {
+		t.Errorf("p12 createDownloads of the explicit episode: %d", rec.Code)
+	}
+	ep.Images.Poster.URL = ""
+	decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+a.Explicit.ID, "p18", "", nil), &ep)
+	if ep.Images.Poster.URL == "" {
+		t.Error("explicit episode without poster for P18")
+	} else if img := send(t, h, http.MethodGet, ep.Images.Poster.URL, "p12", "", nil); img.Code != http.StatusNotFound || problemCode(t, img) != "not_found" {
+		t.Errorf("p12 poster of the explicit episode: %d", img.Code)
+	}
 }
 
 // contractLibraries answers Get from the libraries table (updateLibrary returns the library).
@@ -170,8 +185,12 @@ func TestContractAudioAdmin(t *testing.T) {
 	if rec := send(t, h, http.MethodGet, BasePath+"/items/"+a.Books[0].ID, "p6", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("book rated by the library for P6 after the default 12: %d", rec.Code)
 	}
-	if rec := send(t, h, http.MethodGet, BasePath+"/items/"+a.Books[1].ID, "p6", "", nil); rec.Code != http.StatusOK {
-		t.Errorf("book rated 6 by hand for P6: %d", rec.Code)
+	// A manual rating below the new default is raised to it (AN-2 "only stricter", M6 review m-8).
+	if rec := send(t, h, http.MethodGet, BasePath+"/items/"+a.Books[1].ID, "p6", "", nil); rec.Code != http.StatusNotFound {
+		t.Errorf("book rated 6 by hand for P6 after the default 12: %d", rec.Code)
+	}
+	if rec := send(t, h, http.MethodGet, BasePath+"/items/"+a.Books[1].ID, "p12", "", nil); rec.Code != http.StatusOK {
+		t.Errorf("book rated 6 by hand, raised to 12, for P12: %d", rec.Code)
 	}
 	for _, tc := range []struct {
 		method, path, body, code string

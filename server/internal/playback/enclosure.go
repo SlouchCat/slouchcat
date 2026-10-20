@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +17,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
@@ -35,31 +36,23 @@ const (
 	maxEnclosureRedirects  = 5
 )
 
-// defaultEnclosureType is the Content-Type when neither the podcast host nor the feed names one.
+// defaultEnclosureType is the MIME type of a playback when the feed names none.
 const defaultEnclosureType = "audio/mpeg"
 
 // errEnclosureRedirect stops a redirect chain that is too long or leaves http and https.
 var errEnclosureRedirect = errors.New("enclosure redirects too often or to another scheme")
 
-// enclosureClient fetches enclosures for the stream proxy: header timeout 30 s, at most 5 redirects,
-// http and https only.
-var enclosureClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           (&net.Dialer{Timeout: enclosureHeaderTimeout, KeepAlive: 30 * time.Second}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          16,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ResponseHeaderTimeout: enclosureHeaderTimeout,
-	},
+// enclosureClients fetch enclosures for the stream proxy: header timeout 30 s, at most 5
+// redirects, http and https only, no address in the local network unless the podcast's feed is
+// there itself (package netguard).
+var enclosureClients = netguard.NewClients(http.Client{
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= maxEnclosureRedirects || !httpScheme(req.URL) {
+		if len(via) > maxEnclosureRedirects || !httpScheme(req.URL) {
 			return errEnclosureRedirect
 		}
 		return nil
 	},
-}
+}, enclosureHeaderTimeout)
 
 func httpScheme(u *url.URL) bool { return u.Scheme == "http" || u.Scheme == "https" }
 
@@ -163,11 +156,14 @@ func codecOfType(mime string) string {
 
 // ProxyEnclosure answers the stream endpoint for a playback session without media file: after
 // re-checking visibility it fetches the enclosure with the client's Range header and copies status
-// (200 or 206; 416 for an unsatisfiable range), Content-Type (else the feed's type), Content-Length,
-// Content-Range and Accept-Ranges, with Cache-Control private, no-store. The response ends when the
-// playback session is revoked. Errors before the response started: model.ErrNotFound (the title
-// is not visible, the grant is no direct session), model.ErrEnclosureUnavailable (the podcast host
-// failed); later failures only end the response.
+// (200 or 206; 416 for an unsatisfiable range), Content-Length, Content-Range and Accept-Ranges,
+// with Cache-Control private, no-store. The Content-Type is an audio type or video/mp4 only
+// (streamType), and nosniff with a sandboxing Content-Security-Policy keeps whatever the podcast
+// host sends from running as a page on the server's origin. The response ends when the playback
+// session is revoked. Errors before the response started: model.ErrNotFound (the title is not
+// visible, the grant is no direct session), model.ErrEnclosureUnavailable (the podcast host failed,
+// or the enclosure lies in the local network while the feed does not); later failures only end the
+// response.
 func (s *Service) ProxyEnclosure(ctx context.Context, g model.PlaybackGrant, w http.ResponseWriter, r *http.Request) error {
 	if g.Mode != ModeDirect || g.MediaFileID != "" {
 		return model.ErrNotFound
@@ -188,12 +184,14 @@ func (s *Service) ProxyEnclosure(ctx context.Context, g model.PlaybackGrant, w h
 		req.Header.Set("Range", rng)
 	}
 	req.Header.Set("User-Agent", "Slouchcat")
-	resp, err := enclosureClient.Do(req)
+	// The client's byte ranges count the stored representation: no transparent gzip.
+	req.Header.Set("Accept-Encoding", "identity")
+	resp, err := enclosureClients.For(ctx, enc.FeedURL).Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		s.log.InfoContext(ctx, "enclosure fetch failed", "playback_id", g.ID, "item_id", g.ItemID, "err", err)
+		s.log.InfoContext(ctx, "enclosure fetch failed", "playback_id", g.ID, "item_id", g.ItemID, "err", netguard.Clean(err))
 		return model.ErrEnclosureUnavailable
 	}
 	switch resp.StatusCode {
@@ -206,13 +204,16 @@ func (s *Service) ProxyEnclosure(ctx context.Context, g model.PlaybackGrant, w h
 	body := s.track(ctx, g, readOnly{resp.Body})
 	defer body.Close()
 	h := w.Header()
-	h.Set("Content-Type", cmp.Or(resp.Header.Get("Content-Type"), enc.Type, defaultEnclosureType))
+	h.Set("Content-Type", streamType(resp.Header.Get("Content-Type"), enc.Type))
 	for _, k := range []string{"Content-Length", "Content-Range", "Accept-Ranges"} {
 		if v := resp.Header.Get(k); v != "" {
 			h.Set(k, v)
 		}
 	}
 	h.Set("Cache-Control", "private, no-store")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Security-Policy", "sandbox; default-src 'none'")
+	h.Set("Content-Disposition", "inline")
 	w.WriteHeader(resp.StatusCode)
 	if rv, ok := body.(interface{ Done() <-chan struct{} }); ok {
 		stop := abortWrites(w, rv.Done())
@@ -222,6 +223,18 @@ func (s *Service) ProxyEnclosure(ctx context.Context, g model.PlaybackGrant, w h
 		s.log.InfoContext(ctx, "enclosure stream ended", "playback_id", g.ID, "err", err)
 	}
 	return nil
+}
+
+// streamType is the Content-Type of a proxied enclosure: the podcast host's when it is an audio
+// type or video/mp4, else the feed's when that is, else application/octet-stream. Any other type
+// (text/html, image/svg+xml) could run as a page on the server's origin.
+func streamType(upstream, feed string) string {
+	for _, t := range []string{upstream, feed} {
+		if mt, _, err := mime.ParseMediaType(t); err == nil && (strings.HasPrefix(mt, "audio/") || mt == "video/mp4") {
+			return mt
+		}
+	}
+	return "application/octet-stream"
 }
 
 // readOnly is an upstream body as the io.ReadSeekCloser the stream tracking takes; it cannot seek.

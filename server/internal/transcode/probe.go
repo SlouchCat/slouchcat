@@ -21,6 +21,9 @@ type Probe struct {
 	Format   Format    `json:"format"`
 	Streams  []Stream  `json:"streams"`
 	Chapters []Chapter `json:"chapters"`
+	// partDurations are the durations of the parts of a book whose parts differ in their streams
+	// (ConcatProbe; never stored): ffmpeg joins them with the concat filter.
+	partDurations []time.Duration
 }
 
 // Format describes the container.
@@ -49,6 +52,7 @@ type Stream struct {
 	ColorPrimaries string `json:"colorPrimaries,omitempty"`
 	Channels       int    `json:"channels,omitempty"`
 	ChannelLayout  string `json:"channelLayout,omitempty"`
+	SampleRate     int    `json:"sampleRate,omitempty"` // audio; 0 in probes stored before M6
 	Language       string `json:"language,omitempty"`
 	Title          string `json:"title,omitempty"`
 	Default        bool   `json:"default,omitempty"`
@@ -138,6 +142,7 @@ type rawProbe struct {
 		ColorPrimaries string `json:"color_primaries"`
 		Channels       int    `json:"channels"`
 		ChannelLayout  string `json:"channel_layout"`
+		SampleRate     string `json:"sample_rate"`
 		Tags           struct {
 			Language string `json:"language"`
 			Title    string `json:"title"`
@@ -282,6 +287,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			ColorPrimaries:      s.ColorPrimaries,
 			Channels:            s.Channels,
 			ChannelLayout:       s.ChannelLayout,
+			SampleRate:          int(integer(s.SampleRate)),
 			Language:            s.Tags.Language,
 			Title:               s.Tags.Title,
 			Default:             s.Disposition.Default == 1,

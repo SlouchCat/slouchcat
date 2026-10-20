@@ -23,6 +23,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -727,6 +728,8 @@ func writeFile(root *os.Root, dir, rel string, data []byte) error {
 //	coverFilePrefix + cover_path + "?" + size + "-" + mtime  a folder image below the library root
 //	coverEmbeddedPrefix + media file id + "?" + mtime        the picture embedded in a media file
 //	http(s) URL                                               cover_url (a feed image, any host)
+//
+// The part after the last "?" is the version; a folder name may contain "?" itself.
 const (
 	coverFilePrefix     = "file:"
 	coverEmbeddedPrefix = "embedded:"
@@ -734,6 +737,10 @@ const (
 	maxCoverBytes = 10 << 20
 	coverTimeout  = 15 * time.Second
 )
+
+// coverClients fetch feed images: no address in the local network unless the podcast's feed is
+// there itself (package netguard); coverTimeout bounds each fetch.
+var coverClients = netguard.NewClients(http.Client{}, 0)
 
 // coverSource returns the source of the cover of an audio item: the folder image or embedded
 // picture of cover_path (an audiobook), else cover_url when it is an http or https URL; "" when
@@ -791,7 +798,7 @@ func (s *Service) coverRoot(ctx context.Context, itemID string) (*os.Root, error
 func (s *Service) fetchOriginal(ctx context.Context, itemID, source string) ([]byte, string, error) {
 	switch {
 	case strings.HasPrefix(source, coverFilePrefix):
-		rel, _, _ := strings.Cut(strings.TrimPrefix(source, coverFilePrefix), "?")
+		rel := unversioned(strings.TrimPrefix(source, coverFilePrefix))
 		root, err := s.coverRoot(ctx, itemID)
 		if err != nil {
 			return nil, "", err
@@ -807,7 +814,7 @@ func (s *Service) fetchOriginal(ctx context.Context, itemID, source string) ([]b
 		defer f.Close()
 		return sniffCover(io.LimitReader(f, maxCoverBytes+1))
 	case strings.HasPrefix(source, coverEmbeddedPrefix):
-		id, _, _ := strings.Cut(strings.TrimPrefix(source, coverEmbeddedPrefix), "?")
+		id := unversioned(strings.TrimPrefix(source, coverEmbeddedPrefix))
 		abs, err := s.mediaFilePath(ctx, id)
 		if err != nil {
 			return nil, "", err
@@ -820,8 +827,32 @@ func (s *Service) fetchOriginal(ctx context.Context, itemID, source string) ([]b
 	case s.providerImage(source):
 		return download(ctx, s.client, source)
 	default:
-		return s.downloadCover(ctx, source)
+		return s.downloadCover(ctx, s.feedOf(ctx, itemID), source)
 	}
+}
+
+// unversioned drops the version after the last "?" of a cover source.
+func unversioned(source string) string {
+	if i := strings.LastIndexByte(source, '?'); i >= 0 {
+		return source[:i]
+	}
+	return source
+}
+
+// feedOf returns the feed URL of the podcast of an item (a podcast's own, an episode's parent's);
+// "" for any other item.
+func (s *Service) feedOf(ctx context.Context, itemID string) string {
+	item, err := s.read.GetItemSystem(ctx, itemID)
+	if err != nil {
+		return ""
+	}
+	if item.Kind == "podcast_episode" && item.ParentID.Valid {
+		if p, err := s.read.PodcastGet(ctx, item.ParentID.String); err == nil {
+			return p.FeedUrl.String
+		}
+		return ""
+	}
+	return item.FeedUrl.String
 }
 
 // providerImage reports whether a source is a TMDB or TVDB image (fetched through their client).
@@ -846,10 +877,11 @@ func (s *Service) mediaFilePath(ctx context.Context, id string) (string, error) 
 	return paths.Resolve(pr, mf.RelPath)
 }
 
-// downloadCover fetches a cover URL (a feed image, any http or https host): at most maxCoverBytes
+// downloadCover fetches a cover URL of the feed at feedURL (a feed image, any http or https host
+// outside the local network unless the feed is local, package netguard): at most maxCoverBytes
 // within coverTimeout, JPEG, PNG or WebP only (by content: feed hosts often send image/jpg or no
-// type at all). No credentials or provider keys are sent.
-func (s *Service) downloadCover(ctx context.Context, rawURL string) ([]byte, string, error) {
+// type at all). No credentials or provider keys are sent; errors name the host only.
+func (s *Service) downloadCover(ctx context.Context, feedURL, rawURL string) ([]byte, string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
 		return nil, "", fmt.Errorf("cover url not usable")
@@ -858,12 +890,12 @@ func (s *Service) downloadCover(ctx context.Context, rawURL string) ([]byte, str
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
-		return nil, "", fmt.Errorf("cover request: %w", err)
+		return nil, "", fmt.Errorf("cover request: %w", netguard.Clean(err))
 	}
 	req.Header.Set("Accept", "image/jpeg, image/png, image/webp")
-	resp, err := s.client.http.Do(req)
+	resp, err := coverClients.For(ctx, feedURL).Do(req)
 	if err != nil {
-		return nil, "", fmt.Errorf("fetch cover from %s: %w", u.Host, err)
+		return nil, "", fmt.Errorf("fetch cover from %s: %w", u.Host, netguard.Clean(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
