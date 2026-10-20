@@ -195,13 +195,23 @@ func decideWith(file model.MediaFile, p *transcode.Probe, prof model.DownloadPro
 		}
 		c.Width, c.Height, c.VideoKbps = srcW, srcH, videoKbps
 	} else {
-		c.Target = transcode.Target{
-			Mode: transcode.ModeTranscode, AudioCopy: c.AudioCopy, MaxHeight: prof.MaxHeight, Tonemap: hdr,
-			SubtitleBurnIn: -1, AudioStream: audio, MaxBitrate: prof.VideoBitrate * 1000, ConstantRate: true,
-			AudioBitrate: prof.AudioBitrate,
-		}
 		c.Width, c.Height = outputSize(srcW, srcH, prof.MaxHeight)
 		c.VideoKbps = transcodeKbps(prof, c.Height)
+		if videoKbps > 0 && v != nil {
+			// An encode never spends more bits than H.264 needs for the source's quality, so a smaller
+			// profile is never larger than a copy (E2E: a 1.2 Mbit/s source in "low" outgrew "high").
+			// HEVC, AV1 and VP9 need about half the rate of H.264 for the same picture.
+			ceiling := videoKbps
+			if v.Codec != "h264" {
+				ceiling *= 2
+			}
+			c.VideoKbps = min(c.VideoKbps, max(ceiling, minTranscodeKbps))
+		}
+		c.Target = transcode.Target{
+			Mode: transcode.ModeTranscode, AudioCopy: c.AudioCopy, MaxHeight: prof.MaxHeight, Tonemap: hdr,
+			SubtitleBurnIn: -1, AudioStream: audio, MaxBitrate: c.VideoKbps * 1000, ConstantRate: true,
+			AudioBitrate: prof.AudioBitrate,
+		}
 	}
 	c.EstimatedBytes = estimate(c.VideoKbps+c.AudioKbps, d)
 	return c
@@ -232,6 +242,10 @@ func transcodeKbps(prof model.DownloadProfile, height int) int {
 	}
 	return rate
 }
+
+// minTranscodeKbps is the lowest constant video rate of a download encode, also for sources whose
+// own video rate is lower.
+const minTranscodeKbps = 300
 
 // estimate is the size of a file of kbps over d with the container overhead.
 func estimate(kbps int, d time.Duration) int64 {

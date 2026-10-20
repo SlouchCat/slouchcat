@@ -60,7 +60,15 @@ func TestDecidePerProfileAndSource(t *testing.T) {
 			want{audioCopy: true, w: 854, h: 480, videoKbps: 2000}},
 		// 10 bit, HEVC, HDR10, Dolby Vision 5: always encoded; HDR and DV tonemapped.
 		{"h264 high 10", media("h264", "yuv420p10le", "", 0, 1920, 1080, 4_000_000, "aac", 2), model.DownloadHigh,
-			want{audioCopy: true, w: 1920, h: 1080, videoKbps: 6000}},
+			want{audioCopy: true, w: 1920, h: 1080, videoKbps: 3840}},
+		// An encode spends at most the source's video rate (H.264) or twice it (HEVC, AV1, VP9), and
+		// at least 300 kbit/s.
+		{"h264 1080p 1.2 Mbit/s low", media("h264", "yuv420p", "", 0, 1920, 1080, 1_200_000, "aac", 2), model.DownloadLow,
+			want{audioCopy: true, w: 852, h: 480, videoKbps: 1040}},
+		{"h264 1080p 0.36 Mbit/s low", media("h264", "yuv420p", "", 0, 1920, 1080, 360_000, "aac", 2), model.DownloadLow,
+			want{audioCopy: true, w: 852, h: 480, videoKbps: 300}},
+		{"hevc 1080p 2 Mbit/s high", media("hevc", "yuv420p", "", 0, 1920, 1080, 2_160_000, "aac", 2), model.DownloadHigh,
+			want{audioCopy: true, w: 1920, h: 1080, videoKbps: 4000}},
 		{"hevc sdr 1080p", media("hevc", "yuv420p", "", 0, 1920, 1080, 4_000_000, "aac", 2), model.DownloadHigh,
 			want{audioCopy: true, w: 1920, h: 1080, videoKbps: 6000}},
 		{"hevc hdr10 4k medium", media("hevc", "yuv420p10le", "smpte2084", 0, 3840, 2160, 40_000_000, "eac3", 6), model.DownloadMedium,
@@ -90,7 +98,8 @@ func TestDecidePerProfileAndSource(t *testing.T) {
 				c.Target.AudioBitrate != profile(tc.quality).AudioBitrate || c.Target.SubtitleBurnIn != -1 {
 				t.Errorf("target = %+v", c.Target)
 			}
-			if !c.Copy && (!c.Target.ConstantRate || c.Target.MaxBitrate != profile(tc.quality).VideoBitrate*1000 ||
+			if !c.Copy && (!c.Target.ConstantRate || c.Target.MaxBitrate != c.VideoKbps*1000 ||
+				c.VideoKbps > profile(tc.quality).VideoBitrate ||
 				c.Target.MaxHeight != profile(tc.quality).MaxHeight) {
 				t.Errorf("transcode target without the profile's constant rate: %+v", c.Target)
 			}
