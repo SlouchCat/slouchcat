@@ -298,7 +298,12 @@ func (k *lazyKeys) YouTubeKey(ctx context.Context) (string, error) {
 // (playback.WithSubtitleConverter) text subtitles answer 404. The returned function stops every
 // transcode on shutdown.
 func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner transcode.Runner, keyring *secrets.Keyring, log *slog.Logger) (*playback.Service, func()) {
-	opts := []playback.Option{playback.WithTokenKey(keyring.Derive("stream-token")), playback.WithCacheDir(cfg.CacheDir)}
+	opts := []playback.Option{
+		playback.WithTokenKey(keyring.Derive("stream-token")), playback.WithCacheDir(cfg.CacheDir),
+		// WebVTT conversion of text subtitles (W-4) runs through ffmpeg even when no transcode
+		// backend is usable: the converter only needs the binary.
+		playback.WithSubtitleConverter(runner.Subtitles, runner.SubtitlesFile),
+	}
 	backend, caps, err := transcode.Detect(ctx, runner, cfg.HW, log)
 	if err != nil {
 		log.Error("transcode backend detection failed; HLS disabled, titles play directly only", "hw", cfg.HW, "err", err)
@@ -313,7 +318,8 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 		return playback.New(db, log, opts...), func() {}
 	}
 	stats := mgr.Stats()
-	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap, "ffmpeg", caps.Version)
+	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap,
+		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version)
 	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)), playback.WithKeyframeIndex(runner.Keyframes))
 	return playback.New(db, log, opts...), mgr.Close
 }
