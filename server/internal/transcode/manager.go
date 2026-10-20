@@ -61,12 +61,17 @@ type Stats struct {
 	Running   int     // sessions with a running ffmpeg
 	Cold      int     // sessions whose files were removed after RemoveAfterIdle
 	DiskBytes int64   // size of the files in the work directory
+	// Downloads counts the download leases (AcquireDownload) holding budget, preempted ones until
+	// they are released; DownloadUsed is their cost. Used + DownloadUsed is the budget in use.
+	Downloads    int
+	DownloadUsed float64
 }
 
 // Manager owns all HLS sessions of the process and the admission control (plan 3.5): the cost of
 // the sessions holding budget never exceeds it, except that a session resuming after an idle stop
 // always gets its budget back (live playback must not fail mid-film). Waiting Starts are admitted
-// in arrival order.
+// in arrival order. Download encodes hold budget through leases (AcquireDownload) and yield to
+// live playback.
 type Manager struct {
 	runner         Runner
 	caps           Capabilities
@@ -85,8 +90,9 @@ type Manager struct {
 	mu       sync.Mutex
 	sessions map[string]*Session
 	used     float64
-	waiting  []*admission  // Starts waiting for budget, in arrival order
-	freed    chan struct{} // closed and replaced when budget is released or the queue changes
+	waiting  []*admission     // Starts waiting for budget, in arrival order
+	leases   []*DownloadLease // download leases holding budget, oldest first
+	freed    chan struct{}    // closed and replaced when budget is released or the queue changes
 	closed   bool
 	stop     chan struct{}
 	stopped  chan struct{}
@@ -164,7 +170,9 @@ func NewManager(o ManagerOptions) (*Manager, error) {
 // Start admits the session (waits up to 10 s for budget, in arrival order, then ErrBusy), starts
 // ffmpeg at startSegment (0 for playback from the start, the resume segment otherwise) and
 // returns. id is the playback session id (ULID). A session that alone exceeds the budget is
-// admitted when nothing else holds budget.
+// admitted when nothing else holds budget. When download leases hold the budget it lacks, the
+// first waiting Start preempts them, newest first, as far as that makes room, and is admitted
+// once they are released.
 func (m *Manager) Start(ctx context.Context, id string, src Source, plan Plan, startSegment int) (*Session, error) {
 	if !validID.MatchString(id) {
 		return nil, fmt.Errorf("invalid transcode session id %q", id)
@@ -190,10 +198,15 @@ func (m *Manager) Start(ctx context.Context, id string, src Source, plan Plan, s
 			m.mu.Unlock()
 			return nil, fmt.Errorf("transcode session %s exists", id)
 		}
+		cost, held := m.cost(plan), m.used+m.leaseUnitsLocked(false)
 		first := len(m.waiting) == 0 || m.waiting[0] == w
-		if first && (m.used == 0 || m.used+m.cost(plan) <= m.budget) {
+		if first && (held == 0 || held+cost <= m.budget) {
 			m.leaveLocked(w)
 			break
+		}
+		if first && (m.used == 0 || m.used+cost <= m.budget) {
+			// Without the download leases there is room: live playback has priority.
+			m.preemptLocked(func(leases float64) bool { return m.used+leases == 0 || m.used+leases+cost <= m.budget })
 		}
 		if w == nil {
 			w = &admission{cost: m.cost(plan)}
@@ -292,6 +305,13 @@ func (m *Manager) Close() {
 	}
 	m.closed = true
 	m.cancel() // every ffmpeg gets SIGTERM, even one of a session that is still starting
+	// Download encodes stop too.
+	for _, l := range m.leases {
+		if !l.stopping {
+			l.stopping = true
+			close(l.preempted)
+		}
+	}
 	m.wakeLocked()
 	sessions := make([]*Session, 0, len(m.sessions))
 	for id, s := range m.sessions {
@@ -311,7 +331,8 @@ func (m *Manager) Close() {
 // Stats returns a snapshot of the budget, the sessions and the disk usage of the work directory.
 func (m *Manager) Stats() Stats {
 	m.mu.Lock()
-	st := Stats{Backend: m.caps.Backend, Budget: m.budget, Used: m.used, Sessions: len(m.sessions)}
+	st := Stats{Backend: m.caps.Backend, Budget: m.budget, Used: m.used, Sessions: len(m.sessions),
+		Downloads: len(m.leases), DownloadUsed: m.leaseUnitsLocked(false)}
 	sessions := make([]*Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		sessions = append(sessions, s)
@@ -349,10 +370,12 @@ func (m *Manager) cost(p Plan) float64 {
 	return p.Cost
 }
 
-// acquire takes budget without waiting (resume of an admitted session).
+// acquire takes budget without waiting (resume of an admitted session). Download leases that no
+// longer fit next to the live sessions are preempted.
 func (m *Manager) acquire(cost float64) {
 	m.mu.Lock()
 	m.used += cost
+	m.preemptLocked(func(leases float64) bool { return m.used+leases <= m.budget })
 	m.mu.Unlock()
 }
 

@@ -114,7 +114,11 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 		if p.Target.AudioCopy {
 			args = append(args, "-c:a", "copy")
 		} else {
-			args = append(args, "-c:a", "aac", "-b:a", strconv.Itoa(audioBitrate/1000)+"k", "-ac", "2")
+			kbps := audioBitrate / 1000
+			if p.Target.AudioBitrate > 0 {
+				kbps = p.Target.AudioBitrate
+			}
+			args = append(args, "-c:a", "aac", "-b:a", strconv.Itoa(kbps)+"k", "-ac", "2")
 		}
 	}
 
@@ -260,6 +264,12 @@ func tonemapperOf(caps Capabilities) string {
 // videoPipeline returns the input options (hardware decoding), the filter chain and the encoder
 // options of the transcode backend. It always scales before tonemapping (plan 3.5).
 //
+// Rate control: HLS encodes at constant quality capped at the plan's VideoBitrate (maxrate,
+// bufsize 2 s). Target.ConstantRate (downloads, O-1) encodes at a constant bit rate of
+// VideoBitrate instead, so the size is predictable: libx264 with b = minrate = maxrate and
+// nal-hrd=cbr (filler data), NVENC -rc cbr, QSV b = maxrate (the encoder then picks CBR), VAAPI
+// -rc_mode CBR.
+//
 // HDR per backend: NVENC uses tonemap_cuda when the build has it (jellyfin-ffmpeg), else
 // libplacebo over Vulkan (bt.2390; the Vulkan device is derived from the CUDA device, frames go
 // through system memory), else the CPU chain; QSV tonemaps in vpp_qsv, VAAPI in tonemap_vaapi
@@ -277,7 +287,7 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 		br = rungFor(p.Height).Bitrate
 	}
 	maxrate, bufsize := strconv.Itoa(br), strconv.Itoa(2*br)
-	tonemap := p.Target.Tonemap
+	tonemap, cbr := p.Target.Tonemap, p.Target.ConstantRate
 	tm := tonemapperOf(caps)
 	var c chain
 	placebo := caps.Backend == BackendNVENC && tm == TonemapPlacebo && hwDecodable(v)
@@ -311,9 +321,13 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 		default:
 			c.body = append(c.body, softwareChain(w, h, tonemap)...)
 		}
-		c.enc = []string{"-c:v", "h264_nvenc", "-preset", "p4", "-tune", "hq", "-rc", "vbr", "-cq", "23", "-b:v", "0",
+		rc := []string{"-rc", "vbr", "-cq", "23", "-b:v", "0"}
+		if cbr {
+			rc = []string{"-rc", "cbr", "-b:v", maxrate}
+		}
+		c.enc = slices.Concat([]string{"-c:v", "h264_nvenc", "-preset", "p4", "-tune", "hq"}, rc, []string{
 			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", "4.1",
-			"-g", noAutoKeyframes, "-no-scenecut", "1", "-forced-idr", "1"}
+			"-g", noAutoKeyframes, "-no-scenecut", "1", "-forced-idr", "1"})
 	case BackendQSV:
 		c.in = []string{"-init_hw_device", "vaapi=va:" + vaapiDevice, "-init_hw_device", "qsv=qs@va", "-filter_hw_device", "qs"}
 		c.upload = []string{"format=nv12", "hwupload=extra_hw_frames=64"}
@@ -338,9 +352,13 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 			c.body = append(c.body, cpuTonemap()...)
 			c.hwOut = false
 		}
-		c.enc = []string{"-c:v", "h264_qsv", "-preset", "veryfast", "-global_quality", "23", "-look_ahead", "0",
+		rc := []string{"-global_quality", "23"}
+		if cbr {
+			rc = []string{"-b:v", maxrate}
+		}
+		c.enc = slices.Concat([]string{"-c:v", "h264_qsv", "-preset", "veryfast"}, rc, []string{"-look_ahead", "0",
 			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", "41",
-			"-g", noAutoKeyframes, "-forced_idr", "1"}
+			"-g", noAutoKeyframes, "-forced_idr", "1"})
 	case BackendVAAPI:
 		c.in = []string{"-init_hw_device", "vaapi=va:" + vaapiDevice, "-filter_hw_device", "va"}
 		c.upload = []string{"format=nv12", "hwupload"}
@@ -361,13 +379,22 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 		default:
 			c.body = append(c.body, softwareChain(w, h, tonemap)...)
 		}
-		c.enc = []string{"-c:v", "h264_vaapi", "-rc_mode", "VBR", "-b:v", maxrate, "-maxrate", maxrate,
+		mode := "VBR"
+		if cbr {
+			mode = "CBR"
+		}
+		c.enc = []string{"-c:v", "h264_vaapi", "-rc_mode", mode, "-b:v", maxrate, "-maxrate", maxrate,
 			"-bufsize", bufsize, "-profile:v", "high", "-level:v", "4.1", "-g", noAutoKeyframes}
 	default:
 		c.body = append(c.body, softwareChain(w, h, tonemap)...)
-		c.enc = []string{"-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", "4.1",
-			"-g", noAutoKeyframes, "-sc_threshold", "0"}
+		rc := []string{"-crf", "23", "-maxrate", maxrate, "-bufsize", bufsize}
+		if cbr {
+			// nal-hrd=cbr pads with filler data up to the rate (the only x264 parameter of the chain).
+			rc = []string{"-b:v", maxrate, "-minrate", maxrate, "-maxrate", maxrate, "-bufsize", bufsize,
+				"-x264-params", "nal-hrd=cbr"}
+		}
+		c.enc = slices.Concat([]string{"-c:v", "libx264", "-preset", "veryfast"}, rc, []string{
+			"-profile:v", "high", "-level:v", "4.1", "-g", noAutoKeyframes, "-sc_threshold", "0"})
 	}
 	return c
 }

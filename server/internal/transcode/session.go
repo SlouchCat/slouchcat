@@ -293,27 +293,24 @@ func (s *Session) startLocked(i int) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(s.m.ctx)
-	cmd := exec.CommandContext(ctx, s.m.runner.FFmpegPath, args...) //nolint:gosec // G204: configured binary, argument list from ffmpegArgs
-	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
-	cmd.WaitDelay = killGrace
-	r := &run{start: i, next: i, dir: dir, cmd: cmd, cancel: cancel, exited: make(chan struct{}), stderr: &tailWriter{}}
+	tail := &tailWriter{}
+	var stderr io.Writer = tail
 	logf, err := os.OpenFile(filepath.Join(s.dir, logName), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err == nil {
 		_, _ = fmt.Fprintf(logf, "--- run %d from segment %d\n", s.runs, i)
-		cmd.Stderr = io.MultiWriter(logf, r.stderr)
-	} else {
-		cmd.Stderr = r.stderr
+		stderr = io.MultiWriter(logf, tail)
 	}
-	if err := cmd.Start(); err != nil {
+	ctx, cancel := context.WithCancel(s.m.ctx)
+	cmd, err := startFFmpeg(ctx, s.m.runner.FFmpegPath, args, stderr, s.log)
+	if err != nil {
 		cancel()
 		if logf != nil {
 			_ = logf.Close()
 		}
 		_ = os.RemoveAll(dir)
-		return fmt.Errorf("start ffmpeg: %w", err)
+		return err
 	}
-	deprioritize(cmd.Process.Pid, s.log)
+	r := &run{start: i, next: i, dir: dir, cmd: cmd, cancel: cancel, exited: make(chan struct{}), stderr: tail}
 	s.log.Debug("ffmpeg started", "session", s.id, "segment", i, "pid", cmd.Process.Pid)
 	s.err = nil
 	s.run = r
@@ -356,22 +353,11 @@ func (s *Session) releaseLocked() {
 
 // watch polls the segment list of a run until the process exits.
 func (s *Session) watch(r *run, logf *os.File) {
-	waitErr := make(chan error, 1)
-	go func() { waitErr <- r.cmd.Wait() }()
-	t := time.NewTicker(pollInterval)
-	defer t.Stop()
-	for {
-		select {
-		case err := <-waitErr:
-			s.collect(r, true)
-			s.finish(r, err)
-			if logf != nil {
-				_ = logf.Close()
-			}
-			return
-		case <-t.C:
-			s.collect(r, false)
-		}
+	err := pollUntilExit(r.cmd, func() { s.collect(r, false) })
+	s.collect(r, true)
+	s.finish(r, err)
+	if logf != nil {
+		_ = logf.Close()
 	}
 }
 
@@ -412,18 +398,11 @@ func (s *Session) collect(r *run, final bool) {
 		}
 
 		s.mu.Lock()
-		if errors.Is(err, errIncomplete) && !final {
-			now := time.Now()
-			if r.stalled.IsZero() {
-				r.stalled = now
-			}
-			if now.Sub(r.stalled) <= s.m.incompleteWait {
-				s.mu.Unlock()
-				return
-			}
-			err = fmt.Errorf("segment %d still incomplete after %v: %w", k, s.m.incompleteWait, err)
+		var retry bool
+		if retry, err = stallCheck(err, final, &r.stalled, s.m.incompleteWait, k); retry {
+			s.mu.Unlock()
+			return
 		}
-		r.stalled = time.Time{}
 		if err != nil {
 			if !r.killed && !s.closed {
 				s.log.Error("publish segment", "session", s.id, "segment", k, "err", err)
@@ -557,6 +536,57 @@ func (s *Session) state() (running, cold bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.run != nil, s.cold
+}
+
+// stallCheck applies the rule for a listed segment whose data is not completely on disk yet
+// (err wraps errIncomplete): while the process runs (not final) the caller retries it on the next
+// poll for up to wait from the first incomplete check; after that, or once the process has exited,
+// it is an error. since holds the time of the first incomplete check (zero when none is pending).
+// Any other err (nil included) is returned unchanged.
+func stallCheck(err error, final bool, since *time.Time, wait time.Duration, k int) (retry bool, _ error) {
+	if errors.Is(err, errIncomplete) && !final {
+		now := time.Now()
+		if since.IsZero() {
+			*since = now
+		}
+		if now.Sub(*since) <= wait {
+			return true, nil
+		}
+		err = fmt.Errorf("segment %d still incomplete after %v: %w", k, wait, err)
+	}
+	*since = time.Time{}
+	return false, err
+}
+
+// startFFmpeg starts ffmpeg with args. Canceling ctx sends SIGTERM, SIGKILL follows after
+// killGrace; the process runs with a lower priority (deprioritize).
+func startFFmpeg(ctx context.Context, ffmpeg string, args []string, stderr io.Writer, log *slog.Logger) (*exec.Cmd, error) {
+	cmd := exec.CommandContext(ctx, ffmpeg, args...) //nolint:gosec // G204: configured binary, argument list from ffmpegArgs
+	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	cmd.WaitDelay = killGrace
+	cmd.Stderr = stderr
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("start ffmpeg: %w", err)
+	}
+	deprioritize(cmd.Process.Pid, log)
+	return cmd, nil
+}
+
+// pollUntilExit waits for cmd to exit, calling poll every pollInterval meanwhile, and returns the
+// result of cmd.Wait.
+func pollUntilExit(cmd *exec.Cmd, poll func()) error {
+	waitErr := make(chan error, 1)
+	go func() { waitErr <- cmd.Wait() }()
+	t := time.NewTicker(pollInterval)
+	defer t.Stop()
+	for {
+		select {
+		case err := <-waitErr:
+			return err
+		case <-t.C:
+			poll()
+		}
+	}
 }
 
 // deprioritize lowers the CPU priority (nice 10) and makes ffmpeg the preferred victim of the
