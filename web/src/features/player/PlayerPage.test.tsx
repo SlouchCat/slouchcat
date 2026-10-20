@@ -127,10 +127,21 @@ describe('player', () => {
     });
     expect(video).toHaveAttribute('src', `/api/v1/items/${ids.alien}/stream?st=ps-1.token`);
     expect(video).toHaveAttribute('preload', 'auto');
-    // The client reports what it can play (jsdom: everything the stub allows, no MSE).
+    // The client reports its device profile (jsdom: everything the stub allows, no MSE) and
+    // no choices: the server picks tracks, quality and the resume position.
     const start = calls.find((call) => call.method === 'POST' && call.path.endsWith('/play'));
     expect(start?.body).toEqual({
-      capabilities: { video: ['h264', 'hevc'], audio: ['aac', 'ac3', 'eac3'], hls: 'native' },
+      capabilities: {
+        containers: ['mp4', 'webm', 'mkv'],
+        video: ['h264', 'hevc', 'av1', 'vp9'],
+        audio: ['aac', 'ac3', 'eac3', 'opus', 'flac', 'mp3'],
+        hls: 'native',
+        maxWidth: expect.any(Number) as number,
+        maxHeight: expect.any(Number) as number,
+        hdr: false,
+        type: 'desktop',
+      },
+      subtitleDelivery: 'auto',
     });
 
     act(() => {
@@ -161,6 +172,7 @@ describe('player', () => {
     expect(events.map((event) => event.seq)).toEqual([1, 2, 3, 4]);
     expect(events[0]).toMatchObject({
       mediaFileId: 'mf-1',
+      playbackSessionId: 'ps-1',
       positionMs: 2_543_000,
       durationMs: 7_020_000,
     });

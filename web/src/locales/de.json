@@ -59,7 +59,9 @@
       "primary_profile": "Das Hauptprofil kann nicht gelöscht werden.",
       "invitation_gone": "Dieser Einladungslink ist nicht mehr gültig.",
       "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut.",
-      "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers."
+      "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers.",
+      "watch_limit_reached": "Die Schauzeit dieses Profils für heute ist aufgebraucht.",
+      "stream_limit_reached": "Dieses Profil spielt schon so viele Streams wie erlaubt."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -239,7 +241,7 @@
     },
     "info": "Stream-Info",
     "version": "Version",
-    "switching": "Version wird gewechselt …",
+    "switching": "Wird umgestellt …",
     "streamInfo": {
       "title": "Stream-Info",
       "mode": "Modus",
@@ -248,7 +250,6 @@
       "transcoding": "Umwandlung",
       "remux": "Remux",
       "transcode": "Transcode",
-      "backend": "Backend",
       "reason": "Grund",
       "reasons": {
         "container": "Container",
@@ -256,7 +257,14 @@
         "audio_codec": "Audiocodec",
         "hdr": "HDR-Video",
         "pixel_format": "Pixelformat (10 Bit, 4:2:2 oder 4:4:4)",
-        "keyframes_pending": "Keyframe-Index wird erstellt"
+        "keyframes_pending": "Keyframe-Index wird erstellt",
+        "dolby_vision": "Dolby Vision (Profil 5 oder 7)",
+        "bandwidth": "Bandbreiten-Limit",
+        "max_height": "Qualitäts-Limit",
+        "quality": "Gewählte Qualität",
+        "audio_track": "Gewählte Tonspur",
+        "subtitle_burn": "Eingebrannte Untertitel",
+        "budget_lowered": "Server ausgelastet, Qualität gesenkt"
       },
       "mediaFile": "Datei-ID",
       "version": "Version",
@@ -264,9 +272,75 @@
       "video": "Video",
       "audio": "Audio",
       "resolution": "Auflösung",
-      "none": "–"
+      "none": "–",
+      "encoder": "Encoder",
+      "hardware": "Hardware ({{backend}})",
+      "software": "Software",
+      "tonemap": "Tonemapping",
+      "yes": "Ja",
+      "no": "Nein",
+      "quality": "Qualität",
+      "original": "Original",
+      "output": "Ausgabe",
+      "bitrate": "Bitrate",
+      "audioTrack": "Tonspur",
+      "subtitle": "Untertitel",
+      "delivery": "Untertitel als",
+      "deliveryText": "Text (WebVTT)",
+      "deliveryBurn": "Eingebrannt"
     },
-    "versionButton": "Version: {{label}}"
+    "versionButton": "Version: {{label}}",
+    "tracks": {
+      "menu": "Spuren",
+      "button": "Spuren",
+      "audio": "Ton",
+      "subtitles": "Untertitel",
+      "off": "Aus",
+      "unknown": "Spur {{n}}",
+      "forced": "erzwungen",
+      "external": "extern"
+    },
+    "quality": {
+      "menu": "Qualität",
+      "button": "Qualität: {{label}}",
+      "auto": "Automatisch",
+      "autoWith": "Automatisch ({{quality}})"
+    },
+    "chapters": {
+      "menu": "Kapitel",
+      "button": "Kapitel",
+      "untitled": "Kapitel {{n}}",
+      "item": "{{title}} · {{time}}"
+    },
+    "skipIntro": "Intro überspringen",
+    "skipOutro": "Abspann überspringen",
+    "next": {
+      "title": "Nächste Folge",
+      "countdown_one": "Startet in {{count}} Sekunde",
+      "countdown_other": "Startet in {{count}} Sekunden",
+      "play": "Jetzt ansehen",
+      "cancel": "Abbrechen"
+    },
+    "watchLimit": {
+      "title": "Schauzeit für heute aufgebraucht",
+      "body_one": "Dieses Profil darf {{count}} Minute pro Tag schauen. Morgen geht es weiter.",
+      "body_other": "Dieses Profil darf {{count}} Minuten pro Tag schauen. Morgen geht es weiter.",
+      "bodyUnknown": "Das Tageslimit dieses Profils ist erreicht. Morgen geht es weiter.",
+      "used_one": "Heute geschaut: {{count}} Minute.",
+      "used_other": "Heute geschaut: {{count}} Minuten."
+    },
+    "streamLimit": {
+      "title": "Zu viele gleichzeitige Streams",
+      "body_one": "Dieses Profil darf {{count}} Stream gleichzeitig abspielen. Beende eine andere Wiedergabe und versuche es erneut.",
+      "body_other": "Dieses Profil darf {{count}} Streams gleichzeitig abspielen. Beende eine andere Wiedergabe und versuche es erneut.",
+      "bodyUnknown": "Dieses Profil spielt schon so viele Streams wie erlaubt. Beende eine andere Wiedergabe und versuche es erneut.",
+      "active_one": "Gerade läuft {{count}} Stream.",
+      "active_other": "Gerade laufen {{count}} Streams."
+    },
+    "endedByAdmin": {
+      "title": "Wiedergabe beendet",
+      "body": "Die Verwaltung hat diesen Stream beendet."
+    }
   },
   "admin": {
     "libraries": {

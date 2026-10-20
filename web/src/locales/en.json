@@ -59,7 +59,9 @@
       "primary_profile": "The primary profile cannot be deleted.",
       "invitation_gone": "This invitation link is no longer valid.",
       "too_many_attempts": "Too many attempts. Wait a moment and try again.",
-      "provider_not_configured": "This provider is not set up. Add its key to the server configuration."
+      "provider_not_configured": "This provider is not set up. Add its key to the server configuration.",
+      "watch_limit_reached": "This profile has used up today's watch time.",
+      "stream_limit_reached": "This profile already plays as many streams as allowed."
     },
     "field": {
       "required": "Required.",
@@ -239,7 +241,7 @@
     },
     "info": "Stream info",
     "version": "Version",
-    "switching": "Switching version …",
+    "switching": "Switching …",
     "streamInfo": {
       "title": "Stream info",
       "mode": "Mode",
@@ -248,7 +250,6 @@
       "transcoding": "Conversion",
       "remux": "Remux",
       "transcode": "Transcode",
-      "backend": "Backend",
       "reason": "Reason",
       "reasons": {
         "container": "Container",
@@ -256,7 +257,14 @@
         "audio_codec": "Audio codec",
         "hdr": "HDR video",
         "pixel_format": "Pixel format (10-bit, 4:2:2 or 4:4:4)",
-        "keyframes_pending": "Keyframe index pending"
+        "keyframes_pending": "Keyframe index pending",
+        "dolby_vision": "Dolby Vision (profile 5 or 7)",
+        "bandwidth": "Bandwidth limit",
+        "max_height": "Quality limit",
+        "quality": "Chosen quality",
+        "audio_track": "Chosen audio track",
+        "subtitle_burn": "Burned-in subtitles",
+        "budget_lowered": "Server busy, quality lowered"
       },
       "mediaFile": "File ID",
       "version": "Version",
@@ -264,9 +272,75 @@
       "video": "Video",
       "audio": "Audio",
       "resolution": "Resolution",
-      "none": "–"
+      "none": "–",
+      "encoder": "Encoder",
+      "hardware": "Hardware ({{backend}})",
+      "software": "Software",
+      "tonemap": "Tone mapping",
+      "yes": "Yes",
+      "no": "No",
+      "quality": "Quality",
+      "original": "Original",
+      "output": "Output",
+      "bitrate": "Bit rate",
+      "audioTrack": "Audio track",
+      "subtitle": "Subtitles",
+      "delivery": "Subtitles as",
+      "deliveryText": "Text (WebVTT)",
+      "deliveryBurn": "Burned in"
     },
-    "versionButton": "Version: {{label}}"
+    "versionButton": "Version: {{label}}",
+    "tracks": {
+      "menu": "Tracks",
+      "button": "Tracks",
+      "audio": "Audio",
+      "subtitles": "Subtitles",
+      "off": "Off",
+      "unknown": "Track {{n}}",
+      "forced": "forced",
+      "external": "external"
+    },
+    "quality": {
+      "menu": "Quality",
+      "button": "Quality: {{label}}",
+      "auto": "Automatic",
+      "autoWith": "Automatic ({{quality}})"
+    },
+    "chapters": {
+      "menu": "Chapters",
+      "button": "Chapters",
+      "untitled": "Chapter {{n}}",
+      "item": "{{title}} · {{time}}"
+    },
+    "skipIntro": "Skip intro",
+    "skipOutro": "Skip credits",
+    "next": {
+      "title": "Next episode",
+      "countdown_one": "Starts in {{count}} second",
+      "countdown_other": "Starts in {{count}} seconds",
+      "play": "Watch now",
+      "cancel": "Cancel"
+    },
+    "watchLimit": {
+      "title": "Today's watch time is used up",
+      "body_one": "This profile may watch {{count}} minute a day. See you tomorrow.",
+      "body_other": "This profile may watch {{count}} minutes a day. See you tomorrow.",
+      "bodyUnknown": "This profile reached its daily limit. See you tomorrow.",
+      "used_one": "Watched today: {{count}} minute.",
+      "used_other": "Watched today: {{count}} minutes."
+    },
+    "streamLimit": {
+      "title": "Too many streams at once",
+      "body_one": "This profile may play {{count}} stream at a time. Stop another playback and try again.",
+      "body_other": "This profile may play {{count}} streams at a time. Stop another playback and try again.",
+      "bodyUnknown": "This profile already plays as many streams as allowed. Stop another playback and try again.",
+      "active_one": "{{count}} stream is running.",
+      "active_other": "{{count}} streams are running."
+    },
+    "endedByAdmin": {
+      "title": "Playback ended",
+      "body": "The administrator ended this stream."
+    }
   },
   "admin": {
     "libraries": {

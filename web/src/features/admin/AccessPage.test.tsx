@@ -26,6 +26,7 @@ const guest: Guest = {
   profileCount: 2,
   createdAt: '2026-10-19T10:00:00Z',
   lastSeenAt: '2026-10-19T11:00:00Z',
+  limits: { maxHeight: 720 },
 };
 
 const access = (invitations: Invitation[] = [], guests: Guest[] = []): Routes => ({

@@ -23,7 +23,11 @@ export type Routes = Record<string, Reply>;
 
 export const json = (body: unknown, status = 200) => Response.json(body, { status });
 
-export const problem = (status: number, code: string, extra: Partial<Problem> = {}) =>
+export const problem = (
+  status: number,
+  code: string,
+  extra: Partial<Problem> & { extensions?: Record<string, number> } = {},
+) =>
   Response.json({ type: 'about:blank', title: code, status, code, ...extra } satisfies Problem, {
     status,
     headers: { 'Content-Type': 'application/problem+json' },
@@ -47,6 +51,8 @@ export const session: SessionInfo = {
     libraryIds: [],
     hasPin: false,
     isPrimary: true,
+    limits: {},
+    effectiveLimits: {},
   },
 };
 

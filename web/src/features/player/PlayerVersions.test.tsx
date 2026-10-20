@@ -174,7 +174,7 @@ describe('player: versions and stream info (B-5)', () => {
     await user.click(await screen.findByRole('menuitemradio', { name: '720p' }));
     const seekedTo = media.currentTime;
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Version wird gewechselt …');
+    expect(await screen.findByRole('status')).toHaveTextContent('Wird umgestellt …');
     expect(screen.getByRole('button', { name: 'Abspielen' })).toBeDisabled();
     fireEvent.keyDown(document.body, { key: ' ' });
     fireEvent.keyDown(document.body, { key: 'ArrowRight' });
