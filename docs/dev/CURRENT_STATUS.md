@@ -1,8 +1,8 @@
 # Aktueller Stand
 
 Stand: 20. Oktober 2026. M0, M1a, M1b und M2 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #4). **M3 ist auf dem Branch `claude/m3-library-complete` fertig** und wartet als
-Pull Request #5 (`https://github.com/SlouchCat/slouchcat/pull/5`) auf Marcos Wort zum Merge.
+Pull Requests #1 bis #4). **M3 ist in `main` gemerged** (Pull Request #5, gemerged am 20. Oktober 2026 auf
+Marcos Wort; GitHub-Checks `ci` und `image` grün, nach einer Korrektur eines zeitabhängigen Watcher-Tests aus M1a).
 
 ## Meilenstein M3 – Bibliothek komplett
 
