@@ -10,7 +10,14 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { H264_TITLE, itemIdByTitle, resetProgress, startOf, player } from './playback';
+import {
+  arrowBetweenRows,
+  H264_TITLE,
+  itemIdByTitle,
+  player,
+  resetProgress,
+  startOf,
+} from './playback';
 
 // W-7: after a playback the device shows owner, last contact (±1 min), containers, codecs,
 // maximum resolution and HDR as the browser reported them. "Vergessen" removes a device; the
@@ -34,8 +41,8 @@ interface DeviceData {
 
 const upper = (list: string[] | undefined) => (list ?? []).map((v) => v.toUpperCase()).join(', ');
 
-const deviceRow = (page: Page, name: string) =>
-  page.getByRole('rowheader', { name, exact: true }).locator('xpath=..');
+/** The row of a device by its id (DataTable's data-row-key): names repeat across contexts. */
+const deviceRow = (page: Page, id: string) => page.locator(`tr[data-row-key="${id}"]`);
 
 test('after a playback the device row shows owner, last contact and the reported profile', async ({
   page,
@@ -62,7 +69,8 @@ test('after a playback the device row shows owner, last contact and the reported
 
   await page.goto('/admin/devices');
   await expect(page.getByRole('heading', { level: 1, name: 'Geräte' })).toBeVisible();
-  const row = deviceRow(page, device!.name ?? 'Unbekanntes Gerät').first();
+  const row = deviceRow(page, deviceId!);
+  await expect(row.getByRole('rowheader')).toHaveText(device!.name ?? 'Unbekanntes Gerät');
   await expect(row).toContainText(`${OWNER.email} · ${OWNER_PROFILE}`);
   await expect(row).toContainText(upper(reported.containers));
   await expect(row).toContainText(upper(reported.video));
@@ -100,20 +108,21 @@ test('forgets a throw-away device by keyboard; its session ends', async ({
       },
     });
     expect(started.status(), await started.text()).toBe(200);
+    const deviceId = ((await started.json()) as { device?: { id: string } }).device?.id;
+    expect(deviceId, 'PlaybackInfo.device').toBeTruthy();
 
     await page.goto('/admin/devices');
     const table = page.getByRole('table', { name: 'Geräte' });
     await expect(table).toBeVisible();
-    await expect(deviceRow(page, name)).toContainText('Anderes');
+    const row = deviceRow(page, deviceId!);
+    await expect(row.getByRole('rowheader')).toHaveText(name);
+    await expect(row).toContainText('Anderes');
 
     // From the top of the page to the first "Vergessen", then ↓ to the throw-away device.
     await resetFocus(page);
-    const forget = page.getByRole('button', { name: `${name} vergessen` });
+    const forget = row.getByRole('button', { name: `${name} vergessen` });
     await tabTo(page, page.getByRole('button', { name: /vergessen$/ }).first(), 40);
-    for (let presses = 0; presses < 20; presses += 1) {
-      if (await forget.evaluate((element) => element === document.activeElement)) break;
-      await page.keyboard.press('ArrowDown');
-    }
+    await arrowBetweenRows(page, forget);
     await expectFocusOn(page, forget);
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('alertdialog', { name: `Gerät „${name}“ vergessen?` });
@@ -127,7 +136,7 @@ test('forgets a throw-away device by keyboard; its session ends', async ({
     await page.keyboard.press('Enter');
 
     await expect(page.getByText(`Gerät „${name}“ vergessen.`)).toBeVisible();
-    await expect(deviceRow(page, name)).toHaveCount(0);
+    await expect(row).toHaveCount(0);
     // The device's session is signed out.
     const session = await throwaway.request.get('/api/v1/auth/session');
     expect(session.status()).toBe(401);

@@ -132,6 +132,8 @@ test.describe('intro show', () => {
 
   test('Escape cancels the countdown; N plays the next episode at once', async ({ page }) => {
     test.setTimeout(60_000);
+    // The page's timers run on Playwright's clock, so the ten seconds can be skipped below.
+    await page.clock.install();
     await resetProgress(page.request, episodes[0]);
     const info = await play(page, episodes[0]);
     await page.locator('video').evaluate((video: HTMLVideoElement) => {
@@ -139,11 +141,14 @@ test.describe('intro show', () => {
     });
     const countdown = page.getByRole('region', { name: 'Nächste Folge' });
     await expect(countdown).toBeVisible({ timeout: 10_000 });
+    await expect(countdown.getByText(/^Startet in \d+ Sekunden?$/)).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(countdown).toHaveCount(0);
     await expect(player(page)).not.toHaveAttribute('data-autonext', /.+/);
-    // Cancelled: no navigation after the ten seconds, and Escape did not leave the player.
-    await page.waitForTimeout(11_000);
+    // Cancelled: no navigation after the ten seconds (skipped on the clock; a running countdown
+    // would navigate within its next 250-ms tick), and Escape did not leave the player.
+    await page.clock.runFor(11_000);
+    await expect(player(page)).not.toHaveAttribute('data-autonext', /.+/);
     await expect(page).toHaveURL(new RegExp(`/play/${episodes[0]}$`));
 
     const next = await startOf(page, () => page.keyboard.press('n'));

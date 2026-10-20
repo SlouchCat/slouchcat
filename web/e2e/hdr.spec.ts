@@ -24,7 +24,8 @@ test('HDR10 4K: transcode with tonemapping, at most 1080p, starts within 5 s', a
   expect(body.transcoding?.mode).toBe('transcode');
   expect(body.transcoding?.reason).toBe('hdr');
   expect(body.transcoding?.tonemap).toBe(true);
-  expect(body.transcoding?.height ?? 0).toBeLessThanOrEqual(1080);
+  expect(body.transcoding?.height).toBeDefined();
+  expect(body.transcoding!.height).toBeLessThanOrEqual(1080);
 
   await expect(player(page)).toHaveAttribute('data-engine', 'hlsjs');
   await expect(player(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 30_000 });

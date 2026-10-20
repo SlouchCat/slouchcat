@@ -11,6 +11,7 @@ import {
   tabTo,
 } from './keyboard';
 import {
+  arrowBetweenRows,
   H264_TITLE,
   itemIdByTitle,
   limitCapabilities,
@@ -107,10 +108,7 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
       name: `Stream von ${viewerProfile} beenden`,
     });
     await tabTo(overview, stopOwner.or(stopViewer).first(), 40);
-    for (let presses = 0; presses < 10; presses += 1) {
-      if (await stopViewer.evaluate((element) => element === document.activeElement)) break;
-      await overview.keyboard.press('ArrowDown');
-    }
+    await arrowBetweenRows(overview, stopViewer);
     await expectFocusOn(overview, stopViewer);
     await overview.keyboard.press('Enter');
     const dialog = overview.getByRole('alertdialog', {

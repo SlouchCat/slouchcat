@@ -46,6 +46,8 @@ test('choosing 480p by keyboard starts a new session with a 480p transcode', asy
   expect(second.body.transcoding?.mode).toBe('transcode');
   expect(second.body.transcoding?.height).toBe(480);
   expect(second.body.transcoding?.reason).toBe('quality');
+  // The player's button follows the rung the server marks as current (rule 12).
+  expect(second.body.qualities.find((option) => option.current)?.quality).toBe('480p');
 
   await expect(player(page)).toHaveAttribute(
     'data-playback-session-id',
@@ -68,10 +70,12 @@ test('a profile limit of 720p: automatic quality plays at most 720p', async ({ p
   const info = await play(page, itemId);
   // The 1080p source is above the limit: transcoded to the 720p rung.
   expect(info.mode).toBe('hls');
-  expect(info.transcoding?.height ?? 0).toBeLessThanOrEqual(720);
+  expect(info.transcoding?.height).toBeDefined();
+  expect(info.transcoding!.height).toBeLessThanOrEqual(720);
   expect(info.transcoding?.reason).toBe('max_height');
   const rung1080 = info.qualities.find((option) => option.quality === '1080p');
-  expect(rung1080?.available ?? false).toBe(false);
+  expect(rung1080, 'the 1080p rung').toBeDefined();
+  expect(rung1080!.available).toBe(false);
 
   await page.keyboard.press('q');
   const menu = page.getByRole('menu', { name: /^Qualität/ });
@@ -92,9 +96,11 @@ test('a bandwidth limit of 4000 kbit/s keeps the bit rate at or below 4 Mbit/s',
   await useFreshProfile(page, owner, 'E2E 4 Mbit', { maxBitrateKbps: 4000 });
   const info = await play(page, itemId);
   expect(info.mode).toBe('hls');
-  expect(info.transcoding?.bitrate ?? Infinity).toBeLessThanOrEqual(4_000_000);
+  expect(info.transcoding?.bitrate).toBeDefined();
+  expect(info.transcoding!.bitrate).toBeLessThanOrEqual(4_000_000);
   const rung1080 = info.qualities.find((option) => option.quality === '1080p');
-  expect(rung1080?.available ?? false).toBe(false);
+  expect(rung1080, 'the 1080p rung').toBeDefined();
+  expect(rung1080!.available).toBe(false);
 });
 
 test('one stream per profile: a second start answers 409 and the page shows the hint', async ({

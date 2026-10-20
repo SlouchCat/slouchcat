@@ -130,6 +130,22 @@ export async function arrowTo(
 }
 
 /**
+ * Moves the focus with ↑/↓ from the focused control in a table row to `target` in another row;
+ * at least one arrow key has to move it. When the focus starts on `target` itself (the first row),
+ * ↓ leaves it and ↑ comes back.
+ */
+export async function arrowBetweenRows(page: Page, target: Locator): Promise<void> {
+  const onTarget = () => target.evaluate((element) => element === document.activeElement);
+  if (await onTarget()) {
+    await page.keyboard.press('ArrowDown');
+    expect(await onTarget(), 'ArrowDown moved the focus to the next row').toBe(false);
+    await arrowTo(page, target, 'ArrowUp');
+  } else {
+    await arrowTo(page, target, 'ArrowDown');
+  }
+}
+
+/**
  * Narrows what the page reports with startPlayback (W-1): Chromium and Firefox claim the MKV
  * container, and Firefox on Linux decodes HEVC through the system ffmpeg, so the server would
  * play such files directly. Specs that measure the remux or transcode path report only `video`

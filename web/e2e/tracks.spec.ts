@@ -10,6 +10,7 @@ import {
   recordEndedReason,
   resetProgress,
   startOf,
+  videoState,
 } from './playback';
 
 // W-4: audio and subtitle tracks. A switch is a new playback session at the current position
@@ -45,10 +46,14 @@ test('switching the audio track to AC3 English: new session within 3 s, Stream-I
   await expectVisibleFocus(page);
 
   const endedReason = await recordEndedReason(page);
+  // The new session starts where the old one was (W-4): the position of the switch request
+  // matches the player's time just before the switch.
+  const beforeMs = (await videoState(page)).time * 1000;
   const second = await startOf(page, () => page.keyboard.press('Enter'));
   expect(second.status).toBe(200);
   expect(second.request.audioTrack).toBe(ac3!.index);
-  expect(second.request.positionMs).toBeGreaterThanOrEqual(0);
+  expect(second.request.positionMs).toBeDefined();
+  expect(Math.abs(second.request.positionMs! - beforeMs)).toBeLessThanOrEqual(2000);
   expect(second.body.playbackSessionId).not.toBe(first.playbackSessionId);
   expect(second.body.selection.audioTrack).toBe(ac3!.index);
 
