@@ -638,6 +638,7 @@ type StreamSource struct {
 	Size      int64
 	ModTime   time.Time
 	Name      string // for logging only, never a host path with user data
+	ETag      string // strong validator (quoted) for If-Range; empty = none
 }
 
 // LibraryRequest creates a library with one root.

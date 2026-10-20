@@ -134,7 +134,8 @@ func TestDownloadToken(t *testing.T) {
 	if _, err := e.svc.AuthorizeDownload(ctx, SignToken(testKey, st.ID, m.ID, f.P12.ID)); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("after the rating change: %v, want ErrNotFound", err)
 	}
-	// Evicted copy: 410; deleted download: 404.
+	// Evicted copy: 410; deleted download: 401 like a forged token (M5 review K8: no answer tells
+	// which download ids exist).
 	e.exec(`UPDATE downloads SET state = 'evicted', files_removed_at = 1 WHERE id = ?`, st.ID)
 	if _, err := e.svc.OpenFile(ctx, g); !errors.Is(err, model.ErrDownloadEvicted) {
 		t.Errorf("evicted file: %v", err)
@@ -143,8 +144,11 @@ func TestDownloadToken(t *testing.T) {
 		t.Errorf("evicted subtitle: %v", err)
 	}
 	e.exec(`DELETE FROM downloads WHERE id = ?`, st.ID)
-	if _, err := e.svc.AuthorizeDownload(ctx, SignToken(testKey, st.ID, m.ID, f.P18.ID)); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("deleted: %v, want ErrNotFound", err)
+	if _, err := e.svc.AuthorizeDownload(ctx, SignToken(testKey, st.ID, m.ID, f.P18.ID)); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("deleted: %v, want ErrUnauthenticated", err)
+	}
+	if _, err := e.svc.AuthorizeDownload(ctx, SignToken(testKey, "01J9AAAAAAAAAAAAAAAAAAAAAA", m.ID, f.P18.ID)); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("never existed: %v, want ErrUnauthenticated", err)
 	}
 	// Without a key no token is valid.
 	e.svc.key = nil

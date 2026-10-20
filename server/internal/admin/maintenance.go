@@ -393,7 +393,8 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 // MergeItems merges duplicate titles into the target (B-9): media files, children (seasons,
 // episodes, extras), trailers and credits of the sources move to the target (rows the target
 // already has stay behind), progress merges per profile (completed wins, then the larger
-// position), progress events and top picks follow, then the sources are deleted for good. Sources
+// position), progress events, top picks and downloads follow (a device that holds the target
+// already keeps that download), then the sources are deleted for good. Sources
 // must have the kind and the library of the target; all are checked before anything moves. One
 // transaction per source (plan 3.6: bounded transactions), so each source merges whole or not at
 // all; after a failure the merged sources are gone and a repeated request merges the rest. The
@@ -483,6 +484,11 @@ func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, 
 		}},
 		{"top picks", func() error {
 			return q.AdminMoveTopPicks(ctx, systemq.AdminMoveTopPicksParams{TargetID: targetID, SourceID: id})
+		}},
+		// Downloads follow their file (O-6: the device keeps its copy). The download token binds
+		// the title, so the device fetches a new manifest; the next sync recomputes the profiles.
+		{"downloads", func() error {
+			return q.AdminMoveDownloads(ctx, systemq.AdminMoveDownloadsParams{TargetID: targetID, SourceID: id, Now: now})
 		}},
 		{"delete source", func() error { return q.AdminDeleteItem(ctx, id) }},
 	}

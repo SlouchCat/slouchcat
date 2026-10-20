@@ -44,6 +44,9 @@ type indexHeader struct {
 	Codecs string `json:"codecs"`
 	Width  int    `json:"width"`
 	Height int    `json:"height"`
+	// Plan is the fingerprint of the encode (planFingerprint); a resumed preparation continues the
+	// copy only under the same plan.
+	Plan string `json:"plan,omitempty"`
 }
 
 // indexEntry is one appended media segment.
@@ -118,6 +121,9 @@ func (s *Service) root() (*os.Root, error) {
 	return paths.Open(r)
 }
 
+// errIndexUnreadable is an index without a usable header.
+var errIndexUnreadable = errors.New("offline: index of the prepared download unreadable")
+
 // readIndex reads the index of a prepared download.
 func readIndex(root *os.Root, id string) (index, error) {
 	info, err := root.Stat(id + "/" + mediaFile)
@@ -130,7 +136,7 @@ func readIndex(root *os.Root, id string) (index, error) {
 	}
 	ix, ok := parseIndex(data, info.Size())
 	if !ok {
-		return index{}, fmt.Errorf("index of download %s unreadable", id)
+		return index{}, fmt.Errorf("download %s: %w", id, errIndexUnreadable)
 	}
 	return ix, nil
 }
@@ -185,8 +191,9 @@ func parseToken(token string) (id string, profileID int64, mac []byte, ok bool) 
 // AuthorizeDownload resolves a download token. Every request reads the download and checks that
 // the token's profile belongs to the download's account and sees the title, so a fetch goes on
 // after a profile switch, but never for a profile the title is hidden from. Errors:
-// model.ErrUnauthenticated (missing, malformed or forged), model.ErrNotFound (unknown download,
-// profile of another account, title not visible to the profile).
+// model.ErrUnauthenticated (missing, malformed or forged, or naming an unknown download: without
+// its row a token cannot be told from a forged one, and a different answer would tell which ids
+// exist), model.ErrNotFound (profile of another account, title not visible to the profile).
 func (s *Service) AuthorizeDownload(ctx context.Context, token string) (model.DownloadGrant, error) {
 	id, pid, mac, ok := parseToken(token)
 	if !ok || len(s.key) == 0 {
@@ -194,7 +201,7 @@ func (s *Service) AuthorizeDownload(ctx context.Context, token string) (model.Do
 	}
 	row, err := s.read.GetDownload(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return model.DownloadGrant{}, model.ErrNotFound
+		return model.DownloadGrant{}, model.ErrUnauthenticated
 	}
 	if err != nil {
 		return model.DownloadGrant{}, fmt.Errorf("get download: %w", err)
@@ -232,12 +239,20 @@ func (s *Service) prepared(ctx context.Context, id string) (systemq.Download, er
 }
 
 // OpenFile opens the prepared file of a grant (getDownloadFile). model.ErrDownloadEvicted when
-// the server copy is gone or not prepared.
+// the server copy is gone or not prepared. The ETag names the download and its preparation, so a
+// range request with If-Range never mixes the bytes of a copy prepared again after an eviction
+// (a hardware encoder is not byte-exact) with the old ones.
 func (s *Service) OpenFile(ctx context.Context, g model.DownloadGrant) (model.StreamSource, error) {
-	if _, err := s.prepared(ctx, g.DownloadID); err != nil {
+	row, err := s.prepared(ctx, g.DownloadID)
+	if err != nil {
 		return model.StreamSource{}, err
 	}
-	return s.open(g.DownloadID+"/"+mediaFile, "video/mp4", g.DownloadID+".mp4", model.ErrDownloadEvicted)
+	src, err := s.open(g.DownloadID+"/"+mediaFile, "video/mp4", g.DownloadID+".mp4", model.ErrDownloadEvicted)
+	if err != nil {
+		return model.StreamSource{}, err
+	}
+	src.ETag = `"` + row.ID + "-" + strconv.FormatInt(row.ReadyAt.Int64, 36) + `"`
+	return src, nil
 }
 
 // OpenSubtitle opens a WebVTT sidecar of a grant (getDownloadSubtitle); a track the download does
@@ -309,14 +324,19 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 	}
 	defer root.Close()
 	ix, err := readIndex(root, id)
-	if err != nil {
-		// A ready row without a readable copy (removed by hand, disk replaced): evict it, so the
-		// next sync prepares it again.
+	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, errIndexUnreadable) {
+		// A ready row without its copy (removed by hand, disk replaced) or with a broken index:
+		// evict it with what is left of the files, so the next sync prepares it again.
 		s.log.WarnContext(ctx, "prepared download without readable copy, evicting", "download_id", id, "err", err)
+		s.removeFiles(ctx, id)
 		if _, err := s.write.EvictDownload(ctx, systemq.EvictDownloadParams{Now: ms(s.now()), ID: id}); err != nil {
 			return model.DownloadManifest{}, fmt.Errorf("evict download: %w", err)
 		}
 		return model.DownloadManifest{}, model.ErrDownloadEvicted
+	}
+	if err != nil {
+		// Anything else (an I/O error of the cache disk) may pass; the copy stays.
+		return model.DownloadManifest{}, fmt.Errorf("read index of download %s: %w", id, err)
 	}
 	tracks, err := s.vis.Tracks(ctx, scope, row.ItemID, row.MediaFileID)
 	if err != nil {

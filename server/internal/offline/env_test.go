@@ -1,6 +1,7 @@
 package offline
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -242,6 +243,13 @@ type fakeEncoder struct {
 	mu     sync.Mutex
 	starts []int    // start segment of every Download call
 	modes  []string // plan mode of every call
+	// init is the init segment of the next Download calls (empty: initData).
+	init string
+	// streamRuns records the stream indexes of every SubtitleStreams call; failStreams makes it fail.
+	streamRuns  [][]int
+	failStreams bool
+	// single records the stream index of every Subtitles call.
+	single []int
 	// fail returns an error instead of delivering segment n (-1: never) for the next failCalls calls.
 	failAt    int
 	failCalls int
@@ -269,8 +277,9 @@ func (e *fakeEncoder) Download(ctx context.Context, _ transcode.Capabilities, _ 
 		failAt = e.failAt
 	}
 	after := e.after
+	init := cmp.Or(e.init, initData)
 	e.mu.Unlock()
-	if err := onInit([]byte(initData)); err != nil {
+	if err := onInit([]byte(init)); err != nil {
 		return fmt.Errorf("download init: %w", err)
 	}
 	for n := start; n < len(plan.Segments); n++ {
@@ -297,7 +306,29 @@ func (e *fakeEncoder) Keyframes(context.Context, string) ([]time.Duration, error
 }
 
 func (e *fakeEncoder) Subtitles(_ context.Context, path string, index int) ([]byte, error) {
-	return []byte(fmt.Sprintf("WEBVTT\n\nNOTE stream %d of %s\n", index, filepath.Base(path))), nil
+	e.mu.Lock()
+	e.single = append(e.single, index)
+	e.mu.Unlock()
+	return fakeVTT(path, index), nil
+}
+
+func fakeVTT(path string, index int) []byte {
+	return []byte(fmt.Sprintf("WEBVTT\n\nNOTE stream %d of %s\n", index, filepath.Base(path)))
+}
+
+func (e *fakeEncoder) SubtitleStreams(_ context.Context, path string, indexes []int) (map[int][]byte, error) {
+	e.mu.Lock()
+	e.streamRuns = append(e.streamRuns, slices.Clone(indexes))
+	fail := e.failStreams
+	e.mu.Unlock()
+	if fail {
+		return nil, errors.New("fake ffmpeg webvtt failed")
+	}
+	out := map[int][]byte{}
+	for _, i := range indexes {
+		out[i] = fakeVTT(path, i)
+	}
+	return out, nil
 }
 
 func (e *fakeEncoder) SubtitlesFile(_ context.Context, path string) ([]byte, error) {

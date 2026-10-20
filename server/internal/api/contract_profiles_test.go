@@ -86,6 +86,8 @@ type profileCall struct {
 	download bool
 	// okFor overrides okStatus per title (createDownloads and getDownloadOptions refuse extras).
 	okFor func(m vistest.Movie) int
+	// invisibleFor overrides invisibleStatus per profile (deleteDownload: the primary profile).
+	invisibleFor func(p model.Profile) int
 	// want is the expected status of a call without {id} for a profile; nil = any status below 500.
 	want  func(f *vistest.Fixture, p model.Profile) int
 	check func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder)
@@ -353,9 +355,16 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("createDownloads %s = %s", m.Label, rec.Body.String())
 			}
 		}},
-	// Deletion is by account, not by title: an invisible title's download goes as well.
+	// A profile deletes downloads it may see or requested (the minted download of an invisible
+	// title has no requesting profile); the primary profile looks after every download of the
+	// account. Anything else is 404 like an invisible title (M5 review K1).
 	"deleteDownload": {contract: "DELETE /downloads/{id}", path: "/downloads/{dl}", perItem: true, download: true,
-		okStatus: http.StatusNoContent, invisibleStatus: http.StatusNoContent},
+		okStatus: http.StatusNoContent, invisibleFor: func(p model.Profile) int {
+			if p.IsPrimary {
+				return http.StatusNoContent
+			}
+			return http.StatusNotFound
+		}},
 	"getDownloadManifest": {contract: "GET /downloads/{id}/manifest", path: "/downloads/{dl}/manifest", perItem: true, download: true,
 		okStatus: http.StatusOK,
 		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -698,19 +707,21 @@ func mintedMedia(m vistest.Movie) []byte {
 
 // mintDownload stores a prepared download of movie m on the device of the browser session of
 // token, directly in the store and the download directory, and returns its id and a download
-// token of the session's profile. A download of the device for the title is reused.
+// token of the session's profile. A download of the device for the title is reused. The session's
+// profile is the requesting profile only of a title it sees (it could not request another one).
 func (pf profileFixture) mintDownload(t *testing.T, token string, m vistest.Movie) (id, dt string) {
 	t.Helper()
 	session := pf.sessions[token]
 	media := mintedMedia(m)
 	seg0 := int64(len("segment-0-" + m.Label))
+	requester := sql.NullInt64{Int64: session.Profile.ID, Valid: pf.f.VisibleTo(session.Profile, m)}
 	err := pf.f.DB.Write.QueryRow(`INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, quality,
 	            audio_stream, state, mode, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, created_at, updated_at, ready_at)
 	        VALUES (?, ?, ?, ?, ?, ?, 'low', 1, 'ready', 'transcode', 8000, ?, ?, 2, 2, 1, 1, 1)
 	        ON CONFLICT (device_id, item_id) DO UPDATE SET state = 'ready', files_removed_at = NULL, size_bytes = excluded.size_bytes,
-	            segments_done = 2, segments_total = 2, audio_stream = 1, ready_at = 1
+	            segments_done = 2, segments_total = 2, audio_stream = 1, ready_at = 1, profile_id = excluded.profile_id
 	        RETURNING id`,
-		ulid.Make().String(), session.Account.ID, session.Profile.ID, session.DeviceID, m.ID, m.FileID, len(media), len(media)).Scan(&id)
+		ulid.Make().String(), session.Account.ID, requester, session.DeviceID, m.ID, m.FileID, len(media), len(media)).Scan(&id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -880,14 +891,18 @@ func TestContractChildProfiles(t *testing.T) {
 					}
 					rec := send(t, h, method, BasePath+path, cookie, call.body, call.header)
 					if !f.VisibleTo(profile, m) {
-						switch call.invisibleStatus {
+						want := call.invisibleStatus
+						if call.invisibleFor != nil {
+							want = call.invisibleFor(profile)
+						}
+						switch want {
 						case 0:
 							if rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
 								t.Errorf("%s movie %s: status %d (%s), want 404 not_found", op, m.Label, rec.Code, rec.Body.String())
 							}
 						default:
-							if rec.Code != call.invisibleStatus {
-								t.Errorf("%s movie %s: status %d (%s), want %d", op, m.Label, rec.Code, rec.Body.String(), call.invisibleStatus)
+							if rec.Code != want {
+								t.Errorf("%s movie %s: status %d (%s), want %d", op, m.Label, rec.Code, rec.Body.String(), want)
 							}
 						}
 						continue

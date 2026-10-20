@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -24,6 +25,9 @@ const (
 	// firstOfflinePlayedMs bounds the played time of the first event of an offline playback: the
 	// client reports every 10 s, plus playedSlack.
 	firstOfflinePlayedMs = 11_000
+	// offlineEventMaxAge is the oldest corrected time an offline event may book: a device clock far
+	// in the past cannot move watch time to arbitrary earlier days.
+	offlineEventMaxAge = 30 * 24 * time.Hour
 )
 
 // OfflineWatchTime returns what a device needs to enforce the daily limit of a profile offline
@@ -45,11 +49,14 @@ func (s *Service) OfflineWatchTime(ctx context.Context, profile model.Profile, n
 // (O-5, AN-10).
 //
 // The device clock is corrected by the difference between sentAt (device clock at sending) and the
-// server's clock; a corrected time later than now becomes now. The events are processed in the
-// order of their corrected times:
+// server's clock; a corrected time later than now becomes now, one older than 30 days becomes
+// now − 30 days. The events are processed in the order of their corrected times:
 //
 //   - rejected: invalid fields, a profile outside the session's account (a guest uploads only for
-//     its own profiles) or a title the profile may not see;
+//     its own profiles), a title the profile may not see, or a downloadId of an existing download
+//     the event cannot come from (another account or device, another title, a profile not in its
+//     allowed profiles, a corrected time before the download was created); a downloadId of a
+//     download deleted since counts like none;
 //   - duplicate: the same playback id and seq for the same profile and title is already stored;
 //   - accepted: stored with server_time = corrected time (watch time and report count the right
 //     day, AN-18), offline = 1, uploaded_at = now, the session's device and the playback id as
@@ -87,10 +94,19 @@ func (s *Service) ReportOffline(ctx context.Context, session model.Session, sent
 	corrected := make([]int64, len(events))
 	order := make([]int, 0, len(events))
 	visible := map[profileItem]bool{}
+	downloads := map[string]*appq.GetOfflineEventDownloadRow{}
+	oldest := now.Add(-offlineEventMaxAge).UnixMilli()
 	for i, ev := range events {
 		results[i] = model.OfflineEventRejected
 		p, ok := profiles[ev.ProfileID]
 		if !ok || validateOffline(ev) != nil {
+			continue
+		}
+		dl, err := s.eventDownload(ctx, downloads, ev.DownloadID)
+		if err != nil {
+			return model.OfflineEventResult{}, err
+		}
+		if dl != nil && !fitsDownload(dl, session, ev) {
 			continue
 		}
 		key := profileItem{profileID: ev.ProfileID, itemID: ev.ItemID}
@@ -106,7 +122,11 @@ func (s *Service) ReportOffline(ctx context.Context, session model.Session, sent
 		if !seen {
 			continue
 		}
-		corrected[i] = min(ev.ClientTime.Add(offset).UnixMilli(), now.UnixMilli())
+		at := ev.ClientTime.Add(offset).UnixMilli()
+		if dl != nil && at < dl.CreatedAt {
+			continue // played before the download existed
+		}
+		corrected[i] = min(max(at, oldest), now.UnixMilli())
 		order = append(order, i)
 	}
 	slices.SortStableFunc(order, func(a, b int) int { return cmp.Compare(corrected[a], corrected[b]) })
@@ -160,6 +180,42 @@ func (s *Service) ReportOffline(ctx context.Context, session model.Session, sent
 		}
 	}
 	return out, nil
+}
+
+// eventDownload returns the download an offline event names, read once per upload in cache; nil
+// when the event names none or the download is gone (deleted after the playback: its events still
+// count, like those of an event without downloadId).
+func (s *Service) eventDownload(ctx context.Context, cache map[string]*appq.GetOfflineEventDownloadRow, id string) (*appq.GetOfflineEventDownloadRow, error) {
+	if id == "" {
+		return nil, nil
+	}
+	if row, ok := cache[id]; ok {
+		return row, nil
+	}
+	row, err := s.read.GetOfflineEventDownload(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		cache[id] = nil
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get download of offline event: %w", err)
+	}
+	cache[id] = &row
+	return &row, nil
+}
+
+// fitsDownload reports whether an offline event can come from the download it names: a download
+// of the session's account on the session's device, of the event's title, that the event's
+// profile may play (allowed_profile_ids, computed by the server at every sync).
+func fitsDownload(dl *appq.GetOfflineEventDownloadRow, session model.Session, ev model.OfflineEvent) bool {
+	if dl.AccountID != session.Account.ID || dl.DeviceID != session.DeviceID || dl.ItemID != ev.ItemID {
+		return false
+	}
+	var allowed []int64
+	if err := json.Unmarshal([]byte(dl.AllowedProfileIds), &allowed); err != nil {
+		return false
+	}
+	return slices.Contains(allowed, ev.ProfileID)
 }
 
 // profileItem keys the visibility checks of one upload.

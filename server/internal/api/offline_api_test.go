@@ -50,6 +50,18 @@ func (contractEncoder) Subtitles(ctx context.Context, path string, index int) ([
 	return fakeEmbeddedVTT(ctx, path, index)
 }
 
+func (contractEncoder) SubtitleStreams(ctx context.Context, path string, indexes []int) (map[int][]byte, error) {
+	out := map[int][]byte{}
+	for _, i := range indexes {
+		vtt, err := fakeEmbeddedVTT(ctx, path, i)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = vtt
+	}
+	return out, nil
+}
+
 func (contractEncoder) SubtitlesFile(ctx context.Context, path string) ([]byte, error) {
 	return fakeSidecarVTT(ctx, path)
 }
@@ -236,6 +248,18 @@ func TestOfflineDownloadFlow(t *testing.T) {
 	if whole.Code != http.StatusOK || whole.Body.String() != want || part.Code != http.StatusPartialContent || part.Body.String() != "segment-0|" {
 		t.Errorf("file: %d %q, range %d %q", whole.Code, whole.Body.String(), part.Code, part.Body.String())
 	}
+	// M5 review K9: a strong ETag of the preparation; If-Range with it resumes, with another one
+	// (a copy prepared again) the whole file comes.
+	etag := whole.Header().Get("ETag")
+	if !strings.HasPrefix(etag, `"`+id+"-") || !strings.HasSuffix(etag, `"`) || part.Header().Get("ETag") != etag {
+		t.Errorf("ETag = %q (range %q)", etag, part.Header().Get("ETag"))
+	}
+	if rec := send(t, h, http.MethodGet, man.FileURL, "", "", map[string]string{"Range": "bytes=9-18", "If-Range": etag}); rec.Code != http.StatusPartialContent || rec.Body.String() != "segment-0|" {
+		t.Errorf("If-Range with the ETag: %d %q", rec.Code, rec.Body.String())
+	}
+	if rec := send(t, h, http.MethodGet, man.FileURL, "", "", map[string]string{"Range": "bytes=9-18", "If-Range": `"` + id + `-0"`}); rec.Code != http.StatusOK || rec.Body.String() != want {
+		t.Errorf("If-Range with an old ETag: %d %q", rec.Code, rec.Body.String())
+	}
 	for _, sub := range man.Subtitles {
 		if rec := send(t, h, http.MethodGet, sub.URL, "", "", nil); rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), "WEBVTT") {
 			t.Errorf("subtitle %s: %d", sub.URL, rec.Code)
@@ -280,7 +304,7 @@ func TestOfflineDownloadFlow(t *testing.T) {
 		t.Errorf("P12's manifest after the rating change: %d", rec.Code)
 	}
 
-	// Deletion (any profile of the account): the device learns it at its next sync.
+	// Deletion (here by the primary profile, M5 review K1): the device learns it at its next sync.
 	if rec := send(t, h, http.MethodDelete, BasePath+"/downloads/"+id, "p18", "", nil); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete: %d %s", rec.Code, rec.Body.String())
 	}
@@ -290,6 +314,13 @@ func TestOfflineDownloadFlow(t *testing.T) {
 	s, _ = syncDevice(t, h, "p12", `{"held":[{"id":"`+id+`","complete":true}]}`)
 	if !slices.Equal(s.Revoked, []string{id}) || len(s.Downloads) != 0 {
 		t.Errorf("after the delete: revoked %v, downloads %+v", s.Revoked, s.Downloads)
+	}
+	// M5 review K8: a token of a download that is gone answers like a forged one (401, no
+	// existence oracle), for the file and the subtitles.
+	for _, u := range []string{man.FileURL, man.Subtitles[0].URL} {
+		if rec := send(t, h, http.MethodGet, u, "", "", nil); rec.Code != http.StatusUnauthorized || problemCode(t, rec) != "unauthenticated" {
+			t.Errorf("token of a deleted download %s: %d %s", u, rec.Code, rec.Body.String())
+		}
 	}
 	if _, err := os.Stat(pf.dlDir + "/" + id); err == nil {
 		t.Error("the server copy remains after the delete")

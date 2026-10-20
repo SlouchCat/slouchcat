@@ -82,18 +82,25 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 	if err != nil {
 		return model.OfflineSync{}, fmt.Errorf("list profiles: %w", err)
 	}
-	// (3) Auto-download rules of the account's profiles on this device (O-3).
-	if err := s.applyRules(ctx, account, device, profiles, now); err != nil {
-		return model.OfflineSync{}, err
-	}
-	// (4) Evicted copies the device does not hold completely are prepared again.
+	// (3) Auto-download rules of the account's profiles on this device (O-3), best effort: a
+	// failing rule must not cost the device its revocation list and profile data.
+	s.applyRules(ctx, account, device, profiles, now)
+	// (4) Evicted copies the device does not hold completely are prepared again; unfinished
+	// downloads without a preparation job get one.
 	rows, err := s.read.ListDeviceDownloads(ctx, systemq.ListDeviceDownloadsParams{DeviceID: device, AccountID: account})
 	if err != nil {
 		return model.OfflineSync{}, fmt.Errorf("list device downloads: %w", err)
 	}
 	for _, row := range rows {
-		if row.State == model.DownloadEvicted && !complete[row.ID] {
-			if err := s.requeue(ctx, row.ID); err != nil {
+		switch row.State {
+		case model.DownloadEvicted:
+			if !complete[row.ID] {
+				if err := s.requeue(ctx, row.ID); err != nil {
+					return model.OfflineSync{}, err
+				}
+			}
+		case model.DownloadQueued, model.DownloadPreparing, model.DownloadPaused:
+			if _, err := s.ensureJob(ctx, row.ID, row.State); err != nil {
 				return model.OfflineSync{}, err
 			}
 		}
@@ -109,11 +116,22 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 	out := model.OfflineSync{ServerTime: now, Revoked: revoked, Downloads: make([]model.DownloadState, 0, len(rows))}
 	active := session.Profile.ID
 	wanted := map[int64]bool{active: true}
+	// AN-19: PIN material only for profiles of downloads the device holds (reported in held) or
+	// can fetch or has fetched (ready, evicted), never because a profile is active.
+	pinned := map[int64]bool{}
+	reported := map[string]bool{}
+	for _, id := range held {
+		reported[id] = true
+	}
 	var mine []string
 	for _, row := range rows {
 		st := toState(row)
+		holds := reported[row.ID] || row.State == model.DownloadReady || row.State == model.DownloadEvicted
 		for _, pid := range st.AllowedProfileIDs {
 			wanted[pid] = true
+			if holds {
+				pinned[pid] = true
+			}
 		}
 		if slices.Contains(st.AllowedProfileIDs, active) {
 			mine = append(mine, row.ItemID)
@@ -129,7 +147,7 @@ func (s *Service) Sync(ctx context.Context, session model.Session, req model.Off
 			out.Downloads[i].Item = &it
 		}
 	}
-	if out.Profiles, err = s.offlineProfiles(ctx, account, profiles, wanted, now); err != nil {
+	if out.Profiles, err = s.offlineProfiles(ctx, account, profiles, wanted, pinned, now); err != nil {
 		return model.OfflineSync{}, err
 	}
 	if out.Rules, err = s.rule(ctx, active, device); err != nil {
@@ -192,12 +210,13 @@ func (s *Service) recomputeAllowed(ctx context.Context, account int64, rows []sy
 }
 
 // offlineProfiles returns the offline data of the account's profiles that may play a download on
-// the device or are active (AN-19: PIN material only for devices with downloads of the profile),
-// in the order of the profile list (primary first).
-func (s *Service) offlineProfiles(ctx context.Context, account int64, profiles []model.Profile, wanted map[int64]bool, now time.Time) ([]model.OfflineProfile, error) {
+// the device or are active, in the order of the profile list (primary first). The PIN material
+// (salt, offline PIN verifier) goes only to the profiles in pinned, those of downloads the device
+// holds (AN-19).
+func (s *Service) offlineProfiles(ctx context.Context, account int64, profiles []model.Profile, wanted, pinned map[int64]bool, now time.Time) ([]model.OfflineProfile, error) {
 	var ids []int64
 	for _, p := range profiles {
-		if wanted[p.ID] {
+		if wanted[p.ID] && pinned[p.ID] {
 			ids = append(ids, p.ID)
 		}
 	}
@@ -205,7 +224,7 @@ func (s *Service) offlineProfiles(ctx context.Context, account int64, profiles [
 	if err != nil {
 		return nil, fmt.Errorf("offline pins: %w", err)
 	}
-	out := make([]model.OfflineProfile, 0, len(ids))
+	out := make([]model.OfflineProfile, 0, len(wanted))
 	for _, p := range profiles {
 		if !wanted[p.ID] {
 			continue
@@ -230,11 +249,13 @@ func (s *Service) offlineProfiles(ctx context.Context, account int64, profiles [
 // applyRules creates the auto-downloads of the enabled next-episode rules of the account's
 // profiles on the device (O-3, AN-13): per series the profile watched in the last 60 days, the
 // next visible episode after the last watched one, while fewer than maxCount auto-downloads the
-// profile has not finished are on the device.
-func (s *Service) applyRules(ctx context.Context, account int64, device string, profiles []model.Profile, now time.Time) error {
+// profile has not finished are on the device. Best effort: a failing rule is logged and the
+// others still run.
+func (s *Service) applyRules(ctx context.Context, account int64, device string, profiles []model.Profile, now time.Time) {
 	rules, err := s.read.ListActiveDeviceRules(ctx, systemq.ListActiveDeviceRulesParams{DeviceID: device, AccountID: account})
 	if err != nil {
-		return fmt.Errorf("list download rules: %w", err)
+		s.log.WarnContext(ctx, "list download rules", "account_id", account, "err", err)
+		return
 	}
 	for _, r := range rules {
 		i := slices.IndexFunc(profiles, func(p model.Profile) bool { return p.ID == r.ProfileID })
@@ -242,10 +263,9 @@ func (s *Service) applyRules(ctx context.Context, account int64, device string, 
 			continue
 		}
 		if err := s.applyRule(ctx, account, device, profiles[i], r, now); err != nil {
-			return err
+			s.log.WarnContext(ctx, "auto-download rule not applied", "profile_id", r.ProfileID, "err", err)
 		}
 	}
-	return nil
 }
 
 func (s *Service) applyRule(ctx context.Context, account int64, device string, p model.Profile, r systemq.DownloadRule, now time.Time) error {
@@ -275,8 +295,20 @@ func (s *Service) applyRule(ctx context.Context, account int64, device string, p
 		if err != nil {
 			return err
 		}
-		if _, err := s.read.GetDeviceDownload(ctx, systemq.GetDeviceDownloadParams{DeviceID: device, ItemID: next.ID}); err == nil {
-			continue // already on the device
+		if existing, err := s.read.GetDeviceDownload(ctx, systemq.GetDeviceDownloadParams{DeviceID: device, ItemID: next.ID}); err == nil {
+			// Already on the device; a failed auto-download of the account is tried again after a
+			// wait (a short outage of the source must not stop the rule for good).
+			if existing.State != model.DownloadFailed || existing.Auto != 1 || existing.AccountID != account ||
+				now.Sub(time.UnixMilli(existing.UpdatedAt)) < autoRetryWait {
+				continue
+			}
+			if err := s.retry(ctx, existing.ID, p.ID); err != nil {
+				return err
+			}
+			if open++; open >= r.MaxCount {
+				return nil
+			}
+			continue
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("get device download: %w", err)
 		}

@@ -81,7 +81,8 @@ func csrfOK(r *http.Request) bool {
 // an active profile (403 profile_required without); admin needs the owner with the primary profile
 // active (403 forbidden otherwise). It stores the session in the context for the handlers. The
 // cookie is read for every operation, so a public operation can still see who is logged in. A
-// request without a valid device cookie gets one (PIN locks count per profile and device).
+// request without a valid device cookie gets one (PIN locks count per profile and device); with a
+// session, the cookie follows the session's device and is renewed whenever the session is.
 func (p problems) authorize(auth AuthService, visibility map[string]string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,8 +92,8 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				return
 			}
 			ctx := context.WithValue(r.Context(), requestKey{}, r)
-			ctx = model.WithDeviceID(ctx, ensureDeviceCookie(w, r))
 			session, token, extended, hasSession := resolveSession(ctx, auth, r)
+			ctx = model.WithDeviceID(ctx, ensureDeviceCookie(w, r, session.DeviceID, extended))
 			if hasSession {
 				ctx = context.WithValue(ctx, sessionKey{}, session)
 			}
@@ -129,15 +130,30 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 // closed.
 var validVisibility = map[string]bool{"public": true, "account": true, "scoped": true, "admin": true}
 
-// ensureDeviceCookie returns the device id of the request and sets the cookie when the request has
-// none (or a malformed one): 128 random bits as 32 hex characters.
-func ensureDeviceCookie(w http.ResponseWriter, r *http.Request) string {
+// ensureDeviceCookie returns the device id of the request and keeps the device cookie in step with
+// it. The device of the request's session (sessionDevice, empty without a session) wins over the
+// cookie, which is rewritten to it: the downloads of a device and the revocation list that
+// checkOfflineRevocations reads by the cookie hang on the session's device (K-7), also when the
+// cookie expired or was dropped while the sliding session lived on. Without either, the id is fresh
+// (128 random bits as 32 hex characters). renew (the session was extended) sets the cookie again
+// with a fresh MaxAge, so it lives as long as the session.
+func ensureDeviceCookie(w http.ResponseWriter, r *http.Request, sessionDevice string, renew bool) string {
+	cookie := ""
 	if c, err := r.Cookie(DeviceCookie); err == nil && deviceIDPattern.MatchString(c.Value) {
-		return c.Value
+		cookie = c.Value
 	}
-	var b [16]byte
-	_, _ = rand.Read(b[:]) // crypto/rand.Read never fails
-	id := hex.EncodeToString(b[:])
+	id := cookie
+	if deviceIDPattern.MatchString(sessionDevice) {
+		id = sessionDevice
+	}
+	if id == "" {
+		var b [16]byte
+		_, _ = rand.Read(b[:]) // crypto/rand.Read never fails
+		id = hex.EncodeToString(b[:])
+	}
+	if id == cookie && !renew {
+		return id
+	}
 	http.SetCookie(w, &http.Cookie{ //nolint:gosec // G124: Secure depends on the transport, see setSessionCookie
 		Name:     DeviceCookie,
 		Value:    id,

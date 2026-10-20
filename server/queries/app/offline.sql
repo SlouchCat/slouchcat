@@ -1,6 +1,7 @@
 -- Offline PIN material and uploaded offline progress events (M5, AN-10, AN-18, AN-19; package
--- store/appq). Owner: auth (profiles) and playback (progress_events). Never touches title tables;
--- the visibility of an event's title is checked before it is stored. Times are Unix milliseconds.
+-- store/appq). Owner: auth (profiles) and playback (progress_events, and the download an event
+-- names). Never touches title tables; the visibility of an event's title is checked before it is
+-- stored. Times are Unix milliseconds.
 
 -- name: SetProfilePinSalt :exec
 -- The salt of the normal PIN: new with every PIN, NULL without one (the client derives its offline
@@ -31,3 +32,8 @@ INSERT INTO progress_events (profile_id, item_id, media_file_id, device_id, play
 VALUES (@profile_id, @item_id, sqlc.narg('media_file_id'), sqlc.narg('device_id'), @playback_id, @position_ms,
         @duration_ms, @played_ms, @seq, @state, @client_time, @server_time, 1, @uploaded_at,
         sqlc.narg('download_id'));
+
+-- name: GetOfflineEventDownload :one
+-- The download an offline event names: its account, device, title, allowed profiles and creation
+-- (an event must fit it and cannot be older than the download).
+SELECT account_id, device_id, item_id, allowed_profile_ids, created_at FROM downloads WHERE id = @id;

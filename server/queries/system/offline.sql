@@ -42,6 +42,27 @@ SET state = 'queued', error = NULL, segments_done = 0, size_bytes = NULL, ready_
     files_removed_at = NULL, updated_at = @now
 WHERE id = @id AND state = 'evicted';
 
+-- name: ResetFailedDownload :execrows
+-- A failed download that is requested again is prepared from the start, for the profile that asks
+-- (an explicit createDownloads, or the auto-download rule after its wait).
+UPDATE downloads
+SET state = 'queued', error = NULL, profile_id = @profile_id, segments_done = 0, size_bytes = NULL, ready_at = NULL,
+    fetched_at = NULL, files_removed_at = NULL, updated_at = @now
+WHERE id = @id AND state = 'failed';
+
+-- name: ListUnfinishedDownloads :many
+-- Downloads whose preparation has not finished, by id after a cursor: the reconciliation with the
+-- job queue queues those without an active job (at most 500 per batch).
+SELECT id, state FROM downloads
+WHERE state IN ('queued', 'preparing', 'paused') AND id > @after
+ORDER BY id
+LIMIT 500;
+
+-- name: SetStalledDownloadQueued :execrows
+-- A preparing or paused download without a preparation job waits as queued again.
+UPDATE downloads SET state = 'queued', error = NULL, updated_at = @now
+WHERE id = @id AND state IN ('preparing', 'paused');
+
 -- name: SetDownloadAllowed :exec
 UPDATE downloads SET allowed_profile_ids = @allowed_profile_ids, allowed_at = @now WHERE id = @id;
 
@@ -110,10 +131,12 @@ DELETE FROM download_tombstones
 WHERE id IN (SELECT t.id FROM download_tombstones AS t WHERE t.removed_at < @before LIMIT 500);
 
 -- name: CountOpenAutoDownloads :one
--- Auto-downloads of a profile on a device that the profile has not finished watching (O-3).
+-- Auto-downloads of a profile on a device that the profile has not finished watching (O-3); a
+-- failed one does not take a place (the rule tries it again after a wait).
 SELECT count(*) FROM downloads AS d
 LEFT JOIN progress AS p ON p.profile_id = d.profile_id AND p.item_id = d.item_id
-WHERE d.profile_id = @profile_id AND d.device_id = @device_id AND d.auto = 1 AND COALESCE(p.completed, 0) = 0;
+WHERE d.profile_id = @profile_id AND d.device_id = @device_id AND d.auto = 1 AND d.state <> 'failed'
+  AND COALESCE(p.completed, 0) = 0;
 
 -- name: GetDownloadRule :one
 SELECT * FROM download_rules WHERE profile_id = @profile_id AND device_id = @device_id;

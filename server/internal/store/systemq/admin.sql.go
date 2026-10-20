@@ -876,6 +876,23 @@ func (q *Queries) AdminMoveCredits(ctx context.Context, arg AdminMoveCreditsPara
 	return err
 }
 
+const adminMoveDownloads = `-- name: AdminMoveDownloads :exec
+UPDATE OR IGNORE downloads SET item_id = ?1, updated_at = ?2 WHERE item_id = ?3
+`
+
+type AdminMoveDownloadsParams struct {
+	TargetID string
+	Now      int64
+	SourceID string
+}
+
+// Downloads follow their file to the target. A device that holds the target already keeps that
+// download; the source's one goes with the source (its tombstone tells the device to delete it).
+func (q *Queries) AdminMoveDownloads(ctx context.Context, arg AdminMoveDownloadsParams) error {
+	_, err := q.db.ExecContext(ctx, adminMoveDownloads, arg.TargetID, arg.Now, arg.SourceID)
+	return err
+}
+
 const adminMoveMediaFiles = `-- name: AdminMoveMediaFiles :exec
 
 UPDATE media_files SET item_id = ?1, updated_at = ?2 WHERE item_id = ?3

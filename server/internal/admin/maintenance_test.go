@@ -396,6 +396,71 @@ func TestAdminMaintenanceMerge(t *testing.T) {
 	}
 }
 
+// M5 review W5: a merge moves the source's downloads to the target, so devices keep their copies
+// (O-6); a device that holds both keeps the target's download and gets a tombstone for the
+// source's one.
+func TestAdminMaintenanceMergeMovesDownloads(t *testing.T) {
+	m := newMaintFixture(t)
+	f := m.f
+	target, source := f.Rated(16), f.Rated(18)
+	devA, devB := strings.Repeat("a", 32), strings.Repeat("b", 32)
+	m.exec(t, `INSERT INTO devices (id, created_at, last_seen_at) VALUES (?, 1, 1), (?, 1, 1)`, devA, devB)
+	const (
+		onlySource = "01J9MERGE00000000000000AAA"
+		bothSource = "01J9MERGE00000000000000BBB"
+		bothTarget = "01J9MERGE00000000000000CCC"
+	)
+	for _, d := range []struct {
+		id, device string
+		movie      vistest.Movie
+	}{{onlySource, devA, source}, {bothSource, devB, source}, {bothTarget, devB, target}} {
+		m.exec(t, `INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream,
+		           state, estimated_bytes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'low', 1, 'ready', 1000, 1, 1)`,
+			d.id, f.Account.ID, f.P18.ID, d.device, d.movie.ID, d.movie.FileID)
+	}
+	if _, err := m.svc.MergeItems(m.ctx, target.ID, []string{source.ID}); err != nil {
+		t.Fatal(err)
+	}
+	items := map[string]string{}
+	rows, err := f.DB.Read.Query(`SELECT id, item_id FROM downloads`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, item string
+		if err := rows.Scan(&id, &item); err != nil {
+			t.Fatal(err)
+		}
+		items[id] = item
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[onlySource] != target.ID || items[bothTarget] != target.ID {
+		t.Errorf("downloads after the merge = %v, want %s and %s on the target", items, onlySource, bothTarget)
+	}
+	var tombstones []string
+	trows, err := f.DB.Read.Query(`SELECT id FROM download_tombstones ORDER BY id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer trows.Close()
+	for trows.Next() {
+		var id string
+		if err := trows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		tombstones = append(tombstones, id)
+	}
+	if err := trows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(tombstones, []string{bothSource}) {
+		t.Errorf("tombstones = %v, want only the duplicate %s", tombstones, bothSource)
+	}
+}
+
 // B-9: cleanup soft-deletes only orphaned titles and hands files to package library.
 func TestAdminMaintenanceCleanup(t *testing.T) {
 	m := newMaintFixture(t)

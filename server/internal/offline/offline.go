@@ -57,6 +57,7 @@ type Encoder interface {
 		onSegment func(n int, data []byte, start, dur time.Duration) error) error
 	Keyframes(ctx context.Context, path string) ([]time.Duration, error)
 	Subtitles(ctx context.Context, path string, streamIndex int) ([]byte, error)
+	SubtitleStreams(ctx context.Context, path string, streamIndexes []int) (map[int][]byte, error)
 	SubtitlesFile(ctx context.Context, path string) ([]byte, error)
 }
 
@@ -81,6 +82,7 @@ const (
 	JobPrepare      = "download.prepare" // job type of the preparation
 	jobPriority     = 5
 	budgetWait      = 5 * time.Minute    // a preparation that does not fit the budget tries again
+	sourceWait      = 5 * time.Minute    // a preparation whose source cannot be read (yet) tries again
 	preemptWait     = 30 * time.Second   // a preempted preparation continues
 	cleanupInterval = 10 * time.Minute   // Run
 	fetchedKeep     = 24 * time.Hour     // server copy after the device fetched it
@@ -88,7 +90,12 @@ const (
 	tombstoneKeep   = 400 * 24 * time.Hour
 	autoWindow      = 60 * 24 * time.Hour // series watched in this window get auto-downloads (O-3)
 	writeBatch      = 500                 // rows per transaction (plan 3.6)
+	autoRetryWait   = 6 * time.Hour       // a failed auto-download is tried again after this wait
 )
+
+// admissionPatience is how long admission may take before the download shows paused (live
+// playback holds the transcode budget).
+const admissionPatience = 500 * time.Millisecond
 
 // MaxHeld is the most ids a device reports in one sync or revocation check (contract).
 const MaxHeld = 2000

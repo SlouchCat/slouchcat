@@ -230,9 +230,10 @@ func validateRequest(req model.DownloadRequest) error {
 
 // Create downloads a movie or an episode (one download) or every visible episode of a season
 // (O-2) to the session's device and queues their preparation. A title the device already has is
-// returned as it is (an evicted copy is prepared again). Errors: model.ErrNotFound (unknown,
-// invisible, a season without visible episodes), model.ErrNotDownloadable (another kind, or the
-// device holds the title for another account), *model.ValidationError, model.ErrDeviceRequired.
+// returned as it is (an evicted copy is prepared again, a failed one from the start). Errors:
+// model.ErrNotFound (unknown, invisible, a season without visible episodes),
+// model.ErrNotDownloadable (another kind, or the device holds the title, or every episode of the
+// season, for another account), *model.ValidationError, model.ErrDeviceRequired.
 func (s *Service) Create(ctx context.Context, session model.Session, itemID string, req model.DownloadRequest) ([]model.DownloadState, error) {
 	if err := validateRequest(req); err != nil {
 		return nil, err
@@ -290,6 +291,9 @@ func (s *Service) Create(ctx context.Context, session model.Session, itemID stri
 		st.Item = &src.item
 		out = append(out, st)
 	}
+	if len(out) == 0 {
+		return nil, model.ErrNotDownloadable // every episode is held by another account on the device
+	}
 	return out, nil
 }
 
@@ -300,7 +304,7 @@ func (s *Service) create(ctx context.Context, accountID, profileID int64, device
 	existing, err := s.read.GetDeviceDownload(ctx, systemq.GetDeviceDownloadParams{DeviceID: deviceID, ItemID: src.item.ID})
 	switch {
 	case err == nil:
-		return s.reuse(ctx, accountID, existing)
+		return s.reuse(ctx, accountID, profileID, existing, auto)
 	case !errors.Is(err, sql.ErrNoRows):
 		return systemq.Download{}, fmt.Errorf("get device download: %w", err)
 	}
@@ -323,7 +327,7 @@ func (s *Service) create(ctx context.Context, accountID, profileID int64, device
 		if err != nil {
 			return systemq.Download{}, fmt.Errorf("get device download: %w", err)
 		}
-		return s.reuse(ctx, accountID, existing)
+		return s.reuse(ctx, accountID, profileID, existing, auto)
 	}
 	if err != nil {
 		return systemq.Download{}, fmt.Errorf("insert download: %w", err)
@@ -337,13 +341,26 @@ func (s *Service) create(ctx context.Context, accountID, profileID int64, device
 }
 
 // reuse returns an existing download of the device for the account: an evicted copy is queued
-// again, the allowed profiles are recomputed. A download of another account is errOtherAccount.
-func (s *Service) reuse(ctx context.Context, accountID int64, row systemq.Download) (systemq.Download, error) {
+// again, a failed one that is requested explicitly (not by a rule) starts over for profileID, an
+// unfinished one without a preparation job gets one, the allowed profiles are recomputed. A
+// download of another account is errOtherAccount.
+func (s *Service) reuse(ctx context.Context, accountID, profileID int64, row systemq.Download, auto bool) (systemq.Download, error) {
 	if row.AccountID != accountID {
 		return systemq.Download{}, errOtherAccount
 	}
-	if row.State == model.DownloadEvicted {
+	switch row.State {
+	case model.DownloadEvicted:
 		if err := s.requeue(ctx, row.ID); err != nil {
+			return systemq.Download{}, err
+		}
+	case model.DownloadFailed:
+		if !auto {
+			if err := s.retry(ctx, row.ID, profileID); err != nil {
+				return systemq.Download{}, err
+			}
+		}
+	case model.DownloadQueued, model.DownloadPreparing, model.DownloadPaused:
+		if _, err := s.ensureJob(ctx, row.ID, row.State); err != nil {
 			return systemq.Download{}, err
 		}
 	}
@@ -378,6 +395,22 @@ func (s *Service) requeue(ctx context.Context, id string) error {
 	return s.enqueue(ctx, id, primaryKey(id), 0)
 }
 
+// retry prepares a failed download again from the start for profileID (its partial files go).
+func (s *Service) retry(ctx context.Context, id string, profileID int64) error {
+	s.removeFiles(ctx, id)
+	n, err := s.write.ResetFailedDownload(ctx, systemq.ResetFailedDownloadParams{
+		ProfileID: sql.NullInt64{Int64: profileID, Valid: profileID > 0}, Now: ms(s.now()), ID: id,
+	})
+	if err != nil {
+		return fmt.Errorf("reset failed download: %w", err)
+	}
+	if n == 0 {
+		return nil
+	}
+	s.log.InfoContext(ctx, "failed download queued again", "download_id", id)
+	return s.enqueue(ctx, id, primaryKey(id), 0)
+}
+
 // allowedJSON returns the JSON list of the account's profiles that see the title.
 func (s *Service) allowedJSON(ctx context.Context, accountID int64, itemID string) (string, error) {
 	allowed, err := s.vis.AllowedProfiles(ctx, visibility.System("offline: allowed profiles of a download"), accountID, []string{itemID})
@@ -388,10 +421,22 @@ func (s *Service) allowedJSON(ctx context.Context, accountID int64, itemID strin
 }
 
 // Delete removes a download of the session's account (any device) with its server copy; the
-// trigger writes the tombstone the device reads at its next sync. model.ErrNotFound for an
-// unknown id or another account's download.
+// trigger writes the tombstone the device reads at its next sync. The active profile may delete it
+// when it may see the title (allowedProfileIds), requested the download, or is the account's
+// primary profile, which looks after the devices (O-7). model.ErrNotFound for an unknown id,
+// another account's download or one the profile may not delete (invisible is 404, never 403).
 func (s *Service) Delete(ctx context.Context, session model.Session, id string) error {
 	if !downloadID.MatchString(id) {
+		return model.ErrNotFound
+	}
+	row, err := s.write.GetDownload(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return model.ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get download: %w", err)
+	}
+	if !mayDelete(session, row) {
 		return model.ErrNotFound
 	}
 	n, err := s.write.DeleteAccountDownload(ctx, systemq.DeleteAccountDownloadParams{ID: id, AccountID: session.Account.ID})
@@ -404,6 +449,15 @@ func (s *Service) Delete(ctx context.Context, session model.Session, id string) 
 	s.removeFiles(ctx, id)
 	s.log.InfoContext(ctx, "download deleted", "download_id", id)
 	return nil
+}
+
+// mayDelete reports whether the session's profile may delete a download (Delete).
+func mayDelete(session model.Session, row systemq.Download) bool {
+	if row.AccountID != session.Account.ID {
+		return false
+	}
+	p := session.Profile
+	return p.IsPrimary || (row.ProfileID.Valid && row.ProfileID.Int64 == p.ID) || slices.Contains(decodeIDs(row.AllowedProfileIds), p.ID)
 }
 
 // preparePayload is the payload of download.prepare.

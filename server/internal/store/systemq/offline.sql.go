@@ -14,7 +14,8 @@ import (
 const countOpenAutoDownloads = `-- name: CountOpenAutoDownloads :one
 SELECT count(*) FROM downloads AS d
 LEFT JOIN progress AS p ON p.profile_id = d.profile_id AND p.item_id = d.item_id
-WHERE d.profile_id = ?1 AND d.device_id = ?2 AND d.auto = 1 AND COALESCE(p.completed, 0) = 0
+WHERE d.profile_id = ?1 AND d.device_id = ?2 AND d.auto = 1 AND d.state <> 'failed'
+  AND COALESCE(p.completed, 0) = 0
 `
 
 type CountOpenAutoDownloadsParams struct {
@@ -22,7 +23,8 @@ type CountOpenAutoDownloadsParams struct {
 	DeviceID  string
 }
 
-// Auto-downloads of a profile on a device that the profile has not finished watching (O-3).
+// Auto-downloads of a profile on a device that the profile has not finished watching (O-3); a
+// failed one does not take a place (the rule tries it again after a wait).
 func (q *Queries) CountOpenAutoDownloads(ctx context.Context, arg CountOpenAutoDownloadsParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countOpenAutoDownloads, arg.ProfileID, arg.DeviceID)
 	var count int64
@@ -674,6 +676,43 @@ func (q *Queries) ListRecentEpisodeProgress(ctx context.Context, arg ListRecentE
 	return items, nil
 }
 
+const listUnfinishedDownloads = `-- name: ListUnfinishedDownloads :many
+SELECT id, state FROM downloads
+WHERE state IN ('queued', 'preparing', 'paused') AND id > ?1
+ORDER BY id
+LIMIT 500
+`
+
+type ListUnfinishedDownloadsRow struct {
+	ID    string
+	State string
+}
+
+// Downloads whose preparation has not finished, by id after a cursor: the reconciliation with the
+// job queue queues those without an active job (at most 500 per batch).
+func (q *Queries) ListUnfinishedDownloads(ctx context.Context, after string) ([]ListUnfinishedDownloadsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listUnfinishedDownloads, after)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnfinishedDownloadsRow{}
+	for rows.Next() {
+		var i ListUnfinishedDownloadsRow
+		if err := rows.Scan(&i.ID, &i.State); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const requeueDownload = `-- name: RequeueDownload :execrows
 UPDATE downloads
 SET state = 'queued', error = NULL, segments_done = 0, size_bytes = NULL, ready_at = NULL, fetched_at = NULL,
@@ -689,6 +728,29 @@ type RequeueDownloadParams struct {
 // An evicted download the device still lacks is prepared again from the start.
 func (q *Queries) RequeueDownload(ctx context.Context, arg RequeueDownloadParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, requeueDownload, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const resetFailedDownload = `-- name: ResetFailedDownload :execrows
+UPDATE downloads
+SET state = 'queued', error = NULL, profile_id = ?1, segments_done = 0, size_bytes = NULL, ready_at = NULL,
+    fetched_at = NULL, files_removed_at = NULL, updated_at = ?2
+WHERE id = ?3 AND state = 'failed'
+`
+
+type ResetFailedDownloadParams struct {
+	ProfileID sql.NullInt64
+	Now       int64
+	ID        string
+}
+
+// A failed download that is requested again is prepared from the start, for the profile that asks
+// (an explicit createDownloads, or the auto-download rule after its wait).
+func (q *Queries) ResetFailedDownload(ctx context.Context, arg ResetFailedDownloadParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, resetFailedDownload, arg.ProfileID, arg.Now, arg.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -824,6 +886,25 @@ func (q *Queries) SetDownloadsFetched(ctx context.Context, arg SetDownloadsFetch
 		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
 	}
 	result, err := q.db.ExecContext(ctx, query, queryParams...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setStalledDownloadQueued = `-- name: SetStalledDownloadQueued :execrows
+UPDATE downloads SET state = 'queued', error = NULL, updated_at = ?1
+WHERE id = ?2 AND state IN ('preparing', 'paused')
+`
+
+type SetStalledDownloadQueuedParams struct {
+	Now int64
+	ID  string
+}
+
+// A preparing or paused download without a preparation job waits as queued again.
+func (q *Queries) SetStalledDownloadQueued(ctx context.Context, arg SetStalledDownloadQueuedParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setStalledDownloadQueued, arg.Now, arg.ID)
 	if err != nil {
 		return 0, err
 	}

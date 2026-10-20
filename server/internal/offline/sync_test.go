@@ -93,6 +93,14 @@ func TestSyncProfilesPinsWatchTimeAndRules(t *testing.T) {
 	if want := []int64{f.P18.ID, f.P16.ID, f.P12.ID, f.P6.ID}; !slices.Equal(profileIDs(s), want) {
 		t.Errorf("profiles = %v, want %v", profileIDs(s), want)
 	}
+	// M5 review K5: queued and not held, so no PIN material yet, not even for the active profile.
+	for _, p := range s.Profiles {
+		if p.PinSalt != "" || p.PinIterations != 0 || p.OfflinePin != nil {
+			t.Errorf("profile %s has PIN material for a download the device does not hold: %+v", p.Name, p)
+		}
+	}
+	// Held (the device reports it, even partly): the material comes.
+	s = e.sync(f.P12, e.devA, model.HeldDownload{ID: st.ID})
 	if asked := e.pins.asked[len(e.pins.asked)-1]; slices.Contains(asked, f.P0.ID) {
 		t.Errorf("PIN material asked for P0, which has no download here: %v", asked)
 	}
@@ -111,10 +119,25 @@ func TestSyncProfilesPinsWatchTimeAndRules(t *testing.T) {
 		t.Errorf("rules = %+v", s.Rules)
 	}
 	// P0 is active on device A: it gets its own data although no download is for it, and the
-	// download without its title.
+	// download without its title, but never PIN material (web review W4).
 	s = e.sync(f.P0, e.devA)
 	if !slices.Contains(profileIDs(s), f.P0.ID) || stateOf(s, st.ID).Item != nil {
 		t.Errorf("P0 sync: profiles %v, item %+v", profileIDs(s), stateOf(s, st.ID).Item)
+	}
+	for _, p := range s.Profiles {
+		if p.ID == f.P0.ID && (p.PinSalt != "" || p.OfflinePin != nil) {
+			t.Errorf("active P0 got PIN material: %+v", p)
+		}
+		if p.ID == f.P12.ID && p.PinSalt != "" {
+			t.Errorf("P12 got PIN material although the device did not report the queued download: %+v", p)
+		}
+	}
+	// Ready on the server: the device can fetch it, so the material comes without a report.
+	e.runJobs()
+	for _, p := range e.sync(f.P0, e.devA).Profiles {
+		if want := p.ID != f.P0.ID; (p.PinSalt != "") != want {
+			t.Errorf("ready download: profile %s salt %q, want salt %v", p.Name, p.PinSalt, want)
+		}
 	}
 	if s = e.sync(f.P6, e.devA); stateOf(s, st.ID).Item == nil || stateOf(s, st.ID).Item.ID != f.Rated(6).ID {
 		t.Errorf("P6 sync lacks the item it may see")

@@ -35,6 +35,33 @@ func (q *Queries) CountOfflineDuplicateEvents(ctx context.Context, arg CountOffl
 	return count, err
 }
 
+const getOfflineEventDownload = `-- name: GetOfflineEventDownload :one
+SELECT account_id, device_id, item_id, allowed_profile_ids, created_at FROM downloads WHERE id = ?1
+`
+
+type GetOfflineEventDownloadRow struct {
+	AccountID         int64
+	DeviceID          string
+	ItemID            string
+	AllowedProfileIds string
+	CreatedAt         int64
+}
+
+// The download an offline event names: its account, device, title, allowed profiles and creation
+// (an event must fit it and cannot be older than the download).
+func (q *Queries) GetOfflineEventDownload(ctx context.Context, id string) (GetOfflineEventDownloadRow, error) {
+	row := q.db.QueryRowContext(ctx, getOfflineEventDownload, id)
+	var i GetOfflineEventDownloadRow
+	err := row.Scan(
+		&i.AccountID,
+		&i.DeviceID,
+		&i.ItemID,
+		&i.AllowedProfileIds,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getPreviousPlaybackEventTime = `-- name: GetPreviousPlaybackEventTime :one
 SELECT CAST(COALESCE(MAX(server_time), 0) AS INTEGER) AS server_time FROM progress_events
 WHERE playback_session_id = ?1 AND profile_id = ?2 AND item_id = ?3
@@ -136,8 +163,9 @@ type SetProfilePinSaltParams struct {
 }
 
 // Offline PIN material and uploaded offline progress events (M5, AN-10, AN-18, AN-19; package
-// store/appq). Owner: auth (profiles) and playback (progress_events). Never touches title tables;
-// the visibility of an event's title is checked before it is stored. Times are Unix milliseconds.
+// store/appq). Owner: auth (profiles) and playback (progress_events, and the download an event
+// names). Never touches title tables; the visibility of an event's title is checked before it is
+// stored. Times are Unix milliseconds.
 // The salt of the normal PIN: new with every PIN, NULL without one (the client derives its offline
 // verifier from it).
 func (q *Queries) SetProfilePinSalt(ctx context.Context, arg SetProfilePinSaltParams) error {

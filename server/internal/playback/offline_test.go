@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 	_ "time/tzdata" // Europe/Zurich for the DST case of OfflineWatchTime
@@ -280,6 +281,66 @@ func TestReportOfflineRejects(t *testing.T) {
 	}
 	if n := countEvents(t, f, f.P6.ID, film6.ID); n != 1 {
 		t.Errorf("validation errors stored events: %d", n)
+	}
+}
+
+// M5 review K3: an event that names an existing download must fit it (the session's account and
+// device, the event's title, a profile in its allowed profiles, a time after its creation); a
+// download deleted since counts like none, and a corrected time older than 30 days is booked
+// 30 days ago.
+func TestReportOfflineBindsTheDownload(t *testing.T) {
+	now := time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)
+	f, s, _ := newOfflineService(t, now)
+	ctx := context.Background()
+	m, film6 := f.Rated(12), f.Rated(6)
+	otherDevice := strings.Repeat("e", 32)
+	exec := func(query string, args ...any) {
+		t.Helper()
+		if _, err := f.DB.Write.ExecContext(ctx, query, args...); err != nil {
+			t.Fatalf("%s: %v", query, err)
+		}
+	}
+	exec(`INSERT OR IGNORE INTO devices (id, created_at, last_seen_at) VALUES (?, 1, 1), (?, 1, 1)`, offlineDevice, otherDevice)
+	created := now.Add(-2 * time.Hour)
+	allowed := fmt.Sprintf("[%d,%d]", f.P18.ID, f.P12.ID) // P16 sees the title, but the last sync did not list it
+	dl, foreign := offlineID(901), offlineID(902)
+	for _, d := range []struct{ id, device string }{{dl, offlineDevice}, {foreign, otherDevice}} {
+		exec(`INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream, state,
+		      estimated_bytes, allowed_profile_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'low', 1, 'ready', 1000, ?, ?, ?)`,
+			d.id, f.Account.ID, f.P12.ID, d.device, m.ID, m.FileID, allowed, created.UnixMilli(), created.UnixMilli())
+	}
+	event := func(p model.Profile, movie vistest.Movie, n int, at time.Time, download string) model.OfflineEvent {
+		ev := offlineEvent(p, movie, offlineID(n), 1, at, 10_000, 10_000)
+		ev.DownloadID = download
+		return ev
+	}
+	hour := now.Add(-time.Hour)
+	res, err := s.ReportOffline(ctx, offlineSession(t, f, f.P12), now, []model.OfflineEvent{
+		event(f.P12, m, 1, hour, dl),                          // fits
+		event(f.P16, m, 2, hour, dl),                          // profile not in the allowed profiles
+		event(f.P12, film6, 3, hour, dl),                      // another title
+		event(f.P12, m, 4, hour, foreign),                     // a download of another device
+		event(f.P12, m, 5, created.Add(-time.Minute), dl),     // before the download existed
+		event(f.P12, m, 6, hour, offlineID(999)),              // deleted since (no row): like none
+		event(f.P18, film6, 7, now.Add(-40*24*time.Hour), ""), // 40 days back: booked 30 days ago
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"accepted", "rejected", "rejected", "rejected", "rejected", "accepted", "accepted"}
+	if !slices.Equal(res.Results, want) {
+		t.Errorf("results = %v, want %v", res.Results, want)
+	}
+	old := storedEvents(t, f, f.P18.ID, film6.ID)
+	if len(old) != 1 || old[0].serverTime != now.Add(-30*24*time.Hour).UnixMilli() {
+		t.Errorf("old event = %+v, want server time now - 30 days", old)
+	}
+	// Another account's session cannot book events through the owner's download.
+	f.AddGuest(t)
+	guest := offlineSession(t, f, f.PG)
+	res, err = s.ReportOffline(ctx, guest, now, []model.OfflineEvent{event(f.PG, m, 8, hour, dl), event(f.PG, m, 9, hour, "")})
+	if err != nil || !slices.Equal(res.Results, []string{"rejected", "accepted"}) {
+		t.Errorf("guest through the owner's download: %v, %v", res.Results, err)
 	}
 }
 

@@ -731,7 +731,9 @@ export interface paths {
          * Delete a download (O-6)
          * @description Deletes a download of the session's account (any device of the account) together with the server's
          *     prepared copy. The device that holds the file learns it from the revocation list at its next sync
-         *     and removes the file. A download of another account or an unknown id → 404.
+         *     and removes the file. The active profile may delete a download when it may see the title (it is in
+         *     `allowedProfileIds`), when it requested the download, or when it is the account's primary profile.
+         *     Any other download, a download of another account or an unknown id → 404.
          */
         delete: operations["deleteDownload"];
         options?: never;
@@ -780,8 +782,10 @@ export interface paths {
          *     token names the profile it was issued to; every request checks that the download exists and that
          *     this profile still belongs to the account and sees the title, so the fetch continues in the
          *     background after a profile switch, but a child profile never gets a token for a title above its
-         *     rating. Missing or forged token → 401; title not visible to the token's profile → 404; prepared
-         *     copy removed → 410 `download_evicted`. `Cache-Control: private, no-store`.
+         *     rating. Missing or forged token, or a token of an unknown download → 401; title not visible to the
+         *     token's profile → 404; prepared copy removed or not prepared → 410 `download_evicted`. A strong
+         *     `ETag` names the preparation, so `If-Range` never mixes two preparations of the same download.
+         *     `Cache-Control: private, no-store`.
          */
         get: operations["getDownloadFile"];
         put?: never;
@@ -909,8 +913,10 @@ export interface paths {
          *     watch-time report, AN-18) and merges the position: per profile and title the event with the latest
          *     corrected time wins over the stored progress; "completed" stays until a newer event below 90 % comes
          *     (AN-10). An event of a profile outside the account or of a title the profile may not see is
-         *     `rejected`; the same playback id and sequence number again is a `duplicate`. Results come in the
-         *     order of the events.
+         *     `rejected`, and so is an event whose `downloadId` names a download it cannot come from (another
+         *     account, device or title, a profile not in its `allowedProfileIds`, or a corrected time before the
+         *     download was created). A corrected time older than 30 days counts as 30 days ago. The same playback
+         *     id and sequence number again is a `duplicate`. Results come in the order of the events.
          */
         post: operations["uploadOfflineEvents"];
         delete?: never;
@@ -2780,7 +2786,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Download token missing or forged (`unauthenticated`). */
+        /** @description Download token missing, forged or naming an unknown download (`unauthenticated`). */
         DownloadUnauthenticated: {
             headers: {
                 [name: string]: unknown;
@@ -2790,8 +2796,8 @@ export interface components {
             };
         };
         /**
-         * @description Unknown download, a track the download does not carry, or the title is no longer visible to the
-         *     profile of the token (`not_found`).
+         * @description A track the download does not carry, a token of another download than the path names, or the title
+         *     is no longer visible to the profile of the token (`not_found`).
          */
         DownloadNotFound: {
             headers: {
@@ -2801,7 +2807,10 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description The server's prepared copy was removed (`download_evicted`); the next sync prepares it again. */
+        /**
+         * @description The server's prepared copy was removed or is not prepared (`download_evicted`); the next sync
+         *     prepares a removed copy again.
+         */
         DownloadEvicted: {
             headers: {
                 [name: string]: unknown;
@@ -4443,7 +4452,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Unknown or another account's download (`not_found`). */
+            /** @description Unknown or another account's download, or one the active profile may not delete (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

@@ -27,9 +27,9 @@ func downloadGrantFrom(ctx context.Context) (model.DownloadGrant, bool) {
 	return g, ok
 }
 
-// downloadAuth resolves the download token of a download route: a missing or forged token answers
-// 401 unauthenticated, a token whose profile cannot see the title (any more) 404 not_found, and so
-// does a token of another download than the path names.
+// downloadAuth resolves the download token of a download route: a missing or forged token, or one
+// of an unknown download, answers 401 unauthenticated, a token whose profile cannot see the title
+// (any more) 404 not_found, and so does a token of another download than the path names.
 func (p problems) downloadAuth(off OfflineService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +55,8 @@ func (p problems) downloadAuth(off OfflineService) func(http.Handler) http.Handl
 
 // getDownloadFile serves the fragmented MP4 of a prepared download with Range support (binary
 // endpoint, CLAUDE.md rule 6): http.ServeContent answers 206 for a satisfiable range and 416
-// otherwise; a removed server copy answers 410 download_evicted.
+// otherwise; a removed or not prepared server copy answers 410 download_evicted. The ETag of the
+// preparation makes If-Range work: a range of a copy prepared again comes as the whole new file.
 func (s *server) getDownloadFile(w http.ResponseWriter, r *http.Request) {
 	g, ok := downloadGrantFrom(r.Context())
 	if !ok || s.opts.Offline == nil {
@@ -71,6 +72,9 @@ func (s *server) getDownloadFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("Cache-Control", "private, no-store")
+	if src.ETag != "" {
+		w.Header().Set("ETag", src.ETag)
+	}
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
