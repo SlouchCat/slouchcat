@@ -141,7 +141,8 @@ func (s *Service) ValidatePath(_ context.Context, path string) error {
 }
 
 // Create validates the request, detects the file system of the path, inserts the library with
-// its root, queues the first scan and starts the watcher when Start runs.
+// its root, queues the first scan and starts the watcher when Start runs. A podcast library has
+// no root and no watcher; its titles come from feed subscriptions (M6).
 func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.Library, error) {
 	var verr *model.ValidationError
 	name := strings.TrimSpace(req.Name)
@@ -151,11 +152,27 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	case utf8.RuneCountInString(name) > maxNameLen:
 		verr = verr.Add("name", "too_long")
 	}
-	if req.Kind != "movies" && req.Kind != "series" {
+	if !model.ValidLibraryKind(req.Kind) {
 		verr = verr.Add("kind", "invalid_value")
 	}
 	if verr != nil {
 		return model.Library{}, verr
+	}
+	var defaultRating sql.NullInt64
+	if model.AudioLibraryKind(req.Kind) {
+		defaultRating = sql.NullInt64{Int64: 0, Valid: true}
+		if req.DefaultRating != nil {
+			defaultRating.Int64 = int64(*req.DefaultRating)
+		}
+	}
+	if req.Kind == model.LibraryPodcasts {
+		now := s.now().UnixMilli()
+		lib, err := appq.New(s.db.Write).InsertLibrary(ctx, appq.InsertLibraryParams{Name: name, Kind: req.Kind, DefaultRating: defaultRating, Now: now})
+		if err != nil {
+			return model.Library{}, fmt.Errorf("insert library: %w", err)
+		}
+		s.log.InfoContext(ctx, "library created", "library_id", lib.ID, "kind", lib.Kind)
+		return s.toModel(ctx, lib)
 	}
 	if err := s.ValidatePath(ctx, req.Path); err != nil {
 		return model.Library{}, err
@@ -183,7 +200,7 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := appq.New(tx)
-	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: name, Kind: req.Kind, Now: now})
+	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: name, Kind: req.Kind, DefaultRating: defaultRating, Now: now})
 	if err != nil {
 		return model.Library{}, fmt.Errorf("insert library: %w", err)
 	}
@@ -562,7 +579,8 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 	}
 	m := model.Library{
 		ID: l.ID, Name: l.Name, Kind: l.Kind, CreatedAt: time.UnixMilli(l.CreatedAt).UTC(),
-		Roots: make([]model.LibraryRoot, 0, len(roots)),
+		DefaultRating: optRating(l.DefaultRating),
+		Roots:         make([]model.LibraryRoot, 0, len(roots)),
 		Scan: model.LibraryScan{
 			State:          l.LastScanState,
 			StartedAt:      timePtr(l.LastScanStartedAt),
@@ -580,6 +598,15 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		m.Roots = append(m.Roots, model.LibraryRoot{ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning})
 	}
 	return m, nil
+}
+
+// optRating maps a nullable rating column.
+func optRating(v sql.NullInt64) *int {
+	if !v.Valid {
+		return nil
+	}
+	r := int(v.Int64)
+	return &r
 }
 
 func timePtr(v sql.NullInt64) *time.Time {

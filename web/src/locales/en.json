@@ -129,7 +129,9 @@
   "library": {
     "kind": {
       "movies": "Movies",
-      "series": "Series"
+      "series": "Series",
+      "audiobooks": "Audiobooks",
+      "podcasts": "Podcasts"
     }
   },
   "home": {

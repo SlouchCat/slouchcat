@@ -2,7 +2,12 @@
 -- Times are Unix milliseconds.
 
 -- name: InsertLibrary :one
-INSERT INTO libraries (name, kind, created_at, updated_at) VALUES (@name, @kind, @now, @now)
+INSERT INTO libraries (name, kind, default_rating, created_at, updated_at)
+VALUES (@name, @kind, @default_rating, @now, @now)
+RETURNING *;
+
+-- name: UpdateLibrarySettings :one
+UPDATE libraries SET name = @name, default_rating = @default_rating, updated_at = @now WHERE id = @id
 RETURNING *;
 
 -- name: InsertLibraryRoot :one

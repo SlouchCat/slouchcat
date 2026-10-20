@@ -41,7 +41,12 @@ func (s *Service) ListAccountLibraries(ctx context.Context, account model.Accoun
 	out := make([]model.LibraryRef, 0, len(rows))
 	for _, l := range rows {
 		if account.AllLibraries || slices.Contains(account.LibraryIDs, l.ID) {
-			out = append(out, model.LibraryRef{ID: l.ID, Name: l.Name, Kind: l.Kind})
+			ref := model.LibraryRef{ID: l.ID, Name: l.Name, Kind: l.Kind}
+			if l.DefaultRating.Valid {
+				r := int(l.DefaultRating.Int64)
+				ref.DefaultRating = &r
+			}
+			out = append(out, ref)
 		}
 	}
 	slices.SortStableFunc(out, func(a, b model.LibraryRef) int {

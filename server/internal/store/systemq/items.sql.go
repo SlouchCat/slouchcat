@@ -53,7 +53,7 @@ func (q *Queries) DeleteTrack(ctx context.Context, id int64) error {
 }
 
 const getItemSystem = `-- name: GetItemSystem :one
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at FROM items WHERE id = ?1
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items WHERE id = ?1
 `
 
 func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
@@ -98,12 +98,29 @@ func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
 		&i.TrailerCheckedAt,
 		&i.SegmentsState,
 		&i.SegmentsCheckedAt,
+		&i.Author,
+		&i.Narrator,
+		&i.SeriesName,
+		&i.SeriesIndex,
+		&i.Explicit,
+		&i.DurationMs,
+		&i.CoverUrl,
+		&i.CoverPath,
+		&i.FeedUrl,
+		&i.FeedEtag,
+		&i.FeedModified,
+		&i.FeedCheckedAt,
+		&i.FeedError,
+		&i.Guid,
+		&i.PublishedAt,
+		&i.EnclosureType,
+		&i.EnclosureLength,
 	)
 	return i, err
 }
 
 const getMediaFileSystem = `-- name: GetMediaFileSystem :one
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error FROM media_files WHERE id = ?1
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files WHERE id = ?1
 `
 
 func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile, error) {
@@ -134,6 +151,7 @@ func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ProbeError,
+		&i.PartIndex,
 	)
 	return i, err
 }
@@ -146,7 +164,7 @@ INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, ?15, ?16,
         ?17, ?18, ?19, ?19, ?19)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length
 `
 
 type InsertItemParams struct {
@@ -235,6 +253,23 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		&i.TrailerCheckedAt,
 		&i.SegmentsState,
 		&i.SegmentsCheckedAt,
+		&i.Author,
+		&i.Narrator,
+		&i.SeriesName,
+		&i.SeriesIndex,
+		&i.Explicit,
+		&i.DurationMs,
+		&i.CoverUrl,
+		&i.CoverPath,
+		&i.FeedUrl,
+		&i.FeedEtag,
+		&i.FeedModified,
+		&i.FeedCheckedAt,
+		&i.FeedError,
+		&i.Guid,
+		&i.PublishedAt,
+		&i.EnclosureType,
+		&i.EnclosureLength,
 	)
 	return i, err
 }
@@ -244,7 +279,7 @@ INSERT INTO media_files (id, item_id, root_id, rel_path, dev, inode, size, mtime
                          container, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
         ?11, ?12, ?12)
-RETURNING id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error
+RETURNING id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index
 `
 
 type InsertMediaFileParams struct {
@@ -303,6 +338,7 @@ func (q *Queries) InsertMediaFile(ctx context.Context, arg InsertMediaFileParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ProbeError,
+		&i.PartIndex,
 	)
 	return i, err
 }
@@ -370,7 +406,7 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 }
 
 const listItemsByLibrary = `-- name: ListItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]Item, error) {
@@ -421,6 +457,23 @@ func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]It
 			&i.TrailerCheckedAt,
 			&i.SegmentsState,
 			&i.SegmentsCheckedAt,
+			&i.Author,
+			&i.Narrator,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Explicit,
+			&i.DurationMs,
+			&i.CoverUrl,
+			&i.CoverPath,
+			&i.FeedUrl,
+			&i.FeedEtag,
+			&i.FeedModified,
+			&i.FeedCheckedAt,
+			&i.FeedError,
+			&i.Guid,
+			&i.PublishedAt,
+			&i.EnclosureType,
+			&i.EnclosureLength,
 		); err != nil {
 			return nil, err
 		}
@@ -507,7 +560,7 @@ func (q *Queries) ListMediaFileTracks(ctx context.Context, mediaFileID string) (
 }
 
 const listMediaFilesByRoot = `-- name: ListMediaFilesByRoot :many
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error FROM media_files WHERE root_id = ?1 ORDER BY rel_path
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files WHERE root_id = ?1 ORDER BY rel_path
 `
 
 func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]MediaFile, error) {
@@ -544,6 +597,7 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ProbeError,
+			&i.PartIndex,
 		); err != nil {
 			return nil, err
 		}
@@ -559,7 +613,7 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 }
 
 const listRecentlyDeletedItemsByLibrary = `-- name: ListRecentlyDeletedItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items
 WHERE library_id = ?1 AND deleted_at IS NOT NULL AND deleted_at >= ?2
 ORDER BY deleted_at DESC, id
 `
@@ -618,6 +672,23 @@ func (q *Queries) ListRecentlyDeletedItemsByLibrary(ctx context.Context, arg Lis
 			&i.TrailerCheckedAt,
 			&i.SegmentsState,
 			&i.SegmentsCheckedAt,
+			&i.Author,
+			&i.Narrator,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Explicit,
+			&i.DurationMs,
+			&i.CoverUrl,
+			&i.CoverPath,
+			&i.FeedUrl,
+			&i.FeedEtag,
+			&i.FeedModified,
+			&i.FeedCheckedAt,
+			&i.FeedError,
+			&i.Guid,
+			&i.PublishedAt,
+			&i.EnclosureType,
+			&i.EnclosureLength,
 		); err != nil {
 			return nil, err
 		}

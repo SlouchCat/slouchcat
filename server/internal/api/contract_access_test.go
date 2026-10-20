@@ -181,6 +181,13 @@ var adminRegistry = map[string]adminCall{
 	"deleteDevice": {contract: "DELETE /admin/devices/{id}", path: "/admin/devices/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", ownerStatus: http.StatusNotFound},
 	"listStreams":  {contract: "GET /admin/streams", path: "/admin/streams", ownerStatus: http.StatusOK},
 	"stopStream":   {contract: "DELETE /admin/streams/{id}", path: "/admin/streams/01JZZZZZZZZZZZZZZZZZZZZZZZ", ownerStatus: http.StatusNotFound},
+	// M6: library settings and podcast subscriptions (base stubs answer 501; stream B replaces the
+	// expectations with the real statuses).
+	"updateLibrary":  {contract: "PATCH /admin/libraries/{id}", path: "/admin/libraries/777", body: `{"name":"Neu"}`, ownerStatus: http.StatusNotImplemented},
+	"listPodcasts":   {contract: "GET /admin/podcasts", path: "/admin/podcasts", ownerStatus: http.StatusNotImplemented},
+	"createPodcast":  {contract: "POST /admin/podcasts", path: "/admin/podcasts", body: `{"libraryId":777,"feedUrl":"http://127.0.0.1:9/feed.xml"}`, ownerStatus: http.StatusNotImplemented},
+	"deletePodcast":  {contract: "DELETE /admin/podcasts/{id}", path: "/admin/podcasts/" + unknownItemID, ownerStatus: http.StatusNotImplemented},
+	"refreshPodcast": {contract: "POST /admin/podcasts/{id}/refresh", path: "/admin/podcasts/" + unknownItemID + "/refresh", ownerStatus: http.StatusNotImplemented},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

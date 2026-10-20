@@ -479,6 +479,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/episodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Episodes of a podcast, newest first (paged)
+         * @description The visible episodes of a podcast for the active profile (an `explicit` episode is hidden from
+         *     profiles under 18, AN-2). The detail of the podcast carries the newest 50; this operation pages
+         *     through all of them.
+         */
+        get: operations["listPodcastEpisodes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/download-options": {
         parameters: {
             query?: never;
@@ -862,7 +884,8 @@ export interface paths {
          * @description With `enabled` the server downloads the next episode of every series the profile started (watched in
          *     the last 60 days) at the next sync, until `maxCount` auto-downloads the profile has not finished are
          *     on the device. `wifiOnly` is checked by the client before it fetches (`navigator.connection`; iOS
-         *     cannot tell and hides the option, AN-13). `newPodcastEpisodes` is stored for podcasts (M6).
+         *     cannot tell and hides the option, AN-13). `newPodcastEpisodes` downloads new episodes of the podcasts
+         *     the profile listened to in the last 60 days (M6, O-3).
          */
         put: operations["setDownloadRules"];
         post?: never;
@@ -957,7 +980,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename a library or change the default age rating of an audio library (AN-2)
+         * @description A new default rating applies at once to every title of the library whose rating still comes from the
+         *     library (`rating_source` `library`); manual ratings and `explicit` episodes keep theirs.
+         */
+        patch: operations["updateLibrary"];
         trace?: never;
     };
     "/admin/libraries/{id}/scan": {
@@ -1083,6 +1111,69 @@ export interface paths {
          * @description Takes effect with the guest's next request; profiles above the new ceiling are capped by the visibility layer.
          */
         patch: operations["updateGuest"];
+        trace?: never;
+    };
+    "/admin/podcasts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All podcast subscriptions with their feed state
+         * @description An administration view (not `ItemRef`), unfiltered by any profile.
+         */
+        get: operations["listPodcasts"];
+        put?: never;
+        /**
+         * Subscribe to a podcast by feed URL (H-2)
+         * @description Fetches the feed once right away (at most 20 s) and stores the podcast with its episodes in the given
+         *     podcast library; afterwards the server refreshes the feed every 60 minutes. The podcast starts with
+         *     the library's default rating; a channel or episode flagged `itunes:explicit` counts as FSK 18 (AN-2).
+         */
+        post: operations["createPodcast"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/podcasts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a podcast subscription with its episodes
+         * @description Soft-deletes the podcast and its episodes; downloads of the episodes are revoked at the next sync.
+         */
+        delete: operations["deletePodcast"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/podcasts/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fetch the feed of a podcast now */
+        post: operations["refreshPodcast"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/admin/items/{id}/rating": {
@@ -1847,6 +1938,8 @@ export interface components {
             completed: boolean;
             /** Format: date-time */
             updatedAt: string;
+            /** @description Playback speed the profile last used for this title (H-3); absent until it was set. */
+            playbackRate?: number;
             /**
              * @description Present in the answer of `reportProgress` when the active profile has a daily limit (K-5). With
              *     `remainingMinutes` 0 the server has revoked every playback session of the profile; the client
@@ -1887,6 +1980,20 @@ export interface components {
             extraKind?: components["schemas"]["ExtraKind"];
             /** @description Visible seasons of a series, visible episodes of a season. */
             childCount?: number;
+            /** @description Author of an audiobook, author of a podcast and its episodes (M6). */
+            author?: string;
+            /**
+             * Format: date-time
+             * @description Publication time of a podcast episode (from the feed).
+             */
+            publishedAt?: string;
+            /**
+             * Format: int64
+             * @description Duration of an audiobook (all parts) or a podcast episode in milliseconds.
+             */
+            durationMs?: number;
+            /** @description Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18). */
+            explicit?: boolean;
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
             originalTitle?: string;
@@ -1907,8 +2014,23 @@ export interface components {
             season?: components["schemas"]["ItemRef"];
             /** @description Visible seasons of a series by number, specials last. */
             seasons?: components["schemas"]["ItemRef"][];
-            /** @description Visible episodes of a season by number. */
+            /**
+             * @description Visible episodes of a season by number; for a podcast its newest visible episodes (at most
+             *     50, newest first; `listPodcastEpisodes` pages through the rest).
+             */
             episodes?: components["schemas"]["ItemRef"][];
+            /** @description Visible episodes of a podcast in total. */
+            episodeCount?: number;
+            /** @description The podcast of an episode. */
+            podcast?: components["schemas"]["ItemRef"];
+            /** @description Narrator of an audiobook. */
+            narrator?: string;
+            /** @description Series an audiobook belongs to (for example "Per Anhalter durch die Galaxis"). */
+            seriesName?: string;
+            /** @description Volume inside `seriesName` (0.5 for a prequel is possible). */
+            seriesIndex?: number;
+            /** @description Book-wide chapters of an audiobook (from chapter marks or one per file), in order. */
+            chapters?: components["schemas"]["Chapter"][];
             /** @description Visible extras of a film, series or season (B-7). */
             extras?: components["schemas"]["ItemRef"][];
             /** @description The next visible episode of the same series after this episode. */
@@ -2123,6 +2245,13 @@ export interface components {
             endMs: number;
             title?: string;
         };
+        PlaybackPart: {
+            mediaFileId: string;
+            /** Format: int64 */
+            startMs: number;
+            /** Format: int64 */
+            durationMs: number;
+        };
         /** @description A detected intro or outro (W-9). */
         Segment: {
             /** Format: int64 */
@@ -2142,6 +2271,15 @@ export interface components {
              * @enum {string}
              */
             mode: "direct" | "hls";
+            /**
+             * @description `audio` for audiobooks and podcast episodes (M6): the client shows the audio player with chapters
+             *     and speed. A multi-part audiobook always plays as one HLS timeline over all parts; a podcast
+             *     episode without a file streams through the server from its enclosure.
+             * @enum {string}
+             */
+            mediaKind: "video" | "audio";
+            /** @description Parts of a multi-part audiobook on the single playback timeline (information only). */
+            parts?: components["schemas"]["PlaybackPart"][];
             item: components["schemas"]["ItemRef"];
             mediaFile: components["schemas"]["MediaFileInfo"];
             /**
@@ -2206,6 +2344,48 @@ export interface components {
              *     budget forced the next lower rung).
              */
             reason: string;
+        };
+        /** @description A podcast subscription as the administration sees it (M6, H-2); not an `ItemRef`. */
+        AdminPodcast: {
+            id: components["schemas"]["ItemID"];
+            /** Format: int64 */
+            libraryId: number;
+            title: string;
+            author?: string;
+            /** Format: uri */
+            feedUrl: string;
+            /** @description Stored episodes (all, unfiltered). */
+            episodeCount: number;
+            /** @description The channel is flagged `itunes:explicit`; the podcast counts as FSK 18 (AN-2). */
+            explicit: boolean;
+            /**
+             * Format: date-time
+             * @description Last successful or failed feed fetch.
+             */
+            lastCheckedAt?: string;
+            /** @description Stable code and short text of the last failed fetch; absent after a success. */
+            lastError?: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        PodcastCreate: {
+            /**
+             * Format: int64
+             * @description A library of kind `podcasts`.
+             */
+            libraryId: number;
+            /**
+             * Format: uri
+             * @description RSS feed (http or https, no credentials).
+             */
+            feedUrl: string;
+        };
+        PodcastEpisodes: {
+            episodes: components["schemas"]["ItemRef"][];
+            /** @description Visible episodes in total. */
+            total: number;
+            offset: number;
+            limit: number;
         };
         /** @description A device as the administration sees it (W-7); not an `ItemRef`. */
         AdminDevice: {
@@ -2287,6 +2467,8 @@ export interface components {
              * @description Device clock when the event was created.
              */
             clientTime: string;
+            /** @description Playback speed in use; stored per profile and title (H-3) when present. */
+            playbackRate?: number;
         };
         /** @enum {string} */
         MetadataProvider: "tmdb" | "tvdb";
@@ -2411,19 +2593,44 @@ export interface components {
             itemIds?: components["schemas"]["ItemID"][];
             mediaFileIds?: string[];
         };
-        /** @enum {string} */
-        LibraryKind: "movies" | "series";
+        /**
+         * @description `audiobooks` scans M4B files and folders of audio files as books (H-1); `podcasts` holds feed
+         *     subscriptions and has no directory (H-2). Both carry a default age rating (AN-2).
+         * @enum {string}
+         */
+        LibraryKind: "movies" | "series" | "audiobooks" | "podcasts";
         LibrarySummary: {
             /** Format: int64 */
             id: number;
             name: string;
             kind: components["schemas"]["LibraryKind"];
+            /** @description Default age rating of an audio library (AN-2); absent for video libraries. */
+            defaultRating?: components["schemas"]["Rating"];
         };
         LibraryRequest: {
             name: string;
             kind: components["schemas"]["LibraryKind"];
-            /** @description Absolute directory on the server (inside the container, for example `/media/Filme`). */
-            path: string;
+            /**
+             * @description Absolute directory on the server (inside the container, for example `/media/Filme`). Required for
+             *     every kind except `podcasts`, which has no directory (`path` `required` / `not_allowed`).
+             */
+            path?: string;
+            /**
+             * @description Default age rating of every title in an audio library (AN-2, decision 9); only for `audiobooks`
+             *     and `podcasts` (`not_allowed` otherwise), default 0. Single titles may be set stricter, never
+             *     below it (`rating_below_library_default`).
+             */
+            defaultRating?: components["schemas"]["Rating"];
+        };
+        /** @description Changes to a library; every field is optional. */
+        LibraryUpdate: {
+            name?: string;
+            /**
+             * @description New default age rating of an audio library; every title whose rating still comes from the
+             *     library (`rating_source` `library`) follows at once, manual ratings stay. `not_allowed` for
+             *     video libraries.
+             */
+            defaultRating?: components["schemas"]["Rating"];
         };
         /**
          * @description `aborted` means the loss protection stopped the scan (root missing or empty, or more than 20 % of
@@ -2437,6 +2644,8 @@ export interface components {
             id: number;
             name: string;
             kind: components["schemas"]["LibraryKind"];
+            /** @description Default age rating of an audio library (AN-2); absent for video libraries. */
+            defaultRating?: components["schemas"]["Rating"];
             roots: components["schemas"]["LibraryRoot"][];
             scan: components["schemas"]["LibraryScan"];
             /** Format: date-time */
@@ -2588,7 +2797,7 @@ export interface components {
             sizeBytes: number;
             /** Format: int64 */
             durationMs: number;
-            /** @description Always `video/mp4`. */
+            /** @description `video/mp4` for video, `audio/mp4` for audiobooks and podcast episodes (M6). */
             mimeType: string;
             /** @description RFC 6381 codecs for `MediaSource.isTypeSupported`, e.g. `avc1.64001f,mp4a.40.2`. */
             codecs: string;
@@ -2609,6 +2818,8 @@ export interface components {
             /** @description The audio track the file carries. */
             audio?: components["schemas"]["Track"];
             subtitles: components["schemas"]["DownloadSubtitle"][];
+            /** @description Chapters of an audiobook on the file's timeline (empty for video and episodes without marks). */
+            chapters: components["schemas"]["Chapter"][];
         };
         OfflineSyncRequest: {
             held: {
@@ -2662,7 +2873,7 @@ export interface components {
             enabled: boolean;
             /** @description Download the next episode of every started series. */
             nextEpisodes: boolean;
-            /** @description New episodes of subscribed podcasts (stored now, effective with podcasts in M6). */
+            /** @description New episodes of the podcasts the profile listened to in the last 60 days (O-3, M6). */
             newPodcastEpisodes: boolean;
             wifiOnly: boolean;
             /** @description Most auto-downloads on this device the profile has not finished watching. */
@@ -2710,6 +2921,8 @@ export interface components {
              * @description Device clock when the event was created.
              */
             clientTime: string;
+            /** @description Playback speed in use offline; stored per profile and title (H-3) when present. */
+            playbackRate?: number;
         };
         OfflineEventBatch: {
             /**
@@ -3991,6 +4204,51 @@ export interface operations {
             };
         };
     };
+    listPodcastEpisodes: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of episodes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PodcastEpisodes"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Session without a profile (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown, invisible or not a podcast (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getDownloadOptions: {
         parameters: {
             query?: {
@@ -4950,6 +5208,52 @@ export interface operations {
             };
         };
     };
+    updateLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     scanLibrary: {
         parameters: {
             query?: never;
@@ -5259,6 +5563,142 @@ export interface operations {
             };
             /** @description Validation failed (`validation_failed`; `libraryIds` `unknown_library`). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listPodcasts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Subscriptions, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPodcast"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    createPodcast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PodcastCreate"];
+            };
+        };
+        responses: {
+            /** @description Subscribed; the first episodes are stored. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPodcast"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description The library already subscribes to this feed (`feed_exists`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `feedUrl` `invalid_url`, `libraryId` `unknown_library` or
+             *     `library_kind`), the feed could not be fetched (`feed_unreachable`) or is not an RSS podcast feed
+             *     (`feed_invalid`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deletePodcast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown podcast (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    refreshPodcast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fetch queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPodcast"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown podcast (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

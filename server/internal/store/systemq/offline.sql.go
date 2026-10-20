@@ -83,7 +83,7 @@ func (q *Queries) EvictDownload(ctx context.Context, arg EvictDownloadParams) (i
 }
 
 const getDeviceDownload = `-- name: GetDeviceDownload :one
-SELECT id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at FROM downloads WHERE device_id = ?1 AND item_id = ?2
+SELECT id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at FROM downloads WHERE device_id = ?1 AND item_id = ?2
 `
 
 type GetDeviceDownloadParams struct {
@@ -102,6 +102,7 @@ func (q *Queries) GetDeviceDownload(ctx context.Context, arg GetDeviceDownloadPa
 		&i.DeviceID,
 		&i.ItemID,
 		&i.MediaFileID,
+		&i.SourceUrl,
 		&i.Quality,
 		&i.AudioStream,
 		&i.Auto,
@@ -129,7 +130,7 @@ func (q *Queries) GetDeviceDownload(ctx context.Context, arg GetDeviceDownloadPa
 }
 
 const getDownload = `-- name: GetDownload :one
-SELECT id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at FROM downloads WHERE id = ?1
+SELECT id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at FROM downloads WHERE id = ?1
 `
 
 func (q *Queries) GetDownload(ctx context.Context, id string) (Download, error) {
@@ -142,6 +143,7 @@ func (q *Queries) GetDownload(ctx context.Context, id string) (Download, error) 
 		&i.DeviceID,
 		&i.ItemID,
 		&i.MediaFileID,
+		&i.SourceUrl,
 		&i.Quality,
 		&i.AudioStream,
 		&i.Auto,
@@ -256,7 +258,7 @@ INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_fil
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?13, ?13)
 ON CONFLICT (device_id, item_id) DO NOTHING
-RETURNING id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at
+RETURNING id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at
 `
 
 type InsertDownloadParams struct {
@@ -265,7 +267,7 @@ type InsertDownloadParams struct {
 	ProfileID         sql.NullInt64
 	DeviceID          string
 	ItemID            string
-	MediaFileID       string
+	MediaFileID       sql.NullString
 	Quality           string
 	AudioStream       int64
 	Auto              int64
@@ -305,6 +307,7 @@ func (q *Queries) InsertDownload(ctx context.Context, arg InsertDownloadParams) 
 		&i.DeviceID,
 		&i.ItemID,
 		&i.MediaFileID,
+		&i.SourceUrl,
 		&i.Quality,
 		&i.AudioStream,
 		&i.Auto,
@@ -378,7 +381,7 @@ func (q *Queries) ListActiveDeviceRules(ctx context.Context, arg ListActiveDevic
 }
 
 const listDeviceDownloads = `-- name: ListDeviceDownloads :many
-SELECT id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at FROM downloads WHERE device_id = ?1 AND account_id = ?2
+SELECT id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at FROM downloads WHERE device_id = ?1 AND account_id = ?2
 ORDER BY created_at, id
 `
 
@@ -404,6 +407,7 @@ func (q *Queries) ListDeviceDownloads(ctx context.Context, arg ListDeviceDownloa
 			&i.DeviceID,
 			&i.ItemID,
 			&i.MediaFileID,
+			&i.SourceUrl,
 			&i.Quality,
 			&i.AudioStream,
 			&i.Auto,

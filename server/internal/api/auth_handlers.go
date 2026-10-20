@@ -144,7 +144,7 @@ func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (g
 		Password: deref(body.Password),
 		Language: string(deref(body.Language)),
 		TMDBKey:  deref(body.TmdbApiKey),
-		Library:  model.LibraryRequest{Name: body.Library.Name, Kind: string(body.Library.Kind), Path: body.Library.Path},
+		Library:  libraryRequest(body.Library),
 	}
 	session, token, err := s.opts.Admin.RunSetup(model.WithClientIP(ctx, s.clientAddr(ctx)), in, userAgent(ctx))
 	if err != nil {

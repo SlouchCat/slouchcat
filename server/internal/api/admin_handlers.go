@@ -36,7 +36,7 @@ func (s *server) ListLibraries(ctx context.Context, _ gen.ListLibrariesRequestOb
 
 func (s *server) CreateLibrary(ctx context.Context, req gen.CreateLibraryRequestObject) (gen.CreateLibraryResponseObject, error) {
 	body := deref(req.Body)
-	lib, err := s.opts.Admin.CreateLibrary(ctx, model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Path: body.Path})
+	lib, err := s.opts.Admin.CreateLibrary(ctx, libraryRequest(body))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -119,8 +119,37 @@ func toLibrary(l model.Library) gen.Library {
 		scan.LastError = &l.Scan.LastError
 	}
 	return gen.Library{
-		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), Roots: roots, Scan: scan, CreatedAt: l.CreatedAt.UTC(),
+		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), DefaultRating: toRating(l.DefaultRating),
+		Roots: roots, Scan: scan, CreatedAt: l.CreatedAt.UTC(),
 	}
+}
+
+// libraryRequest maps the contract request; the path is optional (none for podcasts).
+func libraryRequest(body gen.LibraryRequest) model.LibraryRequest {
+	req := model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Path: deref(body.Path)}
+	if body.DefaultRating != nil {
+		r := int(*body.DefaultRating)
+		req.DefaultRating = &r
+	}
+	return req
+}
+
+// toRating maps an optional FSK rating.
+func toRating(r *int) *gen.Rating {
+	if r == nil {
+		return nil
+	}
+	v := gen.Rating(*r)
+	return &v
+}
+
+// toChapters maps a chapter list (never nil, the contract requires the array).
+func toChapters(chapters []model.Chapter) []gen.Chapter {
+	out := make([]gen.Chapter, 0, len(chapters))
+	for _, c := range chapters {
+		out = append(out, gen.Chapter{StartMs: c.StartMs, EndMs: c.EndMs, Title: optString(c.Title)})
+	}
+	return out
 }
 
 func utc(t *time.Time) *time.Time {

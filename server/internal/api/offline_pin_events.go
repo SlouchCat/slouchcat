@@ -53,7 +53,7 @@ func (s *server) UploadOfflineEvents(ctx context.Context, req gen.UploadOfflineE
 		events = append(events, model.OfflineEvent{
 			ProfileID: e.ProfileId, ItemID: e.ItemId, PlaybackID: e.PlaybackId, DownloadID: deref(e.DownloadId),
 			MediaFileID: deref(e.MediaFileId), PositionMs: e.PositionMs, DurationMs: e.DurationMs, PlayedMs: e.PlayedMs,
-			Seq: e.Seq, State: string(e.State), ClientTime: e.ClientTime,
+			Seq: e.Seq, State: string(e.State), ClientTime: e.ClientTime, PlaybackRate: rate32(e.PlaybackRate),
 		})
 	}
 	res, err := s.opts.Playback.ReportOffline(ctx, session, b.SentAt, events)

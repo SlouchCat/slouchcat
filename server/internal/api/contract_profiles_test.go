@@ -278,6 +278,10 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("segment 3: %v %x", rec.Header(), rec.Body.Bytes())
 			}
 		}},
+	// M6: the paged episode list of a podcast (base stub answers 501 for every title; stream B sets
+	// 200 for podcasts and 404 otherwise).
+	"listPodcastEpisodes": {contract: "GET /items/{id}/episodes", path: "/items/{id}/episodes", perItem: true,
+		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
 	"getItemTracks": {contract: "GET /items/{id}/tracks", path: "/items/{id}/tracks", perItem: true, okStatus: http.StatusOK,
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var list struct {

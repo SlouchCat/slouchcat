@@ -278,8 +278,13 @@ func nonNilStrings(v []string) []string {
 
 // toPlaybackInfo maps the description of a started playback.
 func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
+	mediaKind := gen.PlaybackInfoMediaKind(info.MediaKind)
+	if info.MediaKind == "" {
+		mediaKind = gen.PlaybackInfoMediaKindVideo
+	}
 	out := gen.PlaybackInfo{
 		Mode:              gen.PlaybackInfoMode(info.Mode),
+		MediaKind:         mediaKind,
 		Item:              toItemRef(profileID, info.Item),
 		MediaFile:         toMediaFileInfo(info.MediaFile),
 		StreamUrl:         info.StreamURL,
@@ -311,6 +316,13 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 	}
 	for _, c := range info.Chapters {
 		out.Chapters = append(out.Chapters, gen.Chapter{StartMs: c.StartMs, EndMs: c.EndMs, Title: optString(c.Title)})
+	}
+	if len(info.Parts) > 0 {
+		parts := make([]gen.PlaybackPart, 0, len(info.Parts))
+		for _, p := range info.Parts {
+			parts = append(parts, gen.PlaybackPart{MediaFileId: p.MediaFileID, StartMs: p.StartMs, DurationMs: p.DurationMs})
+		}
+		out.Parts = &parts
 	}
 	segment := func(s *model.Segment) *gen.Segment {
 		if s == nil {

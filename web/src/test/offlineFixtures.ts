@@ -27,6 +27,7 @@ export const manifest = (
 ): DownloadManifest => ({
   id,
   itemId,
+  chapters: [],
   sizeBytes: 9000,
   durationMs: 8000,
   mimeType: 'video/mp4',

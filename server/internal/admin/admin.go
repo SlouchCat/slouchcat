@@ -226,18 +226,27 @@ func validateLibrary(verr *model.ValidationError, prefix string, req model.Libra
 	case utf8.RuneCountInString(name) > maxLibraryName:
 		verr = verr.Add(prefix+"name", "too_long")
 	}
-	switch req.Kind {
-	case "":
+	switch {
+	case req.Kind == "":
 		verr = verr.Add(prefix+"kind", "required")
-	case "movies", "series":
-	default:
+	case !model.ValidLibraryKind(req.Kind):
 		verr = verr.Add(prefix+"kind", "invalid_value")
 	}
 	switch {
-	case strings.TrimSpace(req.Path) == "":
+	case req.Kind == model.LibraryPodcasts && strings.TrimSpace(req.Path) != "":
+		verr = verr.Add(prefix+"path", "not_allowed")
+	case req.Kind != model.LibraryPodcasts && strings.TrimSpace(req.Path) == "":
 		verr = verr.Add(prefix+"path", "required")
 	case len(req.Path) > maxLibraryPath:
 		verr = verr.Add(prefix+"path", "too_long")
+	}
+	if req.DefaultRating != nil {
+		switch {
+		case req.Kind != "" && !model.AudioLibraryKind(req.Kind):
+			verr = verr.Add(prefix+"defaultRating", "not_allowed")
+		case !validRating(req.DefaultRating):
+			verr = verr.Add(prefix+"defaultRating", "invalid_value")
+		}
 	}
 	return verr
 }

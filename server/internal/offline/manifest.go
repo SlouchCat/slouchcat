@@ -338,7 +338,7 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 		// Anything else (an I/O error of the cache disk) may pass; the copy stays.
 		return model.DownloadManifest{}, fmt.Errorf("read index of download %s: %w", id, err)
 	}
-	tracks, err := s.vis.Tracks(ctx, scope, row.ItemID, row.MediaFileID)
+	tracks, err := s.vis.Tracks(ctx, scope, row.ItemID, row.MediaFileID.String)
 	if err != nil {
 		return model.DownloadManifest{}, err
 	}

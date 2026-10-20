@@ -153,7 +153,7 @@ type planned struct {
 // keyframe index computes it first (and stores it), else the video is encoded. A source that is
 // not probed yet or cannot be read is errSourceWait.
 func (s *Service) planFor(ctx context.Context, row systemq.Download) (planned, error) {
-	m, err := s.write.GetDownloadSource(ctx, row.MediaFileID)
+	m, err := s.write.GetDownloadSource(ctx, row.MediaFileID.String)
 	if err != nil {
 		return planned{}, fmt.Errorf("get download source: %w", err)
 	}

@@ -317,7 +317,7 @@ func (s *Service) create(ctx context.Context, accountID, profileID int64, device
 	now := s.now()
 	row, err := s.write.InsertDownload(ctx, systemq.InsertDownloadParams{
 		ID: ulid.Make().String(), AccountID: accountID, ProfileID: sql.NullInt64{Int64: profileID, Valid: profileID > 0},
-		DeviceID: deviceID, ItemID: src.item.ID, MediaFileID: src.loc.File.ID, Quality: prof.Quality,
+		DeviceID: deviceID, ItemID: src.item.ID, MediaFileID: sql.NullString{String: src.loc.File.ID, Valid: src.loc.File.ID != ""}, Quality: prof.Quality,
 		AudioStream: int64(max(audio, 0)), Auto: boolInt(auto),
 		DurationMs: sql.NullInt64{Int64: c.DurationMs, Valid: c.DurationMs > 0}, EstimatedBytes: c.EstimatedBytes,
 		AllowedProfileIds: allowed, Now: ms(now),

@@ -98,16 +98,20 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		return model.PlaybackInfo{}, model.ErrNotFound // a playback session always belongs to a profile
 	}
 	scope := visibility.Profile(session.Profile)
+	item, err := s.vis.Summary(ctx, scope, itemID)
+	if err != nil {
+		return model.PlaybackInfo{}, err
+	}
+	if item.Kind == "podcast_episode" {
+		// An episode has no library file; it streams through the server from its enclosure (M6).
+		return s.startEnclosure(ctx, session, item, req)
+	}
 	loc, err := s.vis.MediaFile(ctx, scope, itemID, req.MediaFileID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
 	if !loc.File.Available {
 		return model.PlaybackInfo{}, model.ErrNotFound
-	}
-	item, err := s.vis.Summary(ctx, scope, itemID)
-	if err != nil {
-		return model.PlaybackInfo{}, err
 	}
 	tracks, err := s.vis.Tracks(ctx, scope, item.ID, loc.File.ID)
 	if err != nil {
@@ -216,6 +220,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
 	info := model.PlaybackInfo{
+		MediaKind:         model.MediaKindVideo,
 		Mode:              ModeDirect,
 		Item:              item,
 		MediaFile:         file,

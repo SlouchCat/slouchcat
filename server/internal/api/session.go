@@ -366,13 +366,23 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrDeviceRequired):
 		p.write(w, r, http.StatusConflict, "device_required", "The session has no device; sign in again in this browser.")
 	case errors.Is(err, model.ErrNotDownloadable):
-		p.write(w, r, http.StatusUnprocessableEntity, "not_downloadable", "Only movies, episodes and seasons can be downloaded.")
+		p.write(w, r, http.StatusUnprocessableEntity, "not_downloadable", "Only movies, episodes, seasons, audiobooks and podcast episodes can be downloaded.")
 	case errors.Is(err, model.ErrDownloadNotReady):
 		p.write(w, r, http.StatusConflict, "download_not_ready", "The server is still preparing the download.")
 	case errors.Is(err, model.ErrDownloadEvicted):
 		p.write(w, r, http.StatusGone, "download_evicted", "The server removed its prepared copy; the next sync prepares it again.")
 	case errors.Is(err, model.ErrNotImplemented):
 		p.write(w, r, http.StatusNotImplemented, "not_implemented", "Not implemented yet.")
+	case errors.Is(err, model.ErrFeedExists):
+		p.write(w, r, http.StatusConflict, "feed_exists", "The library already subscribes to this feed.")
+	case errors.Is(err, model.ErrFeedUnreachable):
+		p.write(w, r, http.StatusUnprocessableEntity, "feed_unreachable", "The feed could not be fetched.")
+	case errors.Is(err, model.ErrFeedInvalid):
+		p.write(w, r, http.StatusUnprocessableEntity, "feed_invalid", "The URL does not deliver an RSS podcast feed.")
+	case errors.Is(err, model.ErrRatingBelowDefault):
+		p.write(w, r, http.StatusUnprocessableEntity, "rating_below_library_default", "A title of an audio library may only be rated stricter than the library default.")
+	case errors.Is(err, model.ErrEnclosureUnavailable):
+		p.write(w, r, http.StatusBadGateway, "enclosure_unavailable", "The podcast host did not deliver the episode.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
 	case errors.As(err, &verr):

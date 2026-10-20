@@ -149,6 +149,7 @@ export const alienTracks: TrackList = {
 
 export const playback: PlaybackInfo = {
   mode: 'direct',
+  mediaKind: 'video',
   item: alien,
   mediaFile: alienDetail.mediaFiles[0]!,
   streamUrl: `/items/${ids.alien}/stream?st=ps-1.token`,

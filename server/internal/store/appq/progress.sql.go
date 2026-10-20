@@ -116,7 +116,7 @@ func (q *Queries) GetLatestDeviceProgressEvent(ctx context.Context, arg GetLates
 
 const getProgress = `-- name: GetProgress :one
 
-SELECT profile_id, item_id, position_ms, duration_ms, completed, updated_at FROM progress WHERE profile_id = ?1 AND item_id = ?2
+SELECT profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate FROM progress WHERE profile_id = ?1 AND item_id = ?2
 `
 
 type GetProgressParams struct {
@@ -136,6 +136,7 @@ func (q *Queries) GetProgress(ctx context.Context, arg GetProgressParams) (Progr
 		&i.DurationMs,
 		&i.Completed,
 		&i.UpdatedAt,
+		&i.PlaybackRate,
 	)
 	return i, err
 }
