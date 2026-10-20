@@ -215,7 +215,14 @@ async function check() {
             element.currentTime = element.duration / 2;
           }),
       );
-      entry.result = entry.seekMs < 2000 ? 'bestanden' : 'nicht bestanden';
+      // Passed: the offline library within 3 s (C-1), the download complete with all its bytes,
+      // the jump to 50 % within 2 s (plan 10.4).
+      const complete =
+        entry.downloads.length > 0 && entry.downloads.every((d) => d.complete && d.bytes > 0);
+      entry.result =
+        entry.coldStartMs < 3000 && complete && entry.seekMs < 2000
+          ? 'bestanden'
+          : 'nicht bestanden';
     } catch (error) {
       entry.result = 'nicht bestanden';
       entry.error = String(error);

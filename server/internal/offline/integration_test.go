@@ -54,9 +54,6 @@ func TestPrepareWithRealEncoder(t *testing.T) {
 			if r.state != model.DownloadReady {
 				var lastErr string
 				_ = e.f.DB.Read.QueryRow(`SELECT COALESCE(last_error, '') FROM jobs WHERE idempotency_key = ?`, primaryKey(st.ID)).Scan(&lastErr)
-				if strings.Contains(lastErr, "not implemented") {
-					t.Skipf("transcode.Runner.Download is not implemented in this tree (M5 stream A): %s", lastErr)
-				}
 				t.Fatalf("row %+v, last job error %q", r, lastErr)
 			}
 			man, err := e.svc.Manifest(ctx, e.session(e.f.P12, tc.device), st.ID)
