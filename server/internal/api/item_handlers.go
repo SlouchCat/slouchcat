@@ -304,7 +304,8 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 
 // getItemStream serves the media file of a direct-play session with Range support (binary
 // endpoint, CLAUDE.md rule 6), authorised by the stream token (streamGrant): http.ServeContent
-// answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404.
+// answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404. A
+// session without media file (a podcast episode, M6) is proxied from its enclosure.
 func (s *server) getItemStream(w http.ResponseWriter, r *http.Request) {
 	g, ok := grantFrom(r.Context())
 	if !ok || s.opts.Playback == nil {
@@ -313,6 +314,13 @@ func (s *server) getItemStream(w http.ResponseWriter, r *http.Request) {
 	}
 	if chi.URLParam(r, "id") != g.ItemID {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	if g.MediaFileID == "" && g.Mode == "direct" {
+		// A podcast episode without file streams from its enclosure (M6).
+		if err := s.opts.Playback.ProxyEnclosure(r.Context(), g, w, r); err != nil {
+			s.p.mapError(w, r, err)
+		}
 		return
 	}
 	src, err := s.opts.Playback.OpenGrant(r.Context(), g)

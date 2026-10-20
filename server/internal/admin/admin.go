@@ -116,6 +116,7 @@ type Service struct {
 	maint     LibraryMaintenance // nil until WithLibraryMaintenance
 	meta      Metadata           // nil until WithMetadata
 	streams   Streams            // nil until WithStreams
+	podcasts  Podcasts           // nil until WithPodcasts
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
 	getenv    func(string) string
@@ -328,8 +329,18 @@ func (s *Service) CreateLibrary(ctx context.Context, req model.LibraryRequest) (
 	return s.libraries.Create(ctx, req)
 }
 
-// ScanLibrary queues a full scan.
+// ScanLibrary queues a full scan; for a podcast library, which has no directory, it queues the
+// fetch of every subscription of the library instead (M6).
 func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, error) {
+	if lib, err := s.read.GetLibrary(ctx, id); err == nil && lib.Kind == model.LibraryPodcasts {
+		if s.podcasts == nil {
+			return model.Library{}, ErrNotConfigured
+		}
+		if _, err := s.podcasts.RefreshLibrary(ctx, id); err != nil {
+			return model.Library{}, err
+		}
+		return s.libraries.Get(ctx, id)
+	}
 	return s.libraries.QueueScan(ctx, id)
 }
 
@@ -372,7 +383,7 @@ func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int)
 		return model.ItemRating{}, fmt.Errorf("begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	ok, err := s.applyRating(ctx, systemq.New(tx), itemID, rating)
+	ok, refresh, err := s.applyRating(ctx, systemq.New(tx), itemID, rating)
 	if err != nil {
 		return model.ItemRating{}, err
 	}
@@ -383,7 +394,7 @@ func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int)
 		return model.ItemRating{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "item rating overridden", "item_id", itemID, "rating_set", rating != nil)
-	if rating == nil {
+	if refresh {
 		s.queueRefresh(ctx, itemID)
 	}
 	return s.vis.SystemItemRating(ctx, visibility.System("admin rating override"), itemID)
@@ -416,45 +427,60 @@ func (s *Service) SetItemsRating(ctx context.Context, itemIDs []string, rating *
 	ids := slices.Clone(itemIDs)
 	slices.Sort(ids)
 	ids = slices.Compact(ids)
+	// AN-2: one title of an audio library rated below its default rejects the whole request.
+	for _, id := range ids {
+		item, err := s.sys.GetItemSystem(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return 0, fmt.Errorf("get item: %w", err)
+		}
+		if err := s.checkRatingFloor(ctx, item, rating); err != nil {
+			return 0, err
+		}
+	}
 	var updated []string
+	var refresh []string
 	for chunk := range slices.Chunk(ids, maxRatingBatch) {
-		done, err := s.rateBatch(ctx, chunk, rating)
+		done, again, err := s.rateBatch(ctx, chunk, rating)
 		if err != nil {
 			return len(updated), err
 		}
-		updated = append(updated, done...)
+		updated, refresh = append(updated, done...), append(refresh, again...)
 	}
 	s.log.InfoContext(ctx, "item ratings overridden", "requested", len(ids), "updated", len(updated), "rating_set", rating != nil)
-	if rating == nil {
-		for _, id := range updated {
-			s.queueRefresh(ctx, id)
-		}
+	for _, id := range refresh {
+		s.queueRefresh(ctx, id)
 	}
 	return len(updated), nil
 }
 
-// rateBatch applies the rating to one batch in one transaction and returns the changed ids.
-func (s *Service) rateBatch(ctx context.Context, ids []string, rating *int) ([]string, error) {
+// rateBatch applies the rating to one batch in one transaction and returns the changed ids and
+// those whose metadata is matched again (a cleared override outside audio libraries).
+func (s *Service) rateBatch(ctx context.Context, ids []string, rating *int) (done, refresh []string, err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("begin: %w", err)
+		return nil, nil, fmt.Errorf("begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	var done []string
 	for _, id := range ids {
-		ok, err := s.applyRating(ctx, q, id, rating)
+		ok, again, err := s.applyRating(ctx, q, id, rating)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if ok {
 			done = append(done, id)
 		}
+		if again {
+			refresh = append(refresh, id)
+		}
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit: %w", err)
+		return nil, nil, fmt.Errorf("commit: %w", err)
 	}
-	return done, nil
+	return done, refresh, nil
 }
 
 func validRating(rating *int) bool {
@@ -462,14 +488,24 @@ func validRating(rating *int) bool {
 }
 
 // applyRating writes the override (or its removal) of one title inside the caller's transaction;
-// false for an unknown or deleted title.
-func (s *Service) applyRating(ctx context.Context, q *systemq.Queries, itemID string, rating *int) (bool, error) {
+// ok is false for an unknown or deleted title. In an audio library (M6, AN-2) a rating below the
+// library default is model.ErrRatingBelowDefault, and a removed override restores the library
+// default (FSK 18 from the feed or tags for an explicit title) instead of a metadata match; refresh
+// reports whether the caller queues that match.
+func (s *Service) applyRating(ctx context.Context, q *systemq.Queries, itemID string, rating *int) (ok, refresh bool, err error) {
 	item, err := q.GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && item.DeletedAt.Valid) {
-		return false, nil
+		return false, false, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("get item: %w", err)
+		return false, false, fmt.Errorf("get item: %w", err)
+	}
+	if err := s.checkRatingFloor(ctx, item, rating); err != nil {
+		return false, false, err
+	}
+	lib, err := s.read.GetLibrary(ctx, item.LibraryID)
+	if err != nil {
+		return false, false, fmt.Errorf("get library of %s: %w", itemID, err)
 	}
 	var locked []string
 	if err := json.Unmarshal([]byte(item.LockedFields), &locked); err != nil {
@@ -477,21 +513,37 @@ func (s *Service) applyRating(ctx context.Context, q *systemq.Queries, itemID st
 	}
 	locked = slices.DeleteFunc(locked, func(f string) bool { return f == ratingLockField })
 	params := systemq.UpdateItemRatingOverrideParams{ID: itemID, Now: s.now().UnixMilli()}
-	if rating != nil {
+	switch {
+	case rating != nil:
 		locked = append(locked, ratingLockField)
 		params.OwnRating = sql.NullInt64{Int64: int64(*rating), Valid: true}
 		params.RatingSource = sql.NullString{String: "manual", Valid: true}
+	case lib.DefaultRating.Valid && item.Explicit == 1:
+		params.OwnRating = sql.NullInt64{Int64: 18, Valid: true}
+		params.RatingSource = sql.NullString{String: explicitSource(item.Kind), Valid: true}
+	case lib.DefaultRating.Valid && item.Kind != "podcast_episode":
+		params.OwnRating = lib.DefaultRating
+		params.RatingSource = sql.NullString{String: "library", Valid: true}
 	}
 	raw, err := json.Marshal(locked)
 	if err != nil {
-		return false, fmt.Errorf("locked fields: %w", err)
+		return false, false, fmt.Errorf("locked fields: %w", err)
 	}
 	if locked == nil {
 		raw = []byte("[]")
 	}
 	params.LockedFields = string(raw)
 	if err := q.UpdateItemRatingOverride(ctx, params); err != nil {
-		return false, fmt.Errorf("update rating: %w", err)
+		return false, false, fmt.Errorf("update rating: %w", err)
 	}
-	return true, nil
+	return true, rating == nil && !lib.DefaultRating.Valid, nil
+}
+
+// explicitSource is the rating source of an explicit title: the feed for podcasts and episodes,
+// metadata.json or the tags for audiobooks.
+func explicitSource(kind string) string {
+	if kind == "audiobook" {
+		return "tags"
+	}
+	return "feed"
 }

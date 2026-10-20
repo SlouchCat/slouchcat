@@ -585,7 +585,7 @@ func (q *Queries) ListMediaFilesForItem(ctx context.Context, arg ListMediaFilesF
 const listNewestWithBackdrop = `-- name: ListNewestWithBackdrop :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE i.kind IN ('movie', 'series')
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
   AND EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop' AND im.size <> 'original')
 ORDER BY i.added_at DESC, i.id DESC
 LIMIT ?2
@@ -680,7 +680,7 @@ func (q *Queries) ListNewestWithBackdrop(ctx context.Context, arg ListNewestWith
 const listRecentlyAdded = `-- name: ListRecentlyAdded :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE i.kind IN ('movie', 'series')
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 ORDER BY i.added_at DESC, i.id DESC
 LIMIT ?2
 `

@@ -170,6 +170,24 @@ func (q *Queries) GetDownload(ctx context.Context, id string) (Download, error) 
 	return i, err
 }
 
+const getDownloadItem = `-- name: GetDownloadItem :one
+SELECT kind, duration_ms, enclosure_type FROM items WHERE id = ?1
+`
+
+type GetDownloadItemRow struct {
+	Kind          string
+	DurationMs    sql.NullInt64
+	EnclosureType sql.NullString
+}
+
+// The kind and the feed duration of the title of a download (audio branch of the preparation).
+func (q *Queries) GetDownloadItem(ctx context.Context, id string) (GetDownloadItemRow, error) {
+	row := q.db.QueryRowContext(ctx, getDownloadItem, id)
+	var i GetDownloadItemRow
+	err := row.Scan(&i.Kind, &i.DurationMs, &i.EnclosureType)
+	return i, err
+}
+
 const getDownloadRule = `-- name: GetDownloadRule :one
 SELECT profile_id, device_id, enabled, next_episodes, new_podcast_episodes, wifi_only, max_count, quality, updated_at FROM download_rules WHERE profile_id = ?1 AND device_id = ?2
 `
@@ -253,10 +271,10 @@ func (q *Queries) GetProfileAccount(ctx context.Context, id int64) (int64, error
 
 const insertDownload = `-- name: InsertDownload :one
 
-INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream, auto,
-                       duration_ms, estimated_bytes, allowed_profile_ids, created_at, updated_at, allowed_at)
+INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality, audio_stream,
+                       auto, duration_ms, estimated_bytes, allowed_profile_ids, created_at, updated_at, allowed_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-        ?10, ?11, ?12, ?13, ?13, ?13)
+        ?10, ?11, ?12, ?13, ?14, ?14, ?14)
 ON CONFLICT (device_id, item_id) DO NOTHING
 RETURNING id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality, audio_stream, auto, state, mode, width, height, video_bitrate, audio_bitrate, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, error, allowed_profile_ids, allowed_at, created_at, updated_at, ready_at, fetched_at, files_removed_at
 `
@@ -268,6 +286,7 @@ type InsertDownloadParams struct {
 	DeviceID          string
 	ItemID            string
 	MediaFileID       sql.NullString
+	SourceUrl         sql.NullString
 	Quality           string
 	AudioStream       int64
 	Auto              int64
@@ -282,7 +301,8 @@ type InsertDownloadParams struct {
 // preparation job. Owner: offline package. Visibility for viewers always goes through package
 // visibility; these queries read and write the download rows themselves. Times are Unix milliseconds.
 // One download per device and title: a second request for the same title on the device inserts
-// nothing (no row returned) and the caller reads the existing row.
+// nothing (no row returned) and the caller reads the existing row. A podcast episode without a
+// file has no media file but the source_url of its enclosure (M6).
 func (q *Queries) InsertDownload(ctx context.Context, arg InsertDownloadParams) (Download, error) {
 	row := q.db.QueryRowContext(ctx, insertDownload,
 		arg.ID,
@@ -291,6 +311,7 @@ func (q *Queries) InsertDownload(ctx context.Context, arg InsertDownloadParams) 
 		arg.DeviceID,
 		arg.ItemID,
 		arg.MediaFileID,
+		arg.SourceUrl,
 		arg.Quality,
 		arg.AudioStream,
 		arg.Auto,
@@ -337,7 +358,8 @@ func (q *Queries) InsertDownload(ctx context.Context, arg InsertDownloadParams) 
 const listActiveDeviceRules = `-- name: ListActiveDeviceRules :many
 SELECT r.profile_id, r.device_id, r.enabled, r.next_episodes, r.new_podcast_episodes, r.wifi_only, r.max_count, r.quality, r.updated_at FROM download_rules AS r
 JOIN profiles AS p ON p.id = r.profile_id
-WHERE r.device_id = ?1 AND p.account_id = ?2 AND r.enabled = 1 AND r.next_episodes = 1
+WHERE r.device_id = ?1 AND p.account_id = ?2 AND r.enabled = 1
+  AND (r.next_episodes = 1 OR r.new_podcast_episodes = 1)
 ORDER BY r.profile_id
 `
 
@@ -346,7 +368,7 @@ type ListActiveDeviceRulesParams struct {
 	AccountID int64
 }
 
-// Enabled next-episode rules of the account's profiles on a device (sync, O-3).
+// Enabled next-episode and new-podcast-episode rules of the account's profiles on a device (sync, O-3).
 func (q *Queries) ListActiveDeviceRules(ctx context.Context, arg ListActiveDeviceRulesParams) ([]DownloadRule, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveDeviceRules, arg.DeviceID, arg.AccountID)
 	if err != nil {
@@ -478,6 +500,55 @@ func (q *Queries) ListDeviceTombstones(ctx context.Context, arg ListDeviceTombst
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDownloadParts = `-- name: ListDownloadParts :many
+SELECT m.id, m.rel_path, m.size, m.duration_ms, m.probe, r.path AS root_path
+FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE m.item_id = ?1 AND m.part_index IS NOT NULL AND m.missing_since IS NULL
+ORDER BY m.part_index, m.id
+`
+
+type ListDownloadPartsRow struct {
+	ID         string
+	RelPath    string
+	Size       int64
+	DurationMs sql.NullInt64
+	Probe      sql.NullString
+	RootPath   string
+}
+
+// The parts of a multi-file audiobook in their order (part_index) with their roots and stored
+// probes; a single file has no part index and lists nothing.
+func (q *Queries) ListDownloadParts(ctx context.Context, itemID string) ([]ListDownloadPartsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDownloadParts, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDownloadPartsRow{}
+	for rows.Next() {
+		var i ListDownloadPartsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RelPath,
+			&i.Size,
+			&i.DurationMs,
+			&i.Probe,
+			&i.RootPath,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -667,6 +738,54 @@ func (q *Queries) ListRecentEpisodeProgress(ctx context.Context, arg ListRecentE
 	for rows.Next() {
 		var i ListRecentEpisodeProgressRow
 		if err := rows.Scan(&i.ItemID, &i.UpdatedAt, &i.SeriesID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentPodcastProgress = `-- name: ListRecentPodcastProgress :many
+SELECT e.parent_id AS podcast_id, CAST(MAX(COALESCE(e.published_at, 0)) AS INTEGER) AS newest_started_at,
+       CAST(MAX(p.updated_at) AS INTEGER) AS listened_at
+FROM progress AS p
+JOIN items AS e ON e.id = p.item_id AND e.kind = 'podcast_episode'
+WHERE p.profile_id = ?1 AND e.parent_id IS NOT NULL
+GROUP BY e.parent_id
+HAVING MAX(p.updated_at) >= ?2
+ORDER BY listened_at DESC, podcast_id
+`
+
+type ListRecentPodcastProgressParams struct {
+	ProfileID int64
+	Since     int64
+}
+
+type ListRecentPodcastProgressRow struct {
+	PodcastID       sql.NullString
+	NewestStartedAt int64
+	ListenedAt      int64
+}
+
+// Podcasts the profile listened to since a moment (an episode started or finished, O-3), most
+// recent first, with the publication date of the newest episode the profile ever started there.
+// Visibility is applied by the caller through the profile scope of package visibility.
+func (q *Queries) ListRecentPodcastProgress(ctx context.Context, arg ListRecentPodcastProgressParams) ([]ListRecentPodcastProgressRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentPodcastProgress, arg.ProfileID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentPodcastProgressRow{}
+	for rows.Next() {
+		var i ListRecentPodcastProgressRow
+		if err := rows.Scan(&i.PodcastID, &i.NewestStartedAt, &i.ListenedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

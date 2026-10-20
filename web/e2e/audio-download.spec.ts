@@ -17,10 +17,13 @@ import { downloadRow, storedDownloads, waitForComplete } from './offline';
 // device fetches the prepared file into OPFS, and its size lies within ±10 % of that estimate.
 // Follows downloads.spec.ts (keyboard on the dialog and on /downloads).
 
+// Quality names as the dialog shows them; the bit rate comes from the server: the AAC rate of the
+// profile (128/96/64) for a transcode, the source rate for a copy (an AAC source within 1.1× of the
+// profile is copied, design 3.5; the 64 kbit/s M4B fixture is copied in every profile).
 const QUALITIES = [
-  { quality: 'low', label: /^Niedrig · 64 kbit\/s · ca\. / },
-  { quality: 'medium', label: /^Mittel · 96 kbit\/s · ca\. / },
-  { quality: 'high', label: /^Hoch · 128 kbit\/s · ca\. / },
+  { quality: 'low', name: 'Niedrig', kbps: 64 },
+  { quality: 'medium', name: 'Mittel', kbps: 96 },
+  { quality: 'high', name: 'Hoch', kbps: 128 },
 ] as const;
 
 const downloadButton = (page: Page) =>
@@ -30,14 +33,23 @@ const downloadButton = (page: Page) =>
 async function downloadEachQuality(page: Page, itemId: string, title: string, label: string) {
   const options = (await (
     await page.request.get(`/api/v1/items/${itemId}/download-options`)
-  ).json()) as { qualities: { quality: string; estimatedBytes: number; audioBitrate: number }[] };
-  expect(options.qualities.map((option) => [option.quality, option.audioBitrate])).toEqual([
-    ['high', 128],
-    ['medium', 96],
-    ['low', 64],
-  ]);
+  ).json()) as {
+    qualities: { quality: string; estimatedBytes: number; audioBitrate: number; copy: boolean }[];
+  };
+  expect(options.qualities.map((option) => option.quality)).toEqual(['high', 'medium', 'low']);
+  for (const { quality, kbps } of QUALITIES) {
+    const option = options.qualities.find((candidate) => candidate.quality === quality);
+    expect(option, quality).toBeDefined();
+    if (option?.copy) {
+      expect(option.audioBitrate, `${quality} copies the source`).toBeLessThanOrEqual(kbps * 1.1);
+    } else {
+      expect(option?.audioBitrate, `${quality} encodes`).toBe(kbps);
+    }
+  }
 
-  for (const { quality, label: optionLabel } of QUALITIES) {
+  for (const { quality, name } of QUALITIES) {
+    const kbps = options.qualities.find((candidate) => candidate.quality === quality)?.audioBitrate;
+    const optionLabel = new RegExp(`^${name} · ${kbps} kbit/s · ca\\. `);
     await page.goto(`/items/${itemId}`);
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
     await downloadButton(page).focus();

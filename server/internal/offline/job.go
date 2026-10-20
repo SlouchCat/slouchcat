@@ -142,17 +142,25 @@ func (s *Service) setState(ctx context.Context, id, state, code string) error {
 
 // planned is the source and the plan of a preparation.
 type planned struct {
-	src    transcode.Source
-	plan   transcode.Plan
-	choice choice
-	root   string // library root of the source (sidecar subtitles)
-	fileID string
+	src     transcode.Source
+	plan    transcode.Plan
+	choice  choice
+	root    string // library root of the source (sidecar subtitles)
+	fileID  string
+	cleanup string // fetched enclosure below the downloads root, removed once ready (M6)
 }
 
 // planFor resolves the source through package paths and plans the download; a remux without
 // keyframe index computes it first (and stores it), else the video is encoded. A source that is
 // not probed yet or cannot be read is errSourceWait.
 func (s *Service) planFor(ctx context.Context, row systemq.Download) (planned, error) {
+	item, err := s.write.GetDownloadItem(ctx, row.ItemID)
+	if err != nil {
+		return planned{}, fmt.Errorf("get download item: %w", err)
+	}
+	if isAudio(item.Kind) {
+		return s.planAudio(ctx, row)
+	}
 	m, err := s.write.GetDownloadSource(ctx, row.MediaFileID.String)
 	if err != nil {
 		return planned{}, fmt.Errorf("get download source: %w", err)
@@ -512,6 +520,7 @@ func (s *Service) encode(ctx context.Context, j *jobs.Job, row systemq.Download)
 		s.removeFiles(ctx, id)
 		return nil
 	}
+	s.removeSource(ctx, p.cleanup)
 	s.log.InfoContext(ctx, "download ready", "download_id", id, "size_bytes", size, "estimated_bytes", row.EstimatedBytes)
 	return nil
 }
@@ -688,7 +697,8 @@ func (s *Service) convert(ctx context.Context, p planned, t systemq.Track) ([]by
 }
 
 // attemptFailed records a failed attempt: the job retries with backoff, the download waits as
-// queued; after the last attempt the download is failed with encode_failed.
+// queued; after the last attempt the download is failed with encode_failed (source_unavailable
+// when the enclosure could not be fetched).
 func (s *Service) attemptFailed(ctx context.Context, j *jobs.Job, id string, cause error) error {
 	if ctx.Err() != nil {
 		_ = s.setState(ctx, id, model.DownloadQueued, "")
@@ -696,7 +706,11 @@ func (s *Service) attemptFailed(ctx context.Context, j *jobs.Job, id string, cau
 	}
 	if j.Attempts >= j.MaxAttempts {
 		s.log.WarnContext(ctx, "download preparation failed", "download_id", id, "attempts", j.Attempts, "err", cause)
-		if err := s.setState(ctx, id, model.DownloadFailed, model.DownloadErrEncodeFailed); err != nil {
+		code := model.DownloadErrEncodeFailed
+		if errors.Is(cause, errSourceUnavailable) {
+			code = downloadErrSourceUnavailable
+		}
+		if err := s.setState(ctx, id, model.DownloadFailed, code); err != nil {
 			return errors.Join(cause, err)
 		}
 		return cause

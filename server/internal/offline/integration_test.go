@@ -1,12 +1,16 @@
 package offline
 
 import (
+	"bytes"
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -115,6 +119,71 @@ func TestPrepareWithRealEncoder(t *testing.T) {
 			}
 			if _, err := os.Stat(filepath.Join(e.dir, st.ID, "encode")); err == nil {
 				t.Error("the encoder's working directory remains")
+			}
+		})
+	}
+}
+
+// testEpisode is an 8-s MP3 episode of testdata/generate-media.sh (task testdata:media).
+var testEpisode = filepath.Join("..", "..", "..", "testdata", "media", "Podcasts", "episode-1.mp3")
+
+// M6, O-1: a podcast episode without file goes from an enclosure on an HTTP server through the real
+// encoder into a fragmented MP4 with AAC in each quality, within ±10 % of the estimate for its
+// duration; the fetched source is gone afterwards.
+func TestEpisodeDownloadWithRealEncoder(t *testing.T) {
+	ctx := context.Background()
+	runner := transcode.Runner{FFmpegPath: "ffmpeg", FFprobePath: "ffprobe"}
+	if _, err := runner.Version(ctx); err != nil {
+		t.Skipf("ffmpeg not available: %v", err)
+	}
+	mp3, err := os.ReadFile(testEpisode)
+	if err != nil {
+		t.Skipf("generated test media missing (task testdata:media): %v", err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "audio/mpeg")
+		http.ServeContent(w, r, "", time.Unix(1, 0), bytes.NewReader(mp3))
+	}))
+	defer srv.Close()
+	e := newEnv(t, WithEncoder(runner), WithAdmission(nil))
+	e.f.AddAudio(t)
+	ep := e.f.Audio.EnclosureOnly
+	e.f.SetEnclosure(t, ep.ID, srv.URL+"/episode-1.mp3")
+	src := filepath.Join(t.TempDir(), "episode.mp3")
+	if err := os.WriteFile(src, mp3, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	probe, err := runner.Probe(ctx, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, q := range []string{model.DownloadHigh, model.DownloadMedium, model.DownloadLow} {
+		t.Run(q, func(t *testing.T) {
+			device := e.device(strconv.Itoa(i + 2))
+			st := e.create(e.f.P12, device, ep.ID, q)
+			e.runJobs()
+			r := e.row(st.ID)
+			if r.state != model.DownloadReady {
+				t.Fatalf("row %+v", r)
+			}
+			man, err := e.svc.Manifest(ctx, e.session(e.f.P12, device), st.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := runner.Probe(ctx, filepath.Join(e.dir, st.ID, mediaFile))
+			if err != nil {
+				t.Fatalf("the prepared file does not probe: %v", err)
+			}
+			if len(out.Streams) != 1 || out.Streams[0].Codec != "aac" || man.MimeType != "audio/mp4" || man.Codecs != "mp4a.40.2" {
+				t.Errorf("prepared %+v, manifest %s %s", out.Streams, man.MimeType, man.Codecs)
+			}
+			want := estimate(audioKbps[q], probe.Format.Duration)
+			if float64(r.size) < 0.9*float64(want) || float64(r.size) > 1.1*float64(want) {
+				t.Errorf("%s: %d bytes against the estimate %d", q, r.size, want)
+			}
+			t.Logf("%s: %d bytes, estimate %d (%+.1f %%)", q, r.size, want, 100*(float64(r.size)/float64(want)-1))
+			if _, err := os.Stat(filepath.Join(e.dir, st.ID, "source.mp3")); err == nil {
+				t.Error("the fetched source remains")
 			}
 		})
 	}

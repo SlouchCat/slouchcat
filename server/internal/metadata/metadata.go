@@ -39,6 +39,9 @@
 //     chain TMDB videos → YouTube Data API (daily quota) → AI (off in M3) for movies and series
 //     with a tmdb_id (trailers.go, youtube.go). metadata.match enqueues it after every match;
 //     QueuePendingMetadata (after every full scan) enqueues it for titles still pending.
+//   - podcast.fetch, payload {"podcastId": "<ULID>"}, key podcast:<podcastId>, priority 4: fetches
+//     the RSS feed of a podcast subscription (podcast.go, M6 H-2) and stores the channel and its
+//     episodes; RunPodcasts enqueues it for every subscription not fetched for FeedInterval.
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
@@ -113,6 +116,8 @@ type Service struct {
 
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
+
+	feeds feedFetcher // podcast feeds (podcast.go)
 }
 
 type options struct {
@@ -126,6 +131,9 @@ type options struct {
 	http        *http.Client
 	now         func() time.Time
 	recheck     func(ctx context.Context) error
+	feedHTTP    *http.Client
+	feedNow     func() time.Time
+	feedAgent   string
 }
 
 // Option configures New.
@@ -213,14 +221,17 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		recheck:         o.recheck,
 
 		accentRetries: map[string]int{},
+		feeds:         newFeedFetcher(o.feedHTTP, o.feedNow, o.feedAgent),
 	}
 }
 
-// RegisterJobs registers the handlers of metadata.match, image.fetch and trailer.find on w.
+// RegisterJobs registers the handlers of metadata.match, image.fetch, trailer.find and podcast.fetch
+// on w.
 func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobMatch, s.handleMatch)
 	w.Handle(JobImageFetch, s.handleImageFetch)
 	w.Handle(JobTrailerFind, s.handleTrailerFind)
+	w.Handle(JobPodcastFetch, s.handlePodcastFetch)
 }
 
 // CheckKey validates a TMDB key. It returns nil, model.ErrTMDBKeyInvalid or

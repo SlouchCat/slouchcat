@@ -5297,7 +5297,7 @@ components:
           minimum: 0
         error:
           type: string
-          description: Stable code (`budget_full`, `not_visible`, `encode_failed`).
+          description: Stable code (`budget_full`, `not_visible`, `encode_failed`, `source_unavailable` when the enclosure of a podcast episode could not be fetched).
         createdAt:
           type: string
           format: date-time

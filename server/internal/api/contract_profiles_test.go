@@ -23,6 +23,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/discover"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/metadata"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
@@ -130,15 +131,20 @@ var profileRegistry = map[string]profileCall{
 			}
 			decode(t, rec, &d)
 			files := 1
-			if m.ID == f.Rated(12).ID {
+			switch {
+			case m.ID == f.Rated(12).ID:
 				files = 2 // the 720p version (B-5) after the 1080p primary file
+			case len(m.PartIDs) > 0:
+				files = len(m.PartIDs) // the parts of an audiobook (M6)
+			case m.FileID == "":
+				files = 0 // a podcast episode with only its enclosure
 			}
-			if d.ID != m.ID || len(d.MediaFiles) != files || d.MediaFiles[0].ID != m.FileID || d.Genres == nil ||
+			if d.ID != m.ID || len(d.MediaFiles) != files || (files > 0 && d.MediaFiles[0].ID != m.FileID) || d.Genres == nil ||
 				d.TrailerCount == nil || *d.TrailerCount != f.Trailers[m.ID] {
 				t.Errorf("getItem %s = %s", m.Label, rec.Body.String())
 			}
 			for _, mf := range d.MediaFiles {
-				if mf.VersionLabel == "" {
+				if mf.VersionLabel == "" && !audioKind(m) { // audio files have no picture height
 					t.Errorf("getItem %s: file %s without version label", m.Label, mf.ID)
 				}
 			}
@@ -230,7 +236,17 @@ var profileRegistry = map[string]profileCall{
 				} `json:"mediaFile"`
 			}
 			decode(t, rec, &info)
-			if info.Mode != "direct" || info.MediaFile.ID != m.FileID || !strings.HasPrefix(info.MediaFile.MimeType, "video/mp4") ||
+			if audioKind(m) && info.Mode != "direct" {
+				return // a book of several parts plays as HLS (M6 stream A); the HLS operations cover it
+			}
+			mime, file := "video/mp4", m.FileID
+			if audioKind(m) {
+				mime = "" // m4b, mp3 and the enclosure's type
+			}
+			if m.Kind == "podcast_episode" {
+				file = "" // an episode plays from its enclosure through the server
+			}
+			if info.Mode != "direct" || info.MediaFile.ID != file || !strings.HasPrefix(info.MediaFile.MimeType, mime) ||
 				!strings.HasPrefix(info.StreamURL, BasePath+"/items/"+m.ID+"/stream?st="+info.PlaybackSessionID+".") {
 				t.Errorf("startPlayback %s = %s", m.Label, rec.Body.String())
 			}
@@ -246,7 +262,11 @@ var profileRegistry = map[string]profileCall{
 			if cr := rec.Header().Get("Content-Range"); cr != fmt.Sprintf("bytes 0-99/%d", vistest.FileSize) {
 				t.Errorf("Content-Range = %q", cr)
 			}
-			if rec.Header().Get("Accept-Ranges") != "bytes" || rec.Header().Get("Cache-Control") != "private, no-store" || rec.Header().Get("Content-Type") != "video/mp4" {
+			mime := rec.Header().Get("Content-Type")
+			if audioKind(m) && (strings.HasPrefix(mime, "audio/") || mime == "application/octet-stream") {
+				mime = "video/mp4" // the type of an audio file or the enclosure's
+			}
+			if rec.Header().Get("Accept-Ranges") != "bytes" || rec.Header().Get("Cache-Control") != "private, no-store" || mime != "video/mp4" {
 				t.Errorf("stream headers = %v", rec.Header())
 			}
 			if !bytes.Equal(rec.Body.Bytes(), m.Content[:100]) {
@@ -278,11 +298,12 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("segment 3: %v %x", rec.Header(), rec.Body.Bytes())
 			}
 		}},
-	// M6: the paged episode list of a podcast (base stub answers 501 for every title; stream B sets
-	// 200 for podcasts and 404 otherwise).
+	// M6: the paged episode list of a podcast. Every title of the loop is no podcast (404); the
+	// podcasts themselves are containers and checked in the subtest "audio".
 	"listPodcastEpisodes": {contract: "GET /items/{id}/episodes", path: "/items/{id}/episodes", perItem: true,
-		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+		okStatus: http.StatusOK, okFor: func(vistest.Movie) int { return http.StatusNotFound }},
 	"getItemTracks": {contract: "GET /items/{id}/tracks", path: "/items/{id}/tracks", perItem: true, okStatus: http.StatusOK,
+		okFor: fileStatus(http.StatusOK),
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var list struct {
 				MediaFileID string `json:"mediaFileId"`
@@ -299,6 +320,12 @@ var profileRegistry = map[string]profileCall{
 				} `json:"subtitles"`
 			}
 			decode(t, rec, &list)
+			if audioKind(m) { // the audio fixture files have no track rows
+				if list.MediaFileID != m.FileID || len(list.Audio) != 0 || len(list.Subtitles) != 0 {
+					t.Errorf("getItemTracks %s = %s", m.Label, rec.Body.String())
+				}
+				return
+			}
 			if list.MediaFileID != m.FileID || len(list.Audio) != 2 || !list.Audio[0].Default || len(list.Subtitles) != 3 {
 				t.Errorf("getItemTracks %s = %s", m.Label, rec.Body.String())
 			}
@@ -313,7 +340,7 @@ var profileRegistry = map[string]profileCall{
 			}
 		}},
 	"getPlaybackSubtitle": {contract: "GET /playback/sessions/{id}/subtitles/{track}.vtt", path: "/playback/sessions/{ps}/subtitles/{track}.vtt?st={st}",
-		perItem: true, okStatus: http.StatusOK, mint: "direct", subtitle: true, streamOnly: true,
+		perItem: true, okStatus: http.StatusOK, mint: "direct", subtitle: true, streamOnly: true, okFor: videoStatus(http.StatusOK),
 		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			if ct := rec.Header().Get("Content-Type"); ct != "text/vtt; charset=utf-8" || rec.Header().Get("Cache-Control") != "private, no-store" ||
 				!strings.HasPrefix(rec.Body.String(), "WEBVTT") {
@@ -330,6 +357,8 @@ var profileRegistry = map[string]profileCall{
 				Qualities   []struct {
 					Quality        string `json:"quality"`
 					EstimatedBytes int64  `json:"estimatedBytes"`
+					AudioBitrate   int    `json:"audioBitrate"`
+					Width          int    `json:"width"`
 				} `json:"qualities"`
 				AudioTracks []struct{} `json:"audioTracks"`
 				Subtitles   []struct {
@@ -337,6 +366,13 @@ var profileRegistry = map[string]profileCall{
 				} `json:"subtitles"`
 			}
 			decode(t, rec, &o)
+			if audioKind(m) { // AAC 128/96/64 kbit/s, no track choice (M6)
+				if o.MediaFileID != m.FileID || len(o.Qualities) != 3 || o.Qualities[0].AudioBitrate != 128 || o.Qualities[2].AudioBitrate != 64 ||
+					o.Qualities[0].EstimatedBytes <= 0 || o.Qualities[0].Width != 0 || len(o.AudioTracks) != 0 || len(o.Subtitles) != 0 {
+					t.Errorf("getDownloadOptions %s = %s", m.Label, rec.Body.String())
+				}
+				return
+			}
 			if o.MediaFileID != m.FileID || len(o.Qualities) != 3 || o.Qualities[0].Quality != "high" || o.Qualities[0].EstimatedBytes <= 0 ||
 				len(o.AudioTracks) != 2 || len(o.Subtitles) != 2 || !o.Subtitles[0].Text {
 				t.Errorf("getDownloadOptions %s = %s", m.Label, rec.Body.String())
@@ -373,10 +409,12 @@ var profileRegistry = map[string]profileCall{
 		okStatus: http.StatusOK,
 		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var man struct {
-				ItemID     string `json:"itemId"`
-				SizeBytes  int64  `json:"sizeBytes"`
-				InitLength int64  `json:"initLength"`
-				FileURL    string `json:"fileUrl"`
+				ItemID     string     `json:"itemId"`
+				MimeType   string     `json:"mimeType"`
+				Chapters   []struct{} `json:"chapters"`
+				SizeBytes  int64      `json:"sizeBytes"`
+				InitLength int64      `json:"initLength"`
+				FileURL    string     `json:"fileUrl"`
 				Segments   []struct {
 					Offset int64 `json:"offset"`
 					Length int64 `json:"length"`
@@ -387,13 +425,21 @@ var profileRegistry = map[string]profileCall{
 			}
 			decode(t, rec, &man)
 			media := mintedMedia(m)
+			subs, mime := 1, "video/mp4" // audio titles carry no subtitles (M6)
+			if audioKind(m) {
+				subs, mime = 0, "audio/mp4"
+			}
 			if man.ItemID != m.ID || man.SizeBytes != int64(len(media)) || man.InitLength != int64(len(mintedInit)) || len(man.Segments) != 2 ||
-				len(man.Subtitles) != 1 || !strings.Contains(man.FileURL, "/file?dt=") {
-				t.Fatalf("getDownloadManifest %s = %s", m.Label, rec.Body.String())
+				len(man.Subtitles) != subs || man.MimeType != mime || man.Chapters == nil || !strings.Contains(man.FileURL, "/file?dt=") {
+				t.Errorf("getDownloadManifest %s = %s", m.Label, rec.Body.String())
+				return
 			}
 			// The URLs work as they are, without the cookie.
 			if file := send(t, h, http.MethodGet, man.FileURL, "", "", nil); file.Code != http.StatusOK || !bytes.Equal(file.Body.Bytes(), media) {
 				t.Errorf("file URL of %s: status %d", m.Label, file.Code)
+			}
+			if subs == 0 {
+				return
 			}
 			if sub := send(t, h, http.MethodGet, man.Subtitles[0].URL, "", "", nil); sub.Code != http.StatusOK || !strings.HasPrefix(sub.Body.String(), "WEBVTT") {
 				t.Errorf("subtitle URL of %s: status %d", m.Label, sub.Code)
@@ -406,13 +452,17 @@ var profileRegistry = map[string]profileCall{
 			if cr := rec.Header().Get("Content-Range"); cr != fmt.Sprintf("bytes 0-3/%d", len(media)) {
 				t.Errorf("Content-Range = %q", cr)
 			}
+			mime := "video/mp4"
+			if audioKind(m) {
+				mime = "audio/mp4"
+			}
 			if rec.Header().Get("Accept-Ranges") != "bytes" || rec.Header().Get("Cache-Control") != "private, no-store" ||
-				rec.Header().Get("Content-Type") != "video/mp4" || !bytes.Equal(rec.Body.Bytes(), media[:4]) {
+				rec.Header().Get("Content-Type") != mime || !bytes.Equal(rec.Body.Bytes(), media[:4]) {
 				t.Errorf("download file of %s: %v %q", m.Label, rec.Header(), rec.Body.Bytes())
 			}
 		}},
 	"getDownloadSubtitle": {contract: "GET /downloads/{id}/subtitles/{track}.vtt", path: "/downloads/{dl}/subtitles/{track}.vtt?dt={dt}",
-		perItem: true, download: true, streamOnly: true, okStatus: http.StatusOK,
+		perItem: true, download: true, streamOnly: true, okStatus: http.StatusOK, okFor: videoStatus(http.StatusOK),
 		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			if ct := rec.Header().Get("Content-Type"); ct != "text/vtt; charset=utf-8" || rec.Header().Get("Cache-Control") != "private, no-store" ||
 				rec.Body.String() != mintedVTT {
@@ -600,14 +650,16 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	f.AddGuest(t)
 	tracks := f.AddTracks(t)
 	f.AddSegments(t, f.Show.E1.ID)
+	f.AddAudio(t)
 	log := vistest.Logger()
 	a := auth.New(f.DB, log)
 	ring, err := secrets.Load(t.TempDir(), log)
 	if err != nil {
 		t.Fatal(err)
 	}
+	pods := metadata.New(f.DB, jobs.NewQueue(f.DB.Write, nil), nil, t.TempDir(), transcode.Runner{}, log)
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
-		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{})
+		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods)
 
 	pa := profileAuth{Service: a, tokens: map[string]string{}}
 	sessions := map[string]model.Session{}
@@ -688,6 +740,31 @@ func (pf profileFixture) mintWith(t *testing.T, token string, m vistest.Movie, m
 	return id, playback.SignToken(testTokenKey, id, m.ID)
 }
 
+// audioKind reports whether a fixture title is an audiobook or a podcast episode (AddAudio, M6).
+func audioKind(m vistest.Movie) bool { return m.Kind == "audiobook" || m.Kind == "podcast_episode" }
+
+// fileStatus is status for titles with a media file and 404 for the podcast episode that has only
+// an enclosure (M6): operations on the file of a title find none.
+func fileStatus(status int) func(m vistest.Movie) int {
+	return func(m vistest.Movie) int {
+		if m.FileID == "" {
+			return http.StatusNotFound
+		}
+		return status
+	}
+}
+
+// videoStatus is status for video titles and 404 for audio titles, whose fixture files carry no
+// subtitle track (M6).
+func videoStatus(status int) func(m vistest.Movie) int {
+	return func(m vistest.Movie) int {
+		if audioKind(m) {
+			return http.StatusNotFound
+		}
+		return status
+	}
+}
+
 // downloadableStatus is status for movies and episodes and 422 not_downloadable for extras.
 func downloadableStatus(status int) func(m vistest.Movie) int {
 	return func(m vistest.Movie) int {
@@ -719,13 +796,14 @@ func (pf profileFixture) mintDownload(t *testing.T, token string, m vistest.Movi
 	media := mintedMedia(m)
 	seg0 := int64(len("segment-0-" + m.Label))
 	requester := sql.NullInt64{Int64: session.Profile.ID, Valid: pf.f.VisibleTo(session.Profile, m)}
-	err := pf.f.DB.Write.QueryRow(`INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, quality,
+	err := pf.f.DB.Write.QueryRow(`INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality,
 	            audio_stream, state, mode, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, created_at, updated_at, ready_at)
-	        VALUES (?, ?, ?, ?, ?, ?, 'low', 1, 'ready', 'transcode', 8000, ?, ?, 2, 2, 1, 1, 1)
+	        VALUES (?, ?, ?, ?, ?, ?, ?, 'low', 1, 'ready', 'transcode', 8000, ?, ?, 2, 2, 1, 1, 1)
 	        ON CONFLICT (device_id, item_id) DO UPDATE SET state = 'ready', files_removed_at = NULL, size_bytes = excluded.size_bytes,
 	            segments_done = 2, segments_total = 2, audio_stream = 1, ready_at = 1, profile_id = excluded.profile_id
 	        RETURNING id`,
-		ulid.Make().String(), session.Account.ID, requester, session.DeviceID, m.ID, m.FileID, len(media), len(media)).Scan(&id)
+		ulid.Make().String(), session.Account.ID, requester, session.DeviceID, m.ID, sql.NullString{String: m.FileID, Valid: m.FileID != ""},
+		sql.NullString{String: m.Enclosure, Valid: m.FileID == ""}, len(media), len(media)).Scan(&id)
 	if err != nil {
 		t.Fatal(err)
 	}

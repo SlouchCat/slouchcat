@@ -74,6 +74,11 @@ function SubscribeDialog({
           spellCheck="false"
           mono
           isRequired
+          // A server error (unreachable, no RSS, already subscribed) sits on this field until the
+          // address changes; Firefox keeps the field invalid otherwise and never submits again.
+          onChange={() => {
+            if (create.error) create.reset();
+          }}
           validate={(value) => {
             if (!value.trim()) return t('errors.field.required');
             return isFeedUrl(value) ? null : t('errors.field.invalid_url');

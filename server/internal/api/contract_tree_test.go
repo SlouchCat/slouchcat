@@ -213,7 +213,7 @@ func TestContractSeriesTree(t *testing.T) {
 			if row.Key == "continue" && it.ID == show.E1.ID {
 				found = it.SeriesTitle == "Film SS" && intIs(it.EpisodeNumber, 1)
 			}
-			if row.Key == "recent" && it.Kind != "movie" && it.Kind != "series" {
+			if row.Key == "recent" && !slices.Contains([]string{"movie", "series", "audiobook", "podcast"}, it.Kind) {
 				t.Errorf("recent lists a %s", it.Kind)
 			}
 		}

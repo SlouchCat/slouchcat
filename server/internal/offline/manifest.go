@@ -247,7 +247,11 @@ func (s *Service) OpenFile(ctx context.Context, g model.DownloadGrant) (model.St
 	if err != nil {
 		return model.StreamSource{}, err
 	}
-	src, err := s.open(g.DownloadID+"/"+mediaFile, "video/mp4", g.DownloadID+".mp4", model.ErrDownloadEvicted)
+	item, err := s.read.GetDownloadItem(ctx, row.ItemID)
+	if err != nil {
+		return model.StreamSource{}, fmt.Errorf("get download item: %w", err)
+	}
+	src, err := s.open(g.DownloadID+"/"+mediaFile, mediaTypeOf(item.Kind), g.DownloadID+".mp4", model.ErrDownloadEvicted)
 	if err != nil {
 		return model.StreamSource{}, err
 	}
@@ -291,8 +295,8 @@ func (s *Service) open(rel, mediaType, name string, missing error) (model.Stream
 }
 
 // Manifest returns what the device needs to fetch and play a prepared download of its own: the
-// fragment index, codecs, size, the audio track, the WebVTT sidecars and the URLs with a download
-// token of the active profile. Errors: model.ErrNotFound (unknown, another device or account, the
+// fragment index, codecs, size, the audio track, the WebVTT sidecars, the chapters of an audiobook
+// (M6) and the URLs with a download token of the active profile. Errors: model.ErrNotFound (unknown, another device or account, the
 // title not visible to the active profile), model.ErrDownloadNotReady, model.ErrDownloadEvicted.
 func (s *Service) Manifest(ctx context.Context, session model.Session, id string) (model.DownloadManifest, error) {
 	if !downloadID.MatchString(id) {
@@ -309,7 +313,8 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 		return model.DownloadManifest{}, model.ErrNotFound
 	}
 	scope := visibility.Profile(session.Profile)
-	if err := s.vis.Visible(ctx, scope, row.ItemID); err != nil {
+	item, err := s.vis.Summary(ctx, scope, row.ItemID)
+	if err != nil {
 		return model.DownloadManifest{}, err
 	}
 	switch {
@@ -338,16 +343,30 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 		// Anything else (an I/O error of the cache disk) may pass; the copy stays.
 		return model.DownloadManifest{}, fmt.Errorf("read index of download %s: %w", id, err)
 	}
-	tracks, err := s.vis.Tracks(ctx, scope, row.ItemID, row.MediaFileID.String)
-	if err != nil {
-		return model.DownloadManifest{}, err
+	var tracks model.TrackList
+	if row.MediaFileID.Valid { // an enclosure download has no file to read tracks from (M6)
+		if tracks, err = s.vis.Tracks(ctx, scope, row.ItemID, row.MediaFileID.String); err != nil {
+			return model.DownloadManifest{}, err
+		}
 	}
 	token := url.QueryEscape(SignToken(s.key, id, row.ItemID, session.Profile.ID))
 	out := model.DownloadManifest{
-		ID: id, ItemID: row.ItemID, SizeBytes: ix.end(), DurationMs: row.DurationMs.Int64, MimeType: "video/mp4",
+		ID: id, ItemID: row.ItemID, SizeBytes: ix.end(), DurationMs: row.DurationMs.Int64, MimeType: mediaTypeOf(item.Kind),
 		Codecs: ix.header.Codecs, Width: ix.header.Width, Height: ix.header.Height, InitLength: ix.header.Init,
 		Segments: make([]model.DownloadSegment, 0, len(ix.entries)), FileURL: apiBase + "/downloads/" + id + "/file?dt=" + token,
-		Subtitles: []model.DownloadSubtitle{},
+		Subtitles: []model.DownloadSubtitle{}, Chapters: []model.Chapter{},
+	}
+	if isAudio(item.Kind) && out.Codecs == "" {
+		out.Codecs = "mp4a.40.2"
+	}
+	if item.Kind == "audiobook" && s.audio != nil {
+		// Book-wide chapters on the file's timeline (the parts are concatenated in order).
+		if out.Chapters, err = s.audio.Chapters(ctx, scope, row.ItemID); err != nil {
+			return model.DownloadManifest{}, err
+		}
+		if out.Chapters == nil {
+			out.Chapters = []model.Chapter{}
+		}
 	}
 	for _, e := range ix.entries {
 		out.Segments = append(out.Segments, model.DownloadSegment{StartMs: e.StartMs, DurationMs: e.DurationMs, Offset: e.Offset, Length: e.Length})

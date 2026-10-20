@@ -10,7 +10,7 @@ WHERE i.id = @item_id;
 -- name: ListRecentlyAdded :many
 SELECT i.* FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE i.kind IN ('movie', 'series')
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 ORDER BY i.added_at DESC, i.id DESC
 LIMIT @limit_count;
 
@@ -40,7 +40,7 @@ LIMIT @limit_count;
 -- name: ListNewestWithBackdrop :many
 SELECT i.* FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE i.kind IN ('movie', 'series')
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
   AND EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop' AND im.size <> 'original')
 ORDER BY i.added_at DESC, i.id DESC
 LIMIT @limit_count;

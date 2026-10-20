@@ -42,6 +42,11 @@ func (contractEncoder) Download(ctx context.Context, _ transcode.Capabilities, _
 	return nil
 }
 
+func (contractEncoder) Probe(context.Context, string) (transcode.Probe, error) {
+	return transcode.Probe{Format: transcode.Format{Name: "mp3", Duration: 8 * time.Second, BitRate: 128_000},
+		Streams: []transcode.Stream{{Index: 0, Type: "audio", Codec: "mp3", Channels: 2, Default: true}}}, nil
+}
+
 func (contractEncoder) Keyframes(context.Context, string) ([]time.Duration, error) {
 	return []time.Duration{0, 4 * time.Second, 8 * time.Second}, nil
 }

@@ -33,12 +33,16 @@ const maxLanguage = 16
 // table allows one download per device and title).
 var errOtherAccount = errors.New("offline: another account holds the title on this device")
 
-// source is a media file of a visible title with what the decision and the options need.
+// source is a media file of a visible title with what the decision and the options need; an
+// audiobook of several parts lists them (loc is the first), a podcast episode without file has its
+// enclosure instead (M6).
 type source struct {
-	item   model.ItemSummary
-	loc    visibility.MediaFileLocation
-	probe  *transcode.Probe
-	tracks model.TrackList
+	item      model.ItemSummary
+	loc       visibility.MediaFileLocation
+	probe     *transcode.Probe
+	tracks    model.TrackList
+	parts     []visibility.MediaFileLocation
+	enclosure *visibility.Enclosure
 }
 
 // sourceOf reads the media file (empty fileID: the primary one), its probe and its tracks for the
@@ -144,9 +148,9 @@ func textTracks(tracks []model.Track) []model.Track {
 	return out
 }
 
-// Options returns the download profiles of a movie, an episode or a season with size estimates
-// (O-1). Errors: model.ErrNotFound (unknown, invisible, a file of another title),
-// model.ErrNotDownloadable (another kind).
+// Options returns the download profiles of a movie, an episode, a season, an audiobook or a podcast
+// episode with size estimates (O-1; audio: AAC 128, 96 or 64 kbit/s). Errors: model.ErrNotFound
+// (unknown, invisible, a file of another title), model.ErrNotDownloadable (another kind).
 func (s *Service) Options(ctx context.Context, session model.Session, itemID, mediaFileID string) (model.DownloadOptions, error) {
 	scope := visibility.Profile(session.Profile)
 	item, err := s.vis.Summary(ctx, scope, itemID)
@@ -154,8 +158,8 @@ func (s *Service) Options(ctx context.Context, session model.Session, itemID, me
 		return model.DownloadOptions{}, err
 	}
 	switch item.Kind {
-	case "movie", "episode":
-		src, err := s.sourceOf(ctx, scope, item, mediaFileID)
+	case "movie", "episode", "audiobook", "podcast_episode":
+		src, err := s.downloadSource(ctx, scope, item, mediaFileID)
 		if err != nil {
 			return model.DownloadOptions{}, err
 		}
@@ -163,13 +167,21 @@ func (s *Service) Options(ctx context.Context, session model.Session, itemID, me
 			MediaFileID: src.loc.File.ID, AudioTracks: src.tracks.Audio, Subtitles: textTracks(src.tracks.Subtitles),
 			Qualities: make([]model.DownloadQualityOption, 0, len(model.DownloadProfiles)),
 		}
+		if isAudio(item.Kind) {
+			// One timeline of one audio track: no track or subtitle choice.
+			out.AudioTracks, out.Subtitles = []model.Track{}, []model.Track{}
+		}
 		audio := defaultIndex(src)
 		for _, prof := range model.DownloadProfiles {
-			c := decide(src.loc.File, src.probe, prof, audio)
+			c := src.choose(prof, audio)
 			out.DurationMs = c.DurationMs
+			copied := c.Copy
+			if isAudio(item.Kind) {
+				copied = c.AudioCopy // an audio download copies the AAC track or encodes it
+			}
 			out.Qualities = append(out.Qualities, model.DownloadQualityOption{
 				Quality: prof.Quality, Width: c.Width, Height: c.Height, VideoBitrate: c.VideoKbps, AudioBitrate: c.AudioKbps,
-				EstimatedBytes: c.EstimatedBytes, Copy: c.Copy,
+				EstimatedBytes: c.EstimatedBytes, Copy: copied,
 			})
 		}
 		if session.DeviceID != "" {
@@ -228,8 +240,9 @@ func validateRequest(req model.DownloadRequest) error {
 	return nil
 }
 
-// Create downloads a movie or an episode (one download) or every visible episode of a season
-// (O-2) to the session's device and queues their preparation. A title the device already has is
+// Create downloads a movie, an episode, an audiobook or a podcast episode (one download) or every
+// visible episode of a season (O-2) to the session's device and queues their preparation; a
+// podcast is no download (its episodes are). A title the device already has is
 // returned as it is (an evicted copy is prepared again, a failed one from the start). Errors:
 // model.ErrNotFound (unknown, invisible, a season without visible episodes),
 // model.ErrNotDownloadable (another kind, or the device holds the title, or every episode of the
@@ -246,8 +259,8 @@ func (s *Service) Create(ctx context.Context, session model.Session, itemID stri
 	var srcs []source
 	audio := map[string]int{}
 	switch item.Kind {
-	case "movie", "episode":
-		src, err := s.sourceOf(ctx, scope, item, req.MediaFileID)
+	case "movie", "episode", "audiobook", "podcast_episode":
+		src, err := s.downloadSource(ctx, scope, item, req.MediaFileID)
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +322,11 @@ func (s *Service) create(ctx context.Context, accountID, profileID int64, device
 		return systemq.Download{}, fmt.Errorf("get device download: %w", err)
 	}
 	prof, _ := model.DownloadProfileFor(quality)
-	c := decide(src.loc.File, src.probe, prof, audio)
+	c := src.choose(prof, audio)
+	var sourceURL sql.NullString
+	if src.enclosure != nil {
+		sourceURL = sql.NullString{String: src.enclosure.URL, Valid: true}
+	}
 	allowed, err := s.allowedJSON(ctx, accountID, src.item.ID)
 	if err != nil {
 		return systemq.Download{}, err
@@ -317,7 +334,8 @@ func (s *Service) create(ctx context.Context, accountID, profileID int64, device
 	now := s.now()
 	row, err := s.write.InsertDownload(ctx, systemq.InsertDownloadParams{
 		ID: ulid.Make().String(), AccountID: accountID, ProfileID: sql.NullInt64{Int64: profileID, Valid: profileID > 0},
-		DeviceID: deviceID, ItemID: src.item.ID, MediaFileID: sql.NullString{String: src.loc.File.ID, Valid: src.loc.File.ID != ""}, Quality: prof.Quality,
+		DeviceID: deviceID, ItemID: src.item.ID, MediaFileID: sql.NullString{String: src.loc.File.ID, Valid: src.loc.File.ID != ""},
+		SourceUrl: sourceURL, Quality: prof.Quality,
 		AudioStream: int64(max(audio, 0)), Auto: boolInt(auto),
 		DurationMs: sql.NullInt64{Int64: c.DurationMs, Valid: c.DurationMs > 0}, EstimatedBytes: c.EstimatedBytes,
 		AllowedProfileIds: allowed, Now: ms(now),

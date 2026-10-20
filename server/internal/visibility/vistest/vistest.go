@@ -69,6 +69,11 @@ type Movie struct {
 	Container bool
 	Effective *int
 	MinChild  *int
+
+	// Audio (AddAudio): the enclosure URL of a podcast episode and the file ids of the parts of a
+	// multi-part audiobook in their order (FileID is the first; empty for a single file).
+	Enclosure string
+	PartIDs   []string
 }
 
 // Show is the series tree of AddSeries.
@@ -126,6 +131,8 @@ type Fixture struct {
 	// Movies are ordered by rating 0, 6, 12, 16, 18, unrated; AddEdgeCases appends the
 	// OtherLibrary, Missing and Deleted titles (all rated 0).
 	Movies []Movie
+	// Audio holds the audiobooks and podcasts of AddAudio (M6).
+	Audio Audio
 
 	libraryID      int64
 	rootID         int64
@@ -139,17 +146,18 @@ func (f *Fixture) LibraryID() int64 { return f.libraryID }
 // RootID is the id of the root of library 1.
 func (f *Fixture) RootID() int64 { return f.rootID }
 
-// All returns every fixture title: the movies with the edge cases, the extras of the film rated 6
-// and the series tree, so a leak of any of them is detected.
+// All returns every fixture title: the movies with the edge cases, the extras of the film rated 6,
+// the series tree and the audio titles, so a leak of any of them is detected.
 func (f *Fixture) All() []Movie {
 	out := slices.Concat(f.Movies, f.Extras)
 	if f.Show.Series.ID != "" {
 		out = append(out, f.Show.All()...)
 	}
-	return out
+	return append(out, f.Audio.Titles()...)
 }
 
-// Playable returns the titles with a media file (movies, episodes, extras).
+// Playable returns the titles that are no containers: with a media file (movies, episodes, extras,
+// audiobooks, podcast episodes) or, for the enclosure-only podcast episode of AddAudio, an enclosure.
 func (f *Fixture) Playable() []Movie {
 	var out []Movie
 	for _, m := range f.All() {

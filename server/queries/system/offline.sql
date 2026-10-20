@@ -5,11 +5,12 @@
 
 -- name: InsertDownload :one
 -- One download per device and title: a second request for the same title on the device inserts
--- nothing (no row returned) and the caller reads the existing row.
-INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, quality, audio_stream, auto,
-                       duration_ms, estimated_bytes, allowed_profile_ids, created_at, updated_at, allowed_at)
-VALUES (@id, @account_id, @profile_id, @device_id, @item_id, @media_file_id, @quality, @audio_stream, @auto,
-        @duration_ms, @estimated_bytes, @allowed_profile_ids, @now, @now, @now)
+-- nothing (no row returned) and the caller reads the existing row. A podcast episode without a
+-- file has no media file but the source_url of its enclosure (M6).
+INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, source_url, quality, audio_stream,
+                       auto, duration_ms, estimated_bytes, allowed_profile_ids, created_at, updated_at, allowed_at)
+VALUES (@id, @account_id, @profile_id, @device_id, @item_id, @media_file_id, @source_url, @quality, @audio_stream,
+        @auto, @duration_ms, @estimated_bytes, @allowed_profile_ids, @now, @now, @now)
 ON CONFLICT (device_id, item_id) DO NOTHING
 RETURNING *;
 
@@ -151,10 +152,11 @@ ON CONFLICT (profile_id, device_id) DO UPDATE SET
     max_count = excluded.max_count, quality = excluded.quality, updated_at = excluded.updated_at;
 
 -- name: ListActiveDeviceRules :many
--- Enabled next-episode rules of the account's profiles on a device (sync, O-3).
+-- Enabled next-episode and new-podcast-episode rules of the account's profiles on a device (sync, O-3).
 SELECT r.* FROM download_rules AS r
 JOIN profiles AS p ON p.id = r.profile_id
-WHERE r.device_id = @device_id AND p.account_id = @account_id AND r.enabled = 1 AND r.next_episodes = 1
+WHERE r.device_id = @device_id AND p.account_id = @account_id AND r.enabled = 1
+  AND (r.next_episodes = 1 OR r.new_podcast_episodes = 1)
 ORDER BY r.profile_id;
 
 -- name: ListRecentEpisodeProgress :many
@@ -167,6 +169,32 @@ JOIN items AS e ON e.id = p.item_id AND e.kind = 'episode'
 JOIN items AS s ON s.id = e.parent_id AND s.kind = 'season'
 WHERE p.profile_id = @profile_id AND p.updated_at >= @since AND s.parent_id IS NOT NULL
 ORDER BY p.updated_at DESC, p.item_id;
+
+-- name: ListRecentPodcastProgress :many
+-- Podcasts the profile listened to since a moment (an episode started or finished, O-3), most
+-- recent first, with the publication date of the newest episode the profile ever started there.
+-- Visibility is applied by the caller through the profile scope of package visibility.
+SELECT e.parent_id AS podcast_id, CAST(MAX(COALESCE(e.published_at, 0)) AS INTEGER) AS newest_started_at,
+       CAST(MAX(p.updated_at) AS INTEGER) AS listened_at
+FROM progress AS p
+JOIN items AS e ON e.id = p.item_id AND e.kind = 'podcast_episode'
+WHERE p.profile_id = @profile_id AND e.parent_id IS NOT NULL
+GROUP BY e.parent_id
+HAVING MAX(p.updated_at) >= @since
+ORDER BY listened_at DESC, podcast_id;
+
+-- name: ListDownloadParts :many
+-- The parts of a multi-file audiobook in their order (part_index) with their roots and stored
+-- probes; a single file has no part index and lists nothing.
+SELECT m.id, m.rel_path, m.size, m.duration_ms, m.probe, r.path AS root_path
+FROM media_files AS m
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE m.item_id = @item_id AND m.part_index IS NOT NULL AND m.missing_since IS NULL
+ORDER BY m.part_index, m.id;
+
+-- name: GetDownloadItem :one
+-- The kind and the feed duration of the title of a download (audio branch of the preparation).
+SELECT kind, duration_ms, enclosure_type FROM items WHERE id = @id;
 
 -- name: GetDownloadSource :one
 -- The source of a preparation: library root, path, stored probe and keyframe index of the file.
