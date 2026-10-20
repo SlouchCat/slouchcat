@@ -105,6 +105,11 @@ mit Bereich im Titel:
   Abspann ≥ 20 s) hätten bei 60 s nichts finden dürfen.
 - **Abspann-Erkennung an echten Folgen** scheitert an der Vorschau nach dem Abspann (endet > 5 s vor dem
   Dateiende); offener Punkt.
+- **GitHub-Runner und Transcode-Budget:** auf dem Runner (4 vCPU, Software-Backend, Budget 2) hielt ein von einer
+  vorigen Spec hinterlassener Transcode (Seite geschlossen, bevor der Stop ankam; eine ruhende Sitzung behält ihr
+  Budget bis zum Idle-Stopp nach 60 s) das Budget, und `hls.spec.ts`/`quality.spec.ts` liefen in `transcode_busy`
+  (Push-Lauf zu PR #6 rot, Pull-Request-Lauf desselben Commits grün). Die `owner`-Fixture beendet jetzt vor und
+  nach jedem Test alle laufenden Streams über `DELETE /admin/streams/{id}`.
 - **`TestScanbench`** (cmd) ist bei Einzelläufen zeitabhängig (Beobachtung des Playback-Stroms, im vollen
   Lauf grün).
 - **Spike-Seite und `SLOUCHCAT_SPIKE_DIR` bleiben** bis zum Ende von Marcos Android-Lauf (27. Oktober 2026).
