@@ -38,6 +38,11 @@ const (
 	// subtitleRoute mounts subtitlePath: chi does not split "{track}.vtt" inside one segment, so the
 	// handler parses the segment (getPlaybackSubtitle).
 	subtitleRoute = "/playback/sessions/{id}/subtitles/{track}"
+	// Prepared downloads (M5), authorised by the download token dt (download_binary.go); the
+	// subtitle route parses "{track}.vtt" like subtitleRoute.
+	downloadFilePath      = "/downloads/{id}/file"
+	downloadSubtitlePath  = "/downloads/{id}/subtitles/{track}.vtt"
+	downloadSubtitleRoute = "/downloads/{id}/subtitles/{track}"
 )
 
 var binaryRoutes = map[string]string{
@@ -49,6 +54,9 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + hlsInitPath:      "scoped",
 	"GET " + BasePath + hlsSegmentPath:   "scoped",
 	"GET " + BasePath + subtitlePath:     "scoped",
+
+	"GET " + BasePath + downloadFilePath:     "scoped",
+	"GET " + BasePath + downloadSubtitlePath: "scoped",
 }
 
 // Options configure NewHandler.
@@ -65,7 +73,8 @@ type Options struct {
 	Admin    AdminService
 	Catalog  CatalogService
 	Playback PlaybackService
-	SpikeDir string // Directory with the spike download files; empty disables the endpoint.
+	Offline  OfflineService // Downloads, sync and the download token (M5).
+	SpikeDir string         // Directory with the spike download files; empty disables the endpoint.
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
 	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.
@@ -110,7 +119,8 @@ func NewHandler(o Options) http.Handler {
 			ErrorHandlerFunc: p.badRequest,
 		})
 		// Binary endpoints (CLAUDE.md rule 6) share the session middleware; the media stream and the
-		// HLS endpoints are scoped through the stream token instead of the cookie (plan 5.4).
+		// HLS endpoints are scoped through the stream token instead of the cookie (plan 5.4), the
+		// prepared downloads through the download token (M5).
 		streamAuth := p.streamAuth(o.Playback)
 		r.With(authorize).Get(binaryImagePath, s.getItemImage)
 		r.With(authorize).Get(binarySpikePath, s.getSpikeFile)
@@ -120,6 +130,9 @@ func NewHandler(o Options) http.Handler {
 		r.With(streamAuth).Get(hlsInitPath, s.getPlaybackInit)
 		r.With(streamAuth).Get(hlsSegmentPath, s.getPlaybackSegment)
 		r.With(streamAuth).Get(subtitleRoute, s.getPlaybackSubtitle)
+		downloadAuth := p.downloadAuth(o.Offline)
+		r.With(downloadAuth).Get(downloadFilePath, s.getDownloadFile)
+		r.With(downloadAuth).Get(downloadSubtitleRoute, s.getDownloadSubtitle)
 	})
 	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
 	// the start page's app shell then carries a preload header for its image (preload.go).

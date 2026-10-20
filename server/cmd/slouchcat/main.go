@@ -38,10 +38,12 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
+	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
 )
 
@@ -196,7 +198,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	keys := &lazyKeys{cfg: cfg}
 	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
-	playbackSvc, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
 		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility))
 	libSvc := library.New(db, queue, runner, log,
@@ -205,6 +207,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc)
 	keys.admin = adminSvc
+	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
+	// the transcode manager's admission (live playback preempts them, plan 3.5).
+	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,
+		offline.WithDir(cfg.DownloadsDir()), offline.WithBudget(int64(cfg.DownloadBudgetGB)<<30),
+		offline.WithTokenKey(keyring.Derive("download-token")), offline.WithManager(mgr, caps),
+		offline.WithPlayback(playbackSvc), offline.WithPins(authSvc))
 
 	var workers sync.WaitGroup
 	for i := range cfg.Workers {
@@ -213,6 +221,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		metaSvc.RegisterJobs(worker)
 		workers.Go(func() { worker.Run(ctx) })
 	}
+	// A worker of its own for download preparations: workers claim only the job types they
+	// registered, so long encodes never hold up scans and probes.
+	downloadWorker := jobs.NewWorker(queue, "download-1", log)
+	offlineSvc.RegisterJobs(downloadWorker)
+	workers.Go(func() { downloadWorker.Run(ctx) })
 	workers.Go(func() {
 		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {
 			log.Error("library watchers stopped", "err", err)
@@ -226,6 +239,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	sweepCtx, stopSweep := context.WithCancel(ctx)
 	var sweeper sync.WaitGroup
 	sweeper.Go(func() { playbackSvc.Run(sweepCtx) })
+	sweeper.Go(func() { offlineSvc.Run(sweepCtx) })
 	defer func() {
 		stopSweep() // the sweep stops transcodes, so it ends before the manager closes
 		sweeper.Wait()
@@ -242,6 +256,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 			Auth: authSvc, Profiles: authSvc, Access: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
 			Catalog:  discover.New(db, cfg.CacheDir, log),
 			Playback: playbackSvc,
+			Offline:  offlineSvc,
 			SpikeDir: cfg.SpikeDir,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -295,9 +310,10 @@ func (k *lazyKeys) YouTubeKey(ctx context.Context) (string, error) {
 // <cache>/transcode and returns the playback service with the stream-token key of the key file
 // (plan 5.4) and the subtitle cache below <cache>/subtitles. Without a usable ffmpeg the server
 // still runs: titles then play directly only. Without a subtitle converter
-// (playback.WithSubtitleConverter) text subtitles answer 404. The returned function stops every
-// transcode on shutdown.
-func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner transcode.Runner, keyring *secrets.Keyring, log *slog.Logger) (*playback.Service, func()) {
+// (playback.WithSubtitleConverter) text subtitles answer 404. It also returns the manager (nil
+// without a backend) and the capabilities of the backend, which the download encodes share. The
+// returned function stops every transcode on shutdown.
+func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner transcode.Runner, keyring *secrets.Keyring, log *slog.Logger) (*playback.Service, *transcode.Manager, transcode.Capabilities, func()) {
 	opts := []playback.Option{
 		playback.WithTokenKey(keyring.Derive("stream-token")), playback.WithCacheDir(cfg.CacheDir),
 		// WebVTT conversion of text subtitles (W-4) runs through ffmpeg even when no transcode
@@ -307,7 +323,7 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 	backend, caps, err := transcode.DetectTonemap(ctx, runner, cfg.HW, cfg.HDRTonemap, log)
 	if err != nil {
 		log.Error("transcode backend detection failed; HLS disabled, titles play directly only", "hw", cfg.HW, "err", err)
-		return playback.New(db, log, opts...), func() {}
+		return playback.New(db, log, opts...), nil, transcode.Capabilities{Backend: transcode.BackendSoftware}, func() {}
 	}
 	mgr, err := transcode.NewManager(transcode.ManagerOptions{
 		Runner: runner, WorkDir: cfg.TranscodeDir(), Backend: backend, Caps: caps,
@@ -315,11 +331,11 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 	})
 	if err != nil {
 		log.Error("transcode manager failed; HLS disabled, titles play directly only", "err", err)
-		return playback.New(db, log, opts...), func() {}
+		return playback.New(db, log, opts...), nil, caps, func() {}
 	}
 	stats := mgr.Stats()
 	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap,
 		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version)
 	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)), playback.WithKeyframeIndex(runner.Keyframes))
-	return playback.New(db, log, opts...), mgr.Close
+	return playback.New(db, log, opts...), mgr, caps, mgr.Close
 }

@@ -22,10 +22,14 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/discover"
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -75,6 +79,13 @@ type profileCall struct {
 	streamOnly      bool
 	// subtitle mints the playback with the text track {track} of the file selected for WebVTT.
 	subtitle bool
+	// download mints a prepared download of the movie on the device of the profile's browser
+	// session (directly in the store, so it exists for invisible titles too) and replaces {dl}
+	// with its id, {dt} with a download token of the profile and {track} with the text track
+	// that travels along as WebVTT (M5).
+	download bool
+	// okFor overrides okStatus per title (createDownloads and getDownloadOptions refuse extras).
+	okFor func(m vistest.Movie) int
 	// want is the expected status of a call without {id} for a profile; nil = any status below 500.
 	want  func(f *vistest.Fixture, p model.Profile) int
 	check func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, m vistest.Movie, rec *httptest.ResponseRecorder)
@@ -303,6 +314,137 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("subtitle of %s: %s %q", m.Label, ct, rec.Body.String())
 			}
 		}},
+	// M5 offline (design section 2): options and creation per title, the prepared download through
+	// its manifest and the download token, the device sync and the auto-download rule.
+	"getDownloadOptions": {contract: "GET /items/{id}/download-options", path: "/items/{id}/download-options", perItem: true,
+		okStatus: http.StatusOK, okFor: downloadableStatus(http.StatusOK),
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			var o struct {
+				MediaFileID string `json:"mediaFileId"`
+				Qualities   []struct {
+					Quality        string `json:"quality"`
+					EstimatedBytes int64  `json:"estimatedBytes"`
+				} `json:"qualities"`
+				AudioTracks []struct{} `json:"audioTracks"`
+				Subtitles   []struct {
+					Text bool `json:"text"`
+				} `json:"subtitles"`
+			}
+			decode(t, rec, &o)
+			if o.MediaFileID != m.FileID || len(o.Qualities) != 3 || o.Qualities[0].Quality != "high" || o.Qualities[0].EstimatedBytes <= 0 ||
+				len(o.AudioTracks) != 2 || len(o.Subtitles) != 2 || !o.Subtitles[0].Text {
+				t.Errorf("getDownloadOptions %s = %s", m.Label, rec.Body.String())
+			}
+		}},
+	"createDownloads": {contract: "POST /items/{id}/downloads", path: "/items/{id}/downloads", perItem: true, body: `{"quality":"low"}`,
+		okStatus: http.StatusCreated, okFor: downloadableStatus(http.StatusCreated),
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			var list struct {
+				Downloads []struct {
+					ID    string `json:"id"`
+					State string `json:"state"`
+					Item  struct {
+						ID string `json:"id"`
+					} `json:"item"`
+				} `json:"downloads"`
+			}
+			decode(t, rec, &list)
+			if len(list.Downloads) != 1 || list.Downloads[0].Item.ID != m.ID || list.Downloads[0].State != "queued" {
+				t.Errorf("createDownloads %s = %s", m.Label, rec.Body.String())
+			}
+		}},
+	// Deletion is by account, not by title: an invisible title's download goes as well.
+	"deleteDownload": {contract: "DELETE /downloads/{id}", path: "/downloads/{dl}", perItem: true, download: true,
+		okStatus: http.StatusNoContent, invisibleStatus: http.StatusNoContent},
+	"getDownloadManifest": {contract: "GET /downloads/{id}/manifest", path: "/downloads/{dl}/manifest", perItem: true, download: true,
+		okStatus: http.StatusOK,
+		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			var man struct {
+				ItemID     string `json:"itemId"`
+				SizeBytes  int64  `json:"sizeBytes"`
+				InitLength int64  `json:"initLength"`
+				FileURL    string `json:"fileUrl"`
+				Segments   []struct {
+					Offset int64 `json:"offset"`
+					Length int64 `json:"length"`
+				} `json:"segments"`
+				Subtitles []struct {
+					URL string `json:"url"`
+				} `json:"subtitles"`
+			}
+			decode(t, rec, &man)
+			media := mintedMedia(m)
+			if man.ItemID != m.ID || man.SizeBytes != int64(len(media)) || man.InitLength != int64(len(mintedInit)) || len(man.Segments) != 2 ||
+				len(man.Subtitles) != 1 || !strings.Contains(man.FileURL, "/file?dt=") {
+				t.Fatalf("getDownloadManifest %s = %s", m.Label, rec.Body.String())
+			}
+			// The URLs work as they are, without the cookie.
+			if file := send(t, h, http.MethodGet, man.FileURL, "", "", nil); file.Code != http.StatusOK || !bytes.Equal(file.Body.Bytes(), media) {
+				t.Errorf("file URL of %s: status %d", m.Label, file.Code)
+			}
+			if sub := send(t, h, http.MethodGet, man.Subtitles[0].URL, "", "", nil); sub.Code != http.StatusOK || !strings.HasPrefix(sub.Body.String(), "WEBVTT") {
+				t.Errorf("subtitle URL of %s: status %d", m.Label, sub.Code)
+			}
+		}},
+	"getDownloadFile": {contract: "GET /downloads/{id}/file", path: "/downloads/{dl}/file?dt={dt}", perItem: true, download: true,
+		streamOnly: true, okStatus: http.StatusPartialContent, header: map[string]string{"Range": "bytes=0-3"},
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			media := mintedMedia(m)
+			if cr := rec.Header().Get("Content-Range"); cr != fmt.Sprintf("bytes 0-3/%d", len(media)) {
+				t.Errorf("Content-Range = %q", cr)
+			}
+			if rec.Header().Get("Accept-Ranges") != "bytes" || rec.Header().Get("Cache-Control") != "private, no-store" ||
+				rec.Header().Get("Content-Type") != "video/mp4" || !bytes.Equal(rec.Body.Bytes(), media[:4]) {
+				t.Errorf("download file of %s: %v %q", m.Label, rec.Header(), rec.Body.Bytes())
+			}
+		}},
+	"getDownloadSubtitle": {contract: "GET /downloads/{id}/subtitles/{track}.vtt", path: "/downloads/{dl}/subtitles/{track}.vtt?dt={dt}",
+		perItem: true, download: true, streamOnly: true, okStatus: http.StatusOK,
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			if ct := rec.Header().Get("Content-Type"); ct != "text/vtt; charset=utf-8" || rec.Header().Get("Cache-Control") != "private, no-store" ||
+				rec.Body.String() != mintedVTT {
+				t.Errorf("download subtitle of %s: %s %q", m.Label, ct, rec.Body.String())
+			}
+		}},
+	"syncOffline": {contract: "POST /offline/sync", path: "/offline/sync", body: `{"held":[],"network":"wifi"}`,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			var s struct {
+				Downloads []struct {
+					AllowedProfileIDs []int64 `json:"allowedProfileIds"`
+					Item              *struct {
+						ID string `json:"id"`
+					} `json:"item"`
+				} `json:"downloads"`
+				Revoked  []string `json:"revoked"`
+				Profiles []struct {
+					ID int64 `json:"id"`
+				} `json:"profiles"`
+				Rules struct {
+					MaxCount int `json:"maxCount"`
+				} `json:"rules"`
+			}
+			decode(t, rec, &s)
+			p := fixtureProfile(f, token)
+			active := false
+			for _, op := range s.Profiles {
+				active = active || op.ID == p.ID
+			}
+			if s.Revoked == nil || s.Rules.MaxCount == 0 || !active {
+				t.Errorf("syncOffline for %s = %s", p.Name, rec.Body.String())
+			}
+			// The title travels only for the downloads the active profile may play.
+			for _, d := range s.Downloads {
+				if (d.Item != nil) != slices.Contains(d.AllowedProfileIDs, p.ID) {
+					t.Errorf("syncOffline for %s: item %v with allowed %v", p.Name, d.Item, d.AllowedProfileIDs)
+				}
+			}
+		}},
+	"getDownloadRules": {contract: "GET /offline/rules", path: "/offline/rules",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"setDownloadRules": {contract: "PUT /offline/rules", path: "/offline/rules",
+		body: `{"enabled":true,"nextEpisodes":true,"newPodcastEpisodes":false,"wifiOnly":true,"maxCount":2,"quality":"low"}`,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"reportProgress": {contract: "POST /items/{id}/progress", path: "/items/{id}/progress", perItem: true, okStatus: http.StatusOK,
 		body: fmt.Sprintf(`{"positionMs":%d,"durationMs":%d,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-18T20:00:00Z"}`,
 			vistest.DurationMs/10, vistest.DurationMs),
@@ -410,6 +552,9 @@ func scopedOperations(t *testing.T) map[string]string {
 
 type profileFixture struct {
 	f        *vistest.Fixture
+	off      *offline.Service // M5 offline service (fake encoder, no worker)
+	dlDir    string           // its download directory
+	queue    *jobs.Queue      // its job queue
 	h        http.Handler
 	tokens   map[string]model.Profile
 	sessions map[string]model.Session
@@ -424,6 +569,9 @@ type profileFixture struct {
 
 // testTokenKey is the stream-token key of the contract fixtures.
 var testTokenKey = []byte("contract-test-stream-token-key!!")
+
+// testDownloadKey is the download-token key of the contract fixtures (M5).
+var testDownloadKey = []byte("contract-test-download-token-key")
 
 func newProfileFixture(t *testing.T) profileFixture {
 	t.Helper()
@@ -461,11 +609,15 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	pf.pb = playback.New(f.DB, log, playback.WithTokenKey(testTokenKey), playback.WithTranscoder(pf.tc),
 		playback.WithSubtitleConverter(fakeEmbeddedVTT, fakeSidecarVTT), playback.WithCacheDir(t.TempDir()))
 	adm.WithStreams(pf.pb)
+	pf.dlDir, pf.queue = filepath.Join(t.TempDir(), "downloads"), jobs.NewQueue(f.DB.Write, nil)
+	pf.off = offline.New(f.DB, visibility.New(f.DB, log), pf.queue, transcode.Runner{}, log, offline.WithDir(pf.dlDir),
+		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
 		Playback: pf.pb,
+		Offline:  pf.off,
 	}
 	pf.h = NewHandler(pf.opts)
 	return pf
@@ -521,6 +673,64 @@ func (pf profileFixture) mintWith(t *testing.T, token string, m vistest.Movie, m
 		t.Fatal(err)
 	}
 	return id, playback.SignToken(testTokenKey, id, m.ID)
+}
+
+// downloadableStatus is status for movies and episodes and 422 not_downloadable for extras.
+func downloadableStatus(status int) func(m vistest.Movie) int {
+	return func(m vistest.Movie) int {
+		if m.Kind == "extra" {
+			return http.StatusUnprocessableEntity
+		}
+		return status
+	}
+}
+
+// Content of the prepared downloads mintDownload writes: an init segment, two media segments with
+// the title's id and a WebVTT file of the text track.
+const (
+	mintedInit = "ftyp-moov"
+	mintedVTT  = "WEBVTT\n\nNOTE minted download\n"
+)
+
+func mintedMedia(m vistest.Movie) []byte {
+	return []byte(mintedInit + "segment-0-" + m.Label + "segment-1-" + m.Label)
+}
+
+// mintDownload stores a prepared download of movie m on the device of the browser session of
+// token, directly in the store and the download directory, and returns its id and a download
+// token of the session's profile. A download of the device for the title is reused.
+func (pf profileFixture) mintDownload(t *testing.T, token string, m vistest.Movie) (id, dt string) {
+	t.Helper()
+	session := pf.sessions[token]
+	media := mintedMedia(m)
+	seg0 := int64(len("segment-0-" + m.Label))
+	err := pf.f.DB.Write.QueryRow(`INSERT INTO downloads (id, account_id, profile_id, device_id, item_id, media_file_id, quality,
+	            audio_stream, state, mode, duration_ms, estimated_bytes, size_bytes, segments_done, segments_total, created_at, updated_at, ready_at)
+	        VALUES (?, ?, ?, ?, ?, ?, 'low', 1, 'ready', 'transcode', 8000, ?, ?, 2, 2, 1, 1, 1)
+	        ON CONFLICT (device_id, item_id) DO UPDATE SET state = 'ready', files_removed_at = NULL, size_bytes = excluded.size_bytes,
+	            segments_done = 2, segments_total = 2, audio_stream = 1, ready_at = 1
+	        RETURNING id`,
+		ulid.Make().String(), session.Account.ID, session.Profile.ID, session.DeviceID, m.ID, m.FileID, len(media), len(media)).Scan(&id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index := fmt.Sprintf(`{"init":%d,"codecs":"avc1.640029,mp4a.40.2","width":852,"height":480}`+"\n"+
+		`{"n":0,"startMs":0,"durationMs":4000,"offset":%d,"length":%d}`+"\n"+
+		`{"n":1,"startMs":4000,"durationMs":4000,"offset":%d,"length":%d}`+"\n",
+		len(mintedInit), len(mintedInit), seg0, int64(len(mintedInit))+seg0, int64(len(media))-int64(len(mintedInit))-seg0)
+	dir := filepath.Join(pf.dlDir, id)
+	for name, data := range map[string]string{
+		"media.mp4": string(media), "index.jsonl": index, fmt.Sprintf("subs/%d.vtt", pf.tracks[m.FileID].Text): mintedVTT,
+	} {
+		path := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return id, offline.SignToken(testDownloadKey, id, m.ID, session.Profile.ID)
 }
 
 func homeRows(t *testing.T, rec *httptest.ResponseRecorder) (keys []string, rows map[string][]string) {
@@ -660,6 +870,10 @@ func TestContractChildProfiles(t *testing.T) {
 						ps, st := pf.mintWith(t, token, m, call.mint, sub)
 						path = strings.NewReplacer("{ps}", ps, "{st}", url.QueryEscape(st), "{track}", fmt.Sprint(sub)).Replace(path)
 					}
+					if call.download {
+						dl, dt := pf.mintDownload(t, token, m)
+						path = strings.NewReplacer("{dl}", dl, "{dt}", url.QueryEscape(dt), "{track}", fmt.Sprint(pf.tracks[m.FileID].Text)).Replace(path)
+					}
 					cookie := token
 					if call.streamOnly {
 						cookie = ""
@@ -678,11 +892,15 @@ func TestContractChildProfiles(t *testing.T) {
 						}
 						continue
 					}
-					if rec.Code != call.okStatus {
-						t.Errorf("%s movie %s: status %d (%s), want %d", op, m.Label, rec.Code, rec.Body.String(), call.okStatus)
+					okStatus := call.okStatus
+					if call.okFor != nil {
+						okStatus = call.okFor(m)
+					}
+					if rec.Code != okStatus {
+						t.Errorf("%s movie %s: status %d (%s), want %d", op, m.Label, rec.Code, rec.Body.String(), okStatus)
 						continue
 					}
-					if call.check != nil {
+					if call.check != nil && okStatus == call.okStatus {
 						call.check(t, f, h, token, m, rec)
 					}
 					assertOnlyVisible(t, f, op, profile, titles, itemIDsIn(t, rec, titles))
