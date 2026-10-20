@@ -164,6 +164,9 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	if err := enqueueTx(ctx, q, now, keyframesJob(t.file.ID)); err != nil {
 		return err
 	}
+	if err := markSeasonPending(ctx, q, t.file.ID, now); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 

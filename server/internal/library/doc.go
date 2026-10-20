@@ -72,6 +72,17 @@
 // probe_error. Any other failure (ffprobe missing or not configured, no process, a share that
 // dropped) is returned, so the job retries with backoff.
 //
+// # Intro and outro (job segments.detect)
+//
+// A successful probe of an episode file sets its season's segments_state back to pending and, with
+// at least two probed episodes, queues segments.detect for the season (key segments:<seasonId>,
+// priority 2) in the probe transaction; a full scan of a series library queues every pending
+// season with two or more probed episodes (QueuePendingSegments), so seasons converge after
+// interruptions. The job fingerprints the start and the end of each episode's primary file (two
+// ffmpeg processes at a time), lets package segments detect the segments, replaces the detected
+// rows in media_segments (manual rows stay) and sets the season to done, none or failed. A probe
+// that lands while the job runs keeps the season pending for the next full scan.
+//
 // # Path scan (job scan.path)
 //
 // A watcher reports the directories that changed (Poller: new, gone or with a different listing;

@@ -269,6 +269,13 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 			s.log.InfoContext(ctx, "titles queued for metadata.match or trailer.find", "library_id", lib.ID, "titles", n)
 		}
 	}
+	if lib.Kind == "series" {
+		if n, err := s.QueuePendingSegments(ctx, lib.ID); err != nil {
+			s.log.WarnContext(ctx, "segments check after scan failed", "library_id", lib.ID, "err", err)
+		} else if n > 0 {
+			s.log.InfoContext(ctx, "seasons queued for segments.detect", "library_id", lib.ID, "seasons", n)
+		}
+	}
 	return nil
 }
 
