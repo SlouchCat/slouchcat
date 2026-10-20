@@ -2151,8 +2151,10 @@ paths:
       operationId: deleteDevice
       summary: Forget a device
       description: |
-        Ends the running streams of the device, revokes its sessions and PIN counters and deletes the row;
-        the browser gets a new device id with its next sign-in.
+        Revokes the sessions of the device, ends its running streams, deletes its PIN counters and its row.
+        The browser keeps its device cookie: its next sign-in recreates the device under the same id (without
+        name, capabilities and owner until its next playback start). The reserved device of the per-profile
+        PIN ceiling is not listed and answers 404.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -2454,6 +2456,14 @@ components:
           type: integer
           minimum: 0
           description: Remaining lock in seconds for `pin_locked` (same value as `Retry-After`).
+        extensions:
+          type: object
+          description: |
+            Whole-number details of a limit problem: `limitMinutes` and `usedMinutes` for `watch_limit_reached`,
+            `maxStreams` and `activeStreams` for `stream_limit_reached`. Absent for other problems.
+          additionalProperties:
+            type: integer
+          examples: [{"maxStreams": 1, "activeStreams": 1}]
 
     FieldError:
       type: object

@@ -1089,8 +1089,10 @@ export interface paths {
         post?: never;
         /**
          * Forget a device
-         * @description Ends the running streams of the device, revokes its sessions and PIN counters and deletes the row;
-         *     the browser gets a new device id with its next sign-in.
+         * @description Revokes the sessions of the device, ends its running streams, deletes its PIN counters and its row.
+         *     The browser keeps its device cookie: its next sign-in recreates the device under the same id (without
+         *     name, capabilities and owner until its next playback start). The reserved device of the per-profile
+         *     PIN ceiling is not listed and answers 404.
          */
         delete: operations["deleteDevice"];
         options?: never;
@@ -1215,6 +1217,17 @@ export interface components {
             errors?: components["schemas"]["FieldError"][];
             /** @description Remaining lock in seconds for `pin_locked` (same value as `Retry-After`). */
             retryAfterSeconds?: number;
+            /**
+             * @description Whole-number details of a limit problem: `limitMinutes` and `usedMinutes` for `watch_limit_reached`,
+             *     `maxStreams` and `activeStreams` for `stream_limit_reached`. Absent for other problems.
+             * @example {
+             *       "maxStreams": 1,
+             *       "activeStreams": 1
+             *     }
+             */
+            extensions?: {
+                [key: string]: number;
+            };
         };
         FieldError: {
             /** @description JSON pointer-like field name, for example `email` or `library.path`. */

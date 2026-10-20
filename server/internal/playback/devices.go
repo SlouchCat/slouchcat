@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
@@ -16,19 +17,24 @@ import (
 // Device capability profiles (W-7, M4 design 3.6): every start records the device of the browser
 // session (sessions.device_id) with its owner (the account and profile of the start) and, when the
 // client reported it, its capability profile, name and type. A client without a device on its
-// session (a third-party client) names its device with PlaybackRequest.deviceId, which counts
-// only in the form of a device id.
+// session (a session from before migration 00007) names its device with PlaybackRequest.deviceId,
+// which counts only in the form of the device cookie and only for a device that is new or already
+// belongs to the account (claimDevice).
 
-// devicePattern is the form of a device id (the device cookie, 128 random bits).
-var devicePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{32}$`)
+// devicePattern is the form of a device id (the device cookie, 128 random bits as hex, like
+// package auth).
+var devicePattern = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 // recordDevice records the device of a start and returns its reference for PlaybackInfo (nil when
 // the start has no device) and the device id of the playback row: the device, else the client's
-// deviceId as it is (progress merging of M1). A failure to record is logged; it does not stop the
-// playback.
+// deviceId as it is (progress merging of M1) unless it has the form of a device id that was not
+// claimed. A failure to record is logged; it does not stop the playback.
 func (s *Service) recordDevice(ctx context.Context, session model.Session, req model.PlaybackRequest, caps model.PlaybackCapabilities, now time.Time) (*model.DeviceRef, string) {
 	id := session.DeviceID
 	if id == "" && devicePattern.MatchString(req.DeviceID) {
+		if !s.claimDevice(ctx, req.DeviceID, session.Account.ID) {
+			return nil, "" // never attach the playback to a device of someone else
+		}
 		id = req.DeviceID
 	}
 	if id == "" {
@@ -57,6 +63,25 @@ func (s *Service) recordDevice(ctx context.Context, session model.Session, req m
 		ref.Name = d.Name.String
 	}
 	return ref, id
+}
+
+// claimDevice reports whether a client-named device id may become the device of a start: not the
+// reserved device of the PIN ceiling, and either without a row yet or already owned by the account.
+// A row of another account (or of a browser without playback, owner unknown) is not taken over:
+// its owner and capabilities stay, and forgetting it does not end this playback.
+func (s *Service) claimDevice(ctx context.Context, id string, accountID int64) bool {
+	if id == auth.ReservedDeviceID {
+		return false
+	}
+	d, err := s.read.GetDevice(ctx, id)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return true
+	case err != nil:
+		s.log.WarnContext(ctx, "get device", "device_id", id, "err", err)
+		return false
+	}
+	return d.AccountID.Valid && d.AccountID.Int64 == accountID
 }
 
 // ListStreams returns the running playback sessions for the administration (W-6), newest first:

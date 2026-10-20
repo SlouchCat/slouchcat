@@ -39,8 +39,13 @@ const (
 	pinCeilingLock     = 15 * time.Minute
 
 	// profileCeilingDevice is the reserved pin_attempts device of the per-profile ceiling.
-	profileCeilingDevice = "ffffffffffffffffffffffffffffffff"
+	profileCeilingDevice = ReservedDeviceID
 )
+
+// ReservedDeviceID is the device id the per-profile PIN ceiling counts under (a devices row
+// exists for it). It is never a browser's device: the administration does not list or forget it,
+// and a client cannot claim it.
+const ReservedDeviceID = "ffffffffffffffffffffffffffffffff"
 
 var (
 	pinPattern    = regexp.MustCompile(`^[0-9]{4,8}$`)

@@ -58,6 +58,55 @@ func TestTrackRequestNotBurnable(t *testing.T) {
 	}
 }
 
+// A session without device (before migration 00007) names its device with deviceId only in the
+// form of the device cookie, never the reserved device, and only a device that is new or owned by
+// the account: a device of another account keeps its owner and does not get the playback.
+func TestStartDeviceIDClaim(t *testing.T) {
+	f := vistest.New(t)
+	f.AddGuest(t)
+	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey))
+	ctx := context.Background()
+	m := f.Rated(6)
+	if _, err := f.DB.Write.Exec(`INSERT INTO devices (id, created_at, last_seen_at, account_id) VALUES (?, 1, 1, ?)`, deviceB, f.Guest.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.DB.Write.Exec(`INSERT INTO devices (id, created_at, last_seen_at) VALUES (?, 1, 1)`, deviceC); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, id, want, row string
+	}{
+		{"new device", deviceA, deviceA, deviceA},
+		{"own device again", deviceA, deviceA, deviceA},
+		{"device of another account", deviceB, "", ""},
+		{"device without owner", deviceC, "", ""},
+		{"reserved device", "ffffffffffffffffffffffffffffffff", "", ""},
+		{"not a device cookie", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			info, err := s.Start(ctx, browserSession(t, f, f.P18), m.ID, model.PlaybackRequest{DeviceID: c.id})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := ""
+			if info.Device != nil {
+				got = info.Device.ID
+			}
+			var row *string
+			if err := f.DB.Read.QueryRow(`SELECT device_id FROM playback_sessions WHERE id = ?`, info.PlaybackSessionID).Scan(&row); err != nil {
+				t.Fatal(err)
+			}
+			if got != c.want || (row == nil) != (c.row == "") || (row != nil && *row != c.row) {
+				t.Errorf("device %q, row %v; want %q, %q", got, row, c.want, c.row)
+			}
+		})
+	}
+	var owner int64
+	if err := f.DB.Read.QueryRow(`SELECT account_id FROM devices WHERE id = ?`, deviceB).Scan(&owner); err != nil || owner != f.Guest.ID {
+		t.Errorf("owner of the guest's device = %d, %v", owner, err)
+	}
+}
+
 // A rebuild repeats the recorded decision, not the profile's current limits: the client holds
 // the master playlist of the start. A bandwidth limit that capped the bit rate stays applied.
 func TestRebuildKeepsRecordedLimits(t *testing.T) {

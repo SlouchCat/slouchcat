@@ -31,16 +31,12 @@ func (p problems) writeProblem(w http.ResponseWriter, r *http.Request, status in
 	p.send(w, status, problemBody(r, status, code, detail, fields, retryAfter))
 }
 
-// extendedProblem is a problem with RFC 9457 extension numbers under "extensions" (the limits of
-// K-5 and W-8: limitMinutes and usedMinutes, maxStreams and activeStreams).
-type extendedProblem struct {
-	gen.Problem
-	Extensions map[string]int `json:"extensions"`
-}
-
-// writeExtended sends a problem with extension numbers.
+// writeExtended sends a problem with extension numbers under "extensions" (Problem.extensions: the
+// limits of K-5 and W-8, limitMinutes and usedMinutes, maxStreams and activeStreams).
 func (p problems) writeExtended(w http.ResponseWriter, r *http.Request, status int, code, detail string, ext map[string]int) {
-	p.send(w, status, extendedProblem{Problem: problemBody(r, status, code, detail, nil, nil), Extensions: ext})
+	body := problemBody(r, status, code, detail, nil, nil)
+	body.Extensions = &ext
+	p.send(w, status, body)
 }
 
 func (p problems) send(w http.ResponseWriter, status int, body any) {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -47,6 +48,9 @@ func (s *Service) ListDevices(ctx context.Context) ([]model.AdminDevice, error) 
 	}
 	out := make([]model.AdminDevice, 0, len(rows))
 	for _, r := range rows {
+		if r.ID == auth.ReservedDeviceID {
+			continue // the counter of the PIN ceiling, no browser
+		}
 		d := model.AdminDevice{
 			ID: r.ID, Name: r.Name.String, Type: r.Type.String, UserAgent: r.UserAgent.String, OwnerEmail: r.OwnerEmail.String,
 			OwnerProfile: r.OwnerProfile.String, CreatedAt: time.UnixMilli(r.CreatedAt).UTC(), LastSeenAt: time.UnixMilli(r.LastSeenAt).UTC(),
@@ -70,9 +74,14 @@ func (s *Service) ListDevices(ctx context.Context) ([]model.AdminDevice, error) 
 }
 
 // DeleteDevice forgets a device (W-7): its browser sessions are revoked first (no new stream can
-// start), then its playback ends, its PIN counters and its row are deleted. The browser gets a new
-// device id with its next sign-in. An unknown device is model.ErrNotFound.
+// start), then its playback ends, its PIN counters and its row are deleted. The browser keeps its
+// device cookie: its next sign-in recreates the row under the same id, without name, capabilities
+// and owner until its next playback start. An unknown device and the reserved device of the PIN
+// ceiling (auth.ReservedDeviceID, whose counters must not be reset) are model.ErrNotFound.
 func (s *Service) DeleteDevice(ctx context.Context, id string) error {
+	if id == auth.ReservedDeviceID {
+		return model.ErrNotFound
+	}
 	if _, err := s.read.GetDevice(ctx, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.ErrNotFound

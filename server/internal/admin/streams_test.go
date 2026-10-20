@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -79,6 +80,9 @@ func TestAdminDevices(t *testing.T) {
 	           VALUES (?, 'Mozilla/5.0', 1, ?, 'Chrome 156 · Linux', 'desktop', ?, ?, '{"video":["h264","hevc"],"audio":["aac"],"hls":"mse","maxHeight":1440,"hdr":true}', 5)`,
 		testDevice, now.UnixMilli(), f.Account.ID, f.P18.ID)
 	m.exec(t, `INSERT INTO devices (id, created_at, last_seen_at) VALUES ('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 1, 2)`)
+	// The reserved device of the PIN ceiling is neither listed nor forgotten.
+	m.exec(t, `INSERT INTO devices (id, created_at, last_seen_at) VALUES (?, 1, ?)`, auth.ReservedDeviceID, now.UnixMilli()+1)
+	m.exec(t, `INSERT INTO pin_attempts (profile_id, device_id, failures, locked_until, updated_at) VALUES (?, ?, 20, 0, 1)`, f.P6.ID, auth.ReservedDeviceID)
 	session := f.Session(t, f.P18)
 	m.exec(t, `UPDATE sessions SET device_id = ? WHERE id = ?`, testDevice, session.ID)
 	m.exec(t, `INSERT INTO pin_attempts (profile_id, device_id, failures, locked_until, updated_at) VALUES (?, ?, 2, 0, 1)`, f.P6.ID, testDevice)
@@ -120,5 +124,11 @@ func TestAdminDevices(t *testing.T) {
 	}
 	if err := m.svc.DeleteDevice(m.ctx, testDevice); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("second delete: %v", err)
+	}
+	if err := m.svc.DeleteDevice(m.ctx, auth.ReservedDeviceID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("delete of the reserved device: %v", err)
+	}
+	if err := f.DB.Read.QueryRow(`SELECT count(*) FROM pin_attempts WHERE device_id = ?`, auth.ReservedDeviceID).Scan(&pins); err != nil || pins != 1 {
+		t.Errorf("ceiling counters after the refused delete: %d, %v", pins, err)
 	}
 }
