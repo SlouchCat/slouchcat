@@ -39,4 +39,10 @@ export const paths = {
   person: (id: number) => `/people/${id}`,
   adminItem: (id: string) => `/admin/items/${encodeURIComponent(id)}`,
   invite: (token: string) => `/invite/${encodeURIComponent(token)}`,
+  /** Administration (M8). */
+  adminAccounts: '/admin/accounts',
+  adminBackup: '/admin/backup',
+  /** Usage statistics; `days` picks the period (7, 30, 90 or 365, default 30). */
+  adminStats: '/admin/stats',
+  adminAnnouncements: '/admin/announcements',
 } as const;

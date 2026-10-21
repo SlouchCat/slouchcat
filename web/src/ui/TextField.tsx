@@ -4,6 +4,7 @@ import {
   Input,
   Label,
   Text,
+  TextArea,
   TextField as AriaTextField,
   type TextFieldProps as AriaTextFieldProps,
 } from 'react-aria-components';
@@ -19,9 +20,14 @@ interface TextFieldProps extends Omit<AriaTextFieldProps, 'className' | 'childre
   inputRef?: Ref<HTMLInputElement>;
   /** Select the whole text when the field gets focus (a link to copy). */
   selectOnFocus?: boolean;
+  /** Several lines (a `<textarea>` of this many rows) for longer text such as a message. */
+  rows?: number;
 }
 
-/** Labelled text input (react-aria) with description and inline validation message. */
+/**
+ * Labelled text input (react-aria) with description and inline validation message; with `rows` a
+ * multi-line text area.
+ */
 export function TextField({
   label,
   description,
@@ -29,17 +35,26 @@ export function TextField({
   mono,
   inputRef,
   selectOnFocus,
+  rows,
   ...rest
 }: TextFieldProps) {
   return (
     <AriaTextField className={styles.field} {...rest}>
       <Label className={styles.label}>{label}</Label>
-      <Input
-        ref={inputRef}
-        className={`${styles.input} ${mono ? styles.mono : ''}`}
-        placeholder={placeholder}
-        onFocus={selectOnFocus ? (event) => event.currentTarget.select() : undefined}
-      />
+      {rows ? (
+        <TextArea
+          rows={rows}
+          className={`${styles.input} ${styles.multiline} ${mono ? styles.mono : ''}`}
+          placeholder={placeholder}
+        />
+      ) : (
+        <Input
+          ref={inputRef}
+          className={`${styles.input} ${mono ? styles.mono : ''}`}
+          placeholder={placeholder}
+          onFocus={selectOnFocus ? (event) => event.currentTarget.select() : undefined}
+        />
+      )}
       {description && (
         <Text slot="description" className={styles.description}>
           {description}

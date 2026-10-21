@@ -1,4 +1,4 @@
-import type { SessionInfo } from '@slouchcat/api-client';
+import type { SessionInfo, StatsDays } from '@slouchcat/api-client';
 import type { QueryClient } from '@tanstack/react-query';
 import {
   createRootRouteWithContext,
@@ -11,6 +11,7 @@ import {
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
+import { isStatsDays } from '@/features/admin/statsDays';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
@@ -326,6 +327,43 @@ const homeRowsRoute = createRoute({
 });
 // end admin M7
 
+// admin M8: accounts, backup, statistics and announcements.
+const accountsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/accounts',
+  component: lazyRouteComponent(() => import('@/features/admin/AccountsPage'), 'AccountsPage'),
+});
+
+const backupRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/backup',
+  component: lazyRouteComponent(() => import('@/features/admin/BackupPage'), 'BackupPage'),
+});
+
+/**
+ * `days`: the period of the statistics (A-8); anything but 7, 30, 90 or 365 reads as none. The
+ * undefined member overrides the raw value, which the router would otherwise pass on.
+ */
+const statsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/stats',
+  validateSearch: (search: Record<string, unknown>): { days?: StatsDays } => {
+    const days = Number(search.days);
+    return { days: isStatsDays(days) ? days : undefined };
+  },
+  component: lazyRouteComponent(() => import('@/features/admin/StatsPage'), 'StatsPage'),
+});
+
+const announcementsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/announcements',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/AnnouncementsPage'),
+    'AnnouncementsPage',
+  ),
+});
+// end admin M8
+
 const profileSettingsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/settings/profiles',
@@ -421,6 +459,11 @@ export const routeTree = rootRoute.addChildren([
         streamsRoute,
         adminItemRoute,
         accessRoute,
+        // admin M8
+        accountsRoute,
+        backupRoute,
+        statsRoute,
+        announcementsRoute,
         profileSettingsRoute,
         downloadsRoute,
         // discover M7
