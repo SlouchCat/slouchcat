@@ -140,7 +140,14 @@
       "email_not_configured": "Es ist kein E-Mail-Server eingerichtet.",
       "email_send_failed": "Der Mailserver hat die Mail nicht angenommen.",
       "job_not_failed": "Dieser Job ist nicht fehlgeschlagen.",
-      "update_check_disabled": "Die Update-Prüfung ist ausgeschaltet."
+      "update_check_disabled": "Die Update-Prüfung ist ausgeschaltet.",
+      "email_taken": "Diese E-Mail-Adresse gehört schon zu einem anderen Konto.",
+      "passphrase_required": "Gib die Passphrase ein.",
+      "passphrase_too_short": "Die Passphrase ist zu kurz: mindestens 12 Zeichen.",
+      "passphrase_wrong": "Die Passphrase stimmt nicht.",
+      "backup_invalid": "Diese Datei ist keine gültige Sicherung von Slouchcat, oder sie ist beschädigt.",
+      "backup_newer_than_server": "Die Sicherung stammt von einer neueren Version von Slouchcat. Aktualisiere zuerst den Server.",
+      "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -1406,6 +1413,228 @@
         "name": "Öffentliche Adresse",
         "label": "Adresse",
         "hint": "Zum Beispiel https://media.example.ch"
+      }
+    },
+    "accounts": {
+      "title": "Konten",
+      "intro": "Das Hauptkonto und die Gastkonten mit Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen.",
+      "list": "Konten",
+      "columns": {
+        "email": "E-Mail",
+        "role": "Rolle",
+        "rating": "Altersstufe",
+        "libraries": "Bibliotheken",
+        "profiles": "Profile",
+        "lastSeen": "Zuletzt gesehen",
+        "channels": "Kanäle",
+        "actions": "Aktionen"
+      },
+      "roles": {
+        "owner": "Hauptkonto",
+        "guest": "Gast"
+      },
+      "libraries_one": "{{count}} Bibliothek",
+      "libraries_other": "{{count}} Bibliotheken",
+      "primaryProfile": "{{name}} (Hauptprofil)",
+      "listSeparator": ", ",
+      "neverSeen": "Noch nie",
+      "noChannels": "Keine",
+      "channels": {
+        "email": "E-Mail",
+        "push": "Web-Push",
+        "telegram": "Telegram"
+      },
+      "profilesLink": "Profile",
+      "accessLink": "Zugriff",
+      "accessLabel": "Zugriff von {{email}} verwalten",
+      "edit": {
+        "action": "Konto ändern",
+        "title": "Konto ändern",
+        "intro": "E-Mail-Adresse und Passwort deines Kontos. Jede Änderung braucht dein aktuelles Passwort.",
+        "email": "E-Mail-Adresse",
+        "newPassword": "Neues Passwort",
+        "newPasswordHint": "Leer lassen, um das Passwort zu behalten. Sonst mindestens 10 Zeichen.",
+        "newPasswordRepeat": "Neues Passwort wiederholen",
+        "currentPassword": "Aktuelles Passwort",
+        "currentPasswordHint": "Bestätigt, dass du es bist.",
+        "wrongPassword": "Das aktuelle Passwort stimmt nicht.",
+        "unchanged": "Ändere die E-Mail-Adresse oder gib ein neues Passwort ein.",
+        "saved": "Dein Konto ist gespeichert."
+      }
+    },
+    "backup": {
+      "title": "Sicherung",
+      "intro": "Datenbank und Einstellungen sichern und wiederherstellen. Medien sind nie Teil einer Sicherung.",
+      "list": "Sicherungen",
+      "empty": "Noch keine Sicherungen.",
+      "columns": {
+        "name": "Datei",
+        "created": "Erstellt",
+        "size": "Grösse",
+        "kind": "Art",
+        "secrets": "Schlüssel",
+        "encrypted": "Verschlüsselt",
+        "actions": "Aktionen"
+      },
+      "kinds": {
+        "manual": "Manuell",
+        "auto": "Automatisch"
+      },
+      "yes": "Ja",
+      "no": "Nein",
+      "created": "Sicherung „{{name}}“ erstellt.",
+      "deleted": "Sicherung „{{name}}“ gelöscht.",
+      "create": {
+        "action": "Sicherung erstellen",
+        "title": "Sicherung erstellen",
+        "intro": "Die Sicherung enthält die Datenbank mit Konten, Profilen, Fortschritt und Einstellungen. Medien gehören nie dazu.",
+        "scope": "Umfang",
+        "without": "Ohne Schlüssel (empfohlen)",
+        "with": "Mit Schlüsseln",
+        "withoutHint": "Zugangsdaten wie die Schlüssel für TMDB und Trakt, der E-Mail-Server, der Telegram-Bot und die Web-Push-Schlüssel bleiben draussen. Nach einer Wiederherstellung gibst du sie neu ein.",
+        "withHint": "Die Sicherung enthält auch den Schlüssel zu den Zugangsdaten. Darum wird das ganze Archiv mit einer Passphrase verschlüsselt (mindestens {{min}} Zeichen). Ohne die Passphrase lässt es sich nicht wiederherstellen.",
+        "passphrase": "Passphrase",
+        "passphraseHint": "Mindestens {{min}} Zeichen. Bewahre sie getrennt von der Sicherung auf.",
+        "passphraseRepeat": "Passphrase wiederholen",
+        "passphraseTooShort": "Mindestens {{min}} Zeichen.",
+        "passphraseMismatch": "Die Passphrasen stimmen nicht überein.",
+        "submit": "Sicherung erstellen",
+        "creating": "Wird erstellt …"
+      },
+      "download": {
+        "action": "Herunterladen",
+        "label": "{{name}} herunterladen"
+      },
+      "delete": {
+        "action": "Löschen",
+        "label": "{{name}} löschen",
+        "title": "Sicherung „{{name}}“ löschen?",
+        "body": "Die Datei wird aus dem Sicherungsordner des Servers gelöscht. Heruntergeladene Kopien bleiben.",
+        "confirm": "Sicherung löschen"
+      },
+      "restore": {
+        "action": "Wiederherstellen",
+        "label": "{{name}} wiederherstellen",
+        "upload": "Aus Datei wiederherstellen",
+        "titleUpload": "Sicherung aus einer Datei wiederherstellen",
+        "titleNamed": "„{{name}}“ wiederherstellen",
+        "warning": "Die Wiederherstellung ersetzt alle Daten dieses Servers durch den Stand der Sicherung. Danach startet der Server neu, und alle werden abgemeldet.",
+        "file": "Sicherungsdatei",
+        "fileHint": "Eine Datei slouchcat-backup-….tar.gz oder, mit Schlüsseln, ….tar.gz.age.",
+        "passphrase": "Passphrase",
+        "passphraseHint": "Diese Sicherung ist verschlüsselt.",
+        "passphraseUploadHint": "Nur für eine verschlüsselte Sicherung (….tar.gz.age).",
+        "running": "Wird geprüft …",
+        "confirmTitle": "Alle Daten ersetzen?",
+        "confirmBody": "Konten, Profile, Fortschritt und Einstellungen werden durch den Stand der Sicherung ersetzt. Danach startet der Server neu, und alle werden abgemeldet.",
+        "confirmBodyNamed": "Konten, Profile, Fortschritt und Einstellungen werden durch den Stand von „{{name}}“ ersetzt. Danach startet der Server neu, und alle werden abgemeldet.",
+        "confirm": "Ersetzen und neu starten"
+      },
+      "restart": {
+        "title": "Server startet neu",
+        "body": "Die Sicherung (Version {{version}}) ist geprüft und wird beim Start eingespielt. Sobald der Server wieder antwortet, öffnet sich die Anmeldung.",
+        "noSecrets": "Die Sicherung enthält keine Zugangsdaten: Gib die Schlüssel, den E-Mail-Server und den Telegram-Bot danach unter Integrationen neu ein.",
+        "waiting": "Warte auf den Server …",
+        "back": "Der Server ist zurück. Die Anmeldung wird geöffnet …"
+      }
+    },
+    "stats": {
+      "title": "Statistiken",
+      "intro": "Was in letzter Zeit geschaut wurde, über alle Konten und Profile.",
+      "period": "Zeitraum",
+      "days_one": "{{count}} Tag",
+      "days_other": "{{count}} Tage",
+      "columns": {
+        "plays": "Wiedergaben",
+        "watched": "Schauzeit"
+      },
+      "tooltip": "{{label}}: {{value}}",
+      "top": {
+        "title": "Meistgesehen",
+        "empty": "In diesem Zeitraum wurde nichts geschaut.",
+        "columns": {
+          "title": "Titel",
+          "kind": "Art"
+        }
+      },
+      "profiles": {
+        "title": "Schauzeit je Profil",
+        "chart": "Schauzeit je Profil als Diagramm",
+        "label": "{{profile}} ({{email}})",
+        "empty": "Kein Profil hat in diesem Zeitraum geschaut.",
+        "columns": {
+          "profile": "Profil"
+        }
+      },
+      "playback": {
+        "title": "Wiedergabe",
+        "direct": "Direct Play",
+        "remux": "Remux",
+        "transcode": "Transcode",
+        "sessions_one": "{{count}} Wiedergabe",
+        "sessions_other": "{{count}} Wiedergaben",
+        "share": "{{share}} aller Wiedergaben",
+        "hardware": "Transcode auf dem Grafikchip",
+        "hardwareNote": "Anteil der Transcodes"
+      },
+      "devices": {
+        "title": "Geräte",
+        "chart": "Schauzeit je Gerätetyp als Diagramm",
+        "empty": "Kein Gerät hat in diesem Zeitraum geschaut.",
+        "unknown": "Unbekannt",
+        "columns": {
+          "type": "Gerätetyp",
+          "count": "Geräte"
+        }
+      }
+    },
+    "announcements": {
+      "title": "Ankündigungen",
+      "intro": "Neuigkeiten für alle: Jedes Profil sieht eine veröffentlichte Ankündigung beim nächsten Start, und die Konten bekommen sie über ihre Kanäle.",
+      "list": "Ankündigungen",
+      "empty": "Noch keine Ankündigungen.",
+      "create": "Neue Ankündigung",
+      "columns": {
+        "title": "Titel",
+        "created": "Erstellt",
+        "published": "Veröffentlicht",
+        "acknowledged": "Gelesen",
+        "actions": "Aktionen"
+      },
+      "draft": "Entwurf",
+      "notSent": "Noch nicht verschickt",
+      "acknowledged": "{{acknowledged}} von {{total}} Profilen",
+      "published": "„{{title}}“ ist veröffentlicht.",
+      "saved": "„{{title}}“ ist als Entwurf gespeichert.",
+      "deleted": "„{{title}}“ ist gelöscht.",
+      "form": {
+        "title": "Neue Ankündigung",
+        "editTitle": "Entwurf bearbeiten",
+        "titleLabel": "Titel",
+        "body": "Text",
+        "bodyHint": "Höchstens {{max}} Zeichen. Zeilenumbrüche bleiben erhalten.",
+        "publishLabel": "Veröffentlichung",
+        "publishNow": "Sofort veröffentlichen",
+        "save": "Als Entwurf speichern"
+      },
+      "edit": {
+        "action": "Bearbeiten",
+        "label": "„{{title}}“ bearbeiten"
+      },
+      "publish": {
+        "action": "Veröffentlichen",
+        "label": "„{{title}}“ veröffentlichen",
+        "title": "„{{title}}“ veröffentlichen?",
+        "body": "Jedes Profil sieht die Ankündigung beim nächsten Start. Sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat; Gäste bekommen sie standardmässig per E-Mail. Danach lässt sie sich nicht mehr ändern.",
+        "confirm": "Veröffentlichen",
+        "reach": "Jedes Profil sieht sie beim nächsten Start, und sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat. Gäste bekommen sie standardmässig per E-Mail."
+      },
+      "delete": {
+        "action": "Löschen",
+        "label": "„{{title}}“ löschen",
+        "title": "„{{title}}“ löschen?",
+        "body": "Die Ankündigung und ihre Lesebestätigungen werden gelöscht. Schon verschickte Nachrichten bleiben bei den Empfängern.",
+        "confirm": "Ankündigung löschen"
       }
     }
   },

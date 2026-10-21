@@ -9,8 +9,8 @@ import {
 
 // Plain links for the browsing pages (P-10: no react-aria on the start path). A same-origin path
 // is navigated by the app router on a plain left click; modified clicks (new tab, new window),
-// other targets and external URLs keep the browser's default. Enter on a focused link is a native
-// click, so keyboard and spatial navigation work unchanged.
+// other targets, downloads (`download`) and external URLs keep the browser's default. Enter on a
+// focused link is a native click, so keyboard and spatial navigation work unchanged.
 
 type Navigate = (href: string) => void;
 
@@ -49,6 +49,7 @@ export function AppLink({ href, target, onClick, children, ref, ...rest }: AppLi
       event.shiftKey ||
       event.altKey ||
       (target !== undefined && target !== '_self') ||
+      rest.download !== undefined ||
       !isAppPath(href)
     ) {
       return;

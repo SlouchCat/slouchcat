@@ -42,6 +42,7 @@ export const paths = {
   adminIntegrations: '/admin/integrations',
   adminAccounts: '/admin/accounts',
   adminAnnouncements: '/admin/announcements',
+  /** Usage statistics; `days` picks the period (7, 30, 90 or 365, default 30). */
   adminStats: '/admin/stats',
   adminBackup: '/admin/backup',
   /** Notification channels of the signed-in account (M8). */

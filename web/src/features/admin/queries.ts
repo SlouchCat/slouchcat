@@ -1,4 +1,5 @@
 import type {
+  AdminAccount,
   AdminCollection,
   AdminSettings,
   AdminSettingsUpdate,
@@ -8,6 +9,8 @@ import type {
   AdminPodcast,
   AdminItem,
   AdminStream,
+  Announcement,
+  Backup,
   CollectionRequest,
   Dashboard,
   DuplicateGroup,
@@ -21,6 +24,8 @@ import type {
   PickRequest,
   PickUpdate,
   SystemInfo,
+  Stats,
+  StatsDays,
   TraktStatus,
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
@@ -179,6 +184,35 @@ export const homeRowsQuery = queryOptions({
 export const traktStatusQuery = queryOptions({
   queryKey: ['admin', 'trakt'],
   queryFn: ({ signal }): Promise<TraktStatus> => request(api.GET('/admin/trakt', { signal })),
+});
+
+// Administration (M8): accounts, backups, statistics and announcements.
+
+/** The main account first, then the guests, with profiles and channels (A-2). */
+export const accountsQuery = queryOptions({
+  queryKey: ['admin', 'accounts'],
+  queryFn: ({ signal }): Promise<AdminAccount[]> => request(api.GET('/admin/accounts', { signal })),
+});
+
+/** Manual and automatic backups in the backup directory, newest first (A-4). */
+export const backupsQuery = queryOptions({
+  queryKey: ['admin', 'backups'],
+  queryFn: ({ signal }): Promise<Backup[]> => request(api.GET('/admin/backups', { signal })),
+});
+
+/** Usage over the last `days` days (A-8). */
+export const statsQuery = (days: StatsDays) =>
+  queryOptions({
+    queryKey: ['admin', 'stats', days],
+    queryFn: ({ signal }): Promise<Stats> =>
+      request(api.GET('/admin/stats', { params: { query: { days } }, signal })),
+  });
+
+/** Every announcement of the main user, newest first (A-7). */
+export const announcementsQuery = queryOptions({
+  queryKey: ['admin', 'announcements'],
+  queryFn: ({ signal }): Promise<Announcement[]> =>
+    request(api.GET('/admin/announcements', { signal })),
 });
 
 export const createPicks = (body: PickRequest): Promise<AdminPick[]> =>

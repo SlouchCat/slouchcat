@@ -140,7 +140,14 @@
       "email_not_configured": "No e-mail server is set up.",
       "email_send_failed": "The mail server did not accept the mail.",
       "job_not_failed": "This job has not failed.",
-      "update_check_disabled": "The update check is switched off."
+      "update_check_disabled": "The update check is switched off.",
+      "email_taken": "This e-mail address already belongs to another account.",
+      "passphrase_required": "Enter the passphrase.",
+      "passphrase_too_short": "The passphrase is too short: at least 12 characters.",
+      "passphrase_wrong": "The passphrase is wrong.",
+      "backup_invalid": "This file is not a valid Slouchcat backup, or it is damaged.",
+      "backup_newer_than_server": "The backup comes from a newer version of Slouchcat. Update the server first.",
+      "announcement_published": "The announcement is already published and can no longer be changed."
     },
     "field": {
       "required": "Required.",
@@ -1406,6 +1413,228 @@
         "name": "Public address",
         "label": "Address",
         "hint": "For example https://media.example.ch"
+      }
+    },
+    "accounts": {
+      "title": "Accounts",
+      "intro": "The main account and the guest accounts with rating, libraries, profiles and the channels they receive notifications on.",
+      "list": "Accounts",
+      "columns": {
+        "email": "E-mail",
+        "role": "Role",
+        "rating": "Rating",
+        "libraries": "Libraries",
+        "profiles": "Profiles",
+        "lastSeen": "Last seen",
+        "channels": "Channels",
+        "actions": "Actions"
+      },
+      "roles": {
+        "owner": "Main account",
+        "guest": "Guest"
+      },
+      "libraries_one": "{{count}} library",
+      "libraries_other": "{{count}} libraries",
+      "primaryProfile": "{{name}} (main profile)",
+      "listSeparator": ", ",
+      "neverSeen": "Never",
+      "noChannels": "None",
+      "channels": {
+        "email": "E-mail",
+        "push": "Web push",
+        "telegram": "Telegram"
+      },
+      "profilesLink": "Profiles",
+      "accessLink": "Access",
+      "accessLabel": "Manage access of {{email}}",
+      "edit": {
+        "action": "Change account",
+        "title": "Change account",
+        "intro": "E-mail address and password of your account. Every change needs your current password.",
+        "email": "E-mail address",
+        "newPassword": "New password",
+        "newPasswordHint": "Leave empty to keep the password. Otherwise at least 10 characters.",
+        "newPasswordRepeat": "Repeat new password",
+        "currentPassword": "Current password",
+        "currentPasswordHint": "Confirms that it is you.",
+        "wrongPassword": "The current password is wrong.",
+        "unchanged": "Change the e-mail address or enter a new password.",
+        "saved": "Your account is saved."
+      }
+    },
+    "backup": {
+      "title": "Backup",
+      "intro": "Back up and restore the database and the settings. Media are never part of a backup.",
+      "list": "Backups",
+      "empty": "No backups yet.",
+      "columns": {
+        "name": "File",
+        "created": "Created",
+        "size": "Size",
+        "kind": "Kind",
+        "secrets": "Keys",
+        "encrypted": "Encrypted",
+        "actions": "Actions"
+      },
+      "kinds": {
+        "manual": "Manual",
+        "auto": "Automatic"
+      },
+      "yes": "Yes",
+      "no": "No",
+      "created": "Backup “{{name}}” created.",
+      "deleted": "Backup “{{name}}” deleted.",
+      "create": {
+        "action": "Create backup",
+        "title": "Create backup",
+        "intro": "The backup holds the database with accounts, profiles, progress and settings. Media are never part of it.",
+        "scope": "Scope",
+        "without": "Without keys (recommended)",
+        "with": "With keys",
+        "withoutHint": "Credentials such as the TMDB and Trakt keys, the e-mail server, the Telegram bot and the web push keys stay out. After a restore you enter them again.",
+        "withHint": "The backup also holds the key to the credentials. That is why the whole archive is encrypted with a passphrase (at least {{min}} characters). Without the passphrase it cannot be restored.",
+        "passphrase": "Passphrase",
+        "passphraseHint": "At least {{min}} characters. Keep it apart from the backup.",
+        "passphraseRepeat": "Repeat passphrase",
+        "passphraseTooShort": "At least {{min}} characters.",
+        "passphraseMismatch": "The passphrases do not match.",
+        "submit": "Create backup",
+        "creating": "Creating …"
+      },
+      "download": {
+        "action": "Download",
+        "label": "Download {{name}}"
+      },
+      "delete": {
+        "action": "Delete",
+        "label": "Delete {{name}}",
+        "title": "Delete the backup “{{name}}”?",
+        "body": "The file is deleted from the server's backup folder. Downloaded copies stay.",
+        "confirm": "Delete backup"
+      },
+      "restore": {
+        "action": "Restore",
+        "label": "Restore {{name}}",
+        "upload": "Restore from file",
+        "titleUpload": "Restore a backup from a file",
+        "titleNamed": "Restore “{{name}}”",
+        "warning": "Restoring replaces all data of this server with the state of the backup. The server restarts afterwards, and everyone is signed out.",
+        "file": "Backup file",
+        "fileHint": "A file slouchcat-backup-….tar.gz or, with keys, ….tar.gz.age.",
+        "passphrase": "Passphrase",
+        "passphraseHint": "This backup is encrypted.",
+        "passphraseUploadHint": "Only for an encrypted backup (….tar.gz.age).",
+        "running": "Checking …",
+        "confirmTitle": "Replace all data?",
+        "confirmBody": "Accounts, profiles, progress and settings are replaced by the state of the backup. The server restarts afterwards, and everyone is signed out.",
+        "confirmBodyNamed": "Accounts, profiles, progress and settings are replaced by the state of “{{name}}”. The server restarts afterwards, and everyone is signed out.",
+        "confirm": "Replace and restart"
+      },
+      "restart": {
+        "title": "The server is restarting",
+        "body": "The backup (version {{version}}) is checked and goes in at the start. As soon as the server answers again, the sign-in opens.",
+        "noSecrets": "The backup holds no credentials: enter the keys, the e-mail server and the Telegram bot again under integrations afterwards.",
+        "waiting": "Waiting for the server …",
+        "back": "The server is back. Opening the sign-in …"
+      }
+    },
+    "stats": {
+      "title": "Statistics",
+      "intro": "What was watched lately, across every account and profile.",
+      "period": "Period",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "columns": {
+        "plays": "Plays",
+        "watched": "Watch time"
+      },
+      "tooltip": "{{label}}: {{value}}",
+      "top": {
+        "title": "Most watched",
+        "empty": "Nothing was watched in this period.",
+        "columns": {
+          "title": "Title",
+          "kind": "Kind"
+        }
+      },
+      "profiles": {
+        "title": "Watch time per profile",
+        "chart": "Watch time per profile as a chart",
+        "label": "{{profile}} ({{email}})",
+        "empty": "No profile watched anything in this period.",
+        "columns": {
+          "profile": "Profile"
+        }
+      },
+      "playback": {
+        "title": "Playback",
+        "direct": "Direct play",
+        "remux": "Remux",
+        "transcode": "Transcode",
+        "sessions_one": "{{count}} play",
+        "sessions_other": "{{count}} plays",
+        "share": "{{share}} of all plays",
+        "hardware": "Transcode on the GPU",
+        "hardwareNote": "Share of the transcodes"
+      },
+      "devices": {
+        "title": "Devices",
+        "chart": "Watch time per device type as a chart",
+        "empty": "No device played anything in this period.",
+        "unknown": "Unknown",
+        "columns": {
+          "type": "Device type",
+          "count": "Devices"
+        }
+      }
+    },
+    "announcements": {
+      "title": "Announcements",
+      "intro": "News for everyone: every profile sees a published announcement at its next start, and the accounts receive it on their channels.",
+      "list": "Announcements",
+      "empty": "No announcements yet.",
+      "create": "New announcement",
+      "columns": {
+        "title": "Title",
+        "created": "Created",
+        "published": "Published",
+        "acknowledged": "Read",
+        "actions": "Actions"
+      },
+      "draft": "Draft",
+      "notSent": "Not sent yet",
+      "acknowledged": "{{acknowledged}} of {{total}} profiles",
+      "published": "“{{title}}” is published.",
+      "saved": "“{{title}}” is saved as a draft.",
+      "deleted": "“{{title}}” is deleted.",
+      "form": {
+        "title": "New announcement",
+        "editTitle": "Edit draft",
+        "titleLabel": "Title",
+        "body": "Text",
+        "bodyHint": "At most {{max}} characters. Line breaks are kept.",
+        "publishLabel": "Publishing",
+        "publishNow": "Publish now",
+        "save": "Save as draft"
+      },
+      "edit": {
+        "action": "Edit",
+        "label": "Edit “{{title}}”"
+      },
+      "publish": {
+        "action": "Publish",
+        "label": "Publish “{{title}}”",
+        "title": "Publish “{{title}}”?",
+        "body": "Every profile sees the announcement at its next start. It goes to the channels of every account that chose announcements; guests receive it by e-mail by default. It cannot be changed afterwards.",
+        "confirm": "Publish",
+        "reach": "Every profile sees it at its next start, and it goes to the channels of every account that chose announcements. Guests receive it by e-mail by default."
+      },
+      "delete": {
+        "action": "Delete",
+        "label": "Delete “{{title}}”",
+        "title": "Delete “{{title}}”?",
+        "body": "The announcement and its read receipts are deleted. Messages already sent stay with the recipients.",
+        "confirm": "Delete announcement"
       }
     }
   },

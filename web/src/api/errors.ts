@@ -4,6 +4,14 @@ import { isApiError } from './client';
 // Problem codes of the contract that the UI translates. Unknown codes fall back to `unknown`.
 const problemKeys = {
   invalid_credentials: 'errors.code.invalid_credentials',
+  // Administration (M8): account, backup and announcements.
+  email_taken: 'errors.code.email_taken',
+  passphrase_required: 'errors.code.passphrase_required',
+  passphrase_too_short: 'errors.code.passphrase_too_short',
+  passphrase_wrong: 'errors.code.passphrase_wrong',
+  backup_invalid: 'errors.code.backup_invalid',
+  backup_newer_than_server: 'errors.code.backup_newer_than_server',
+  announcement_published: 'errors.code.announcement_published',
   library_path_invalid: 'errors.code.library_path_invalid',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
@@ -108,6 +116,10 @@ const fieldOfCode: Record<string, string> = {
   feed_exists: 'feedUrl',
   telegram_token_invalid: 'telegram.botToken',
   telegram_unreachable: 'telegram.botToken',
+  email_taken: 'email',
+  passphrase_required: 'passphrase',
+  passphrase_too_short: 'passphrase',
+  passphrase_wrong: 'passphrase',
 };
 
 export interface FormErrors {
