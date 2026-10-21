@@ -10,7 +10,8 @@ const meta = {
     context: 'Neue Folge von Die Stunde der Dämmerung',
     time: '21.10.2026, 08:15',
     unread: true,
-    unreadLabel: 'Ungelesen',
+    label:
+      'Ungelesen: S01E03 · Die lange Nacht, Neue Folge von Die Stunde der Dämmerung, 21.10.2026, 08:15',
   },
   decorators: [
     (Story) => (

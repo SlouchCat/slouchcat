@@ -232,7 +232,9 @@ export function HomeRowsPage() {
               />
             )}
             {save.isError && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
-            {message && !save.isError && <Notice>{message}</Notice>}
+            <div role="status" className={curation.live}>
+              {message && !save.isError && <Notice live={false}>{message}</Notice>}
+            </div>
             {rows.length > 0 && (
               <div>
                 <AriaButton

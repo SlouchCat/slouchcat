@@ -19,6 +19,8 @@ export interface HeaderNotifications {
   /** Accessible name with the count ("Benachrichtigungen, 3 ungelesen"). */
   accessibleLabel: string;
   unread: number;
+  /** The badge above its highest count ("99+"). */
+  overflowLabel: string;
   current?: boolean;
 }
 
@@ -49,7 +51,7 @@ function InboxLink({ inbox }: { inbox: HeaderNotifications }) {
       aria-current={inbox.current ? 'page' : undefined}
     >
       <span aria-hidden="true">{inbox.label}</span>
-      <NotificationBadge count={inbox.unread} />
+      <NotificationBadge count={inbox.unread} overflowLabel={inbox.overflowLabel} />
     </AppLink>
   );
 }

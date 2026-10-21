@@ -17,7 +17,7 @@ const result = (overrides: Partial<SearchResult> = {}): SearchResult => ({
   ...overrides,
 });
 
-const routes = (search: (call: Call) => Response) => ({
+const routes = (search: (call: Call) => Response | Promise<Response>) => ({
   ...signedIn,
   'GET /genres': () =>
     json([
@@ -149,6 +149,80 @@ describe('search page', () => {
     expect(screen.getByRole('textbox', { name: 'Jahr bis' })).toHaveValue('');
   });
 
+  it('empties the field when the "Suche" link drops the text from the URL', async () => {
+    mockApi(routes(() => json(result())));
+    const { router } = renderApp('/search?q=Al');
+    await screen.findByRole('region', { name: 'Titel' });
+    const field = screen.getByRole('searchbox', { name: 'Suchbegriff' });
+    expect(field).toHaveValue('Al');
+
+    await userEvent.setup().click(screen.getByRole('link', { name: 'Suche' }));
+    await waitFor(() => expect(field).toHaveValue(''));
+    // The debounce must not write the old text back.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(router.state.location.search).toEqual({});
+    expect(field).toHaveValue('');
+    expect(screen.queryByRole('region', { name: 'Titel' })).not.toBeInTheDocument();
+  });
+
+  it('keeps typing while the URL follows the field', async () => {
+    mockApi(routes(() => json(result())));
+    const { router } = renderApp('/search');
+    const field = await screen.findByRole('searchbox', { name: 'Suchbegriff' });
+    const user = userEvent.setup();
+    await user.type(field, 'Al');
+    await waitFor(() => expect(router.state.location.search).toEqual({ q: 'Al' }));
+    await user.type(field, 'ien');
+    await waitFor(() => expect(router.state.location.search).toEqual({ q: 'Alien' }));
+    expect(field).toHaveValue('Alien');
+  });
+
+  it('Escape in the empty field goes back; with text it stays a key of the field', async () => {
+    mockApi(routes(() => json(result())));
+    const { router } = renderApp('/search');
+    const field = await screen.findByRole('searchbox', { name: 'Suchbegriff' });
+    await waitFor(() => expect(field).toHaveFocus());
+    const user = userEvent.setup();
+
+    await user.type(field, 'A');
+    await user.keyboard('{Backspace}');
+    expect(router.state.location.pathname).toBe('/search');
+    await user.type(field, 'A{Escape}');
+    expect(router.state.location.pathname).toBe('/search');
+
+    await user.clear(field);
+    await user.keyboard('{Escape}');
+    // Opened directly: back means the start page.
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('marks the old results busy while a changed search loads', async () => {
+    let answer: () => void = () => undefined;
+    const { calls } = mockApi(
+      routes(async (call) => {
+        if ((call.body as { query?: string }).query === 'Ali') {
+          await new Promise<void>((resolve) => {
+            answer = resolve;
+          });
+        }
+        return json(result());
+      }),
+    );
+    renderApp('/search?q=Al');
+    const titles = await screen.findByRole('region', { name: 'Titel' });
+    const area = titles.parentElement!;
+    expect(area).not.toHaveAttribute('aria-busy');
+
+    await userEvent.setup().type(screen.getByRole('searchbox', { name: 'Suchbegriff' }), 'i');
+    await waitFor(() => expect(area).toHaveAttribute('aria-busy', 'true'));
+    // The previous titles stay while the new ones load.
+    expect(within(titles).getByRole('link', { name: /Heat/ })).toBeVisible();
+    expect(searches(calls).at(-1)?.body).toMatchObject({ query: 'Ali' });
+
+    answer();
+    await waitFor(() => expect(area).not.toHaveAttribute('aria-busy'));
+  });
+
   it('loads more titles with "Mehr laden"', async () => {
     const many = Array.from({ length: 50 }, (_, index) => ({
       ...heat,
@@ -185,6 +259,8 @@ describe('search page', () => {
     );
     renderApp('/search?q=Zz');
     expect(await screen.findByText('Nichts gefunden')).toBeVisible();
+    // One message only: the status line does not add "0 Titel gefunden".
+    expect(screen.queryByText('0 Titel gefunden')).not.toBeInTheDocument();
     fail = true;
     await userEvent.setup().type(screen.getByRole('searchbox', { name: 'Suchbegriff' }), 'x');
     expect(await screen.findByRole('alert')).toBeVisible();

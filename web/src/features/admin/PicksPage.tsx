@@ -6,7 +6,6 @@ import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
-import { itemQuery } from '@/features/catalog/queries';
 import { manageProfilesQuery } from '@/features/profiles/queries';
 import { formText } from '@/lib/form';
 import { formatDateTime } from '@/lib/format';
@@ -29,11 +28,27 @@ import {
   toLocalInput,
   useMoveButtons,
 } from './CurationParts';
-import { createPicks, deletePick, picksQuery, reorderPicks, updatePick } from './queries';
+import {
+  adminItemQuery,
+  createPicks,
+  deletePick,
+  picksQuery,
+  reorderPicks,
+  updatePick,
+} from './queries';
 import styles from './AdminTablePage.module.css';
 import curation from './Curation.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/picks');
+
+const REORDER_KEY = ['admin', 'picks', 'order'];
+
+/** A press of "Nach oben"/"Nach unten": the new order and the button that asked for it. */
+interface Move {
+  order: AdminPick[];
+  pick: AdminPick;
+  delta: -1 | 1;
+}
 
 /** Longest note the server takes (`PickRequest.note`). */
 const MAX_NOTE = 280;
@@ -110,8 +125,8 @@ function AddPickDialog({
 }) {
   const { t } = useTranslation();
   const profiles = useQuery(manageProfilesQuery);
-  // The detail of the title the link named; the primary profile of the main account sees all.
-  const preset = useQuery({ ...itemQuery(presetId ?? ''), enabled: Boolean(presetId) });
+  // The title the link named, from the admin view: no profile's visibility hides it here.
+  const preset = useQuery({ ...adminItemQuery(presetId ?? ''), enabled: Boolean(presetId) });
   const [picked, setPicked] = useState<Choice | null>(null);
   const chosen: Choice | null =
     picked ??
@@ -309,18 +324,28 @@ export function PicksPage() {
       queryClient.invalidateQueries({ queryKey: ['home'] }),
     ]);
 
+  // Quick presses queue their PUTs in order (scope); each shows its order at once, and only the
+  // last one to settle asks the server again, so an earlier answer cannot undo a later move.
   const reorder = useMutation({
-    mutationFn: (order: AdminPick[]) => reorderPicks(order.map((pick) => pick.id)),
-    onMutate: async (order) => {
+    mutationKey: REORDER_KEY,
+    scope: { id: REORDER_KEY.join('/') },
+    mutationFn: ({ order }: Move) => reorderPicks(order.map((pick) => pick.id)),
+    onMutate: async ({ order }) => {
       await queryClient.cancelQueries({ queryKey: picksQuery.queryKey });
       const previous = queryClient.getQueryData(picksQuery.queryKey);
       queryClient.setQueryData(picksQuery.queryKey, order);
       return { previous };
     },
-    onError: (_error, _order, context) => {
-      if (context?.previous) queryClient.setQueryData(picksQuery.queryKey, context.previous);
+    onError: (_error, { pick, delta }, context) => {
+      if (!context?.previous) return;
+      // Back in place, the focus returns to the pressed button (as after the move itself).
+      if (queryClient.getQueryData(picksQuery.queryKey) !== context.previous) {
+        keepFocus(String(pick.id), delta);
+      }
+      queryClient.setQueryData(picksQuery.queryKey, context.previous);
     },
-    onSettled: invalidate,
+    onSettled: () =>
+      queryClient.isMutating({ mutationKey: REORDER_KEY }) > 1 ? undefined : invalidate(),
   });
   const remove = useMutation({
     mutationFn: (pick: AdminPick) => deletePick(pick.id),
@@ -339,7 +364,7 @@ export function PicksPage() {
     const order = moveBy(list, index, delta);
     setMessage(t('admin.picks.moved', { title: pick.title, position: index + delta + 1 }));
     keepFocus(String(pick.id), delta);
-    reorder.mutate(order);
+    reorder.mutate({ order, pick, delta });
   };
 
   const timeWindow = (pick: AdminPick) => {
@@ -485,7 +510,9 @@ export function PicksPage() {
             </AriaButton>
           </div>
           {actionError && <Notice tone="danger">{problemMessage(t, actionError)}</Notice>}
-          {message && !actionError && <Notice>{message}</Notice>}
+          <div role="status" className={curation.live}>
+            {message && !actionError && <Notice live={false}>{message}</Notice>}
+          </div>
           {picks.isPending && <Skeleton shape="block" />}
           {picks.isError && (
             <Notice

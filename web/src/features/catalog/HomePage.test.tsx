@@ -48,6 +48,26 @@ describe('start page', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${ids.heat}`));
   });
 
+  it('"/" opens the search, unless a widget already took the key', async () => {
+    mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
+    const { router } = renderApp('/');
+    await screen.findByRole('region', { name: 'Neu hinzugefügt' });
+    const slash = () =>
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }),
+      );
+
+    const takeKey = (event: KeyboardEvent) => event.preventDefault();
+    document.body.addEventListener('keydown', takeKey);
+    slash();
+    document.body.removeEventListener('keydown', takeKey);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(router.state.location.pathname).toBe('/');
+
+    slash();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/search'));
+  });
+
   it('prefixes image URLs with the API base and loads only the first row eagerly', async () => {
     mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     const { container } = renderApp('/');

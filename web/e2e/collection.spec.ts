@@ -71,10 +71,10 @@ test('collection by keyboard: arrows, Enter, back; no focus trap', async ({ page
     await expect(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible();
     await expectNoFocusTrap(page);
 
-    // Backspace goes back.
+    // Backspace goes back; opened directly, that is the start page.
     await resetFocus(page);
     await page.keyboard.press('Backspace');
-    await expect(page).not.toHaveURL(/\/collections\//);
+    await expect(page).toHaveURL((url) => url.pathname === '/');
   } finally {
     await deleteCollection(owner, id);
   }

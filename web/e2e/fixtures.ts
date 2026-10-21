@@ -7,7 +7,7 @@ import {
   stopAllStreams,
 } from './accounts';
 import { resetCuration } from './curation';
-import { resetViewerLists } from './discover';
+import { resetTraktMock, resetViewerLists } from './discover';
 import { removeDeviceDownloads } from './offline';
 
 /**
@@ -45,6 +45,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await removeTestPodcasts(api);
         await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
         await resetViewerLists(api);
+        await resetTraktMock();
         await provide(api);
       } finally {
         await stopAllStreams(api);

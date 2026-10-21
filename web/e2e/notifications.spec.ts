@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { constants, copyFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Page, type TestInfo } from '@playwright/test';
 import {
@@ -9,8 +9,7 @@ import {
   subscribeFeed,
   waitForEpisodes,
 } from './audio';
-import { setFavorite, unreadNotifications } from './discover';
-import { TV_DIR } from './env';
+import { introSeason, setFavorite, unreadNotifications } from './discover';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, resetFocus } from './keyboard';
 import { INTRO_SHOW_TITLE, itemIdByTitle } from './playback';
@@ -19,21 +18,12 @@ import { INTRO_SHOW_TITLE, itemIdByTitle } from './playback';
 // The episode is a copy of an existing file under a new episode number, written into the series
 // folder of testdata/media/TV (the library watcher picks it up) and removed after the test.
 
-const INTRO_SEASON = join(TV_DIR, 'Slouchcat Test Intro Show (2024) {tmdb-7102}', 'Season 01');
 /** Time the badge may take (E-8 measurement in docs/perf/M7.md: copy to badge). */
 const BADGE_TIMEOUT_MS = 120_000;
 
 const badge = (page: Page) =>
   page.getByRole('link', { name: /^Benachrichtigungen, \d+ ungelesen$/ });
 const inbox = (page: Page) => page.getByRole('list', { name: 'Benachrichtigungen' });
-
-/** The season folder of the intro show (named with or without its TMDB tag). */
-function introSeason(): string {
-  if (existsSync(INTRO_SEASON)) return INTRO_SEASON;
-  const folder = readdirSync(TV_DIR).find((name) => name.startsWith('Slouchcat Test Intro Show'));
-  if (!folder) throw new Error(`${INTRO_SHOW_TITLE} is missing in ${TV_DIR}`);
-  return join(TV_DIR, folder, 'Season 01');
-}
 
 /**
  * Source and target episode per browser and retry. The library takes a file whose content matches a
@@ -65,7 +55,9 @@ test('a new episode of a favourite series shows in the badge and the inbox (E-8)
   if (!source) throw new Error(`no S01E${from} in ${season}`);
   const target = join(season, source.replace(`S01E${from}`, `S01E${number}`));
   const started = Date.now();
-  copyFileSync(join(season, source), target);
+  // A file at the target is a leftover the global setup did not remove (another run on the same
+  // test media): fail here, not 120 s later at the badge.
+  copyFileSync(join(season, source), target, constants.COPYFILE_EXCL);
   try {
     // The page asks every 30 s; no reload.
     await expect(badge(page)).toHaveAccessibleName('Benachrichtigungen, 1 ungelesen', {
@@ -141,8 +133,8 @@ test('inbox by keyboard: arrows, Enter, "Alle als gelesen markieren"; no focus t
   await expect(page).toHaveURL(/\/notifications$/);
   await expectNoFocusTrap(page);
 
-  // Escape goes back.
+  // Escape goes back; opened directly, that is the start page.
   await resetFocus(page);
   await page.keyboard.press('Escape');
-  await expect(page).not.toHaveURL(/\/notifications$/);
+  await expect(page).toHaveURL((url) => url.pathname === '/');
 });

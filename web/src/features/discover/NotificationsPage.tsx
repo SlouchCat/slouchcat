@@ -34,6 +34,18 @@ function entryTitle(t: TFunction, entry: Notification): string {
   return code ? t('item.nextEpisodeLabel', { code, title: entry.item.title }) : entry.item.title;
 }
 
+/** The entry as one spoken line: state, title, context and time. */
+function entryLabel(t: TFunction, entry: Notification, language: string): string {
+  const values = {
+    title: entryTitle(t, entry),
+    source: entryContext(t, entry),
+    time: formatDateTime(entry.createdAt, language),
+  };
+  return entry.readAt
+    ? t('notifications.entryLabel', values)
+    : t('notifications.entryLabelUnread', values);
+}
+
 function entryContext(t: TFunction, entry: Notification): string {
   const parent = entry.parent?.title ?? entry.item.seriesTitle;
   return parent ? t('notifications.newEpisode', { parent }) : t('notifications.newEpisodeAlone');
@@ -77,9 +89,11 @@ export function NotificationsPage() {
                 icon="check"
                 aria-disabled={markAll.isPending || undefined}
                 onPress={() => {
-                  // The button goes away with the last unread entry: the focus moves back first.
+                  // The button goes away once the list is read again, before `mutate` would call
+                  // back: the focus moves to "Zurück" now, so it never falls to the page body.
                   if (!markAll.isPending) {
-                    markAll.mutate(undefined, { onSuccess: () => setSpatialFocus(BACK_KEY) });
+                    setSpatialFocus(BACK_KEY);
+                    markAll.mutate();
                   }
                 }}
               >
@@ -119,7 +133,7 @@ export function NotificationsPage() {
                     context={entryContext(t, entry)}
                     time={formatDateTime(entry.createdAt, i18n.language)}
                     unread={!entry.readAt}
-                    unreadLabel={t('notifications.unread')}
+                    label={entryLabel(t, entry, i18n.language)}
                     onOpen={() => {
                       if (!entry.readAt) markRead.mutate(entry.id);
                     }}

@@ -91,6 +91,17 @@ export function SearchPage() {
   const field = useRef<HTMLInputElement>(null);
 
   const [text, setText] = useState(params.q ?? '');
+  // The URL changed from elsewhere (the "Suche" link, history): the field follows it. A value this
+  // page wrote itself is not taken back, so a key typed while the URL catches up stays in the field.
+  const [seenQ, setSeenQ] = useState(params.q);
+  const [sentQ, setSentQ] = useState(params.q);
+  if (params.q !== seenQ) {
+    setSeenQ(params.q);
+    if (params.q !== sentQ) {
+      setSentQ(params.q);
+      setText(params.q ?? '');
+    }
+  }
   const update = (change: Partial<SearchParams>) =>
     void navigate({
       search: (previous) => {
@@ -106,7 +117,10 @@ export function SearchPage() {
   // The URL (and the request) follows the field 200 ms after the last key.
   useEffect(() => {
     if (text === (params.q ?? '')) return;
-    const timer = window.setTimeout(() => update({ q: text || undefined }), DEBOUNCE_MS);
+    const timer = window.setTimeout(() => {
+      setSentQ(text || undefined);
+      update({ q: text || undefined });
+    }, DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `update` is recreated every render
   }, [text, params.q]);
@@ -160,7 +174,8 @@ export function SearchPage() {
   let status: string;
   if (typed.length === 1) status = t('search.tooShort');
   else if (body === null) status = t('search.start');
-  else if (showResults) status = t('search.results', { count: total });
+  // Nothing found: the notice below says so, the status line stays empty (no second message).
+  else if (showResults && found) status = t('search.results', { count: total });
   else status = '';
 
   return (
@@ -289,80 +304,87 @@ export function SearchPage() {
           {status}
         </p>
 
-        {results.isError && body !== null && !results.data && (
-          <Notice tone="danger" title={problemMessage(t, results.error)} />
-        )}
+        {/* While a changed search loads, the previous results stay: busy, not gone. */}
+        <div className={styles.results} aria-busy={results.isFetching || undefined}>
+          {results.isError && body !== null && !results.data && (
+            <Notice tone="danger" title={problemMessage(t, results.error)} />
+          )}
 
-        {showResults && !found && (
-          <Notice title={t('search.empty.title')}>{t('search.empty.body')}</Notice>
-        )}
+          {showResults && !found && (
+            <Notice title={t('search.empty.title')}>{t('search.empty.body')}</Notice>
+          )}
 
-        {showResults && items.length > 0 && (
-          <section className={styles.section} aria-labelledby="search-titles">
-            <h2 id="search-titles" className={styles.sectionTitle}>
-              {t('search.sections.titles')}
-            </h2>
-            <ItemGrid items={items} focusKey="search-item" label={t('search.sections.titles')} />
-            <MoreButton
-              shown={items.length}
-              keys={items.map((item) => cardKey('search-item', item))}
-              hasMore={results.hasNextPage}
-              loading={results.isFetchingNextPage}
-              failed={results.isFetchNextPageError}
-              label={t('search.more')}
-              focusKey="search-more"
-              onMore={() => void results.fetchNextPage()}
-            />
-          </section>
-        )}
+          {showResults && items.length > 0 && (
+            <section className={styles.section} aria-labelledby="search-titles">
+              <h2 id="search-titles" className={styles.sectionTitle}>
+                {t('search.sections.titles')}
+              </h2>
+              <ItemGrid items={items} focusKey="search-item" label={t('search.sections.titles')} />
+              <MoreButton
+                shown={items.length}
+                keys={items.map((item) => cardKey('search-item', item))}
+                hasMore={results.hasNextPage}
+                loading={results.isFetchingNextPage}
+                failed={results.isFetchNextPageError}
+                label={t('search.more')}
+                focusKey="search-more"
+                onMore={() => void results.fetchNextPage()}
+              />
+            </section>
+          )}
 
-        {showResults && people.length > 0 && (
-          <section className={styles.section} aria-labelledby="search-people">
-            <h2 id="search-people" className={styles.sectionTitle}>
-              {t('search.sections.people')}
-            </h2>
-            <SpatialGroup as="ul" className={styles.links} aria-label={t('search.sections.people')}>
-              {people.map((person) => (
-                <li key={person.id}>
-                  <SpatialButtonLink
-                    focusKey={`search-person-${person.id}`}
-                    href={paths.person(person.id)}
-                    variant="secondary"
-                  >
-                    {person.name}
-                  </SpatialButtonLink>
-                </li>
-              ))}
-            </SpatialGroup>
-          </section>
-        )}
+          {showResults && people.length > 0 && (
+            <section className={styles.section} aria-labelledby="search-people">
+              <h2 id="search-people" className={styles.sectionTitle}>
+                {t('search.sections.people')}
+              </h2>
+              <SpatialGroup
+                as="ul"
+                className={styles.links}
+                aria-label={t('search.sections.people')}
+              >
+                {people.map((person) => (
+                  <li key={person.id}>
+                    <SpatialButtonLink
+                      focusKey={`search-person-${person.id}`}
+                      href={paths.person(person.id)}
+                      variant="secondary"
+                    >
+                      {person.name}
+                    </SpatialButtonLink>
+                  </li>
+                ))}
+              </SpatialGroup>
+            </section>
+          )}
 
-        {showResults && collections.length > 0 && (
-          <section className={styles.section} aria-labelledby="search-collections">
-            <h2 id="search-collections" className={styles.sectionTitle}>
-              {t('search.sections.collections')}
-            </h2>
-            <SpatialGroup
-              as="ul"
-              className={styles.grid}
-              aria-label={t('search.sections.collections')}
-            >
-              {collections.map((collection) => (
-                <li key={collection.id} className={styles.cell}>
-                  <CollectionCard
-                    focusKey={`search-collection-${collection.id}`}
-                    href={paths.collection(collection.id)}
-                    name={collection.name}
-                    caption={t('collection.count', { count: collection.count })}
-                    posterUrl={imageUrl(collection.cover?.images.poster)}
-                    posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
-                    accent={collection.cover?.accent}
-                  />
-                </li>
-              ))}
-            </SpatialGroup>
-          </section>
-        )}
+          {showResults && collections.length > 0 && (
+            <section className={styles.section} aria-labelledby="search-collections">
+              <h2 id="search-collections" className={styles.sectionTitle}>
+                {t('search.sections.collections')}
+              </h2>
+              <SpatialGroup
+                as="ul"
+                className={styles.grid}
+                aria-label={t('search.sections.collections')}
+              >
+                {collections.map((collection) => (
+                  <li key={collection.id} className={styles.cell}>
+                    <CollectionCard
+                      focusKey={`search-collection-${collection.id}`}
+                      href={paths.collection(collection.id)}
+                      name={collection.name}
+                      caption={t('collection.count', { count: collection.count })}
+                      posterUrl={imageUrl(collection.cover?.images.poster)}
+                      posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
+                      accent={collection.cover?.accent}
+                    />
+                  </li>
+                ))}
+              </SpatialGroup>
+            </section>
+          )}
+        </div>
       </main>
     </SpatialPage>
   );

@@ -25,6 +25,9 @@ test.beforeEach(async ({ page }) => {
 test('rows: never an empty one, cards in a 2:3 frame, at most eight rows (E-1, E-9)', async ({
   page,
 }) => {
+  // The hero carries `aria-label`, not `aria-labelledby`: it is not counted here, so this checks at
+  // most seven list rows plus the hero. Keep it that way, or the heading check below meets the
+  // slide's title instead of a row title.
   const rows = page.locator('main section[aria-labelledby]');
   const count = await rows.count();
   expect(count).toBeGreaterThan(0);
@@ -46,6 +49,8 @@ test('a pick with a note shows in the hero (E-2)', async ({ page, owner }) => {
   });
   if (!pick) throw new Error('no pick created');
   try {
+    // The carousel stands still (as in admin-picks.spec.ts): no slide change between the checks.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
     await expect(hero(page)).toBeVisible();
     // The pick is the newest; the carousel may start on another slide, so page through it.
@@ -69,6 +74,8 @@ test('Trakt rows come from the mock and go while Trakt is down (E-7, I-7)', asyn
   const popular = page.getByRole('region', { name: ROW_TITLES.traktPopular });
   const both = ['trakt_trending', 'trakt_popular'];
   const traktRows = async () => (await homeRowKeys(owner)).filter((key) => both.includes(key));
+  // Fails at once with a clear message when the mock does not run (a server of your own).
+  await traktMockStatus(200);
 
   // The server asks the mock right after its start (no run within 24 h yet).
   await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(both);

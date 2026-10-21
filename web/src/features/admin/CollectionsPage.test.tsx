@@ -122,6 +122,39 @@ describe('admin collections page (M7, E-6)', () => {
     expect(await screen.findByRole('rowheader', { name: 'Kinoabend' })).toBeVisible();
   });
 
+  it('a rename marks the viewer pages that show collections as stale', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /admin/collections': () => json([manual]),
+      [`PATCH /admin/collections/${manualId}`]: () => json({ ...manual, name: 'Kinoabend' }),
+    });
+    const { queryClient } = renderApp('/admin/collections');
+    const viewer = [
+      ['collection', manualId],
+      ['item', ids.heat],
+      ['search', { query: 'Fi', offset: 0, limit: 50 }],
+      ['home'],
+    ];
+    for (const queryKey of [...viewer, ['genres']]) queryClient.setQueryData(queryKey, {});
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Filmabend umbenennen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Filmabend umbenennen' });
+    const name = within(dialog).getByRole('textbox', { name: 'Name' });
+    await user.clear(name);
+    await user.type(name, 'Kinoabend{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await waitFor(() => {
+      for (const queryKey of viewer) {
+        expect(queryClient.getQueryState(queryKey)?.isInvalidated, JSON.stringify(queryKey)).toBe(
+          true,
+        );
+      }
+    });
+    expect(queryClient.getQueryState(['genres'])?.isInvalidated).toBe(false);
+  });
+
   it('edits the members: add from the search, reorder, remove, save in this order', async () => {
     const { calls } = mockApi({
       ...signedIn,
@@ -174,6 +207,44 @@ describe('admin collections page (M7, E-6)', () => {
       itemIds: [ids.alien, ids.arrival],
     });
     expect(screen.getByText('Die Mitglieder von Filmabend sind gespeichert.')).toBeVisible();
+  });
+
+  it('offers the search only once the stored members are there, so none are lost', async () => {
+    let release: () => void = () => undefined;
+    const loaded = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/collections': () => json([manual]),
+      [`GET /admin/collections/${manualId}`]: async () => {
+        await loaded;
+        return json(members);
+      },
+      'GET /admin/items/search': () =>
+        json([{ id: ids.alien, kind: 'movie', title: 'Alien', year: 1979, libraryId: 1 }]),
+      [`PUT /admin/collections/${manualId}/items`]: () => json(members),
+    });
+    renderApp('/admin/collections');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Mitglieder von Filmabend' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mitglieder von Filmabend' });
+    // While the members load there is nothing to pick from.
+    expect(within(dialog).queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+
+    release();
+    const search = await within(dialog).findByRole('searchbox', { name: 'Titel suchen' });
+    await waitFor(() => expect(search).toHaveFocus());
+    await user.type(search, 'al');
+    await user.click(await within(dialog).findByRole('button', { name: 'Alien hinzufügen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+      itemIds: [ids.heat, ids.arrival, ids.alien],
+    });
   });
 
   it('"Löschen" asks first and moves the focus to the heading', async () => {

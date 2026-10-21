@@ -118,8 +118,8 @@ test('watchlist by keyboard: arrows, Enter, remove, back; no focus trap', async 
   await expectVisibleFocus(page);
   await expectNoFocusTrap(page);
 
-  // Escape goes back.
+  // Escape goes back; opened directly, that is the start page.
   await resetFocus(page);
   await page.keyboard.press('Escape');
-  await expect(page).not.toHaveURL(/\/watchlist$/);
+  await expect(page).toHaveURL((url) => url.pathname === '/');
 });

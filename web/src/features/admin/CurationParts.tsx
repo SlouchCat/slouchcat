@@ -40,6 +40,8 @@ interface TitleSearchProps {
   exclude?: ReadonlySet<string>;
   /** Kinds that may be picked; all when absent. */
   kinds?: readonly ItemKind[];
+  /** Focus the field when it appears (after the list it adds to has loaded). */
+  autoFocus?: boolean;
 }
 
 /**
@@ -56,6 +58,7 @@ export function TitleSearch({
   onPick,
   exclude,
   kinds,
+  autoFocus,
 }: TitleSearchProps) {
   const { t } = useTranslation();
   const [text, setText] = useState('');
@@ -78,6 +81,7 @@ export function TitleSearch({
         value={text}
         onChange={setText}
         inputRef={input}
+        autoFocus={autoFocus}
         autoComplete="off"
         spellCheck="false"
         onKeyDown={(event) => {

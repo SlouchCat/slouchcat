@@ -11,8 +11,11 @@ interface InboxEntryProps {
   /** When, already formatted. */
   time: string;
   unread: boolean;
-  /** Spoken state of an unread entry ("Ungelesen"); the dot shows it. */
-  unreadLabel: string;
+  /**
+   * The whole entry as one spoken line, from the locale ("Ungelesen: S01E03 · Pilot, Neue Folge
+   * von …, 21.10.2026"); on screen the dot shows "unread".
+   */
+  label: string;
   focusKey?: string;
   /** Called on activation, before the link navigates (marks the entry read). */
   onOpen?: () => void;
@@ -25,7 +28,7 @@ export function InboxEntry({
   context,
   time,
   unread,
-  unreadLabel,
+  label,
   focusKey,
   onOpen,
 }: InboxEntryProps) {
@@ -35,10 +38,7 @@ export function InboxEntry({
       ref={ref}
       href={href}
       className={styles.row}
-      // One spoken line with separators; the dot alone shows "unread" on screen.
-      aria-label={[unread ? `${unreadLabel}: ${title}` : title, context, time]
-        .filter(Boolean)
-        .join(', ')}
+      aria-label={label}
       data-unread={unread || undefined}
       onFocus={onFocus}
       onClick={onOpen}

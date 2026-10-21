@@ -89,6 +89,23 @@ test('every filter narrows the result and lives in the URL', async ({ page }) =>
   // A genre without text browses by the filter (the genre row of the start page links here).
   await page.goto('/search?genre=Drama');
   await expect(page.getByText('Nichts gefunden')).toBeVisible();
+
+  // Combined (E-4): text, media type, age rating and availability narrow together.
+  await page.goto('/search?q=Sl&type=audiobook&rating=0&avail=local');
+  await expect(card(page, M4B_TITLE)).toBeVisible();
+  await expect(card(page, H264_TITLE)).toHaveCount(0);
+  for (const [group, name] of [
+    ['Medientyp', 'Hörbücher'],
+    ['Altersfreigabe höchstens', 'FSK 0'],
+    ['Verfügbarkeit', 'Auf dem Server'],
+  ] as const) {
+    await expect(
+      page.getByRole('group', { name: group }).getByRole('button', { name }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  }
+  // Each filter holds: films are unrated, so with FSK 0 no film is left.
+  await page.goto('/search?q=Sl&type=movie&rating=0&avail=local');
+  await expect(page.getByText('Nichts gefunden')).toBeVisible();
 });
 
 test('search by keyboard: "/", arrows, Enter, back; no focus trap', async ({ page }) => {
@@ -140,8 +157,8 @@ test('search by keyboard: "/", arrows, Enter, back; no focus trap', async ({ pag
   await expect(field(page)).toHaveValue('H2');
   await expectNoFocusTrap(page, 120);
 
-  // Backspace outside the field goes back.
+  // Backspace outside the field goes back: to the start page the search was opened from.
   await resetFocus(page);
   await page.keyboard.press('Backspace');
-  await expect(page).not.toHaveURL(/\/search/);
+  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '');
 });

@@ -33,7 +33,9 @@ const list = <T extends string>(value: unknown, allowed: readonly T[]): T[] =>
 /** Keeps only valid search parameters; anything else is dropped (`validateSearch`). */
 export function validateSearchParams(search: Record<string, unknown>): SearchParams {
   const params: SearchParams = {};
-  if (typeof search.q === 'string' && search.q !== '') params.q = search.q.slice(0, 100);
+  // The router reads a hand-written `?q=1917` as a number: it is still the text "1917".
+  const q = typeof search.q === 'number' ? String(search.q) : search.q;
+  if (typeof q === 'string' && q !== '') params.q = q.slice(0, 100);
   if (typeof search.genre === 'string' && search.genre !== '') {
     params.genre = search.genre.slice(0, 80);
   }
@@ -41,8 +43,12 @@ export function validateSearchParams(search: Record<string, unknown>): SearchPar
   if (from !== undefined) params.from = from;
   const to = year(search.to);
   if (to !== undefined) params.to = to;
-  const rating = Number(search.rating);
-  if (search.rating !== undefined && (RATINGS as readonly number[]).includes(rating)) {
+  // Only a number or a non-empty string: `?rating=` or `?rating=null` would read as 0 (FSK 0).
+  const rating =
+    typeof search.rating === 'number' || (typeof search.rating === 'string' && search.rating !== '')
+      ? Number(search.rating)
+      : undefined;
+  if (rating !== undefined && (RATINGS as readonly number[]).includes(rating)) {
     params.rating = rating as Rating;
   }
   const types = list(search.type, MEDIA_TYPES);

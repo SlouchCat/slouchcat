@@ -119,6 +119,69 @@ describe('notifications', () => {
     expect(calls.some((call) => call.path === '/notifications/read-all')).toBe(true);
   });
 
+  it('"Alle als gelesen markieren" puts the focus on "Zurück" before the answer', async () => {
+    let list = entries;
+    let answer: () => void = () => undefined;
+    const answered = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    mockApi({
+      ...signedIn,
+      'GET /notifications': () => json(inbox(list)),
+      'POST /notifications/read-all': async () => {
+        await answered;
+        list = list.map((entry) => ({ ...entry, readAt: '2026-10-21T09:00:00Z' }));
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/notifications');
+    const readAll = await screen.findByRole('button', { name: 'Alle als gelesen markieren' });
+    await userEvent.setup().click(readAll);
+    const back = screen.getByRole('button', { name: 'Zurück' });
+    // Still waiting for the server, the button is there, and the focus is already on "Zurück".
+    await waitFor(() => expect(back).toHaveFocus());
+    expect(readAll).toBeInTheDocument();
+
+    answer();
+    await waitFor(() => expect(readAll).not.toBeInTheDocument());
+    expect(back).toHaveFocus();
+  });
+
+  it('the open inbox follows the badge when a new notification arrives', async () => {
+    let list = entries;
+    mockApi({ ...signedIn, 'GET /notifications': () => json(inbox(list)) });
+    const { queryClient } = renderApp('/notifications');
+    const page = await screen.findByRole('list', { name: 'Benachrichtigungen' });
+    expect(within(page).getAllByRole('link')).toHaveLength(2);
+
+    list = [
+      {
+        id: 3,
+        kind: 'new_episode',
+        createdAt: '2026-10-21T10:00:00Z',
+        item: episodes.e34,
+        parent: show,
+      },
+      ...entries,
+    ];
+    // The badge's next poll (every 30 s) counts one more.
+    await queryClient.refetchQueries({ queryKey: ['notifications', 'badge'] });
+    await screen.findByRole('link', { name: 'Benachrichtigungen, 2 ungelesen' });
+    await waitFor(() => expect(within(page).getAllByRole('link')).toHaveLength(3));
+    expect(screen.getByText('2 ungelesen')).toBeVisible();
+  });
+
+  it('caps the badge at 99 with the text of the locale', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () => json(homePage),
+      'GET /notifications': () => json({ ...inbox(entries), unread: 250 }),
+    });
+    renderApp('/');
+    const link = await screen.findByRole('link', { name: 'Benachrichtigungen, 250 ungelesen' });
+    expect(within(link).getByText('99+')).toBeVisible();
+  });
+
   it('shows an empty inbox', async () => {
     mockApi({ ...signedIn, 'GET /notifications': () => json(inbox([])) });
     renderApp('/notifications');

@@ -21,7 +21,7 @@ export { Icon, type IconName } from './Icon';
 export { InboxEntry } from './InboxEntry';
 export { Logo } from './Logo';
 export { Notice } from './Notice';
-export { NotificationBadge } from './NotificationBadge';
+export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
 export { Page } from './Page';
 export { Panel } from './Panel';
 export { PosterCard } from './PosterCard';

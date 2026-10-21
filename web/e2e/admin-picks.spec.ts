@@ -136,6 +136,23 @@ test('picks page by keyboard: add with a note, move to the top, time window, rem
   await expect(table.getByRole('rowheader').first()).toHaveText(new RegExp(`^${SUBTITLES_TITLE}`));
   expect((await pickTitles(owner)).slice(0, 2)).toEqual([SUBTITLES_TITLE, H264_TITLE]);
 
+  // The same by mouse (E-2: mouse and keyboard): down and up again, each saved.
+  for (const [direction, order] of [
+    ['nach unten', [H264_TITLE, SUBTITLES_TITLE]],
+    ['nach oben', [SUBTITLES_TITLE, H264_TITLE]],
+  ] as const) {
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PUT' && response.url().endsWith('/admin/picks/order'),
+    );
+    await row(SUBTITLES_TITLE)
+      .getByRole('button', { name: `${SUBTITLES_TITLE} ${direction}` })
+      .click();
+    expect((await saved).status()).toBe(204);
+    await expect(table.getByRole('rowheader').first()).toHaveText(new RegExp(`^${order[0]}`));
+    expect((await pickTitles(owner)).slice(0, 2)).toEqual(order);
+  }
+
   // The start page: the new first pick with its note in the hero; back returns to the admin page.
   await page.goto('/');
   await expect(heroTitle(page)).toHaveText(SUBTITLES_TITLE);

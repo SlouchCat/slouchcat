@@ -7,6 +7,13 @@
     var(--sc-space-16);
 }
 
+/* The search results: one block (aria-busy while loading) with the page's spacing inside. */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-8);
+}
+
 .head {
   display: flex;
   flex-direction: column;
@@ -127,4 +134,8 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.results:empty {
+  display: none;
 }

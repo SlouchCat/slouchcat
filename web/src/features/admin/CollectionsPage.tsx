@@ -167,30 +167,35 @@ function MembersDialog({
     >
       <Form className={styles.form} onSubmit={onSubmit}>
         {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-        <div ref={searchRef}>
-          <TitleSearch
-            label={t('admin.collections.members.search.label')}
-            hint={t('admin.collections.members.search.hint')}
-            emptyText={t('admin.collections.members.search.empty')}
-            resultsLabel={t('admin.collections.members.search.results')}
-            actionText={t('admin.collections.members.add')}
-            actionLabel={(hit) => t('admin.collections.members.addLabel', { title: hit.title })}
-            onPick={(hit) => {
-              setEdited([
-                ...members,
-                {
-                  itemId: hit.id,
-                  kind: hit.kind,
-                  title: hit.title,
-                  year: hit.year,
-                  position: members.length,
-                },
-              ]);
-            }}
-            exclude={new Set(members.map((member) => member.itemId))}
-            kinds={MEMBER_KINDS}
-          />
-        </div>
+        {/* The search adds to the stored members: it waits for them, or a pick made while they
+            load would replace the whole collection on "Speichern". */}
+        {stored.isSuccess && (
+          <div ref={searchRef}>
+            <TitleSearch
+              autoFocus
+              label={t('admin.collections.members.search.label')}
+              hint={t('admin.collections.members.search.hint')}
+              emptyText={t('admin.collections.members.search.empty')}
+              resultsLabel={t('admin.collections.members.search.results')}
+              actionText={t('admin.collections.members.add')}
+              actionLabel={(hit) => t('admin.collections.members.addLabel', { title: hit.title })}
+              onPick={(hit) => {
+                setEdited([
+                  ...members,
+                  {
+                    itemId: hit.id,
+                    kind: hit.kind,
+                    title: hit.title,
+                    year: hit.year,
+                    position: members.length,
+                  },
+                ]);
+              }}
+              exclude={new Set(members.map((member) => member.itemId))}
+              kinds={MEMBER_KINDS}
+            />
+          </div>
+        )}
         {stored.isPending && <Skeleton shape="block" />}
         {stored.isError && <Notice tone="danger">{problemMessage(t, stored.error)}</Notice>}
         {stored.isSuccess && members.length === 0 && (
@@ -278,12 +283,14 @@ export function CollectionsPage() {
   const header = useRef<HTMLDivElement>(null);
   const createButton = useRef<HTMLButtonElement>(null);
 
-  // The start page's row "Sammlungen" and the collection pages change with every edit.
+  // Every viewer place that shows collections changes with an edit: the start page's row
+  // "Sammlungen", the collection pages, the detail pages' section and the search results.
   const invalidate = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: collectionsQuery.queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['home'] }),
-    ]);
+    Promise.all(
+      [collectionsQuery.queryKey, ['home'], ['collection'], ['item'], ['search']].map((queryKey) =>
+        queryClient.invalidateQueries({ queryKey }),
+      ),
+    );
   const remove = useMutation({
     mutationFn: (collection: AdminCollection) => deleteCollection(collection.id),
     onSuccess: async (_data, collection) => {
@@ -405,7 +412,9 @@ export function CollectionsPage() {
             </AriaButton>
           </div>
           {remove.error && <Notice tone="danger">{problemMessage(t, remove.error)}</Notice>}
-          {message && !remove.error && <Notice>{message}</Notice>}
+          <div role="status" className={curation.live}>
+            {message && !remove.error && <Notice live={false}>{message}</Notice>}
+          </div>
           {collections.isPending && <Skeleton shape="block" />}
           {collections.isError && (
             <Notice

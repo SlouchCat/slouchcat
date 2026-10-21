@@ -227,19 +227,17 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
           Tab, and ↓ from play reaches "Merken" on every kind that has it. */}
       {listable && (
         <SpatialGroup className={styles.listActions}>
-          {listable && (
-            <SpatialButton
-              focusKey={WATCHLIST_KEY}
-              variant="secondary"
-              icon={item.inWatchlist ? 'check' : 'plus'}
-              aria-disabled={watchlist.isPending || undefined}
-              onPress={() => {
-                if (!watchlist.isPending) watchlist.mutate({ id: item.id, on: !item.inWatchlist });
-              }}
-            >
-              {item.inWatchlist ? t('item.watchlist.added') : t('item.watchlist.add')}
-            </SpatialButton>
-          )}
+          <SpatialButton
+            focusKey={WATCHLIST_KEY}
+            variant="secondary"
+            icon={item.inWatchlist ? 'check' : 'plus'}
+            aria-disabled={watchlist.isPending || undefined}
+            onPress={() => {
+              if (!watchlist.isPending) watchlist.mutate({ id: item.id, on: !item.inWatchlist });
+            }}
+          >
+            {item.inWatchlist ? t('item.watchlist.added') : t('item.watchlist.add')}
+          </SpatialButton>
           {favoritable && (
             <SpatialButton
               focusKey={FAVORITE_KEY}
@@ -255,7 +253,7 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
               {t('item.favorite.label')}
             </SpatialButton>
           )}
-          {canManage && listable && (
+          {canManage && (
             <SpatialButtonLink
               href={`${paths.adminPicks}?add=${encodeURIComponent(item.id)}`}
               variant="ghost"

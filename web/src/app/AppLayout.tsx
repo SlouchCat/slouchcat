@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { notificationsQuery } from '@/features/discover/queries';
+import { notificationsPageQuery, notificationsQuery } from '@/features/discover/queries';
 import { offlineSupported } from '@/features/offline/support';
-import { AppHeader, type NavItem } from '@/ui';
+import { AppHeader, BADGE_MAX, type NavItem } from '@/ui';
 import { paths } from './paths';
 import { useActiveSession, useLogout } from './session';
 import styles from './AppLayout.module.css';
@@ -20,11 +20,23 @@ export function AppLayout() {
   // active profile (router: _active).
   const inbox = useQuery(notificationsQuery);
   const unread = inbox.data?.unread ?? 0;
+  const queryClient = useQueryClient();
+  // A new notification (the badge counts up) reaches an open inbox page as well.
+  const counted = inbox.data?.unread;
+  const lastCounted = useRef(counted);
+  useEffect(() => {
+    const before = lastCounted.current;
+    lastCounted.current = counted;
+    if (before !== undefined && counted !== undefined && counted > before) {
+      void queryClient.invalidateQueries({ queryKey: notificationsPageQuery.queryKey });
+    }
+  }, [counted, queryClient]);
 
   // "/" opens the search from any page with the header; the search page focuses its field itself.
   useEffect(() => {
     if (pathname === paths.search) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
       const target = event.target;
       if (
@@ -143,6 +155,7 @@ export function AppLayout() {
           accessibleLabel:
             unread > 0 ? t('notifications.unreadLabel', { count: unread }) : t('nav.notifications'),
           unread,
+          overflowLabel: t('notifications.badgeMax', { max: BADGE_MAX }),
           current: pathname.startsWith(paths.notifications),
         }}
       />

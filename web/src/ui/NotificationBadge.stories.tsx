@@ -5,7 +5,7 @@ import { Stack } from './Stack';
 const meta = {
   title: 'UI/NotificationBadge',
   component: NotificationBadge,
-  args: { count: 3 },
+  args: { count: 3, overflowLabel: '99+' },
   decorators: [
     (Story) => (
       <div style={{ padding: 'var(--sc-space-6)' }}>
@@ -22,9 +22,9 @@ type Story = StoryObj<typeof meta>;
 export const Counts: Story = {
   render: () => (
     <Stack direction="row" gap={4}>
-      <NotificationBadge count={3} />
-      <NotificationBadge count={42} />
-      <NotificationBadge count={250} />
+      <NotificationBadge count={3} overflowLabel="99+" />
+      <NotificationBadge count={42} overflowLabel="99+" />
+      <NotificationBadge count={250} overflowLabel="99+" />
     </Stack>
   ),
 };

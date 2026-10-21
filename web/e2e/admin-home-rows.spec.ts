@@ -118,10 +118,13 @@ test('start page rows by keyboard: reorder and hide change the start page', asyn
 test('Trakt section: state and "Jetzt aktualisieren" by keyboard', async ({ page, owner }) => {
   const response = await owner.get('/api/v1/admin/trakt');
   expect(response.status(), await response.text()).toBe(200);
+  // start-server.mjs always sets the client id of the Trakt mock; the refusal without one is
+  // covered by HomeRowsPage.test.tsx.
   const status = (await response.json()) as { configured: boolean };
+  expect(status.configured, 'SLOUCHCAT_TRAKT_CLIENT_ID reaches the server').toBe(true);
   await page.goto('/admin/home-rows');
   const section = page.getByRole('region', { name: 'Trakt' });
-  await expect(section.getByText(status.configured ? 'Ja' : 'Nein', { exact: true })).toBeVisible();
+  await expect(section.getByText('Ja', { exact: true })).toBeVisible();
   const refresh = section.getByRole('button', { name: 'Jetzt aktualisieren' });
   await resetFocus(page);
   await tabTo(page, refresh, 80);
@@ -130,15 +133,8 @@ test('Trakt section: state and "Jetzt aktualisieren" by keyboard', async ({ page
       response.request().method() === 'POST' && response.url().endsWith('/admin/trakt/refresh'),
   );
   await page.keyboard.press('Enter');
-  // Without a client id the server refuses (422 provider_not_configured) and the page says why.
-  expect((await queued).status()).toBe(status.configured ? 202 : 422);
-  await expect(
-    section.getByText(
-      status.configured
-        ? 'Die Trakt-Listen werden abgerufen.'
-        : /Dieser Anbieter ist nicht eingerichtet/,
-    ),
-  ).toBeVisible();
+  expect((await queued).status()).toBe(202);
+  await expect(section.getByText('Die Trakt-Listen werden abgerufen.')).toBeVisible();
   await expectVisibleFocus(page);
   await expectNoFocusTrap(page);
 });

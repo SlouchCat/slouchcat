@@ -49,4 +49,22 @@ describe('collection page', () => {
     expect(await screen.findByText('Sammlung nicht gefunden')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Zur Startseite' })).toHaveAttribute('href', '/');
   });
+
+  it('drops a cached collection once a refetch finds it gone', async () => {
+    let deleted = false;
+    mockApi({
+      ...signedIn,
+      'GET /collections/*': () => (deleted ? problem(404, 'not_found') : json(collection)),
+    });
+    const { queryClient } = renderApp(`/collections/${id}`);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alien-Reihe' })).toBeVisible();
+
+    deleted = true;
+    await queryClient.refetchQueries({ queryKey: ['collection', id] });
+    expect(await screen.findByText('Sammlung nicht gefunden')).toBeVisible();
+    expect(
+      screen.queryByRole('heading', { level: 1, name: 'Alien-Reihe' }),
+    ).not.toBeInTheDocument();
+    expect(document.title).toBe('Sammlung nicht gefunden · Slouchcat');
+  });
 });

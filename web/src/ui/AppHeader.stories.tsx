@@ -67,6 +67,7 @@ export const WithNotifications: Story = {
       label: 'Benachrichtigungen',
       accessibleLabel: 'Benachrichtigungen, 3 ungelesen',
       unread: 3,
+      overflowLabel: '99+',
     },
   },
 };

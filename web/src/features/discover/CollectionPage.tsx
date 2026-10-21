@@ -37,7 +37,9 @@ function CollectionView({ id }: { id: string }) {
   const query = useInfiniteQuery(collectionQuery(id));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
-  const collection = query.data?.pages[0];
+  // A refetch that finds the collection gone (deleted, no longer visible) wins over the cache.
+  const gone = isApiError(query.error, 404);
+  const collection = gone ? undefined : query.data?.pages[0];
   useDocumentTitle(
     collection?.name ?? (query.isError ? t('collection.notFound.title') : undefined),
   );
@@ -53,14 +55,13 @@ function CollectionView({ id }: { id: string }) {
   }
 
   if (!collection) {
-    const notFound = isApiError(query.error, 404);
     return (
       <main className={styles.page}>
         <Notice
-          tone={notFound ? 'info' : 'danger'}
-          title={notFound ? t('collection.notFound.title') : problemMessage(t, query.error)}
+          tone={gone ? 'info' : 'danger'}
+          title={gone ? t('collection.notFound.title') : problemMessage(t, query.error)}
           actions={
-            notFound ? (
+            gone ? (
               <ButtonLink href={paths.home} variant="primary">
                 {t('item.notFound.action')}
               </ButtonLink>
@@ -71,7 +72,7 @@ function CollectionView({ id }: { id: string }) {
             )
           }
         >
-          {notFound && t('collection.notFound.body')}
+          {gone && t('collection.notFound.body')}
         </Notice>
       </main>
     );

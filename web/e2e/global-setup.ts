@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { request, type APIRequestContext } from '@playwright/test';
 import { M4B_TITLE, MP3_TITLE } from './audio';
 import { ensureBaselinePick } from './curation';
+import { removeIntroCopies } from './discover';
 import {
   AUDIO_IDS,
   AUDIOBOOKS_DIR,
@@ -159,6 +160,8 @@ async function waitForScan(api: APIRequestContext): Promise<void> {
  * one scan batch share their time, so the row would otherwise drop an arbitrary older title).
  */
 export default async function globalSetup(): Promise<void> {
+  // Copies of an aborted E-8 run would be scanned as ordinary episodes (notifications.spec).
+  removeIntroCopies();
   const api = await request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: CSRF });
   try {
     const status = (await (await api.get('/api/v1/setup')).json()) as { setupRequired: boolean };

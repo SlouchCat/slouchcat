@@ -1,8 +1,8 @@
-import type { AdminItemHit, AdminPick } from '@slouchcat/api-client';
+import type { AdminItem, AdminItemHit, AdminPick } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { alienDetail, ids, profiles } from '@/test/fixtures';
+import { ids, profiles } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 const heatPick: AdminPick = {
@@ -27,6 +27,28 @@ const arrivalPick: AdminPick = {
   startsAt: '2020-01-01T10:00:00Z',
   endsAt: '2020-02-01T10:00:00Z',
   createdAt: '2026-10-02T10:00:00Z',
+};
+const alienPick: AdminPick = {
+  id: 13,
+  itemId: ids.alien,
+  kind: 'movie',
+  title: 'Alien',
+  year: 1979,
+  position: 2,
+  createdAt: '2026-10-03T10:00:00Z',
+};
+const alienAdmin: AdminItem = {
+  id: ids.alien,
+  kind: 'movie',
+  title: 'Alien',
+  year: 1979,
+  libraryId: 1,
+  metadataState: 'matched',
+  lockedFields: [],
+  trailerState: 'none',
+  trailers: [],
+  mediaFiles: [],
+  children: { seasons: 0, episodes: 0, extras: 0 },
 };
 const alienHit: AdminItemHit = {
   id: ids.alien,
@@ -95,14 +117,112 @@ describe('admin picks page (M7, E-2)', () => {
     renderApp('/admin/picks');
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Heat nach unten' }));
+    const down = await screen.findByRole('button', { name: 'Heat nach unten' });
+    // The status region is there before its first message, so that one is announced as well.
+    const live = screen.getAllByRole('status').find((element) => element.textContent === '');
+    expect(live).toBeDefined();
+    await user.click(down);
     expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ ids: [12, 11] });
     expect(await screen.findByText('Heat steht jetzt an Stelle 2.')).toBeVisible();
+    expect(live).toHaveTextContent('Heat steht jetzt an Stelle 2.');
+    expect(within(live!).queryByRole('status')).not.toBeInTheDocument();
     const rows = within(screen.getByRole('table')).getAllByRole('row');
     expect(within(rows[1]!).getByRole('rowheader')).toHaveTextContent('Arrival');
     // "Nach unten" is disabled at the end: the focus moves to "Nach oben" of the same title.
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Heat nach oben' })).toHaveFocus(),
+    );
+  });
+
+  it('queues quick moves: one PUT after the other, the later order stays', async () => {
+    let list = [heatPick, arrivalPick, alienPick];
+    let answerFirst: () => void = () => undefined;
+    const firstAnswered = new Promise<void>((resolve) => {
+      answerFirst = resolve;
+    });
+    const { calls } = mockApi({
+      ...routes,
+      'GET /admin/picks': () => json(list),
+      'PUT /admin/picks/order': async (call) => {
+        const order = (call.body as { ids: number[] }).ids;
+        if (calls.filter((entry) => entry.method === 'PUT').length === 1) await firstAnswered;
+        list = order.map((id) =>
+          [heatPick, arrivalPick, alienPick].find((pick) => pick.id === id)!,
+        );
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/admin/picks');
+    const user = userEvent.setup();
+    const titles = () =>
+      within(screen.getByRole('table'))
+        .getAllByRole('rowheader')
+        .map((cell) => cell.textContent);
+
+    await user.click(await screen.findByRole('button', { name: 'Alien nach oben' }));
+    await user.click(screen.getByRole('button', { name: 'Alien nach oben' }));
+    // Both moves show at once; the second PUT waits for the first.
+    expect(titles()).toEqual([
+      expect.stringContaining('Alien'),
+      expect.stringContaining('Heat'),
+      expect.stringContaining('Arrival'),
+    ]);
+    expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(1);
+
+    answerFirst();
+    await waitFor(() => expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(2));
+    expect(calls.filter((call) => call.method === 'PUT').map((call) => call.body)).toEqual([
+      { ids: [11, 13, 12] },
+      { ids: [13, 11, 12] },
+    ]);
+    await waitFor(() =>
+      expect(calls.filter((call) => call.path === '/admin/picks').length).toBeGreaterThan(1),
+    );
+    expect(titles()).toEqual([
+      expect.stringContaining('Alien'),
+      expect.stringContaining('Heat'),
+      expect.stringContaining('Arrival'),
+    ]);
+  });
+
+  it('puts the old order back when the server refuses a move', async () => {
+    let refuse: () => void = () => undefined;
+    const refused = new Promise<void>((resolve) => {
+      refuse = resolve;
+    });
+    mockApi({
+      ...routes,
+      'GET /admin/picks': () => json([heatPick, arrivalPick]),
+      'PUT /admin/picks/order': async () => {
+        await refused;
+        return problem(500, 'internal');
+      },
+    });
+    renderApp('/admin/picks');
+    const user = userEvent.setup();
+    const titles = () =>
+      within(screen.getByRole('table'))
+        .getAllByRole('rowheader')
+        .map((cell) => cell.textContent);
+
+    await user.click(await screen.findByRole('button', { name: 'Heat nach unten' }));
+    // The new order shows at once; at the end the focus is on "Nach oben".
+    await waitFor(() =>
+      expect(titles()).toEqual([
+        expect.stringContaining('Arrival'),
+        expect.stringContaining('Heat'),
+      ]),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Heat nach oben' })).toHaveFocus(),
+    );
+
+    refuse();
+    expect(await screen.findByRole('alert')).toBeVisible();
+    expect(titles()).toEqual([expect.stringContaining('Heat'), expect.stringContaining('Arrival')]);
+    // Back in place, the pressed button has the focus again.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Heat nach unten' })).toHaveFocus(),
     );
   });
 
@@ -158,7 +278,8 @@ describe('admin picks page (M7, E-2)', () => {
       ...mockApi({
         ...routes,
         'GET /admin/picks': () => json([]),
-        [`GET /items/${ids.alien}`]: () => json(alienDetail),
+        // The admin view of the title: the active profile's visibility does not count here.
+        [`GET /admin/items/${ids.alien}`]: () => json(alienAdmin),
         'POST /admin/picks': () => json([{ ...heatPick, itemId: ids.alien, title: 'Alien' }], 201),
       }),
       ...renderApp(`/admin/picks?add=${ids.alien}`),
@@ -167,6 +288,7 @@ describe('admin picks page (M7, E-2)', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Empfehlung hinzufügen' });
     expect(await within(dialog).findByText(/^Gewählt: Alien/)).toBeVisible();
+    expect(calls.some((call) => call.path === `/items/${ids.alien}`)).toBe(false);
     await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ itemId: ids.alien });
