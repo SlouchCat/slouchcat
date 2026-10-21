@@ -1,8 +1,9 @@
 # Aktueller Stand
 
-Stand: 21. Oktober 2026. M0 bis M6 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #6, #10 und #11; M6 am 21. Oktober 2026). **M7 (Entdecken und Kuratierung) ist auf dem Branch
-`claude/m7-discover` fertig** und wartet als Pull Request gegen `main` auf Marcos Wort.
+Stand: 21. Oktober 2026. M0 bis M7 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
+Pull Requests #1 bis #6, #10, #11 und #14; M7 am 21. Oktober 2026 auf Marcos Wort, Merge-Commit `dd0aa9f`).
+Das Docker-Image auf Marcos Rechner ist auf dem M7-Stand gebaut. Der CI-Job hat seit #14 ein Limit von 75 Minuten.
+Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
 
 ## Meilenstein M7 – Entdecken und Kuratierung
 
