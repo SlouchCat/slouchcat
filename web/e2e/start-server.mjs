@@ -8,7 +8,14 @@
 // The server's output goes to the console as before and into node_modules/.playwright/server.log
 // (emptied at every start), which global-teardown.ts scans for secrets (A-9).
 import { spawn } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,7 +56,9 @@ const update = await startUpdateServer({ port: below('UPDATE', 7) });
 
 const logFile = fileURLToPath(new URL('../node_modules/.playwright/server.log', import.meta.url));
 mkdirSync(dirname(logFile), { recursive: true });
-const log = createWriteStream(logFile, { flags: 'w' });
+// Emptied, then appended to: every write lands at the end, also next to other writers.
+writeFileSync(logFile, '');
+const log = createWriteStream(logFile, { flags: 'a' });
 
 const root = mkdtempSync(join(tmpdir(), 'slouchcat-e2e-'));
 const configDir = join(root, 'config');

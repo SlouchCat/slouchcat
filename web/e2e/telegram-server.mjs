@@ -13,7 +13,8 @@
 //                            any message; {"updates": [...]} raw updates; {"drop": n} closes the
 //                            connection of the next n bot requests without an answer (a network
 //                            failure with the token in the request URL, A-9); {"fail": n} answers
-//                            them with 502
+//                            them with 502; with "method": "sendMessage" only requests of that
+//                            method count (a poller's getUpdates passes)
 //   GET  /__messages         [{chatId, text, parseMode, at}] sent by the bot
 //   POST /__reset            forgets messages, queued updates and the failure counters
 //
@@ -76,6 +77,8 @@ export function startTelegramServer({
   let nextMessageId = 1;
   let drop = 0;
   let fail = 0;
+  /** The method drop and fail apply to (lower case), or null for every bot request. */
+  let failMethod = null;
   /** Long polls waiting for an update. */
   const waiters = new Set();
 
@@ -136,6 +139,9 @@ export function startTelegramServer({
         if (Array.isArray(body.updates)) for (const update of body.updates) queue(update);
         if (Number.isInteger(body.drop)) drop = body.drop;
         if (Number.isInteger(body.fail)) fail = body.fail;
+        if (body.drop !== undefined || body.fail !== undefined) {
+          failMethod = typeof body.method === 'string' ? body.method.toLowerCase() : null;
+        }
         response.writeHead(204).end();
         return;
       }
@@ -148,6 +154,7 @@ export function startTelegramServer({
         messages = [];
         drop = 0;
         fail = 0;
+        failMethod = null;
         response.writeHead(204).end();
         return;
       }
@@ -162,12 +169,13 @@ export function startTelegramServer({
         botError(response, 401, 'Unauthorized');
         return;
       }
-      if (drop > 0) {
+      const targeted = failMethod === null || failMethod === method.toLowerCase();
+      if (targeted && drop > 0) {
         drop -= 1;
         request.socket.destroy();
         return;
       }
-      if (fail > 0) {
+      if (targeted && fail > 0) {
         fail -= 1;
         botError(response, 502, 'Bad Gateway');
         return;

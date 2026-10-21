@@ -106,9 +106,12 @@ export const botMessages = () => list<BotMessage[]>(TELEGRAM_BASE, '/__messages'
 export const telegramStart = (code: string, chatId = CHAT_ID) =>
   control(TELEGRAM_BASE, '/__control', { start: code, chatId });
 
-/** The next `count` bot requests lose their connection without an answer (A-9 probe). */
-export const telegramDrop = (count: number) =>
-  control(TELEGRAM_BASE, '/__control', { drop: count });
+/**
+ * The next `count` requests of the bot API method (all methods without one) lose their connection
+ * without an answer: a network failure with the token in the request URL (A-9 probe).
+ */
+export const telegramDrop = (count: number, method?: string) =>
+  control(TELEGRAM_BASE, '/__control', { drop: count, method });
 
 /** Publishes a release in the manifest mock, or withdraws it (null: 404 again). */
 export const setUpdateManifest = (version: string | null) =>
