@@ -59,9 +59,3 @@ func (s *Service) HomeRows(context.Context) ([]model.HomeRowSetting, error) {
 func (s *Service) SetHomeRows(context.Context, []model.HomeRowSetting) ([]model.HomeRowSetting, error) {
 	return nil, model.ErrNotImplemented
 }
-
-func (s *Service) TraktStatus(context.Context) (model.TraktStatus, error) {
-	return model.TraktStatus{}, model.ErrNotImplemented
-}
-
-func (s *Service) RefreshTrakt(context.Context) error { return model.ErrNotImplemented }

@@ -231,8 +231,10 @@ func TestFetchSourceResumes(t *testing.T) {
 	}
 }
 
-// O-3: a profile that listened to a podcast gets the visible episodes published after the newest
-// one it started, newest first, up to maxCount; the explicit episode never for a profile under 18.
+// O-3, M7 E-8: a profile with a favourite podcast gets the visible episodes published after the
+// newest one Slouchcat knew when the favourite was set and after the newest one the profile
+// started, newest first, up to maxCount; the explicit episode never for a profile under 18.
+// Listening alone (without a favourite) downloads nothing.
 func TestPodcastAutoDownloads(t *testing.T) {
 	e := newAudioEnv(t)
 	ctx := context.Background()
@@ -248,6 +250,13 @@ func TestPodcastAutoDownloads(t *testing.T) {
 		e.exec(`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 1000, 2000, 0, ?)`,
 			p.ID, itemID, e.clock.Now().UnixMilli())
 	}
+	// Slouchcat learned of the episodes in the order of publication, one day apart.
+	for i, ep := range []vistest.Movie{a.Episodes[0], a.Episodes[1], a.Episodes[2], a.Episodes[3], a.Explicit, a.EnclosureOnly} {
+		e.exec(`UPDATE items SET added_at = ? WHERE id = ?`, time.Date(2026, 10, 2+i, 7, 0, 0, 0, time.UTC).UnixMilli(), ep.ID)
+	}
+	favorite := func(p model.Profile, at time.Time) {
+		e.exec(`INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, ?)`, p.ID, a.Podcast.ID, at.UnixMilli())
+	}
 	auto := func(s model.OfflineSync) []string {
 		var out []string
 		for _, d := range s.Downloads {
@@ -260,26 +269,31 @@ func TestPodcastAutoDownloads(t *testing.T) {
 	}
 	sorted := func(ids ...string) []string { slices.Sort(ids); return ids }
 
-	// Without listening there is nothing to download.
+	// Without a favourite there is nothing to download, even after listening.
 	rule(e.f.P16, 3)
-	if got := auto(e.sync(e.f.P16, e.devA)); len(got) != 0 {
-		t.Fatalf("auto-downloads without listening: %v", got)
-	}
-	// P16 started episode 6: the newer visible episodes come, the explicit one does not.
 	started(e.f.P16, a.Episodes[1].ID)
+	if got := auto(e.sync(e.f.P16, e.devA)); len(got) != 0 {
+		t.Fatalf("auto-downloads without a favourite: %v", got)
+	}
+	// P16 set the favourite when only episode 0 was known and started episode 6: the visible
+	// episodes newer than episode 6 come, the explicit one does not.
+	favorite(e.f.P16, time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC))
 	if got, want := auto(e.sync(e.f.P16, e.devA)), sorted(a.EnclosureOnly.ID, a.Episodes[3].ID, a.Episodes[2].ID); !slices.Equal(got, want) {
 		t.Errorf("P16 auto-downloads = %v, want %v", got, want)
 	}
-	// P18 on device B with maxCount 2: the two newest, the explicit episode included.
+	// P18 on device B with maxCount 3.
 	if _, err := e.svc.SetRules(ctx, e.session(e.f.P18, e.devB), model.DownloadRules{Enabled: true, NewPodcastEpisodes: true,
-		MaxCount: 2, Quality: model.DownloadLow}); err != nil {
+		MaxCount: 3, Quality: model.DownloadLow}); err != nil {
 		t.Fatal(err)
 	}
+	// P18 started episode 6 but set the favourite when episode 16 was the newest: only the two
+	// episodes after it count (not episodes 12 and 16), the explicit one included.
 	started(e.f.P18, a.Episodes[1].ID)
+	favorite(e.f.P18, time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC))
 	if got, want := auto(e.sync(e.f.P18, e.devB)), sorted(a.EnclosureOnly.ID, a.Explicit.ID); !slices.Equal(got, want) {
 		t.Errorf("P18 auto-downloads = %v, want %v", got, want)
 	}
-	// The next sync adds nothing: both places are taken by unfinished auto-downloads.
+	// The next sync adds nothing: no further episode is new.
 	if got := auto(e.sync(e.f.P18, e.devB)); len(got) != 2 {
 		t.Errorf("P18 after a second sync = %v", got)
 	}

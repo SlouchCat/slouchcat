@@ -25,6 +25,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/notify"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
@@ -319,12 +320,14 @@ var profileRegistry = map[string]profileCall{
 		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
 	"removeFavorite": {contract: "DELETE /items/{id}/favorite", path: "/items/{id}/favorite", perItem: true,
 		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+	// M7 inbox (E-8): the fixture has no entries; contract_notify_test.go covers the visibility of
+	// the entries and the foreign-entry 404.
 	"listNotifications": {contract: "GET /notifications", path: "/notifications",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"markNotificationRead": {contract: "PUT /notifications/{id}/read", path: "/notifications/1/read",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	"markAllNotificationsRead": {contract: "POST /notifications/read-all", path: "/notifications/read-all",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNoContent }},
 	// M6: the paged episode list of a podcast. Every title of the loop is no podcast (404); the
 	// podcasts themselves are containers and checked in the subtest "audio".
 	"listPodcastEpisodes": {contract: "GET /items/{id}/episodes", path: "/items/{id}/episodes", perItem: true,
@@ -686,7 +689,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	}
 	pods := metadata.New(f.DB, jobs.NewQueue(f.DB.Write, nil), nil, t.TempDir(), transcode.Runner{}, log)
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
-		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods)
+		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods)
 
 	pa := profileAuth{Service: a, tokens: map[string]string{}}
 	sessions := map[string]model.Session{}
@@ -710,6 +713,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
 		Playback: pf.pb,
 		Offline:  pf.off,
+		Notify:   notify.New(f.DB, visibility.New(f.DB, log), log),
 	}
 	pf.h = NewHandler(pf.opts)
 	return pf

@@ -30,6 +30,8 @@ func (k testKeys) TVDBKey(context.Context) (string, string, error) { return k.tv
 
 func (k testKeys) YouTubeKey(context.Context) (string, error) { return k.youtube, nil }
 
+func (k testKeys) TraktClientID(context.Context) (string, error) { return "", nil }
+
 // tid returns a 26 character item ID for tag and n.
 func tid(tag string, n int) string {
 	return fmt.Sprintf("01J%s%0*d", tag, 23-len(tag), n)

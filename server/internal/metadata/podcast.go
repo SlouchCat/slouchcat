@@ -472,6 +472,8 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 // (titles, texts, enclosure, date, duration, cover, the explicit rating unless manual or locked).
 // An episode keeps an image only when it differs from the channel's; image.fetch is queued for the
 // newest maxEpisodeCovers new episodes with one. rerated reports a changed rating of a known episode.
+// The ids of the inserted episodes go to the new-episode hook (WithNewEpisodes) after their
+// transactions, also when a later batch fails.
 func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID int64, title string, f feed.Feed,
 	locked map[string]bool, now time.Time,
 ) (rerated bool, err error) {
@@ -490,8 +492,10 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 	}
 	w := episodeWrite{parent: parent, libraryID: libraryID, channelImage: httpURL(f.ImageURL), byGUID: byGUID,
 		ms: now.UnixMilli(), now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}
-	var covers []string
+	var covers, added []string
+	defer func() { s.announceEpisodes(ctx, added) }()
 	for chunk := range slices.Chunk(eps, feedBatch) {
+		var batch []string
 		err := s.inTx(ctx, func(q *systemq.Queries) error {
 			for _, e := range chunk {
 				c, err := w.store(ctx, q, e)
@@ -502,12 +506,16 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 				if c.newCover != "" && len(covers) < maxEpisodeCovers {
 					covers = append(covers, c.newCover)
 				}
+				if c.newID != "" {
+					batch = append(batch, c.newID)
+				}
 			}
 			return nil
 		})
 		if err != nil {
 			return false, fmt.Errorf("store episodes of %s: %w", podcastID, err)
 		}
+		added = append(added, batch...)
 	}
 	for _, id := range covers {
 		if err := s.enqueueImages(ctx, id, stillPriority); err != nil {
@@ -535,9 +543,10 @@ type episodeWrite struct {
 }
 
 // episodeChange is what storing one episode changed: the rating of a known episode, or a new
-// episode with an image of its own (its id).
+// episode (newID) with an image of its own (newCover, its id).
 type episodeChange struct {
 	rerated  bool
+	newID    string
 	newCover string
 }
 
@@ -596,7 +605,7 @@ func (w episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epis
 		return episodeChange{}, fmt.Errorf("insert episode: %w", err)
 	}
 	w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: id, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]"}
-	c := episodeChange{}
+	c := episodeChange{newID: id}
 	if cover.Valid {
 		c.newCover = id
 	}
@@ -697,6 +706,17 @@ func httpURL(raw string) string {
 		return ""
 	}
 	return u.String()
+}
+
+// announceEpisodes tells the new-episode hook about inserted episodes (M7 E-8); a failure is
+// logged, the episodes stay stored.
+func (s *Service) announceEpisodes(ctx context.Context, ids []string) {
+	if s.newEpisodes == nil || len(ids) == 0 {
+		return
+	}
+	if err := s.newEpisodes(context.WithoutCancel(ctx), ids); err != nil {
+		s.log.WarnContext(ctx, "notify new podcast episodes", "episodes", len(ids), "err", err)
+	}
 }
 
 func (s *Service) recheckVisibility(ctx context.Context) {

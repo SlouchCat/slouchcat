@@ -117,6 +117,7 @@ type Service struct {
 	meta      Metadata           // nil until WithMetadata
 	streams   Streams            // nil until WithStreams
 	podcasts  Podcasts           // nil until WithPodcasts
+	trakt     Trakt              // nil until WithTrakt
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
 	getenv    func(string) string

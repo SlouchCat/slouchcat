@@ -207,8 +207,9 @@ var adminRegistry = map[string]adminCall{
 		body: `[{"key":"picks","position":0,"hidden":false},{"key":"continue","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},` +
 			`{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},` +
 			`{"key":"trakt_trending","position":6,"hidden":false},{"key":"trakt_popular","position":7,"hidden":false}]`},
-	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusNotImplemented},
-	"refreshTrakt":   {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusNotImplemented},
+	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
+	// The fixture has no Trakt client id: 422 provider_not_configured.
+	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

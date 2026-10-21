@@ -266,6 +266,8 @@ func (k staticKey) TVDBKey(context.Context) (string, string, error) { return "",
 
 func (k staticKey) YouTubeKey(context.Context) (string, error) { return "", nil }
 
+func (k staticKey) TraktClientID(context.Context) (string, error) { return "", nil }
+
 type env struct {
 	db    *store.DB
 	queue *jobs.Queue

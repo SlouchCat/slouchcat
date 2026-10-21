@@ -90,9 +90,17 @@ func (s *server) SetHomeRows(ctx context.Context, _ gen.SetHomeRowsRequestObject
 }
 
 func (s *server) GetTraktStatus(ctx context.Context, _ gen.GetTraktStatusRequestObject) (gen.GetTraktStatusResponseObject, error) {
-	return s.problem(ctx, model.ErrNotImplemented), nil
+	st, err := s.opts.Admin.TraktStatus(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.GetTraktStatus200JSONResponse{Configured: st.Configured, LastSuccess: utc(st.LastSuccess),
+		LastAttempt: utc(st.LastAttempt), LastError: optString(st.LastError), Trending: st.Trending, Popular: st.Popular}, nil
 }
 
 func (s *server) RefreshTrakt(ctx context.Context, _ gen.RefreshTraktRequestObject) (gen.RefreshTraktResponseObject, error) {
-	return s.problem(ctx, model.ErrNotImplemented), nil
+	if err := s.opts.Admin.RefreshTrakt(ctx); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.RefreshTrakt202Response{}, nil
 }
