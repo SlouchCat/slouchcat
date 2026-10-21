@@ -132,21 +132,23 @@ var accountRegistry = map[string]accountCall{
 	"uploadOfflineEvents": {contract: "POST /offline/events", path: "/offline/events", want: allWant(http.StatusOK),
 		body: `{"sentAt":"2026-10-20T18:00:00Z","events":[{"profileId":999999,"itemId":"` + fixtureFilm6 + `","playbackId":"01JC0000000000000000000009",` +
 			`"positionMs":10000,"durationMs":7200000,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-20T17:59:50Z"}]}`},
-	// M8: the own account and the notification channels (base stubs answer 501; lane S1 replaces the
-	// expectation of updateAccount, lane S3 those of the channels and push subscriptions).
+	// M8: the own account (base stub answers 501; lane S1 replaces the expectation of updateAccount)
+	// and the notification channels (TestContractChannels checks their rules). The fixture's server
+	// has an e-mail server and a VAPID pair but no Telegram bot.
 	"updateAccount": {contract: "PUT /auth/account", path: "/auth/account", body: `{"currentPassword":"wrong-password","email":"renamed@example.ch"}`,
 		want: allWant(http.StatusNotImplemented)},
-	"getMyChannels": {contract: "GET /me/channels", path: "/me/channels", want: allWant(http.StatusNotImplemented)},
+	"getMyChannels": {contract: "GET /me/channels", path: "/me/channels", want: allWant(http.StatusOK)},
 	"updateMyChannel": {contract: "PUT /me/channels/{channel}", path: "/me/channels/email", body: `{"enabled":false,"events":["announcements"]}`,
-		want: allWant(http.StatusNotImplemented)},
-	"testMyChannel":      {contract: "POST /me/channels/{channel}/test", path: "/me/channels/email/test", want: allWant(http.StatusNotImplemented)},
-	"createTelegramLink": {contract: "POST /me/channels/telegram/link", path: "/me/channels/telegram/link", want: allWant(http.StatusNotImplemented)},
-	"deleteTelegramLink": {contract: "DELETE /me/channels/telegram/link", path: "/me/channels/telegram/link", want: allWant(http.StatusNotImplemented)},
-	"getPushPublicKey":   {contract: "GET /push/vapid-key", path: "/push/vapid-key", want: allWant(http.StatusNotImplemented)},
+		want: allWant(http.StatusOK)},
+	"testMyChannel": {contract: "POST /me/channels/{channel}/test", path: "/me/channels/telegram/test",
+		want: allWant(http.StatusUnprocessableEntity)},
+	"createTelegramLink": {contract: "POST /me/channels/telegram/link", path: "/me/channels/telegram/link",
+		want: allWant(http.StatusUnprocessableEntity)},
+	"deleteTelegramLink": {contract: "DELETE /me/channels/telegram/link", path: "/me/channels/telegram/link", want: allWant(http.StatusNoContent)},
+	"getPushPublicKey":   {contract: "GET /push/vapid-key", path: "/push/vapid-key", want: allWant(http.StatusOK)},
 	"createPushSubscription": {contract: "POST /me/push-subscriptions", path: "/me/push-subscriptions",
-		body: `{"endpoint":"https://push.example.test/send/abc","keys":{"p256dh":"BNcR","auth":"tBHI"},"deviceName":"Registry"}`,
-		want: allWant(http.StatusNotImplemented)},
-	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotImplemented)},
+		body: pushSubscriptionBody("https://push.example.test/send/abc"), want: allWant(http.StatusCreated)},
+	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotFound)},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for the owner with the
@@ -255,11 +257,11 @@ var adminRegistry = map[string]adminCall{
 	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusNotImplemented},
 	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusNotImplemented},
 	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusNotImplemented},
-	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusNotImplemented},
-	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotImplemented},
-	"updateAnnouncement":  {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotImplemented},
-	"deleteAnnouncement":  {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotImplemented},
-	"publishAnnouncement": {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotImplemented},
+	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusOK},
+	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusCreated},
+	"updateAnnouncement":  {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
+	"deleteAnnouncement":  {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
+	"publishAnnouncement": {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

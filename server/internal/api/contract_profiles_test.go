@@ -588,12 +588,11 @@ var profileRegistry = map[string]profileCall{
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	"markAllNotificationsRead": {contract: "POST /notifications/read-all", path: "/notifications/read-all",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNoContent }},
-	// M8 announcements of the active profile (base stubs answer 501; lane S3 replaces the
-	// expectations with the real statuses and checks).
+	// M8 announcements of the active profile (TestContractAnnouncements checks them per profile).
 	"listMyAnnouncements": {contract: "GET /announcements", path: "/announcements",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"ackAnnouncement": {contract: "POST /announcements/{id}/ack", path: "/announcements/9999/ack",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	// M6: the paged episode list of a podcast. Every title of the loop is no podcast (404); the
 	// podcasts themselves are containers and checked in the subtest "audio".
 	"listPodcastEpisodes": {contract: "GET /items/{id}/episodes", path: "/items/{id}/episodes", perItem: true,
@@ -924,6 +923,9 @@ type profileFixture struct {
 	admin    *admin.Service
 	pb       *playback.Service
 	opts     Options
+
+	notifySvc *notify.Service  // M8 channels and announcements (fake senders)
+	senders   *contractSenders // what they sent
 }
 
 // testTokenKey is the stream-token key of the contract fixtures.
@@ -974,13 +976,15 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	pf.dlDir, pf.queue = filepath.Join(t.TempDir(), "downloads"), jobs.NewQueue(f.DB.Write, nil)
 	pf.off = offline.New(f.DB, visibility.New(f.DB, log), pf.queue, transcode.Runner{}, log, offline.WithDir(pf.dlDir),
 		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
+	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue)
+	adm.WithAnnouncements(pf.notifySvc)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
 		Playback: pf.pb,
 		Offline:  pf.off,
-		Notify:   notify.New(f.DB, visibility.New(f.DB, log), log),
+		Notify:   pf.notifySvc,
 	}
 	pf.h = NewHandler(pf.opts)
 	return pf

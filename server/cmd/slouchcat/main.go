@@ -39,6 +39,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
 	"github.com/slouchcat/slouchcat/server/internal/notify"
+	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
@@ -201,8 +202,14 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
 	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
 	// In-app inbox (M7, E-8): new episodes of favourite series and podcasts, checked against the
-	// profile's visibility before an entry is stored.
-	notifySvc := notify.New(db, visibility.New(db, log), log)
+	// profile's visibility before an entry is stored. Channels (M8, A-6): deliveries through the
+	// queue; the Telegram base URL and http push endpoints (mocks) only in development mode.
+	if !cfg.Dev && cfg.TelegramBaseURL != "" {
+		log.Warn("SLOUCHCAT_TELEGRAM_BASE_URL is ignored without --dev")
+	}
+	notifySvc := notify.New(db, visibility.New(db, log), log, notify.WithQueue(queue), notify.WithDevPush(cfg.Dev),
+		notify.WithSenders(notify.Senders{Telegram: &telegram.Client{BaseURL: cfg.TelegramAPIBase()}}))
+	authSvc.WithAccountCreated(notifySvc.EnsureDefaults).WithInvitationAccepted(notifySvc.InvitationAccepted)
 	// The Trakt base URL points the lists at a mock; it is honoured in development mode only.
 	traktBase := ""
 	if cfg.Dev {
@@ -217,11 +224,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	libSvc := library.New(db, queue, runner, log,
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
-		library.WithNewEpisodes(notifySvc.NewEpisodes))
+		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
 		WithTrakt(metaSvc)
 	keys.admin = adminSvc
+	adminSvc.WithAnnouncements(notifySvc)
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
 	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,
@@ -234,13 +242,21 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
 		libSvc.RegisterJobs(worker)
 		metaSvc.RegisterJobs(worker)
+		worker.OnFinalFailure(notifySvc.JobFailed)
 		workers.Go(func() { worker.Run(ctx) })
 	}
 	// A worker of its own for download preparations: workers claim only the job types they
 	// registered, so long encodes never hold up scans and probes.
 	downloadWorker := jobs.NewWorker(queue, "download-1", log)
 	offlineSvc.RegisterJobs(downloadWorker)
+	downloadWorker.OnFinalFailure(notifySvc.JobFailed)
 	workers.Go(func() { downloadWorker.Run(ctx) })
+	// Notification deliveries (M8) on a worker of their own: a slow mail server never holds up
+	// scans. Run polls Telegram while link codes are open and prunes old deliveries.
+	notifyWorker := jobs.NewWorker(queue, "notify-1", log)
+	notifySvc.RegisterJobs(notifyWorker)
+	workers.Go(func() { notifyWorker.Run(ctx) })
+	workers.Go(func() { notifySvc.Run(ctx) })
 	workers.Go(func() {
 		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {
 			log.Error("library watchers stopped", "err", err)

@@ -131,33 +131,3 @@ func (s *Service) ListAccounts(context.Context) ([]model.AdminAccount, error) {
 func (s *Service) Stats(context.Context, int) (model.Stats, error) {
 	return model.Stats{}, model.ErrNotImplemented
 }
-
-// ListAnnouncements returns every announcement (A-7).
-// M8 lane S3 implements this.
-func (s *Service) ListAnnouncements(context.Context) ([]model.Announcement, error) {
-	return nil, model.ErrNotImplemented
-}
-
-// CreateAnnouncement writes an announcement and publishes it on request (A-7).
-// M8 lane S3 implements this.
-func (s *Service) CreateAnnouncement(context.Context, model.Account, model.AnnouncementInput) (model.Announcement, error) {
-	return model.Announcement{}, model.ErrNotImplemented
-}
-
-// UpdateAnnouncement changes an unpublished announcement.
-// M8 lane S3 implements this.
-func (s *Service) UpdateAnnouncement(context.Context, int64, string, string) (model.Announcement, error) {
-	return model.Announcement{}, model.ErrNotImplemented
-}
-
-// PublishAnnouncement publishes an announcement and sends it on the channels.
-// M8 lane S3 implements this.
-func (s *Service) PublishAnnouncement(context.Context, int64) (model.Announcement, error) {
-	return model.Announcement{}, model.ErrNotImplemented
-}
-
-// DeleteAnnouncement deletes an announcement with its acknowledgements.
-// M8 lane S3 implements this.
-func (s *Service) DeleteAnnouncement(context.Context, int64) error {
-	return model.ErrNotImplemented
-}

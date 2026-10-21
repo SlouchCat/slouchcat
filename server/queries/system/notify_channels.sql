@@ -17,6 +17,40 @@ FROM accounts AS a
 JOIN (SELECT 'email' AS channel UNION ALL SELECT 'push' UNION ALL SELECT 'telegram') AS c
 WHERE a.id = @account_id;
 
+-- name: ChannelEnsureDefaultsAll :exec
+-- ChannelEnsureDefaults for every account (before an announcement goes out, so an account whose
+-- rows are missing still gets the defaults of 5.2).
+INSERT OR IGNORE INTO account_channels (account_id, channel, enabled, events, config, updated_at)
+SELECT a.id, c.channel,
+       CASE WHEN c.channel = 'email' AND a.role = 'guest' THEN 1 ELSE 0 END,
+       CASE WHEN a.role = 'guest' THEN '["announcements"]'
+            ELSE '["new_content","errors","invitations","announcements"]' END,
+       '{}', @now
+FROM accounts AS a
+JOIN (SELECT 'email' AS channel UNION ALL SELECT 'push' UNION ALL SELECT 'telegram') AS c;
+
+-- name: NotifyAccount :one
+-- An account with the language of its primary profile, for the texts of its messages.
+SELECT a.id, a.email, a.role,
+       CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+FROM accounts AS a
+WHERE a.id = @id;
+
+-- name: NotifyOwner :one
+-- The main account with the language of its primary profile (test mail without recipient, texts of
+-- the event errors).
+SELECT a.id, a.email,
+       CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+FROM accounts AS a
+WHERE a.role = 'owner'
+ORDER BY a.id
+LIMIT 1;
+
+-- name: NotifyProfileName :one
+SELECT name FROM profiles WHERE id = @id;
+
 -- name: ChannelsByAccount :many
 SELECT account_id, channel, enabled, events, config, updated_at
 FROM account_channels
@@ -96,9 +130,11 @@ DELETE FROM telegram_links WHERE expires_at <= @now;
 
 -- name: PushSubscriptionUpsert :one
 -- One row per endpoint: the same endpoint again (also after a sign-in with another account in the
--- same browser) takes the new account, keys and device.
+-- same browser) takes the new account, keys and device. The device is kept only when it is known
+-- (the device cookie may name a device that has no row yet).
 INSERT INTO push_subscriptions (account_id, device_id, endpoint, p256dh, auth, user_agent, device_name, created_at)
-VALUES (@account_id, sqlc.narg('device_id'), @endpoint, @p256dh, @auth, sqlc.narg('user_agent'), sqlc.narg('device_name'), @now)
+VALUES (@account_id, (SELECT d.id FROM devices AS d WHERE d.id = sqlc.narg('device_id')), @endpoint, @p256dh, @auth,
+        sqlc.narg('user_agent'), sqlc.narg('device_name'), @now)
 ON CONFLICT (endpoint) DO UPDATE
 SET account_id = excluded.account_id, device_id = excluded.device_id, p256dh = excluded.p256dh, auth = excluded.auth,
     user_agent = excluded.user_agent, device_name = excluded.device_name, failures = 0
