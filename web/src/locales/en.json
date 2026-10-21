@@ -252,7 +252,17 @@
       "more": "Load more",
       "link": "Go to podcast",
       "play": "Play {{title}}"
-    }
+    },
+    "watchlist": {
+      "add": "Add to watchlist",
+      "added": "On watchlist"
+    },
+    "favorite": {
+      "label": "Favourite",
+      "hint": "Notify me about new episodes"
+    },
+    "collections": "Collections",
+    "addToPicks": "Add to Cat's picks"
   },
   "rating": {
     "fsk": "FSK {{age}}"
@@ -1384,6 +1394,84 @@
         "title": "Download not available",
         "body": "This download is not (or no longer) on this device, is not complete yet or is not released for this profile."
       }
+    }
+  },
+  "search": {
+    "title": "Search",
+    "label": "Search term",
+    "placeholder": "Titles, people, collections",
+    "start": "Search for titles, people and collections, or pick a filter.",
+    "tooShort": "Enter at least two characters.",
+    "filters": {
+      "label": "Filters",
+      "genre": "Genre",
+      "allGenres": "All genres",
+      "yearFrom": "Year from",
+      "yearTo": "Year to",
+      "rating": "Age rating at most",
+      "anyRating": "All",
+      "type": "Media type",
+      "types": {
+        "movie": "Films",
+        "series": "Series",
+        "audiobook": "Audiobooks",
+        "podcast": "Podcasts"
+      },
+      "availability": "Availability",
+      "avail": {
+        "local": "On the server",
+        "download": "On this device"
+      },
+      "reset": "Reset filters"
+    },
+    "sections": {
+      "titles": "Titles",
+      "people": "People",
+      "collections": "Collections"
+    },
+    "results_one": "{{count}} title found",
+    "results_other": "{{count}} titles found",
+    "more": "Load more",
+    "empty": {
+      "title": "Nothing found",
+      "body": "Try another term or fewer filters."
+    }
+  },
+  "watchlist": {
+    "title": "Watchlist",
+    "remove": "Remove",
+    "removeLabel": "Remove {{title}} from the watchlist",
+    "more": "Load more",
+    "empty": {
+      "title": "Your watchlist is empty",
+      "body": "Keep titles for later with “Add to watchlist” on their detail page.",
+      "action": "Go to search"
+    }
+  },
+  "collection": {
+    "count_one": "{{count}} title",
+    "count_other": "{{count}} titles",
+    "members": "Titles",
+    "more": "Load more",
+    "notFound": {
+      "title": "Collection not found",
+      "body": "This collection does not exist or holds no title for this profile."
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "unreadLabel_one": "Notifications, {{count}} unread",
+    "unreadLabel_other": "Notifications, {{count}} unread",
+    "markAllRead": "Mark all as read",
+    "unread": "Unread",
+    "newEpisode": "New episode of {{parent}}",
+    "newEpisodeAlone": "New episode",
+    "summary_one": "{{count}} unread",
+    "summary_other": "{{count}} unread",
+    "more": "Load more",
+    "empty": {
+      "title": "No notifications",
+      "body": "Mark series or podcasts as favourites to hear about new episodes here."
     }
   }
 }

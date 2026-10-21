@@ -252,7 +252,17 @@
       "more": "Mehr laden",
       "link": "Zum Podcast",
       "play": "{{title}} abspielen"
-    }
+    },
+    "watchlist": {
+      "add": "Merken",
+      "added": "Gemerkt"
+    },
+    "favorite": {
+      "label": "Favorit",
+      "hint": "Bei neuen Folgen benachrichtigen"
+    },
+    "collections": "Sammlungen",
+    "addToPicks": "Zu Cat's Empfehlungen"
   },
   "rating": {
     "fsk": "FSK {{age}}"
@@ -1384,6 +1394,84 @@
         "title": "Download nicht verfügbar",
         "body": "Diesen Download gibt es auf diesem Gerät nicht (mehr), er ist noch nicht vollständig oder für dieses Profil nicht freigegeben."
       }
+    }
+  },
+  "search": {
+    "title": "Suche",
+    "label": "Suchbegriff",
+    "placeholder": "Titel, Personen, Sammlungen",
+    "start": "Suche nach Titeln, Personen und Sammlungen oder wähle einen Filter.",
+    "tooShort": "Gib mindestens zwei Zeichen ein.",
+    "filters": {
+      "label": "Filter",
+      "genre": "Genre",
+      "allGenres": "Alle Genres",
+      "yearFrom": "Jahr von",
+      "yearTo": "Jahr bis",
+      "rating": "Altersfreigabe höchstens",
+      "anyRating": "Alle",
+      "type": "Medientyp",
+      "types": {
+        "movie": "Filme",
+        "series": "Serien",
+        "audiobook": "Hörbücher",
+        "podcast": "Podcasts"
+      },
+      "availability": "Verfügbarkeit",
+      "avail": {
+        "local": "Auf dem Server",
+        "download": "Auf diesem Gerät"
+      },
+      "reset": "Filter zurücksetzen"
+    },
+    "sections": {
+      "titles": "Titel",
+      "people": "Personen",
+      "collections": "Sammlungen"
+    },
+    "results_one": "{{count}} Titel gefunden",
+    "results_other": "{{count}} Titel gefunden",
+    "more": "Mehr laden",
+    "empty": {
+      "title": "Nichts gefunden",
+      "body": "Versuche einen anderen Begriff oder weniger Filter."
+    }
+  },
+  "watchlist": {
+    "title": "Merkliste",
+    "remove": "Entfernen",
+    "removeLabel": "{{title}} von der Merkliste entfernen",
+    "more": "Mehr laden",
+    "empty": {
+      "title": "Deine Merkliste ist leer",
+      "body": "Merke dir Titel auf ihrer Detailseite mit «Merken».",
+      "action": "Zur Suche"
+    }
+  },
+  "collection": {
+    "count_one": "{{count}} Titel",
+    "count_other": "{{count}} Titel",
+    "members": "Titel",
+    "more": "Mehr laden",
+    "notFound": {
+      "title": "Sammlung nicht gefunden",
+      "body": "Diese Sammlung gibt es nicht, oder sie enthält keinen Titel für dieses Profil."
+    }
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "unreadLabel_one": "Benachrichtigungen, {{count}} ungelesen",
+    "unreadLabel_other": "Benachrichtigungen, {{count}} ungelesen",
+    "markAllRead": "Alle als gelesen markieren",
+    "unread": "Ungelesen",
+    "newEpisode": "Neue Folge von {{parent}}",
+    "newEpisodeAlone": "Neue Folge",
+    "summary_one": "{{count}} ungelesen",
+    "summary_other": "{{count}} ungelesen",
+    "more": "Mehr laden",
+    "empty": {
+      "title": "Keine Benachrichtigungen",
+      "body": "Markiere Serien oder Podcasts als Favorit, dann erfährst du hier von neuen Folgen."
     }
   }
 }

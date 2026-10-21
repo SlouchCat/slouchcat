@@ -48,3 +48,13 @@ export const Focused: Story = { tags: ['press:Tab'] };
 
 /** A title with a poster only: the poster, blurred, stands in for the backdrop. */
 export const PosterOnly: Story = { args: { slides: [slides[1] as HeroSlide] } };
+
+/** A pick with the main user's note (E-2): a line under the title. */
+export const WithNote: Story = {
+  args: {
+    slides: [
+      { ...(slides[0] as HeroSlide), note: 'Unbedingt im Dunkeln schauen, mit Ton laut.' },
+      slides[1] as HeroSlide,
+    ],
+  },
+};

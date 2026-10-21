@@ -1,4 +1,8 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { EXTRAS_TITLE } from './catalog';
+import { createPick, deletePick } from './curation';
+import { homeRowKeys, refreshTrakt, ROW_TITLES, traktMockStatus } from './discover';
+import { expect, test } from './fixtures';
 import {
   expectFocusOn,
   expectNoFocusTrap,
@@ -6,6 +10,8 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { itemIdByTitle } from './playback';
+import { TRAKT_ENTRIES } from './trakt-server.mjs';
 
 const hero = (page: Page) => page.getByRole('region', { name: "Cat's Empfehlungen" });
 const recentRow = (page: Page) => page.getByRole('region', { name: 'Neu hinzugefügt' });
@@ -25,6 +31,70 @@ test('rows: never an empty one, cards in a 2:3 frame, at most eight rows (E-1, E
   expect(count).toBeLessThanOrEqual(8);
   for (let index = 0; index < count; index += 1) {
     await expect(rows.nth(index).getByRole('link').first()).toBeVisible();
+    // Only the eight row keys of E-1 exist (HomeRowKey); each has its title.
+    const heading = await rows.nth(index).getByRole('heading', { level: 2 }).textContent();
+    expect(Object.values(ROW_TITLES)).toContain(heading);
+  }
+});
+
+test('a pick with a note shows in the hero (E-2)', async ({ page, owner }) => {
+  const note = 'E2E: unbedingt mit Ton schauen.';
+  // A second pick next to the baseline pick of the global setup (the H264 film).
+  const [pick] = await createPick(owner, {
+    itemId: await itemIdByTitle(owner, EXTRAS_TITLE),
+    note,
+  });
+  if (!pick) throw new Error('no pick created');
+  try {
+    await page.reload();
+    await expect(hero(page)).toBeVisible();
+    // The pick is the newest; the carousel may start on another slide, so page through it.
+    const slides = Math.max(1, await hero(page).locator('button[aria-label]').count());
+    for (let slide = 0; slide < slides; slide += 1) {
+      if (await hero(page).getByText(note).isVisible()) break;
+      await hero(page).locator('button[aria-label]').nth(slide).click();
+    }
+    await expect(hero(page).getByText(note)).toBeVisible();
+  } finally {
+    await deletePick(owner, pick.id);
+  }
+});
+
+test('Trakt rows come from the mock and go while Trakt is down (E-7, I-7)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(120_000);
+  const trending = page.getByRole('region', { name: ROW_TITLES.traktTrending });
+  const popular = page.getByRole('region', { name: ROW_TITLES.traktPopular });
+  const both = ['trakt_trending', 'trakt_popular'];
+  const traktRows = async () => (await homeRowKeys(owner)).filter((key) => both.includes(key));
+
+  // The server asks the mock right after its start (no run within 24 h yet).
+  await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(both);
+  await page.reload();
+  await expect(trending).toBeVisible();
+  await expect(popular).toBeVisible();
+  // Every row shows the library titles the lists point at (5 films and 2 series).
+  for (const entry of [...TRAKT_ENTRIES.movies, ...TRAKT_ENTRIES.shows]) {
+    await expect(
+      trending.getByRole('link').filter({ has: page.getByText(entry.title, { exact: true }) }),
+    ).toHaveCount(1);
+  }
+
+  try {
+    // Trakt down: the refresh fails, the lists are emptied and both rows disappear (I-7).
+    await traktMockStatus(503);
+    await refreshTrakt(owner);
+    await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual([]);
+    await page.reload();
+    await expect(recentRow(page)).toBeVisible();
+    await expect(trending).toHaveCount(0);
+    await expect(popular).toHaveCount(0);
+  } finally {
+    await traktMockStatus(200);
+    await refreshTrakt(owner);
+    await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(both);
   }
 });
 
@@ -115,7 +185,9 @@ test('Tab: skip link, header, hero, then the cards; no focus trap', async ({ pag
   await expectFocusOn(page, page.getByRole('link', { name: 'Zum Inhalt springen' }));
   await tabTo(
     page,
-    page.getByRole('navigation', { name: 'Hauptnavigation' }).getByRole('link', { name: 'Start' }),
+    page
+      .getByRole('navigation', { name: 'Hauptnavigation' })
+      .getByRole('link', { name: 'Start', exact: true }),
   );
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   if ((await hero(page).count()) > 0) {

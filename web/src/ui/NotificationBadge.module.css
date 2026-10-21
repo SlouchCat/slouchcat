@@ -1,0 +1,15 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--sc-space-5);
+  height: var(--sc-space-5);
+  padding: 0 var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}

@@ -12,7 +12,9 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import {
   Button,
   ButtonLink,
+  CollectionCard,
   dismissHeroPrepaint,
+  GenreChip,
   HERO_PLAY_KEY,
   HeroCarousel,
   Notice,
@@ -47,6 +49,22 @@ const EAGER_POSTERS = 6;
 
 const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
 
+/** A row counts when it holds titles, collections or genres (E-9: never an empty row). */
+const hasEntries = (row: HomeRow) =>
+  row.items.length > 0 || (row.collections?.length ?? 0) > 0 || (row.genres?.length ?? 0) > 0;
+
+/** Focus key of the first card of a row (the default focus without a hero). */
+function firstKey(row: HomeRow): string | undefined {
+  const item = row.items[0];
+  if (item) return cardKey(row, item);
+  const collection = row.collections?.[0];
+  if (collection) return `${row.key}-${collection.id}`;
+  const genre = row.genres?.[0];
+  return genre ? `${row.key}-${genre.name}` : undefined;
+}
+
+const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
+
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
   if (row.key === 'continue' && item.progress) {
     const minutes = Math.max(
@@ -75,7 +93,10 @@ function HomeSkeleton() {
   );
 }
 
-/** Start page (E-1): Cat's picks as hero carousel, then the rows the server returned. */
+/**
+ * Start page (E-1): Cat's picks as hero carousel (with the main user's note), then the rows in the
+ * order the server returned: titles, collections (E-6) and genres, which open the search.
+ */
 export function HomePage() {
   const { t } = useTranslation();
   useDocumentTitle(t('home.title'));
@@ -123,16 +144,11 @@ export function HomePage() {
   }
 
   // The server omits empty rows (E-9); filter defensively so an empty row never renders.
-  const rows = home.data.rows.filter((row) => row.items.length > 0);
-  const picks = rows.find((row) => row.key === 'picks');
-  const lists = rows.filter((row) => row.key !== 'picks');
+  const rows = home.data.rows.filter(hasEntries);
+  const picks = rows.find((row) => row.key === 'picks' && row.items.length > 0);
+  const lists = rows.filter((row) => row !== picks);
   const firstList = lists[0];
-  const firstCard = firstList?.items[0];
-  const defaultFocusKey = picks
-    ? HERO_PLAY_KEY
-    : firstList && firstCard
-      ? cardKey(firstList, firstCard)
-      : 'header';
+  const defaultFocusKey = picks ? HERO_PLAY_KEY : ((firstList && firstKey(firstList)) ?? 'header');
 
   const slides: HeroSlide[] = (picks?.items ?? []).map((item) => ({
     id: item.id,
@@ -141,6 +157,7 @@ export function HomePage() {
     backdropSmallUrl: imageUrl(item.images.backdropSmall),
     posterUrl: imageUrl(item.images.poster),
     meta: <ItemMeta item={item} />,
+    note: item.note,
     playHref: paths.play(item.id),
     detailsHref: paths.item(item.id),
   }));
@@ -160,35 +177,74 @@ export function HomePage() {
         )}
         {lists.length > 0 && (
           <div className={`${styles.rows} ${picks ? styles.underHero : styles.padded}`}>
-            {lists.map((row, rowIndex) => (
-              <Row key={row.key} title={t(rowTitleKey[row.key])} focusKey={`row-${row.key}`}>
-                {row.items.map((item, itemIndex) => (
-                  <PosterCard
-                    key={item.id}
-                    focusKey={cardKey(row, item)}
-                    href={paths.item(item.id)}
-                    title={item.title}
-                    caption={cardCaption(t, row, item)}
-                    posterUrl={imageUrl(item.images.poster)}
-                    posterSmallUrl={imageUrl(item.images.posterSmall)}
-                    accent={item.accent}
-                    eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
-                    deferImage={heroHasArt && !heroShown}
-                    shape={isAudioKind(item.kind) ? 'square' : 'poster'}
-                    progress={
-                      row.key === 'continue' && item.progress
-                        ? {
-                            percent: item.progress.percent,
-                            label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
-                              percent: Math.round(item.progress.percent),
-                            }),
-                          }
-                        : undefined
-                    }
-                  />
-                ))}
-              </Row>
-            ))}
+            {lists.map((row, rowIndex) => {
+              const title = t(rowTitleKey[row.key]);
+              const focusKey = `row-${row.key}`;
+              if (row.key === 'genres') {
+                return (
+                  <Row key={row.key} title={title} focusKey={focusKey} variant="chips">
+                    {(row.genres ?? []).map((genre) => (
+                      <GenreChip
+                        key={genre.name}
+                        focusKey={`${row.key}-${genre.name}`}
+                        href={genreHref(genre.name)}
+                        name={genre.name}
+                        count={genre.count}
+                      />
+                    ))}
+                  </Row>
+                );
+              }
+              if (row.key === 'collections') {
+                return (
+                  <Row key={row.key} title={title} focusKey={focusKey}>
+                    {(row.collections ?? []).map((collection, itemIndex) => (
+                      <CollectionCard
+                        key={collection.id}
+                        focusKey={`${row.key}-${collection.id}`}
+                        href={paths.collection(collection.id)}
+                        name={collection.name}
+                        caption={t('collection.count', { count: collection.count })}
+                        posterUrl={imageUrl(collection.cover?.images.poster)}
+                        posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
+                        accent={collection.cover?.accent}
+                        eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
+                        deferImage={heroHasArt && !heroShown}
+                      />
+                    ))}
+                  </Row>
+                );
+              }
+              return (
+                <Row key={row.key} title={title} focusKey={focusKey}>
+                  {row.items.map((item, itemIndex) => (
+                    <PosterCard
+                      key={item.id}
+                      focusKey={cardKey(row, item)}
+                      href={paths.item(item.id)}
+                      title={item.title}
+                      caption={cardCaption(t, row, item)}
+                      posterUrl={imageUrl(item.images.poster)}
+                      posterSmallUrl={imageUrl(item.images.posterSmall)}
+                      accent={item.accent}
+                      eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
+                      deferImage={heroHasArt && !heroShown}
+                      shape={isAudioKind(item.kind) ? 'square' : 'poster'}
+                      progress={
+                        row.key === 'continue' && item.progress
+                          ? {
+                              percent: item.progress.percent,
+                              label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
+                                percent: Math.round(item.progress.percent),
+                              }),
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </Row>
+              );
+            })}
           </div>
         )}
         {rows.length === 0 && (

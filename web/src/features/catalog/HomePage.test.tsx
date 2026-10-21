@@ -256,4 +256,96 @@ describe('start page', () => {
     expect(screen.getByText('Marco')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Abmelden' })).toBeVisible();
   });
+
+  it('renders every row kind in server order: titles, collections and genre chips (E-1, E-6)', async () => {
+    const collectionId = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          rows: [
+            { key: 'picks', items: [{ ...heat, note: 'Unbedingt im Kino-Modus schauen.' }] },
+            { key: 'continue', items: [alien] },
+            { key: 'recent', items: [arrival] },
+            { key: 'watchlist', items: [heat] },
+            {
+              key: 'collections',
+              items: [],
+              collections: [{ id: collectionId, name: 'Alien-Reihe', count: 3, cover: alien }],
+            },
+            { key: 'genres', items: [], genres: [{ name: 'Science-Fiction', count: 12 }] },
+            { key: 'trakt_trending', items: [arrival] },
+            { key: 'trakt_popular', items: [alien] },
+          ],
+        }),
+    });
+    renderApp('/');
+    const hero = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+    expect(within(hero).getByText('Unbedingt im Kino-Modus schauen.')).toBeVisible();
+
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent)
+      .filter((text) => text !== 'Heat');
+    expect(headings).toEqual([
+      'Weiterschauen',
+      'Neu hinzugefügt',
+      'Merkliste',
+      'Sammlungen',
+      'Genres',
+      'Trending bei Trakt',
+      'Beliebt bei Trakt',
+    ]);
+
+    const collections = screen.getByRole('region', { name: 'Sammlungen' });
+    const card = within(collections).getByRole('link', { name: /Alien-Reihe/ });
+    expect(card).toHaveAttribute('href', `/collections/${collectionId}`);
+    expect(within(card).getByText('3 Titel')).toBeVisible();
+
+    const genres = screen.getByRole('region', { name: 'Genres' });
+    expect(within(genres).getByRole('link', { name: /Science-Fiction/ })).toHaveAttribute(
+      'href',
+      '/search?genre=Science-Fiction',
+    );
+    expect(
+      within(screen.getByRole('region', { name: 'Trending bei Trakt' })).getByRole('link', {
+        name: /Arrival/,
+      }),
+    ).toHaveAttribute('href', `/items/${ids.arrival}`);
+  });
+
+  it('drops a collections or genres row without entries', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          rows: [
+            { key: 'collections', items: [], collections: [] },
+            { key: 'genres', items: [] },
+            { key: 'recent', items: [heat] },
+          ],
+        }),
+    });
+    renderApp('/');
+    expect(await screen.findByRole('heading', { name: 'Neu hinzugefügt' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Sammlungen' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Genres' })).not.toBeInTheDocument();
+  });
+
+  it('opens the search with "/" and links search and watchlist in the header', async () => {
+    mockApi({ ...signedIn, 'GET /home': () => json(homePage), 'GET /genres': () => json([]) });
+    const { router } = renderApp('/');
+    const nav = await screen.findByRole('navigation', { name: 'Hauptnavigation' });
+    expect(within(nav).getByRole('link', { name: 'Suche' })).toHaveAttribute('href', '/search');
+    expect(within(nav).getByRole('link', { name: 'Merkliste' })).toHaveAttribute(
+      'href',
+      '/watchlist',
+    );
+    await screen.findByRole('heading', { name: 'Weiterschauen' });
+    fireEvent.keyDown(document.body, { key: '/' });
+    await waitFor(() => expect(router.state.location.pathname).toBe('/search'));
+    await waitFor(() =>
+      expect(screen.getByRole('searchbox', { name: 'Suchbegriff' })).toHaveFocus(),
+    );
+  });
 });

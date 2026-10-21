@@ -112,7 +112,8 @@ test('Enter opens an episode, play starts it; Backspace and Escape walk back', a
 test('Tab: header, back, seasons, episodes; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 3);
-  await tabTo(page, seasons(page).getByRole('button').first(), 4);
+  // "Verwalten", then "Merken", "Favorit" and "Zu Cat's Empfehlungen" (M7).
+  await tabTo(page, seasons(page).getByRole('button').first(), 7);
   await tabTo(page, episodes(page).getByRole('link').first(), 4);
   await expectNoFocusTrap(page);
 });

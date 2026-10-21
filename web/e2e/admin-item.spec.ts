@@ -109,7 +109,8 @@ test('an invalid YouTube link is reported at the field', async ({ page }) => {
 
 test('Tab: header, actions, rating, files, trailers; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('link', { name: 'Pflege' }));
-  await tabTo(page, page.getByRole('button', { name: 'Zuordnen' }), 6);
+  // After "Pflege": the rest of the navigation, the inbox and the account (M7 added entries).
+  await tabTo(page, page.getByRole('button', { name: 'Zuordnen' }), 12);
   await tabTo(page, page.getByRole('button', { name: 'Aktualisieren' }), 2);
   await tabTo(page, page.getByRole('link', { name: 'Zur Detailseite' }), 2);
   await tabTo(page, trailers(page).getByRole('button', { name: 'Hinzufügen' }), 12);

@@ -8,13 +8,15 @@ interface RowProps {
   title: string;
   children: ReactNode;
   focusKey?: string;
+  /** `chips`: items as wide as their content (genre chips) instead of one poster wide. */
+  variant?: 'cards' | 'chips';
 }
 
 /**
  * Titled horizontal row of cards. Arrow keys move inside the row (spatial navigation); pointer
  * users scroll with the paging buttons, touch users swipe.
  */
-export function Row({ title, children, focusKey }: RowProps) {
+export function Row({ title, children, focusKey, variant = 'cards' }: RowProps) {
   const { t } = useTranslation();
   const headingId = useId();
   const scroller = useRef<HTMLDivElement>(null);
@@ -53,7 +55,7 @@ export function Row({ title, children, focusKey }: RowProps) {
       <div ref={scroller} className={styles.scroller}>
         <SpatialGroup focusKey={focusKey} as="ul" className={styles.list}>
           {Children.map(children, (child) => (
-            <li className={styles.item}>{child}</li>
+            <li className={variant === 'chips' ? styles.chip : styles.item}>{child}</li>
           ))}
         </SpatialGroup>
       </div>

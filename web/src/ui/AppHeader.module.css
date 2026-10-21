@@ -28,9 +28,21 @@
   text-decoration: none;
 }
 
+/* Many entries (the main user's admin pages) scroll sideways instead of wrapping; the padding keeps
+   the focus ring inside the scroll box, the negative margin keeps the links where they were. */
 .nav {
   display: flex;
+  flex: 1 1 auto;
   gap: var(--sc-space-1);
+  min-width: 0;
+  margin: calc(-1 * var(--sc-space-1));
+  padding: var(--sc-space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .navLink {
@@ -39,6 +51,7 @@
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
   font-weight: var(--sc-font-weight-medium);
+  white-space: nowrap;
   text-decoration: none;
   transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
@@ -63,6 +76,31 @@
   gap: var(--sc-space-2);
   align-items: center;
   margin-left: auto;
+}
+
+.inbox {
+  display: inline-flex;
+  white-space: nowrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-full);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  text-decoration: none;
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.inbox:focus-visible,
+.inbox[aria-current='page'] {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .inbox:hover {
+    color: var(--sc-color-text-primary);
+  }
 }
 
 .profile {

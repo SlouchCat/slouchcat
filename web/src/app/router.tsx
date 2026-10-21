@@ -11,6 +11,7 @@ import {
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
+import { validateSearchParams } from '@/features/discover/searchParams';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
 import { loadSpatialNavigation } from '@/ui';
@@ -346,6 +347,39 @@ const downloadsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/offline/DownloadsPage'), 'DownloadsPage'),
 });
 
+// discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
+const searchRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/search',
+  // q, genre, from, to, rating, type, avail (design 4.1); anything else is dropped.
+  validateSearch: validateSearchParams,
+  component: lazyRouteComponent(() => import('@/features/discover/SearchPage'), 'SearchPage'),
+});
+
+const watchlistRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/watchlist',
+  component: lazyRouteComponent(() => import('@/features/discover/WatchlistPage'), 'WatchlistPage'),
+});
+
+const collectionRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/collections/$collectionId',
+  component: lazyRouteComponent(
+    () => import('@/features/discover/CollectionPage'),
+    'CollectionPage',
+  ),
+});
+
+const notificationsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/notifications',
+  component: lazyRouteComponent(
+    () => import('@/features/discover/NotificationsPage'),
+    'NotificationsPage',
+  ),
+});
+
 const playRoute = createRoute({
   getParentRoute: () => activeRoute,
   path: '/play/$itemId',
@@ -389,6 +423,11 @@ export const routeTree = rootRoute.addChildren([
         accessRoute,
         profileSettingsRoute,
         downloadsRoute,
+        // discover M7
+        searchRoute,
+        watchlistRoute,
+        collectionRoute,
+        notificationsRoute,
       ]),
       playRoute,
     ]),

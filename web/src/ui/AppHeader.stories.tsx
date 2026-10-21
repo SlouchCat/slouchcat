@@ -58,3 +58,15 @@ export const TealProfile: Story = {
     ),
   ],
 };
+
+/** With the inbox link and three unread notifications (M7). */
+export const WithNotifications: Story = {
+  args: {
+    notifications: {
+      href: '#notifications',
+      label: 'Benachrichtigungen',
+      accessibleLabel: 'Benachrichtigungen, 3 ungelesen',
+      unread: 3,
+    },
+  },
+};
