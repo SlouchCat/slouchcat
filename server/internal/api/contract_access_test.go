@@ -132,10 +132,11 @@ var accountRegistry = map[string]accountCall{
 	"uploadOfflineEvents": {contract: "POST /offline/events", path: "/offline/events", want: allWant(http.StatusOK),
 		body: `{"sentAt":"2026-10-20T18:00:00Z","events":[{"profileId":999999,"itemId":"` + fixtureFilm6 + `","playbackId":"01JC0000000000000000000009",` +
 			`"positionMs":10000,"durationMs":7200000,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-20T17:59:50Z"}]}`},
-	// M8: the own account and the notification channels (base stubs answer 501; lane S1 replaces the
-	// expectation of updateAccount, lane S3 those of the channels and push subscriptions).
+	// M8: the own account and the notification channels (base stubs answer 501; lane S3 replaces the
+	// expectations of the channels and push subscriptions). A wrong current password is refused for
+	// every session of an account, with or without a profile.
 	"updateAccount": {contract: "PUT /auth/account", path: "/auth/account", body: `{"currentPassword":"wrong-password","email":"renamed@example.ch"}`,
-		want: allWant(http.StatusNotImplemented)},
+		want: allWant(http.StatusUnauthorized)},
 	"getMyChannels": {contract: "GET /me/channels", path: "/me/channels", want: allWant(http.StatusNotImplemented)},
 	"updateMyChannel": {contract: "PUT /me/channels/{channel}", path: "/me/channels/email", body: `{"enabled":false,"events":["announcements"]}`,
 		want: allWant(http.StatusNotImplemented)},
@@ -231,17 +232,17 @@ var adminRegistry = map[string]adminCall{
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// The fixture has no Trakt client id: 422 provider_not_configured.
 	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
-	// M8 administration (base stubs answer 501; lane S1 replaces the expectations of system,
-	// dashboard, jobs, settings, update and accounts, lane S2 those of backups and statistics, lane
-	// S3 those of the announcements).
-	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusNotImplemented},
-	"getDashboard":        {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusNotImplemented},
-	"retryJob":            {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotImplemented},
-	"cancelJob":           {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotImplemented},
-	"getAdminSettings":    {contract: "GET /admin/settings", path: "/admin/settings", ownerStatus: http.StatusNotImplemented},
-	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusNotImplemented},
-	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusNotImplemented},
-	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusNotImplemented},
+	// M8 administration (base stubs answer 501; lane S2 replaces the expectations of backups and
+	// statistics, lane S3 those of the announcements). Jobs 9999 do not exist; the fixture has no
+	// e-mail server (422 email_not_configured) and checks a mock manifest.
+	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
+	"getDashboard":        {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
+	"retryJob":            {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
+	"cancelJob":           {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
+	"getAdminSettings":    {contract: "GET /admin/settings", path: "/admin/settings", ownerStatus: http.StatusOK},
+	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusOK},
+	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusUnprocessableEntity},
+	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusOK},
 	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusNotImplemented},
 	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusNotImplemented},
 	"downloadBackup": {contract: "GET /admin/backups/{name}/download", path: "/admin/backups/missing.tar.gz/download",
@@ -251,9 +252,9 @@ var adminRegistry = map[string]adminCall{
 		header: map[string]string{"Content-Type": "multipart/form-data; boundary=registry"}, ownerStatus: http.StatusNotImplemented},
 	"restoreBackup": {contract: "POST /admin/backups/{name}/restore", path: "/admin/backups/missing.tar.gz/restore", body: `{}`,
 		ownerStatus: http.StatusNotImplemented},
-	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusNotImplemented},
-	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusNotImplemented},
-	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusNotImplemented},
+	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
+	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
+	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
 	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusNotImplemented},
 	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusNotImplemented},
 	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotImplemented},
@@ -289,10 +290,9 @@ var publicRegistry = map[string]publicCall{
 	// M5: without the device cookie the revocation list is empty (K-7).
 	"checkOfflineRevocations": {contract: "POST /offline/revocations", path: "/offline/revocations", status: http.StatusOK,
 		body: `{"ids":["01J9AAAAAAAAAAAAAAAAAAAAAA"]}`},
-	// M8 wizard checks (base stubs answer 501; lane S1 replaces them with 409 setup_done, the fixture
-	// has an account).
-	"checkSetupPath":    {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusNotImplemented},
-	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusNotImplemented},
+	// M8 wizard checks: 409 setup_done, the fixture has an account.
+	"checkSetupPath":    {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusConflict},
+	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusConflict},
 }
 
 // A missing registry entry fails the test: every operation of the contract is in exactly the

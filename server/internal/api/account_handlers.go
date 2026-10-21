@@ -51,9 +51,11 @@ func (s *server) UpdateAccount(ctx context.Context, req gen.UpdateAccountRequest
 		email := string(*b.Email)
 		upd.Email = &email
 	}
-	updated, err := svc.UpdateAccount(ctx, session, upd)
+	updated, err := svc.UpdateAccount(model.WithClientIP(ctx, s.clientAddr(ctx)), session, upd)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.UpdateAccount200JSONResponse(toSessionInfo(updated)), nil
+	info := toSessionInfo(updated)
+	info.UpdateAvailable = s.updateNotice(ctx, updated)
+	return gen.UpdateAccount200JSONResponse(info), nil
 }

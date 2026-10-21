@@ -64,11 +64,14 @@ type sessionStarted struct {
 	r       *http.Request
 	session model.Session
 	token   string
+	update  *gen.UpdateNotice // SessionInfo.updateAvailable (updateNotice)
 }
 
 func (s sessionStarted) visit(w http.ResponseWriter) error {
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(toSessionInfo(s.session)); err != nil {
+	info := toSessionInfo(s.session)
+	info.UpdateAvailable = s.update
+	if err := json.NewEncoder(&buf).Encode(info); err != nil {
 		return err
 	}
 	dropSessionCookie(w.Header()) // a cookie refreshed by the middleware gives way to the new one
@@ -88,11 +91,16 @@ func (s sessionStarted) VisitAcceptInvitationResponse(w http.ResponseWriter) err
 
 // sessionSwitched answers selectProfile: the session continues with the chosen profile (same
 // cookie) and the browser drops its cached images.
-type sessionSwitched struct{ session model.Session }
+type sessionSwitched struct {
+	session model.Session
+	update  *gen.UpdateNotice // SessionInfo.updateAvailable (updateNotice)
+}
 
 func (s sessionSwitched) VisitSelectProfileResponse(w http.ResponseWriter) error {
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(toSessionInfo(s.session)); err != nil {
+	info := toSessionInfo(s.session)
+	info.UpdateAvailable = s.update
+	if err := json.NewEncoder(&buf).Encode(info); err != nil {
 		return err
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -134,7 +142,18 @@ func (s *server) GetSetupStatus(ctx context.Context, _ gen.GetSetupStatusRequest
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return gen.GetSetupStatus200JSONResponse{SetupRequired: required}, nil
+	out := gen.GetSetupStatus200JSONResponse{SetupRequired: required}
+	// The wizard shows the transcode hardware and the inotify limit (A-1); once an account exists,
+	// the state is the admin's (getSystemInfo).
+	if required && s.opts.Admin != nil {
+		info, err := s.opts.Admin.SystemInfo(ctx)
+		if err != nil {
+			return s.problem(ctx, err), nil
+		}
+		sys := toSystemInfo(info)
+		out.System = &sys
+	}
+	return out, nil
 }
 
 func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (gen.RunSetupResponseObject, error) {
@@ -150,7 +169,8 @@ func (s *server) RunSetup(ctx context.Context, req gen.RunSetupRequestObject) (g
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return sessionStarted{status: http.StatusCreated, r: requestFrom(ctx), session: session, token: token}, nil
+	return sessionStarted{status: http.StatusCreated, r: requestFrom(ctx), session: session, token: token,
+		update: s.updateNotice(ctx, session)}, nil
 }
 
 func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.LoginResponseObject, error) {
@@ -159,7 +179,8 @@ func (s *server) Login(ctx context.Context, req gen.LoginRequestObject) (gen.Log
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	return sessionStarted{status: http.StatusOK, r: requestFrom(ctx), session: session, token: token}, nil
+	return sessionStarted{status: http.StatusOK, r: requestFrom(ctx), session: session, token: token,
+		update: s.updateNotice(ctx, session)}, nil
 }
 
 func (s *server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.LogoutResponseObject, error) {
@@ -184,5 +205,20 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 		// The scoped gate only lets requests with a session through.
 		return nil, errors.New("getSession reached without a session")
 	}
-	return gen.GetSession200JSONResponse(toSessionInfo(session)), nil
+	info := toSessionInfo(session)
+	info.UpdateAvailable = s.updateNotice(ctx, session)
+	return gen.GetSession200JSONResponse(info), nil
+}
+
+// updateNotice is SessionInfo.updateAvailable (A-5): a newer published version, only for the main
+// account; nil otherwise and without an admin service.
+func (s *server) updateNotice(ctx context.Context, session model.Session) *gen.UpdateNotice {
+	if !session.IsOwner() || s.opts.Admin == nil {
+		return nil
+	}
+	n := s.opts.Admin.UpdateAvailable(ctx)
+	if n == nil {
+		return nil
+	}
+	return &gen.UpdateNotice{Version: n.Version, Url: n.URL}
 }

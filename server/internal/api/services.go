@@ -211,9 +211,11 @@ type AdminService interface {
 	DeleteBackup(ctx context.Context, name string) error
 	RestoreBackupUpload(ctx context.Context, archive io.Reader, passphrase string) (model.RestoreResult, error)
 	RestoreBackup(ctx context.Context, name, passphrase string) (model.RestoreResult, error)
-	// Update check (A-5); CheckForUpdate: model.ErrUpdateCheckDisabled.
+	// Update check (A-5); CheckForUpdate: model.ErrUpdateCheckDisabled. UpdateAvailable is the
+	// header notice of SessionInfo for the main account, answered from memory; nil = none.
 	UpdateState(ctx context.Context) (model.UpdateState, error)
 	CheckForUpdate(ctx context.Context) (model.UpdateState, error)
+	UpdateAvailable(ctx context.Context) *model.UpdateNotice
 	// ListAccounts returns the main account first, then the guests, newest first (A-2).
 	ListAccounts(ctx context.Context) ([]model.AdminAccount, error)
 	// Stats returns the statistics of the last days days: 7, 30, 90 or 365 (*model.ValidationError).
