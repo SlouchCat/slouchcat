@@ -1,0 +1,59 @@
+.switch {
+  display: inline-flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--sc-size-control-height);
+  padding: 0 var(--sc-space-3) 0 var(--sc-space-1);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-secondary);
+  font-weight: var(--sc-font-weight-medium);
+  cursor: pointer;
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.switch[data-hovered],
+.switch[data-selected] {
+  color: var(--sc-color-text-primary);
+}
+
+.switch[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.switch[data-disabled] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.track {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  width: calc(var(--sc-space-6) * 2);
+  height: var(--sc-space-6);
+  padding: var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.handle {
+  width: var(--sc-space-4);
+  height: var(--sc-space-4);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-text-secondary);
+  transition:
+    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.switch[data-selected] .track {
+  background-color: var(--sc-accent);
+}
+
+.switch[data-selected] .handle {
+  background-color: var(--sc-on-accent);
+  transform: translateX(var(--sc-space-6));
+}

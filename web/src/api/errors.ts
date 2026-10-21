@@ -14,6 +14,12 @@ const problemKeys = {
   forbidden: 'errors.code.forbidden',
   csrf_header_missing: 'errors.code.csrf_header_missing',
   validation_failed: 'errors.code.validation_failed',
+  // Notification channels (M8, A-6).
+  channel_unavailable: 'errors.code.channel_unavailable',
+  channel_disabled: 'errors.code.channel_disabled',
+  event_not_allowed: 'errors.code.event_not_allowed',
+  send_failed: 'errors.code.send_failed',
+  push_unavailable: 'errors.code.push_unavailable',
   transcode_busy: 'errors.code.transcode_busy',
   pin_required: 'errors.code.pin_required',
   pin_invalid: 'errors.code.pin_invalid',

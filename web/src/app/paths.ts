@@ -5,6 +5,10 @@ export const paths = {
   setup: '/setup',
   profiles: '/profiles',
   profileSettings: '/settings/profiles',
+  /** Notification channels of the account (M8, A-6). */
+  notificationSettings: '/settings/notifications',
+  /** Keys and servers of the integrations (M8, lane W1's page; linked from the channels). */
+  adminIntegrations: '/admin/integrations',
   adminLibraries: '/admin/libraries',
   adminAccess: '/admin/access',
   adminMaintenance: '/admin/maintenance',

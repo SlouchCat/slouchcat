@@ -187,4 +187,17 @@ describe('notifications', () => {
     renderApp('/notifications');
     expect(await screen.findByText('Keine Benachrichtigungen')).toBeVisible();
   });
+
+  it('links "Kanäle einstellen" to the notification channels', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /notifications': () => json(inbox(entries)),
+      'GET /me/channels': () => json({ channels: [] }),
+    });
+    const { router } = renderApp('/notifications');
+    const link = await screen.findByRole('link', { name: 'Kanäle einstellen' });
+    expect(link).toHaveAttribute('href', '/settings/notifications');
+    await userEvent.setup().click(link);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/notifications'));
+  });
 });

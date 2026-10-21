@@ -59,6 +59,11 @@
       "forbidden": "Dafür fehlt diesem Konto die Berechtigung.",
       "csrf_header_missing": "Die Anfrage wurde aus Sicherheitsgründen abgelehnt. Lade die Seite neu.",
       "validation_failed": "Bitte prüfe die markierten Felder.",
+      "channel_unavailable": "Dieser Kanal ist auf dem Server nicht eingerichtet.",
+      "channel_disabled": "Der Kanal ist ausgeschaltet oder noch nicht verbunden.",
+      "event_not_allowed": "Fehlermeldungen erhält nur der Hauptbenutzer.",
+      "send_failed": "Die Nachricht ging nicht weg: Der Dienst hat sie abgelehnt oder nicht geantwortet.",
+      "push_unavailable": "Web-Push ist auf dem Server nicht eingerichtet.",
       "network": "Der Server ist nicht erreichbar.",
       "unknown": "Etwas ist schiefgelaufen. Versuche es erneut.",
       "transcode_busy": "Der Server ist ausgelastet. Bitte versuche es später erneut.",
@@ -1475,5 +1480,80 @@
       "title": "Keine Benachrichtigungen",
       "body": "Markiere Serien oder Podcasts als Favorit, dann erfährst du hier von neuen Folgen."
     }
+  },
+  "settings": {
+    "notifications": {
+      "title": "Benachrichtigungskanäle",
+      "intro": "Neue Folgen deiner Favoriten, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.",
+      "link": "Kanäle einstellen",
+      "list": "Kanäle",
+      "channel": {
+        "email": "E-Mail",
+        "push": "Web-Push",
+        "telegram": "Telegram"
+      },
+      "state": {
+        "on": "Aktiv",
+        "off": "Aus",
+        "unavailable": "Nicht eingerichtet"
+      },
+      "enabled": "Aktiv",
+      "events": {
+        "label": "Ereignisse",
+        "new_content": "Neue Inhalte",
+        "acquisition": "Beschaffungsstatus",
+        "errors": "Fehler",
+        "invitations": "Einladungen",
+        "announcements": "Ankündigungen"
+      },
+      "unavailable": {
+        "body": "Der Hauptbenutzer richtet diesen Kanal in der Verwaltung unter Integrationen ein.",
+        "action": "Integrationen öffnen"
+      },
+      "email": {
+        "address": "E-Mail-Adresse",
+        "description": "Standard ist die Adresse deines Kontos."
+      },
+      "telegram": {
+        "linked": "Verknüpft",
+        "linkedChat": "Verknüpft mit Chat {{chat}}",
+        "notLinked": "Nicht verknüpft",
+        "instruction": "Sende dem Bot @{{bot}} die Nachricht /start {{code}}",
+        "expires": "Der Code gilt bis {{time}}.",
+        "open": "In Telegram öffnen",
+        "link": "Verknüpfen",
+        "renew": "Code erneuern",
+        "unlink": "Verknüpfung lösen",
+        "unlinked": "Die Verknüpfung ist gelöst.",
+        "nowLinked": "Telegram ist verknüpft."
+      },
+      "push": {
+        "devices": "Angemeldete Geräte",
+        "none": "Noch kein Gerät angemeldet.",
+        "thisDevice": "Dieses Gerät",
+        "unknownDevice": "Unbekanntes Gerät",
+        "created": "Angemeldet am {{date}}",
+        "subscribe": "Auf diesem Gerät aktivieren",
+        "subscribed": "Dieses Gerät erhält jetzt Push-Nachrichten.",
+        "remove": "Entfernen",
+        "removeLabel": "{{device}} entfernen",
+        "removed": "Das Gerät ist entfernt.",
+        "unsupported": "Dieser Browser kann hier keine Push-Nachrichten empfangen. Nötig sind ein aktueller Browser und eine Verbindung über HTTPS.",
+        "ios": "Auf iPhone und iPad gibt es Web-Push nur in der installierten App: im Teilen-Menü «Zum Home-Bildschirm» wählen und Slouchcat von dort öffnen.",
+        "denied": "Benachrichtigungen sind für Slouchcat blockiert. Erlaube sie in den Einstellungen des Browsers.",
+        "noWorker": "Der Service Worker läuft noch nicht. Lade die Seite neu und versuche es nochmals.",
+        "failed": "Der Browser konnte sich nicht beim Push-Dienst anmelden."
+      },
+      "saved": "Gespeichert.",
+      "test": "Testnachricht",
+      "testSent": "Testnachricht gesendet."
+    }
+  },
+  "announcements": {
+    "kicker": "Ankündigung",
+    "published": "Veröffentlicht am {{date}}",
+    "counter": "{{index}} von {{count}}",
+    "acknowledge": "Verstanden",
+    "later": "Später"
   }
 }

@@ -16,6 +16,7 @@ import {
   Notice,
   Skeleton,
   SpatialButton,
+  SpatialButtonLink,
   SpatialGroup,
   SpatialPage,
   setSpatialFocus,
@@ -26,6 +27,7 @@ import styles from './Discover.module.css';
 
 const BACK_KEY = 'notifications-back';
 const READ_ALL_KEY = 'notifications-read-all';
+const CHANNELS_KEY = 'notifications-channels';
 const entryKey = (entry: Notification) => `notification-${entry.id}`;
 
 /** "S01E03 · Pilot" for an episode, the title for a podcast episode. */
@@ -53,7 +55,8 @@ function entryContext(t: TFunction, entry: Notification): string {
 
 /**
  * The in-app inbox (E-8): new episodes of favourite series and podcasts. Opening an entry marks
- * it read; "Alle als gelesen markieren" clears the badge in the header.
+ * it read; "Alle als gelesen markieren" clears the badge in the header. "Kanäle einstellen" leads
+ * to e-mail, Web Push and Telegram (M8).
  */
 export function NotificationsPage() {
   const { t, i18n } = useTranslation();
@@ -82,6 +85,15 @@ export function NotificationsPage() {
             <SpatialButton focusKey={BACK_KEY} variant="ghost" icon="back" onPress={goBack}>
               {t('common.back')}
             </SpatialButton>
+            {/* E-mail, Web Push and Telegram of the account (M8, A-6); before "Alle als gelesen
+                markieren", which goes away once everything is read. */}
+            <SpatialButtonLink
+              focusKey={CHANNELS_KEY}
+              variant="ghost"
+              href={paths.notificationSettings}
+            >
+              {t('settings.notifications.link')}
+            </SpatialButtonLink>
             {unread > 0 && (
               <SpatialButton
                 focusKey={READ_ALL_KEY}
