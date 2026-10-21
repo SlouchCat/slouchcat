@@ -62,7 +62,7 @@ func TestProbeH264(t *testing.T) {
 
 func TestProbeChapters(t *testing.T) {
 	r := realRunner(t)
-	path := testMovie(t, "Slouchcat Test Chapters (2024)", "Slouchcat Test Chapters (2024).mkv")
+	path := testMovie(t, "Slouchcat Test Chapters (2024) {tmdb-7004}", "Slouchcat Test Chapters (2024) {tmdb-7004}.mkv")
 	p, err := r.Probe(context.Background(), path)
 	if err != nil {
 		t.Fatal(err)
