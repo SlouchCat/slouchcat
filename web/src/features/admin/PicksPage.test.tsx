@@ -98,9 +98,7 @@ describe('admin picks page (M7, E-2)', () => {
     expect(within(rows[1]!).getByRole('button', { name: 'Heat nach oben' })).toBeDisabled();
     expect(within(rows[2]!).getByRole('button', { name: 'Arrival nach unten' })).toBeDisabled();
     expect(
-      screen
-        .getByRole('navigation', { name: 'Hauptnavigation' })
-        .querySelector('[aria-current="page"]'),
+      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
     ).toHaveTextContent("Cat's Empfehlungen");
   });
 

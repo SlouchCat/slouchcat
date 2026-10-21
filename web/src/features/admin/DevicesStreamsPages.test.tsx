@@ -171,7 +171,7 @@ describe('admin devices (W-7)', () => {
   it('links devices and streams in the admin navigation', async () => {
     mockApi({ ...signedIn, 'GET /admin/devices': () => json([]) });
     renderApp('/admin/devices');
-    const nav = await screen.findByRole('navigation', { name: 'Hauptnavigation' });
+    const nav = await screen.findByRole('navigation', { name: 'Verwaltung' });
     expect(within(nav).getByRole('link', { name: 'Geräte' })).toHaveAttribute(
       'aria-current',
       'page',

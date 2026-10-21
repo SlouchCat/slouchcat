@@ -65,7 +65,7 @@ test('picks page by keyboard: add with a note, move to the top, time window, rem
   await expect(page.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" })).toBeVisible();
   await expect(
     page
-      .getByRole('navigation', { name: 'Hauptnavigation' })
+      .getByRole('navigation', { name: 'Verwaltung' })
       .getByRole('link', { name: "Cat's Empfehlungen" }),
   ).toHaveAttribute('aria-current', 'page');
   const table = page.getByRole('table', { name: 'Empfehlungen in der Reihenfolge des Karussells' });

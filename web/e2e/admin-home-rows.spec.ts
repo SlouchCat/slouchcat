@@ -59,7 +59,7 @@ test('start page rows by keyboard: reorder and hide change the start page', asyn
     await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
     await expect(
       page
-        .getByRole('navigation', { name: 'Hauptnavigation' })
+        .getByRole('navigation', { name: 'Verwaltung' })
         .getByRole('link', { name: 'Startseite' }),
     ).toHaveAttribute('aria-current', 'page');
     const table = page.getByRole('table', { name: 'Reihen der Startseite' });

@@ -59,9 +59,7 @@ describe('admin collections page (M7, E-6)', () => {
     expect(within(rows[2]!).getByText('Manuell')).toBeVisible();
     expect(within(rows[2]!).getByRole('button', { name: 'Filmabend umbenennen' })).toBeEnabled();
     expect(
-      screen
-        .getByRole('navigation', { name: 'Hauptnavigation' })
-        .querySelector('[aria-current="page"]'),
+      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
     ).toHaveTextContent('Sammlungen');
   });
 

@@ -272,7 +272,9 @@ describe('start page', () => {
       'aria-current',
       'page',
     );
-    expect(within(nav).getByRole('link', { name: 'Bibliotheken' })).toBeVisible();
+    // M8: the administration is one entry; its pages have their own navigation.
+    expect(within(nav).getByRole('link', { name: 'Verwaltung' })).toHaveAttribute('href', '/admin');
+    expect(within(nav).queryByRole('link', { name: 'Bibliotheken' })).not.toBeInTheDocument();
     expect(screen.getByText('Marco')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Abmelden' })).toBeVisible();
   });

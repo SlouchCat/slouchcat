@@ -15,24 +15,17 @@
   "nav": {
     "main": "Main navigation",
     "home": "Home",
-    "libraries": "Libraries",
     "logout": "Sign out",
-    "profile": "Profile {{name}}",
     "skip": "Skip to content",
-    "access": "Access",
     "profiles": "Profiles",
     "switchProfile": "Switch profile, now {{name}}",
-    "maintenance": "Maintenance",
-    "devices": "Devices",
-    "streams": "Streams",
     "downloads": "Downloads",
-    "podcasts": "Podcasts",
     "search": "Search",
     "watchlist": "Watchlist",
     "notifications": "Notifications",
-    "picks": "Cat's picks",
-    "collections": "Collections",
-    "homeRows": "Home page"
+    "admin": "Administration",
+    "update": "Update",
+    "updateLabel": "Update to version {{version}} available"
   },
   "system": {
     "server": {
@@ -40,6 +33,58 @@
       "online": "Server reachable",
       "offline": "Server unreachable",
       "version": "Version {{version}}"
+    },
+    "gpu": {
+      "facts": "Graphics chip",
+      "encoder": "Video encoding",
+      "tonemap": "HDR to SDR",
+      "ffmpeg": "ffmpeg",
+      "backend": {
+        "nvenc": "NVIDIA NVENC",
+        "qsv": "Intel Quick Sync (QSV)",
+        "vaapi": "VA-API",
+        "software": "Processor (software)"
+      },
+      "tonemapper": {
+        "cuda": "CUDA on the graphics chip",
+        "placebo": "libplacebo on the graphics chip",
+        "vpp_qsv": "Intel VPP on the graphics chip",
+        "vaapi": "VA-API on the graphics chip",
+        "cpu": "Processor"
+      },
+      "detected": "Graphics chip detected: Slouchcat converts videos on the graphics chip.",
+      "none": {
+        "title": "No graphics chip detected",
+        "body": "Slouchcat converts videos on the processor. If the machine has a graphics chip, pass it into the container with the matching Compose file and restart Slouchcat:",
+        "unknown": "No graphics chip is visible inside the container. If the machine has one, pass it into the container with the Compose file of its maker and restart Slouchcat:"
+      },
+      "vendor": {
+        "nvidia": "NVIDIA",
+        "intel": "Intel",
+        "amd": "AMD"
+      },
+      "command": "Compose command for {{vendor}}"
+    },
+    "fs": {
+      "config": "File system /config",
+      "cache": "File system /cache",
+      "unknown": "unknown"
+    },
+    "inotify": {
+      "limit": "inotify limit",
+      "usage": "Watched folders",
+      "usageValue": "{{used}} of {{limit}} ({{percent}} %)",
+      "unknown": "unknown",
+      "warn": {
+        "title": "The inotify limit is tight",
+        "body": "Slouchcat watches every folder of the libraries. Raise the limit on the host, not inside the container. To keep it across a restart, also put the value into /etc/sysctl.d/."
+      },
+      "command": "Command for the inotify limit"
+    },
+    "copy": {
+      "action": "Copy",
+      "done": "Command copied.",
+      "failed": "Copying is not possible. The command is selected; copy it with Ctrl+C."
     }
   },
   "errors": {
@@ -83,7 +128,14 @@
       "rating_below_library_default": "The age rating must not be below the library's default.",
       "not_listable": "Seasons and extras cannot be put on the watchlist.",
       "not_favoritable": "Only series and podcasts can be favourites.",
-      "not_editable": "Collections from TMDB cannot be changed."
+      "not_editable": "Collections from TMDB cannot be changed.",
+      "env_wins": "This value is set in deploy/.env and can only be changed there.",
+      "telegram_token_invalid": "Telegram rejected the token. Check the token from @BotFather.",
+      "telegram_unreachable": "Telegram cannot be reached right now. Try again.",
+      "email_not_configured": "No e-mail server is set up.",
+      "email_send_failed": "The mail server did not accept the mail.",
+      "job_not_failed": "This job has not failed.",
+      "update_check_disabled": "The update check is switched off."
     },
     "field": {
       "required": "Required.",
@@ -107,7 +159,7 @@
   },
   "setup": {
     "title": "Welcome to Slouchcat",
-    "intro": "Three short steps, then Slouchcat scans your first library.",
+    "intro": "Four short steps, then Slouchcat scans your first library.",
     "step": "Step {{step}}",
     "account": {
       "title": "Main account",
@@ -123,17 +175,41 @@
       "name": "Name",
       "kind": "Content",
       "path": "Folder",
-      "pathHint": "Absolute path inside the container, for example /media/Movies."
+      "pathHint": "Absolute path inside the container, for example /media/Movies.",
+      "check": "Check folder",
+      "checking": "Checking …",
+      "warning": {
+        "network_share": {
+          "title": "Network share detected",
+          "body": "Slouchcat does not see changes in this folder at once but through a regular sync. For new titles to appear without delay, webhooks from Radarr and Sonarr are recommended."
+        },
+        "fuse_unknown": {
+          "title": "Unknown file system",
+          "body": "A FUSE file system (for example mergerfs or Unraid) does not report every change. Slouchcat watches the folder and also syncs it regularly."
+        }
+      }
     },
     "tmdb": {
       "title": "Metadata from TMDB (optional)",
       "description": "With a read access token from themoviedb.org Slouchcat fetches overviews, posters and age ratings. Without a key, titles come from the file names.",
       "link": "Create a token on themoviedb.org",
       "label": "API read access token",
-      "hint": "Stored encrypted and never shown again."
+      "hint": "Stored encrypted and never shown again.",
+      "check": "Check key",
+      "checking": "Checking …",
+      "result": {
+        "valid": "Valid: TMDB accepted the key.",
+        "invalid": "Invalid: TMDB rejected the key. Check the read access token.",
+        "unreachable": "Unreachable: TMDB does not answer right now. Try again or leave the field empty."
+      }
     },
     "submit": "Finish setup",
-    "submitting": "Setting up …"
+    "submitting": "Setting up …",
+    "system": {
+      "title": "Graphics chip and file system",
+      "description": "What Slouchcat finds inside the container. There is nothing to enter here; the hints are for the host.",
+      "missing": "The server sent no details about the hardware."
+    }
   },
   "login": {
     "title": "Sign in",
@@ -1049,6 +1125,283 @@
       "popular": "“Popular” entries",
       "refresh": "Refresh now",
       "queued": "The Trakt lists are being fetched."
+    },
+    "nav": {
+      "label": "Administration",
+      "overview": "Overview",
+      "groups": {
+        "library": "Library",
+        "accounts": "Accounts",
+        "curation": "Curation",
+        "system": "System"
+      }
+    },
+    "sections": {
+      "libraries": {
+        "title": "Libraries",
+        "description": "Folders, scans and default age ratings."
+      },
+      "podcasts": {
+        "title": "Podcasts",
+        "description": "Subscribed feeds and their episodes."
+      },
+      "maintenance": {
+        "title": "Maintenance",
+        "description": "Titles without match, images or rating, duplicates."
+      },
+      "accounts": {
+        "title": "Accounts",
+        "description": "Main account and guests with profiles and channels."
+      },
+      "access": {
+        "title": "Access",
+        "description": "Invite guests and set their limits."
+      },
+      "profiles": {
+        "title": "Profiles",
+        "description": "The profiles of this account, PINs and watch time."
+      },
+      "devices": {
+        "title": "Devices",
+        "description": "Signed-in browsers and what they can play."
+      },
+      "streams": {
+        "title": "Streams",
+        "description": "See and stop running playbacks."
+      },
+      "picks": {
+        "title": "Cat's picks",
+        "description": "The carousel of the home page."
+      },
+      "collections": {
+        "title": "Collections",
+        "description": "Own collections and those from TMDB."
+      },
+      "homeRows": {
+        "title": "Home page",
+        "description": "Order of the rows and the Trakt lists."
+      },
+      "announcements": {
+        "title": "Announcements",
+        "description": "Messages to every profile."
+      },
+      "integrations": {
+        "title": "Integrations",
+        "description": "Keys, e-mail, Telegram, Web Push and the update check."
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Your channels: e-mail, Web Push and Telegram."
+      },
+      "stats": {
+        "title": "Statistics",
+        "description": "Most watched, watch time, playback modes and devices."
+      },
+      "backup": {
+        "title": "Backup",
+        "description": "Back up and restore the data."
+      }
+    },
+    "home": {
+      "title": "Administration",
+      "intro": "The state of the server, refreshed every 5 seconds, and every administration page in one place.",
+      "state": "State of the server",
+      "manage": "All administration pages",
+      "update": {
+        "title": "Version {{version}} is available",
+        "body": "You are running {{current}}. Slouchcat installs nothing itself: get the new image with docker compose pull and restart with docker compose up -d.",
+        "notes": "Release notes"
+      },
+      "streams": {
+        "title": "Streams",
+        "count": "Running streams",
+        "empty": "Nothing is playing right now.",
+        "entry": "{{profile}}: {{title}}",
+        "all": "All streams"
+      },
+      "jobs": {
+        "title": "Background jobs",
+        "queued": "Queued",
+        "running": "Running",
+        "failed": "Failed",
+        "recent": "Failed jobs",
+        "columns": {
+          "type": "Job",
+          "attempts": "Attempts",
+          "error": "Last error",
+          "at": "Time",
+          "actions": "Actions"
+        },
+        "attempts": "{{attempts}} of {{max}}",
+        "noError": "–",
+        "retry": {
+          "action": "Retry",
+          "label": "Queue job {{type}} ({{id}}) again"
+        },
+        "cancel": {
+          "action": "Cancel",
+          "label": "Cancel job {{type}} ({{id}})",
+          "title": "Cancel job {{type}}?",
+          "body": "Slouchcat stops trying this job.",
+          "confirm": "Cancel job"
+        },
+        "retried": "Job {{type}} is queued again.",
+        "cancelled": "Job {{type}} cancelled."
+      },
+      "storage": {
+        "title": "Storage",
+        "config": "Configuration ({{path}})",
+        "cache": "Cache ({{path}})",
+        "used": "{{used}} of {{total}} used",
+        "part": "Used: {{size}}",
+        "free": "Free: {{free}} of {{total}}"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "state": {
+          "configured": "Set up",
+          "missing": "Not set up",
+          "error": "Error",
+          "disabled": "Switched off"
+        },
+        "entry": "{{name}}: {{state}}",
+        "checked": "Checked: {{date}}",
+        "manage": "Set up integrations"
+      },
+      "server": {
+        "title": "Server",
+        "version": "Version",
+        "started": "Started"
+      },
+      "errors": {
+        "title": "Errors",
+        "intro": "The last 50 errors of the server log, newest first.",
+        "list": "Errors of the server log",
+        "empty": "No errors since the start.",
+        "job": "Job {{id}} ({{type}})"
+      }
+    },
+    "integrations": {
+      "title": "Integrations",
+      "intro": "Provider keys, delivery of notifications and the update check. Slouchcat stores secret values encrypted and never shows them again.",
+      "names": {
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "youtube": "YouTube",
+        "trakt": "Trakt",
+        "email": "E-mail",
+        "push": "Web Push",
+        "telegram": "Telegram",
+        "updateCheck": "Update check"
+      },
+      "source": {
+        "env": "Set in deploy/.env",
+        "stored": "Stored",
+        "storedHint": "Stored, ends in {{hint}}",
+        "none": "Not set"
+      },
+      "envHint": "Set in deploy/.env. The value can only be changed there.",
+      "save": "Save",
+      "saving": "Saving …",
+      "clear": {
+        "action": "Delete",
+        "label": "Delete {{name}}",
+        "title": "Delete {{name}}?",
+        "body": "The stored value is removed. Whatever needs it stops working.",
+        "confirm": "Delete"
+      },
+      "saved": "{{name}} saved.",
+      "cleared": "{{name}} deleted.",
+      "keys": {
+        "title": "Provider keys",
+        "intro": "For metadata (TMDB, TVDB), trailers (YouTube) and the Trakt lists of the home page.",
+        "saveLabel": "Save {{name}}",
+        "newValue": "Leave empty to keep the stored value. A new value replaces it.",
+        "tmdb": {
+          "name": "TMDB token",
+          "label": "TMDB read access token",
+          "description": "Overviews, posters and age ratings from themoviedb.org."
+        },
+        "tvdb": {
+          "name": "TVDB key",
+          "label": "TVDB API key",
+          "description": "Optional second source for series."
+        },
+        "tvdbPin": {
+          "name": "TVDB PIN",
+          "label": "TVDB subscriber PIN",
+          "description": "Only for a TVDB subscription with a PIN."
+        },
+        "youtube": {
+          "name": "YouTube key",
+          "label": "YouTube API key",
+          "description": "Finds trailers when TMDB knows none."
+        },
+        "trakt": {
+          "name": "Trakt client ID",
+          "label": "Trakt client ID",
+          "description": "For the rows “Trending” and “Popular” of the home page."
+        },
+        "traktStatus": "State of the Trakt lists"
+      },
+      "email": {
+        "title": "E-mail server",
+        "intro": "For notifications, invitations and announcements by e-mail.",
+        "name": "E-mail server",
+        "host": "Server",
+        "port": "Port",
+        "user": "User",
+        "password": "Password",
+        "passwordHint": "Stored encrypted and never shown again.",
+        "passwordKeep": "Leave empty to keep the stored password.",
+        "from": "Sender",
+        "fromHint": "For example Slouchcat <media@example.ch>.",
+        "tls": "Encryption",
+        "tlsOptions": {
+          "starttls": "STARTTLS",
+          "tls": "TLS",
+          "none": "None"
+        },
+        "test": "Send test mail",
+        "testSent": "Test mail sent to {{email}}.",
+        "testFailed": "The test mail did not arrive: {{detail}}"
+      },
+      "telegram": {
+        "title": "Telegram bot",
+        "intro": "For notifications by Telegram. You get the token from @BotFather.",
+        "name": "Telegram bot",
+        "token": "Bot token",
+        "tokenKeep": "A new token replaces the stored one. Slouchcat checks it with Telegram.",
+        "bot": "Bot: @{{name}}"
+      },
+      "push": {
+        "title": "Web Push",
+        "intro": "Notifications in the browser and in the installed app.",
+        "configured": "Key pair present.",
+        "notConfigured": "No key pair yet. It is created as soon as a device turns on Web Push.",
+        "publicKey": "Public key",
+        "rotate": {
+          "action": "Create new keys",
+          "title": "Create new Web Push keys?",
+          "body": "Every device loses its subscription and has to turn on Web Push again in the settings.",
+          "confirm": "Create new keys"
+        },
+        "rotated": "New keys created. The devices have to turn on Web Push again."
+      },
+      "update": {
+        "title": "Update check",
+        "intro": "Once a day Slouchcat reads the public release manifest and shows a hint when there is a new version. Nothing is installed.",
+        "toggle": "Look for new versions daily",
+        "on": "Update check switched on.",
+        "off": "Update check switched off."
+      },
+      "publicUrl": {
+        "title": "Public address",
+        "intro": "Links in e-mails and messages lead to the server at this address.",
+        "name": "Public address",
+        "label": "Address",
+        "hint": "For example https://media.example.ch"
+      }
     }
   },
   "language": {
