@@ -257,9 +257,12 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
 	}
 	b := req.Body
+	// The event belongs to the device of the browser session (the device cookie), like the start
+	// (W-7): the statistics count devices by it (A-8), late events are told apart per device.
 	p, err := s.opts.Playback.Report(ctx, session.Profile, req.Id, model.ProgressEvent{
 		MediaFileID:       deref(b.MediaFileId),
 		PlaybackSessionID: deref(b.PlaybackSessionId),
+		DeviceID:          session.DeviceID,
 		PositionMs:        b.PositionMs,
 		DurationMs:        b.DurationMs,
 		PlayedMs:          b.PlayedMs,

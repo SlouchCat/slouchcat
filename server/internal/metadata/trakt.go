@@ -237,7 +237,7 @@ func (s *Service) handleTraktRefresh(ctx context.Context, _ *jobs.Job) error {
 	}
 	err = s.refreshTraktLists(ctx, id)
 	if errors.Is(err, trakt.ErrUnauthorized) {
-		s.log.WarnContext(ctx, "trakt refused the client id; lists emptied", "err", err)
+		s.log.WarnContext(ctx, "trakt refused the client id; not retried", "err", err)
 		return nil
 	}
 	return err
@@ -299,6 +299,8 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 		return errors.Join(fetchErr, err)
 	}
 	if fetchErr != nil {
+		// A-3: the dashboard lists the failure. The error names the list and the status only.
+		s.log.ErrorContext(ctx, "trakt refresh failed; lists emptied", "component", "trakt", "err", fetchErr)
 		return fmt.Errorf("trakt refresh: %w", fetchErr)
 	}
 	n := 0

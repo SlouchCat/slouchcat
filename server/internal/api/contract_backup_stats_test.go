@@ -2,7 +2,9 @@ package api
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
 // M8 backups (A-4) over the API: create, list, download, restore from the upload and delete. The
@@ -132,5 +135,34 @@ func TestContractStatsShape(t *testing.T) {
 	}
 	if rec := send(t, pf.h, http.MethodGet, BasePath+"/admin/stats?days=week", "p18", "", nil); rec.Code != http.StatusBadRequest {
 		t.Errorf("days=week: %d, want 400", rec.Code)
+	}
+}
+
+// A-8: a progress event of a browser belongs to the device of its session (the device cookie), so
+// the statistics count that device.
+func TestContractProgressCountsTheDevice(t *testing.T) {
+	pf := newProfileFixture(t)
+	m := pf.f.Rated(6)
+	body := fmt.Sprintf(`{"mediaFileId":%q,"positionMs":10000,"durationMs":%d,"playedMs":10000,"seq":1,"state":"playing","clientTime":%q}`,
+		m.FileID, vistest.DurationMs, time.Now().UTC().Format(time.RFC3339))
+	if rec := send(t, pf.h, http.MethodPost, BasePath+"/items/"+m.ID+"/progress", "p18", body, nil); rec.Code != http.StatusOK {
+		t.Fatalf("progress: %d %s", rec.Code, rec.Body.String())
+	}
+	var device sql.NullString
+	if err := pf.f.DB.Read.QueryRow(`SELECT device_id FROM progress_events WHERE item_id = ?`, m.ID).Scan(&device); err != nil {
+		t.Fatal(err)
+	}
+	if want := pf.sessions["p18"].DeviceID; want == "" || device.String != want {
+		t.Errorf("device of the event = %+v, want the session's %q", device, want)
+	}
+	rec := send(t, pf.h, http.MethodGet, BasePath+"/admin/stats?days=7", "p18", "", nil)
+	var st gen.Stats
+	decode(t, rec, &st)
+	devices := 0
+	for _, d := range st.Devices {
+		devices += d.Count
+	}
+	if rec.Code != http.StatusOK || devices != 1 {
+		t.Errorf("stats: %d, devices %+v, want one device", rec.Code, st.Devices)
 	}
 }
