@@ -272,6 +272,9 @@ func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, 
 	if errors.Is(err, sql.ErrNoRows) && kind == "poster" && size == posterSize {
 		im, err = r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: legacyPosterSize, Format: format})
 	}
+	if errors.Is(err, sql.ErrNoRows) {
+		im, err = r.podcastImage(ctx, pid, itemID, kind, size, format) // an episode shows its podcast's cover (M6)
+	}
 	if err != nil {
 		return ImageLocation{}, notFound(err)
 	}
@@ -312,6 +315,9 @@ func (r *Reader) extras(ctx context.Context, pid int64, lang string, ids []strin
 	}
 	for _, im := range images {
 		out.images[im.ItemID] = append(out.images[im.ItemID], im)
+	}
+	if err := r.podcastImages(ctx, pid, ids, &out); err != nil {
+		return out, err
 	}
 	progress, err := r.q.ListItemProgress(ctx, scopedq.ListItemProgressParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {

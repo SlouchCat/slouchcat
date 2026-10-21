@@ -55,6 +55,13 @@ export function LibraryCard({ library, actions }: LibraryCardProps) {
           {library.name}
         </h2>
         <Chip tone="info">{t(`library.kind.${library.kind}`)}</Chip>
+        {library.defaultRating !== undefined && (
+          <Chip tone="outline">
+            {t('admin.libraries.defaultRating', {
+              rating: t('rating.fsk', { age: library.defaultRating }),
+            })}
+          </Chip>
+        )}
       </div>
 
       <div className={styles.state}>
@@ -106,25 +113,30 @@ export function LibraryCard({ library, actions }: LibraryCardProps) {
         </Notice>
       )}
 
-      <div className={styles.roots}>
-        <h3 className={styles.rootsTitle}>{t('admin.libraries.roots')}</h3>
-        <ul className={styles.rootList}>
-          {library.roots.map((root) => (
-            <li key={root.id} className={styles.root}>
-              <code className={styles.path}>{root.path}</code>
-              <span className={styles.rootMeta}>
-                <Chip tone="info">{t('admin.libraries.fsType', { type: root.fsType })}</Chip>
-                {root.warning === 'network_share' && (
-                  <Chip tone="warning" icon="warning">
-                    {t('admin.libraries.warning.network_share')}
-                  </Chip>
-                )}
-                <span className={styles.muted}>{t(watchKeys[root.watch])}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* A podcast library has no folder: its titles come from feeds (M6). */}
+      {library.roots.length === 0 && library.kind === 'podcasts' ? (
+        <p className={styles.muted}>{t('admin.libraries.noRoots')}</p>
+      ) : (
+        <div className={styles.roots}>
+          <h3 className={styles.rootsTitle}>{t('admin.libraries.roots')}</h3>
+          <ul className={styles.rootList}>
+            {library.roots.map((root) => (
+              <li key={root.id} className={styles.root}>
+                <code className={styles.path}>{root.path}</code>
+                <span className={styles.rootMeta}>
+                  <Chip tone="info">{t('admin.libraries.fsType', { type: root.fsType })}</Chip>
+                  {root.warning === 'network_share' && (
+                    <Chip tone="warning" icon="warning">
+                      {t('admin.libraries.warning.network_share')}
+                    </Chip>
+                  )}
+                  <span className={styles.muted}>{t(watchKeys[root.watch])}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className={styles.actions}>{actions}</div>
     </Panel>

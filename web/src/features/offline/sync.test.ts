@@ -437,6 +437,31 @@ describe('server progress of the active profile (W-5, O-5)', () => {
     expect(mergeDownload(local, downloadState(), 1, NOW).serverPositions).toEqual(serverPositions);
   });
 
+  it('stores the server’s speed with the progress and keeps the device’s speeds (H-3, M6)', () => {
+    const playbackRates = { '1': { rate: 1.5, at: 1 }, '2': { rate: 2, at: 2 } };
+    const merged = mergeDownload(
+      storedDownload({ playbackRates }),
+      downloadState({
+        item: {
+          ...alien,
+          progress: { ...progress(45_000, '2026-10-20T12:00:00Z'), playbackRate: 1.25 },
+        },
+      }),
+      1,
+      NOW,
+      { profileId: 2, offsetMs: 0 },
+    );
+    expect(merged.serverPositions).toEqual({
+      '2': {
+        positionMs: 45_000,
+        completed: false,
+        at: Date.parse('2026-10-20T12:00:00Z'),
+        playbackRate: 1.25,
+      },
+    });
+    expect(merged.playbackRates).toEqual(playbackRates);
+  });
+
   it('drops the active profile’s entry when the server has no progress for it', () => {
     const local = storedDownload({
       serverPositions: { '1': { positionMs: 30_000, completed: false, at: 1 } },

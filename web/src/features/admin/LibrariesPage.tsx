@@ -1,4 +1,4 @@
-import type { Library, LibraryRequest } from '@slouchcat/api-client';
+import type { Library, LibraryRequest, Rating } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Form } from 'react-aria-components';
@@ -8,7 +8,14 @@ import { formErrors, problemMessage } from '@/api/errors';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, FormDialog, RadioGroup, TextField } from '@/ui/aria';
+import { ratingOptions, titleRatingOf } from '../shared/choices';
+import {
+  isAudioLibrary,
+  LibraryFields,
+  libraryRequest,
+  type LibraryKind,
+} from '../shared/LibraryFields';
 import { LibraryCard } from './LibraryCard';
 import { isScanning, librariesQuery } from './queries';
 import styles from './LibrariesPage.module.css';
@@ -16,13 +23,15 @@ import styles from './LibrariesPage.module.css';
 function AddLibraryForm() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [kind, setKind] = useState<'movies' | 'series'>('movies');
+  const [kind, setKind] = useState<LibraryKind>('movies');
+  const [rating, setRating] = useState('0');
   const [formKey, setFormKey] = useState(0);
   const create = useMutation({
     mutationFn: (body: LibraryRequest): Promise<Library> =>
       request(api.POST('/admin/libraries', { body })),
     onSuccess: async () => {
       setFormKey((key) => key + 1);
+      setRating('0');
       await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
     },
   });
@@ -32,11 +41,7 @@ function AddLibraryForm() {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    create.mutate({
-      name: formText(data, 'name'),
-      kind,
-      path: formText(data, 'path'),
-    });
+    create.mutate(libraryRequest(formText(data, 'name'), kind, formText(data, 'path'), rating));
   };
   const required = (value: string) => (value.trim() ? null : t('errors.field.required'));
 
@@ -53,28 +58,11 @@ function AddLibraryForm() {
       >
         {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
         <TextField name="name" label={t('setup.library.name')} isRequired validate={required} />
-        <RadioGroup
-          name="kind"
-          label={t('setup.library.kind')}
-          value={kind}
-          onChange={(value) => setKind(value === 'series' ? 'series' : 'movies')}
-          options={[
-            { value: 'movies', label: t('library.kind.movies') },
-            { value: 'series', label: t('library.kind.series') },
-          ]}
-        />
-        <TextField
-          name="path"
-          label={t('setup.library.path')}
-          description={t('setup.library.pathHint')}
-          autoComplete="off"
-          spellCheck="false"
-          mono
-          isRequired
-          validate={(value) => {
-            if (!value.trim()) return t('errors.field.required');
-            return value.trim().startsWith('/') ? null : t('errors.field.not_absolute');
-          }}
+        <LibraryFields
+          kind={kind}
+          onKindChange={setKind}
+          rating={rating}
+          onRatingChange={setRating}
         />
         <div>
           <AriaButton type="submit" variant="primary" icon="plus" isPending={create.isPending}>
@@ -85,6 +73,81 @@ function AddLibraryForm() {
         </div>
       </Form>
     </Panel>
+  );
+}
+
+/**
+ * "Standardstufe ändern" of an audio library (AN-2): every title whose rating comes from the
+ * library follows; titles rated by hand keep theirs (the server decides).
+ */
+function DefaultRatingAction({
+  library,
+  onSaved,
+}: {
+  library: Library;
+  onSaved: (library: Library) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [rating, setRating] = useState(String(library.defaultRating ?? 0));
+  const save = useMutation({
+    mutationFn: (defaultRating: Rating): Promise<Library> =>
+      request(
+        api.PATCH('/admin/libraries/{id}', {
+          params: { path: { id: library.id } },
+          body: { defaultRating },
+        }),
+      ),
+    onSuccess: (updated) => {
+      setOpen(false);
+      onSaved(updated);
+    },
+  });
+  const errors = save.error ? formErrors(t, save.error) : null;
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const value = titleRatingOf(rating);
+    if (value !== undefined) save.mutate(value);
+  };
+  return (
+    <>
+      <AriaButton
+        variant="ghost"
+        aria-label={t('admin.libraries.changeRating.label', { name: library.name })}
+        onPress={() => {
+          setRating(String(library.defaultRating ?? 0));
+          save.reset();
+          setOpen(true);
+        }}
+      >
+        {t('admin.libraries.changeRating.action')}
+      </AriaButton>
+      <FormDialog
+        isOpen={open}
+        onOpenChange={setOpen}
+        title={t('admin.libraries.changeRating.title', { name: library.name })}
+        description={t('admin.libraries.changeRating.description')}
+      >
+        <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
+          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          <RadioGroup
+            name="defaultRating"
+            label={t('library.defaultRating')}
+            value={rating}
+            onChange={setRating}
+            options={ratingOptions(t)}
+          />
+          <div className={styles.actions}>
+            <AriaButton variant="ghost" onPress={() => setOpen(false)}>
+              {t('common.cancel')}
+            </AriaButton>
+            <AriaButton type="submit" variant="primary" isPending={save.isPending}>
+              {t('admin.libraries.changeRating.submit')}
+            </AriaButton>
+          </div>
+        </Form>
+      </FormDialog>
+    </>
   );
 }
 
@@ -117,6 +180,7 @@ export function LibrariesPage() {
     onSuccess: refresh,
   });
   const actionError = scan.error ?? acceptLoss.error ?? cancel.error;
+  const [ratingSaved, setRatingSaved] = useState<Library | null>(null);
 
   return (
     <Page>
@@ -130,6 +194,14 @@ export function LibrariesPage() {
       <div className={styles.layout}>
         <section className={styles.list} aria-busy={libraries.isPending}>
           {actionError && <Notice tone="danger">{problemMessage(t, actionError)}</Notice>}
+          {ratingSaved?.defaultRating !== undefined && (
+            <Notice>
+              {t('admin.libraries.changeRating.saved', {
+                name: ratingSaved.name,
+                rating: t('rating.fsk', { age: ratingSaved.defaultRating }),
+              })}
+            </Notice>
+          )}
           {libraries.isPending && <Skeleton shape="block" />}
           {libraries.isError && (
             <Notice
@@ -165,6 +237,15 @@ export function LibrariesPage() {
                     >
                       {t('admin.libraries.cancel')}
                     </AriaButton>
+                  )}
+                  {isAudioLibrary(library.kind) && (
+                    <DefaultRatingAction
+                      library={library}
+                      onSaved={(updated) => {
+                        setRatingSaved(updated);
+                        void refresh(updated);
+                      }}
+                    />
                   )}
                   {library.scan.state === 'aborted' && library.scan.lastError !== 'cancelled' && (
                     <ConfirmDialog

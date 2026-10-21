@@ -35,6 +35,11 @@ export function AppLayout() {
         current: pathname.startsWith(paths.adminLibraries),
       },
       {
+        href: paths.adminPodcasts,
+        label: t('nav.podcasts'),
+        current: pathname.startsWith(paths.adminPodcasts),
+      },
+      {
         href: paths.adminAccess,
         label: t('nav.access'),
         current: pathname.startsWith(paths.adminAccess),

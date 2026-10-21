@@ -1,0 +1,250 @@
+.player {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background-color: var(--sc-color-bg-base);
+  background-image: radial-gradient(
+    120% 70% at 50% 0%,
+    var(--sc-color-bg-elevated) 0%,
+    var(--sc-color-bg-base) 70%
+  );
+  color: var(--sc-color-text-primary);
+}
+
+.top {
+  display: flex;
+  padding: var(--sc-space-4) var(--page-gutter);
+}
+
+.stage {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-8);
+  align-content: center;
+  justify-items: center;
+  width: 100%;
+  max-width: var(--sc-size-content-max);
+  margin: 0 auto;
+  padding: 0 var(--page-gutter) var(--sc-space-10);
+}
+
+.cover {
+  /* Only this title's accent (inline style) colours the glow, never an inherited one. */
+  --sc-item-accent: initial;
+
+  position: relative;
+  width: min(22rem, 70vw, 42vh);
+  isolation: isolate;
+}
+
+/* The poster card's focus glow, at rest and larger: the title's accent behind the cover. */
+.cover::before {
+  position: absolute;
+  z-index: -1;
+  inset: var(--sc-space-6) var(--sc-space-2) calc(-1 * var(--sc-space-4));
+  border-radius: var(--sc-radius-xl);
+  background-color: var(--sc-item-accent, var(--sc-accent));
+  content: '';
+  filter: blur(var(--sc-space-10)) brightness(1.3) saturate(1.2);
+  opacity: 0.55;
+}
+
+.image {
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--sc-radius-xl);
+  background-color: var(--sc-color-surface-1);
+  object-fit: cover;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  width: 100%;
+  max-width: 36rem;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  text-align: center;
+}
+
+.title {
+  font-size: clamp(var(--sc-font-size-xl), 3.5vw, var(--sc-font-size-3xl));
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  text-wrap: balance;
+}
+
+.byline {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-md);
+}
+
+.chapter {
+  margin-top: var(--sc-space-2);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+/* Seek bar: a generous hit area around a thin track that thickens on hover and focus. */
+.seek {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--sc-space-6);
+  border-radius: var(--sc-radius-sm);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.seek[aria-disabled] {
+  cursor: default;
+}
+
+.seekTrack {
+  position: relative;
+  width: 100%;
+  height: var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-track);
+  transition: height var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.seek:hover .seekTrack,
+.seek:focus-visible .seekTrack,
+.seek[data-dragging] .seekTrack {
+  height: var(--sc-space-2);
+}
+
+.seekPlayed {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  background-color: var(--sc-accent);
+}
+
+.seekThumb {
+  position: absolute;
+  top: 50%;
+  width: var(--sc-space-4);
+  height: var(--sc-space-4);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-text-primary);
+  transform: translate(-50%, -50%) scale(0.75);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.seek:hover .seekThumb,
+.seek:focus-visible .seekThumb,
+.seek[data-dragging] .seekThumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.transport {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  justify-content: center;
+}
+
+.extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
+  justify-content: center;
+}
+
+.group {
+  display: inline-flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+}
+
+.volume {
+  width: 7rem;
+  accent-color: var(--sc-accent);
+  cursor: pointer;
+}
+
+/* Why the playback stopped: centred over the player. */
+.overlay {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  width: min(var(--sc-size-form-max), calc(100% - 2 * var(--page-gutter)));
+  padding: var(--sc-space-6);
+  border-radius: var(--sc-radius-xl);
+  background-color: var(--sc-color-bg-overlay);
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+
+.overlay > p:first-child {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* Confirmation of a key (volume, speed, sleep timer), at the top. */
+.status {
+  position: absolute;
+  z-index: 1;
+  top: var(--sc-space-6);
+  left: 50%;
+  padding: var(--sc-space-2) var(--sc-space-4);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-bg-overlay);
+  font-weight: var(--sc-font-weight-semibold);
+  transform: translateX(-50%);
+}
+
+@media (width >= 900px) {
+  .stage {
+    grid-template-columns: auto minmax(0, 36rem);
+    gap: var(--sc-space-16);
+    justify-content: center;
+  }
+
+  .cover {
+    width: min(26rem, 36vw, 60vh);
+  }
+
+  .heading {
+    text-align: start;
+  }
+
+  .transport,
+  .extras {
+    justify-content: flex-start;
+  }
+}

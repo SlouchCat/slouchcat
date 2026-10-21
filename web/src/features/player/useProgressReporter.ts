@@ -12,9 +12,15 @@ interface ReporterOptions {
   playbackSessionId: string;
   /** Duration from the media file, used until the element knows its own. */
   fallbackDurationMs: number;
-  video: RefObject<HTMLVideoElement | null>;
-  /** False until the <video> element is mounted. */
+  /** The <video> or <audio> element. */
+  video: RefObject<HTMLMediaElement | null>;
+  /** False until the media element is mounted. */
   enabled: boolean;
+  /**
+   * Send the element's speed with every event (audio, H-3): the server keeps it per profile and
+   * title, so a change goes up with the next event.
+   */
+  reportRate?: boolean;
   /** The server's answer to an event (merged progress, today's watch time of K-5). */
   onProgress?: (progress: Progress) => void;
 }
@@ -32,6 +38,7 @@ export function useProgressReporter({
   fallbackDurationMs,
   video,
   enabled,
+  reportRate = false,
   onProgress,
 }: ReporterOptions): void {
   const seq = useRef(1);
@@ -73,6 +80,7 @@ export function useProgressReporter({
         seq: seq.current,
         state,
         clientTime: new Date().toISOString(),
+        ...(reportRate ? { playbackRate: Math.round(element.playbackRate * 100) / 100 } : {}),
       };
       seq.current += 1;
       playedMs.current = 0;
@@ -128,5 +136,5 @@ export function useProgressReporter({
       // Leaving the player: report where the viewer stopped.
       if (!element.ended) send('paused', true);
     };
-  }, [enabled, fallbackDurationMs, itemId, mediaFileId, playbackSessionId, video]);
+  }, [enabled, fallbackDurationMs, itemId, mediaFileId, playbackSessionId, reportRate, video]);
 }

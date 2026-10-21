@@ -3,6 +3,8 @@ import i18n from '@/i18n';
 import {
   formatBytes,
   formatClock,
+  formatDate,
+  formatDuration,
   formatPlayerTime,
   formatRuntime,
   resolutionClass,
@@ -26,6 +28,15 @@ describe('format', () => {
     expect(formatRuntime(t, 45)).toBe('45 min');
     expect(formatRuntime(t, 120)).toBe('2 h');
     expect(formatRuntime(t, 152)).toBe('2 h 32 min');
+  });
+
+  it('formats audio durations and publication dates (M6)', () => {
+    expect(formatDuration(t, 8_000)).toBe('8 s');
+    expect(formatDuration(t, 59_400)).toBe('59 s');
+    expect(formatDuration(t, 60_000)).toBe('1 min');
+    expect(formatDuration(t, 3_900_000)).toBe('1 h 5 min');
+    expect(formatDate('2025-10-13T12:00:00Z', 'de-CH')).toBe('13.10.2025');
+    expect(formatDate('2025-10-13T12:00:00Z', 'en')).toBe('Oct 13, 2025');
   });
 
   it('formats sizes in the profile language', () => {

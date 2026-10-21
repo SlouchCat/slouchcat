@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -81,9 +82,24 @@ func seriesFolderKey(rootID int64, ep *ParsedEpisode) string {
 	return strconv.FormatInt(rootID, 10) + "/\x00" + SortTitle(ep.SeriesTitle)
 }
 
+// titleKindOf is the kind of the titles of a library kind: movie, series or audiobook.
+func titleKindOf(libKind string) string {
+	switch libKind {
+	case model.LibrarySeries:
+		return "series"
+	case model.LibraryAudiobooks:
+		return "audiobook"
+	}
+	return "movie"
+}
+
 // fileFolderKey returns the title folder of a media file of the library kind: the movie folder,
-// or the series folder; "" when there is none or the name does not parse.
+// the series folder, or the book (audioFolderKey); "" when there is none or the name does not
+// parse.
 func fileFolderKey(kind string, rootID int64, rel string, p ParsedName) string {
+	if kind == model.LibraryAudiobooks {
+		return audioFolderKey(rootID, rel)
+	}
 	if kind != "series" {
 		return titleFolderKey(rootID, movieFolder(rel))
 	}
@@ -105,10 +121,7 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 	if err != nil {
 		return nil, fmt.Errorf("list deleted items: %w", err)
 	}
-	titleKind := "movie"
-	if lib.Kind == "series" {
-		titleKind = "series"
-	}
+	titleKind := titleKindOf(lib.Kind)
 	idx := newItemIndex()
 	idx.series = titleKind == "series"
 	add := func(it systemq.Item, isDeleted bool) {

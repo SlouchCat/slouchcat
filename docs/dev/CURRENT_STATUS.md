@@ -1,8 +1,131 @@
 # Aktueller Stand
 
-Stand: 20. Oktober 2026. M0 bis M4 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #6; M4 am 20. Oktober 2026 auf Marcos Wort, Merge-Commit `7b57c52`). **M5 (Offline-Wiedergabe)
-ist auf dem Branch `claude/m5-offline` fertig** und wartet als Pull Request gegen `main` auf Marcos Wort.
+Stand: 21. Oktober 2026. M0 bis M5 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
+Pull Requests #1 bis #6 und #10; M5 am 20. Oktober 2026 auf Marcos Wort, Merge-Commit `e8579ad`). **M6 (Hörbücher
+und Podcasts) ist auf dem Branch `claude/m6-audio` fertig** und wartet als Pull Request gegen `main` auf Marcos Wort.
+
+## Meilenstein M6 – Hörbücher und Podcasts
+
+Vorab geklärt mit Marco (20. Oktober 2026, Entscheidungsprotokoll Frage 9, Teil AN-2): jede Hörbuch- und
+Podcast-Bibliothek trägt eine **Standard-Altersstufe**, einzelne Titel dürfen nur strenger gestellt werden, und
+Podcasts oder Episoden mit `itunes:explicit=true` gelten als **FSK 18**. Der Trakt-Teil (AN-3) bleibt für M7 offen.
+Echte Testdaten liegen schreibgeschützt auf dem NAS (`/mnt/nerdnas/medien/Audiobookshelf/Hörbücher`, 88 M4B in
+Audiobookshelf-Struktur, und `…/Podcast` mit den Feed-URLs von Marcos Abos); die CI nutzt nur einen lokalen Mock-Feed.
+Die Architekturentscheide stehen in ADR 0007 (`docs/adr/0007-audio-modell.md`): ein Hörbuch ist **ein** Titel mit
+geordneten Teilen auf einer buchweiten Zeitachse, Kapitel liegen in einer eigenen Tabelle, mehrteilige Bücher streamen
+immer als HLS über eine Concat-Quelle, Podcasts sind Feed-Container, deren Episoden über den Server gestreamt und
+geladen werden, und es gibt kein Paket `audio` mit Datenbankzugriff (Regel 2 unverändert; reines Paket `feed`).
+Der Entwurf liegt in den Sitzungsnotizen (`m6-design.md`, Abschnitt 6 mit den Abweichungen). Die Umsetzung lief wie
+in M5 mit drei Executor-Agenten (Opus) in Scratchpad-Kopien (A Hörbücher, B Podcasts und Offline-Audio, C Web) auf
+einer gemeinsamen Basis (Migration 00014, Vertrag 0.7.0 mit 81 Operationen, Modelltypen, Stubs); danach zwei
+Review-Agenten und zwei Korrektur-Agenten. Commits mit Bereich im Titel:
+
+| Schritt | Commit | Inhalt |
+|---|---|---|
+| Vorab | `docs(decisions)` `81b6f5e`, `test(testdata)` `644e563` | Antwort auf Frage 9 (AN-2); Testmedien: M4B mit 12 Kapitelmarken und eingebettetem Cover, MP3-Ordner mit 10 Teilen und `cover.jpg`, drei Podcast-Episoden und `testdata/podcasts/feed.xml.tmpl` (Episode 3 explicit) |
+| Basis | `feat(api,store,model)` `6c485e3`, `docs(adr)` `181abe9` | Vertrag 0.7.0 (Bibliotheksarten `audiobooks`/`podcasts` mit `defaultRating`, `updateLibrary`, `listPodcasts`, `createPodcast`, `deletePodcast`, `refreshPodcast`, `listPodcastEpisodes`, Audio-Felder an `ItemRef`/`ItemDetail`, `PlaybackInfo.mediaKind`/`parts`, `playbackRate`, Kapitel im Manifest); Migration 00014 (`libraries` und `downloads` neu aufgebaut, Audio-Spalten an `items`, `media_files.part_index`, `chapters`, `progress.playback_rate`, Trigger für Episoden); ADR 0007 |
+| 1 Hörbücher | `feat(library,transcode,playback,metadata)` `2f277e6` | Scanner für Audio (M4B je Buch, Ordner als Buch mit Teilen), Metadaten aus `metadata.json` > Tags > Ordnernamen, buchweite Kapitel nach der Probe aller Teile, Cover aus Ordnerbild oder eingebettetem Bild, Tags und Cover-Extraktion in `transcode`, Concat-Quellen, Audio-Pipeline mit echtem ffmpeg geprüft, Decide für Audio (Direct Play für AAC/MP3-Einzeldateien, sonst Audio-HLS; mehrteilig immer HLS), Audio-MIME-Typen, Geschwindigkeit je Profil und Titel |
+| 2 Podcasts, Offline-Audio | `feat(metadata,offline,admin,playback,api)` `c585e0b` | Paket `feed` (RSS 2.0 mit iTunes-Namensraum), Abonnieren mit synchronem Erstabruf, Job `podcast.fetch` mit bedingtem GET, Poller, Episoden nach GUID, explicit → 18, Enclosure-Proxy mit `Range`, `updateLibrary` (Standardstufe zieht Titel mit Quelle `library` nach), Stufe unter dem Standard → 422, Admin-Abos, `listPodcastEpisodes`, Audio-Downloads (Buch über alle Teile, Episode aus der Enclosure in den Cache), Manifest mit Kapiteln und `audio/mp4`, Auto-Download neuer Episoden gehörter Podcasts, Vertragsfixture mit Hörbüchern, Mehrteiler, Podcast mit explicit- und Enclosure-only-Episode |
+| 3 Web | `feat(web)` `866a452`, `test(web)` `7f80e72` | Audio-Player im Design-System (`ui/AudioPlayer`, Kapitel, Geschwindigkeit 0.5–3.0, Sleep-Timer, Tastatur), Detailseiten Hörbuch/Podcast/Episode, quadratische Cover, Bibliotheksformulare mit vier Arten und Standardstufe, `/admin/podcasts`, Offline-Audio (Manifest mit Kapiteln, Rate lokal), Mock-Feed-Server und sechs neue Playwright-Specs; Screenshot-Baselines |
+| DB-Stand | `test(store,testdata)` `a4f423b` | `testdata/db/M6.sql`, `TestFrozenM6StateCoversM6Data` |
+| Review-Korrekturen | `fix(web)` `ad3f892`, `fix(web)` `c2d890a`, `fix(metadata,offline,playback,transcode,library,admin)` `1362e1a` | siehe unten |
+
+### Definition of Done (Plan M6 plus 6.2) mit Belegen
+
+| Kriterium | Ergebnis | Beleg |
+|---|---|---|
+| H-1 M4B mit 12 Kapiteln und Ordner mit 10 MP3: Kapitelzahl exakt, Start ±1 s; Autor, Sprecher, Cover | PASS: Fixture-Scan liefert 12 bzw. 10 Kapitel mit Start ±1 s, Autor/Sprecher/Reihe/Band, Cover eingebettet bzw. aus dem Ordner; Detailseite zeigt Autor, Sprecher und Cover; echte Sammlung: 88 Bücher, 10 025 Kapitel, Kapitelzahl bei allen 88 identisch mit Audiobookshelf (zweimal gemessen, zuletzt auf `0c1a0f1`; das längste Buch mit 544 Kapiteln bleibt vollständig) | `go test ./internal/library -run TestScanAudiobookFixtures`, `web/e2e/audiobook.spec.ts`, `docs/perf/M6.md` 1 |
+| H-2 lokaler Feed-Server: neue Episode erscheint < 65 min | PASS: Abruf alle 55 min (Poller mit Fake-Uhr), bedingtes GET, Mock-Feed in Playwright (Episoden 1–2, Kontrollendpunkt auf 3, «Jetzt abrufen» → Episode 3 erscheint); echte Feeds SRF «Echo der Zeit» und «Bad Friends» in 0.21 bzw. 0.25 s abonniert | `go test ./internal/metadata -run 'TestQueueDuePodcasts|TestFetchPodcast'`, `web/e2e/podcast.spec.ts`, `docs/perf/M6.md` 2 |
+| H-3 Fortschritt mitten im Kapitel geräteübergreifend ±2 s; Geschwindigkeit 0.5–3.0 je Titel gespeichert | PASS: Position aus dem zweiten Browserkontext ±2 s, Geschwindigkeit 2.0 nach Neuladen und im zweiten Kontext; offline je Profil gespeichert und beim Abgleich mit dem Serverwert zusammengeführt | `web/e2e/audiobook.spec.ts`, `go test ./internal/playback -run TestReportPlaybackRate`, `OfflinePlayer.test.tsx` |
+| H-4 Vertragstest 10.2 mit Hörbuch- und Podcast-Operationen; Audio-Download trägt `allowed_profile_ids` | PASS: 81 Operationen (admin 33, scoped 25, account 15, public 8); explicit-Episode und explicit-Podcast (Kanal `itunes:explicit`, Episode erbt 18) für P12/P16 unsichtbar und per ID 404 (Detail, Play, Stream, Episodenliste, Download-Optionen, Downloads, Bilder), Abos nur für das Hauptprofil des Hauptkontos; `allowed_profile_ids` auf Audio-Downloads | `go test ./internal/api -run 'TestContractCoversEveryOperation|TestContractChildProfiles|TestContractAudio'` |
+| O-1 (Audio) Hörbuch und Episode in 3 Stufen, Grösse ±10 % der Schätzung | PASS: Hörbuch (AAC-Kopie in allen Stufen) −4.0 %, Episode high/medium/low −0.6/+1.1/+2.6 % in Chromium und Firefox | `web/e2e/audio-download.spec.ts`, `docs/perf/M6.md` 3 |
+| O-3 (Podcast) neue Episode lädt automatisch; Max.-Anzahl | PASS Desktop: Regel «Neue Episoden gehörter Podcasts», Fortschritt auf Episode 2, Feed auf 3 → Sync legt Episode 3 an, Episode 1 nicht; «nur WLAN» und Android wie in M5 ausstehend | `web/e2e/podcast-auto-download.spec.ts`, `go test ./internal/offline -run TestPodcastAutoDownloads` |
+| Flugmodus-Test (DoD): geladenes Hörbuch mit Kapitelsprung, Chromium und Firefox | PASS: Download, Flugmodus, Wiedergabe, Shift+→ und Kapitelmenü (Ziel −0.5/+2 s, die Spec prüft die Position nach dem Sprung im laufenden Element), Fortschritt nach Wiederverbindung im zweiten Kontext ±10 s | `web/e2e/audio-offline.spec.ts` (beide Projekte) |
+| Feed-Abruf gegen lokalen Test-Feed, kein Netz in CI | PASS: Go über `httptest`, Playwright über `web/e2e/feed-server.mjs` (Port App-Port − 2); private und Loopback-Ziele nur für Feeds, deren Host selbst lokal ist (`netguard`) | `go test ./internal/feed ./internal/netguard ./internal/metadata` |
+| Tastaturtest je neue Seite (6.2 Pkt. 3) | PASS: Hörbuch-Detail, Podcast-Detail, Episoden-Detail, Audio-Player (online und offline), `/admin/podcasts` (Abo-Dialog, Pfeiltasten zwischen den Zeilen, Zurück), Bibliotheksformular mit Audio-Arten und Standardstufe (`/admin/libraries` und Assistent `/setup`) | `audiobook.spec.ts`, `podcast.spec.ts`, `admin-podcasts.spec.ts`, `admin-libraries.spec.ts`, `setup.spec.ts`, `audio-offline.spec.ts` |
+| Eingefrorener DB-Stand (6.2 Pkt. 4) | `testdata/db/M6.sql`; alle Stände M1a bis M6 migrieren bis 00014; 00014 gegen M5.sql geprüft (Bibliotheken, Downloads, Grabsteine, Trigger) | `go test ./internal/store -run 'TestFrozen|TestMigration00014'` |
+| Messwerte (6.2 Pkt. 5) | `docs/perf/M6.md` (Scan der echten Sammlung, echte Feeds und Proxy, O-1-Grössen, Gerätecheckliste) | |
+| `task ci` grün (6.2 Pkt. 2) | exit 0 (21. Oktober 2026, Stand `9abd7f3`): gen, gen:check, lint 0 issues (golangci-lint, itemsaccess, vet, eslint, stylelint, tsc, prettier), Go `-race` alle 24 Pakete inkl. `feed` und `netguard`, Vitest 414 (+ 4 + 2), Build, Playwright 292 von 292 in Chromium und Firefox, Storybook 115 Screenshots plus ein Abdeckungstest unverändert. Vorher zwei Läufe mit exit 1: `watch-limit` Firefox einmal rot (M4-Test, sofortige Wiederholung grün) und Startseiten-Specs, die einen Titel aus der vollen 20er-Reihe «Neu hinzugefügt» erwarteten (behoben in `9abd7f3`: das E2E-Setup scannt die Audio-Bibliotheken vor den Video-Bibliotheken) | `task ci`-Protokolle `task-ci-3.log` bis `task-ci-6.log` im Scratchpad der Session |
+| Verifier-Agent (6.2 Pkt. 6) | «DoD bestätigt mit Ausnahmen» (Android/Apple ausstehend, `task ci` damals ohne exit 0, Tastaturtests Bibliotheksformular und Podcast-Tabelle, Kapitelgrenze 500 kappte ein echtes Buch, kein HLS-Test des MP3-Buchs); alle Code-Ausnahmen danach behoben (`0c1a0f1`, `9abd7f3`: Grenze 5000 mit Test für 544 Kapitel, explicit-Podcast in der Vertragsfixture, Tastaturtests `/admin/libraries`, `/setup`, `/admin/podcasts`, MP3-Buch über HLS über eine Dateigrenze), Messung der echten Sammlung und der Feeds auf `0c1a0f1` wiederholt, Doku korrigiert | Sitzungsnotizen `m6-verifier.md` |
+| Code-Review | Server 27 Befunde (0 kritisch, 4 wichtig, 12 klein, 11 Nits, 1 offene Frage), Web 25 Befunde (0 kritisch, 2 wichtig, 11 klein, 12 Nits); alle wichtigen und kleinen behoben, Nits teils (siehe unten) | Sitzungsnotizen `m6-review-server.md`, `m6-review-web.md`, `m6-fix-server-notes.md`, `m6-fix-web-notes.md` |
+
+### Befunde der Review-Passage und ihre Behebung
+
+- **Server (wichtig):** der Enclosure-Proxy reichte den Content-Type des Podcast-Hosts ungeprüft durch (jetzt nur
+  `audio/*` und `video/mp4`, sonst Feed-Typ oder `application/octet-stream`, mit `nosniff` und CSP-Sandbox);
+  Tokens privater Feeds konnten über `*url.Error` ins Log (Redaction um `auth`, `token`, `access_token`, `secret`,
+  `sig`, `signature` erweitert, Abruffehler nennen nur Schema und Host); ein Teil mit Probe-Fehler machte ein
+  mehrteiliges Buch unspielbar und liess den Download ewig warten (Teile mit `probe_error` fehlen jetzt in Kapiteln,
+  Wiedergabe und Download gleichermassen, ein Download mit kaputter Datei scheitert sofort); der Concat-Weg setzte
+  gleiche Stream-Struktur aller Teile voraus (heterogene Teile laufen über den `concat`-Filter mit fester Abtastrate,
+  nie als Kopie; Test mit zwei Teilen verschiedener Stream-Reihenfolge und Abtastrate). Offene Frage SSRF entschieden:
+  Feed-, Enclosure- und Cover-Abrufe verweigern private, Loopback- und Link-Local-Ziele nach der Namensauflösung,
+  ausser der Host der Feed-URL ist selbst eine solche Adresse (neues reines Paket `netguard`, ADR 0007); diese Clients
+  ignorieren `HTTP(S)_PROXY`.
+- **Server (klein):** gesperrte Felder überleben Feed-Updates; partieller Unique-Index gegen doppelte Abos; der
+  Download liest die aktuelle Enclosure-URL; Fortsetzen prüft `Content-Range` und `If-Range` (`Accept-Encoding:
+  identity`); Audio-Schätzung aus Buchdauer und Enclosure-Codec; eine Episode, die explicit wird, beendet offene
+  Streams; der `media_files_update`-Trigger behält die Enclosure-Verfügbarkeit; eine höhere Standardstufe hebt
+  manuelle Stufen darunter auf den Standard; Feed-Batches 150 Episoden, höchstens 500 Kapitel je Buch; Feed-Felder
+  begrenzt (500 bzw. 2048 Zeichen); Episoden-Cover nur, wenn es vom Kanalbild abweicht (neue Episoden, höchstens 50 je
+  Abruf); Tests für Redirects, Body-Limit, fremde Header, explicit-Episode auf laufendem Token, Enclosure-Download.
+  Nits: US-Zeitzonen im `pubDate`, Feed-Intervall 55 min, Audio-Encode unter dem Bandbreitenlimit, Kapitel auf die
+  Teildauer geklemmt (gemeinsame Funktion für Concat und Scanner), englische Textzeile für Hörbücher, Ordnerbild
+  mit `?` im Namen; fünf statt vier Redirects. Nicht umgesetzt: lokalisierte Kapiteltitel («Kapitel n» steht in der
+  Datenbank), gemeinsame `abortOnRevoke`-Hilfe.
+- **Web (wichtig):** `[` und `]` funktionieren mit AltGr (Windows/Linux) und Option (macOS); die
+  Offline-Geschwindigkeit liegt je Profil und wird beim Abgleich mit dem Serverwert zusammengeführt (der neuere
+  gewinnt).
+- **Web (klein):** Sleep-Timer «Ende des Kapitels» stoppt genau am Kapitelende (eigener Timer, folgt Sprüngen);
+  eine spät eintreffende Server-Rate wird still übernommen; `?at=` verschwindet nach dem Start aus der URL und umgeht
+  die 5-s-Schlussregel; Audio-Fähigkeiten nach dem MIME-Typ des Containers; «Mehr laden» bleibt fokussierbar und
+  bietet «Erneut versuchen»; Feed-Fehlercodes in der Admin-Tabelle übersetzt; Seekbar mit Slider-Tasten; neue
+  Tastaturtests für Hörbuch-Detail und Episoden-Detail; Escape wartet auf das Menü; Hörbuch-IDs aus dem Setup
+  statt aus der Startseitenreihe; Feed-Port aus dem App-Port. Nits: unbenutzte Schlüssel entfernt, Band als Zahl der
+  Sprache, «AAC kopiert» im Download-Dialog, «Ende des Titels» ohne Kapitel.
+- **Beim Zusammenführen gefunden:** ein Menü, das innerhalb seiner 240-ms-Einblendung geschlossen wird (schnelle
+  Tastaturwahl), blieb in Chromium montiert und fokussierbar, weil react-aria auf die abgebrochene Animation des
+  Popover-Elements wartet; die Einblendung liegt jetzt auf dem inneren Menü (`ad3f892`). Firefox setzt die
+  Tab-Reihenfolge nach `blur()` beim zuletzt fokussierten Element fort (Tab-Läufe starten von einer frischen Seite);
+  liegengebliebene Test-Podcasts verdrängten ältere Titel aus der 20er-Reihe «Neu hinzugefügt» (das `owner`-Fixture
+  räumt sie vor und nach jeder Spec weg); der Abo-Dialog blockierte in Firefox nach einem Serverfehler (Fehler wird
+  bei Änderung der Adresse zurückgesetzt).
+
+### Abweichungen und Entscheide während M6
+
+- **Qualitätsstufe `auto` statt `audio`:** `Quality` und der CHECK von `playback_sessions.quality` kennen kein
+  `audio`; der Audio-Player zeigt kein Qualitätsmenü.
+- **AAC-Kopie in jeder Stufe:** eine AAC-Quelle innerhalb 1.1× der Stufe wird kopiert (`copy`, Dialog «AAC kopiert»);
+  das 64-kbit/s-Fixture-M4B ergibt deshalb drei gleiche Dateien, die MP3-Episode wird in jeder Stufe encodiert; die
+  Vertragsfixture trägt 256 kbit/s, damit alle Stufen encodieren.
+- **Gruppierung:** jedes `.m4b` ist ein Buch, auch im gemischten Ordner; lose Dateien in der Wurzel je ein Buch;
+  `metadata.json` und Ordnerbild zählen nur, wenn der Ordner dem Buch gehört; mehrteiliges Buch ohne Transcoder → 404.
+- **«Gehörter Podcast» für O-3:** Fortschritt des Profils in den letzten 60 Tagen (Favoriten kommen in M7).
+- **Episodentexte in `de` und `en`;** Aufheben einer manuellen Stufe stellt den Bibliotheksstandard her.
+- **Web:** Standardstufe und Podcast-Bibliothek als RadioGroup (kein Select im Design-System); `/play/$itemId?at=`
+  für Kapitel-Links; Feed-URL in der Admin-Tabelle; Mock-Feed-Server mit Präfix `/f/<key>/` je Spec; die
+  Downloads-Tabelle zeigt keine Cover.
+- **`testdata/db/M6.sql`** wurde nach der Review-Korrektur der Migration 00014 (Unique-Index, Trigger) von Hand
+  nachgeführt; `TestFrozenStatesMigrate` und `TestFrozenM6StateCoversM6Data` sind grün.
+
+### Nicht in M6 (Plan) und offene Punkte für M7
+
+1. Android (Marco, nach dem Merge und dem neuen Image): Gerätecheckliste in `docs/perf/M6.md` 5 (Hörbuch direkt
+   und über HLS, Episode über den Proxy, Flugmodus mit Kapitelsprung, Auto-Download mit «nur WLAN»); dazu die
+   offenen Android-Punkte aus M5.
+2. Trakt-Teil von Frage 9 (AN-3) vor M7; Favoriten (E-5) lösen dann den Fortschritts-Ersatz für «abonnierte
+   Podcasts» (O-3) ab; Suche über Autor und Sprecher (FTS, E-4).
+3. Kapiteltitel «Kapitel n»/«Teil n» liegen deutsch in der Datenbank (Lokalisierung bräuchte ein Vertragsfeld);
+   OPF-Dateien und Atom-Feeds werden nicht gelesen; Podcast-Suche (Apple, Podcast Index) und lokale Podcast-Ordner
+   (Audiobookshelf-Downloads) sind Ideen für später.
+4. Dialog-Overlay: dieselbe react-aria-Konstellation wie beim Menü (Einblendung auf dem Overlay-Element) ist latent
+   vorhanden; bisher ohne Befund in den Tests.
+5. Guarded HTTP-Clients ignorieren `HTTP(S)_PROXY`; ein Proxy für Feeds wäre eine spätere Einstellung (M8).
+6. Weiter offen aus M5: Grabsteine ohne Konto-ID, `checkOfflineRevocations` ohne Ratenbegrenzung, CBR auf
+   Hardware-Encodern nur über Argumente geprüft, Tab-Neuladen nach Datenbank-Upgrade, 5-min-Wartezeit nach
+   «Speicher voll»; aus M4: `AdminDevice.current`, Abspann-Erkennung, Einbrennen eingebetteter Textspuren, libass-
+   Schriften, Audio-Bitrate in der Probe, CSP.
+
 
 ## Meilenstein M5 – Offline-Wiedergabe
 

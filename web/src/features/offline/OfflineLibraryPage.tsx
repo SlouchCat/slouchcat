@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
-import { episodeCode } from '@/features/catalog/labels';
+import { episodeCode, isAudioKind } from '@/features/catalog/labels';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useOnline } from '@/lib/useOnline';
@@ -45,6 +45,7 @@ function captionOf(t: TFunction, download: StoredDownload): string | undefined {
       ? t('item.episodeOf', { code, series: item.seriesTitle })
       : code;
   }
+  if (isAudioKind(item.kind) && item.author) return item.author;
   return item.year ? String(item.year) : undefined;
 }
 
@@ -217,6 +218,7 @@ function DownloadCard({ download, focusKey }: { download: StoredDownload; focusK
       caption={captionOf(t, download)}
       posterUrl={poster}
       accent={download.item?.accent}
+      shape={download.item && isAudioKind(download.item.kind) ? 'square' : 'poster'}
       eager
     />
   );

@@ -56,6 +56,12 @@
   opacity: 0.18;
 }
 
+/* Audiobooks and podcasts: a square cover, glow and frame alike (M6). */
+.square::before,
+.square .frame {
+  aspect-ratio: 1 / 1;
+}
+
 .image {
   position: relative;
   width: 100%;

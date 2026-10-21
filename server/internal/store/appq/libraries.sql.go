@@ -25,7 +25,7 @@ func (q *Queries) AcceptLibraryLoss(ctx context.Context, arg AcceptLibraryLossPa
 }
 
 const getLibrary = `-- name: GetLibrary :one
-SELECT id, name, kind, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at FROM libraries WHERE id = ?1
+SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at FROM libraries WHERE id = ?1
 `
 
 func (q *Queries) GetLibrary(ctx context.Context, id int64) (Library, error) {
@@ -35,6 +35,7 @@ func (q *Queries) GetLibrary(ctx context.Context, id int64) (Library, error) {
 		&i.ID,
 		&i.Name,
 		&i.Kind,
+		&i.DefaultRating,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastScanState,
@@ -68,25 +69,33 @@ func (q *Queries) GetLibraryRoot(ctx context.Context, id int64) (LibraryRoot, er
 
 const insertLibrary = `-- name: InsertLibrary :one
 
-INSERT INTO libraries (name, kind, created_at, updated_at) VALUES (?1, ?2, ?3, ?3)
-RETURNING id, name, kind, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at
+INSERT INTO libraries (name, kind, default_rating, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?4)
+RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at
 `
 
 type InsertLibraryParams struct {
-	Name string
-	Kind string
-	Now  int64
+	Name          string
+	Kind          string
+	DefaultRating sql.NullInt64
+	Now           int64
 }
 
 // Libraries and their roots (package store/appq). Owner: admin (CRUD) and library (scan state).
 // Times are Unix milliseconds.
 func (q *Queries) InsertLibrary(ctx context.Context, arg InsertLibraryParams) (Library, error) {
-	row := q.db.QueryRowContext(ctx, insertLibrary, arg.Name, arg.Kind, arg.Now)
+	row := q.db.QueryRowContext(ctx, insertLibrary,
+		arg.Name,
+		arg.Kind,
+		arg.DefaultRating,
+		arg.Now,
+	)
 	var i Library
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Kind,
+		&i.DefaultRating,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastScanState,
@@ -169,7 +178,7 @@ func (q *Queries) ListAllLibraryRoots(ctx context.Context) ([]LibraryRoot, error
 }
 
 const listLibraries = `-- name: ListLibraries :many
-SELECT id, name, kind, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at FROM libraries ORDER BY id
+SELECT id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at FROM libraries ORDER BY id
 `
 
 func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
@@ -185,6 +194,7 @@ func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 			&i.ID,
 			&i.Name,
 			&i.Kind,
+			&i.DefaultRating,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastScanState,
@@ -261,4 +271,42 @@ func (q *Queries) SetLibraryScanProgress(ctx context.Context, arg SetLibraryScan
 		arg.ID,
 	)
 	return err
+}
+
+const updateLibrarySettings = `-- name: UpdateLibrarySettings :one
+UPDATE libraries SET name = ?1, default_rating = ?2, updated_at = ?3 WHERE id = ?4
+RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at
+`
+
+type UpdateLibrarySettingsParams struct {
+	Name          string
+	DefaultRating sql.NullInt64
+	Now           int64
+	ID            int64
+}
+
+func (q *Queries) UpdateLibrarySettings(ctx context.Context, arg UpdateLibrarySettingsParams) (Library, error) {
+	row := q.db.QueryRowContext(ctx, updateLibrarySettings,
+		arg.Name,
+		arg.DefaultRating,
+		arg.Now,
+		arg.ID,
+	)
+	var i Library
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.DefaultRating,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastScanState,
+		&i.LastScanStartedAt,
+		&i.LastScanFinishedAt,
+		&i.LastScanError,
+		&i.ScanFilesSeen,
+		&i.ScanFilesTotal,
+		&i.LossAcceptedAt,
+	)
+	return i, err
 }

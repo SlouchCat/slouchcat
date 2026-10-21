@@ -57,6 +57,22 @@ test('arrow keys switch the library kind', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Serien' }));
   await expect(page.getByRole('radio', { name: 'Serien' })).toBeChecked();
+  // M6: audiobooks bring the default age rating; podcasts drop the folder.
+  const rating = page.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
+  await expect(rating).toHaveCount(0);
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Hörbücher' }));
+  await expect(rating).toBeVisible();
+  await expect(page.getByLabel('Ordner', { exact: true })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Podcasts' }));
+  await expect(page.getByLabel('Ordner', { exact: true })).toHaveCount(0);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 0' }));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
+  await expectVisibleFocus(page);
+  await expectNoFocusTrap(page);
 });
 
 test('Enter submits; errors appear inline and the form stays usable', async ({ page }) => {

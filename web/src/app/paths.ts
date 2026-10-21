@@ -24,6 +24,10 @@ export const paths = {
   /** The player; `file` picks a version (media file) of the title (B-5). */
   play: (id: string, file?: string) =>
     `/play/${encodeURIComponent(id)}${file ? `?file=${encodeURIComponent(file)}` : ''}`,
+  /** The player from a position (ms): a chapter of an audiobook (M6). */
+  playAt: (id: string, positionMs: number) =>
+    `/play/${encodeURIComponent(id)}?at=${Math.max(0, Math.round(positionMs))}`,
+  adminPodcasts: '/admin/podcasts',
   person: (id: number) => `/people/${id}`,
   adminItem: (id: string) => `/admin/items/${encodeURIComponent(id)}`,
   invite: (token: string) => `/invite/${encodeURIComponent(token)}`,

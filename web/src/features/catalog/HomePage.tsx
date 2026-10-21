@@ -25,6 +25,7 @@ import {
   type HeroSlide,
 } from '@/ui';
 import { ItemMeta } from './ItemMeta';
+import { isAudioKind } from './labels';
 import { homeQuery } from './queries';
 import styles from './HomePage.module.css';
 
@@ -49,6 +50,8 @@ function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefi
     );
     return t('home.remaining', { time: formatRuntime(t, minutes) });
   }
+  // An audiobook or a podcast is known by its author more than by its year (M6).
+  if (isAudioKind(item.kind) && item.author) return item.author;
   return item.year !== undefined ? String(item.year) : undefined;
 }
 
@@ -166,11 +169,12 @@ export function HomePage() {
                     accent={item.accent}
                     eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
                     deferImage={heroHasArt && !heroShown}
+                    shape={isAudioKind(item.kind) ? 'square' : 'poster'}
                     progress={
                       row.key === 'continue' && item.progress
                         ? {
                             percent: item.progress.percent,
-                            label: t('item.watched', {
+                            label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
                               percent: Math.round(item.progress.percent),
                             }),
                           }

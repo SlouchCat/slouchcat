@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -129,6 +130,21 @@ type AdminService interface {
 	ListStreams(ctx context.Context) ([]model.AdminStream, error)
 	// StopStream ends a running playback session (model.ErrNotFound for an unknown or ended one).
 	StopStream(ctx context.Context, id string) error
+
+	// M6 (design 3.4): library settings and podcast subscriptions.
+
+	// UpdateLibrary renames a library or sets the default rating of an audio library; titles rated
+	// by the library follow (model.ErrNotFound, *model.ValidationError).
+	UpdateLibrary(ctx context.Context, id int64, upd model.LibraryUpdate) (model.Library, error)
+	// ListPodcasts returns every podcast subscription, newest first.
+	ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error)
+	// CreatePodcast subscribes a podcast library to a feed after one fetch (*model.ValidationError,
+	// model.ErrFeedExists, model.ErrFeedUnreachable, model.ErrFeedInvalid).
+	CreatePodcast(ctx context.Context, req model.PodcastCreate) (model.AdminPodcast, error)
+	// DeletePodcast soft-deletes a subscription with its episodes (model.ErrNotFound).
+	DeletePodcast(ctx context.Context, id string) error
+	// RefreshPodcast queues the fetch of a subscription now (model.ErrNotFound).
+	RefreshPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer
@@ -145,6 +161,9 @@ type CatalogService interface {
 	// Person returns a person with the credits on visible titles; model.ErrNotFound when the person
 	// is unknown or has no visible credit.
 	Person(ctx context.Context, profile model.Profile, personID int64) (model.Person, error)
+	// PodcastEpisodes returns one page of the visible episodes of a visible podcast, newest first,
+	// and their total (M6); model.ErrNotFound for an invisible title or one that is no podcast.
+	PodcastEpisodes(ctx context.Context, profile model.Profile, podcastID string, offset, limit int) ([]model.ItemSummary, int, error)
 }
 
 // PlaybackService decides playback, issues and checks stream tokens and records progress
@@ -158,6 +177,10 @@ type PlaybackService interface {
 	// Authorize resolves a stream token; model.ErrUnauthenticated when it is missing, forged,
 	// revoked or expired.
 	Authorize(ctx context.Context, token string) (model.PlaybackGrant, error)
+	// ProxyEnclosure answers the stream of a direct-play grant without media file (a podcast episode,
+	// M6) from the enclosure with Range pass-through after re-checking visibility; errors before the
+	// response started: model.ErrNotFound, model.ErrEnclosureUnavailable.
+	ProxyEnclosure(ctx context.Context, g model.PlaybackGrant, w http.ResponseWriter, r *http.Request) error
 	// OpenGrant opens the media file of a direct-play grant through the paths package after
 	// re-checking visibility (model.ErrNotFound otherwise). When the File has a method
 	// Done() <-chan struct{}, a close of that channel means the playback was revoked: the

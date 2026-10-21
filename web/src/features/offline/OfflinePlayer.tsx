@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { languageName, trackLabel } from '@/features/player/labels';
 import { SeekBar } from '@/features/player/SeekBar';
+import { useAudioControls } from '@/features/player/useAudioControls';
 import { formatPlayerTime } from '@/lib/format';
-import { AriaButton, MenuButton } from '@/ui/aria';
+import { AriaButton, AudioPlayer, MenuButton } from '@/ui/aria';
 import { offlineLoader } from './loader';
 import { readFile, subtitleFile } from './opfs';
-import { recordPlayback, type OfflinePlayback, type PlaybackSample } from './playback';
+import { recordPlayback, storeRate, type OfflinePlayback, type PlaybackSample } from './playback';
 import { buildPlaylist } from './playlist';
 import type { DownloadManifest, StoredWatchTime } from './types';
 import { remainingMs } from './watchTime';
@@ -18,6 +19,8 @@ import styles from '@/features/player/Player.module.css';
 // blob URL. Subtitles are <track> elements of the stored WebVTT files with a local menu. Progress
 // goes into the event queue (O-5); the offline watch time stops playback at 0 (AN-18), also
 // when the device is online: this player knows no server stop (decision of 2026-10-20, K12).
+// An audio download (manifest `audio/*`, M6) plays in an <audio> element behind the AudioPlayer,
+// with the chapters of the manifest and its speed kept per profile on the download.
 
 /** Interval of `playing` events, as online (useProgressReporter). */
 export const OFFLINE_PROGRESS_MS = 10_000;
@@ -48,6 +51,12 @@ interface OfflinePlayerProps {
   /** Server time minus device time of the last sync. */
   serverOffsetMs: number;
   onBack: () => void;
+  /** Audio downloads: the stored cover, the author or podcast, the title's accent. */
+  coverUrl?: string;
+  byline?: string;
+  accent?: string;
+  /** Audio downloads: the profile's speed to start with (resumeRate). */
+  initialRate?: number;
 }
 
 const isActivatable = (target: EventTarget | null) =>
@@ -104,9 +113,15 @@ export function OfflinePlayer({
   watch,
   serverOffsetMs,
   onBack,
+  coverUrl,
+  byline,
+  accent,
+  initialRate = 1,
 }: OfflinePlayerProps) {
   const { t, i18n } = useTranslation();
-  const video = useRef<HTMLVideoElement>(null);
+  const audio = manifest.mimeType.startsWith('audio/');
+  // The <video> element, or the <audio> element of an audio download.
+  const video = useRef<HTMLMediaElement>(null);
   const hideTimer = useRef<number | undefined>(undefined);
   const osdTimer = useRef<number | undefined>(undefined);
   const [openedAt] = useState(() => performance.now());
@@ -163,7 +178,7 @@ export function OfflinePlayer({
   const seq = useRef(1);
   const sendEvent = useCallback(
     // `target`: the element the caller captured; while the player unmounts the ref is null (W6).
-    (state: PlaybackSample['state'], target?: HTMLVideoElement) => {
+    (state: PlaybackSample['state'], target?: HTMLMediaElement) => {
       const element = target ?? video.current;
       if (!element || startMs === null) return;
       const running = playedSince.current !== null;
@@ -178,6 +193,7 @@ export function OfflinePlayer({
         playedMs: played,
         seq: seq.current,
         state,
+        ...(audio ? { playbackRate: Math.round(element.playbackRate * 100) / 100 } : {}),
       };
       seq.current += 1;
       void recordPlayback(playback, sample).then(
@@ -187,7 +203,7 @@ export function OfflinePlayer({
         () => undefined,
       );
     },
-    [durationMs, playback, startMs, stopClock],
+    [audio, durationMs, playback, startMs, stopClock],
   );
   const sendLater = useRef(sendEvent);
   useEffect(() => {
@@ -199,7 +215,7 @@ export function OfflinePlayer({
    * context menu, picture-in-picture, W5): hls.js stops and lets go of the element, the blob
    * fallback loses its source, and the media session offers no play.
    */
-  const release = useCallback((element: HTMLVideoElement | null) => {
+  const release = useCallback((element: HTMLMediaElement | null) => {
     if (element && frozenAt.current === null) {
       frozenAt.current = element.currentTime - offset.current;
     }
@@ -395,8 +411,30 @@ export function OfflinePlayer({
   );
 
   // Keys as in the main player: Space/Enter/K play-pause, ←/→ ±10 s, ↑/↓ volume, F full screen,
-  // T subtitles, Escape/Backspace back.
+  // T subtitles, Escape/Backspace back. Audio downloads have the audio player's keys instead.
+  const keepRate = useCallback(
+    (rate: number) => {
+      void storeRate(playback.downloadId, playback.profileId, rate).catch(() => undefined);
+    },
+    [playback.downloadId, playback.profileId],
+  );
+  const audioControls = useAudioControls({
+    media: video,
+    chapters: manifest.chapters ?? [],
+    durationMs,
+    positionMs: currentMs,
+    positionOf: () =>
+      Math.max(0, (frozenAt.current ?? (video.current?.currentTime ?? 0) - offset.current) * 1000),
+    initialRate,
+    active: !limitReached,
+    enabled: audio,
+    seekTo,
+    togglePlay,
+    onBack,
+    onRateChange: keepRate,
+  });
   useEffect(() => {
+    if (audio) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       poke();
@@ -455,6 +493,7 @@ export function OfflinePlayer({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
+    audio,
     changeVolume,
     limitReached,
     onBack,
@@ -622,6 +661,64 @@ export function OfflinePlayer({
     })),
   ];
 
+  if (audio) {
+    return (
+      <AudioPlayer
+        {...audioControls}
+        title={title}
+        byline={byline}
+        coverUrl={coverUrl}
+        accent={accent}
+        chapters={manifest.chapters ?? []}
+        currentMs={currentMs}
+        durationMs={durationMs}
+        playing={playing}
+        onTogglePlay={togglePlay}
+        onSeek={seekTo}
+        onBack={onBack}
+        isDisabled={limitReached}
+        alert={
+          limitReached ? (
+            <>
+              <p>{t('player.watchLimit.title')}</p>
+              <p>
+                {limit !== undefined
+                  ? t('player.watchLimit.body', { count: limit })
+                  : t('player.watchLimit.bodyUnknown')}
+              </p>
+              <div>
+                <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+                  {t('common.back')}
+                </AriaButton>
+              </div>
+            </>
+          ) : failed ? (
+            <>
+              <p>{t('player.error.title')}</p>
+              <p>{t('offline.player.failed')}</p>
+            </>
+          ) : null
+        }
+        data-engine={engine ?? undefined}
+        data-download-id={playback.downloadId}
+        data-profile-id={playback.profileId}
+        data-start-ms={startMs ?? undefined}
+        data-seek-ms={seek?.ms}
+        data-seek-count={seek?.count}
+        data-ended-reason={limitReached ? 'limit' : undefined}
+        data-rate={audioControls.rate}
+      >
+        {/* Spoken word without text tracks: nothing to caption. */}
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+        <audio
+          ref={video}
+          src={engine === 'blob' ? (blobUrl ?? undefined) : undefined}
+          preload="auto"
+        />
+      </AudioPlayer>
+    );
+  }
+
   return (
     <main
       ref={setPortal}
@@ -642,7 +739,7 @@ export function OfflinePlayer({
       {/* The text tracks are the stored WebVTT files (below); a download without any has none. */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
-        ref={video}
+        ref={video as RefObject<HTMLVideoElement | null>}
         className={styles.video}
         src={engine === 'blob' ? (blobUrl ?? undefined) : undefined}
         preload="auto"

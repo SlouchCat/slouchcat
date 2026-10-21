@@ -11,6 +11,7 @@ export { CastCard } from './CastCard';
 export { Chip } from './Chip';
 export { ChoiceChips } from './ChoiceChips';
 export { EpisodeCard } from './EpisodeCard';
+export { EpisodeRow } from './EpisodeRow';
 export { FactList } from './FactList';
 export { dismissHeroPrepaint, HeroCarousel, HERO_PLAY_KEY, type HeroSlide } from './HeroCarousel';
 export { Icon, type IconName } from './Icon';

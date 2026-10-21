@@ -246,11 +246,12 @@ func (s *Service) offlineProfiles(ctx context.Context, account int64, profiles [
 	return out, nil
 }
 
-// applyRules creates the auto-downloads of the enabled next-episode rules of the account's
-// profiles on the device (O-3, AN-13): per series the profile watched in the last 60 days, the
-// next visible episode after the last watched one, while fewer than maxCount auto-downloads the
-// profile has not finished are on the device. Best effort: a failing rule is logged and the
-// others still run.
+// applyRules creates the auto-downloads of the enabled rules of the account's profiles on the
+// device (O-3, AN-13), while fewer than maxCount auto-downloads the profile has not finished are on
+// the device: with next episodes, per series the profile watched in the last 60 days the next
+// visible episode after the last watched one; with new podcast episodes (M6), per podcast the
+// profile listened to in the last 60 days its visible episodes published after the newest one the
+// profile started, newest first. Best effort: a failing rule is logged and the others still run.
 func (s *Service) applyRules(ctx context.Context, account int64, device string, profiles []model.Profile, now time.Time) {
 	rules, err := s.read.ListActiveDeviceRules(ctx, systemq.ListActiveDeviceRulesParams{DeviceID: device, AccountID: account})
 	if err != nil {
@@ -277,58 +278,88 @@ func (s *Service) applyRule(ctx context.Context, account int64, device string, p
 	if open >= r.MaxCount {
 		return nil
 	}
-	watched, err := s.read.ListRecentEpisodeProgress(ctx, systemq.ListRecentEpisodeProgressParams{ProfileID: p.ID, Since: ms(now.Add(-autoWindow))})
-	if err != nil {
-		return fmt.Errorf("list recent episodes: %w", err)
-	}
 	scope := visibility.Profile(p)
-	seen := map[string]bool{}
-	for _, w := range watched {
-		if seen[w.SeriesID.String] {
-			continue // only the last watched episode of a series counts
-		}
-		seen[w.SeriesID.String] = true
-		next, err := s.vis.NextEpisode(ctx, scope, w.ItemID)
-		if errors.Is(err, model.ErrNotFound) || (err == nil && next == nil) {
-			continue // the watched episode is hidden now, or it was the last one
-		}
+	if r.NextEpisodes == 1 {
+		watched, err := s.read.ListRecentEpisodeProgress(ctx, systemq.ListRecentEpisodeProgressParams{ProfileID: p.ID, Since: ms(now.Add(-autoWindow))})
 		if err != nil {
-			return err
+			return fmt.Errorf("list recent episodes: %w", err)
 		}
-		if existing, err := s.read.GetDeviceDownload(ctx, systemq.GetDeviceDownloadParams{DeviceID: device, ItemID: next.ID}); err == nil {
-			// Already on the device; a failed auto-download of the account is tried again after a
-			// wait (a short outage of the source must not stop the rule for good).
-			if existing.State != model.DownloadFailed || existing.Auto != 1 || existing.AccountID != account ||
-				now.Sub(time.UnixMilli(existing.UpdatedAt)) < autoRetryWait {
-				continue
+		seen := map[string]bool{}
+		for _, w := range watched {
+			if seen[w.SeriesID.String] {
+				continue // only the last watched episode of a series counts
 			}
-			if err := s.retry(ctx, existing.ID, p.ID); err != nil {
+			seen[w.SeriesID.String] = true
+			next, err := s.vis.NextEpisode(ctx, scope, w.ItemID)
+			if errors.Is(err, model.ErrNotFound) || (err == nil && next == nil) {
+				continue // the watched episode is hidden now, or it was the last one
+			}
+			if err != nil {
 				return err
 			}
-			if open++; open >= r.MaxCount {
+			used, err := s.autoDownload(ctx, account, device, p, r, *next, now)
+			if err != nil {
+				return err
+			}
+			if open += used; open >= r.MaxCount {
 				return nil
 			}
-			continue
-		} else if !errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("get device download: %w", err)
 		}
-		src, err := s.sourceOf(ctx, scope, *next, "")
-		if errors.Is(err, model.ErrNotFound) {
-			continue
-		}
+	}
+	if r.NewPodcastEpisodes == 1 {
+		listened, err := s.read.ListRecentPodcastProgress(ctx, systemq.ListRecentPodcastProgressParams{ProfileID: p.ID, Since: ms(now.Add(-autoWindow))})
 		if err != nil {
-			return err
+			return fmt.Errorf("list recent podcasts: %w", err)
 		}
-		if _, err := s.create(ctx, account, p.ID, device, src, r.Quality, defaultIndex(src), true); errors.Is(err, errOtherAccount) {
-			continue
-		} else if err != nil {
-			return err
-		}
-		if open++; open >= r.MaxCount {
-			return nil
+		for _, l := range listened {
+			eps, err := s.vis.NextPodcastEpisodes(ctx, scope, l.PodcastID.String, time.UnixMilli(l.NewestStartedAt), int(r.MaxCount))
+			if err != nil {
+				return err
+			}
+			for _, ep := range eps {
+				used, err := s.autoDownload(ctx, account, device, p, r, ep, now)
+				if err != nil {
+					return err
+				}
+				if open += used; open >= r.MaxCount {
+					return nil
+				}
+			}
 		}
 	}
 	return nil
+}
+
+// autoDownload creates the auto-download of a title on the device unless the device has it; a
+// failed auto-download of the account is tried again after a wait (a short outage of the source
+// must not stop the rule for good). It returns 1 when it took a place of the rule.
+func (s *Service) autoDownload(ctx context.Context, account int64, device string, p model.Profile, r systemq.DownloadRule, item model.ItemSummary, now time.Time) (int64, error) {
+	if existing, err := s.read.GetDeviceDownload(ctx, systemq.GetDeviceDownloadParams{DeviceID: device, ItemID: item.ID}); err == nil {
+		if existing.State != model.DownloadFailed || existing.Auto != 1 || existing.AccountID != account ||
+			now.Sub(time.UnixMilli(existing.UpdatedAt)) < autoRetryWait {
+			return 0, nil
+		}
+		if err := s.retry(ctx, existing.ID, p.ID); err != nil {
+			return 0, err
+		}
+		return 1, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("get device download: %w", err)
+	}
+	scope := visibility.Profile(p)
+	src, err := s.downloadSource(ctx, scope, item, "")
+	if errors.Is(err, model.ErrNotFound) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if _, err := s.create(ctx, account, p.ID, device, src, r.Quality, defaultIndex(src), true); errors.Is(err, errOtherAccount) {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	return 1, nil
 }
 
 // rule returns the stored rule of a profile on a device, or the default rule.

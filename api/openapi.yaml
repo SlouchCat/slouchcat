@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 0.6.0
+  version: 0.7.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -64,6 +64,8 @@ tags:
     description: Administration by the main account.
   - name: offline
     description: Downloads to the device and offline playback (M5).
+  - name: podcasts
+    description: Podcast subscriptions by feed URL, administered by the main account (M6, H-2).
   - name: spike
     description: Temporary endpoints of the offline spike (M1a, removed after the M1b decision).
 paths:
@@ -1050,6 +1052,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /items/{id}/episodes:
+    get:
+      operationId: listPodcastEpisodes
+      summary: Episodes of a podcast, newest first (paged)
+      description: |
+        The visible episodes of a podcast for the active profile (an `explicit` episode is hidden from
+        profiles under 18, AN-2). The detail of the podcast carries the newest 50; this operation pages
+        through all of them.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: One page of episodes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PodcastEpisodes"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: Session without a profile (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown, invisible or not a podcast (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/download-options:
     get:
       operationId: getDownloadOptions
@@ -1716,7 +1767,8 @@ paths:
         With `enabled` the server downloads the next episode of every series the profile started (watched in
         the last 60 days) at the next sync, until `maxCount` auto-downloads the profile has not finished are
         on the device. `wifiOnly` is checked by the client before it fetches (`navigator.connection`; iOS
-        cannot tell and hides the option, AN-13). `newPodcastEpisodes` is stored for podcasts (M6).
+        cannot tell and hides the option, AN-13). `newPodcastEpisodes` downloads new episodes of the podcasts
+        the profile listened to in the last 60 days (M6, O-3).
       tags: [offline]
       x-visibility: scoped
       requestBody:
@@ -1929,6 +1981,45 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "404":
           description: Unknown library (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: updateLibrary
+      summary: Rename a library or change the default age rating of an audio library (AN-2)
+      description: |
+        A new default rating applies at once to every title of the library whose rating still comes from the
+        library (`rating_source` `library`); manual ratings and `explicit` episodes keep theirs.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LibraryUpdate"
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Library"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown library (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `defaultRating` `not_allowed` for video libraries).
           content:
             application/problem+json:
               schema:
@@ -2183,6 +2274,117 @@ paths:
           $ref: "#/components/responses/AdminOnly"
         "404":
           description: Unknown guest account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/podcasts:
+    get:
+      operationId: listPodcasts
+      summary: All podcast subscriptions with their feed state
+      description: An administration view (not `ItemRef`), unfiltered by any profile.
+      tags: [podcasts]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Subscriptions, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminPodcast"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: createPodcast
+      summary: Subscribe to a podcast by feed URL (H-2)
+      description: |
+        Fetches the feed once right away (at most 20 s) and stores the podcast with its episodes in the given
+        podcast library; afterwards the server refreshes the feed every 60 minutes. The podcast starts with
+        the library's default rating; a channel or episode flagged `itunes:explicit` counts as FSK 18 (AN-2).
+      tags: [podcasts]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PodcastCreate"
+      responses:
+        "201":
+          description: Subscribed; the first episodes are stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPodcast"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: The library already subscribes to this feed (`feed_exists`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`; `feedUrl` `invalid_url`, `libraryId` `unknown_library` or
+            `library_kind`), the feed could not be fetched (`feed_unreachable`) or is not an RSS podcast feed
+            (`feed_invalid`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/podcasts/{id}:
+    delete:
+      operationId: deletePodcast
+      summary: Remove a podcast subscription with its episodes
+      description: Soft-deletes the podcast and its episodes; downloads of the episodes are revoked at the next sync.
+      tags: [podcasts]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown podcast (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/podcasts/{id}/refresh:
+    post:
+      operationId: refreshPodcast
+      summary: Fetch the feed of a podcast now
+      tags: [podcasts]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "202":
+          description: Fetch queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPodcast"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown podcast (`not_found`).
           content:
             application/problem+json:
               schema:
@@ -3669,6 +3871,11 @@ components:
         updatedAt:
           type: string
           format: date-time
+        playbackRate:
+          type: number
+          minimum: 0.5
+          maximum: 3.0
+          description: Playback speed the profile last used for this title (H-3); absent until it was set.
         watchTime:
           $ref: "#/components/schemas/WatchTime"
           description: |
@@ -3732,6 +3939,21 @@ components:
           type: integer
           minimum: 0
           description: Visible seasons of a series, visible episodes of a season.
+        author:
+          type: string
+          description: Author of an audiobook, author of a podcast and its episodes (M6).
+        publishedAt:
+          type: string
+          format: date-time
+          description: Publication time of a podcast episode (from the feed).
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Duration of an audiobook (all parts) or a podcast episode in milliseconds.
+        explicit:
+          type: boolean
+          description: "Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18)."
 
     ItemDetail:
       allOf:
@@ -3776,9 +3998,32 @@ components:
                 $ref: "#/components/schemas/ItemRef"
             episodes:
               type: array
-              description: Visible episodes of a season by number.
+              description: |
+                Visible episodes of a season by number; for a podcast its newest visible episodes (at most
+                50, newest first; `listPodcastEpisodes` pages through the rest).
               items:
                 $ref: "#/components/schemas/ItemRef"
+            episodeCount:
+              type: integer
+              minimum: 0
+              description: Visible episodes of a podcast in total.
+            podcast:
+              $ref: "#/components/schemas/ItemRef"
+              description: The podcast of an episode.
+            narrator:
+              type: string
+              description: Narrator of an audiobook.
+            seriesName:
+              type: string
+              description: Series an audiobook belongs to (for example "Per Anhalter durch die Galaxis").
+            seriesIndex:
+              type: number
+              description: Volume inside `seriesName` (0.5 for a prequel is possible).
+            chapters:
+              type: array
+              description: Book-wide chapters of an audiobook (from chapter marks or one per file), in order.
+              items:
+                $ref: "#/components/schemas/Chapter"
             extras:
               type: array
               description: Visible extras of a film, series or season (B-7).
@@ -4143,6 +4388,21 @@ components:
         title:
           type: string
 
+    PlaybackPart:
+      type: object
+      required: [mediaFileId, startMs, durationMs]
+      properties:
+        mediaFileId:
+          type: string
+        startMs:
+          type: integer
+          format: int64
+          minimum: 0
+        durationMs:
+          type: integer
+          format: int64
+          minimum: 0
+
     Segment:
       type: object
       description: A detected intro or outro (W-9).
@@ -4170,12 +4430,24 @@ components:
 
     PlaybackInfo:
       type: object
-      required: [mode, item, mediaFile, streamUrl, resumePositionMs, playbackSessionId, tracks, selection, qualities, chapters, segments]
+      required: [mode, mediaKind, item, mediaFile, streamUrl, resumePositionMs, playbackSessionId, tracks, selection, qualities, chapters, segments]
       properties:
         mode:
           type: string
           enum: [direct, hls]
           description: "`direct`: the file as it is through the Range endpoint; `hls`: fMP4-HLS (remux or transcode)."
+        mediaKind:
+          type: string
+          enum: [video, audio]
+          description: |
+            `audio` for audiobooks and podcast episodes (M6): the client shows the audio player with chapters
+            and speed. A multi-part audiobook always plays as one HLS timeline over all parts; a podcast
+            episode without a file streams through the server from its enclosure.
+        parts:
+          type: array
+          description: Parts of a multi-part audiobook on the single playback timeline (information only).
+          items:
+            $ref: "#/components/schemas/PlaybackPart"
         item:
           $ref: "#/components/schemas/ItemRef"
         mediaFile:
@@ -4267,6 +4539,74 @@ components:
             source, `audio_track` for a non-default audio track in a container that cannot be played
             directly with it, `subtitle_burn` for burned-in subtitles, `budget_lowered` when the transcode
             budget forced the next lower rung).
+
+    AdminPodcast:
+      type: object
+      description: A podcast subscription as the administration sees it (M6, H-2); not an `ItemRef`.
+      required: [id, libraryId, title, feedUrl, episodeCount, explicit, createdAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/ItemID"
+        libraryId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        author:
+          type: string
+        feedUrl:
+          type: string
+          format: uri
+        episodeCount:
+          type: integer
+          minimum: 0
+          description: Stored episodes (all, unfiltered).
+        explicit:
+          type: boolean
+          description: The channel is flagged `itunes:explicit`; the podcast counts as FSK 18 (AN-2).
+        lastCheckedAt:
+          type: string
+          format: date-time
+          description: Last successful or failed feed fetch.
+        lastError:
+          type: string
+          description: Stable code and short text of the last failed fetch; absent after a success.
+        createdAt:
+          type: string
+          format: date-time
+
+    PodcastCreate:
+      type: object
+      required: [libraryId, feedUrl]
+      properties:
+        libraryId:
+          type: integer
+          format: int64
+          description: A library of kind `podcasts`.
+        feedUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: RSS feed (http or https, no credentials).
+
+    PodcastEpisodes:
+      type: object
+      required: [episodes, total, offset, limit]
+      properties:
+        episodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemRef"
+        total:
+          type: integer
+          minimum: 0
+          description: Visible episodes in total.
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
 
     AdminDevice:
       type: object
@@ -4396,6 +4736,11 @@ components:
           type: string
           format: date-time
           description: Device clock when the event was created.
+        playbackRate:
+          type: number
+          minimum: 0.5
+          maximum: 3.0
+          description: Playback speed in use; stored per profile and title (H-3) when present.
 
     MetadataProvider:
       type: string
@@ -4664,7 +5009,10 @@ components:
 
     LibraryKind:
       type: string
-      enum: [movies, series]
+      enum: [movies, series, audiobooks, podcasts]
+      description: |
+        `audiobooks` scans M4B files and folders of audio files as books (H-1); `podcasts` holds feed
+        subscriptions and has no directory (H-2). Both carry a default age rating (AN-2).
 
     LibrarySummary:
       type: object
@@ -4677,10 +5025,13 @@ components:
           type: string
         kind:
           $ref: "#/components/schemas/LibraryKind"
+        defaultRating:
+          $ref: "#/components/schemas/Rating"
+          description: Default age rating of an audio library (AN-2); absent for video libraries.
 
     LibraryRequest:
       type: object
-      required: [name, kind, path]
+      required: [name, kind]
       properties:
         name:
           type: string
@@ -4690,9 +5041,32 @@ components:
           $ref: "#/components/schemas/LibraryKind"
         path:
           type: string
-          description: Absolute directory on the server (inside the container, for example `/media/Filme`).
+          description: |
+            Absolute directory on the server (inside the container, for example `/media/Filme`). Required for
+            every kind except `podcasts`, which has no directory (`path` `required` / `not_allowed`).
           minLength: 1
           maxLength: 4096
+        defaultRating:
+          $ref: "#/components/schemas/Rating"
+          description: |
+            Default age rating of every title in an audio library (AN-2, decision 9); only for `audiobooks`
+            and `podcasts` (`not_allowed` otherwise), default 0. Single titles may be set stricter, never
+            below it (`rating_below_library_default`).
+
+    LibraryUpdate:
+      type: object
+      description: Changes to a library; every field is optional.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        defaultRating:
+          $ref: "#/components/schemas/Rating"
+          description: |
+            New default age rating of an audio library; every title whose rating still comes from the
+            library (`rating_source` `library`) follows at once, manual ratings stay. `not_allowed` for
+            video libraries.
 
     ScanState:
       type: string
@@ -4713,6 +5087,9 @@ components:
           type: string
         kind:
           $ref: "#/components/schemas/LibraryKind"
+        defaultRating:
+          $ref: "#/components/schemas/Rating"
+          description: Default age rating of an audio library (AN-2); absent for video libraries.
         roots:
           type: array
           items:
@@ -4920,7 +5297,7 @@ components:
           minimum: 0
         error:
           type: string
-          description: Stable code (`budget_full`, `not_visible`, `encode_failed`).
+          description: Stable code (`budget_full`, `not_visible`, `encode_failed`, `source_unavailable` when the enclosure of a podcast episode could not be fetched).
         createdAt:
           type: string
           format: date-time
@@ -4973,7 +5350,7 @@ components:
 
     DownloadManifest:
       type: object
-      required: [id, itemId, sizeBytes, durationMs, mimeType, codecs, width, height, initLength, segments, fileUrl, subtitles]
+      required: [id, itemId, sizeBytes, durationMs, mimeType, codecs, width, height, initLength, segments, fileUrl, subtitles, chapters]
       properties:
         id:
           $ref: "#/components/schemas/DownloadID"
@@ -4989,7 +5366,7 @@ components:
           minimum: 0
         mimeType:
           type: string
-          description: Always `video/mp4`.
+          description: "`video/mp4` for video, `audio/mp4` for audiobooks and podcast episodes (M6)."
         codecs:
           type: string
           description: RFC 6381 codecs for `MediaSource.isTypeSupported`, e.g. `avc1.64001f,mp4a.40.2`.
@@ -5018,6 +5395,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DownloadSubtitle"
+        chapters:
+          type: array
+          description: Chapters of an audiobook on the file's timeline (empty for video and episodes without marks).
+          items:
+            $ref: "#/components/schemas/Chapter"
 
     OfflineSyncRequest:
       type: object
@@ -5115,7 +5497,7 @@ components:
           description: Download the next episode of every started series.
         newPodcastEpisodes:
           type: boolean
-          description: New episodes of subscribed podcasts (stored now, effective with podcasts in M6).
+          description: New episodes of the podcasts the profile listened to in the last 60 days (O-3, M6).
         wifiOnly:
           type: boolean
         maxCount:
@@ -5210,6 +5592,11 @@ components:
           type: string
           format: date-time
           description: Device clock when the event was created.
+        playbackRate:
+          type: number
+          minimum: 0.5
+          maximum: 3.0
+          description: Playback speed in use offline; stored per profile and title (H-3) when present.
 
     OfflineEventBatch:
       type: object

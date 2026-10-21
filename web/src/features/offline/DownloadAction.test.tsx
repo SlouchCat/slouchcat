@@ -3,7 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatBytes } from '@/lib/format';
 import { json, mockApi, renderApp, signedIn } from '@/test/api';
-import { alienDetail, episodes, ids, season1Detail, seriesIds } from '@/test/fixtures';
+import {
+  alienDetail,
+  audioIds,
+  audiobookDetail,
+  episodes,
+  ids,
+  season1Detail,
+  seriesIds,
+} from '@/test/fixtures';
 import { resetOfflineFiles } from '@/test/offlineFiles';
 import { downloadIds, downloadOptions, downloadState } from '@/test/offlineFixtures';
 import { resetOfflineStore, storedDownloads } from '@/test/offlineStore';
@@ -98,6 +106,68 @@ describe('download on the detail page', () => {
       '/downloads',
     );
     expect(screen.getByText('Wartet auf den Server')).toBeVisible();
+  });
+
+  it('an audiobook: AAC at 128/96/64 kbit/s with the estimate, the whole book (O-1, M6)', async () => {
+    const user = userEvent.setup();
+    const audioOption = (quality: 'high' | 'medium' | 'low', kbps: number, copy = false) => ({
+      quality,
+      width: 0,
+      height: 0,
+      videoBitrate: 0,
+      audioBitrate: kbps,
+      estimatedBytes: Math.round(((kbps * 1000) / 8) * 60 * 1.02),
+      copy,
+    });
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET /items/${audioIds.book}`]: () => json(audiobookDetail),
+      [`GET /items/${audioIds.book}/download-options`]: () =>
+        json({
+          durationMs: 60_000,
+          qualities: [
+            audioOption('high', 128),
+            audioOption('medium', 96),
+            audioOption('low', 64, true),
+          ],
+          audioTracks: [],
+          subtitles: [],
+        }),
+      [`POST /items/${audioIds.book}/downloads`]: () =>
+        json(
+          {
+            downloads: [
+              downloadState({ state: 'queued', sizeBytes: undefined, item: audiobookDetail }),
+            ],
+          },
+          201,
+        ),
+    });
+    renderApp(`/items/${audioIds.book}`);
+    await user.click(await screen.findByRole('button', { name: 'Herunterladen' }));
+
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Slouchcat Test Audiobook M4B herunterladen',
+    });
+    const quality = await within(dialog).findByRole('radiogroup', { name: 'Qualität' });
+    expect(
+      within(quality)
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent),
+    ).toEqual([
+      `Hoch · 128 kbit/s · ca. ${size(979_200)}`,
+      `Mittel · 96 kbit/s · ca. ${size(734_400)}`,
+      // A source within the step is copied, not encoded (design 6).
+      `Niedrig · AAC kopiert · ca. ${size(489_600)}`,
+    ]);
+    // No picture, no tracks to choose, no subtitles.
+    expect(within(dialog).queryByRole('radiogroup', { name: 'Tonspur' })).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/Untertitel/)).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Herunterladen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    // The book as a whole: no version of its parts goes along.
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ quality: 'medium' });
   });
 
   it('downloads a whole season in one action (O-2)', async () => {

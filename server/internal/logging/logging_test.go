@@ -17,6 +17,7 @@ var fakeSecrets = []string{
 	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "4711", "pl-FAKE-media", "pl-FAKE-init", "pl-FAKE-seg",
 	"yt-FAKE-key", "ytq-FAKE-key", "tvdb-FAKE-key", "tvdbpin-FAKE", "apikeyq-FAKE",
 	"dt-FAKE-token", "dtsub-FAKE-token", "dterr-FAKE-token", "verifier-FAKE-hash",
+	"auth-FAKE-feed", "token-FAKE-feed", "access-FAKE-feed", "secret-FAKE-feed", "sig-FAKE-enc", "signature-FAKE-enc",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -62,6 +63,10 @@ func logAll(t *testing.T, format Format) string {
 		"subtitle", "/api/v1/downloads/01JZZZZZZZZZZZZZZZZZZZZZZZ/subtitles/3.vtt?lang=de&dt=dtsub-FAKE-token",
 		"fetch", fmt.Errorf("fetch: %w", errors.New(`Get "http://x.test/api/v1/downloads/1/file?DT=dterr-FAKE-token": EOF`)),
 		// An HLS playlist quoted in an error: every line carries the stream token (plan 5.4).
+		// Private podcast feeds and their enclosures (M6).
+		"feed", "https://feeds.example.org/show.rss?auth=auth-FAKE-feed&format=mp3",
+		"feeds", "https://x.test/rss?Token=token-FAKE-feed;access_token=access-FAKE-feed&secret=secret-FAKE-feed",
+		"enclosure", fmt.Errorf("fetch: %w", errors.New(`Get "https://cdn.test/ep.mp3?sig=sig-FAKE-enc&Signature=signature-FAKE-enc&expires=99": EOF`)),
 		"playlist", fmt.Errorf("parse playlist: %w", errors.New("#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4?st=pl-FAKE-init\"\nmedia.m3u8?st=pl-FAKE-media\nseg/0?st=pl-FAKE-seg\n")),
 	)
 	log.Warn("message with https://x.test/?api_key=msg-FAKE-key inside")
@@ -83,6 +88,7 @@ func TestRedaction(t *testing.T) {
 				"api_key=" + Redacted, "st=" + Redacted, "api.themoviedb.org", "example.org",
 				"key=" + Redacted, "apikey=" + Redacted, "maxResults=5", "q=x",
 				"dt=" + Redacted, "lang=de", "/subtitles/3.vtt",
+				"auth=" + Redacted, "format=mp3", "access_token=" + Redacted, "sig=" + Redacted, "expires=99",
 			} {
 				if !strings.Contains(out, keep) {
 					t.Errorf("output lost non-secret %q", keep)

@@ -1,15 +1,23 @@
-import type { ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
-import { useQuery } from '@tanstack/react-query';
+import type { Chapter, ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { isDownloadable, offlineSupported } from '@/features/offline/support';
-import { formatBytes, formatClock, formatResolution, formatRuntime } from '@/lib/format';
+import {
+  formatBytes,
+  formatClock,
+  formatDate,
+  formatDuration,
+  formatPlayerTime,
+  formatResolution,
+  formatRuntime,
+} from '@/lib/format';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
@@ -22,6 +30,7 @@ import {
   Chip,
   ChoiceChips,
   EpisodeCard,
+  EpisodeRow,
   FactList,
   Notice,
   PosterCard,
@@ -38,8 +47,8 @@ import {
   spatialFocusKey,
 } from '@/ui';
 import { ItemMeta } from './ItemMeta';
-import { creditCaption, episodeCode, extraKindLabel } from './labels';
-import { itemQuery } from './queries';
+import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './labels';
+import { itemQuery, podcastEpisodesQuery } from './queries';
 import styles from './ItemPage.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/items/$itemId');
@@ -64,13 +73,34 @@ const DOWNLOAD_KEY = 'detail-download';
 // Rendered poster width (ItemPage.module.css, wide layout only).
 const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
 
+/** "36 % gesehen", or "gehört" for audio titles. */
+const progressLabel = (t: TFunction, item: ItemRef, percent: number) =>
+  t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', { percent: Math.round(percent) });
+
 const watchedProgress = (t: TFunction, item: ItemRef) =>
   item.progress && !item.progress.completed && item.progress.positionMs > 0
-    ? {
-        percent: item.progress.percent,
-        label: t('item.watched', { percent: Math.round(item.progress.percent) }),
-      }
+    ? { percent: item.progress.percent, label: progressLabel(t, item, item.progress.percent) }
     : undefined;
+
+/**
+ * Whether the play button works: series, seasons and podcasts play through their episodes; a
+ * podcast episode streams from its feed through the server; an audiobook plays all its parts;
+ * any other title needs the chosen version's file.
+ */
+function canPlay(item: ItemDetail, file: MediaFileInfo | undefined): boolean {
+  switch (item.kind) {
+    case 'series':
+    case 'season':
+    case 'podcast':
+      return false;
+    case 'podcast_episode':
+      return true;
+    case 'audiobook':
+      return item.mediaFiles.some((entry) => entry.available);
+    default:
+      return file?.available === true;
+  }
+}
 
 function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; language: string }) {
   const facts: [string, string][] = [[t('item.file.container'), file.container.toUpperCase()]];
@@ -106,18 +136,22 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
   const { t } = useTranslation();
   const session = useActiveSession();
   const online = useOnline();
-  // Series and seasons play through their episodes; any other title has a play button, disabled
-  // while it has no available file.
-  const playable = item.kind !== 'series' && item.kind !== 'season';
+  // Series, seasons and podcasts play through their episodes; any other title has a play button,
+  // disabled while it cannot play.
+  const playable = item.kind !== 'series' && item.kind !== 'season' && item.kind !== 'podcast';
+  const available = canPlay(item, file);
+  const audio = isAudioKind(item.kind);
   const resume =
     item.progress && !item.progress.completed && item.progress.positionMs > 0
       ? item.progress
       : undefined;
   const playLabel = resume
-    ? t('item.resume', { time: formatClock(resume.positionMs) })
+    ? t(audio ? 'item.resumeListening' : 'item.resume', { time: formatClock(resume.positionMs) })
     : t('item.play');
-  // Only one version: the server picks it; with several the chosen one goes along.
-  const playHref = paths.play(item.id, item.mediaFiles.length > 1 ? file?.id : undefined);
+  // Only one version: the server picks it; with several the chosen one goes along. An audiobook's
+  // files are its parts, not versions.
+  const version = !audio && item.mediaFiles.length > 1 ? file?.id : undefined;
+  const playHref = paths.play(item.id, version);
   // A shortcut for the one who manages the library, not a visibility rule: the server answers the
   // administration page only for that account and profile anyway.
   const canManage = session.account.role === 'owner' && session.profile.isPrimary;
@@ -125,7 +159,7 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
   return (
     <SpatialGroup className={styles.actions}>
       {playable &&
-        (file?.available ? (
+        (available ? (
           <SpatialButtonLink
             focusKey={PLAY_KEY}
             href={playHref}
@@ -159,8 +193,8 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
         <Suspense fallback={null}>
           <DownloadAction
             target={item}
-            mediaFileId={item.mediaFiles.length > 1 ? file?.id : undefined}
-            available={item.kind === 'season' || file?.available === true}
+            mediaFileId={version}
+            available={item.kind === 'season' || available}
             focusKey={DOWNLOAD_KEY}
           />
         </Suspense>
@@ -174,13 +208,17 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
   );
 }
 
-/** Links to the neighbours of an episode, season or extra: next episode, series, main title. */
+/**
+ * Links to the neighbours of an episode, season or extra: next episode, series, main title; the
+ * podcast of a podcast episode.
+ */
 function RelatedLinks({ item }: { item: ItemDetail }) {
   const { t } = useTranslation();
   const next = item.kind === 'episode' ? item.nextEpisode : undefined;
   const series = item.kind === 'episode' || item.kind === 'season' ? item.series : undefined;
   const parentId = item.kind === 'extra' ? item.parentId : undefined;
-  if (!next && !series && !parentId) return null;
+  const podcast = item.kind === 'podcast_episode' ? item.podcast : undefined;
+  if (!next && !series && !parentId && !podcast) return null;
   const nextCode = next ? episodeCode(t, next) : undefined;
 
   return (
@@ -205,6 +243,11 @@ function RelatedLinks({ item }: { item: ItemDetail }) {
           {t('item.parentLink')}
         </SpatialButtonLink>
       )}
+      {podcast && (
+        <SpatialButtonLink href={paths.item(podcast.id)} variant="ghost" icon="folder">
+          {t('item.podcast.link')}
+        </SpatialButtonLink>
+      )}
     </SpatialGroup>
   );
 }
@@ -219,7 +262,8 @@ function Versions({
   onChange: (id: string) => void;
 }) {
   const { t, i18n } = useTranslation();
-  if (item.kind === 'series' || item.kind === 'season') return null;
+  // An audiobook's files are its parts and a podcast episode streams from its feed (M6).
+  if (item.kind === 'series' || item.kind === 'season' || isAudioKind(item.kind)) return null;
   return (
     <section className={styles.files} aria-labelledby="item-file-heading">
       <h2 id="item-file-heading" className={styles.sectionTitle}>
@@ -331,6 +375,146 @@ function Seasons({ seasons }: { seasons: readonly ItemRef[] }) {
   );
 }
 
+/** The chapters of an audiobook (H-1); each one starts the player at its start. */
+function AudiobookChapters({
+  item,
+  chapters,
+  playable,
+}: {
+  item: ItemDetail;
+  chapters: readonly Chapter[];
+  playable: boolean;
+}) {
+  const { t } = useTranslation();
+  if (chapters.length === 0) return null;
+  const duration = item.durationMs ?? chapters.at(-1)?.endMs ?? 0;
+  const name = (chapter: Chapter, index: number) =>
+    chapter.title ?? t('player.chapters.untitled', { n: index + 1 });
+  return (
+    <section className={styles.block} aria-labelledby="item-chapters-heading">
+      <h2 id="item-chapters-heading" className={styles.sectionTitle}>
+        {t('item.audio.chapters')}
+      </h2>
+      <SpatialGroup as="ul" className={styles.chapters} aria-label={t('item.audio.chapters')}>
+        {chapters.map((chapter, index) => {
+          const time = formatPlayerTime(chapter.startMs, duration);
+          return (
+            <li key={`${chapter.startMs}-${index}`} className={styles.chapter}>
+              {playable ? (
+                <SpatialButtonLink
+                  focusKey={`chapter-${index}`}
+                  href={paths.playAt(item.id, chapter.startMs)}
+                  variant="ghost"
+                  icon="play"
+                  aria-label={t('item.audio.chapterPlay', { title: name(chapter, index), time })}
+                >
+                  <span className={styles.chapterTitle}>{name(chapter, index)}</span>
+                  <span className={styles.relatedDetail}>{time}</span>
+                </SpatialButtonLink>
+              ) : (
+                <span className={styles.chapterText}>
+                  <span className={styles.chapterTitle}>{name(chapter, index)}</span>
+                  <span className={styles.relatedDetail}>{time}</span>
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </SpatialGroup>
+    </section>
+  );
+}
+
+/**
+ * The episodes of a podcast, newest first (H-2): the detail carries the newest 50, "Mehr laden"
+ * pages through the rest (listPodcastEpisodes). Every episode plays on its own; the podcast has
+ * no play button.
+ */
+function PodcastEpisodes({ item }: { item: ItemDetail }) {
+  const { t, i18n } = useTranslation();
+  const first = item.episodes ?? [];
+  const total = item.episodeCount ?? first.length;
+  const [more, setMore] = useState(false);
+  const pages = useInfiniteQuery({
+    ...podcastEpisodesQuery(item.id, first.length),
+    enabled: more,
+  });
+  const episodes = useMemo(() => {
+    const newest = item.episodes ?? [];
+    const loaded = pages.data?.pages.flatMap((page) => page.episodes) ?? [];
+    return [...newest, ...loaded.filter((entry) => !newest.some((e) => e.id === entry.id))];
+  }, [item.episodes, pages.data]);
+  // A failed page leaves the button as a retry; while a page loads it stays focusable.
+  const hasMore =
+    episodes.length < total && (!more || pages.isFetching || pages.hasNextPage || pages.isError);
+  // After a page, focus moves to its first episode (the button may go away with the last one).
+  const focusFrom = useRef<number | null>(null);
+  useEffect(() => {
+    const target = focusFrom.current === null ? undefined : episodes[focusFrom.current];
+    if (!target) return;
+    focusFrom.current = null;
+    setSpatialFocus(`podcast-episode-${target.id}`);
+  }, [episodes]);
+  const caption = (episode: ItemRef) =>
+    [
+      episode.publishedAt ? formatDate(episode.publishedAt, i18n.language) : undefined,
+      episode.durationMs ? formatDuration(t, episode.durationMs) : undefined,
+    ]
+      .filter(Boolean)
+      .join(t('format.separator')) || undefined;
+
+  return (
+    <section className={styles.block} aria-labelledby="item-podcast-episodes-heading">
+      <h2 id="item-podcast-episodes-heading" className={styles.sectionTitle}>
+        {t('item.podcast.episodes')}
+      </h2>
+      {episodes.length === 0 ? (
+        <p className={styles.muted}>{t('item.podcast.empty')}</p>
+      ) : (
+        <SpatialGroup
+          as="ul"
+          className={styles.episodeList}
+          aria-label={t('item.podcast.episodes')}
+        >
+          {episodes.map((episode) => (
+            <li key={episode.id}>
+              <EpisodeRow
+                focusKey={`podcast-episode-${episode.id}`}
+                href={paths.item(episode.id)}
+                title={episode.title}
+                caption={caption(episode)}
+                progress={watchedProgress(t, episode)}
+                playHref={paths.play(episode.id)}
+                playLabel={t('item.podcast.play', { title: episode.title })}
+              />
+            </li>
+          ))}
+        </SpatialGroup>
+      )}
+      {pages.isError && <Notice tone="danger">{problemMessage(t, pages.error)}</Notice>}
+      {hasMore && (
+        <div>
+          <SpatialButton
+            focusKey="podcast-more"
+            variant="secondary"
+            icon="plus"
+            aria-disabled={pages.isFetching || undefined}
+            onPress={() => {
+              if (pages.isFetching) return;
+              focusFrom.current = episodes.length;
+              if (!more) setMore(true);
+              else if (!pages.data) void pages.refetch();
+              else void pages.fetchNextPage();
+            }}
+          >
+            {pages.isError ? t('common.retry') : t('item.podcast.more')}
+          </SpatialButton>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Extras({ extras }: { extras: readonly ItemRef[] }) {
   const { t } = useTranslation();
   if (extras.length === 0) return null;
@@ -384,6 +568,9 @@ function documentTitle(t: TFunction, item: ItemDetail | undefined): string | und
       series,
     });
   }
+  if (item.kind === 'podcast_episode' && item.podcast) {
+    return t('item.docTitle.podcastEpisode', { title: item.title, podcast: item.podcast.title });
+  }
   return item.title;
 }
 
@@ -397,7 +584,22 @@ function kicker(t: TFunction, item: ItemDetail): string | undefined {
   }
   if (item.kind === 'season') return series;
   if (item.kind === 'extra') return extraKindLabel(t, item.extraKind);
+  if (item.kind === 'audiobook' && item.seriesName) {
+    return item.seriesIndex !== undefined
+      ? t('item.audio.volume', { series: item.seriesName, volume: item.seriesIndex })
+      : item.seriesName;
+  }
+  if (item.kind === 'podcast_episode') return item.podcast?.title;
   return undefined;
+}
+
+/** "von <Autor>" and "Gelesen von <Sprecher>" under the title of an audiobook or podcast. */
+function bylines(t: TFunction, item: ItemDetail): string[] {
+  if (!isAudioKind(item.kind)) return [];
+  return [
+    item.author ? t('item.audio.by', { author: item.author }) : undefined,
+    item.narrator ? t('item.audio.narratedBy', { narrator: item.narrator }) : undefined,
+  ].filter((line): line is string => line !== undefined);
 }
 
 /**
@@ -475,9 +677,11 @@ function ItemView({ itemId }: { itemId: string }) {
   // The server lists the primary version first (B-5).
   const file = item.mediaFiles.find((entry) => entry.id === chosenFile) ?? item.mediaFiles[0];
   const line = kicker(t, item);
+  const audio = isAudioKind(item.kind);
+  const playable = canPlay(item, file);
 
   return (
-    <SpatialPage defaultFocusKey={file?.available ? PLAY_KEY : BACK_KEY}>
+    <SpatialPage defaultFocusKey={playable ? PLAY_KEY : BACK_KEY}>
       <main className={styles.detail}>
         <Backdrop
           url={imageUrl(images.backdrop)}
@@ -508,11 +712,19 @@ function ItemView({ itemId }: { itemId: string }) {
                 sizes={images.posterLarge ? POSTER_SIZES : undefined}
                 alt=""
                 width={400}
-                height={600}
-                className={styles.posterImage}
+                height={audio ? 400 : 600}
+                className={audio ? styles.coverImage : styles.posterImage}
               />
             ) : (
-              <span className={episode ? styles.stillFallback : styles.posterFallback}>
+              <span
+                className={
+                  episode
+                    ? styles.stillFallback
+                    : audio
+                      ? styles.coverFallback
+                      : styles.posterFallback
+                }
+              >
                 <PosterFallback />
               </span>
             )}
@@ -527,6 +739,11 @@ function ItemView({ itemId }: { itemId: string }) {
                   {t('item.originalTitle', { title: item.originalTitle })}
                 </p>
               )}
+              {bylines(t, item).map((byline) => (
+                <p key={byline} className={styles.byline}>
+                  {byline}
+                </p>
+              ))}
             </div>
             <div className={styles.factLines}>
               <ItemMeta item={item} />
@@ -546,10 +763,10 @@ function ItemView({ itemId }: { itemId: string }) {
               <div className={styles.progress}>
                 <ProgressBar
                   value={progress.percent}
-                  label={t('item.watched', { percent: Math.round(progress.percent) })}
+                  label={progressLabel(t, item, progress.percent)}
                 />
                 <span className={styles.progressText}>
-                  {t('item.watched', { percent: Math.round(progress.percent) })}
+                  {progressLabel(t, item, progress.percent)}
                 </span>
               </div>
             )}
@@ -565,6 +782,10 @@ function ItemView({ itemId }: { itemId: string }) {
                 <EpisodeGrid episodes={item.episodes ?? []} />
               </section>
             )}
+            {item.kind === 'audiobook' && (
+              <AudiobookChapters item={item} chapters={item.chapters ?? []} playable={playable} />
+            )}
+            {item.kind === 'podcast' && <PodcastEpisodes item={item} />}
 
             <Versions item={item} file={file} onChange={setChosenFile} />
           </div>

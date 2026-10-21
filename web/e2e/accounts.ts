@@ -131,6 +131,23 @@ export async function removeGuests(api: APIRequestContext): Promise<void> {
     await json(await send(api, 'delete', `/admin/guests/${guest.id}`), [204]);
 }
 
+/**
+ * Removes the podcast subscriptions a spec created for itself (feeds under `/f/<key>/` of the mock
+ * feed server, M6); the shared feed of the global setup stays. A spec that times out never reaches
+ * its own cleanup, and every leftover podcast is a newer title that pushes others out of the
+ * start page's "recent" row.
+ */
+export async function removeTestPodcasts(api: APIRequestContext): Promise<void> {
+  const podcasts = await json<{ id: string; feedUrl: string }[]>(
+    await api.get('/api/v1/admin/podcasts'),
+    [200],
+  );
+  for (const podcast of podcasts) {
+    if (!podcast.feedUrl.includes('/f/')) continue;
+    await json(await send(api, 'delete', `/admin/podcasts/${podcast.id}`), [204, 404]);
+  }
+}
+
 /** Accepts an invitation through the API; the guest's session cookie lands in `api`'s context. */
 export async function acceptInvitation(
   api: APIRequestContext,

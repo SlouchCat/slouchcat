@@ -265,3 +265,13 @@ WHERE i.id IN (sqlc.slice('item_ids'));
 
 -- name: AdminMediaFileDurations :many
 SELECT id, duration_ms FROM media_files WHERE id IN (sqlc.slice('ids'));
+
+-- Library settings (updateLibrary, M6 AN-2).
+
+-- name: AdminApplyLibraryRating :execrows
+-- A new default rating of an audio library reaches every live title whose rating still comes from
+-- the library, and raises a manual rating below it to it (AN-2: a manual rating is only stricter);
+-- feed and tag ratings (18) stay. The triggers pass it on to the descendants.
+UPDATE items SET own_rating = @own_rating, updated_at = @now
+WHERE library_id = @library_id AND deleted_at IS NULL
+  AND (rating_source = 'library' OR (rating_source = 'manual' AND own_rating < @own_rating));

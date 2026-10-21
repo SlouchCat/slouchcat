@@ -200,7 +200,7 @@ func (s *server) ListAccountLibraries(ctx context.Context, _ gen.ListAccountLibr
 	}
 	out := make(gen.ListAccountLibraries200JSONResponse, 0, len(libs))
 	for _, l := range libs {
-		out = append(out, gen.LibrarySummary{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind)})
+		out = append(out, gen.LibrarySummary{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), DefaultRating: toRating(l.DefaultRating)})
 	}
 	return out, nil
 }

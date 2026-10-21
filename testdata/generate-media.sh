@@ -25,7 +25,7 @@ for bin in "$FFMPEG" "$FFPROBE"; do
 done
 
 encoders="$("$FFMPEG" -hide_banner -encoders 2>/dev/null)"
-for enc in libx264 libx265 aac ac3 dca srt ass; do
+for enc in libx264 libx265 aac ac3 dca srt ass libmp3lame mjpeg; do
   grep -Eq "^ [A-Z.]{6} ${enc} " <<<"$encoders" || die "ffmpeg encoder '$enc' is missing in $FFMPEG"
 done
 
@@ -491,6 +491,68 @@ for ep in 1 2 3 4 5 6; do
     if ((ep == 1)); then
       cp "$subs_dir/download-de.srt" "${f%.mp4}.de.srt"
     fi
+  fi
+done
+
+# M6 audio (H-1, H-2, O-1 audio): an audiobook library with one M4B of 12 chapters (chapter marks
+# from an ffmetadata file, cover art embedded as attached picture, author/narrator/series in tags
+# like real M4B files: artist = author, composer = narrator, show = series, episode_id = volume)
+# and one book as a folder of 10 MP3 files (one chapter each, cover.jpg next to them), plus three
+# podcast episodes and a feed template for the local mock feed server (no network in CI).
+audio_dir="$OUT_DIR/Audiobooks"
+audio_author="Slouchcat Test Author"
+m4b_title="Slouchcat Test Audiobook M4B"
+mp3_title="Slouchcat Test Audiobook MP3"
+audio_series="Slouchcat Test Audio Series"
+
+# cover <out.jpg> <text colour>: a 600x600 cover from lavfi colour bars with a solid frame.
+cover() {
+  "${ff[@]}" -f lavfi -i "smptebars=size=600x600:rate=1:duration=1" \
+    -vf "drawbox=x=20:y=20:w=560:h=560:color=$2@0.8:t=24" -frames:v 1 -q:v 3 "$1"
+}
+
+f="$audio_dir/$audio_author/$audio_series/01 - $m4b_title/$m4b_title.m4b"
+if want "$f"; then
+  cover "$subs_dir/m4b-cover.jpg" red
+  {
+    echo ";FFMETADATA1"
+    for ch in $(seq 1 12); do
+      printf '\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=%d\nEND=%d\ntitle=Kapitel %d\n' \
+        $(((ch - 1) * 5000)) $((ch * 5000)) "$ch"
+    done
+  } >"$subs_dir/m4b-chapters.ffmeta"
+  own_tones "$subs_dir/m4b.wav" 60 424242
+  "${ff[@]}" -i "$subs_dir/m4b.wav" -i "$subs_dir/m4b-cover.jpg" -i "$subs_dir/m4b-chapters.ffmeta" \
+    -map 0:a -map 1:v -map_chapters 2 -c:a aac -b:a 64k -ac 1 -c:v:0 mjpeg -disposition:v:0 attached_pic \
+    -metadata title="$m4b_title" -metadata artist="$audio_author" -metadata album_artist="$audio_author" \
+    -metadata composer="Slouchcat Test Narrator" -metadata album="$m4b_title" -metadata date=2024 \
+    -metadata genre="Test" -metadata show="$audio_series" -metadata episode_id=1 \
+    -metadata description="Ein Testhoerbuch mit zwoelf Kapiteln aus Sinustoenen." \
+    -f mp4 -movflags +faststart "$f"
+fi
+
+mp3_dir="$audio_dir/$audio_author/$audio_series/02 - $mp3_title"
+for ch in $(seq 1 10); do
+  f="$(printf '%s/%02d - Kapitel %d.mp3' "$mp3_dir" "$ch" "$ch")"
+  if want "$f"; then
+    if [[ ! -f "$mp3_dir/cover.jpg" ]]; then cover "$mp3_dir/cover.jpg" blue; fi
+    "${ff[@]}" -f lavfi -i "sine=frequency=$((200 + 40 * ch)):sample_rate=44100:duration=6" \
+      -c:a libmp3lame -b:a 64k -ac 1 -id3v2_version 3 \
+      -metadata title="Kapitel $ch" -metadata artist="$audio_author" -metadata album_artist="$audio_author" \
+      -metadata composer="Slouchcat Test Narrator" -metadata album="$mp3_title" -metadata track="$ch/10" \
+      -metadata date=2023 -metadata genre="Test" "$f"
+  fi
+done
+
+# Podcast episodes for the mock feed (testdata/podcasts/feed.xml.tmpl has {{BASE}} placeholders).
+podcast_dir="$OUT_DIR/Podcasts"
+for ep in 1 2 3; do
+  f="$podcast_dir/episode-$ep.mp3"
+  if want "$f"; then
+    if [[ ! -f "$podcast_dir/cover.jpg" ]]; then cover "$podcast_dir/cover.jpg" green; fi
+    "${ff[@]}" -f lavfi -i "sine=frequency=$((500 + 100 * ep)):sample_rate=44100:duration=$((6 + 2 * ep))" \
+      -c:a libmp3lame -b:a 64k -ac 1 -id3v2_version 3 \
+      -metadata title="Slouchcat Test Episode $ep" -metadata artist="Slouchcat Test Podcast" "$f"
   fi
 done
 

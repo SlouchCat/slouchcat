@@ -19,6 +19,7 @@ import {
   type MediaPlatform,
   type PlaybackEngine,
 } from './capabilities';
+import { AudioPlayerPage } from './AudioPlayerPage';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { VideoPlayer, type PlaybackChange } from './VideoPlayer';
 import styles from './Player.module.css';
@@ -31,25 +32,42 @@ const containerMime: Record<string, string> = {
   mov: 'video/quicktime',
   webm: 'video/webm',
   mkv: 'video/x-matroska',
+  // Audiobooks and podcast episodes (M6).
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  m4b: 'audio/mp4',
+  aac: 'audio/aac',
+  flac: 'audio/flac',
+  ogg: 'audio/ogg',
+  opus: 'audio/ogg',
 };
 
-/** MIME type for the capability check: the server's (with codecs) or one derived from the container. */
+/**
+ * MIME type for the capability check: the server's (with codecs) or one derived from the container.
+ * For audio a known container comes first: an episode's type is the feed's, often non-standard
+ * (`audio/x-mp3`, `audio/mpeg3`), which browsers do not recognise although they play the file.
+ */
 export function playbackMime(info: PlaybackInfo): string {
+  const known = containerMime[info.mediaFile.container.toLowerCase()];
+  if (info.mediaKind === 'audio' && known) return known;
   return (
     info.mediaFile.mimeType ??
-    containerMime[info.mediaFile.container.toLowerCase()] ??
-    `video/${info.mediaFile.container.toLowerCase()}`
+    known ??
+    `${info.mediaKind}/${info.mediaFile.container.toLowerCase()}`
   );
 }
 
 /**
  * How this browser plays the answer of startPlayback: the file directly, HLS natively (Safari) or
  * through hls.js, or not at all. This is a device capability check (W-1), not a visibility rule:
- * the server already decided that the profile may watch the title.
+ * the server already decided that the profile may watch the title. Audio of an unknown container
+ * (a feed's enclosure) is tried directly: the element's error shows a failure.
  */
 export function playbackEngine(info: PlaybackInfo, platform: MediaPlatform): PlaybackEngine {
   if (info.mode === 'hls') return hlsEngine(platform);
-  return platform.canPlayType(playbackMime(info)) !== '' ? 'direct' : 'unsupported';
+  if (platform.canPlayType(playbackMime(info)) !== '') return 'direct';
+  const unknown = !containerMime[info.mediaFile.container.toLowerCase()];
+  return info.mediaKind === 'audio' && unknown ? 'direct' : 'unsupported';
 }
 
 /** Retries of the start request while the server answers 503 `transcode_busy`. */
@@ -113,11 +131,12 @@ export function PlayerPage() {
 function PlayerView({ itemId }: { itemId: string }) {
   const { t } = useTranslation();
   // The version to play (B-5): from the link of the detail page or the version menu, kept in
-  // the URL so a reload plays the chosen one. The menu also hands over the position.
-  const { file } = route.useSearch();
+  // the URL so a reload plays the chosen one. The menu also hands over the position; `at` starts
+  // at a chapter of an audiobook (its link on the detail page).
+  const { file, at } = route.useSearch();
   const navigate = route.useNavigate();
   const queryClient = useQueryClient();
-  const [startMs, setStartMs] = useState<number | undefined>(undefined);
+  const [startMs, setStartMs] = useState<number | undefined>(at);
   const [switchingTo, setSwitchingTo] = useState<string | undefined>(undefined);
   const [stopping, setStopping] = useState(false);
   const [switchStartedAt, setSwitchStartedAt] = useState<number | undefined>(undefined);
@@ -170,6 +189,13 @@ function PlayerView({ itemId }: { itemId: string }) {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+  // `at` starts this player only: once the session runs it leaves the URL, so a reload (or back
+  // and forward) resumes from the saved position instead of the chapter's start.
+  const started = playback.isSuccess;
+  useEffect(() => {
+    if (at === undefined || !started) return;
+    void navigate({ search: (previous) => ({ ...previous, at: undefined }), replace: true });
+  }, [at, navigate, started]);
   useDocumentTitle(playback.data?.item.title);
   const stopSession = useStopPlaybackOnLeave(playback.data?.playbackSessionId);
   // The versions of the title for the version menu; the detail page usually has them cached.
@@ -243,6 +269,20 @@ function PlayerView({ itemId }: { itemId: string }) {
     },
     [itemId, queryClient],
   );
+
+  if (playback.data && engine && engine !== 'unsupported' && playback.data.mediaKind === 'audio') {
+    return (
+      <AudioPlayerPage
+        key={playback.data.playbackSessionId}
+        info={playback.data}
+        engine={engine}
+        openedAt={openedAt}
+        onBack={goBack}
+        startPositionMs={startMs}
+        detail={detail.data}
+      />
+    );
+  }
 
   if (playback.data && engine && engine !== 'unsupported') {
     return (

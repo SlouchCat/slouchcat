@@ -1,6 +1,7 @@
 package transcode
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -33,6 +34,11 @@ const (
 
 	// videoOut is the filter_complex output label of a bitmap subtitle burn-in.
 	videoOut = "[vout]"
+	// audioOut is the filter_complex output label of the concat filter of a Mixed book (M6).
+	audioOut = "[aout]"
+	// mixedSampleRate is the output sample rate of a Mixed book whose first part's rate is unknown
+	// (a probe stored before M6).
+	mixedSampleRate = 48000
 )
 
 // ffmpegArgs builds the complete argument list of one ffmpeg run that writes the segments
@@ -73,19 +79,33 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 			vf = c.filters(burn)
 		}
 	}
-	if start > 0 {
+	mixed := len(src.Parts) > 0 && src.Probe.Mixed()
+	if start > 0 && !mixed {
 		if encode {
 			args = append(args, "-noaccurate_seek") // the output -ss trims exactly
 		}
 		args = append(args, "-ss", seconds6(b))
 	}
-	args = append(args, "-i", src.Path)
+	var audioGraph string
+	switch {
+	case mixed:
+		var in []string
+		in, audioGraph = concatFilterInputs(src, a, b)
+		args = append(args, in...)
+	case len(src.Parts) > 0:
+		args = append(args, "-f", "concat", "-safe", "0", "-i", filepath.Join(outDir, concatList))
+	default:
+		args = append(args, "-i", src.Path)
+	}
 	if complexGraph != "" {
 		args = append(args, "-filter_complex", complexGraph, "-map", videoOut)
 	} else if hasVideo {
 		args = append(args, "-map", "0:"+strconv.Itoa(v.Index))
 	}
-	if hasAudio {
+	switch {
+	case hasAudio && audioGraph != "":
+		args = append(args, "-filter_complex", audioGraph, "-map", audioOut)
+	case hasAudio:
 		args = append(args, "-map", "0:"+strconv.Itoa(a.Index))
 	}
 	args = append(args, "-map_metadata", "-1", "-map_chapters", "-1")
@@ -118,7 +138,12 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 			if p.Target.AudioBitrate > 0 {
 				kbps = p.Target.AudioBitrate
 			}
-			args = append(args, "-c:a", "aac", "-b:a", strconv.Itoa(kbps)+"k", "-ac", "2")
+			args = append(args, "-c:a", "aac", "-b:a", strconv.Itoa(kbps)+"k", "-ac", strconv.Itoa(outputChannels(a, hasVideo)))
+			if mixed {
+				// A restart may read from a later part with another rate: every run of the
+				// session must match the init segment of the first.
+				args = append(args, "-ar", strconv.Itoa(cmp.Or(a.SampleRate, mixedSampleRate)))
+			}
 		}
 	}
 
@@ -170,6 +195,15 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 		filepath.Join(outDir, segmentPattern),
 	)
 	return args, nil
+}
+
+// outputChannels is the channel count of encoded AAC: stereo next to video; for audio-only
+// sources the source's count up to stereo (a mono audiobook stays mono), stereo when unknown.
+func outputChannels(a Stream, hasVideo bool) int {
+	if hasVideo || a.Channels <= 0 {
+		return 2
+	}
+	return min(a.Channels, 2)
 }
 
 // boundaryList returns the starts of the segments after start, relative to base, comma-separated.

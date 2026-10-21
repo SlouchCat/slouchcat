@@ -163,4 +163,93 @@ describe('admin libraries page', () => {
       within(card).queryByRole('button', { name: 'Verlust akzeptieren' }),
     ).not.toBeInTheDocument();
   });
+
+  it('audio libraries: default rating on the card, changed through PATCH (AN-2, M6)', async () => {
+    const books = library({
+      id: 3,
+      name: 'Hörbücher',
+      kind: 'audiobooks',
+      defaultRating: 0,
+      roots: [{ id: 3, path: '/media/Hoerbuecher', fsType: 'ext4', watch: 'inotify' }],
+    });
+    const podcasts = library({
+      id: 4,
+      name: 'Podcasts',
+      kind: 'podcasts',
+      defaultRating: 6,
+      roots: [],
+    });
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([library(), books, podcasts]),
+      'PATCH /admin/libraries/3': () => json({ ...books, defaultRating: 12 }),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    const card = await screen.findByRole('article', { name: 'Hörbücher' });
+    expect(within(card).getByText('Standard: FSK 0')).toBeVisible();
+    const podcastCard = screen.getByRole('article', { name: 'Podcasts' });
+    expect(within(podcastCard).getByText('Standard: FSK 6')).toBeVisible();
+    expect(
+      within(podcastCard).getByText('Kein Ordner: Die Titel kommen aus abonnierten Feeds.'),
+    ).toBeVisible();
+    // Video libraries have no default rating.
+    const movies = screen.getByRole('article', { name: 'Filme' });
+    expect(within(movies).queryByText(/^Standard:/)).not.toBeInTheDocument();
+    expect(within(movies).queryByRole('button', { name: /Standardstufe/ })).not.toBeInTheDocument();
+
+    await user.click(
+      within(card).getByRole('button', { name: 'Standardstufe von Hörbücher ändern' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Standardstufe von Hörbücher' });
+    expect(within(dialog).getByRole('radio', { name: 'FSK 0' })).toBeChecked();
+    await user.click(within(dialog).getByText('FSK 12'));
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ defaultRating: 12 });
+    expect(screen.getByText('Die Standardstufe von Hörbücher ist jetzt FSK 12.')).toBeVisible();
+  });
+
+  it('adds a podcast library without folder and an audiobook library with its rating', async () => {
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([]),
+      'POST /admin/libraries': (call) => json(library(call.body as never), 201),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    await screen.findByText('Noch keine Bibliothek angelegt.');
+
+    // Films: no default rating to choose.
+    expect(screen.queryByRole('radiogroup', { name: 'Standard-Altersstufe' })).toBeNull();
+    await user.type(screen.getByLabelText('Name'), 'Podcasts');
+    await user.click(screen.getByRole('radio', { name: 'Podcasts' }));
+    expect(screen.queryByLabelText('Ordner')).not.toBeInTheDocument();
+    expect(screen.getByText(/Podcasts brauchen keinen Ordner/)).toBeVisible();
+    const rating = screen.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
+    expect(within(rating).getByRole('radio', { name: 'FSK 0' })).toBeChecked();
+    await user.click(within(rating).getByText('FSK 6'));
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+        name: 'Podcasts',
+        kind: 'podcasts',
+        defaultRating: 6,
+      }),
+    );
+
+    await user.type(await screen.findByLabelText('Name'), 'Hörbücher');
+    await user.click(screen.getByRole('radio', { name: 'Hörbücher' }));
+    await user.type(screen.getByLabelText('Ordner'), '/media/Hoerbuecher');
+    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === 'POST').at(-1)?.body).toEqual({
+        name: 'Hörbücher',
+        kind: 'audiobooks',
+        path: '/media/Hoerbuecher',
+        defaultRating: 0,
+      }),
+    );
+  });
 });

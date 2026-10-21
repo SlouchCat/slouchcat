@@ -289,6 +289,9 @@ func (s *Session) startLocked(i int) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
+	if err := writeConcatList(s.src, dir); err != nil {
+		return err
+	}
 	args, err := ffmpegArgs(s.m.caps, s.src, s.plan, i, dir)
 	if err != nil {
 		return err

@@ -1,9 +1,9 @@
 import { onlineManager } from '@tanstack/react-query';
-import { act, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isUlid } from '@/lib/ulid';
 import { mockApi, renderApp, signedIn } from '@/test/api';
-import { ids } from '@/test/fixtures';
+import { audiobook, bookChapters, ids } from '@/test/fixtures';
 import { resetOfflineFiles, seedFile } from '@/test/offlineFiles';
 import {
   downloadIds,
@@ -23,6 +23,7 @@ import {
   storedDownloads,
 } from '@/test/offlineStore';
 import { chooseOfflineProfile, leaveOfflineProfile } from './offlineSession';
+import type { StoredDownload } from './types';
 import { timelineOffset } from './OfflinePlayer';
 
 vi.mock('@/features/offline/store', () => import('@/test/offlineStore'));
@@ -403,6 +404,108 @@ describe('offline player', () => {
     mockApi({});
     renderApp(`/offline/play/${downloadIds.alien}`);
     expect(await screen.findByText('Download nicht verfügbar')).toBeVisible();
+  });
+
+  const bookId = '01JB8Z6Q4M7N9P2R3S5T7V9D05';
+  /** An audiobook download both profiles may play, with a speed per profile. */
+  async function putAudiobook(overrides: Partial<StoredDownload>) {
+    await putDownloads([
+      storedDownload({
+        id: bookId,
+        item: audiobook,
+        allowedProfileIds: [1, 2],
+        manifest: {
+          ...manifest(bookId, audiobook.id),
+          durationMs: 60_000,
+          mimeType: 'audio/mp4',
+          codecs: 'mp4a.40.2',
+          width: 0,
+          height: 0,
+          chapters: bookChapters,
+          subtitles: [],
+        },
+        subtitlesStored: [],
+        ...overrides,
+      }),
+    ]);
+    seedFile(bookId, 'media.mp4', new Uint8Array(9000));
+  }
+
+  async function startAudio() {
+    const { container } = renderApp(`/offline/play/${bookId}`);
+    const region = await screen.findByRole('main', { name: 'Audioplayer' });
+    await waitFor(() => expect(region).toHaveAttribute('data-engine', 'mse'));
+    const audio = container.querySelector('audio')!;
+    expect(container.querySelector('video')).toBeNull();
+    await waitFor(() => {
+      act(() => {
+        audio.dispatchEvent(new Event('loadedmetadata'));
+      });
+      expect(region).toHaveAttribute('data-start-ms');
+    });
+    return { region, audio };
+  }
+
+  const storedRates = () =>
+    storedDownloads().find((download) => download.id === bookId)?.playbackRates;
+
+  it('an audio download plays behind the audio player: chapters, speed kept per profile (M6)', async () => {
+    const media = stubMedia(60);
+    await putAudiobook({
+      // Profile 1 set 1.25 offline after the last sync; profile 2 has its own speed.
+      playbackRates: { '1': { rate: 1.25, at: 200 }, '2': { rate: 2, at: 200 } },
+      serverPositions: { '1': { positionMs: 0, completed: false, at: 100, playbackRate: 1.1 } },
+    });
+    mockApi({});
+    const { region, audio } = await startAudio();
+    expect(within(region).getByRole('heading', { name: audiobook.title })).toBeVisible();
+    // The profile's own speed, newer than the server's.
+    expect(audio.playbackRate).toBe(1.25);
+
+    // Chapters from the manifest: Shift+→ jumps to the next one, offline.
+    media.currentTime = 6;
+    fireEvent.keyDown(window, { key: 'ArrowRight', shiftKey: true });
+    expect(media.currentTime).toBe(10);
+    act(() => {
+      audio.dispatchEvent(new Event('timeupdate'));
+    });
+    expect(within(region).getByText('Kapitel 3 · 0:00 / 0:05')).toBeVisible();
+
+    // A new speed is kept for this profile only and goes into its offline events.
+    fireEvent.keyDown(window, { key: ']' });
+    expect(audio.playbackRate).toBe(1.35);
+    await waitFor(() => expect(storedRates()?.['1']?.rate).toBe(1.35));
+    expect(storedRates()?.['2']).toEqual({ rate: 2, at: 200 });
+    act(() => audio.pause());
+    await waitFor(() => expect(queuedEvents().length).toBeGreaterThan(0));
+    expect(queuedEvents().at(-1)?.event).toMatchObject({
+      profileId: 1,
+      itemId: audiobook.id,
+      downloadId: bookId,
+      state: 'paused',
+      positionMs: 10_000,
+      playbackRate: 1.35,
+    });
+  });
+
+  it('another profile starts at its own speed: the server’s when it is newer (H-3, M6)', async () => {
+    stubMedia(60);
+    await putAudiobook({
+      playbackRates: { '1': { rate: 2.5, at: 300 }, '2': { rate: 2, at: 100 } },
+      // Profile 2 changed its speed online after its last offline playback.
+      serverPositions: { '2': { positionMs: 0, completed: false, at: 200, playbackRate: 1.75 } },
+    });
+    chooseOfflineProfile({ accountId: 1, profileId: 2 });
+    mockApi({});
+    const { audio } = await startAudio();
+    expect(audio.playbackRate).toBe(1.75);
+
+    fireEvent.keyDown(window, { key: '[' });
+    await waitFor(() => expect(storedRates()?.['2']?.rate).toBe(1.65));
+    expect(storedRates()?.['1']).toEqual({ rate: 2.5, at: 300 });
+    act(() => audio.pause());
+    await waitFor(() => expect(queuedEvents().length).toBeGreaterThan(0));
+    expect(queuedEvents().at(-1)?.event).toMatchObject({ profileId: 2, playbackRate: 1.65 });
   });
 
   it('refuses a download the profile may not see (allowedProfileIds)', async () => {

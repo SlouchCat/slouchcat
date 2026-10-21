@@ -61,3 +61,14 @@ export const WithoutPoster: Story = {
 export const WithBadge: Story = {
   args: { title: 'Making Of', caption: undefined, posterUrl: undefined, badge: 'Featurette' },
 };
+
+/** An audiobook or a podcast: the cover is square (M6). */
+export const Square: Story = {
+  args: {
+    title: 'Die Stunde der Dämmerung',
+    caption: 'Mara Lindqvist',
+    shape: 'square',
+    accent: accents.dusk,
+    progress: { percent: 52, label: '52 % gehört' },
+  },
+};

@@ -67,6 +67,10 @@ type Decision struct {
 	SubtitleDelivery string // model.SubtitleText or model.SubtitleBurn; empty without subtitles
 	BurnStream       int    // stream index of an embedded subtitle to burn in, -1 = none
 	BurnSidecar      string // sidecar subtitle to burn in, relative to the library root
+	// Audio marks an audio-only source (no video stream besides cover art, M6): direct play of
+	// the file, or an audio-only HLS output (AAC copy or audioOnlyKbps); Quality is auto and the
+	// output has no size.
+	Audio bool
 }
 
 // Request is the client's side of a decision: its capability profile, the effective limits of
@@ -85,6 +89,9 @@ type Request struct {
 	// ForceTranscode rebuilds a recorded transcode (Service.rebuild): the decision stays a
 	// transcode on the recorded rung even where the client could remux now.
 	ForceTranscode bool
+	// MultiPart is set for an audiobook of several files: it always plays as one HLS timeline over
+	// its parts (transcode.Source.Parts).
+	MultiPart bool
 }
 
 // defaultCapabilities stand for a client that reports nothing: a browser with MSE that plays
@@ -213,18 +220,23 @@ func audioStream(p *transcode.Probe, index int) *transcode.Stream {
 
 func mp4Family(container string) bool {
 	switch strings.ToLower(container) {
-	case "mp4", "m4v", "mov":
+	case "mp4", "m4v", "mov", "m4a", "m4b":
 		return true
 	}
 	return false
 }
 
 // containerPlayable reports whether the client's media element plays the container directly:
-// the reported containers ("mp4" stands for the MP4 family), MP4 only without a report.
+// the reported containers ("mp4" stands for the MP4 family, M4A and M4B included), MP4 only
+// without a report. An MP3 file plays wherever the client decodes MP3 (clients report audio
+// codecs, not audio containers).
 func containerPlayable(container string, caps model.PlaybackCapabilities) bool {
 	c := strings.ToLower(container)
 	if mp4Family(c) {
 		c = "mp4"
+	}
+	if c == "mp3" {
+		return slices.Contains(caps.Audio, "mp3")
 	}
 	if len(caps.Containers) == 0 {
 		return c == "mp4"
@@ -314,6 +326,9 @@ func Decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 	}
 	burn := d.SubtitleDelivery == model.SubtitleBurn
 
+	if v == nil && video == "" && audio != "" {
+		return decideAudio(d, file, req, audio, isDefaultAudio, probe != nil && probe.Mixed())
+	}
 	if caps.HLS == "none" && !req.ForceTranscode {
 		d.Mode = ModeDirect
 		return d
@@ -384,6 +399,53 @@ func Decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 		from = wanted
 	}
 	return transcodeOn(d, pickRung(from, limits, deviceCap(caps)), reason, hdr, audio == "aac" && audioOK, srcW, srcH, limits)
+}
+
+// audioOnlyKbps is the AAC bit rate of an audio-only output that encodes (M6 design 3.3).
+const audioOnlyKbps = 128
+
+// decideAudio decides an audio-only source (M6 design 3.3): direct play of a single file in MP4
+// (M4A, M4B) with AAC or of an MP3 file, when the client decodes the codec, the track is the
+// default one and the bit rate fits the profile's bandwidth limit; a client without HLS also gets
+// the file. Anything else, and every audiobook of several parts, is an audio-only HLS transcode:
+// AAC is copied when the client decodes it (and the bit rate fits), other codecs are encoded to
+// AAC at audioOnlyKbps (also for the parts of a book that differ in their streams, mixed: the
+// concat filter decodes them; transcode.Probe.Mixed). Reasons: container (several parts, or a
+// container the client does not play directly), audio_codec, audio_track, bandwidth.
+func decideAudio(d Decision, file model.MediaFile, req Request, audio string, isDefaultAudio, mixed bool) Decision {
+	caps, limits := req.Caps, req.Limits
+	d.Audio, d.Width, d.Height = true, 0, 0
+	container := strings.ToLower(file.Container)
+	codecOK := slices.Contains(caps.Audio, audio)
+	formatOK := (mp4Family(container) && audio == "aac") || (container == "mp3" && audio == "mp3")
+	bitrateOK := limits.MaxBitrateKbps == 0 || d.Bitrate == 0 || d.Bitrate <= limits.MaxBitrateKbps*1000
+	if !req.MultiPart && !req.ForceTranscode &&
+		(caps.HLS == "none" || (formatOK && codecOK && isDefaultAudio && bitrateOK)) {
+		d.Mode = ModeDirect
+		return d
+	}
+	d.Mode, d.Quality = ModeTranscode, model.QualityAuto
+	d.AudioCopy = audio == "aac" && codecOK && bitrateOK && !mixed
+	switch {
+	case req.MultiPart:
+		d.Reason = ReasonContainer
+	case !codecOK:
+		d.Reason = ReasonAudioCodec
+	case !isDefaultAudio:
+		d.Reason = ReasonAudioTrack
+	case !bitrateOK:
+		d.Reason = ReasonBandwidth
+	default:
+		d.Reason = ReasonContainer
+	}
+	if !d.AudioCopy {
+		// A bandwidth limit below the AAC rate caps the encode too.
+		d.Bitrate = audioOnlyKbps * 1000
+		if limits.MaxBitrateKbps > 0 {
+			d.Bitrate = min(d.Bitrate, limits.MaxBitrateKbps*1000)
+		}
+	}
+	return d
 }
 
 // transcodeOn turns d into a transcode on ladder rung i.

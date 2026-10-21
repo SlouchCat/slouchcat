@@ -1,5 +1,7 @@
 // Package offline prepares downloads for offline playback and keeps devices in step with the server
-// (plan M5, O-1 to O-7, AN-4, AN-13, AN-18 to AN-20; M5 design sections 2 and 3.1 to 3.5).
+// (plan M5, O-1 to O-7, AN-4, AN-13, AN-18 to AN-20; M5 design sections 2 and 3.1 to 3.5). M6 adds
+// audiobooks and podcast episodes (audio.go: AAC 128/96/64 kbit/s, enclosure fetch) and the
+// auto-download of new podcast episodes (O-3).
 //
 // A download is one title on one device (table downloads, UNIQUE device and title). The job
 // download.prepare encodes it with a fixed download profile (high, medium, low: H.264 and AAC in
@@ -50,8 +52,10 @@ type PinPort interface {
 }
 
 // Encoder is the part of transcode.Runner the preparation uses: the segment-wise download encode
-// (M5 stream A), the keyframe index of a remux and the WebVTT conversion of text subtitles.
+// (M5 stream A), the keyframe index of a remux, the WebVTT conversion of text subtitles and the
+// probe of a fetched enclosure (M6).
 type Encoder interface {
+	Probe(ctx context.Context, path string) (transcode.Probe, error)
 	Download(ctx context.Context, caps transcode.Capabilities, src transcode.Source, plan transcode.Plan, workDir string,
 		startSegment int, onInit func(init []byte) error,
 		onSegment func(n int, data []byte, start, dur time.Duration) error) error
@@ -112,6 +116,7 @@ type Service struct {
 	read  *systemq.Queries
 	write *systemq.Queries
 	vis   *visibility.Reader
+	audio audioReader // parts and chapters of audiobooks (visibility.Reader; a fake in tests)
 	queue *jobs.Queue
 	enc   Encoder
 	adm   Admission
@@ -171,6 +176,9 @@ func New(db *store.DB, vis *visibility.Reader, queue *jobs.Queue, runner transco
 	s := &Service{
 		db: db, read: systemq.New(db.Read), write: systemq.New(db.Write), vis: vis, queue: queue, enc: runner,
 		caps: transcode.Capabilities{Backend: transcode.BackendSoftware}, log: log, now: time.Now,
+	}
+	if vis != nil {
+		s.audio = vis
 	}
 	for _, o := range opts {
 		o(s)

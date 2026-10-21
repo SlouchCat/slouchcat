@@ -162,6 +162,21 @@ func summarize(it scopedq.Item, ex extras, lang string) model.ItemSummary {
 			Completed:  p.Completed == 1,
 			UpdatedAt:  time.UnixMilli(p.UpdatedAt).UTC(),
 		}
+		if p.PlaybackRate.Valid {
+			rate := p.PlaybackRate.Float64
+			s.Progress.PlaybackRate = &rate
+		}
+	}
+	// Audio (M6).
+	s.Author = it.Author.String
+	s.Explicit = it.Explicit == 1
+	if it.PublishedAt.Valid {
+		t := time.UnixMilli(it.PublishedAt.Int64).UTC()
+		s.PublishedAt = &t
+	}
+	if it.DurationMs.Valid {
+		d := it.DurationMs.Int64
+		s.DurationMs = &d
 	}
 	s.ParentID = ex.parents[it.ID] // only a parent the profile may see
 	s.SeasonNumber = optInt(it.SeasonNumber)
@@ -201,6 +216,12 @@ func detail(it scopedq.Item, ex extras, lang string) model.ItemDetail {
 	if it.TvdbID.Valid {
 		id := it.TvdbID.Int64
 		d.TVDBID = &id
+	}
+	d.Narrator = it.Narrator.String
+	d.SeriesName = it.SeriesName.String
+	if it.SeriesIndex.Valid {
+		idx := it.SeriesIndex.Float64
+		d.SeriesIndex = &idx
 	}
 	return d
 }

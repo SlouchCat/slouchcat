@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -38,6 +39,8 @@ type fileInfo struct {
 	episode, episodeEnd    int64
 	episodeTitle, released string
 	episodeRating          *int
+
+	book *bookMeta // folder metadata of an audio file (audiobook library)
 }
 
 // nfoCache holds the tvshow.nfo files read in one batch, by root and series folder.
@@ -202,6 +205,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 		}
 	}()
 	cache := nfoCache{}
+	books := bookCache{}
 	for i, op := range ops {
 		if op.kind != opNew {
 			continue
@@ -213,6 +217,10 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 				return 0, err
 			}
 			roots[op.rs.root.ID] = r
+		}
+		if lib.Kind == model.LibraryAudiobooks {
+			infos[i] = describeBook(r, op.rs.root.ID, op.disk, books)
+			continue
 		}
 		infos[i] = describe(r, op.rs.root.ID, lib.Kind, op.disk, cache)
 	}
@@ -240,6 +248,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 	}
 	s.recordBatch(len(ops), time.Since(began))
 	s.rememberOrphans(w.orphans)
+	s.finishAudiobooks(ctx, w.books)
 	if w.skipped > 0 {
 		s.log.InfoContext(ctx, "extras without a parent title skipped", "library_id", lib.ID, "files", w.skipped)
 	}
@@ -262,11 +271,15 @@ type batchWriter struct {
 	ms      int64
 	stats   scanStats
 	skipped int
-	orphans []scanOp // new extras skipped for want of a parent (Service.rememberOrphans)
+	orphans []scanOp        // new extras skipped for want of a parent (Service.rememberOrphans)
+	books   map[string]bool // audiobooks with new, moved or missing parts (Service.finishAudiobooks)
 }
 
 func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error {
 	q := w.q
+	if op.known != nil && w.lib.Kind == model.LibraryAudiobooks {
+		w.touchBook(op.known.ItemID)
+	}
 	switch op.kind {
 	case opNew:
 		itemID, err := w.item(ctx, info)
@@ -276,6 +289,9 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		if itemID == "" {
 			w.orphans = append(w.orphans, op) // an extra without a parent title
 			return nil
+		}
+		if w.lib.Kind == model.LibraryAudiobooks {
+			w.touchBook(itemID)
 		}
 		fileID := w.newID()
 		if _, err := q.InsertMediaFile(ctx, systemq.InsertMediaFileParams{
@@ -301,11 +317,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		}); err != nil {
 			return fmt.Errorf("update media file: %w", err)
 		}
-		titleKind := "movie"
-		if w.lib.Kind == "series" {
-			titleKind = "series"
-		}
-		if title := w.idx.title(op.known.ItemID, titleKind); title != "" {
+		if title := w.idx.title(op.known.ItemID, titleKindOf(w.lib.Kind)); title != "" {
 			w.idx.addFolder(title, fileFolderKey(w.lib.Kind, op.rs.root.ID, op.disk.rel, op.disk.parsed))
 		}
 		if op.known.MissingSince.Valid {
@@ -332,6 +344,8 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 // needed; "" for an extra without a parent title, which is skipped.
 func (w *batchWriter) item(ctx context.Context, info fileInfo) (string, error) {
 	switch {
+	case w.lib.Kind == model.LibraryAudiobooks:
+		return w.audiobookItem(ctx, info)
 	case info.extra:
 		return w.extraItem(ctx, info)
 	case w.lib.Kind == "series":
@@ -339,6 +353,14 @@ func (w *batchWriter) item(ctx context.Context, info fileInfo) (string, error) {
 	default:
 		return w.titleItem(ctx, info, "movie")
 	}
+}
+
+// touchBook records an audiobook whose parts the batch changes.
+func (w *batchWriter) touchBook(itemID string) {
+	if w.books == nil {
+		w.books = map[string]bool{}
+	}
+	w.books[itemID] = true
 }
 
 // restore brings back a soft-deleted item with its soft-deleted ancestors. force restores even

@@ -21,6 +21,9 @@ type Probe struct {
 	Format   Format    `json:"format"`
 	Streams  []Stream  `json:"streams"`
 	Chapters []Chapter `json:"chapters"`
+	// partDurations are the durations of the parts of a book whose parts differ in their streams
+	// (ConcatProbe; never stored): ffmpeg joins them with the concat filter.
+	partDurations []time.Duration
 }
 
 // Format describes the container.
@@ -29,6 +32,10 @@ type Format struct {
 	Duration time.Duration `json:"duration"` // nanoseconds in JSON
 	Size     int64         `json:"size"`
 	BitRate  int64         `json:"bitRate"`
+	// Tags are the container tags (ffprobe format.tags) with lower-case keys: title, album,
+	// artist, album_artist, composer, show, episode_id, track, date, genre, description, comment
+	// and the like; nil when the file has none. Audiobooks take their metadata from them (M6).
+	Tags map[string]string `json:"tags,omitempty"`
 }
 
 // Stream is one elementary stream of the container.
@@ -45,6 +52,7 @@ type Stream struct {
 	ColorPrimaries string `json:"colorPrimaries,omitempty"`
 	Channels       int    `json:"channels,omitempty"`
 	ChannelLayout  string `json:"channelLayout,omitempty"`
+	SampleRate     int    `json:"sampleRate,omitempty"` // audio; 0 in probes stored before M6
 	Language       string `json:"language,omitempty"`
 	Title          string `json:"title,omitempty"`
 	Default        bool   `json:"default,omitempty"`
@@ -115,10 +123,11 @@ type Chapter struct {
 // ffprobe JSON output; numbers that ffprobe prints as strings stay strings here.
 type rawProbe struct {
 	Format struct {
-		FormatName string `json:"format_name"`
-		Duration   string `json:"duration"`
-		Size       string `json:"size"`
-		BitRate    string `json:"bit_rate"`
+		FormatName string            `json:"format_name"`
+		Duration   string            `json:"duration"`
+		Size       string            `json:"size"`
+		BitRate    string            `json:"bit_rate"`
+		Tags       map[string]string `json:"tags"`
 	} `json:"format"`
 	Streams []struct {
 		Index          int    `json:"index"`
@@ -133,6 +142,7 @@ type rawProbe struct {
 		ColorPrimaries string `json:"color_primaries"`
 		Channels       int    `json:"channels"`
 		ChannelLayout  string `json:"channel_layout"`
+		SampleRate     string `json:"sample_rate"`
 		Tags           struct {
 			Language string `json:"language"`
 			Title    string `json:"title"`
@@ -250,6 +260,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Duration: seconds(raw.Format.Duration),
 			Size:     integer(raw.Format.Size),
 			BitRate:  integer(raw.Format.BitRate),
+			Tags:     lowerKeys(raw.Format.Tags),
 		},
 		Streams:  make([]Stream, 0, len(raw.Streams)),
 		Chapters: make([]Chapter, 0, len(raw.Chapters)),
@@ -276,6 +287,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			ColorPrimaries:      s.ColorPrimaries,
 			Channels:            s.Channels,
 			ChannelLayout:       s.ChannelLayout,
+			SampleRate:          int(integer(s.SampleRate)),
 			Language:            s.Tags.Language,
 			Title:               s.Tags.Title,
 			Default:             s.Disposition.Default == 1,
@@ -342,6 +354,32 @@ func (r Runner) ffprobe(ctx context.Context, args ...string) ([]byte, error) {
 		return nil, wrapped
 	}
 	return out, nil
+}
+
+// lowerKeys returns the tags with lower-case keys and trimmed values, without empty values; nil
+// for none. Of two keys that differ in case only, the first in key order wins.
+func lowerKeys(tags map[string]string) map[string]string {
+	if len(tags) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(tags))
+	keys := make([]string, 0, len(tags))
+	for k := range tags {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		v := strings.TrimSpace(tags[k])
+		lk := strings.ToLower(k)
+		if _, dup := out[lk]; v == "" || dup {
+			continue
+		}
+		out[lk] = v
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func seconds(s string) time.Duration {

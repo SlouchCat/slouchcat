@@ -167,7 +167,10 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	if err := markSeasonPending(ctx, q, t.file.ID, now); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return s.finishAudiobook(ctx, t.file.ItemID)
 }
 
 // maxProbeError bounds the stored ffprobe message.
@@ -199,7 +202,10 @@ func (s *Service) storeProbeError(ctx context.Context, t probeTarget, cause erro
 	if err := q.DeleteMediaFileTracks(ctx, t.file.ID); err != nil {
 		return fmt.Errorf("delete tracks: %w", err)
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return s.finishAudiobook(ctx, t.file.ItemID) // a book completes without its broken part
 }
 
 // handleKeyframes stores the keyframe index of a media file (see EncodeKeyframes).
@@ -208,7 +214,11 @@ func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 	if err != nil || !t.found {
 		return err
 	}
-	kf, err := s.probe.Keyframes(ctx, t.abs)
+	var kf []time.Duration
+	if t.file.VideoCodec.Valid || !t.file.AudioCodec.Valid {
+		// An audio file (cover art aside) has no video keyframes: its index stays empty.
+		kf, err = s.probe.Keyframes(ctx, t.abs)
+	}
 	if err != nil {
 		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, err)
 	}
@@ -300,7 +310,7 @@ func canonicalContainer(formatName, ext string) string {
 		}
 		return "mkv"
 	case strings.Contains(f, "mp4") || strings.Contains(f, "mov"):
-		if ext == "mov" || ext == "m4v" {
+		if ext == "mov" || ext == "m4v" || ext == "m4a" || ext == "m4b" {
 			return ext
 		}
 		return "mp4"

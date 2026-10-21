@@ -15,9 +15,10 @@ import { downloadTitle } from './labels';
 import { useOfflineChoice, type OfflineChoice } from './offlineSession';
 import { MEDIA_FILE, readFile } from './opfs';
 import { OfflinePlayer } from './OfflinePlayer';
-import { resumePosition } from './playback';
+import { resumePosition, resumeRate } from './playback';
 import { getDownload, getMeta, getProfile } from './store';
 import type { StoredDownload, StoredWatchTime } from './types';
+import { usePosterUrl } from './usePosterUrl';
 import styles from '@/features/player/Player.module.css';
 
 const route = getRouteApi('/offline/play/$downloadId');
@@ -128,6 +129,8 @@ function OfflinePlayback({
 
   const title = state.status === 'ready' ? downloadTitle(t, state.download.item) : undefined;
   useDocumentTitle(title);
+  // The cover of an audio download (M6) from the device, never from the network.
+  const cover = usePosterUrl(state.status === 'ready' ? state.download : undefined);
 
   if (state.status === 'ready' && accountId !== undefined && profileId !== undefined) {
     const { download } = state;
@@ -149,6 +152,10 @@ function OfflinePlayback({
         watch={state.watch}
         serverOffsetMs={state.serverOffsetMs}
         onBack={goBack}
+        coverUrl={cover}
+        byline={download.item?.author}
+        accent={download.item?.accent}
+        initialRate={resumeRate(download, profileId)}
       />
     );
   }

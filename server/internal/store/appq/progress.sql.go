@@ -116,7 +116,7 @@ func (q *Queries) GetLatestDeviceProgressEvent(ctx context.Context, arg GetLates
 
 const getProgress = `-- name: GetProgress :one
 
-SELECT profile_id, item_id, position_ms, duration_ms, completed, updated_at FROM progress WHERE profile_id = ?1 AND item_id = ?2
+SELECT profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate FROM progress WHERE profile_id = ?1 AND item_id = ?2
 `
 
 type GetProgressParams struct {
@@ -136,6 +136,7 @@ func (q *Queries) GetProgress(ctx context.Context, arg GetProgressParams) (Progr
 		&i.DurationMs,
 		&i.Completed,
 		&i.UpdatedAt,
+		&i.PlaybackRate,
 	)
 	return i, err
 }
@@ -244,22 +245,25 @@ func (q *Queries) SumPlayedMsByQuarterHour(ctx context.Context, arg SumPlayedMsB
 }
 
 const upsertProgress = `-- name: UpsertProgress :exec
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 ON CONFLICT (profile_id, item_id) DO UPDATE SET
     position_ms = excluded.position_ms, duration_ms = excluded.duration_ms,
-    completed = excluded.completed, updated_at = excluded.updated_at
+    completed = excluded.completed, updated_at = excluded.updated_at,
+    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate)
 `
 
 type UpsertProgressParams struct {
-	ProfileID  int64
-	ItemID     string
-	PositionMs int64
-	DurationMs int64
-	Completed  int64
-	Now        int64
+	ProfileID    int64
+	ItemID       string
+	PositionMs   int64
+	DurationMs   int64
+	Completed    int64
+	Now          int64
+	PlaybackRate sql.NullFloat64
 }
 
+// playback_rate (H-3) is replaced only by an event that carries one; NULL keeps the stored speed.
 func (q *Queries) UpsertProgress(ctx context.Context, arg UpsertProgressParams) error {
 	_, err := q.db.ExecContext(ctx, upsertProgress,
 		arg.ProfileID,
@@ -268,6 +272,7 @@ func (q *Queries) UpsertProgress(ctx context.Context, arg UpsertProgressParams) 
 		arg.DurationMs,
 		arg.Completed,
 		arg.Now,
+		arg.PlaybackRate,
 	)
 	return err
 }

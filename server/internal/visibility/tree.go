@@ -86,6 +86,18 @@ func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scop
 		if err := r.episodeChain(ctx, s, pid, it, d); err != nil {
 			return err
 		}
+	case "audiobook":
+		if err := r.audiobookDetail(ctx, s, pid, it, d); err != nil {
+			return err
+		}
+	case "podcast":
+		if err := r.podcastDetail(ctx, s, pid, it, d); err != nil {
+			return err
+		}
+	case "podcast_episode":
+		if err := r.podcastEpisodeDetail(ctx, s, pid, it, d); err != nil {
+			return err
+		}
 	}
 	if it.Kind == "season" && it.ParentID.Valid {
 		series, err := r.list(ctx, s, pid, "series")(r.q.ListVisibleItems(ctx, scopedq.ListVisibleItemsParams{ProfileID: pid, ItemIds: []string{it.ParentID.String}}))

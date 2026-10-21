@@ -181,6 +181,13 @@ var adminRegistry = map[string]adminCall{
 	"deleteDevice": {contract: "DELETE /admin/devices/{id}", path: "/admin/devices/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", ownerStatus: http.StatusNotFound},
 	"listStreams":  {contract: "GET /admin/streams", path: "/admin/streams", ownerStatus: http.StatusOK},
 	"stopStream":   {contract: "DELETE /admin/streams/{id}", path: "/admin/streams/01JZZZZZZZZZZZZZZZZZZZZZZZ", ownerStatus: http.StatusNotFound},
+	// M6: library settings and podcast subscriptions; requests that leave the fixture unchanged
+	// (TestContractAudioAdmin changes it).
+	"updateLibrary":  {contract: "PATCH /admin/libraries/{id}", path: "/admin/libraries/777", body: `{"name":"Neu"}`, ownerStatus: http.StatusNotFound},
+	"listPodcasts":   {contract: "GET /admin/podcasts", path: "/admin/podcasts", ownerStatus: http.StatusOK},
+	"createPodcast":  {contract: "POST /admin/podcasts", path: "/admin/podcasts", body: `{"libraryId":777,"feedUrl":"http://127.0.0.1:9/feed.xml"}`, ownerStatus: http.StatusUnprocessableEntity},
+	"deletePodcast":  {contract: "DELETE /admin/podcasts/{id}", path: "/admin/podcasts/" + unknownItemID, ownerStatus: http.StatusNotFound},
+	"refreshPodcast": {contract: "POST /admin/podcasts/{id}/refresh", path: "/admin/podcasts/" + unknownItemID + "/refresh", ownerStatus: http.StatusNotFound},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).
@@ -826,9 +833,10 @@ func TestListAccountLibraries(t *testing.T) {
 	pf := newProfileFixture(t)
 	f := pf.f
 	type lib struct {
-		ID   int64  `json:"id"`
-		Name string `json:"name"`
-		Kind string `json:"kind"`
+		ID            int64  `json:"id"`
+		Name          string `json:"name"`
+		Kind          string `json:"kind"`
+		DefaultRating *int   `json:"defaultRating"`
 	}
 	list := func(token string) []lib {
 		t.Helper()
@@ -840,14 +848,21 @@ func TestListAccountLibraries(t *testing.T) {
 		decode(t, rec, &out)
 		return out
 	}
-	want := []lib{{ID: f.LibraryID(), Name: "Filme", Kind: "movies"}, {ID: f.OtherLibraryID(), Name: "Filme X", Kind: "movies"}}
+	zero := 0
+	want := []lib{{ID: f.LibraryID(), Name: "Filme", Kind: "movies"}, {ID: f.OtherLibraryID(), Name: "Filme X", Kind: "movies"},
+		{ID: f.Audio.AudiobookLibraryID, Name: "Hörbücher", Kind: "audiobooks", DefaultRating: &zero},
+		{ID: f.Audio.PodcastLibraryID, Name: "Podcasts", Kind: "podcasts", DefaultRating: &zero}}
+	same := func(a, b lib) bool {
+		return a.ID == b.ID && a.Name == b.Name && a.Kind == b.Kind && (a.DefaultRating == nil) == (b.DefaultRating == nil) &&
+			(a.DefaultRating == nil || *a.DefaultRating == *b.DefaultRating)
+	}
 	for _, token := range []string{"p18", "p6", "px", "none"} {
-		if got := list(token); !slices.Equal(got, want) {
+		if got := list(token); !slices.EqualFunc(got, want, same) {
 			t.Errorf("%s libraries = %+v, want %+v", token, got, want)
 		}
 	}
 	for _, token := range []string{"pg", "pg18"} {
-		if got := list(token); !slices.Equal(got, want[:1]) {
+		if got := list(token); !slices.EqualFunc(got, want[:1], same) {
 			t.Errorf("%s libraries = %+v, want only %+v", token, got, want[:1])
 		}
 	}

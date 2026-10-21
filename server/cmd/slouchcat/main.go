@@ -200,12 +200,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
 	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
-		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility))
+		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version))
 	libSvc := library.New(db, queue, runner, log,
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
-	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc)
+	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc)
 	keys.admin = adminSvc
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
@@ -231,6 +231,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 			log.Error("library watchers stopped", "err", err)
 		}
 	})
+	// Podcast feeds (M6, H-2): every subscription is fetched again after 60 minutes.
+	workers.Go(func() { metaSvc.RunPodcasts(ctx) })
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes
 		workers.Wait()

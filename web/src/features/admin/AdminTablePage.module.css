@@ -32,3 +32,27 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+.rowActions {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.url {
+  font-family: var(--sc-font-family-mono);
+  overflow-wrap: anywhere;
+}

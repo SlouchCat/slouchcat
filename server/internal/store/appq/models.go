@@ -29,6 +29,16 @@ type AccountLibrary struct {
 	LibraryID int64
 }
 
+type Chapter struct {
+	ItemID      string
+	Idx         int64
+	Title       string
+	StartMs     int64
+	EndMs       int64
+	MediaFileID sql.NullString
+	FileStartMs int64
+}
+
 type Credit struct {
 	ItemID    string
 	PersonID  int64
@@ -56,7 +66,8 @@ type Download struct {
 	ProfileID         sql.NullInt64
 	DeviceID          string
 	ItemID            string
-	MediaFileID       string
+	MediaFileID       sql.NullString
+	SourceUrl         sql.NullString
 	Quality           string
 	AudioStream       int64
 	Auto              int64
@@ -182,6 +193,23 @@ type Item struct {
 	TrailerCheckedAt  sql.NullInt64
 	SegmentsState     string
 	SegmentsCheckedAt sql.NullInt64
+	Author            sql.NullString
+	Narrator          sql.NullString
+	SeriesName        sql.NullString
+	SeriesIndex       sql.NullFloat64
+	Explicit          int64
+	DurationMs        sql.NullInt64
+	CoverUrl          sql.NullString
+	CoverPath         sql.NullString
+	FeedUrl           sql.NullString
+	FeedEtag          sql.NullString
+	FeedModified      sql.NullString
+	FeedCheckedAt     sql.NullInt64
+	FeedError         sql.NullString
+	Guid              sql.NullString
+	PublishedAt       sql.NullInt64
+	EnclosureType     sql.NullString
+	EnclosureLength   sql.NullInt64
 }
 
 type ItemText struct {
@@ -219,6 +247,7 @@ type Library struct {
 	ID                 int64
 	Name               string
 	Kind               string
+	DefaultRating      sql.NullInt64
 	CreatedAt          int64
 	UpdatedAt          int64
 	LastScanState      string
@@ -264,6 +293,7 @@ type MediaFile struct {
 	CreatedAt    int64
 	UpdatedAt    int64
 	ProbeError   sql.NullString
+	PartIndex    sql.NullInt64
 }
 
 type MediaSegment struct {
@@ -347,12 +377,13 @@ type ProfileLibrary struct {
 }
 
 type Progress struct {
-	ProfileID  int64
-	ItemID     string
-	PositionMs int64
-	DurationMs int64
-	Completed  int64
-	UpdatedAt  int64
+	ProfileID    int64
+	ItemID       string
+	PositionMs   int64
+	DurationMs   int64
+	Completed    int64
+	UpdatedAt    int64
+	PlaybackRate sql.NullFloat64
 }
 
 type ProgressEvent struct {

@@ -1,5 +1,11 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
-import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 
 // Other specs add a second library, so the rescan buttons are scoped to the test library.
 const filme = (page: Page) => page.getByRole('article', { name: 'Filme' });
@@ -21,8 +27,9 @@ test('the scanned test library is listed with its state and counts', async ({ pa
 test('Tab reaches header, rescan and the add form in order; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('link', { name: 'Bibliotheken' }));
   await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
-  // Other specs add libraries ("Serien", "E2E leer"): their buttons come in between.
-  await tabTo(page, page.getByLabel('Name', { exact: true }), 6);
+  // Other libraries ("Serien", "Hörbücher", "Podcasts", "E2E leer") have their buttons in between,
+  // as many as there are libraries: no fixed budget.
+  await tabTo(page, page.getByLabel('Name', { exact: true }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Filme' }));
   await page.keyboard.press('ArrowRight');
@@ -31,6 +38,51 @@ test('Tab reaches header, rescan and the add form in order; no focus trap', asyn
   await expectFocusOn(page, page.getByLabel('Ordner', { exact: true }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Hinzufügen' }));
+  await expectNoFocusTrap(page);
+});
+
+test('audio kinds by keyboard: default rating with arrows, no folder for podcasts (M6)', async ({
+  page,
+}) => {
+  const folder = page.getByLabel('Ordner', { exact: true });
+  const rating = page.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
+  await tabTo(page, page.getByLabel('Name', { exact: true }));
+  await page.keyboard.type('E2E Hörbücher');
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Filme' }));
+  // Movies and series have no default rating; the third kind is audiobooks.
+  await expect(rating).toHaveCount(0);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Hörbücher' }));
+  await expect(page.getByRole('radio', { name: 'Hörbücher' })).toBeChecked();
+  await expect(rating).toBeVisible();
+  // Tab: folder, then the rating (FSK 0 by default); the arrows choose FSK 6.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, folder);
+  await page.keyboard.type('/does/not/exist/slouchcat-e2e-audio');
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 0' }));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
+  await expect(rating.getByRole('radio', { name: 'FSK 6' })).toBeChecked();
+  await expectVisibleFocus(page);
+  // Enter in the folder sends kind and rating; the missing folder is reported at the field.
+  const sent = page.waitForRequest(
+    (request) => request.method() === 'POST' && request.url().endsWith('/admin/libraries'),
+  );
+  await folder.focus();
+  await page.keyboard.press('Enter');
+  expect((await sent).postDataJSON()).toMatchObject({ kind: 'audiobooks', defaultRating: 6 });
+  await expect(folder).toHaveAttribute('aria-invalid', 'true');
+  // Podcasts: the folder field goes, the hint says why; the rating stays.
+  await page.getByRole('radio', { name: 'Hörbücher' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Podcasts' }));
+  await expect(folder).toHaveCount(0);
+  await expect(page.getByText(/Podcasts brauchen keinen Ordner/)).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
   await expectNoFocusTrap(page);
 });
 

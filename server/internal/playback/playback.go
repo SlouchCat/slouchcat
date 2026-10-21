@@ -34,6 +34,12 @@ import (
 // maxClientIDLength caps device and media file ids stored with progress events.
 const maxClientIDLength = 64
 
+// Range of the playback speed a progress event may carry (H-3; progress.playback_rate CHECK).
+const (
+	minPlaybackRate = 0.5
+	maxPlaybackRate = 3.0
+)
+
 // Service implements the playback service of the API.
 type Service struct {
 	db    *store.DB
@@ -118,10 +124,25 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 // Simplification for M1a: the parameter names H.264 High profile level 3.1 and AAC-LC for every
 // such file instead of the exact profile and level of the stream; the exact strings follow with
 // the device capability profiles in M4.
+//
+// Audio files (M6): MP3 is audio/mpeg, M4A and M4B (and an MP4 without video) audio/mp4 (with
+// AAC-LC as the codecs parameter), FLAC audio/flac, Ogg and Opus audio/ogg.
 func MimeType(container, videoCodec, audioCodec string) string {
-	base := containerType(container)
-	if base == "video/mp4" && strings.EqualFold(videoCodec, "h264") && strings.EqualFold(audioCodec, "aac") {
+	base := fileType(container, videoCodec)
+	switch {
+	case base == "video/mp4" && strings.EqualFold(videoCodec, "h264") && strings.EqualFold(audioCodec, "aac"):
 		return base + `; codecs="avc1.64001F, mp4a.40.2"`
+	case base == "audio/mp4" && strings.EqualFold(audioCodec, "aac"):
+		return base + `; codecs="mp4a.40.2"`
+	}
+	return base
+}
+
+// fileType is the media type of a file: containerType, with an MP4 without video as audio/mp4.
+func fileType(container, videoCodec string) string {
+	base := containerType(container)
+	if base == "video/mp4" && videoCodec == "" && !strings.EqualFold(container, "m4v") {
+		return "audio/mp4"
 	}
 	return base
 }
@@ -130,10 +151,18 @@ func containerType(container string) string {
 	switch strings.ToLower(container) {
 	case "mp4", "m4v", "mov":
 		return "video/mp4"
+	case "m4a", "m4b":
+		return "audio/mp4"
 	case "mkv":
 		return "video/x-matroska"
 	case "webm":
 		return "video/webm"
+	case "mp3":
+		return "audio/mpeg"
+	case "flac":
+		return "audio/flac"
+	case "ogg", "opus", "oga":
+		return "audio/ogg"
 	default:
 		return "application/octet-stream"
 	}
@@ -171,7 +200,7 @@ func (s *Service) Open(ctx context.Context, profile model.Profile, itemID, media
 	}
 	return model.StreamSource{
 		File:      f,
-		MediaType: containerType(loc.File.Container),
+		MediaType: fileType(loc.File.Container, loc.File.VideoCodec),
 		Size:      info.Size(),
 		ModTime:   info.ModTime(),
 		Name:      loc.File.ID,
@@ -207,6 +236,9 @@ func validate(ev model.ProgressEvent) error {
 	}
 	if ev.PlayedMs < 0 {
 		verr = verr.Add("playedMs", "too_small")
+	}
+	if r := ev.PlaybackRate; r != nil && (*r < minPlaybackRate || *r > maxPlaybackRate) {
+		verr = verr.Add("playbackRate", "out_of_range")
 	}
 	if ev.Seq < 0 {
 		verr = verr.Add("seq", "too_small")
@@ -277,9 +309,11 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return model.Progress{}, fmt.Errorf("get progress: %w", err)
 	}
-	merged := model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC()}
+	merged := model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC(),
+		PlaybackRate: ev.PlaybackRate}
 	if hasCur {
-		merged = model.Progress{PositionMs: cur.PositionMs, DurationMs: cur.DurationMs, Completed: cur.Completed == 1, UpdatedAt: time.UnixMilli(cur.UpdatedAt).UTC()}
+		merged = model.Progress{PositionMs: cur.PositionMs, DurationMs: cur.DurationMs, Completed: cur.Completed == 1, UpdatedAt: time.UnixMilli(cur.UpdatedAt).UTC(),
+			PlaybackRate: rateOf(cur.PlaybackRate)}
 	}
 	dup, err := q.CountDuplicateProgressEvents(ctx, appq.CountDuplicateProgressEventsParams{
 		PlaybackSessionID: nullString(ev.PlaybackSessionID), Seq: ev.Seq, ProfileID: profile.ID, ItemID: itemID,
@@ -326,12 +360,13 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 		return merged, nil
 	}
 	err = q.UpsertProgress(ctx, appq.UpsertProgressParams{
-		ProfileID:  profile.ID,
-		ItemID:     itemID,
-		PositionMs: position,
-		DurationMs: ev.DurationMs,
-		Completed:  boolInt(completed),
-		Now:        now.UnixMilli(),
+		ProfileID:    profile.ID,
+		ItemID:       itemID,
+		PositionMs:   position,
+		DurationMs:   ev.DurationMs,
+		Completed:    boolInt(completed),
+		Now:          now.UnixMilli(),
+		PlaybackRate: nullRate(ev.PlaybackRate),
 	})
 	if err != nil {
 		return model.Progress{}, fmt.Errorf("upsert progress: %w", err)
@@ -339,7 +374,29 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 	if err := tx.Commit(); err != nil {
 		return model.Progress{}, fmt.Errorf("commit progress: %w", err)
 	}
-	return model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC()}, nil
+	rate := ev.PlaybackRate
+	if rate == nil && hasCur {
+		rate = rateOf(cur.PlaybackRate)
+	}
+	return model.Progress{PositionMs: position, DurationMs: ev.DurationMs, Completed: completed, UpdatedAt: time.UnixMilli(now.UnixMilli()).UTC(),
+		PlaybackRate: rate}, nil
+}
+
+// nullRate is the playback_rate column of an event's speed; NULL keeps the stored one.
+func nullRate(r *float64) sql.NullFloat64 {
+	if r == nil {
+		return sql.NullFloat64{}
+	}
+	return sql.NullFloat64{Float64: *r, Valid: true}
+}
+
+// rateOf is the stored speed of a progress row, nil when none was set.
+func rateOf(r sql.NullFloat64) *float64 {
+	if !r.Valid {
+		return nil
+	}
+	v := r.Float64
+	return &v
 }
 
 // playedSlack is the tolerance of boundPlayed on the server time between two events.

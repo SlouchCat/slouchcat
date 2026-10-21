@@ -134,7 +134,13 @@ func rungBitrate(r Rung, limits model.PlaybackLimits) int {
 // bit rate, available when the source fills it and the limits and the device allow it. current
 // marks what the client asked for: auto, or for a manual choice the rung that runs (the requested
 // one, or the next lower one that the limits or the budget allowed).
+//
+// An audio-only playback (Decision.Audio) offers one option: auto with the bit rate of the output
+// and no size (the contract's Quality enum has no audio rung).
 func QualityOptions(d Decision, srcW, srcH int, limits model.PlaybackLimits, caps model.PlaybackCapabilities, requested string) []model.QualityOption {
+	if d.Audio {
+		return []model.QualityOption{{Quality: model.QualityAuto, Bitrate: d.Bitrate, Available: true, Current: true}}
+	}
 	devCap := deviceCap(caps)
 	top := sourceTop(srcH)
 	manual := rungIndex(requested) >= 0

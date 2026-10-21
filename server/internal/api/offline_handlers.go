@@ -117,6 +117,7 @@ func (s *server) GetDownloadManifest(ctx context.Context, req gen.GetDownloadMan
 		Id: m.ID, ItemId: m.ItemID, SizeBytes: m.SizeBytes, DurationMs: m.DurationMs, MimeType: m.MimeType, Codecs: m.Codecs,
 		Width: m.Width, Height: m.Height, InitLength: m.InitLength, FileUrl: m.FileURL,
 		Segments: make([]gen.DownloadSegment, 0, len(m.Segments)), Subtitles: make([]gen.DownloadSubtitle, 0, len(m.Subtitles)),
+		Chapters: toChapters(m.Chapters),
 	}
 	for _, seg := range m.Segments {
 		out.Segments = append(out.Segments, gen.DownloadSegment{StartMs: seg.StartMs, DurationMs: seg.DurationMs, Offset: seg.Offset, Length: seg.Length})

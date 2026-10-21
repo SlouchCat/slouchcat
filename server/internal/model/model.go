@@ -25,6 +25,15 @@ var (
 	ErrProviderNotConfigured = errors.New("provider not configured")
 )
 
+// Audio errors (M6).
+var (
+	ErrFeedExists           = errors.New("feed already subscribed")      // 409 feed_exists
+	ErrFeedUnreachable      = errors.New("feed unreachable")             // 422 feed_unreachable
+	ErrFeedInvalid          = errors.New("feed invalid")                 // 422 feed_invalid
+	ErrRatingBelowDefault   = errors.New("rating below library default") // 422 rating_below_library_default
+	ErrEnclosureUnavailable = errors.New("enclosure unavailable")        // 502 enclosure_unavailable
+)
+
 // Profile and access errors (M2).
 var (
 	ErrPinRequired            = errors.New("pin required")             // 403 pin_required
@@ -246,9 +255,10 @@ type InvitationPreview struct {
 
 // LibraryRef names a library.
 type LibraryRef struct {
-	ID   int64
-	Name string
-	Kind string // movies, series; set by ListAccountLibraries
+	ID            int64
+	Name          string
+	Kind          string // movies, series, audiobooks, podcasts; set by ListAccountLibraries
+	DefaultRating *int   // audio libraries only
 }
 
 // AcceptInvitation is the input of the guest sign-up.
@@ -370,11 +380,12 @@ type Image struct {
 
 // Progress is the merged playback position of a profile for an item.
 type Progress struct {
-	PositionMs int64
-	DurationMs int64
-	Completed  bool
-	UpdatedAt  time.Time
-	WatchTime  *WatchTime // K-5: present when the profile has a daily limit
+	PositionMs   int64
+	DurationMs   int64
+	Completed    bool
+	UpdatedAt    time.Time
+	PlaybackRate *float64   // H-3: speed the profile last used for the title, nil until set
+	WatchTime    *WatchTime // K-5: present when the profile has a daily limit
 }
 
 // WatchTime is the watch time of a profile today against its daily limit (K-5).
@@ -431,6 +442,13 @@ type ItemSummary struct {
 	SeriesTitle   string
 	ExtraKind     string // trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other
 	ChildCount    *int   // visible seasons of a series, visible episodes of a season
+
+	// Audio (M6). Author of an audiobook or podcast; PublishedAt and DurationMs of a podcast episode,
+	// DurationMs also the book-wide duration of an audiobook; Explicit marks itunes:explicit (AN-2).
+	Author      string
+	PublishedAt *time.Time
+	DurationMs  *int64
+	Explicit    bool
 }
 
 // CastMember is one credit of a title (B-3).
@@ -577,6 +595,15 @@ type ItemDetail struct {
 	NextEpisode  *ItemSummary  // next visible episode of the same series
 	Cast         []CastMember
 	TrailerCount int
+
+	// Audio (M6): narrator, series and volume of an audiobook and its book-wide chapters; the newest
+	// visible episodes of a podcast (Episodes, at most 50) with their total; the podcast of an episode.
+	Narrator     string
+	SeriesName   string
+	SeriesIndex  *float64
+	Chapters     []Chapter
+	EpisodeCount *int
+	Podcast      *ItemSummary
 }
 
 // HomeRow is one row of the start page.
@@ -588,6 +615,8 @@ type HomeRow struct {
 // PlaybackInfo is the answer of startPlayback.
 type PlaybackInfo struct {
 	Mode              string // direct, hls
+	MediaKind         string // video, audio (M6: audiobooks and podcast episodes use the audio player)
+	Parts             []PlaybackPart
 	Item              ItemSummary
 	MediaFile         MediaFile
 	StreamURL         string // Range URL (direct) or master playlist (hls), both with the stream token
@@ -603,6 +632,19 @@ type PlaybackInfo struct {
 	NextEpisode       *ItemSummary
 	WatchTime         *WatchTime
 	Device            *DeviceRef
+}
+
+// Media kinds of a playback (PlaybackInfo.MediaKind).
+const (
+	MediaKindVideo = "video"
+	MediaKindAudio = "audio"
+)
+
+// PlaybackPart is one part of a multi-part audiobook on the single playback timeline (M6).
+type PlaybackPart struct {
+	MediaFileID string
+	StartMs     int64
+	DurationMs  int64
 }
 
 // TrackSelection names the tracks a playback delivers.
@@ -629,6 +671,7 @@ type ProgressEvent struct {
 	Seq               int64
 	State             string // playing, paused, ended
 	ClientTime        time.Time
+	PlaybackRate      *float64 // H-3: speed in use, stored per profile and title when present
 }
 
 // StreamSource is an opened media or image file ready for http.ServeContent. The caller closes it.
@@ -641,11 +684,39 @@ type StreamSource struct {
 	ETag      string // strong validator (quoted) for If-Range; empty = none
 }
 
-// LibraryRequest creates a library with one root.
+// Kinds of libraries (plan 3.2, M6): video libraries scan a directory for films or series, audio
+// libraries hold audiobooks (a directory) or podcast subscriptions (no directory, H-2).
+const (
+	LibraryMovies     = "movies"
+	LibrarySeries     = "series"
+	LibraryAudiobooks = "audiobooks"
+	LibraryPodcasts   = "podcasts"
+)
+
+// ValidLibraryKind reports whether kind names a library kind.
+func ValidLibraryKind(kind string) bool {
+	switch kind {
+	case LibraryMovies, LibrarySeries, LibraryAudiobooks, LibraryPodcasts:
+		return true
+	}
+	return false
+}
+
+// AudioLibraryKind reports whether a library of this kind carries a default age rating (AN-2).
+func AudioLibraryKind(kind string) bool { return kind == LibraryAudiobooks || kind == LibraryPodcasts }
+
+// LibraryRequest creates a library with one root (none for podcasts).
 type LibraryRequest struct {
-	Name string
-	Kind string // movies, series
-	Path string
+	Name          string
+	Kind          string // movies, series, audiobooks, podcasts
+	Path          string // empty for podcasts
+	DefaultRating *int   // audiobooks and podcasts only (AN-2); nil = 0 for those kinds
+}
+
+// LibraryUpdate changes the name or the default rating of a library (updateLibrary).
+type LibraryUpdate struct {
+	Name          *string
+	DefaultRating *int
 }
 
 // SetupRequest is the input of the first-start wizard.
@@ -681,12 +752,33 @@ type LibraryScan struct {
 
 // Library with its roots and scan state.
 type Library struct {
-	ID        int64
-	Name      string
-	Kind      string
-	Roots     []LibraryRoot
-	Scan      LibraryScan
-	CreatedAt time.Time
+	ID            int64
+	Name          string
+	Kind          string
+	DefaultRating *int // audio libraries only (AN-2)
+	Roots         []LibraryRoot
+	Scan          LibraryScan
+	CreatedAt     time.Time
+}
+
+// AdminPodcast is a podcast subscription as the administration sees it (M6, H-2); not an ItemSummary.
+type AdminPodcast struct {
+	ID            string
+	LibraryID     int64
+	Title         string
+	Author        string
+	FeedURL       string
+	EpisodeCount  int
+	Explicit      bool
+	LastCheckedAt *time.Time
+	LastError     string
+	CreatedAt     time.Time
+}
+
+// PodcastCreate subscribes a podcast library to a feed.
+type PodcastCreate struct {
+	LibraryID int64
+	FeedURL   string
 }
 
 // Playback sessions and stream tokens (M1b, plan 5.4).

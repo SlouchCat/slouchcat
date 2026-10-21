@@ -11,6 +11,31 @@ import (
 	"strings"
 )
 
+const adminApplyLibraryRating = `-- name: AdminApplyLibraryRating :execrows
+
+UPDATE items SET own_rating = ?1, updated_at = ?2
+WHERE library_id = ?3 AND deleted_at IS NULL
+  AND (rating_source = 'library' OR (rating_source = 'manual' AND own_rating < ?1))
+`
+
+type AdminApplyLibraryRatingParams struct {
+	OwnRating sql.NullInt64
+	Now       int64
+	LibraryID int64
+}
+
+// Library settings (updateLibrary, M6 AN-2).
+// A new default rating of an audio library reaches every live title whose rating still comes from
+// the library, and raises a manual rating below it to it (AN-2: a manual rating is only stricter);
+// feed and tag ratings (18) stay. The triggers pass it on to the descendants.
+func (q *Queries) AdminApplyLibraryRating(ctx context.Context, arg AdminApplyLibraryRatingParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, adminApplyLibraryRating, arg.OwnRating, arg.Now, arg.LibraryID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const adminCleanupState = `-- name: AdminCleanupState :one
 
 SELECT i.kind, i.deleted_at,

@@ -2,8 +2,9 @@ import type { ProgressEvent } from '@slouchcat/api-client';
 import { focusManager, onlineManager } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { alienDetail, hlsPlayback, ids, playback } from '@/test/fixtures';
+import { alienDetail, audioPlayback, hlsPlayback, ids, playback } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
+import { playbackEngine, playbackMime } from './PlayerPage';
 
 const progressRoute = `POST /items/${ids.alien}/progress`;
 
@@ -449,5 +450,37 @@ describe('player', () => {
     await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
     fireEvent.keyDown(document.body, { key: 'Escape' });
     await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${ids.alien}`));
+  });
+});
+
+describe('playbackEngine for audio (M6)', () => {
+  // A browser that knows the standard audio types only.
+  const browser = {
+    canPlayType: (type: string) =>
+      type === 'audio/mpeg' || type === 'audio/mp4' ? 'probably' : '',
+    isTypeSupported: null,
+    classicMse: false,
+  };
+  const episode = (container: string, mimeType?: string) => ({
+    ...audioPlayback,
+    mediaFile: { ...audioPlayback.mediaFile, container, mimeType },
+  });
+
+  it('checks a known container, not the feed’s non-standard type', () => {
+    expect(playbackMime(episode('mp3', 'audio/x-mp3'))).toBe('audio/mpeg');
+    expect(playbackEngine(episode('mp3', 'audio/x-mp3'), browser)).toBe('direct');
+  });
+
+  it('tries audio of an unknown container directly; video stays unsupported', () => {
+    expect(playbackEngine(episode('unknown', 'audio/x-mpeg'), browser)).toBe('direct');
+    expect(
+      playbackEngine(
+        {
+          ...playback,
+          mediaFile: { ...playback.mediaFile, container: 'unknown', mimeType: 'video/x-foo' },
+        },
+        browser,
+      ),
+    ).toBe('unsupported');
   });
 });

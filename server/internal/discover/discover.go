@@ -106,6 +106,12 @@ func (s *Service) Person(ctx context.Context, profile model.Profile, personID in
 	return s.vis.Person(ctx, visibility.Profile(profile), personID)
 }
 
+// PodcastEpisodes returns one page of the visible episodes of a visible podcast, newest first, and
+// their total (M6); model.ErrNotFound for an invisible title or one that is no podcast.
+func (s *Service) PodcastEpisodes(ctx context.Context, profile model.Profile, podcastID string, offset, limit int) ([]model.ItemSummary, int, error) {
+	return s.vis.PodcastEpisodes(ctx, visibility.Profile(profile), podcastID, offset, limit)
+}
+
 // Image opens a stored image of a visible title: WebP when preferWebP is set and the WebP row
 // exists, JPEG otherwise. The caller closes the file.
 func (s *Service) Image(ctx context.Context, profile model.Profile, itemID, kind, size string, preferWebP bool) (model.StreamSource, error) {

@@ -5,11 +5,13 @@
 SELECT * FROM progress WHERE profile_id = @profile_id AND item_id = @item_id;
 
 -- name: UpsertProgress :exec
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
-VALUES (@profile_id, @item_id, @position_ms, @duration_ms, @completed, @now)
+-- playback_rate (H-3) is replaced only by an event that carries one; NULL keeps the stored speed.
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at, playback_rate)
+VALUES (@profile_id, @item_id, @position_ms, @duration_ms, @completed, @now, sqlc.narg('playback_rate'))
 ON CONFLICT (profile_id, item_id) DO UPDATE SET
     position_ms = excluded.position_ms, duration_ms = excluded.duration_ms,
-    completed = excluded.completed, updated_at = excluded.updated_at;
+    completed = excluded.completed, updated_at = excluded.updated_at,
+    playback_rate = COALESCE(excluded.playback_rate, progress.playback_rate);
 
 -- name: InsertProgressEvent :exec
 INSERT INTO progress_events (profile_id, item_id, media_file_id, device_id, playback_session_id, position_ms,

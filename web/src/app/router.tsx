@@ -291,6 +291,12 @@ const librariesRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/LibrariesPage'), 'LibrariesPage'),
 });
 
+const podcastsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/podcasts',
+  component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
+});
+
 const profileSettingsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/settings/profiles',
@@ -315,9 +321,15 @@ const downloadsRoute = createRoute({
 const playRoute = createRoute({
   getParentRoute: () => activeRoute,
   path: '/play/$itemId',
-  // `file` picks a version of the title (B-5); anything else is dropped.
-  validateSearch: (search: Record<string, unknown>): { file?: string } =>
-    typeof search.file === 'string' && search.file !== '' ? { file: search.file } : {},
+  // `file` picks a version of the title (B-5), `at` a start position in ms (a chapter of an
+  // audiobook, M6); anything else is dropped.
+  validateSearch: (search: Record<string, unknown>): { file?: string; at?: number } => {
+    const at = Number(search.at);
+    return {
+      ...(typeof search.file === 'string' && search.file !== '' ? { file: search.file } : {}),
+      ...(search.at !== undefined && Number.isInteger(at) && at >= 0 ? { at } : {}),
+    };
+  },
   component: lazyRouteComponent(() => import('@/features/player/PlayerPage'), 'PlayerPage'),
 });
 
@@ -337,6 +349,7 @@ export const routeTree = rootRoute.addChildren([
         itemRoute,
         personRoute,
         librariesRoute,
+        podcastsRoute,
         maintenanceRoute,
         devicesRoute,
         streamsRoute,

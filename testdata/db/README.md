@@ -58,3 +58,14 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `allowed_profile_ids` vom Server berechnet, eine aktive Auto-Download-Regel und ein hochgeladenes
   Offline-Fortschrittsereignis (`offline`, `uploaded_at`, `download_id`). `TestFrozenM5StateCoversM5Data` prüft,
   dass jede dieser Datenarten nach der Migration vorhanden ist.
+- `M6.sql`: Stand nach M6 (Hörbücher und Podcasts; Migration 00014). Erzeugt mit `server/bin/slouchcat dump` nach
+  einem Lauf gegen einen frischen Server (Skript in den Sitzungsnotizen `freeze-m6.sh`): Assistent wie M5, dazu die
+  Bibliotheken «Hörbücher» (Art `audiobooks`, Standardstufe 6, Wurzel `testdata/media/Audiobooks`: das M4B-Buch mit
+  zwölf Kapitelmarken und eingebettetem Cover sowie das MP3-Buch mit zehn Teilen, `part_index`, buchweiten Kapiteln
+  und Ordnerbild) und «Podcasts» (Art `podcasts`, Standardstufe 0, ohne Wurzel) mit einem Abo auf den lokalen
+  Test-Feed (`testdata/podcasts/feed.xml.tmpl` über einen Python-HTTP-Server): drei Episoden nur mit Enclosure,
+  Episode 3 `explicit` und damit Stufe 18 (`rating_source` `feed`), Feed-Zustand (`feed_url`, `feed_checked_at`,
+  `cover_url`). Profil «Kind» (Stufe 12) mit PIN; Downloads des Hauptprofils: das M4B-Buch in `medium` und
+  Episode 1 in `low` (Quelle `source_url`, kein `media_file_id`), beide vorbereitet; Fortschritt im dritten Kapitel
+  des Buchs mit Geschwindigkeit 1.5 (`playback_rate`); eine Auto-Download-Regel mit `new_podcast_episodes`.
+  `TestFrozenM6StateCoversM6Data` prüft, dass jede dieser Datenarten nach der Migration vorhanden ist.

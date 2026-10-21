@@ -158,9 +158,11 @@ ORDER BY i.id, im.kind, im.size, im.format;
 -- name: ListItemsMissingImages :many
 -- Matched titles of a library with a stored provider image path but no row of that kind yet
 -- (their image.fetch failed or never ran): poster for movies, series and seasons, backdrop (still)
--- for movies, series and episodes.
+-- for movies, series and episodes; the cover (poster) of audiobooks, podcasts and episodes with a
+-- cover_path or cover_url (M6).
 SELECT i.id, i.kind, i.locked_fields,
-       CAST(i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season')
+       CAST(((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+             OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster') AS INTEGER) AS poster_missing,
        CAST(i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing
@@ -168,7 +170,8 @@ FROM items AS i
 WHERE i.library_id = @library_id
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
-  AND ((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season')
+  AND ((((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+          OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster'))
     OR (i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop')))

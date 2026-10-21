@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Slouchcat Test Podcast</title>
+    <link>{{BASE}}/</link>
+    <language>de</language>
+    <description>Ein Test-Podcast aus Sinustönen für den lokalen Feed-Server. Kein Netz in CI.</description>
+    <itunes:author>Slouchcat Test Author</itunes:author>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:image href="{{BASE}}/cover.jpg"/>
+    <image><url>{{BASE}}/cover.jpg</url><title>Slouchcat Test Podcast</title><link>{{BASE}}/</link></image>
+    <item>
+      <title>Slouchcat Test Episode 1</title>
+      <guid isPermaLink="false">slouchcat-test-episode-1</guid>
+      <pubDate>Mon, 06 Oct 2025 06:00:00 +0000</pubDate>
+      <description>Erste Episode, acht Sekunden.</description>
+      <itunes:duration>8</itunes:duration>
+      <itunes:episode>1</itunes:episode>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="{{BASE}}/episode-1.mp3" length="0" type="audio/mpeg"/>
+    </item>
+    <item>
+      <title>Slouchcat Test Episode 2</title>
+      <guid isPermaLink="false">slouchcat-test-episode-2</guid>
+      <pubDate>Mon, 13 Oct 2025 06:00:00 +0000</pubDate>
+      <description>Zweite Episode, zehn Sekunden.</description>
+      <itunes:duration>10</itunes:duration>
+      <itunes:episode>2</itunes:episode>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="{{BASE}}/episode-2.mp3" length="0" type="audio/mpeg"/>
+    </item>
+    <item>
+      <title>Slouchcat Test Episode 3 (explicit)</title>
+      <guid isPermaLink="false">slouchcat-test-episode-3</guid>
+      <pubDate>Mon, 20 Oct 2025 06:00:00 +0000</pubDate>
+      <description>Dritte Episode, zwölf Sekunden, als explicit gekennzeichnet (AN-2: FSK 18).</description>
+      <itunes:duration>12</itunes:duration>
+      <itunes:episode>3</itunes:episode>
+      <itunes:explicit>true</itunes:explicit>
+      <enclosure url="{{BASE}}/episode-3.mp3" length="0" type="audio/mpeg"/>
+    </item>
+  </channel>
+</rss>

@@ -93,6 +93,14 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		SeriesTitle:    ref.SeriesTitle,
 		ExtraKind:      ref.ExtraKind,
 		ChildCount:     ref.ChildCount,
+		Author:         ref.Author,
+		PublishedAt:    ref.PublishedAt,
+		DurationMs:     ref.DurationMs,
+		Explicit:       ref.Explicit,
+		Narrator:       optString(d.Narrator),
+		SeriesName:     optString(d.SeriesName),
+		EpisodeCount:   d.EpisodeCount,
+		Podcast:        optItemRef(pid, d.Podcast),
 		OriginalTitle:  optString(d.OriginalTitle),
 		Tagline:        optString(d.Tagline),
 		Overview:       optString(d.Overview),
@@ -101,7 +109,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		TvdbId:         d.TVDBID,
 		MediaFiles:     make([]gen.MediaFileInfo, 0, len(d.MediaFiles)),
 		Seasons:        toItemRefs(pid, d.Seasons, d.Kind == "series"),
-		Episodes:       toItemRefs(pid, d.Episodes, d.Kind == "season"),
+		Episodes:       toItemRefs(pid, d.Episodes, d.Kind == "season" || d.Kind == "podcast"),
 		Extras:         toItemRefs(pid, d.Extras, d.Kind == "movie" || d.Kind == "series" || d.Kind == "season"),
 		Series:         optItemRef(pid, d.Series),
 		Season:         optItemRef(pid, d.Season),
@@ -110,6 +118,17 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	}
 	if out.Genres == nil {
 		out.Genres = []string{}
+	}
+	if d.SeriesIndex != nil {
+		idx := float32(*d.SeriesIndex)
+		out.SeriesIndex = &idx
+	}
+	if d.Kind == "audiobook" {
+		chapters := make([]gen.Chapter, 0, len(d.Chapters))
+		for _, c := range d.Chapters {
+			chapters = append(chapters, gen.Chapter{StartMs: c.StartMs, EndMs: c.EndMs, Title: optString(c.Title)})
+		}
+		out.Chapters = &chapters
 	}
 	if day, err := time.Parse(time.DateOnly, d.ReleaseDate); err == nil {
 		out.ReleaseDate = &openapi_types.Date{Time: day}
@@ -239,6 +258,7 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 		Seq:               b.Seq,
 		State:             string(b.State),
 		ClientTime:        b.ClientTime,
+		PlaybackRate:      rate32(b.PlaybackRate),
 	})
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -284,7 +304,8 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 
 // getItemStream serves the media file of a direct-play session with Range support (binary
 // endpoint, CLAUDE.md rule 6), authorised by the stream token (streamGrant): http.ServeContent
-// answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404.
+// answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404. A
+// session without media file (a podcast episode, M6) is proxied from its enclosure.
 func (s *server) getItemStream(w http.ResponseWriter, r *http.Request) {
 	g, ok := grantFrom(r.Context())
 	if !ok || s.opts.Playback == nil {
@@ -293,6 +314,13 @@ func (s *server) getItemStream(w http.ResponseWriter, r *http.Request) {
 	}
 	if chi.URLParam(r, "id") != g.ItemID {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	if g.MediaFileID == "" && g.Mode == "direct" {
+		// A podcast episode without file streams from its enclosure (M6).
+		if err := s.opts.Playback.ProxyEnclosure(r.Context(), g, w, r); err != nil {
+			s.p.mapError(w, r, err)
+		}
 		return
 	}
 	src, err := s.opts.Playback.OpenGrant(r.Context(), g)
@@ -362,6 +390,18 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 			BackdropLarge: toImageRef(it.ID, profileID, it.BackdropLarge),
 		},
 	}
+	if it.Author != "" {
+		ref.Author = &it.Author
+	}
+	if it.PublishedAt != nil {
+		t := it.PublishedAt.UTC()
+		ref.PublishedAt = &t
+	}
+	ref.DurationMs = it.DurationMs
+	if it.Explicit {
+		e := true
+		ref.Explicit = &e
+	}
 	if it.Accent != "" {
 		ref.Accent = &it.Accent
 	}
@@ -386,7 +426,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 }
 
 func toProgress(p model.Progress) gen.Progress {
-	return gen.Progress{
+	out := gen.Progress{
 		PositionMs: p.PositionMs,
 		DurationMs: p.DurationMs,
 		Percent:    float32(p.Percent()),
@@ -394,6 +434,20 @@ func toProgress(p model.Progress) gen.Progress {
 		UpdatedAt:  p.UpdatedAt.UTC(),
 		WatchTime:  toWatchTime(p.WatchTime),
 	}
+	if p.PlaybackRate != nil {
+		r := float32(*p.PlaybackRate)
+		out.PlaybackRate = &r
+	}
+	return out
+}
+
+// rate32 converts an optional playback rate of the contract (float32) to the model (float64).
+func rate32(v *float32) *float64 {
+	if v == nil {
+		return nil
+	}
+	r := float64(*v)
+	return &r
 }
 
 func toMediaFileInfo(f model.MediaFile) gen.MediaFileInfo {

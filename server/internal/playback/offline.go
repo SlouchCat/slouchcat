@@ -248,7 +248,7 @@ func (s *Service) accountProfiles(ctx context.Context, account model.Account) (m
 func validateOffline(ev model.OfflineEvent) error {
 	err := validate(model.ProgressEvent{
 		MediaFileID: ev.MediaFileID, PlaybackSessionID: ev.PlaybackID, PositionMs: ev.PositionMs, DurationMs: ev.DurationMs,
-		PlayedMs: ev.PlayedMs, Seq: ev.Seq, State: ev.State, ClientTime: ev.ClientTime,
+		PlayedMs: ev.PlayedMs, Seq: ev.Seq, State: ev.State, ClientTime: ev.ClientTime, PlaybackRate: ev.PlaybackRate,
 	})
 	var verr *model.ValidationError
 	errors.As(err, &verr)
@@ -322,7 +322,7 @@ func storeOfflineEvent(ctx context.Context, q *appq.Queries, deviceID string, ev
 	position := min(ev.PositionMs, ev.DurationMs)
 	err = q.UpsertProgress(ctx, appq.UpsertProgressParams{
 		ProfileID: ev.ProfileID, ItemID: ev.ItemID, PositionMs: position, DurationMs: ev.DurationMs,
-		Completed: boolInt(Completed(position, ev.DurationMs)), Now: at,
+		Completed: boolInt(Completed(position, ev.DurationMs)), Now: at, PlaybackRate: nullRate(ev.PlaybackRate),
 	})
 	if err != nil {
 		return false, fmt.Errorf("upsert progress: %w", err)

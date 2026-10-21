@@ -108,7 +108,7 @@ function bufferedRanges(video: HTMLVideoElement): [number, number][] {
 }
 
 /** Where playback starts: the resume position unless it lies in the last seconds of the file. */
-function resumeSeconds(resume: number, durationMs: number): number {
+export function resumeSeconds(resume: number, durationMs: number): number {
   if (resume <= 0 || (durationMs > 0 && resume >= durationMs - RESUME_TAIL_MS)) return 0;
   return resume / 1000;
 }
@@ -118,7 +118,7 @@ function resumeSeconds(resume: number, durationMs: number): number {
  * session (admin, watch-time limit, logout). The media element reports a failed request without
  * its status, so a one-byte request asks again.
  */
-async function streamRevoked(streamUrl: string): Promise<boolean> {
+export async function streamRevoked(streamUrl: string): Promise<boolean> {
   try {
     const url = new URL(apiUrl(streamUrl), window.location.href);
     const response = await fetch(

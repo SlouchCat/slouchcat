@@ -14,14 +14,18 @@ import (
 	_ "image/png"  // registers PNG for image.DecodeConfig
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
@@ -59,8 +63,8 @@ var imageFormats = []struct {
 	{transcode.ImageWebP, "webp", "image/webp"},
 }
 
-// imageExt lists the accepted media types of downloaded originals and their file extensions.
-var imageExt = map[string]string{"image/jpeg": "jpg", "image/png": "png"}
+// imageExt lists the accepted media types of originals and their file extensions.
+var imageExt = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
 // sizeName is the size column of a derived width ("w400").
 func sizeName(width int) string { return "w" + strconv.Itoa(width) }
@@ -74,13 +78,20 @@ func (s *Service) handleImageFetch(ctx context.Context, j *jobs.Job) error {
 }
 
 // itemImageKinds lists the image kinds per item kind: posters for movies, series and seasons,
-// backdrops for movies and series and the still of an episode.
+// backdrops for movies and series and the still of an episode; the (square) cover of audiobooks,
+// podcasts and podcast episodes is their poster (M6).
 var itemImageKinds = map[string][]string{
-	"movie":   {"poster", "backdrop"},
-	"series":  {"poster", "backdrop"},
-	"season":  {"poster"},
-	"episode": {"backdrop"},
+	"movie":           {"poster", "backdrop"},
+	"series":          {"poster", "backdrop"},
+	"season":          {"poster"},
+	"episode":         {"backdrop"},
+	"audiobook":       {"poster"},
+	"podcast":         {"poster"},
+	"podcast_episode": {"poster"},
 }
+
+// audioKinds are the item kinds whose poster is a cover (coverSource) instead of a provider image.
+var audioKinds = map[string]bool{"audiobook": true, "podcast": true, "podcast_episode": true}
 
 // fetchImages runs the image pipeline for a matched item. It reads the image paths the match
 // stored on the item (no provider request) and, per kind, skips the work when every derived row
@@ -124,7 +135,14 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 			}
 			continue
 		}
-		source := s.imageSource(item, kind, byKind[kind])
+		source := ""
+		if audioKinds[item.Kind] {
+			if source, err = s.coverSource(ctx, item); err != nil {
+				return fmt.Errorf("image.fetch %s cover: %w", item.ID, err)
+			}
+		} else {
+			source = s.imageSource(item, kind, byKind[kind])
+		}
 		if source == "" {
 			continue
 		}
@@ -375,7 +393,7 @@ func rootExists(root *os.Root) func(rel string) bool {
 // rename), upserts its row and returns its rel_path. A replaced original with another extension
 // is removed.
 func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID, kind, sourceURL string, prev *systemq.Image) (string, error) {
-	data, mediaType, err := download(ctx, s.client, sourceURL)
+	data, mediaType, err := s.fetchOriginal(ctx, itemID, sourceURL)
 	if err != nil {
 		return "", err
 	}
@@ -383,7 +401,7 @@ func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID,
 	if !ok {
 		return "", fmt.Errorf("unsupported image media type %q", mediaType)
 	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	cfg, err := imageConfig(data, mediaType)
 	if err != nil {
 		return "", fmt.Errorf("decode image header: %w", err)
 	}
@@ -702,4 +720,231 @@ func writeFile(root *os.Root, dir, rel string, data []byte) error {
 		return fmt.Errorf("write image file: %w", werr)
 	}
 	return nil
+}
+
+// Covers of audiobooks, podcasts and episodes (M6 design 3.1). The source of a cover is a string
+// stored as source_url, so a changed cover is fetched again:
+//
+//	coverFilePrefix + cover_path + "?" + size + "-" + mtime  a folder image below the library root
+//	coverEmbeddedPrefix + media file id + "?" + mtime        the picture embedded in a media file
+//	http(s) URL                                               cover_url (a feed image, any host)
+//
+// The part after the last "?" is the version; a folder name may contain "?" itself.
+const (
+	coverFilePrefix     = "file:"
+	coverEmbeddedPrefix = "embedded:"
+	// maxCoverBytes and coverTimeout bound a cover read from a file or fetched from a feed host.
+	maxCoverBytes = 10 << 20
+	coverTimeout  = 15 * time.Second
+)
+
+// coverClients fetch feed images: no address in the local network unless the podcast's feed is
+// there itself (package netguard); coverTimeout bounds each fetch.
+var coverClients = netguard.NewClients(http.Client{}, 0)
+
+// coverSource returns the source of the cover of an audio item: the folder image or embedded
+// picture of cover_path (an audiobook), else cover_url when it is an http or https URL; "" when
+// there is none or the file is gone.
+func (s *Service) coverSource(ctx context.Context, item systemq.Item) (string, error) {
+	cover := item.CoverPath.String
+	switch {
+	case strings.HasPrefix(cover, coverEmbeddedPrefix):
+		mf, err := s.read.GetMediaFileSystem(ctx, strings.TrimPrefix(cover, coverEmbeddedPrefix))
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		if err != nil {
+			return "", fmt.Errorf("load media file of the cover: %w", err)
+		}
+		return coverEmbeddedPrefix + mf.ID + "?" + strconv.FormatInt(mf.Mtime, 10), nil
+	case cover != "":
+		root, err := s.coverRoot(ctx, item.ID)
+		if err != nil || root == nil {
+			return "", err
+		}
+		defer root.Close()
+		fi, err := root.Stat(cover)
+		if err != nil || !fi.Mode().IsRegular() {
+			s.log.Warn("cover file not readable", "item_id", item.ID, "err", err)
+			return "", nil
+		}
+		return coverFilePrefix + cover + "?" + strconv.FormatInt(fi.Size(), 10) + "-" + strconv.FormatInt(fi.ModTime().UnixMilli(), 10), nil
+	}
+	if u, err := url.Parse(item.CoverUrl.String); err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" {
+		return u.String(), nil
+	}
+	return "", nil
+}
+
+// coverRoot opens the library root of an item's first media file, nil without one.
+func (s *Service) coverRoot(ctx context.Context, itemID string) (*os.Root, error) {
+	dir, err := s.read.GetItemCoverRoot(ctx, itemID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load cover root: %w", err)
+	}
+	pr, err := paths.NewRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	return paths.Open(pr)
+}
+
+// fetchOriginal reads the original image of a source: a folder image through package paths, an
+// embedded picture through ffmpeg (transcode.Runner.ExtractCover), a cover URL of any host over
+// plain HTTP, else a provider image through the TMDB client.
+func (s *Service) fetchOriginal(ctx context.Context, itemID, source string) ([]byte, string, error) {
+	switch {
+	case strings.HasPrefix(source, coverFilePrefix):
+		rel := unversioned(strings.TrimPrefix(source, coverFilePrefix))
+		root, err := s.coverRoot(ctx, itemID)
+		if err != nil {
+			return nil, "", err
+		}
+		if root == nil {
+			return nil, "", errors.New("cover root gone")
+		}
+		defer root.Close()
+		f, err := root.Open(rel)
+		if err != nil {
+			return nil, "", fmt.Errorf("open cover: %w", err)
+		}
+		defer f.Close()
+		return sniffCover(io.LimitReader(f, maxCoverBytes+1))
+	case strings.HasPrefix(source, coverEmbeddedPrefix):
+		id := unversioned(strings.TrimPrefix(source, coverEmbeddedPrefix))
+		abs, err := s.mediaFilePath(ctx, id)
+		if err != nil {
+			return nil, "", err
+		}
+		data, err := s.runner.ExtractCover(ctx, abs)
+		if err != nil {
+			return nil, "", fmt.Errorf("extract cover: %w", err)
+		}
+		return sniffCover(bytes.NewReader(data))
+	case s.providerImage(source):
+		return download(ctx, s.client, source)
+	default:
+		return s.downloadCover(ctx, s.feedOf(ctx, itemID), source)
+	}
+}
+
+// unversioned drops the version after the last "?" of a cover source.
+func unversioned(source string) string {
+	if i := strings.LastIndexByte(source, '?'); i >= 0 {
+		return source[:i]
+	}
+	return source
+}
+
+// feedOf returns the feed URL of the podcast of an item (a podcast's own, an episode's parent's);
+// "" for any other item.
+func (s *Service) feedOf(ctx context.Context, itemID string) string {
+	item, err := s.read.GetItemSystem(ctx, itemID)
+	if err != nil {
+		return ""
+	}
+	if item.Kind == "podcast_episode" && item.ParentID.Valid {
+		if p, err := s.read.PodcastGet(ctx, item.ParentID.String); err == nil {
+			return p.FeedUrl.String
+		}
+		return ""
+	}
+	return item.FeedUrl.String
+}
+
+// providerImage reports whether a source is a TMDB or TVDB image (fetched through their client).
+func (s *Service) providerImage(source string) bool {
+	return strings.HasPrefix(source, s.client.imageURL(originalSize, "")) || strings.HasPrefix(source, s.tvdb.artBase+"/")
+}
+
+// mediaFilePath resolves the absolute path of a media file through package paths.
+func (s *Service) mediaFilePath(ctx context.Context, id string) (string, error) {
+	mf, err := s.read.GetMediaFileSystem(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("load media file of the cover: %w", err)
+	}
+	root, err := appq.New(s.db.Read).GetLibraryRoot(ctx, mf.RootID)
+	if err != nil {
+		return "", fmt.Errorf("load library root of the cover: %w", err)
+	}
+	pr, err := paths.NewRoot(root.Path)
+	if err != nil {
+		return "", err
+	}
+	return paths.Resolve(pr, mf.RelPath)
+}
+
+// downloadCover fetches a cover URL of the feed at feedURL (a feed image, any http or https host
+// outside the local network unless the feed is local, package netguard): at most maxCoverBytes
+// within coverTimeout, JPEG, PNG or WebP only (by content: feed hosts often send image/jpg or no
+// type at all). No credentials or provider keys are sent; errors name the host only.
+func (s *Service) downloadCover(ctx context.Context, feedURL, rawURL string) ([]byte, string, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
+		return nil, "", fmt.Errorf("cover url not usable")
+	}
+	ctx, cancel := context.WithTimeout(ctx, coverTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("cover request: %w", netguard.Clean(err))
+	}
+	req.Header.Set("Accept", "image/jpeg, image/png, image/webp")
+	resp, err := coverClients.For(ctx, feedURL).Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("fetch cover from %s: %w", u.Host, netguard.Clean(err))
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("fetch cover from %s: status %d", u.Host, resp.StatusCode)
+	}
+	data, mediaType, err := sniffCover(io.LimitReader(resp.Body, maxCoverBytes+1))
+	if err != nil {
+		return nil, "", fmt.Errorf("cover from %s: %w", u.Host, err)
+	}
+	return data, mediaType, nil
+}
+
+// sniffCover reads a cover of at most maxCoverBytes and determines its media type from the content;
+// anything but JPEG, PNG and WebP is refused.
+func sniffCover(r io.Reader) ([]byte, string, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, "", fmt.Errorf("read cover: %w", err)
+	}
+	if len(data) > maxCoverBytes {
+		return nil, "", fmt.Errorf("cover larger than %d bytes", maxCoverBytes)
+	}
+	mediaType := http.DetectContentType(data)
+	if _, ok := imageExt[mediaType]; !ok {
+		return nil, "", fmt.Errorf("unsupported cover media type %q", mediaType)
+	}
+	return data, mediaType, nil
+}
+
+// imageConfig returns the dimensions of an original: JPEG and PNG through package image, WebP
+// from its header (the standard library has no WebP decoder).
+func imageConfig(data []byte, mediaType string) (image.Config, error) {
+	if mediaType != "image/webp" {
+		cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+		return cfg, err
+	}
+	if len(data) < 30 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
+		return image.Config{}, errors.New("not a webp image")
+	}
+	le16 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 }
+	le24 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 | int(b[2])<<16 }
+	switch string(data[12:16]) {
+	case "VP8 ":
+		return image.Config{Width: le16(data[26:]) & 0x3fff, Height: le16(data[28:]) & 0x3fff}, nil
+	case "VP8L":
+		b := uint32(data[21]) | uint32(data[22])<<8 | uint32(data[23])<<16 | uint32(data[24])<<24
+		return image.Config{Width: int(b&0x3fff) + 1, Height: int((b>>14)&0x3fff) + 1}, nil
+	case "VP8X":
+		return image.Config{Width: le24(data[24:]) + 1, Height: le24(data[27:]) + 1}, nil
+	}
+	return image.Config{}, errors.New("unknown webp chunk")
 }

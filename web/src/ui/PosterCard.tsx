@@ -30,11 +30,13 @@ interface PosterCardProps {
   eager?: boolean;
   /** Keep the image out of the document for now (the hero artwork goes first); the frame stays. */
   deferImage?: boolean;
+  /** `square` for audiobooks and podcasts (cover 1:1, M6); the image URLs stay the same. */
+  shape?: 'poster' | 'square';
   focusKey?: string;
 }
 
 /**
- * 2:3 poster with its title below, one link to the title. The link carries the focus ring and
+ * 2:3 poster (or a square cover) with its title below, one link to the title. The link carries the focus ring and
  * scales on focus (focus.scale token); a soft glow in the title's accent colour lights up behind
  * the poster, and the same colour tints the frame while the image is still on its way.
  */
@@ -49,6 +51,7 @@ export function PosterCard({
   progress,
   eager = false,
   deferImage = false,
+  shape = 'poster',
   focusKey,
 }: PosterCardProps) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
@@ -57,7 +60,7 @@ export function PosterCard({
     <AppLink
       ref={ref}
       href={href}
-      className={styles.card}
+      className={`${styles.card} ${shape === 'square' ? styles.square : ''}`}
       style={itemAccentStyle(accent)}
       onFocus={onFocus}
     >
@@ -72,7 +75,7 @@ export function PosterCard({
             sizes={posterUrl && posterSmallUrl ? CARD_SIZES : undefined}
             alt=""
             width={400}
-            height={600}
+            height={shape === 'square' ? 400 : 600}
             loading={eager ? 'eager' : 'lazy'}
             decoding="async"
             draggable={false}

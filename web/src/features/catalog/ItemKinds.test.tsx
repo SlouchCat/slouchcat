@@ -4,9 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   alienVersions,
+  audioIds,
+  audiobookDetail,
   episode2Detail,
   extraDetail,
   ids,
+  podcastDetail,
+  podcastEpisodeDetail,
+  podcastEpisodes,
   season1Detail,
   seriesIds,
   showDetail,
@@ -327,6 +332,162 @@ describe('detail page: series, season, episode, extra', () => {
     expect(screen.getByRole('link', { name: 'Zum Haupttitel' })).toHaveAttribute(
       'href',
       `/items/${seriesIds.show}`,
+    );
+  });
+});
+
+describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('audiobook: series and volume, author, narrator, duration, resume and the chapters', async () => {
+    mockApi({ ...signedIn, [`GET /items/${audioIds.book}`]: () => json(audiobookDetail) });
+    renderApp(`/items/${audioIds.book}`);
+
+    await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Audiobook M4B' });
+    expect(screen.getByText('Slouchcat Test Audio Series · Band 1')).toBeVisible();
+    expect(screen.getByText('von Slouchcat Test Author')).toBeVisible();
+    expect(screen.getByText('Gelesen von Slouchcat Test Narrator')).toBeVisible();
+    expect(screen.getByText('2024')).toBeVisible();
+    expect(screen.getByText('1 min')).toBeVisible();
+    expect(screen.getByText('FSK 0')).toBeVisible();
+    // The book plays as a whole (no version), from where the profile stopped.
+    expect(screen.getByRole('link', { name: 'Weiterhören ab 00:00:12' })).toHaveAttribute(
+      'href',
+      `/play/${audioIds.book}`,
+    );
+    expect(screen.getByRole('progressbar', { name: '20 % gehört' })).toBeVisible();
+    // A square cover, no file section (the files are the book's parts).
+    expect(
+      document.querySelector(`img[src*="/items/${audioIds.book}/images/poster"][height="400"]`),
+    ).not.toBeNull();
+    expect(screen.queryByRole('region', { name: 'Datei' })).not.toBeInTheDocument();
+
+    // H-1: every chapter starts the player at its start.
+    const chapters = screen.getByRole('list', { name: 'Kapitel' });
+    expect(within(chapters).getAllByRole('link')).toHaveLength(12);
+    expect(
+      within(chapters).getByRole('link', { name: 'Kapitel 3 ab 0:10 abspielen' }),
+    ).toHaveAttribute('href', `/play/${audioIds.book}?at=10000`);
+    expect(
+      within(chapters).getByRole('link', { name: 'Kapitel 12 ab 0:55 abspielen' }),
+    ).toHaveAttribute('href', `/play/${audioIds.book}?at=55000`);
+  });
+
+  it('audiobook: the volume is a number of the UI language', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /items/${audioIds.book}`]: () => json({ ...audiobookDetail, seriesIndex: 2.5 }),
+    });
+    renderApp(`/items/${audioIds.book}`);
+    expect(await screen.findByText('Slouchcat Test Audio Series · Band 2,5')).toBeVisible();
+  });
+
+  it('podcast: episodes newest first with date, duration and progress; more on demand; no play', async () => {
+    const { fetchMock } = mockApi({
+      ...signedIn,
+      [`GET /items/${audioIds.podcast}`]: () => json(podcastDetail),
+      [`GET /items/${audioIds.podcast}/episodes`]: () =>
+        json({ episodes: [podcastEpisodes.ep1], total: 3, offset: 2, limit: 50 }),
+    });
+    renderApp(`/items/${audioIds.podcast}`);
+    const user = userEvent.setup();
+
+    await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Podcast' });
+    expect(screen.getByText('von Slouchcat Test Author')).toBeVisible();
+    expect(screen.getByText('Ein Test-Podcast aus Sinustoenen.')).toBeVisible();
+    // The container plays through its episodes.
+    expect(
+      screen.queryByRole('link', { name: /^(Abspielen|Weiterhören)/ }),
+    ).not.toBeInTheDocument();
+
+    const list = screen.getByRole('list', { name: 'Episoden' });
+    const links = within(list)
+      .getAllByRole('link', { name: /^Slouchcat Test Episode \d/ })
+      .filter((link) => !link.getAttribute('aria-label'));
+    expect(links.map((link) => link.textContent)).toEqual([
+      expect.stringContaining('Slouchcat Test Episode 3'),
+      expect.stringContaining('Slouchcat Test Episode 2'),
+    ]);
+    expect(links[0]).toHaveAttribute('href', `/items/${audioIds.ep3}`);
+    expect(within(list).getByText('20.10.2025 · 12 s')).toBeVisible();
+    expect(within(list).getByText('13.10.2025 · 10 s')).toBeVisible();
+    expect(within(list).getByRole('progressbar', { name: '40 % gehört' })).toBeVisible();
+    expect(
+      within(list).getByRole('link', { name: 'Slouchcat Test Episode 2 abspielen' }),
+    ).toHaveAttribute('href', `/play/${audioIds.ep2}`);
+
+    await user.click(screen.getByRole('button', { name: 'Mehr laden' }));
+    expect(await within(list).findByText('Slouchcat Test Episode 1')).toBeVisible();
+    // Focus moves to the first episode of the page (the button goes away with the last page).
+    await waitFor(() =>
+      expect(
+        within(list)
+          .getAllByRole('link', { name: /^Slouchcat Test Episode 1/ })
+          .find((link) => !link.getAttribute('aria-label')),
+      ).toHaveFocus(),
+    );
+    expect(within(list).getByText('06.10.2025 · 8 s')).toBeVisible();
+    const page = fetchMock.mock.calls
+      .map(([request]) => new URL(request.url))
+      .find((url) => url.pathname.endsWith('/episodes'));
+    expect(page?.searchParams.get('offset')).toBe('2');
+    expect(page?.searchParams.get('limit')).toBe('50');
+    // All three are there: nothing more to load.
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument(),
+    );
+  });
+
+  it('podcast: a failed page keeps the button as a retry, focused while it loads', async () => {
+    let fail = true;
+    mockApi({
+      ...signedIn,
+      [`GET /items/${audioIds.podcast}`]: () => json(podcastDetail),
+      [`GET /items/${audioIds.podcast}/episodes`]: () =>
+        fail
+          ? problem(500, 'internal')
+          : json({ episodes: [podcastEpisodes.ep1], total: 3, offset: 2, limit: 50 }),
+    });
+    renderApp(`/items/${audioIds.podcast}`);
+    const user = userEvent.setup();
+
+    const more = await screen.findByRole('button', { name: 'Mehr laden' });
+    await user.click(more);
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    expect(retry).toHaveFocus();
+    expect(retry).toBeEnabled();
+
+    fail = false;
+    await user.keyboard('{Enter}');
+    const list = screen.getByRole('list', { name: 'Episoden' });
+    expect(await within(list).findByText('Slouchcat Test Episode 1')).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: /^(Mehr laden|Erneut versuchen)$/ }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('podcast episode: podcast, date, duration, description, play and a link to the podcast', async () => {
+    mockApi({ ...signedIn, [`GET /items/${audioIds.ep2}`]: () => json(podcastEpisodeDetail) });
+    renderApp(`/items/${audioIds.ep2}`);
+
+    await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Episode 2' });
+    expect(screen.getByText('Slouchcat Test Podcast')).toBeVisible();
+    expect(screen.getByText('13.10.2025')).toBeVisible();
+    expect(screen.getByText('10 s')).toBeVisible();
+    expect(screen.getByText('Zweite Episode, zehn Sekunden.')).toBeVisible();
+    // Without a file of its own the episode streams from its feed through the server.
+    expect(screen.getByRole('link', { name: 'Weiterhören ab 00:00:04' })).toHaveAttribute(
+      'href',
+      `/play/${audioIds.ep2}`,
+    );
+    expect(screen.getByRole('link', { name: 'Zum Podcast' })).toHaveAttribute(
+      'href',
+      `/items/${audioIds.podcast}`,
+    );
+    await waitFor(() =>
+      expect(document.title).toBe('Slouchcat Test Episode 2 – Slouchcat Test Podcast · Slouchcat'),
     );
   });
 });

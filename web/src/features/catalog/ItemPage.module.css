@@ -61,6 +61,22 @@
   overflow: hidden;
 }
 
+/* Audiobooks and podcasts: a square cover (M6). */
+.coverImage,
+.coverFallback {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  object-fit: cover;
+}
+
+.coverFallback {
+  display: block;
+  overflow: hidden;
+}
+
 .info {
   display: flex;
   flex-direction: column;
@@ -170,6 +186,11 @@
   overflow: hidden;
 }
 
+.byline {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-md);
+}
+
 .kicker {
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
@@ -213,6 +234,42 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
   gap: var(--sc-space-6) var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Chapters of an audiobook: one row each, the start time after the title. */
+.chapters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chapter > a {
+  justify-content: flex-start;
+  width: 100%;
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.chapterText {
+  display: flex;
+  gap: var(--sc-space-2);
+  padding: var(--sc-space-2) var(--sc-space-5);
+}
+
+.chapterTitle {
+  flex: 1;
+  text-align: start;
+}
+
+/* Episodes of a podcast, newest first. */
+.episodeList {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;

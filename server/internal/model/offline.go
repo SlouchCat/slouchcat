@@ -150,6 +150,7 @@ type DownloadManifest struct {
 	FileURL       string
 	Audio         *Track
 	Subtitles     []DownloadSubtitle
+	Chapters      []Chapter // audiobooks (M6): chapters on the file's timeline; empty otherwise
 }
 
 // DownloadGrant is a resolved download token: the download, its title and the profile the token
@@ -234,17 +235,18 @@ type OfflineSync struct {
 
 // OfflineEvent is a progress event buffered during offline playback.
 type OfflineEvent struct {
-	ProfileID   int64
-	ItemID      string
-	PlaybackID  string // client-created id of one offline playback
-	DownloadID  string
-	MediaFileID string
-	PositionMs  int64
-	DurationMs  int64
-	PlayedMs    int64
-	Seq         int64
-	State       string
-	ClientTime  time.Time
+	ProfileID    int64
+	ItemID       string
+	PlaybackID   string // client-created id of one offline playback
+	DownloadID   string
+	MediaFileID  string
+	PositionMs   int64
+	DurationMs   int64
+	PlayedMs     int64
+	Seq          int64
+	State        string
+	ClientTime   time.Time
+	PlaybackRate *float64 // H-3
 }
 
 // OfflineEventResult is the answer of uploadOfflineEvents; Results has one entry per event in the

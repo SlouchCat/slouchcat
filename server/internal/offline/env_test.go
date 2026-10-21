@@ -301,6 +301,21 @@ func (e *fakeEncoder) Download(ctx context.Context, _ transcode.Capabilities, _ 
 	return nil
 }
 
+// Probe describes a fetched enclosure: an MP3 stereo file of clipDuration at 128 kbit/s, when the
+// file exists.
+func (e *fakeEncoder) Probe(_ context.Context, path string) (transcode.Probe, error) {
+	if _, err := os.Stat(path); err != nil {
+		return transcode.Probe{}, err
+	}
+	return audioProbe("mp3", 128_000), nil
+}
+
+// audioProbe is an audio-only source of clipDuration with one stereo track of the codec.
+func audioProbe(codec string, bitRate int64) transcode.Probe {
+	return transcode.Probe{Format: transcode.Format{Name: "mp3", Duration: clipDuration, BitRate: bitRate},
+		Streams: []transcode.Stream{{Index: 0, Type: "audio", Codec: codec, Channels: 2, Default: true}}}
+}
+
 func (e *fakeEncoder) Keyframes(context.Context, string) ([]time.Duration, error) {
 	return []time.Duration{0, 4 * time.Second, 8 * time.Second}, nil
 }
