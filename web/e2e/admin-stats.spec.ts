@@ -38,6 +38,8 @@ test('A-8: a playback shows up in the statistics; period, table and Back by keyb
     .poll(async () => (await videoState(page)).time, { timeout: 15_000 })
     .toBeGreaterThan(2);
   await page.goto('/admin/stats?days=7');
+  // The page has started before the reload below (Firefox aborts a reload during the start).
+  await expect(page.getByRole('heading', { level: 1, name: 'Statistiken' })).toBeVisible();
   await expect
     .poll(
       async () =>

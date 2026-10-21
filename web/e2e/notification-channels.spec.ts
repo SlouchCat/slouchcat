@@ -4,7 +4,13 @@ import type { Page, TestInfo } from '@playwright/test';
 import { introSeason, setFavorite } from './discover';
 import { OWNER, OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 import {
   addPushSubscription,
   botMessages,
@@ -46,7 +52,10 @@ async function openSettings(page: Page): Promise<void> {
 async function switchOn(page: Page, name: 'E-Mail' | 'Web-Push' | 'Telegram'): Promise<void> {
   const box = card(page, name);
   const toggle = box.getByRole('switch', { name: 'Aktiv' });
-  if (!(await toggle.isChecked())) await toggle.click();
+  // The switch's input is visually hidden under its track: a pointer clicks the label around both.
+  if (!(await toggle.isChecked())) {
+    await box.locator('label', { has: page.getByRole('switch', { name: 'Aktiv' }) }).click();
+  }
   await box.getByRole('button', { name: 'Speichern' }).click();
   await expect(box.getByText('Gespeichert.')).toBeVisible();
   await expect(toggle).toBeChecked();
@@ -188,13 +197,22 @@ test('E-8: a new episode of a favourite reaches the e-mail channel with the prof
 
 test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter on the cards, back; no trap', async ({
   page,
+  owner,
 }) => {
-  // The inbox is a browsing page: the arrows reach the link next to "Zurück".
+  // The main account starts with "Neue Inhalte" chosen (plan 5.2) and other tests choose it too:
+  // the e-mail channel starts without it here, so Space has something to switch on.
+  await setChannel(owner, 'email', { enabled: false, events: ['announcements'] });
+  // The inbox is a browsing page: the arrows reach the link next to "Zurück". The first arrow
+  // lands on the newest entry (on "Zurück" when the inbox is empty); up reaches the buttons.
   await page.goto('/notifications');
   await expect(page.getByRole('heading', { level: 1, name: 'Benachrichtigungen' })).toBeVisible();
   const link = page.getByRole('link', { name: 'Kanäle einstellen' });
   await resetFocus(page);
   await page.keyboard.press('ArrowDown');
+  await expect(page.locator(':focus')).toHaveCount(1);
+  const entries = page.getByRole('list', { name: 'Benachrichtigungen' });
+  if ((await entries.locator(':focus').count()) > 0) await page.keyboard.press('ArrowUp');
+  await expectVisibleFocus(page);
   for (let presses = 0; presses < 3; presses += 1) {
     if (await link.evaluate((element) => element === document.activeElement)) break;
     await page.keyboard.press('ArrowRight');

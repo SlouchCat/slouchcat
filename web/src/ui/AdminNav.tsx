@@ -1,4 +1,12 @@
-import { useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type RefObject,
+} from 'react';
 import styles from './AdminNav.module.css';
 import { AppLink } from './AppLink';
 
@@ -18,15 +26,22 @@ interface AdminNavProps {
   /** Accessible name of the navigation ("Verwaltung"). */
   label: string;
   groups: readonly AdminNavGroup[];
+  /**
+   * Every page renders its own navigation (PageNav), so following a link replaces it and its
+   * focused link with it. A ref that outlives the pages (the layout's) carries the focused link
+   * over: the next page's navigation focuses the same link, as if the row had stayed.
+   */
+  focusCarry?: RefObject<number | null>;
 }
 
 /**
  * Section navigation of the administration (A-2): every admin page as one row of links in groups.
  * Like Tabs it is a single Tab stop (the current page's link, roving tabIndex): ArrowLeft and
  * ArrowRight move between the links (wrapping), Home and End go to the first and last, Enter
- * follows the link. Leaving the row puts the Tab stop back on the current page.
+ * follows the link. Leaving the row puts the Tab stop back on the current page; following a link
+ * keeps the focus on it (`focusCarry`).
  */
-export function AdminNav({ label, groups }: AdminNavProps) {
+export function AdminNav({ label, groups, focusCarry }: AdminNavProps) {
   const id = useId();
   const links = groups.flatMap((group) => group.links);
   const offsets = groups.map((_, index) =>
@@ -38,7 +53,27 @@ export function AdminNav({ label, groups }: AdminNavProps) {
   );
   const [focused, setFocused] = useState<number | null>(null);
   const refs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const navRef = useRef<HTMLElement>(null);
   const tabStop = focused ?? current;
+
+  useLayoutEffect(() => {
+    const node = navRef.current;
+    if (!focusCarry || !node) return;
+    const carried = focusCarry.current;
+    focusCarry.current = null;
+    // Only when the focus went away with the previous page (it is on the body now).
+    const active = document.activeElement;
+    if (carried !== null && (active === null || active === document.body)) {
+      refs.current[carried]?.focus();
+    }
+    return () => {
+      // Layout cleanups run before React removes the page, so the link still has the focus here.
+      const index = [...node.querySelectorAll('a')].findIndex(
+        (link) => link === document.activeElement,
+      );
+      if (index >= 0) focusCarry.current = index;
+    };
+  }, [focusCarry]);
 
   const move = (to: number) => {
     const next = (to + links.length) % links.length;
@@ -61,7 +96,7 @@ export function AdminNav({ label, groups }: AdminNavProps) {
   };
 
   return (
-    <nav aria-label={label} className={styles.nav} onBlur={onBlur}>
+    <nav ref={navRef} aria-label={label} className={styles.nav} onBlur={onBlur}>
       <ul className={styles.groups}>
         {groups.map((group, groupIndex) => {
           const labelId = `${id}-${groupIndex}`;

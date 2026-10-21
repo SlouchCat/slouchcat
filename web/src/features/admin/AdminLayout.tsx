@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from '@tanstack/react-router';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
@@ -15,6 +16,8 @@ export function AdminLayout() {
   const { t } = useTranslation();
   const session = useActiveSession();
   const { pathname } = useLocation();
+  // The focused link of the navigation, carried from one admin page to the next.
+  const focusCarry = useRef<number | null>(null);
   if (session.account.role !== 'owner' || !session.profile.isPrimary) return <Outlet />;
 
   const groups: AdminNavGroup[] = [
@@ -36,7 +39,9 @@ export function AdminLayout() {
   ];
 
   return (
-    <PageNav nav={<AdminNav label={t('admin.nav.label')} groups={groups} />}>
+    <PageNav
+      nav={<AdminNav label={t('admin.nav.label')} groups={groups} focusCarry={focusCarry} />}
+    >
       <Outlet />
     </PageNav>
   );

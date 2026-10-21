@@ -50,7 +50,7 @@ test('keys show their source; the Trakt id from the environment is read-only', a
   const keys = region(page, 'Schlüssel der Anbieter');
   const trakt = keys.getByLabel('Trakt-Client-ID');
   await expect(trakt).toBeDisabled();
-  await expect(keys.getByText('In deploy/.env gesetzt')).toBeVisible();
+  await expect(keys.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
   await expect(keys.getByRole('button', { name: 'Trakt-Client-ID speichern' })).toHaveCount(0);
   // The e2e server runs without a TMDB key.
   await expect(keys.getByLabel('TMDB-Lesezugriffs-Token')).toBeEnabled();
@@ -118,9 +118,10 @@ test('the public address and the update check by keyboard', async ({ page, owner
     await openIntegrations(page);
     const address = region(page, 'Öffentliche Adresse');
     const field = address.getByLabel('Adresse');
-    await field.fill('');
+    // Emptied once reached: a field focused before resetFocus would be where Firefox resumes Tab.
     await resetFocus(page);
     await tabTo(page, field, 120);
+    await field.fill('');
     // Not an http(s) address: the field says so and nothing is sent.
     await page.keyboard.type('media.e2e.test');
     await page.keyboard.press('Enter');

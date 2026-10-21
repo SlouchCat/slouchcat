@@ -112,18 +112,19 @@ test('admin navigation: one Tab stop, arrows move, Enter follows, Back returns',
 test('every admin page is reached through the admin navigation (A-2)', async ({ page }) => {
   test.setTimeout(90_000);
   await openOverview(page);
-  for (const [index, [name, path]] of NAV_PAGES.entries()) {
-    if (index === 0) continue;
-    // The Tab stop is the current page; the arrows walk to the next one.
-    const nav = adminNav(page);
-    await nav.locator('a[tabindex="0"]').focus();
+  // The Tab stop is the current page; the arrows walk to the next one.
+  const nav = adminNav(page);
+  await nav.locator('a[tabindex="0"]').focus();
+  for (const [name, path] of NAV_PAGES.slice(1)) {
     await page.keyboard.press('ArrowRight');
     const link = nav.getByRole('link', { name, exact: true });
     await expectFocusOn(page, link);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`${path}$`));
+    // Every page has the heading of its link; its navigation keeps the focus on the followed link.
+    await expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
     await expect(link).toHaveAttribute('aria-current', 'page');
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expectFocusOn(page, link);
   }
 });
 

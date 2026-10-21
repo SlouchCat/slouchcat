@@ -28,15 +28,16 @@ const BODY =
 
 const dialog = (page: Page) => page.getByRole('dialog', { name: TITLE });
 
-/** Logs in and picks the profile `name` on the picker; the start page follows. */
+/** Logs in and picks the profile `name` on the picker by keyboard; the start page follows. */
 async function startAs(page: Page, name: string): Promise<void> {
   await loginOwner(page.request);
   await page.goto('/');
   await expect(page).toHaveURL(/\/profiles$/);
-  await page
+  const tile = page
     .getByRole('list', { name: 'Profile' })
-    .getByRole('button', { name: new RegExp(`^${name}`) })
-    .click();
+    .getByRole('button', { name: new RegExp(`^${name}`) });
+  await tile.focus();
+  await page.keyboard.press('Enter');
   await expect(page).toHaveURL((url) => url.pathname === '/');
 }
 
