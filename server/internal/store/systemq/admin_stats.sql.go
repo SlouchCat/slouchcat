@@ -11,12 +11,17 @@ import (
 )
 
 const statsDevices = `-- name: StatsDevices :many
+WITH watched AS (
+    SELECT device_id, SUM(played_ms) AS watched_ms
+    FROM progress_events
+    WHERE server_time >= ?1 AND server_time < ?2
+    GROUP BY device_id
+)
 SELECT CAST(COALESCE(d.type, 'unknown') AS TEXT) AS device_type,
-       count(DISTINCT e.device_id) AS devices,
-       CAST(SUM(e.played_ms) AS INTEGER) AS watched_ms
-FROM progress_events AS e
-LEFT JOIN devices AS d ON d.id = e.device_id
-WHERE e.server_time >= ?1 AND e.server_time < ?2
+       count(w.device_id) AS devices,
+       CAST(SUM(w.watched_ms) AS INTEGER) AS watched_ms
+FROM watched AS w
+LEFT JOIN devices AS d ON d.id = w.device_id
 GROUP BY COALESCE(d.type, 'unknown')
 ORDER BY watched_ms DESC, device_type
 `
@@ -33,7 +38,7 @@ type StatsDevicesRow struct {
 }
 
 // Played time and distinct devices per device type; events without a known device or type count as
-// unknown.
+// unknown. The events are aggregated per device first.
 func (q *Queries) StatsDevices(ctx context.Context, arg StatsDevicesParams) ([]StatsDevicesRow, error) {
 	rows, err := q.db.QueryContext(ctx, statsDevices, arg.FromMs, arg.ToMs)
 	if err != nil {
@@ -93,18 +98,23 @@ func (q *Queries) StatsPlaybackModes(ctx context.Context, arg StatsPlaybackModes
 
 const statsTopTitles = `-- name: StatsTopTitles :many
 
-SELECT e.item_id, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year,
-       CAST(SUM(e.played_ms) AS INTEGER) AS watched_ms,
-       count(DISTINCT COALESCE(e.playback_session_id, 'event:' || e.id)) AS plays
-FROM progress_events AS e
-JOIN items AS i ON i.id = e.item_id
+WITH watched AS (
+    SELECT item_id, SUM(played_ms) AS watched_ms,
+           count(DISTINCT playback_session_id) + SUM(playback_session_id IS NULL) AS plays
+    FROM progress_events
+    WHERE server_time >= ?1 AND server_time < ?2
+    GROUP BY item_id
+    HAVING SUM(played_ms) > 0
+    ORDER BY watched_ms DESC, item_id
+    LIMIT ?3
+)
+SELECT w.item_id, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year,
+       CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays
+FROM watched AS w
+JOIN items AS i ON i.id = w.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
-WHERE e.server_time >= ?1 AND e.server_time < ?2
-GROUP BY e.item_id
-HAVING SUM(e.played_ms) > 0
-ORDER BY watched_ms DESC, e.item_id
-LIMIT ?3
+ORDER BY w.watched_ms DESC, w.item_id
 `
 
 type StatsTopTitlesParams struct {
@@ -128,7 +138,8 @@ type StatsTopTitlesRow struct {
 // count with their upload time); a play is one playback session, an event without one counts on
 // its own.
 // The most watched titles by played time, with the plays and the title (German text, else English,
-// else the parsed title).
+// else the parsed title). The events are aggregated first, so only the listed titles are joined;
+// the plays are the distinct playback sessions plus the events without one.
 func (q *Queries) StatsTopTitles(ctx context.Context, arg StatsTopTitlesParams) ([]StatsTopTitlesRow, error) {
 	rows, err := q.db.QueryContext(ctx, statsTopTitles, arg.FromMs, arg.ToMs, arg.LimitCount)
 	if err != nil {
@@ -160,15 +171,19 @@ func (q *Queries) StatsTopTitles(ctx context.Context, arg StatsTopTitlesParams) 
 }
 
 const statsWatchTimeByProfile = `-- name: StatsWatchTimeByProfile :many
+WITH watched AS (
+    SELECT profile_id, SUM(played_ms) AS watched_ms,
+           count(DISTINCT playback_session_id) + SUM(playback_session_id IS NULL) AS plays
+    FROM progress_events
+    WHERE server_time >= ?1 AND server_time < ?2
+    GROUP BY profile_id
+)
 SELECT p.id AS profile_id, p.name AS profile_name, a.email AS account_email,
-       CAST(SUM(e.played_ms) AS INTEGER) AS watched_ms,
-       count(DISTINCT COALESCE(e.playback_session_id, 'event:' || e.id)) AS plays
-FROM progress_events AS e
-JOIN profiles AS p ON p.id = e.profile_id
+       CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays
+FROM watched AS w
+JOIN profiles AS p ON p.id = w.profile_id
 JOIN accounts AS a ON a.id = p.account_id
-WHERE e.server_time >= ?1 AND e.server_time < ?2
-GROUP BY p.id
-ORDER BY watched_ms DESC, p.id
+ORDER BY w.watched_ms DESC, p.id
 `
 
 type StatsWatchTimeByProfileParams struct {

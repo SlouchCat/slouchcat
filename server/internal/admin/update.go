@@ -15,6 +15,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/version"
 )
 
 // Update check of M8 (A-5, design 3.5). The job update.check reads the release manifest
@@ -281,7 +282,7 @@ func (s *Service) fetchManifest(ctx context.Context) (manifest, error) {
 	if err := json.Unmarshal(body, &m); err != nil {
 		return manifest{}, fmt.Errorf("%w: not JSON", errManifest)
 	}
-	if _, ok := parseSemver(m.Version); !ok {
+	if _, ok := version.Parse(m.Version); !ok {
 		return manifest{}, fmt.Errorf("%w: version %q", errManifest, truncateRunes(m.Version, 40))
 	}
 	if p, err := url.Parse(m.URL); err != nil || (p.Scheme != "https" && p.Scheme != "http") || p.Host == "" {
@@ -323,4 +324,16 @@ func truncateRunes(s string, n int) string {
 		return string(r[:n])
 	}
 	return s
+}
+
+// newerVersion reports whether latest is newer than current. A current version that does not parse
+// (a development build "dev") counts as older than every release; an unparsable latest is never
+// newer.
+func newerVersion(latest, current string) bool {
+	l, ok := version.Parse(latest)
+	if !ok {
+		return false
+	}
+	c, ok := version.Parse(current)
+	return !ok || l.Compare(c) > 0
 }

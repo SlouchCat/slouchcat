@@ -233,9 +233,8 @@ var adminRegistry = map[string]adminCall{
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// The fixture has no Trakt client id: 422 provider_not_configured.
 	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
-	// M8 administration (base stubs answer 501; lane S2 replaces the expectations of backups and
-	// statistics, lane S3 those of the announcements). Jobs 9999 do not exist; the fixture has no
-	// e-mail server (422 email_not_configured) and checks a mock manifest.
+	// M8 administration: jobs 9999 do not exist; the fixture has no e-mail server (422
+	// email_not_configured), checks a mock manifest and writes backups into a temporary directory.
 	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
 	"getDashboard":        {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
 	"retryJob":            {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
@@ -244,19 +243,19 @@ var adminRegistry = map[string]adminCall{
 	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusOK},
 	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusUnprocessableEntity},
 	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusOK},
-	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusNotImplemented},
-	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusNotImplemented},
+	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusOK},
+	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusCreated},
 	"downloadBackup": {contract: "GET /admin/backups/{name}/download", path: "/admin/backups/missing.tar.gz/download",
-		ownerStatus: http.StatusNotImplemented},
-	"deleteBackup": {contract: "DELETE /admin/backups/{name}", path: "/admin/backups/missing.tar.gz", ownerStatus: http.StatusNotImplemented},
+		ownerStatus: http.StatusNotFound},
+	"deleteBackup": {contract: "DELETE /admin/backups/{name}", path: "/admin/backups/missing.tar.gz", ownerStatus: http.StatusNotFound},
 	"restoreBackupUpload": {contract: "POST /admin/backups/restore", path: "/admin/backups/restore", body: restoreUploadBody,
-		header: map[string]string{"Content-Type": "multipart/form-data; boundary=registry"}, ownerStatus: http.StatusNotImplemented},
+		header: map[string]string{"Content-Type": "multipart/form-data; boundary=registry"}, ownerStatus: http.StatusUnprocessableEntity},
 	"restoreBackup": {contract: "POST /admin/backups/{name}/restore", path: "/admin/backups/missing.tar.gz/restore", body: `{}`,
-		ownerStatus: http.StatusNotImplemented},
+		ownerStatus: http.StatusNotFound},
 	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
 	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
 	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
-	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusNotImplemented},
+	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusOK},
 	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusOK},
 	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusCreated},
 	"updateAnnouncement":  {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
