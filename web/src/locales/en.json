@@ -104,6 +104,11 @@
       "forbidden": "This account is not allowed to do that.",
       "csrf_header_missing": "The request was rejected for security reasons. Reload the page.",
       "validation_failed": "Please check the highlighted fields.",
+      "channel_unavailable": "This channel is not set up on the server.",
+      "channel_disabled": "The channel is switched off or not connected yet.",
+      "event_not_allowed": "Only the main user receives error reports.",
+      "send_failed": "The message was not sent: the service refused it or did not answer.",
+      "push_unavailable": "Web Push is not set up on the server.",
       "network": "The server cannot be reached.",
       "unknown": "Something went wrong. Please try again.",
       "transcode_busy": "The server is busy. Please try again later.",
@@ -1828,5 +1833,80 @@
       "title": "No notifications",
       "body": "Mark series or podcasts as favourites to hear about new episodes here."
     }
+  },
+  "settings": {
+    "notifications": {
+      "title": "Notification channels",
+      "intro": "New episodes of your favourites, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",
+      "link": "Set up channels",
+      "list": "Channels",
+      "channel": {
+        "email": "E-mail",
+        "push": "Web Push",
+        "telegram": "Telegram"
+      },
+      "state": {
+        "on": "On",
+        "off": "Off",
+        "unavailable": "Not set up"
+      },
+      "enabled": "On",
+      "events": {
+        "label": "Events",
+        "new_content": "New content",
+        "acquisition": "Acquisition status",
+        "errors": "Errors",
+        "invitations": "Invitations",
+        "announcements": "Announcements"
+      },
+      "unavailable": {
+        "body": "The main user sets up this channel in the administration under Integrations.",
+        "action": "Open integrations"
+      },
+      "email": {
+        "address": "E-mail address",
+        "description": "By default the address of your account."
+      },
+      "telegram": {
+        "linked": "Linked",
+        "linkedChat": "Linked with chat {{chat}}",
+        "notLinked": "Not linked",
+        "instruction": "Send the bot @{{bot}} the message /start {{code}}",
+        "expires": "The code is valid until {{time}}.",
+        "open": "Open in Telegram",
+        "link": "Link",
+        "renew": "New code",
+        "unlink": "Unlink",
+        "unlinked": "The link is removed.",
+        "nowLinked": "Telegram is linked."
+      },
+      "push": {
+        "devices": "Registered devices",
+        "none": "No device registered yet.",
+        "thisDevice": "This device",
+        "unknownDevice": "Unknown device",
+        "created": "Registered on {{date}}",
+        "subscribe": "Turn on for this device",
+        "subscribed": "This device now receives push messages.",
+        "remove": "Remove",
+        "removeLabel": "Remove {{device}}",
+        "removed": "The device is removed.",
+        "unsupported": "This browser cannot receive push messages here. It takes a current browser and a connection over HTTPS.",
+        "ios": "On iPhone and iPad, Web Push works only in the installed app: choose “Add to Home Screen” in the share menu and open Slouchcat from there.",
+        "denied": "Notifications are blocked for Slouchcat. Allow them in the browser’s settings.",
+        "noWorker": "The service worker is not running yet. Reload the page and try again.",
+        "failed": "The browser could not register with its push service."
+      },
+      "saved": "Saved.",
+      "test": "Test message",
+      "testSent": "Test message sent."
+    }
+  },
+  "announcements": {
+    "kicker": "Announcement",
+    "published": "Published on {{date}}",
+    "counter": "{{index}} of {{count}}",
+    "acknowledge": "Got it",
+    "later": "Later"
   }
 }

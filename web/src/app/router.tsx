@@ -366,6 +366,15 @@ const profileSettingsRoute = createRoute({
   ),
 });
 
+const notificationSettingsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/settings/notifications',
+  component: lazyRouteComponent(
+    () => import('@/features/notifications/ChannelSettingsPage'),
+    'ChannelSettingsPage',
+  ),
+});
+
 const downloadsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/downloads',
@@ -451,6 +460,7 @@ export const routeTree = rootRoute.addChildren([
           accessRoute,
         ]),
         profileSettingsRoute,
+        notificationSettingsRoute,
         downloadsRoute,
         // discover M7
         searchRoute,

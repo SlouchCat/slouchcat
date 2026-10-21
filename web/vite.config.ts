@@ -112,7 +112,10 @@ export default defineConfig({
         // That includes every lazy chunk (the offline library, its player, the OPFS worker and
         // the locale files), so the app starts and plays downloads without network (C-1, M5).
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
-        globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js', 'spike/**'],
+        globIgnores: ['**/node_modules/**/*', 'sw.js', 'workbox-*.js', 'push-sw.js', 'spike/**'],
+        // Web Push (M8): the `push` and `notificationclick` listeners of public/push-sw.js run in
+        // this worker; generateSW loads the file, the browser checks it for updates like sw.js.
+        importScripts: ['push-sw.js'],
         // Every navigation without network gets the shell, /offline and /offline/play/* included;
         // the router opens the offline library from there.
         navigateFallback: 'index.html',

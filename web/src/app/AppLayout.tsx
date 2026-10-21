@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { notificationsPageQuery, notificationsQuery } from '@/features/discover/queries';
+import { Announcements } from '@/features/notifications/Announcements';
 import { offlineSupported } from '@/features/offline/support';
 import { AppHeader, BADGE_MAX, type NavItem } from '@/ui';
 import { paths } from './paths';
@@ -132,6 +133,7 @@ export function AppLayout() {
       <div id="content" tabIndex={-1} className={styles.content}>
         <Outlet />
       </div>
+      <Announcements profileId={session.profile.id} />
     </>
   );
 }
