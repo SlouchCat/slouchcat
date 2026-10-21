@@ -2,6 +2,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { YOUTUBE_KEY } from './env';
 import { expect, test } from './fixtures';
+import { setUpdateManifest } from './mocks';
 import {
   expectFocusOn,
   expectNoFocusTrap,
@@ -175,6 +176,41 @@ test('"Schlüssel neu erzeugen" asks first; Escape keeps the keys', async ({ pag
   await expect(dialog).toHaveCount(0);
   await expectFocusOn(page, rotate);
   expect(await settingsOf(owner)).toEqual(before);
+});
+
+test('a newer release in the manifest shows the update badge; switching the check off removes it (A-5)', async ({
+  page,
+  owner,
+}) => {
+  const before = await settingsOf(owner);
+  try {
+    // The manifest mock answers 404 by default; a release far ahead of any build version is newer.
+    await setUpdateManifest('99.0.0');
+    await putSettings(owner, { updateCheckEnabled: true });
+    const checked = await owner.post('/api/v1/admin/update/check', { headers: CSRF });
+    expect(checked.status(), await checked.text()).toBe(200);
+    expect(((await checked.json()) as { available: boolean }).available).toBe(true);
+
+    await page.goto('/admin/integrations');
+    const badge = page.getByRole('link', { name: 'Update auf Version 99.0.0 verfügbar' });
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveAttribute('href', '/admin');
+    await resetFocus(page);
+    await tabTo(page, badge, 20);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByText('Version 99.0.0 ist verfügbar')).toBeVisible();
+
+    // Switching the daily check off forgets the known release: no badge, no notice.
+    await putSettings(owner, { updateCheckEnabled: false });
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^Update auf Version/ })).toHaveCount(0);
+  } finally {
+    await setUpdateManifest(null);
+    await putSettings(owner, { updateCheckEnabled: false });
+    await putSettings(owner, { updateCheckEnabled: before.updateCheckEnabled });
+  }
 });
 
 test('browser back leaves the page for the overview', async ({ page }) => {

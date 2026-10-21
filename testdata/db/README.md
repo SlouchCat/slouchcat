@@ -78,3 +78,15 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Testmedien) und eine Benachrichtigung für eine vierte, nach dem Favorisieren erschienene Episode. Der Suchindex
   (`search_index`) und die Genres (`item_genres`) stammen aus den Triggern der Migration.
   `TestFrozenM7StateCoversM7Data` prüft, dass jede dieser Datenarten nach der Migration vorhanden ist.
+- `M8.sql`: Stand nach M8 (Administration und Benachrichtigungen; Migration 00016). Erzeugt mit `server/bin/slouchcat dump`
+  nach einem Lauf gegen einen frischen Server (Skript in den Sitzungsnotizen `freeze-m8.sh`): Assistent mit Hauptkonto
+  `owner@example.test`, Filmbibliothek auf `testdata/media/Movies` und Serienbibliothek auf `testdata/media/TV` ohne
+  TMDB-Schlüssel, Profil «Kind» (Stufe 12, PIN), ein Pick mit Notiz, ein Favorit auf der Testserie und ein
+  Fortschrittsereignis mit Gerät (`progress_events.device_id`). Dazu die M8-Daten: Einstellungen `public_url`,
+  `update_check_enabled` und der Mailserver (`smtp_*`, Passwort verschlüsselt mit `v1:`), die Kanalzeilen des Hauptkontos
+  (`account_channels`: E-Mail an mit Ereignissen, Push und Telegram aus), ein Push-Abo mit P-256-Schlüssel
+  (`push_subscriptions`), ein offener Telegram-Link-Code (`telegram_links`, Bot-Token nur aus der Umgebung, nie
+  gespeichert), zwei Ankündigungen (eine veröffentlicht und vom Profil «Kind» quittiert in `announcement_acks`, eine als
+  Entwurf) und die Zustellung der Ankündigung an den E-Mail-Kanal (`deliveries`, nach dem fehlgeschlagenen Versuch gegen
+  den nicht existierenden Mailserver wieder eingereiht). `TestFrozenM8StateCoversM8Data` prüft, dass jede dieser
+  Datenarten nach der Migration vorhanden ist und kein Passwort im Klartext im Stand steht.
