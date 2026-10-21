@@ -260,6 +260,7 @@ describe('admin backup (A-4)', () => {
     answer = json({ ...accepted, includesSecrets: true }, 202);
     await user.clear(passphrase);
     await user.type(passphrase, 'lange-passphrase-42');
+    expect(within(dialog).queryByText('Die Passphrase stimmt nicht.')).toBeNull();
     await user.click(restore);
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', {

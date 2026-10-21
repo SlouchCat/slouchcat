@@ -9,6 +9,7 @@ import { useActiveSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useEdited } from '@/lib/useEdited';
 import { Chip, Notice, Page, Skeleton, Text } from '@/ui';
 import {
   AriaButton,
@@ -57,12 +58,14 @@ function AnnouncementDialog({
       onClose(saved);
     },
   });
-  const errors = save.error ? formErrors(t, save.error) : null;
+  const { edited, submitted, onInput } = useEdited();
+  const errors = save.error && !edited ? formErrors(t, save.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const body = { title: formText(form, 'title'), body: formText(form, 'body') };
+    submitted();
     save.mutate(announcement ? body : { ...body, publish: publishNow });
   };
 
@@ -77,48 +80,50 @@ function AnnouncementDialog({
         announcement ? t('admin.announcements.form.editTitle') : t('admin.announcements.form.title')
       }
     >
-      <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-        {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-        <TextField
-          name="title"
-          label={t('admin.announcements.form.titleLabel')}
-          defaultValue={announcement?.title}
-          maxLength={MAX_TITLE}
-          isRequired
-          validate={required}
-          autoComplete="off"
-        />
-        <TextField
-          name="body"
-          label={t('admin.announcements.form.body')}
-          description={t('admin.announcements.form.bodyHint', { max: MAX_BODY })}
-          defaultValue={announcement?.body}
-          rows={8}
-          maxLength={MAX_BODY}
-          isRequired
-          validate={required}
-        />
-        {!announcement && (
-          <CheckboxGroup
-            name="publish"
-            label={t('admin.announcements.form.publishLabel')}
-            description={t('admin.announcements.publish.reach')}
-            value={publish}
-            onChange={setPublish}
-            options={[{ value: 'publish', label: t('admin.announcements.form.publishNow') }]}
+      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
+        <div className={styles.form} onInput={onInput}>
+          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          <TextField
+            name="title"
+            label={t('admin.announcements.form.titleLabel')}
+            defaultValue={announcement?.title}
+            maxLength={MAX_TITLE}
+            isRequired
+            validate={required}
+            autoComplete="off"
           />
-        )}
-        <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={() => onClose(null)}>
-            {t('common.cancel')}
-          </AriaButton>
-          <AriaButton type="submit" variant="primary" isPending={save.isPending}>
-            {save.isPending
-              ? t('common.saving')
-              : publishNow
-                ? t('admin.announcements.publish.confirm')
-                : t('admin.announcements.form.save')}
-          </AriaButton>
+          <TextField
+            name="body"
+            label={t('admin.announcements.form.body')}
+            description={t('admin.announcements.form.bodyHint', { max: MAX_BODY })}
+            defaultValue={announcement?.body}
+            rows={8}
+            maxLength={MAX_BODY}
+            isRequired
+            validate={required}
+          />
+          {!announcement && (
+            <CheckboxGroup
+              name="publish"
+              label={t('admin.announcements.form.publishLabel')}
+              description={t('admin.announcements.publish.reach')}
+              value={publish}
+              onChange={setPublish}
+              options={[{ value: 'publish', label: t('admin.announcements.form.publishNow') }]}
+            />
+          )}
+          <div className={styles.dialogActions}>
+            <AriaButton variant="ghost" onPress={() => onClose(null)}>
+              {t('common.cancel')}
+            </AriaButton>
+            <AriaButton type="submit" variant="primary" isPending={save.isPending}>
+              {save.isPending
+                ? t('common.saving')
+                : publishNow
+                  ? t('admin.announcements.publish.confirm')
+                  : t('admin.announcements.form.save')}
+            </AriaButton>
+          </div>
         </div>
       </Form>
     </FormDialog>

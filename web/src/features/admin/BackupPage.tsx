@@ -8,6 +8,7 @@ import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useEdited } from '@/lib/useEdited';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { ButtonLink, Notice, Page, Panel, Skeleton, Text } from '@/ui';
 import {
@@ -68,10 +69,12 @@ function CreateDialog({ onClose }: { onClose: (created: Backup | null) => void }
       onClose(backup);
     },
   );
-  const errors = create.error ? formErrors(t, create.error) : null;
+  const { edited, submitted, onInput } = useEdited();
+  const errors = create.error && !edited ? formErrors(t, create.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    submitted();
     void create.run(
       mode === 'with' ? { includeSecrets: true, passphrase } : { includeSecrets: false },
     );
@@ -86,59 +89,63 @@ function CreateDialog({ onClose }: { onClose: (created: Backup | null) => void }
       title={t('admin.backup.create.title')}
       description={t('admin.backup.create.intro')}
     >
-      <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-        {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-        <RadioGroup
-          name="includeSecrets"
-          label={t('admin.backup.create.scope')}
-          value={mode}
-          onChange={(value) => setMode(value === 'with' ? 'with' : 'without')}
-          options={[
-            { value: 'without', label: t('admin.backup.create.without') },
-            { value: 'with', label: t('admin.backup.create.with') },
-          ]}
-          description={
-            mode === 'with'
-              ? t('admin.backup.create.withHint', { min: MIN_PASSPHRASE })
-              : t('admin.backup.create.withoutHint')
-          }
-        />
-        {mode === 'with' && (
-          <>
-            <TextField
-              name="passphrase"
-              type="password"
-              label={t('admin.backup.create.passphrase')}
-              description={t('admin.backup.create.passphraseHint', { min: MIN_PASSPHRASE })}
-              autoComplete="new-password"
-              isRequired
-              value={passphrase}
-              onChange={setPassphrase}
-              validate={(value) =>
-                value.length >= MIN_PASSPHRASE
-                  ? null
-                  : t('admin.backup.create.passphraseTooShort', { min: MIN_PASSPHRASE })
-              }
-            />
-            <TextField
-              name="passphraseRepeat"
-              type="password"
-              label={t('admin.backup.create.passphraseRepeat')}
-              autoComplete="new-password"
-              isRequired
-              validate={(value) =>
-                value === passphrase ? null : t('admin.backup.create.passphraseMismatch')
-              }
-            />
-          </>
-        )}
-        <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={() => onClose(null)}>
-            {t('common.cancel')}
-          </AriaButton>
-          <AriaButton type="submit" variant="primary" isPending={create.isPending}>
-            {create.isPending ? t('admin.backup.create.creating') : t('admin.backup.create.submit')}
-          </AriaButton>
+      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
+        <div className={styles.form} onInput={onInput}>
+          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          <RadioGroup
+            name="includeSecrets"
+            label={t('admin.backup.create.scope')}
+            value={mode}
+            onChange={(value) => setMode(value === 'with' ? 'with' : 'without')}
+            options={[
+              { value: 'without', label: t('admin.backup.create.without') },
+              { value: 'with', label: t('admin.backup.create.with') },
+            ]}
+            description={
+              mode === 'with'
+                ? t('admin.backup.create.withHint', { min: MIN_PASSPHRASE })
+                : t('admin.backup.create.withoutHint')
+            }
+          />
+          {mode === 'with' && (
+            <>
+              <TextField
+                name="passphrase"
+                type="password"
+                label={t('admin.backup.create.passphrase')}
+                description={t('admin.backup.create.passphraseHint', { min: MIN_PASSPHRASE })}
+                autoComplete="new-password"
+                isRequired
+                value={passphrase}
+                onChange={setPassphrase}
+                validate={(value) =>
+                  value.length >= MIN_PASSPHRASE
+                    ? null
+                    : t('admin.backup.create.passphraseTooShort', { min: MIN_PASSPHRASE })
+                }
+              />
+              <TextField
+                name="passphraseRepeat"
+                type="password"
+                label={t('admin.backup.create.passphraseRepeat')}
+                autoComplete="new-password"
+                isRequired
+                validate={(value) =>
+                  value === passphrase ? null : t('admin.backup.create.passphraseMismatch')
+                }
+              />
+            </>
+          )}
+          <div className={styles.dialogActions}>
+            <AriaButton variant="ghost" onPress={() => onClose(null)}>
+              {t('common.cancel')}
+            </AriaButton>
+            <AriaButton type="submit" variant="primary" isPending={create.isPending}>
+              {create.isPending
+                ? t('admin.backup.create.creating')
+                : t('admin.backup.create.submit')}
+            </AriaButton>
+          </div>
         </div>
       </Form>
     </FormDialog>
@@ -167,7 +174,8 @@ function RestoreDialog({
       backup ? restoreBackup(backup.name, passphrase) : restoreUpload(file!, passphrase),
     onAccepted,
   );
-  const errors = restore.error ? formErrors(t, restore.error) : null;
+  const { edited, submitted, onInput } = useEdited();
+  const errors = restore.error && !edited ? formErrors(t, restore.error) : null;
   const ready = backup ? passphrase !== '' : file !== null;
 
   return (
@@ -182,67 +190,68 @@ function RestoreDialog({
           : t('admin.backup.restore.titleUpload')
       }
     >
-      <Form
-        className={styles.form}
-        onSubmit={(event) => event.preventDefault()}
-        validationErrors={errors?.fields}
-      >
-        {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-        <Notice tone="warning" live={false}>
-          {t('admin.backup.restore.warning')}
-        </Notice>
-        {!backup && (
-          <div className={data.field}>
-            <label htmlFor={fileId} className={data.label}>
-              {t('admin.backup.restore.file')}
-            </label>
-            <input
-              id={fileId}
-              name="file"
-              type="file"
-              accept=".gz,.age"
-              aria-describedby={`${fileId}-hint`}
-              className={data.file}
-              onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
-            />
-            <p id={`${fileId}-hint`} className={data.hint}>
-              {t('admin.backup.restore.fileHint')}
-            </p>
-          </div>
-        )}
-        <TextField
-          name="passphrase"
-          type="password"
-          label={t('admin.backup.restore.passphrase')}
-          description={
-            backup
-              ? t('admin.backup.restore.passphraseHint')
-              : t('admin.backup.restore.passphraseUploadHint')
-          }
-          autoComplete="off"
-          isRequired={backup !== null}
-          value={passphrase}
-          onChange={setPassphrase}
-        />
-        <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={onClose}>
-            {t('common.cancel')}
-          </AriaButton>
-          <ConfirmDialog
-            trigger={
-              <AriaButton variant="danger" isDisabled={!ready} isPending={restore.isPending}>
-                {restore.isPending
-                  ? t('admin.backup.restore.running')
-                  : t('admin.backup.restore.action')}
-              </AriaButton>
+      <Form onSubmit={(event) => event.preventDefault()} validationErrors={errors?.fields}>
+        <div className={styles.form} onInput={onInput}>
+          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          <Notice tone="warning" live={false}>
+            {t('admin.backup.restore.warning')}
+          </Notice>
+          {!backup && (
+            <div className={data.field}>
+              <label htmlFor={fileId} className={data.label}>
+                {t('admin.backup.restore.file')}
+              </label>
+              <input
+                id={fileId}
+                name="file"
+                type="file"
+                accept=".gz,.age"
+                aria-describedby={`${fileId}-hint`}
+                className={data.file}
+                onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+              />
+              <p id={`${fileId}-hint`} className={data.hint}>
+                {t('admin.backup.restore.fileHint')}
+              </p>
+            </div>
+          )}
+          <TextField
+            name="passphrase"
+            type="password"
+            label={t('admin.backup.restore.passphrase')}
+            description={
+              backup
+                ? t('admin.backup.restore.passphraseHint')
+                : t('admin.backup.restore.passphraseUploadHint')
             }
-            title={t('admin.backup.restore.confirmTitle')}
-            body={t('admin.backup.restore.confirmBody')}
-            confirmLabel={t('admin.backup.restore.confirm')}
-            cancelLabel={t('common.cancel')}
-            tone="danger"
-            onConfirm={() => void restore.run(undefined)}
+            autoComplete="off"
+            isRequired={backup !== null}
+            value={passphrase}
+            onChange={setPassphrase}
           />
+          <div className={styles.dialogActions}>
+            <AriaButton variant="ghost" onPress={onClose}>
+              {t('common.cancel')}
+            </AriaButton>
+            <ConfirmDialog
+              trigger={
+                <AriaButton variant="danger" isDisabled={!ready} isPending={restore.isPending}>
+                  {restore.isPending
+                    ? t('admin.backup.restore.running')
+                    : t('admin.backup.restore.action')}
+                </AriaButton>
+              }
+              title={t('admin.backup.restore.confirmTitle')}
+              body={t('admin.backup.restore.confirmBody')}
+              confirmLabel={t('admin.backup.restore.confirm')}
+              cancelLabel={t('common.cancel')}
+              tone="danger"
+              onConfirm={() => {
+                submitted();
+                void restore.run(undefined);
+              }}
+            />
+          </div>
         </div>
       </Form>
     </FormDialog>

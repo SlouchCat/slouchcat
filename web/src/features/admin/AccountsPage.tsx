@@ -11,6 +11,7 @@ import { sessionQuery, useActiveSession } from '@/app/session';
 import { formText, MIN_PASSWORD } from '@/lib/form';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useEdited } from '@/lib/useEdited';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { ButtonLink, Chip, Notice, Page, Skeleton, Text } from '@/ui';
 import { AriaButton, DataTable, FormDialog, TextField, type DataColumn } from '@/ui/aria';
@@ -46,7 +47,8 @@ function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boo
       onClose(true);
     },
   );
-  const errors = save.error ? accountErrors(t, save.error) : null;
+  const { edited, submitted, onInput } = useEdited();
+  const errors = save.error && !edited ? accountErrors(t, save.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -56,6 +58,7 @@ function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boo
     // The server needs at least one change; say so here instead of sending an empty update.
     setUnchanged(!changesEmail && !newPassword);
     if (!changesEmail && !newPassword) return;
+    submitted();
     void save.run({
       ...(changesEmail ? { email: nextEmail } : {}),
       currentPassword: formText(data, 'currentPassword', false),
@@ -72,58 +75,60 @@ function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boo
       title={t('admin.accounts.edit.title')}
       description={t('admin.accounts.edit.intro')}
     >
-      <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-        {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-        {unchanged && <Notice tone="warning">{t('admin.accounts.edit.unchanged')}</Notice>}
-        <TextField
-          name="email"
-          type="email"
-          label={t('admin.accounts.edit.email')}
-          autoComplete="email"
-          defaultValue={email}
-          isRequired
-        />
-        <TextField
-          name="newPassword"
-          type="password"
-          label={t('admin.accounts.edit.newPassword')}
-          description={t('admin.accounts.edit.newPasswordHint')}
-          autoComplete="new-password"
-          value={newPassword}
-          onChange={setNewPassword}
-          validate={(value) =>
-            value === '' || value.length >= MIN_PASSWORD
-              ? null
-              : t('errors.field.password_too_short')
-          }
-        />
-        {newPassword && (
+      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
+        <div className={styles.form} onInput={onInput}>
+          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          {unchanged && <Notice tone="warning">{t('admin.accounts.edit.unchanged')}</Notice>}
           <TextField
-            name="newPasswordRepeat"
-            type="password"
-            label={t('admin.accounts.edit.newPasswordRepeat')}
-            autoComplete="new-password"
+            name="email"
+            type="email"
+            label={t('admin.accounts.edit.email')}
+            autoComplete="email"
+            defaultValue={email}
             isRequired
+          />
+          <TextField
+            name="newPassword"
+            type="password"
+            label={t('admin.accounts.edit.newPassword')}
+            description={t('admin.accounts.edit.newPasswordHint')}
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={setNewPassword}
             validate={(value) =>
-              value === newPassword ? null : t('errors.field.password_mismatch')
+              value === '' || value.length >= MIN_PASSWORD
+                ? null
+                : t('errors.field.password_too_short')
             }
           />
-        )}
-        <TextField
-          name="currentPassword"
-          type="password"
-          label={t('admin.accounts.edit.currentPassword')}
-          description={t('admin.accounts.edit.currentPasswordHint')}
-          autoComplete="current-password"
-          isRequired
-        />
-        <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={() => onClose(false)}>
-            {t('common.cancel')}
-          </AriaButton>
-          <AriaButton type="submit" variant="primary" isPending={save.isPending}>
-            {save.isPending ? t('common.saving') : t('common.save')}
-          </AriaButton>
+          {newPassword && (
+            <TextField
+              name="newPasswordRepeat"
+              type="password"
+              label={t('admin.accounts.edit.newPasswordRepeat')}
+              autoComplete="new-password"
+              isRequired
+              validate={(value) =>
+                value === newPassword ? null : t('errors.field.password_mismatch')
+              }
+            />
+          )}
+          <TextField
+            name="currentPassword"
+            type="password"
+            label={t('admin.accounts.edit.currentPassword')}
+            description={t('admin.accounts.edit.currentPasswordHint')}
+            autoComplete="current-password"
+            isRequired
+          />
+          <div className={styles.dialogActions}>
+            <AriaButton variant="ghost" onPress={() => onClose(false)}>
+              {t('common.cancel')}
+            </AriaButton>
+            <AriaButton type="submit" variant="primary" isPending={save.isPending}>
+              {save.isPending ? t('common.saving') : t('common.save')}
+            </AriaButton>
+          </div>
         </div>
       </Form>
     </FormDialog>

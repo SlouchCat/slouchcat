@@ -200,6 +200,9 @@ describe('admin accounts (A-2)', () => {
     const current = within(dialog).getByLabelText(/^Aktuelles Passwort/);
     await user.clear(current);
     await user.type(current, 'geheim-0123456');
+    // The verdict was about the old value: editing removes it, so Enter submits again.
+    expect(within(dialog).queryByText('Das aktuelle Passwort stimmt nicht.')).toBeNull();
+    expect(current).not.toHaveAttribute('aria-invalid', 'true');
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     expect(
       await within(dialog).findByText('Diese E-Mail-Adresse gehört schon zu einem anderen Konto.'),
