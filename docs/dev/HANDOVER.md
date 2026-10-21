@@ -1,6 +1,6 @@
 # Übergabe an eine neue Hauptsession
 
-Stand: 21. Oktober 2026. Diese Datei ersetzt das Gedächtnis der bisherigen Hauptsession (Claude Code,
+Stand: 21. Oktober 2026, 14 Uhr (letzte Aktualisierung vor dem Accountwechsel). Diese Datei ersetzt das Gedächtnis der bisherigen Hauptsession (Claude Code,
 Account 1). Wer sie liest, übernimmt die Rolle der Hauptsession. Alles andere steht im Repository:
 `docs/dev/CURRENT_STATUS.md` (Stand mit Belegen), `docs/planning/03-plan-v1.md` (freigegebener Plan),
 `docs/planning/04-entscheidungen.md` (verbindliche Antworten von Marco), `CLAUDE.md` (Regeln für Agenten).
@@ -62,8 +62,17 @@ Regeln, die sich bewährt haben:
 Weitere offene Pull Requests: #9 `claude/ideas-collection` ist Marcos Ideensammlung für nach 1.0 (nicht
 Teil der Meilensteine; mergen nur auf sein Wort).
 
-**Nächste Schritte der Hauptsession:** Pull Request #13 (diese Übergabe) mergen, sobald die Checks grün sind; dann M8
-als Karte vorschlagen (Abschnitt 7). Offen aus M7: Android-Checks, Messung auf CT 190, O-6-Langzeittest bis 19. November.
+**Stand bei der Übergabe:** M0 bis M7 sind in `main`, das Docker-Image auf Marcos Rechner ist auf dem M7-Stand neu
+gebaut, der Container ist gesund. Keine Meilenstein-Session läuft. Die alte Hauptsession hatte M8 als Karte
+vorgeschlagen; diese Karte gehört zum alten Account und verfällt. Die neue Hauptsession schlägt M8 selbst vor.
+
+**Nächste Schritte der Hauptsession:** (1) Falls Pull Request #13 (diese Übergabe) noch offen ist: mergen, sobald die
+Checks grün sind, dann `git fetch origin main:main`. (2) M8 „Administration und Benachrichtigungen" als frische
+Session starten (Briefing nach Abschnitt 7; Spec-IDs A-1 bis A-9 und E-8 Kanäle; Entscheide 5.2 und 5.5 sind
+bestätigt; vorab Marco fragen, welche Kanäle er mit echten Zugangsdaten testen will und ob die Sicherung zusätzlich
+auf einen NAS-Pfad geschrieben werden soll). (3) Nach dem Merge Image neu bauen (Abschnitt 5). (4) Danach M9
+Integrationen (Frage 10 vorab) und M10 Härtung und Release. Offen aus M5 bis M7 bei Marco: Android-Checklisten,
+Messung auf CT 190, O-6-Langzeittest bis 19. November.
 
 ## 4. Offene Punkte bei Marco (nicht blockierend)
 
