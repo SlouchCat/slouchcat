@@ -1541,7 +1541,7 @@ export interface paths {
          * Search titles, people and collections (E-4)
          * @description Full-text search from the second character over titles (all languages, original title, author,
          *     narrator, series name), people and collections, with the filters genre, year, age rating, media type
-         *     and availability. Titles are paged (`offset`/`limit`); people and collections are the first ten
+         *     and availability; or, without a query, a browse by those filters (titles only, by title). Titles are paged (`offset`/`limit`); people and collections are the first ten
          *     matches. Every title passed the visibility layer of the active profile; a person appears only when a
          *     title of hers is visible, a collection only with a visible member (10.2). A POST because the filters
          *     form an object and the walk of the contract test covers POST operations too.
@@ -3382,9 +3382,17 @@ export interface components {
             rejected: number;
             results: ("accepted" | "duplicate" | "rejected")[];
         };
+        /**
+         * @description A text search (`query` with at least two characters) or a browse by filters (`query` absent or
+         *     empty with at least one filter, e.g. the genre row of the start page); without both the server
+         *     answers 422 `validation_failed` (`query` `required`).
+         */
         SearchRequest: {
-            /** @description Words are matched as prefixes (from the second character), diacritics folded. */
-            query: string;
+            /**
+             * @description Words are matched as prefixes (from the second character), diacritics folded. Absent or
+             *     empty: browse by the filters, ordered by title.
+             */
+            query?: string;
             /** @description A genre name in the profile language (`listGenres`). */
             genre?: string;
             yearFrom?: number;
@@ -6929,7 +6937,10 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description Validation failed (`validation_failed`; `query` `too_short` or `too_long`). */
+            /**
+             * @description Validation failed (`validation_failed`; `query` `too_short` (one character), `too_long`, or
+             *     `required` when neither a query nor a filter is given).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
