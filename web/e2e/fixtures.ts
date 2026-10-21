@@ -8,6 +8,7 @@ import {
 } from './accounts';
 import { resetCuration } from './curation';
 import { resetTraktMock, resetViewerLists } from './discover';
+import { resetChannelMocks } from './mocks';
 import { removeDeviceDownloads } from './offline';
 
 /**
@@ -27,7 +28,8 @@ function clientAddress(key: string): string {
 // switched), for setting up and tidying data. It needs no login. It runs for every test (`auto`):
 // before and after each one the account is left with its primary profile only, without guests,
 // without running streams and without downloads on the shared session's device. Its primary
-// profile has no watchlist entries, no favourites and no unread notifications (M7).
+// profile has no watchlist entries, no favourites and no unread notifications (M7). The mocks of
+// the channels start empty and the manifest mock without a release (M8).
 export const test = base.extend<{ owner: APIRequestContext }>({
   extraHTTPHeaders: async ({ browserName }, provide, testInfo) => {
     const address = clientAddress(`${browserName}/${testInfo.titlePath.join('/')}`);
@@ -46,6 +48,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
         await resetViewerLists(api);
         await resetTraktMock();
+        await resetChannelMocks();
         await provide(api);
       } finally {
         await stopAllStreams(api);
