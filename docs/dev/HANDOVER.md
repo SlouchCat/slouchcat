@@ -54,7 +54,7 @@ Regeln, die sich bewährt haben:
 | M5 Offline (fMP4-Downloads, Staffel/Auto, Offline-PIN und -Schauzeit, Merge, Entzug) | gemerged | #10 |
 | M6 Hörbücher und Podcasts | gemerged 21.10. | #11 |
 | CI: Go-Testlimit 30 min | gemerged 21.10. | #12 |
-| **M7 Entdecken und Kuratierung** | **fertig**, wartet auf Marcos Merge-Wort; lokal `task ci` grün, Verifier mit Ausnahmen (Android-Checks, O-6 bis 19. November, Messung auf CT 190 offen). Branch `claude/m7-discover`. | #14 (offen, Checks laufen) |
+| M7 Entdecken und Kuratierung (Cat's Empfehlungen, Reihen, FTS-Suche, Trakt-Reihen, Favoriten) | gemerged 21.10. (Merge dd0aa9f); CI-Job-Limit dabei auf 75 min angehoben | #14 |
 | M8 Administration und Benachrichtigungen | offen | |
 | M9 Integrationen (Radarr/Sonarr lesend, Seerr-Bereich, Bazarr, SABnzbd) | offen; Frage 10 vorab | |
 | M10 Härtung und Release | offen | |
@@ -62,8 +62,8 @@ Regeln, die sich bewährt haben:
 Weitere offene Pull Requests: #9 `claude/ideas-collection` ist Marcos Ideensammlung für nach 1.0 (nicht
 Teil der Meilensteine; mergen nur auf sein Wort).
 
-**Nächste Schritte der Hauptsession:** Pull Request #14 prüfen (Checks, Abschnitt „Not covered"), Marcos Wort
-zum Merge einholen, mergen, Image neu bauen (Abschnitt 5), dann M8 als Karte vorschlagen (Abschnitt 7).
+**Nächste Schritte der Hauptsession:** Pull Request #13 (diese Übergabe) mergen, sobald die Checks grün sind; dann M8
+als Karte vorschlagen (Abschnitt 7). Offen aus M7: Android-Checks, Messung auf CT 190, O-6-Langzeittest bis 19. November.
 
 ## 4. Offene Punkte bei Marco (nicht blockierend)
 
