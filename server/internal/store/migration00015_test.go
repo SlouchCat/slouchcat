@@ -39,6 +39,13 @@ func TestMigration00015IndexesFrozenData(t *testing.T) {
 	if got := count(`SELECT count(*) FROM search_index WHERE kind = 'item'`); got != items {
 		t.Errorf("search_index item rows = %d, want %d", got, items)
 	}
+	if got, want := count(`SELECT count(*) FROM search_index`), count(`SELECT count(*) FROM search_docs`); got != want {
+		t.Errorf("search_index rows = %d, search_docs rows = %d (index out of step with its content table)", got, want)
+	}
+	// The FTS integrity check compares the index with the content table.
+	if _, err := db.Write.Exec(`INSERT INTO search_index(search_index) VALUES ('integrity-check')`); err != nil {
+		t.Errorf("integrity-check after the backfill: %v", err)
+	}
 	if got, want := count(`SELECT count(*) FROM search_index WHERE kind = 'text'`), count(`SELECT count(*) FROM item_texts`); got != want {
 		t.Errorf("search_index text rows = %d, want %d", got, want)
 	}
@@ -117,9 +124,17 @@ func TestMigration00015IndexesFrozenData(t *testing.T) {
 	if got := count(`SELECT count(*) FROM search_index WHERE kind = 'collection' AND search_index MATCH '"winterr"*'`); got != 1 {
 		t.Errorf("renamed collection not indexed (%d rows)", got)
 	}
+	// An update that changes nothing leaves the index untouched (no trigger work).
+	exec(`UPDATE items SET title = title WHERE id = '01JM7000000000000000000001'`)
 	exec(`DELETE FROM items WHERE id = '01JM7000000000000000000001'`)
 	if got := count(`SELECT count(*) FROM search_index WHERE item_id = '01JM7000000000000000000001'`); got != 0 {
 		t.Errorf("deleted title left %d index rows", got)
+	}
+	if got := count(`SELECT count(*) FROM search_docs WHERE item_id = '01JM7000000000000000000001'`); got != 0 {
+		t.Errorf("deleted title left %d docs rows", got)
+	}
+	if _, err := db.Write.Exec(`INSERT INTO search_index(search_index) VALUES ('integrity-check')`); err != nil {
+		t.Errorf("integrity-check after the trigger run: %v", err)
 	}
 	if got := count(`SELECT count(*) FROM item_genres WHERE item_id = '01JM7000000000000000000001'`); got != 0 {
 		t.Errorf("deleted title left %d genre rows", got)

@@ -9,11 +9,13 @@
 --   home_rows        the order of the start page rows (E-9): exactly the eight keys, with a hidden flag.
 --   item_genres      one row per item, language and genre name, kept by triggers from items.genres
 --                    (JSON object {"de":[...],"en":[...]} or a plain list that counts for both).
---   search_index     FTS5 index for the search (E-4): one row per items row ('item': title, original
---                    title, author, narrator, series name), per item_texts row ('text'), per credit
---                    ('person': the person's name, ref_id = people.id) and per collection member
+--   search_docs      the indexed texts for the search (E-4): one row per items row ('item': title,
+--                    original title, author, narrator, series name), per item_texts row ('text'), per
+--                    credit ('person': the person's name, ref_id = people.id) and per collection member
 --                    ('collection': both names, ref_id = collection id). Kept by triggers in the same
---                    transaction as the source rows; readers always join visible_items.
+--                    transaction as the source rows.
+--   search_index     external-content FTS5 table over search_docs (addressed by rowid, so the source
+--                    triggers never scan the FTS table); readers always join visible_items.
 --   trakt_lists      the public Trakt lists (trending, popular; movies and shows) of the last
 --                    successful daily run, replaced as a whole; emptied when Trakt fails (I-7).
 --   notifications    the in-app inbox of a profile (E-8): a new episode of a favourite series or
@@ -130,109 +132,161 @@ END;
 -- +goose StatementEnd
 
 -- ---------------------------------------------------------------------------------------------
--- Search index (E-4). Prefix queries from the second character ("ab"*); diacritics folded.
+-- Search index (E-4). search_docs is the plain, indexed content table (one row per indexed text);
+-- search_index is an external-content FTS5 table over it, addressed by rowid, so the source
+-- triggers only touch search_docs through its indexes and never scan the FTS table. Prefix queries
+-- from the second character ("ab"*); diacritics folded.
 -- ---------------------------------------------------------------------------------------------
+CREATE TABLE search_docs (
+    id      INTEGER PRIMARY KEY,
+    kind    TEXT    NOT NULL CHECK (kind IN ('item', 'text', 'person', 'collection')),
+    item_id TEXT    NOT NULL,
+    ref_id  TEXT    NOT NULL,
+    text    TEXT    NOT NULL,
+    UNIQUE (kind, ref_id, item_id)
+) STRICT;
+CREATE INDEX search_docs_item ON search_docs (item_id);
+
 CREATE VIRTUAL TABLE search_index USING fts5(
     text,
     kind UNINDEXED,
     item_id UNINDEXED,
     ref_id UNINDEXED,
+    content = 'search_docs',
+    content_rowid = 'id',
     tokenize = 'unicode61 remove_diacritics 2',
     prefix = '2 3'
 );
 
-INSERT INTO search_index (text, kind, item_id, ref_id)
-SELECT trim(coalesce(title, '') || ' / ' || coalesce(original_title, '') || ' / ' || coalesce(author, '')
-            || ' / ' || coalesce(narrator, '') || ' / ' || coalesce(series_name, '')),
-       'item', id, id
+-- +goose StatementBegin
+CREATE TRIGGER search_docs_insert AFTER INSERT ON search_docs
+BEGIN
+    INSERT INTO search_index (rowid, text, kind, item_id, ref_id)
+    VALUES (NEW.id, NEW.text, NEW.kind, NEW.item_id, NEW.ref_id);
+END;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE TRIGGER search_docs_delete AFTER DELETE ON search_docs
+BEGIN
+    INSERT INTO search_index (search_index, rowid, text, kind, item_id, ref_id)
+    VALUES ('delete', OLD.id, OLD.text, OLD.kind, OLD.item_id, OLD.ref_id);
+END;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE TRIGGER search_docs_update AFTER UPDATE OF text ON search_docs
+WHEN NEW.text IS NOT OLD.text
+BEGIN
+    INSERT INTO search_index (search_index, rowid, text, kind, item_id, ref_id)
+    VALUES ('delete', OLD.id, OLD.text, OLD.kind, OLD.item_id, OLD.ref_id);
+    INSERT INTO search_index (rowid, text, kind, item_id, ref_id)
+    VALUES (NEW.id, NEW.text, NEW.kind, NEW.item_id, NEW.ref_id);
+END;
+-- +goose StatementEnd
+
+INSERT INTO search_docs (kind, item_id, ref_id, text)
+SELECT 'item', id, id,
+       trim(coalesce(title, '') || ' / ' || coalesce(original_title, '') || ' / ' || coalesce(author, '')
+            || ' / ' || coalesce(narrator, '') || ' / ' || coalesce(series_name, ''))
 FROM items;
 
-INSERT INTO search_index (text, kind, item_id, ref_id)
-SELECT title, 'text', item_id, item_id || ':' || lang FROM item_texts;
+INSERT INTO search_docs (kind, item_id, ref_id, text)
+SELECT 'text', item_id, item_id || ':' || lang, title FROM item_texts;
 
-INSERT INTO search_index (text, kind, item_id, ref_id)
-SELECT p.name, 'person', c.item_id, CAST(c.person_id AS TEXT)
+INSERT OR IGNORE INTO search_docs (kind, item_id, ref_id, text)
+SELECT 'person', c.item_id, CAST(c.person_id AS TEXT), p.name
 FROM credits AS c JOIN people AS p ON p.id = c.person_id;
 
+-- Source triggers: every write goes through the unique index (kind, ref_id, item_id) or the
+-- item_id index of search_docs; the FTS table follows by rowid.
 -- +goose StatementBegin
 CREATE TRIGGER search_items_insert AFTER INSERT ON items
 BEGIN
-    INSERT INTO search_index (text, kind, item_id, ref_id)
-    VALUES (trim(coalesce(NEW.title, '') || ' / ' || coalesce(NEW.original_title, '') || ' / ' || coalesce(NEW.author, '')
-                 || ' / ' || coalesce(NEW.narrator, '') || ' / ' || coalesce(NEW.series_name, '')),
-            'item', NEW.id, NEW.id);
+    INSERT INTO search_docs (kind, item_id, ref_id, text)
+    VALUES ('item', NEW.id, NEW.id,
+            trim(coalesce(NEW.title, '') || ' / ' || coalesce(NEW.original_title, '') || ' / ' || coalesce(NEW.author, '')
+                 || ' / ' || coalesce(NEW.narrator, '') || ' / ' || coalesce(NEW.series_name, '')))
+    ON CONFLICT (kind, ref_id, item_id) DO UPDATE SET text = excluded.text;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_items_update AFTER UPDATE OF title, original_title, author, narrator, series_name ON items
+WHEN NEW.title IS NOT OLD.title OR NEW.original_title IS NOT OLD.original_title OR NEW.author IS NOT OLD.author
+  OR NEW.narrator IS NOT OLD.narrator OR NEW.series_name IS NOT OLD.series_name
 BEGIN
-    DELETE FROM search_index WHERE kind = 'item' AND ref_id = OLD.id;
-    INSERT INTO search_index (text, kind, item_id, ref_id)
-    VALUES (trim(coalesce(NEW.title, '') || ' / ' || coalesce(NEW.original_title, '') || ' / ' || coalesce(NEW.author, '')
-                 || ' / ' || coalesce(NEW.narrator, '') || ' / ' || coalesce(NEW.series_name, '')),
-            'item', NEW.id, NEW.id);
+    INSERT INTO search_docs (kind, item_id, ref_id, text)
+    VALUES ('item', NEW.id, NEW.id,
+            trim(coalesce(NEW.title, '') || ' / ' || coalesce(NEW.original_title, '') || ' / ' || coalesce(NEW.author, '')
+                 || ' / ' || coalesce(NEW.narrator, '') || ' / ' || coalesce(NEW.series_name, '')))
+    ON CONFLICT (kind, ref_id, item_id) DO UPDATE SET text = excluded.text;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_items_delete AFTER DELETE ON items
 BEGIN
-    DELETE FROM search_index WHERE item_id = OLD.id;
+    DELETE FROM search_docs WHERE item_id = OLD.id;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_texts_insert AFTER INSERT ON item_texts
 BEGIN
-    INSERT INTO search_index (text, kind, item_id, ref_id)
-    VALUES (NEW.title, 'text', NEW.item_id, NEW.item_id || ':' || NEW.lang);
+    INSERT INTO search_docs (kind, item_id, ref_id, text)
+    VALUES ('text', NEW.item_id, NEW.item_id || ':' || NEW.lang, NEW.title)
+    ON CONFLICT (kind, ref_id, item_id) DO UPDATE SET text = excluded.text;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_texts_update AFTER UPDATE OF title ON item_texts
+WHEN NEW.title IS NOT OLD.title
 BEGIN
-    DELETE FROM search_index WHERE kind = 'text' AND ref_id = OLD.item_id || ':' || OLD.lang;
-    INSERT INTO search_index (text, kind, item_id, ref_id)
-    VALUES (NEW.title, 'text', NEW.item_id, NEW.item_id || ':' || NEW.lang);
+    INSERT INTO search_docs (kind, item_id, ref_id, text)
+    VALUES ('text', NEW.item_id, NEW.item_id || ':' || NEW.lang, NEW.title)
+    ON CONFLICT (kind, ref_id, item_id) DO UPDATE SET text = excluded.text;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_texts_delete AFTER DELETE ON item_texts
 BEGIN
-    DELETE FROM search_index WHERE kind = 'text' AND ref_id = OLD.item_id || ':' || OLD.lang;
+    DELETE FROM search_docs WHERE kind = 'text' AND ref_id = OLD.item_id || ':' || OLD.lang AND item_id = OLD.item_id;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_credits_insert AFTER INSERT ON credits
 BEGIN
-    INSERT INTO search_index (text, kind, item_id, ref_id)
-    SELECT p.name, 'person', NEW.item_id, CAST(NEW.person_id AS TEXT) FROM people AS p WHERE p.id = NEW.person_id;
+    INSERT INTO search_docs (kind, item_id, ref_id, text)
+    SELECT 'person', NEW.item_id, CAST(NEW.person_id AS TEXT), p.name FROM people AS p WHERE p.id = NEW.person_id
+    ON CONFLICT (kind, ref_id, item_id) DO NOTHING;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_credits_delete AFTER DELETE ON credits
+WHEN NOT EXISTS (SELECT 1 FROM credits AS c WHERE c.item_id = OLD.item_id AND c.person_id = OLD.person_id)
 BEGIN
-    DELETE FROM search_index WHERE kind = 'person' AND item_id = OLD.item_id AND ref_id = CAST(OLD.person_id AS TEXT)
-      AND NOT EXISTS (SELECT 1 FROM credits AS c WHERE c.item_id = OLD.item_id AND c.person_id = OLD.person_id);
+    DELETE FROM search_docs WHERE kind = 'person' AND ref_id = CAST(OLD.person_id AS TEXT) AND item_id = OLD.item_id;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_people_update AFTER UPDATE OF name ON people
+WHEN NEW.name IS NOT OLD.name
 BEGIN
-    UPDATE search_index SET text = NEW.name WHERE kind = 'person' AND ref_id = CAST(NEW.id AS TEXT);
+    UPDATE search_docs SET text = NEW.name WHERE kind = 'person' AND ref_id = CAST(NEW.id AS TEXT);
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_collections_update AFTER UPDATE OF name, name_de ON collections
+WHEN NEW.name IS NOT OLD.name OR NEW.name_de IS NOT OLD.name_de
 BEGIN
-    UPDATE search_index SET text = trim(NEW.name || ' / ' || coalesce(NEW.name_de, ''))
+    UPDATE search_docs SET text = trim(NEW.name || ' / ' || coalesce(NEW.name_de, ''))
     WHERE kind = 'collection' AND ref_id = NEW.id;
 END;
 -- +goose StatementEnd
@@ -240,16 +294,17 @@ END;
 -- +goose StatementBegin
 CREATE TRIGGER search_collection_items_insert AFTER INSERT ON collection_items
 BEGIN
-    INSERT INTO search_index (text, kind, item_id, ref_id)
-    SELECT trim(c.name || ' / ' || coalesce(c.name_de, '')), 'collection', NEW.item_id, NEW.collection_id
-    FROM collections AS c WHERE c.id = NEW.collection_id;
+    INSERT INTO search_docs (kind, item_id, ref_id, text)
+    SELECT 'collection', NEW.item_id, NEW.collection_id, trim(c.name || ' / ' || coalesce(c.name_de, ''))
+    FROM collections AS c WHERE c.id = NEW.collection_id
+    ON CONFLICT (kind, ref_id, item_id) DO UPDATE SET text = excluded.text;
 END;
 -- +goose StatementEnd
 
 -- +goose StatementBegin
 CREATE TRIGGER search_collection_items_delete AFTER DELETE ON collection_items
 BEGIN
-    DELETE FROM search_index WHERE kind = 'collection' AND item_id = OLD.item_id AND ref_id = OLD.collection_id;
+    DELETE FROM search_docs WHERE kind = 'collection' AND ref_id = OLD.collection_id AND item_id = OLD.item_id;
 END;
 -- +goose StatementEnd
 
@@ -281,7 +336,8 @@ CREATE TABLE notifications (
     read_at    INTEGER,
     UNIQUE (profile_id, kind, item_id)
 ) STRICT;
-CREATE INDEX notifications_inbox ON notifications (profile_id, read_at, created_at DESC);
+CREATE INDEX notifications_inbox ON notifications (profile_id, created_at DESC, id DESC);
+CREATE INDEX notifications_unread ON notifications (profile_id, read_at);
 CREATE INDEX notifications_item ON notifications (item_id);
 
 COMMIT;

@@ -20,7 +20,10 @@ func Dump(ctx context.Context, db *sql.DB, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	// Tables first with their rows, so triggers and views never see a half-filled table.
+	// Tables first with their rows, so triggers and views never see a half-filled table. An
+	// external-content virtual table (FTS5 with content=) holds no rows of its own: it is rebuilt
+	// from its content table once that table is filled.
+	var rebuild []string
 	for _, o := range objects {
 		if o.typ != "table" {
 			continue
@@ -28,7 +31,17 @@ func Dump(ctx context.Context, db *sql.DB, w io.Writer) error {
 		if _, err := fmt.Fprintf(w, "%s;\n", strings.TrimSpace(o.sql)); err != nil {
 			return err
 		}
+		if externalContent(o.sql) {
+			rebuild = append(rebuild, o.name)
+			continue
+		}
 		if err := dumpRows(ctx, db, o.name, w); err != nil {
+			return err
+		}
+	}
+	for _, name := range rebuild {
+		quoted := `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+		if _, err := fmt.Fprintf(w, "INSERT INTO %s(%s) VALUES ('rebuild');\n", quoted, quoted); err != nil {
 			return err
 		}
 	}
@@ -44,6 +57,13 @@ func Dump(ctx context.Context, db *sql.DB, w io.Writer) error {
 }
 
 type schemaObject struct{ typ, name, table, sql string }
+
+// externalContent reports whether a CREATE VIRTUAL TABLE statement declares an FTS5 table over a
+// separate content table (content='...').
+func externalContent(createSQL string) bool {
+	upper := strings.ToUpper(createSQL)
+	return strings.HasPrefix(strings.TrimSpace(upper), "CREATE VIRTUAL TABLE") && strings.Contains(strings.ReplaceAll(upper, " ", ""), "CONTENT='")
+}
 
 func schemaObjects(ctx context.Context, db *sql.DB) ([]schemaObject, error) {
 	rows, err := db.QueryContext(ctx, `SELECT type, name, tbl_name, sql FROM sqlite_master

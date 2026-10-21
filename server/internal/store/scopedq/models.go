@@ -454,6 +454,14 @@ type ProgressEvent struct {
 	DownloadID        sql.NullString
 }
 
+type SearchDoc struct {
+	ID     int64
+	Kind   string
+	ItemID string
+	RefID  string
+	Text   string
+}
+
 type SearchIndex struct {
 	Text   string
 	Kind   string
