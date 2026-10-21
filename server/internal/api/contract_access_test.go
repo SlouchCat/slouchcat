@@ -132,14 +132,35 @@ var accountRegistry = map[string]accountCall{
 	"uploadOfflineEvents": {contract: "POST /offline/events", path: "/offline/events", want: allWant(http.StatusOK),
 		body: `{"sentAt":"2026-10-20T18:00:00Z","events":[{"profileId":999999,"itemId":"` + fixtureFilm6 + `","playbackId":"01JC0000000000000000000009",` +
 			`"positionMs":10000,"durationMs":7200000,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-20T17:59:50Z"}]}`},
+	// M8: the own account and the notification channels (base stubs answer 501; lane S1 replaces the
+	// expectation of updateAccount, lane S3 those of the channels and push subscriptions).
+	"updateAccount": {contract: "PUT /auth/account", path: "/auth/account", body: `{"currentPassword":"wrong-password","email":"renamed@example.ch"}`,
+		want: allWant(http.StatusNotImplemented)},
+	"getMyChannels": {contract: "GET /me/channels", path: "/me/channels", want: allWant(http.StatusNotImplemented)},
+	"updateMyChannel": {contract: "PUT /me/channels/{channel}", path: "/me/channels/email", body: `{"enabled":false,"events":["announcements"]}`,
+		want: allWant(http.StatusNotImplemented)},
+	"testMyChannel":      {contract: "POST /me/channels/{channel}/test", path: "/me/channels/email/test", want: allWant(http.StatusNotImplemented)},
+	"createTelegramLink": {contract: "POST /me/channels/telegram/link", path: "/me/channels/telegram/link", want: allWant(http.StatusNotImplemented)},
+	"deleteTelegramLink": {contract: "DELETE /me/channels/telegram/link", path: "/me/channels/telegram/link", want: allWant(http.StatusNotImplemented)},
+	"getPushPublicKey":   {contract: "GET /push/vapid-key", path: "/push/vapid-key", want: allWant(http.StatusNotImplemented)},
+	"createPushSubscription": {contract: "POST /me/push-subscriptions", path: "/me/push-subscriptions",
+		body: `{"endpoint":"https://push.example.test/send/abc","keys":{"p256dh":"BNcR","auth":"tBHI"},"deviceName":"Registry"}`,
+		want: allWant(http.StatusNotImplemented)},
+	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotImplemented)},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for the owner with the
-// primary profile (harmless bodies against unknown ids or invalid input).
+// primary profile (harmless bodies against unknown ids or invalid input). header replaces request
+// headers, such as the content type of a multipart body.
 type adminCall struct {
 	contract, path, body string
+	header               map[string]string
 	ownerStatus          int
 }
+
+// restoreUploadBody is a multipart body of restoreBackupUpload whose file is no backup.
+const restoreUploadBody = "--registry\r\nContent-Disposition: form-data; name=\"file\"; filename=\"backup.tar.gz\"\r\n" +
+	"Content-Type: application/octet-stream\r\n\r\nnot a backup\r\n--registry--\r\n"
 
 const unknownItemID = "01J0000000000000000000XXXX"
 
@@ -210,6 +231,35 @@ var adminRegistry = map[string]adminCall{
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// The fixture has no Trakt client id: 422 provider_not_configured.
 	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
+	// M8 administration (base stubs answer 501; lane S1 replaces the expectations of system,
+	// dashboard, jobs, settings, update and accounts, lane S2 those of backups and statistics, lane
+	// S3 those of the announcements).
+	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusNotImplemented},
+	"getDashboard":        {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusNotImplemented},
+	"retryJob":            {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotImplemented},
+	"cancelJob":           {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotImplemented},
+	"getAdminSettings":    {contract: "GET /admin/settings", path: "/admin/settings", ownerStatus: http.StatusNotImplemented},
+	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusNotImplemented},
+	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusNotImplemented},
+	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusNotImplemented},
+	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusNotImplemented},
+	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusNotImplemented},
+	"downloadBackup": {contract: "GET /admin/backups/{name}/download", path: "/admin/backups/missing.tar.gz/download",
+		ownerStatus: http.StatusNotImplemented},
+	"deleteBackup": {contract: "DELETE /admin/backups/{name}", path: "/admin/backups/missing.tar.gz", ownerStatus: http.StatusNotImplemented},
+	"restoreBackupUpload": {contract: "POST /admin/backups/restore", path: "/admin/backups/restore", body: restoreUploadBody,
+		header: map[string]string{"Content-Type": "multipart/form-data; boundary=registry"}, ownerStatus: http.StatusNotImplemented},
+	"restoreBackup": {contract: "POST /admin/backups/{name}/restore", path: "/admin/backups/missing.tar.gz/restore", body: `{}`,
+		ownerStatus: http.StatusNotImplemented},
+	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusNotImplemented},
+	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusNotImplemented},
+	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusNotImplemented},
+	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusNotImplemented},
+	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusNotImplemented},
+	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotImplemented},
+	"updateAnnouncement":  {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotImplemented},
+	"deleteAnnouncement":  {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotImplemented},
+	"publishAnnouncement": {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotImplemented},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).
@@ -239,6 +289,10 @@ var publicRegistry = map[string]publicCall{
 	// M5: without the device cookie the revocation list is empty (K-7).
 	"checkOfflineRevocations": {contract: "POST /offline/revocations", path: "/offline/revocations", status: http.StatusOK,
 		body: `{"ids":["01J9AAAAAAAAAAAAAAAAAAAAAA"]}`},
+	// M8 wizard checks (base stubs answer 501; lane S1 replaces them with 409 setup_done, the fixture
+	// has an account).
+	"checkSetupPath":    {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusNotImplemented},
+	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusNotImplemented},
 }
 
 // A missing registry entry fails the test: every operation of the contract is in exactly the
@@ -378,15 +432,15 @@ func TestContractAdminOperations(t *testing.T) {
 		method := strings.Fields(call.contract)[0]
 		t.Run(id, func(t *testing.T) {
 			for _, token := range []string{"pg", "pg18", "p6", "p0", "none"} {
-				rec := send(t, h, method, BasePath+call.path, token, call.body, nil)
+				rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
 				if rec.Code != http.StatusForbidden || problemCode(t, rec) != "forbidden" {
 					t.Errorf("%s: status %d (%s), want 403 forbidden", token, rec.Code, rec.Body.String())
 				}
 			}
-			if rec := send(t, h, method, BasePath+call.path, "", call.body, nil); rec.Code != http.StatusUnauthorized {
+			if rec := send(t, h, method, BasePath+call.path, "", call.body, call.header); rec.Code != http.StatusUnauthorized {
 				t.Errorf("without a session: status %d, want 401", rec.Code)
 			}
-			rec := send(t, h, method, BasePath+call.path, "p18", call.body, nil)
+			rec := send(t, h, method, BasePath+call.path, "p18", call.body, call.header)
 			if rec.Code != call.ownerStatus {
 				t.Errorf("owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}

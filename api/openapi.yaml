@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 0.8.0
+  version: 0.9.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -41,6 +41,14 @@ info:
     (`allowedProfileIds`, computed by the server; the client only looks it up), which downloads it must
     delete, the offline PIN material and the remaining watch time. Buffered progress events go up with
     `uploadOfflineEvents`.
+
+    Administration and notifications (M8): the wizard checks paths and the TMDB key and shows the
+    transcode hardware (`setup`); the main user sees a dashboard, changes settings and integrations,
+    writes backups and restores them, reads the update state, the accounts and the statistics and
+    publishes announcements (`admin`). Every account chooses its notification channels (e-mail, Web
+    Push, Telegram) and events (`notify`); profiles acknowledge announcements (`announcements`).
+    Secrets in requests (passwords, keys, tokens, passphrases, push subscription keys) are write-only
+    and never appear in a response or a log.
   license:
     name: AGPL-3.0-only
     identifier: AGPL-3.0-only
@@ -68,6 +76,12 @@ tags:
     description: Podcast subscriptions by feed URL, administered by the main account (M6, H-2).
   - name: discover
     description: Search, watchlist, favourites, collections and the in-app inbox of the active profile (M7).
+  - name: account
+    description: The signed-in account itself (e-mail and password, M8).
+  - name: notify
+    description: Notification channels of the signed-in account (e-mail, Web Push, Telegram; M8).
+  - name: announcements
+    description: Announcements of the main user to every profile (M8, A-7).
   - name: spike
     description: Temporary endpoints of the offline spike (M1a, removed after the M1b decision).
 paths:
@@ -169,6 +183,115 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /setup/path-check:
+    post:
+      operationId: checkSetupPath
+      summary: Describe a library path for the wizard (A-1)
+      description: |
+        Checks a path on the server before the wizard creates the library: whether it is usable, its file
+        system, the watch mode the scanner would use (inotify, poll or both) and a warning for network
+        shares and unknown FUSE file systems (plan 3.4). A bad path is no error: the answer names the
+        problem (`problem`), so the wizard can show it next to the field. Allowed only while no account
+        exists; every call counts against the attempt limit of the client.
+      tags: [setup]
+      x-visibility: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PathCheckRequest"
+      responses:
+        "200":
+          description: The path, described.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PathCheck"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Setup already completed (`setup_done`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `path` empty or longer than 4096 bytes).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /setup/tmdb-check:
+    post:
+      operationId: checkSetupTmdbKey
+      summary: Check a TMDB key for the wizard (A-1)
+      description: |
+        Asks TMDB whether the key is valid before the wizard stores it. An invalid key or an unreachable
+        TMDB is no error: the answer names the problem (`invalid`, `unreachable`). The key is neither
+        stored nor logged. Allowed only while no account exists; every call counts against the attempt
+        limit of the client.
+      tags: [setup]
+      x-visibility: public
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TMDBCheckRequest"
+      responses:
+        "200":
+          description: The result of the check.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TMDBCheck"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Setup already completed (`setup_done`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `tmdbApiKey` empty or longer than 1024 bytes).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /auth/login:
     post:
       operationId: login
@@ -261,6 +384,66 @@ paths:
                 $ref: "#/components/schemas/SessionInfo"
         "401":
           description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /auth/account:
+    put:
+      operationId: updateAccount
+      summary: Change the e-mail or the password of the signed-in account (A-2)
+      description: |
+        Every change needs the current password. A new password revokes every other session of the
+        account; the calling session stays. Works without an active profile (`account`).
+      tags: [account]
+      x-visibility: account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountUpdate"
+      responses:
+        "200":
+          description: The session with the changed account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "401":
+          description: |
+            No valid session (`unauthenticated`) or a wrong current password (`invalid_credentials`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Another account uses the e-mail (`email_taken`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`: `email` `invalid_email`, `newPassword` `too_short` or
+            `too_long`, `required` when neither `email` nor `newPassword` is given).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -3768,6 +3951,954 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  # ---------------------------------------------------------------------------------------------
+  # Administration and notifications (M8, A-1 to A-9, E-8): system state, dashboard, jobs,
+  # settings and integrations, backup, update check, accounts, statistics, announcements and the
+  # notification channels of every account. Administration views name titles by id and title;
+  # they are never ItemRefs.
+  # ---------------------------------------------------------------------------------------------
+  /admin/system:
+    get:
+      operationId: getSystemInfo
+      summary: Version, transcode hardware, inotify limit and file systems (A-1, A-3)
+      description: |
+        The state the wizard shows before the first account (`getSetupStatus.system`) and the dashboard
+        shows afterwards: version and start, the detected transcode backend with the Docker Compose
+        override file that passes the GPU into the container, the inotify watch limit with its use and the
+        file systems of the config and cache directories.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The system state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemInfo"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/dashboard:
+    get:
+      operationId: getDashboard
+      summary: Running streams, jobs, storage, integrations, errors and update state (A-3)
+      description: |
+        One request for the admin overview, polled every few seconds: the running streams (as
+        `listStreams`), the job counters with the last ten failed jobs, free and total space of the
+        config and cache directories, the state of every integration (keys, e-mail, Web Push, Telegram,
+        update check), the newest 50 errors of the server log (redacted, newest first) and the update
+        state.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The overview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/jobs/{id}/retry:
+    post:
+      operationId: retryJob
+      summary: Queue a failed job again (A-3)
+      description: The job goes back to the queue with its attempts reset; only failed jobs qualify.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/JobID"
+      responses:
+        "200":
+          description: The queued job.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobSummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The job has not failed (`job_not_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/jobs/{id}:
+    delete:
+      operationId: cancelJob
+      summary: Cancel a queued or running job (A-3)
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/JobID"
+      responses:
+        "204":
+          description: Cancelled.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job or a job that already ended (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/settings:
+    get:
+      operationId: getAdminSettings
+      summary: Server settings and integrations (A-2)
+      description: |
+        Public URL, update check, the provider keys (where each comes from; a stored key shows its last
+        four characters only), the e-mail server, the Telegram bot and the Web Push key pair. Secrets
+        never leave the server: passwords, tokens and private keys are write-only.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    put:
+      operationId: updateAdminSettings
+      summary: Change server settings and integrations (A-2)
+      description: |
+        Fields left out keep their value; `clear` removes stored values. Secrets are stored encrypted
+        (plan 3.8 point 3). A value set through the environment cannot be overridden or cleared here
+        (`env_wins`, the field in `errors`). A new TMDB key is checked against TMDB, a new Telegram bot
+        token with `getMe`, before anything is stored; the whole request then changes nothing.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminSettingsUpdate"
+      responses:
+        "200":
+          description: The stored settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: |
+            `validation_failed` (see `errors`), `env_wins` (the field named in `errors` comes from the
+            environment), `tmdb_key_invalid`, `tmdb_unreachable`, `telegram_token_invalid` (Telegram
+            rejected the token), `telegram_unreachable` (Telegram did not answer).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/settings/email/test:
+    post:
+      operationId: sendTestEmail
+      summary: Send a test mail through the configured e-mail server (A-2, A-6)
+      description: Sends to `to`, or to the main account's address when absent.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailTestRequest"
+      responses:
+        "204":
+          description: The mail server accepted the mail.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: No e-mail server configured (`email_not_configured`) or `validation_failed` (`to` `invalid_email`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: The mail server refused or did not answer (`email_send_failed`; `detail` names why, without secrets).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/settings/push/rotate:
+    post:
+      operationId: rotatePushKeys
+      summary: Create a new Web Push key pair (A-6)
+      description: |
+        Creates a new VAPID key pair (the private key stored encrypted) and deletes every push
+        subscription, which was bound to the old pair; devices subscribe again from the settings.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The settings with the new public key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/backups:
+    get:
+      operationId: listBackups
+      summary: Backups in the backup directory (A-4)
+      description: |
+        Manual backups (`slouchcat-backup-*`) and the automatic copies the server writes before
+        migrations and restores (`pre-migration-*`, `pre-restore-*`), newest first.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The backups.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Backup"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: createBackup
+      summary: Create a backup of the database (A-4)
+      description: |
+        Writes a tar.gz archive with a manifest and a consistent copy of the database (never a media
+        file) to the backup directory. Without `includeSecrets` the copy carries no encrypted setting,
+        push subscription, Telegram link code or session. With `includeSecrets` the archive also holds
+        the key file and is encrypted with `passphrase` (age, scrypt).
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackupRequest"
+      responses:
+        "201":
+          description: The new backup.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Backup"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: |
+            `passphrase_required` (secrets without a passphrase), `passphrase_too_short` (fewer than 12
+            characters).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/backups/{name}/download:
+    get:
+      operationId: downloadBackup
+      summary: Download a backup archive (binary)
+      description: |
+        Implemented as an `http.Handler`. The name must be one of `listBackups`; a name with a path part
+        answers 404.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/BackupName"
+      responses:
+        "200":
+          description: The archive.
+          headers:
+            Content-Disposition:
+              description: '`attachment` with the file name.'
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown backup (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/backups/{name}:
+    delete:
+      operationId: deleteBackup
+      summary: Delete a backup
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/BackupName"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown backup (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/backups/restore:
+    post:
+      operationId: restoreBackupUpload
+      summary: Restore an uploaded backup (A-4)
+      description: |
+        Checks the uploaded archive (format, a version not newer than the server, a database that passes
+        the integrity check; with secrets the passphrase) and stages it next to the database. After the
+        202 the server stops and starts again in the same process; the start keeps the current database
+        as `pre-restore-*` in the backup directory, swaps in the restored one and migrates it.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/RestoreUpload"
+            encoding:
+              file:
+                contentType: application/octet-stream
+      responses:
+        "202":
+          description: Staged; the server restarts now.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: |
+            `backup_invalid` (not an archive of Slouchcat, damaged or failing the integrity check),
+            `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server`, `validation_failed`
+            (`file` missing or not a multipart part, `passphrase` too long).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/backups/{name}/restore:
+    post:
+      operationId: restoreBackup
+      summary: Restore a backup from the list (A-4)
+      description: Like `restoreBackupUpload` with an archive of `listBackups`.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/BackupName"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RestoreRequest"
+      responses:
+        "202":
+          description: Staged; the server restarts now.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestoreResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown backup (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            `backup_invalid`, `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server` (see
+            `restoreBackupUpload`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/update:
+    get:
+      operationId: getUpdateState
+      summary: State of the update check (A-5)
+      description: |
+        The running version, the newest published version from the release manifest and when it was
+        checked. The check runs daily while it is enabled; it only reads the manifest and never installs.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateState"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/update/check:
+    post:
+      operationId: checkForUpdate
+      summary: Check for a new version now (A-5)
+      description: Reads the release manifest at once; a failure is reported in `error`, not as a problem.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The state after the check.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateState"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: The update check is disabled (`update_check_disabled`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/accounts:
+    get:
+      operationId: listAccounts
+      summary: The main account and the guest accounts with profiles and channels (A-2)
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The main account first, then the guests by creation, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminAccount"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/stats:
+    get:
+      operationId: getStats
+      summary: Usage statistics over a period (A-8)
+      description: |
+        Over the last `days` days, unfiltered (the administration sees every profile): the most watched
+        titles, the watch time per profile, the share of direct play, remux and transcoding with the
+        hardware share, and the devices by type. Watch time is the played time of the progress events
+        whose server time lies in the period (offline events count with their upload time).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/StatsDays"
+      responses:
+        "200":
+          description: The statistics.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `days` not 7, 30, 90 or 365).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/announcements:
+    get:
+      operationId: listAnnouncements
+      summary: Announcements of the main user (A-7)
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Every announcement, newest first, with how many profiles acknowledged it.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: createAnnouncement
+      summary: Write an announcement, optionally publishing it (A-7)
+      description: |
+        Publishing shows it to every profile at its next start and sends it on the channels of every
+        account that chose the event `announcements`.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementRequest"
+      responses:
+        "201":
+          description: The announcement.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `title` 1 to 120, `body` 1 to 4000 characters).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/announcements/{id}:
+    put:
+      operationId: updateAnnouncement
+      summary: Change an unpublished announcement
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AnnouncementID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementUpdate"
+      responses:
+        "200":
+          description: The changed announcement.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown announcement (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Already published; published announcements stay as they were sent (`announcement_published`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteAnnouncement
+      summary: Delete an announcement with its acknowledgements
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AnnouncementID"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown announcement (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/announcements/{id}/publish:
+    post:
+      operationId: publishAnnouncement
+      summary: Publish an announcement (A-7)
+      description: Idempotent; the first call sends it on the channels, a second one changes nothing.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AnnouncementID"
+      responses:
+        "200":
+          description: The published announcement.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown announcement (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /announcements:
+    get:
+      operationId: listMyAnnouncements
+      summary: Published announcements the active profile has not acknowledged (A-7)
+      description: Newest first, at most 20; the client shows them one after the other at the start.
+      tags: [announcements]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The open announcements.
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 20
+                items:
+                  $ref: "#/components/schemas/ProfileAnnouncement"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /announcements/{id}/ack:
+    post:
+      operationId: ackAnnouncement
+      summary: Acknowledge an announcement for the active profile
+      description: Idempotent.
+      tags: [announcements]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/AnnouncementID"
+      responses:
+        "204":
+          description: Acknowledged.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or unpublished announcement (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /me/channels:
+    get:
+      operationId: getMyChannels
+      summary: Notification channels of the signed-in account (A-6, E-8, plan 5.5)
+      description: |
+        E-mail, Web Push and Telegram with the chosen events. The in-app inbox is always on and no
+        channel here. `available` tells whether the server has the channel configured. Works without an
+        active profile (`account`).
+      tags: [notify]
+      x-visibility: account
+      responses:
+        "200":
+          description: The three channels.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /me/channels/{channel}:
+    put:
+      operationId: updateMyChannel
+      summary: Switch a channel and choose its events
+      description: The event `errors` is for the main account only.
+      tags: [notify]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ChannelName"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChannelSettingUpdate"
+      responses:
+        "200":
+          description: The stored channel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelSetting"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown channel (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            `channel_unavailable` (the server has the channel not configured; switching it off is always
+            allowed), `event_not_allowed` (`errors` on a guest account), `validation_failed`
+            (`email.address` `invalid_email`, an unknown event).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /me/channels/{channel}/test:
+    post:
+      operationId: testMyChannel
+      summary: Send a test message on a channel
+      tags: [notify]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/ChannelName"
+      responses:
+        "204":
+          description: Sent; for push, every subscription of the account was handed to its push service.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown channel (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            `channel_unavailable` (not configured on the server), `channel_disabled` (switched off, not
+            linked or without subscription).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "502":
+          description: The channel's service refused or did not answer (`send_failed`; `detail` without secrets).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /me/channels/telegram/link:
+    post:
+      operationId: createTelegramLink
+      summary: Start linking a Telegram chat
+      description: |
+        Returns a new link code (six characters, valid for 15 minutes; an older code of the account
+        stops working). The user sends `/start <code>` to the bot; the server links the chat when the
+        bot receives it. Replaces an existing link only once the new one is confirmed.
+      tags: [notify]
+      x-visibility: account
+      responses:
+        "200":
+          description: The Telegram channel with the code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChannelSetting"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: No Telegram bot configured (`channel_unavailable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteTelegramLink
+      summary: Unlink the Telegram chat
+      description: Idempotent; also drops an open link code. The channel is switched off.
+      tags: [notify]
+      x-visibility: account
+      responses:
+        "204":
+          description: Unlinked.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /push/vapid-key:
+    get:
+      operationId: getPushPublicKey
+      summary: The server's Web Push public key (VAPID)
+      description: The browser subscribes with it (`applicationServerKey`).
+      tags: [notify]
+      x-visibility: account
+      responses:
+        "200":
+          description: The public key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VapidKey"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Web Push is not set up on the server (`push_unavailable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /me/push-subscriptions:
+    post:
+      operationId: createPushSubscription
+      summary: Register the push subscription of this browser
+      description: |
+        Idempotent per endpoint: the same endpoint again updates its keys and device name. The endpoint
+        and its keys are capability secrets; they are never returned and never logged.
+      tags: [notify]
+      x-visibility: account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionRequest"
+      responses:
+        "201":
+          description: The subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushSubscriptionSummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Web Push is not set up on the server (`push_unavailable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `endpoint` not an https URL, keys not base64url).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /me/push-subscriptions/{id}:
+    delete:
+      operationId: deletePushSubscription
+      summary: Remove a push subscription of the account
+      tags: [notify]
+      x-visibility: account
+      parameters:
+        - $ref: "#/components/parameters/PushSubscriptionID"
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: CSRF header missing (`csrf_header_missing`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: Unknown or of another account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /spike/{variant}:
     get:
       operationId: getSpikeFile
@@ -4001,6 +5132,43 @@ components:
         type: integer
         format: int64
         minimum: 1
+    JobID:
+      name: id
+      in: path
+      required: true
+      description: Job id from the dashboard.
+      schema:
+        type: integer
+        format: int64
+    BackupName:
+      name: name
+      in: path
+      required: true
+      description: File name of a backup from `listBackups` (no path part).
+      schema:
+        type: string
+        maxLength: 200
+        pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    AnnouncementID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ChannelName:
+      name: channel
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Channel"
+    PushSubscriptionID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
   schemas:
     Health:
       type: object
@@ -4086,6 +5254,11 @@ components:
         setupRequired:
           type: boolean
           description: True until the wizard created the main account.
+        system:
+          $ref: "#/components/schemas/SystemInfo"
+          description: |
+            Transcode hardware, inotify limit and file systems for the wizard (A-1); only while
+            `setupRequired` is true.
 
     SetupRequest:
       type: object
@@ -4133,6 +5306,11 @@ components:
         profile:
           $ref: "#/components/schemas/Profile"
           description: The active profile; absent until `selectProfile` ran (the client shows the picker).
+        updateAvailable:
+          $ref: "#/components/schemas/UpdateNotice"
+          description: |
+            A newer version is published (A-5); only for the main account and only while the update
+            check is on.
 
     Account:
       type: object
@@ -6884,4 +8062,1058 @@ components:
           description: Entries (films and shows) of the trending list, before the library intersection.
         popular:
           type: integer
+          minimum: 0
+
+    # -------------------------------------------------------------------------------------------
+    # Administration and notifications (M8).
+    # -------------------------------------------------------------------------------------------
+    SystemInfo:
+      type: object
+      description: |
+        The server's state for the wizard (A-1) and the dashboard (A-3). Carries no secret, so the wizard
+        shows it before an account exists.
+      required: [version, startedAt, gpu, inotify, configFs, cacheFs]
+      properties:
+        version:
+          type: string
+          examples: ["0.9.0+abc1234"]
+        startedAt:
+          type: string
+          format: date-time
+        gpu:
+          $ref: "#/components/schemas/GPUInfo"
+        inotify:
+          $ref: "#/components/schemas/InotifyInfo"
+        configFs:
+          type: string
+          description: File system type of the config directory, for example `ext4`; `unknown` when undetected.
+          examples: ["ext4"]
+        cacheFs:
+          type: string
+          description: File system type of the cache directory.
+          examples: ["ext4"]
+
+    GPUInfo:
+      type: object
+      description: The transcode backend found at start (M1b, M4) and the GPU devices visible in the container.
+      required: [backend, hardwareEncode, tonemapper, hwTonemap, devices]
+      properties:
+        backend:
+          type: string
+          enum: [nvenc, qsv, vaapi, software]
+        hardwareEncode:
+          type: boolean
+          description: The backend encodes on the GPU (every backend but software).
+        tonemapper:
+          type: string
+          enum: [cuda, placebo, vpp_qsv, vaapi, cpu]
+          description: The HDR to SDR filter of the backend's pipeline.
+        hwTonemap:
+          type: boolean
+          description: The tonemapper runs on the GPU (every tonemapper but cpu).
+        ffmpegVersion:
+          type: string
+          description: First line of `ffmpeg -version`.
+        composeOverride:
+          type: string
+          enum: [nvidia, intel, amd]
+          description: |
+            The Docker Compose override file (`compose.<value>.yaml`) that passes the GPU into the
+            container: from the backend (nvenc → nvidia, qsv and vaapi on Intel → intel, vaapi otherwise
+            → amd), without a hardware backend from the devices (`/dev/nvidia0` → nvidia,
+            `/dev/dri/renderD*` → intel). Absent when no GPU device is visible.
+        devices:
+          type: object
+          required: [dri, nvidia]
+          properties:
+            dri:
+              type: boolean
+              description: A render node `/dev/dri/renderD*` exists in the container.
+            nvidia:
+              type: boolean
+              description: "`/dev/nvidia0` exists in the container."
+      examples:
+        - backend: software
+          hardwareEncode: false
+          tonemapper: cpu
+          hwTonemap: false
+          composeOverride: nvidia
+          devices: {dri: false, nvidia: true}
+
+    InotifyInfo:
+      type: object
+      required: [maxUserWatches, watchedDirs, usagePercent, warn]
+      properties:
+        maxUserWatches:
+          type: integer
+          format: int64
+          minimum: 0
+          description: "`/proc/sys/fs/inotify/max_user_watches`; 0 when unreadable."
+        watchedDirs:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Directories the library watcher holds (0 in the wizard).
+        usagePercent:
+          type: number
+          format: double
+          minimum: 0
+          description: watchedDirs per maxUserWatches in percent.
+        warn:
+          type: boolean
+          description: The limit is below 65536 or more than 80 % of it are used; the UI shows the sysctl command.
+
+    PathCheckRequest:
+      type: object
+      required: [path]
+      properties:
+        path:
+          type: string
+          minLength: 1
+          maxLength: 4096
+          examples: ["/media/movies"]
+
+    PathCheck:
+      type: object
+      description: A library path as the wizard shows it (plan 3.4).
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          description: The path is an absolute, readable directory.
+        fsType:
+          type: string
+          description: File system type, for example `ext4`, `nfs4`, `cifs`, `fuse.mergerfs`; absent with a problem.
+        watchMode:
+          type: string
+          enum: [inotify, poll, inotify_poll]
+          x-enum-varnames: [PathWatchInotify, PathWatchPoll, PathWatchInotifyPoll]
+          description: How the scanner would follow changes; absent with a problem.
+        warning:
+          type: string
+          enum: [network_share, fuse_unknown]
+          description: A hint, not an error; the library works with polling.
+        problem:
+          type: string
+          enum: [not_absolute, missing, not_directory, not_readable]
+          description: Why the path is not usable; set exactly when `ok` is false.
+
+    TMDBCheckRequest:
+      type: object
+      required: [tmdbApiKey]
+      properties:
+        tmdbApiKey:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+          description: TMDB v4 read access token; neither stored nor logged.
+
+    TMDBCheck:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+        problem:
+          type: string
+          enum: [invalid, unreachable]
+          description: TMDB rejected the key (`invalid`) or did not answer (`unreachable`); set exactly when `ok` is false.
+
+    Dashboard:
+      type: object
+      description: The admin overview (A-3); no `ItemRef`.
+      required: [streams, jobs, storage, integrations, errors, update]
+      properties:
+        streams:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminStream"
+        jobs:
+          $ref: "#/components/schemas/JobCounts"
+        storage:
+          type: object
+          required: [config, cache]
+          properties:
+            config:
+              $ref: "#/components/schemas/StorageInfo"
+            cache:
+              $ref: "#/components/schemas/StorageInfo"
+        integrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntegrationStatus"
+        errors:
+          type: array
+          maxItems: 50
+          description: The newest errors of the server log, newest first, redacted like the log itself.
+          items:
+            $ref: "#/components/schemas/ErrorEntry"
+        update:
+          $ref: "#/components/schemas/UpdateState"
+
+    JobCounts:
+      type: object
+      required: [queued, running, failed, recentFailed]
+      properties:
+        queued:
+          type: integer
+          minimum: 0
+        running:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        recentFailed:
+          type: array
+          maxItems: 10
+          description: The last failed jobs, newest first.
+          items:
+            $ref: "#/components/schemas/JobSummary"
+
+    JobSummary:
+      type: object
+      required: [id, type, state, attempts, maxAttempts, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          type: string
+          description: Job type, for example `scan.library`, `metadata.match`, `notify.deliver`.
+          examples: ["metadata.match"]
+        state:
+          type: string
+          enum: [queued, running, done, failed, cancelled]
+        attempts:
+          type: integer
+          minimum: 0
+        maxAttempts:
+          type: integer
+          minimum: 1
+        lastError:
+          type: string
+          description: Error of the last attempt, redacted.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    StorageInfo:
+      type: object
+      required: [path, totalBytes, freeBytes]
+      properties:
+        path:
+          type: string
+          examples: ["/config"]
+        totalBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        freeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+
+    IntegrationStatus:
+      type: object
+      required: [key, state]
+      properties:
+        key:
+          type: string
+          enum: [tmdb, tvdb, youtube, trakt, email, push, telegram, updateCheck]
+        state:
+          type: string
+          enum: [configured, missing, error, disabled]
+          description: |
+            `configured` (set and, where checked, working), `missing` (not set), `error` (the last use
+            failed, see `detail`), `disabled` (switched off, the update check).
+        detail:
+          type: string
+          description: Why the state is `error`; never contains a secret.
+        checkedAt:
+          type: string
+          format: date-time
+
+    ErrorEntry:
+      type: object
+      required: [at, source, message]
+      properties:
+        at:
+          type: string
+          format: date-time
+        source:
+          type: string
+          description: The component or job type that logged the error.
+          examples: ["metadata.match"]
+        message:
+          type: string
+          description: Message and error text of the log record, redacted.
+        jobId:
+          type: integer
+          format: int64
+        jobType:
+          type: string
+
+    UpdateState:
+      type: object
+      required: [enabled, currentVersion, available]
+      properties:
+        enabled:
+          type: boolean
+          description: The daily update check is on.
+        currentVersion:
+          type: string
+        latestVersion:
+          type: string
+          description: Newest published version from the release manifest.
+        available:
+          type: boolean
+          description: latestVersion is newer than the running version.
+        url:
+          type: string
+          format: uri
+          description: Release page of latestVersion.
+        notes:
+          type: string
+          description: Release notes from the manifest (plain text).
+        checkedAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+          description: Why the last check failed.
+
+    UpdateNotice:
+      type: object
+      description: A newer version is published (header badge of the main account, A-5).
+      required: [version, url]
+      properties:
+        version:
+          type: string
+          examples: ["0.9.1"]
+        url:
+          type: string
+          format: uri
+
+    SettingSource:
+      type: string
+      enum: [env, stored, none]
+      description: Where a value comes from; `env` wins over a stored value and cannot be changed in the UI.
+
+    KeyState:
+      type: object
+      required: [source]
+      properties:
+        source:
+          $ref: "#/components/schemas/SettingSource"
+        hint:
+          type: string
+          maxLength: 4
+          description: The last four characters of a stored key; absent for keys from the environment.
+
+    SMTPTLS:
+      type: string
+      enum: [starttls, tls, none]
+      description: STARTTLS on the plain port (default), implicit TLS, or no encryption.
+
+    AdminSettings:
+      type: object
+      required: [publicUrlSource, updateCheckEnabled, keys, email, telegram, push]
+      properties:
+        publicUrl:
+          type: string
+          format: uri
+          description: Address of the server for links in e-mails and messages.
+        publicUrlSource:
+          $ref: "#/components/schemas/SettingSource"
+        updateCheckEnabled:
+          type: boolean
+        keys:
+          $ref: "#/components/schemas/AdminSettingsKeys"
+        email:
+          $ref: "#/components/schemas/AdminSettingsEmail"
+        telegram:
+          $ref: "#/components/schemas/AdminSettingsTelegram"
+        push:
+          $ref: "#/components/schemas/AdminSettingsPush"
+
+    AdminSettingsKeys:
+      type: object
+      description: The provider keys (M3, M7); the values themselves are never returned.
+      required: [tmdb, tvdb, tvdbPin, youtube, trakt]
+      properties:
+        tmdb:
+          $ref: "#/components/schemas/KeyState"
+        tvdb:
+          $ref: "#/components/schemas/KeyState"
+        tvdbPin:
+          $ref: "#/components/schemas/KeyState"
+        youtube:
+          $ref: "#/components/schemas/KeyState"
+        trakt:
+          $ref: "#/components/schemas/KeyState"
+
+    AdminSettingsEmail:
+      type: object
+      description: The e-mail server; the password is never returned.
+      required: [source]
+      properties:
+        source:
+          $ref: "#/components/schemas/SettingSource"
+        host:
+          type: string
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        user:
+          type: string
+        from:
+          type: string
+          description: Sender address, optionally with a name (`Slouchcat <media@example.ch>`).
+        tls:
+          $ref: "#/components/schemas/SMTPTLS"
+
+    AdminSettingsTelegram:
+      type: object
+      description: The Telegram bot; the token is never returned.
+      required: [source]
+      properties:
+        source:
+          $ref: "#/components/schemas/SettingSource"
+        botUsername:
+          type: string
+          description: The bot's user name from `getMe`, without `@`.
+
+    AdminSettingsPush:
+      type: object
+      required: [configured]
+      properties:
+        configured:
+          type: boolean
+          description: A VAPID key pair exists (created on first use).
+        publicKey:
+          type: string
+          description: VAPID public key, base64url.
+
+    AdminSettingsUpdate:
+      type: object
+      description: |
+        Fields left out keep their value. `clear` removes stored values; a field may not be set and
+        cleared in the same request. Every secret is write-only.
+      properties:
+        publicUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: http or https URL without query; set or cleared (`clear`), never through an empty string.
+        updateCheckEnabled:
+          type: boolean
+        keys:
+          $ref: "#/components/schemas/AdminSettingsKeysUpdate"
+        email:
+          $ref: "#/components/schemas/AdminSettingsEmailUpdate"
+        telegram:
+          $ref: "#/components/schemas/AdminSettingsTelegramUpdate"
+        clear:
+          type: array
+          uniqueItems: true
+          description: Stored values to remove.
+          items:
+            type: string
+            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, email, telegram]
+
+    AdminSettingsKeysUpdate:
+      type: object
+      description: New keys; each is stored encrypted and never returned.
+      properties:
+        tmdb:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        tvdb:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        tvdbPin:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        youtube:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        trakt:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+
+    AdminSettingsEmailUpdate:
+      type: object
+      description: The e-mail server as a whole; `password` absent keeps the stored password.
+      required: [host, port, from, tls]
+      properties:
+        host:
+          type: string
+          minLength: 1
+          maxLength: 253
+          examples: ["smtp.example.ch"]
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          examples: [587]
+        user:
+          type: string
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          maxLength: 1024
+          writeOnly: true
+        from:
+          type: string
+          minLength: 3
+          maxLength: 320
+        tls:
+          $ref: "#/components/schemas/SMTPTLS"
+
+    AdminSettingsTelegramUpdate:
+      type: object
+      required: [botToken]
+      properties:
+        botToken:
+          type: string
+          minLength: 1
+          maxLength: 256
+          writeOnly: true
+          description: Token from BotFather (`<bot id>:<secret>`); checked with `getMe` before it is stored.
+
+    EmailTestRequest:
+      type: object
+      properties:
+        to:
+          type: string
+          format: email
+          maxLength: 254
+
+    Backup:
+      type: object
+      required: [name, createdAt, sizeBytes, includesSecrets, encrypted, kind]
+      properties:
+        name:
+          type: string
+          examples: ["slouchcat-backup-0.9.0-20261021T120000Z.tar.gz"]
+        createdAt:
+          type: string
+          format: date-time
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+        includesSecrets:
+          type: boolean
+          description: The archive carries the key file and the encrypted settings.
+        encrypted:
+          type: boolean
+          description: The archive is encrypted with a passphrase (age); restoring it needs the passphrase.
+        version:
+          type: string
+          description: Server version that wrote the backup; absent when unknown.
+        kind:
+          type: string
+          enum: [manual, auto]
+          description: "`auto`: written by the server before a migration or a restore."
+
+    BackupRequest:
+      type: object
+      required: [includeSecrets]
+      properties:
+        includeSecrets:
+          type: boolean
+          description: Include the key file and the encrypted settings; needs a passphrase.
+        passphrase:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 1024
+          writeOnly: true
+
+    RestoreUpload:
+      type: object
+      description: |
+        The parts in this order: `passphrase` (when the archive is encrypted), then `file`. The server
+        reads the file as a stream and ignores parts after it.
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: A backup archive (`.tar.gz` or `.tar.gz.age`).
+        passphrase:
+          type: string
+          format: password
+          maxLength: 1024
+          writeOnly: true
+
+    RestoreRequest:
+      type: object
+      properties:
+        passphrase:
+          type: string
+          format: password
+          maxLength: 1024
+          writeOnly: true
+
+    RestoreResult:
+      type: object
+      required: [restartAt, version, includesSecrets]
+      properties:
+        restartAt:
+          type: string
+          format: date-time
+          description: When the server restarts; the client polls `getHealth` from then on.
+        version:
+          type: string
+          description: Server version that wrote the backup.
+        includesSecrets:
+          type: boolean
+          description: Without secrets the provider keys, the e-mail server, the bot and the push keys must be entered again.
+
+    ProfileRef:
+      type: object
+      description: A profile in the account overview of the administration.
+      required: [id, name, maxRating, isPrimary]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+        isPrimary:
+          type: boolean
+
+    ChannelSummary:
+      type: object
+      required: [channel, enabled]
+      properties:
+        channel:
+          $ref: "#/components/schemas/Channel"
+        enabled:
+          type: boolean
+
+    AdminAccount:
+      type: object
+      description: An account as the administration sees it (A-2).
+      required: [id, email, role, maxRating, allLibraries, libraryIds, profiles, createdAt, channels]
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [owner, guest]
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+        allLibraries:
+          type: boolean
+        libraryIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileRef"
+        lastSeenAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChannelSummary"
+
+    AccountUpdate:
+      type: object
+      required: [currentPassword]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        currentPassword:
+          type: string
+          format: password
+          maxLength: 256
+          writeOnly: true
+        newPassword:
+          type: string
+          format: password
+          minLength: 10
+          maxLength: 256
+          writeOnly: true
+
+    Channel:
+      type: string
+      enum: [email, push, telegram]
+      description: A notification channel; the in-app inbox is always on and no channel.
+
+    EventType:
+      type: string
+      enum: [new_content, acquisition, errors, invitations, announcements]
+      description: |
+        `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
+        `acquisition`: state of a requested title (M9); `errors`: failures the main user should see
+        (main account only); `invitations`: an invitation was accepted; `announcements`: the main
+        user published an announcement.
+
+    ChannelSettings:
+      type: object
+      required: [channels]
+      properties:
+        channels:
+          type: array
+          description: email, push and telegram, in this order.
+          items:
+            $ref: "#/components/schemas/ChannelSetting"
+
+    ChannelSetting:
+      type: object
+      required: [channel, enabled, events, available]
+      properties:
+        channel:
+          $ref: "#/components/schemas/Channel"
+        enabled:
+          type: boolean
+        events:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/EventType"
+        available:
+          type: boolean
+          description: The server has this channel configured.
+        email:
+          $ref: "#/components/schemas/EmailChannel"
+        telegram:
+          $ref: "#/components/schemas/TelegramChannel"
+        push:
+          $ref: "#/components/schemas/PushChannel"
+
+    EmailChannel:
+      type: object
+      required: [address]
+      properties:
+        address:
+          type: string
+          format: email
+          maxLength: 254
+          description: Recipient; the account's e-mail unless set.
+
+    TelegramChannel:
+      type: object
+      required: [linked]
+      properties:
+        linked:
+          type: boolean
+        chatId:
+          type: string
+          description: The linked chat (no secret).
+        linkCode:
+          type: string
+          pattern: "^[A-Z0-9]{6}$"
+          description: Open link code; the user sends `/start <code>` to the bot.
+        linkExpiresAt:
+          type: string
+          format: date-time
+        botUsername:
+          type: string
+
+    PushChannel:
+      type: object
+      required: [subscriptions]
+      properties:
+        subscriptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PushSubscriptionSummary"
+
+    ChannelSettingUpdate:
+      type: object
+      required: [enabled, events]
+      properties:
+        enabled:
+          type: boolean
+        events:
+          type: array
+          uniqueItems: true
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/EventType"
+        email:
+          $ref: "#/components/schemas/EmailChannel"
+          description: E-mail channel only; absent uses the account's e-mail.
+
+    PushSubscriptionSummary:
+      type: object
+      required: [id, createdAt, thisDevice]
+      properties:
+        id:
+          type: integer
+          format: int64
+        deviceName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        thisDevice:
+          type: boolean
+          description: The subscription belongs to the device of the calling session.
+
+    PushSubscriptionRequest:
+      type: object
+      description: The browser's `PushSubscription.toJSON()` plus a device name.
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          maxLength: 2048
+          writeOnly: true
+          description: Push service URL; a capability secret, never returned or logged.
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+              maxLength: 256
+              writeOnly: true
+            auth:
+              type: string
+              maxLength: 64
+              writeOnly: true
+        deviceName:
+          type: string
+          maxLength: 80
+
+    VapidKey:
+      type: object
+      required: [publicKey]
+      properties:
+        publicKey:
+          type: string
+          description: VAPID public key (uncompressed P-256 point, base64url).
+
+    Announcement:
+      type: object
+      required: [id, title, body, createdAt, acknowledgedCount, profileCount]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        body:
+          type: string
+          description: Plain text; line breaks are kept.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+          description: Absent while unpublished.
+        createdBy:
+          type: string
+          description: E-mail of the account that wrote it; absent when that account is gone.
+        acknowledgedCount:
+          type: integer
+          minimum: 0
+          description: Profiles that acknowledged it.
+        profileCount:
+          type: integer
+          minimum: 0
+          description: Profiles of every account.
+
+    AnnouncementRequest:
+      type: object
+      required: [title, body]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        publish:
+          type: boolean
+          default: false
+
+    AnnouncementUpdate:
+      type: object
+      required: [title, body]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+
+    ProfileAnnouncement:
+      type: object
+      required: [id, title, body, publishedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        body:
+          type: string
+        publishedAt:
+          type: string
+          format: date-time
+
+    StatsDays:
+      type: integer
+      enum: [7, 30, 90, 365]
+      default: 30
+      description: Length of the statistics period in days, ending now.
+
+    Stats:
+      type: object
+      description: Usage statistics (A-8), unfiltered; titles are plain `StatTitle`s, never `ItemRef`s.
+      required: [days, topTitles, watchTime, playback, devices]
+      properties:
+        days:
+          $ref: "#/components/schemas/StatsDays"
+        topTitles:
+          type: array
+          maxItems: 20
+          description: Most watched titles by played time.
+          items:
+            $ref: "#/components/schemas/StatTitle"
+        watchTime:
+          type: array
+          description: Played time per profile, most first.
+          items:
+            $ref: "#/components/schemas/StatProfile"
+        playback:
+          $ref: "#/components/schemas/StatPlayback"
+        devices:
+          type: array
+          description: Played time per device type, most first.
+          items:
+            $ref: "#/components/schemas/StatDevice"
+
+    StatTitle:
+      type: object
+      required: [itemId, title, kind, plays, watchedMs]
+      properties:
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+        title:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        year:
+          type: integer
+        plays:
+          type: integer
+          minimum: 0
+          description: Distinct playback sessions (an event without one counts on its own).
+        watchedMs:
+          type: integer
+          format: int64
+          minimum: 0
+
+    StatProfile:
+      type: object
+      required: [profileId, profileName, accountEmail, watchedMs, plays]
+      properties:
+        profileId:
+          type: integer
+          format: int64
+        profileName:
+          type: string
+        accountEmail:
+          type: string
+        watchedMs:
+          type: integer
+          format: int64
+          minimum: 0
+        plays:
+          type: integer
+          minimum: 0
+
+    StatPlayback:
+      type: object
+      description: Playback sessions started in the period by mode.
+      required: [direct, remux, transcode, transcodeShare, hardwareShare]
+      properties:
+        direct:
+          type: integer
+          minimum: 0
+        remux:
+          type: integer
+          minimum: 0
+        transcode:
+          type: integer
+          minimum: 0
+        transcodeShare:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: transcode per all sessions; 0 without sessions.
+        hardwareShare:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: Transcodes encoded on the GPU per transcodes; 0 without transcodes.
+
+    StatDevice:
+      type: object
+      required: [type, count, watchedMs]
+      properties:
+        type:
+          type: string
+          enum: [desktop, phone, tablet, tv, other, unknown]
+          x-enum-varnames: [StatDeviceDesktop, StatDevicePhone, StatDeviceTablet, StatDeviceTv, StatDeviceOther, StatDeviceUnknown]
+          description: The type the device reported; `unknown` for events without a known device.
+        count:
+          type: integer
+          minimum: 0
+          description: Distinct devices of this type with played time in the period.
+        watchedMs:
+          type: integer
+          format: int64
           minimum: 0

@@ -588,6 +588,12 @@ var profileRegistry = map[string]profileCall{
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	"markAllNotificationsRead": {contract: "POST /notifications/read-all", path: "/notifications/read-all",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNoContent }},
+	// M8 announcements of the active profile (base stubs answer 501; lane S3 replaces the
+	// expectations with the real statuses and checks).
+	"listMyAnnouncements": {contract: "GET /announcements", path: "/announcements",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"ackAnnouncement": {contract: "POST /announcements/{id}/ack", path: "/announcements/9999/ack",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
 	// M6: the paged episode list of a podcast. Every title of the loop is no podcast (404); the
 	// podcasts themselves are containers and checked in the subtest "audio".
 	"listPodcastEpisodes": {contract: "GET /items/{id}/episodes", path: "/items/{id}/episodes", perItem: true,
@@ -1324,7 +1330,9 @@ func TestContractChildProfiles(t *testing.T) {
 				method := strings.Fields(call.contract)[0]
 				if !call.perItem {
 					rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
-					if rec.Code >= 500 {
+					// An operation of the M8 base answers 501 until its lane lands; its entry expects it.
+					stub := rec.Code == http.StatusNotImplemented && call.want != nil && call.want(f, profile) == http.StatusNotImplemented
+					if rec.Code >= 500 && !stub {
 						t.Errorf("%s: status %d (%s)", op, rec.Code, rec.Body.String())
 					}
 					if call.want != nil {

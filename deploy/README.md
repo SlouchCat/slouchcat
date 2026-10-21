@@ -168,6 +168,12 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_YOUTUBE_API_KEY` | leer | YouTube Data API v3 für Trailer (optional) |
 | `SLOUCHCAT_TRAKT_CLIENT_ID` | leer | Trakt Client ID für die Reihen «Trending bei Trakt» und «Beliebt bei Trakt» (optional, M7); ohne Schlüssel bleiben die Reihen ausgeblendet |
 | `SLOUCHCAT_TRAILER_AI` | `off` | KI-Schritt der Trailer-Suche; in dieser Version nur `off` |
+| `SLOUCHCAT_SMTP_HOST`, `SLOUCHCAT_SMTP_PORT`, `SLOUCHCAT_SMTP_USER`, `SLOUCHCAT_SMTP_PASSWORD`, `SLOUCHCAT_SMTP_FROM` | leer | E-Mail-Server der Benachrichtigungen (optional, M8); übersteuert den in der Verwaltung hinterlegten Server. Ohne Port gilt 587, 465 oder 25 je nach `SLOUCHCAT_SMTP_TLS` |
+| `SLOUCHCAT_SMTP_TLS` | `starttls` | Verschlüsselung zum E-Mail-Server: `starttls`, `tls` (implizit) oder `none` |
+| `SLOUCHCAT_TELEGRAM_BOT_TOKEN` | leer | Token des Telegram-Bots von @BotFather (optional, M8); übersteuert das in der Verwaltung hinterlegte Token |
+| `SLOUCHCAT_PUBLIC_URL` | leer | Öffentliche Adresse des Servers für Links in E-Mails und Nachrichten (optional, M8); übersteuert die Einstellung in der Verwaltung |
+| `SLOUCHCAT_UPDATE_MANIFEST_URL` | Release-Manifest auf GitHub | Quelle der Update-Prüfung (M8); ein anderer Wert gilt nur mit `--dev` (Tests mit Mock) |
+| `SLOUCHCAT_TELEGRAM_BASE_URL` | leer | Basis-URL eines Telegram-Mocks; gilt nur mit `--dev` (Tests) |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
 | `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES` | `all`, `compute,video,utility` | für das NVIDIA Container Toolkit |
 

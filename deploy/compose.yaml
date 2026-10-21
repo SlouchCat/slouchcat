@@ -31,6 +31,15 @@ services:
       SLOUCHCAT_TVDB_PIN: ${SLOUCHCAT_TVDB_PIN:-}
       SLOUCHCAT_YOUTUBE_API_KEY: ${SLOUCHCAT_YOUTUBE_API_KEY:-}
       SLOUCHCAT_TRAILER_AI: ${SLOUCHCAT_TRAILER_AI:-off}
+      # Notifications (M8, README «Umgebungsvariablen»); empty = set in the administration or off.
+      SLOUCHCAT_SMTP_HOST: ${SLOUCHCAT_SMTP_HOST:-}
+      SLOUCHCAT_SMTP_PORT: ${SLOUCHCAT_SMTP_PORT:-}
+      SLOUCHCAT_SMTP_USER: ${SLOUCHCAT_SMTP_USER:-}
+      SLOUCHCAT_SMTP_PASSWORD: ${SLOUCHCAT_SMTP_PASSWORD:-}
+      SLOUCHCAT_SMTP_FROM: ${SLOUCHCAT_SMTP_FROM:-}
+      SLOUCHCAT_SMTP_TLS: ${SLOUCHCAT_SMTP_TLS:-}
+      SLOUCHCAT_TELEGRAM_BOT_TOKEN: ${SLOUCHCAT_TELEGRAM_BOT_TOKEN:-}
+      SLOUCHCAT_PUBLIC_URL: ${SLOUCHCAT_PUBLIC_URL:-}
       # Empty = ignore X-Forwarded-For; "private" = RFC 1918, loopback and fc00::/7; or a CIDR list.
       # Set it to "private" when the https profile or another reverse proxy is in front (README).
       SLOUCHCAT_TRUSTED_PROXIES: ${SLOUCHCAT_TRUSTED_PROXIES:-}

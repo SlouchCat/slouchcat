@@ -22,7 +22,7 @@ func TestDefaults(t *testing.T) {
 	}
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
 		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off",
-		DownloadBudgetGB: DefaultDownloadBudgetGB}
+		DownloadBudgetGB: DefaultDownloadBudgetGB, SMTPTLS: "starttls", UpdateManifestURL: DefaultUpdateManifestURL}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -33,24 +33,33 @@ func TestDefaults(t *testing.T) {
 
 func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	env := envMap(map[string]string{
-		"SLOUCHCAT_LISTEN":             "127.0.0.1:9000",
-		"SLOUCHCAT_CONFIG_DIR":         "/srv/config",
-		"SLOUCHCAT_LOG_LEVEL":          "debug",
-		"SLOUCHCAT_LOG_FORMAT":         "text",
-		"SLOUCHCAT_DEV":                "true",
-		"SLOUCHCAT_FFPROBE":            "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		"SLOUCHCAT_SPIKE_DIR":          "/srv/spike",
-		"SLOUCHCAT_WORKERS":            "3",
-		"SLOUCHCAT_HW":                 "nvenc",
-		"SLOUCHCAT_HDR_TONEMAP":        "gpu",
-		"SLOUCHCAT_TRANSCODE_BUDGET":   "6.5",
-		"SLOUCHCAT_DOWNLOAD_BUDGET_GB": "250",
-		"SLOUCHCAT_TVDB_API_KEY":       " tvdb-key ",
-		"SLOUCHCAT_TVDB_PIN":           "1234",
-		"SLOUCHCAT_YOUTUBE_API_KEY":    "yt-key",
-		"SLOUCHCAT_TRAKT_CLIENT_ID":    "trakt-id",
-		"SLOUCHCAT_TRAKT_BASE_URL":     "http://127.0.0.1:9/trakt",
-		"SLOUCHCAT_TRAILER_AI":         "off",
+		"SLOUCHCAT_LISTEN":              "127.0.0.1:9000",
+		"SLOUCHCAT_CONFIG_DIR":          "/srv/config",
+		"SLOUCHCAT_LOG_LEVEL":           "debug",
+		"SLOUCHCAT_LOG_FORMAT":          "text",
+		"SLOUCHCAT_DEV":                 "true",
+		"SLOUCHCAT_FFPROBE":             "/usr/lib/jellyfin-ffmpeg/ffprobe",
+		"SLOUCHCAT_SPIKE_DIR":           "/srv/spike",
+		"SLOUCHCAT_WORKERS":             "3",
+		"SLOUCHCAT_HW":                  "nvenc",
+		"SLOUCHCAT_HDR_TONEMAP":         "gpu",
+		"SLOUCHCAT_TRANSCODE_BUDGET":    "6.5",
+		"SLOUCHCAT_DOWNLOAD_BUDGET_GB":  "250",
+		"SLOUCHCAT_TVDB_API_KEY":        " tvdb-key ",
+		"SLOUCHCAT_TVDB_PIN":            "1234",
+		"SLOUCHCAT_YOUTUBE_API_KEY":     "yt-key",
+		"SLOUCHCAT_TRAKT_CLIENT_ID":     "trakt-id",
+		"SLOUCHCAT_TRAKT_BASE_URL":      "http://127.0.0.1:9/trakt",
+		"SLOUCHCAT_TRAILER_AI":          "off",
+		"SLOUCHCAT_SMTP_HOST":           " smtp.example.test ",
+		"SLOUCHCAT_SMTP_USER":           "mailer",
+		"SLOUCHCAT_SMTP_PASSWORD":       "smtp-FAKE-password",
+		"SLOUCHCAT_SMTP_FROM":           "Slouchcat <media@example.test>",
+		"SLOUCHCAT_SMTP_TLS":            "TLS",
+		"SLOUCHCAT_TELEGRAM_BOT_TOKEN":  "123456:bot-FAKE-token",
+		"SLOUCHCAT_TELEGRAM_BASE_URL":   "http://127.0.0.1:9/telegram",
+		"SLOUCHCAT_UPDATE_MANIFEST_URL": "http://127.0.0.1:9/manifest.json",
+		"SLOUCHCAT_PUBLIC_URL":          "https://media.example.test/",
 	})
 	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
 		"--trailer-ai", "Experimental"}, env)
@@ -62,19 +71,28 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
 		SpikeDir: "/srv/spike", Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
 		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental",
-		TraktClientID: "trakt-id", TraktBaseURL: "http://127.0.0.1:9/trakt"}
+		TraktClientID: "trakt-id", TraktBaseURL: "http://127.0.0.1:9/trakt",
+		SMTPHost: "smtp.example.test", SMTPPort: 465, SMTPUser: "mailer", SMTPPassword: "smtp-FAKE-password",
+		SMTPFrom: "Slouchcat <media@example.test>", SMTPTLS: "tls", TelegramBotToken: "123456:bot-FAKE-token",
+		TelegramBaseURL: "http://127.0.0.1:9/telegram", UpdateManifestURL: "http://127.0.0.1:9/manifest.json",
+		PublicURL: "https://media.example.test"}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}
 	// The startup log line names which providers are configured, never their keys.
 	logged := cfg.LogValue().String()
-	for _, secret := range []string{"tvdb-key", "1234", "yt-key"} {
+	for _, secret := range []string{"tvdb-key", "1234", "yt-key", "smtp-FAKE-password", "bot-FAKE-token", "mailer"} {
 		if strings.Contains(logged, secret) {
 			t.Errorf("LogValue contains the secret %q: %s", secret, logged)
 		}
 	}
-	if !strings.Contains(logged, "tvdb_configured=true") || !strings.Contains(logged, "youtube_configured=true") {
+	if !strings.Contains(logged, "tvdb_configured=true") || !strings.Contains(logged, "youtube_configured=true") ||
+		!strings.Contains(logged, "smtp_configured=true") || !strings.Contains(logged, "telegram_configured=true") {
 		t.Errorf("LogValue without provider state: %s", logged)
+	}
+	// Development mode honours the mock URLs of the Telegram bot and the update manifest.
+	if cfg.TelegramAPIBase() != "http://127.0.0.1:9/telegram" || cfg.ManifestURL() != "http://127.0.0.1:9/manifest.json" {
+		t.Errorf("dev mode: telegram %q, manifest %q", cfg.TelegramAPIBase(), cfg.ManifestURL())
 	}
 	if cfg.TranscodeDir() != filepath.Join(absCache, "transcode") {
 		t.Errorf("transcode dir = %q", cfg.TranscodeDir())
@@ -103,6 +121,12 @@ func TestValidation(t *testing.T) {
 		"negative budget":      {args: []string{"--transcode-budget", "-1"}},
 		"bad download budget":  {env: map[string]string{"SLOUCHCAT_DOWNLOAD_BUDGET_GB": "big"}},
 		"zero download budget": {args: []string{"--download-budget-gb", "0"}},
+		"bad smtp tls":         {env: map[string]string{"SLOUCHCAT_SMTP_TLS": "ssl"}},
+		"bad smtp port":        {env: map[string]string{"SLOUCHCAT_SMTP_PORT": "70000"}},
+		"smtp port not number": {env: map[string]string{"SLOUCHCAT_SMTP_PORT": "submission"}},
+		"bad manifest url":     {env: map[string]string{"SLOUCHCAT_UPDATE_MANIFEST_URL": "ftp://example.test/manifest.json"}},
+		"bad public url":       {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "media.example.test"}},
+		"public url query":     {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "https://media.example.test/?x=1"}},
 		"unknown flag":         {args: []string{"--nope"}},
 		"extra arguments":      {args: []string{"serve"}},
 	}
@@ -159,4 +183,34 @@ func trusts(prefixes []netip.Prefix, ip string) bool {
 		}
 	}
 	return false
+}
+
+// M8: the e-mail server defaults its port by the encryption mode; the mock URLs of the Telegram bot
+// and the update manifest are ignored outside development mode.
+func TestNotifyConfig(t *testing.T) {
+	for mode, port := range map[string]int{"": 587, "starttls": 587, "tls": 465, "none": 25} {
+		cfg, err := Load(nil, envMap(map[string]string{"SLOUCHCAT_SMTP_HOST": "smtp.example.test", "SLOUCHCAT_SMTP_TLS": mode}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.SMTPPort != port {
+			t.Errorf("SMTP_TLS %q: port %d, want %d", mode, cfg.SMTPPort, port)
+		}
+	}
+	cfg, err := Load(nil, envMap(map[string]string{"SLOUCHCAT_SMTP_PORT": "2525", "SLOUCHCAT_SMTP_HOST": "smtp.example.test"}))
+	if err != nil || cfg.SMTPPort != 2525 || cfg.SMTPTLS != "starttls" {
+		t.Errorf("explicit port: %+v, %v", cfg, err)
+	}
+	cfg, err = Load(nil, envMap(map[string]string{
+		"SLOUCHCAT_TELEGRAM_BASE_URL": "http://127.0.0.1:9/telegram", "SLOUCHCAT_UPDATE_MANIFEST_URL": "http://127.0.0.1:9/manifest.json",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.TelegramAPIBase() != "" || cfg.ManifestURL() != DefaultUpdateManifestURL {
+		t.Errorf("without --dev: telegram %q, manifest %q; want the real API and the default manifest", cfg.TelegramAPIBase(), cfg.ManifestURL())
+	}
+	if logged := cfg.LogValue().String(); !strings.Contains(logged, "update_manifest_default=true") || !strings.Contains(logged, "smtp_configured=false") {
+		t.Errorf("LogValue: %s", logged)
+	}
 }

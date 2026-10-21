@@ -177,6 +177,27 @@ func TestMapError(t *testing.T) {
 		model.ErrInvitationGone:                                  {410, "invitation_gone"},
 		(&model.ValidationError{}).Add("email", "invalid_email"): {422, "validation_failed"},
 		errors.New("boom"):                                       {500, "internal_error"},
+		// M8 administration and notifications.
+		&model.EnvWinsError{Field: "keys.tmdb"}: {422, "env_wins"},
+		model.ErrPassphraseRequired:             {422, "passphrase_required"},
+		model.ErrPassphraseTooShort:             {422, "passphrase_too_short"},
+		model.ErrPassphraseWrong:                {422, "passphrase_wrong"},
+		model.ErrBackupInvalid:                  {422, "backup_invalid"},
+		model.ErrBackupNewerThanServer:          {422, "backup_newer_than_server"},
+		model.ErrEmailNotConfigured:             {422, "email_not_configured"},
+		&model.SendError{Err: model.ErrEmailSendFailed, Detail: "550 mailbox unavailable"}: {502, "email_send_failed"},
+		&model.SendError{Err: model.ErrSendFailed, Detail: "push service answered 500"}:    {502, "send_failed"},
+		model.ErrTelegramTokenInvalid:  {422, "telegram_token_invalid"},
+		model.ErrTelegramUnreachable:   {422, "telegram_unreachable"},
+		model.ErrEmailTaken:            {409, "email_taken"},
+		model.ErrJobNotFailed:          {409, "job_not_failed"},
+		model.ErrUpdateCheckDisabled:   {422, "update_check_disabled"},
+		model.ErrChannelUnavailable:    {422, "channel_unavailable"},
+		model.ErrChannelDisabled:       {422, "channel_disabled"},
+		model.ErrEventNotAllowed:       {422, "event_not_allowed"},
+		model.ErrPushUnavailable:       {404, "push_unavailable"},
+		model.ErrAnnouncementPublished: {409, "announcement_published"},
+		model.ErrNotImplemented:        {501, "not_implemented"},
 	}
 	for err, want := range cases {
 		rec := httptest.NewRecorder()
@@ -186,6 +207,13 @@ func TestMapError(t *testing.T) {
 		}
 		if want.code == "validation_failed" && !strings.Contains(rec.Body.String(), `"field":"email"`) {
 			t.Errorf("validation problem lacks field errors: %s", rec.Body.String())
+		}
+		if want.code == "env_wins" && !strings.Contains(rec.Body.String(), `{"code":"env_wins","field":"keys.tmdb"}`) {
+			t.Errorf("env_wins problem lacks the field: %s", rec.Body.String())
+		}
+		var send *model.SendError
+		if errors.As(err, &send) && !strings.Contains(rec.Body.String(), `"detail":"`+send.Detail+`"`) {
+			t.Errorf("%s problem lacks the detail: %s", want.code, rec.Body.String())
 		}
 	}
 }

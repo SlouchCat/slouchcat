@@ -1,11 +1,11 @@
 // Package api wires the HTTP surface of Slouchcat: the generated strict server for the JSON API
-// under /api/v1 (contract api/openapi.yaml), the binary handlers for images, media streams and the
-// spike download, the HLS endpoints of playback sessions (stream token, stream_token.go), RFC 9457
-// problem responses, request IDs, request logging, panic recovery, Referrer-Policy, the CSRF
-// header rule and the session middleware that enforces x-visibility per route. Everything
-// outside /api/v1 goes to the web app handler; the start page's app shell carries a preload
-// header for the hero image (preload.go). The web app and the JSON routes are gzipped
-// (compressText); the binary routes are not.
+// under /api/v1 (contract api/openapi.yaml), the binary handlers for images, media streams, the
+// spike download and the backup download, the HLS endpoints of playback sessions (stream token,
+// stream_token.go), RFC 9457 problem responses, request IDs, request logging, panic recovery,
+// Referrer-Policy, the CSRF header rule and the session middleware that enforces x-visibility per
+// route. Everything outside /api/v1 goes to the web app handler; the start page's app shell
+// carries a preload header for the hero image (preload.go). The web app and the JSON routes are
+// gzipped (compressText); the binary routes are not.
 package api
 
 import (
@@ -57,6 +57,8 @@ var binaryRoutes = map[string]string{
 
 	"GET " + BasePath + downloadFilePath:     "scoped",
 	"GET " + BasePath + downloadSubtitlePath: "scoped",
+
+	"GET " + BasePath + backupDownloadPath: "admin",
 }
 
 // Options configure NewHandler.
@@ -74,7 +76,7 @@ type Options struct {
 	Catalog  CatalogService
 	Playback PlaybackService
 	Offline  OfflineService // Downloads, sync and the download token (M5).
-	Notify   NotifyService  // In-app inbox (M7, E-8); nil answers 501 on the inbox operations.
+	Notify   NotifyService  // In-app inbox (M7, E-8), channels and announcements (M8); nil answers 501 on them.
 	SpikeDir string         // Directory with the spike download files; empty disables the endpoint.
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
@@ -134,6 +136,7 @@ func NewHandler(o Options) http.Handler {
 		downloadAuth := p.downloadAuth(o.Offline)
 		r.With(downloadAuth).Get(downloadFilePath, s.getDownloadFile)
 		r.With(downloadAuth).Get(downloadSubtitleRoute, s.getDownloadSubtitle)
+		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
 	})
 	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
 	// the start page's app shell then carries a preload header for its image (preload.go).

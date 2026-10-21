@@ -48,6 +48,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/setup/path-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Describe a library path for the wizard (A-1)
+         * @description Checks a path on the server before the wizard creates the library: whether it is usable, its file
+         *     system, the watch mode the scanner would use (inotify, poll or both) and a warning for network
+         *     shares and unknown FUSE file systems (plan 3.4). A bad path is no error: the answer names the
+         *     problem (`problem`), so the wizard can show it next to the field. Allowed only while no account
+         *     exists; every call counts against the attempt limit of the client.
+         */
+        post: operations["checkSetupPath"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/setup/tmdb-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a TMDB key for the wizard (A-1)
+         * @description Asks TMDB whether the key is valid before the wizard stores it. An invalid key or an unreachable
+         *     TMDB is no error: the answer names the problem (`invalid`, `unreachable`). The key is neither
+         *     stored nor logged. Allowed only while no account exists; every call counts against the attempt
+         *     limit of the client.
+         */
+        post: operations["checkSetupTmdbKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -92,6 +139,27 @@ export interface paths {
         /** Account and active profile of the current session */
         get: operations["getSession"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change the e-mail or the password of the signed-in account (A-2)
+         * @description Every change needs the current password. A new password revokes every other session of the
+         *     account; the calling session stays. Works without an active profile (`account`).
+         */
+        put: operations["updateAccount"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1956,6 +2024,593 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Version, transcode hardware, inotify limit and file systems (A-1, A-3)
+         * @description The state the wizard shows before the first account (`getSetupStatus.system`) and the dashboard
+         *     shows afterwards: version and start, the detected transcode backend with the Docker Compose
+         *     override file that passes the GPU into the container, the inotify watch limit with its use and the
+         *     file systems of the config and cache directories.
+         */
+        get: operations["getSystemInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Running streams, jobs, storage, integrations, errors and update state (A-3)
+         * @description One request for the admin overview, polled every few seconds: the running streams (as
+         *     `listStreams`), the job counters with the last ten failed jobs, free and total space of the
+         *     config and cache directories, the state of every integration (keys, e-mail, Web Push, Telegram,
+         *     update check), the newest 50 errors of the server log (redacted, newest first) and the update
+         *     state.
+         */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue a failed job again (A-3)
+         * @description The job goes back to the queue with its attempts reset; only failed jobs qualify.
+         */
+        post: operations["retryJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Cancel a queued or running job (A-3) */
+        delete: operations["cancelJob"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Server settings and integrations (A-2)
+         * @description Public URL, update check, the provider keys (where each comes from; a stored key shows its last
+         *     four characters only), the e-mail server, the Telegram bot and the Web Push key pair. Secrets
+         *     never leave the server: passwords, tokens and private keys are write-only.
+         */
+        get: operations["getAdminSettings"];
+        /**
+         * Change server settings and integrations (A-2)
+         * @description Fields left out keep their value; `clear` removes stored values. Secrets are stored encrypted
+         *     (plan 3.8 point 3). A value set through the environment cannot be overridden or cleared here
+         *     (`env_wins`, the field in `errors`). A new TMDB key is checked against TMDB, a new Telegram bot
+         *     token with `getMe`, before anything is stored; the whole request then changes nothing.
+         */
+        put: operations["updateAdminSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings/email/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test mail through the configured e-mail server (A-2, A-6)
+         * @description Sends to `to`, or to the main account's address when absent.
+         */
+        post: operations["sendTestEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings/push/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new Web Push key pair (A-6)
+         * @description Creates a new VAPID key pair (the private key stored encrypted) and deletes every push
+         *     subscription, which was bound to the old pair; devices subscribe again from the settings.
+         */
+        post: operations["rotatePushKeys"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Backups in the backup directory (A-4)
+         * @description Manual backups (`slouchcat-backup-*`) and the automatic copies the server writes before
+         *     migrations and restores (`pre-migration-*`, `pre-restore-*`), newest first.
+         */
+        get: operations["listBackups"];
+        put?: never;
+        /**
+         * Create a backup of the database (A-4)
+         * @description Writes a tar.gz archive with a manifest and a consistent copy of the database (never a media
+         *     file) to the backup directory. Without `includeSecrets` the copy carries no encrypted setting,
+         *     push subscription, Telegram link code or session. With `includeSecrets` the archive also holds
+         *     the key file and is encrypted with `passphrase` (age, scrypt).
+         */
+        post: operations["createBackup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/{name}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a backup archive (binary)
+         * @description Implemented as an `http.Handler`. The name must be one of `listBackups`; a name with a path part
+         *     answers 404.
+         */
+        get: operations["downloadBackup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a backup */
+        delete: operations["deleteBackup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore an uploaded backup (A-4)
+         * @description Checks the uploaded archive (format, a version not newer than the server, a database that passes
+         *     the integrity check; with secrets the passphrase) and stages it next to the database. After the
+         *     202 the server stops and starts again in the same process; the start keeps the current database
+         *     as `pre-restore-*` in the backup directory, swaps in the restored one and migrates it.
+         */
+        post: operations["restoreBackupUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/backups/{name}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a backup from the list (A-4)
+         * @description Like `restoreBackupUpload` with an archive of `listBackups`.
+         */
+        post: operations["restoreBackup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * State of the update check (A-5)
+         * @description The running version, the newest published version from the release manifest and when it was
+         *     checked. The check runs daily while it is enabled; it only reads the manifest and never installs.
+         */
+        get: operations["getUpdateState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/update/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check for a new version now (A-5)
+         * @description Reads the release manifest at once; a failure is reported in `error`, not as a problem.
+         */
+        post: operations["checkForUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The main account and the guest accounts with profiles and channels (A-2) */
+        get: operations["listAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Usage statistics over a period (A-8)
+         * @description Over the last `days` days, unfiltered (the administration sees every profile): the most watched
+         *     titles, the watch time per profile, the share of direct play, remux and transcoding with the
+         *     hardware share, and the devices by type. Watch time is the played time of the progress events
+         *     whose server time lies in the period (offline events count with their upload time).
+         */
+        get: operations["getStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Announcements of the main user (A-7) */
+        get: operations["listAnnouncements"];
+        put?: never;
+        /**
+         * Write an announcement, optionally publishing it (A-7)
+         * @description Publishing shows it to every profile at its next start and sends it on the channels of every
+         *     account that chose the event `announcements`.
+         */
+        post: operations["createAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/announcements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change an unpublished announcement */
+        put: operations["updateAnnouncement"];
+        post?: never;
+        /** Delete an announcement with its acknowledgements */
+        delete: operations["deleteAnnouncement"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/announcements/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish an announcement (A-7)
+         * @description Idempotent; the first call sends it on the channels, a second one changes nothing.
+         */
+        post: operations["publishAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Published announcements the active profile has not acknowledged (A-7)
+         * @description Newest first, at most 20; the client shows them one after the other at the start.
+         */
+        get: operations["listMyAnnouncements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/announcements/{id}/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge an announcement for the active profile
+         * @description Idempotent.
+         */
+        post: operations["ackAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Notification channels of the signed-in account (A-6, E-8, plan 5.5)
+         * @description E-mail, Web Push and Telegram with the chosen events. The in-app inbox is always on and no
+         *     channel here. `available` tells whether the server has the channel configured. Works without an
+         *     active profile (`account`).
+         */
+        get: operations["getMyChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/channels/{channel}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch a channel and choose its events
+         * @description The event `errors` is for the main account only.
+         */
+        put: operations["updateMyChannel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/channels/{channel}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test message on a channel */
+        post: operations["testMyChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/channels/telegram/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start linking a Telegram chat
+         * @description Returns a new link code (six characters, valid for 15 minutes; an older code of the account
+         *     stops working). The user sends `/start <code>` to the bot; the server links the chat when the
+         *     bot receives it. Replaces an existing link only once the new one is confirmed.
+         */
+        post: operations["createTelegramLink"];
+        /**
+         * Unlink the Telegram chat
+         * @description Idempotent; also drops an open link code. The channel is switched off.
+         */
+        delete: operations["deleteTelegramLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push/vapid-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The server's Web Push public key (VAPID)
+         * @description The browser subscribes with it (`applicationServerKey`).
+         */
+        get: operations["getPushPublicKey"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register the push subscription of this browser
+         * @description Idempotent per endpoint: the same endpoint again updates its keys and device name. The endpoint
+         *     and its keys are capability secrets; they are never returned and never logged.
+         */
+        post: operations["createPushSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/push-subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a push subscription of the account */
+        delete: operations["deletePushSubscription"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/spike/{variant}": {
         parameters: {
             query?: never;
@@ -2048,6 +2703,11 @@ export interface components {
         SetupStatus: {
             /** @description True until the wizard created the main account. */
             setupRequired: boolean;
+            /**
+             * @description Transcode hardware, inotify limit and file systems for the wizard (A-1); only while
+             *     `setupRequired` is true.
+             */
+            system?: components["schemas"]["SystemInfo"];
         };
         SetupRequest: {
             /** Format: email */
@@ -2069,6 +2729,11 @@ export interface components {
             account: components["schemas"]["Account"];
             /** @description The active profile; absent until `selectProfile` ran (the client shows the picker). */
             profile?: components["schemas"]["Profile"];
+            /**
+             * @description A newer version is published (A-5); only for the main account and only while the update
+             *     check is on.
+             */
+            updateAvailable?: components["schemas"]["UpdateNotice"];
         };
         Account: {
             /** Format: int64 */
@@ -3576,6 +4241,606 @@ export interface components {
             trending: number;
             popular: number;
         };
+        /**
+         * @description The server's state for the wizard (A-1) and the dashboard (A-3). Carries no secret, so the wizard
+         *     shows it before an account exists.
+         */
+        SystemInfo: {
+            /** @example 0.9.0+abc1234 */
+            version: string;
+            /** Format: date-time */
+            startedAt: string;
+            gpu: components["schemas"]["GPUInfo"];
+            inotify: components["schemas"]["InotifyInfo"];
+            /**
+             * @description File system type of the config directory, for example `ext4`; `unknown` when undetected.
+             * @example ext4
+             */
+            configFs: string;
+            /**
+             * @description File system type of the cache directory.
+             * @example ext4
+             */
+            cacheFs: string;
+        };
+        /**
+         * @description The transcode backend found at start (M1b, M4) and the GPU devices visible in the container.
+         * @example {
+         *       "backend": "software",
+         *       "hardwareEncode": false,
+         *       "tonemapper": "cpu",
+         *       "hwTonemap": false,
+         *       "composeOverride": "nvidia",
+         *       "devices": {
+         *         "dri": false,
+         *         "nvidia": true
+         *       }
+         *     }
+         */
+        GPUInfo: {
+            /** @enum {string} */
+            backend: "nvenc" | "qsv" | "vaapi" | "software";
+            /** @description The backend encodes on the GPU (every backend but software). */
+            hardwareEncode: boolean;
+            /**
+             * @description The HDR to SDR filter of the backend's pipeline.
+             * @enum {string}
+             */
+            tonemapper: "cuda" | "placebo" | "vpp_qsv" | "vaapi" | "cpu";
+            /** @description The tonemapper runs on the GPU (every tonemapper but cpu). */
+            hwTonemap: boolean;
+            /** @description First line of `ffmpeg -version`. */
+            ffmpegVersion?: string;
+            /**
+             * @description The Docker Compose override file (`compose.<value>.yaml`) that passes the GPU into the
+             *     container: from the backend (nvenc → nvidia, qsv and vaapi on Intel → intel, vaapi otherwise
+             *     → amd), without a hardware backend from the devices (`/dev/nvidia0` → nvidia,
+             *     `/dev/dri/renderD*` → intel). Absent when no GPU device is visible.
+             * @enum {string}
+             */
+            composeOverride?: "nvidia" | "intel" | "amd";
+            devices: {
+                /** @description A render node `/dev/dri/renderD*` exists in the container. */
+                dri: boolean;
+                /** @description `/dev/nvidia0` exists in the container. */
+                nvidia: boolean;
+            };
+        };
+        InotifyInfo: {
+            /**
+             * Format: int64
+             * @description `/proc/sys/fs/inotify/max_user_watches`; 0 when unreadable.
+             */
+            maxUserWatches: number;
+            /**
+             * Format: int64
+             * @description Directories the library watcher holds (0 in the wizard).
+             */
+            watchedDirs: number;
+            /**
+             * Format: double
+             * @description watchedDirs per maxUserWatches in percent.
+             */
+            usagePercent: number;
+            /** @description The limit is below 65536 or more than 80 % of it are used; the UI shows the sysctl command. */
+            warn: boolean;
+        };
+        PathCheckRequest: {
+            /** @example /media/movies */
+            path: string;
+        };
+        /** @description A library path as the wizard shows it (plan 3.4). */
+        PathCheck: {
+            /** @description The path is an absolute, readable directory. */
+            ok: boolean;
+            /** @description File system type, for example `ext4`, `nfs4`, `cifs`, `fuse.mergerfs`; absent with a problem. */
+            fsType?: string;
+            /**
+             * @description How the scanner would follow changes; absent with a problem.
+             * @enum {string}
+             */
+            watchMode?: "inotify" | "poll" | "inotify_poll";
+            /**
+             * @description A hint, not an error; the library works with polling.
+             * @enum {string}
+             */
+            warning?: "network_share" | "fuse_unknown";
+            /**
+             * @description Why the path is not usable; set exactly when `ok` is false.
+             * @enum {string}
+             */
+            problem?: "not_absolute" | "missing" | "not_directory" | "not_readable";
+        };
+        TMDBCheckRequest: {
+            /** @description TMDB v4 read access token; neither stored nor logged. */
+            tmdbApiKey: string;
+        };
+        TMDBCheck: {
+            ok: boolean;
+            /**
+             * @description TMDB rejected the key (`invalid`) or did not answer (`unreachable`); set exactly when `ok` is false.
+             * @enum {string}
+             */
+            problem?: "invalid" | "unreachable";
+        };
+        /** @description The admin overview (A-3); no `ItemRef`. */
+        Dashboard: {
+            streams: components["schemas"]["AdminStream"][];
+            jobs: components["schemas"]["JobCounts"];
+            storage: {
+                config: components["schemas"]["StorageInfo"];
+                cache: components["schemas"]["StorageInfo"];
+            };
+            integrations: components["schemas"]["IntegrationStatus"][];
+            /** @description The newest errors of the server log, newest first, redacted like the log itself. */
+            errors: components["schemas"]["ErrorEntry"][];
+            update: components["schemas"]["UpdateState"];
+        };
+        JobCounts: {
+            queued: number;
+            running: number;
+            failed: number;
+            /** @description The last failed jobs, newest first. */
+            recentFailed: components["schemas"]["JobSummary"][];
+        };
+        JobSummary: {
+            /** Format: int64 */
+            id: number;
+            /**
+             * @description Job type, for example `scan.library`, `metadata.match`, `notify.deliver`.
+             * @example metadata.match
+             */
+            type: string;
+            /** @enum {string} */
+            state: "queued" | "running" | "done" | "failed" | "cancelled";
+            attempts: number;
+            maxAttempts: number;
+            /** @description Error of the last attempt, redacted. */
+            lastError?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        StorageInfo: {
+            /** @example /config */
+            path: string;
+            /** Format: int64 */
+            totalBytes: number;
+            /** Format: int64 */
+            freeBytes: number;
+        };
+        IntegrationStatus: {
+            /** @enum {string} */
+            key: "tmdb" | "tvdb" | "youtube" | "trakt" | "email" | "push" | "telegram" | "updateCheck";
+            /**
+             * @description `configured` (set and, where checked, working), `missing` (not set), `error` (the last use
+             *     failed, see `detail`), `disabled` (switched off, the update check).
+             * @enum {string}
+             */
+            state: "configured" | "missing" | "error" | "disabled";
+            /** @description Why the state is `error`; never contains a secret. */
+            detail?: string;
+            /** Format: date-time */
+            checkedAt?: string;
+        };
+        ErrorEntry: {
+            /** Format: date-time */
+            at: string;
+            /**
+             * @description The component or job type that logged the error.
+             * @example metadata.match
+             */
+            source: string;
+            /** @description Message and error text of the log record, redacted. */
+            message: string;
+            /** Format: int64 */
+            jobId?: number;
+            jobType?: string;
+        };
+        UpdateState: {
+            /** @description The daily update check is on. */
+            enabled: boolean;
+            currentVersion: string;
+            /** @description Newest published version from the release manifest. */
+            latestVersion?: string;
+            /** @description latestVersion is newer than the running version. */
+            available: boolean;
+            /**
+             * Format: uri
+             * @description Release page of latestVersion.
+             */
+            url?: string;
+            /** @description Release notes from the manifest (plain text). */
+            notes?: string;
+            /** Format: date-time */
+            checkedAt?: string;
+            /** @description Why the last check failed. */
+            error?: string;
+        };
+        /** @description A newer version is published (header badge of the main account, A-5). */
+        UpdateNotice: {
+            /** @example 0.9.1 */
+            version: string;
+            /** Format: uri */
+            url: string;
+        };
+        /**
+         * @description Where a value comes from; `env` wins over a stored value and cannot be changed in the UI.
+         * @enum {string}
+         */
+        SettingSource: "env" | "stored" | "none";
+        KeyState: {
+            source: components["schemas"]["SettingSource"];
+            /** @description The last four characters of a stored key; absent for keys from the environment. */
+            hint?: string;
+        };
+        /**
+         * @description STARTTLS on the plain port (default), implicit TLS, or no encryption.
+         * @enum {string}
+         */
+        SMTPTLS: "starttls" | "tls" | "none";
+        AdminSettings: {
+            /**
+             * Format: uri
+             * @description Address of the server for links in e-mails and messages.
+             */
+            publicUrl?: string;
+            publicUrlSource: components["schemas"]["SettingSource"];
+            updateCheckEnabled: boolean;
+            keys: components["schemas"]["AdminSettingsKeys"];
+            email: components["schemas"]["AdminSettingsEmail"];
+            telegram: components["schemas"]["AdminSettingsTelegram"];
+            push: components["schemas"]["AdminSettingsPush"];
+        };
+        /** @description The provider keys (M3, M7); the values themselves are never returned. */
+        AdminSettingsKeys: {
+            tmdb: components["schemas"]["KeyState"];
+            tvdb: components["schemas"]["KeyState"];
+            tvdbPin: components["schemas"]["KeyState"];
+            youtube: components["schemas"]["KeyState"];
+            trakt: components["schemas"]["KeyState"];
+        };
+        /** @description The e-mail server; the password is never returned. */
+        AdminSettingsEmail: {
+            source: components["schemas"]["SettingSource"];
+            host?: string;
+            port?: number;
+            user?: string;
+            /** @description Sender address, optionally with a name (`Slouchcat <media@example.ch>`). */
+            from?: string;
+            tls?: components["schemas"]["SMTPTLS"];
+        };
+        /** @description The Telegram bot; the token is never returned. */
+        AdminSettingsTelegram: {
+            source: components["schemas"]["SettingSource"];
+            /** @description The bot's user name from `getMe`, without `@`. */
+            botUsername?: string;
+        };
+        AdminSettingsPush: {
+            /** @description A VAPID key pair exists (created on first use). */
+            configured: boolean;
+            /** @description VAPID public key, base64url. */
+            publicKey?: string;
+        };
+        /**
+         * @description Fields left out keep their value. `clear` removes stored values; a field may not be set and
+         *     cleared in the same request. Every secret is write-only.
+         */
+        AdminSettingsUpdate: {
+            /**
+             * Format: uri
+             * @description http or https URL without query; set or cleared (`clear`), never through an empty string.
+             */
+            publicUrl?: string;
+            updateCheckEnabled?: boolean;
+            keys?: components["schemas"]["AdminSettingsKeysUpdate"];
+            email?: components["schemas"]["AdminSettingsEmailUpdate"];
+            telegram?: components["schemas"]["AdminSettingsTelegramUpdate"];
+            /** @description Stored values to remove. */
+            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "email" | "telegram")[];
+        };
+        /** @description New keys; each is stored encrypted and never returned. */
+        AdminSettingsKeysUpdate: {
+            tmdb?: string;
+            tvdb?: string;
+            tvdbPin?: string;
+            youtube?: string;
+            trakt?: string;
+        };
+        /** @description The e-mail server as a whole; `password` absent keeps the stored password. */
+        AdminSettingsEmailUpdate: {
+            /** @example smtp.example.ch */
+            host: string;
+            /** @example 587 */
+            port: number;
+            user?: string;
+            /** Format: password */
+            password?: string;
+            from: string;
+            tls: components["schemas"]["SMTPTLS"];
+        };
+        AdminSettingsTelegramUpdate: {
+            /** @description Token from BotFather (`<bot id>:<secret>`); checked with `getMe` before it is stored. */
+            botToken: string;
+        };
+        EmailTestRequest: {
+            /** Format: email */
+            to?: string;
+        };
+        Backup: {
+            /** @example slouchcat-backup-0.9.0-20261021T120000Z.tar.gz */
+            name: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int64 */
+            sizeBytes: number;
+            /** @description The archive carries the key file and the encrypted settings. */
+            includesSecrets: boolean;
+            /** @description The archive is encrypted with a passphrase (age); restoring it needs the passphrase. */
+            encrypted: boolean;
+            /** @description Server version that wrote the backup; absent when unknown. */
+            version?: string;
+            /**
+             * @description `auto`: written by the server before a migration or a restore.
+             * @enum {string}
+             */
+            kind: "manual" | "auto";
+        };
+        BackupRequest: {
+            /** @description Include the key file and the encrypted settings; needs a passphrase. */
+            includeSecrets: boolean;
+            /** Format: password */
+            passphrase?: string;
+        };
+        /**
+         * @description The parts in this order: `passphrase` (when the archive is encrypted), then `file`. The server
+         *     reads the file as a stream and ignores parts after it.
+         */
+        RestoreUpload: {
+            /**
+             * Format: binary
+             * @description A backup archive (`.tar.gz` or `.tar.gz.age`).
+             */
+            file: string;
+            /** Format: password */
+            passphrase?: string;
+        };
+        RestoreRequest: {
+            /** Format: password */
+            passphrase?: string;
+        };
+        RestoreResult: {
+            /**
+             * Format: date-time
+             * @description When the server restarts; the client polls `getHealth` from then on.
+             */
+            restartAt: string;
+            /** @description Server version that wrote the backup. */
+            version: string;
+            /** @description Without secrets the provider keys, the e-mail server, the bot and the push keys must be entered again. */
+            includesSecrets: boolean;
+        };
+        /** @description A profile in the account overview of the administration. */
+        ProfileRef: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            maxRating: components["schemas"]["Rating"];
+            isPrimary: boolean;
+        };
+        ChannelSummary: {
+            channel: components["schemas"]["Channel"];
+            enabled: boolean;
+        };
+        /** @description An account as the administration sees it (A-2). */
+        AdminAccount: {
+            /** Format: int64 */
+            id: number;
+            /** Format: email */
+            email: string;
+            /** @enum {string} */
+            role: "owner" | "guest";
+            maxRating: components["schemas"]["Rating"];
+            allLibraries: boolean;
+            libraryIds: number[];
+            profiles: components["schemas"]["ProfileRef"][];
+            /** Format: date-time */
+            lastSeenAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+            channels: components["schemas"]["ChannelSummary"][];
+        };
+        AccountUpdate: {
+            /** Format: email */
+            email?: string;
+            /** Format: password */
+            currentPassword: string;
+            /** Format: password */
+            newPassword?: string;
+        };
+        /**
+         * @description A notification channel; the in-app inbox is always on and no channel.
+         * @enum {string}
+         */
+        Channel: "email" | "push" | "telegram";
+        /**
+         * @description `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
+         *     `acquisition`: state of a requested title (M9); `errors`: failures the main user should see
+         *     (main account only); `invitations`: an invitation was accepted; `announcements`: the main
+         *     user published an announcement.
+         * @enum {string}
+         */
+        EventType: "new_content" | "acquisition" | "errors" | "invitations" | "announcements";
+        ChannelSettings: {
+            /** @description email, push and telegram, in this order. */
+            channels: components["schemas"]["ChannelSetting"][];
+        };
+        ChannelSetting: {
+            channel: components["schemas"]["Channel"];
+            enabled: boolean;
+            events: components["schemas"]["EventType"][];
+            /** @description The server has this channel configured. */
+            available: boolean;
+            email?: components["schemas"]["EmailChannel"];
+            telegram?: components["schemas"]["TelegramChannel"];
+            push?: components["schemas"]["PushChannel"];
+        };
+        EmailChannel: {
+            /**
+             * Format: email
+             * @description Recipient; the account's e-mail unless set.
+             */
+            address: string;
+        };
+        TelegramChannel: {
+            linked: boolean;
+            /** @description The linked chat (no secret). */
+            chatId?: string;
+            /** @description Open link code; the user sends `/start <code>` to the bot. */
+            linkCode?: string;
+            /** Format: date-time */
+            linkExpiresAt?: string;
+            botUsername?: string;
+        };
+        PushChannel: {
+            subscriptions: components["schemas"]["PushSubscriptionSummary"][];
+        };
+        ChannelSettingUpdate: {
+            enabled: boolean;
+            events: components["schemas"]["EventType"][];
+            /** @description E-mail channel only; absent uses the account's e-mail. */
+            email?: components["schemas"]["EmailChannel"];
+        };
+        PushSubscriptionSummary: {
+            /** Format: int64 */
+            id: number;
+            deviceName?: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The subscription belongs to the device of the calling session. */
+            thisDevice: boolean;
+        };
+        /** @description The browser's `PushSubscription.toJSON()` plus a device name. */
+        PushSubscriptionRequest: {
+            /**
+             * Format: uri
+             * @description Push service URL; a capability secret, never returned or logged.
+             */
+            endpoint: string;
+            keys: {
+                p256dh: string;
+                auth: string;
+            };
+            deviceName?: string;
+        };
+        VapidKey: {
+            /** @description VAPID public key (uncompressed P-256 point, base64url). */
+            publicKey: string;
+        };
+        Announcement: {
+            /** Format: int64 */
+            id: number;
+            title: string;
+            /** @description Plain text; line breaks are kept. */
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /**
+             * Format: date-time
+             * @description Absent while unpublished.
+             */
+            publishedAt?: string;
+            /** @description E-mail of the account that wrote it; absent when that account is gone. */
+            createdBy?: string;
+            /** @description Profiles that acknowledged it. */
+            acknowledgedCount: number;
+            /** @description Profiles of every account. */
+            profileCount: number;
+        };
+        AnnouncementRequest: {
+            title: string;
+            body: string;
+            /** @default false */
+            publish: boolean;
+        };
+        AnnouncementUpdate: {
+            title: string;
+            body: string;
+        };
+        ProfileAnnouncement: {
+            /** Format: int64 */
+            id: number;
+            title: string;
+            body: string;
+            /** Format: date-time */
+            publishedAt: string;
+        };
+        /**
+         * @description Length of the statistics period in days, ending now.
+         * @default 30
+         * @enum {integer}
+         */
+        StatsDays: 7 | 30 | 90 | 365;
+        /** @description Usage statistics (A-8), unfiltered; titles are plain `StatTitle`s, never `ItemRef`s. */
+        Stats: {
+            days: components["schemas"]["StatsDays"];
+            /** @description Most watched titles by played time. */
+            topTitles: components["schemas"]["StatTitle"][];
+            /** @description Played time per profile, most first. */
+            watchTime: components["schemas"]["StatProfile"][];
+            playback: components["schemas"]["StatPlayback"];
+            /** @description Played time per device type, most first. */
+            devices: components["schemas"]["StatDevice"][];
+        };
+        StatTitle: {
+            itemId: components["schemas"]["ItemID"];
+            title: string;
+            kind: components["schemas"]["ItemKind"];
+            year?: number;
+            /** @description Distinct playback sessions (an event without one counts on its own). */
+            plays: number;
+            /** Format: int64 */
+            watchedMs: number;
+        };
+        StatProfile: {
+            /** Format: int64 */
+            profileId: number;
+            profileName: string;
+            accountEmail: string;
+            /** Format: int64 */
+            watchedMs: number;
+            plays: number;
+        };
+        /** @description Playback sessions started in the period by mode. */
+        StatPlayback: {
+            direct: number;
+            remux: number;
+            transcode: number;
+            /**
+             * Format: double
+             * @description transcode per all sessions; 0 without sessions.
+             */
+            transcodeShare: number;
+            /**
+             * Format: double
+             * @description Transcodes encoded on the GPU per transcodes; 0 without transcodes.
+             */
+            hardwareShare: number;
+        };
+        StatDevice: {
+            /**
+             * @description The type the device reported; `unknown` for events without a known device.
+             * @enum {string}
+             */
+            type: "desktop" | "phone" | "tablet" | "tv" | "other" | "unknown";
+            /** @description Distinct devices of this type with played time in the period. */
+            count: number;
+            /** Format: int64 */
+            watchedMs: number;
+        };
     };
     responses: {
         /** @description No valid session (`unauthenticated`). */
@@ -3693,6 +4958,13 @@ export interface components {
         /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
         DownloadToken: string;
         LibraryID: number;
+        /** @description Job id from the dashboard. */
+        JobID: number;
+        /** @description File name of a backup from `listBackups` (no path part). */
+        BackupName: string;
+        AnnouncementID: number;
+        ChannelName: components["schemas"]["Channel"];
+        PushSubscriptionID: number;
     };
     requestBodies: never;
     headers: never;
@@ -3796,6 +5068,128 @@ export interface operations {
              *     (not absolute, missing, not a directory or not readable), `tmdb_key_invalid` (TMDB answered 401),
              *     `tmdb_unreachable` (TMDB did not answer; retry or leave the key empty).
              */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    checkSetupPath: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PathCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description The path, described. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathCheck"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Setup already completed (`setup_done`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `path` empty or longer than 4096 bytes). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    checkSetupTmdbKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TMDBCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description The result of the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TMDBCheck"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Setup already completed (`setup_done`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `tmdbApiKey` empty or longer than 1024 bytes). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3932,6 +5326,79 @@ export interface operations {
             /** @description No valid session (`unauthenticated`). */
             401: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountUpdate"];
+            };
+        };
+        responses: {
+            /** @description The session with the changed account. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`) or a wrong current password (`invalid_credentials`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Another account uses the e-mail (`email_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`: `email` `invalid_email`, `newPassword` `too_short` or
+             *     `too_long`, `required` when neither `email` nor `newPassword` is given).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -7806,6 +9273,1129 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description No Trakt client id configured (`provider_not_configured`). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSystemInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The system state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The overview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    retryJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job id from the dashboard. */
+                id: components["parameters"]["JobID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The queued job. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The job has not failed (`job_not_failed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancelJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job id from the dashboard. */
+                id: components["parameters"]["JobID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job or a job that already ended (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateAdminSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The stored settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `validation_failed` (see `errors`), `env_wins` (the field named in `errors` comes from the
+             *     environment), `tmdb_key_invalid`, `tmdb_unreachable`, `telegram_token_invalid` (Telegram
+             *     rejected the token), `telegram_unreachable` (Telegram did not answer).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    sendTestEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EmailTestRequest"];
+            };
+        };
+        responses: {
+            /** @description The mail server accepted the mail. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No e-mail server configured (`email_not_configured`) or `validation_failed` (`to` `invalid_email`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The mail server refused or did not answer (`email_send_failed`; `detail` names why, without secrets). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    rotatePushKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings with the new public key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    listBackups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The backups. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Backup"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    createBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupRequest"];
+            };
+        };
+        responses: {
+            /** @description The new backup. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Backup"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `passphrase_required` (secrets without a passphrase), `passphrase_too_short` (fewer than 12
+             *     characters).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    downloadBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description File name of a backup from `listBackups` (no path part). */
+                name: components["parameters"]["BackupName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archive. */
+            200: {
+                headers: {
+                    /** @description `attachment` with the file name. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown backup (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description File name of a backup from `listBackups` (no path part). */
+                name: components["parameters"]["BackupName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown backup (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restoreBackupUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["RestoreUpload"];
+            };
+        };
+        responses: {
+            /** @description Staged; the server restarts now. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `backup_invalid` (not an archive of Slouchcat, damaged or failing the integrity check),
+             *     `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server`, `validation_failed`
+             *     (`file` missing or not a multipart part, `passphrase` too long).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restoreBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description File name of a backup from `listBackups` (no path part). */
+                name: components["parameters"]["BackupName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RestoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Staged; the server restarts now. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown backup (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `backup_invalid`, `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server` (see
+             *     `restoreBackupUpload`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getUpdateState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateState"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    checkForUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state after the check. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateState"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description The update check is disabled (`update_check_disabled`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The main account first, then the guests by creation, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAccount"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    getStats: {
+        parameters: {
+            query?: {
+                days?: components["schemas"]["StatsDays"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The statistics. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Stats"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `days` not 7, 30, 90 or 365). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAnnouncements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every announcement, newest first, with how many profiles acknowledged it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    createAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementRequest"];
+            };
+        };
+        responses: {
+            /** @description The announcement. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `title` 1 to 120, `body` 1 to 4000 characters). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AnnouncementID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementUpdate"];
+            };
+        };
+        responses: {
+            /** @description The changed announcement. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown announcement (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Already published; published announcements stay as they were sent (`announcement_published`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AnnouncementID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown announcement (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    publishAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AnnouncementID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The published announcement. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown announcement (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listMyAnnouncements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The open announcements. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileAnnouncement"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    ackAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AnnouncementID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Acknowledged. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or unpublished announcement (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The three channels. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    updateMyChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel: components["parameters"]["ChannelName"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelSettingUpdate"];
+            };
+        };
+        responses: {
+            /** @description The stored channel. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelSetting"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown channel (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `channel_unavailable` (the server has the channel not configured; switching it off is always
+             *     allowed), `event_not_allowed` (`errors` on a guest account), `validation_failed`
+             *     (`email.address` `invalid_email`, an unknown event).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    testMyChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel: components["parameters"]["ChannelName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sent; for push, every subscription of the account was handed to its push service. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown channel (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `channel_unavailable` (not configured on the server), `channel_disabled` (switched off, not
+             *     linked or without subscription).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The channel's service refused or did not answer (`send_failed`; `detail` without secrets). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createTelegramLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The Telegram channel with the code. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelSetting"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No Telegram bot configured (`channel_unavailable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteTelegramLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unlinked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPushPublicKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The public key. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VapidKey"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Web Push is not set up on the server (`push_unavailable`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    createPushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description The subscription. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Web Push is not set up on the server (`push_unavailable`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `endpoint` not an https URL, keys not base64url). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deletePushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["PushSubscriptionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description CSRF header missing (`csrf_header_missing`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown or of another account (`not_found`). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

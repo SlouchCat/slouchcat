@@ -24,9 +24,34 @@ type Account struct {
 	MaxStreams     sql.NullInt64
 }
 
+type AccountChannel struct {
+	AccountID int64
+	Channel   string
+	Enabled   int64
+	Events    string
+	Config    string
+	UpdatedAt int64
+}
+
 type AccountLibrary struct {
 	AccountID int64
 	LibraryID int64
+}
+
+type Announcement struct {
+	ID          int64
+	Title       string
+	Body        string
+	CreatedBy   sql.NullInt64
+	CreatedAt   int64
+	UpdatedAt   int64
+	PublishedAt sql.NullInt64
+}
+
+type AnnouncementAck struct {
+	AnnouncementID int64
+	ProfileID      int64
+	AckedAt        int64
 }
 
 type Chapter struct {
@@ -65,6 +90,23 @@ type Credit struct {
 	Role      string
 	Character sql.NullString
 	Ord       int64
+}
+
+type Delivery struct {
+	ID        int64
+	AccountID int64
+	ProfileID sql.NullInt64
+	Channel   string
+	Event     string
+	Source    sql.NullString
+	Subject   string
+	Body      string
+	Link      sql.NullString
+	State     string
+	Attempts  int64
+	LastError sql.NullString
+	CreatedAt int64
+	SentAt    sql.NullInt64
 }
 
 type Device struct {
@@ -454,6 +496,20 @@ type ProgressEvent struct {
 	DownloadID        sql.NullString
 }
 
+type PushSubscription struct {
+	ID         int64
+	AccountID  int64
+	DeviceID   sql.NullString
+	Endpoint   string
+	P256dh     string
+	Auth       string
+	UserAgent  sql.NullString
+	DeviceName sql.NullString
+	CreatedAt  int64
+	LastUsedAt sql.NullInt64
+	Failures   int64
+}
+
 type SearchDoc struct {
 	ID     int64
 	Kind   string
@@ -486,6 +542,13 @@ type Setting struct {
 	Key       string
 	Value     string
 	UpdatedAt int64
+}
+
+type TelegramLink struct {
+	AccountID int64
+	Code      string
+	ExpiresAt int64
+	CreatedAt int64
 }
 
 type TopPick struct {

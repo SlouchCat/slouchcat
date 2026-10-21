@@ -10,8 +10,8 @@
 //     string value, inside error messages and inside the log message itself, so a logged URL keeps
 //     its shape.
 //
-//   - Invitation tokens in URL paths (/invitations/<token>, /invite/<token>) are masked in every
-//     string value.
+//   - Invitation tokens in URL paths (/invitations/<token>, /invite/<token>) and Telegram bot tokens
+//     in API paths (/bot<id>:<secret>/…) are masked in every string value.
 //
 // A new key name that can carry a secret belongs in sensitiveKeys and in the test.
 package logging
@@ -41,8 +41,13 @@ const (
 
 // sensitiveKeys are attribute key suffixes that carry secrets. Keys are compared after lower-casing
 // and removing '-' and '_', so "apiKey", "api_key", "X-Api-Key" and "tmdb_api_key" all match.
+//
+// M8 adds the e-mail server password (smtp_password), the Telegram bot token (bot_token), backup
+// passphrases, the VAPID private key and the parts of a push subscription: its keys (p256dh,
+// auth_secret) and its endpoint, a capability URL of the push service.
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
-	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid"}
+	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
+	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
 // st (stream token), dt (download token, M5) and the credentials of private podcast feeds and their
@@ -105,10 +110,18 @@ func (h *RedactingHandler) WithGroup(name string) slog.Handler {
 // API and /invite/<token> of the web app.
 var sensitivePath = regexp.MustCompile(`(?i)(/(?:invitations|invite)/)[A-Za-z0-9_-]{16,}`)
 
-// RedactString masks the values of secret query parameters and invitation tokens in paths in s.
+// botPath matches the token in a Telegram bot API path, /bot<bot id>:<secret>/<method> (M8); the
+// URL of every bot request carries it.
+var botPath = regexp.MustCompile(`(/bot)[0-9]+:[A-Za-z0-9_-]+`)
+
+// RedactString masks the values of secret query parameters, invitation tokens in paths and
+// Telegram bot tokens in paths in s.
 func RedactString(s string) string {
 	if strings.Contains(s, "/invit") {
 		s = sensitivePath.ReplaceAllString(s, "${1}"+Redacted)
+	}
+	if strings.Contains(s, "/bot") {
+		s = botPath.ReplaceAllString(s, "${1}"+Redacted)
 	}
 	if !strings.Contains(s, "=") {
 		return s
