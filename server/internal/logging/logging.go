@@ -42,7 +42,7 @@ const (
 // sensitiveKeys are attribute key suffixes that carry secrets. Keys are compared after lower-casing
 // and removing '-' and '_', so "apiKey", "api_key", "X-Api-Key" and "tmdb_api_key" all match.
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
-	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier"}
+	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
 // st (stream token), dt (download token, M5) and the credentials of private podcast feeds and their

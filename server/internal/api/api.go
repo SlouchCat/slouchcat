@@ -74,6 +74,7 @@ type Options struct {
 	Catalog  CatalogService
 	Playback PlaybackService
 	Offline  OfflineService // Downloads, sync and the download token (M5).
+	Notify   NotifyService  // In-app inbox (M7, E-8); nil answers 501 on the inbox operations.
 	SpikeDir string         // Directory with the spike download files; empty disables the endpoint.
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
@@ -115,7 +116,7 @@ func NewHandler(o Options) http.Handler {
 		})
 		gen.HandlerWithOptions(strict, gen.ChiServerOptions{
 			BaseRouter:       r,
-			Middlewares:      []gen.MiddlewareFunc{authorize, compressText},
+			Middlewares:      []gen.MiddlewareFunc{pickUpdateNulls, authorize, compressText},
 			ErrorHandlerFunc: p.badRequest,
 		})
 		// Binary endpoints (CLAUDE.md rule 6) share the session middleware; the media stream and the

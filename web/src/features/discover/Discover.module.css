@@ -1,0 +1,141 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-8);
+  min-height: 100dvh;
+  padding: calc(var(--sc-size-header-height) + var(--sc-space-10)) var(--page-gutter)
+    var(--sc-space-16);
+}
+
+/* The search results: one block (aria-busy while loading) with the page's spacing inside. */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-8);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  align-items: flex-start;
+  max-width: var(--sc-size-content-max);
+}
+
+.title {
+  font-size: clamp(var(--sc-font-size-2xl), 4.5vw, var(--sc-font-size-display));
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-font-letter-spacing-display);
+}
+
+.overview {
+  max-width: 48rem;
+  color: var(--sc-color-text-secondary);
+  line-height: var(--sc-font-line-height-normal);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+
+  /* Full width: ↑ from the grid below measures to this row's centre, not to the header's. */
+  align-self: stretch;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.sectionTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+/* Cards in a grid; the padding leaves room for the focus ring and the focus scale. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--sc-size-poster-sm), 1fr));
+  gap: var(--sc-space-6) var(--sc-space-4);
+  margin: 0;
+  padding: var(--sc-space-2) 0;
+  list-style: none;
+}
+
+@media (width >= 768px) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(var(--sc-size-poster-md), 1fr));
+  }
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Search: the field across the content width, the filters below it. */
+.searchBox {
+  max-width: 48rem;
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  max-width: var(--sc-size-content-max);
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4) var(--sc-space-6);
+  align-items: flex-end;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.filterLabel {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+/* Notifications: one row per entry. */
+.inbox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 48rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.results:empty {
+  display: none;
+}

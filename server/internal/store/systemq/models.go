@@ -39,6 +39,26 @@ type Chapter struct {
 	FileStartMs int64
 }
 
+type Collection struct {
+	ID         string
+	Source     string
+	TmdbID     sql.NullInt64
+	Name       string
+	NameDe     sql.NullString
+	Overview   sql.NullString
+	OverviewDe sql.NullString
+	PosterPath sql.NullString
+	CreatedAt  int64
+	UpdatedAt  int64
+}
+
+type CollectionItem struct {
+	CollectionID string
+	ItemID       string
+	Position     int64
+	CreatedAt    int64
+}
+
 type Credit struct {
 	ItemID    string
 	PersonID  int64
@@ -108,6 +128,19 @@ type DownloadTombstone struct {
 	ID        string
 	DeviceID  string
 	RemovedAt int64
+}
+
+type Favorite struct {
+	ProfileID int64
+	ItemID    string
+	CreatedAt int64
+}
+
+type HomeRow struct {
+	Key       string
+	Position  int64
+	Hidden    int64
+	UpdatedAt int64
 }
 
 type IgnoredFile struct {
@@ -212,6 +245,12 @@ type Item struct {
 	EnclosureLength   sql.NullInt64
 }
 
+type ItemGenre struct {
+	ItemID string
+	Lang   string
+	Name   string
+}
+
 type ItemText struct {
 	ItemID   string
 	Lang     string
@@ -304,6 +343,16 @@ type MediaSegment struct {
 	Source     string
 	Confidence sql.NullFloat64
 	CreatedAt  int64
+}
+
+type Notification struct {
+	ID        int64
+	ProfileID int64
+	Kind      string
+	ItemID    string
+	ParentID  sql.NullString
+	CreatedAt int64
+	ReadAt    sql.NullInt64
 }
 
 type Person struct {
@@ -405,6 +454,21 @@ type ProgressEvent struct {
 	DownloadID        sql.NullString
 }
 
+type SearchDoc struct {
+	ID     int64
+	Kind   string
+	ItemID string
+	RefID  string
+	Text   string
+}
+
+type SearchIndex struct {
+	Text   string
+	Kind   string
+	ItemID string
+	RefID  string
+}
+
 type Session struct {
 	ID         int64
 	TokenHash  string
@@ -460,7 +524,23 @@ type Trailer struct {
 	CreatedAt int64
 }
 
+type TraktList struct {
+	List      string
+	Media     string
+	Position  int64
+	TmdbID    int64
+	Title     sql.NullString
+	Year      sql.NullInt64
+	FetchedAt int64
+}
+
 type VisibleItem struct {
 	ProfileID int64
 	ItemID    string
+}
+
+type Watchlist struct {
+	ProfileID int64
+	ItemID    string
+	CreatedAt int64
 }

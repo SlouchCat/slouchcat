@@ -240,7 +240,7 @@ describe('downloads page', () => {
     });
   });
 
-  it('switches on new episodes of the podcasts the profile listened to (O-3, M6)', async () => {
+  it('switches on new episodes of the favourite podcasts (O-3, M6)', async () => {
     const user = userEvent.setup();
     const { calls } = mockApi({
       ...routes,
@@ -249,10 +249,10 @@ describe('downloads page', () => {
     renderApp('/downloads');
     const group = await screen.findByRole('group', { name: 'Einstellungen' });
     const podcasts = within(group).getByRole('checkbox', {
-      name: 'Neue Episoden gehörter Podcasts',
+      name: 'Neue Episoden favorisierter Podcasts',
     });
     expect(podcasts).not.toBeChecked();
-    await user.click(within(group).getByText('Neue Episoden gehörter Podcasts'));
+    await user.click(within(group).getByText('Neue Episoden favorisierter Podcasts'));
     expect(podcasts).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Regel speichern' }));
     expect(await screen.findByText(/Gespeichert/)).toBeVisible();

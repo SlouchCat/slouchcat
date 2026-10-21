@@ -1,6 +1,6 @@
 # O-6-Langzeittest – Protokoll (Start M5, Abschluss M7)
 
-Stand: 20. Oktober 2026 (M5). Grundlage: Spec O-6 («Downloads haben kein Ablaufdatum»), Plan
+Stand: 21. Oktober 2026 (Tag 1, M7). Grundlage: Spec O-6 («Downloads haben kein Ablaufdatum»), Plan
 `docs/planning/03-plan-v1.md` Abnahmematrix O-6 und P-9 (Prüfdauer 30 Tage auf Android und Desktop, Start in
 M5, Abschluss in M7), Entscheid 2 (kein iPhone, kein iPad, kein Mac) und Entscheid 8.
 
@@ -12,8 +12,8 @@ Zugriffs entfernt nichts den Download.
 
 | Gerät | Start | Tag 1 (21.10.) | Tag 3 (23.10.) | Tag 8 (28.10.) | Tag 30 (19.11.) | Ergebnis |
 |---|---|---|---|---|---|---|
-| Desktop Chromium 156 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, «Slouchcat Test H264» in «Mittel», 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1334 ms, Sprung auf 50 % 41 ms) | | | | | läuft |
-| Desktop Firefox 157 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, derselbe Film, 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1446 ms, Sprung auf 50 % 19 ms) | | | | | läuft |
+| Desktop Chromium 156 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, «Slouchcat Test H264» in «Mittel», 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1334 ms, Sprung auf 50 % 41 ms) | bestanden (Kaltstart 1340 ms, Sprung 30 ms) | | | | läuft |
+| Desktop Firefox 157 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, derselbe Film, 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1446 ms, Sprung auf 50 % 19 ms) | bestanden (Kaltstart 1431 ms, Sprung 18 ms) | | | | läuft |
 | Android Chrome (installierte PWA, Marco) | ausstehend: braucht einen Server mit M5, also das neu gebaute Image nach dem Merge (siehe unten) | | | | | |
 | iOS Safari (installierte PWA) | ungeprüft, keine Hardware (Entscheid 2, AN-7); der 8-Tage-Test nach P-9 entfällt mangels Gerät | | | | | ungeprüft |
 
@@ -73,3 +73,5 @@ unter Speicherdruck räumen, auf dem Entwicklungsrechner mit rund 10 GB Quote un
 | 20.10.2026 | Desktop Firefox 157 | `check` (Tag 0, kein Server) | bestanden: Kaltstart 1446 ms, Sprung 19 ms | – |
 | 20.10.2026 | Desktop Chromium 156 | `check` (Tag 0, zweiter Lauf mit der strengeren Bewertung) | bestanden: Kaltstart 1357 ms, Download vollständig, Sprung 42 ms | – |
 | 20.10.2026 | Desktop Firefox 157 | `check` (Tag 0, zweiter Lauf mit der strengeren Bewertung) | bestanden: Kaltstart 1427 ms, Download vollständig, Sprung 18 ms | – |
+| 21.10.2026 | Desktop Chromium 156 | `check` (Tag 1, kein Server auf 8098) | bestanden: Kaltstart 1340 ms, Download vollständig (2'658'803 Byte), Sprung 30 ms | – |
+| 21.10.2026 | Desktop Firefox 157 | `check` (Tag 1, kein Server auf 8098) | bestanden: Kaltstart 1431 ms, Download vollständig, Sprung 18 ms | – |

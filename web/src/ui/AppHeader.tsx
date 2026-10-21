@@ -3,11 +3,24 @@ import { AppLink } from './AppLink';
 import styles from './AppHeader.module.css';
 import { SpatialButton } from './Button';
 import { Logo } from './Logo';
+import { NotificationBadge } from './NotificationBadge';
 import { SpatialGroup, useSpatialItem } from './spatial';
 
 export interface NavItem {
   href: string;
   label: string;
+  current?: boolean;
+}
+
+/** The inbox link next to the profile (M7): visible label, unread count and its spoken label. */
+export interface HeaderNotifications {
+  href: string;
+  label: string;
+  /** Accessible name with the count ("Benachrichtigungen, 3 ungelesen"). */
+  accessibleLabel: string;
+  unread: number;
+  /** The badge above its highest count ("99+"). */
+  overflowLabel: string;
   current?: boolean;
 }
 
@@ -23,6 +36,24 @@ interface AppHeaderProps {
   profileLabel: string;
   logoutLabel: string;
   onLogout: () => void;
+  notifications?: HeaderNotifications;
+}
+
+function InboxLink({ inbox }: { inbox: HeaderNotifications }) {
+  const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
+  return (
+    <AppLink
+      ref={ref}
+      onFocus={onFocus}
+      href={inbox.href}
+      className={styles.inbox}
+      aria-label={inbox.accessibleLabel}
+      aria-current={inbox.current ? 'page' : undefined}
+    >
+      <span aria-hidden="true">{inbox.label}</span>
+      <NotificationBadge count={inbox.unread} overflowLabel={inbox.overflowLabel} />
+    </AppLink>
+  );
 }
 
 function NavLink({ item }: { item: NavItem }) {
@@ -54,6 +85,7 @@ export function AppHeader({
   profileLabel,
   logoutLabel,
   onLogout,
+  notifications,
 }: AppHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const { ref: homeRef, onFocus: onHomeFocus } = useSpatialItem<HTMLAnchorElement>();
@@ -78,6 +110,7 @@ export function AppHeader({
           ))}
         </nav>
         <div className={styles.account}>
+          {notifications && <InboxLink inbox={notifications} />}
           <AppLink
             ref={profileRef}
             onFocus={onProfileFocus}

@@ -21,6 +21,8 @@ export interface HeroSlide {
   posterUrl?: string;
   /** Metadata line (chips for year, runtime, FSK). */
   meta?: ReactNode;
+  /** Personal note of the main user on this pick (E-2), shown under the title. */
+  note?: string;
   playHref: string;
   detailsHref: string;
 }
@@ -116,14 +118,16 @@ export function HeroCarousel({
     return () => window.clearTimeout(timer);
   }, [paused, current, count, intervalMs]);
 
+  // Left of the first and right of the last button is the carousel's own: it pages (with one
+  // slide it does nothing), so the focus never jumps sideways out of the hero into the header.
   const pageBack = (direction: string) => {
-    if (direction !== 'left' || count < 2) return true;
-    stepRef.current(-1);
+    if (direction !== 'left') return true;
+    if (count > 1) stepRef.current(-1);
     return false;
   };
   const pageForward = (direction: string) => {
-    if (direction !== 'right' || count < 2) return true;
-    stepRef.current(1);
+    if (direction !== 'right') return true;
+    if (count > 1) stepRef.current(1);
     return false;
   };
 
@@ -195,6 +199,7 @@ export function HeroCarousel({
           aria-live={paused ? 'polite' : 'off'}
         >
           <h2 className={styles.title}>{slide.title}</h2>
+          {slide.note && <p className={styles.note}>{slide.note}</p>}
           {slide.meta && <div className={styles.meta}>{slide.meta}</div>}
         </div>
         <SpatialGroup focusKey="hero" className={styles.actions}>

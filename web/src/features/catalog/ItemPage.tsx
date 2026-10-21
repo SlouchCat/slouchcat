@@ -1,4 +1,10 @@
-import type { Chapter, ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
+import type {
+  Chapter,
+  CollectionRef,
+  ItemDetail,
+  ItemRef,
+  MediaFileInfo,
+} from '@slouchcat/api-client';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
@@ -8,6 +14,7 @@ import { apiUrl, imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
+import { useFavoriteMutation, useWatchlistMutation } from '@/features/discover/queries';
 import { isDownloadable, offlineSupported } from '@/features/offline/support';
 import {
   formatBytes,
@@ -29,6 +36,7 @@ import {
   CastCard,
   Chip,
   ChoiceChips,
+  CollectionCard,
   EpisodeCard,
   EpisodeRow,
   FactList,
@@ -70,6 +78,8 @@ const PLAY_KEY = 'detail-play';
 const BACK_KEY = 'detail-back';
 const TRAILER_KEY = 'detail-trailer';
 const DOWNLOAD_KEY = 'detail-download';
+const WATCHLIST_KEY = 'detail-watchlist';
+const FAVORITE_KEY = 'detail-favorite';
 // Rendered poster width (ItemPage.module.css, wide layout only).
 const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
 
@@ -155,56 +165,128 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
   // A shortcut for the one who manages the library, not a visibility rule: the server answers the
   // administration page only for that account and profile anyway.
   const canManage = session.account.role === 'owner' && session.profile.isPrimary;
+  // Every kind but seasons and extras goes on the watchlist (E-5); series and podcasts can be
+  // favourites, which notify about new episodes (E-8).
+  const listable = item.kind !== 'season' && item.kind !== 'extra';
+  const favoritable = item.kind === 'series' || item.kind === 'podcast';
+  const watchlist = useWatchlistMutation();
+  const favorite = useFavoriteMutation();
+  const failed = watchlist.error ?? favorite.error;
 
   return (
-    <SpatialGroup className={styles.actions}>
-      {playable &&
-        (available ? (
-          <SpatialButtonLink
-            focusKey={PLAY_KEY}
-            href={playHref}
-            variant="primary"
+    <>
+      <SpatialGroup className={styles.actions}>
+        {playable &&
+          (available ? (
+            <SpatialButtonLink
+              focusKey={PLAY_KEY}
+              href={playHref}
+              variant="primary"
+              size="lg"
+              icon="play"
+            >
+              {playLabel}
+            </SpatialButtonLink>
+          ) : (
+            <Button variant="primary" size="lg" icon="play" isDisabled>
+              {playLabel}
+            </Button>
+          ))}
+        <SpatialButton focusKey={BACK_KEY} variant="ghost" size="lg" icon="back" onPress={onBack}>
+          {t('common.back')}
+        </SpatialButton>
+        {(item.trailerCount ?? 0) > 0 && online && (
+          <SpatialButton
+            focusKey={TRAILER_KEY}
+            variant="secondary"
             size="lg"
             icon="play"
+            onPress={onTrailer}
           >
-            {playLabel}
+            {t('item.trailer')}
+          </SpatialButton>
+        )}
+        {/* After play, back and trailer, so their order for arrows and Tab stays as it was. */}
+        {offlineSupported() && isDownloadable(item.kind) && (
+          <Suspense fallback={null}>
+            <DownloadAction
+              target={item}
+              mediaFileId={version}
+              available={item.kind === 'season' || available}
+              focusKey={DOWNLOAD_KEY}
+            />
+          </Suspense>
+        )}
+        {canManage && (
+          <SpatialButtonLink href={paths.adminItem(item.id)} variant="ghost" size="lg" icon="info">
+            {t('item.manage')}
           </SpatialButtonLink>
-        ) : (
-          <Button variant="primary" size="lg" icon="play" isDisabled>
-            {playLabel}
-          </Button>
-        ))}
-      <SpatialButton focusKey={BACK_KEY} variant="ghost" size="lg" icon="back" onPress={onBack}>
-        {t('common.back')}
-      </SpatialButton>
-      {(item.trailerCount ?? 0) > 0 && online && (
-        <SpatialButton
-          focusKey={TRAILER_KEY}
-          variant="secondary"
-          size="lg"
-          icon="play"
-          onPress={onTrailer}
-        >
-          {t('item.trailer')}
-        </SpatialButton>
+        )}
+      </SpatialGroup>
+      {/* A row of its own under the playback actions: that row keeps its order for arrows and
+          Tab, and ↓ from play reaches "Merken" on every kind that has it. */}
+      {listable && (
+        <SpatialGroup className={styles.listActions}>
+          <SpatialButton
+            focusKey={WATCHLIST_KEY}
+            variant="secondary"
+            icon={item.inWatchlist ? 'check' : 'plus'}
+            aria-disabled={watchlist.isPending || undefined}
+            onPress={() => {
+              if (!watchlist.isPending) watchlist.mutate({ id: item.id, on: !item.inWatchlist });
+            }}
+          >
+            {item.inWatchlist ? t('item.watchlist.added') : t('item.watchlist.add')}
+          </SpatialButton>
+          {favoritable && (
+            <SpatialButton
+              focusKey={FAVORITE_KEY}
+              variant="secondary"
+              icon={item.favorite ? 'check' : 'plus'}
+              aria-pressed={item.favorite}
+              aria-description={t('item.favorite.hint')}
+              aria-disabled={favorite.isPending || undefined}
+              onPress={() => {
+                if (!favorite.isPending) favorite.mutate({ id: item.id, on: !item.favorite });
+              }}
+            >
+              {t('item.favorite.label')}
+            </SpatialButton>
+          )}
+          {canManage && (
+            <SpatialButtonLink
+              href={`${paths.adminPicks}?add=${encodeURIComponent(item.id)}`}
+              variant="ghost"
+              icon="plus"
+            >
+              {t('item.addToPicks')}
+            </SpatialButtonLink>
+          )}
+        </SpatialGroup>
       )}
-      {/* After play, back and trailer, so their order for arrows and Tab stays as it was. */}
-      {offlineSupported() && isDownloadable(item.kind) && (
-        <Suspense fallback={null}>
-          <DownloadAction
-            target={item}
-            mediaFileId={version}
-            available={item.kind === 'season' || available}
-            focusKey={DOWNLOAD_KEY}
-          />
-        </Suspense>
-      )}
-      {canManage && (
-        <SpatialButtonLink href={paths.adminItem(item.id)} variant="ghost" size="lg" icon="info">
-          {t('item.manage')}
-        </SpatialButtonLink>
-      )}
-    </SpatialGroup>
+      {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
+    </>
+  );
+}
+
+/** The visible collections the title belongs to (E-6). */
+function Collections({ collections }: { collections: readonly CollectionRef[] }) {
+  const { t } = useTranslation();
+  if (collections.length === 0) return null;
+  return (
+    <Row title={t('item.collections')} focusKey="detail-collections">
+      {collections.map((collection) => (
+        <CollectionCard
+          key={collection.id}
+          href={paths.collection(collection.id)}
+          name={collection.name}
+          caption={t('collection.count', { count: collection.count })}
+          posterUrl={imageUrl(collection.cover?.images.poster)}
+          posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
+          accent={collection.cover?.accent}
+        />
+      ))}
+    </Row>
   );
 }
 
@@ -793,6 +875,8 @@ function ItemView({ itemId }: { itemId: string }) {
 
         <div className={styles.rows}>
           <Extras extras={item.extras ?? []} />
+          {/* An older server may leave the list out; there is nothing to show then. */}
+          <Collections collections={item.collections ?? []} />
           <Cast item={item} />
         </div>
 

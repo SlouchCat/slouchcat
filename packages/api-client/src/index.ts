@@ -118,3 +118,25 @@ export function isProblem(value: unknown): value is Problem {
     typeof candidate.code === 'string'
   );
 }
+// Discover and curation (M7).
+export type SearchRequest = components['schemas']['SearchRequest'];
+export type SearchResult = components['schemas']['SearchResult'];
+export type PersonRef = components['schemas']['PersonRef'];
+export type GenreRef = components['schemas']['GenreRef'];
+export type CollectionRef = components['schemas']['CollectionRef'];
+export type Collection = components['schemas']['Collection'];
+export type ItemPage = components['schemas']['ItemPage'];
+export type Notification = components['schemas']['Notification'];
+export type NotificationPage = components['schemas']['NotificationPage'];
+export type AdminPick = components['schemas']['AdminPick'];
+export type PickRequest = components['schemas']['PickRequest'];
+export type PickUpdate = components['schemas']['PickUpdate'];
+export type PickOrder = components['schemas']['PickOrder'];
+export type AdminItemHit = components['schemas']['AdminItemHit'];
+export type AdminCollection = components['schemas']['AdminCollection'];
+export type AdminCollectionItem = components['schemas']['AdminCollectionItem'];
+export type CollectionRequest = components['schemas']['CollectionRequest'];
+export type CollectionItemsRequest = components['schemas']['CollectionItemsRequest'];
+export type HomeRowSetting = components['schemas']['HomeRowSetting'];
+export type HomeRowKey = components['schemas']['HomeRowKey'];
+export type TraktStatus = components['schemas']['TraktStatus'];

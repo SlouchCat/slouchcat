@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 0.7.0
+  version: 0.8.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -66,6 +66,8 @@ tags:
     description: Downloads to the device and offline playback (M5).
   - name: podcasts
     description: Podcast subscriptions by feed URL, administered by the main account (M6, H-2).
+  - name: discover
+    description: Search, watchlist, favourites, collections and the in-app inbox of the active profile (M7).
   - name: spike
     description: Temporary endpoints of the offline spike (M1a, removed after the M1b decision).
 paths:
@@ -754,9 +756,12 @@ paths:
       operationId: getHome
       summary: Rows of the start page for the active profile
       description: |
-        Returns the rows in display order: `picks` (Cat's recommendations; M1a placeholder content),
-        `continue` (continue watching) and `recent` (recently added). Empty rows are omitted (E-9).
-        Every item passed the visibility layer of the active profile.
+        Returns the rows in the order the main user set (`setHomeRows`): `picks` (Cat's recommendations,
+        E-2, with the optional `note` on each item), `continue`, `recent`, `watchlist` (E-5), `collections`
+        (`collections` instead of `items`, E-6), `genres` (`genres` instead of `items`), `trakt_trending`
+        and `trakt_popular` (the first 20 library titles of the public Trakt lists, hidden under 5 hits
+        and while Trakt is unavailable, E-7, I-7, AN-3). Empty and hidden rows are omitted; never more than
+        eight (E-9). Every item passed the visibility layer of the active profile.
       tags: [items]
       x-visibility: scoped
       responses:
@@ -2968,6 +2973,801 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  # ---------------------------------------------------------------------------------------------
+  # Discover and curation (M7, E-1 to E-9, I-7): search, genres, collections, watchlist, favourites
+  # and the in-app inbox of the active profile.
+  # ---------------------------------------------------------------------------------------------
+  /search:
+    post:
+      operationId: search
+      summary: Search titles, people and collections (E-4)
+      description: |
+        Full-text search from the second character over titles (all languages, original title, author,
+        narrator, series name), people and collections, with the filters genre, year, age rating, media type
+        and availability; or, without a query, a browse by those filters (titles only, by title). Titles are paged (`offset`/`limit`); people and collections are the first ten
+        matches. Every title passed the visibility layer of the active profile; a person appears only when a
+        title of hers is visible, a collection only with a visible member (10.2). A POST because the filters
+        form an object and the walk of the contract test covers POST operations too.
+      tags: [discover]
+      x-visibility: scoped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        "200":
+          description: Matches for the active profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          description: |
+            Validation failed (`validation_failed`; `query` `too_short` (one character), `too_long`, or
+            `required` when neither a query nor a filter is given; `maxRating` `invalid_value` outside
+            0/6/12/16/18; `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80
+            characters).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /genres:
+    get:
+      operationId: listGenres
+      summary: Genres of the visible titles with their counts
+      description: |
+        The genres (in the profile language) of the titles the active profile may see, most frequent first,
+        at most 20; the search page offers them as filter values and the start page row `genres` shows them.
+      tags: [discover]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: Genres with the number of visible titles.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GenreRef"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /collections/{id}:
+    get:
+      operationId: getCollection
+      summary: A collection with its visible members (E-6)
+      description: |
+        A TMDB collection or a manual collection of the admin; the members the active profile may see, in
+        collection order (paged). A collection without a visible member answers 404 (10.2).
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/CollectionID"
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: The collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or without a visible member (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /watchlist:
+    get:
+      operationId: listWatchlist
+      summary: The watchlist of the active profile (E-5)
+      description: Newest entry first; entries whose title became invisible are omitted.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: One page of the watchlist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /items/{id}/watchlist:
+    put:
+      operationId: addToWatchlist
+      summary: Put a title on the watchlist of the active profile (E-5)
+      description: Idempotent. Every kind except seasons and extras; an invisible title answers 404.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "204":
+          description: On the watchlist.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Seasons and extras cannot be listed (`not_listable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: removeFromWatchlist
+      summary: Remove a title from the watchlist of the active profile
+      description: Idempotent; an invisible or unknown title answers 404.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "204":
+          description: Not on the watchlist (any more).
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /favorites:
+    get:
+      operationId: listFavorites
+      summary: The favourite series and podcasts of the active profile (E-8)
+      description: Newest first; favourites whose title became invisible are omitted.
+      tags: [discover]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The favourites.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItemRef"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /items/{id}/favorite:
+    put:
+      operationId: addFavorite
+      summary: Mark a series or podcast as favourite of the active profile (E-8)
+      description: |
+        Idempotent. A new episode of a favourite creates an in-app notification for the profile when the
+        profile may see the episode (5.5); favourite podcasts also feed the auto-download rule (O-3).
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "204":
+          description: Marked.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Only series and podcasts can be favourites (`not_favoritable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: removeFavorite
+      summary: Remove the favourite mark
+      description: Idempotent; an invisible or unknown title answers 404.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      responses:
+        "204":
+          description: Not a favourite (any more).
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not visible for the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: The in-app inbox of the active profile (E-8)
+      description: |
+        Newest first, read and unread, with the unread count. A notification whose episode is no longer
+        visible to the profile is omitted (5.5). Channels (e-mail, push, Telegram) follow in M8.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: One page of the inbox.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /notifications/{id}/read:
+    put:
+      operationId: markNotificationRead
+      summary: Mark one notification as read
+      description: Idempotent; a notification of another profile answers 404.
+      tags: [discover]
+      x-visibility: scoped
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "204":
+          description: Read.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or not of the active profile (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      summary: Mark every notification of the active profile as read
+      tags: [discover]
+      x-visibility: scoped
+      responses:
+        "204":
+          description: All read.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  # ---------------------------------------------------------------------------------------------
+  # Curation by the main user (M7, E-2, E-6, E-9, E-7): Cat's picks, collections, row order, Trakt.
+  # Administration views name titles by id and title; they are never ItemRefs.
+  # ---------------------------------------------------------------------------------------------
+  /admin/picks:
+    get:
+      operationId: listTopPicks
+      summary: Cat's recommendations in display order (E-2)
+      description: Every pick, global ones and those of single profiles, in the order of the carousel.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The picks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminPick"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: createTopPicks
+      summary: Add a title to Cat's recommendations, for all profiles or for single ones (E-2)
+      description: |
+        Without `profileIds` one global pick; with them one pick per profile of the main account. New picks
+        go to the end of the carousel. A profile sees a pick only when it may see the title (E-3), and only
+        inside the optional time window.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PickRequest"
+      responses:
+        "201":
+          description: The created picks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminPick"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: |
+            Validation failed (`validation_failed`; `itemId` `unknown_item` or `invalid_value` for seasons and
+            extras, `profileIds` `invalid_value` for profiles outside the main account, `note` `too_long`,
+            `endsAt` `invalid_value` when not after `startsAt`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/picks/order:
+    put:
+      operationId: reorderTopPicks
+      summary: Set the order of Cat's recommendations (E-2, E-9)
+      description: Every existing pick id exactly once, in the new order.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PickOrder"
+      responses:
+        "204":
+          description: Reordered.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `ids` `invalid_value` unless every pick appears once).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/picks/{id}:
+    patch:
+      operationId: updateTopPick
+      summary: Change the note or the time window of a pick
+      description: A field set to `null` clears it; an absent field keeps its value.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/PickID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PickUpdate"
+      responses:
+        "200":
+          description: The updated pick.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPick"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown pick (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `note` `too_long`, `endsAt` `invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteTopPick
+      summary: Remove a pick
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/PickID"
+      responses:
+        "204":
+          description: Removed.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown pick (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/search:
+    get:
+      operationId: searchAdminItems
+      summary: Find titles by name for curation (admin, unfiltered)
+      description: |
+        The same search index as `search`, without any profile filter, for the pick and collection
+        dialogs. Returns ids and names only, never an `ItemRef` or an image.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: Matching titles, best match first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminItemHit"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `q` `too_short` or `too_long`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/collections:
+    get:
+      operationId: listCollections
+      summary: All collections, automatic (TMDB) and manual (E-6)
+      description: An administration view without members; `getAdminCollection` lists them.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Collections by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: createCollection
+      summary: Create a manual collection (E-6)
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionRequest"
+      responses:
+        "201":
+          description: The new, empty collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `name` `required` or `too_long`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/collections/{id}:
+    get:
+      operationId: getAdminCollection
+      summary: A collection with all its members (admin, unfiltered)
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/CollectionID"
+      responses:
+        "200":
+          description: The collection with members in order.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown collection (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: updateCollection
+      summary: Rename a manual collection
+      description: TMDB collections keep their names from the provider (`not_editable`).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/CollectionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionRequest"
+      responses:
+        "200":
+          description: The renamed collection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown collection (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`) or a TMDB collection (`not_editable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteCollection
+      summary: Delete a manual collection
+      description: Members stay as titles; TMDB collections cannot be deleted (`not_editable`).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/CollectionID"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown collection (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: A TMDB collection (`not_editable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/collections/{id}/items:
+    put:
+      operationId: setCollectionItems
+      summary: Replace the members of a manual collection, in this order
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/CollectionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionItemsRequest"
+      responses:
+        "200":
+          description: The collection with its new members.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown collection (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`; `itemIds` `unknown_item` or `invalid_value` for seasons,
+            episodes and extras) or a TMDB collection (`not_editable`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/home-rows:
+    get:
+      operationId: getHomeRows
+      summary: The order of the start page rows (E-9)
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: All eight rows in display order, with the hidden flag.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HomeRowSetting"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    put:
+      operationId: setHomeRows
+      summary: Set the order and visibility of the start page rows (E-9)
+      description: Every row key exactly once; the array order is the display order.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 8
+              maxItems: 8
+              items:
+                $ref: "#/components/schemas/HomeRowSetting"
+      responses:
+        "200":
+          description: The stored order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HomeRowSetting"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `rows` `invalid_value` unless every key appears once).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/trakt:
+    get:
+      operationId: getTraktStatus
+      summary: State of the daily Trakt lists (E-7, I-7)
+      description: |
+        Whether a Trakt client id is configured (`SLOUCHCAT_TRAKT_CLIENT_ID`), when the lists were last
+        fetched and how many entries each list holds. Trakt is reached with the server key only; there is
+        no Trakt account per profile and nothing is sent to Trakt (I-7).
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TraktStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/trakt/refresh:
+    post:
+      operationId: refreshTrakt
+      summary: Fetch the Trakt lists now
+      description: Queues the daily job out of schedule; the result shows up in `getTraktStatus`.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "202":
+          description: Queued.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: No Trakt client id configured (`provider_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /spike/{variant}:
     get:
       operationId: getSpikeFile
@@ -3139,6 +3939,21 @@ components:
       description: Item ID (ULID).
       schema:
         $ref: "#/components/schemas/ItemID"
+    CollectionID:
+      name: id
+      in: path
+      required: true
+      description: Collection ID (ULID).
+      schema:
+        $ref: "#/components/schemas/CollectionID"
+    PickID:
+      name: id
+      in: path
+      required: true
+      description: Pick ID from `listTopPicks`.
+      schema:
+        type: integer
+        format: int64
     PlaybackSessionID:
       name: id
       in: path
@@ -3954,13 +4769,27 @@ components:
         explicit:
           type: boolean
           description: "Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18)."
+        note:
+          type: string
+          description: The personal note of the main user on this pick (E-2); only in the row `picks`.
 
     ItemDetail:
       allOf:
         - $ref: "#/components/schemas/ItemRef"
         - type: object
-          required: [mediaFiles, genres]
+          required: [mediaFiles, genres, inWatchlist, favorite, collections]
           properties:
+            inWatchlist:
+              type: boolean
+              description: On the watchlist of the active profile (E-5).
+            favorite:
+              type: boolean
+              description: A favourite of the active profile (E-8; series and podcasts only).
+            collections:
+              type: array
+              description: The visible collections the title belongs to (E-6).
+              items:
+                $ref: "#/components/schemas/CollectionRef"
             originalTitle:
               type: string
             tagline:
@@ -4154,7 +4983,7 @@ components:
 
     HomeRowKey:
       type: string
-      enum: [picks, continue, recent]
+      enum: [picks, continue, recent, watchlist, collections, genres, trakt_trending, trakt_popular]
 
     HomeRow:
       type: object
@@ -4164,8 +4993,19 @@ components:
           $ref: "#/components/schemas/HomeRowKey"
         items:
           type: array
+          description: The titles of the row; empty for `collections` and `genres`.
           items:
             $ref: "#/components/schemas/ItemRef"
+        collections:
+          type: array
+          description: Only in the row `collections` (E-6).
+          items:
+            $ref: "#/components/schemas/CollectionRef"
+        genres:
+          type: array
+          description: Only in the row `genres`; each links to the search filtered by that genre.
+          items:
+            $ref: "#/components/schemas/GenreRef"
 
     HomePage:
       type: object
@@ -5497,7 +6337,7 @@ components:
           description: Download the next episode of every started series.
         newPodcastEpisodes:
           type: boolean
-          description: New episodes of the podcasts the profile listened to in the last 60 days (O-3, M6).
+          description: New episodes of the profile's favourite podcasts (O-3; favourites replaced the listening history in M7).
         wifiOnly:
           type: boolean
         maxCount:
@@ -5631,3 +6471,417 @@ components:
           items:
             type: string
             enum: [accepted, duplicate, rejected]
+
+    # -------------------------------------------------------------------------------------------
+    # Discover and curation (M7).
+    # -------------------------------------------------------------------------------------------
+    SearchRequest:
+      type: object
+      description: |
+        A text search (`query` with at least two characters) or a browse by filters (`query` absent or
+        empty with at least one filter, e.g. the genre row of the start page); without both the server
+        answers 422 `validation_failed` (`query` `required`).
+      properties:
+        query:
+          type: string
+          maxLength: 100
+          description: |
+            Words are matched as prefixes (from the second character), diacritics folded; one-character
+            words are ignored when a longer word is present, at most eight words count. Absent or empty:
+            browse by the filters, ordered by title.
+        genre:
+          type: string
+          maxLength: 80
+          description: A genre name in the profile language (`listGenres`).
+        yearFrom:
+          type: integer
+        yearTo:
+          type: integer
+        maxRating:
+          $ref: "#/components/schemas/Rating"
+          description: Only titles rated at most this FSK level (an unknown rating never passes).
+        mediaTypes:
+          type: array
+          maxItems: 4
+          items:
+            type: string
+            enum: [movie, series, audiobook, podcast]
+          description: Media types to include; `series` covers series and episodes, `podcast` podcasts and episodes. Absent = all.
+        availability:
+          type: array
+          maxItems: 2
+          items:
+            type: string
+            enum: [local, download]
+          description: |
+            `local`: a media file is present; `download`: the title is downloaded on this device for the
+            active profile (M5). Absent = no restriction. `acquiring` follows with the Arr status in M9.
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+
+    SearchResult:
+      type: object
+      required: [items, total, offset, limit, people, collections]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemRef"
+        total:
+          type: integer
+          minimum: 0
+          description: Matching titles over all pages.
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        people:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonRef"
+        collections:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectionRef"
+
+    PersonRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+
+    GenreRef:
+      type: object
+      required: [name, count]
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+          description: Visible titles with this genre.
+
+    CollectionID:
+      type: string
+      pattern: "^[0-9A-HJKMNP-TV-Z]{26}$"
+
+    CollectionRef:
+      type: object
+      description: A collection as it appears in rows and on the detail page; counts only visible members.
+      required: [id, name, count]
+      properties:
+        id:
+          $ref: "#/components/schemas/CollectionID"
+        name:
+          type: string
+          description: Name in the profile language (TMDB), or the admin's name.
+        count:
+          type: integer
+          minimum: 0
+        cover:
+          $ref: "#/components/schemas/ItemRef"
+          description: The first visible member; its poster represents the collection.
+
+    Collection:
+      type: object
+      required: [id, name, items, total, offset, limit]
+      properties:
+        id:
+          $ref: "#/components/schemas/CollectionID"
+        name:
+          type: string
+        overview:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemRef"
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+
+    ItemPage:
+      type: object
+      required: [items, total, offset, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemRef"
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+
+    Notification:
+      type: object
+      required: [id, kind, createdAt, item]
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum: [new_episode]
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+        item:
+          $ref: "#/components/schemas/ItemRef"
+          description: The new episode.
+        parent:
+          $ref: "#/components/schemas/ItemRef"
+          description: The favourite series or podcast, when still visible.
+
+    NotificationPage:
+      type: object
+      required: [notifications, total, unread, offset, limit]
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        total:
+          type: integer
+          minimum: 0
+        unread:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+
+    AdminPick:
+      type: object
+      description: One of Cat's recommendations in the administration (not an `ItemRef`).
+      required: [id, itemId, kind, title, position, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        title:
+          type: string
+          description: Title of the item (German text, else English, else the parsed name).
+        year:
+          type: integer
+        profileId:
+          type: integer
+          format: int64
+          description: The single profile this pick is for; absent = all profiles.
+        profileName:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+        note:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    PickRequest:
+      type: object
+      required: [itemId]
+      properties:
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+        profileIds:
+          type: array
+          maxItems: 50
+          items:
+            type: integer
+            format: int64
+          description: Profiles of the main account the pick is for; absent or empty = all profiles.
+        note:
+          type: string
+          maxLength: 280
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+
+    PickUpdate:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 280
+          nullable: true
+        startsAt:
+          type: string
+          format: date-time
+          nullable: true
+        endsAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PickOrder:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          maxItems: 500
+          items:
+            type: integer
+            format: int64
+
+    AdminItemHit:
+      type: object
+      description: A title found for curation (not an `ItemRef`, no images).
+      required: [id, kind, title, libraryId]
+      properties:
+        id:
+          $ref: "#/components/schemas/ItemID"
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        title:
+          type: string
+        year:
+          type: integer
+        libraryId:
+          type: integer
+          format: int64
+        parentTitle:
+          type: string
+          description: The series or podcast of an episode.
+
+    AdminCollection:
+      type: object
+      description: A collection in the administration (not an `ItemRef`, unfiltered).
+      required: [id, source, name, itemCount, items]
+      properties:
+        id:
+          $ref: "#/components/schemas/CollectionID"
+        source:
+          type: string
+          enum: [tmdb, manual]
+        name:
+          type: string
+        nameDe:
+          type: string
+        tmdbId:
+          type: integer
+          format: int64
+        itemCount:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          description: Members in order; empty in the list view.
+          items:
+            $ref: "#/components/schemas/AdminCollectionItem"
+
+    AdminCollectionItem:
+      type: object
+      required: [itemId, kind, title, position]
+      properties:
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+        kind:
+          $ref: "#/components/schemas/ItemKind"
+        title:
+          type: string
+        year:
+          type: integer
+        position:
+          type: integer
+
+    CollectionRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+
+    CollectionItemsRequest:
+      type: object
+      required: [itemIds]
+      properties:
+        itemIds:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/ItemID"
+
+    HomeRowSetting:
+      type: object
+      required: [key, position, hidden]
+      properties:
+        key:
+          $ref: "#/components/schemas/HomeRowKey"
+        position:
+          type: integer
+          minimum: 0
+          maximum: 7
+        hidden:
+          type: boolean
+
+    TraktStatus:
+      type: object
+      required: [configured, trending, popular]
+      properties:
+        configured:
+          type: boolean
+          description: A client id is set (environment or stored setting).
+        lastSuccess:
+          type: string
+          format: date-time
+        lastAttempt:
+          type: string
+          format: date-time
+        lastError:
+          type: string
+          description: Why the last attempt failed; the rows are hidden meanwhile (I-7).
+        trending:
+          type: integer
+          minimum: 0
+          description: Entries (films and shows) of the trending list, before the library intersection.
+        popular:
+          type: integer
+          minimum: 0

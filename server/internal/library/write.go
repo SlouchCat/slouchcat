@@ -249,6 +249,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 	s.recordBatch(len(ops), time.Since(began))
 	s.rememberOrphans(w.orphans)
 	s.finishAudiobooks(ctx, w.books)
+	s.announceEpisodes(ctx, lib.ID, w.episodes)
 	if w.skipped > 0 {
 		s.log.InfoContext(ctx, "extras without a parent title skipped", "library_id", lib.ID, "files", w.skipped)
 	}
@@ -259,20 +260,38 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 	return len(ops), nil
 }
 
+// newEpisodesTimeout bounds the new-episode hook of one batch. The hook runs detached from the
+// scan's context (the batch is committed, so a shutdown should still announce it), but not for ever.
+const newEpisodesTimeout = 30 * time.Second
+
+// announceEpisodes tells the new-episode hook about the episodes a committed batch created; a
+// failure is logged.
+func (s *Service) announceEpisodes(ctx context.Context, libraryID int64, ids []string) {
+	if s.newEpisodes == nil || len(ids) == 0 {
+		return
+	}
+	hookCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), newEpisodesTimeout)
+	defer cancel()
+	if err := s.newEpisodes(hookCtx, ids); err != nil {
+		s.log.WarnContext(ctx, "notify new episodes", "library_id", libraryID, "episodes", len(ids), "err", err)
+	}
+}
+
 // batchWriter writes the operations of one batch in its transaction. The item index learns every
 // item it creates, so later files of the same title attach to it; a failed transaction fails the
 // whole scan, so the index never outlives a rollback.
 type batchWriter struct {
-	q       *systemq.Queries
-	lib     appq.Library
-	idx     *itemIndex
-	newID   func() string
-	now     time.Time
-	ms      int64
-	stats   scanStats
-	skipped int
-	orphans []scanOp        // new extras skipped for want of a parent (Service.rememberOrphans)
-	books   map[string]bool // audiobooks with new, moved or missing parts (Service.finishAudiobooks)
+	q        *systemq.Queries
+	lib      appq.Library
+	idx      *itemIndex
+	newID    func() string
+	now      time.Time
+	ms       int64
+	stats    scanStats
+	skipped  int
+	orphans  []scanOp        // new extras skipped for want of a parent (Service.rememberOrphans)
+	books    map[string]bool // audiobooks with new, moved or missing parts (Service.finishAudiobooks)
+	episodes []string        // episode items created in this batch (Service.newEpisodes)
 }
 
 func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error {
@@ -477,6 +496,7 @@ func (w *batchWriter) episodeItem(ctx context.Context, info fileInfo) (string, e
 		return "", err
 	}
 	w.idx.episodes[episodeKey] = id
+	w.episodes = append(w.episodes, id)
 	if w.idx.matched[seriesID] {
 		if err := enqueueTx(ctx, w.q, w.now, episodeMatchJob(id)); err != nil {
 			return "", err

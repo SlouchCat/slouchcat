@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -15,9 +16,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"text/tabwriter"
 	"time"
+	"unicode"
 
 	"github.com/slouchcat/slouchcat/server/internal/api"
 	"github.com/slouchcat/slouchcat/server/internal/auth"
@@ -35,11 +38,18 @@ import (
 const (
 	homeInterval  = 250 * time.Millisecond // start page request while the scan runs
 	stateInterval = 100 * time.Millisecond // poll of the scan state and the job queue
+	// searchRequests is the number of searches after the first run (P-11, E-4: p95 < 200 ms from
+	// the second character), each with the two-letter prefix of a real title.
+	searchRequests = 200
+	// searchSamplePages is the number of title pages (100 each) the prefixes are taken from,
+	// spread over the whole library.
+	searchSamplePages = 10
 )
 
 // scanbench measures the first scan, a rescan without changes and an interrupted scan of a
 // library tree (plan M3 step 5, docs/perf/M3.md) on a temporary database with the real library
-// service, job workers, watchers and the HTTP handler of the start page:
+// service, job workers, watchers and the HTTP handler of the start page; after the first run it
+// sends searchRequests searches with two-letter prefixes of real titles (M7, P-11):
 //
 //	slouchcat scanbench --root DIR [--kind movies|series|both] [--workers N] [--interrupt 10s]
 //	                    [--timeout 30m] [--ffprobe ffprobe] [--log-level error] [--json]
@@ -121,6 +131,8 @@ type scanbenchReport struct {
 	Libraries []libraryReport `json:"libraries"`
 	// Start page latency while the first scan and its follow-up jobs run.
 	Home homeStats `json:"home"`
+	// POST /search after the first run (M7).
+	Search searchStats `json:"search"`
 	// Whole first run: write transactions of the scans and the job queue until it drained.
 	Batches        int        `json:"batches"`
 	LongestBatchMs float64    `json:"longestBatchMs"`
@@ -154,6 +166,18 @@ type homeStats struct {
 	P50Ms      float64 `json:"p50Ms"`
 	P95Ms      float64 `json:"p95Ms"`
 	MaxMs      float64 `json:"maxMs"`
+}
+
+// searchStats is the latency of the searches after the first run; Prefixes counts the distinct
+// two-letter prefixes taken from the titles.
+type searchStats struct {
+	Requests   int     `json:"requests"`
+	Prefixes   int     `json:"prefixes"`
+	Errors     int     `json:"errors"`
+	FirstError string  `json:"firstError,omitempty"`
+	P50Ms      float64 `json:"search_p50_ms"`
+	P95Ms      float64 `json:"search_p95_ms"`
+	MaxMs      float64 `json:"search_max_ms"`
 }
 
 type jobsReport struct {
@@ -281,6 +305,96 @@ func (e *benchEnv) home(ctx context.Context) (time.Duration, string) {
 	return d, ""
 }
 
+// post sends a JSON POST through the handler and returns the response and its duration.
+func (e *benchEnv) post(ctx context.Context, path string, body []byte) (*httptest.ResponseRecorder, time.Duration) {
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, api.BasePath+path, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(api.CSRFHeader, api.CSRFHeaderValue)
+	req.AddCookie(e.cookie)
+	rec := httptest.NewRecorder()
+	start := time.Now()
+	e.handler.ServeHTTP(rec, req)
+	return rec, time.Since(start)
+}
+
+// searchPhase takes two-letter prefixes from the titles of the scanned library (browsing it through
+// the search operation by media type, page by page over the whole range) and sends searchRequests
+// searches with them in turn.
+func (e *benchEnv) searchPhase(ctx context.Context) (searchStats, error) {
+	var st searchStats
+	type page struct {
+		Total int `json:"total"`
+		Items []struct {
+			Title string `json:"title"`
+		} `json:"items"`
+	}
+	browse := func(offset int) (page, error) {
+		body, err := json.Marshal(map[string]any{"mediaTypes": []string{"movie", "series"}, "limit": 100, "offset": offset})
+		if err != nil {
+			return page{}, err
+		}
+		rec, _ := e.post(ctx, "/search", body)
+		var p page
+		if rec.Code != http.StatusOK {
+			return p, fmt.Errorf("browse titles: %d %.200s", rec.Code, rec.Body.String())
+		}
+		return p, json.Unmarshal(rec.Body.Bytes(), &p)
+	}
+	first, err := browse(0)
+	if err != nil {
+		return st, err
+	}
+	var prefixes []string
+	seen := map[string]bool{}
+	for i := range searchSamplePages {
+		p := first
+		if i > 0 {
+			if p, err = browse(first.Total * i / searchSamplePages); err != nil {
+				return st, err
+			}
+		}
+		for _, it := range p.Items {
+			if prefix := titlePrefix(it.Title); prefix != "" && !seen[prefix] {
+				seen[prefix] = true
+				prefixes = append(prefixes, prefix)
+			}
+		}
+	}
+	st.Prefixes = len(prefixes)
+	if len(prefixes) == 0 {
+		return st, errors.New("search phase: no title to take a prefix from")
+	}
+	lat := make([]time.Duration, 0, searchRequests)
+	for i := range searchRequests {
+		body, err := json.Marshal(map[string]string{"query": prefixes[i%len(prefixes)]})
+		if err != nil {
+			return st, err
+		}
+		rec, d := e.post(ctx, "/search", body)
+		lat = append(lat, d)
+		if rec.Code != http.StatusOK {
+			st.Errors++
+			if st.FirstError == "" {
+				st.FirstError = fmt.Sprintf("%d %.200s", rec.Code, rec.Body.String())
+			}
+		}
+	}
+	h := homePercentiles(lat, homeStats{})
+	st.Requests, st.P50Ms, st.P95Ms, st.MaxMs = h.Requests, h.P50Ms, h.P95Ms, h.MaxMs
+	return st, nil
+}
+
+// titlePrefix returns the first two letters or digits of a title's first word, or "" when the
+// title has no such word.
+func titlePrefix(title string) string {
+	for _, w := range strings.FieldsFunc(title, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if r := []rune(w); len(r) >= 2 {
+			return string(r[:2])
+		}
+	}
+	return ""
+}
+
 // waitScans waits until no library of ids is queued or running and returns the finish time of
 // each library (from the poll).
 func (e *benchEnv) waitScans(ctx context.Context, ids []int64, timeout time.Duration) (map[int64]time.Time, error) {
@@ -391,6 +505,9 @@ func runScanbench(ctx context.Context, o scanbenchOptions) (scanbenchReport, err
 	}
 	rep.DrainMs = ms(time.Since(start))
 	rep.Home = homePercentiles(lat, rep.Home)
+	if rep.Search, err = e.searchPhase(ctx); err != nil {
+		return rep, err
+	}
 	rep.Jobs = jobsReport{Total: st.Total, Done: st.Done, Repeated: st.Repeated, LeaseExpired: st.LeaseExpired, DuplicateKeys: st.DuplicateKeys}
 	ws := e.lib.TakeWriteStats()
 	rep.Batches, rep.LongestBatchMs = ws.Batches, ms(ws.Longest)
@@ -519,6 +636,12 @@ func printScanbench(w io.Writer, rep scanbenchReport) {
 		rep.Home.Requests, rep.Home.Errors, rep.Home.P50Ms, rep.Home.P95Ms, rep.Home.MaxMs)
 	if rep.Home.FirstError != "" {
 		_, _ = fmt.Fprintf(tw, "first failed GET /home\t%s\n", rep.Home.FirstError)
+	}
+	sr := rep.Search
+	_, _ = fmt.Fprintf(tw, "POST /search after the run\t%d requests over %d prefixes, %d errors\n", sr.Requests, sr.Prefixes, sr.Errors)
+	_, _ = fmt.Fprintf(tw, "search_p50_ms\t%.1f\nsearch_p95_ms\t%.1f\nsearch_max_ms\t%.1f\n", sr.P50Ms, sr.P95Ms, sr.MaxMs)
+	if sr.FirstError != "" {
+		_, _ = fmt.Fprintf(tw, "first failed POST /search\t%s\n", sr.FirstError)
 	}
 	_, _ = fmt.Fprintf(tw, "rescan without changes\t%.1f s, %d operations in %d transactions\n", rep.RescanMs/1000, rep.RescanOps, rep.RescanBatches)
 	ir := rep.Interrupt

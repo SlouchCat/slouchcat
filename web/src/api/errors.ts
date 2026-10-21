@@ -33,6 +33,9 @@ const problemKeys = {
   feed_invalid: 'errors.code.feed_invalid',
   feed_exists: 'errors.code.feed_exists',
   rating_below_library_default: 'errors.code.rating_below_library_default',
+  not_listable: 'errors.code.not_listable',
+  not_favoritable: 'errors.code.not_favoritable',
+  not_editable: 'errors.code.not_editable',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
@@ -54,6 +57,7 @@ const fieldKeys = {
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
   invalid_url: 'errors.field.invalid_url',
   library_kind: 'errors.field.library_kind',
+  unknown_item: 'errors.field.unknown_item',
 } as const;
 
 const has = <K extends string>(map: Record<K, string>, key: string): key is K =>

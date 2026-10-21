@@ -7,7 +7,8 @@
 // season 1 with an episode without own rating, one rated 16 and a multi-episode file, the specials
 // season with one episode, an extra) to library 1 with the M3 data around the movies (extras,
 // versions, trailers, a person, an ignored file), and AddGuest a guest account limited to FSK 12
-// and library 1 with the profiles PG (primary) and PG18.
+// and library 1 with the profiles PG (primary) and PG18. AddDiscover adds the M7 data: collections
+// with mixed ratings, watchlist and favourite rows and picks per profile and with time windows.
 //
 // It lives below visibility because seeding writes the title tables directly, which only the
 // packages allowed by the itemsaccess analyzer may do. Only tests import it.
@@ -133,6 +134,8 @@ type Fixture struct {
 	Movies []Movie
 	// Audio holds the audiobooks and podcasts of AddAudio (M6).
 	Audio Audio
+	// Discover holds the collections and picks of AddDiscover (M7).
+	Discover Discover
 
 	libraryID      int64
 	rootID         int64

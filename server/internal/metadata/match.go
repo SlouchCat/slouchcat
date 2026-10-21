@@ -9,6 +9,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/oklog/ulid/v2"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -754,6 +757,11 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 			return snap, false, err
 		}
 	}
+	if cur.Kind == "movie" {
+		if err := applyCollection(ctx, q, itemID, rec.Collection, p.ReleaseDate.String, p.Year, now, s.now); err != nil {
+			return snap, false, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: commit %s: %w", itemID, err)
 	}
@@ -768,6 +776,51 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 	written := cur
 	written.TmdbID, written.TvdbID, written.ImdbID = p.TmdbID, p.TvdbID, p.ImdbID
 	return written, true, nil
+}
+
+// applyCollection records the TMDB collection of a film (E-6) inside the match transaction: the
+// collection is upserted by its TMDB id and the film becomes a member, ordered by its release
+// date (year·10000 + month·100 + day, else the year alone). The film leaves every other TMDB
+// collection, all of them when it has none any more; manual collections keep it. A TMDB
+// collection left without members stays and is never visible.
+func applyCollection(ctx context.Context, q *systemq.Queries, itemID string, c *CollectionRecord, date string,
+	year sql.NullInt64, now int64, clock func() time.Time,
+) error {
+	keep := ""
+	if c != nil && c.TMDBID > 0 {
+		id, err := q.UpsertCollection(ctx, systemq.UpsertCollectionParams{
+			ID:     ulid.MustNew(ulid.Timestamp(clock()), ulid.DefaultEntropy()).String(),
+			TmdbID: sql.NullInt64{Int64: c.TMDBID, Valid: true},
+			Name:   firstNonEmpty(c.Name["en"], c.Name["de"], "TMDB "+strconv.FormatInt(c.TMDBID, 10)),
+			NameDe: nullString(c.Name["de"]), Overview: nullString(c.Overview["en"]),
+			OverviewDe: nullString(c.Overview["de"]), PosterPath: nullString(c.PosterPath), Now: now,
+		})
+		if err != nil {
+			return fmt.Errorf("metadata.match: upsert collection %d: %w", c.TMDBID, err)
+		}
+		if err := q.UpsertCollectionItem(ctx, systemq.UpsertCollectionItemParams{
+			CollectionID: id, ItemID: itemID, Position: collectionPosition(date, year), Now: now,
+		}); err != nil {
+			return fmt.Errorf("metadata.match: add %s to collection %d: %w", itemID, c.TMDBID, err)
+		}
+		keep = id
+	}
+	if err := q.DeleteCollectionItemBySource(ctx, systemq.DeleteCollectionItemBySourceParams{ItemID: itemID, KeepID: keep}); err != nil {
+		return fmt.Errorf("metadata.match: leave collections of %s: %w", itemID, err)
+	}
+	return nil
+}
+
+// collectionPosition orders the members of a TMDB collection by release date (YYYY-MM-DD), else
+// by year; 0 when neither is known.
+func collectionPosition(date string, year sql.NullInt64) int64 {
+	if t, err := time.Parse(time.DateOnly, date); err == nil {
+		return int64(t.Year())*10000 + int64(t.Month())*100 + int64(t.Day())
+	}
+	if year.Valid {
+		return year.Int64 * 10000
+	}
+	return 0
 }
 
 // replaceCredits replaces the credits of an item; people are upserted by their TMDB ID, people

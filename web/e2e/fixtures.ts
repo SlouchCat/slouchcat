@@ -6,6 +6,8 @@ import {
   resetProfiles,
   stopAllStreams,
 } from './accounts';
+import { resetCuration } from './curation';
+import { resetTraktMock, resetViewerLists } from './discover';
 import { removeDeviceDownloads } from './offline';
 
 /**
@@ -24,7 +26,8 @@ function clientAddress(key: string): string {
 // `owner`: an API client with the shared session of the main account (primary profile, never
 // switched), for setting up and tidying data. It needs no login. It runs for every test (`auto`):
 // before and after each one the account is left with its primary profile only, without guests,
-// without running streams and without downloads on the shared session's device.
+// without running streams and without downloads on the shared session's device. Its primary
+// profile has no watchlist entries, no favourites and no unread notifications (M7).
 export const test = base.extend<{ owner: APIRequestContext }>({
   extraHTTPHeaders: async ({ browserName }, provide, testInfo) => {
     const address = clientAddress(`${browserName}/${testInfo.titlePath.join('/')}`);
@@ -40,6 +43,9 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await resetProfiles(api);
         await removeGuests(api);
         await removeTestPodcasts(api);
+        await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
+        await resetViewerLists(api);
+        await resetTraktMock();
         await provide(api);
       } finally {
         await stopAllStreams(api);
@@ -48,6 +54,8 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await resetProfiles(api);
         await removeGuests(api);
         await removeTestPodcasts(api);
+        await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
+        await resetViewerLists(api);
         await api.dispose();
       }
     },

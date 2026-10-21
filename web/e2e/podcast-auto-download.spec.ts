@@ -20,11 +20,12 @@ import {
   waitForComplete,
 } from './offline';
 
-// O-3 for podcasts (M6): with "Neue Episoden gehörter Podcasts" on, a podcast the profile listened
-// to (progress on episode 2) gets its new episode 3 downloaded at the next sync after the feed was
-// fetched (auto). The profile is FSK 18: episode 3 is explicit (AN-2).
+// O-3 for podcasts (M6, M7): with "Neue Episoden favorisierter Podcasts" on, a podcast the profile
+// marked as favourite (`PUT /items/{id}/favorite` while episodes 1 and 2 exist) gets its new
+// episode 3 downloaded at the next sync after the feed was fetched (auto); the episodes known
+// when the favourite was set are not. The profile is FSK 18: episode 3 is explicit (AN-2).
 
-test('a new episode of a podcast the profile listens to is downloaded by itself (O-3)', async ({
+test('a new episode of a favourite podcast is downloaded by itself (O-3)', async ({
   browser,
   baseURL,
   extraHTTPHeaders,
@@ -46,7 +47,9 @@ test('a new episode of a podcast the profile listens to is downloaded by itself 
     const enabled = rules.getByRole('checkbox', {
       name: 'Automatische Downloads auf diesem Gerät',
     });
-    const podcasts = rules.getByRole('checkbox', { name: 'Neue Episoden gehörter Podcasts' });
+    const podcasts = rules.getByRole('checkbox', {
+      name: 'Neue Episoden favorisierter Podcasts',
+    });
     await expect(enabled).not.toBeChecked();
     await expect(podcasts).not.toBeChecked();
     await resetFocus(page);
@@ -67,22 +70,14 @@ test('a new episode of a podcast the profile listens to is downloaded by itself 
     expect(stored).toMatchObject({ enabled: true, newPodcastEpisodes: true });
     await expectNoFocusTrap(page);
 
-    // The profile listened to episode 2 (the newest so far).
+    // The profile marks the podcast as favourite while episodes 1 and 2 exist.
     const [second, first] = await waitForEpisodes(page.request, podcast.id, 2);
     expect(second.title).toBe(episodeTitle(2));
     expect(first.title).toBe(episodeTitle(1));
-    const listened = await page.request.post(`/api/v1/items/${second.id}/progress`, {
+    const favorite = await page.request.put(`/api/v1/items/${podcast.id}/favorite`, {
       headers: CSRF,
-      data: {
-        positionMs: 3000,
-        durationMs: 10_000,
-        playedMs: 3000,
-        seq: 1,
-        state: 'paused',
-        clientTime: new Date().toISOString(),
-      },
     });
-    expect(listened.ok(), await listened.text()).toBe(true);
+    expect(favorite.status(), await favorite.text()).toBe(204);
     // Nothing new yet: no auto-download.
     await syncNow(page);
     expect((await storedDownloads(page)).filter((download) => download.auto)).toHaveLength(0);
@@ -98,8 +93,10 @@ test('a new episode of a podcast the profile listens to is downloaded by itself 
       (entry) => entry.auto && entry.item?.id === newest.id,
     );
     expect(download.auto).toBe(true);
-    // Episode 1 is older than the one listened to: not downloaded.
-    expect((await storedDownloads(page)).some((entry) => entry.item?.id === first.id)).toBe(false);
+    // Episodes 1 and 2 were there before the favourite: not downloaded.
+    const downloads = await storedDownloads(page);
+    expect(downloads.some((entry) => entry.item?.id === first.id)).toBe(false);
+    expect(downloads.some((entry) => entry.item?.id === second.id)).toBe(false);
     await page.reload();
     const row = downloadRow(page, episodeTitle(3));
     await expect(row.getByText('Automatisch')).toBeVisible();

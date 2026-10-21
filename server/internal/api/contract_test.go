@@ -257,3 +257,44 @@ func TestContractProfileHasNoCredentials(t *testing.T) {
 		t.Errorf("ProfileRequest.required = %v, want [name] (K-1: image and everything else optional)", required)
 	}
 }
+
+// I-7: Trakt is reached with the server key only. No profile schema and no operation under
+// /profiles or /auth mentions Trakt; the word appears only in the admin Trakt operations, their
+// TraktStatus schema and the start page rows that show the lists.
+func TestContractNoTraktPerProfile(t *testing.T) {
+	data, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parseYAML(t, data)
+	schemas, _ := resolve(doc, "#/components/schemas").(map[string]any)
+	for name, schema := range schemas {
+		lower := strings.ToLower(name)
+		mentions := strings.Contains(strings.ToLower(fmt.Sprint(schema)), "trakt")
+		switch {
+		case strings.HasPrefix(lower, "profile") || strings.HasPrefix(lower, "guest") || strings.HasPrefix(lower, "invitation") ||
+			strings.HasPrefix(lower, "session") || strings.HasPrefix(lower, "account"):
+			if mentions {
+				t.Errorf("schema %s mentions Trakt (I-7: no Trakt account per profile)", name)
+			}
+		case strings.HasPrefix(lower, "trakt") || strings.HasPrefix(lower, "homerow"):
+		default:
+			if mentions {
+				t.Errorf("schema %s mentions Trakt; only the admin state and the home rows may", name)
+			}
+		}
+	}
+	paths, _ := doc["paths"].(map[string]any)
+	for path, item := range paths {
+		mentions := strings.Contains(strings.ToLower(fmt.Sprint(item)), "trakt")
+		if strings.HasPrefix(path, "/admin/trakt") || path == "/home" {
+			continue
+		}
+		if mentions {
+			t.Errorf("operation %s mentions Trakt; only /admin/trakt* and /home may", path)
+		}
+	}
+	if _, ok := paths["/admin/trakt"]; !ok {
+		t.Error("missing /admin/trakt")
+	}
+}

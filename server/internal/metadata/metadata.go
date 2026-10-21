@@ -42,6 +42,9 @@
 //   - podcast.fetch, payload {"podcastId": "<ULID>"}, key podcast:<podcastId>, priority 4: fetches
 //     the RSS feed of a podcast subscription (podcast.go, M6 H-2) and stores the channel and its
 //     episodes; RunPodcasts enqueues it for every subscription not fetched for FeedInterval.
+//   - trakt.refresh, payload {}, key trakt, priority 2: fetches the public Trakt lists (trending
+//     and popular, movies and shows, top 100 each) and replaces trakt_lists; a failure empties the
+//     table (I-7). RunTrakt enqueues it once a day when a client id is configured (trakt.go, M7).
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
@@ -89,6 +92,8 @@ type KeySource interface {
 	TVDBKey(ctx context.Context) (key, pin string, err error)
 	// YouTubeKey returns the YouTube Data API v3 key.
 	YouTubeKey(ctx context.Context) (string, error)
+	// TraktClientID returns the Trakt client id (M7, E-7).
+	TraktClientID(ctx context.Context) (string, error)
 }
 
 // Service runs the metadata jobs and checks TMDB keys.
@@ -113,6 +118,10 @@ type Service struct {
 
 	// recheck ends open direct-play streams whose title became invisible (WithVisibilityRecheck).
 	recheck func(ctx context.Context) error
+	// newEpisodes is told the ids of new podcast episodes after their transaction (WithNewEpisodes).
+	newEpisodes func(ctx context.Context, ids []string) error
+
+	trakt traktConfig // Trakt lists (trakt.go)
 
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
@@ -134,6 +143,9 @@ type options struct {
 	feedHTTP    *http.Client
 	feedNow     func() time.Time
 	feedAgent   string
+	newEpisodes func(ctx context.Context, ids []string) error
+	traktID     string
+	trakt       traktOptions
 }
 
 // Option configures New.
@@ -172,6 +184,12 @@ func WithTrailerAI(mode string) Option {
 // rechecked.
 func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
 	return func(o *options) { o.recheck = recheck }
+}
+
+// WithNewEpisodes sets the function a podcast fetch calls with the ids of the episodes it inserted,
+// after their transaction (notify.Service.NewEpisodes, M7 E-8). An error is logged.
+func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
+	return func(o *options) { o.newEpisodes = fn }
 }
 
 // WithHTTPClient replaces the HTTP client (default: 15 s timeout).
@@ -219,19 +237,22 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		trailersYouTube: newYouTubeTrailers(o.youtubeBase, o.http, o.quota, keys),
 		trailersAI:      newAITrailers(o.trailerAI, log),
 		recheck:         o.recheck,
+		newEpisodes:     o.newEpisodes,
+		trakt:           newTraktConfig(o.traktID, o.trakt, o.now, o.feedAgent),
 
 		accentRetries: map[string]int{},
 		feeds:         newFeedFetcher(o.feedHTTP, o.feedNow, o.feedAgent),
 	}
 }
 
-// RegisterJobs registers the handlers of metadata.match, image.fetch, trailer.find and podcast.fetch
-// on w.
+// RegisterJobs registers the handlers of metadata.match, image.fetch, trailer.find, podcast.fetch
+// and trakt.refresh on w.
 func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobMatch, s.handleMatch)
 	w.Handle(JobImageFetch, s.handleImageFetch)
 	w.Handle(JobTrailerFind, s.handleTrailerFind)
 	w.Handle(JobPodcastFetch, s.handlePodcastFetch)
+	w.Handle(JobTraktRefresh, s.handleTraktRefresh)
 }
 
 // CheckKey validates a TMDB key. It returns nil, model.ErrTMDBKeyInvalid or

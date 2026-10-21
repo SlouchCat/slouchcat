@@ -410,7 +410,7 @@ func (q *Queries) PodcastListDue(ctx context.Context, checkedBefore sql.NullInt6
 }
 
 const podcastListEpisodes = `-- name: PodcastListEpisodes :many
-SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at FROM items
+SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at, published_at FROM items
 WHERE parent_id = ?1 AND kind = 'podcast_episode' AND guid IS NOT NULL
 `
 
@@ -424,6 +424,7 @@ type PodcastListEpisodesRow struct {
 	RatingSource sql.NullString
 	LockedFields string
 	DeletedAt    sql.NullInt64
+	PublishedAt  sql.NullInt64
 }
 
 // The stored episodes of a podcast with what an update compares and keeps (locked fields),
@@ -447,6 +448,7 @@ func (q *Queries) PodcastListEpisodes(ctx context.Context, podcastID sql.NullStr
 			&i.RatingSource,
 			&i.LockedFields,
 			&i.DeletedAt,
+			&i.PublishedAt,
 		); err != nil {
 			return nil, err
 		}

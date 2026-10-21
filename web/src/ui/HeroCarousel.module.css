@@ -102,6 +102,19 @@
   text-wrap: balance;
 }
 
+.note {
+  display: -webkit-box;
+  overflow: hidden;
+  max-width: 34rem;
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-md);
+  font-style: italic;
+  line-height: var(--sc-font-line-height-snug);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
 .meta {
   display: flex;
   flex-wrap: wrap;

@@ -65,7 +65,7 @@ if want "$f"; then
 fi
 
 # (b) HEVC 10-bit SDR MKV 1080p.
-f="$(movie_path "Slouchcat Test HEVC 10bit (2024)" mkv)"
+f="$(movie_path "Slouchcat Test HEVC 10bit (2024) {tmdb-7003}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" \
     -c:v libx265 -preset ultrafast -crf 32 -g 48 -pix_fmt yuv420p10le \
@@ -91,14 +91,14 @@ fi
 surround=(-af "pan=5.1(side)|FL=c0|FR=c0|FC=c0|LFE=c0|SL=c0|SR=c0")
 
 # (d) H.264 + AC3 5.1 MKV.
-f="$(movie_path "Slouchcat Test AC3 51 (2024)" mkv)"
+f="$(movie_path "Slouchcat Test AC3 51 (2024) {tmdb-7001}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" "${x264[@]}" "${surround[@]}" \
     -c:a ac3 -b:a 384k -metadata title="Slouchcat Test AC3 51" "$f"
 fi
 
 # (e) H.264 + DTS 5.1 MKV (ffmpeg's dca encoder is experimental: -strict -2).
-f="$(movie_path "Slouchcat Test DTS (2024)" mkv)"
+f="$(movie_path "Slouchcat Test DTS (2024) {tmdb-7002}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" "${x264[@]}" "${surround[@]}" \
     -c:a dca -strict -2 -b:a 768k -metadata title="Slouchcat Test DTS" "$f"
@@ -201,7 +201,7 @@ END=10000
 title=Kapitel 3: Ende
 META
 
-f="$(movie_path "Slouchcat Test Chapters (2024)" mkv)"
+f="$(movie_path "Slouchcat Test Chapters (2024) {tmdb-7004}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" -i "$subs_dir/chapters.ffmeta" \
     -map 0:v -map 1:a -map_metadata 2 -map_chapters 2 "${x264[@]}" "${aac[@]}" "$f"
@@ -222,7 +222,7 @@ if want "$f"; then
     "${aac[@]}" -metadata title="Slouchcat Test HEVC Long" "$f"
 fi
 
-f="$(movie_path "Slouchcat Test H264 MKV Long (2024)" mkv)"
+f="$(movie_path "Slouchcat Test H264 MKV Long (2024) {tmdb-7005}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v90[@]}" "${a90[@]}" \
     -c:v libx264 -preset veryfast -crf 30 -pix_fmt yuv420p \
@@ -419,7 +419,7 @@ own_tones() {
   "${ff[@]}" "${in[@]}" -filter_complex "${labels}concat=n=$n:v=0:a=1" "$out"
 }
 
-intro_show="Slouchcat Test Intro Show (2024)"
+intro_show="Slouchcat Test Intro Show (2024) {tmdb-7102}"
 intro_starts=(5 12 8 15 10) # seconds of own tones before the intro, per episode
 intro_wav="$subs_dir/intro.wav"
 outro_wav="$subs_dir/outro.wav"
@@ -477,7 +477,7 @@ done
 # M5 offline (O-2 season download): six short episodes, 1280x720 H.264/AAC MP4 of 8 s each, a
 # tone of its own per episode; episode 1 has a German SRT next to it (a WebVTT sidecar of the
 # download). The web e2e specs use these names.
-download_show="Slouchcat Test Download Show (2024)"
+download_show="Slouchcat Test Download Show (2024) {tmdb-7101}"
 write_srt "$subs_dir/download-de.srt" "Erster Untertitel der Download-Serie" \
   "Zweiter Untertitel mit Umlauten: äöü" "Dritter Untertitel"
 for ep in 1 2 3 4 5 6; do

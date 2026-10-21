@@ -127,6 +127,13 @@
   gap: var(--sc-space-3);
 }
 
+/* Watchlist, favourite and "Zu Cat's Empfehlungen": smaller, in a row under the actions. */
+.listActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
 .progress {
   display: flex;
   gap: var(--sc-space-3);

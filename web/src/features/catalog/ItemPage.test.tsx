@@ -1,8 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { alienDetail, homePage, ids } from '@/test/fixtures';
-import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { alienDetail, homePage, ids, season1Detail, seriesIds, showDetail } from '@/test/fixtures';
+import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
 
 describe('detail page', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -107,5 +107,95 @@ describe('detail page', () => {
     await screen.findByRole('heading', { level: 1, name: 'Alien' });
     await userEvent.setup().keyboard('{Escape}');
     await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('adds a title to the watchlist and takes it off again', async () => {
+    let inWatchlist = false;
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json({ ...alienDetail, inWatchlist }),
+      [`PUT /items/${ids.alien}/watchlist`]: () => {
+        inWatchlist = true;
+        return new Response(null, { status: 204 });
+      },
+      [`DELETE /items/${ids.alien}/watchlist`]: () => {
+        inWatchlist = false;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp(`/items/${ids.alien}`);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Merken' }));
+    await user.click(await screen.findByRole('button', { name: 'Gemerkt' }));
+    expect(await screen.findByRole('button', { name: 'Merken' })).toBeVisible();
+    expect(
+      calls
+        .filter((call) => call.path === `/items/${ids.alien}/watchlist`)
+        .map((call) => call.method),
+    ).toEqual(['PUT', 'DELETE']);
+    // A film is no favourite: only series and podcasts (E-8).
+    expect(screen.queryByRole('button', { name: 'Favorit' })).not.toBeInTheDocument();
+  });
+
+  it('marks a series as favourite and shows its collections', async () => {
+    let favorite = false;
+    const collectionId = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
+    mockApi({
+      ...signedIn,
+      [`GET /items/${seriesIds.show}`]: () =>
+        json({
+          ...showDetail,
+          favorite,
+          collections: [{ id: collectionId, name: 'Test-Sammlung', count: 2 }],
+        }),
+      [`GET /items/${seriesIds.season1}`]: () => json(season1Detail),
+      [`PUT /items/${seriesIds.show}/favorite`]: () => {
+        favorite = true;
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp(`/items/${seriesIds.show}`);
+    const button = await screen.findByRole('button', { name: 'Favorit' });
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.setup().click(button);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Favorit' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    );
+    const collections = screen.getByRole('region', { name: 'Sammlungen' });
+    expect(within(collections).getByRole('link', { name: /Test-Sammlung/ })).toHaveAttribute(
+      'href',
+      `/collections/${collectionId}`,
+    );
+  });
+
+  it('links the owner to "Zu Cat\'s Empfehlungen", never other profiles', async () => {
+    mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienDetail) });
+    const view = renderApp(`/items/${ids.alien}`);
+    expect(await screen.findByRole('link', { name: "Zu Cat's Empfehlungen" })).toHaveAttribute(
+      'href',
+      `/admin/picks?add=${ids.alien}`,
+    );
+    view.unmount();
+    vi.unstubAllGlobals();
+
+    mockApi({
+      'GET /auth/session': () =>
+        json({ ...session, profile: { ...session.profile, isPrimary: false } }),
+      [`GET /items/${ids.alien}`]: () => json(alienDetail),
+    });
+    renderApp(`/items/${ids.alien}`);
+    await screen.findByRole('heading', { level: 1, name: 'Alien' });
+    expect(screen.queryByRole('link', { name: "Zu Cat's Empfehlungen" })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Merken' })).toBeVisible();
+  });
+
+  it('offers no watchlist button on a season', async () => {
+    mockApi({ ...signedIn, [`GET /items/${seriesIds.season1}`]: () => json(season1Detail) });
+    renderApp(`/items/${seriesIds.season1}`);
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('button', { name: 'Merken' })).not.toBeInTheDocument();
   });
 });

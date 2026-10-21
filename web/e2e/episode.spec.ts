@@ -59,6 +59,9 @@ test('arrows: play → back, down to the next episode', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
   await page.keyboard.press('ArrowLeft');
+  // The row under the actions (watchlist, M7) comes first.
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, next(page));
 });
@@ -69,6 +72,7 @@ test('arrows: play → back, down to the next episode', async ({ page }) => {
 test('Tab reaches play and the next episode after the header; no focus trap', async ({ page }) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, play(page), 2);
-  await tabTo(page, next(page), 4);
+  // Back, the download, "Verwalten", then "Merken" and "Zu Cat's Empfehlungen" (M7).
+  await tabTo(page, next(page), 8);
   await expectNoFocusTrap(page);
 });

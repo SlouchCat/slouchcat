@@ -329,9 +329,12 @@ export interface paths {
         };
         /**
          * Rows of the start page for the active profile
-         * @description Returns the rows in display order: `picks` (Cat's recommendations; M1a placeholder content),
-         *     `continue` (continue watching) and `recent` (recently added). Empty rows are omitted (E-9).
-         *     Every item passed the visibility layer of the active profile.
+         * @description Returns the rows in the order the main user set (`setHomeRows`): `picks` (Cat's recommendations,
+         *     E-2, with the optional `note` on each item), `continue`, `recent`, `watchlist` (E-5), `collections`
+         *     (`collections` instead of `items`, E-6), `genres` (`genres` instead of `items`), `trakt_trending`
+         *     and `trakt_popular` (the first 20 library titles of the public Trakt lists, hidden under 5 hits
+         *     and while Trakt is unavailable, E-7, I-7, AN-3). Empty and hidden rows are omitted; never more than
+         *     eight (E-9). Every item passed the visibility layer of the active profile.
          */
         get: operations["getHome"];
         put?: never;
@@ -1525,6 +1528,434 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search titles, people and collections (E-4)
+         * @description Full-text search from the second character over titles (all languages, original title, author,
+         *     narrator, series name), people and collections, with the filters genre, year, age rating, media type
+         *     and availability; or, without a query, a browse by those filters (titles only, by title). Titles are paged (`offset`/`limit`); people and collections are the first ten
+         *     matches. Every title passed the visibility layer of the active profile; a person appears only when a
+         *     title of hers is visible, a collection only with a visible member (10.2). A POST because the filters
+         *     form an object and the walk of the contract test covers POST operations too.
+         */
+        post: operations["search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/genres": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Genres of the visible titles with their counts
+         * @description The genres (in the profile language) of the titles the active profile may see, most frequent first,
+         *     at most 20; the search page offers them as filter values and the start page row `genres` shows them.
+         */
+        get: operations["listGenres"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A collection with its visible members (E-6)
+         * @description A TMDB collection or a manual collection of the admin; the members the active profile may see, in
+         *     collection order (paged). A collection without a visible member answers 404 (10.2).
+         */
+        get: operations["getCollection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/watchlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The watchlist of the active profile (E-5)
+         * @description Newest entry first; entries whose title became invisible are omitted.
+         */
+        get: operations["listWatchlist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/watchlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put a title on the watchlist of the active profile (E-5)
+         * @description Idempotent. Every kind except seasons and extras; an invisible title answers 404.
+         */
+        put: operations["addToWatchlist"];
+        post?: never;
+        /**
+         * Remove a title from the watchlist of the active profile
+         * @description Idempotent; an invisible or unknown title answers 404.
+         */
+        delete: operations["removeFromWatchlist"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The favourite series and podcasts of the active profile (E-8)
+         * @description Newest first; favourites whose title became invisible are omitted.
+         */
+        get: operations["listFavorites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/items/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark a series or podcast as favourite of the active profile (E-8)
+         * @description Idempotent. A new episode of a favourite creates an in-app notification for the profile when the
+         *     profile may see the episode (5.5); favourite podcasts also feed the auto-download rule (O-3).
+         */
+        put: operations["addFavorite"];
+        post?: never;
+        /**
+         * Remove the favourite mark
+         * @description Idempotent; an invisible or unknown title answers 404.
+         */
+        delete: operations["removeFavorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The in-app inbox of the active profile (E-8)
+         * @description Newest first, read and unread, with the unread count. A notification whose episode is no longer
+         *     visible to the profile is omitted (5.5). Channels (e-mail, push, Telegram) follow in M8.
+         */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark one notification as read
+         * @description Idempotent; a notification of another profile answers 404.
+         */
+        put: operations["markNotificationRead"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark every notification of the active profile as read */
+        post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/picks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cat's recommendations in display order (E-2)
+         * @description Every pick, global ones and those of single profiles, in the order of the carousel.
+         */
+        get: operations["listTopPicks"];
+        put?: never;
+        /**
+         * Add a title to Cat's recommendations, for all profiles or for single ones (E-2)
+         * @description Without `profileIds` one global pick; with them one pick per profile of the main account. New picks
+         *     go to the end of the carousel. A profile sees a pick only when it may see the title (E-3), and only
+         *     inside the optional time window.
+         */
+        post: operations["createTopPicks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/picks/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the order of Cat's recommendations (E-2, E-9)
+         * @description Every existing pick id exactly once, in the new order.
+         */
+        put: operations["reorderTopPicks"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/picks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a pick */
+        delete: operations["deleteTopPick"];
+        options?: never;
+        head?: never;
+        /**
+         * Change the note or the time window of a pick
+         * @description A field set to `null` clears it; an absent field keeps its value.
+         */
+        patch: operations["updateTopPick"];
+        trace?: never;
+    };
+    "/admin/items/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Find titles by name for curation (admin, unfiltered)
+         * @description The same search index as `search`, without any profile filter, for the pick and collection
+         *     dialogs. Returns ids and names only, never an `ItemRef` or an image.
+         */
+        get: operations["searchAdminItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All collections, automatic (TMDB) and manual (E-6)
+         * @description An administration view without members; `getAdminCollection` lists them.
+         */
+        get: operations["listCollections"];
+        put?: never;
+        /** Create a manual collection (E-6) */
+        post: operations["createCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/collections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A collection with all its members (admin, unfiltered) */
+        get: operations["getAdminCollection"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a manual collection
+         * @description Members stay as titles; TMDB collections cannot be deleted (`not_editable`).
+         */
+        delete: operations["deleteCollection"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename a manual collection
+         * @description TMDB collections keep their names from the provider (`not_editable`).
+         */
+        patch: operations["updateCollection"];
+        trace?: never;
+    };
+    "/admin/collections/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the members of a manual collection, in this order */
+        put: operations["setCollectionItems"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/home-rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The order of the start page rows (E-9) */
+        get: operations["getHomeRows"];
+        /**
+         * Set the order and visibility of the start page rows (E-9)
+         * @description Every row key exactly once; the array order is the display order.
+         */
+        put: operations["setHomeRows"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/trakt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * State of the daily Trakt lists (E-7, I-7)
+         * @description Whether a Trakt client id is configured (`SLOUCHCAT_TRAKT_CLIENT_ID`), when the lists were last
+         *     fetched and how many entries each list holds. Trakt is reached with the server key only; there is
+         *     no Trakt account per profile and nothing is sent to Trakt (I-7).
+         */
+        get: operations["getTraktStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/trakt/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fetch the Trakt lists now
+         * @description Queues the daily job out of schedule; the result shows up in `getTraktStatus`.
+         */
+        post: operations["refreshTrakt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/spike/{variant}": {
         parameters: {
             query?: never;
@@ -1994,8 +2425,16 @@ export interface components {
             durationMs?: number;
             /** @description Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18). */
             explicit?: boolean;
+            /** @description The personal note of the main user on this pick (E-2); only in the row `picks`. */
+            note?: string;
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
+            /** @description On the watchlist of the active profile (E-5). */
+            inWatchlist: boolean;
+            /** @description A favourite of the active profile (E-8; series and podcasts only). */
+            favorite: boolean;
+            /** @description The visible collections the title belongs to (E-6). */
+            collections: components["schemas"]["CollectionRef"][];
             originalTitle?: string;
             tagline?: string;
             overview?: string;
@@ -2109,10 +2548,15 @@ export interface components {
             tracks?: components["schemas"]["TrackList"];
         };
         /** @enum {string} */
-        HomeRowKey: "picks" | "continue" | "recent";
+        HomeRowKey: "picks" | "continue" | "recent" | "watchlist" | "collections" | "genres" | "trakt_trending" | "trakt_popular";
         HomeRow: {
             key: components["schemas"]["HomeRowKey"];
+            /** @description The titles of the row; empty for `collections` and `genres`. */
             items: components["schemas"]["ItemRef"][];
+            /** @description Only in the row `collections` (E-6). */
+            collections?: components["schemas"]["CollectionRef"][];
+            /** @description Only in the row `genres`; each links to the search filtered by that genre. */
+            genres?: components["schemas"]["GenreRef"][];
         };
         HomePage: {
             rows: components["schemas"]["HomeRow"][];
@@ -2873,7 +3317,7 @@ export interface components {
             enabled: boolean;
             /** @description Download the next episode of every started series. */
             nextEpisodes: boolean;
-            /** @description New episodes of the podcasts the profile listened to in the last 60 days (O-3, M6). */
+            /** @description New episodes of the profile's favourite podcasts (O-3; favourites replaced the listening history in M7). */
             newPodcastEpisodes: boolean;
             wifiOnly: boolean;
             /** @description Most auto-downloads on this device the profile has not finished watching. */
@@ -2937,6 +3381,200 @@ export interface components {
             duplicates: number;
             rejected: number;
             results: ("accepted" | "duplicate" | "rejected")[];
+        };
+        /**
+         * @description A text search (`query` with at least two characters) or a browse by filters (`query` absent or
+         *     empty with at least one filter, e.g. the genre row of the start page); without both the server
+         *     answers 422 `validation_failed` (`query` `required`).
+         */
+        SearchRequest: {
+            /**
+             * @description Words are matched as prefixes (from the second character), diacritics folded; one-character
+             *     words are ignored when a longer word is present, at most eight words count. Absent or empty:
+             *     browse by the filters, ordered by title.
+             */
+            query?: string;
+            /** @description A genre name in the profile language (`listGenres`). */
+            genre?: string;
+            yearFrom?: number;
+            yearTo?: number;
+            /** @description Only titles rated at most this FSK level (an unknown rating never passes). */
+            maxRating?: components["schemas"]["Rating"];
+            /** @description Media types to include; `series` covers series and episodes, `podcast` podcasts and episodes. Absent = all. */
+            mediaTypes?: ("movie" | "series" | "audiobook" | "podcast")[];
+            /**
+             * @description `local`: a media file is present; `download`: the title is downloaded on this device for the
+             *     active profile (M5). Absent = no restriction. `acquiring` follows with the Arr status in M9.
+             */
+            availability?: ("local" | "download")[];
+            /** @default 0 */
+            offset: number;
+            /** @default 50 */
+            limit: number;
+        };
+        SearchResult: {
+            items: components["schemas"]["ItemRef"][];
+            /** @description Matching titles over all pages. */
+            total: number;
+            offset: number;
+            limit: number;
+            people: components["schemas"]["PersonRef"][];
+            collections: components["schemas"]["CollectionRef"][];
+        };
+        PersonRef: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+        };
+        GenreRef: {
+            name: string;
+            /** @description Visible titles with this genre. */
+            count: number;
+        };
+        CollectionID: string;
+        /** @description A collection as it appears in rows and on the detail page; counts only visible members. */
+        CollectionRef: {
+            id: components["schemas"]["CollectionID"];
+            /** @description Name in the profile language (TMDB), or the admin's name. */
+            name: string;
+            count: number;
+            /** @description The first visible member; its poster represents the collection. */
+            cover?: components["schemas"]["ItemRef"];
+        };
+        Collection: {
+            id: components["schemas"]["CollectionID"];
+            name: string;
+            overview?: string;
+            items: components["schemas"]["ItemRef"][];
+            total: number;
+            offset: number;
+            limit: number;
+        };
+        ItemPage: {
+            items: components["schemas"]["ItemRef"][];
+            total: number;
+            offset: number;
+            limit: number;
+        };
+        Notification: {
+            /** Format: int64 */
+            id: number;
+            /** @enum {string} */
+            kind: "new_episode";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            readAt?: string;
+            /** @description The new episode. */
+            item: components["schemas"]["ItemRef"];
+            /** @description The favourite series or podcast, when still visible. */
+            parent?: components["schemas"]["ItemRef"];
+        };
+        NotificationPage: {
+            notifications: components["schemas"]["Notification"][];
+            total: number;
+            unread: number;
+            offset: number;
+            limit: number;
+        };
+        /** @description One of Cat's recommendations in the administration (not an `ItemRef`). */
+        AdminPick: {
+            /** Format: int64 */
+            id: number;
+            itemId: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            /** @description Title of the item (German text, else English, else the parsed name). */
+            title: string;
+            year?: number;
+            /**
+             * Format: int64
+             * @description The single profile this pick is for; absent = all profiles.
+             */
+            profileId?: number;
+            profileName?: string;
+            position: number;
+            note?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        PickRequest: {
+            itemId: components["schemas"]["ItemID"];
+            /** @description Profiles of the main account the pick is for; absent or empty = all profiles. */
+            profileIds?: number[];
+            note?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+        };
+        PickUpdate: {
+            note?: string | null;
+            /** Format: date-time */
+            startsAt?: string | null;
+            /** Format: date-time */
+            endsAt?: string | null;
+        };
+        PickOrder: {
+            ids: number[];
+        };
+        /** @description A title found for curation (not an `ItemRef`, no images). */
+        AdminItemHit: {
+            id: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            title: string;
+            year?: number;
+            /** Format: int64 */
+            libraryId: number;
+            /** @description The series or podcast of an episode. */
+            parentTitle?: string;
+        };
+        /** @description A collection in the administration (not an `ItemRef`, unfiltered). */
+        AdminCollection: {
+            id: components["schemas"]["CollectionID"];
+            /** @enum {string} */
+            source: "tmdb" | "manual";
+            name: string;
+            nameDe?: string;
+            /** Format: int64 */
+            tmdbId?: number;
+            itemCount: number;
+            /** @description Members in order; empty in the list view. */
+            items: components["schemas"]["AdminCollectionItem"][];
+        };
+        AdminCollectionItem: {
+            itemId: components["schemas"]["ItemID"];
+            kind: components["schemas"]["ItemKind"];
+            title: string;
+            year?: number;
+            position: number;
+        };
+        CollectionRequest: {
+            name: string;
+        };
+        CollectionItemsRequest: {
+            itemIds: components["schemas"]["ItemID"][];
+        };
+        HomeRowSetting: {
+            key: components["schemas"]["HomeRowKey"];
+            position: number;
+            hidden: boolean;
+        };
+        TraktStatus: {
+            /** @description A client id is set (environment or stored setting). */
+            configured: boolean;
+            /** Format: date-time */
+            lastSuccess?: string;
+            /** Format: date-time */
+            lastAttempt?: string;
+            /** @description Why the last attempt failed; the rows are hidden meanwhile (I-7). */
+            lastError?: string;
+            /** @description Entries (films and shows) of the trending list, before the library intersection. */
+            trending: number;
+            popular: number;
         };
     };
     responses: {
@@ -3040,6 +3678,10 @@ export interface components {
         InvitationToken: string;
         /** @description Item ID (ULID). */
         ItemID: components["schemas"]["ItemID"];
+        /** @description Collection ID (ULID). */
+        CollectionID: components["schemas"]["CollectionID"];
+        /** @description Pick ID from `listTopPicks`. */
+        PickID: number;
         /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
         PlaybackSessionID: string;
         /** @description Device id (32 characters, the device cookie value). */
@@ -6264,6 +6906,906 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description Unknown or already ended playback session (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Matches for the active profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /**
+             * @description Validation failed (`validation_failed`; `query` `too_short` (one character), `too_long`, or
+             *     `required` when neither a query nor a filter is given; `maxRating` `invalid_value` outside
+             *     0/6/12/16/18; `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80
+             *     characters).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listGenres: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Genres with the number of visible titles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenreRef"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    getCollection: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The collection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Collection"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or without a visible member (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listWatchlist: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the watchlist. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    addToWatchlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description On the watchlist. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Seasons and extras cannot be listed (`not_listable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeFromWatchlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not on the watchlist (any more). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listFavorites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The favourites. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemRef"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    addFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Only series and podcasts can be favourites (`not_favoritable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not a favourite (any more). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not visible for the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the inbox. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Read. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or not of the active profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All read. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    listTopPicks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picks. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPick"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    createTopPicks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickRequest"];
+            };
+        };
+        responses: {
+            /** @description The created picks. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPick"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description Validation failed (`validation_failed`; `itemId` `unknown_item` or `invalid_value` for seasons and
+             *     extras, `profileIds` `invalid_value` for profiles outside the main account, `note` `too_long`,
+             *     `endsAt` `invalid_value` when not after `startsAt`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    reorderTopPicks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickOrder"];
+            };
+        };
+        responses: {
+            /** @description Reordered. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `ids` `invalid_value` unless every pick appears once). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteTopPick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pick ID from `listTopPicks`. */
+                id: components["parameters"]["PickID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown pick (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateTopPick: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Pick ID from `listTopPicks`. */
+                id: components["parameters"]["PickID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PickUpdate"];
+            };
+        };
+        responses: {
+            /** @description The updated pick. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPick"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown pick (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `note` `too_long`, `endsAt` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    searchAdminItems: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching titles, best match first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItemHit"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `q` `too_short` or `too_long`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listCollections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Collections by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollection"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    createCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The new, empty collection. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollection"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `name` `required` or `too_long`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The collection with members in order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollection"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown collection (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown collection (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A TMDB collection (`not_editable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionRequest"];
+            };
+        };
+        responses: {
+            /** @description The renamed collection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollection"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown collection (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`) or a TMDB collection (`not_editable`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setCollectionItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection ID (ULID). */
+                id: components["parameters"]["CollectionID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionItemsRequest"];
+            };
+        };
+        responses: {
+            /** @description The collection with its new members. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollection"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown collection (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `itemIds` `unknown_item` or `invalid_value` for seasons,
+             *     episodes and extras) or a TMDB collection (`not_editable`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getHomeRows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All eight rows in display order, with the hidden flag. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeRowSetting"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setHomeRows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HomeRowSetting"][];
+            };
+        };
+        responses: {
+            /** @description The stored order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeRowSetting"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `rows` `invalid_value` unless every key appears once). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getTraktStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraktStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    refreshTrakt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No Trakt client id configured (`provider_not_configured`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

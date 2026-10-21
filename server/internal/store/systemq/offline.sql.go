@@ -720,6 +720,54 @@ func (q *Queries) ListFailedDownloadFiles(ctx context.Context) ([]string, error)
 	return items, nil
 }
 
+const listFavoritePodcasts = `-- name: ListFavoritePodcasts :many
+SELECT f.item_id AS podcast_id,
+       CAST(MAX(
+           COALESCE((SELECT MAX(e.published_at) FROM items AS e
+                     WHERE e.parent_id = f.item_id AND e.kind = 'podcast_episode' AND e.added_at <= f.created_at), 0),
+           COALESCE((SELECT MAX(e.published_at) FROM progress AS p
+                     JOIN items AS e ON e.id = p.item_id AND e.kind = 'podcast_episode'
+                     WHERE p.profile_id = f.profile_id AND e.parent_id = f.item_id), 0)
+       ) AS INTEGER) AS since
+FROM favorites AS f
+JOIN items AS i ON i.id = f.item_id AND i.kind = 'podcast' AND i.deleted_at IS NULL
+WHERE f.profile_id = ?1
+ORDER BY f.created_at DESC, f.item_id
+`
+
+type ListFavoritePodcastsRow struct {
+	PodcastID string
+	Since     int64
+}
+
+// The favourite podcasts of the profile (new podcast episodes, O-3, M7 E-8), newest favourite
+// first, with the moment after which episodes are new: the later of the publication date of the
+// newest episode Slouchcat knew when the favourite was set (added_at) and that of the newest episode
+// the profile started there; 0 when neither exists. Visibility is applied by the caller through the
+// profile scope of package visibility.
+func (q *Queries) ListFavoritePodcasts(ctx context.Context, profileID int64) ([]ListFavoritePodcastsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFavoritePodcasts, profileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFavoritePodcastsRow{}
+	for rows.Next() {
+		var i ListFavoritePodcastsRow
+		if err := rows.Scan(&i.PodcastID, &i.Since); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRecentEpisodeProgress = `-- name: ListRecentEpisodeProgress :many
 SELECT p.item_id, p.updated_at, s.parent_id AS series_id
 FROM progress AS p
@@ -753,54 +801,6 @@ func (q *Queries) ListRecentEpisodeProgress(ctx context.Context, arg ListRecentE
 	for rows.Next() {
 		var i ListRecentEpisodeProgressRow
 		if err := rows.Scan(&i.ItemID, &i.UpdatedAt, &i.SeriesID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listRecentPodcastProgress = `-- name: ListRecentPodcastProgress :many
-SELECT e.parent_id AS podcast_id, CAST(MAX(COALESCE(e.published_at, 0)) AS INTEGER) AS newest_started_at,
-       CAST(MAX(p.updated_at) AS INTEGER) AS listened_at
-FROM progress AS p
-JOIN items AS e ON e.id = p.item_id AND e.kind = 'podcast_episode'
-WHERE p.profile_id = ?1 AND e.parent_id IS NOT NULL
-GROUP BY e.parent_id
-HAVING MAX(p.updated_at) >= ?2
-ORDER BY listened_at DESC, podcast_id
-`
-
-type ListRecentPodcastProgressParams struct {
-	ProfileID int64
-	Since     int64
-}
-
-type ListRecentPodcastProgressRow struct {
-	PodcastID       sql.NullString
-	NewestStartedAt int64
-	ListenedAt      int64
-}
-
-// Podcasts the profile listened to since a moment (an episode started or finished, O-3), most
-// recent first, with the publication date of the newest episode the profile ever started there.
-// Visibility is applied by the caller through the profile scope of package visibility.
-func (q *Queries) ListRecentPodcastProgress(ctx context.Context, arg ListRecentPodcastProgressParams) ([]ListRecentPodcastProgressRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRecentPodcastProgress, arg.ProfileID, arg.Since)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListRecentPodcastProgressRow{}
-	for rows.Next() {
-		var i ListRecentPodcastProgressRow
-		if err := rows.Scan(&i.PodcastID, &i.NewestStartedAt, &i.ListenedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

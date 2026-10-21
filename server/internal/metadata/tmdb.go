@@ -118,6 +118,16 @@ type Movie struct {
 	BackdropPath  string       `json:"backdrop_path"`
 	ReleaseDates  ReleaseDates `json:"release_dates"`
 	Credits       Credits      `json:"credits"`
+	// BelongsToCollection is the TMDB collection of the film (E-6), nil when it has none.
+	BelongsToCollection *MovieCollection `json:"belongs_to_collection"`
+}
+
+// MovieCollection is the belongs_to_collection part of a TMDB movie in one language.
+type MovieCollection struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Overview   string `json:"overview"`
+	PosterPath string `json:"poster_path"`
 }
 
 // CastMember is one entry of the cast of a TMDB credits list.

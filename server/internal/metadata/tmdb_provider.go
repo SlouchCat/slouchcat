@@ -149,6 +149,15 @@ func (p *tmdbProvider) Movie(ctx context.Context, id string, langs []string) (Mo
 	for l, lm := range byLang {
 		rec.Texts[l] = Text{Title: lm.Title, Overview: lm.Overview, Tagline: lm.Tagline}
 		rec.Genres[l] = genreNames(lm.Genres)
+		if c := lm.BelongsToCollection; c != nil && c.ID > 0 {
+			if rec.Collection == nil {
+				rec.Collection = &CollectionRecord{TMDBID: c.ID, Name: map[string]string{}, Overview: map[string]string{}}
+			}
+			rec.Collection.Name[l], rec.Collection.Overview[l] = c.Name, c.Overview
+			if c.PosterPath != "" && (l == recordLang(langs) || rec.Collection.PosterPath == "") {
+				rec.Collection.PosterPath = c.PosterPath
+			}
+		}
 	}
 	return rec, nil
 }

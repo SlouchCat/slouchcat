@@ -1,0 +1,79 @@
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.muted {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.chosen {
+  margin: 0;
+  color: var(--sc-color-text-primary);
+}
+
+.toggle {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-size-control-height);
+  cursor: pointer;
+}
+
+.toggle input {
+  width: var(--sc-space-5);
+  height: var(--sc-space-5);
+  margin: 0;
+  accent-color: var(--sc-accent);
+  cursor: pointer;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  margin-top: var(--sc-space-8);
+}
+
+/* A live region that is always there (role status), so even its first message is announced.
+   Empty, it takes back the gap of the column it stands in. */
+.live:empty {
+  margin-block-start: calc(-1 * var(--sc-space-4));
+}
