@@ -2,7 +2,7 @@
 // Features import from '@/ui' only (ESLint rule); react-aria based parts (forms, dialogs, the
 // player's buttons) come from '@/ui/aria', so the browsing pages never load react-aria (P-10).
 export { isAccentName, itemAccentStyle, swatchStyle } from './accent';
-export { AppHeader, type HeaderNotifications, type NavItem } from './AppHeader';
+export { AppHeader, type HeaderNotifications, type HeaderUpdate, type NavItem } from './AppHeader';
 export { Backdrop } from './Backdrop';
 export { LinkRouterProvider } from './AppLink';
 export { Button, ButtonLink, SpatialButton, SpatialButtonLink, type ButtonVariant } from './Button';
@@ -22,7 +22,7 @@ export { InboxEntry } from './InboxEntry';
 export { Logo } from './Logo';
 export { Notice } from './Notice';
 export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
-export { Page } from './Page';
+export { Page, PageNav } from './Page';
 export { Panel } from './Panel';
 export { PosterCard } from './PosterCard';
 export { PosterFallback } from './PosterFallback';

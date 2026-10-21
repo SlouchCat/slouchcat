@@ -71,3 +71,21 @@ export const WithNotifications: Story = {
     },
   },
 };
+
+/** The main account sees the update badge next to the inbox (A-5). */
+export const WithUpdate: Story = {
+  args: {
+    update: {
+      href: '#admin',
+      label: 'Update',
+      accessibleLabel: 'Update auf Version 0.9.1 verfügbar',
+    },
+    notifications: {
+      href: '#notifications',
+      label: 'Benachrichtigungen',
+      accessibleLabel: 'Benachrichtigungen',
+      unread: 0,
+      overflowLabel: '99+',
+    },
+  },
+};
