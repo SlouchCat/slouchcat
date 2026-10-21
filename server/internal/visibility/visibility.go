@@ -215,7 +215,7 @@ func (r *Reader) Picks(ctx context.Context, s Scope, limit int) ([]model.ItemSum
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.q.ListTopPicks(ctx, scopedq.ListTopPicksParams{ProfileID: pid, Now: sql.NullInt64{Int64: r.now().UnixMilli(), Valid: true}, LimitCount: clamp(limit)})
+	rows, err := r.q.ListTopPicks(ctx, scopedq.ListTopPicksParams{ProfileID: pid, Now: sql.NullInt64{Int64: r.now().UnixMilli(), Valid: true}})
 	if err != nil {
 		return nil, fmt.Errorf("list top picks: %w", err)
 	}
@@ -236,6 +236,11 @@ func (r *Reader) Picks(ctx context.Context, s Scope, limit int) ([]model.ItemSum
 		}
 		notes[row.Item.ID] = row.Note.String
 		items = append(items, row.Item)
+	}
+	// Cut after the deduplication: a cut before it could keep a global row the profile's own pick
+	// replaces further down, or drop the own pick (k1).
+	if n := int(clamp(limit)); len(items) > n {
+		items = items[:n]
 	}
 	out, err := r.summaries(ctx, s, pid, items)
 	if err != nil {

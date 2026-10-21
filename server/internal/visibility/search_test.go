@@ -16,8 +16,17 @@ func TestMatchExpression(t *testing.T) {
 		"Fi":                   `"Fi"*`,
 		"  Herr der  Ringe ":   `"Herr"* "der"* "Ringe"*`,
 		`Star-Wars: "Episode"`: `"Star"* "Wars"* "Episode"*`,
-		"Ärger 2":              `"Ärger"* "2"*`,
+		"Ärger 2":              `"Ärger"*`,
 		"-- !":                 "",
+		// k6: FTS5 syntax stays literal, one-character words go when a longer one is there.
+		"a OR b":    `"OR"*`,
+		"text:foo":  `"text"* "foo"*`,
+		"NEAR(a b)": `"NEAR"*`,
+		"^x":        `"x"*`,
+		"a b":       `"a"* "b"*`,
+		"Fi x":      `"Fi"*`,
+		"eins zwei drei vier fünf sechs sieben acht neun zehn": `"eins"* "zwei"* "drei"* "vier"* "fünf"* "sechs"* "sieben"* "acht"*`,
+		"a b c d e f g h i j": `"a"* "b"* "c"* "d"* "e"* "f"* "g"* "h"*`,
 	} {
 		if got := MatchExpression(in); got != want {
 			t.Errorf("MatchExpression(%q) = %q, want %q", in, got, want)
@@ -366,4 +375,49 @@ func edge(f *vistest.Fixture, pick func(vistest.Movie) bool) vistest.Movie {
 		}
 	}
 	panic("edge case missing")
+}
+
+// n1 (M7 review): the filter local counts a series or podcast as present only through files of
+// episodes the profile may see. The podcast stays visible to P12 through episodes it can stream
+// from their enclosure; its only present file belongs to the explicit episode (FSK 18).
+func TestSearchLocalCountsVisibleEpisodesOnly(t *testing.T) {
+	f := searchFixture(t)
+	r := New(f.DB, vistest.Logger())
+	for _, m := range f.Audio.Episodes {
+		exec(t, f, `UPDATE media_files SET missing_since = 5 WHERE item_id = ?`, m.ID)
+	}
+	q := textQuery("Fi")
+	q.Availability = []string{"local"}
+	if got := ids(search(t, r, f, f.P18, q).Items); !slices.Contains(got, f.Audio.Podcast.ID) {
+		t.Errorf("P18 local = %v, want the podcast through its explicit episode", got)
+	}
+	if got := ids(search(t, r, f, f.P12, q).Items); slices.Contains(got, f.Audio.Podcast.ID) {
+		t.Errorf("P12 local = %v, want no podcast: its only present file belongs to an episode rated 18", got)
+	}
+	if got := ids(search(t, r, f, f.P12, textQuery("Fi")).Items); !slices.Contains(got, f.Audio.Podcast.ID) {
+		t.Errorf("P12 without filter = %v, want the podcast", got)
+	}
+}
+
+// n5 (M7 review): collectionsByID keeps the order of the ids it gets (the search rank).
+func TestCollectionsByIDKeepOrder(t *testing.T) {
+	f := searchFixture(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+	for _, order := range [][]string{
+		{vistest.MixedCollectionID, vistest.ManualCollectionID},
+		{vistest.ManualCollectionID, vistest.MixedCollectionID},
+	} {
+		refs, err := r.collectionsByID(ctx, Profile(f.P18), f.P18.ID, order)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := make([]string, 0, len(refs))
+		for _, c := range refs {
+			got = append(got, c.ID)
+		}
+		if !slices.Equal(got, order) {
+			t.Errorf("collections = %v, want %v", got, order)
+		}
+	}
 }

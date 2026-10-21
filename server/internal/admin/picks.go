@@ -34,7 +34,15 @@ func (s *Service) ListTopPicks(ctx context.Context) ([]model.AdminPick, error) {
 // one pick per profile of the main account, at the end of the carousel. The title must exist and
 // must not be a season or an extra; the time window must end after it starts.
 func (s *Service) CreateTopPicks(ctx context.Context, req model.PickRequest) ([]model.AdminPick, error) {
-	verr, err := s.checkCurationItem(ctx, nil, "itemId", req.ItemID, "season", "extra")
+	// The checks run inside the write transaction: a title merged away (hard-deleted) in between
+	// would otherwise fail the insert on its foreign key (500 instead of 422).
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	verr, err := s.checkCurationItem(ctx, q, "itemId", req.ItemID, "season", "extra")
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +50,7 @@ func (s *Service) CreateTopPicks(ctx context.Context, req model.PickRequest) ([]
 	slices.Sort(profiles)
 	profiles = slices.Compact(profiles)
 	if len(profiles) > 0 {
-		owner, err := s.sys.AdminOwnerProfileIDs(ctx)
+		owner, err := q.AdminOwnerProfileIDs(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list owner profiles: %w", err)
 		}
@@ -58,12 +66,6 @@ func (s *Service) CreateTopPicks(ctx context.Context, req model.PickRequest) ([]
 		return nil, verr
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	q := systemq.New(tx)
 	pos, err := q.AdminNextTopPickPosition(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("next pick position: %w", err)
@@ -207,13 +209,9 @@ func validatePick(verr *model.ValidationError, note string, starts, ends *time.T
 	return verr
 }
 
-// checkCurationItem checks a title for a pick or a collection: field gets unknown_item for an
-// unknown or deleted title and invalid_value for one of the refused kinds. q nil reads from the
-// reader pool.
+// checkCurationItem checks a title for a pick with the queries of the caller's transaction: field
+// gets unknown_item for an unknown or deleted title and invalid_value for one of the refused kinds.
 func (s *Service) checkCurationItem(ctx context.Context, q *systemq.Queries, field, itemID string, refused ...string) (*model.ValidationError, error) {
-	if q == nil {
-		q = s.sys
-	}
 	if itemID == "" {
 		return (&model.ValidationError{}).Add(field, "required"), nil
 	}

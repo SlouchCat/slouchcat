@@ -116,6 +116,18 @@ func TestWatchlistFavoritesAndDetail(t *testing.T) {
 	if want := []string{f.Rated(6).ID}; !slices.Equal(ids(items), want) || total != 1 {
 		t.Errorf("P6 watchlist with an invisible entry = %v (%d), want %v", ids(items), total, want)
 	}
+	// The start page row reads the same entries without counting (k2), newest first, cut at limit.
+	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 30)`, f.P6.ID, f.Rated(0).ID)
+	row, err := r.WatchlistRow(ctx, Profile(f.P6), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{f.Rated(0).ID, f.Rated(6).ID}; !slices.Equal(ids(row), want) {
+		t.Errorf("P6 watchlist row = %v, want %v", ids(row), want)
+	}
+	if row, err = r.WatchlistRow(ctx, Profile(f.P6), 1); err != nil || !slices.Equal(ids(row), []string{f.Rated(0).ID}) {
+		t.Errorf("P6 watchlist row limit 1 = %v, %v", ids(row), err)
+	}
 
 	favs, err := r.Favorites(ctx, Profile(f.P18))
 	if err != nil {
@@ -239,16 +251,18 @@ func TestGenresOfVisibleTitles(t *testing.T) {
 func TestTraktRowIntersection(t *testing.T) {
 	f := discoverFixture(t)
 	ctx := context.Background()
-	r := New(f.DB, vistest.Logger())
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	now := fetched.Add(time.Hour)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return now }))
 	// Positions 1..5 of the trending movies are the fixture films 1000..1004 (ratings 0..18); the
 	// show at position 1 is the series (tmdb 1020); a movie entry with the series' id, a show entry
 	// with a film's id and an id outside the library match nothing.
 	for i := range 5 {
-		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, 1)`, i+1, 1000+i)
+		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, fetched.UnixMilli())
 	}
 	exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES
-	            ('trending', 'show', 1, 1020, 1), ('trending', 'movie', 6, 1020, 1), ('trending', 'show', 2, 1001, 1),
-	            ('trending', 'movie', 7, 424242, 1), ('popular', 'movie', 1, 1000, 1)`)
+	            ('trending', 'show', 1, 1020, ?1), ('trending', 'movie', 6, 1020, ?1), ('trending', 'show', 2, 1001, ?1),
+	            ('trending', 'movie', 7, 424242, ?1), ('popular', 'movie', 1, 1000, ?1)`, fetched.UnixMilli())
 	series := f.Show.Series.ID
 	for _, tc := range []struct {
 		p    model.Profile
@@ -280,5 +294,20 @@ func TestTraktRowIntersection(t *testing.T) {
 	}
 	if want := []string{f.Rated(0).ID, series}; !slices.Equal(ids(got), want) {
 		t.Errorf("P18 trending limit 2 = %v, want %v", ids(got), want)
+	}
+	// W1: entries older than TraktMaxAge are stale (the refresh stopped) and show nothing.
+	for _, tc := range []struct {
+		age  time.Duration
+		want int
+	}{{TraktMaxAge, 6}, {TraktMaxAge + time.Millisecond, 0}} {
+		at := fetched.Add(tc.age)
+		stale := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return at }))
+		got, err := stale.TraktRow(ctx, Profile(f.P18), TraktTrending, 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != tc.want {
+			t.Errorf("P18 trending %v after the fetch = %v, want %d titles", tc.age, ids(got), tc.want)
+		}
 	}
 }

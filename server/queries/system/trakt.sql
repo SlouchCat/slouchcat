@@ -10,5 +10,6 @@ INSERT INTO trakt_lists (list, media, position, tmdb_id, title, year, fetched_at
 VALUES (@list, @media, @position, @tmdb_id, @title, @year, @now);
 
 -- name: TraktCountLists :many
--- Entries per list (films and shows together), before the library intersection (admin status).
-SELECT list, count(*) AS entries FROM trakt_lists GROUP BY list ORDER BY list;
+-- Entries per list (films and shows together) fetched at min_fetched or later, before the library
+-- intersection (admin status; the start page leaves older entries out as well).
+SELECT list, count(*) AS entries FROM trakt_lists WHERE fetched_at >= @min_fetched GROUP BY list ORDER BY list;

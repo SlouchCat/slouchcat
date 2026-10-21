@@ -45,13 +45,22 @@ var searchKinds = map[string][]string{
 
 var allSearchKinds = []string{"movie", "series", "episode", "audiobook", "podcast", "podcast_episode"}
 
+// maxSearchTerms caps the prefix terms of one search: each term is a prefix scan of the index.
+const maxSearchTerms = 8
+
 // MatchExpression turns user input into an FTS5 query: every word (a run of Unicode letters and
-// digits) becomes a quoted prefix term, the terms are joined with AND. It returns "" when the input
-// has no word.
+// digits) becomes a quoted prefix term, the terms are joined with AND. Words shorter than
+// MinSearchChars are dropped when the input has a longer word (the prefix index starts at two
+// characters, a one-character prefix walks every term of that character), and at most
+// maxSearchTerms words count. It returns "" when the input has no word.
 func MatchExpression(text string) string {
 	words := strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
-	terms := make([]string, 0, len(words))
-	for _, w := range words {
+	short := func(w string) bool { return utf8.RuneCountInString(w) < MinSearchChars }
+	if slices.ContainsFunc(words, func(w string) bool { return !short(w) }) {
+		words = slices.DeleteFunc(words, short)
+	}
+	terms := make([]string, 0, min(len(words), maxSearchTerms))
+	for _, w := range words[:min(len(words), maxSearchTerms)] {
 		terms = append(terms, `"`+strings.ReplaceAll(w, `"`, `""`)+`"*`)
 	}
 	return strings.Join(terms, " ")
@@ -114,12 +123,15 @@ func titleFilters(b *stmt, s Scope, pid int64, q model.SearchQuery) {
 	var avail []string
 	var availArgs []any
 	if slices.Contains(q.Availability, "local") {
-		// A file is present: for a series or podcast, a file of one of its episodes.
+		// A file is present: for a series or podcast, a file of one of its episodes the profile sees.
 		avail = append(avail, `EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id AND m.missing_since IS NULL)
 			OR (i.kind IN ('series', 'podcast') AND EXISTS (
-				SELECT 1 FROM items AS c JOIN media_files AS m ON m.item_id = c.id
+				SELECT 1 FROM items AS c
+				JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?
+				JOIN media_files AS m ON m.item_id = c.id
 				WHERE m.missing_since IS NULL AND c.deleted_at IS NULL
 				  AND (c.parent_id = i.id OR c.parent_id IN (SELECT se.id FROM items AS se WHERE se.parent_id = i.id))))`)
+		availArgs = append(availArgs, pid)
 	}
 	if slices.Contains(q.Availability, "download") {
 		// Downloaded on the session's device for this profile (M5).
@@ -160,26 +172,27 @@ func (r *Reader) Search(ctx context.Context, s Scope, q model.SearchQuery) (mode
 
 	var ids, count stmt
 	if browse {
-		for b, head := range map[*stmt]string{&ids: "SELECT i.id", &count: "SELECT count(*)"} {
+		from := func(b *stmt, head string) {
 			b.add(head+" FROM items AS i JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ? WHERE 1", pid)
 			titleFilters(b, s, pid, q)
 		}
+		from(&ids, "SELECT i.id")
+		from(&count, "SELECT count(*)")
 		ids.add(" ORDER BY i.sort_title, i.id LIMIT ? OFFSET ?", limit, offset)
 	} else {
-		for b, head := range map[*stmt]string{&ids: "SELECT s.item_id", &count: "SELECT count(DISTINCT s.item_id)"} {
+		from := func(b *stmt, head string) {
 			b.add(head+" FROM search_index AS s JOIN items AS i ON i.id = s.item_id"+
 				" JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?", pid)
 			b.add(" WHERE s.search_index MATCH ? AND s.kind IN ('item', 'text')", match)
 			titleFilters(b, s, pid, q)
 		}
+		from(&ids, "SELECT s.item_id")
+		from(&count, "SELECT count(DISTINCT s.item_id)")
 		ids.add(" GROUP BY s.item_id ORDER BY min(s.rank), i.sort_title, s.item_id LIMIT ? OFFSET ?", limit, offset)
 	}
-	if err := r.read.QueryRowContext(ctx, count.sql.String(), count.args...).Scan(&out.Total); err != nil {
-		return model.SearchResult{}, fmt.Errorf("count search hits: %w", err)
-	}
-	order, err := r.strings(ctx, ids.sql.String(), ids.args...)
+	order, err := r.titlePage(ctx, &count, &ids, &out.Total)
 	if err != nil {
-		return model.SearchResult{}, fmt.Errorf("search titles: %w", err)
+		return model.SearchResult{}, err
 	}
 	if out.Items, err = r.ordered(ctx, s, pid, order); err != nil {
 		return model.SearchResult{}, err
@@ -193,7 +206,7 @@ func (r *Reader) Search(ctx context.Context, s Scope, q model.SearchQuery) (mode
 		return model.SearchResult{}, err
 	}
 	out.People = people
-	collections, err := r.strings(ctx, `SELECT s.ref_id FROM search_index AS s
+	collections, err := textColumn(ctx, r.read, `SELECT s.ref_id FROM search_index AS s
 		JOIN visible_items AS v ON v.item_id = s.item_id AND v.profile_id = ?
 		WHERE s.search_index MATCH ? AND s.kind = 'collection'
 		GROUP BY s.ref_id ORDER BY min(s.rank), s.ref_id LIMIT ?`, pid, match, SearchSideHits)
@@ -231,9 +244,27 @@ func (r *Reader) searchPeople(ctx context.Context, pid int64, match string) ([]m
 	return out, nil
 }
 
-// strings runs a statement with one text column and returns its values in order.
-func (r *Reader) strings(ctx context.Context, query string, args ...any) ([]string, error) {
-	rows, err := r.read.QueryContext(ctx, query, args...)
+// titlePage runs the count and the page of a search in one read-only transaction, so the total
+// and the page see the same state of the database; it returns the title ids of the page in order.
+func (r *Reader) titlePage(ctx context.Context, count, ids *stmt, total *int) ([]string, error) {
+	tx, err := r.read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("begin search: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := tx.QueryRowContext(ctx, count.sql.String(), count.args...).Scan(total); err != nil {
+		return nil, fmt.Errorf("count search hits: %w", err)
+	}
+	order, err := textColumn(ctx, tx, ids.sql.String(), ids.args...)
+	if err != nil {
+		return nil, fmt.Errorf("search titles: %w", err)
+	}
+	return order, tx.Commit()
+}
+
+// textColumn runs a statement with one text column and returns its values in order.
+func textColumn(ctx context.Context, db scopedq.DBTX, query string, args ...any) ([]string, error) {
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

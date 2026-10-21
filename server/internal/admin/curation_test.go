@@ -208,6 +208,17 @@ func TestCollections(t *testing.T) {
 		wantField(t, name+" member", errOf(c.svc.SetCollectionItems(c.ctx, coll.ID, []string{id})), "itemIds", "invalid_value")
 	}
 	wantField(t, "duplicate member", errOf(c.svc.SetCollectionItems(c.ctx, coll.ID, []string{f.Rated(0).ID, f.Rated(0).ID})), "itemIds", "invalid_value")
+	// n4: one read for the whole list; the first refused id in list order decides, a deleted title
+	// is unknown.
+	wantField(t, "season before unknown", errOf(c.svc.SetCollectionItems(c.ctx, coll.ID, []string{f.Show.Season.ID, unknownID})), "itemIds", "invalid_value")
+	wantField(t, "empty id", errOf(c.svc.SetCollectionItems(c.ctx, coll.ID, []string{f.Rated(0).ID, ""})), "itemIds", "required")
+	if _, err := f.DB.Write.ExecContext(c.ctx, `UPDATE items SET deleted_at = 1 WHERE id = ?`, f.Rated(16).ID); err != nil {
+		t.Fatal(err)
+	}
+	wantField(t, "deleted member", errOf(c.svc.SetCollectionItems(c.ctx, coll.ID, []string{f.Rated(0).ID, f.Rated(16).ID})), "itemIds", "unknown_item")
+	if _, err := f.DB.Write.ExecContext(c.ctx, `UPDATE items SET deleted_at = NULL WHERE id = ?`, f.Rated(16).ID); err != nil {
+		t.Fatal(err)
+	}
 	if cur, err := c.svc.GetCollection(c.ctx, coll.ID); err != nil || len(cur.Items) != 3 {
 		t.Errorf("a refused change touched the members: %+v (%v)", cur, err)
 	}

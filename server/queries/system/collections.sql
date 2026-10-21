@@ -73,3 +73,8 @@ DELETE FROM collection_items WHERE collection_id = @collection_id;
 -- name: AdminInsertCollectionItem :exec
 INSERT INTO collection_items (collection_id, item_id, position, created_at)
 VALUES (@collection_id, @item_id, @position, @now);
+
+-- name: AdminCollectionCandidates :many
+-- The kinds of the titles that may become members of a manual collection (one read for the whole
+-- list); unknown and deleted ids are absent.
+SELECT id, kind FROM items WHERE id IN (sqlc.slice('item_ids')) AND deleted_at IS NULL;

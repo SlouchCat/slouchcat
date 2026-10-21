@@ -18,6 +18,10 @@ func TestNewEpisodesHook(t *testing.T) {
 	WithNewEpisodes(func(ctx context.Context, ids []string) error {
 		mu.Lock()
 		defer mu.Unlock()
+		// n8: the hook runs detached from the scan but with its own timeout.
+		if d, ok := ctx.Deadline(); !ok || time.Until(d) > newEpisodesTimeout {
+			t.Errorf("hook context deadline %v (set %v), want at most %v ahead", d, ok, newEpisodesTimeout)
+		}
 		for _, id := range ids {
 			if n := e.count(`SELECT count(*) FROM items WHERE id = ? AND kind = 'episode'`, id); n != 1 {
 				t.Errorf("announced %s is no committed episode", id)

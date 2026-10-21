@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -113,19 +114,30 @@ func (s *Service) SetCollectionItems(ctx context.Context, id string, itemIDs []s
 	if len(itemIDs) > maxCollectionItems {
 		return model.AdminCollection{}, (&model.ValidationError{}).Add("itemIds", "too_long")
 	}
+	kinds := make(map[string]string, len(itemIDs))
+	if len(itemIDs) > 0 {
+		rows, err := q.AdminCollectionCandidates(ctx, itemIDs)
+		if err != nil {
+			return model.AdminCollection{}, fmt.Errorf("read collection candidates: %w", err)
+		}
+		for _, r := range rows {
+			kinds[r.ID] = r.Kind
+		}
+	}
 	seen := make(map[string]bool, len(itemIDs))
 	for _, itemID := range itemIDs {
-		if seen[itemID] {
+		kind, ok := kinds[itemID]
+		switch {
+		case seen[itemID]:
+			return model.AdminCollection{}, (&model.ValidationError{}).Add("itemIds", "invalid_value")
+		case itemID == "":
+			return model.AdminCollection{}, (&model.ValidationError{}).Add("itemIds", "required")
+		case !ok:
+			return model.AdminCollection{}, (&model.ValidationError{}).Add("itemIds", "unknown_item")
+		case slices.Contains([]string{"season", "episode", "extra"}, kind):
 			return model.AdminCollection{}, (&model.ValidationError{}).Add("itemIds", "invalid_value")
 		}
 		seen[itemID] = true
-		verr, err := s.checkCurationItem(ctx, q, "itemIds", itemID, "season", "episode", "extra")
-		if err != nil {
-			return model.AdminCollection{}, err
-		}
-		if verr != nil {
-			return model.AdminCollection{}, verr
-		}
 	}
 	now := s.now().UnixMilli()
 	if err := q.AdminClearCollectionItems(ctx, id); err != nil {

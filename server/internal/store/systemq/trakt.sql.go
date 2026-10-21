@@ -11,7 +11,7 @@ import (
 )
 
 const traktCountLists = `-- name: TraktCountLists :many
-SELECT list, count(*) AS entries FROM trakt_lists GROUP BY list ORDER BY list
+SELECT list, count(*) AS entries FROM trakt_lists WHERE fetched_at >= ?1 GROUP BY list ORDER BY list
 `
 
 type TraktCountListsRow struct {
@@ -19,9 +19,10 @@ type TraktCountListsRow struct {
 	Entries int64
 }
 
-// Entries per list (films and shows together), before the library intersection (admin status).
-func (q *Queries) TraktCountLists(ctx context.Context) ([]TraktCountListsRow, error) {
-	rows, err := q.db.QueryContext(ctx, traktCountLists)
+// Entries per list (films and shows together) fetched at min_fetched or later, before the library
+// intersection (admin status; the start page leaves older entries out as well).
+func (q *Queries) TraktCountLists(ctx context.Context, minFetched int64) ([]TraktCountListsRow, error) {
+	rows, err := q.db.QueryContext(ctx, traktCountLists, minFetched)
 	if err != nil {
 		return nil, err
 	}

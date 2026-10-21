@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -223,5 +224,65 @@ func TestMarkRead(t *testing.T) {
 	}
 	if err := e.svc.MarkRead(ctx, f.P12, p12ID); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("invisible entry: %v", err)
+	}
+}
+
+// k3, k4 (M7 review): without any favourite a batch stores nothing; one call notifies at most
+// MaxPerParent episodes of one series, in the order of the ids, and a later call notifies the rest.
+func TestNewEpisodesBatchAndCap(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.f
+	var ids []string
+	for i := range MaxPerParent + 5 {
+		ids = append(ids, e.addEpisode(t, fmt.Sprintf("%02d", i), nil))
+	}
+	if err := e.svc.NewEpisodes(ctx, ids); err != nil {
+		t.Fatal(err)
+	}
+	var stored int
+	if err := f.DB.Read.QueryRow(`SELECT count(*) FROM notifications`).Scan(&stored); err != nil || stored != 0 {
+		t.Fatalf("notifications without a favourite = %d, %v", stored, err)
+	}
+
+	e.favorite(t, f.Show.Series.ID, f.P12, f.P18)
+	e.favorite(t, f.Audio.Podcast.ID, f.P18)
+	// The podcast episode counts for its own parent, not for the series.
+	batch := append(slices.Clone(ids), f.Audio.Episodes[0].ID)
+	if err := e.svc.NewEpisodes(ctx, batch); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.rec.of(f.P12); !slices.Equal(got, ids[:MaxPerParent]) {
+		t.Errorf("P12 dispatched %d episodes, want the first %d in order", len(got), MaxPerParent)
+	}
+	if _, total, _ := e.inbox(t, f.P18); total != MaxPerParent+1 {
+		t.Errorf("P18 inbox total %d, want %d series episodes and the podcast episode", total, MaxPerParent+1)
+	}
+	if err := e.svc.NewEpisodes(ctx, ids[MaxPerParent:]); err != nil {
+		t.Fatal(err)
+	}
+	if _, total, _ := e.inbox(t, f.P12); total != MaxPerParent+5 {
+		t.Errorf("P12 inbox total %d after the second call, want %d", total, MaxPerParent+5)
+	}
+}
+
+// n2 (M7 review): "mark all read" leaves the entries of episodes the profile may not see untouched.
+func TestMarkAllReadOnlyVisible(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.f
+	e.favorite(t, f.Show.Series.ID, f.P12)
+	a := e.addEpisode(t, "0A", nil)
+	b := e.addEpisode(t, "0B", nil)
+	if err := e.svc.NewEpisodes(ctx, []string{a, b}); err != nil {
+		t.Fatal(err)
+	}
+	e.exec(t, `UPDATE items SET own_rating = 16 WHERE id = ?`, b)
+	if err := e.svc.MarkAllRead(ctx, f.P12); err != nil {
+		t.Fatal(err)
+	}
+	e.exec(t, `UPDATE items SET own_rating = NULL WHERE id = ?`, b)
+	if ids, total, unread := e.inbox(t, f.P12); total != 2 || unread != 1 {
+		t.Errorf("P12 inbox %v total %d unread %d, want the hidden entry still unread", ids, total, unread)
 	}
 }

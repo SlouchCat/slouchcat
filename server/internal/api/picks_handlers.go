@@ -230,10 +230,15 @@ func toHomeRowSettings(rows []model.HomeRowSetting) []gen.HomeRowSetting {
 
 type pickNullsKey struct{}
 
+// pickUpdateFields are the nullable fields of PickUpdate, by their contract names.
+var pickUpdateFields = []string{"note", "startsAt", "endsAt"}
+
 // pickUpdateNulls records which top-level fields of a PATCH /admin/picks/{id} body are JSON null:
-// the generated PickUpdate cannot tell null (clear the field) from absent (keep it). The body is
-// handed on unchanged; a read error (such as a body over the size limit) reaches the decoder of
-// the strict handler after the bytes read so far.
+// the generated PickUpdate cannot tell null (clear the field) from absent (keep it). Field names
+// match without regard to case, like encoding/json matches them when it decodes the body into
+// PickUpdate ({"Note": null} clears the note as {"note": null} does). The body is handed on
+// unchanged; a read error (such as a body over the size limit) reaches the decoder of the strict
+// handler after the bytes read so far.
 func pickUpdateNulls(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch || r.Body == nil || !strings.HasPrefix(r.URL.Path, BasePath+"/admin/picks/") {
@@ -250,7 +255,11 @@ func pickUpdateNulls(next http.Handler) http.Handler {
 		nulls := map[string]bool{}
 		if json.Unmarshal(raw, &fields) == nil {
 			for k, v := range fields {
-				nulls[k] = string(bytes.TrimSpace(v)) == "null"
+				for _, name := range pickUpdateFields {
+					if strings.EqualFold(k, name) && string(bytes.TrimSpace(v)) == "null" {
+						nulls[name] = true
+					}
+				}
 			}
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), pickNullsKey{}, nulls)))

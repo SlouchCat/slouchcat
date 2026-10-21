@@ -16,7 +16,8 @@ import (
 // fetched them and 7 days after they were ready without a fetch (evicted; the next sync of the
 // device prepares them again while it lacks the file), the partial files of failed preparations,
 // directories without a download row and tombstones older than 400 days. The copy on the device
-// has no expiry (O-6).
+// has no expiry (O-6). The same pass deletes read inbox entries (M7 notifications) older than 90
+// days, so the inbox does not grow without bound.
 
 // Run cleans up and reconciles the downloads with the job queue at once and then every 10
 // minutes until ctx ends.
@@ -101,6 +102,15 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		n, err := s.write.DeleteOldTombstones(ctx, ms(now.Add(-tombstoneKeep)))
 		if err != nil {
 			return fmt.Errorf("delete old tombstones: %w", err)
+		}
+		if n < writeBatch {
+			break
+		}
+	}
+	for {
+		n, err := s.write.NotifyDeleteOldRead(ctx, ms(now.Add(-readNoticeKeep)))
+		if err != nil {
+			return fmt.Errorf("delete old read notifications: %w", err)
 		}
 		if n < writeBatch {
 			return nil

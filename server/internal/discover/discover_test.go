@@ -187,9 +187,9 @@ func TestHomeStoredOrderAndTraktRows(t *testing.T) {
 	// Trakt: the trending movies are the films 1000..1004 (rated 0 to 18): five visible hits for
 	// P18, four for P16, three for P12.
 	for i := range 5 {
-		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, 1)`, i+1, 1000+i)
+		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, time.Now().UnixMilli())
 	}
-	exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', 1, 1000, 1)`)
+	exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', 1, 1000, ?)`, time.Now().UnixMilli())
 	for _, tc := range []struct {
 		p     model.Profile
 		shown bool
@@ -225,7 +225,7 @@ func TestHomeStoredOrderAndTraktRows(t *testing.T) {
 	// Eight non-empty rows at most (E-9): every row of every profile fixture fits.
 	exec(t, f, `UPDATE home_rows SET hidden = 0`)
 	for i := range 5 {
-		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', ?, ?, 1)`, i+2, 1000+i)
+		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', ?, ?, ?)`, i+2, 1000+i, time.Now().UnixMilli())
 	}
 	for _, p := range []model.Profile{f.P0, f.P6, f.P12, f.P16, f.P18} {
 		rows, err := s.Home(ctx, p)
@@ -365,5 +365,43 @@ func TestWatchlistAndFavoriteWrites(t *testing.T) {
 	}
 	if err := s.RemoveFavorite(ctx, f.P6, f.Show.Series.ID); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("remove invisible favourite: err = %v", err)
+	}
+}
+
+// k1 (M7 review): a global pick of a title at the front and the profile's own pick of the same
+// title further back: the own pick wins in Home, and FirstPick (limit 1) agrees with the first
+// hero slide instead of returning the global row.
+func TestFirstPickAfterDeduplication(t *testing.T) {
+	f := discoverFixture(t)
+	s := New(f.DB, f.CacheDir, vistest.Logger())
+	ctx := context.Background()
+	// The fixture holds the own pick of P12 on the film rated 12 at position 5; a global pick of the
+	// same film goes in front of every other pick.
+	exec(t, f, `INSERT INTO top_picks (item_id, position, note, created_at) VALUES (?, -1, 'global', 1)`, f.Rated(12).ID)
+	rows, err := s.Home(ctx, f.P12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	picks := rowOf(rows, RowPicks).Items
+	if want := []string{f.Rated(6).ID, f.Rated(12).ID}; !slices.Equal(itemIDs(picks), want) || picks[1].Note != f.Discover.PickNote {
+		t.Fatalf("P12 picks = %v (%+v), want %v with the own note last", itemIDs(picks), picks, want)
+	}
+	first, err := s.FirstPick(ctx, f.P12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ID != picks[0].ID {
+		t.Errorf("FirstPick(P12) = %s, want the first hero slide %s", first.ID, picks[0].ID)
+	}
+	// A profile without an own pick of the film still gets the global one first.
+	first, err = s.FirstPick(ctx, f.P16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, err = s.Home(ctx, f.P16); err != nil {
+		t.Fatal(err)
+	}
+	if picks := rowOf(rows, RowPicks).Items; first.ID != f.Rated(12).ID || len(picks) == 0 || picks[0].ID != first.ID {
+		t.Errorf("FirstPick(P16) = %s, Home picks = %v, want the global pick of the film rated 12 first", first.ID, itemIDs(picks))
 	}
 }

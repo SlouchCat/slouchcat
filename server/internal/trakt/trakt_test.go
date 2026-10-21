@@ -3,6 +3,7 @@ package trakt
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"slices"
@@ -130,5 +131,72 @@ func TestListMalformed(t *testing.T) {
 	c := New(clientID, WithBaseURL(srv.URL), WithHTTPClient(srv.Client()), WithLimiter(fast()))
 	if _, err := c.List(context.Background(), ListTrending, MediaShow, 5); !errors.Is(err, ErrUnavailable) {
 		t.Errorf("malformed body: %v", err)
+	}
+}
+
+// k8 (M7 review): a redirect to another host never receives the client id; one on the same host
+// is followed.
+func TestRedirectStaysOnHost(t *testing.T) {
+	var foreignHits atomic.Int32
+	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		foreignHits.Add(1)
+		if r.Header.Get("trakt-api-key") != "" {
+			t.Errorf("foreign host got the client id")
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer foreign.Close()
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /movies/popular", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, foreign.URL+"/movies/popular", http.StatusFound)
+	})
+	mux.HandleFunc("GET /shows/popular", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/moved/shows", http.StatusMovedPermanently)
+	})
+	mux.HandleFunc("GET /moved/shows", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("trakt-api-key") != clientID {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		_, _ = w.Write([]byte(`[{"title": "Da", "ids": {"tmdb": 5}}]`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := New(clientID, WithBaseURL(srv.URL), WithHTTPClient(srv.Client()), WithLimiter(fast()))
+	ctx := context.Background()
+	if _, err := c.List(ctx, ListPopular, MediaMovie, MaxLimit); !errors.Is(err, ErrUnavailable) {
+		t.Errorf("redirect to another host: %v, want ErrUnavailable", err)
+	}
+	if n := foreignHits.Load(); n != 0 {
+		t.Errorf("foreign host hit %d times", n)
+	}
+	got, err := c.List(ctx, ListPopular, MediaShow, MaxLimit)
+	if err != nil || len(got) != 1 || got[0].TMDBID != 5 {
+		t.Errorf("redirect on the same host: %+v, %v", got, err)
+	}
+}
+
+// n7 (M7 review): the body is drained before it is closed, so sequential requests share one
+// connection even when the JSON decoder stops before the end of the body.
+func TestListReusesConnection(t *testing.T) {
+	var conns atomic.Int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[{"title": "Pop", "ids": {"tmdb": 301}}]` + strings.Repeat(" ", 64<<10)))
+	}))
+	srv.Config.ConnState = func(_ net.Conn, s http.ConnState) {
+		if s == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+	c := New(clientID, WithBaseURL(srv.URL), WithHTTPClient(srv.Client()), WithLimiter(fast()))
+	for range 3 {
+		if _, err := c.List(context.Background(), ListPopular, MediaMovie, MaxLimit); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := conns.Load(); n != 1 {
+		t.Errorf("%d connections for three requests, want 1", n)
 	}
 }

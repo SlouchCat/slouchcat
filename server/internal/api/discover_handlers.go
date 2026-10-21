@@ -27,8 +27,15 @@ func (e serviceProblem) VisitListFavoritesResponse(w http.ResponseWriter) error 
 func (e serviceProblem) VisitAddFavoriteResponse(w http.ResponseWriter) error    { return e.visit(w) }
 func (e serviceProblem) VisitRemoveFavoriteResponse(w http.ResponseWriter) error { return e.visit(w) }
 
-// maxSearchQuery is the longest search text of the contract (SearchRequest.query maxLength).
-const maxSearchQuery = 100
+// Search bounds: the longest text and genre of the contract (SearchRequest.query and genre
+// maxLength) and the years a filter may name. The strict server does not check schema bounds, so
+// the handler does: a filter the reader would ignore must not look applied to the client.
+const (
+	maxSearchQuery = 100
+	maxSearchGenre = 80
+	minSearchYear  = 1870
+	maxSearchYear  = 2100
+)
 
 func (s *server) Search(ctx context.Context, req gen.SearchRequestObject) (gen.SearchResponseObject, error) {
 	session, err := s.itemSession(ctx)
@@ -61,6 +68,18 @@ func (s *server) Search(ctx context.Context, req gen.SearchRequestObject) (gen.S
 		verr = verr.Add("query", "too_short")
 	case n == 0 && q.Genre == "" && b.YearFrom == nil && b.YearTo == nil && b.MaxRating == nil && len(q.MediaTypes) == 0 && len(q.Availability) == 0:
 		verr = verr.Add("query", "required")
+	}
+	if utf8.RuneCountInString(q.Genre) > maxSearchGenre {
+		verr = verr.Add("genre", "too_long")
+	}
+	if y := b.YearFrom; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
+		verr = verr.Add("yearFrom", "invalid_value")
+	}
+	if y := b.YearTo; y != nil && (*y < minSearchYear || *y > maxSearchYear) {
+		verr = verr.Add("yearTo", "invalid_value")
+	}
+	if b.MaxRating != nil && !b.MaxRating.Valid() {
+		verr = verr.Add("maxRating", "invalid_value")
 	}
 	if verr != nil {
 		return s.problem(ctx, verr), nil

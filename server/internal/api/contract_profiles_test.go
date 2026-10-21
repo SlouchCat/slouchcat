@@ -254,6 +254,26 @@ func checkSearch(t *testing.T, f *vistest.Fixture, h http.Handler, token string,
 			t.Errorf("search %.30s for %s: status %d (%s), want 422 query %s", body, token, rec.Code, rec.Body.String(), code)
 		}
 	}
+	// k7: the bounds of the filters (the strict server checks no schema bounds); yearFrom 0 is no
+	// filter the reader would ignore but a 422.
+	for body, want := range map[string]string{
+		`{"maxRating":-5}`:                            "maxRating invalid_value",
+		`{"maxRating":99}`:                            "maxRating invalid_value",
+		`{"query":"Fi","maxRating":7}`:                "maxRating invalid_value",
+		`{"yearFrom":0}`:                              "yearFrom invalid_value",
+		`{"yearFrom":1869}`:                           "yearFrom invalid_value",
+		`{"yearTo":2101}`:                             "yearTo invalid_value",
+		`{"genre":"` + strings.Repeat("g", 81) + `"}`: "genre too_long",
+	} {
+		if got := fieldProblem(t, send(t, h, http.MethodPost, BasePath+"/search", token, body, nil)); got != want {
+			t.Errorf("search %.30s for %s: %s, want %s", body, token, got, want)
+		}
+	}
+	for _, body := range []string{`{"maxRating":0}`, `{"yearFrom":1870,"yearTo":2100}`, `{"genre":"` + strings.Repeat("g", 80) + `"}`} {
+		if rec := send(t, h, http.MethodPost, BasePath+"/search", token, body, nil); rec.Code != http.StatusOK {
+			t.Errorf("search %.30s for %s: status %d (%s), want 200", body, token, rec.Code, rec.Body.String())
+		}
+	}
 }
 
 var profileRegistry = map[string]profileCall{
@@ -1304,7 +1324,7 @@ func TestContractChildProfiles(t *testing.T) {
 				method := strings.Fields(call.contract)[0]
 				if !call.perItem {
 					rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
-					if rec.Code >= 500 && (call.want == nil || call.want(f, profile) != http.StatusNotImplemented) {
+					if rec.Code >= 500 {
 						t.Errorf("%s: status %d (%s)", op, rec.Code, rec.Body.String())
 					}
 					if call.want != nil {

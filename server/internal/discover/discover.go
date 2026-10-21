@@ -132,7 +132,7 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (
 	case RowRecent:
 		row.Items, err = s.vis.Recent(ctx, scope, visibility.MaxRowItems)
 	case RowWatchlist:
-		row.Items, _, err = s.vis.Watchlist(ctx, scope, 0, visibility.MaxRowItems)
+		row.Items, err = s.vis.WatchlistRow(ctx, scope, visibility.MaxRowItems)
 	case RowCollections:
 		row.Collections, err = s.vis.Collections(ctx, scope, visibility.MaxRowItems)
 	case RowGenres:

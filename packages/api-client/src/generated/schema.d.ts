@@ -3389,8 +3389,9 @@ export interface components {
          */
         SearchRequest: {
             /**
-             * @description Words are matched as prefixes (from the second character), diacritics folded. Absent or
-             *     empty: browse by the filters, ordered by title.
+             * @description Words are matched as prefixes (from the second character), diacritics folded; one-character
+             *     words are ignored when a longer word is present, at most eight words count. Absent or empty:
+             *     browse by the filters, ordered by title.
              */
             query?: string;
             /** @description A genre name in the profile language (`listGenres`). */
@@ -6939,7 +6940,9 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             /**
              * @description Validation failed (`validation_failed`; `query` `too_short` (one character), `too_long`, or
-             *     `required` when neither a query nor a filter is given).
+             *     `required` when neither a query nor a filter is given; `maxRating` `invalid_value` outside
+             *     0/6/12/16/18; `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80
+             *     characters).
              */
             422: {
                 headers: {

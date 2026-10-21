@@ -162,6 +162,13 @@ func TestContractAdminPicks(t *testing.T) {
 	if !slices.Contains(picksOf(t, h, "p16"), f.Rated(0).ID) {
 		t.Error("the pick did not come back after clearing endsAt")
 	}
+	// k5: encoding/json matches field names without regard to case, so does the null detection.
+	if p := patch(`{"note":"wieder da"}`); p.Note == nil || *p.Note != "wieder da" {
+		t.Errorf("after setting the note again %+v", p)
+	}
+	if p := patch(`{"Note":null}`); p.Note != nil {
+		t.Errorf(`after {"Note":null} %+v, want the note cleared`, p)
+	}
 	if got := fieldProblem(t, send(t, h, http.MethodPatch, path, "p18", `{"startsAt":"2026-02-01T00:00:00Z","endsAt":"2026-01-01T00:00:00Z"}`, nil)); got != "endsAt invalid_value" {
 		t.Errorf("PATCH with an empty window: %s", got)
 	}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
@@ -44,13 +45,27 @@ func (r *Reader) Watchlist(ctx context.Context, s Scope, offset, limit int) ([]m
 	if err != nil {
 		return nil, 0, fmt.Errorf("count watchlist: %w", err)
 	}
-	items, err := r.list(ctx, s, pid, "watchlist")(r.q.ListWatchlist(ctx, scopedq.ListWatchlistParams{
-		ProfileID: pid, LimitCount: int64(limit), OffsetCount: int64(offset),
-	}))
+	items, err := r.watchlistPage(ctx, s, pid, offset, limit)
 	if err != nil {
 		return nil, 0, err
 	}
 	return items, int(total), nil
+}
+
+// WatchlistRow returns the newest entries of the profile's watchlist for the start page, at most
+// limit (clamped to 1..MaxRowItems), without counting the whole list.
+func (r *Reader) WatchlistRow(ctx context.Context, s Scope, limit int) ([]model.ItemSummary, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	return r.watchlistPage(ctx, s, pid, 0, int(clamp(limit)))
+}
+
+func (r *Reader) watchlistPage(ctx context.Context, s Scope, pid int64, offset, limit int) ([]model.ItemSummary, error) {
+	return r.list(ctx, s, pid, "watchlist")(r.q.ListWatchlist(ctx, scopedq.ListWatchlistParams{
+		ProfileID: pid, LimitCount: int64(limit), OffsetCount: int64(offset),
+	}))
 }
 
 // InWatchlist reports whether a visible title is on the profile's watchlist; an invisible one never is.
@@ -138,7 +153,11 @@ func (r *Reader) collectionsByID(ctx context.Context, s Scope, pid int64, ids []
 	for _, c := range rows {
 		refs = append(refs, collectionRow(c))
 	}
-	slices.SortFunc(refs, func(a, b collectionRow) int { return slices.Index(ids, a.ID) - slices.Index(ids, b.ID) })
+	pos := make(map[string]int, len(ids))
+	for i, id := range ids {
+		pos[id] = i
+	}
+	slices.SortFunc(refs, func(a, b collectionRow) int { return pos[a.ID] - pos[b.ID] })
 	return r.collectionRefs(ctx, s, pid, refs)
 }
 
@@ -236,15 +255,23 @@ const (
 	TraktPopular  = "popular"
 )
 
+// TraktMaxAge is the age after which stored Trakt entries count as stale and no longer show: twice
+// the daily refresh interval (metadata.TraktInterval), so a refresh job that stopped running (client
+// id removed, worker hung) does not leave old lists on the start page for ever.
+const TraktMaxAge = 48 * time.Hour
+
 // TraktRow returns the visible library titles of a Trakt list (trending or popular, movies and
 // shows matched by TMDB id) in list order, each once, at most limit (clamped to 1..MaxRowItems).
+// Entries older than TraktMaxAge by the Reader's clock are left out.
 func (r *Reader) TraktRow(ctx context.Context, s Scope, list string, limit int) ([]model.ItemSummary, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
 	}
 	n := clamp(limit)
-	items, err := r.q.ListTraktRow(ctx, scopedq.ListTraktRowParams{ProfileID: pid, List: list, LimitCount: 2 * n}) // room for duplicates
+	items, err := r.q.ListTraktRow(ctx, scopedq.ListTraktRowParams{
+		ProfileID: pid, List: list, MinFetched: r.now().Add(-TraktMaxAge).UnixMilli(), LimitCount: 2 * n, // room for duplicates
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list trakt row: %w", err)
 	}

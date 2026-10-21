@@ -683,13 +683,11 @@ WHERE (t.profile_id IS NULL OR t.profile_id = ?1)
   AND (t.starts_at IS NULL OR t.starts_at <= ?2)
   AND (t.ends_at IS NULL OR t.ends_at > ?2)
 ORDER BY t.position, t.id
-LIMIT ?3
 `
 
 type ListTopPicksParams struct {
-	ProfileID  int64
-	Now        sql.NullInt64
-	LimitCount int64
+	ProfileID int64
+	Now       sql.NullInt64
 }
 
 type ListTopPicksRow struct {
@@ -700,9 +698,10 @@ type ListTopPicksRow struct {
 
 // Cat's recommendations (E-1, E-2) for the profile: global rows (profile_id NULL) and rows of the
 // profile, inside their optional time window, with the main user's note. An item listed twice is
-// deduplicated by the caller (the row of the profile wins over the global one).
+// deduplicated by the caller (the row of the profile wins over the global one), so the query has
+// no limit: the caller cuts after the deduplication (the table is small, curated by hand).
 func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]ListTopPicksRow, error) {
-	rows, err := q.db.QueryContext(ctx, listTopPicks, arg.ProfileID, arg.Now, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listTopPicks, arg.ProfileID, arg.Now)
 	if err != nil {
 		return nil, err
 	}

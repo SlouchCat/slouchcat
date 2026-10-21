@@ -260,13 +260,19 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 	return len(ops), nil
 }
 
+// newEpisodesTimeout bounds the new-episode hook of one batch. The hook runs detached from the
+// scan's context (the batch is committed, so a shutdown should still announce it), but not for ever.
+const newEpisodesTimeout = 30 * time.Second
+
 // announceEpisodes tells the new-episode hook about the episodes a committed batch created; a
 // failure is logged.
 func (s *Service) announceEpisodes(ctx context.Context, libraryID int64, ids []string) {
 	if s.newEpisodes == nil || len(ids) == 0 {
 		return
 	}
-	if err := s.newEpisodes(context.WithoutCancel(ctx), ids); err != nil {
+	hookCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), newEpisodesTimeout)
+	defer cancel()
+	if err := s.newEpisodes(hookCtx, ids); err != nil {
 		s.log.WarnContext(ctx, "notify new episodes", "library_id", libraryID, "episodes", len(ids), "err", err)
 	}
 }

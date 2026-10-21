@@ -19,6 +19,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
 const traktTestID = "trakt-secret-client-id"
@@ -272,5 +273,56 @@ func TestTraktNotConfigured(t *testing.T) {
 	svc := New(e.db, e.queue, nil, t.TempDir(), transcode.Runner{}, slog.New(slog.DiscardHandler))
 	if st, err := svc.TraktStatus(ctx); err != nil || st.Configured {
 		t.Errorf("status without key source = %+v %v", st, err)
+	}
+}
+
+// W1 (M7 review): removing the client id empties the stored lists, so the start page drops the
+// Trakt rows as documented; while the id stays but no run succeeds for two intervals (a hung job),
+// the status counts no entries either, like the start page (visibility.TraktMaxAge).
+func TestTraktRowsGoWithoutClientID(t *testing.T) {
+	if visibility.TraktMaxAge != 2*TraktInterval {
+		t.Fatalf("visibility.TraktMaxAge = %v, want twice TraktInterval", visibility.TraktMaxAge)
+	}
+	keys := &traktKeys{id: traktTestID}
+	e := newTraktEnv(t, "", keys)
+	ctx := context.Background()
+	if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
+		t.Fatal(err)
+	}
+	start := e.clock.now()
+	if st := e.status(t); st.Trending != 3 || st.Popular != 3 {
+		t.Fatalf("status after the run = %+v", st)
+	}
+	// A hung job: the entries stay stored but are stale after two intervals.
+	e.clock.set(start.Add(2*TraktInterval - time.Minute))
+	if st := e.status(t); st.Trending != 3 {
+		t.Errorf("status just before the entries turn stale = %+v", st)
+	}
+	e.clock.set(start.Add(2 * TraktInterval))
+	if st := e.status(t); st.Trending != 3 {
+		t.Errorf("status when the entries turn stale = %+v (boundary is inclusive)", st)
+	}
+	e.clock.set(start.Add(2*TraktInterval + time.Minute))
+	if st := e.status(t); st.Trending != 0 || st.Popular != 0 || !st.Configured {
+		t.Errorf("status with stale entries = %+v, want no entries", st)
+	}
+	if len(e.rows(t)) == 0 {
+		t.Fatal("stale entries were deleted, want them kept until the next run")
+	}
+
+	// The client id goes: the next tick empties the table and queues nothing.
+	keys.id = ""
+	if ok, err := e.svc.QueueDueTrakt(ctx); ok || err != nil {
+		t.Errorf("queue due without client id: %v %v", ok, err)
+	}
+	if got := e.rows(t); len(got) != 0 {
+		t.Errorf("rows without client id = %v", got)
+	}
+	if st := e.status(t); st.Configured || st.Trending != 0 || st.Popular != 0 {
+		t.Errorf("status without client id = %+v", st)
+	}
+	// A second tick finds nothing to empty.
+	if ok, err := e.svc.QueueDueTrakt(ctx); ok || err != nil {
+		t.Errorf("second tick without client id: %v %v", ok, err)
 	}
 }

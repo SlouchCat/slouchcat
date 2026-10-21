@@ -261,21 +261,28 @@ JOIN items AS i ON i.tmdb_id = t.tmdb_id
                AND i.kind = CASE t.media WHEN 'movie' THEN 'movie' ELSE 'series' END
                AND i.deleted_at IS NULL
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE t.list = ?2
+WHERE t.list = ?2 AND t.fetched_at >= ?3
 ORDER BY t.position, t.media, i.id
-LIMIT ?3
+LIMIT ?4
 `
 
 type ListTraktRowParams struct {
 	ProfileID  int64
 	List       string
+	MinFetched int64
 	LimitCount int64
 }
 
 // A Trakt list (trending, popular; movies and shows) intersected with the visible library titles by
-// TMDB id (AN-3), in list order. A title held twice appears twice; the caller deduplicates.
+// TMDB id (AN-3), in list order. A title held twice appears twice; the caller deduplicates. Entries
+// fetched before min_fetched are stale (no successful run for two intervals) and left out.
 func (q *Queries) ListTraktRow(ctx context.Context, arg ListTraktRowParams) ([]Item, error) {
-	rows, err := q.db.QueryContext(ctx, listTraktRow, arg.ProfileID, arg.List, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listTraktRow,
+		arg.ProfileID,
+		arg.List,
+		arg.MinFetched,
+		arg.LimitCount,
+	)
 	if err != nil {
 		return nil, err
 	}

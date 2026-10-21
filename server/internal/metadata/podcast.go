@@ -473,7 +473,9 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 // An episode keeps an image only when it differs from the channel's; image.fetch is queued for the
 // newest maxEpisodeCovers new episodes with one. rerated reports a changed rating of a known episode.
 // The ids of the inserted episodes go to the new-episode hook (WithNewEpisodes) after their
-// transactions, also when a later batch fails.
+// transactions, also when a later batch fails, but only those published after the newest episode
+// the podcast already had (or undated ones while it has no dated episode): a feed that renews its
+// guids or adds old episodes does not announce them as new.
 func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID int64, title string, f feed.Feed,
 	locked map[string]bool, now time.Time,
 ) (rerated bool, err error) {
@@ -484,8 +486,12 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 		return false, fmt.Errorf("list episodes of %s: %w", podcastID, err)
 	}
 	byGUID := make(map[string]systemq.PodcastListEpisodesRow, len(known))
+	var newest sql.NullInt64 // the newest publication date the podcast had before this fetch
 	for _, k := range known {
 		byGUID[k.Guid.String] = k
+		if k.PublishedAt.Valid && (!newest.Valid || k.PublishedAt.Int64 > newest.Int64) {
+			newest = k.PublishedAt
+		}
 	}
 	if err := upsertTexts(ctx, s.write, podcastID, title, f.Description, locked); err != nil {
 		return false, err
@@ -506,7 +512,7 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 				if c.newCover != "" && len(covers) < maxEpisodeCovers {
 					covers = append(covers, c.newCover)
 				}
-				if c.newID != "" {
+				if c.newID != "" && (!newest.Valid || (c.published.Valid && c.published.Int64 > newest.Int64)) {
 					batch = append(batch, c.newID)
 				}
 			}
@@ -543,11 +549,12 @@ type episodeWrite struct {
 }
 
 // episodeChange is what storing one episode changed: the rating of a known episode, or a new
-// episode (newID) with an image of its own (newCover, its id).
+// episode (newID, its publication date) with an image of its own (newCover, its id).
 type episodeChange struct {
-	rerated  bool
-	newID    string
-	newCover string
+	rerated   bool
+	newID     string
+	newCover  string
+	published sql.NullInt64
 }
 
 // store inserts or updates one episode inside the caller's transaction; locked fields (title,
@@ -604,8 +611,9 @@ func (w episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epis
 	}); err != nil {
 		return episodeChange{}, fmt.Errorf("insert episode: %w", err)
 	}
-	w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: id, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]"}
-	c := episodeChange{newID: id}
+	w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: id, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]",
+		PublishedAt: published}
+	c := episodeChange{newID: id, published: published}
 	if cover.Valid {
 		c.newCover = id
 	}
@@ -708,13 +716,20 @@ func httpURL(raw string) string {
 	return u.String()
 }
 
+// newEpisodesTimeout bounds the new-episode hook of one fetch. The hook runs detached from the
+// fetch's context (the episodes are committed, so a shutdown should still announce them), but not
+// for ever.
+const newEpisodesTimeout = 30 * time.Second
+
 // announceEpisodes tells the new-episode hook about inserted episodes (M7 E-8); a failure is
 // logged, the episodes stay stored.
 func (s *Service) announceEpisodes(ctx context.Context, ids []string) {
 	if s.newEpisodes == nil || len(ids) == 0 {
 		return
 	}
-	if err := s.newEpisodes(context.WithoutCancel(ctx), ids); err != nil {
+	hookCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), newEpisodesTimeout)
+	defer cancel()
+	if err := s.newEpisodes(hookCtx, ids); err != nil {
 		s.log.WarnContext(ctx, "notify new podcast episodes", "episodes", len(ids), "err", err)
 	}
 }

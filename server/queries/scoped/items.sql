@@ -25,7 +25,8 @@ LIMIT @limit_count;
 
 -- Cat's recommendations (E-1, E-2) for the profile: global rows (profile_id NULL) and rows of the
 -- profile, inside their optional time window, with the main user's note. An item listed twice is
--- deduplicated by the caller (the row of the profile wins over the global one).
+-- deduplicated by the caller (the row of the profile wins over the global one), so the query has
+-- no limit: the caller cuts after the deduplication (the table is small, curated by hand).
 -- name: ListTopPicks :many
 SELECT sqlc.embed(i), t.note, t.profile_id AS pick_profile_id
 FROM top_picks AS t
@@ -34,8 +35,7 @@ JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE (t.profile_id IS NULL OR t.profile_id = @profile_id)
   AND (t.starts_at IS NULL OR t.starts_at <= @now)
   AND (t.ends_at IS NULL OR t.ends_at > @now)
-ORDER BY t.position, t.id
-LIMIT @limit_count;
+ORDER BY t.position, t.id;
 
 -- name: ListItemTexts :many
 SELECT t.* FROM item_texts AS t

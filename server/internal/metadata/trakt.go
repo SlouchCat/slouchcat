@@ -137,10 +137,15 @@ func (s *Service) RunTrakt(ctx context.Context) {
 
 // QueueDueTrakt queues trakt.refresh when a client id is configured and the last attempt is
 // TraktInterval old or there was none (one tick of RunTrakt). It reports whether it queued.
+// Without a client id it empties stored lists, so the start page drops the Trakt rows (the
+// documented behaviour of an empty SLOUCHCAT_TRAKT_CLIENT_ID).
 func (s *Service) QueueDueTrakt(ctx context.Context) (bool, error) {
 	id, err := s.traktClientID(ctx)
-	if err != nil || id == "" {
+	if err != nil {
 		return false, err
+	}
+	if id == "" {
+		return false, s.dropTraktLists(ctx)
 	}
 	last, err := s.traktSettingTime(ctx, SettingTraktLastAttempt)
 	if err != nil {
@@ -165,6 +170,22 @@ func (s *Service) RefreshTrakt(ctx context.Context) error {
 	return s.enqueueTrakt(ctx)
 }
 
+// dropTraktLists empties trakt_lists when it holds entries.
+func (s *Service) dropTraktLists(ctx context.Context) error {
+	counts, err := s.read.TraktCountLists(ctx, 0)
+	if err != nil {
+		return fmt.Errorf("count trakt lists: %w", err)
+	}
+	if len(counts) == 0 {
+		return nil
+	}
+	if err := systemq.New(s.db.Write).TraktDeleteLists(ctx); err != nil {
+		return fmt.Errorf("empty trakt lists: %w", err)
+	}
+	s.log.InfoContext(ctx, "trakt lists emptied: no client id configured")
+	return nil
+}
+
 func (s *Service) enqueueTrakt(ctx context.Context) error {
 	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobTraktRefresh, Priority: traktPriority, IdempotencyKey: traktJobKey,
 		Payload: []byte(`{}`)}); err != nil {
@@ -174,7 +195,8 @@ func (s *Service) enqueueTrakt(ctx context.Context) error {
 }
 
 // TraktStatus returns whether a client id is configured, the times of the last success and
-// attempt, the last error and the stored entries per list.
+// attempt, the last error and the stored entries per list that are younger than twice
+// TraktInterval (the entries the start page still shows, visibility.TraktMaxAge).
 func (s *Service) TraktStatus(ctx context.Context) (model.TraktStatus, error) {
 	id, err := s.traktClientID(ctx)
 	if err != nil {
@@ -190,7 +212,7 @@ func (s *Service) TraktStatus(ctx context.Context) (model.TraktStatus, error) {
 	if st.LastError, err = s.traktSetting(ctx, SettingTraktLastError); err != nil {
 		return model.TraktStatus{}, err
 	}
-	counts, err := s.read.TraktCountLists(ctx)
+	counts, err := s.read.TraktCountLists(ctx, s.trakt.now().Add(-2*TraktInterval).UnixMilli())
 	if err != nil {
 		return model.TraktStatus{}, fmt.Errorf("count trakt lists: %w", err)
 	}

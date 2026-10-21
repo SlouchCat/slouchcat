@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -26,7 +27,10 @@ const KindNewEpisode = "new_episode"
 const MaxPage = 200
 
 // Dispatcher sends an inbox entry on further channels (M8). It is called once per new entry,
-// after the entry is stored, and only for a profile that may see the episode.
+// after the entry is stored, and only for a profile that may see the episode. It is called
+// concurrently (a library scan and the podcast worker announce new episodes at the same time), so an
+// implementation must be safe for concurrent use; the context of a call ends after the hook's
+// timeout, also during a shutdown.
 type Dispatcher interface {
 	Dispatch(ctx context.Context, n model.Notification, profile model.Profile) error
 }
@@ -72,40 +76,62 @@ func New(db *store.DB, vis *visibility.Reader, log *slog.Logger, opts ...Option)
 	return s
 }
 
+// MaxPerParent caps the episodes of one series or podcast that one NewEpisodes call notifies (a
+// feed that renumbers its guids or a scan of a whole season must not flood the inbox).
+const MaxPerParent = 50
+
+// targetBatch is the number of episode ids read in one query (well below SQLite's variable limit).
+const targetBatch = 500
+
 // NewEpisodes records new series and podcast episodes: for every profile with a favourite on the
 // episode's series or podcast that may see the episode, one inbox entry (a second call for the
 // same episode adds nothing) and one call of the dispatcher. Unknown ids and other kinds are
-// skipped. A dispatcher error is logged; the entry stays.
+// skipped; per series or podcast at most MaxPerParent episodes of one call notify, in the order of
+// episodeIDs. Without any favourite it reads nothing else. A dispatcher error is logged; the entry
+// stays. Library scans and podcast fetches call it concurrently.
 func (s *Service) NewEpisodes(ctx context.Context, episodeIDs []string) error {
+	if len(episodeIDs) == 0 {
+		return nil
+	}
+	has, err := s.read.NotifyHasFavorites(ctx)
+	if err != nil {
+		return fmt.Errorf("any favourite: %w", err)
+	}
+	if !has {
+		return nil
+	}
+	perParent := map[string]int{}
 	var errs []error
-	for _, id := range episodeIDs {
-		if err := s.newEpisode(ctx, id); err != nil {
-			errs = append(errs, err)
+	for chunk := range slices.Chunk(episodeIDs, targetBatch) {
+		rows, err := s.read.NotifyFavoriteTargets(ctx, chunk)
+		if err != nil {
+			return errors.Join(append(errs, fmt.Errorf("favourites of new episodes: %w", err))...)
+		}
+		targets := make(map[string][]systemq.NotifyFavoriteTargetsRow, len(rows))
+		for _, r := range rows {
+			targets[r.EpisodeID] = append(targets[r.EpisodeID], r)
+		}
+		for _, id := range chunk {
+			rows := targets[id]
+			if len(rows) == 0 {
+				continue
+			}
+			delete(targets, id) // an id passed twice notifies once
+			parent := rows[0].ParentID
+			if perParent[parent]++; perParent[parent] > MaxPerParent {
+				continue
+			}
+			for _, row := range rows {
+				p := model.Profile{ID: row.ID, AccountID: row.AccountID, Name: row.Name, MaxRating: int(row.MaxRating), Language: row.Language}
+				if err := s.notifyProfile(ctx, p, id, parent); err != nil {
+					errs = append(errs, err)
+				}
+			}
 		}
 	}
-	return errors.Join(errs...)
-}
-
-func (s *Service) newEpisode(ctx context.Context, episodeID string) error {
-	ep, err := s.read.NotifyEpisodeParent(ctx, episodeID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("parent of episode %s: %w", episodeID, err)
-	}
-	if ep.ParentID == "" {
-		return nil
-	}
-	profiles, err := s.read.ListFavoriteProfiles(ctx, ep.ParentID)
-	if err != nil {
-		return fmt.Errorf("favourites of %s: %w", ep.ParentID, err)
-	}
-	var errs []error
-	for _, row := range profiles {
-		p := model.Profile{ID: row.ID, AccountID: row.AccountID, Name: row.Name, MaxRating: int(row.MaxRating), Language: row.Language}
-		if err := s.notifyProfile(ctx, p, episodeID, ep.ParentID); err != nil {
-			errs = append(errs, err)
+	for parent, n := range perParent {
+		if n > MaxPerParent {
+			s.log.InfoContext(ctx, "new episodes over the cap not notified", "parent_id", parent, "episodes", n, "cap", MaxPerParent)
 		}
 	}
 	return errors.Join(errs...)

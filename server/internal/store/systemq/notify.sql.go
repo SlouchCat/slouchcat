@@ -8,54 +8,8 @@ package systemq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
-
-const listFavoriteProfiles = `-- name: ListFavoriteProfiles :many
-SELECT p.id, p.account_id, p.name, p.max_rating, p.language
-FROM favorites AS f
-JOIN profiles AS p ON p.id = f.profile_id
-WHERE f.item_id = ?1
-ORDER BY p.id
-`
-
-type ListFavoriteProfilesRow struct {
-	ID        int64
-	AccountID int64
-	Name      string
-	MaxRating int64
-	Language  string
-}
-
-// The profiles with a favourite on a series or podcast. Visibility of the new episode is checked
-// by the caller per profile through package visibility.
-func (q *Queries) ListFavoriteProfiles(ctx context.Context, itemID string) ([]ListFavoriteProfilesRow, error) {
-	rows, err := q.db.QueryContext(ctx, listFavoriteProfiles, itemID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListFavoriteProfilesRow{}
-	for rows.Next() {
-		var i ListFavoriteProfilesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.AccountID,
-			&i.Name,
-			&i.MaxRating,
-			&i.Language,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
 
 const notifyCount = `-- name: NotifyCount :one
 SELECT count(*) AS total, CAST(COALESCE(SUM(n.read_at IS NULL), 0) AS INTEGER) AS unread
@@ -77,29 +31,98 @@ func (q *Queries) NotifyCount(ctx context.Context, profileID int64) (NotifyCount
 	return i, err
 }
 
-const notifyEpisodeParent = `-- name: NotifyEpisodeParent :one
-
-SELECT e.kind,
-       CAST(COALESCE(CASE e.kind WHEN 'episode' THEN s.parent_id ELSE e.parent_id END, '') AS TEXT) AS parent_id
-FROM items AS e
-LEFT JOIN items AS s ON s.id = e.parent_id AND e.kind = 'episode'
-WHERE e.id = ?1 AND e.kind IN ('episode', 'podcast_episode') AND e.deleted_at IS NULL
+const notifyDeleteOldRead = `-- name: NotifyDeleteOldRead :execrows
+DELETE FROM notifications
+WHERE id IN (SELECT n.id FROM notifications AS n WHERE n.read_at IS NOT NULL AND n.created_at < ?1 LIMIT 500)
 `
 
-type NotifyEpisodeParentRow struct {
-	Kind     string
-	ParentID string
+// Read entries older than before go (offline cleanup, at most 500 per batch); unread ones stay.
+func (q *Queries) NotifyDeleteOldRead(ctx context.Context, before int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, notifyDeleteOldRead, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
+
+const notifyFavoriteTargets = `-- name: NotifyFavoriteTargets :many
+SELECT e.id AS episode_id, f.item_id AS parent_id, p.id, p.account_id, p.name, p.max_rating, p.language
+FROM items AS e
+LEFT JOIN items AS s ON s.id = e.parent_id AND e.kind = 'episode'
+JOIN favorites AS f ON f.item_id = CASE e.kind WHEN 'episode' THEN s.parent_id ELSE e.parent_id END
+JOIN profiles AS p ON p.id = f.profile_id
+WHERE e.id IN (/*SLICE:episode_ids*/?) AND e.kind IN ('episode', 'podcast_episode') AND e.deleted_at IS NULL
+ORDER BY e.id, p.id
+`
+
+type NotifyFavoriteTargetsRow struct {
+	EpisodeID string
+	ParentID  string
+	ID        int64
+	AccountID int64
+	Name      string
+	MaxRating int64
+	Language  string
+}
+
+// For a batch of new episodes: the favourite-able parent of each (the series of a series episode,
+// episode -> season -> series, or the podcast of a podcast episode) and every profile with a
+// favourite on that parent. Visibility of the episode is checked by the caller per profile through
+// package visibility.
+func (q *Queries) NotifyFavoriteTargets(ctx context.Context, episodeIds []string) ([]NotifyFavoriteTargetsRow, error) {
+	query := notifyFavoriteTargets
+	var queryParams []interface{}
+	if len(episodeIds) > 0 {
+		for _, v := range episodeIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:episode_ids*/?", strings.Repeat(",?", len(episodeIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:episode_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NotifyFavoriteTargetsRow{}
+	for rows.Next() {
+		var i NotifyFavoriteTargetsRow
+		if err := rows.Scan(
+			&i.EpisodeID,
+			&i.ParentID,
+			&i.ID,
+			&i.AccountID,
+			&i.Name,
+			&i.MaxRating,
+			&i.Language,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const notifyHasFavorites = `-- name: NotifyHasFavorites :one
+
+SELECT EXISTS (SELECT 1 FROM favorites) AS has_favorites
+`
 
 // In-app notifications (M7, E-8, plan 5.5), package notify. Inbox reads join visible_items for the
 // episode, so an entry whose episode the profile may no longer see is neither listed nor counted.
-// The favourite-able parent of a new episode: the series of a series episode (episode -> season ->
-// series) or the podcast of a podcast episode; ” when the episode has none.
-func (q *Queries) NotifyEpisodeParent(ctx context.Context, id string) (NotifyEpisodeParentRow, error) {
-	row := q.db.QueryRowContext(ctx, notifyEpisodeParent, id)
-	var i NotifyEpisodeParentRow
-	err := row.Scan(&i.Kind, &i.ParentID)
-	return i, err
+// Whether any profile has a favourite; without one a batch of new episodes needs no further read.
+func (q *Queries) NotifyHasFavorites(ctx context.Context) (bool, error) {
+	row := q.db.QueryRowContext(ctx, notifyHasFavorites)
+	var has_favorites bool
+	err := row.Scan(&has_favorites)
+	return has_favorites, err
 }
 
 const notifyInsert = `-- name: NotifyInsert :execresult
@@ -182,7 +205,10 @@ func (q *Queries) NotifyList(ctx context.Context, arg NotifyListParams) ([]Notif
 }
 
 const notifyMarkAllRead = `-- name: NotifyMarkAllRead :exec
-UPDATE notifications SET read_at = ?1 WHERE profile_id = ?2 AND read_at IS NULL
+UPDATE notifications SET read_at = ?1
+WHERE notifications.profile_id = ?2 AND notifications.read_at IS NULL
+  AND EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
+                                                 AND v.item_id = notifications.item_id)
 `
 
 type NotifyMarkAllReadParams struct {
@@ -190,6 +216,8 @@ type NotifyMarkAllReadParams struct {
 	ProfileID int64
 }
 
+// Marks every unread entry of the profile read whose episode the profile sees; entries of hidden
+// episodes keep their state, so they come back unread when the profile may see them again.
 func (q *Queries) NotifyMarkAllRead(ctx context.Context, arg NotifyMarkAllReadParams) error {
 	_, err := q.db.ExecContext(ctx, notifyMarkAllRead, arg.Now, arg.ProfileID)
 	return err

@@ -1,23 +1,22 @@
 -- In-app notifications (M7, E-8, plan 5.5), package notify. Inbox reads join visible_items for the
 -- episode, so an entry whose episode the profile may no longer see is neither listed nor counted.
 
--- name: NotifyEpisodeParent :one
--- The favourite-able parent of a new episode: the series of a series episode (episode -> season ->
--- series) or the podcast of a podcast episode; '' when the episode has none.
-SELECT e.kind,
-       CAST(COALESCE(CASE e.kind WHEN 'episode' THEN s.parent_id ELSE e.parent_id END, '') AS TEXT) AS parent_id
+-- name: NotifyHasFavorites :one
+-- Whether any profile has a favourite; without one a batch of new episodes needs no further read.
+SELECT EXISTS (SELECT 1 FROM favorites) AS has_favorites;
+
+-- name: NotifyFavoriteTargets :many
+-- For a batch of new episodes: the favourite-able parent of each (the series of a series episode,
+-- episode -> season -> series, or the podcast of a podcast episode) and every profile with a
+-- favourite on that parent. Visibility of the episode is checked by the caller per profile through
+-- package visibility.
+SELECT e.id AS episode_id, f.item_id AS parent_id, p.id, p.account_id, p.name, p.max_rating, p.language
 FROM items AS e
 LEFT JOIN items AS s ON s.id = e.parent_id AND e.kind = 'episode'
-WHERE e.id = @id AND e.kind IN ('episode', 'podcast_episode') AND e.deleted_at IS NULL;
-
--- name: ListFavoriteProfiles :many
--- The profiles with a favourite on a series or podcast. Visibility of the new episode is checked
--- by the caller per profile through package visibility.
-SELECT p.id, p.account_id, p.name, p.max_rating, p.language
-FROM favorites AS f
+JOIN favorites AS f ON f.item_id = CASE e.kind WHEN 'episode' THEN s.parent_id ELSE e.parent_id END
 JOIN profiles AS p ON p.id = f.profile_id
-WHERE f.item_id = @item_id
-ORDER BY p.id;
+WHERE e.id IN (sqlc.slice('episode_ids')) AND e.kind IN ('episode', 'podcast_episode') AND e.deleted_at IS NULL
+ORDER BY e.id, p.id;
 
 -- name: NotifyInsert :execresult
 -- One entry per profile and episode; a second event for the same episode inserts nothing.
@@ -49,4 +48,14 @@ WHERE notifications.id = @id AND notifications.profile_id = @profile_id
                                                  AND v.item_id = notifications.item_id);
 
 -- name: NotifyMarkAllRead :exec
-UPDATE notifications SET read_at = @now WHERE profile_id = @profile_id AND read_at IS NULL;
+-- Marks every unread entry of the profile read whose episode the profile sees; entries of hidden
+-- episodes keep their state, so they come back unread when the profile may see them again.
+UPDATE notifications SET read_at = @now
+WHERE notifications.profile_id = @profile_id AND notifications.read_at IS NULL
+  AND EXISTS (SELECT 1 FROM visible_items AS v WHERE v.profile_id = notifications.profile_id
+                                                 AND v.item_id = notifications.item_id);
+
+-- name: NotifyDeleteOldRead :execrows
+-- Read entries older than before go (offline cleanup, at most 500 per batch); unread ones stay.
+DELETE FROM notifications
+WHERE id IN (SELECT n.id FROM notifications AS n WHERE n.read_at IS NOT NULL AND n.created_at < @before LIMIT 500);

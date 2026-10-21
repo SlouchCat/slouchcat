@@ -8,6 +8,7 @@ package systemq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const adminClearCollectionItems = `-- name: AdminClearCollectionItems :exec
@@ -17,6 +18,50 @@ DELETE FROM collection_items WHERE collection_id = ?1
 func (q *Queries) AdminClearCollectionItems(ctx context.Context, collectionID string) error {
 	_, err := q.db.ExecContext(ctx, adminClearCollectionItems, collectionID)
 	return err
+}
+
+const adminCollectionCandidates = `-- name: AdminCollectionCandidates :many
+SELECT id, kind FROM items WHERE id IN (/*SLICE:item_ids*/?) AND deleted_at IS NULL
+`
+
+type AdminCollectionCandidatesRow struct {
+	ID   string
+	Kind string
+}
+
+// The kinds of the titles that may become members of a manual collection (one read for the whole
+// list); unknown and deleted ids are absent.
+func (q *Queries) AdminCollectionCandidates(ctx context.Context, itemIds []string) ([]AdminCollectionCandidatesRow, error) {
+	query := adminCollectionCandidates
+	var queryParams []interface{}
+	if len(itemIds) > 0 {
+		for _, v := range itemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(itemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminCollectionCandidatesRow{}
+	for rows.Next() {
+		var i AdminCollectionCandidatesRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const adminDeleteCollection = `-- name: AdminDeleteCollection :exec

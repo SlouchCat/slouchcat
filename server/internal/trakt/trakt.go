@@ -82,7 +82,8 @@ func WithBaseURL(base string) Option {
 	}
 }
 
-// WithHTTPClient replaces the HTTP client (default: 15 s timeout).
+// WithHTTPClient replaces the HTTP client (default: 15 s timeout). The client is copied: its
+// redirect policy is replaced by one that refuses a change of host or scheme (sameOrigin).
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {
 		if hc != nil {
@@ -114,7 +115,26 @@ func New(clientID string, opts ...Option) *Client {
 	for _, o := range opts {
 		o(c)
 	}
+	hc := *c.http
+	hc.CheckRedirect = sameOrigin
+	c.http = &hc
 	return c
+}
+
+// errCrossOriginRedirect refuses a redirect to another host or scheme.
+var errCrossOriginRedirect = errors.New("redirect to another origin refused")
+
+// sameOrigin follows a redirect only to the scheme and host of the first request: net/http drops
+// only Authorization, Cookie and WWW-Authenticate on a redirect to another host, so the client id
+// in trakt-api-key would go along.
+func sameOrigin(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+	if first := via[0].URL; req.URL.Scheme != first.Scheme || req.URL.Host != first.Host {
+		return errCrossOriginRedirect
+	}
+	return nil
 }
 
 // ids are the ids of a title; only tmdb is used.
@@ -164,7 +184,10 @@ func (c *Client) List(ctx context.Context, list, media string, limit int) ([]Ent
 		}
 		return nil, fmt.Errorf("%w: %s: %w", ErrUnavailable, path, cleanErr(err))
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxJSONBytes)) // drain, so the connection is reused
+		_ = resp.Body.Close()
+	}()
 	if err := statusError(resp, path); err != nil {
 		return nil, err
 	}
