@@ -53,6 +53,8 @@ type Service struct {
 	metadataCheck func(ctx context.Context, libraryID int64) (int, error)
 	// newEpisodes is told the ids of new series episodes after their batch commits (optional).
 	newEpisodes func(ctx context.Context, ids []string) error
+	// scanAborted is told when the loss protection aborts a scan (optional, M8).
+	scanAborted func(ctx context.Context, libraryName, reason string) error
 
 	mu        sync.Mutex
 	runCtx    context.Context // context of Start; watchers of libraries created later run under it
@@ -103,6 +105,13 @@ func WithMetadataCheck(check func(ctx context.Context, libraryID int64) (int, er
 // logged; the scan goes on.
 func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
 	return func(s *Service) { s.newEpisodes = fn }
+}
+
+// WithScanAborted runs fn when the loss protection aborts a full or path scan, with the library's
+// name and the abort code (root_missing, root_empty, loss_over_threshold; notify.ScanAborted, M8
+// A-3). An error is logged.
+func WithScanAborted(fn func(ctx context.Context, libraryName, reason string) error) Option {
+	return func(s *Service) { s.scanAborted = fn }
 }
 
 // New returns the library service. queue must work on db.Write.
