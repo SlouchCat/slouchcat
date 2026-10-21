@@ -38,6 +38,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/notify"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
@@ -154,13 +155,14 @@ func healthcheck(cfg config.Config) int {
 
 func serve(cfg config.Config) int {
 	started := time.Now()
-	log, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
+	// The error ring keeps the newest error records for the admin dashboard (M8, A-3).
+	log, errRing, err := logging.NewWithErrors(os.Stdout, cfg.LogFormat, cfg.LogLevel)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "slouchcat:", err)
 		return 2
 	}
 	log.Info("starting slouchcat", "version", version, "config", cfg)
-	if err := serveUntilSignal(cfg, log, started); err != nil {
+	if err := serveUntilSignal(cfg, log, errRing, started); err != nil {
 		log.Error("server stopped with error", "err", err)
 		return 1
 	}
@@ -168,7 +170,7 @@ func serve(cfg config.Config) int {
 	return 0
 }
 
-func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) error {
+func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.ErrorRing, started time.Time) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -221,6 +223,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
 		WithTrakt(metaSvc)
+	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, started)
 	keys.admin = adminSvc
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
@@ -234,6 +237,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
 		libSvc.RegisterJobs(worker)
 		metaSvc.RegisterJobs(worker)
+		adminSvc.RegisterJobs(worker)
 		workers.Go(func() { worker.Run(ctx) })
 	}
 	// A worker of its own for download preparations: workers claim only the job types they
@@ -250,6 +254,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	workers.Go(func() { metaSvc.RunPodcasts(ctx) })
 	// Trakt lists (M7, E-7): once a day when a client id is configured.
 	workers.Go(func() { metaSvc.RunTrakt(ctx) })
+	// Update check (M8, A-5): 60 s after the start, then once a day while it is switched on.
+	workers.Go(func() { adminSvc.RunUpdateCheck(ctx) })
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes
 		workers.Wait()
@@ -297,6 +303,26 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
+}
+
+// wireAdmin hands the administration of M8 its collaborators: the job queue, the error ring of the
+// log, the start state (version, transcode capabilities, library watchers, directories), the
+// notification settings of the environment and the release manifest of the update check. The
+// collaborators of package notify (bot token check, test mail, VAPID rotation, channel state:
+// WithTelegram, WithEmailTester, WithPushRotator, WithChannels) are wired where notify builds them.
+func wireAdmin(a *admin.Service, cfg config.Config, queue *jobs.Queue, errRing *logging.ErrorRing, lib *library.Service,
+	caps transcode.Capabilities, started time.Time,
+) {
+	a.WithJobs(queue).WithErrors(errRing).WithUpdateCheck(cfg.ManifestURL(), nil).
+		WithSystem(admin.SystemSource{
+			Version: version, StartedAt: started, ConfigDir: cfg.ConfigDir, CacheDir: cfg.CacheDir, Caps: caps,
+			WatchedDirs: lib.WatchedDirs,
+		}).
+		WithNotifyEnv(admin.NotifyEnv{
+			SMTP: model.SMTPConfig{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Password: cfg.SMTPPassword,
+				From: cfg.SMTPFrom, TLS: cfg.SMTPTLS},
+			TelegramBotToken: cfg.TelegramBotToken, PublicURL: cfg.PublicURL,
+		})
 }
 
 // lazyKeys hands the admin service to metadata as its key source after both exist.

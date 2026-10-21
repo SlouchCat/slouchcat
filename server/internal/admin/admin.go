@@ -118,6 +118,7 @@ type Service struct {
 	streams   Streams            // nil until WithStreams
 	podcasts  Podcasts           // nil until WithPodcasts
 	trakt     Trakt              // nil until WithTrakt
+	ops       opsState           // M8: system state, jobs, errors, notification settings, update check (dashboard.go)
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
 	getenv    func(string) string

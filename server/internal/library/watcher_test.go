@@ -393,6 +393,10 @@ func TestStartRunsWatchersAndSchedules(t *testing.T) {
 	waitFor(t, 5*time.Second, "the sweep queued by Start", func() bool {
 		return e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = 'sweep'`, JobSweep) == 1
 	})
+	// The dashboard's inotify use is the sum of the watched directories of every root (M8).
+	if st := e.svc.WatcherStats()[lib.Roots[0].ID]; e.svc.WatchedDirs() != int64(st.Dirs) {
+		t.Errorf("WatchedDirs = %d, want %d of the only root", e.svc.WatchedDirs(), st.Dirs)
+	}
 	// A library created while Start runs gets its watcher.
 	dir2 := t.TempDir()
 	lib2, err := e.svc.Create(e.ctx, testRequest("Zweite", dir2))

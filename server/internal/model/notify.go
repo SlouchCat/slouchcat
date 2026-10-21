@@ -147,3 +147,21 @@ type Event struct {
 	ItemID    string
 	Source    string
 }
+
+// SMTPConfig is the e-mail server of the notifications (M8): the environment wins over the stored
+// settings (admin implements notify.Config). TLS is starttls, tls or none.
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	From     string
+	TLS      string
+}
+
+// ChannelAvail is the state of a notification channel on the server for the dashboard (A-3):
+// Configured when the server can send on it; Detail says why it is in error, never a secret.
+type ChannelAvail struct {
+	Configured bool
+	Detail     string
+}

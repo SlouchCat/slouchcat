@@ -24,7 +24,7 @@ func (e serviceProblem) VisitGetUpdateStateResponse(w http.ResponseWriter) error
 func (e serviceProblem) VisitCheckForUpdateResponse(w http.ResponseWriter) error { return e.visit(w) }
 
 func (s *server) CheckSetupPath(ctx context.Context, req gen.CheckSetupPathRequestObject) (gen.CheckSetupPathResponseObject, error) {
-	c, err := s.opts.Admin.CheckSetupPath(ctx, deref(req.Body).Path)
+	c, err := s.opts.Admin.CheckSetupPath(model.WithClientIP(ctx, s.clientAddr(ctx)), deref(req.Body).Path)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -45,7 +45,7 @@ func (s *server) CheckSetupPath(ctx context.Context, req gen.CheckSetupPathReque
 }
 
 func (s *server) CheckSetupTmdbKey(ctx context.Context, req gen.CheckSetupTmdbKeyRequestObject) (gen.CheckSetupTmdbKeyResponseObject, error) {
-	c, err := s.opts.Admin.CheckSetupTMDBKey(ctx, deref(deref(req.Body).TmdbApiKey))
+	c, err := s.opts.Admin.CheckSetupTMDBKey(model.WithClientIP(ctx, s.clientAddr(ctx)), deref(deref(req.Body).TmdbApiKey))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
