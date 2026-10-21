@@ -3,6 +3,7 @@ package visibility
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -309,5 +310,34 @@ func TestTraktRowIntersection(t *testing.T) {
 		if len(got) != tc.want {
 			t.Errorf("P18 trending %v after the fetch = %v, want %d titles", tc.age, ids(got), tc.want)
 		}
+	}
+}
+
+// E-7, AN-3: a Trakt row shows at most the first 20 library hits in list order, even when more of
+// the list is in the library and the caller asks for more.
+func TestTraktRowAtMostTwenty(t *testing.T) {
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	var want []string
+	for i := range 25 {
+		id := fmt.Sprintf("01J9TRAKT0000000000000%04d", i)
+		exec(t, f, `INSERT INTO items (id, kind, library_id, title, sort_title, genres, tmdb_id, own_rating, metadata_state, added_at, created_at, updated_at)
+		            VALUES (?, 'movie', ?, ?, ?, '[]', ?, 0, 'matched', 1, 1, 1)`, id, f.LibraryID(), fmt.Sprintf("Trakt %02d", i), fmt.Sprintf("trakt %02d", i), 8000+i)
+		exec(t, f, `INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, video_codec, audio_codec, width, height, duration_ms, created_at, updated_at)
+		            VALUES (?, ?, ?, ?, 1, 1, 'mp4', 'h264', 'aac', 1920, 1080, 1000, 1, 1)`, fmt.Sprintf("01J9TRAKTF00000000000%05d", i), id, f.RootID(), fmt.Sprintf("trakt-%02d.mp4", i))
+		// Positions run backwards, so the row order must come from the list, not from the ids.
+		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', ?, ?, ?)`, 100-i, 8000+i, fetched.UnixMilli())
+	}
+	for i := 24; i >= 5; i-- {
+		want = append(want, fmt.Sprintf("01J9TRAKT0000000000000%04d", i))
+	}
+	got, err := r.TraktRow(ctx, Profile(f.P0), TraktPopular, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(ids(got), want) {
+		t.Errorf("popular row = %d titles %v, want the first 20 of the list %v", len(got), ids(got), want)
 	}
 }
