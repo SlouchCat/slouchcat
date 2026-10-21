@@ -2,7 +2,8 @@
 
 Stand: 21. Oktober 2026. M0 bis M5 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
 Pull Requests #1 bis #6 und #10; M5 am 20. Oktober 2026 auf Marcos Wort, Merge-Commit `e8579ad`). **M6 (Hörbücher
-und Podcasts) ist auf dem Branch `claude/m6-audio` fertig** und wartet als Pull Request gegen `main` auf Marcos Wort.
+und Podcasts) ist am 21. Oktober 2026 über Pull Request #11 gemerged**, die CI-Anpassung (Go-Testlimit 30 min) über
+Pull Request #12. Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
 
 ## Meilenstein M6 – Hörbücher und Podcasts
 
