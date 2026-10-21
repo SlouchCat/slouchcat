@@ -25,6 +25,9 @@ const collections: ProfileAnnouncement = {
   publishedAt: '2026-10-20T08:00:00Z',
 };
 
+/** The dialog comes with its own chunk (react-aria, P-10): the first one may take a moment. */
+const findDialog = (name: string) => screen.findByRole('dialog', { name }, { timeout: 5000 });
+
 /** The inbox page as a simple page with the app header (the dialog shows on every such page). */
 function routes(list: ProfileAnnouncement[]): Routes {
   return {
@@ -41,7 +44,7 @@ describe('announcements at the start', () => {
   it('shows the newest one; "Verstanden" acknowledges it and the next follows', async () => {
     const { calls } = mockApi(routes([maintenance, collections]));
     renderApp('/notifications');
-    const dialog = await screen.findByRole('dialog', { name: 'Wartung am Samstag' });
+    const dialog = await findDialog('Wartung am Samstag');
     expect(within(dialog).getByText('Ankündigung')).toBeVisible();
     expect(within(dialog).getByText('Veröffentlicht am 21.10.2026')).toBeVisible();
     // Paragraphs at blank lines, the single line break stays inside the first one.
@@ -54,7 +57,7 @@ describe('announcements at the start', () => {
 
     const user = userEvent.setup();
     await user.click(ok);
-    const next = await screen.findByRole('dialog', { name: 'Neue Sammlungen' });
+    const next = await findDialog('Neue Sammlungen');
     expect(within(next).getByRole('status')).toHaveTextContent('2 von 2');
     await user.click(within(next).getByRole('button', { name: 'Verstanden' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -71,7 +74,7 @@ describe('announcements at the start', () => {
       'GET /me/channels': () => json({ channels: [] }),
     });
     const { router } = renderApp('/notifications');
-    await screen.findByRole('dialog', { name: 'Neue Sammlungen' });
+    await findDialog('Neue Sammlungen');
     const user = userEvent.setup();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -87,7 +90,7 @@ describe('announcements at the start', () => {
   it("Backspace (a remote's back key) closes it as well", async () => {
     mockApi(routes([collections]));
     renderApp('/notifications');
-    await screen.findByRole('dialog', { name: 'Neue Sammlungen' });
+    await findDialog('Neue Sammlungen');
     const user = userEvent.setup();
     await user.keyboard('{Backspace}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -96,7 +99,7 @@ describe('announcements at the start', () => {
   it('"Später" closes it without acknowledging', async () => {
     const { calls } = mockApi(routes([collections]));
     renderApp('/notifications');
-    const dialog = await screen.findByRole('dialog', { name: 'Neue Sammlungen' });
+    const dialog = await findDialog('Neue Sammlungen');
     await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Später' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(calls.some((call) => call.method === 'POST')).toBe(false);
@@ -108,7 +111,7 @@ describe('announcements at the start', () => {
       'POST /announcements/*/ack': () => problem(500, 'internal'),
     });
     renderApp('/notifications');
-    const dialog = await screen.findByRole('dialog', { name: 'Neue Sammlungen' });
+    const dialog = await findDialog('Neue Sammlungen');
     await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Verstanden' }));
     expect(
       await within(dialog).findByText('Etwas ist schiefgelaufen. Versuche es erneut.'),
@@ -122,7 +125,7 @@ describe('announcements at the start', () => {
       'POST /announcements/*/ack': () => problem(404, 'not_found'),
     });
     renderApp('/notifications');
-    const dialog = await screen.findByRole('dialog', { name: 'Neue Sammlungen' });
+    const dialog = await findDialog('Neue Sammlungen');
     await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Verstanden' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
