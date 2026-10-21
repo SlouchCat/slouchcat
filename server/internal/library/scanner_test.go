@@ -642,8 +642,8 @@ func TestWatchMode(t *testing.T) {
 		"fuse": {"inotify_poll", "fuse_unknown"}, "unknown": {"inotify_poll", "fuse_unknown"},
 	}
 	for fs, want := range cases {
-		if w, warn := watchMode(fs); w != want[0] || warn != want[1] {
-			t.Errorf("watchMode(%s) = %s, %s; want %v", fs, w, warn, want)
+		if w, warn := WatchMode(fs); w != want[0] || warn != want[1] {
+			t.Errorf("WatchMode(%s) = %s, %s; want %v", fs, w, warn, want)
 		}
 	}
 }

@@ -84,6 +84,8 @@ type Job struct {
 	Attempts       int
 	MaxAttempts    int
 	LastError      string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // Queue is the persistent queue on the writer connection of the database.
@@ -281,5 +283,7 @@ func fromRow(r systemq.Job) Job {
 		Attempts:       int(r.Attempts),
 		MaxAttempts:    int(r.MaxAttempts),
 		LastError:      r.LastError.String,
+		CreatedAt:      time.UnixMilli(r.CreatedAt),
+		UpdatedAt:      time.UnixMilli(r.UpdatedAt),
 	}
 }
