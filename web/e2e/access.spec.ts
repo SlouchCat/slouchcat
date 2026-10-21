@@ -8,13 +8,14 @@ import {
   type InvitationData,
 } from './accounts';
 import { choose } from './controls';
+import { GUEST_PASSWORD } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 
 // Invitations and guests (K-6, K-7) in the owner's UI; the guest side runs in a context of its
 // own, as another person in another browser would.
 
-const GUEST = { email: 'gast-e2e@slouchcat.test', password: 'gast-passwort-0123' };
+const GUEST = { email: 'gast-e2e@slouchcat.test', password: GUEST_PASSWORD };
 
 async function openAccess(page: Page) {
   await page.goto('/admin/access');

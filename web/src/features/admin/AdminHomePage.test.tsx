@@ -108,9 +108,16 @@ describe('admin overview (A-2, A-3)', () => {
     );
 
     const jobs = screen.getByRole('region', { name: 'Hintergrundjobs' });
-    expect(within(jobs).getByText('Wartend').previousSibling).toHaveTextContent('12');
-    expect(within(jobs).getByText('Laufend').previousSibling).toHaveTextContent('1');
-    expect(within(jobs).getByText('Fehlgeschlagen').previousSibling).toHaveTextContent('1');
+    // Each counter is a term with its number (StatTile).
+    expect(
+      within(jobs)
+        .getAllByRole('term')
+        .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
+    ).toEqual([
+      ['Wartend', '12'],
+      ['Laufend', '1'],
+      ['Fehlgeschlagen', '1'],
+    ]);
     const failed = screen.getByRole('table', { name: 'Fehlgeschlagene Jobs' });
     const row = within(failed).getByRole('rowheader', { name: 'metadata.match' }).closest('tr')!;
     expect(within(row).getByText('5 von 5')).toBeVisible();
@@ -150,7 +157,8 @@ describe('admin overview (A-2, A-3)', () => {
     ).toHaveTextContent('sysctl fs.inotify.max_user_watches=524288');
 
     const errors = screen.getByRole('list', { name: 'Fehler aus dem Server-Log' });
-    expect(errors).toHaveAttribute('aria-live', 'polite');
+    // The list itself is not live: a poll announces a short count instead (below).
+    expect(errors).not.toHaveAttribute('aria-live');
     const entries = within(errors).getAllByRole('listitem');
     expect(entries).toHaveLength(2);
     expect(entries[0]).toHaveTextContent('match failed: tmdb: HTTP 503');
@@ -191,25 +199,49 @@ describe('admin overview (A-2, A-3)', () => {
     expect(screen.getByText('Keine Fehler seit dem Start.')).toBeVisible();
     expect(screen.queryByText(/ist verfügbar/)).not.toBeInTheDocument();
     expect(screen.queryByRole('table', { name: 'Fehlgeschlagene Jobs' })).not.toBeInTheDocument();
-    // The live region of the errors is there before the first one comes.
     expect(screen.getByRole('list', { name: 'Fehler aus dem Server-Log' })).toBeEmptyDOMElement();
+    // The live region of the count is there before the first error comes.
+    const errors = screen.getByRole('region', { name: 'Fehler' });
+    expect(within(errors).getByRole('status')).toBeEmptyDOMElement();
   });
 
-  it('asks again every 5 s; a new error appears in the list', async () => {
+  it('asks again every 5 s; new errors go on top and are announced as a count', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    const older = { at: '2026-10-21T09:20:00Z', source: 'library', message: 'scan aborted' };
     let current = dashboard({ errors: [] });
     const { calls } = mockApi(routes({ 'GET /admin/dashboard': () => json(current) }));
     renderApp('/admin');
     await screen.findByRole('region', { name: 'Hintergrundjobs' });
+    const tile = screen.getByRole('region', { name: 'Fehler' });
+    const status = within(tile).getByRole('status');
     const polls = () => calls.filter((call) => call.path === '/admin/dashboard').length;
     expect(polls()).toBe(1);
-    current = dashboard({
-      errors: [{ at: '2026-10-21T09:20:00Z', source: 'library', message: 'scan aborted' }],
-    });
+    current = dashboard({ errors: [older] });
     await act(() => vi.advanceTimersByTimeAsync(5000));
     await waitFor(() => expect(polls()).toBe(2));
     const errors = screen.getByRole('list', { name: 'Fehler aus dem Server-Log' });
-    expect(await within(errors).findByText('scan aborted')).toBeVisible();
+    const first = await within(errors).findByText('scan aborted');
+    expect(first).toBeVisible();
+    expect(status).toHaveTextContent(/^1 neuer Fehler$/);
+
+    // Two more on top (newest first): the older entry keeps its node, only the count is read.
+    current = dashboard({
+      errors: [
+        { at: '2026-10-21T09:22:00Z', source: 'transcode', message: 'ffmpeg exited' },
+        { at: '2026-10-21T09:21:00Z', source: 'library', message: 'scan aborted' },
+        older,
+      ],
+    });
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await waitFor(() => expect(within(errors).getAllByRole('listitem')).toHaveLength(3));
+    expect(status).toHaveTextContent(/^2 neue Fehler$/);
+    expect(within(errors).getAllByRole('listitem')[2]).toContainElement(first);
+
+    // A poll without news keeps the last count and the nodes.
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await waitFor(() => expect(polls()).toBe(4));
+    expect(status).toHaveTextContent(/^2 neue Fehler$/);
+    expect(within(errors).getAllByRole('listitem')[2]).toContainElement(first);
   });
 
   it('queues a failed job again; focus goes to the jobs', async () => {
@@ -255,12 +287,22 @@ describe('admin overview (A-2, A-3)', () => {
     let dialog = await screen.findByRole('alertdialog', { name: 'Job metadata.match abbrechen?' });
     await user.click(within(dialog).getByRole('button', { name: 'Job abbrechen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Nicht gefunden.');
+    // «Erneut einreihen» is refused as well (no route: 404).
+    await user.click(
+      screen.getByRole('button', { name: 'Job metadata.match (7) erneut einreihen' }),
+    );
+    await waitFor(() =>
+      expect(calls.filter((call) => call.path === '/admin/jobs/7/retry')).toHaveLength(1),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nicht gefunden.');
 
     refuse = false;
     await user.click(screen.getByRole('button', { name: 'Job metadata.match (7) abbrechen' }));
     dialog = await screen.findByRole('alertdialog', { name: 'Job metadata.match abbrechen?' });
     await user.click(within(dialog).getByRole('button', { name: 'Job abbrechen' }));
     expect(await screen.findByText('Job metadata.match abgebrochen.')).toBeVisible();
+    // The next action clears the old refusal, also the one of the other button.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(
       calls.filter((call) => call.method === 'DELETE' && call.path === '/admin/jobs/7'),
     ).toHaveLength(2);

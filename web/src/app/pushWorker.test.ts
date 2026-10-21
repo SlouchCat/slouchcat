@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
 import source from '../../public/push-sw.js?raw';
 
 // public/push-sw.js runs inside the service worker (importScripts), outside the bundle. The test
@@ -12,11 +12,24 @@ interface FakeWindow {
   navigate: Mock<(url: string) => Promise<unknown>>;
 }
 
+/** A subscription as the worker sees it: its server key and its JSON form. */
+function fakeSubscription(endpoint: string, applicationServerKey: ArrayBuffer | null = null) {
+  return {
+    options: { applicationServerKey },
+    toJSON: () => ({ endpoint, keys: { p256dh: `p256dh-${endpoint}`, auth: `auth-${endpoint}` } }),
+  };
+}
+
 function worker(windows: FakeWindow[] = []) {
   const handlers: Record<string, (event: unknown) => void> = {};
+  const subscribe = vi.fn((options: { applicationServerKey: ArrayBuffer }) =>
+    Promise.resolve(
+      fakeSubscription('https://push.example.test/new', options.applicationServerKey),
+    ),
+  );
   const self = {
     location: { origin: ORIGIN },
-    registration: { showNotification: vi.fn(() => Promise.resolve()) },
+    registration: { showNotification: vi.fn(() => Promise.resolve()), pushManager: { subscribe } },
     addEventListener: (type: string, handler: (event: unknown) => void) => {
       handlers[type] = handler;
     },
@@ -41,7 +54,8 @@ function worker(windows: FakeWindow[] = []) {
     const notification = { data, close: vi.fn() };
     return dispatch('notificationclick', { notification }).then(() => notification);
   };
-  return { self, clients, push, click };
+  const change = (event: object) => dispatch('pushsubscriptionchange', event);
+  return { self, clients, push, click, change, subscribe };
 }
 
 function appWindow(url: string): FakeWindow {
@@ -54,6 +68,8 @@ function appWindow(url: string): FakeWindow {
 }
 
 describe('push service worker', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it('shows title and text of the server message; the click opens its path', async () => {
     const { self, push } = worker();
     await push(
@@ -119,5 +135,62 @@ describe('push service worker', () => {
     expect(open.focus).toHaveBeenCalled();
     expect(open.navigate).not.toHaveBeenCalled();
     expect(clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  describe('a replaced subscription', () => {
+    const posted = () => {
+      const fetchMock = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(() =>
+        Promise.resolve(new Response(null, { status: 201 })),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    };
+
+    it('subscribes again with the old server key and registers the new one', async () => {
+      const fetchMock = posted();
+      const { change, subscribe } = worker();
+      const key = new Uint8Array([4, 1, 2, 3]).buffer;
+      await change({ oldSubscription: fakeSubscription('https://push.example.test/old', key) });
+      expect(subscribe).toHaveBeenCalledWith({ userVisibleOnly: true, applicationServerKey: key });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0]!;
+      expect(url).toBe('/api/v1/me/push-subscriptions');
+      expect(init.method).toBe('POST');
+      expect(init.credentials).toBe('same-origin');
+      expect(init.headers).toMatchObject({ 'X-Requested-With': 'Slouchcat' });
+      expect(JSON.parse(init.body as string)).toEqual({
+        endpoint: 'https://push.example.test/new',
+        keys: {
+          p256dh: 'p256dh-https://push.example.test/new',
+          auth: 'auth-https://push.example.test/new',
+        },
+      });
+    });
+
+    it('registers the subscription the browser made already', async () => {
+      const fetchMock = posted();
+      const { change, subscribe } = worker();
+      await change({
+        oldSubscription: fakeSubscription('https://push.example.test/old', new ArrayBuffer(4)),
+        newSubscription: fakeSubscription('https://push.example.test/given'),
+      });
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(JSON.parse(fetchMock.mock.calls[0]?.[1].body as string)).toMatchObject({
+        endpoint: 'https://push.example.test/given',
+      });
+    });
+
+    it('does nothing without the old server key, and a refusal ends quietly', async () => {
+      const fetchMock = posted();
+      const { change, subscribe } = worker();
+      await change({ oldSubscription: null });
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+      await expect(
+        change({ newSubscription: fakeSubscription('https://push.example.test/given') }),
+      ).resolves.toBeUndefined();
+    });
   });
 });

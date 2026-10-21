@@ -209,7 +209,7 @@ export const statsQuery = (days: StatsDays) =>
   });
 
 /** Every announcement of the main user, newest first (A-7). */
-export const announcementsQuery = queryOptions({
+export const adminAnnouncementsQuery = queryOptions({
   queryKey: ['admin', 'announcements'],
   queryFn: ({ signal }): Promise<Announcement[]> =>
     request(api.GET('/admin/announcements', { signal })),

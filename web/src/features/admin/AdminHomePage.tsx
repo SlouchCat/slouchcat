@@ -1,5 +1,6 @@
 import type {
   Dashboard,
+  ErrorEntry,
   IntegrationStatus,
   JobSummary,
   StorageInfo,
@@ -21,6 +22,7 @@ import {
   StatusDot,
   Text,
   TextLink,
+  VisuallyHidden,
   type StatusDotState,
 } from '@/ui';
 import {
@@ -198,18 +200,49 @@ function ServerTile({ system }: { system: SystemInfo }) {
   );
 }
 
+/**
+ * Stable keys of the error list (newest first): time, source and message, with a counter for the
+ * same entry twice. A new error on top keeps the keys, and so the nodes, of the older ones.
+ */
+function errorKeys(errors: readonly ErrorEntry[]): string[] {
+  const seen = new Map<string, number>();
+  return errors.map((entry) => {
+    const key = `${entry.at}|${entry.source}|${entry.message}`;
+    const count = seen.get(key) ?? 0;
+    seen.set(key, count + 1);
+    return count === 0 ? key : `${key}|${count}`;
+  });
+}
+
 function ErrorsTile({ errors }: { errors: Dashboard['errors'] }) {
   const { t, i18n } = useTranslation();
+  const keys = errorKeys(errors);
+  // A poll with new errors is announced as a short count, not as the whole list.
+  const [previous, setPrevious] = useState(errors);
+  const [news, setNews] = useState({ count: 0, seq: 0 });
+  if (errors !== previous) {
+    const known = new Set(errorKeys(previous));
+    const count = keys.filter((key) => !known.has(key)).length;
+    setPrevious(errors);
+    if (count > 0) setNews((current) => ({ count, seq: current.seq + 1 }));
+  }
   return (
     <Tile title={t('admin.home.errors.title')} wide>
       <Text tone="secondary" variant="caption">
         {t('admin.home.errors.intro')}
       </Text>
       {errors.length === 0 && <Text tone="secondary">{t('admin.home.errors.empty')}</Text>}
-      {/* Always there: new entries of the poll are read out politely. */}
-      <ol className={styles.errors} aria-label={t('admin.home.errors.list')} aria-live="polite">
+      {/* Always there, so the first count is read out too; a new node for every poll with news. */}
+      <div role="status">
+        {news.count > 0 && (
+          <VisuallyHidden key={news.seq}>
+            {t('admin.home.errors.new', { count: news.count })}
+          </VisuallyHidden>
+        )}
+      </div>
+      <ol className={styles.errors} aria-label={t('admin.home.errors.list')}>
         {errors.map((entry, index) => (
-          <li key={`${entry.at}-${index}`} className={styles.error}>
+          <li key={keys[index]} className={styles.error}>
             <span className={styles.errorMeta}>
               <time dateTime={entry.at}>{formatDateTime(entry.at, i18n.language)}</time>
               <span>{entry.source}</span>
@@ -290,15 +323,19 @@ export function AdminHomePage() {
   };
   const retry = useMutation({
     mutationFn: (job: JobSummary) => retryJob(job.id),
-    onMutate: () => setMessage(null),
     onSuccess: (_data, job) => settled(t('admin.home.jobs.retried', { type: job.type })),
   });
   const cancel = useMutation({
     mutationFn: (job: JobSummary) => cancelJob(job.id),
-    onMutate: () => setMessage(null),
     onSuccess: (_data, job) => settled(t('admin.home.jobs.cancelled', { type: job.type })),
   });
   const jobError = retry.error ?? cancel.error;
+  /** A new action starts: the outcome of the last one (message or error) goes away. */
+  const start = () => {
+    setMessage(null);
+    retry.reset();
+    cancel.reset();
+  };
   const number = new Intl.NumberFormat(i18n.language);
 
   const jobColumns: DataColumn<JobSummary>[] = [
@@ -343,7 +380,10 @@ export function AdminHomePage() {
             icon="refresh"
             aria-label={t('admin.home.jobs.retry.label', { type: job.type, id: job.id })}
             isPending={retry.isPending && retry.variables?.id === job.id}
-            onPress={() => retry.mutate(job)}
+            onPress={() => {
+              start();
+              retry.mutate(job);
+            }}
           >
             {t('admin.home.jobs.retry.action')}
           </AriaButton>
@@ -361,7 +401,10 @@ export function AdminHomePage() {
             confirmLabel={t('admin.home.jobs.cancel.confirm')}
             cancelLabel={t('common.cancel')}
             tone="danger"
-            onConfirm={() => cancel.mutate(job)}
+            onConfirm={() => {
+              start();
+              cancel.mutate(job);
+            }}
             onOpenChange={setConfirming}
           />
         </span>

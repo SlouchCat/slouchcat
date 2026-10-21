@@ -153,10 +153,13 @@ test('the overview shows streams, jobs, storage, integrations and errors (A-3)',
   const server = page.getByRole('region', { name: 'Server', exact: true });
   await expect(server.getByText('Videokodierung')).toBeVisible();
   await expect(server.getByText('Beobachtete Ordner')).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Fehler aus dem Server-Log' })).toHaveAttribute(
+  // The list is not live itself: a poll with new errors announces only their count.
+  await expect(page.getByRole('list', { name: 'Fehler aus dem Server-Log' })).not.toHaveAttribute(
     'aria-live',
-    'polite',
   );
+  await expect(
+    page.getByRole('region', { name: 'Fehler', exact: true }).getByRole('status'),
+  ).toHaveCount(1);
 });
 
 test('a provoked error shows on the dashboard within 10 s (A-3)', async ({ page, owner }) => {
@@ -174,6 +177,10 @@ test('a provoked error shows on the dashboard within 10 s (A-3)', async ({ page,
       /trakt/i,
       { timeout: Math.max(1000, 10_000 - (Date.now() - provoked)) },
     );
+    // The poll that brought it announces a short count, not the whole list.
+    await expect(
+      page.getByRole('region', { name: 'Fehler', exact: true }).getByRole('status'),
+    ).toHaveText(/^\d+ neuer? Fehler$/);
   } finally {
     // A failed refresh empties the Trakt lists (I-7): fetch them again for the later specs.
     await traktMockStatus(200);

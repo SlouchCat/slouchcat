@@ -87,33 +87,4 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: var(--sc-space-3);
-  margin: 0;
-}
-
-.tile {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-  padding: var(--sc-space-4) var(--sc-space-5);
-  border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-color-surface-1);
-}
-
-.tileLabel {
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-sm);
-  font-weight: var(--sc-font-weight-medium);
-}
-
-.tileValue {
-  margin: 0;
-  font-size: var(--sc-font-size-xl);
-  font-weight: var(--sc-font-weight-semibold);
-  font-variant-numeric: tabular-nums;
-}
-
-.tileNote {
-  margin: 0;
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
 }

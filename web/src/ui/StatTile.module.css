@@ -4,13 +4,17 @@
   flex-direction: column;
   gap: var(--sc-space-1);
   min-width: 0;
+  margin: 0;
   padding: var(--sc-space-3) var(--sc-space-4);
   border-left: var(--sc-space-1) solid var(--sc-color-surface-3);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
 }
 
+/* The number above its label: the term comes first for screen readers. */
 .value {
+  order: -1;
+  margin: 0;
   color: var(--sc-color-text-primary);
   font-size: var(--sc-font-size-2xl);
   font-weight: var(--sc-font-weight-bold);
@@ -20,6 +24,12 @@
 
 .label {
   color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.note {
+  margin: 0;
+  color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);
 }
 

@@ -77,6 +77,9 @@ const server = spawn(
     '--dev',
     '--log-format',
     'text',
+    // Debug records go into the log scan of global-teardown.ts too (A-9).
+    '--log-level',
+    'debug',
   ],
   {
     stdio: ['ignore', 'pipe', 'pipe'],

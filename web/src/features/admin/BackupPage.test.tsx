@@ -113,6 +113,10 @@ describe('admin backup (A-4)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Sicherung erstellen' });
     expect(within(dialog).getByRole('radio', { name: 'Ohne Schlüssel (empfohlen)' })).toBeChecked();
     expect(dialog).toHaveTextContent('Nach einer Wiederherstellung gibst du sie neu ein.');
+    // Private feed addresses stay in (the server keeps podcast subscriptions intact).
+    expect(dialog).toHaveTextContent(
+      'Adressen privater Podcast-Feeds bleiben samt ihrem Zugangscode',
+    );
     expect(within(dialog).queryByLabelText(/^Passphrase/)).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Sicherung erstellen' }));
 
@@ -160,6 +164,7 @@ describe('admin backup (A-4)', () => {
     let list = [plain, secret];
     const { calls } = mockApi(
       routes(() => list, {
+        [`POST /admin/backups/${plain.name}/restore`]: () => problem(409, 'restore_running'),
         [`DELETE /admin/backups/${plain.name}`]: () => {
           list = [secret];
           return new Response(null, { status: 204 });
@@ -168,6 +173,12 @@ describe('admin backup (A-4)', () => {
     );
     renderApp('/admin/backup');
     const user = userEvent.setup();
+    // A refused restore first: its notice goes away when the next action starts.
+    await user.click(await screen.findByRole('button', { name: `${plain.name} wiederherstellen` }));
+    const confirm = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Ersetzen und neu starten' }));
+    expect(await screen.findByRole('alert')).toBeVisible();
+
     await user.click(await screen.findByRole('button', { name: `${plain.name} löschen` }));
     const dialog = await screen.findByRole('alertdialog', {
       name: `Sicherung „${plain.name}“ löschen?`,
@@ -175,6 +186,7 @@ describe('admin backup (A-4)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Sicherung löschen' }));
     await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
     expect(await screen.findByText(`Sicherung „${plain.name}“ gelöscht.`)).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('rowheader', { name: plain.name })).toBeNull());
     await waitFor(() =>
       expect(
@@ -228,6 +240,47 @@ describe('admin backup (A-4)', () => {
     await act(() => vi.advanceTimersByTimeAsync(2000));
     await waitFor(() => expect(reloadToLogin).toHaveBeenCalledTimes(1));
     expect(screen.getByRole('status')).toHaveTextContent('Der Server ist zurück.');
+  });
+
+  it('gives up after 90 s without the new server; «Erneut prüfen» waits again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let down = true;
+    const { calls } = mockApi(
+      routes(() => [plain], {
+        [`POST /admin/backups/${plain.name}/restore`]: () => json(accepted, 202),
+        'GET /healthz': () => {
+          if (down) throw new TypeError('Failed to fetch');
+          return health(1);
+        },
+      }),
+    );
+    renderApp('/admin/backup');
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await user.click(await screen.findByRole('button', { name: `${plain.name} wiederherstellen` }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Ersetzen und neu starten' }));
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Server startet neu' });
+    const polls = () => calls.filter((call) => call.path === '/healthz').length;
+
+    await act(() => vi.advanceTimersByTimeAsync(88_000));
+    expect(screen.queryByText('Der Server kommt nicht zurück')).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(2_000));
+    expect(await screen.findByText('Der Server kommt nicht zurück')).toBeVisible();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Seit 90 Sekunden antwortet kein neuer Server.',
+    );
+    expect(screen.getByText(/docker logs slouchcat/)).toBeVisible();
+    // No more polls while the notice shows.
+    const stopped = polls();
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+    expect(polls()).toBe(stopped);
+    expect(reloadToLogin).not.toHaveBeenCalled();
+
+    down = false;
+    await user.click(screen.getByRole('button', { name: 'Erneut prüfen' }));
+    await waitFor(() => expect(reloadToLogin).toHaveBeenCalledTimes(1));
+    expect(heading).toHaveFocus();
+    expect(screen.queryByText('Der Server kommt nicht zurück')).not.toBeInTheDocument();
   });
 
   it('asks for the passphrase of an encrypted backup and shows a wrong one at the field', async () => {

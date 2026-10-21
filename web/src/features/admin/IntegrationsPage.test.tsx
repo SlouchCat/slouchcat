@@ -268,6 +268,56 @@ describe('integrations (A-2)', () => {
     ]);
   });
 
+  it('keeps keys, the SMTP password and the bot token out of the mutation cache', async () => {
+    mockApi(
+      routes({
+        'PUT /admin/settings': (call) =>
+          (call.body as AdminSettingsUpdate).telegram?.botToken === '123:refused-token'
+            ? problem(422, 'telegram_token_invalid')
+            : json(settings()),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const secrets = [
+      'yt-secret-key-0001',
+      'smtp-secret-0001',
+      '123:refused-token',
+      '123:good-token',
+    ];
+    const held = () =>
+      queryClient
+        .getMutationCache()
+        .getAll()
+        .map((mutation) => JSON.stringify(mutation.state.variables ?? null))
+        .filter((variables) => secrets.some((secret) => variables.includes(secret)));
+
+    const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
+    await user.type(within(keys).getByLabelText('YouTube-API-Schlüssel'), secrets[0]!);
+    await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
+    expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
+
+    const email = section('E-Mail-Server');
+    await user.type(within(email).getByLabelText('Server'), 'smtp.example.ch');
+    await user.type(within(email).getByLabelText('Passwort'), secrets[1]!);
+    await user.type(within(email).getByLabelText(/Absender/), 'media@example.ch');
+    await user.click(within(email).getByRole('button', { name: 'Speichern' }));
+    expect(await within(email).findByText('E-Mail-Server gespeichert.')).toBeVisible();
+
+    // A refused token does not stay either.
+    const telegram = section('Telegram-Bot');
+    const token = within(telegram).getByLabelText('Bot-Token');
+    await user.type(token, secrets[2]!);
+    await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));
+    expect(held()).toEqual([]);
+    await user.clear(token);
+    await user.type(token, secrets[3]!);
+    await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
+    expect(await within(telegram).findByText('Telegram-Bot gespeichert.')).toBeVisible();
+    await waitFor(() => expect(held()).toEqual([]));
+  });
+
   it('creates new Web Push keys after the confirmation', async () => {
     const { calls } = mockApi(
       routes({

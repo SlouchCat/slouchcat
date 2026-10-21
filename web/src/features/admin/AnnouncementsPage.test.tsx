@@ -210,10 +210,11 @@ describe('admin announcements (A-7)', () => {
     );
   });
 
-  it('deletes an announcement after the confirmation', async () => {
+  it('deletes an announcement after the confirmation; an older refusal goes away', async () => {
     let list = [draft, published];
     const { calls } = mockApi(
       routes(() => list, {
+        'POST /admin/announcements/2/publish': () => problem(409, 'announcement_published'),
         'DELETE /admin/announcements/1': () => {
           list = [draft];
           return new Response(null, { status: 204 });
@@ -222,11 +223,21 @@ describe('admin announcements (A-7)', () => {
     );
     renderApp('/admin/announcements');
     const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: '„Wartung am Samstag“ veröffentlichen' }),
+    );
+    const refused = await screen.findByRole('alertdialog', {
+      name: '„Wartung am Samstag“ veröffentlichen?',
+    });
+    await user.click(within(refused).getByRole('button', { name: 'Veröffentlichen' }));
+    expect(await screen.findByRole('alert')).toBeVisible();
+
     await user.click(await screen.findByRole('button', { name: '„Neue Filme“ löschen' }));
     const dialog = await screen.findByRole('alertdialog', { name: '„Neue Filme“ löschen?' });
     await user.click(within(dialog).getByRole('button', { name: 'Ankündigung löschen' }));
     await waitFor(() => expect(sent(calls, 'DELETE')?.path).toBe('/admin/announcements/1'));
     expect(await screen.findByText('„Neue Filme“ ist gelöscht.')).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('rowheader', { name: 'Neue Filme' })).toBeNull());
   });
 

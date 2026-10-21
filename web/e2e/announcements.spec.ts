@@ -6,7 +6,7 @@ import {
   createProfile,
   loginOwner,
 } from './accounts';
-import { OWNER } from './env';
+import { GUEST_PASSWORD, OWNER } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectVisibleFocus } from './keyboard';
 import { channel, deleteAnnouncements, mailsTo, publishAnnouncement } from './mocks';
@@ -121,7 +121,7 @@ test('a guest account gets it by mail on its default e-mail channel (plan 5.2)',
   baseURL,
   extraHTTPHeaders,
 }) => {
-  const guest = { email: 'ankuendigung-gast@slouchcat.test', password: 'ankuendigung-pass-0123' };
+  const guest = { email: 'ankuendigung-gast@slouchcat.test', password: GUEST_PASSWORD };
   const invitation = await createInvitation(owner);
   const guestApi = await anonymousApi(playwright, baseURL!, extraHTTPHeaders);
   try {

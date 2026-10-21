@@ -51,6 +51,10 @@ const card = (name: string) => screen.findByRole('article', { name });
 const guestSession = () =>
   json({ ...session, account: { ...session.account, role: 'guest', email: 'gast@example.test' } });
 
+/** The account's second profile: it sees the channels but cannot change them. */
+const secondProfileSession = () =>
+  json({ ...session, profile: { ...session.profile!, id: 2, name: 'Lena', isPrimary: false } });
+
 describe('notification channels page', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -82,6 +86,66 @@ describe('notification channels page', () => {
     const mail = await card('E-Mail');
     expect(within(mail).getByRole('checkbox', { name: 'Einladungen' })).toBeVisible();
     expect(within(mail).queryByRole('checkbox', { name: 'Fehler' })).not.toBeInTheDocument();
+  });
+
+  it('shows another profile than the primary one the channels without controls', async () => {
+    const { calls } = mockApi({
+      ...page,
+      'GET /auth/session': secondProfileSession,
+      'GET /me/channels': () =>
+        json(
+          settings({ ...email, enabled: true, events: ['new_content', 'announcements'] }, push, {
+            ...telegram,
+            telegram: { linked: true, chatId: '4242', botUsername: 'slouchcat_bot' },
+          }),
+        ),
+    });
+    renderApp('/settings/notifications');
+    expect(await screen.findByText('Nur im Hauptprofil')).toBeVisible();
+    expect(screen.getByText(/ändern lassen sie sich im Hauptprofil/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Profil wechseln' })).toHaveAttribute(
+      'href',
+      '/profiles',
+    );
+
+    const mail = await card('E-Mail');
+    expect(within(mail).getByText('Aktiv')).toBeVisible();
+    const facts = (article: HTMLElement) =>
+      within(article)
+        .getAllByRole('term')
+        .map((term) => [term.textContent, term.nextElementSibling?.textContent]);
+    expect(facts(mail)).toEqual([
+      ['Ereignisse', 'Neue Inhalte · Ankündigungen'],
+      ['E-Mail-Adresse', 'owner@example.test'],
+    ]);
+    expect(facts(await card('Web-Push'))).toEqual([
+      ['Ereignisse', 'Neue Inhalte'],
+      ['Angemeldete Geräte', '1'],
+    ]);
+    expect(facts(await card('Telegram'))).toEqual([
+      ['Ereignisse', 'Neue Inhalte'],
+      ['Verknüpfung', 'Verknüpft'],
+    ]);
+    // No switch, no checkbox, no field, no button: nothing to change.
+    const list = screen.getByRole('list', { name: 'Kanäle' });
+    for (const role of ['switch', 'checkbox', 'textbox', 'button'] as const) {
+      expect(within(list).queryAllByRole(role)).toHaveLength(0);
+    }
+    expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
+  });
+
+  it('shows the refusal of a change from another profile than the primary one', async () => {
+    // The page offers no controls then; the server refuses anyway (the session may be stale).
+    mockApi({
+      ...page,
+      'PUT /me/channels/email': () => problem(403, 'primary_profile_required'),
+    });
+    renderApp('/settings/notifications');
+    const mail = await card('E-Mail');
+    await userEvent.setup().click(within(mail).getByRole('button', { name: 'Speichern' }));
+    expect(await within(mail).findByRole('alert')).toHaveTextContent(
+      'Das darf nur das Hauptprofil dieses Kontos.',
+    );
   });
 
   it('switches e-mail on with chosen events and stores them', async () => {
@@ -236,6 +300,53 @@ describe('notification channels page', () => {
     ).toBeVisible();
     expect(within(bot).queryByText(/Sende dem Bot/)).not.toBeInTheDocument();
     expect(calls.filter((call) => call.path === '/me/channels').length).toBeGreaterThan(1);
+  });
+
+  it('without the bot name the instruction says what the main user has to do', async () => {
+    mockApi({
+      ...page,
+      'POST /me/channels/telegram/link': () =>
+        json({
+          ...telegram,
+          telegram: { linked: false, botUsername: '', linkCode: 'AB2C3D' },
+        }),
+    });
+    renderApp('/settings/notifications');
+    const bot = await card('Telegram');
+    await userEvent.setup().click(within(bot).getByRole('button', { name: 'Verknüpfen' }));
+    expect(
+      await within(bot).findByText('Sende dem Slouchcat-Bot die Nachricht /start AB2C3D'),
+    ).toBeVisible();
+    expect(within(bot).getByText(/muss zuerst das Bot-Token unter Integrationen/)).toBeVisible();
+    expect(within(bot).queryByText(/@/)).not.toBeInTheDocument();
+    expect(within(bot).queryByRole('link', { name: /In Telegram öffnen/ })).toBeNull();
+  });
+
+  it('a new Telegram action clears the error of the last one', async () => {
+    let state: ChannelSetting = {
+      ...telegram,
+      telegram: { linked: false, botUsername: 'slouchcat_bot', linkCode: 'AB2C3D' },
+    };
+    let refuse = true;
+    mockApi({
+      ...page,
+      'GET /me/channels': () => json(settings(email, push, state)),
+      'POST /me/channels/telegram/link': () =>
+        refuse ? problem(429, 'too_many_attempts') : json(state),
+      'DELETE /me/channels/telegram/link': () => {
+        state = telegram;
+        return noContent();
+      },
+    });
+    renderApp('/settings/notifications');
+    const bot = await card('Telegram');
+    const user = userEvent.setup();
+    await user.click(within(bot).getByRole('button', { name: 'Code erneuern' }));
+    expect(await within(bot).findByRole('alert')).toBeVisible();
+    refuse = false;
+    await user.click(within(bot).getByRole('button', { name: 'Verknüpfung lösen' }));
+    expect(await within(bot).findByText('Die Verknüpfung ist gelöst.')).toBeVisible();
+    expect(within(bot).queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('unlinks a linked Telegram chat', async () => {

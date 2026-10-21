@@ -8,7 +8,7 @@ import {
   type SessionData,
 } from './accounts';
 import { CSRF } from './catalog';
-import { OWNER, OWNER_PROFILE } from './env';
+import { GUEST_PASSWORD, OWNER, OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -24,7 +24,7 @@ import { arrowBetweenRows } from './playback';
 // changes the e-mail (and back) with the current password. The password itself is never changed:
 // that would sign out the shared session of every other spec.
 
-const GUEST = { email: 'konten-e2e@slouchcat.test', password: 'gast-passwort-0123' };
+const GUEST = { email: 'konten-e2e@slouchcat.test', password: GUEST_PASSWORD };
 const CHANGED_EMAIL = 'e2e-owner-neu@slouchcat.test';
 
 /** A guest account from an invitation; the `owner` fixture removes it after the test. */

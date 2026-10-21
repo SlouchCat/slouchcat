@@ -227,7 +227,7 @@ describe('setup wizard', () => {
     [{ ok: false, problem: 'unreachable' }, 'Nicht erreichbar: TMDB antwortet gerade nicht.', true],
   ])('checks the TMDB key: %o', async (answer, message, invalid) => {
     const { calls } = mockApi({ ...setupRequired, 'POST /setup/tmdb-check': () => json(answer) });
-    renderApp('/setup');
+    const { queryClient } = renderApp('/setup');
     const user = userEvent.setup();
     const field = await screen.findByLabelText('API-Lesezugriffs-Token');
     await user.type(field, 'tmdb-token');
@@ -242,6 +242,8 @@ describe('setup wizard', () => {
       expect(await screen.findByText(message)).toBeVisible();
       expect(field).not.toHaveAttribute('aria-invalid');
     }
+    // The key is a secret: it does not stay in the mutation cache.
+    await waitFor(() => expect(queryClient.getMutationCache().getAll()).toHaveLength(0));
     // A changed key hides the answer.
     await user.type(field, 'x');
     await waitFor(() => expect(screen.queryByText(new RegExp(message))).not.toBeInTheDocument());

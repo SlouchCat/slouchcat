@@ -1,6 +1,8 @@
 import { appendFileSync, constants, copyFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page, TestInfo } from '@playwright/test';
+import { createProfile, loginOwner } from './accounts';
+import { CSRF } from './catalog';
 import { introSeason, setFavorite } from './discover';
 import { OWNER, OWNER_PROFILE } from './env';
 import { expect, test } from './fixtures';
@@ -256,4 +258,51 @@ test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter on the cards, ba
   const stored = await channel(page.request, 'email');
   expect(stored).toMatchObject({ enabled: true });
   expect(stored.events).toContain('new_content');
+});
+
+test('another profile than the primary one sees the channels without controls', async ({
+  browser,
+  baseURL,
+  extraHTTPHeaders,
+  owner,
+}) => {
+  // Only the primary profile changes the account's channels (the server answers 403
+  // primary_profile_required); another profile gets the notice of /settings/profiles.
+  const second = await createProfile(owner, { name: 'E2E Kanäle', language: 'de' });
+  const context = await browser.newContext({ baseURL, locale: 'de-CH', extraHTTPHeaders });
+  try {
+    await loginOwner(context.request);
+    const selected = await context.request.post(`/api/v1/auth/profiles/${second.id}/select`, {
+      headers: CSRF,
+    });
+    expect(selected.status()).toBe(200);
+    const page = await context.newPage();
+    await openSettings(page);
+    await expect(page.getByText('Nur im Hauptprofil')).toBeVisible();
+    const mail = card(page, 'E-Mail');
+    await expect(mail.getByRole('term')).toHaveText(['Ereignisse', 'E-Mail-Adresse']);
+    await expect(mail.getByRole('definition').last()).toHaveText(OWNER.email);
+    await expect(card(page, 'Web-Push')).toBeVisible();
+    await expect(card(page, 'Telegram')).toBeVisible();
+    const list = page.getByRole('list', { name: 'Kanäle' });
+    for (const role of ['switch', 'checkbox', 'textbox', 'button'] as const) {
+      await expect(list.getByRole(role)).toHaveCount(0);
+    }
+
+    // By keyboard: Tab reaches "Profil wechseln" with a visible focus, nothing traps it, and
+    // Enter opens the profile picker.
+    const action = page.getByRole('link', { name: 'Profil wechseln', exact: true });
+    await resetFocus(page);
+    await tabTo(page, action);
+    await expectVisibleFocus(page);
+    await expectNoFocusTrap(page);
+    await action.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/profiles$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/settings\/notifications$/);
+  } finally {
+    await context.close();
+    await owner.delete(`/api/v1/profiles/${second.id}`, { headers: CSRF });
+  }
 });

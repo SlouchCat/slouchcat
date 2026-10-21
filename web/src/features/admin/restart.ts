@@ -4,6 +4,9 @@ import { paths } from '@/app/paths';
 /** Poll interval of the restart panel after a restore (design 4: every 2 s). */
 export const RESTART_POLL_MS = 2000;
 
+/** How long the restart panel waits for the new server before it says that something is wrong. */
+export const RESTART_GIVE_UP_MS = 90_000;
+
 /**
  * Whether `health` comes from a server process that started after the restore was accepted at
  * `acceptedAt` (ms, the same clock as `answeredAt`). The old process may still answer for a moment

@@ -68,3 +68,9 @@ export const SERVER_LOG = `${ARTEFACTS}server.log`;
 
 /** Passphrase of the backups the specs create (A-4); a fake secret the log scan looks for (A-9). */
 export const BACKUP_PASSPHRASE = 'e2e-backup-passphrase-7c41d9';
+
+/** YouTube key the integrations spec stores (A-2); a fake secret the log scan looks for (A-9). */
+export const YOUTUBE_KEY = 'e2e-youtube-key-0000-wxyz';
+
+/** Password of the guest accounts the specs create; a fake secret the log scan looks for (A-9). */
+export const GUEST_PASSWORD = 'gast-passwort-0123';

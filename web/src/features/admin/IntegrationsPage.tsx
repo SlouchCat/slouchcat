@@ -14,6 +14,7 @@ import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { sessionQuery, useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Page, Panel, Skeleton, Text, TextLink } from '@/ui';
 import { AriaButton, ConfirmDialog, RadioGroup, TextField } from '@/ui/aria';
 import {
@@ -34,18 +35,28 @@ const TLS_MODES = ['starttls', 'tls', 'none'] as const satisfies readonly SMTPTL
 
 const sourceTone = { env: 'info', stored: 'success', none: 'outline' } as const;
 
-/** Stores a part of the settings; the answer is the whole new state of the page. */
-function useSettingsUpdate(onSaved: (body: AdminSettingsUpdate) => void) {
+/** After a part of the settings is stored: the answer is the whole new state of the page. */
+function useSettingsSaved(onSaved: (body: AdminSettingsUpdate) => void) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: updateSettings,
-    onSuccess: async (settings, body) => {
-      queryClient.setQueryData(settingsQuery.queryKey, settings);
-      onSaved(body);
-      // The dashboard shows the integrations' state.
-      await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
-    },
-  });
+  return async (settings: AdminSettings, body: AdminSettingsUpdate) => {
+    queryClient.setQueryData(settingsQuery.queryKey, settings);
+    onSaved(body);
+    // The dashboard shows the integrations' state.
+    await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
+  };
+}
+
+/** Stores a part of the settings without a secret (update check, public address). */
+function useSettingsUpdate(onSaved: (body: AdminSettingsUpdate) => void) {
+  return useMutation({ mutationFn: updateSettings, onSuccess: useSettingsSaved(onSaved) });
+}
+
+/**
+ * Stores a part of the settings that may carry a secret (a key, the SMTP password, the bot
+ * token): the value never stays in the query client (useTransientMutation).
+ */
+function useSecretUpdate(onSaved: (body: AdminSettingsUpdate) => void) {
+  return useTransientMutation(updateSettings, useSettingsSaved(onSaved));
 }
 
 /** Where a value comes from: deploy/.env, stored here (with its last four characters), or none. */
@@ -89,11 +100,11 @@ function Section({
 }
 
 /** The outcome of a section's last action: an error notice or a polite status line. */
-function Outcome({ error, message }: { error: Error | null; message: string | null }) {
+function Outcome({ error, message }: { error: unknown; message: string | null }) {
   const { t } = useTranslation();
   return (
     <>
-      {error && <Notice tone="danger">{problemMessage(t, error)}</Notice>}
+      {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
       <div role="status" className={styles.live}>
         {message && !error && <Notice live={false}>{message}</Notice>}
       </div>
@@ -150,7 +161,7 @@ function KeyForm({ keyName, state }: { keyName: KeyName; state: KeyState }) {
   const [message, setMessage] = useState<string | null>(null);
   const name = t(`admin.integrations.keys.${keyName}.name`);
   const field = `keys.${keyName}`;
-  const save = useSettingsUpdate((body) => {
+  const save = useSecretUpdate((body) => {
     setValue('');
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
@@ -160,7 +171,7 @@ function KeyForm({ keyName, state }: { keyName: KeyName; state: KeyState }) {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    save.mutate({ keys: { [keyName]: value.trim() } });
+    void save.run({ keys: { [keyName]: value.trim() } });
   };
 
   return (
@@ -198,7 +209,7 @@ function KeyForm({ keyName, state }: { keyName: KeyName; state: KeyState }) {
             isPending={save.isPending}
             onClear={() => {
               setMessage(null);
-              save.mutate({ clear: [keyName] });
+              void save.run({ clear: [keyName] });
             }}
           />
         )}
@@ -248,7 +259,7 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const name = t('admin.integrations.email.name');
-  const save = useSettingsUpdate((body) => {
+  const save = useSecretUpdate((body) => {
     setPassword('');
     if (body.clear) setValues(emailValues({ source: 'none' }));
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
@@ -268,7 +279,7 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    save.mutate({
+    void save.run({
       email: {
         host: values.host.trim(),
         port: Number(values.port),
@@ -388,7 +399,7 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
             isPending={save.isPending}
             onClear={() => {
               setMessage(null);
-              save.mutate({ clear: ['email'] });
+              void save.run({ clear: ['email'] });
             }}
           >
             {email.source !== 'none' && (
@@ -415,7 +426,7 @@ function TelegramSection({ telegram }: { telegram: AdminSettings['telegram'] }) 
   const [token, setToken] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const name = t('admin.integrations.telegram.name');
-  const save = useSettingsUpdate((body) => {
+  const save = useSecretUpdate((body) => {
     setToken('');
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
@@ -425,7 +436,7 @@ function TelegramSection({ telegram }: { telegram: AdminSettings['telegram'] }) 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    save.mutate({ telegram: { botToken: token.trim() } });
+    void save.run({ telegram: { botToken: token.trim() } });
   };
 
   return (
@@ -461,7 +472,7 @@ function TelegramSection({ telegram }: { telegram: AdminSettings['telegram'] }) 
             isPending={save.isPending}
             onClear={() => {
               setMessage(null);
-              save.mutate({ clear: ['telegram'] });
+              void save.run({ clear: ['telegram'] });
             }}
           />
         )}

@@ -32,3 +32,8 @@ export const JobCounters: Story = {
 };
 
 export const Warning: Story = { args: { label: 'inotify belegt', value: '86 %', tone: 'warning' } };
+
+/** A tile of the statistics page: the share below the number. */
+export const WithNote: Story = {
+  args: { label: 'Direkt', value: '2 Wiedergaben', note: '50 % aller Wiedergaben' },
+};

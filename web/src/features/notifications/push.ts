@@ -1,6 +1,7 @@
 import type { PushSubscriptionRequest } from '@slouchcat/api-client';
 import { deviceName, type UserAgentData } from '@/features/player/capabilities';
 import { base64UrlToBytes } from '@/lib/base64url';
+import { deletePushSubscription, getChannels } from './queries';
 
 // The browser side of Web Push (M8, A-6): permission, the service worker's PushManager and the
 // subscription the server sends to. The worker shows the messages (public/push-sw.js). iPhone and
@@ -103,5 +104,37 @@ export async function unsubscribeThisDevice(): Promise<void> {
     await (await registration?.pushManager.getSubscription())?.unsubscribe();
   } catch {
     // The server forgets the subscription anyway; the push service drops it with time.
+  }
+}
+
+/**
+ * Before a logout, while the session still counts: removes this browser's subscriptions on the
+ * server and ends the browser's subscription at its push service, so the next person on this
+ * device gets no pushes of this account. Best effort: a failure (offline, or 403 from a profile
+ * other than the primary one) leaves it to the push service, which drops the endpoint in time.
+ */
+export async function leaveThisDevice(): Promise<void> {
+  if (!pushSupported()) return;
+  let subscription: PushSubscription | null | undefined;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    subscription = await registration?.pushManager.getSubscription();
+  } catch {
+    return;
+  }
+  if (!subscription) return;
+  try {
+    const { channels } = await getChannels();
+    const own = channels
+      .flatMap((channel) => channel.push?.subscriptions ?? [])
+      .filter((entry) => entry.thisDevice);
+    await Promise.allSettled(own.map((entry) => deletePushSubscription(entry.id)));
+  } catch {
+    // The browser side below still ends the subscription.
+  }
+  try {
+    await subscription.unsubscribe();
+  } catch {
+    // Nothing more to do.
   }
 }

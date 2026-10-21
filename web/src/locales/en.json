@@ -35,7 +35,6 @@
       "version": "Version {{version}}"
     },
     "gpu": {
-      "facts": "Graphics chip",
       "encoder": "Video encoding",
       "tonemap": "HDR to SDR",
       "ffmpeg": "ffmpeg",
@@ -116,7 +115,7 @@
       "pin_invalid": "The PIN is wrong.",
       "pin_locked": "Too many wrong PINs. Try again later.",
       "profile_required": "Choose a profile first.",
-      "primary_profile_required": "Only the primary profile of this account manages profiles.",
+      "primary_profile_required": "Only the primary profile of this account may do this.",
       "primary_profile": "The primary profile cannot be deleted.",
       "invitation_gone": "This invitation link is no longer valid.",
       "too_many_attempts": "Too many attempts. Wait a moment and try again.",
@@ -1290,7 +1289,9 @@
         "intro": "The last 50 errors of the server log, newest first.",
         "list": "Errors of the server log",
         "empty": "No errors since the start.",
-        "job": "Job {{id}} ({{type}})"
+        "job": "Job {{id}} ({{type}})",
+        "new_one": "{{count}} new error",
+        "new_other": "{{count}} new errors"
       }
     },
     "integrations": {
@@ -1491,7 +1492,7 @@
         "scope": "Scope",
         "without": "Without keys (recommended)",
         "with": "With keys",
-        "withoutHint": "Credentials such as the TMDB and Trakt keys, the e-mail server, the Telegram bot and the web push keys stay out. After a restore you enter them again.",
+        "withoutHint": "Credentials such as the TMDB and Trakt keys, the e-mail server, the Telegram bot and the web push keys stay out. After a restore you enter them again. Addresses of private podcast feeds stay in, with their access code, so the subscriptions carry on afterwards.",
         "withHint": "The backup also holds the key to the credentials. That is why the whole archive is encrypted with a passphrase (at least {{min}} characters). Without the passphrase it cannot be restored.",
         "passphrase": "Passphrase",
         "passphraseHint": "At least {{min}} characters. Keep it apart from the backup.",
@@ -1535,7 +1536,13 @@
         "body": "The backup (version {{version}}) is checked and goes in at the start. As soon as the server answers again, the sign-in opens.",
         "noSecrets": "The backup holds no credentials: enter the keys, the e-mail server and the Telegram bot again under integrations afterwards.",
         "waiting": "Waiting for the server …",
-        "back": "The server is back. Opening the sign-in …"
+        "back": "The server is back. Opening the sign-in …",
+        "silent": "No new server has answered for {{seconds}} seconds.",
+        "slow": {
+          "title": "The server does not come back",
+          "body": "The restart takes unusually long. Look at the container's log (docker logs slouchcat) and reload this page once the server runs.",
+          "retry": "Check again"
+        }
       }
     },
     "stats": {
@@ -2069,6 +2076,15 @@
       "intro": "New episodes of your favourites, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",
       "link": "Set up channels",
       "list": "Channels",
+      "onlyPrimary": {
+        "title": "Primary profile only",
+        "body": "The channels apply to the whole account; they are changed in the primary profile. Switch to it to turn channels on or off.",
+        "action": "Switch profile"
+      },
+      "readOnly": {
+        "noEvents": "None",
+        "link": "Link"
+      },
       "channel": {
         "email": "E-mail",
         "push": "Web Push",
@@ -2107,7 +2123,8 @@
         "renew": "New code",
         "unlink": "Unlink",
         "unlinked": "The link is removed.",
-        "nowLinked": "Telegram is linked."
+        "instructionNoBot": "Send the Slouchcat bot the message /start {{code}}",
+        "noBot": "The bot’s name is missing: the main user has to enter the bot token under Integrations first."
       },
       "push": {
         "devices": "Registered devices",

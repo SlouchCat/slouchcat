@@ -1,5 +1,6 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { CSRF } from './catalog';
+import { BACKUP_PASSPHRASE } from './env';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -15,12 +16,6 @@ import {
 // restarts the server, so the spec goes only up to the confirmation and intercepts the request
 // (202) and the health checks: the restart panel shows and the page opens the sign-in once a new
 // process answers.
-
-/**
- * The passphrase of the run: the log scan of global-teardown.ts (lane W3, A-9) checks that it
- * never reaches the server log. Same value as `BACKUP_PASSPHRASE` in env.ts there.
- */
-const BACKUP_PASSPHRASE = 'e2e-backup-passphrase-7c41d9';
 
 interface BackupData {
   name: string;
@@ -188,7 +183,9 @@ test.describe('restore', () => {
     page,
   }) => {
     // The restore and the health checks never reach the server: it must not restart in the middle
-    // of the suite. The page sees an accepted restore and an old process that is still up.
+    // of the suite. The page sees an accepted restore and an old process that is still up. The
+    // clock is the page's own, so the spec can jump over the 90 s the panel waits.
+    await page.clock.install();
     let restoreBody = '';
     await page.route('**/api/v1/admin/backups/restore', async (route) => {
       restoreBody = route.request().postDataBuffer()?.toString('latin1') ?? '';
@@ -251,10 +248,23 @@ test.describe('restore', () => {
     // Every 2 s a health check; the old process (long uptime) does not end the wait.
     await expect.poll(() => polls, { timeout: 7000 }).toBeGreaterThanOrEqual(2);
     await expect(heading).toBeVisible();
-    // A new process answers: the page loads the sign-in (which goes on to the start page while the
-    // intercepted restore left the session as it was).
+    // 90 s without a new process: the panel stops asking and says so, with «Erneut prüfen».
+    await page.clock.fastForward(90_000);
+    await expect(page.getByText('Der Server kommt nicht zurück')).toBeVisible();
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Seit 90 Sekunden antwortet kein neuer Server.' }),
+    ).toBeVisible();
+    const stopped = polls;
+    await page.clock.runFor(6000);
+    expect(polls).toBe(stopped);
+    const again = page.getByRole('button', { name: 'Erneut prüfen' });
+    await tabTo(page, again, 10);
+    await expectVisibleFocus(page);
+    // A new process answers: «Erneut prüfen» asks again and the page loads the sign-in (which goes
+    // on to the start page while the intercepted restore left the session as it was).
     const login = page.waitForURL(/\/login$/, { waitUntil: 'commit' });
     uptime = 0;
+    await page.keyboard.press('Enter');
     await login;
   });
 });

@@ -6,14 +6,14 @@ import {
   revokeInvitation,
   type InvitationData,
 } from './accounts';
-import { OWNER } from './env';
+import { GUEST_PASSWORD, OWNER } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap } from './keyboard';
 
 // The public page of an invitation link (K-6) as a visitor without a session.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-const GUEST = { email: 'einlader-e2e@slouchcat.test', password: 'einlader-passwort-0123' };
+const GUEST = { email: 'einlader-e2e@slouchcat.test', password: GUEST_PASSWORD };
 
 const created: InvitationData[] = [];
 

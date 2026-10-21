@@ -35,7 +35,6 @@
       "version": "Version {{version}}"
     },
     "gpu": {
-      "facts": "Grafikchip",
       "encoder": "Videokodierung",
       "tonemap": "HDR zu SDR",
       "ffmpeg": "ffmpeg",
@@ -116,7 +115,7 @@
       "pin_invalid": "Die PIN stimmt nicht.",
       "pin_locked": "Zu viele falsche PINs. Versuche es später erneut.",
       "profile_required": "Wähle zuerst ein Profil.",
-      "primary_profile_required": "Profile verwaltet nur das Hauptprofil dieses Kontos.",
+      "primary_profile_required": "Das darf nur das Hauptprofil dieses Kontos.",
       "primary_profile": "Das Hauptprofil kann nicht gelöscht werden.",
       "invitation_gone": "Dieser Einladungslink ist nicht mehr gültig.",
       "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut.",
@@ -1290,7 +1289,9 @@
         "intro": "Die letzten 50 Fehler aus dem Server-Log, die neusten zuerst.",
         "list": "Fehler aus dem Server-Log",
         "empty": "Keine Fehler seit dem Start.",
-        "job": "Job {{id}} ({{type}})"
+        "job": "Job {{id}} ({{type}})",
+        "new_one": "{{count}} neuer Fehler",
+        "new_other": "{{count}} neue Fehler"
       }
     },
     "integrations": {
@@ -1491,7 +1492,7 @@
         "scope": "Umfang",
         "without": "Ohne Schlüssel (empfohlen)",
         "with": "Mit Schlüsseln",
-        "withoutHint": "Zugangsdaten wie die Schlüssel für TMDB und Trakt, der E-Mail-Server, der Telegram-Bot und die Web-Push-Schlüssel bleiben draussen. Nach einer Wiederherstellung gibst du sie neu ein.",
+        "withoutHint": "Zugangsdaten wie die Schlüssel für TMDB und Trakt, der E-Mail-Server, der Telegram-Bot und die Web-Push-Schlüssel bleiben draussen. Nach einer Wiederherstellung gibst du sie neu ein. Adressen privater Podcast-Feeds bleiben samt ihrem Zugangscode drin, damit die Abos danach weiterlaufen.",
         "withHint": "Die Sicherung enthält auch den Schlüssel zu den Zugangsdaten. Darum wird das ganze Archiv mit einer Passphrase verschlüsselt (mindestens {{min}} Zeichen). Ohne die Passphrase lässt es sich nicht wiederherstellen.",
         "passphrase": "Passphrase",
         "passphraseHint": "Mindestens {{min}} Zeichen. Bewahre sie getrennt von der Sicherung auf.",
@@ -1535,7 +1536,13 @@
         "body": "Die Sicherung (Version {{version}}) ist geprüft und wird beim Start eingespielt. Sobald der Server wieder antwortet, öffnet sich die Anmeldung.",
         "noSecrets": "Die Sicherung enthält keine Zugangsdaten: Gib die Schlüssel, den E-Mail-Server und den Telegram-Bot danach unter Integrationen neu ein.",
         "waiting": "Warte auf den Server …",
-        "back": "Der Server ist zurück. Die Anmeldung wird geöffnet …"
+        "back": "Der Server ist zurück. Die Anmeldung wird geöffnet …",
+        "silent": "Seit {{seconds}} Sekunden antwortet kein neuer Server.",
+        "slow": {
+          "title": "Der Server kommt nicht zurück",
+          "body": "Der Neustart dauert ungewöhnlich lange. Sieh im Log des Containers nach (docker logs slouchcat) und lade diese Seite neu, sobald der Server läuft.",
+          "retry": "Erneut prüfen"
+        }
       }
     },
     "stats": {
@@ -2069,6 +2076,15 @@
       "intro": "Neue Folgen deiner Favoriten, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.",
       "link": "Kanäle einstellen",
       "list": "Kanäle",
+      "onlyPrimary": {
+        "title": "Nur im Hauptprofil",
+        "body": "Die Kanäle gelten für das ganze Konto; ändern lassen sie sich im Hauptprofil. Wechsle dorthin, um Kanäle ein- oder auszuschalten.",
+        "action": "Profil wechseln"
+      },
+      "readOnly": {
+        "noEvents": "Keine",
+        "link": "Verknüpfung"
+      },
       "channel": {
         "email": "E-Mail",
         "push": "Web-Push",
@@ -2107,7 +2123,8 @@
         "renew": "Code erneuern",
         "unlink": "Verknüpfung lösen",
         "unlinked": "Die Verknüpfung ist gelöst.",
-        "nowLinked": "Telegram ist verknüpft."
+        "instructionNoBot": "Sende dem Slouchcat-Bot die Nachricht /start {{code}}",
+        "noBot": "Der Name des Bots fehlt: Der Hauptbenutzer muss zuerst das Bot-Token unter Integrationen eingeben."
       },
       "push": {
         "devices": "Angemeldete Geräte",

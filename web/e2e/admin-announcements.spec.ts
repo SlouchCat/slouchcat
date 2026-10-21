@@ -1,5 +1,4 @@
-import type { APIRequestContext, Page } from '@playwright/test';
-import { CSRF } from './catalog';
+import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -8,6 +7,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { deleteAnnouncements } from './mocks';
 
 // /admin/announcements (A-7) by keyboard (rule 8): write a draft, change it, publish it (the
 // active profile then has it among its unread announcements) and delete it. A published
@@ -20,17 +20,8 @@ interface AnnouncementData {
   publishedAt?: string;
 }
 
-/** Deletes every announcement (same as `deleteAnnouncements` of lane W3's e2e/mocks.ts). */
-async function removeAnnouncements(api: APIRequestContext): Promise<void> {
-  const response = await api.get('/api/v1/admin/announcements');
-  if (!response.ok()) return;
-  for (const announcement of (await response.json()) as AnnouncementData[]) {
-    await api.delete(`/api/v1/admin/announcements/${announcement.id}`, { headers: CSRF });
-  }
-}
-
 test.afterEach(async ({ owner }) => {
-  await removeAnnouncements(owner);
+  await deleteAnnouncements(owner);
 });
 
 const TITLE = 'Wartung am Samstag';

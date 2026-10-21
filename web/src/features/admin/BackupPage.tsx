@@ -21,7 +21,7 @@ import {
   type DataColumn,
 } from '@/ui/aria';
 import { backupsQuery } from './queries';
-import { reloadToLogin, RESTART_POLL_MS, restartedSince } from './restart';
+import { reloadToLogin, RESTART_GIVE_UP_MS, RESTART_POLL_MS, restartedSince } from './restart';
 import data from './AdminData.module.css';
 import styles from './AdminTablePage.module.css';
 
@@ -260,16 +260,20 @@ function RestoreDialog({
 
 /**
  * «Server startet neu»: asks `/healthz` every 2 s and opens the sign-in page as soon as the new
- * server process answers.
+ * server process answers. After 90 s without it the panel stops asking and says so, with a
+ * button that waits again.
  */
 function RestartPanel({ restart }: { restart: Restart }) {
   const { t } = useTranslation();
   const heading = useRef<HTMLHeadingElement>(null);
   const { result, acceptedAt } = restart;
+  // Start of the current wait: the restore, or the last «Erneut prüfen».
+  const [waitingSince, setWaitingSince] = useState(acceptedAt);
+  const [gaveUp, setGaveUp] = useState(false);
   const health = useQuery({
     queryKey: ['restart', 'health', acceptedAt],
     queryFn: ({ signal }) => request(api.GET('/healthz', { signal })),
-    refetchInterval: RESTART_POLL_MS,
+    refetchInterval: gaveUp ? false : RESTART_POLL_MS,
     retry: false,
     gcTime: 0,
   });
@@ -284,6 +288,22 @@ function RestartPanel({ restart }: { restart: Restart }) {
   useEffect(() => {
     if (back) reloadToLogin();
   }, [back]);
+  useEffect(() => {
+    if (back || gaveUp) return;
+    const timer = setTimeout(
+      () => setGaveUp(true),
+      Math.max(0, waitingSince + RESTART_GIVE_UP_MS - Date.now()),
+    );
+    return () => clearTimeout(timer);
+  }, [back, gaveUp, waitingSince]);
+
+  const waitAgain = () => {
+    setGaveUp(false);
+    setWaitingSince(Date.now());
+    void health.refetch();
+    // The button goes away with the notice: the focus goes back to the heading.
+    heading.current?.focus();
+  };
 
   return (
     <Panel as="section" aria-labelledby="restart-heading">
@@ -297,8 +317,26 @@ function RestartPanel({ restart }: { restart: Restart }) {
         </Notice>
       )}
       <p role="status" className={data.status}>
-        {back ? t('admin.backup.restart.back') : t('admin.backup.restart.waiting')}
+        {back
+          ? t('admin.backup.restart.back')
+          : gaveUp
+            ? t('admin.backup.restart.silent', { seconds: RESTART_GIVE_UP_MS / 1000 })
+            : t('admin.backup.restart.waiting')}
       </p>
+      {gaveUp && !back && (
+        <Notice
+          tone="warning"
+          live={false}
+          title={t('admin.backup.restart.slow.title')}
+          actions={
+            <AriaButton icon="refresh" onPress={waitAgain}>
+              {t('admin.backup.restart.slow.retry')}
+            </AriaButton>
+          }
+        >
+          {t('admin.backup.restart.slow.body')}
+        </Notice>
+      )}
     </Panel>
   );
 }
@@ -342,6 +380,12 @@ export function BackupPage() {
     },
   });
   const failure = remove.error ?? restore.error;
+  /** A new action starts: the outcome of the last one (message or error) goes away. */
+  const start = () => {
+    setDone(null);
+    restore.reset();
+    remove.reset();
+  };
 
   const yesNo = (value: boolean) => (value ? t('admin.backup.yes') : t('admin.backup.no'));
   const columns: DataColumn<Backup>[] = [
@@ -403,7 +447,10 @@ export function BackupPage() {
             <AriaButton
               variant="ghost"
               aria-label={t('admin.backup.restore.label', { name: backup.name })}
-              onPress={() => setRestoring({ backup })}
+              onPress={() => {
+                start();
+                setRestoring({ backup });
+              }}
             >
               {t('admin.backup.restore.action')}
             </AriaButton>
@@ -422,7 +469,10 @@ export function BackupPage() {
               confirmLabel={t('admin.backup.restore.confirm')}
               cancelLabel={t('common.cancel')}
               tone="danger"
-              onConfirm={() => restore.mutate(backup)}
+              onConfirm={() => {
+                start();
+                restore.mutate(backup);
+              }}
             />
           )}
           <ConfirmDialog
@@ -439,7 +489,10 @@ export function BackupPage() {
             confirmLabel={t('admin.backup.delete.confirm')}
             cancelLabel={t('common.cancel')}
             tone="danger"
-            onConfirm={() => remove.mutate(backup)}
+            onConfirm={() => {
+              start();
+              remove.mutate(backup);
+            }}
           />
         </span>
       ),
@@ -467,13 +520,18 @@ export function BackupPage() {
               variant="primary"
               icon="plus"
               onPress={() => {
-                setDone(null);
+                start();
                 setCreating(true);
               }}
             >
               {t('admin.backup.create.action')}
             </AriaButton>
-            <AriaButton onPress={() => setRestoring({ backup: null })}>
+            <AriaButton
+              onPress={() => {
+                start();
+                setRestoring({ backup: null });
+              }}
+            >
               {t('admin.backup.restore.upload')}
             </AriaButton>
           </div>

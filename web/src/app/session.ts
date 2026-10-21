@@ -136,11 +136,22 @@ export function useActiveSession(): ActiveSession {
   return live?.profile ? { ...live, profile: live.profile } : fromRoute;
 }
 
+/** How long a logout waits for the push cleanup of this browser before it goes on. */
+const PUSH_CLEANUP_MS = 3000;
+
 export function useLogout() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   return useMutation({
-    mutationFn: () => request(api.POST('/auth/logout')),
+    mutationFn: async () => {
+      // While the session still counts: this browser stops getting the account's pushes. Best
+      // effort and bounded in time; the module comes with its own chunk (P-10).
+      await Promise.race([
+        import('@/features/notifications/push').then(({ leaveThisDevice }) => leaveThisDevice()),
+        new Promise((resolve) => setTimeout(resolve, PUSH_CLEANUP_MS)),
+      ]).catch(() => undefined);
+      return request(api.POST('/auth/logout'));
+    },
     onSettled: async () => {
       leaveOfflineProfile();
       // The downloads stay on the device, locked until this account signs in again.

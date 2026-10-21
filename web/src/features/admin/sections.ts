@@ -65,6 +65,3 @@ const under = (pathname: string, prefix: string) =>
 /** The page is `section`'s (or one of its sub-pages). */
 export const isSectionPath = (section: AdminSection, pathname: string) =>
   under(pathname, section.href) || (section.also ?? []).some((prefix) => under(pathname, prefix));
-
-/** Any page of the administration under /admin. */
-export const isAdminPath = (pathname: string) => under(pathname, paths.admin);

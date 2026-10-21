@@ -12,9 +12,12 @@ import { api, request } from '@/api/client';
 // Notification channels of the account (M8, A-6); the page loads them with its own chunk.
 
 /** E-mail, Web Push and Telegram with their events (GET /me/channels). */
+export const getChannels = (signal?: AbortSignal): Promise<ChannelSettings> =>
+  request(api.GET('/me/channels', { signal }));
+
 export const channelsQuery = queryOptions({
   queryKey: ['me', 'channels'],
-  queryFn: ({ signal }): Promise<ChannelSettings> => request(api.GET('/me/channels', { signal })),
+  queryFn: ({ signal }) => getChannels(signal),
 });
 
 export const updateChannel = (

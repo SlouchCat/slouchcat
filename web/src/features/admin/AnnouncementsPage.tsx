@@ -20,7 +20,7 @@ import {
   TextField,
   type DataColumn,
 } from '@/ui/aria';
-import { announcementsQuery } from './queries';
+import { adminAnnouncementsQuery } from './queries';
 import data from './AdminData.module.css';
 import styles from './AdminTablePage.module.css';
 
@@ -54,7 +54,7 @@ function AnnouncementDialog({
           )
         : request(api.POST('/admin/announcements', { body: { publish: false, ...body } })),
     onSuccess: async (saved) => {
-      await queryClient.invalidateQueries({ queryKey: announcementsQuery.queryKey });
+      await queryClient.invalidateQueries({ queryKey: adminAnnouncementsQuery.queryKey });
       onClose(saved);
     },
   });
@@ -141,13 +141,14 @@ export function AnnouncementsPage() {
   const session = useActiveSession();
   const allowed = session.account.role === 'owner' && session.profile.isPrimary;
   const queryClient = useQueryClient();
-  const announcements = useQuery({ ...announcementsQuery, enabled: allowed });
+  const announcements = useQuery({ ...adminAnnouncementsQuery, enabled: allowed });
   // `null`: a new one; an announcement: change that draft.
   const [editing, setEditing] = useState<{ announcement: Announcement | null } | null>(null);
   const [done, setDone] = useState<string | null>(null);
   // A deleted row goes away with its buttons: the focus moves to the page heading.
   const header = useRef<HTMLDivElement>(null);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: announcementsQuery.queryKey });
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: adminAnnouncementsQuery.queryKey });
   const publish = useMutation({
     mutationFn: (announcement: Announcement): Promise<Announcement> =>
       request(
@@ -174,6 +175,12 @@ export function AnnouncementsPage() {
     },
   });
   const failure = publish.error ?? remove.error;
+  /** A new action starts: the outcome of the last one (message or error) goes away. */
+  const start = () => {
+    setDone(null);
+    publish.reset();
+    remove.reset();
+  };
 
   const columns: DataColumn<Announcement>[] = [
     {
@@ -231,7 +238,7 @@ export function AnnouncementsPage() {
                 variant="ghost"
                 aria-label={t('admin.announcements.edit.label', { title: announcement.title })}
                 onPress={() => {
-                  setDone(null);
+                  start();
                   setEditing({ announcement });
                 }}
               >
@@ -252,7 +259,10 @@ export function AnnouncementsPage() {
                 body={t('admin.announcements.publish.body')}
                 confirmLabel={t('admin.announcements.publish.confirm')}
                 cancelLabel={t('common.cancel')}
-                onConfirm={() => publish.mutate(announcement)}
+                onConfirm={() => {
+                  start();
+                  publish.mutate(announcement);
+                }}
               />
             </>
           )}
@@ -270,7 +280,10 @@ export function AnnouncementsPage() {
             confirmLabel={t('admin.announcements.delete.confirm')}
             cancelLabel={t('common.cancel')}
             tone="danger"
-            onConfirm={() => remove.mutate(announcement)}
+            onConfirm={() => {
+              start();
+              remove.mutate(announcement);
+            }}
           />
         </span>
       ),
@@ -296,7 +309,7 @@ export function AnnouncementsPage() {
               variant="primary"
               icon="plus"
               onPress={() => {
-                setDone(null);
+                start();
                 setEditing({ announcement: null });
               }}
             >

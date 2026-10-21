@@ -11,6 +11,7 @@ import { ServerStatus } from '@/features/system/ServerStatus';
 import { currentLanguage } from '@/i18n';
 import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Logo, Notice, Page, Panel, Stack, Text, TextLink } from '@/ui';
 import { AriaButton, TextField } from '@/ui/aria';
 import { LibraryFields, libraryRequest, type LibraryKind } from '../shared/LibraryFields';
@@ -111,10 +112,13 @@ export function SetupPage() {
     mutationFn: (value: string): Promise<PathCheck> =>
       request(api.POST('/setup/path-check', { body: { path: value } })),
   });
-  const tmdbCheck = useMutation({
-    mutationFn: (key: string): Promise<TMDBCheck> =>
+  // The key is a secret: it never stays in the query client, the answer keeps it in this state.
+  const [keyCheck, setKeyCheck] = useState<{ key: string; result: TMDBCheck } | null>(null);
+  const tmdbCheck = useTransientMutation(
+    (key: string): Promise<TMDBCheck> =>
       request(api.POST('/setup/tmdb-check', { body: { tmdbApiKey: key } })),
-  });
+    (result, key) => setKeyCheck({ key, result }),
+  );
 
   const setup = useMutation({
     mutationFn: (body: SetupRequest): Promise<SessionInfo> => request(api.POST('/setup', { body })),
@@ -134,7 +138,7 @@ export function SetupPage() {
 
   // A check answers for the value it was asked about; a changed value hides its answer.
   const checkedPath = pathCheck.variables === path.trim() ? pathCheck.data : undefined;
-  const checkedKey = tmdbCheck.variables === tmdbKey.trim() ? tmdbCheck.data : undefined;
+  const checkedKey = keyCheck?.key === tmdbKey.trim() ? keyCheck.result : undefined;
   const fields: Record<string, string> = {};
   if (blank.path) fields['library.path'] = t('errors.field.required');
   if (checkedPath?.problem) fields['library.path'] = t(pathProblemKey(checkedPath.problem));
@@ -163,7 +167,8 @@ export function SetupPage() {
       setBlank((state) => ({ ...state, tmdb: true }));
       return;
     }
-    tmdbCheck.mutate(value);
+    setKeyCheck(null);
+    void tmdbCheck.run(value);
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -331,9 +336,9 @@ export function SetupPage() {
                   </Text>
                 )}
               </div>
-              {tmdbCheck.isError && (
+              {tmdbCheck.error ? (
                 <Notice tone="danger">{problemMessage(t, tmdbCheck.error)}</Notice>
-              )}
+              ) : null}
             </div>
           </Step>
 

@@ -1,5 +1,6 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { CSRF } from './catalog';
+import { YOUTUBE_KEY } from './env';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -65,7 +66,7 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
   page,
   owner,
 }) => {
-  const key = 'e2e-youtube-key-0000-wxyz';
+  const key = YOUTUBE_KEY;
   try {
     await openIntegrations(page);
     const keys = region(page, 'Schlüssel der Anbieter');

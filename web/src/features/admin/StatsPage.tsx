@@ -10,7 +10,7 @@ import { useActiveSession } from '@/app/session';
 import { formatDuration } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Skeleton, Text, TextLink } from '@/ui';
-import { AriaButton, BarChart, DataTable, RadioGroup, type DataColumn } from '@/ui/aria';
+import { AriaButton, BarChart, DataTable, RadioGroup, StatTile, type DataColumn } from '@/ui/aria';
 import { statsQuery } from './queries';
 import { DEFAULT_STATS_DAYS, STATS_DAYS } from './statsDays';
 import data from './AdminData.module.css';
@@ -154,22 +154,21 @@ function Playback({ playback }: { playback: Stats['playback'] }) {
     { key: 'transcode', count: playback.transcode, note: percent.format(playback.transcodeShare) },
   ] as const;
   return (
-    <dl className={data.tiles}>
+    <div className={data.tiles}>
       {tiles.map((tile) => (
-        <div key={tile.key} className={data.tile}>
-          <dt className={data.tileLabel}>{t(`admin.stats.playback.${tile.key}`)}</dt>
-          <dd className={data.tileValue}>
-            {t('admin.stats.playback.sessions', { count: tile.count })}
-          </dd>
-          <dd className={data.tileNote}>{t('admin.stats.playback.share', { share: tile.note })}</dd>
-        </div>
+        <StatTile
+          key={tile.key}
+          label={t(`admin.stats.playback.${tile.key}`)}
+          value={t('admin.stats.playback.sessions', { count: tile.count })}
+          note={t('admin.stats.playback.share', { share: tile.note })}
+        />
       ))}
-      <div className={data.tile}>
-        <dt className={data.tileLabel}>{t('admin.stats.playback.hardware')}</dt>
-        <dd className={data.tileValue}>{percent.format(playback.hardwareShare)}</dd>
-        <dd className={data.tileNote}>{t('admin.stats.playback.hardwareNote')}</dd>
-      </div>
-    </dl>
+      <StatTile
+        label={t('admin.stats.playback.hardware')}
+        value={percent.format(playback.hardwareShare)}
+        note={t('admin.stats.playback.hardwareNote')}
+      />
+    </div>
   );
 }
 
