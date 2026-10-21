@@ -224,6 +224,26 @@ UPDATE progress_events SET item_id = @target_id WHERE item_id = @source_id;
 -- name: AdminMoveTopPicks :exec
 UPDATE top_picks SET item_id = @target_id WHERE item_id = @source_id;
 
+-- name: AdminMoveWatchlist :exec
+-- A profile that has both titles on its watchlist keeps the target's entry; the source's one goes
+-- with the source (ON DELETE CASCADE). The same holds for favourites and notifications.
+UPDATE OR IGNORE watchlist SET item_id = @target_id WHERE item_id = @source_id;
+
+-- name: AdminMoveFavorites :exec
+UPDATE OR IGNORE favorites SET item_id = @target_id WHERE item_id = @source_id;
+
+-- name: AdminMoveCollectionItems :exec
+-- Inserted (not updated) so the search index triggers of collection_items run for the target; the
+-- source's rows go with the source.
+INSERT OR IGNORE INTO collection_items (collection_id, item_id, position, created_at)
+SELECT ci.collection_id, @target_id, ci.position, ci.created_at FROM collection_items AS ci WHERE ci.item_id = @source_id;
+
+-- name: AdminMoveNotifications :exec
+UPDATE OR IGNORE notifications SET item_id = @target_id WHERE item_id = @source_id;
+
+-- name: AdminMoveNotificationParents :exec
+UPDATE notifications SET parent_id = @target_id WHERE parent_id = @source_id;
+
 -- name: AdminMoveDownloads :exec
 -- Downloads follow their file to the target. A device that holds the target already keeps that
 -- download; the source's one goes with the source (its tombstone tells the device to delete it).
@@ -275,3 +295,51 @@ SELECT id, duration_ms FROM media_files WHERE id IN (sqlc.slice('ids'));
 UPDATE items SET own_rating = @own_rating, updated_at = @now
 WHERE library_id = @library_id AND deleted_at IS NULL
   AND (rating_source = 'library' OR (rating_source = 'manual' AND own_rating < @own_rating));
+
+-- Cat's picks (E-2, M7). Administration view: unfiltered, owner only, titles in plain text.
+
+-- name: AdminListTopPicks :many
+-- Every pick in carousel order with kind, title (German text, else English, else the parsed
+-- title) and year of the title and the name of the target profile ('' = all profiles).
+SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
+       i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
+FROM top_picks AS t
+JOIN items AS i ON i.id = t.item_id
+LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
+LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
+LEFT JOIN profiles AS p ON p.id = t.profile_id
+ORDER BY t.position, t.id;
+
+-- name: AdminGetTopPick :one
+SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
+       i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
+FROM top_picks AS t
+JOIN items AS i ON i.id = t.item_id
+LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
+LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
+LEFT JOIN profiles AS p ON p.id = t.profile_id
+WHERE t.id = @id;
+
+-- name: AdminNextTopPickPosition :one
+SELECT CAST(COALESCE(max(position), -1) + 1 AS INTEGER) AS next FROM top_picks;
+
+-- name: AdminInsertTopPick :one
+INSERT INTO top_picks (item_id, profile_id, position, note, starts_at, ends_at, created_at)
+VALUES (@item_id, @profile_id, @position, @note, @starts_at, @ends_at, @now)
+RETURNING id;
+
+-- name: AdminUpdateTopPick :execrows
+UPDATE top_picks SET note = @note, starts_at = @starts_at, ends_at = @ends_at WHERE id = @id;
+
+-- name: AdminDeleteTopPick :execrows
+DELETE FROM top_picks WHERE id = @id;
+
+-- name: AdminListTopPickIDs :many
+SELECT id FROM top_picks ORDER BY id;
+
+-- name: AdminSetTopPickPosition :exec
+UPDATE top_picks SET position = @position WHERE id = @id;
+
+-- name: AdminOwnerProfileIDs :many
+-- Profiles of the main account: the only targets of a pick.
+SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a.role = 'owner' ORDER BY p.id;

@@ -204,6 +204,9 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, play);
+    // The row under the actions (watchlist, M7) comes first.
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, toPodcast);
 
@@ -212,7 +215,8 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
     await tabTo(page, play, 2);
     await tabTo(page, download, 3);
-    await tabTo(page, toPodcast, 4);
+    // "Verwalten", then "Merken" and "Zu Cat's Empfehlungen" (M7).
+    await tabTo(page, toPodcast, 6);
     await expectNoFocusTrap(page);
 
     // Enter on "Zum Podcast" opens the podcast; Backspace returns to the episode.

@@ -1,14 +1,22 @@
 import type {
+  AdminCollection,
   AdminDevice,
+  AdminItemHit,
+  AdminPick,
   AdminPodcast,
   AdminItem,
   AdminStream,
+  CollectionRequest,
   DuplicateGroup,
   Guest,
+  HomeRowSetting,
   Invitation,
   IssueKind,
   IssuePage,
   Library,
+  PickRequest,
+  PickUpdate,
+  TraktStatus,
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
@@ -117,3 +125,86 @@ export const podcastsQuery = queryOptions({
   queryKey: ['admin', 'podcasts'],
   queryFn: ({ signal }): Promise<AdminPodcast[]> => request(api.GET('/admin/podcasts', { signal })),
 });
+
+// Curation (M7): Cat's recommendations, collections, start page rows and the Trakt lists.
+
+/** Cat's recommendations in carousel order (E-2), global ones and those of single profiles. */
+export const picksQuery = queryOptions({
+  queryKey: ['admin', 'picks'],
+  queryFn: ({ signal }): Promise<AdminPick[]> => request(api.GET('/admin/picks', { signal })),
+});
+
+/** Shortest search text the server takes (`q` minLength). */
+export const MIN_SEARCH = 2;
+
+/** Titles by name for the pick and collection dialogs (unfiltered, no images). */
+export const adminItemSearchQuery = (text: string) =>
+  queryOptions({
+    queryKey: ['admin', 'items', 'search', text],
+    queryFn: ({ signal }): Promise<AdminItemHit[]> =>
+      request(
+        api.GET('/admin/items/search', { params: { query: { q: text, limit: 20 } }, signal }),
+      ),
+    enabled: text.length >= MIN_SEARCH,
+    staleTime: 30_000,
+  });
+
+export const collectionsQuery = queryOptions({
+  queryKey: ['admin', 'collections'],
+  queryFn: ({ signal }): Promise<AdminCollection[]> =>
+    request(api.GET('/admin/collections', { signal })),
+});
+
+/** One collection with its members in order. */
+export const adminCollectionQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['admin', 'collections', id],
+    queryFn: ({ signal }): Promise<AdminCollection> =>
+      request(api.GET('/admin/collections/{id}', { params: { path: { id } }, signal })),
+  });
+
+/** The eight start page rows in display order, with their hidden flag (E-9). */
+export const homeRowsQuery = queryOptions({
+  queryKey: ['admin', 'home-rows'],
+  queryFn: ({ signal }): Promise<HomeRowSetting[]> =>
+    request(api.GET('/admin/home-rows', { signal })),
+});
+
+/** State of the daily Trakt lists (E-7, I-7). */
+export const traktStatusQuery = queryOptions({
+  queryKey: ['admin', 'trakt'],
+  queryFn: ({ signal }): Promise<TraktStatus> => request(api.GET('/admin/trakt', { signal })),
+});
+
+export const createPicks = (body: PickRequest): Promise<AdminPick[]> =>
+  request(api.POST('/admin/picks', { body }));
+
+export const updatePick = (id: number, body: PickUpdate): Promise<AdminPick> =>
+  request(api.PATCH('/admin/picks/{id}', { params: { path: { id } }, body }));
+
+export const deletePick = (id: number) =>
+  request(api.DELETE('/admin/picks/{id}', { params: { path: { id } } }));
+
+/** Every pick id exactly once, in the new order. */
+export const reorderPicks = (ids: number[]) =>
+  request(api.PUT('/admin/picks/order', { body: { ids } }));
+
+export const createCollection = (body: CollectionRequest): Promise<AdminCollection> =>
+  request(api.POST('/admin/collections', { body }));
+
+export const renameCollection = (id: string, body: CollectionRequest): Promise<AdminCollection> =>
+  request(api.PATCH('/admin/collections/{id}', { params: { path: { id } }, body }));
+
+export const deleteCollection = (id: string) =>
+  request(api.DELETE('/admin/collections/{id}', { params: { path: { id } } }));
+
+/** Replaces the members of a manual collection, in this order. */
+export const setCollectionItems = (id: string, itemIds: string[]): Promise<AdminCollection> =>
+  request(
+    api.PUT('/admin/collections/{id}/items', { params: { path: { id } }, body: { itemIds } }),
+  );
+
+export const setHomeRows = (rows: HomeRowSetting[]): Promise<HomeRowSetting[]> =>
+  request(api.PUT('/admin/home-rows', { body: rows }));
+
+export const refreshTrakt = () => request(api.POST('/admin/trakt/refresh'));

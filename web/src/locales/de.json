@@ -26,7 +26,13 @@
     "devices": "Geräte",
     "streams": "Streams",
     "downloads": "Downloads",
-    "podcasts": "Podcasts"
+    "podcasts": "Podcasts",
+    "search": "Suche",
+    "watchlist": "Merkliste",
+    "notifications": "Benachrichtigungen",
+    "picks": "Cat's Empfehlungen",
+    "collections": "Sammlungen",
+    "homeRows": "Startseite"
   },
   "system": {
     "server": {
@@ -74,7 +80,10 @@
       "feed_unreachable": "Der Feed ist nicht erreichbar. Prüfe die Adresse und versuche es erneut.",
       "feed_invalid": "Unter dieser Adresse liegt kein RSS-Podcast-Feed.",
       "feed_exists": "Diese Bibliothek hat den Feed bereits abonniert.",
-      "rating_below_library_default": "Die Altersstufe darf nicht unter dem Standard der Bibliothek liegen."
+      "rating_below_library_default": "Die Altersstufe darf nicht unter dem Standard der Bibliothek liegen.",
+      "not_listable": "Staffeln und Extras kann man nicht merken.",
+      "not_favoritable": "Nur Serien und Podcasts können Favoriten sein.",
+      "not_editable": "Sammlungen von TMDB lassen sich nicht ändern."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -92,7 +101,8 @@
       "pin_format": "Die PIN besteht aus 4 bis 8 Ziffern.",
       "not_burnable": "Diese Untertitelspur kann nicht eingebrannt werden.",
       "invalid_url": "Gib eine Adresse mit http:// oder https:// an.",
-      "library_kind": "Wähle eine Podcast-Bibliothek."
+      "library_kind": "Wähle eine Podcast-Bibliothek.",
+      "unknown_item": "Diesen Titel gibt es nicht."
     }
   },
   "setup": {
@@ -149,7 +159,12 @@
     "picks": "Cat's Empfehlungen",
     "rows": {
       "continue": "Weiterschauen",
-      "recent": "Neu hinzugefügt"
+      "recent": "Neu hinzugefügt",
+      "watchlist": "Merkliste",
+      "collections": "Sammlungen",
+      "genres": "Genres",
+      "traktTrending": "Trending bei Trakt",
+      "traktPopular": "Beliebt bei Trakt"
     },
     "remaining": "Noch {{time}}",
     "empty": {
@@ -237,7 +252,17 @@
       "more": "Mehr laden",
       "link": "Zum Podcast",
       "play": "{{title}} abspielen"
-    }
+    },
+    "watchlist": {
+      "add": "Merken",
+      "added": "Gemerkt"
+    },
+    "favorite": {
+      "label": "Favorit",
+      "hint": "Bei neuen Folgen benachrichtigen"
+    },
+    "collections": "Sammlungen",
+    "addToPicks": "Zu Cat's Empfehlungen"
   },
   "rating": {
     "fsk": "FSK {{age}}"
@@ -846,6 +871,184 @@
         "confirm": "Abo löschen",
         "done": "Das Abo {{title}} ist gelöscht."
       }
+    },
+    "picks": {
+      "title": "Cat's Empfehlungen",
+      "intro": "Titel im Karussell der Startseite, für alle Profile oder für einzelne. Jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
+      "list": "Empfehlungen in der Reihenfolge des Karussells",
+      "empty": "Noch keine Empfehlung. Ohne Empfehlung zeigt die Startseite kein Karussell.",
+      "allProfiles": "Alle",
+      "noNote": "–",
+      "moved": "{{title}} steht jetzt an Stelle {{position}}.",
+      "columns": {
+        "title": "Titel",
+        "target": "Für",
+        "note": "Notiz",
+        "window": "Zeitraum",
+        "actions": "Aktionen"
+      },
+      "window": {
+        "always": "Immer",
+        "from": "Ab {{date}}",
+        "until": "Bis {{date}}",
+        "range": "{{from}} bis {{to}}",
+        "expired": "Abgelaufen",
+        "scheduled": "Geplant"
+      },
+      "up": {
+        "action": "Nach oben",
+        "label": "{{title}} nach oben"
+      },
+      "down": {
+        "action": "Nach unten",
+        "label": "{{title}} nach unten"
+      },
+      "search": {
+        "label": "Titel suchen",
+        "hint": "Ab zwei Zeichen: Filme, Serien, Folgen, Hörbücher und Podcasts.",
+        "empty": "Kein passender Titel gefunden.",
+        "results": "Gefundene Titel",
+        "select": "Wählen",
+        "selectLabel": "{{title}} wählen",
+        "chosen": "Gewählt: {{title}}",
+        "none": "Noch kein Titel gewählt."
+      },
+      "targets": {
+        "label": "Für",
+        "all": "Alle Profile",
+        "description": "Alle Profile oder einzelne. Ein Profil sieht die Empfehlung nur, wenn es den Titel sehen darf.",
+        "required": "Wähle «Alle Profile» oder mindestens ein Profil."
+      },
+      "form": {
+        "note": "Notiz",
+        "noteHint": "Erscheint im Karussell unter dem Titel, höchstens {{max}} Zeichen.",
+        "from": "Sichtbar ab",
+        "to": "Sichtbar bis",
+        "windowHint": "Leer lassen: ab sofort und ohne Ende.",
+        "endBeforeStart": "Das Ende muss nach dem Beginn liegen."
+      },
+      "add": {
+        "action": "Hinzufügen",
+        "title": "Empfehlung hinzufügen",
+        "description": "Suche einen Titel und wähle, für wen er empfohlen wird. Neue Empfehlungen kommen ans Ende.",
+        "submit": "Hinzufügen",
+        "submitting": "Wird hinzugefügt …",
+        "done": "{{title}} ist in Cat's Empfehlungen.",
+        "titleRequired": "Wähle zuerst einen Titel.",
+        "presetMissing": "Den Titel aus dem Link gibt es nicht mehr. Suche ihn neu."
+      },
+      "edit": {
+        "action": "Bearbeiten",
+        "label": "{{title}} bearbeiten",
+        "title": "{{title}} bearbeiten",
+        "done": "{{title}} ist gespeichert."
+      },
+      "remove": {
+        "action": "Entfernen",
+        "label": "{{title}} entfernen",
+        "title": "{{title}} aus Cat's Empfehlungen entfernen?",
+        "body": "Der Titel bleibt in der Bibliothek, nur die Empfehlung verschwindet.",
+        "confirm": "Entfernen",
+        "done": "{{title}} ist nicht mehr empfohlen."
+      }
+    },
+    "collections": {
+      "title": "Sammlungen",
+      "intro": "Sammlungen von TMDB entstehen beim Abgleich von selbst und lassen sich nicht ändern. Eigene Sammlungen stellst du hier zusammen.",
+      "list": "Sammlungen",
+      "empty": "Noch keine Sammlung.",
+      "columns": {
+        "name": "Name",
+        "source": "Quelle",
+        "count": "Titel",
+        "actions": "Aktionen"
+      },
+      "source": {
+        "tmdb": "TMDB",
+        "manual": "Manuell"
+      },
+      "form": {
+        "name": "Name"
+      },
+      "create": {
+        "action": "Sammlung anlegen",
+        "title": "Sammlung anlegen",
+        "description": "Eine leere Sammlung. Die Titel fügst du danach unter «Mitglieder» hinzu.",
+        "submit": "Anlegen",
+        "done": "Die Sammlung {{name}} ist angelegt."
+      },
+      "rename": {
+        "action": "Umbenennen",
+        "label": "{{name}} umbenennen",
+        "title": "{{name}} umbenennen",
+        "done": "Die Sammlung heisst jetzt {{name}}."
+      },
+      "remove": {
+        "action": "Löschen",
+        "label": "Sammlung {{name}} löschen",
+        "title": "Sammlung {{name}} löschen?",
+        "body": "Die Titel bleiben in der Bibliothek, nur die Sammlung verschwindet.",
+        "confirm": "Sammlung löschen",
+        "done": "Die Sammlung {{name}} ist gelöscht."
+      },
+      "members": {
+        "action": "Mitglieder",
+        "label": "Mitglieder von {{name}}",
+        "title": "Mitglieder von {{name}}",
+        "description": "Suche Titel und füge sie hinzu; die Reihenfolge hier ist die der Sammlung.",
+        "list": "Titel der Sammlung",
+        "empty": "Noch kein Titel in dieser Sammlung.",
+        "add": "Hinzufügen",
+        "addLabel": "{{title}} hinzufügen",
+        "up": "Nach oben",
+        "upLabel": "{{title}} nach oben",
+        "down": "Nach unten",
+        "downLabel": "{{title}} nach unten",
+        "remove": "Entfernen",
+        "removeLabel": "{{title}} entfernen",
+        "done": "Die Mitglieder von {{name}} sind gespeichert.",
+        "search": {
+          "label": "Titel suchen",
+          "hint": "Ab zwei Zeichen: Filme, Serien, Hörbücher und Podcasts.",
+          "empty": "Kein passender Titel gefunden.",
+          "results": "Gefundene Titel"
+        }
+      }
+    },
+    "homeRows": {
+      "title": "Startseite",
+      "intro": "Reihenfolge der Reihen auf der Startseite, für alle Profile. Ausgeblendete und leere Reihen erscheinen nicht.",
+      "list": "Reihen der Startseite",
+      "columns": {
+        "row": "Reihe",
+        "hidden": "Ausblenden",
+        "actions": "Aktionen"
+      },
+      "hide": "Ausblenden",
+      "hideLabel": "{{row}} ausblenden",
+      "up": "Nach oben",
+      "upLabel": "{{row}} nach oben",
+      "down": "Nach unten",
+      "downLabel": "{{row}} nach unten",
+      "moved": "{{row}} steht jetzt an Stelle {{position}}. Speichere, damit es gilt.",
+      "saved": "Die Startseite ist gespeichert."
+    },
+    "trakt": {
+      "title": "Trakt",
+      "intro": "Die Listen «Trending» und «Beliebt» von Trakt, einmal täglich mit dem Schlüssel des Servers abgerufen. Slouchcat sendet nichts an Trakt.",
+      "notConfigured": "Trakt ist nicht eingerichtet: Ohne Client ID (SLOUCHCAT_TRAKT_CLIENT_ID) bleiben die Trakt-Reihen weg.",
+      "configured": "Eingerichtet",
+      "yes": "Ja",
+      "no": "Nein",
+      "lastSuccess": "Letzter erfolgreicher Abruf",
+      "lastAttempt": "Letzter Versuch",
+      "lastError": "Letzter Fehler",
+      "never": "Noch nie",
+      "noError": "–",
+      "trending": "Einträge «Trending»",
+      "popular": "Einträge «Beliebt»",
+      "refresh": "Jetzt aktualisieren",
+      "queued": "Die Trakt-Listen werden abgerufen."
     }
   },
   "language": {
@@ -1116,7 +1319,7 @@
     },
     "rules": {
       "title": "Automatische Downloads",
-      "intro": "Lädt auf diesem Gerät die nächste Folge jeder Serie, die {{name}} in den letzten 60 Tagen geschaut hat, und neue Episoden der Podcasts, die {{name}} in dieser Zeit gehört hat.",
+      "intro": "Lädt auf diesem Gerät die nächste Folge jeder Serie, die {{name}} in den letzten 60 Tagen geschaut hat, und neue Episoden der Podcasts, die {{name}} favorisiert hat.",
       "options": "Einstellungen",
       "enabled": "Automatische Downloads auf diesem Gerät",
       "nextEpisodes": "Nächste Folge begonnener Serien",
@@ -1128,7 +1331,7 @@
       "quality": "Qualität",
       "save": "Regel speichern",
       "saved": "Gespeichert. Die Regel gilt ab dem nächsten Abgleich.",
-      "newPodcastEpisodes": "Neue Episoden gehörter Podcasts"
+      "newPodcastEpisodes": "Neue Episoden favorisierter Podcasts"
     },
     "dialog": {
       "button": "Herunterladen",
@@ -1191,6 +1394,86 @@
         "title": "Download nicht verfügbar",
         "body": "Diesen Download gibt es auf diesem Gerät nicht (mehr), er ist noch nicht vollständig oder für dieses Profil nicht freigegeben."
       }
+    }
+  },
+  "search": {
+    "title": "Suche",
+    "label": "Suchbegriff",
+    "placeholder": "Titel, Personen, Sammlungen",
+    "start": "Suche nach Titeln, Personen und Sammlungen oder wähle einen Filter.",
+    "tooShort": "Gib mindestens zwei Zeichen ein.",
+    "filters": {
+      "label": "Filter",
+      "genre": "Genre",
+      "allGenres": "Alle Genres",
+      "yearFrom": "Jahr von",
+      "yearTo": "Jahr bis",
+      "rating": "Altersfreigabe höchstens",
+      "anyRating": "Alle",
+      "type": "Medientyp",
+      "types": {
+        "movie": "Filme",
+        "series": "Serien",
+        "audiobook": "Hörbücher",
+        "podcast": "Podcasts"
+      },
+      "availability": "Verfügbarkeit",
+      "avail": {
+        "local": "Auf dem Server",
+        "download": "Auf diesem Gerät"
+      },
+      "reset": "Filter zurücksetzen"
+    },
+    "sections": {
+      "titles": "Titel",
+      "people": "Personen",
+      "collections": "Sammlungen"
+    },
+    "results_one": "{{count}} Titel gefunden",
+    "results_other": "{{count}} Titel gefunden",
+    "more": "Mehr laden",
+    "empty": {
+      "title": "Nichts gefunden",
+      "body": "Versuche einen anderen Begriff oder weniger Filter."
+    }
+  },
+  "watchlist": {
+    "title": "Merkliste",
+    "remove": "Entfernen",
+    "removeLabel": "{{title}} von der Merkliste entfernen",
+    "more": "Mehr laden",
+    "empty": {
+      "title": "Deine Merkliste ist leer",
+      "body": "Merke dir Titel auf ihrer Detailseite mit «Merken».",
+      "action": "Zur Suche"
+    }
+  },
+  "collection": {
+    "count_one": "{{count}} Titel",
+    "count_other": "{{count}} Titel",
+    "members": "Titel",
+    "more": "Mehr laden",
+    "notFound": {
+      "title": "Sammlung nicht gefunden",
+      "body": "Diese Sammlung gibt es nicht, oder sie enthält keinen Titel für dieses Profil."
+    }
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "unreadLabel_one": "Benachrichtigungen, {{count}} ungelesen",
+    "unreadLabel_other": "Benachrichtigungen, {{count}} ungelesen",
+    "badgeMax": "{{max}}+",
+    "markAllRead": "Alle als gelesen markieren",
+    "entryLabel": "{{title}}, {{source}}, {{time}}",
+    "entryLabelUnread": "Ungelesen: {{title}}, {{source}}, {{time}}",
+    "newEpisode": "Neue Folge von {{parent}}",
+    "newEpisodeAlone": "Neue Folge",
+    "summary_one": "{{count}} ungelesen",
+    "summary_other": "{{count}} ungelesen",
+    "more": "Mehr laden",
+    "empty": {
+      "title": "Keine Benachrichtigungen",
+      "body": "Markiere Serien oder Podcasts als Favorit, dann erfährst du hier von neuen Folgen."
     }
   }
 }

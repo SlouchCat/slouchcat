@@ -12,7 +12,7 @@ import (
 
 // introShow is the intro season of testdata/generate-media.sh: intro start (s) and duration (s)
 // per episode, the intro lasts 20 s, the outro the last 25 s; E03 has the chapters Intro and Credits.
-const introShow = "Slouchcat Test Intro Show (2024)"
+const introShow = "Slouchcat Test Intro Show (2024) {tmdb-7102}"
 
 var (
 	introStarts    = []int64{5, 12, 8, 15, 10}

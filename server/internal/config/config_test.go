@@ -48,6 +48,8 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_TVDB_API_KEY":       " tvdb-key ",
 		"SLOUCHCAT_TVDB_PIN":           "1234",
 		"SLOUCHCAT_YOUTUBE_API_KEY":    "yt-key",
+		"SLOUCHCAT_TRAKT_CLIENT_ID":    "trakt-id",
+		"SLOUCHCAT_TRAKT_BASE_URL":     "http://127.0.0.1:9/trakt",
 		"SLOUCHCAT_TRAILER_AI":         "off",
 	})
 	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
@@ -59,7 +61,8 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
 		SpikeDir: "/srv/spike", Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
-		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental"}
+		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental",
+		TraktClientID: "trakt-id", TraktBaseURL: "http://127.0.0.1:9/trakt"}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}

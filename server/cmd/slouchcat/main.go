@@ -38,6 +38,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
+	"github.com/slouchcat/slouchcat/server/internal/notify"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
@@ -199,13 +200,27 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
 	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	// In-app inbox (M7, E-8): new episodes of favourite series and podcasts, checked against the
+	// profile's visibility before an entry is stored.
+	notifySvc := notify.New(db, visibility.New(db, log), log)
+	// The Trakt base URL points the lists at a mock; it is honoured in development mode only.
+	traktBase := ""
+	if cfg.Dev {
+		traktBase = cfg.TraktBaseURL
+	} else if cfg.TraktBaseURL != "" {
+		log.Warn("SLOUCHCAT_TRAKT_BASE_URL is ignored without --dev")
+	}
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
-		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version))
+		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version),
+		metadata.WithNewEpisodes(notifySvc.NewEpisodes),
+		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)))
 	libSvc := library.New(db, queue, runner, log,
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
-		library.WithMetadataCheck(metaSvc.QueuePendingMetadata))
+		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
+		library.WithNewEpisodes(notifySvc.NewEpisodes))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
-	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc)
+	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
+		WithTrakt(metaSvc)
 	keys.admin = adminSvc
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
@@ -233,6 +248,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	})
 	// Podcast feeds (M6, H-2): every subscription is fetched again after 60 minutes.
 	workers.Go(func() { metaSvc.RunPodcasts(ctx) })
+	// Trakt lists (M7, E-7): once a day when a client id is configured.
+	workers.Go(func() { metaSvc.RunTrakt(ctx) })
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes
 		workers.Wait()
@@ -259,6 +276,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 			Catalog:  discover.New(db, cfg.CacheDir, log),
 			Playback: playbackSvc,
 			Offline:  offlineSvc,
+			Notify:   notifySvc,
 			SpikeDir: cfg.SpikeDir,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -306,6 +324,14 @@ func (k *lazyKeys) YouTubeKey(ctx context.Context) (string, error) {
 		return k.cfg.YouTubeAPIKey, nil
 	}
 	return k.admin.YouTubeKey(ctx)
+}
+
+// TraktClientID returns the Trakt client id: the environment (config) wins, else the stored setting.
+func (k *lazyKeys) TraktClientID(ctx context.Context) (string, error) {
+	if k.cfg.TraktClientID != "" {
+		return k.cfg.TraktClientID, nil
+	}
+	return k.admin.TraktClientID(ctx)
 }
 
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on

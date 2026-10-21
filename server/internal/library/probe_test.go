@@ -88,7 +88,7 @@ func TestProbeJobsOnTestMedia(t *testing.T) {
 	t.Logf("keyframe index: %d keyframes in %d bytes", len(kf), len(blob))
 
 	// Chapters end up in the stored probe.
-	chap := e.str(`SELECT id FROM media_files WHERE rel_path LIKE 'Slouchcat Test Chapters (2024)/%'`)
+	chap := e.str(`SELECT id FROM media_files WHERE rel_path LIKE 'Slouchcat Test Chapters (2024) {tmdb-7004}/%'`)
 	if err := e.svc.handleProbe(e.ctx, mediaJob(t, JobProbeFile, chap)); err != nil {
 		t.Fatal(err)
 	}

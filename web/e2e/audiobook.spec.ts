@@ -130,6 +130,9 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, play);
+  // The row under the actions (watchlist, M7) comes first.
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, chapter(1));
   await page.keyboard.press('ArrowDown');

@@ -55,6 +55,10 @@ type Config struct {
 	YouTubeAPIKey string
 	// TrailerAI selects the AI step of the trailer chain; "off" (default) is the only provider in M3.
 	TrailerAI string
+	// TraktClientID enables the daily Trakt lists (M7, AN-3, I-7); empty = off, the two Trakt rows
+	// stay hidden. TraktBaseURL overrides the API base for mocks (development and tests only).
+	TraktClientID string
+	TraktBaseURL  string
 }
 
 // TranscodeDir is the work directory of HLS output: <cache>/transcode, wiped at every start.
@@ -154,6 +158,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	cfg.HDRTonemap = strings.ToLower(strings.TrimSpace(*hdrTonemap))
 	cfg.TVDBAPIKey, cfg.TVDBPIN = strings.TrimSpace(env("TVDB_API_KEY", "")), strings.TrimSpace(env("TVDB_PIN", ""))
 	cfg.YouTubeAPIKey = strings.TrimSpace(env("YOUTUBE_API_KEY", ""))
+	cfg.TraktClientID = strings.TrimSpace(env("TRAKT_CLIENT_ID", ""))
+	cfg.TraktBaseURL = strings.TrimSpace(env("TRAKT_BASE_URL", ""))
 	cfg.TrailerAI = strings.ToLower(strings.TrimSpace(*trailerAI))
 	if cfg.TrailerAI == "" {
 		cfg.TrailerAI = "off"
@@ -219,6 +225,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Int("download_budget_gb", c.DownloadBudgetGB),
 		slog.Bool("tvdb_configured", c.TVDBAPIKey != ""),
 		slog.Bool("youtube_configured", c.YouTubeAPIKey != ""),
+		slog.Bool("trakt_configured", c.TraktClientID != ""),
 		slog.String("trailer_ai", c.TrailerAI),
 	)
 }

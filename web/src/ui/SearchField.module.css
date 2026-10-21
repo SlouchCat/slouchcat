@@ -1,0 +1,64 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+.year {
+  width: 7rem;
+}
+
+.label {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.input {
+  width: 100%;
+  min-height: calc(var(--sc-size-control-height) + var(--sc-space-2));
+  padding: 0 var(--sc-space-5);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-size: var(--sc-font-size-lg);
+  transition:
+    border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.year .input {
+  min-height: var(--sc-size-control-height);
+  padding: 0 var(--sc-space-4);
+  font-size: var(--sc-font-size-md);
+}
+
+.input::placeholder {
+  color: var(--sc-color-text-muted);
+}
+
+.input:focus-visible {
+  border-color: var(--sc-color-text-secondary);
+  background-color: var(--sc-color-surface-2);
+}
+
+@media (hover: hover) {
+  .input:hover {
+    background-color: var(--sc-color-surface-2);
+  }
+}

@@ -12,7 +12,7 @@ export const PGS_TITLE = 'Slouchcat Test PGS';
 /** 10 s with three chapters at 0, 3 and 6.5 s ("Kapitel 1: Anfang" …). */
 export const CHAPTERS_TITLE = 'Slouchcat Test Chapters';
 /** Folder of CHAPTERS_TITLE below testdata/media/Movies, for the sidecar test (I-5). */
-export const CHAPTERS_FOLDER = 'Slouchcat Test Chapters (2024)';
+export const CHAPTERS_FOLDER = 'Slouchcat Test Chapters (2024) {tmdb-7004}';
 /** Series with the same 20-s intro and outro theme in S01E01–E05 (W-9). */
 export const INTRO_SHOW_TITLE = 'Slouchcat Test Intro Show';
 /** HEVC 10-bit HDR10 2160p: transcode with tonemapping in the embedded browsers (10.3). */

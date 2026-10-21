@@ -28,6 +28,14 @@ export const paths = {
   playAt: (id: string, positionMs: number) =>
     `/play/${encodeURIComponent(id)}?at=${Math.max(0, Math.round(positionMs))}`,
   adminPodcasts: '/admin/podcasts',
+  /** Discover and curation (M7). */
+  search: '/search',
+  watchlist: '/watchlist',
+  notifications: '/notifications',
+  collection: (id: string) => `/collections/${encodeURIComponent(id)}`,
+  adminPicks: '/admin/picks',
+  adminCollections: '/admin/collections',
+  adminHomeRows: '/admin/home-rows',
   person: (id: number) => `/people/${id}`,
   adminItem: (id: string) => `/admin/items/${encodeURIComponent(id)}`,
   invite: (token: string) => `/invite/${encodeURIComponent(token)}`,

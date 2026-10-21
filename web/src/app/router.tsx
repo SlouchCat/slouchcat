@@ -11,6 +11,7 @@ import {
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
+import { validateSearchParams } from '@/features/discover/searchParams';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
 import { loadSpatialNavigation } from '@/ui';
@@ -297,6 +298,34 @@ const podcastsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
 });
 
+// admin M7
+/** Cat's recommendations; `add` (the detail page's link) opens the dialog with that title. */
+const picksRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/picks',
+  validateSearch: (search: Record<string, unknown>): { add?: string } =>
+    typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
+      ? { add: search.add }
+      : {},
+  component: lazyRouteComponent(() => import('@/features/admin/PicksPage'), 'PicksPage'),
+});
+
+const collectionsAdminRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/collections',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/CollectionsPage'),
+    'CollectionsPage',
+  ),
+});
+
+const homeRowsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/home-rows',
+  component: lazyRouteComponent(() => import('@/features/admin/HomeRowsPage'), 'HomeRowsPage'),
+});
+// end admin M7
+
 const profileSettingsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/settings/profiles',
@@ -316,6 +345,39 @@ const downloadsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/downloads',
   component: lazyRouteComponent(() => import('@/features/offline/DownloadsPage'), 'DownloadsPage'),
+});
+
+// discover M7: search, watchlist, collections and the inbox; browsing pages without react-aria.
+const searchRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/search',
+  // q, genre, from, to, rating, type, avail (design 4.1); anything else is dropped.
+  validateSearch: validateSearchParams,
+  component: lazyRouteComponent(() => import('@/features/discover/SearchPage'), 'SearchPage'),
+});
+
+const watchlistRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/watchlist',
+  component: lazyRouteComponent(() => import('@/features/discover/WatchlistPage'), 'WatchlistPage'),
+});
+
+const collectionRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/collections/$collectionId',
+  component: lazyRouteComponent(
+    () => import('@/features/discover/CollectionPage'),
+    'CollectionPage',
+  ),
+});
+
+const notificationsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/notifications',
+  component: lazyRouteComponent(
+    () => import('@/features/discover/NotificationsPage'),
+    'NotificationsPage',
+  ),
 });
 
 const playRoute = createRoute({
@@ -350,6 +412,10 @@ export const routeTree = rootRoute.addChildren([
         personRoute,
         librariesRoute,
         podcastsRoute,
+        // admin M7
+        picksRoute,
+        collectionsAdminRoute,
+        homeRowsRoute,
         maintenanceRoute,
         devicesRoute,
         streamsRoute,
@@ -357,6 +423,11 @@ export const routeTree = rootRoute.addChildren([
         accessRoute,
         profileSettingsRoute,
         downloadsRoute,
+        // discover M7
+        searchRoute,
+        watchlistRoute,
+        collectionRoute,
+        notificationsRoute,
       ]),
       playRoute,
     ]),

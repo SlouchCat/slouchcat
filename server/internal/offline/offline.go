@@ -92,6 +92,7 @@ const (
 	fetchedKeep     = 24 * time.Hour     // server copy after the device fetched it
 	unfetchedKeep   = 7 * 24 * time.Hour // server copy that no device fetched
 	tombstoneKeep   = 400 * 24 * time.Hour
+	readNoticeKeep  = 90 * 24 * time.Hour // read inbox entries (M7 notifications), by their age
 	autoWindow      = 60 * 24 * time.Hour // series watched in this window get auto-downloads (O-3)
 	writeBatch      = 500                 // rows per transaction (plan 3.6)
 	autoRetryWait   = 6 * time.Hour       // a failed auto-download is tried again after this wait

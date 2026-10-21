@@ -56,11 +56,16 @@ func (s *server) GetHome(ctx context.Context, _ gen.GetHomeRequestObject) (gen.G
 	}
 	page := gen.HomePage{Rows: make([]gen.HomeRow, 0, len(rows))}
 	for _, row := range rows {
-		items := make([]gen.ItemRef, 0, len(row.Items))
-		for _, it := range row.Items {
-			items = append(items, toItemRef(session.Profile.ID, it))
+		out := gen.HomeRow{Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}
+		switch row.Key {
+		case model.RowCollections: // M7: only these two rows carry their own lists
+			cs := toCollectionRefs(session.Profile.ID, row.Collections)
+			out.Collections = &cs
+		case model.RowGenres:
+			gs := toGenreRefs(row.Genres)
+			out.Genres = &gs
 		}
-		page.Rows = append(page.Rows, gen.HomeRow{Key: gen.HomeRowKey(row.Key), Items: items})
+		page.Rows = append(page.Rows, out)
 	}
 	return gen.GetHome200JSONResponse(page), nil
 }
@@ -115,6 +120,9 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		Season:         optItemRef(pid, d.Season),
 		NextEpisode:    optItemRef(pid, d.NextEpisode),
 		TrailerCount:   &d.TrailerCount,
+		InWatchlist:    d.InWatchlist,
+		Favorite:       d.Favorite,
+		Collections:    toCollectionRefs(pid, d.Collections),
 	}
 	if out.Genres == nil {
 		out.Genres = []string{}
@@ -393,6 +401,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 	if it.Author != "" {
 		ref.Author = &it.Author
 	}
+	ref.Note = optString(it.Note) // a pick's note (M7); set only in the row picks
 	if it.PublishedAt != nil {
 		t := it.PublishedAt.UTC()
 		ref.PublishedAt = &t

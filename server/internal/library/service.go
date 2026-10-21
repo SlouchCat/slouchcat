@@ -51,6 +51,8 @@ type Service struct {
 	imageCheck func(ctx context.Context, libraryID int64) (int, error)
 	// metadataCheck queues metadata.match for titles still pending after a scan (optional).
 	metadataCheck func(ctx context.Context, libraryID int64) (int, error)
+	// newEpisodes is told the ids of new series episodes after their batch commits (optional).
+	newEpisodes func(ctx context.Context, ids []string) error
 
 	mu        sync.Mutex
 	runCtx    context.Context // context of Start; watchers of libraries created later run under it
@@ -94,6 +96,13 @@ func WithImageCheck(check func(ctx context.Context, libraryID int64) (int, error
 // so the enrichment converges after interrupted or cancelled scans (design 2.2).
 func WithMetadataCheck(check func(ctx context.Context, libraryID int64) (int, error)) Option {
 	return func(s *Service) { s.metadataCheck = check }
+}
+
+// WithNewEpisodes runs fn with the ids of the episode items a scan batch created, after the batch
+// committed, for full and path scans alike (notify.Service.NewEpisodes, M7 E-8). An error is
+// logged; the scan goes on.
+func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
+	return func(s *Service) { s.newEpisodes = fn }
 }
 
 // New returns the library service. queue must work on db.Write.

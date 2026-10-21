@@ -2,7 +2,7 @@
 // Features import from '@/ui' only (ESLint rule); react-aria based parts (forms, dialogs, the
 // player's buttons) come from '@/ui/aria', so the browsing pages never load react-aria (P-10).
 export { isAccentName, itemAccentStyle, swatchStyle } from './accent';
-export { AppHeader, type NavItem } from './AppHeader';
+export { AppHeader, type HeaderNotifications, type NavItem } from './AppHeader';
 export { Backdrop } from './Backdrop';
 export { LinkRouterProvider } from './AppLink';
 export { Button, ButtonLink, SpatialButton, SpatialButtonLink, type ButtonVariant } from './Button';
@@ -10,13 +10,18 @@ export { CandidateCard } from './CandidateCard';
 export { CastCard } from './CastCard';
 export { Chip } from './Chip';
 export { ChoiceChips } from './ChoiceChips';
+export { CollectionCard } from './CollectionCard';
 export { EpisodeCard } from './EpisodeCard';
 export { EpisodeRow } from './EpisodeRow';
 export { FactList } from './FactList';
+export { FilterChips } from './FilterChips';
+export { GenreChip } from './GenreChip';
 export { dismissHeroPrepaint, HeroCarousel, HERO_PLAY_KEY, type HeroSlide } from './HeroCarousel';
 export { Icon, type IconName } from './Icon';
+export { InboxEntry } from './InboxEntry';
 export { Logo } from './Logo';
 export { Notice } from './Notice';
+export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
 export { Page } from './Page';
 export { Panel } from './Panel';
 export { PosterCard } from './PosterCard';
@@ -24,6 +29,7 @@ export { PosterFallback } from './PosterFallback';
 export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';
 export { Row } from './Row';
+export { SearchField } from './SearchField';
 export { Skeleton } from './Skeleton';
 export {
   loadSpatialNavigation,

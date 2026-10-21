@@ -115,3 +115,41 @@ func (e *env) tombstoneIDs() []string {
 	}
 	return out
 }
+
+// k4 (M7 review): the cleanup deletes read inbox entries older than 90 days; unread and younger
+// read entries stay.
+func TestCleanupOldReadNotifications(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.f
+	now := e.clock.Now()
+	old, young := now.Add(-91*24*time.Hour).UnixMilli(), now.Add(-89*24*time.Hour).UnixMilli()
+	e.exec(`INSERT INTO notifications (profile_id, kind, item_id, created_at, read_at) VALUES
+	        (?, 'new_episode', ?, ?, ?), (?, 'new_episode', ?, ?, ?), (?, 'new_episode', ?, ?, NULL)`,
+		f.P18.ID, f.Rated(0).ID, old, young,
+		f.P18.ID, f.Rated(6).ID, young, young,
+		f.P18.ID, f.Rated(12).ID, old)
+	if err := e.svc.Cleanup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := f.DB.Read.Query(`SELECT item_id FROM notifications ORDER BY item_id`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, id)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{f.Rated(6).ID, f.Rated(12).ID}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("notifications after the cleanup = %v, want %v", got, want)
+	}
+}

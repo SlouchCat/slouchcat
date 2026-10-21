@@ -60,7 +60,7 @@ LIMIT 500;
 -- name: PodcastListEpisodes :many
 -- The stored episodes of a podcast with what an update compares and keeps (locked fields),
 -- soft-deleted ones included: their guid stays taken, so the fetch neither inserts nor restores them.
-SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at FROM items
+SELECT id, guid, title, sort_title, cover_url, own_rating, rating_source, locked_fields, deleted_at, published_at FROM items
 WHERE parent_id = @podcast_id AND kind = 'podcast_episode' AND guid IS NOT NULL;
 
 -- name: PodcastInsertEpisode :exec

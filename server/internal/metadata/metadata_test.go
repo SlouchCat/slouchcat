@@ -53,6 +53,7 @@ type fakeTMDB struct {
 	backdr []byte // TMDB original of the backdrop
 
 	mu        sync.Mutex
+	movies    map[string]fixture
 	hits      map[string]int
 	rateCalls int
 	authSeen  []string
@@ -126,7 +127,7 @@ func countryJSON(code, cert string) map[string]any {
 func newFakeTMDB(t *testing.T) *fakeTMDB {
 	t.Helper()
 	f := &fakeTMDB{hits: map[string]int{}, poster: jpegBytes(t, 300, 450), backdr: jpegBytes(t, 640, 360)}
-	movies := map[string]fixture{
+	f.movies = map[string]fixture{
 		// DE FSK 12 next to US R: DE wins.
 		"550": movieFixture(550, "tt0000550", "First Film", "Erster Film", "Deutsche Beschreibung",
 			[]string{"Drama", "Komödie"}, []string{"Drama", "Comedy"},
@@ -138,6 +139,11 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 		// No certification at all, no images.
 		"602": movieFixture(602, "", "Unrated Film", "Film ohne Freigabe", "Beschreibung",
 			nil, nil, []any{}, "", ""),
+	}
+	// E-6: the three films belong to one TMDB collection; the unrated one came out first.
+	f.movies["602"].de["release_date"], f.movies["602"].en["release_date"] = "1999-06-15", "1999-06-15"
+	for _, id := range []string{"550", "601", "602"} {
+		f.setCollection(id, testCollection)
 	}
 	mux := http.NewServeMux()
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
@@ -180,7 +186,9 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 			http.Error(w, "down", http.StatusServiceUnavailable)
 			return
 		}
-		fx, ok := movies[r.PathValue("id")]
+		f.mu.Lock()
+		fx, ok := f.movies[r.PathValue("id")]
+		f.mu.Unlock()
 		if !ok {
 			http.Error(w, `{"status_code":34}`, http.StatusNotFound)
 			return
@@ -188,6 +196,8 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 		if r.URL.Query().Get("append_to_response") != "release_dates,credits" {
 			t.Errorf("movie request without release_dates and credits: %s", r.URL)
 		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
 		switch r.URL.Query().Get("language") {
 		case langDE:
 			writeJSON(w, fx.de)
@@ -242,6 +252,24 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 	return f
 }
 
+// testCollection is the TMDB collection of the fixture films, per language (E-6).
+var testCollection = map[string]map[string]any{
+	langDE: {"id": 10, "name": "Test-Sammlung", "poster_path": "/coll10.jpg", "backdrop_path": "/collback10.jpg"},
+	langEN: {"id": 10, "name": "Test Collection", "poster_path": "/coll10.jpg", "backdrop_path": "/collback10.jpg"},
+}
+
+// setCollection sets belongs_to_collection of a fixture film; nil takes the film out (TMDB sends
+// null then).
+func (f *fakeTMDB) setCollection(id string, c map[string]map[string]any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fx := f.movies[id]
+	fx.de["belongs_to_collection"], fx.en["belongs_to_collection"] = nil, nil
+	if c != nil {
+		fx.de["belongs_to_collection"], fx.en["belongs_to_collection"] = c[langDE], c[langEN]
+	}
+}
+
 func (f *fakeTMDB) count(path string) int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -265,6 +293,8 @@ func (k staticKey) TMDBKey(context.Context) (string, error) { return string(k), 
 func (k staticKey) TVDBKey(context.Context) (string, string, error) { return "", "", nil }
 
 func (k staticKey) YouTubeKey(context.Context) (string, error) { return "", nil }
+
+func (k staticKey) TraktClientID(context.Context) (string, error) { return "", nil }
 
 type env struct {
 	db    *store.DB
@@ -519,6 +549,97 @@ func TestMatchByTMDBID(t *testing.T) {
 	}
 	if n := len(e.imageJobs(t)); n != 1 {
 		t.Fatalf("%d image jobs after a second match, want 1", n)
+	}
+}
+
+// E-6: three films of one TMDB collection make one collection with three members in release
+// order; a film that leaves the collection leaves it on the next match but stays in a manual one.
+func TestMatchCollection(t *testing.T) {
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "first film", year: 2001, tmdbID: 550})
+	e.addItem(t, itemSeed{id: idByIMDB, title: "searched film", year: 2001, tmdbID: 601})
+	e.addItem(t, itemSeed{id: idNoRating, title: "unrated", tmdbID: 602})
+	for _, id := range []string{idByTMDB, idByIMDB, idNoRating, idByTMDB} {
+		if err := e.svc.match(ctx, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var (
+		collID, source, name string
+		nameDE, poster       sql.NullString
+		tmdbID               int64
+		n                    int
+	)
+	if err := e.db.Read.QueryRow(`SELECT count(*) FROM collections`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("%d collections (%v), want 1", n, err)
+	}
+	if err := e.db.Read.QueryRow(`SELECT id, source, tmdb_id, name, name_de, poster_path FROM collections`).
+		Scan(&collID, &source, &tmdbID, &name, &nameDE, &poster); err != nil {
+		t.Fatal(err)
+	}
+	if source != "tmdb" || tmdbID != 10 || name != "Test Collection" || nameDE.String != "Test-Sammlung" || poster.String != "/coll10.jpg" {
+		t.Fatalf("collection %s %d %q %q %q", source, tmdbID, name, nameDE.String, poster.String)
+	}
+	members := func() []string {
+		t.Helper()
+		rows, err := e.db.Read.Query(`SELECT item_id || '@' || position FROM collection_items WHERE collection_id = ?
+		                              ORDER BY position, item_id`, collID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var s string
+			if err := rows.Scan(&s); err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, s)
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	want := []string{idNoRating + "@19990615", idByTMDB + "@20010304", idByIMDB + "@20010304"}
+	if got := members(); !slices.Equal(got, want) {
+		t.Fatalf("members %v, want %v", got, want)
+	}
+	if err := e.db.Read.QueryRow(`SELECT count(*) FROM search_index WHERE kind = 'collection' AND ref_id = ?
+	                               AND text = 'Test Collection / Test-Sammlung'`, collID).Scan(&n); err != nil || n != 3 {
+		t.Fatalf("%d collection rows in the search index (%v), want 3", n, err)
+	}
+
+	// The unrated film leaves the TMDB collection; the manual collection keeps it.
+	mustExec(t, e.db.Write, `INSERT INTO collections (id, source, name, created_at, updated_at) VALUES ('01JTESTCOLLECTION00000000M', 'manual', 'Mine', 0, 0)`)
+	mustExec(t, e.db.Write, `INSERT INTO collection_items (collection_id, item_id, position, created_at) VALUES ('01JTESTCOLLECTION00000000M', ?, 0, 0)`, idNoRating)
+	e.tmdb.setCollection("602", nil)
+	if err := e.svc.match(ctx, idNoRating); err != nil {
+		t.Fatal(err)
+	}
+	if got := members(); !slices.Equal(got, want[1:]) {
+		t.Fatalf("members after leaving %v, want %v", got, want[1:])
+	}
+	if err := e.db.Read.QueryRow(`SELECT count(*) FROM collection_items WHERE collection_id = '01JTESTCOLLECTION00000000M' AND item_id = ?`, idNoRating).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("manual membership %d (%v), want kept", n, err)
+	}
+}
+
+func TestCollectionPosition(t *testing.T) {
+	for _, c := range []struct {
+		date string
+		year sql.NullInt64
+		want int64
+	}{
+		{"2001-03-04", sql.NullInt64{}, 20010304},
+		{"", sql.NullInt64{Int64: 1999, Valid: true}, 19990000},
+		{"2001", sql.NullInt64{Int64: 2001, Valid: true}, 20010000},
+		{"", sql.NullInt64{}, 0},
+	} {
+		if got := collectionPosition(c.date, c.year); got != c.want {
+			t.Errorf("collectionPosition(%q, %v) = %d, want %d", c.date, c.year, got, c.want)
+		}
 	}
 }
 

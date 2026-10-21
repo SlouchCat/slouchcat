@@ -23,27 +23,19 @@ WHERE p.completed = 0 AND p.position_ms > 0 AND i.kind <> 'extra'
 ORDER BY p.updated_at DESC, i.id DESC
 LIMIT @limit_count;
 
--- Cat's recommendations (E-1) for the profile: global rows (profile_id NULL) and rows of the profile,
--- inside their optional time window. An item listed twice is deduplicated by the caller.
+-- Cat's recommendations (E-1, E-2) for the profile: global rows (profile_id NULL) and rows of the
+-- profile, inside their optional time window, with the main user's note. An item listed twice is
+-- deduplicated by the caller (the row of the profile wins over the global one), so the query has
+-- no limit: the caller cuts after the deduplication (the table is small, curated by hand).
 -- name: ListTopPicks :many
-SELECT i.* FROM top_picks AS t
+SELECT sqlc.embed(i), t.note, t.profile_id AS pick_profile_id
+FROM top_picks AS t
 JOIN items AS i ON i.id = t.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE (t.profile_id IS NULL OR t.profile_id = @profile_id)
   AND (t.starts_at IS NULL OR t.starts_at <= @now)
   AND (t.ends_at IS NULL OR t.ends_at > @now)
-ORDER BY t.position, t.id
-LIMIT @limit_count;
-
--- Placeholder for the carousel while top_picks has nothing for the profile (M1a): newest titles
--- that have a backdrop.
--- name: ListNewestWithBackdrop :many
-SELECT i.* FROM items AS i
-JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
-  AND EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop' AND im.size <> 'original')
-ORDER BY i.added_at DESC, i.id DESC
-LIMIT @limit_count;
+ORDER BY t.position, t.id;
 
 -- name: ListItemTexts :many
 SELECT t.* FROM item_texts AS t

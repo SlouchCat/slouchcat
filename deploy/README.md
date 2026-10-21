@@ -166,6 +166,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_TMDB_API_KEY` | leer | TMDB-Lesetoken; übersteuert den im Assistenten gespeicherten Schlüssel |
 | `SLOUCHCAT_TVDB_API_KEY`, `SLOUCHCAT_TVDB_PIN` | leer | TheTVDB (optional), siehe «Metadaten-Anbieter und Trailer» |
 | `SLOUCHCAT_YOUTUBE_API_KEY` | leer | YouTube Data API v3 für Trailer (optional) |
+| `SLOUCHCAT_TRAKT_CLIENT_ID` | leer | Trakt Client ID für die Reihen «Trending bei Trakt» und «Beliebt bei Trakt» (optional, M7); ohne Schlüssel bleiben die Reihen ausgeblendet |
 | `SLOUCHCAT_TRAILER_AI` | `off` | KI-Schritt der Trailer-Suche; in dieser Version nur `off` |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
 | `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES` | `all`, `compute,video,utility` | für das NVIDIA Container Toolkit |
@@ -181,6 +182,7 @@ nie ins Repository; das Log maskiert sie.
 | TMDB | ja | Filme und Serien (Hauptquelle): Texte de/en, Genres, Freigaben, Besetzung, Poster, Hintergründe, Episodenbilder, Trailer-Liste | Lesetoken (v4) im Einrichtungsassistenten oder `SLOUCHCAT_TMDB_API_KEY` |
 | TheTVDB | nein | Serien, die TMDB nicht kennt, und von Hand zugeordnete TVDB-IDs | `SLOUCHCAT_TVDB_API_KEY`, bei einem nutzerfinanzierten Schlüssel («user-supported») zusätzlich die Abonnenten-PIN als `SLOUCHCAT_TVDB_PIN`; die Lizenzbedingungen stehen auf thetvdb.com |
 | YouTube Data API v3 | nein | Trailer für Deutsch und Englisch, wenn TMDB keinen nennt | `SLOUCHCAT_YOUTUBE_API_KEY` (kostenlos) |
+| Trakt | nein | Öffentliche Listen «Trending» und «Beliebt» (Filme und Serien), täglich mit der eigenen Bibliothek verschnitten; kein Login je Profil, nichts wird hochgeladen (I-7) | `SLOUCHCAT_TRAKT_CLIENT_ID` (kostenlos: unter https://trakt.tv/oauth/applications eine App anlegen, Redirect URI `urn:ietf:wg:oauth:2.0:oob`; nur die Client ID zählt) |
 
 YouTube-Schlüssel in drei Schritten: In der Google Cloud Console (`console.cloud.google.com`) ein neues
 Projekt anlegen und unter «APIs & Dienste → Bibliothek» die «YouTube Data API v3» aktivieren. Danach

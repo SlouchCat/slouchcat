@@ -1,15 +1,140 @@
 # Aktueller Stand
 
-Stand: 21. Oktober 2026. M0 bis M5 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #6 und #10; M5 am 20. Oktober 2026 auf Marcos Wort, Merge-Commit `e8579ad`). **M6 (Hörbücher
-und Podcasts) ist am 21. Oktober 2026 über Pull Request #11 gemerged**, die CI-Anpassung (Go-Testlimit 30 min) über
-Pull Request #12. Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
+Stand: 21. Oktober 2026. M0 bis M6 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
+Pull Requests #1 bis #6, #10 und #11; M6 am 21. Oktober 2026). **M7 (Entdecken und Kuratierung) ist auf dem Branch
+`claude/m7-discover` fertig** und wartet als Pull Request gegen `main` auf Marcos Wort.
+Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
+
+## Meilenstein M7 – Entdecken und Kuratierung
+
+Vorab geklärt mit Marco (21. Oktober 2026, Entscheidungsprotokoll Frage 9, Teil AN-3): die Reihen «Trending bei
+Trakt» und «Beliebt bei Trakt» zeigen die ersten 20 Treffer aus der eigenen Bibliothek und werden unter 5 Treffern
+ausgeblendet; Trakt wird nur über einen Server-Schlüssel angebunden (`SLOUCHCAT_TRAKT_CLIENT_ID` in `deploy/.env`,
+Anleitung in `deploy/README.md` und `.env.example`), kein Login je Profil, kein Scrobbling. Die Architekturentscheide
+stehen in ADR 0008 (`docs/adr/0008-entdecken-suche-trakt.md`): Suchindex mit FTS5 über eine Inhaltstabelle, kleiner
+Query-Builder in `visibility`, acht Startseiten-Reihen mit gespeicherter Reihenfolge, Karussell nur aus echten Picks
+(der Platzhalter aus M1a entfällt), Trakt-Listen als eigene Tabelle mit Verschneidung je Profil über `visible_items`,
+Benachrichtigungen über Hooks von Scanner und Feed-Abruf in einem neuen Paket `notify` (vorab in der Allowlist von
+Regel 2). Der Entwurf liegt in den Sitzungsnotizen (`m7-design.md`). Die Umsetzung lief wie in M5/M6 auf einer
+gemeinsamen Basis (Migration 00015, Vertrag 0.8.0 mit 109 Operationen, Modelltypen, 501-Stubs) mit fünf
+Executor-Agenten (Opus) in Scratchpad-Kopien (A Suche und Listen, B1 Admin und Sammlungen, B2 Trakt,
+Benachrichtigungen, Offline, C1 Web Zuschauer, C2 Web Admin), danach zwei Review-Agenten und zwei Korrektur-Agenten.
+Commits mit Bereich im Titel:
+
+| Schritt | Commit | Inhalt |
+|---|---|---|
+| Vorab | `docs(decisions)` `671b5b8` | Antwort auf Frage 9, Teil AN-3 |
+| Basis | `feat(api,store,model)` `1a48db5`, `docs(adr)` `fbef9ab`, `fix(store)` `b39c09b`, `feat(api)` `0850a75`, `test(testdata)` `a7e9dc0`, `test(library,transcode,web)` `43a016a` | Vertrag 0.8.0 (28 neue Operationen), Migration 00015 (`watchlist`, `favorites`, `collections`, `collection_items`, `home_rows`, `item_genres`, Suchindex, `trakt_lists`, `notifications`), Konfiguration und Redaction für die Trakt Client ID, Schema-Test I-7, Suche ohne Text (Genre-Link), `{tmdb-NNNN}`-IDs an sieben Testmedien für den Trakt-Mock |
+| 1 Cat's Empfehlungen | `feat(admin,metadata,api)` `15f1753`, `feat(web)` `d63f580`, `c0e4337` | Picks für alle oder einzelne Profile, Reihenfolge, Notiz, Zeitraum; Karussell mit Notiz; Altersstufe über `visible_items` |
+| 2 Reihen | `feat(visibility,discover,api)` `e8d06c0`, `15f1753`, `c0e4337`, `d63f580` | Weiterschauen, Neu hinzugefügt, Merkliste je Profil (E-5), Sammlungen aus TMDB-Reihen (`belongs_to_collection`) und manuell (E-6), Genres, Trakt; Reihenfolge und Ausblenden durch den Hauptbenutzer, höchstens acht, keine leeren (E-9) |
+| 3 Suche | `e8d06c0`, `c0e4337`, `perf(store)` `360036f` | FTS5 über Titel (de/en, Original), Autor, Sprecher, Reihe, Personen, Sammlungen ab dem zweiten Zeichen; Filter Genre, Jahr, Altersfreigabe, Medientyp, Verfügbarkeit lokal/Download (E-4) |
+| 4 Trakt | `feat(trakt,metadata,notify,library,offline,admin,api)` `060ee3f` | Reines Paket `trakt`, täglicher Job über `ratelimit`, Ausfall leert die Listen (I-7), Admin-Status und «Jetzt aktualisieren» |
+| 5 Favoriten, Benachrichtigungen | `060ee3f`, `c0e4337` | Favoriten für Serien und Podcasts, In-App-Eingang mit Zähler, Hooks nach Scan-Batch und Feed-Abruf, Prüfung je Profil über `visibility` (5.5), `Dispatcher` für M8; die Auto-Download-Regel folgt den Favoriten statt dem Hörverlauf (O-3) |
+| Storybook | `test(web)` `31bbfdf` | Baselines der neuen Komponenten |
+| DB-Stand | `test(store,testdata)` `d7237c5`, `0acab29` | `testdata/db/M7.sql`, `TestFrozenM7StateCoversM7Data` |
+| Review-Korrekturen | `perf(store)` `360036f`, `fix(web)` `fb67b70`, `fix(visibility,discover,notify,metadata,trakt,admin,offline,api)` `421bf84` | siehe unten |
+| Messwerte | `docs(perf)` `0acab29`, `17d28d9`, `9d92b5e` | `docs/perf/M7.md` (inkl. erster Lauf gegen das echte Trakt); O-6-Langzeittest Tag 1 |
+| Verifier-Korrekturen | `test(visibility)` `bd5de19`, `docs(status,perf)` | Regressionstest «höchstens 20» für die Trakt-Reihen; Messung mit allen acht Reihen; Doku |
+
+### Definition of Done (Plan M7 plus 6.2) mit Belegen
+
+| Kriterium | Ergebnis | Beleg |
+|---|---|---|
+| E-1 Reihenfolge Karussell, Weiterschauen, Neu hinzugefügt, Merkliste, Sammlungen, Genres | PASS: Standardreihenfolge in `home_rows` (Migration), `/home` liefert sie, leere entfallen | `go test ./internal/discover -run TestHome`, `go test ./internal/api -run TestContractChildProfiles` (Subtest home), `web/e2e/home.spec.ts` |
+| E-2 Pick für alle und für ein Profil; Reihenfolge per Maus und Tastatur; Notiz sichtbar; vor Start und nach Ende unsichtbar | PASS: Admin-Seite `/admin/picks` per Tastatur und Maus, Notiz im Karussell, Zeitraum mit Fake-Uhr im Server und mit echten Zeitfenstern im E2E | `go test ./internal/visibility -run TestPicks`, `go test ./internal/api -run TestContractAdminPicks`, `web/e2e/admin-picks.spec.ts`, `home.spec.ts` |
+| E-3 FSK-18-Pick «für alle» fehlt bei P0–P16, erscheint bei P18 | PASS, Negativtest: P12 sieht den FSK-18-Pick nicht (Vertragstest und E2E mit Kinderprofil) | `go test ./internal/api -run TestContractChildProfiles`, `web/e2e/admin-picks.spec.ts` (E-2/E-3) |
+| E-4 2 Zeichen finden Titel, Person, Sammlung; jeder Filter einzeln und kombiniert (ausser «in Beschaffung», M9); < 200 ms p95 bei 10 000 Titeln | PASS: Titel, Person (nur über sichtbare Rolle), Sammlung (nur mit sichtbarem Mitglied); Filter einzeln und kombiniert; 50'570 Titel: p95 102.0 ms nach dem Scan mit allen acht Reihen (Median aus 3, Verifier), 55.6 ms im `scanbench` | `go test ./internal/visibility -run TestSearch`, `go test ./internal/api -run TestContractChildProfiles` (search), `web/e2e/search.spec.ts`, `docs/perf/M7.md` 1 |
+| E-5 Merkliste je Profil getrennt; hinzufügen/entfernen; Reihe erscheint und verschwindet | PASS | `go test ./internal/discover -run TestWatchlist`, `web/e2e/watchlist.spec.ts` |
+| E-6 TMDB-Reihe (3 Filme) → Sammlung; manuelle Sammlung; Mitglieder und Zähler nur sichtbar | PASS | `go test ./internal/metadata -run TestMatchCollection`, `go test ./internal/api -run 'TestContractAdminCollections|TestContractChildProfiles'`, `web/e2e/admin-collections.spec.ts`, `collection.spec.ts` |
+| E-7 Trakt-Mock: nur Bibliothekstitel, max. 20, täglicher Lauf (Zeitplan-Test), AN-3 | PASS gegen den Mock (nur Bibliothekstitel, höchstens 20 in Listenreihenfolge, Zeitplan mit Fake-Uhr); echter Lauf mit Marcos Client ID: 200 Einträge je Liste, kein Fehler, ID nicht im Log; Verschneidung mit der echten Bibliothek folgt auf CT 190 | `go test ./internal/metadata -run 'TestTraktSchedule|TestTraktRefresh'`, `go test ./internal/visibility -run 'TestTraktRowIntersection|TestTraktRowAtMostTwenty'`, `web/e2e/home.spec.ts`, `docs/perf/M7.md` 4 |
+| E-8 Favorit, neue Folge → In-App-Meldung < 2 min (Kanäle M8) | PASS: 30.6 s (Chromium) / 31.1 s (Firefox) von der Dateikopie bis zum Zähler; P6 erhält für eine Folge über seiner Stufe weder Eintrag noch Dispatcher-Aufruf | `web/e2e/notifications.spec.ts`, `go test ./internal/notify`, `go test ./internal/api -run TestContractNotifications` |
+| E-9 ≤ 8 Reihen, keine leere; Umordnung durch den Hauptbenutzer wirkt | PASS | `go test ./internal/api -run TestContractHomeRows`, `web/e2e/admin-home-rows.spec.ts`, `home.spec.ts` |
+| I-7 Trakt 503 → nur die zwei Reihen fehlen; kein Trakt-Konto je Profil | PASS: Schema-Test, 503 leert die Liste, ohne Schlüssel oder nach 48 h ohne Erfolg ebenfalls keine Reihen | `go test ./internal/api -run TestContractNoTraktPerProfile`, `go test ./internal/metadata -run 'TestTraktRefresh|TestTraktRowsGoWithoutClientID'`, `web/e2e/home.spec.ts` |
+| Startseiten-API < 300 ms p95 mit allen Reihen und Referenzgrösse | PASS auf dem Entwicklungsrechner: p95 160.7 ms nach dem Scan mit allen acht belegten Reihen (Median aus 3, Messung des Verifiers; ohne Genres 85.5 ms), 229.9 ms während des Erst-Scans; Median aus 3 statt 5 Läufen; CT 190 nicht gemessen (mit dem Faktor 2.5 aus M3 läge die Startseite bei rund 400 ms) | `docs/perf/M7.md` 1a und 1b |
+| Kinderprofil-Vertragstest 10.2 über alle neuen Operationen | PASS: 109 Operationen (Picks nur Admin, Merkliste und Favoriten je Profil, Suche per POST, Trakt-Reihen, Benachrichtigungen mit Dispatcher-Mock) | `go test ./internal/api -run 'TestContract'` |
+| Tastaturtest je neue Seite (6.2 Pkt. 3) | PASS: Startseite, Suche, Merkliste, Sammlung, Benachrichtigungen, Detail-Knöpfe, `/admin/picks`, `/admin/collections`, `/admin/home-rows` | die genannten Specs |
+| Eingefrorener DB-Stand (6.2 Pkt. 4) | `testdata/db/M7.sql`; alle Stände M1a bis M7 migrieren bis 00015; 00015 gegen M6.sql geprüft (Rückfüllen, Trigger, Integritätsprüfung des Index) | `go test ./internal/store -run 'TestFrozen|TestMigration00015|TestDumpRoundTrip'` |
+| Messwerte (6.2 Pkt. 5) | `docs/perf/M7.md`; Gerätecheckliste Desktop Chromium und Firefox bestanden, Android ausstehend (Marco, nach dem Merge), Apple ungeprüft (Entscheid 2); LCP (P-10) in M7 nicht neu gemessen | `docs/perf/M7.md` 5 |
+| O-6-Langzeittest aus M5 | **läuft, Abschluss ausstehend**: Desktop Chromium und Firefox Tag 0 und Tag 1 bestanden; Tag 30 ist der 19. November 2026, Android startet mit dem Image nach dem Merge | `docs/perf/M5-o6-langzeittest.md` |
+| `task ci` grün (6.2 Pkt. 2) | exit 0 (21. Oktober 2026, Stand `0acab29`): gen, gen:check, lint 0 issues (golangci-lint, itemsaccess, vet, eslint, stylelint, tsc, prettier), Go `-race` alle 26 Pakete inkl. `trakt` und `notify`, Vitest 464 (+ 4 + 2), Build, Playwright 330 von 330 in Chromium und Firefox, Storybook 133 Screenshots; danach nur Doku, der Test «höchstens 20» und der Merge von `main` (Go-Testlimit 30 min) | `sg docker -c 'task ci'`, Protokoll `task-ci-1.log` im Scratchpad der Session |
+| Code-Review | Server 22 Befunde (1 kritisch, 1 wichtig, 9 klein, 11 Nits; 4 Go-spezifisch, 2 teilweise), Web 31 Befunde (0 kritisch, 2 wichtig, 11 klein, 18 Nits); kritisch, wichtig und klein behoben ausser Web K4, Nits teils (siehe unten) | Sitzungsnotizen `m7-review-server.md`, `m7-review-web.md`, `m7-fix-server-notes.md`, `m7-fix-web-notes.md` |
+| Verifier-Agent (6.2 Pkt. 6) | «DoD bestätigt mit Ausnahmen»: O-6 Tag 30 erst am 19. November; Gerätecheckliste Android ausstehend, Apple ungeprüft; E-7 «höchstens 20» ohne eigenen Test (danach ergänzt, `bd5de19`); Abschnitt 1a der Messwerte zählte nur sieben Reihen (danach mit allen acht nachgemessen). Eigene Läufe: Vertragstest `-race` ok (109 Operationen), Pakete visibility, discover, notify, trakt, metadata ok, Store-Tests mit M1a bis M7.sql ok, Lint grün, neun M7-Specs in Chromium und Firefox 46 von 46, Messung mit acht Reihen; Korrekturen am Bericht übernommen | Sitzungsnotizen `m7-verifier.md` |
+
+### Befunde der Review-Passage und ihre Behebung
+
+- **Server (kritisch):** die Trigger des Suchindex suchten FTS5-Zeilen über nicht indizierte Spalten, ein Vollscan
+  je Ereignis (34 ms bei 300'000 Zeilen; ein Podcast-Abruf mit 2'000 bekannten Episoden hätte den einzigen Schreiber
+  minutenlang belegt). Die Texte liegen jetzt in `search_docs` mit Indizes, `search_index` ist eine FTS5-Tabelle mit
+  externem Inhalt (per Rowid), UPDATE-Trigger feuern nur bei geändertem Text: 0.19 ms je geändertem Titel bei
+  350'000 Indexzeilen (`docs/perf/M7.md` 2). Migration 00015 ist auf keiner laufenden Instanz angewendet und wurde
+  darum direkt angepasst.
+- **Server (wichtig):** ohne Client ID blieben die Trakt-Reihen mit alten Listen stehen; jetzt werden die Listen
+  geleert und Reihen älter als 48 h nie gezeigt.
+- **Server (klein):** Picks werden vor dem Limit entdoppelt (Hero-Vorladen stimmt mit dem Karussell überein); keine
+  Zählung für die Merkliste-Reihe; eine Abfrage je Scan-Batch für den Folgen-Hook; Podcasts melden nur Episoden, die
+  neuer sind als die neueste bekannte, höchstens 50 je Abruf, gelesene Einträge verfallen nach 90 Tagen;
+  `null` im PATCH der Picks unabhängig von der Schreibweise; Suchwörter mit einem Zeichen neben längeren werden
+  ignoriert, höchstens acht; `maxRating`, Jahre und Genre werden geprüft (422); der Trakt-Client folgt keiner
+  Weiterleitung auf einen anderen Host; der Vertragstest duldet kein 501 mehr. Nits: der Filter «lokal» prüft die
+  Kinder über `visible_items` (bei einem Podcast war das beobachtbar), «alle gelesen» nur sichtbare Einträge,
+  Prüfungen in der Transaktion, eine Abfrage für Sammlungsmitglieder, Zählung und Seite in einer Lesetransaktion,
+  30-s-Grenze um die Hooks.
+- **Web (wichtig):** das Suchfeld folgt der URL (der Link «Suche» leert eine Suche); der Mitglieder-Dialog lässt erst
+  nach dem Laden der gespeicherten Mitglieder wählen (kein Verlust von Mitgliedern).
+- **Web (klein):** 404 gewinnt über gecachte Sammlungen; Umordnen der Picks serialisiert mit Rücksetzen bei Fehler;
+  Sammlungsänderungen invalidieren Detail, Sammlung und Suche; `?add=` liest den Titel über die Admin-Abfrage;
+  E2E-Resets schlagen laut fehl, der Trakt-Mock wird je Test zurückgesetzt, Reste des E-8-Tests werden vor dem Scan
+  entfernt, Umordnen per Maus und kombinierte Suchfilter getestet. Nits: Escape im leeren Suchfeld geht zurück,
+  gesprochene Beschriftungen aus den Locales, Randfälle der Such-URL, `aria-busy`, dauerhafte Statusbereiche, das
+  Kürzel `/` beachtet `defaultPrevented`, der Eingang folgt dem Zähler.
+- **Nicht umgesetzt (Server):** n9 (`setHomeRows` nimmt die Reihenfolge aus dem Array, das Feld `position` im Body
+  wird nicht gelesen), n10 (Durchsuchen ohne Medientyp liefert auch Folgen und Episoden), n11 (Sprache der Kommentare
+  in `deploy/.env.example`); Begründungen in `m7-fix-server-notes.md`.
+- **Nicht umgesetzt (Web):** K4 (links/rechts in den Jahresfeldern, «Jahr bis» per Pfeil schwer erreichbar), N2
+  (Zähler-Abfrage beim Start), N4, N11 (Sekunden und Sommerzeit bei `datetime-local`), N12 (404-Zustand ausserhalb
+  der räumlichen Navigation, wie auf der Detailseite), N14, N18; Begründungen in `m7-fix-web-notes.md`.
+
+### Abweichungen und Entscheide während M7
+
+- **Kein Platzhalter-Karussell mehr:** ohne Picks gibt es kein Karussell (E-9 «keine leeren Reihen»); das E2E-Setup
+  legt einen Basis-Pick an. Nach dem Update sieht Marco das Karussell erst, wenn er unter «Cat's Empfehlungen» Titel
+  wählt.
+- **Suche ohne Text:** der Vertrag erlaubt eine Suche nur mit Filtern (Genre-Link der Startseite); ohne Text und
+  ohne Filter antwortet der Server 422.
+- **Suche:** Titeltreffer kommen nur aus Titelzeilen; Personen und Sammlungen füllen eigene Abschnitte. Eine Suche
+  «Toy Story 3» sucht nach «Toy Story» (einstellige Wörter neben längeren entfallen). `maxRating` lässt unbekannte
+  Freigaben nie durch.
+- **Podcast-Regel:** «neue Episoden» gelten ab der neuesten Episode, die beim Favorisieren schon bekannt war (oder
+  der neuesten gestarteten); mit dem Zeitpunkt des Favorisierens allein hätte ein Feed mit alten Datumsangaben nie
+  etwas geladen.
+- **Detailseite:** «Merken», «Favorit» und «Zu Cat's Empfehlungen» stehen in einer zweiten Knopfreihe; die
+  Kopfnavigation scrollt bei vielen Einträgen seitwärts; der Eingang ist ein Text mit Zähler (kein Glockensymbol).
+- **E-8 im E2E:** die Spec kopiert eine Folge der «Intro Show» unter neuer Nummer in `testdata/media/TV` und
+  entfernt sie danach; Reste räumt das globale Setup vor dem Scan weg.
+- **Testmedien:** sieben Titel tragen `{tmdb-NNNN}` im Ordnernamen (Trakt-Mock); bestehende `testdata/media` müssen
+  mit `task testdata:media` neu erzeugt werden (die alten Ordner bleiben sonst liegen).
+- **`pickUpdateNulls`:** der generierte Code unterscheidet bei `updateTopPick` «null» nicht von «fehlt»; eine kleine
+  Middleware liest den Body vorher (Go-spezifisch nach 2.5: Grenze von oapi-codegen).
+
+### Nicht in M7 (Plan) und offene Punkte für M8
+
+1. Trakt: die Client ID steht in `deploy/.env` (Marco, 21. Oktober 2026), der echte Abruf ist geprüft
+   (`docs/perf/M7.md` 4); die Verschneidung mit der echten Bibliothek auf CT 190 nach dem neuen Image ansehen.
+   Einstellungsseite für Schlüssel: M8.
+2. Benachrichtigungskanäle (E-Mail, Web-Push, Telegram) hängen am `notify.Dispatcher` (M8); dort den Versand über
+   die Job-Queue entkoppeln.
+3. O-6-Langzeittest: Tag 3 (23.10.), Tag 8 (28.10.), Tag 30 (19.11.) auf dem Desktop; Android nach dem Merge.
+4. Android: Gerätecheckliste `docs/perf/M7.md` 5 und die offenen Punkte aus M5 und M6.
+5. **Startseite und Suche auf CT 190 messen** (`measure-m7-home-genres.sh`): mit dem Faktor 2.5 aus M3 lägen sie
+   über den Grenzen (rund 400 ms bzw. 260 ms p95); falls ja, Zwischenspeicher für «Genres» und «Sammlungen» und eine
+   begrenzte Trefferzählung. Filter «in Beschaffung» folgt in M9.
+6. Web-Nits aus dem Review (siehe oben); Weiter offen aus M6 und M5 unverändert.
 
 ## Meilenstein M6 – Hörbücher und Podcasts
 
 Vorab geklärt mit Marco (20. Oktober 2026, Entscheidungsprotokoll Frage 9, Teil AN-2): jede Hörbuch- und
 Podcast-Bibliothek trägt eine **Standard-Altersstufe**, einzelne Titel dürfen nur strenger gestellt werden, und
-Podcasts oder Episoden mit `itunes:explicit=true` gelten als **FSK 18**. Der Trakt-Teil (AN-3) bleibt für M7 offen.
+Podcasts oder Episoden mit `itunes:explicit=true` gelten als **FSK 18**. Der Trakt-Teil (AN-3) wurde vor M7 beantwortet.
 Echte Testdaten liegen schreibgeschützt auf dem NAS (`/mnt/nerdnas/medien/Audiobookshelf/Hörbücher`, 88 M4B in
 Audiobookshelf-Struktur, und `…/Podcast` mit den Feed-URLs von Marcos Abos); die CI nutzt nur einen lokalen Mock-Feed.
 Die Architekturentscheide stehen in ADR 0007 (`docs/adr/0007-audio-modell.md`): ein Hörbuch ist **ein** Titel mit
@@ -166,7 +291,7 @@ Commits mit Bereich im Titel:
 | O-3 Folge n beendet → n+1 lädt; Max.-Anzahl; «nur WLAN» | PASS Desktop, Android ausstehend: Regel per Tastatur, n+1 automatisch, Max.-Anzahl, fehlgeschlagene Auto-Downloads nach 6 h erneut; «nur WLAN» per Vitest (`navigator.connection`), auf Android-Chrome ausstehend (Marco); iOS nach AN-13 ausgeblendet, ungeprüft (Entscheid 2); Podcasts M6 | `web/e2e/auto-download.spec.ts`, `go test ./internal/offline -run 'TestAutoDownloads|TestAutoDownloadRetriesAfterAFailure'`, Vitest `sync.test.ts` (`waitsForWifi`) |
 | O-4 Wiedergabe im Flugmodus mit Untertitel und gewählter Tonspur | PASS Desktop, Android ausstehend: Chromium und Firefox mit Playwright `setOffline` (MSE, englische Tonspur im Manifest, zwei WebVTT-Spuren, deutsche Spur angezeigt, Spulen per Pfeiltaste). In Firefox erfasst `setOffline` die Anfragen des Service Workers nicht; das Server-Log zeigt im Offline-Fenster aber keine Anfrage an Datei, Manifest oder Untertitel. Ganz ohne Server läuft Firefox nur im Langzeittest (Wiedergabe und Sprung, ohne Untertitel und Tonspur). Apple ungeprüft | `web/e2e/offline-playback.spec.ts` |
 | O-5 10 min offline gesehen → zweites Gerät zeigt Position ±10 s; Konfliktfälle AN-10 | PASS: E2E ab 30 s Server-Position, 15 s Wiedergabe im Flugmodus, das zweite Gerät zeigt die neue Position ±10 s innert 10 s nach der Wiederverbindung (gemessen 258–263 ms in Chromium und Firefox, trennscharf gegen die Startposition); 10 min Offline-Wiedergabe mit simulierter Zeit durch Player, Warteschlange und Schauzeit (61 Ereignisse, ein Upload nach der Wiederverbindung); Uhrversatz, ältere und neuere Ereignisse, «fertig» bis zum neueren Ereignis unter 90 % in Go-Tests | `web/e2e/offline-playback.spec.ts`, Vitest `offlineFlow.test.tsx`, `go test ./internal/playback -run 'TestReportOffline'` |
-| O-6 kein Ablauffeld; Download nach 30 Tagen abspielbar | Schema-Test PASS; Langzeittest läuft (Desktop seit 20.10., Tag 0 bestanden; Android nach dem Merge), Abschluss M7 | `go test ./internal/offline -run TestDownloadsHaveNoExpiryColumn`, `docs/perf/M5-o6-langzeittest.md` |
+| O-6 kein Ablauffeld; Download nach 30 Tagen abspielbar | Schema-Test PASS; Langzeittest läuft (Desktop seit 20.10., Tag 0 und Tag 1 bestanden; Android nach dem Merge); Abschluss am 19. November 2026 ausstehend (Stand M7: «läuft, Abschluss ausstehend») | `go test ./internal/offline -run TestDownloadsHaveNoExpiryColumn`, `docs/perf/M5-o6-langzeittest.md` |
 | O-7 P6 sieht den FSK-18-Download von P18 nicht; Speicheranzeige = `estimate()` ±5 %; iOS-Hinweis | PASS: online und offline auf demselben Gerät mit einem Titel ohne Freigabe (für P6 gesperrt, AN-1), FSK 18 im Go-Test; Speicheranzeige ±5 %; Hinweis mit iPhone-User-Agent, WLAN-Option dort ausgeblendet | `web/e2e/offline-profiles.spec.ts`, `go test ./internal/offline -run 'TestSyncHidesTitlesOfOtherProfiles|TestAllowedProfilesAfterRatingChange'` |
 | C-1 PWA startet offline mit den geladenen Inhalten (< 3 s) | PASS: echter Kaltstart ohne Server im Langzeittest (dauerhaftes Profil, Tag 0) Chromium 1334 ms und 1357 ms, Firefox 1446 ms und 1427 ms; Neuladen im Playwright-Flugmodus bei laufendem Service Worker 76 ms (neue Tabs 88–141 ms, nur Chromium); Start mit stummem Server 2375 ms (Chromium) und 2404 ms (Firefox), diese Spec sperrt den Service Worker, die App-Hülle kommt vom Server; Playwright-Firefox kann den Flugmodus mit Service Worker nicht nachbilden (Kaltstart-Specs nur Chromium, Grund in `playwright.config.ts`) | `web/e2e/offline-cold-start.spec.ts`, `offline-start.spec.ts`, `docs/perf/M5.md` 5 |
 | K-4 offline: Verifier lehnt falsche PIN ab | PASS: Verifier der normalen PIN nach Online-Eingabe, separate Offline-PIN, Bremse nach drei Fehlversuchen, Profil ohne Verifier gesperrt | `web/e2e/offline-pin.spec.ts`, `go test ./internal/auth -run 'TestOfflinePIN|TestPinSaltFollowsPIN'` |

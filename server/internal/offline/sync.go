@@ -249,9 +249,9 @@ func (s *Service) offlineProfiles(ctx context.Context, account int64, profiles [
 // applyRules creates the auto-downloads of the enabled rules of the account's profiles on the
 // device (O-3, AN-13), while fewer than maxCount auto-downloads the profile has not finished are on
 // the device: with next episodes, per series the profile watched in the last 60 days the next
-// visible episode after the last watched one; with new podcast episodes (M6), per podcast the
-// profile listened to in the last 60 days its visible episodes published after the newest one the
-// profile started, newest first. Best effort: a failing rule is logged and the others still run.
+// visible episode after the last watched one; with new podcast episodes (M6, M7 E-8), per favourite
+// podcast of the profile its visible episodes published after the newest one Slouchcat knew when
+// the favourite was set and after the newest one the profile started, newest first. Best effort: a failing rule is logged and the others still run.
 func (s *Service) applyRules(ctx context.Context, account int64, device string, profiles []model.Profile, now time.Time) {
 	rules, err := s.read.ListActiveDeviceRules(ctx, systemq.ListActiveDeviceRulesParams{DeviceID: device, AccountID: account})
 	if err != nil {
@@ -307,12 +307,12 @@ func (s *Service) applyRule(ctx context.Context, account int64, device string, p
 		}
 	}
 	if r.NewPodcastEpisodes == 1 {
-		listened, err := s.read.ListRecentPodcastProgress(ctx, systemq.ListRecentPodcastProgressParams{ProfileID: p.ID, Since: ms(now.Add(-autoWindow))})
+		favorites, err := s.read.ListFavoritePodcasts(ctx, p.ID)
 		if err != nil {
-			return fmt.Errorf("list recent podcasts: %w", err)
+			return fmt.Errorf("list favourite podcasts: %w", err)
 		}
-		for _, l := range listened {
-			eps, err := s.vis.NextPodcastEpisodes(ctx, scope, l.PodcastID.String, time.UnixMilli(l.NewestStartedAt), int(r.MaxCount))
+		for _, f := range favorites {
+			eps, err := s.vis.NextPodcastEpisodes(ctx, scope, f.PodcastID, time.UnixMilli(f.Since), int(r.MaxCount))
 			if err != nil {
 				return err
 			}

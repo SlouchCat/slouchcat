@@ -76,6 +76,9 @@ export const alienDetail: ItemDetail = {
   overview: 'Die Besatzung der Nostromo empfängt ein Notsignal.',
   releaseDate: '1979-05-25',
   genres: ['Horror', 'Science-Fiction'],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [
     {
       id: 'mf-1',
@@ -357,6 +360,9 @@ const file = (id: string, label: string, height: number): ItemDetail['mediaFiles
 export const showDetail: ItemDetail = {
   ...showRef,
   genres: ['Drama'],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [],
   seasons,
   extras: [
@@ -379,6 +385,9 @@ export const showDetail: ItemDetail = {
 export const season1Detail: ItemDetail = {
   ...seasons[0]!,
   genres: [],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [],
   series: showRef,
   episodes: [episodes.e1, episodes.e2, episodes.e34],
@@ -387,6 +396,9 @@ export const season1Detail: ItemDetail = {
 export const specialsDetail: ItemDetail = {
   ...seasons[1]!,
   genres: [],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [],
   series: showRef,
   episodes: [episodes.s0e1],
@@ -396,6 +408,9 @@ export const episode2Detail: ItemDetail = {
   ...episodes.e2,
   overview: 'Die zweite Folge.',
   genres: [],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [file('mf-e2', '1080p', 1080)],
   series: showRef,
   season: seasons[0],
@@ -410,6 +425,9 @@ export const extraDetail: ItemDetail = {
   parentId: seriesIds.show,
   images: {},
   genres: [],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [file('mf-extra', '720p', 720)],
 };
 
@@ -481,6 +499,9 @@ export const audiobookDetail: ItemDetail = {
   ...audiobook,
   overview: 'Ein Testhoerbuch mit zwoelf Kapiteln aus Sinustoenen.',
   genres: ['Test'],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   narrator: 'Slouchcat Test Narrator',
   seriesName: 'Slouchcat Test Audio Series',
   seriesIndex: 1,
@@ -550,6 +571,9 @@ export const podcastDetail: ItemDetail = {
   ...podcast,
   overview: 'Ein Test-Podcast aus Sinustoenen.',
   genres: [],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [],
   episodes: [podcastEpisodes.ep3, podcastEpisodes.ep2],
   episodeCount: 3,
@@ -559,6 +583,9 @@ export const podcastEpisodeDetail: ItemDetail = {
   ...podcastEpisodes.ep2,
   overview: 'Zweite Episode, zehn Sekunden.',
   genres: [],
+  inWatchlist: false,
+  favorite: false,
+  collections: [],
   mediaFiles: [],
   podcast,
 };

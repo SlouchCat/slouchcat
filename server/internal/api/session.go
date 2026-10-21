@@ -371,6 +371,12 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "download_not_ready", "The server is still preparing the download.")
 	case errors.Is(err, model.ErrDownloadEvicted):
 		p.write(w, r, http.StatusGone, "download_evicted", "The server removed its prepared copy; the next sync prepares it again.")
+	case errors.Is(err, model.ErrNotListable):
+		p.write(w, r, http.StatusUnprocessableEntity, "not_listable", "Seasons and extras cannot be put on the watchlist.")
+	case errors.Is(err, model.ErrNotFavoritable):
+		p.write(w, r, http.StatusUnprocessableEntity, "not_favoritable", "Only series and podcasts can be favourites.")
+	case errors.Is(err, model.ErrNotEditable):
+		p.write(w, r, http.StatusUnprocessableEntity, "not_editable", "Collections from TMDB cannot be changed.")
 	case errors.Is(err, model.ErrNotImplemented):
 		p.write(w, r, http.StatusNotImplemented, "not_implemented", "Not implemented yet.")
 	case errors.Is(err, model.ErrFeedExists):

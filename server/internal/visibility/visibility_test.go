@@ -121,13 +121,13 @@ func TestReaderFiltersByProfile(t *testing.T) {
 	if want := []string{f.Rated(18).ID, f.Rated(6).ID}; !slices.Equal(ids(picks), want) {
 		t.Errorf("P18 picks = %v, want curated order %v", ids(picks), want)
 	}
-	// No top pick is visible for P0: the placeholder shows the newest titles with a backdrop.
+	// No top pick is visible for P0: the row stays empty (M7: no placeholder, E-9).
 	picks, err = r.Picks(ctx, p0, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{f.Rated(0).ID}; !slices.Equal(ids(picks), want) {
-		t.Errorf("P0 placeholder picks = %v, want %v", ids(picks), want)
+	if len(picks) != 0 {
+		t.Errorf("P0 picks = %v, want none", ids(picks))
 	}
 }
 
