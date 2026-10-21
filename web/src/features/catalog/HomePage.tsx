@@ -35,6 +35,11 @@ const rowTitleKey = {
   continue: 'home.rows.continue',
   recent: 'home.rows.recent',
   picks: 'home.picks',
+  watchlist: 'home.rows.watchlist',
+  collections: 'home.rows.collections',
+  genres: 'home.rows.genres',
+  trakt_trending: 'home.rows.traktTrending',
+  trakt_popular: 'home.rows.traktPopular',
 } as const;
 
 // Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.

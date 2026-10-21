@@ -26,7 +26,13 @@
     "devices": "Devices",
     "streams": "Streams",
     "downloads": "Downloads",
-    "podcasts": "Podcasts"
+    "podcasts": "Podcasts",
+    "search": "Search",
+    "watchlist": "Watchlist",
+    "notifications": "Notifications",
+    "picks": "Cat's picks",
+    "collections": "Collections",
+    "homeRows": "Home page"
   },
   "system": {
     "server": {
@@ -74,7 +80,10 @@
       "feed_unreachable": "The feed cannot be reached. Check the address and try again.",
       "feed_invalid": "There is no RSS podcast feed at this address.",
       "feed_exists": "This library already subscribes to the feed.",
-      "rating_below_library_default": "The age rating must not be below the library's default."
+      "rating_below_library_default": "The age rating must not be below the library's default.",
+      "not_listable": "Seasons and extras cannot be put on the watchlist.",
+      "not_favoritable": "Only series and podcasts can be favourites.",
+      "not_editable": "Collections from TMDB cannot be changed."
     },
     "field": {
       "required": "Required.",
@@ -149,7 +158,12 @@
     "picks": "Cat's picks",
     "rows": {
       "continue": "Continue watching",
-      "recent": "Recently added"
+      "recent": "Recently added",
+      "watchlist": "Watchlist",
+      "collections": "Collections",
+      "genres": "Genres",
+      "traktTrending": "Trending on Trakt",
+      "traktPopular": "Popular on Trakt"
     },
     "remaining": "{{time}} left",
     "empty": {

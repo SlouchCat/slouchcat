@@ -74,6 +74,7 @@ type Options struct {
 	Catalog  CatalogService
 	Playback PlaybackService
 	Offline  OfflineService // Downloads, sync and the download token (M5).
+	Notify   NotifyService  // In-app inbox (M7, E-8); nil answers 501 on the inbox operations.
 	SpikeDir string         // Directory with the spike download files; empty disables the endpoint.
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config

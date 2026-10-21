@@ -298,6 +298,33 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("segment 3: %v %x", rec.Header(), rec.Body.Bytes())
 			}
 		}},
+	// M7 discover (base stubs answer 501; stream A replaces the expectations of search, genres,
+	// collection, watchlist and favourites with the real statuses and checks, stream B2 those of
+	// the inbox).
+	"search": {contract: "POST /search", path: "/search", body: `{"query":"Fi"}`,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"listGenres": {contract: "GET /genres", path: "/genres",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"getCollection": {contract: "GET /collections/{id}", path: "/collections/" + unknownItemID,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"listWatchlist": {contract: "GET /watchlist", path: "/watchlist",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"addToWatchlist": {contract: "PUT /items/{id}/watchlist", path: "/items/{id}/watchlist", perItem: true,
+		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+	"removeFromWatchlist": {contract: "DELETE /items/{id}/watchlist", path: "/items/{id}/watchlist", perItem: true,
+		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+	"listFavorites": {contract: "GET /favorites", path: "/favorites",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"addFavorite": {contract: "PUT /items/{id}/favorite", path: "/items/{id}/favorite", perItem: true,
+		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+	"removeFavorite": {contract: "DELETE /items/{id}/favorite", path: "/items/{id}/favorite", perItem: true,
+		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+	"listNotifications": {contract: "GET /notifications", path: "/notifications",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"markNotificationRead": {contract: "PUT /notifications/{id}/read", path: "/notifications/1/read",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+	"markAllNotificationsRead": {contract: "POST /notifications/read-all", path: "/notifications/read-all",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
 	// M6: the paged episode list of a podcast. Every title of the loop is no podcast (404); the
 	// podcasts themselves are containers and checked in the subtest "audio".
 	"listPodcastEpisodes": {contract: "GET /items/{id}/episodes", path: "/items/{id}/episodes", perItem: true,
@@ -937,7 +964,7 @@ func TestContractChildProfiles(t *testing.T) {
 				method := strings.Fields(call.contract)[0]
 				if !call.perItem {
 					rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
-					if rec.Code >= 500 {
+					if rec.Code >= 500 && (call.want == nil || call.want(f, profile) != http.StatusNotImplemented) {
 						t.Errorf("%s: status %d (%s)", op, rec.Code, rec.Body.String())
 					}
 					if call.want != nil {

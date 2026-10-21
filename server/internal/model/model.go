@@ -34,6 +34,13 @@ var (
 	ErrEnclosureUnavailable = errors.New("enclosure unavailable")        // 502 enclosure_unavailable
 )
 
+// Discover and curation errors (M7).
+var (
+	ErrNotListable    = errors.New("not listable")    // 422 not_listable (seasons and extras on the watchlist)
+	ErrNotFavoritable = errors.New("not favoritable") // 422 not_favoritable (favourites: series and podcasts only)
+	ErrNotEditable    = errors.New("not editable")    // 422 not_editable (TMDB collections)
+)
+
 // Profile and access errors (M2).
 var (
 	ErrPinRequired            = errors.New("pin required")             // 403 pin_required
@@ -449,6 +456,9 @@ type ItemSummary struct {
 	PublishedAt *time.Time
 	DurationMs  *int64
 	Explicit    bool
+
+	// Note is the main user's note on a pick (M7, E-2); only set in the row picks.
+	Note string
 }
 
 // CastMember is one credit of a title (B-3).
@@ -581,11 +591,15 @@ type ItemDetail struct {
 	OriginalTitle string
 	Tagline       string
 	Overview      string
-	ReleaseDate   string // YYYY-MM-DD or empty
-	Genres        []string
-	TMDBID        *int64
-	TVDBID        *int64
-	MediaFiles    []MediaFile // versions, primary first; VersionLabel always set
+	// Discover (M7): on the watchlist / a favourite of the profile; the visible collections.
+	InWatchlist bool
+	Favorite    bool
+	Collections []CollectionRef
+	ReleaseDate string // YYYY-MM-DD or empty
+	Genres      []string
+	TMDBID      *int64
+	TVDBID      *int64
+	MediaFiles  []MediaFile // versions, primary first; VersionLabel always set
 
 	Series       *ItemSummary  // of a season or an episode
 	Season       *ItemSummary  // of an episode
@@ -606,10 +620,176 @@ type ItemDetail struct {
 	Podcast      *ItemSummary
 }
 
-// HomeRow is one row of the start page.
+// HomeRow is one row of the start page (M7: key order from home_rows). Collections and Genres
+// are set only on the rows collections and genres, whose Items stay empty.
 type HomeRow struct {
-	Key   string // picks, continue, recent
-	Items []ItemSummary
+	Key         string // picks, continue, recent, watchlist, collections, genres, trakt_trending, trakt_popular
+	Items       []ItemSummary
+	Collections []CollectionRef
+	Genres      []GenreRef
+}
+
+// Home row keys (model.HomeRow.Key, table home_rows), in the default order of E-1.
+const (
+	RowPicks         = "picks"
+	RowContinue      = "continue"
+	RowRecent        = "recent"
+	RowWatchlist     = "watchlist"
+	RowCollections   = "collections"
+	RowGenres        = "genres"
+	RowTraktTrending = "trakt_trending"
+	RowTraktPopular  = "trakt_popular"
+)
+
+// HomeRowKeys lists every row key in the default order.
+var HomeRowKeys = []string{RowPicks, RowContinue, RowRecent, RowWatchlist, RowCollections, RowGenres, RowTraktTrending, RowTraktPopular}
+
+// Discover (M7). ---------------------------------------------------------------------------
+
+// HomeRowSetting is the stored order and visibility of one start page row (E-9).
+type HomeRowSetting struct {
+	Key      string
+	Position int
+	Hidden   bool
+}
+
+// SearchQuery is a search of the active profile (E-4). MaxRating -1 means no rating filter;
+// DeviceID is the session's device for the availability filter download.
+type SearchQuery struct {
+	Text         string
+	Genre        string
+	YearFrom     int
+	YearTo       int
+	MaxRating    int
+	MediaTypes   []string // movie, series, audiobook, podcast
+	Availability []string // local, download
+	DeviceID     string
+	Offset       int
+	Limit        int
+}
+
+// SearchResult is the answer of search: titles paged, people and collections the first ten.
+type SearchResult struct {
+	Items       []ItemSummary
+	Total       int
+	People      []PersonRef
+	Collections []CollectionRef
+}
+
+// PersonRef is a person in search results.
+type PersonRef struct {
+	ID   int64
+	Name string
+}
+
+// GenreRef is a genre with the number of visible titles.
+type GenreRef struct {
+	Name  string
+	Count int
+}
+
+// CollectionRef is a collection in rows, search results and on the detail page; Count counts
+// visible members and Cover is the first visible member (nil when none).
+type CollectionRef struct {
+	ID    string
+	Name  string
+	Count int
+	Cover *ItemSummary
+}
+
+// Collection is a collection with one page of its visible members.
+type Collection struct {
+	ID       string
+	Name     string
+	Overview string
+	Items    []ItemSummary
+	Total    int
+}
+
+// Notification is one entry of a profile's in-app inbox (E-8).
+type Notification struct {
+	ID        int64
+	ProfileID int64
+	Kind      string // new_episode
+	CreatedAt time.Time
+	ReadAt    *time.Time
+	Item      ItemSummary  // the new episode
+	Parent    *ItemSummary // the favourite series or podcast, nil when not visible
+}
+
+// AdminPick is one of Cat's recommendations in the administration (E-2).
+type AdminPick struct {
+	ID          int64
+	ItemID      string
+	Kind        string
+	Title       string
+	Year        *int
+	ProfileID   *int64 // nil = all profiles
+	ProfileName string
+	Position    int
+	Note        string
+	StartsAt    *time.Time
+	EndsAt      *time.Time
+	CreatedAt   time.Time
+}
+
+// PickRequest creates picks: one global pick, or one per profile in ProfileIDs.
+type PickRequest struct {
+	ItemID     string
+	ProfileIDs []int64
+	Note       string
+	StartsAt   *time.Time
+	EndsAt     *time.Time
+}
+
+// PickUpdate changes note and time window; a nil field keeps its value, a Clear* flag clears it.
+type PickUpdate struct {
+	Note          *string
+	ClearNote     bool
+	StartsAt      *time.Time
+	ClearStartsAt bool
+	EndsAt        *time.Time
+	ClearEndsAt   bool
+}
+
+// AdminItemHit is a title found by the admin search (never an ItemRef).
+type AdminItemHit struct {
+	ID          string
+	Kind        string
+	Title       string
+	Year        *int
+	LibraryID   int64
+	ParentTitle string
+}
+
+// AdminCollection is a collection in the administration, unfiltered (E-6).
+type AdminCollection struct {
+	ID        string
+	Source    string // tmdb, manual
+	Name      string
+	NameDe    string
+	TMDBID    *int64
+	ItemCount int
+	Items     []AdminCollectionItem
+}
+
+// AdminCollectionItem is one member of a collection in the administration.
+type AdminCollectionItem struct {
+	ItemID   string
+	Kind     string
+	Title    string
+	Year     *int
+	Position int
+}
+
+// TraktStatus is the state of the daily Trakt lists (E-7, I-7).
+type TraktStatus struct {
+	Configured  bool
+	LastSuccess *time.Time
+	LastAttempt *time.Time
+	LastError   string
+	Trending    int
+	Popular     int
 }
 
 // PlaybackInfo is the answer of startPlayback.

@@ -188,6 +188,27 @@ var adminRegistry = map[string]adminCall{
 	"createPodcast":  {contract: "POST /admin/podcasts", path: "/admin/podcasts", body: `{"libraryId":777,"feedUrl":"http://127.0.0.1:9/feed.xml"}`, ownerStatus: http.StatusUnprocessableEntity},
 	"deletePodcast":  {contract: "DELETE /admin/podcasts/{id}", path: "/admin/podcasts/" + unknownItemID, ownerStatus: http.StatusNotFound},
 	"refreshPodcast": {contract: "POST /admin/podcasts/{id}/refresh", path: "/admin/podcasts/" + unknownItemID + "/refresh", ownerStatus: http.StatusNotFound},
+	// M7 curation (base stubs answer 501; stream B1 replaces the expectations with the real
+	// statuses, stream B2 those of the Trakt operations).
+	"listTopPicks":       {contract: "GET /admin/picks", path: "/admin/picks", ownerStatus: http.StatusNotImplemented},
+	"createTopPicks":     {contract: "POST /admin/picks", path: "/admin/picks", body: `{"itemId":"` + unknownItemID + `"}`, ownerStatus: http.StatusNotImplemented},
+	"reorderTopPicks":    {contract: "PUT /admin/picks/order", path: "/admin/picks/order", body: `{"ids":[]}`, ownerStatus: http.StatusNotImplemented},
+	"updateTopPick":      {contract: "PATCH /admin/picks/{id}", path: "/admin/picks/9999", body: `{"note":"x"}`, ownerStatus: http.StatusNotImplemented},
+	"deleteTopPick":      {contract: "DELETE /admin/picks/{id}", path: "/admin/picks/9999", ownerStatus: http.StatusNotImplemented},
+	"searchAdminItems":   {contract: "GET /admin/items/search", path: "/admin/items/search?q=Fi", ownerStatus: http.StatusNotImplemented},
+	"listCollections":    {contract: "GET /admin/collections", path: "/admin/collections", ownerStatus: http.StatusNotImplemented},
+	"createCollection":   {contract: "POST /admin/collections", path: "/admin/collections", body: `{"name":"Registry"}`, ownerStatus: http.StatusNotImplemented},
+	"getAdminCollection": {contract: "GET /admin/collections/{id}", path: "/admin/collections/" + unknownItemID, ownerStatus: http.StatusNotImplemented},
+	"updateCollection":   {contract: "PATCH /admin/collections/{id}", path: "/admin/collections/" + unknownItemID, body: `{"name":"Neu"}`, ownerStatus: http.StatusNotImplemented},
+	"deleteCollection":   {contract: "DELETE /admin/collections/{id}", path: "/admin/collections/" + unknownItemID, ownerStatus: http.StatusNotImplemented},
+	"setCollectionItems": {contract: "PUT /admin/collections/{id}/items", path: "/admin/collections/" + unknownItemID + "/items", body: `{"itemIds":[]}`, ownerStatus: http.StatusNotImplemented},
+	"getHomeRows":        {contract: "GET /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusNotImplemented},
+	"setHomeRows": {contract: "PUT /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusNotImplemented,
+		body: `[{"key":"picks","position":0,"hidden":false},{"key":"continue","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},` +
+			`{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},` +
+			`{"key":"trakt_trending","position":6,"hidden":false},{"key":"trakt_popular","position":7,"hidden":false}]`},
+	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusNotImplemented},
+	"refreshTrakt":   {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusNotImplemented},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

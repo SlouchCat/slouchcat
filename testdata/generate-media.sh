@@ -91,14 +91,14 @@ fi
 surround=(-af "pan=5.1(side)|FL=c0|FR=c0|FC=c0|LFE=c0|SL=c0|SR=c0")
 
 # (d) H.264 + AC3 5.1 MKV.
-f="$(movie_path "Slouchcat Test AC3 51 (2024)" mkv)"
+f="$(movie_path "Slouchcat Test AC3 51 (2024) {tmdb-7001}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" "${x264[@]}" "${surround[@]}" \
     -c:a ac3 -b:a 384k -metadata title="Slouchcat Test AC3 51" "$f"
 fi
 
 # (e) H.264 + DTS 5.1 MKV (ffmpeg's dca encoder is experimental: -strict -2).
-f="$(movie_path "Slouchcat Test DTS (2024)" mkv)"
+f="$(movie_path "Slouchcat Test DTS (2024) {tmdb-7002}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" "${x264[@]}" "${surround[@]}" \
     -c:a dca -strict -2 -b:a 768k -metadata title="Slouchcat Test DTS" "$f"
@@ -477,7 +477,7 @@ done
 # M5 offline (O-2 season download): six short episodes, 1280x720 H.264/AAC MP4 of 8 s each, a
 # tone of its own per episode; episode 1 has a German SRT next to it (a WebVTT sidecar of the
 # download). The web e2e specs use these names.
-download_show="Slouchcat Test Download Show (2024)"
+download_show="Slouchcat Test Download Show (2024) {tmdb-7101}"
 write_srt "$subs_dir/download-de.srt" "Erster Untertitel der Download-Serie" \
   "Zweiter Untertitel mit Umlauten: äöü" "Dritter Untertitel"
 for ep in 1 2 3 4 5 6; do

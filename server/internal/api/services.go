@@ -145,6 +145,32 @@ type AdminService interface {
 	DeletePodcast(ctx context.Context, id string) error
 	// RefreshPodcast queues the fetch of a subscription now (model.ErrNotFound).
 	RefreshPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
+
+	// Curation (M7). Picks (E-2): one global pick or one per profile of the main account;
+	// *model.ValidationError for unknown items, seasons, extras, foreign profiles or a window that
+	// ends before it starts; model.ErrNotFound for an unknown pick id.
+	ListTopPicks(ctx context.Context) ([]model.AdminPick, error)
+	CreateTopPicks(ctx context.Context, req model.PickRequest) ([]model.AdminPick, error)
+	UpdateTopPick(ctx context.Context, id int64, upd model.PickUpdate) (model.AdminPick, error)
+	DeleteTopPick(ctx context.Context, id int64) error
+	// ReorderTopPicks stores the order; every existing pick exactly once (*model.ValidationError).
+	ReorderTopPicks(ctx context.Context, ids []int64) error
+	// SearchItems finds titles by name without any profile filter (admin dialogs).
+	SearchItems(ctx context.Context, query string, limit int) ([]model.AdminItemHit, error)
+	// Collections (E-6): TMDB collections are read-only (model.ErrNotEditable).
+	ListCollections(ctx context.Context) ([]model.AdminCollection, error)
+	GetCollection(ctx context.Context, id string) (model.AdminCollection, error)
+	CreateCollection(ctx context.Context, name string) (model.AdminCollection, error)
+	UpdateCollection(ctx context.Context, id, name string) (model.AdminCollection, error)
+	DeleteCollection(ctx context.Context, id string) error
+	SetCollectionItems(ctx context.Context, id string, itemIDs []string) (model.AdminCollection, error)
+	// Start page rows (E-9): all eight keys exactly once (*model.ValidationError).
+	HomeRows(ctx context.Context) ([]model.HomeRowSetting, error)
+	SetHomeRows(ctx context.Context, rows []model.HomeRowSetting) ([]model.HomeRowSetting, error)
+	// Trakt (E-7, I-7): the state of the daily lists and a refresh out of schedule
+	// (model.ErrProviderNotConfigured without a client id).
+	TraktStatus(ctx context.Context) (model.TraktStatus, error)
+	RefreshTrakt(ctx context.Context) error
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer
@@ -164,6 +190,31 @@ type CatalogService interface {
 	// PodcastEpisodes returns one page of the visible episodes of a visible podcast, newest first,
 	// and their total (M6); model.ErrNotFound for an invisible title or one that is no podcast.
 	PodcastEpisodes(ctx context.Context, profile model.Profile, podcastID string, offset, limit int) ([]model.ItemSummary, int, error)
+
+	// Discover (M7). Search over the FTS index through the visibility layer (E-4); genres of the
+	// visible titles; a collection with one page of its visible members (model.ErrNotFound without
+	// a visible member); the watchlist (E-5) and the favourites (E-8) of the profile. Add/Remove
+	// answer model.ErrNotFound for an invisible title, model.ErrNotListable for seasons and extras,
+	// model.ErrNotFavoritable for anything but series and podcasts.
+	Search(ctx context.Context, profile model.Profile, q model.SearchQuery) (model.SearchResult, error)
+	Genres(ctx context.Context, profile model.Profile) ([]model.GenreRef, error)
+	Collection(ctx context.Context, profile model.Profile, id string, offset, limit int) (model.Collection, error)
+	Watchlist(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
+	AddToWatchlist(ctx context.Context, profile model.Profile, itemID string) error
+	RemoveFromWatchlist(ctx context.Context, profile model.Profile, itemID string) error
+	Favorites(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
+	AddFavorite(ctx context.Context, profile model.Profile, itemID string) error
+	RemoveFavorite(ctx context.Context, profile model.Profile, itemID string) error
+}
+
+// NotifyService is the in-app inbox of a profile (package notify, M7 E-8, plan 5.5). Entries whose
+// episode the profile may no longer see are omitted.
+type NotifyService interface {
+	// Notifications returns one page, newest first, with the total and the unread count.
+	Notifications(ctx context.Context, profile model.Profile, offset, limit int) (list []model.Notification, total, unread int, err error)
+	// MarkRead marks one entry of the profile (model.ErrNotFound for another profile's entry).
+	MarkRead(ctx context.Context, profile model.Profile, id int64) error
+	MarkAllRead(ctx context.Context, profile model.Profile) error
 }
 
 // PlaybackService decides playback, issues and checks stream tokens and records progress

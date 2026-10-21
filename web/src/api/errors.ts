@@ -33,6 +33,9 @@ const problemKeys = {
   feed_invalid: 'errors.code.feed_invalid',
   feed_exists: 'errors.code.feed_exists',
   rating_below_library_default: 'errors.code.rating_below_library_default',
+  not_listable: 'errors.code.not_listable',
+  not_favoritable: 'errors.code.not_favoritable',
+  not_editable: 'errors.code.not_editable',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

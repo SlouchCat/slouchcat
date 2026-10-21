@@ -26,7 +26,13 @@
     "devices": "Geräte",
     "streams": "Streams",
     "downloads": "Downloads",
-    "podcasts": "Podcasts"
+    "podcasts": "Podcasts",
+    "search": "Suche",
+    "watchlist": "Merkliste",
+    "notifications": "Benachrichtigungen",
+    "picks": "Cat's Empfehlungen",
+    "collections": "Sammlungen",
+    "homeRows": "Startseite"
   },
   "system": {
     "server": {
@@ -74,7 +80,10 @@
       "feed_unreachable": "Der Feed ist nicht erreichbar. Prüfe die Adresse und versuche es erneut.",
       "feed_invalid": "Unter dieser Adresse liegt kein RSS-Podcast-Feed.",
       "feed_exists": "Diese Bibliothek hat den Feed bereits abonniert.",
-      "rating_below_library_default": "Die Altersstufe darf nicht unter dem Standard der Bibliothek liegen."
+      "rating_below_library_default": "Die Altersstufe darf nicht unter dem Standard der Bibliothek liegen.",
+      "not_listable": "Staffeln und Extras kann man nicht merken.",
+      "not_favoritable": "Nur Serien und Podcasts können Favoriten sein.",
+      "not_editable": "Sammlungen von TMDB lassen sich nicht ändern."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -149,7 +158,12 @@
     "picks": "Cat's Empfehlungen",
     "rows": {
       "continue": "Weiterschauen",
-      "recent": "Neu hinzugefügt"
+      "recent": "Neu hinzugefügt",
+      "watchlist": "Merkliste",
+      "collections": "Sammlungen",
+      "genres": "Genres",
+      "traktTrending": "Trending bei Trakt",
+      "traktPopular": "Beliebt bei Trakt"
     },
     "remaining": "Noch {{time}}",
     "empty": {
