@@ -65,7 +65,7 @@ if want "$f"; then
 fi
 
 # (b) HEVC 10-bit SDR MKV 1080p.
-f="$(movie_path "Slouchcat Test HEVC 10bit (2024)" mkv)"
+f="$(movie_path "Slouchcat Test HEVC 10bit (2024) {tmdb-7003}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" \
     -c:v libx265 -preset ultrafast -crf 32 -g 48 -pix_fmt yuv420p10le \
@@ -201,7 +201,7 @@ END=10000
 title=Kapitel 3: Ende
 META
 
-f="$(movie_path "Slouchcat Test Chapters (2024)" mkv)"
+f="$(movie_path "Slouchcat Test Chapters (2024) {tmdb-7004}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v10[@]}" "${a10[@]}" -i "$subs_dir/chapters.ffmeta" \
     -map 0:v -map 1:a -map_metadata 2 -map_chapters 2 "${x264[@]}" "${aac[@]}" "$f"
@@ -222,7 +222,7 @@ if want "$f"; then
     "${aac[@]}" -metadata title="Slouchcat Test HEVC Long" "$f"
 fi
 
-f="$(movie_path "Slouchcat Test H264 MKV Long (2024)" mkv)"
+f="$(movie_path "Slouchcat Test H264 MKV Long (2024) {tmdb-7005}" mkv)"
 if want "$f"; then
   "${ff[@]}" "${v90[@]}" "${a90[@]}" \
     -c:v libx264 -preset veryfast -crf 30 -pix_fmt yuv420p \
@@ -419,7 +419,7 @@ own_tones() {
   "${ff[@]}" "${in[@]}" -filter_complex "${labels}concat=n=$n:v=0:a=1" "$out"
 }
 
-intro_show="Slouchcat Test Intro Show (2024)"
+intro_show="Slouchcat Test Intro Show (2024) {tmdb-7102}"
 intro_starts=(5 12 8 15 10) # seconds of own tones before the intro, per episode
 intro_wav="$subs_dir/intro.wav"
 outro_wav="$subs_dir/outro.wav"
