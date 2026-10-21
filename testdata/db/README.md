@@ -69,3 +69,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Episode 1 in `low` (Quelle `source_url`, kein `media_file_id`), beide vorbereitet; Fortschritt im dritten Kapitel
   des Buchs mit Geschwindigkeit 1.5 (`playback_rate`); eine Auto-Download-Regel mit `new_podcast_episodes`.
   `TestFrozenM6StateCoversM6Data` prüft, dass jede dieser Datenarten nach der Migration vorhanden ist.
+- `M7.sql`: Stand nach M7 (Entdecken und Kuratierung; Migration 00015). Erzeugt mit `server/bin/slouchcat dump` nach
+  einem Lauf gegen einen frischen Server (Skript in den Sitzungsnotizen `freeze-m7.sh`): Bibliotheken, Profil «Kind»,
+  Downloads und Regel wie M6; dazu ein globaler Pick mit Notiz und ein Pick nur für «Kind» mit Zeitraum, eine
+  manuelle Sammlung «Slouchcat Testreihe» mit zwei Mitgliedern, ein Merklisten-Eintrag, Favoriten auf der Testserie
+  und dem Test-Podcast, eine geänderte Reihenfolge der Startseite (Reihe «Genres» ausgeblendet), die Trakt-Listen
+  eines Laufs gegen einen lokalen Mock (Trending und Beliebt, fünf Filme und zwei Serien mit den `{tmdb-NNNN}`-IDs der
+  Testmedien) und eine Benachrichtigung für eine vierte, nach dem Favorisieren erschienene Episode. Der Suchindex
+  (`search_index`) und die Genres (`item_genres`) stammen aus den Triggern der Migration.
+  `TestFrozenM7StateCoversM7Data` prüft, dass jede dieser Datenarten nach der Migration vorhanden ist.
