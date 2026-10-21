@@ -109,9 +109,13 @@ func (s *Service) pushSubscriptions(ctx context.Context, session model.Session) 
 
 // CreatePushSubscription stores the push subscription of a browser for the session's account,
 // one per endpoint (the same endpoint again takes the new keys, device and account).
-// model.ErrPushUnavailable without Config; *model.ValidationError for an endpoint that is not an
-// https URL (http too in development) or keys that are no P-256 point and 16-byte secret.
+// model.ErrPrimaryProfileRequired (requireManager); model.ErrPushUnavailable without Config;
+// *model.ValidationError for an endpoint that is not an https URL (http too in development) or
+// keys that are no P-256 point and 16-byte secret.
 func (s *Service) CreatePushSubscription(ctx context.Context, session model.Session, in model.PushSubscriptionInput) (model.PushSubscription, error) {
+	if err := requireManager(session); err != nil {
+		return model.PushSubscription{}, err
+	}
 	if s.cfg == nil {
 		return model.PushSubscription{}, model.ErrPushUnavailable
 	}
@@ -151,8 +155,11 @@ func (s *Service) CreatePushSubscription(ctx context.Context, session model.Sess
 }
 
 // DeletePushSubscription removes a subscription of the session's account (model.ErrNotFound for an
-// unknown one or one of another account).
+// unknown one or one of another account; model.ErrPrimaryProfileRequired, see requireManager).
 func (s *Service) DeletePushSubscription(ctx context.Context, session model.Session, id int64) error {
+	if err := requireManager(session); err != nil {
+		return err
+	}
 	n, err := s.write.PushSubscriptionDelete(ctx, systemq.PushSubscriptionDeleteParams{ID: id, AccountID: session.Account.ID})
 	if err != nil {
 		return fmt.Errorf("delete push subscription: %w", err)

@@ -2101,7 +2101,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Cancel a queued or running job (A-3) */
+        /**
+         * Cancel a queued or running job, or dismiss a failed one (A-3)
+         * @description The job ends `cancelled`; a failed job leaves the list of failed jobs.
+         */
         delete: operations["cancelJob"];
         options?: never;
         head?: never;
@@ -2148,7 +2151,8 @@ export interface paths {
         put?: never;
         /**
          * Send a test mail through the configured e-mail server (A-2, A-6)
-         * @description Sends to `to`, or to the main account's address when absent.
+         * @description Sends to `to`, or to the main account's address when absent. Counts against the client's
+         *     attempt limit (as a login).
          */
         post: operations["sendTestEmail"];
         delete?: never;
@@ -2197,7 +2201,9 @@ export interface paths {
          * @description Writes a tar.gz archive with a manifest and a consistent copy of the database (never a media
          *     file) to the backup directory. Without `includeSecrets` the copy carries no encrypted setting,
          *     push subscription, Telegram link code or session. With `includeSecrets` the archive also holds
-         *     the key file and is encrypted with `passphrase` (age, scrypt).
+         *     the key file and is encrypted with `passphrase` (age, scrypt). Private podcast feed URLs stay
+         *     in every archive with the credentials they carry (a token in the path or query), so a restore
+         *     keeps the subscriptions; the manifest says so (`includesFeedCredentials: true`).
          */
         post: operations["createBackup"];
         delete?: never;
@@ -2479,7 +2485,8 @@ export interface paths {
          * Notification channels of the signed-in account (A-6, E-8, plan 5.5)
          * @description E-mail, Web Push and Telegram with the chosen events. The in-app inbox is always on and no
          *     channel here. `available` tells whether the server has the channel configured. Works without an
-         *     active profile (`account`).
+         *     active profile (`account`). Every profile may read the channels; only a session without an
+         *     active profile or with the account's primary profile may change them (ADR 0005).
          */
         get: operations["getMyChannels"];
         put?: never;
@@ -2500,7 +2507,10 @@ export interface paths {
         get?: never;
         /**
          * Switch a channel and choose its events
-         * @description The event `errors` is for the main account only.
+         * @description The event `errors` is for the main account only. An e-mail address equal to the account's
+         *     e-mail is stored as "the account's e-mail", so the channel follows a later change of it.
+         *     Only a session without an active profile or with the account's primary profile may change
+         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
          */
         put: operations["updateMyChannel"];
         post?: never;
@@ -2519,7 +2529,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send a test message on a channel */
+        /**
+         * Send a test message on a channel
+         * @description Counts against the client's attempt limit (as a login). Only a session without an active
+         *     profile or with the account's primary profile may change or test the channels
+         *     (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+         */
         post: operations["testMyChannel"];
         delete?: never;
         options?: never;
@@ -2541,11 +2556,15 @@ export interface paths {
          * @description Returns a new link code (six characters, valid for 15 minutes; an older code of the account
          *     stops working). The user sends `/start <code>` to the bot; the server links the chat when the
          *     bot receives it. Replaces an existing link only once the new one is confirmed.
+         *     Only a session without an active profile or with the account's primary profile may change
+         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
          */
         post: operations["createTelegramLink"];
         /**
          * Unlink the Telegram chat
          * @description Idempotent; also drops an open link code. The channel is switched off.
+         *     Only a session without an active profile or with the account's primary profile may change
+         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
          */
         delete: operations["deleteTelegramLink"];
         options?: never;
@@ -2586,6 +2605,8 @@ export interface paths {
          * Register the push subscription of this browser
          * @description Idempotent per endpoint: the same endpoint again updates its keys and device name. The endpoint
          *     and its keys are capability secrets; they are never returned and never logged.
+         *     Only a session without an active profile or with the account's primary profile may change
+         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
          */
         post: operations["createPushSubscription"];
         delete?: never;
@@ -2604,7 +2625,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove a push subscription of the account */
+        /**
+         * Remove a push subscription of the account
+         * @description Only a session without an active profile or with the account's primary profile may change
+         *     the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
+         */
         delete: operations["deletePushSubscription"];
         options?: never;
         head?: never;
@@ -9390,7 +9415,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description Unknown job or a job that already ended (`not_found`). */
+            /** @description Unknown job, or a job that is done or cancelled already (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -9487,6 +9512,16 @@ export interface operations {
             /** @description No e-mail server configured (`email_not_configured`) or `validation_failed` (`to` `invalid_email`). */
             422: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -10124,15 +10159,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            403: components["responses"]["PrimaryProfileRequired"];
             /** @description Unknown channel (`not_found`). */
             404: {
                 headers: {
@@ -10176,15 +10203,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            403: components["responses"]["PrimaryProfileRequired"];
             /** @description Unknown channel (`not_found`). */
             404: {
                 headers: {
@@ -10206,7 +10225,20 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description The channel's service refused or did not answer (`send_failed`; `detail` without secrets). */
+            /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The channel's service refused or did not answer (`send_failed`). The `detail` is generic; the
+             *     server log names the cause (it may name the mail server).
+             */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -10236,15 +10268,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            403: components["responses"]["PrimaryProfileRequired"];
             /** @description No Telegram bot configured (`channel_unavailable`). */
             422: {
                 headers: {
@@ -10273,15 +10297,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            403: components["responses"]["PrimaryProfileRequired"];
         };
     };
     getPushPublicKey: {
@@ -10337,15 +10353,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            403: components["responses"]["PrimaryProfileRequired"];
             /** @description Web Push is not set up on the server (`push_unavailable`). */
             404: {
                 headers: {
@@ -10385,15 +10393,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
-            /** @description CSRF header missing (`csrf_header_missing`). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
+            403: components["responses"]["PrimaryProfileRequired"];
             /** @description Unknown or of another account (`not_found`). */
             404: {
                 headers: {

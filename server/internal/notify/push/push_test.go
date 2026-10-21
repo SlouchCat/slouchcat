@@ -25,6 +25,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 )
 
 // browser is the receiving side of a subscription: its ECDH key pair and auth secret.
@@ -291,9 +293,8 @@ func TestSendGuard(t *testing.T) {
 	}))
 	defer srv.Close()
 	s := Sender{VAPID: newVAPID(t)}
-	if err := s.Send(context.Background(), b.subscription(srv.URL+"/push/x"), []byte("x"), time.Hour); err == nil ||
-		!strings.Contains(err.Error(), "not allowed") {
-		t.Errorf("loopback https endpoint: %v", err)
+	if err := s.Send(context.Background(), b.subscription(srv.URL+"/push/x"), []byte("x"), time.Hour); !errors.Is(err, netguard.ErrRefused) {
+		t.Errorf("loopback https endpoint: %v, want netguard.ErrRefused", err)
 	}
 	if err := s.Send(context.Background(), b.subscription("http://push.example.ch/x"), []byte("x"), time.Hour); err == nil ||
 		!strings.Contains(err.Error(), "https") {

@@ -7,11 +7,14 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/oklog/ulid/v2"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/library"
@@ -452,15 +455,51 @@ func TestSweepStopsEndedOutputAndDeletesOldRows(t *testing.T) {
 	if _, running := tc.Get(info.PlaybackSessionID); running {
 		t.Error("output of an expired session still runs after the sweep")
 	}
-	// A day later the row is gone.
-	now = now.Add(2 * 24 * time.Hour)
-	s.sweep(ctx)
-	var n int
-	if err := f.DB.Read.QueryRowContext(ctx, `SELECT count(*) FROM playback_sessions WHERE id = ?`, info.PlaybackSessionID).Scan(&n); err != nil {
-		t.Fatal(err)
+	// The ended row stays for the statistics (A-8): 30 days later it is still there, after the
+	// retention of 400 days it is gone.
+	rows := func() int {
+		t.Helper()
+		var n int
+		if err := f.DB.Read.QueryRowContext(ctx, `SELECT count(*) FROM playback_sessions WHERE id = ?`, info.PlaybackSessionID).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
 	}
-	if n != 0 {
-		t.Error("expired row not deleted")
+	now = now.Add(30 * 24 * time.Hour)
+	s.sweep(ctx)
+	if rows() != 1 {
+		t.Error("a row ended 30 days ago was deleted")
+	}
+	now = now.Add(371 * 24 * time.Hour)
+	s.sweep(ctx)
+	if rows() != 0 {
+		t.Error("a row ended 401 days ago was not deleted")
+	}
+}
+
+// Subtitle directories go by their age (48 h), not by their playback session rows, which stay for
+// the statistics.
+func TestSweepSubtitlesByAge(t *testing.T) {
+	f := vistest.New(t)
+	cache := t.TempDir()
+	s := New(f.DB, vistest.Logger(), WithCacheDir(cache))
+	now := time.Now()
+	old, fresh := ulid.Make().String(), ulid.Make().String()
+	for id, age := range map[string]time.Duration{old: 49 * time.Hour, fresh: 47 * time.Hour} {
+		dir := filepath.Join(cache, "subtitles", id)
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(dir, now.Add(-age), now.Add(-age)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.sweepSubtitles(now)
+	if _, err := os.Stat(filepath.Join(cache, "subtitles", old)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("49-hour-old directory: %v, want removed", err)
+	}
+	if _, err := os.Stat(filepath.Join(cache, "subtitles", fresh)); err != nil {
+		t.Errorf("47-hour-old directory: %v, want kept", err)
 	}
 }
 

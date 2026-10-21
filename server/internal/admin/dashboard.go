@@ -217,7 +217,8 @@ func (s *Service) RetryJob(ctx context.Context, id int64) (model.JobSummary, err
 	return jobSummary(j), nil
 }
 
-// CancelJob cancels a queued or running job (model.ErrNotFound for an unknown or ended one).
+// CancelJob cancels a queued or running job or dismisses a failed one (model.ErrNotFound for an
+// unknown, done or cancelled one).
 func (s *Service) CancelJob(ctx context.Context, id int64) error {
 	if s.ops.jobs == nil {
 		return ErrNotConfigured

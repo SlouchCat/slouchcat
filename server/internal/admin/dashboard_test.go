@@ -99,6 +99,23 @@ func TestDashboardJobsErrorsAndStorage(t *testing.T) {
 	if err := f.svc.CancelJob(ctx, id); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("cancel of a cancelled job: %v, want ErrNotFound", err)
 	}
+	// "Abbrechen" on a failed job dismisses it (review I-5).
+	failedID, err := queue.Enqueue(ctx, jobs.NewJob{Type: "metadata.match", MaxAttempts: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if j, err = queue.Claim(ctx, "w1", []string{"metadata.match"}); err != nil || j == nil || j.ID != failedID {
+		t.Fatalf("claim: %v, %v", j, err)
+	}
+	if err := queue.Fail(ctx, "w1", j, errors.New("boom")); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.CancelJob(ctx, failedID); err != nil {
+		t.Errorf("cancel of a failed job: %v", err)
+	}
+	if d, err = f.svc.Dashboard(ctx); err != nil || d.Jobs.Failed != 0 || len(d.Jobs.RecentFailed) != 0 {
+		t.Errorf("after dismissing the failed job: %+v, %v", d.Jobs, err)
+	}
 	if _, err := f.svc.RetryJob(ctx, 9999); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("retry of an unknown job: %v, want ErrNotFound", err)
 	}

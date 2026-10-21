@@ -39,10 +39,11 @@ type fakeSMTP struct {
 	starttls bool     // offers STARTTLS
 	mechs    []string // AUTH mechanisms; empty = no AUTH extension
 
-	mu      sync.Mutex
-	mails   []fakeMail
-	authed  []string // mechanism of every successful authentication
-	tlsUsed []bool   // whether the connection was encrypted when MAIL FROM came
+	mu       sync.Mutex
+	dropQuit bool // QUIT closes the connection without an answer
+	mails    []fakeMail
+	authed   []string // mechanism of every successful authentication
+	tlsUsed  []bool   // whether the connection was encrypted when MAIL FROM came
 }
 
 type fakeMail struct {
@@ -177,7 +178,12 @@ func (s *fakeSMTP) session(conn net.Conn) {
 			s.mu.Unlock()
 			say("250 queued")
 		case "QUIT":
-			say("221 bye")
+			s.mu.Lock()
+			drop := s.dropQuit
+			s.mu.Unlock()
+			if !drop {
+				say("221 bye")
+			}
 			return
 		default:
 			say("502 unknown")
@@ -385,6 +391,22 @@ func TestSendTextOnly(t *testing.T) {
 	b, _ := io.ReadAll(msg.Body)
 	if strings.TrimRight(string(b), "\r\n") != "nur Text" { // the DATA terminator ends the last line
 		t.Errorf("body %q", b)
+	}
+}
+
+// A server that accepted the message and then drops the connection on QUIT: the delivery counts as
+// sent, so the queue does not send it again (review M-7).
+func TestSendIgnoresQuitAfterAcceptedMessage(t *testing.T) {
+	srv, _ := newFakeSMTP(t, false, false)
+	srv.mu.Lock()
+	srv.dropQuit = true
+	srv.mu.Unlock()
+	s := Sender{Host: "127.0.0.1", Port: srv.port(), From: "slouchcat@example.ch", TLS: TLSNone}
+	if err := s.Send(context.Background(), "b@example.ch", "Betreff", "Text", ""); err != nil {
+		t.Fatalf("accepted message with a dropped QUIT: %v", err)
+	}
+	if mails, _, _ := srv.received(); len(mails) != 1 {
+		t.Errorf("mails = %d, want 1", len(mails))
 	}
 }
 

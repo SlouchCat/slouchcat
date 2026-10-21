@@ -58,56 +58,6 @@ func (q *Queries) ChannelEnsureDefaultsAll(ctx context.Context, now int64) error
 	return err
 }
 
-const channelGet = `-- name: ChannelGet :one
-SELECT account_id, channel, enabled, events, config, updated_at
-FROM account_channels
-WHERE account_id = ?1 AND channel = ?2
-`
-
-type ChannelGetParams struct {
-	AccountID int64
-	Channel   string
-}
-
-func (q *Queries) ChannelGet(ctx context.Context, arg ChannelGetParams) (AccountChannel, error) {
-	row := q.db.QueryRowContext(ctx, channelGet, arg.AccountID, arg.Channel)
-	var i AccountChannel
-	err := row.Scan(
-		&i.AccountID,
-		&i.Channel,
-		&i.Enabled,
-		&i.Events,
-		&i.Config,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const channelSetEnabled = `-- name: ChannelSetEnabled :execrows
-UPDATE account_channels SET enabled = ?1, updated_at = ?2
-WHERE account_id = ?3 AND channel = ?4
-`
-
-type ChannelSetEnabledParams struct {
-	Enabled   int64
-	Now       int64
-	AccountID int64
-	Channel   string
-}
-
-func (q *Queries) ChannelSetEnabled(ctx context.Context, arg ChannelSetEnabledParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, channelSetEnabled,
-		arg.Enabled,
-		arg.Now,
-		arg.AccountID,
-		arg.Channel,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 const channelSummaries = `-- name: ChannelSummaries :many
 SELECT account_id, channel, enabled
 FROM account_channels
@@ -355,69 +305,6 @@ func (q *Queries) ChannelsByAccount(ctx context.Context, accountID int64) ([]Acc
 	return items, nil
 }
 
-const deliveriesByAccount = `-- name: DeliveriesByAccount :many
-SELECT id, account_id, profile_id, channel, event, subject, state, attempts, last_error, created_at, sent_at
-FROM deliveries
-WHERE account_id = ?1
-ORDER BY created_at DESC, id DESC
-LIMIT ?2
-`
-
-type DeliveriesByAccountParams struct {
-	AccountID  int64
-	LimitCount int64
-}
-
-type DeliveriesByAccountRow struct {
-	ID        int64
-	AccountID int64
-	ProfileID sql.NullInt64
-	Channel   string
-	Event     string
-	Subject   string
-	State     string
-	Attempts  int64
-	LastError sql.NullString
-	CreatedAt int64
-	SentAt    sql.NullInt64
-}
-
-// The newest deliveries of an account.
-func (q *Queries) DeliveriesByAccount(ctx context.Context, arg DeliveriesByAccountParams) ([]DeliveriesByAccountRow, error) {
-	rows, err := q.db.QueryContext(ctx, deliveriesByAccount, arg.AccountID, arg.LimitCount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []DeliveriesByAccountRow{}
-	for rows.Next() {
-		var i DeliveriesByAccountRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.AccountID,
-			&i.ProfileID,
-			&i.Channel,
-			&i.Event,
-			&i.Subject,
-			&i.State,
-			&i.Attempts,
-			&i.LastError,
-			&i.CreatedAt,
-			&i.SentAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const deliveriesDeleteOld = `-- name: DeliveriesDeleteOld :execrows
 DELETE FROM deliveries
 WHERE id IN (SELECT d.id FROM deliveries AS d WHERE d.state <> 'queued' AND d.created_at < ?1 LIMIT 500)
@@ -543,6 +430,19 @@ func (q *Queries) DeliveryRecentExists(ctx context.Context, arg DeliveryRecentEx
 	return recent, err
 }
 
+const deliveryRequeue = `-- name: DeliveryRequeue :execrows
+UPDATE deliveries SET state = 'queued' WHERE id = ?1 AND state = 'failed'
+`
+
+// A failed delivery goes out again when the admin retries its job.
+func (q *Queries) DeliveryRequeue(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deliveryRequeue, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deliverySent = `-- name: DeliverySent :exec
 UPDATE deliveries SET state = 'sent', sent_at = ?1, last_error = NULL WHERE id = ?2
 `
@@ -663,22 +563,13 @@ func (q *Queries) PushSubscriptionDeleteByID(ctx context.Context, id int64) erro
 	return err
 }
 
-const pushSubscriptionFailed = `-- name: PushSubscriptionFailed :exec
-UPDATE push_subscriptions SET failures = failures + 1 WHERE id = ?1
-`
-
-func (q *Queries) PushSubscriptionFailed(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, pushSubscriptionFailed, id)
-	return err
-}
-
 const pushSubscriptionUpsert = `-- name: PushSubscriptionUpsert :one
 INSERT INTO push_subscriptions (account_id, device_id, endpoint, p256dh, auth, user_agent, device_name, created_at)
 VALUES (?1, (SELECT d.id FROM devices AS d WHERE d.id = ?2), ?3, ?4, ?5,
         ?6, ?7, ?8)
 ON CONFLICT (endpoint) DO UPDATE
 SET account_id = excluded.account_id, device_id = excluded.device_id, p256dh = excluded.p256dh, auth = excluded.auth,
-    user_agent = excluded.user_agent, device_name = excluded.device_name, failures = 0
+    user_agent = excluded.user_agent, device_name = excluded.device_name
 RETURNING id, account_id, device_id, device_name, created_at
 `
 
@@ -727,7 +618,7 @@ func (q *Queries) PushSubscriptionUpsert(ctx context.Context, arg PushSubscripti
 }
 
 const pushSubscriptionUsed = `-- name: PushSubscriptionUsed :exec
-UPDATE push_subscriptions SET last_used_at = ?1, failures = 0 WHERE id = ?2
+UPDATE push_subscriptions SET last_used_at = ?1 WHERE id = ?2
 `
 
 type PushSubscriptionUsedParams struct {
@@ -741,7 +632,7 @@ func (q *Queries) PushSubscriptionUsed(ctx context.Context, arg PushSubscription
 }
 
 const pushSubscriptionsByAccount = `-- name: PushSubscriptionsByAccount :many
-SELECT id, account_id, device_id, endpoint, p256dh, auth, device_name, created_at, last_used_at, failures
+SELECT id, account_id, device_id, endpoint, p256dh, auth, device_name, created_at, last_used_at
 FROM push_subscriptions
 WHERE account_id = ?1
 ORDER BY created_at, id
@@ -757,7 +648,6 @@ type PushSubscriptionsByAccountRow struct {
 	DeviceName sql.NullString
 	CreatedAt  int64
 	LastUsedAt sql.NullInt64
-	Failures   int64
 }
 
 // The subscriptions of an account for the settings (no secrets) and for sending (with keys).
@@ -780,7 +670,6 @@ func (q *Queries) PushSubscriptionsByAccount(ctx context.Context, accountID int6
 			&i.DeviceName,
 			&i.CreatedAt,
 			&i.LastUsedAt,
-			&i.Failures,
 		); err != nil {
 			return nil, err
 		}

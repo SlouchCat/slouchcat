@@ -104,6 +104,20 @@ func TestUpdateChannel(t *testing.T) {
 			}
 		})
 	}
+	// The account's own address means "the account's e-mail": nothing is stored, so the channel
+	// follows a later change of it (review M-4).
+	if _, err := e.svc.UpdateChannel(ctx, e.owner(), "email", model.ChannelSettingUpdate{Enabled: true,
+		EmailAddress: addr(strings.ToUpper(e.f.Account.Email))}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(t, `SELECT count(*) FROM account_channels WHERE account_id = ? AND channel = 'email' AND config = '{}'`, e.f.Account.ID); n != 1 {
+		t.Error("the account's own address was stored")
+	}
+	moved := e.owner()
+	moved.Account.Email = "new-owner@example.test"
+	if c, err := e.svc.Channels(ctx, moved); err != nil || c[0].Email.Address != "new-owner@example.test" {
+		t.Errorf("after an e-mail change the channel shows %+v, %v; want the new address", c[0].Email, err)
+	}
 	c, err := e.svc.UpdateChannel(ctx, e.owner(), "email", model.ChannelSettingUpdate{Enabled: true,
 		Events: []string{"announcements", "new_content", "new_content"}, EmailAddress: addr(" Inbox@Example.test ")})
 	if err != nil {
@@ -385,7 +399,7 @@ func TestPushGoneAndSkipped(t *testing.T) {
 }
 
 // A failing sender is retried by the queue; after the last attempt the delivery ends failed with
-// the error, which carries no secret.
+// the error, which carries no secret. A retry of its job by the admin sends it again.
 func TestDeliveryRetriesThenFails(t *testing.T) {
 	e := newChanEnv(t)
 	ctx := context.Background()
@@ -407,6 +421,21 @@ func TestDeliveryRetriesThenFails(t *testing.T) {
 	}
 	if n := e.count(t, `SELECT count(*) FROM jobs WHERE type = ? AND state = 'failed'`, JobDeliver); n != 1 {
 		t.Errorf("failed jobs = %d", n)
+	}
+	// "Erneut" on the dashboard (review M-1): the retried job sends the failed delivery again.
+	e.mailer.fail(nil)
+	var jobID int64
+	if err := e.f.DB.Read.QueryRow(`SELECT id FROM jobs WHERE type = ? AND state = 'failed'`, JobDeliver).Scan(&jobID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.queue.Retry(ctx, jobID); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.drain(t); n != 1 {
+		t.Errorf("drained %d jobs after the retry, want 1", n)
+	}
+	if d := e.deliveries(t); len(d) != 1 || d[0].state != "sent" || len(e.mailer.sent()) != 1 {
+		t.Errorf("after the retry: deliveries %+v, mails %d", d, len(e.mailer.sent()))
 	}
 }
 
@@ -445,10 +474,11 @@ func TestTestChannel(t *testing.T) {
 	if mails := e.mailer.sent(); len(mails) != 1 || mails[0].to != e.f.Guest.Email || mails[0].subject != "Slouchcat: test message" {
 		t.Errorf("mails = %+v", mails)
 	}
-	e.mailer.fail(errors.New("smtp RCPT TO: 550 mailbox unavailable"))
+	// The cause stays in the log: a guest learns nothing about the mail server (review M-11).
+	e.mailer.fail(errors.New("smtp connect mail.lan:587: dial tcp 192.168.1.5:587: connect: connection refused"))
 	err := e.svc.TestChannel(ctx, e.guest(), model.ChannelEmail)
 	var send *model.SendError
-	if !errors.As(err, &send) || !errors.Is(err, model.ErrSendFailed) || !strings.Contains(send.Detail, "550") {
+	if !errors.As(err, &send) || !errors.Is(err, model.ErrSendFailed) || send.Detail != testFailedDetail {
 		t.Errorf("failing send: %v", err)
 	}
 	// Push without subscription and Telegram without chat count as disabled.
@@ -474,6 +504,76 @@ func TestTestChannel(t *testing.T) {
 	}
 	if p := e.pusher.sent(); len(p) != 1 || p[0].ttl != pushTestTTL {
 		t.Errorf("pushes = %+v", p)
+	}
+}
+
+// ADR 0005 (review I-2): a profile other than the primary one reads the channels of its account but
+// changes and tests none; a session without a profile changes them.
+func TestChannelChangesNeedThePrimaryProfile(t *testing.T) {
+	e := newChanEnv(t)
+	ctx := context.Background()
+	e.cfg.set(func(c *fakeConfig) { c.token = testBotToken })
+	child := session(e.f.Account, e.f.P6)
+	if c, err := e.svc.Channels(ctx, child); err != nil || len(c) != 3 {
+		t.Fatalf("read: %v, %v", c, err)
+	}
+	sub := e.subscribe(t, e.owner(), "https://push.example.test/owner")
+	for name, call := range map[string]func() error{
+		"update": func() error {
+			_, err := e.svc.UpdateChannel(ctx, child, model.ChannelEmail, model.ChannelSettingUpdate{Enabled: true, Events: []string{"announcements"}})
+			return err
+		},
+		"test": func() error { return e.svc.TestChannel(ctx, child, model.ChannelEmail) },
+		"link": func() error {
+			_, err := e.svc.CreateTelegramLink(ctx, child)
+			return err
+		},
+		"unlink": func() error { return e.svc.DeleteTelegramLink(ctx, child) },
+		"subscribe": func() error {
+			_, err := e.svc.CreatePushSubscription(ctx, child, subscriptionInput(t, "https://push.example.test/child"))
+			return err
+		},
+		"unsubscribe": func() error { return e.svc.DeletePushSubscription(ctx, child, sub) },
+	} {
+		if err := call(); !errors.Is(err, model.ErrPrimaryProfileRequired) {
+			t.Errorf("%s by a child profile: %v, want ErrPrimaryProfileRequired", name, err)
+		}
+	}
+	if n := e.count(t, `SELECT count(*) FROM push_subscriptions`); n != 1 {
+		t.Errorf("subscriptions = %d, want the owner's only", n)
+	}
+	if n := e.count(t, `SELECT count(*) FROM telegram_links`); n != 0 || len(e.mailer.sent()) != 0 {
+		t.Errorf("link codes %d, mails %v; want none", n, e.mailer.sent())
+	}
+	account := model.Session{Account: e.f.Account}
+	if _, err := e.svc.UpdateChannel(ctx, account, model.ChannelEmail, model.ChannelSettingUpdate{Enabled: true}); err != nil {
+		t.Errorf("update without a profile: %v", err)
+	}
+	if err := e.svc.DeletePushSubscription(ctx, account, sub); err != nil {
+		t.Errorf("unsubscribe without a profile: %v", err)
+	}
+}
+
+// Test messages count against the client's attempt limit before anything is sent (review M-11).
+func TestTestChannelAttemptLimit(t *testing.T) {
+	e := newChanEnv(t)
+	ctx := context.Background()
+	calls := 0
+	WithAttemptLimit(func(context.Context) error {
+		calls++
+		if calls > 1 {
+			return model.ErrTooManyAttempts
+		}
+		return nil
+	})(e.svc)
+	if err := e.svc.TestChannel(ctx, e.guest(), model.ChannelEmail); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.TestChannel(ctx, e.guest(), model.ChannelEmail); !errors.Is(err, model.ErrTooManyAttempts) {
+		t.Errorf("second test: %v, want ErrTooManyAttempts", err)
+	}
+	if mails := e.mailer.sent(); len(mails) != 1 {
+		t.Errorf("mails = %d, want 1", len(mails))
 	}
 }
 

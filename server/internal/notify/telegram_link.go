@@ -32,8 +32,11 @@ const (
 
 // CreateTelegramLink issues a new link code for the session's account; an older open code stops
 // working, a linked chat stays linked until the new code is used. model.ErrChannelUnavailable
-// without a bot token.
+// without a bot token; model.ErrPrimaryProfileRequired (requireManager).
 func (s *Service) CreateTelegramLink(ctx context.Context, session model.Session) (model.ChannelSetting, error) {
+	if err := requireManager(session); err != nil {
+		return model.ChannelSetting{}, err
+	}
 	srv := s.serverState(ctx)
 	if srv.token == "" {
 		return model.ChannelSetting{}, model.ErrChannelUnavailable
@@ -76,8 +79,11 @@ func newLinkCode() string {
 }
 
 // DeleteTelegramLink unlinks the chat of the session's account, drops an open code and switches the
-// channel off (idempotent).
+// channel off (idempotent; model.ErrPrimaryProfileRequired, see requireManager).
 func (s *Service) DeleteTelegramLink(ctx context.Context, session model.Session) error {
+	if err := requireManager(session); err != nil {
+		return err
+	}
 	if err := s.write.TelegramLinkDelete(ctx, session.Account.ID); err != nil {
 		return fmt.Errorf("delete telegram link: %w", err)
 	}

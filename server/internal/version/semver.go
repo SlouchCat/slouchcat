@@ -1,14 +1,22 @@
 // Package version parses and compares server versions as semantic versions (semver 2.0.0): the
 // restore refuses a backup of a newer server (A-4) and the update check compares the running
 // version with the release manifest (A-5). A version is "X.Y.Z" or "vX.Y.Z" with an optional
-// pre-release ("-rc.1") and build metadata ("+abc", ignored when comparing). Development builds
-// ("dev", a bare commit hash) do not parse; callers decide what that means.
+// pre-release ("-rc.1") and build metadata ("+abc", ignored when comparing). What `git describe
+// --dirty` appends to a tag ("-3-gabc1234", "-dirty") is build metadata as well: a self-built
+// image of a release compares equal to it, so its backups restore and it sees no update to its
+// own release. Development builds ("dev", a bare commit hash) do not parse; callers decide what
+// that means.
 package version
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+// describeSuffix is the part `git describe --dirty` adds to the tag: the commits since the tag
+// with the abbreviated hash, and -dirty for local changes.
+var describeSuffix = regexp.MustCompile(`(?:-[0-9]+-g[0-9a-f]{4,40})?(?:-dirty)?$`)
 
 // Semver is a parsed version.
 type Semver struct {
@@ -25,6 +33,7 @@ func Parse(s string) (Semver, bool) {
 		}
 		s = s[:i]
 	}
+	s = s[:describeSuffix.FindStringIndex(s)[0]]
 	var pre []string
 	if i := strings.IndexByte(s, '-'); i >= 0 {
 		if !validIdentifiers(s[i+1:], true) {

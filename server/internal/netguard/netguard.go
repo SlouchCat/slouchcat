@@ -47,9 +47,10 @@ func LocalHost(ctx context.Context, rawURL string) bool {
 	return err == nil && slices.ContainsFunc(addrs, Local)
 }
 
-// refuseLocal is the Control function of a guarded dialer: it sees the resolved address of every
-// connection, including those of redirects.
-func refuseLocal(_, address string, _ syscall.RawConn) error {
+// RefuseLocal is the Control function of a guarded dialer: it sees the resolved address of every
+// connection, including those of redirects, and refuses a Local one with ErrRefused. The push
+// requests of package notify/push use it as well (an endpoint is chosen by a browser).
+func RefuseLocal(_, address string, _ syscall.RawConn) error {
 	ap, err := netip.ParseAddrPort(address)
 	if err != nil {
 		return fmt.Errorf("%w: unparsable address %q", ErrRefused, address)
@@ -73,7 +74,7 @@ func NewClients(base http.Client, headerTimeout time.Duration) Clients {
 	client := func(guarded bool) *http.Client {
 		d := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
 		if guarded {
-			d.Control = refuseLocal
+			d.Control = RefuseLocal
 		}
 		c := base
 		c.Transport = &http.Transport{

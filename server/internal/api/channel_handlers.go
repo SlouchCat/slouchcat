@@ -13,8 +13,10 @@ import (
 // M8 notification channels of the signed-in account (plan 5.5, A-6, E-8; design sections 1 and
 // 3.2): e-mail, Web Push and Telegram with their events, the Telegram link, the push subscriptions
 // of the browsers and a test message per channel. All of them are account operations (any session
-// of the account, profile optional) through the notify service (Options.Notify; nil answers 501).
-// Endpoint and keys of a push subscription only travel into the service.
+// of the account, profile optional) through the notify service (Options.Notify; nil answers 501);
+// the service lets only a session without a profile or with the primary profile change them
+// (403 primary_profile_required). Endpoint and keys of a push subscription only travel into the
+// service.
 
 func (e serviceProblem) VisitGetMyChannelsResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitUpdateMyChannelResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -84,7 +86,7 @@ func (s *server) TestMyChannel(ctx context.Context, req gen.TestMyChannelRequest
 	if !ok {
 		return s.problem(ctx, model.ErrNotImplemented), nil
 	}
-	if err := s.opts.Notify.TestChannel(ctx, session, string(req.Channel)); err != nil {
+	if err := s.opts.Notify.TestChannel(model.WithClientIP(ctx, s.clientAddr(ctx)), session, string(req.Channel)); err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.TestMyChannel204Response{}, nil

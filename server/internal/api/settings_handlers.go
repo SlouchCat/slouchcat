@@ -59,7 +59,7 @@ func (s *server) SendTestEmail(ctx context.Context, req gen.SendTestEmailRequest
 	if req.Body != nil && req.Body.To != nil {
 		to = string(*req.Body.To)
 	}
-	if err := s.opts.Admin.SendTestEmail(ctx, to); err != nil {
+	if err := s.opts.Admin.SendTestEmail(model.WithClientIP(ctx, s.clientAddr(ctx)), to); err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.SendTestEmail204Response{}, nil

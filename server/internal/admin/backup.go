@@ -60,6 +60,9 @@ const (
 	restartAnnounced = 2 * time.Second
 
 	defaultScryptLogN = 18 // age's default work factor: about one second per encryption
+	// maxScryptLogN caps the work factor an uploaded archive may ask for: scrypt needs 128·8·2^logN
+	// bytes, 1 GiB at 20 (age accepts 22, 4 GiB, which a crafted file could use to exhaust memory).
+	maxScryptLogN = 20
 )
 
 // ageMagic starts every age file.
@@ -78,13 +81,16 @@ type backupState struct {
 	scryptLogN int
 }
 
-// backupManifest is manifest.json of an archive.
+// backupManifest is manifest.json of an archive. IncludesFeedCredentials is always true: the feed
+// and enclosure URLs of private podcasts keep their tokens also in a backup without secrets, so a
+// restore keeps the subscriptions (review M-6); the manifest says so.
 type backupManifest struct {
-	Format          int              `json:"format"`
-	Version         string           `json:"version"`
-	CreatedAt       time.Time        `json:"createdAt"`
-	IncludesSecrets bool             `json:"includesSecrets"`
-	Tables          map[string]int64 `json:"tables"` // rows per table of the copy
+	Format                  int              `json:"format"`
+	Version                 string           `json:"version"`
+	CreatedAt               time.Time        `json:"createdAt"`
+	IncludesSecrets         bool             `json:"includesSecrets"`
+	IncludesFeedCredentials bool             `json:"includesFeedCredentials"`
+	Tables                  map[string]int64 `json:"tables"` // rows per table of the copy
 }
 
 // WithBackups sets the config directory (database, key file and backups/) and the server version,
@@ -246,8 +252,12 @@ func (s *Service) CreateBackup(ctx context.Context, req model.BackupRequest) (mo
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return model.Backup{}, fmt.Errorf("create backup directory: %w", err)
 	}
-	name, at := newBackupName(dir, s.backups.version, s.now().UTC().Truncate(time.Second), req.IncludeSecrets)
-	m := backupManifest{Format: backupFormat, Version: s.backups.version, CreatedAt: at, IncludesSecrets: req.IncludeSecrets, Tables: tables}
+	name, at, err := newBackupName(dir, s.backups.version, s.now().UTC().Truncate(time.Second), req.IncludeSecrets)
+	if err != nil {
+		return model.Backup{}, err
+	}
+	m := backupManifest{Format: backupFormat, Version: s.backups.version, CreatedAt: at, IncludesSecrets: req.IncludeSecrets,
+		IncludesFeedCredentials: true, Tables: tables}
 	archive := filepath.Join(tmp, "archive")
 	if err := writeArchive(archive, m, copyPath, key, passphrase, s.backups.scryptLogN); err != nil {
 		return model.Backup{}, err
@@ -266,8 +276,13 @@ func (s *Service) CreateBackup(ctx context.Context, req model.BackupRequest) (mo
 		Encrypted: req.IncludeSecrets, Version: s.backups.version, Kind: model.BackupManual}, nil
 }
 
-// newBackupName returns a free archive name at the time at or, when taken, a second later.
-func newBackupName(dir, serverVersion string, at time.Time, encrypted bool) (string, time.Time) {
+// maxNameTries bounds the search for a free archive name (one per second after the backup's time).
+const maxNameTries = 60
+
+// newBackupName returns a free archive name at the time at or, when taken, a later second. It
+// gives up after maxNameTries names and on any error but a missing file (the directory cannot be
+// read), so a backup never spins while it holds the backup lock.
+func newBackupName(dir, serverVersion string, at time.Time, encrypted bool) (string, time.Time, error) {
 	suffix := archiveSuffix
 	if encrypted {
 		suffix = encryptedSuffix
@@ -276,13 +291,19 @@ func newBackupName(dir, serverVersion string, at time.Time, encrypted bool) (str
 	if v == "" {
 		v = "unknown"
 	}
-	for {
+	start := at
+	for range maxNameTries {
 		name := manualBackupPrefix + v + "-" + at.Format(manualTimeLayout) + suffix
-		if _, err := os.Lstat(filepath.Join(dir, name)); errors.Is(err, fs.ErrNotExist) {
-			return name, at
+		_, err := os.Lstat(filepath.Join(dir, name))
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return name, at, nil
+		case err != nil:
+			return "", time.Time{}, fmt.Errorf("backup name: %w", err)
 		}
 		at = at.Add(time.Second)
 	}
+	return "", time.Time{}, fmt.Errorf("backup name: no free name within %d seconds of %s", maxNameTries, start.Format(time.RFC3339))
 }
 
 // prepareCopy removes the secrets from the copy unless includeSecrets, checks its integrity and
@@ -585,6 +606,7 @@ func unpackArchive(src io.Reader, passphrase, dir string) (backupManifest, error
 		if err != nil {
 			return backupManifest{}, model.ErrPassphraseRequired
 		}
+		id.SetMaxWorkFactor(maxScryptLogN)
 		d, err := age.Decrypt(br, id)
 		switch {
 		case errors.Is(err, age.ErrIncorrectIdentity):

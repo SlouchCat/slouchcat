@@ -213,12 +213,19 @@ func applyRestore(ctx context.Context, opts Options) error {
 			return fmt.Errorf("create backup directory: %w", err)
 		}
 		kept = filepath.Join(backups, autoBackupName(preRestorePrefix, opts.Version, now(), preRestoreSuffix))
-		if err := vacuumInto(ctx, live, kept); err != nil {
-			return err
-		}
-		// The restored key replaces the current one: keep it with the backup it decrypts.
+		// The restored key replaces the current one: keep it with the backup it decrypts, before the
+		// database goes (a copy, so a start after a crash finds it again).
 		if fileExists(stagedKey) && fileExists(liveKey) {
 			if err := copyFile(liveKey, filepath.Join(backups, BackupKeyFile(filepath.Base(kept)))); err != nil {
+				return err
+			}
+		}
+		if err := vacuumInto(ctx, live, kept); err != nil {
+			// A full disk or a damaged page must not block every start (the restore is what the admin
+			// does about it): the live files themselves become the pre-restore backup, unchecked.
+			opts.Logger.Error("pre-restore copy failed; keeping the current database files as they are",
+				"err", err, "kept_as", kept)
+			if err := moveDatabase(live, kept); err != nil {
 				return err
 			}
 		}
@@ -228,7 +235,7 @@ func applyRestore(ctx context.Context, opts Options) error {
 			return fmt.Errorf("apply restored key: %w", err)
 		}
 	}
-	for _, p := range []string{live, live + "-wal", live + "-shm"} {
+	for _, p := range databaseFiles(live) {
 		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("remove replaced database: %w", err)
 		}
@@ -275,6 +282,24 @@ func copyFile(src, dst string) (err error) {
 		return errors.Join(fmt.Errorf("copy to %s: %w", dst, err), out.Close())
 	}
 	return out.Close()
+}
+
+// databaseFiles are the files of the SQLite database at path: the file, its WAL and its shared
+// memory index.
+func databaseFiles(path string) []string {
+	return []string{path, path + "-wal", path + "-shm"}
+}
+
+// moveDatabase renames the files of the database src to dst (dst-wal and dst-shm next to it, so
+// SQLite still finds the WAL); missing WAL and index files are fine.
+func moveDatabase(src, dst string) error {
+	from, to := databaseFiles(src), databaseFiles(dst)
+	for i := range from {
+		if err := os.Rename(from[i], to[i]); err != nil && (i == 0 || !errors.Is(err, fs.ErrNotExist)) {
+			return fmt.Errorf("keep replaced database: %w", err)
+		}
+	}
+	return nil
 }
 
 func fileExists(path string) bool {

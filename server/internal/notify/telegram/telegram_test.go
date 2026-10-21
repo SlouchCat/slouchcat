@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/slouchcat/slouchcat/server/internal/logging"
 )
 
 const testToken = "7000000001:AAE-secret_Token"
@@ -164,5 +166,25 @@ func TestClientErrors(t *testing.T) {
 	check("unreachable", err, ErrUnreachable, "getMe")
 	if err != nil && strings.Contains(err.Error(), "/bot") {
 		t.Errorf("transport error carries the URL: %v", err)
+	}
+}
+
+// One token shape (review N-2): every token ValidToken accepts, and so the settings store, is
+// masked by the log redaction in a bot API path; other shapes are refused.
+func TestValidTokenIsWhatTheLogMasks(t *testing.T) {
+	for _, token := range []string{testToken, "1:Zq_-9", "123456789:AAE_x-Y_z0123456789abcdefghijklmnopq"} {
+		if !ValidToken(token) {
+			t.Errorf("ValidToken(%q) = false", token)
+			continue
+		}
+		_, secret, _ := strings.Cut(token, ":")
+		if got := logging.RedactString(DefaultBaseURL + "/bot" + token + "/getMe"); strings.Contains(got, secret) {
+			t.Errorf("redacted %q still carries the secret", got)
+		}
+	}
+	for _, token := range []string{"", "abc:def", "123:", ":abc", "123:abc def", "123:abc/../x", "123:abc:def"} {
+		if ValidToken(token) {
+			t.Errorf("ValidToken(%q) = true", token)
+		}
 	}
 }

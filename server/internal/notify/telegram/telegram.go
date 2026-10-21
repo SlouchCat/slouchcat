@@ -42,6 +42,10 @@ var (
 // tokenPattern is the shape of a bot token, <bot id>:<secret>; the logging redaction matches it.
 var tokenPattern = regexp.MustCompile(`^[0-9]+:[A-Za-z0-9_-]+$`)
 
+// ValidToken reports whether token has the shape of a BotFather token (<bot id>:<secret>), the
+// shape package logging masks in API paths; the settings refuse any other.
+func ValidToken(token string) bool { return tokenPattern.MatchString(token) }
+
 // APIError is an answer with ok false.
 type APIError struct {
 	Method      string
@@ -128,7 +132,7 @@ func (c *Client) GetUpdates(ctx context.Context, token string, offset int64) ([]
 }
 
 func (c *Client) call(ctx context.Context, token, method string, params, out any, timeout time.Duration) error {
-	if !tokenPattern.MatchString(token) {
+	if !ValidToken(token) {
 		return &APIError{Method: method, Code: http.StatusUnauthorized, Description: "malformed bot token"}
 	}
 	body, err := json.Marshal(params)

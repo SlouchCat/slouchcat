@@ -252,7 +252,8 @@ func TestUpdateSettingsUpdateCheckSwitch(t *testing.T) {
 	}
 }
 
-// The test mail needs an e-mail server, validates the recipient and passes it to notify.
+// The test mail needs an e-mail server, validates the recipient, counts against the attempt limit
+// and passes it to notify.
 func TestSendTestEmail(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
@@ -278,6 +279,21 @@ func TestSendTestEmail(t *testing.T) {
 	}
 	if strings.Join(tester.to, ",") != ",marco@example.ch" {
 		t.Errorf("test mails to %q", tester.to)
+	}
+	// Every call counts against the client's attempt limit (review M-11): within the burst of ten
+	// the next one is refused before it reaches notify.
+	tester.err, tester.to = nil, nil
+	limited := false
+	for range 10 {
+		if err := f.svc.SendTestEmail(ctx, ""); errors.Is(err, model.ErrTooManyAttempts) {
+			limited = true
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !limited || len(tester.to) >= 10 {
+		t.Errorf("limited %v after %d mails, want refused within the burst", limited, len(tester.to))
 	}
 	if err := newFixtureWithSMTP(t).svc.SendTestEmail(ctx, ""); !errors.Is(err, ErrNotConfigured) {
 		t.Errorf("without the tester: %v, want ErrNotConfigured", err)

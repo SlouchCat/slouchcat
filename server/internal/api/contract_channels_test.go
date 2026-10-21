@@ -101,11 +101,12 @@ func (s *contractSenders) sentMails() []string {
 	return slices.Clone(s.mails)
 }
 
-// newContractNotify returns the notify service of the contract fixtures with its senders.
-func newContractNotify(f *vistest.Fixture, log *slog.Logger, queue *jobs.Queue) (*notify.Service, *contractSenders) {
+// newContractNotify returns the notify service of the contract fixtures with its senders; allow is
+// the attempt limit of the test messages (the fixture's auth service).
+func newContractNotify(f *vistest.Fixture, log *slog.Logger, queue *jobs.Queue, allow func(context.Context) error) (*notify.Service, *contractSenders) {
 	senders := &contractSenders{}
 	svc := notify.New(f.DB, visibility.New(f.DB, log), log, notify.WithQueue(queue),
-		notify.WithSenders(notify.Senders{Email: senders, Push: senders, Telegram: senders}))
+		notify.WithSenders(notify.Senders{Email: senders, Push: senders, Telegram: senders}), notify.WithAttemptLimit(allow))
 	svc.SetConfig(&contractNotifyConfig{})
 	return svc, senders
 }
@@ -224,8 +225,9 @@ func TestContractAnnouncements(t *testing.T) {
 	}
 }
 
-// A-6: the channels are account operations (no profile needed); the rules of the contract hold and
-// no answer carries the endpoint or the keys of a push subscription.
+// A-6: the channels are account operations (no profile needed, a profile other than the primary one
+// may only read them); the rules of the contract hold and no answer carries the endpoint or the keys
+// of a push subscription.
 func TestContractChannels(t *testing.T) {
 	pf := newProfileFixture(t)
 	h := pf.h
@@ -289,13 +291,54 @@ func TestContractChannels(t *testing.T) {
 	if rec := send(t, h, http.MethodDelete, path, "pg", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("guest deletes the owner's subscription: %d", rec.Code)
 	}
-	if rec := send(t, h, http.MethodDelete, path, "p12", "", nil); rec.Code != http.StatusNoContent {
-		t.Errorf("another profile of the account deletes it: %d %s", rec.Code, rec.Body.String())
+	// ADR 0005: only a session without a profile or with the primary profile changes the channels
+	// of the account; the other profiles of the account read them.
+	for _, token := range []string{"p12", "p0", "pg18"} {
+		for _, op := range []struct{ method, path, body string }{
+			{http.MethodPut, BasePath + "/me/channels/email", `{"enabled":true,"events":["announcements"],"email":{"address":"kid@example.test"}}`},
+			{http.MethodPost, BasePath + "/me/channels/email/test", ""},
+			{http.MethodPost, BasePath + "/me/channels/telegram/link", ""},
+			{http.MethodDelete, BasePath + "/me/channels/telegram/link", ""},
+			{http.MethodPost, BasePath + "/me/push-subscriptions", pushSubscriptionBody("https://push.example.test/send/kid")},
+			{http.MethodDelete, path, ""},
+		} {
+			rec := send(t, h, op.method, op.path, token, op.body, nil)
+			if rec.Code != http.StatusForbidden || problemCode(t, rec) != "primary_profile_required" {
+				t.Errorf("%s %s %s: %d %s", token, op.method, op.path, rec.Code, rec.Body.String())
+			}
+		}
+		for _, read := range []string{"/me/channels", "/push/vapid-key"} {
+			if rec := send(t, h, http.MethodGet, BasePath+read, token, "", nil); rec.Code != http.StatusOK {
+				t.Errorf("%s GET %s: %d %s", token, read, rec.Code, rec.Body.String())
+			}
+		}
+	}
+	if mails := pf.senders.sentMails(); len(mails) != 1 {
+		t.Errorf("mails after the refused tests = %v", mails)
+	}
+	if rec := send(t, h, http.MethodDelete, path, "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Errorf("the primary profile deletes it: %d %s", rec.Code, rec.Body.String())
 	}
 	var key gen.VapidKey
 	rec = send(t, h, http.MethodGet, BasePath+"/push/vapid-key", "pg", "", nil)
 	decode(t, rec, &key)
 	if rec.Code != http.StatusOK || len(key.PublicKey) != 87 {
 		t.Errorf("vapid key: %d %s", rec.Code, rec.Body.String())
+	}
+	// Test messages count against the client's attempt limit (any guest may send them to an address
+	// it chose): within the burst of ten the next one answers 429.
+	limited := false
+	for range 12 {
+		rec := send(t, h, http.MethodPost, BasePath+"/me/channels/email/test", "pg", "", nil)
+		if rec.Code == http.StatusTooManyRequests && problemCode(t, rec) == "too_many_attempts" && rec.Header().Get("Retry-After") != "" {
+			limited = true
+			break
+		}
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("guest test e-mail: %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	if !limited {
+		t.Error("twelve test messages in a row were not limited")
 	}
 }

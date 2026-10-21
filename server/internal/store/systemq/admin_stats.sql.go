@@ -83,7 +83,8 @@ type StatsPlaybackModesRow struct {
 	TranscodeHardware int64
 }
 
-// Playback sessions started in the period by mode, and the transcodes encoded on the GPU.
+// Playback sessions started in the period by mode, and the transcodes encoded on the GPU. Package
+// playback keeps ended rows for 400 days, so every period of a year is complete.
 func (q *Queries) StatsPlaybackModes(ctx context.Context, arg StatsPlaybackModesParams) (StatsPlaybackModesRow, error) {
 	row := q.db.QueryRowContext(ctx, statsPlaybackModes, arg.FromMs, arg.ToMs)
 	var i StatsPlaybackModesRow

@@ -57,20 +57,11 @@ FROM account_channels
 WHERE account_id = @account_id
 ORDER BY CASE channel WHEN 'email' THEN 0 WHEN 'push' THEN 1 ELSE 2 END;
 
--- name: ChannelGet :one
-SELECT account_id, channel, enabled, events, config, updated_at
-FROM account_channels
-WHERE account_id = @account_id AND channel = @channel;
-
 -- name: ChannelUpsert :exec
 INSERT INTO account_channels (account_id, channel, enabled, events, config, updated_at)
 VALUES (@account_id, @channel, @enabled, @events, @config, @now)
 ON CONFLICT (account_id, channel) DO UPDATE
 SET enabled = excluded.enabled, events = excluded.events, config = excluded.config, updated_at = excluded.updated_at;
-
--- name: ChannelSetEnabled :execrows
-UPDATE account_channels SET enabled = @enabled, updated_at = @now
-WHERE account_id = @account_id AND channel = @channel;
 
 -- name: ChannelSummaries :many
 -- Every channel row of every account (account overview of the administration).
@@ -137,12 +128,12 @@ VALUES (@account_id, (SELECT d.id FROM devices AS d WHERE d.id = sqlc.narg('devi
         sqlc.narg('user_agent'), sqlc.narg('device_name'), @now)
 ON CONFLICT (endpoint) DO UPDATE
 SET account_id = excluded.account_id, device_id = excluded.device_id, p256dh = excluded.p256dh, auth = excluded.auth,
-    user_agent = excluded.user_agent, device_name = excluded.device_name, failures = 0
+    user_agent = excluded.user_agent, device_name = excluded.device_name
 RETURNING id, account_id, device_id, device_name, created_at;
 
 -- name: PushSubscriptionsByAccount :many
 -- The subscriptions of an account for the settings (no secrets) and for sending (with keys).
-SELECT id, account_id, device_id, endpoint, p256dh, auth, device_name, created_at, last_used_at, failures
+SELECT id, account_id, device_id, endpoint, p256dh, auth, device_name, created_at, last_used_at
 FROM push_subscriptions
 WHERE account_id = @account_id
 ORDER BY created_at, id;
@@ -160,10 +151,7 @@ DELETE FROM push_subscriptions WHERE id = @id;
 DELETE FROM push_subscriptions;
 
 -- name: PushSubscriptionUsed :exec
-UPDATE push_subscriptions SET last_used_at = @now, failures = 0 WHERE id = @id;
-
--- name: PushSubscriptionFailed :exec
-UPDATE push_subscriptions SET failures = failures + 1 WHERE id = @id;
+UPDATE push_subscriptions SET last_used_at = @now WHERE id = @id;
 
 -- name: DeliveryInsert :one
 INSERT INTO deliveries (account_id, profile_id, channel, event, source, subject, body, link, created_at)
@@ -172,6 +160,10 @@ RETURNING id;
 
 -- name: DeliveryGet :one
 SELECT * FROM deliveries WHERE id = @id;
+
+-- name: DeliveryRequeue :execrows
+-- A failed delivery goes out again when the admin retries its job.
+UPDATE deliveries SET state = 'queued' WHERE id = @id AND state = 'failed';
 
 -- name: DeliveryClaim :execrows
 -- Counts an attempt of a queued delivery; 0 rows when it was sent, failed or skipped meanwhile.
@@ -187,14 +179,6 @@ UPDATE deliveries SET state = @state, last_error = @last_error WHERE id = @id;
 
 -- name: DeliverySkipped :exec
 UPDATE deliveries SET state = 'skipped', last_error = sqlc.narg('reason') WHERE id = @id;
-
--- name: DeliveriesByAccount :many
--- The newest deliveries of an account.
-SELECT id, account_id, profile_id, channel, event, subject, state, attempts, last_error, created_at, sent_at
-FROM deliveries
-WHERE account_id = @account_id
-ORDER BY created_at DESC, id DESC
-LIMIT @limit_count;
 
 -- name: DeliveryRecentExists :one
 -- Dedupe of the event errors: whether the same event of the same source went out since a time.

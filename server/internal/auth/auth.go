@@ -463,7 +463,8 @@ func (s *Service) Logout(ctx context.Context, sessionID int64) error {
 // deviceRetention is how long a device (and its PIN counters) is kept without use.
 const deviceRetention = 400 * 24 * time.Hour
 
-// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago, and
+// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago, except
+// those a playback session still refers to (package playback keeps them for the statistics), and
 // devices and PIN counters unused for 400 days (the lifetime of the device cookie).
 func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	now := s.now()

@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -251,8 +252,9 @@ func TestBackupArchiveHasOnlyDatabaseAndManifest(t *testing.T) {
 		if err := json.Unmarshal(entries[0].data, &m); err != nil {
 			t.Fatal(err)
 		}
+		// Private feed URLs keep their tokens in every backup, and the manifest says so (review M-6).
 		if m.Format != 1 || m.Version != "0.9.0" || !m.CreatedAt.Equal(b.CreatedAt) || m.IncludesSecrets != tc.req.IncludeSecrets ||
-			m.Tables["accounts"] != 2 || m.Tables["profiles"] != 3 || m.Tables["progress_events"] != 2 {
+			!m.IncludesFeedCredentials || m.Tables["accounts"] != 2 || m.Tables["profiles"] != 3 || m.Tables["progress_events"] != 2 {
 			t.Errorf("%s: manifest %+v", b.Name, m)
 		}
 		t.Logf("%s: %d bytes, entries %v", b.Name, b.SizeBytes, names)
@@ -573,6 +575,63 @@ func TestRestoreWrongPassphrase(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(st.dir, store.RestoreKeyFile)); err != nil {
 		t.Errorf("right passphrase: key not staged: %v", err)
 	}
+}
+
+// newBackupName takes the next free second, but gives up after a minute of taken names and on a
+// directory it cannot read instead of looping while it holds the backup lock (review M-13).
+func TestNewBackupNameIsBounded(t *testing.T) {
+	dir := t.TempDir()
+	at := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
+	name, got, err := newBackupName(dir, "0.9.0", at, false)
+	if err != nil || name != "slouchcat-backup-0.9.0-20261021T120000Z.tar.gz" || !got.Equal(at) {
+		t.Fatalf("free name: %q %v %v", name, got, err)
+	}
+	for i := range maxNameTries {
+		n := "slouchcat-backup-0.9.0-" + at.Add(time.Duration(i)*time.Second).Format(manualTimeLayout) + ".tar.gz"
+		if err := os.WriteFile(filepath.Join(dir, n), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if name, _, err := newBackupName(dir, "0.9.0", at, false); err == nil {
+		t.Errorf("a minute of taken names: %q, want an error", name)
+	}
+	if name, got, err := newBackupName(dir, "0.9.0", at, true); err != nil || !got.Equal(at) || !strings.HasSuffix(name, ".age") {
+		t.Errorf("encrypted name: %q %v %v", name, got, err)
+	}
+	notADir := filepath.Join(dir, "file")
+	if err := os.WriteFile(notADir, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if name, _, err := newBackupName(notADir, "0.9.0", at, false); err == nil {
+		t.Errorf("unreadable directory: %q, want an error", name)
+	}
+}
+
+// An uploaded archive that asks for a scrypt work factor above 2^20 is refused before scrypt runs
+// (review M-2: age accepts 2^22, which needs 4 GiB). The archive is a real one whose header names
+// 2^21; without the cap the restore would spend 1 GiB and then report a wrong passphrase.
+func TestRestoreRefusesHugeScryptWorkFactor(t *testing.T) {
+	ctx := context.Background()
+	st := newStack(t, "0.9.0")
+	st.seed(t)
+	backup, err := st.svc.CreateBackup(ctx, model.BackupRequest{IncludeSecrets: true, Passphrase: testPassphrase})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(st.dir, "backups", backup.Name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stanza := regexp.MustCompile(`(?m)^(-> scrypt \S+) 10$`)
+	if !stanza.Match(data) {
+		t.Fatalf("no scrypt stanza with work factor 10 in the header: %q", data[:min(len(data), 200)])
+	}
+	data = stanza.ReplaceAll(data, []byte("$1 21"))
+	_, err = st.svc.RestoreBackupUpload(ctx, bytes.NewReader(data), testPassphrase)
+	if !errors.Is(err, model.ErrBackupInvalid) || !strings.Contains(err.Error(), "work factor too large") {
+		t.Errorf("work factor 2^21: err = %v, want ErrBackupInvalid (work factor too large)", err)
+	}
+	assertNothingStaged(t, st)
 }
 
 // Anything but the three regular entries, a wrong manifest or a damaged database is refused

@@ -97,6 +97,17 @@ func (s *Service) channelRow(ctx context.Context, accountID int64, channel strin
 	return systemq.AccountChannel{}, model.ErrNotFound
 }
 
+// requireManager lets a session change the channels of its account when it has no active profile
+// or the account's primary profile (ADR 0005): the channels belong to the account and carry the
+// messages of every profile, so another profile may read them but not reroute them
+// (model.ErrPrimaryProfileRequired).
+func requireManager(session model.Session) error {
+	if session.HasProfile() && !session.IsPrimary() {
+		return model.ErrPrimaryProfileRequired
+	}
+	return nil
+}
+
 // Channels returns the e-mail, push and Telegram channels of the session's account, in this order.
 func (s *Service) Channels(ctx context.Context, session model.Session) ([]model.ChannelSetting, error) {
 	rows, err := s.channelRows(ctx, session.Account.ID)
@@ -159,11 +170,16 @@ func (s *Service) setting(ctx context.Context, session model.Session, r systemq.
 }
 
 // UpdateChannel switches a channel of the session's account and stores its events and, for
-// e-mail, the recipient (nil = the account's e-mail). Errors: model.ErrNotFound (unknown channel),
-// *model.ValidationError (unknown event, invalid address), model.ErrEventNotAllowed (errors on a
-// guest account), model.ErrChannelUnavailable (switching on a channel the server lacks; switching
-// off is always allowed).
+// e-mail, the recipient (nil or the account's own address = the account's e-mail, also after it
+// changes). Errors: model.ErrPrimaryProfileRequired
+// (requireManager), model.ErrNotFound (unknown channel), *model.ValidationError (unknown event,
+// invalid address), model.ErrEventNotAllowed (errors on a guest account),
+// model.ErrChannelUnavailable (switching on a channel the server lacks; switching off is always
+// allowed).
 func (s *Service) UpdateChannel(ctx context.Context, session model.Session, channel string, upd model.ChannelSettingUpdate) (model.ChannelSetting, error) {
+	if err := requireManager(session); err != nil {
+		return model.ChannelSetting{}, err
+	}
 	if !slices.Contains(channelNames, channel) {
 		return model.ChannelSetting{}, model.ErrNotFound
 	}
@@ -200,6 +216,11 @@ func (s *Service) UpdateChannel(ctx context.Context, session model.Session, chan
 	}
 	cfg := parseConfig(row.Config)
 	if channel == model.ChannelEmail {
+		// The account's own address is stored as "the account's e-mail", so the channel follows a
+		// later change of it.
+		if strings.EqualFold(address, session.Account.Email) {
+			address = ""
+		}
 		cfg.Address = address
 	}
 	slices.SortFunc(events, func(a, b string) int { return slices.Index(eventNames, a) - slices.Index(eventNames, b) })

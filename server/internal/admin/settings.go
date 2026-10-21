@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"net/mail"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/notify/email"
+	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
@@ -50,16 +51,8 @@ const (
 	minSMTPFrom      = 3
 	maxSMTPFrom      = 320
 	maxBotToken      = 256
-	defaultSMTPTLS   = "starttls"
 	minHintKeyLength = 12 // a shorter stored key (a TVDB PIN) shows no hint: four characters would give too much away
 )
-
-// botTokenPattern is the form of a BotFather token (<bot id>:<secret>). It is the form the log
-// redaction masks in API paths (logging.botPath), so a token of another form is refused.
-var botTokenPattern = regexp.MustCompile(`^[0-9]+:[A-Za-z0-9_-]+$`)
-
-// smtpTLSModes are the encryption modes of the e-mail server (SMTPTLS).
-var smtpTLSModes = map[string]bool{"starttls": true, "tls": true, "none": true}
 
 // NotifyEnv are the notification settings of the environment (config.Config); they win over the
 // stored ones.
@@ -232,7 +225,7 @@ func (s *Service) storedSMTP(ctx context.Context, withPassword bool) (model.SMTP
 	port, _ := strconv.Atoi(v[SettingSMTPPort])
 	cfg := model.SMTPConfig{Host: v[SettingSMTPHost], Port: port, User: v[SettingSMTPUser], From: v[SettingSMTPFrom], TLS: v[SettingSMTPTLS]}
 	if cfg.TLS == "" {
-		cfg.TLS = defaultSMTPTLS
+		cfg.TLS = email.TLSStartTLS
 	}
 	if withPassword {
 		if cfg.Password, err = s.secretKey(ctx, "", SettingSMTPPassword); err != nil {
@@ -375,7 +368,7 @@ func validateSettings(upd model.AdminSettingsUpdate) (settingsChange, *model.Val
 			verr = verr.Add("telegram.botToken", "required")
 		case len(token) > maxBotToken:
 			verr = verr.Add("telegram.botToken", "too_long")
-		case !botTokenPattern.MatchString(token):
+		case !telegram.ValidToken(token): // the form the log redaction masks
 			verr = verr.Add("telegram.botToken", "invalid_value")
 		case c.cleared[model.ClearTelegram]:
 			verr = verr.Add("telegram", "not_allowed")
@@ -417,10 +410,16 @@ func validateEmail(verr *model.ValidationError, cfg model.SMTPConfig, password *
 	switch {
 	case cfg.TLS == "":
 		verr = verr.Add("email.tls", "required")
-	case !smtpTLSModes[cfg.TLS]:
+	case !validTLS(cfg.TLS):
 		verr = verr.Add("email.tls", "invalid_value")
 	}
 	return verr
+}
+
+// validTLS reports whether mode is an encryption mode of the e-mail server (email.DefaultPort).
+func validTLS(mode string) bool {
+	_, ok := email.DefaultPort(mode)
+	return ok
 }
 
 // normalizePublicURL trims the URL and its trailing slash; ok is false unless it is an absolute
@@ -601,9 +600,13 @@ func (s *Service) settingValues(ctx context.Context, keys ...string) (map[string
 }
 
 // SendTestEmail sends a test mail through the configured e-mail server to to, or to the main
-// account when to is empty (A-2, A-6). Errors: *model.ValidationError, model.ErrEmailNotConfigured,
+// account when to is empty (A-2, A-6); every call counts against the client's attempt limit.
+// Errors: model.ErrTooManyAttempts, *model.ValidationError, model.ErrEmailNotConfigured,
 // *model.SendError with model.ErrEmailSendFailed.
 func (s *Service) SendTestEmail(ctx context.Context, to string) error {
+	if err := s.auth.AllowAttempt(ctx); err != nil {
+		return err
+	}
 	to = strings.TrimSpace(to)
 	if to != "" {
 		if a, err := mail.ParseAddress(to); err != nil || a.Address != to || a.Name != "" {

@@ -46,7 +46,12 @@ UPDATE sessions SET revoked_at = @now WHERE id = @id AND revoked_at IS NULL;
 UPDATE sessions SET revoked_at = @now WHERE account_id = @account_id AND revoked_at IS NULL;
 
 -- name: DeleteExpiredSessions :execrows
-DELETE FROM sessions WHERE expires_at < @now OR revoked_at IS NOT NULL AND revoked_at < @before;
+-- A session that a playback session still refers to stays (deleting it would delete the playback
+-- sessions, which package playback keeps for the statistics); it goes with the last of them. A
+-- revoked or expired session authorises nothing.
+DELETE FROM sessions
+WHERE (sessions.expires_at < @now OR sessions.revoked_at IS NOT NULL AND sessions.revoked_at < @before)
+  AND NOT EXISTS (SELECT 1 FROM playback_sessions AS ps WHERE ps.session_id = sessions.id);
 
 -- name: GetSetting :one
 SELECT value FROM settings WHERE key = @key;

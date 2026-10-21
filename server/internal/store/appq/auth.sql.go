@@ -25,7 +25,9 @@ func (q *Queries) CountAccounts(ctx context.Context) (int64, error) {
 }
 
 const deleteExpiredSessions = `-- name: DeleteExpiredSessions :execrows
-DELETE FROM sessions WHERE expires_at < ?1 OR revoked_at IS NOT NULL AND revoked_at < ?2
+DELETE FROM sessions
+WHERE (sessions.expires_at < ?1 OR sessions.revoked_at IS NOT NULL AND sessions.revoked_at < ?2)
+  AND NOT EXISTS (SELECT 1 FROM playback_sessions AS ps WHERE ps.session_id = sessions.id)
 `
 
 type DeleteExpiredSessionsParams struct {
@@ -33,6 +35,9 @@ type DeleteExpiredSessionsParams struct {
 	Before sql.NullInt64
 }
 
+// A session that a playback session still refers to stays (deleting it would delete the playback
+// sessions, which package playback keeps for the statistics); it goes with the last of them. A
+// revoked or expired session authorises nothing.
 func (q *Queries) DeleteExpiredSessions(ctx context.Context, arg DeleteExpiredSessionsParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteExpiredSessions, arg.Now, arg.Before)
 	if err != nil {

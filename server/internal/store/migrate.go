@@ -89,8 +89,9 @@ func backup(ctx context.Context, db *sql.DB, dir, version string, now time.Time)
 }
 
 // pruneBackups deletes all but the newest keep automatic backups in dir that match (a kind of
-// backup), with the key file kept next to a pre-restore backup. Age comes from the UTC timestamp at
-// the end of the file name, which sorts lexically.
+// backup), with the key file kept next to a pre-restore backup and the WAL and index of one that
+// was moved instead of copied. Age comes from the UTC timestamp at the end of the file name, which
+// sorts lexically.
 func pruneBackups(dir string, keep int, match func(name string) bool) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -113,8 +114,10 @@ func pruneBackups(dir string, keep int, match func(name string) bool) error {
 	var errs []error
 	for _, f := range files[min(keep, len(files)):] {
 		errs = append(errs, os.Remove(filepath.Join(dir, f.name)))
-		if key := filepath.Join(dir, BackupKeyFile(f.name)); fileExists(key) {
-			errs = append(errs, os.Remove(key))
+		for _, extra := range append(databaseFiles(filepath.Join(dir, f.name))[1:], filepath.Join(dir, BackupKeyFile(f.name))) {
+			if fileExists(extra) {
+				errs = append(errs, os.Remove(extra))
+			}
 		}
 	}
 	return errors.Join(errs...)

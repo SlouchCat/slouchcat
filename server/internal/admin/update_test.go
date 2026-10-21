@@ -206,6 +206,9 @@ func TestNewerVersion(t *testing.T) {
 		{"1.0.0-rc.1", "1.0.0", false},
 		{"0.9.0", "dev", true},
 		{"0.9.0", "", true},
+		// A self-built image of the release (git describe) runs that release (review M-3).
+		{"0.9.0", "v0.9.0-3-gabc1234-dirty", false},
+		{"0.9.1", "v0.9.0-3-gabc1234", true},
 		{"latest", "0.9.0", false},
 		{"1.0", "0.9.0", false},
 		{"01.0.0", "0.9.0", false},

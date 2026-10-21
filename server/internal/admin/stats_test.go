@@ -6,11 +6,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"slices"
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -320,5 +322,54 @@ func TestStatsEmptyAndInvalid(t *testing.T) {
 		if _, err := st.svc.Stats(ctx, days); !errors.As(err, &verr) || verr.Fields[0].Field != "days" {
 			t.Errorf("days %d: err = %v, want a validation error on days", days, err)
 		}
+	}
+}
+
+// Review I-3: ended playback sessions stay for the statistics. The fixture's browser sessions
+// expired long ago and its playback sessions ended 1 to 40 days ago; the session cleanup of package
+// auth keeps a browser session while a playback session refers to it (the foreign key would delete
+// them with it), so the playback block of 90 days still counts all six. A browser session without
+// playback sessions goes, and the kept one goes with its last playback session (package playback
+// deletes those 400 days after their end).
+func TestStatsKeepEndedPlaybackSessions(t *testing.T) {
+	ctx := context.Background()
+	st := newStack(t, "0.9.0")
+	st.svc.now = func() time.Time { return statsNow }
+	seedStats(t, st.db.Write)
+	before, err := st.svc.Stats(ctx, 90)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := auth.New(st.db, slog.New(slog.DiscardHandler)).WithClock(func() time.Time { return statsNow })
+	if _, err := sessions.DeleteExpiredSessions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	after, err := st.svc.Stats(ctx, 90)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := after.Playback; p != before.Playback || p.Direct != 2 || p.Remux != 1 || p.Transcode != 3 {
+		t.Errorf("playback after the session cleanup %+v, before %+v; want 2/1/3", p, before.Playback)
+	}
+	left := func() []int64 {
+		t.Helper()
+		var ids []int64
+		scanAll(t, st.db.Read, "SELECT id FROM sessions ORDER BY id", func(rows *sql.Rows) error {
+			var id int64
+			err := rows.Scan(&id)
+			ids = append(ids, id)
+			return err
+		})
+		return ids
+	}
+	if got := left(); !slices.Equal(got, []int64{1}) {
+		t.Errorf("browser sessions after the cleanup %v, want [1] (the one with playback sessions)", got)
+	}
+	exec(t, st.db.Write, "DELETE FROM playback_sessions")
+	if _, err := sessions.DeleteExpiredSessions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := left(); len(got) != 0 {
+		t.Errorf("browser sessions after their playback sessions went %v, want none", got)
 	}
 }

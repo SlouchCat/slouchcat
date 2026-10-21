@@ -43,7 +43,8 @@ JOIN accounts AS a ON a.id = p.account_id
 ORDER BY w.watched_ms DESC, p.id;
 
 -- name: StatsPlaybackModes :one
--- Playback sessions started in the period by mode, and the transcodes encoded on the GPU.
+-- Playback sessions started in the period by mode, and the transcodes encoded on the GPU. Package
+-- playback keeps ended rows for 400 days, so every period of a year is complete.
 SELECT CAST(COALESCE(SUM(mode = 'direct'), 0) AS INTEGER)                      AS direct,
        CAST(COALESCE(SUM(mode = 'remux'), 0) AS INTEGER)                       AS remux,
        CAST(COALESCE(SUM(mode = 'transcode'), 0) AS INTEGER)                   AS transcode,

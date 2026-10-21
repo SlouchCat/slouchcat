@@ -26,7 +26,10 @@ import (
 // Playback sessions (plan 5.4): every started playback has a row in playback_sessions; its stream
 // token authorises the Range endpoint (direct) or the HLS endpoints. Rows expire 12 h after the
 // last token request and are revoked on stop and logout; the sweep (Run) stops what they left
-// running and removes them a day later.
+// running. An ended row no longer authorises anything, but it stays for endedRetention (400 days):
+// the usage statistics of the administration count the playback modes of a year from these rows
+// (A-8, admin_stats.sql StatsPlaybackModes), and package auth keeps a browser session as long as a
+// playback session refers to it (the foreign key would delete the rows with it).
 
 const (
 	// SessionLifetime is the sliding expiry of a playback session after its last token request.
@@ -38,8 +41,12 @@ const (
 	touchInterval = time.Minute
 	// sweepInterval is the period of the background sweep (Run).
 	sweepInterval = time.Minute
-	// endedRetention keeps revoked and expired rows for a day before the sweep deletes them.
-	endedRetention = 24 * time.Hour
+	// endedRetention keeps revoked and expired rows before the sweep deletes them: longer than the
+	// longest period of the statistics (365 days).
+	endedRetention = 400 * 24 * time.Hour
+	// endedSweepWindow is how long after its end the sweep still looks at a row to stop what it left
+	// running (the sweep runs every minute; older rows left nothing behind).
+	endedSweepWindow = 24 * time.Hour
 )
 
 // ErrNoKeyframes is returned by Transcoder.Start for a remux without a keyframe index; Start then
@@ -876,12 +883,14 @@ func (s *Service) Run(ctx context.Context) {
 
 // sweep ends what revoked and expired playback sessions left behind, including those whose
 // browser session ended (a client that never sent its stop, a revoked login): open streams and
-// HLS output. It deletes rows that ended more than a day ago. Before that it ends the playback
-// of profiles whose daily watch time is used up (sweepWatchLimits, K-5).
+// HLS output. It deletes rows that ended more than endedRetention ago. Before that it ends the
+// playback of profiles whose daily watch time is used up (sweepWatchLimits, K-5).
 func (s *Service) sweep(ctx context.Context) {
 	now := s.now()
 	s.sweepWatchLimits(ctx, now)
-	ids, err := s.read.ListEndedPlaybackSessions(ctx, now.UnixMilli())
+	ids, err := s.read.ListEndedPlaybackSessions(ctx, appq.ListEndedPlaybackSessionsParams{
+		Now: now.UnixMilli(), Since: now.Add(-endedSweepWindow).UnixMilli(),
+	})
 	if err != nil {
 		s.log.WarnContext(ctx, "list ended playback sessions", "err", err)
 	}

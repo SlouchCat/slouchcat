@@ -22,10 +22,11 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
+
+	"github.com/slouchcat/slouchcat/server/internal/netguard"
 )
 
 // ErrSubscriptionGone is the answer 404 or 410 of the push service: the browser dropped the
@@ -155,23 +156,12 @@ func defaultClient(allowPrivate bool) *http.Client {
 }
 
 // newClient returns the client of the push requests: no proxy, no redirects and, unless
-// allowPrivate, no connection to a loopback, private, link-local or unspecified address (checked on
-// the resolved address, so a DNS name cannot point it inward).
+// allowPrivate, no connection to a loopback, private, link-local or unspecified address (the guard
+// of package netguard, checked on the resolved address, so a DNS name cannot point it inward).
 func newClient(allowPrivate bool) *http.Client {
 	dialer := &net.Dialer{Timeout: Timeout}
 	if !allowPrivate {
-		dialer.Control = func(_, address string, _ syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			ip := net.ParseIP(host)
-			if ip == nil || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
-				ip.IsUnspecified() || ip.IsMulticast() {
-				return errors.New("push service address not allowed")
-			}
-			return nil
-		}
+		dialer.Control = netguard.RefuseLocal
 	}
 	return &http.Client{
 		Transport: &http.Transport{

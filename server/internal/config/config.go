@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
+	"github.com/slouchcat/slouchcat/server/internal/notify/email"
 )
 
 // EnvPrefix is the prefix of every environment variable the server reads.
@@ -83,9 +84,6 @@ type Config struct {
 
 // DefaultUpdateManifestURL is the release manifest the update check reads (M8, A-5).
 const DefaultUpdateManifestURL = "https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json"
-
-// SMTP encryption modes (SLOUCHCAT_SMTP_TLS) with their default ports.
-var smtpTLSPorts = map[string]int{"starttls": 587, "tls": 465, "none": 25}
 
 // TelegramAPIBase returns the base URL of the Telegram bot API client: TelegramBaseURL in
 // development mode (mocks), else empty, which means the real API.
@@ -289,8 +287,8 @@ func loadNotifyConfig(cfg *Config, env func(name, def string) string) error {
 	cfg.SMTPUser = strings.TrimSpace(env("SMTP_USER", ""))
 	cfg.SMTPPassword = env("SMTP_PASSWORD", "")
 	cfg.SMTPFrom = strings.TrimSpace(env("SMTP_FROM", ""))
-	cfg.SMTPTLS = strings.ToLower(strings.TrimSpace(env("SMTP_TLS", "starttls")))
-	defaultPort, ok := smtpTLSPorts[cfg.SMTPTLS]
+	cfg.SMTPTLS = strings.ToLower(strings.TrimSpace(env("SMTP_TLS", email.TLSStartTLS)))
+	defaultPort, ok := email.DefaultPort(cfg.SMTPTLS)
 	if !ok {
 		return fmt.Errorf("%sSMTP_TLS %q: want starttls, tls or none", EnvPrefix, cfg.SMTPTLS)
 	}

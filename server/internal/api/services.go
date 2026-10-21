@@ -197,7 +197,8 @@ type AdminService interface {
 	Settings(ctx context.Context) (model.AdminSettings, error)
 	UpdateSettings(ctx context.Context, upd model.AdminSettingsUpdate) (model.AdminSettings, error)
 	// SendTestEmail sends a test mail to to, or to the main account when empty
-	// (model.ErrEmailNotConfigured, *model.SendError with model.ErrEmailSendFailed).
+	// (model.ErrEmailNotConfigured, *model.SendError with model.ErrEmailSendFailed,
+	// model.ErrTooManyAttempts for the client in model.ClientIP of ctx).
 	SendTestEmail(ctx context.Context, to string) error
 	// RotatePushKeys creates a new VAPID pair and deletes every push subscription.
 	RotatePushKeys(ctx context.Context) (model.AdminSettings, error)
@@ -274,10 +275,13 @@ type NotifyService interface {
 	MarkAllRead(ctx context.Context, profile model.Profile) error
 
 	// Channels of the session's account (M8, A-6, 5.5): email, push and telegram in this order.
+	// Every method that changes them (all but Channels and PushPublicKey) answers
+	// model.ErrPrimaryProfileRequired for a session whose active profile is not the primary one.
 	// UpdateChannel: model.ErrNotFound (unknown channel), model.ErrChannelUnavailable (switching on a
 	// channel the server lacks), model.ErrEventNotAllowed (errors on a guest account),
 	// *model.ValidationError. TestChannel: model.ErrChannelUnavailable, model.ErrChannelDisabled,
-	// *model.SendError with model.ErrSendFailed.
+	// *model.SendError with model.ErrSendFailed, model.ErrTooManyAttempts (attempt limit of the
+	// client in model.ClientIP of ctx).
 	Channels(ctx context.Context, session model.Session) ([]model.ChannelSetting, error)
 	UpdateChannel(ctx context.Context, session model.Session, channel string, upd model.ChannelSettingUpdate) (model.ChannelSetting, error)
 	TestChannel(ctx context.Context, session model.Session, channel string) error

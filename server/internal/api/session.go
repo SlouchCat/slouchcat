@@ -328,7 +328,7 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrPinInvalid):
 		p.write(w, r, http.StatusForbidden, "pin_invalid", "The PIN is wrong.")
 	case errors.Is(err, model.ErrPrimaryProfileRequired):
-		p.write(w, r, http.StatusForbidden, "primary_profile_required", "Only the account's primary profile may manage profiles.")
+		p.write(w, r, http.StatusForbidden, "primary_profile_required", "Only the account's primary profile may do this.")
 	case errors.Is(err, model.ErrPrimaryProfile):
 		p.write(w, r, http.StatusConflict, "primary_profile", "The primary profile of an account cannot be deleted.")
 	case errors.Is(err, model.ErrInvitationGone):

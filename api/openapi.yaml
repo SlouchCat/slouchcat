@@ -4040,7 +4040,8 @@ paths:
   /admin/jobs/{id}:
     delete:
       operationId: cancelJob
-      summary: Cancel a queued or running job (A-3)
+      summary: Cancel a queued or running job, or dismiss a failed one (A-3)
+      description: The job ends `cancelled`; a failed job leaves the list of failed jobs.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -4053,7 +4054,7 @@ paths:
         "403":
           $ref: "#/components/responses/AdminOnly"
         "404":
-          description: Unknown job or a job that already ended (`not_found`).
+          description: Unknown job, or a job that is done or cancelled already (`not_found`).
           content:
             application/problem+json:
               schema:
@@ -4121,7 +4122,9 @@ paths:
     post:
       operationId: sendTestEmail
       summary: Send a test mail through the configured e-mail server (A-2, A-6)
-      description: Sends to `to`, or to the main account's address when absent.
+      description: |
+        Sends to `to`, or to the main account's address when absent. Counts against the client's
+        attempt limit (as a login).
       tags: [admin]
       x-visibility: admin
       requestBody:
@@ -4139,6 +4142,16 @@ paths:
           $ref: "#/components/responses/AdminOnly"
         "422":
           description: No e-mail server configured (`email_not_configured`) or `validation_failed` (`to` `invalid_email`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
           content:
             application/problem+json:
               schema:
@@ -4200,7 +4213,9 @@ paths:
         Writes a tar.gz archive with a manifest and a consistent copy of the database (never a media
         file) to the backup directory. Without `includeSecrets` the copy carries no encrypted setting,
         push subscription, Telegram link code or session. With `includeSecrets` the archive also holds
-        the key file and is encrypted with `passphrase` (age, scrypt).
+        the key file and is encrypted with `passphrase` (age, scrypt). Private podcast feed URLs stay
+        in every archive with the credentials they carry (a token in the path or query), so a restore
+        keeps the subscriptions; the manifest says so (`includesFeedCredentials: true`).
       tags: [admin]
       x-visibility: admin
       requestBody:
@@ -4659,7 +4674,8 @@ paths:
       description: |
         E-mail, Web Push and Telegram with the chosen events. The in-app inbox is always on and no
         channel here. `available` tells whether the server has the channel configured. Works without an
-        active profile (`account`).
+        active profile (`account`). Every profile may read the channels; only a session without an
+        active profile or with the account's primary profile may change them (ADR 0005).
       tags: [notify]
       x-visibility: account
       responses:
@@ -4676,7 +4692,11 @@ paths:
     put:
       operationId: updateMyChannel
       summary: Switch a channel and choose its events
-      description: The event `errors` is for the main account only.
+      description: |
+        The event `errors` is for the main account only. An e-mail address equal to the account's
+        e-mail is stored as "the account's e-mail", so the channel follows a later change of it.
+        Only a session without an active profile or with the account's primary profile may change
+        the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
       parameters:
@@ -4697,11 +4717,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+          $ref: "#/components/responses/PrimaryProfileRequired"
         "404":
           description: Unknown channel (`not_found`).
           content:
@@ -4722,6 +4738,10 @@ paths:
     post:
       operationId: testMyChannel
       summary: Send a test message on a channel
+      description: |
+        Counts against the client's attempt limit (as a login). Only a session without an active
+        profile or with the account's primary profile may change or test the channels
+        (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
       parameters:
@@ -4732,11 +4752,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+          $ref: "#/components/responses/PrimaryProfileRequired"
         "404":
           description: Unknown channel (`not_found`).
           content:
@@ -4751,8 +4767,20 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "429":
+          description: Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "502":
-          description: The channel's service refused or did not answer (`send_failed`; `detail` without secrets).
+          description: |
+            The channel's service refused or did not answer (`send_failed`). The `detail` is generic; the
+            server log names the cause (it may name the mail server).
           content:
             application/problem+json:
               schema:
@@ -4766,6 +4794,8 @@ paths:
         Returns a new link code (six characters, valid for 15 minutes; an older code of the account
         stops working). The user sends `/start <code>` to the bot; the server links the chat when the
         bot receives it. Replaces an existing link only once the new one is confirmed.
+        Only a session without an active profile or with the account's primary profile may change
+        the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
       responses:
@@ -4778,11 +4808,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+          $ref: "#/components/responses/PrimaryProfileRequired"
         "422":
           description: No Telegram bot configured (`channel_unavailable`).
           content:
@@ -4792,7 +4818,10 @@ paths:
     delete:
       operationId: deleteTelegramLink
       summary: Unlink the Telegram chat
-      description: Idempotent; also drops an open link code. The channel is switched off.
+      description: |
+        Idempotent; also drops an open link code. The channel is switched off.
+        Only a session without an active profile or with the account's primary profile may change
+        the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
       responses:
@@ -4801,11 +4830,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+          $ref: "#/components/responses/PrimaryProfileRequired"
 
   /push/vapid-key:
     get:
@@ -4837,6 +4862,8 @@ paths:
       description: |
         Idempotent per endpoint: the same endpoint again updates its keys and device name. The endpoint
         and its keys are capability secrets; they are never returned and never logged.
+        Only a session without an active profile or with the account's primary profile may change
+        the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
       requestBody:
@@ -4855,11 +4882,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+          $ref: "#/components/responses/PrimaryProfileRequired"
         "404":
           description: Web Push is not set up on the server (`push_unavailable`).
           content:
@@ -4877,6 +4900,9 @@ paths:
     delete:
       operationId: deletePushSubscription
       summary: Remove a push subscription of the account
+      description: |
+        Only a session without an active profile or with the account's primary profile may change
+        the channels (`primary_profile_required` otherwise, ADR 0005); every profile may read them.
       tags: [notify]
       x-visibility: account
       parameters:
@@ -4887,11 +4913,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: CSRF header missing (`csrf_header_missing`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+          $ref: "#/components/responses/PrimaryProfileRequired"
         "404":
           description: Unknown or of another account (`not_found`).
           content:

@@ -165,15 +165,35 @@ func serve(cfg config.Config) int {
 	}
 	log.Info("starting slouchcat", "version", version, "config", cfg)
 	var restart atomic.Bool
-	if err := serveUntilSignal(cfg, log, errRing, started, &restart); err != nil {
+	err = serveUntilSignal(cfg, log, errRing, started, &restart)
+	again, code := afterStop(err, restart.Load())
+	switch {
+	case again && err != nil:
+		log.Error("server stopped with error; restarting anyway", "err", err)
+	case err != nil:
 		log.Error("server stopped with error", "err", err)
-		return 1
 	}
-	if restart.Load() {
+	if again {
 		reexec(log)
 	}
-	log.Info("server stopped")
-	return 0
+	if code == 0 {
+		log.Info("server stopped")
+	}
+	return code
+}
+
+// afterStop decides how serve ends once the server stopped with err: it runs the binary again
+// whenever a restart was requested, also after an error on the way down (the staged restore of
+// the restart is applied only by the next start), and otherwise exits 1 on an error. A failed
+// exec ends with 0, so the container's restart policy starts the server again.
+func afterStop(err error, restart bool) (again bool, code int) {
+	switch {
+	case restart:
+		return true, 0
+	case err != nil:
+		return false, 1
+	}
+	return false, 0
 }
 
 // reexec replaces the stopped server with a fresh start of the same binary (a staged restore,
@@ -234,7 +254,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		log.Warn("SLOUCHCAT_TELEGRAM_BASE_URL is ignored without --dev")
 	}
 	notifySvc := notify.New(db, visibility.New(db, log), log, notify.WithQueue(queue), notify.WithDevPush(cfg.Dev),
-		notify.WithSenders(notify.Senders{Telegram: &telegram.Client{BaseURL: cfg.TelegramAPIBase()}}))
+		notify.WithSenders(notify.Senders{Telegram: &telegram.Client{BaseURL: cfg.TelegramAPIBase()}}),
+		notify.WithAttemptLimit(authSvc.AllowAttempt))
 	authSvc.WithAccountCreated(notifySvc.EnsureDefaults).WithInvitationAccepted(notifySvc.InvitationAccepted)
 	// The Trakt base URL points the lists at a mock; it is honoured in development mode only.
 	traktBase := ""
@@ -344,9 +365,23 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	case <-ctx.Done():
 	}
 	log.Info("shutting down")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	return shutdown(srv, shutdownTimeout, restart.Load(), log)
+}
+
+// shutdown stops srv and waits up to timeout for the running requests. On the way to a restart a
+// request still running then (a direct-play stream or an offline download keeps its connection for
+// minutes) is cut off: its client resumes against the restarted server, so this is a normal
+// restart and no error.
+func shutdown(srv *http.Server, timeout time.Duration, restarting bool, log *slog.Logger) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return srv.Shutdown(shutdownCtx)
+	err := srv.Shutdown(ctx)
+	if err == nil || !restarting || !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	log.Info("closing the remaining connections for the restart", "waited_ms", timeout.Milliseconds())
+	_ = srv.Close() // the listeners closed with Shutdown already; this ends the open connections
+	return nil
 }
 
 // wireAdmin hands the administration of M8 its collaborators: the job queue, the error ring of the

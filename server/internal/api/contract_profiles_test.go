@@ -980,7 +980,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		WithSystem(admin.SystemSource{Version: "test", StartedAt: time.Now(), ConfigDir: t.TempDir(), CacheDir: f.CacheDir})
 	pf.off = offline.New(f.DB, visibility.New(f.DB, log), pf.queue, transcode.Runner{}, log, offline.WithDir(pf.dlDir),
 		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
-	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue)
+	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue, a.AllowAttempt)
 	adm.WithAnnouncements(pf.notifySvc)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,

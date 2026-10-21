@@ -66,8 +66,9 @@ type Service struct {
 	mailer   Mailer
 	pusher   Pusher
 	telegram TelegramAPI
-	devPush  bool          // development: http push endpoints and private addresses
-	linkPoll time.Duration // interval of the Telegram link poller
+	devPush  bool                        // development: http push endpoints and private addresses
+	linkPoll time.Duration               // interval of the Telegram link poller
+	attempt  func(context.Context) error // counts a test message against the client's limit; nil = none
 
 	vapidMu  sync.Mutex // one VAPID pair, also when two requests need it first
 	errorsMu sync.Mutex // serialises the hourly dedupe of the event errors
@@ -86,6 +87,13 @@ func WithDispatcher(d Dispatcher) Option {
 			s.dispatch = d
 		}
 	}
+}
+
+// WithAttemptLimit counts every test message (TestChannel) with allow, the attempt limit of the
+// client's address (main: auth.Service.AllowAttempt); its error, model.ErrTooManyAttempts, ends
+// the test before anything is sent.
+func WithAttemptLimit(allow func(context.Context) error) Option {
+	return func(s *Service) { s.attempt = allow }
 }
 
 // WithClock replaces time.Now (tests).

@@ -29,12 +29,27 @@ import (
 	"time"
 )
 
-// Encryption modes of the connection (SLOUCHCAT_SMTP_TLS).
+// Encryption modes of the connection (SLOUCHCAT_SMTP_TLS); TLSStartTLS is the default. They are the
+// only modes the configuration, the settings and Send accept (DefaultPort).
 const (
 	TLSStartTLS = "starttls"
 	TLSImplicit = "tls"
 	TLSNone     = "none"
 )
+
+// DefaultPort returns the usual port of an encryption mode: 587 for starttls, 465 for tls, 25 for
+// none; ok is false for any other mode.
+func DefaultPort(mode string) (port int, ok bool) {
+	switch mode {
+	case TLSStartTLS:
+		return 587, true
+	case TLSImplicit:
+		return 465, true
+	case TLSNone:
+		return 25, true
+	}
+	return 0, false
+}
 
 // Timeout bounds one delivery (connect, dialogue, data) unless ctx ends earlier.
 const Timeout = 30 * time.Second
@@ -95,7 +110,7 @@ func (s Sender) deliver(ctx context.Context, from, to string, msg []byte) error 
 	if mode == "" {
 		mode = TLSStartTLS
 	}
-	if mode != TLSStartTLS && mode != TLSImplicit && mode != TLSNone {
+	if _, ok := DefaultPort(mode); !ok {
 		return fmt.Errorf("unknown encryption mode %q", mode)
 	}
 	dialer := &net.Dialer{Timeout: Timeout}
@@ -158,9 +173,9 @@ func (s Sender) deliver(ctx context.Context, from, to string, msg []byte) error 
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("smtp message: %w", err)
 	}
-	if err := c.Quit(); err != nil {
-		return fmt.Errorf("smtp QUIT: %w", err)
-	}
+	// The server accepted the message with its answer to the end of DATA: a failing QUIT (a server
+	// that drops the connection, the deadline) must not make the queue send it again.
+	_ = c.Quit()
 	return nil
 }
 

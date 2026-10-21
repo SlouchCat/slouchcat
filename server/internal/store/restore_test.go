@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -86,6 +87,8 @@ func TestApplyRestoreSwapsDatabaseAndKey(t *testing.T) {
 		writeFile(t, filepath.Join(backups, name), []byte("old"))
 		writeFile(t, filepath.Join(backups, BackupKeyFile(name)), oldKey)
 	}
+	// The oldest was moved instead of copied (I-4): its WAL goes with it.
+	writeFile(t, filepath.Join(backups, "pre-restore-0.8.0-20261001T100000.000Z.sqlite-wal"), []byte("wal"))
 	// Staged the way package admin does it: unpacked in restore/, then StageRestore.
 	staged := filepath.Join(dir, RestoreDir, FileName)
 	if err := os.Rename(newDatabaseFile(t, "restored"), staged); err != nil {
@@ -212,6 +215,102 @@ func TestApplyRestoreResumesInterruptedSwap(t *testing.T) {
 	}
 	if !missing(filepath.Join(dir, BackupDir)) {
 		t.Error("no live database, so no pre-restore backup")
+	}
+}
+
+// Review I-4: when the pre-restore copy cannot be written (a damaged live database, or a target the
+// copy cannot write, here a file already in its place), the start does not fail: the live files
+// are moved into backups/ as they are, an error is logged and the restore is applied. The key file
+// goes next to them as usual. (SQLite itself removes a WAL it cannot use while the copy is tried;
+// TestMoveDatabase covers the WAL.)
+func TestApplyRestoreMovesLiveFilesWhenTheCopyFails(t *testing.T) {
+	ctx := context.Background()
+	at := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
+	keptName := "pre-restore-0.1.0_test_1-20261021T120000.000Z.sqlite"
+	damaged := append([]byte("SQLite format 3\x00"), bytes.Repeat([]byte{0xee}, 8192)...)
+	for name, tc := range map[string]struct {
+		live    func(t *testing.T, dir string) // writes the live database (and its WAL)
+		blocked bool                           // a file takes the copy's place
+	}{
+		"damaged live database": {live: func(t *testing.T, dir string) {
+			writeFile(t, filepath.Join(dir, FileName), damaged)
+		}},
+		"copy target not writable": {live: func(t *testing.T, dir string) {
+			if err := os.Rename(newDatabaseFile(t, "live"), filepath.Join(dir, FileName)); err != nil {
+				t.Fatal(err)
+			}
+		}, blocked: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			tc.live(t, dir)
+			oldKey, newKey := bytes.Repeat([]byte{7}, 32), bytes.Repeat([]byte{8}, 32)
+			writeFile(t, filepath.Join(dir, "secret.key"), oldKey)
+			backups := filepath.Join(dir, BackupDir)
+			if err := os.MkdirAll(backups, 0o750); err != nil {
+				t.Fatal(err)
+			}
+			if tc.blocked {
+				writeFile(t, filepath.Join(backups, keptName), []byte("in the way"))
+			}
+			if err := os.Rename(newDatabaseFile(t, "restored"), filepath.Join(dir, RestoreDBFile)); err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, filepath.Join(dir, RestoreKeyFile), newKey)
+			var logs bytes.Buffer
+			opts := testOptions(t, dir)
+			opts.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+			opts.now = func() time.Time { return at }
+
+			db, err := Open(ctx, opts)
+			if err != nil {
+				t.Fatalf("start with a failing pre-restore copy: %v", err)
+			}
+			defer db.Close()
+			if got := marker(t, db.Read); got != "restored" {
+				t.Errorf("marker = %q, want the restored database", got)
+			}
+			if !strings.Contains(logs.String(), "level=ERROR") || !strings.Contains(logs.String(), "pre-restore copy failed") {
+				t.Errorf("no error logged:\n%s", logs.String())
+			}
+			kept := filepath.Join(backups, keptName)
+			if tc.blocked {
+				old, err := OpenFile(ctx, kept)
+				if err != nil {
+					t.Fatalf("moved database: %v", err)
+				}
+				defer old.Close()
+				if got := marker(t, old); got != "live" {
+					t.Errorf("moved database marker = %q, want live", got)
+				}
+			} else if !bytes.Equal(readFile(t, kept), damaged) {
+				t.Error("the damaged database is not kept as it was")
+			}
+			if !bytes.Equal(readFile(t, filepath.Join(backups, BackupKeyFile(keptName))), oldKey) ||
+				!bytes.Equal(readFile(t, filepath.Join(dir, "secret.key")), newKey) {
+				t.Error("keys not swapped")
+			}
+		})
+	}
+}
+
+// moveDatabase takes the WAL and the index along when they exist; the database file must exist.
+func TestMoveDatabase(t *testing.T) {
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "live.db"), filepath.Join(dir, "kept.sqlite")
+	writeFile(t, src, []byte("db"))
+	writeFile(t, src+"-wal", []byte("wal"))
+	if err := moveDatabase(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	if string(readFile(t, dst)) != "db" || string(readFile(t, dst+"-wal")) != "wal" || !missing(dst+"-shm") {
+		t.Error("database and WAL not moved together")
+	}
+	if !missing(src) || !missing(src+"-wal") {
+		t.Error("source files left")
+	}
+	if err := moveDatabase(src, dst); err == nil {
+		t.Error("moving a missing database succeeded")
 	}
 }
 

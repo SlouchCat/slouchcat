@@ -14,7 +14,7 @@ import (
 const cancelJob = `-- name: CancelJob :execrows
 UPDATE jobs
 SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = ?1
-WHERE id = ?2 AND state IN ('queued', 'running')
+WHERE id = ?2 AND state IN ('queued', 'running', 'failed')
 `
 
 type CancelJobParams struct {
@@ -22,6 +22,7 @@ type CancelJobParams struct {
 	ID  int64
 }
 
+// A queued or running job stops; a failed one is dismissed (the dashboard offers both).
 func (q *Queries) CancelJob(ctx context.Context, arg CancelJobParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, cancelJob, arg.Now, arg.ID)
 	if err != nil {

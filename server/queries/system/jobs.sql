@@ -64,6 +64,7 @@ SET state = 'queued', attempts = attempts - 1, lease_owner = NULL, lease_until =
 WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
 
 -- name: CancelJob :execrows
+-- A queued or running job stops; a failed one is dismissed (the dashboard offers both).
 UPDATE jobs
 SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = @now
-WHERE id = @id AND state IN ('queued', 'running');
+WHERE id = @id AND state IN ('queued', 'running', 'failed');

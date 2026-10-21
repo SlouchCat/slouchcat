@@ -22,6 +22,9 @@ const (
 	pushTTL     = 24 * time.Hour
 	pushTestTTL = time.Minute
 	maxError    = 500
+	// testFailedDetail is the detail of a failed test message: any account may send one, so the
+	// cause (the mail server's name and address, its answer) stays in the log.
+	testFailedDetail = "The service refused the message or did not answer; the server log names the cause."
 )
 
 // Reasons a delivery is skipped instead of sent: the channel has nowhere to send. Not an error of
@@ -38,10 +41,11 @@ func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobDeliver, s.deliver)
 }
 
-// deliver sends one delivery. A delivery that is no longer queued is done (the job may run twice);
-// a channel without recipient ends skipped; an error is recorded and returned, so the queue retries
-// it (5 attempts) and the delivery ends failed with the last attempt. A failed delivery raises no
-// event errors (no loop).
+// deliver sends one delivery. A delivery that is no longer queued is done (the job may run twice),
+// except a failed one whose job the admin queued again (Retry starts its attempts over, so this is
+// its first): it is sent again. A channel without recipient ends skipped; an error is recorded and
+// returned, so the queue retries it (5 attempts) and the delivery ends failed with the last
+// attempt. A failed delivery raises no event errors (no loop).
 func (s *Service) deliver(ctx context.Context, j *jobs.Job) error {
 	var p deliverPayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil || p.DeliveryID == 0 {
@@ -53,6 +57,15 @@ func (s *Service) deliver(ctx context.Context, j *jobs.Job) error {
 	}
 	if err != nil {
 		return fmt.Errorf("load delivery %d: %w", p.DeliveryID, err)
+	}
+	if d.State == "failed" && j.Attempts == 1 {
+		n, err := s.write.DeliveryRequeue(ctx, d.ID)
+		if err != nil {
+			return fmt.Errorf("queue delivery %d again: %w", d.ID, err)
+		}
+		if n == 1 {
+			d.State = "queued"
+		}
 	}
 	if d.State != "queued" {
 		return nil
@@ -169,9 +182,6 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 				errs = append(errs, fmt.Errorf("delete push subscription: %w", err))
 			}
 		default:
-			if ferr := s.write.PushSubscriptionFailed(ctx, sub.ID); ferr != nil {
-				s.log.WarnContext(ctx, "count push failure", "subscription_id", sub.ID, "err", ferr)
-			}
 			errs = append(errs, err)
 		}
 	}
@@ -189,10 +199,21 @@ func (s *Service) sendPush(ctx context.Context, accountID int64, m message, publ
 }
 
 // TestChannel sends a test message on a channel of the session's account, right away and not
-// through the queue. Errors: model.ErrNotFound (unknown channel), model.ErrChannelUnavailable,
-// model.ErrChannelDisabled (switched off, not linked or without subscription), *model.SendError
-// with model.ErrSendFailed and a detail without secrets.
+// through the queue; every call counts against the client's attempt limit (WithAttemptLimit), as
+// any account may send it to an address it chose. Errors: model.ErrPrimaryProfileRequired
+// (requireManager), model.ErrTooManyAttempts, model.ErrNotFound (unknown channel),
+// model.ErrChannelUnavailable, model.ErrChannelDisabled (switched off, not linked or without
+// subscription), *model.SendError with model.ErrSendFailed and a generic detail (the log has the
+// cause, which may name the mail server).
 func (s *Service) TestChannel(ctx context.Context, session model.Session, channel string) error {
+	if err := requireManager(session); err != nil {
+		return err
+	}
+	if s.attempt != nil {
+		if err := s.attempt(ctx); err != nil {
+			return err
+		}
+	}
 	row, err := s.channelRow(ctx, session.Account.ID, channel)
 	if err != nil {
 		return err
@@ -223,8 +244,8 @@ func (s *Service) TestChannel(ctx context.Context, session model.Session, channe
 	case ctx.Err() != nil:
 		return ctx.Err()
 	default:
-		s.log.WarnContext(ctx, "test message failed", "channel", channel, "err", err)
-		return &model.SendError{Err: model.ErrSendFailed, Detail: errorText(err)}
+		s.log.WarnContext(ctx, "test message failed", "channel", channel, "account_id", session.Account.ID, "err", err)
+		return &model.SendError{Err: model.ErrSendFailed, Detail: testFailedDetail}
 	}
 }
 

@@ -269,9 +269,11 @@ func (s *Service) removeSubtitles(id string) {
 	}
 }
 
-// subtitleCacheAge is how long the sweep keeps a subtitle directory whose playback session row is
-// gone (ended more than a day ago, or lost with a database restore).
-const subtitleCacheAge = 2 * endedRetention
+// subtitleCacheAge is how long the sweep keeps a subtitle directory, by its age and whatever the
+// playback session row says (the rows stay for the statistics; a directory may also be left over
+// from a crash or a database restore). The sweep removes the directory of an ended playback
+// session right away; a playback that runs longer converts its subtitles again on request.
+const subtitleCacheAge = 48 * time.Hour
 
 // sweepSubtitles removes subtitle directories older than subtitleCacheAge.
 func (s *Service) sweepSubtitles(now time.Time) {
