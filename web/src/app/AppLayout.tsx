@@ -40,6 +40,21 @@ export function AppLayout() {
         current: pathname.startsWith(paths.adminPodcasts),
       },
       {
+        href: paths.adminPicks,
+        label: t('nav.picks'),
+        current: pathname.startsWith(paths.adminPicks),
+      },
+      {
+        href: paths.adminCollections,
+        label: t('nav.collections'),
+        current: pathname.startsWith(paths.adminCollections),
+      },
+      {
+        href: paths.adminHomeRows,
+        label: t('nav.homeRows'),
+        current: pathname.startsWith(paths.adminHomeRows),
+      },
+      {
         href: paths.adminAccess,
         label: t('nav.access'),
         current: pathname.startsWith(paths.adminAccess),

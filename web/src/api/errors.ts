@@ -57,6 +57,7 @@ const fieldKeys = {
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
   invalid_url: 'errors.field.invalid_url',
   library_kind: 'errors.field.library_kind',
+  unknown_item: 'errors.field.unknown_item',
 } as const;
 
 const has = <K extends string>(map: Record<K, string>, key: string): key is K =>

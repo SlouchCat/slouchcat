@@ -6,6 +6,7 @@ import {
   resetProfiles,
   stopAllStreams,
 } from './accounts';
+import { resetCuration } from './curation';
 import { removeDeviceDownloads } from './offline';
 
 /**
@@ -40,6 +41,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await resetProfiles(api);
         await removeGuests(api);
         await removeTestPodcasts(api);
+        await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
         await provide(api);
       } finally {
         await stopAllStreams(api);
@@ -48,6 +50,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await resetProfiles(api);
         await removeGuests(api);
         await removeTestPodcasts(api);
+        await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
         await api.dispose();
       }
     },

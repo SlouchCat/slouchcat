@@ -101,7 +101,8 @@
       "pin_format": "The PIN has 4 to 8 digits.",
       "not_burnable": "This subtitle track cannot be burned in.",
       "invalid_url": "Enter an address starting with http:// or https://.",
-      "library_kind": "Choose a podcast library."
+      "library_kind": "Choose a podcast library.",
+      "unknown_item": "This title does not exist."
     }
   },
   "setup": {
@@ -860,6 +861,184 @@
         "confirm": "Unsubscribe",
         "done": "Unsubscribed from {{title}}."
       }
+    },
+    "picks": {
+      "title": "Cat's picks",
+      "intro": "Titles in the start page carousel, for every profile or for single ones. Each profile only sees titles of its age rating and only within the chosen time window.",
+      "list": "Picks in carousel order",
+      "empty": "No picks yet. Without picks the start page shows no carousel.",
+      "allProfiles": "Everyone",
+      "noNote": "–",
+      "moved": "{{title}} is now at position {{position}}.",
+      "columns": {
+        "title": "Title",
+        "target": "For",
+        "note": "Note",
+        "window": "Time window",
+        "actions": "Actions"
+      },
+      "window": {
+        "always": "Always",
+        "from": "From {{date}}",
+        "until": "Until {{date}}",
+        "range": "{{from}} to {{to}}",
+        "expired": "Expired",
+        "scheduled": "Scheduled"
+      },
+      "up": {
+        "action": "Move up",
+        "label": "Move {{title}} up"
+      },
+      "down": {
+        "action": "Move down",
+        "label": "Move {{title}} down"
+      },
+      "search": {
+        "label": "Search titles",
+        "hint": "Two characters or more: films, series, episodes, audiobooks and podcasts.",
+        "empty": "No matching title found.",
+        "results": "Titles found",
+        "select": "Choose",
+        "selectLabel": "Choose {{title}}",
+        "chosen": "Chosen: {{title}}",
+        "none": "No title chosen yet."
+      },
+      "targets": {
+        "label": "For",
+        "all": "All profiles",
+        "description": "All profiles or single ones. A profile only sees the pick when it may see the title.",
+        "required": "Choose “All profiles” or at least one profile."
+      },
+      "form": {
+        "note": "Note",
+        "noteHint": "Shown in the carousel below the title, at most {{max}} characters.",
+        "from": "Visible from",
+        "to": "Visible until",
+        "windowHint": "Leave empty: from now on and without end.",
+        "endBeforeStart": "The end must be after the start."
+      },
+      "add": {
+        "action": "Add",
+        "title": "Add a pick",
+        "description": "Search a title and choose who it is recommended to. New picks go to the end.",
+        "submit": "Add",
+        "submitting": "Adding …",
+        "done": "{{title}} is in Cat's picks.",
+        "titleRequired": "Choose a title first.",
+        "presetMissing": "The title of the link no longer exists. Search it again."
+      },
+      "edit": {
+        "action": "Edit",
+        "label": "Edit {{title}}",
+        "title": "Edit {{title}}",
+        "done": "{{title}} is saved."
+      },
+      "remove": {
+        "action": "Remove",
+        "label": "Remove {{title}}",
+        "title": "Remove {{title}} from Cat's picks?",
+        "body": "The title stays in the library; only the pick goes.",
+        "confirm": "Remove",
+        "done": "{{title}} is no longer a pick."
+      }
+    },
+    "collections": {
+      "title": "Collections",
+      "intro": "Collections from TMDB appear by themselves when titles are matched and cannot be changed. Put together your own collections here.",
+      "list": "Collections",
+      "empty": "No collections yet.",
+      "columns": {
+        "name": "Name",
+        "source": "Source",
+        "count": "Titles",
+        "actions": "Actions"
+      },
+      "source": {
+        "tmdb": "TMDB",
+        "manual": "Manual"
+      },
+      "form": {
+        "name": "Name"
+      },
+      "create": {
+        "action": "New collection",
+        "title": "New collection",
+        "description": "An empty collection. Add its titles afterwards under “Members”.",
+        "submit": "Create",
+        "done": "The collection {{name}} is created."
+      },
+      "rename": {
+        "action": "Rename",
+        "label": "Rename {{name}}",
+        "title": "Rename {{name}}",
+        "done": "The collection is now called {{name}}."
+      },
+      "remove": {
+        "action": "Delete",
+        "label": "Delete collection {{name}}",
+        "title": "Delete collection {{name}}?",
+        "body": "The titles stay in the library; only the collection goes.",
+        "confirm": "Delete collection",
+        "done": "The collection {{name}} is deleted."
+      },
+      "members": {
+        "action": "Members",
+        "label": "Members of {{name}}",
+        "title": "Members of {{name}}",
+        "description": "Search titles and add them; the order here is the collection's order.",
+        "list": "Titles of the collection",
+        "empty": "No titles in this collection yet.",
+        "add": "Add",
+        "addLabel": "Add {{title}}",
+        "up": "Move up",
+        "upLabel": "Move {{title}} up",
+        "down": "Move down",
+        "downLabel": "Move {{title}} down",
+        "remove": "Remove",
+        "removeLabel": "Remove {{title}}",
+        "done": "The members of {{name}} are saved.",
+        "search": {
+          "label": "Search titles",
+          "hint": "Two characters or more: films, series, audiobooks and podcasts.",
+          "empty": "No matching title found.",
+          "results": "Titles found"
+        }
+      }
+    },
+    "homeRows": {
+      "title": "Start page",
+      "intro": "Order of the start page rows, for every profile. Hidden and empty rows do not appear.",
+      "list": "Rows of the start page",
+      "columns": {
+        "row": "Row",
+        "hidden": "Hide",
+        "actions": "Actions"
+      },
+      "hide": "Hide",
+      "hideLabel": "Hide {{row}}",
+      "up": "Move up",
+      "upLabel": "Move {{row}} up",
+      "down": "Move down",
+      "downLabel": "Move {{row}} down",
+      "moved": "{{row}} is now at position {{position}}. Save to apply it.",
+      "saved": "The start page is saved."
+    },
+    "trakt": {
+      "title": "Trakt",
+      "intro": "The Trakt lists “Trending” and “Popular”, fetched once a day with the server's key. Slouchcat sends nothing to Trakt.",
+      "notConfigured": "Trakt is not set up: without a client id (SLOUCHCAT_TRAKT_CLIENT_ID) the Trakt rows stay away.",
+      "configured": "Set up",
+      "yes": "Yes",
+      "no": "No",
+      "lastSuccess": "Last successful fetch",
+      "lastAttempt": "Last attempt",
+      "lastError": "Last error",
+      "never": "Never",
+      "noError": "–",
+      "trending": "“Trending” entries",
+      "popular": "“Popular” entries",
+      "refresh": "Refresh now",
+      "queued": "The Trakt lists are being fetched."
     }
   },
   "language": {
@@ -1130,7 +1309,7 @@
     },
     "rules": {
       "title": "Automatic downloads",
-      "intro": "Downloads the next episode of every series {{name}} watched in the last 60 days to this device, and new episodes of the podcasts {{name}} listened to in that time.",
+      "intro": "Downloads the next episode of every series {{name}} watched in the last 60 days to this device, and new episodes of the podcasts {{name}} marked as favourites.",
       "options": "Settings",
       "enabled": "Automatic downloads on this device",
       "nextEpisodes": "Next episode of started series",
@@ -1142,7 +1321,7 @@
       "quality": "Quality",
       "save": "Save rule",
       "saved": "Saved. The rule applies from the next sync.",
-      "newPodcastEpisodes": "New episodes of podcasts listened to"
+      "newPodcastEpisodes": "New episodes of favourite podcasts"
     },
     "dialog": {
       "button": "Download",

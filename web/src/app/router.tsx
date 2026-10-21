@@ -297,6 +297,34 @@ const podcastsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
 });
 
+// admin M7
+/** Cat's recommendations; `add` (the detail page's link) opens the dialog with that title. */
+const picksRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/picks',
+  validateSearch: (search: Record<string, unknown>): { add?: string } =>
+    typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
+      ? { add: search.add }
+      : {},
+  component: lazyRouteComponent(() => import('@/features/admin/PicksPage'), 'PicksPage'),
+});
+
+const collectionsAdminRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/collections',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/CollectionsPage'),
+    'CollectionsPage',
+  ),
+});
+
+const homeRowsRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/admin/home-rows',
+  component: lazyRouteComponent(() => import('@/features/admin/HomeRowsPage'), 'HomeRowsPage'),
+});
+// end admin M7
+
 const profileSettingsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/settings/profiles',
@@ -350,6 +378,10 @@ export const routeTree = rootRoute.addChildren([
         personRoute,
         librariesRoute,
         podcastsRoute,
+        // admin M7
+        picksRoute,
+        collectionsAdminRoute,
+        homeRowsRoute,
         maintenanceRoute,
         devicesRoute,
         streamsRoute,

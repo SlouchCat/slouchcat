@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { request, type APIRequestContext } from '@playwright/test';
 import { M4B_TITLE, MP3_TITLE } from './audio';
+import { ensureBaselinePick } from './curation';
 import {
   AUDIO_IDS,
   AUDIOBOOKS_DIR,
@@ -152,6 +153,7 @@ async function waitForScan(api: APIRequestContext): Promise<void> {
  * API (main account, the audiobook library on testdata/media/Audiobooks, no TMDB key), adds the
  * podcast library, subscribes to the local feed and notes the ids of the test books, then adds
  * the video libraries on testdata/media/Movies and testdata/media/TV and waits for their scans.
+ * Last, one global pick of the H264 film gives the start page its carousel (M7).
  * The order matters: the start page's "Neu hinzugefügt" holds the 20 newest titles, and the test
  * media have exactly 20 films and series; scanned last, they fill the row in every run (titles of
  * one scan batch share their time, so the row would otherwise drop an arbitrary older title).
@@ -189,6 +191,8 @@ export default async function globalSetup(): Promise<void> {
     await storeAudioIds(api);
     await ensureVideoLibraries(api);
     await waitForScan(api);
+    // Since M7 the start page has a carousel only with picks: one global pick of the H264 film.
+    await ensureBaselinePick(api);
     await api.storageState({ path: STORAGE_STATE });
   } finally {
     await api.dispose();
