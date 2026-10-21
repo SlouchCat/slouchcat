@@ -9,7 +9,8 @@
 // Unfiltered reads (scanner, metadata jobs, administration) do not go through this package in M1a;
 // they live in the packages library, metadata and admin on top of store/systemq. System creates the
 // unfiltered scope for internal callers: the functions for viewers reject it, SystemItemRating
-// (the administration view of a title's ratings, M2) requires it.
+// (the administration view of a title's ratings, M2) and AdminSearch
+// (the administration's title search, M7) require it.
 package visibility
 
 import (
@@ -28,9 +29,6 @@ import (
 
 // MaxRowItems caps every list (home rows) at 20 titles.
 const MaxRowItems = 20
-
-// placeholderPicks is the size of the carousel placeholder while no top pick is visible.
-const placeholderPicks = 6
 
 // ErrUnscoped is returned when a function that needs a profile receives the unfiltered system
 // scope or the zero Scope.
@@ -65,15 +63,28 @@ func System(reason string) Scope {
 
 // Reader runs scoped reads against the reader pool of the database.
 type Reader struct {
-	q   *scopedq.Queries
-	sys *systemq.Queries // the system scope only (SystemItemRating)
-	log *slog.Logger
-	now func() time.Time
+	q    *scopedq.Queries
+	sys  *systemq.Queries // the system scope only (SystemItemRating)
+	read *sql.DB          // the search builder (search.go); every statement it builds joins visible_items
+	log  *slog.Logger
+	now  func() time.Time
+}
+
+// Option configures a Reader.
+type Option func(*Reader)
+
+// WithClock replaces time.Now, the clock of the time windows of Cat's recommendations (E-2).
+func WithClock(now func() time.Time) Option {
+	return func(r *Reader) { r.now = now }
 }
 
 // New returns a Reader on the read connections of db; log is the redacting logger.
-func New(db *store.DB, log *slog.Logger) *Reader {
-	return &Reader{q: scopedq.New(db.Read), sys: systemq.New(db.Read), log: log, now: time.Now}
+func New(db *store.DB, log *slog.Logger, opts ...Option) *Reader {
+	r := &Reader{q: scopedq.New(db.Read), sys: systemq.New(db.Read), read: db.Read, log: log, now: time.Now}
+	for _, o := range opts {
+		o(r)
+	}
+	return r
 }
 
 // profile returns the profile id of s or ErrUnscoped.
@@ -194,28 +205,46 @@ func (r *Reader) ContinueWatching(ctx context.Context, s Scope, limit int) ([]mo
 	return r.summaries(ctx, s, pid, items)
 }
 
-// Picks returns Cat's recommendations (E-1) that the profile may see, in their curated order.
-//
-// M1a placeholder: curation arrives in M7. While no top pick is visible for the profile, Picks
-// returns the newest visible titles that have a backdrop (at most 6), so the carousel is never
-// empty for a library with images.
+// Picks returns Cat's recommendations (E-1, E-2) that the profile may see, in their curated order,
+// inside their time window by the Reader's clock; each summary carries the main user's note. A title
+// picked for all profiles and for this profile appears once, with the note and the place of the
+// profile's pick, which is the more specific one. Without a visible pick the list is empty and the
+// start page has no carousel (E-9: no empty rows).
 func (r *Reader) Picks(ctx context.Context, s Scope, limit int) ([]model.ItemSummary, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-	items, err := r.q.ListTopPicks(ctx, scopedq.ListTopPicksParams{ProfileID: pid, Now: sql.NullInt64{Int64: r.now().UnixMilli(), Valid: true}, LimitCount: clamp(limit)})
+	rows, err := r.q.ListTopPicks(ctx, scopedq.ListTopPicksParams{ProfileID: pid, Now: sql.NullInt64{Int64: r.now().UnixMilli(), Valid: true}, LimitCount: clamp(limit)})
 	if err != nil {
 		return nil, fmt.Errorf("list top picks: %w", err)
 	}
-	items = dedupe(items)
-	if len(items) == 0 {
-		items, err = r.q.ListNewestWithBackdrop(ctx, scopedq.ListNewestWithBackdropParams{ProfileID: pid, LimitCount: min(clamp(limit), placeholderPicks)})
-		if err != nil {
-			return nil, fmt.Errorf("list placeholder picks: %w", err)
+	own := make(map[string]bool, len(rows))
+	for _, row := range rows {
+		if row.PickProfileID.Valid {
+			own[row.Item.ID] = true
 		}
 	}
-	return r.summaries(ctx, s, pid, items)
+	items := make([]scopedq.Item, 0, len(rows))
+	notes := make(map[string]string, len(rows))
+	for _, row := range rows {
+		if own[row.Item.ID] && !row.PickProfileID.Valid {
+			continue // the profile's own pick of the title wins over the global one
+		}
+		if _, seen := notes[row.Item.ID]; seen {
+			continue
+		}
+		notes[row.Item.ID] = row.Note.String
+		items = append(items, row.Item)
+	}
+	out, err := r.summaries(ctx, s, pid, items)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].Note = notes[out[i].ID]
+	}
+	return out, nil
 }
 
 // MediaFileLocation is a media file of a visible title with the data needed to open it through the

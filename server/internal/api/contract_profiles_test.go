@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -115,6 +116,144 @@ func personCredits(f *vistest.Fixture, p model.Profile) []string {
 		}
 	}
 	return out
+}
+
+// fixtureGenre is the genre every fixture title carries, in the profile language.
+func fixtureGenre(p model.Profile) string {
+	if p.Language == "en" {
+		return "Adventure"
+	}
+	return "Abenteuer"
+}
+
+// mixedMembers returns the members of the mixed collection of vistest.AddDiscover that p may see,
+// in collection order.
+func mixedMembers(f *vistest.Fixture, p model.Profile) []string {
+	var out []string
+	for _, m := range []vistest.Movie{f.Rated(6), f.Rated(12), f.Rated(18)} {
+		if f.VisibleTo(p, m) {
+			out = append(out, m.ID)
+		}
+	}
+	return out
+}
+
+// listableStatus is status for titles the watchlist takes and 422 not_listable for extras (seasons
+// are containers and checked in the subtest "favourites").
+func listableStatus(m vistest.Movie) int {
+	if m.Kind == "extra" {
+		return http.StatusUnprocessableEntity
+	}
+	return http.StatusNoContent
+}
+
+// searchResult is the part of SearchResult the checks read.
+type searchResult struct {
+	Total int `json:"total"`
+	Items []struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	} `json:"items"`
+	People []struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+	} `json:"people"`
+	Collections []struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	} `json:"collections"`
+}
+
+func (r searchResult) ids() []string {
+	out := make([]string, 0, len(r.Items))
+	for _, it := range r.Items {
+		out = append(out, it.ID)
+	}
+	return out
+}
+
+// checkSearch (E-4, 10.2): "Fi" finds every visible film (their German titles "Film NN"), so each
+// level finds the film exactly on its rating; "Pat" finds the person only for a profile that sees a
+// film of hers; "Samm" finds the mixed collection only with a visible member, counting visible
+// members only; a filter alone browses; one character, nothing at all and over 100 characters are
+// refused.
+func checkSearch(t *testing.T, f *vistest.Fixture, h http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+	p := fixtureProfile(f, token)
+	var res searchResult
+	decode(t, rec, &res)
+	for _, m := range f.Movies {
+		if f.VisibleTo(p, m) != slices.Contains(res.ids(), m.ID) {
+			t.Errorf("search \"Fi\" for %s: film %s found %v, visible %v", token, m.Label, !f.VisibleTo(p, m), f.VisibleTo(p, m))
+		}
+	}
+	if res.Total != len(res.Items) || len(res.People) != 0 || len(res.Collections) != 0 {
+		t.Errorf("search \"Fi\" for %s = %s", token, rec.Body.String())
+	}
+	run := func(body string) searchResult {
+		rec := send(t, h, http.MethodPost, BasePath+"/search", token, body, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("search %s for %s: status %d (%s)", body, token, rec.Code, rec.Body.String())
+		}
+		assertOnlyVisible(t, f, "search "+body, p, f.All(), itemIDsIn(t, rec, f.All()))
+		var out searchResult
+		decode(t, rec, &out)
+		return out
+	}
+	people := run(`{"query":"Pat"}`).People
+	if want := len(personCredits(f, p)) > 0; want != (len(people) == 1 && people[0].ID == f.Person.ID && people[0].Name == f.Person.Name) || (!want && len(people) != 0) {
+		t.Errorf("search \"Pat\" for %s: people %+v, want the person %v", token, people, want)
+	}
+	collections := run(`{"query":"Samm"}`).Collections
+	switch members := len(mixedMembers(f, p)); {
+	case members == 0 && len(collections) != 0:
+		t.Errorf("search \"Samm\" for %s: collections %+v, want none", token, collections)
+	case members > 0 && (len(collections) != 1 || collections[0].ID != vistest.MixedCollectionID || collections[0].Count != members):
+		t.Errorf("search \"Samm\" for %s: collections %+v, want the mixed one with %d members", token, collections, members)
+	}
+	// Browse by a filter alone: the genre of every fixture title finds every visible title of the
+	// six searchable kinds.
+	browse := run(`{"genre":"` + fixtureGenre(p) + `","limit":100}`)
+	for _, m := range f.All() {
+		if m.Kind == "season" || m.Kind == "extra" {
+			continue
+		}
+		if f.VisibleTo(p, m) != slices.Contains(browse.ids(), m.ID) {
+			t.Errorf("browse %s for %s: title %s found %v", fixtureGenre(p), token, m.Label, !f.VisibleTo(p, m))
+		}
+	}
+	if len(browse.People) != 0 || len(browse.Collections) != 0 || browse.Total != len(browse.Items) {
+		t.Errorf("browse for %s: %+v", token, browse)
+	}
+	// Combined filters: films up to FSK 12 from 2011 to 2014.
+	combined := run(`{"query":"Fi","mediaTypes":["movie"],"maxRating":12,"yearFrom":2011,"yearTo":2014}`)
+	var want []string
+	for _, n := range []int{6, 12} {
+		if f.VisibleTo(p, f.Rated(n)) {
+			want = append(want, f.Rated(n).ID)
+		}
+	}
+	if !slices.Equal(combined.ids(), want) {
+		t.Errorf("combined filters for %s = %v, want %v", token, combined.ids(), want)
+	}
+	for body, code := range map[string]string{
+		`{"query":"F"}`: "too_short", `{}`: "required", `{"query":"  "}`: "required",
+		`{"query":"` + strings.Repeat("x", 101) + `"}`: "too_long",
+	} {
+		rec := send(t, h, http.MethodPost, BasePath+"/search", token, body, nil)
+		var prob struct {
+			Code   string `json:"code"`
+			Errors []struct {
+				Field string `json:"field"`
+				Code  string `json:"code"`
+			} `json:"errors"`
+		}
+		decode(t, rec, &prob)
+		if rec.Code != http.StatusUnprocessableEntity || prob.Code != "validation_failed" || len(prob.Errors) != 1 ||
+			prob.Errors[0].Field != "query" || prob.Errors[0].Code != code {
+			t.Errorf("search %.30s for %s: status %d (%s), want 422 query %s", body, token, rec.Code, rec.Body.String(), code)
+		}
+	}
 }
 
 var profileRegistry = map[string]profileCall{
@@ -299,27 +438,128 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("segment 3: %v %x", rec.Header(), rec.Body.Bytes())
 			}
 		}},
-	// M7 discover (base stubs answer 501; stream A replaces the expectations of search, genres,
-	// collection, watchlist and favourites with the real statuses and checks, stream B2 those of
-	// the inbox).
+	// M7 discover (design 3.1, plan 10.2): search, genres, collections, watchlist and favourites.
+	// Positive checks name what each profile must find; the walk of every response proves that
+	// nothing above the profile leaks, also through people and collections.
 	"search": {contract: "POST /search", path: "/search", body: `{"query":"Fi"}`,
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want:  func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: checkSearch},
 	"listGenres": {contract: "GET /genres", path: "/genres",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
-	"getCollection": {contract: "GET /collections/{id}", path: "/collections/" + unknownItemID,
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
-	"listWatchlist": {contract: "GET /watchlist", path: "/watchlist",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			p := fixtureProfile(f, token)
+			var genres []struct {
+				Name  string `json:"name"`
+				Count int    `json:"count"`
+			}
+			decode(t, rec, &genres)
+			// Every fixture title carries Abenteuer/Adventure; the films, series, audiobooks and
+			// podcasts the profile sees count.
+			want := 0
+			for _, m := range f.All() {
+				if (m.Kind == "" || m.Kind == "series" || m.Kind == "audiobook" || m.Kind == "podcast") && f.VisibleTo(p, m) {
+					want++
+				}
+			}
+			if len(genres) != 1 || genres[0].Name != fixtureGenre(p) || genres[0].Count != want {
+				t.Errorf("listGenres for %s = %s, want %s with %d titles", token, rec.Body.String(), fixtureGenre(p), want)
+			}
+		}},
+	"getCollection": {contract: "GET /collections/{id}", path: "/collections/" + vistest.MixedCollectionID,
+		want: func(f *vistest.Fixture, p model.Profile) int {
+			if len(mixedMembers(f, p)) == 0 {
+				return http.StatusNotFound // without a visible member the collection does not exist (10.2)
+			}
+			return http.StatusOK
+		},
+		check: func(t *testing.T, f *vistest.Fixture, h http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			p := fixtureProfile(f, token)
+			var c struct {
+				ID    string `json:"id"`
+				Name  string `json:"name"`
+				Total int    `json:"total"`
+				Items []struct {
+					ID string `json:"id"`
+				} `json:"items"`
+			}
+			decode(t, rec, &c)
+			var got []string
+			for _, it := range c.Items {
+				got = append(got, it.ID)
+			}
+			name := vistest.MixedCollectionDe
+			if p.Language == "en" {
+				name = vistest.MixedCollectionName
+			}
+			if want := mixedMembers(f, p); c.ID != vistest.MixedCollectionID || c.Name != name || c.Total != len(want) || !slices.Equal(got, want) {
+				t.Errorf("getCollection for %s = %s, want members %v", token, rec.Body.String(), want)
+			}
+			// The manual collection holds only the film rated 18; an unknown id answers 404.
+			manual := send(t, h, http.MethodGet, BasePath+"/collections/"+vistest.ManualCollectionID, token, "", nil)
+			if want := f.VisibleTo(p, f.Rated(18)); want != (manual.Code == http.StatusOK) || (!want && manual.Code != http.StatusNotFound) {
+				t.Errorf("manual collection for %s: status %d, visible want %v", token, manual.Code, want)
+			}
+			assertOnlyVisible(t, f, "getCollection manual", p, f.All(), itemIDsIn(t, manual, f.All()))
+			if unknown := send(t, h, http.MethodGet, BasePath+"/collections/01J9000000000000000000CM00", token, "", nil); unknown.Code != http.StatusNotFound {
+				t.Errorf("unknown collection for %s: status %d", token, unknown.Code)
+			}
+		}},
+	"listWatchlist": {contract: "GET /watchlist", path: "/watchlist?limit=200",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			var page struct {
+				Total int `json:"total"`
+				Limit int `json:"limit"`
+				Items []struct {
+					ID string `json:"id"`
+				} `json:"items"`
+			}
+			decode(t, rec, &page)
+			var got []string
+			for _, it := range page.Items {
+				got = append(got, it.ID)
+			}
+			// The fixture's entries (P6: the film rated 6, P18: the film rated 18) are there; the
+			// operations above (addToWatchlist runs first) added the other visible titles.
+			own := map[string]string{"p6": f.Rated(6).ID, "p18": f.Rated(18).ID}[token]
+			if page.Total != len(got) || page.Limit != 200 || (own != "" && !slices.Contains(got, own)) {
+				t.Errorf("listWatchlist for %s = %s", token, rec.Body.String())
+			}
+		}},
 	"addToWatchlist": {contract: "PUT /items/{id}/watchlist", path: "/items/{id}/watchlist", perItem: true,
-		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+		okStatus: http.StatusNoContent, okFor: listableStatus},
 	"removeFromWatchlist": {contract: "DELETE /items/{id}/watchlist", path: "/items/{id}/watchlist", perItem: true,
-		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+		okStatus: http.StatusNoContent},
 	"listFavorites": {contract: "GET /favorites", path: "/favorites",
-		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotImplemented }},
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			var list []struct {
+				ID   string `json:"id"`
+				Kind string `json:"kind"`
+			}
+			decode(t, rec, &list)
+			var got []string
+			for _, it := range list {
+				got = append(got, it.ID)
+				if it.Kind != "series" && it.Kind != "podcast" {
+					t.Errorf("listFavorites for %s: favourite of kind %s", token, it.Kind)
+				}
+			}
+			if token == "p18" && !slices.Equal(got, []string{f.Show.Series.ID}) {
+				t.Errorf("listFavorites for P18 = %v, want the series of the fixture", got)
+			}
+		}},
+	// Playable titles are never favourites (422 not_favoritable); series and podcasts are checked
+	// in the subtest "favourites".
 	"addFavorite": {contract: "PUT /items/{id}/favorite", path: "/items/{id}/favorite", perItem: true,
-		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+		okStatus: http.StatusUnprocessableEntity,
+		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
+			if code := problemCode(t, rec); code != "not_favoritable" {
+				t.Errorf("addFavorite %s: code %s, want not_favoritable", m.Label, code)
+			}
+		}},
 	"removeFavorite": {contract: "DELETE /items/{id}/favorite", path: "/items/{id}/favorite", perItem: true,
-		okStatus: http.StatusNotImplemented, invisibleStatus: http.StatusNotImplemented},
+		okStatus: http.StatusNoContent},
 	// M7 inbox (E-8): the fixture has no entries; contract_notify_test.go covers the visibility of
 	// the entries and the foreign-entry 404.
 	"listNotifications": {contract: "GET /notifications", path: "/notifications",
@@ -681,6 +921,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	tracks := f.AddTracks(t)
 	f.AddSegments(t, f.Show.E1.ID)
 	f.AddAudio(t)
+	f.AddDiscover(t)
 	log := vistest.Logger()
 	a := auth.New(f.DB, log)
 	ring, err := secrets.Load(t.TempDir(), log)
@@ -878,6 +1119,46 @@ func homeRows(t *testing.T, rec *httptest.ResponseRecorder) (keys []string, rows
 	return keys, rows
 }
 
+// homeRowJSON is one row of the start page with the M7 lists.
+type homeRowJSON struct {
+	Key   string `json:"key"`
+	Items []struct {
+		ID   string `json:"id"`
+		Note string `json:"note"`
+	} `json:"items"`
+	Collections []struct {
+		ID    string `json:"id"`
+		Count int    `json:"count"`
+		Cover *struct {
+			ID string `json:"id"`
+		} `json:"cover"`
+	} `json:"collections"`
+	Genres []struct {
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	} `json:"genres"`
+}
+
+type homePageJSON struct {
+	Rows []homeRowJSON `json:"rows"`
+}
+
+func (p homePageJSON) row(key string) homeRowJSON {
+	for _, r := range p.Rows {
+		if r.Key == key {
+			return r
+		}
+	}
+	return homeRowJSON{}
+}
+
+func homePage(t *testing.T, rec *httptest.ResponseRecorder) homePageJSON {
+	t.Helper()
+	var page homePageJSON
+	decode(t, rec, &page)
+	return page
+}
+
 func TestContractChildProfiles(t *testing.T) {
 	ops := scopedOperations(t)
 	for id, call := range profileRegistry {
@@ -898,28 +1179,33 @@ func TestContractChildProfiles(t *testing.T) {
 	titles := f.All()        // everything a response must not leak
 	playable := f.Playable() // titles with a file
 
-	// Positive checks on the start page come first, before reportProgress changes progress.
+	// Positive checks on the start page come first, before reportProgress changes progress and the
+	// watchlist operations change the watchlists.
 	t.Run("home", func(t *testing.T) {
+		all := []string{"picks", "continue", "recent", "watchlist", "collections", "genres"}
 		keys, rows := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p6", "", nil))
-		if want := []string{"picks", "continue", "recent"}; !slices.Equal(keys, want) {
-			t.Errorf("P6 rows = %v, want %v", keys, want)
+		if !slices.Equal(keys, all) {
+			t.Errorf("P6 rows = %v, want %v", keys, all)
 		}
 		on := f.Rated(6).ID
-		for _, key := range []string{"picks", "continue", "recent"} {
+		for _, key := range []string{"picks", "continue", "recent", "watchlist"} {
 			if !slices.Contains(rows[key], on) {
 				t.Errorf("P6 row %s = %v lacks the 6-rated movie", key, rows[key])
 			}
 		}
+		// P0 sees one pick (the film rated 0 in library X; no placeholder since M7), has no
+		// progress, no watchlist and no member of a collection (E-9: no empty rows).
+		other := edgeCase(f, func(m vistest.Movie) bool { return m.OtherLibrary })
 		keys, rows = homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p0", "", nil))
-		if want := []string{"picks", "recent"}; !slices.Equal(keys, want) {
-			t.Errorf("P0 rows = %v, want %v (empty continue row omitted)", keys, want)
+		if want := []string{"picks", "recent", "genres"}; !slices.Equal(keys, want) || !slices.Equal(rows["picks"], []string{other.ID}) {
+			t.Errorf("P0 rows = %v (picks %v), want %v with the film of library X", keys, rows["picks"], want)
 		}
 		if !slices.Contains(rows["recent"], f.Rated(0).ID) {
 			t.Errorf("P0 recent = %v lacks the 0-rated movie", rows["recent"])
 		}
 		keys, rows = homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p18", "", nil))
-		if want := []string{"picks", "continue", "recent"}; !slices.Equal(keys, want) {
-			t.Errorf("P18 rows = %v, want %v", keys, want)
+		if !slices.Equal(keys, all) {
+			t.Errorf("P18 rows = %v, want %v", keys, all)
 		}
 		for _, m := range []vistest.Movie{f.Rated(18), f.Unrated()} {
 			if !slices.Contains(rows["recent"], m.ID) {
@@ -928,6 +1214,9 @@ func TestContractChildProfiles(t *testing.T) {
 		}
 		if len(rows["picks"]) == 0 || rows["picks"][0] != f.Rated(18).ID {
 			t.Errorf("P18 picks = %v, want the 18-rated movie first", rows["picks"])
+		}
+		if !slices.Equal(rows["watchlist"], []string{f.Rated(18).ID}) {
+			t.Errorf("P18 watchlist row = %v", rows["watchlist"])
 		}
 		// Each level sees its own rating and not the next one; PX sees library 1 only. Titles that
 		// are missing or deleted show up nowhere, although they carry progress and a top pick.
@@ -953,6 +1242,53 @@ func TestContractChildProfiles(t *testing.T) {
 		}
 		if keys, _ := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "px", "", nil)); slices.Contains(keys, "continue") {
 			t.Errorf("PX rows = %v: progress on invisible titles only, continue must be omitted", keys)
+		}
+		// E-1, E-3: the pick of P12 carries its note; the global FSK-18 pick never reaches P12.
+		p12 := homePage(t, send(t, h, http.MethodGet, BasePath+"/home", "p12", "", nil))
+		picks := p12.row("picks").Items
+		if len(picks) != 3 || picks[0].ID != f.Rated(6).ID || picks[1].ID != other.ID || picks[2].ID != f.Rated(12).ID ||
+			picks[2].Note != f.Discover.PickNote || picks[0].Note != "" {
+			t.Errorf("P12 picks = %+v, want the films rated 6, X0 and 12, the last with the note", picks)
+		}
+		// E-6: the collections row counts visible members only, with a visible cover.
+		for _, tc := range []struct {
+			token string
+			want  map[string]int
+		}{
+			{"p6", map[string]int{vistest.MixedCollectionID: 1}},
+			{"p12", map[string]int{vistest.MixedCollectionID: 2}},
+			{"p18", map[string]int{vistest.MixedCollectionID: 3, vistest.ManualCollectionID: 1}},
+		} {
+			page := homePage(t, send(t, h, http.MethodGet, BasePath+"/home", tc.token, "", nil))
+			got := map[string]int{}
+			for _, c := range page.row("collections").Collections {
+				got[c.ID] = c.Count
+				if c.Cover == nil || c.Cover.ID == "" {
+					t.Errorf("%s collection %s without cover", tc.token, c.ID)
+				}
+			}
+			if !maps.Equal(got, tc.want) {
+				t.Errorf("%s collections row = %v, want %v", tc.token, got, tc.want)
+			}
+			if g := page.row("genres").Genres; len(g) != 1 || g[0].Name != fixtureGenre(pf.tokens[tc.token]) || len(page.row("genres").Items) != 0 {
+				t.Errorf("%s genres row = %+v", tc.token, page.row("genres"))
+			}
+		}
+		// E-2 with a fake clock: the global pick of the film rated 0 exists only inside its windows.
+		for _, tc := range []struct {
+			at   int64
+			want bool
+		}{
+			{vistest.ExpiredPickEnd - 1, true}, {vistest.ExpiredPickEnd, false},
+			{vistest.FuturePickStart - 1, false}, {vistest.FuturePickStart, true},
+		} {
+			o := pf.opts
+			at := time.UnixMilli(tc.at)
+			o.Catalog = discover.New(f.DB, f.CacheDir, vistest.Logger(), discover.WithClock(func() time.Time { return at }))
+			_, rows := homeRows(t, send(t, NewHandler(o), http.MethodGet, BasePath+"/home", "p0", "", nil))
+			if got := slices.Contains(rows["picks"], f.Rated(0).ID); got != tc.want {
+				t.Errorf("P0 picks at %d = %v, want the film rated 0 %v", tc.at, rows["picks"], tc.want)
+			}
 		}
 	})
 
@@ -1036,6 +1372,66 @@ func TestContractChildProfiles(t *testing.T) {
 			}
 		})
 	}
+
+	// Favourites of containers (E-8): series and podcasts never pass the per-item loop above. A
+	// profile that sees them marks and unmarks them (204), the detail reports the mark; any other
+	// profile gets 404. A season is visible but not listable (422 not_listable).
+	t.Run("favourites", func(t *testing.T) {
+		for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"} {
+			profile := pf.tokens[token]
+			for _, m := range []vistest.Movie{f.Show.Series, f.Audio.Podcast, f.Audio.ExplicitPodcast} {
+				path := BasePath + "/items/" + m.ID + "/favorite"
+				visible := f.VisibleTo(profile, m)
+				want := http.StatusNotFound
+				if visible {
+					want = http.StatusNoContent
+				}
+				if rec := send(t, h, http.MethodPut, path, token, "", nil); rec.Code != want {
+					t.Errorf("%s addFavorite %s: status %d (%s), want %d", profile.Name, m.Label, rec.Code, rec.Body.String(), want)
+				} else if !visible && problemCode(t, rec) != "not_found" {
+					t.Errorf("%s addFavorite %s: code %s", profile.Name, m.Label, problemCode(t, rec))
+				}
+				list := send(t, h, http.MethodGet, BasePath+"/favorites", token, "", nil)
+				assertOnlyVisible(t, f, "listFavorites", profile, titles, itemIDsIn(t, list, titles))
+				if itemIDsIn(t, list, titles)[m.ID] != visible {
+					t.Errorf("%s listFavorites after adding %s = %s", profile.Name, m.Label, list.Body.String())
+				}
+				if visible {
+					var d struct {
+						Favorite    bool `json:"favorite"`
+						InWatchlist bool `json:"inWatchlist"`
+					}
+					decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+m.ID, token, "", nil), &d)
+					if !d.Favorite {
+						t.Errorf("%s getItem %s: favorite false after adding", profile.Name, m.Label)
+					}
+				}
+				if rec := send(t, h, http.MethodDelete, path, token, "", nil); rec.Code != want {
+					t.Errorf("%s removeFavorite %s: status %d, want %d", profile.Name, m.Label, rec.Code, want)
+				}
+				if itemIDsIn(t, send(t, h, http.MethodGet, BasePath+"/favorites", token, "", nil), titles)[m.ID] {
+					t.Errorf("%s listFavorites still holds %s", profile.Name, m.Label)
+				}
+				// The watchlist takes containers too.
+				if rec := send(t, h, http.MethodPut, BasePath+"/items/"+m.ID+"/watchlist", token, "", nil); rec.Code != want {
+					t.Errorf("%s addToWatchlist %s: status %d, want %d", profile.Name, m.Label, rec.Code, want)
+				}
+			}
+			season := http.StatusNotFound
+			if f.VisibleTo(profile, f.Show.Season) {
+				season = http.StatusUnprocessableEntity
+			}
+			rec := send(t, h, http.MethodPut, BasePath+"/items/"+f.Show.Season.ID+"/watchlist", token, "", nil)
+			if rec.Code != season || (season == http.StatusUnprocessableEntity && problemCode(t, rec) != "not_listable") {
+				t.Errorf("%s addToWatchlist season: status %d (%s), want %d", profile.Name, rec.Code, rec.Body.String(), season)
+			}
+		}
+		// Watchlists stay separate per profile (E-5): what P6 put there is not on the list of P0.
+		list := send(t, h, http.MethodGet, BasePath+"/watchlist", "p0", "", nil)
+		if itemIDsIn(t, list, titles)[f.Rated(6).ID] {
+			t.Errorf("P0 watchlist holds the film rated 6 of P6: %s", list.Body.String())
+		}
+	})
 
 	// The series tree (AN-9): getItem decides per title; the containers have no file, so the
 	// file-based operations above run on the episodes only.

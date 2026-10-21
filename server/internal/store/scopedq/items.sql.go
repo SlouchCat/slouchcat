@@ -582,101 +582,6 @@ func (q *Queries) ListMediaFilesForItem(ctx context.Context, arg ListMediaFilesF
 	return items, nil
 }
 
-const listNewestWithBackdrop = `-- name: ListNewestWithBackdrop :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM items AS i
-JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
-  AND EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop' AND im.size <> 'original')
-ORDER BY i.added_at DESC, i.id DESC
-LIMIT ?2
-`
-
-type ListNewestWithBackdropParams struct {
-	ProfileID  int64
-	LimitCount int64
-}
-
-// Placeholder for the carousel while top_picks has nothing for the profile (M1a): newest titles
-// that have a backdrop.
-func (q *Queries) ListNewestWithBackdrop(ctx context.Context, arg ListNewestWithBackdropParams) ([]Item, error) {
-	rows, err := q.db.QueryContext(ctx, listNewestWithBackdrop, arg.ProfileID, arg.LimitCount)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Item{}
-	for rows.Next() {
-		var i Item
-		if err := rows.Scan(
-			&i.ID,
-			&i.Kind,
-			&i.ParentID,
-			&i.LibraryID,
-			&i.Title,
-			&i.SortTitle,
-			&i.OriginalTitle,
-			&i.Year,
-			&i.ReleaseDate,
-			&i.RuntimeMinutes,
-			&i.Genres,
-			&i.TmdbID,
-			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
-			&i.Available,
-			&i.RatingSource,
-			&i.EnclosureUrl,
-			&i.LockedFields,
-			&i.MetadataState,
-			&i.MetadataError,
-			&i.MatchedAt,
-			&i.AddedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SeasonNumber,
-			&i.EpisodeNumber,
-			&i.EpisodeEnd,
-			&i.TvdbID,
-			&i.ExtraKind,
-			&i.TmdbPosterPath,
-			&i.TmdbBackdropPath,
-			&i.TrailerState,
-			&i.TrailerCheckedAt,
-			&i.SegmentsState,
-			&i.SegmentsCheckedAt,
-			&i.Author,
-			&i.Narrator,
-			&i.SeriesName,
-			&i.SeriesIndex,
-			&i.Explicit,
-			&i.DurationMs,
-			&i.CoverUrl,
-			&i.CoverPath,
-			&i.FeedUrl,
-			&i.FeedEtag,
-			&i.FeedModified,
-			&i.FeedCheckedAt,
-			&i.FeedError,
-			&i.Guid,
-			&i.PublishedAt,
-			&i.EnclosureType,
-			&i.EnclosureLength,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listRecentlyAdded = `-- name: ListRecentlyAdded :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
@@ -770,7 +675,8 @@ func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedPa
 }
 
 const listTopPicks = `-- name: ListTopPicks :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM top_picks AS t
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, t.note, t.profile_id AS pick_profile_id
+FROM top_picks AS t
 JOIN items AS i ON i.id = t.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE (t.profile_id IS NULL OR t.profile_id = ?1)
@@ -786,73 +692,82 @@ type ListTopPicksParams struct {
 	LimitCount int64
 }
 
-// Cat's recommendations (E-1) for the profile: global rows (profile_id NULL) and rows of the profile,
-// inside their optional time window. An item listed twice is deduplicated by the caller.
-func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]Item, error) {
+type ListTopPicksRow struct {
+	Item          Item
+	Note          sql.NullString
+	PickProfileID sql.NullInt64
+}
+
+// Cat's recommendations (E-1, E-2) for the profile: global rows (profile_id NULL) and rows of the
+// profile, inside their optional time window, with the main user's note. An item listed twice is
+// deduplicated by the caller (the row of the profile wins over the global one).
+func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]ListTopPicksRow, error) {
 	rows, err := q.db.QueryContext(ctx, listTopPicks, arg.ProfileID, arg.Now, arg.LimitCount)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Item{}
+	items := []ListTopPicksRow{}
 	for rows.Next() {
-		var i Item
+		var i ListTopPicksRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Kind,
-			&i.ParentID,
-			&i.LibraryID,
-			&i.Title,
-			&i.SortTitle,
-			&i.OriginalTitle,
-			&i.Year,
-			&i.ReleaseDate,
-			&i.RuntimeMinutes,
-			&i.Genres,
-			&i.TmdbID,
-			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
-			&i.Available,
-			&i.RatingSource,
-			&i.EnclosureUrl,
-			&i.LockedFields,
-			&i.MetadataState,
-			&i.MetadataError,
-			&i.MatchedAt,
-			&i.AddedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SeasonNumber,
-			&i.EpisodeNumber,
-			&i.EpisodeEnd,
-			&i.TvdbID,
-			&i.ExtraKind,
-			&i.TmdbPosterPath,
-			&i.TmdbBackdropPath,
-			&i.TrailerState,
-			&i.TrailerCheckedAt,
-			&i.SegmentsState,
-			&i.SegmentsCheckedAt,
-			&i.Author,
-			&i.Narrator,
-			&i.SeriesName,
-			&i.SeriesIndex,
-			&i.Explicit,
-			&i.DurationMs,
-			&i.CoverUrl,
-			&i.CoverPath,
-			&i.FeedUrl,
-			&i.FeedEtag,
-			&i.FeedModified,
-			&i.FeedCheckedAt,
-			&i.FeedError,
-			&i.Guid,
-			&i.PublishedAt,
-			&i.EnclosureType,
-			&i.EnclosureLength,
+			&i.Item.ID,
+			&i.Item.Kind,
+			&i.Item.ParentID,
+			&i.Item.LibraryID,
+			&i.Item.Title,
+			&i.Item.SortTitle,
+			&i.Item.OriginalTitle,
+			&i.Item.Year,
+			&i.Item.ReleaseDate,
+			&i.Item.RuntimeMinutes,
+			&i.Item.Genres,
+			&i.Item.TmdbID,
+			&i.Item.ImdbID,
+			&i.Item.OwnRating,
+			&i.Item.EffectiveRating,
+			&i.Item.MinChildRating,
+			&i.Item.Available,
+			&i.Item.RatingSource,
+			&i.Item.EnclosureUrl,
+			&i.Item.LockedFields,
+			&i.Item.MetadataState,
+			&i.Item.MetadataError,
+			&i.Item.MatchedAt,
+			&i.Item.AddedAt,
+			&i.Item.CreatedAt,
+			&i.Item.UpdatedAt,
+			&i.Item.DeletedAt,
+			&i.Item.SeasonNumber,
+			&i.Item.EpisodeNumber,
+			&i.Item.EpisodeEnd,
+			&i.Item.TvdbID,
+			&i.Item.ExtraKind,
+			&i.Item.TmdbPosterPath,
+			&i.Item.TmdbBackdropPath,
+			&i.Item.TrailerState,
+			&i.Item.TrailerCheckedAt,
+			&i.Item.SegmentsState,
+			&i.Item.SegmentsCheckedAt,
+			&i.Item.Author,
+			&i.Item.Narrator,
+			&i.Item.SeriesName,
+			&i.Item.SeriesIndex,
+			&i.Item.Explicit,
+			&i.Item.DurationMs,
+			&i.Item.CoverUrl,
+			&i.Item.CoverPath,
+			&i.Item.FeedUrl,
+			&i.Item.FeedEtag,
+			&i.Item.FeedModified,
+			&i.Item.FeedCheckedAt,
+			&i.Item.FeedError,
+			&i.Item.Guid,
+			&i.Item.PublishedAt,
+			&i.Item.EnclosureType,
+			&i.Item.EnclosureLength,
+			&i.Note,
+			&i.PickProfileID,
 		); err != nil {
 			return nil, err
 		}
