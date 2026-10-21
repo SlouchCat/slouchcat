@@ -19,7 +19,11 @@ ON CONFLICT (profile_id, item_id) DO NOTHING;
 -- name: RemoveFavorite :exec
 DELETE FROM favorites WHERE profile_id = @profile_id AND item_id = @item_id;
 
--- Home rows (stream B1). Owner: admin package (writes), discover package (order of the start page).
+-- Home rows (stream B1): the order and visibility of the start page rows (E-9). The migration
+-- seeds exactly the eight keys; the administration rewrites positions 0..7 in one transaction.
 
 -- name: ListHomeRows :many
 SELECT key, position, hidden, updated_at FROM home_rows ORDER BY position, key;
+
+-- name: SetHomeRow :execrows
+UPDATE home_rows SET position = @position, hidden = @hidden, updated_at = @now WHERE key = @key;

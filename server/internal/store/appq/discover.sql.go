@@ -53,7 +53,8 @@ const listHomeRows = `-- name: ListHomeRows :many
 SELECT key, position, hidden, updated_at FROM home_rows ORDER BY position, key
 `
 
-// Home rows (stream B1). Owner: admin package (writes), discover package (order of the start page).
+// Home rows (stream B1): the order and visibility of the start page rows (E-9). The migration
+// seeds exactly the eight keys; the administration rewrites positions 0..7 in one transaction.
 func (q *Queries) ListHomeRows(ctx context.Context) ([]HomeRow, error) {
 	rows, err := q.db.QueryContext(ctx, listHomeRows)
 	if err != nil {
@@ -108,4 +109,28 @@ type RemoveWatchlistParams struct {
 func (q *Queries) RemoveWatchlist(ctx context.Context, arg RemoveWatchlistParams) error {
 	_, err := q.db.ExecContext(ctx, removeWatchlist, arg.ProfileID, arg.ItemID)
 	return err
+}
+
+const setHomeRow = `-- name: SetHomeRow :execrows
+UPDATE home_rows SET position = ?1, hidden = ?2, updated_at = ?3 WHERE key = ?4
+`
+
+type SetHomeRowParams struct {
+	Position int64
+	Hidden   int64
+	Now      int64
+	Key      string
+}
+
+func (q *Queries) SetHomeRow(ctx context.Context, arg SetHomeRowParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setHomeRow,
+		arg.Position,
+		arg.Hidden,
+		arg.Now,
+		arg.Key,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

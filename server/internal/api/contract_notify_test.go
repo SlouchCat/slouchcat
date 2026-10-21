@@ -53,7 +53,7 @@ func TestContractNotifications(t *testing.T) {
 	h := NewHandler(o)
 	ctx := context.Background()
 	for _, p := range []model.Profile{f.P6, f.P12, f.P18} {
-		if _, err := f.DB.Write.Exec(`INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 1)`, p.ID, f.Show.Series.ID); err != nil {
+		if _, err := f.DB.Write.Exec(`INSERT OR IGNORE INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, 1)`, p.ID, f.Show.Series.ID); err != nil {
 			t.Fatal(err)
 		}
 	}

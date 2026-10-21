@@ -116,7 +116,7 @@ func NewHandler(o Options) http.Handler {
 		})
 		gen.HandlerWithOptions(strict, gen.ChiServerOptions{
 			BaseRouter:       r,
-			Middlewares:      []gen.MiddlewareFunc{authorize, compressText},
+			Middlewares:      []gen.MiddlewareFunc{pickUpdateNulls, authorize, compressText},
 			ErrorHandlerFunc: p.badRequest,
 		})
 		// Binary endpoints (CLAUDE.md rule 6) share the session middleware; the media stream and the

@@ -485,6 +485,22 @@ func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, 
 		{"top picks", func() error {
 			return q.AdminMoveTopPicks(ctx, systemq.AdminMoveTopPicksParams{TargetID: targetID, SourceID: id})
 		}},
+		// M7: watchlist, favourites, collection membership and notifications follow the title.
+		{"watchlist", func() error {
+			return q.AdminMoveWatchlist(ctx, systemq.AdminMoveWatchlistParams{TargetID: targetID, SourceID: id})
+		}},
+		{"favorites", func() error {
+			return q.AdminMoveFavorites(ctx, systemq.AdminMoveFavoritesParams{TargetID: targetID, SourceID: id})
+		}},
+		{"collection items", func() error {
+			return q.AdminMoveCollectionItems(ctx, systemq.AdminMoveCollectionItemsParams{TargetID: targetID, SourceID: id})
+		}},
+		{"notifications", func() error {
+			return q.AdminMoveNotifications(ctx, systemq.AdminMoveNotificationsParams{TargetID: targetID, SourceID: id})
+		}},
+		{"notification parents", func() error {
+			return q.AdminMoveNotificationParents(ctx, systemq.AdminMoveNotificationParentsParams{TargetID: tid, SourceID: sid})
+		}},
 		// Downloads follow their file (O-6: the device keeps its copy). The download token binds
 		// the title, so the device fetches a new manifest; the next sync recomputes the profiles.
 		{"downloads", func() error {

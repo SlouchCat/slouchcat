@@ -114,6 +114,16 @@ type TitleRecord struct {
 	Credits        []Credit
 	PosterPath     string // TMDB image path (/abc.jpg) or absolute artwork URL (TVDB)
 	BackdropPath   string
+	// Collection is the TMDB collection of a film (E-6); nil for series and films without one.
+	Collection *CollectionRecord
+}
+
+// CollectionRecord is a TMDB collection with its names and overviews per language (de, en).
+type CollectionRecord struct {
+	TMDBID     int64
+	Name       map[string]string
+	Overview   map[string]string
+	PosterPath string
 }
 
 // MovieRecord is the detail of a movie.
