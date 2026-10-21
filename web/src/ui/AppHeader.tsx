@@ -24,6 +24,15 @@ export interface HeaderNotifications {
   current?: boolean;
 }
 
+/** The update hint of the main account (A-5): a small badge that links to the overview. */
+export interface HeaderUpdate {
+  href: string;
+  /** Visible text of the badge ("Update"). */
+  label: string;
+  /** Accessible name with the version ("Update auf Version 0.9.1 verfügbar"). */
+  accessibleLabel?: string;
+}
+
 interface AppHeaderProps {
   appName: string;
   homeHref: string;
@@ -37,6 +46,22 @@ interface AppHeaderProps {
   logoutLabel: string;
   onLogout: () => void;
   notifications?: HeaderNotifications;
+  update?: HeaderUpdate;
+}
+
+function UpdateLink({ update }: { update: HeaderUpdate }) {
+  const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
+  return (
+    <AppLink
+      ref={ref}
+      onFocus={onFocus}
+      href={update.href}
+      className={styles.update}
+      aria-label={update.accessibleLabel}
+    >
+      {update.label}
+    </AppLink>
+  );
 }
 
 function InboxLink({ inbox }: { inbox: HeaderNotifications }) {
@@ -86,6 +111,7 @@ export function AppHeader({
   logoutLabel,
   onLogout,
   notifications,
+  update,
 }: AppHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const { ref: homeRef, onFocus: onHomeFocus } = useSpatialItem<HTMLAnchorElement>();
@@ -110,6 +136,7 @@ export function AppHeader({
           ))}
         </nav>
         <div className={styles.account}>
+          {update && <UpdateLink update={update} />}
           {notifications && <InboxLink inbox={notifications} />}
           <AppLink
             ref={profileRef}

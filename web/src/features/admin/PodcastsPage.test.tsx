@@ -59,9 +59,7 @@ describe('admin podcasts page (M6, H-2)', () => {
     ).toBeVisible();
     expect(within(rows[2]!).getByText('HTTP 404')).toBeVisible();
     expect(
-      screen
-        .getByRole('navigation', { name: 'Hauptnavigation' })
-        .querySelector('[aria-current="page"]'),
+      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
     ).toHaveTextContent('Podcasts');
   });
 

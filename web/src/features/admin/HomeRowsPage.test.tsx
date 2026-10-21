@@ -93,9 +93,7 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
     expect(body.find((row) => row.key === 'genres')?.hidden).toBe(true);
     expect(body.filter((row) => row.hidden)).toHaveLength(1);
     expect(
-      screen
-        .getByRole('navigation', { name: 'Hauptnavigation' })
-        .querySelector('[aria-current="page"]'),
+      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
     ).toHaveTextContent('Startseite');
   });
 

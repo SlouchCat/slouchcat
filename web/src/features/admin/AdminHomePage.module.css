@@ -1,0 +1,134 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  margin-bottom: var(--sc-space-12);
+}
+
+.sectionTitle {
+  font-size: var(--sc-font-size-xl);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--sc-space-4);
+}
+
+.wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.tileTitle {
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  outline: none;
+}
+
+.counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  list-style: none;
+}
+
+.integration {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.integrationName {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-primary);
+}
+
+.detail {
+  padding-left: var(--sc-space-4);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.errors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Live regions that are always there, so even their first entry is announced. Empty, they take
+   back the gap of the panel they stand in (Panel: space 5). */
+.live:empty,
+.errors:empty {
+  margin-block-start: calc(-1 * var(--sc-space-5));
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.errorMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.errorMessage {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.groupTitle {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

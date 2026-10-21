@@ -1,0 +1,95 @@
+/* On wide screens the groups wrap; on a phone the row scrolls sideways like Tabs, so the page
+   does not start below a block of links. */
+.nav {
+  margin-bottom: var(--sc-space-8);
+  padding-bottom: var(--sc-space-3);
+  border-bottom: 1px solid var(--sc-color-border-subtle);
+}
+
+.groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.groupLabel {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sc-space-1) var(--sc-space-3);
+  border-radius: var(--sc-radius-full);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.link:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .link:hover {
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.link[aria-current='page'] {
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+}
+
+@media (width < 768px) {
+  .groups,
+  .group,
+  .links {
+    flex-wrap: nowrap;
+  }
+
+  /* Room for the focus ring, which the scroll container would clip. */
+  .groups {
+    margin: calc(-1 * var(--sc-space-1));
+    padding: var(--sc-space-1);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .groups::-webkit-scrollbar {
+    display: none;
+  }
+
+  .group {
+    flex: none;
+  }
+}

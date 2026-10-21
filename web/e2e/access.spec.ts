@@ -71,8 +71,7 @@ test('K-6: the owner invites, the guest joins as a guest, the used link answers 
     const nav = guest.getByRole('navigation', { name: 'Hauptnavigation' });
     await expect(nav.getByRole('link', { name: 'Start' })).toBeVisible();
     await expect(guest.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Bibliotheken' })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Zugriff' })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Verwaltung' })).toHaveCount(0);
     expect((await guestContext.request.get('/api/v1/admin/libraries')).status()).toBe(403);
     expect((await guestContext.request.get('/api/v1/admin/guests')).status()).toBe(403);
     await guest.goto('/admin/access');
@@ -251,7 +250,8 @@ test('keyboard: form, link panel, revoke dialog and guest dialog; no focus trap'
     await openAccess(page);
     await expect(guestRow(page, GUEST.email)).toBeVisible();
 
-    // Tab: header links, then the note field, rating radios, libraries, create.
+    // Tab: header links, the admin navigation (its current page "Zugriff" is its one Tab stop),
+    // then the note field, rating radios, libraries, create.
     await tabTo(page, page.getByRole('link', { name: 'Zugriff' }));
     await tabTo(page, page.getByLabel(/Für wen ist der Link/));
     await page.keyboard.type('Tastatur');

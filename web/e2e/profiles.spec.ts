@@ -344,7 +344,7 @@ test.describe('profile management', () => {
   test('Tab order, radios with arrows, Enter submits, Escape closes; no focus trap', async ({
     page,
   }) => {
-    await tabTo(page, page.getByRole('link', { name: 'Zugriff' }));
+    await tabTo(page, page.getByRole('link', { name: 'Verwaltung' }));
     await tabTo(page, page.getByRole('link', { name: 'Profile', exact: true }));
     await tabTo(page, page.getByRole('button', { name: 'Profil hinzufügen' }));
 
@@ -489,7 +489,7 @@ test.describe('profile management', () => {
     await page.goto('/settings/profiles');
     await expect(page.getByText('Nur im Hauptprofil')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Profile', exact: true })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Bibliotheken' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Verwaltung' })).toHaveCount(0);
     await page.getByRole('link', { name: 'Profil wechseln', exact: true }).click();
     await expect(page).toHaveURL(/\/profiles$/);
   });

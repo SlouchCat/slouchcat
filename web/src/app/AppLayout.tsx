@@ -77,54 +77,13 @@ export function AppLayout() {
       current: pathname.startsWith(paths.downloads),
     });
   }
+  // The administration is one entry (M8): its pages have a navigation of their own (AdminNav).
   if (isAdmin) {
-    nav.push(
-      {
-        href: paths.adminLibraries,
-        label: t('nav.libraries'),
-        current: pathname.startsWith(paths.adminLibraries),
-      },
-      {
-        href: paths.adminPodcasts,
-        label: t('nav.podcasts'),
-        current: pathname.startsWith(paths.adminPodcasts),
-      },
-      {
-        href: paths.adminPicks,
-        label: t('nav.picks'),
-        current: pathname.startsWith(paths.adminPicks),
-      },
-      {
-        href: paths.adminCollections,
-        label: t('nav.collections'),
-        current: pathname.startsWith(paths.adminCollections),
-      },
-      {
-        href: paths.adminHomeRows,
-        label: t('nav.homeRows'),
-        current: pathname.startsWith(paths.adminHomeRows),
-      },
-      {
-        href: paths.adminAccess,
-        label: t('nav.access'),
-        current: pathname.startsWith(paths.adminAccess),
-      },
-      {
-        href: paths.adminMaintenance,
-        label: t('nav.maintenance'),
-        current: pathname.startsWith(paths.adminMaintenance) || pathname.startsWith('/admin/items'),
-      },
-      {
-        href: paths.adminDevices,
-        label: t('nav.devices'),
-        current: pathname.startsWith(paths.adminDevices),
-      },
-      {
-        href: paths.adminStreams,
-        label: t('nav.streams'),
-        current: pathname.startsWith(paths.adminStreams),
-      },
-    );
+    nav.push({
+      href: paths.admin,
+      label: t('nav.admin'),
+      current: pathname === paths.admin || pathname.startsWith(`${paths.admin}/`),
+    });
   }
   if (isPrimary) {
     nav.push({
@@ -158,6 +117,17 @@ export function AppLayout() {
           overflowLabel: t('notifications.badgeMax', { max: BADGE_MAX }),
           current: pathname.startsWith(paths.notifications),
         }}
+        update={
+          isAdmin && session.updateAvailable
+            ? {
+                href: paths.admin,
+                label: t('nav.update'),
+                accessibleLabel: t('nav.updateLabel', {
+                  version: session.updateAvailable.version,
+                }),
+              }
+            : undefined
+        }
       />
       <div id="content" tabIndex={-1} className={styles.content}>
         <Outlet />

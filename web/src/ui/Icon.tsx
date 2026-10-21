@@ -91,6 +91,64 @@ const paths = {
   forward: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 5v5h-5" fill="none" />,
   list: <path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.1M4.5 12h.1M4.5 17.5h.1" fill="none" />,
   moon: <path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z" fill="none" />,
+  // Administration (M8): the cards of the overview.
+  mic: (
+    <>
+      <rect x="9" y="3.5" width="6" height="11" rx="3" fill="none" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5" fill="none" />
+    </>
+  ),
+  wrench: (
+    <path
+      d="M14.5 3.5a5 5 0 0 0-4.6 7l-6 6a1.8 1.8 0 0 0 2.6 2.6l6-6a5 5 0 0 0 7-4.6l-3 3-2.6-.4-.4-2.6 3-3a5 5 0 0 0-2-.4Z"
+      fill="none"
+    />
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8.5" r="3.5" fill="none" />
+      <path
+        d="M3 19.5a6 6 0 0 1 12 0M15.5 5.2a3.5 3.5 0 0 1 0 6.6M17.5 14a6 6 0 0 1 3.5 5.5"
+        fill="none"
+      />
+    </>
+  ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" fill="none" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" fill="none" />
+    </>
+  ),
+  monitor: (
+    <>
+      <rect x="3" y="4.5" width="18" height="12" rx="2" fill="none" />
+      <path d="M8.5 20h7M12 16.5V20" fill="none" />
+    </>
+  ),
+  star: <path d="M12 3.8l2.5 5.1 5.6.8-4 4 .9 5.6-5-2.6-5 2.6.9-5.6-4-4 5.6-.8Z" fill="none" />,
+  stack: (
+    <path
+      d="M12 4 3.5 8.5 12 13l8.5-4.5L12 4ZM3.5 12.5 12 17l8.5-4.5M3.5 16.5 12 21l8.5-4.5"
+      fill="none"
+    />
+  ),
+  plug: <path d="M9 3.5v4M15 3.5v4M6.5 7.5h11v3a5.5 5.5 0 0 1-11 0v-3ZM12 16v4.5" fill="none" />,
+  bell: (
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2ZM10 20.5a2 2 0 0 0 4 0" fill="none" />
+  ),
+  megaphone: (
+    <path
+      d="M4 10v4a1 1 0 0 0 1 1h2l8 4.5V4.5L7 9H5a1 1 0 0 0-1 1ZM7 15l1.5 5M18.5 9.5a3 3 0 0 1 0 5"
+      fill="none"
+    />
+  ),
+  chart: <path d="M4 20h16M7 16.5v-5M12 16.5V6.5M17 16.5v-8" fill="none" />,
+  archive: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="4.5" rx="1" fill="none" />
+      <path d="M5 9v9.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4" fill="none" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;

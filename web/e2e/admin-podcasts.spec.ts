@@ -27,9 +27,7 @@ test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at th
     await page.goto('/admin/podcasts');
     await expect(page.getByRole('heading', { level: 1, name: 'Podcasts' })).toBeVisible();
     await expect(
-      page
-        .getByRole('navigation', { name: 'Hauptnavigation' })
-        .getByRole('link', { name: 'Podcasts' }),
+      page.getByRole('navigation', { name: 'Verwaltung' }).getByRole('link', { name: 'Podcasts' }),
     ).toHaveAttribute('aria-current', 'page');
     // The feed of the global setup is listed with its URL.
     await expect(page.getByRole('table', { name: 'Abonnierte Podcasts' })).toBeVisible();

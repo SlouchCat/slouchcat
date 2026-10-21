@@ -15,24 +15,17 @@
   "nav": {
     "main": "Hauptnavigation",
     "home": "Start",
-    "libraries": "Bibliotheken",
     "logout": "Abmelden",
-    "profile": "Profil {{name}}",
     "skip": "Zum Inhalt springen",
-    "access": "Zugriff",
     "profiles": "Profile",
     "switchProfile": "Profil wechseln, aktuell {{name}}",
-    "maintenance": "Pflege",
-    "devices": "Geräte",
-    "streams": "Streams",
     "downloads": "Downloads",
-    "podcasts": "Podcasts",
     "search": "Suche",
     "watchlist": "Merkliste",
     "notifications": "Benachrichtigungen",
-    "picks": "Cat's Empfehlungen",
-    "collections": "Sammlungen",
-    "homeRows": "Startseite"
+    "admin": "Verwaltung",
+    "update": "Update",
+    "updateLabel": "Update auf Version {{version}} verfügbar"
   },
   "system": {
     "server": {
@@ -40,6 +33,58 @@
       "online": "Server erreichbar",
       "offline": "Server nicht erreichbar",
       "version": "Version {{version}}"
+    },
+    "gpu": {
+      "facts": "Grafikchip",
+      "encoder": "Videokodierung",
+      "tonemap": "HDR zu SDR",
+      "ffmpeg": "ffmpeg",
+      "backend": {
+        "nvenc": "NVIDIA NVENC",
+        "qsv": "Intel Quick Sync (QSV)",
+        "vaapi": "VA-API",
+        "software": "Prozessor (Software)"
+      },
+      "tonemapper": {
+        "cuda": "CUDA auf dem Grafikchip",
+        "placebo": "libplacebo auf dem Grafikchip",
+        "vpp_qsv": "Intel VPP auf dem Grafikchip",
+        "vaapi": "VA-API auf dem Grafikchip",
+        "cpu": "Prozessor"
+      },
+      "detected": "Grafikchip erkannt: Slouchcat wandelt Videos auf dem Grafikchip um.",
+      "none": {
+        "title": "Kein Grafikchip erkannt",
+        "body": "Slouchcat wandelt Videos mit dem Prozessor um. Hat der Rechner einen Grafikchip, reiche ihn mit der passenden Compose-Datei in den Container und starte Slouchcat neu:",
+        "unknown": "Im Container ist kein Grafikchip sichtbar. Hat der Rechner einen, reiche ihn mit der Compose-Datei seines Herstellers in den Container und starte Slouchcat neu:"
+      },
+      "vendor": {
+        "nvidia": "NVIDIA",
+        "intel": "Intel",
+        "amd": "AMD"
+      },
+      "command": "Compose-Befehl für {{vendor}}"
+    },
+    "fs": {
+      "config": "Dateisystem /config",
+      "cache": "Dateisystem /cache",
+      "unknown": "unbekannt"
+    },
+    "inotify": {
+      "limit": "inotify-Limit",
+      "usage": "Beobachtete Ordner",
+      "usageValue": "{{used}} von {{limit}} ({{percent}} %)",
+      "unknown": "unbekannt",
+      "warn": {
+        "title": "Das inotify-Limit ist knapp",
+        "body": "Slouchcat beobachtet jeden Ordner der Bibliotheken. Erhöhe das Limit auf dem Host, nicht im Container. Damit es einen Neustart übersteht, trage den Wert zusätzlich in /etc/sysctl.d/ ein."
+      },
+      "command": "Befehl für das inotify-Limit"
+    },
+    "copy": {
+      "action": "Kopieren",
+      "done": "Befehl kopiert.",
+      "failed": "Kopieren nicht möglich. Der Befehl ist markiert, kopiere ihn mit Strg+C."
     }
   },
   "errors": {
@@ -83,7 +128,14 @@
       "rating_below_library_default": "Die Altersstufe darf nicht unter dem Standard der Bibliothek liegen.",
       "not_listable": "Staffeln und Extras kann man nicht merken.",
       "not_favoritable": "Nur Serien und Podcasts können Favoriten sein.",
-      "not_editable": "Sammlungen von TMDB lassen sich nicht ändern."
+      "not_editable": "Sammlungen von TMDB lassen sich nicht ändern.",
+      "env_wins": "Dieser Wert ist in deploy/.env gesetzt und lässt sich nur dort ändern.",
+      "telegram_token_invalid": "Telegram hat das Token abgelehnt. Prüfe das Token von @BotFather.",
+      "telegram_unreachable": "Telegram ist gerade nicht erreichbar. Versuche es erneut.",
+      "email_not_configured": "Es ist kein E-Mail-Server eingerichtet.",
+      "email_send_failed": "Der Mailserver hat die Mail nicht angenommen.",
+      "job_not_failed": "Dieser Job ist nicht fehlgeschlagen.",
+      "update_check_disabled": "Die Update-Prüfung ist ausgeschaltet."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -107,7 +159,7 @@
   },
   "setup": {
     "title": "Willkommen bei Slouchcat",
-    "intro": "Drei kurze Schritte, dann scannt Slouchcat deine erste Bibliothek.",
+    "intro": "Vier kurze Schritte, dann scannt Slouchcat deine erste Bibliothek.",
     "step": "Schritt {{step}}",
     "account": {
       "title": "Hauptkonto",
@@ -123,17 +175,41 @@
       "name": "Name",
       "kind": "Inhalt",
       "path": "Ordner",
-      "pathHint": "Absoluter Pfad im Container, zum Beispiel /media/Filme."
+      "pathHint": "Absoluter Pfad im Container, zum Beispiel /media/Filme.",
+      "check": "Ordner prüfen",
+      "checking": "Wird geprüft …",
+      "warning": {
+        "network_share": {
+          "title": "Netzfreigabe erkannt",
+          "body": "Änderungen in diesem Ordner erkennt Slouchcat nicht sofort, sondern durch einen regelmässigen Abgleich. Damit neue Titel ohne Verzögerung erscheinen, empfehlen sich Webhooks aus Radarr und Sonarr."
+        },
+        "fuse_unknown": {
+          "title": "Unbekanntes Dateisystem",
+          "body": "Ein FUSE-Dateisystem (zum Beispiel mergerfs oder Unraid) meldet nicht jede Änderung. Slouchcat beobachtet den Ordner und gleicht ihn zusätzlich regelmässig ab."
+        }
+      }
     },
     "tmdb": {
       "title": "Metadaten von TMDB (optional)",
       "description": "Mit einem Lesezugriffs-Token von themoviedb.org lädt Slouchcat Beschreibungen, Poster und Altersfreigaben. Ohne Schlüssel stammen die Titel aus den Dateinamen.",
       "link": "Token auf themoviedb.org erstellen",
       "label": "API-Lesezugriffs-Token",
-      "hint": "Wird verschlüsselt gespeichert und nie wieder angezeigt."
+      "hint": "Wird verschlüsselt gespeichert und nie wieder angezeigt.",
+      "check": "Schlüssel prüfen",
+      "checking": "Wird geprüft …",
+      "result": {
+        "valid": "Gültig: TMDB hat den Schlüssel angenommen.",
+        "invalid": "Ungültig: TMDB hat den Schlüssel abgelehnt. Prüfe das Lesezugriffs-Token.",
+        "unreachable": "Nicht erreichbar: TMDB antwortet gerade nicht. Versuche es erneut oder lass das Feld leer."
+      }
     },
     "submit": "Einrichtung abschliessen",
-    "submitting": "Wird eingerichtet …"
+    "submitting": "Wird eingerichtet …",
+    "system": {
+      "title": "Grafikchip und Dateisystem",
+      "description": "Was Slouchcat im Container vorfindet. Hier gibt es nichts einzugeben, die Hinweise gelten für den Host.",
+      "missing": "Der Server hat keine Angaben zur Hardware geliefert."
+    }
   },
   "login": {
     "title": "Anmelden",
@@ -1049,6 +1125,283 @@
       "popular": "Einträge «Beliebt»",
       "refresh": "Jetzt aktualisieren",
       "queued": "Die Trakt-Listen werden abgerufen."
+    },
+    "nav": {
+      "label": "Verwaltung",
+      "overview": "Übersicht",
+      "groups": {
+        "library": "Bibliothek",
+        "accounts": "Konten",
+        "curation": "Kuratierung",
+        "system": "System"
+      }
+    },
+    "sections": {
+      "libraries": {
+        "title": "Bibliotheken",
+        "description": "Ordner, Scans und Standard-Altersstufen."
+      },
+      "podcasts": {
+        "title": "Podcasts",
+        "description": "Feeds abonnieren und ihre Folgen."
+      },
+      "maintenance": {
+        "title": "Pflege",
+        "description": "Titel ohne Zuordnung, Bilder oder Freigabe, Duplikate."
+      },
+      "accounts": {
+        "title": "Konten",
+        "description": "Hauptkonto und Gäste mit Profilen und Kanälen."
+      },
+      "access": {
+        "title": "Zugriff",
+        "description": "Gäste einladen und ihre Grenzen festlegen."
+      },
+      "profiles": {
+        "title": "Profile",
+        "description": "Die Profile dieses Kontos, PINs und Schauzeit."
+      },
+      "devices": {
+        "title": "Geräte",
+        "description": "Angemeldete Browser und was sie abspielen können."
+      },
+      "streams": {
+        "title": "Streams",
+        "description": "Laufende Wiedergaben ansehen und beenden."
+      },
+      "picks": {
+        "title": "Cat's Empfehlungen",
+        "description": "Das Karussell der Startseite."
+      },
+      "collections": {
+        "title": "Sammlungen",
+        "description": "Eigene Sammlungen und die von TMDB."
+      },
+      "homeRows": {
+        "title": "Startseite",
+        "description": "Reihenfolge der Reihen und die Trakt-Listen."
+      },
+      "announcements": {
+        "title": "Ankündigungen",
+        "description": "Mitteilungen an alle Profile."
+      },
+      "integrations": {
+        "title": "Integrationen",
+        "description": "Schlüssel, E-Mail, Telegram, Web-Push und Update-Prüfung."
+      },
+      "notifications": {
+        "title": "Benachrichtigungen",
+        "description": "Deine Kanäle: E-Mail, Web-Push und Telegram."
+      },
+      "stats": {
+        "title": "Statistiken",
+        "description": "Meistgesehen, Schauzeit, Wiedergabearten und Geräte."
+      },
+      "backup": {
+        "title": "Sicherung",
+        "description": "Daten sichern und wiederherstellen."
+      }
+    },
+    "home": {
+      "title": "Verwaltung",
+      "intro": "Der Zustand des Servers, alle 5 Sekunden aktualisiert, und alle Verwaltungsseiten an einem Ort.",
+      "state": "Zustand des Servers",
+      "manage": "Alle Verwaltungsseiten",
+      "update": {
+        "title": "Version {{version}} ist verfügbar",
+        "body": "Du verwendest {{current}}. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.",
+        "notes": "Versionshinweise"
+      },
+      "streams": {
+        "title": "Streams",
+        "count": "Laufende Streams",
+        "empty": "Gerade läuft nichts.",
+        "entry": "{{profile}}: {{title}}",
+        "all": "Alle Streams"
+      },
+      "jobs": {
+        "title": "Hintergrundjobs",
+        "queued": "Wartend",
+        "running": "Laufend",
+        "failed": "Fehlgeschlagen",
+        "recent": "Fehlgeschlagene Jobs",
+        "columns": {
+          "type": "Job",
+          "attempts": "Versuche",
+          "error": "Letzter Fehler",
+          "at": "Zeit",
+          "actions": "Aktionen"
+        },
+        "attempts": "{{attempts}} von {{max}}",
+        "noError": "–",
+        "retry": {
+          "action": "Erneut",
+          "label": "Job {{type}} ({{id}}) erneut einreihen"
+        },
+        "cancel": {
+          "action": "Abbrechen",
+          "label": "Job {{type}} ({{id}}) abbrechen",
+          "title": "Job {{type}} abbrechen?",
+          "body": "Slouchcat versucht diesen Job nicht mehr.",
+          "confirm": "Job abbrechen"
+        },
+        "retried": "Job {{type}} wartet wieder.",
+        "cancelled": "Job {{type}} abgebrochen."
+      },
+      "storage": {
+        "title": "Speicher",
+        "config": "Konfiguration ({{path}})",
+        "cache": "Cache ({{path}})",
+        "used": "{{used}} von {{total}} belegt",
+        "part": "Belegt: {{size}}",
+        "free": "Frei: {{free}} von {{total}}"
+      },
+      "integrations": {
+        "title": "Integrationen",
+        "state": {
+          "configured": "Eingerichtet",
+          "missing": "Nicht eingerichtet",
+          "error": "Fehler",
+          "disabled": "Ausgeschaltet"
+        },
+        "entry": "{{name}}: {{state}}",
+        "checked": "Geprüft: {{date}}",
+        "manage": "Integrationen einrichten"
+      },
+      "server": {
+        "title": "Server",
+        "version": "Version",
+        "started": "Gestartet"
+      },
+      "errors": {
+        "title": "Fehler",
+        "intro": "Die letzten 50 Fehler aus dem Server-Log, die neusten zuerst.",
+        "list": "Fehler aus dem Server-Log",
+        "empty": "Keine Fehler seit dem Start.",
+        "job": "Job {{id}} ({{type}})"
+      }
+    },
+    "integrations": {
+      "title": "Integrationen",
+      "intro": "Schlüssel der Anbieter, Versand von Benachrichtigungen und die Update-Prüfung. Geheime Werte speichert Slouchcat verschlüsselt und zeigt sie nie wieder an.",
+      "names": {
+        "tmdb": "TMDB",
+        "tvdb": "TVDB",
+        "youtube": "YouTube",
+        "trakt": "Trakt",
+        "email": "E-Mail",
+        "push": "Web-Push",
+        "telegram": "Telegram",
+        "updateCheck": "Update-Prüfung"
+      },
+      "source": {
+        "env": "In deploy/.env gesetzt",
+        "stored": "Gespeichert",
+        "storedHint": "Gespeichert, endet auf {{hint}}",
+        "none": "Nicht gesetzt"
+      },
+      "envHint": "In deploy/.env gesetzt. Ändern lässt sich der Wert nur dort.",
+      "save": "Speichern",
+      "saving": "Wird gespeichert …",
+      "clear": {
+        "action": "Löschen",
+        "label": "{{name}} löschen",
+        "title": "{{name}} löschen?",
+        "body": "Der gespeicherte Wert wird entfernt. Was ihn braucht, funktioniert danach nicht mehr.",
+        "confirm": "Löschen"
+      },
+      "saved": "{{name}} gespeichert.",
+      "cleared": "{{name}} gelöscht.",
+      "keys": {
+        "title": "Schlüssel der Anbieter",
+        "intro": "Für Metadaten (TMDB, TVDB), Trailer (YouTube) und die Trakt-Listen der Startseite.",
+        "saveLabel": "{{name}} speichern",
+        "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
+        "tmdb": {
+          "name": "TMDB-Token",
+          "label": "TMDB-Lesezugriffs-Token",
+          "description": "Beschreibungen, Poster und Altersfreigaben von themoviedb.org."
+        },
+        "tvdb": {
+          "name": "TVDB-Schlüssel",
+          "label": "TVDB-API-Schlüssel",
+          "description": "Optionale zweite Quelle für Serien."
+        },
+        "tvdbPin": {
+          "name": "TVDB-PIN",
+          "label": "TVDB-Abonnenten-PIN",
+          "description": "Nur für ein TVDB-Abonnement mit PIN."
+        },
+        "youtube": {
+          "name": "YouTube-Schlüssel",
+          "label": "YouTube-API-Schlüssel",
+          "description": "Sucht Trailer, wenn TMDB keinen kennt."
+        },
+        "trakt": {
+          "name": "Trakt-Client-ID",
+          "label": "Trakt-Client-ID",
+          "description": "Für die Reihen «Trending» und «Beliebt» der Startseite."
+        },
+        "traktStatus": "Stand der Trakt-Listen"
+      },
+      "email": {
+        "title": "E-Mail-Server",
+        "intro": "Für Benachrichtigungen, Einladungen und Ankündigungen per E-Mail.",
+        "name": "E-Mail-Server",
+        "host": "Server",
+        "port": "Port",
+        "user": "Benutzer",
+        "password": "Passwort",
+        "passwordHint": "Wird verschlüsselt gespeichert und nie wieder angezeigt.",
+        "passwordKeep": "Leer lassen, um das gespeicherte Passwort zu behalten.",
+        "from": "Absender",
+        "fromHint": "Zum Beispiel Slouchcat <media@example.ch>.",
+        "tls": "Verschlüsselung",
+        "tlsOptions": {
+          "starttls": "STARTTLS",
+          "tls": "TLS",
+          "none": "Keine"
+        },
+        "test": "Testmail senden",
+        "testSent": "Testmail an {{email}} gesendet.",
+        "testFailed": "Die Testmail kam nicht an: {{detail}}"
+      },
+      "telegram": {
+        "title": "Telegram-Bot",
+        "intro": "Für Benachrichtigungen per Telegram. Das Token erhältst du von @BotFather.",
+        "name": "Telegram-Bot",
+        "token": "Bot-Token",
+        "tokenKeep": "Ein neues Token ersetzt das gespeicherte. Slouchcat prüft es bei Telegram.",
+        "bot": "Bot: @{{name}}"
+      },
+      "push": {
+        "title": "Web-Push",
+        "intro": "Benachrichtigungen im Browser und in der installierten App.",
+        "configured": "Schlüsselpaar vorhanden.",
+        "notConfigured": "Noch kein Schlüsselpaar. Es entsteht, sobald ein Gerät Web-Push aktiviert.",
+        "publicKey": "Öffentlicher Schlüssel",
+        "rotate": {
+          "action": "Schlüssel neu erzeugen",
+          "title": "Neue Web-Push-Schlüssel erzeugen?",
+          "body": "Alle Geräte verlieren ihr Abo und müssen Web-Push in den Einstellungen neu aktivieren.",
+          "confirm": "Neu erzeugen"
+        },
+        "rotated": "Neue Schlüssel erzeugt. Die Geräte müssen Web-Push neu aktivieren."
+      },
+      "update": {
+        "title": "Update-Prüfung",
+        "intro": "Slouchcat liest einmal täglich das öffentliche Release-Manifest und zeigt einen Hinweis, wenn es eine neue Version gibt. Installiert wird nichts.",
+        "toggle": "Täglich nach neuen Versionen suchen",
+        "on": "Update-Prüfung eingeschaltet.",
+        "off": "Update-Prüfung ausgeschaltet."
+      },
+      "publicUrl": {
+        "title": "Öffentliche Adresse",
+        "intro": "Unter dieser Adresse führen die Links in E-Mails und Nachrichten zum Server.",
+        "name": "Öffentliche Adresse",
+        "label": "Adresse",
+        "hint": "Zum Beispiel https://media.example.ch"
+      }
     }
   },
   "language": {

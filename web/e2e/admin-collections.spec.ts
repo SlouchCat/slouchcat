@@ -34,9 +34,7 @@ test('collections page by keyboard: create, fill, order, show on the start page,
   await page.goto('/admin/collections');
   await expect(page.getByRole('heading', { level: 1, name: 'Sammlungen' })).toBeVisible();
   await expect(
-    page
-      .getByRole('navigation', { name: 'Hauptnavigation' })
-      .getByRole('link', { name: 'Sammlungen' }),
+    page.getByRole('navigation', { name: 'Verwaltung' }).getByRole('link', { name: 'Sammlungen' }),
   ).toHaveAttribute('aria-current', 'page');
 
   // "Sammlung anlegen": name, Enter; the focus returns to the button.
