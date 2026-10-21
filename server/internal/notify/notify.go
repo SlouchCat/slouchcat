@@ -1,8 +1,19 @@
-// Package notify keeps the in-app inbox of the profiles (plan 3.1 notify, 5.5, M7 E-8). A new
-// episode of a series or podcast that a profile marked as favourite becomes one entry in that
+// Package notify keeps the in-app inbox of the profiles (plan 3.1 notify, 5.5, M7 E-8) and sends
+// notifications on the channels of the accounts (M8, A-6, A-7): e-mail, Web Push and Telegram.
+//
+// A new episode of a series or podcast that a profile marked as favourite becomes one entry in that
 // profile's inbox, but only when the profile may see the episode: the decision runs through
-// package visibility before anything is stored or sent. Channels (e-mail, push, Telegram) follow
-// in M8 behind the Dispatcher interface; the default dispatcher does nothing.
+// package visibility before anything is stored or sent. The Dispatcher hands the entry on to the
+// channels; the default dispatcher is the service itself (event new_content, prefixed with the
+// profile name).
+//
+// Channels (design 3.2): Emit turns an event into one row in deliveries per account and switched-on
+// channel that chose the event, and one job notify.deliver per row; the job renders and sends it
+// through the senders of the subpackages email, push and telegram (retries are the queue's). The
+// event errors goes to the main account only, once per source and hour. Announcements of the main
+// user go to every account that chose them and to the start dialog of every profile. The server-side
+// settings (SMTP server, bot token, VAPID pair, public URL) come through Config; without it no
+// channel is available.
 package notify
 
 import (
@@ -12,9 +23,12 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"sync"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
@@ -35,12 +49,9 @@ type Dispatcher interface {
 	Dispatch(ctx context.Context, n model.Notification, profile model.Profile) error
 }
 
-type noopDispatcher struct{}
-
-func (noopDispatcher) Dispatch(context.Context, model.Notification, model.Profile) error { return nil }
-
-// Service implements the inbox (api.NotifyService) and the new-episode hook of packages library
-// and metadata.
+// Service implements the inbox and the channels (api.NotifyService), the new-episode hook of
+// packages library and metadata, the event hooks of auth, jobs and library and the announcements of
+// the administration.
 type Service struct {
 	write    *systemq.Queries
 	read     *systemq.Queries
@@ -48,12 +59,27 @@ type Service struct {
 	dispatch Dispatcher
 	log      *slog.Logger
 	now      func() time.Time
+
+	// Channels (M8). cfg is set once by SetConfig before the service runs; nil = no channel.
+	cfg      Config
+	queue    *jobs.Queue // nil = events reach no channel
+	mailer   Mailer
+	pusher   Pusher
+	telegram TelegramAPI
+	devPush  bool          // development: http push endpoints and private addresses
+	linkPoll time.Duration // interval of the Telegram link poller
+
+	vapidMu  sync.Mutex // one VAPID pair, also when two requests need it first
+	errorsMu sync.Mutex // serialises the hourly dedupe of the event errors
+	botMu    sync.Mutex
+	bot      botName // cached username of the bot token
+	tgOffset int64   // next getUpdates offset (only the poller goroutine)
 }
 
 // Option configures New.
 type Option func(*Service)
 
-// WithDispatcher sets the channel dispatcher (default: none).
+// WithDispatcher replaces the channel dispatcher (default: the service's own channels; tests).
 func WithDispatcher(d Dispatcher) Option {
 	return func(s *Service) {
 		if d != nil {
@@ -67,11 +93,22 @@ func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
 }
 
-// New returns the service.
+// New returns the service. Without WithQueue and SetConfig it keeps the inbox only.
 func New(db *store.DB, vis *visibility.Reader, log *slog.Logger, opts ...Option) *Service {
-	s := &Service{write: systemq.New(db.Write), read: systemq.New(db.Read), vis: vis, dispatch: noopDispatcher{}, log: log, now: time.Now}
+	s := &Service{write: systemq.New(db.Write), read: systemq.New(db.Read), vis: vis, log: log, now: time.Now,
+		linkPoll: linkPollInterval}
+	s.dispatch = s
 	for _, o := range opts {
 		o(s)
+	}
+	if s.mailer == nil {
+		s.mailer = smtpMailer{}
+	}
+	if s.pusher == nil {
+		s.pusher = webPusher{allowPrivate: s.devPush}
+	}
+	if s.telegram == nil {
+		s.telegram = &telegram.Client{}
 	}
 	return s
 }

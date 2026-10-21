@@ -40,6 +40,24 @@ func (q *Queries) ChannelEnsureDefaults(ctx context.Context, arg ChannelEnsureDe
 	return err
 }
 
+const channelEnsureDefaultsAll = `-- name: ChannelEnsureDefaultsAll :exec
+INSERT OR IGNORE INTO account_channels (account_id, channel, enabled, events, config, updated_at)
+SELECT a.id, c.channel,
+       CASE WHEN c.channel = 'email' AND a.role = 'guest' THEN 1 ELSE 0 END,
+       CASE WHEN a.role = 'guest' THEN '["announcements"]'
+            ELSE '["new_content","errors","invitations","announcements"]' END,
+       '{}', ?1
+FROM accounts AS a
+JOIN (SELECT 'email' AS channel UNION ALL SELECT 'push' UNION ALL SELECT 'telegram') AS c
+`
+
+// ChannelEnsureDefaults for every account (before an announcement goes out, so an account whose
+// rows are missing still gets the defaults of 5.2).
+func (q *Queries) ChannelEnsureDefaultsAll(ctx context.Context, now int64) error {
+	_, err := q.db.ExecContext(ctx, channelEnsureDefaultsAll, now)
+	return err
+}
+
 const channelGet = `-- name: ChannelGet :one
 SELECT account_id, channel, enabled, events, config, updated_at
 FROM account_channels
@@ -553,6 +571,70 @@ func (q *Queries) DeliverySkipped(ctx context.Context, arg DeliverySkippedParams
 	return err
 }
 
+const notifyAccount = `-- name: NotifyAccount :one
+SELECT a.id, a.email, a.role,
+       CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+FROM accounts AS a
+WHERE a.id = ?1
+`
+
+type NotifyAccountRow struct {
+	ID       int64
+	Email    string
+	Role     string
+	Language string
+}
+
+// An account with the language of its primary profile, for the texts of its messages.
+func (q *Queries) NotifyAccount(ctx context.Context, id int64) (NotifyAccountRow, error) {
+	row := q.db.QueryRowContext(ctx, notifyAccount, id)
+	var i NotifyAccountRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Role,
+		&i.Language,
+	)
+	return i, err
+}
+
+const notifyOwner = `-- name: NotifyOwner :one
+SELECT a.id, a.email,
+       CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
+                      ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
+FROM accounts AS a
+WHERE a.role = 'owner'
+ORDER BY a.id
+LIMIT 1
+`
+
+type NotifyOwnerRow struct {
+	ID       int64
+	Email    string
+	Language string
+}
+
+// The main account with the language of its primary profile (test mail without recipient, texts of
+// the event errors).
+func (q *Queries) NotifyOwner(ctx context.Context) (NotifyOwnerRow, error) {
+	row := q.db.QueryRowContext(ctx, notifyOwner)
+	var i NotifyOwnerRow
+	err := row.Scan(&i.ID, &i.Email, &i.Language)
+	return i, err
+}
+
+const notifyProfileName = `-- name: NotifyProfileName :one
+SELECT name FROM profiles WHERE id = ?1
+`
+
+func (q *Queries) NotifyProfileName(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, notifyProfileName, id)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const pushSubscriptionDelete = `-- name: PushSubscriptionDelete :execrows
 DELETE FROM push_subscriptions WHERE id = ?1 AND account_id = ?2
 `
@@ -592,7 +674,8 @@ func (q *Queries) PushSubscriptionFailed(ctx context.Context, id int64) error {
 
 const pushSubscriptionUpsert = `-- name: PushSubscriptionUpsert :one
 INSERT INTO push_subscriptions (account_id, device_id, endpoint, p256dh, auth, user_agent, device_name, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+VALUES (?1, (SELECT d.id FROM devices AS d WHERE d.id = ?2), ?3, ?4, ?5,
+        ?6, ?7, ?8)
 ON CONFLICT (endpoint) DO UPDATE
 SET account_id = excluded.account_id, device_id = excluded.device_id, p256dh = excluded.p256dh, auth = excluded.auth,
     user_agent = excluded.user_agent, device_name = excluded.device_name, failures = 0
@@ -619,7 +702,8 @@ type PushSubscriptionUpsertRow struct {
 }
 
 // One row per endpoint: the same endpoint again (also after a sign-in with another account in the
-// same browser) takes the new account, keys and device.
+// same browser) takes the new account, keys and device. The device is kept only when it is known
+// (the device cookie may name a device that has no row yet).
 func (q *Queries) PushSubscriptionUpsert(ctx context.Context, arg PushSubscriptionUpsertParams) (PushSubscriptionUpsertRow, error) {
 	row := q.db.QueryRowContext(ctx, pushSubscriptionUpsert,
 		arg.AccountID,

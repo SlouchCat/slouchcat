@@ -124,6 +124,8 @@ type Service struct {
 	getenv    func(string) string
 	log       *slog.Logger
 	now       func() time.Time
+
+	announcements Announcements // nil until WithAnnouncements (M8)
 }
 
 // New returns the service. getenv is normally os.Getenv.
