@@ -80,7 +80,8 @@ func TestDumpRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer again.Close()
-	for _, q := range []string{`SELECT count(*) FROM items`, `SELECT count(*) FROM visible_items`, `SELECT count(*) FROM sqlite_master`} {
+	for _, q := range []string{`SELECT count(*) FROM items`, `SELECT count(*) FROM visible_items`, `SELECT count(*) FROM sqlite_master`,
+		`SELECT count(*) FROM search_index`, `SELECT count(*) FROM search_index WHERE search_index MATCH '"sh"*'`} {
 		var a, b int
 		if err := db.Read.QueryRow(q).Scan(&a); err != nil {
 			t.Fatal(err)

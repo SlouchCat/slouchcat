@@ -63,7 +63,32 @@ func schemaObjects(ctx context.Context, db *sql.DB) ([]schemaObject, error) {
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("dump schema: %w", err)
 	}
-	return objects, nil
+	return withoutShadowTables(objects), nil
+}
+
+// withoutShadowTables drops the shadow tables of virtual tables (FTS5 keeps its content in
+// search_index_data, _idx, _content, _docsize and _config): CREATE VIRTUAL TABLE recreates them
+// on replay, and the rows of the virtual table itself are dumped as plain INSERTs.
+func withoutShadowTables(objects []schemaObject) []schemaObject {
+	var virtual []string
+	for _, o := range objects {
+		if o.typ == "table" && strings.HasPrefix(strings.ToUpper(strings.TrimSpace(o.sql)), "CREATE VIRTUAL TABLE") {
+			virtual = append(virtual, o.name)
+		}
+	}
+	kept := objects[:0]
+	for _, o := range objects {
+		shadow := false
+		for _, v := range virtual {
+			if o.typ == "table" && o.name != v && strings.HasPrefix(o.name, v+"_") {
+				shadow = true
+			}
+		}
+		if !shadow {
+			kept = append(kept, o)
+		}
+	}
+	return kept
 }
 
 func dumpRows(ctx context.Context, db *sql.DB, table string, w io.Writer) error {
