@@ -54,7 +54,7 @@ Regeln, die sich bewährt haben:
 | M5 Offline (fMP4-Downloads, Staffel/Auto, Offline-PIN und -Schauzeit, Merge, Entzug) | gemerged | #10 |
 | M6 Hörbücher und Podcasts | gemerged 21.10. | #11 |
 | CI: Go-Testlimit 30 min | gemerged 21.10. | #12 |
-| **M7 Entdecken und Kuratierung** | **läuft** in Session „M7 Entdecken und Kuratierung umsetzen", Branch `claude/m7-discover` (lokal, evtl. noch nicht gepusht). Stand bei Übergabe: alle fünf Ströme eingespielt, Web-Korrekturen committet, Server-Korrekturen laufen, danach DB-Stand einfrieren, `task ci`, Verifier, Statusbericht, PR. | noch keiner |
+| **M7 Entdecken und Kuratierung** | **fertig**, wartet auf Marcos Merge-Wort; lokal `task ci` grün, Verifier mit Ausnahmen (Android-Checks, O-6 bis 19. November, Messung auf CT 190 offen). Branch `claude/m7-discover`. | #14 (offen, Checks laufen) |
 | M8 Administration und Benachrichtigungen | offen | |
 | M9 Integrationen (Radarr/Sonarr lesend, Seerr-Bereich, Bazarr, SABnzbd) | offen; Frage 10 vorab | |
 | M10 Härtung und Release | offen | |
@@ -62,10 +62,8 @@ Regeln, die sich bewährt haben:
 Weitere offene Pull Requests: #9 `claude/ideas-collection` ist Marcos Ideensammlung für nach 1.0 (nicht
 Teil der Meilensteine; mergen nur auf sein Wort).
 
-**Falls die M7-Session wegen Token-Ende abgebrochen ist:** Branch `claude/m7-discover` prüfen
-(`git log origin/main..claude/m7-discover`, `git status`), ggf. pushen, und eine neue Session mit dem
-M7-Briefing (Abschnitt 7) starten, die auf diesem Branch weiterarbeitet und mit `docs/dev/CURRENT_STATUS.md`
-auf dem Branch beginnt. Nichts verwerfen, was dort uncommitted liegt.
+**Nächste Schritte der Hauptsession:** Pull Request #14 prüfen (Checks, Abschnitt „Not covered"), Marcos Wort
+zum Merge einholen, mergen, Image neu bauen (Abschnitt 5), dann M8 als Karte vorschlagen (Abschnitt 7).
 
 ## 4. Offene Punkte bei Marco (nicht blockierend)
 
