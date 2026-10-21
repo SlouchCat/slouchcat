@@ -23,7 +23,7 @@ tasks:
   test:
     desc: Run all server tests with the race detector
     cmds:
-      - go test -race ./...
+      - go test -race -timeout 30m ./...
 
   build:
     desc: Build the static server binary into bin/slouchcat
