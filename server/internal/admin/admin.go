@@ -118,6 +118,7 @@ type Service struct {
 	streams   Streams            // nil until WithStreams
 	podcasts  Podcasts           // nil until WithPodcasts
 	trakt     Trakt              // nil until WithTrakt
+	backups   backupState        // directory and version from WithBackups, restart from WithRestart
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
 	getenv    func(string) string

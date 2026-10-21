@@ -49,7 +49,7 @@ PRAGMA foreign_keys=ON;
 
 func backups(t *testing.T, dir string) []string {
 	t.Helper()
-	matches, err := filepath.Glob(filepath.Join(dir, backupDir, backupPrefix+"*"+backupSuffix))
+	matches, err := filepath.Glob(filepath.Join(dir, BackupDir, preMigrationPrefix+"*"+backupSuffix))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestBackupBeforePendingMigration(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("want exactly one backup, found %v", got)
 	}
-	wantName := "slouchcat-0.1.0+test_1-20261018T173000.000Z.db"
+	wantName := "pre-migration-0.1.0_test_1-20261018T173000.000Z.db"
 	if filepath.Base(got[0]) != wantName {
 		t.Fatalf("backup name = %s, want %s", filepath.Base(got[0]), wantName)
 	}
@@ -154,23 +154,27 @@ func TestBackupBeforePendingMigration(t *testing.T) {
 	t.Logf("backup contains row with payload %s and no table test_only", payload)
 }
 
+// Pre-migration backups of releases before M8 (slouchcat-*.db) and of now (pre-migration-*.db)
+// are pruned together; manual archives and pre-restore backups are not touched.
 func TestPruneBackupsKeepsNewestFive(t *testing.T) {
 	dir := t.TempDir()
 	names := []string{
 		"slouchcat-0.1.0-20261001T100000.000Z.db",
 		"slouchcat-dev-20261002T100000.000Z.db",
 		"slouchcat-0.1.0-20261003T100000.000Z.db",
-		"slouchcat-0.2.0-rc-1-20261004T100000.000Z.db",
-		"slouchcat-0.2.0-20261005T100000.000Z.db",
-		"slouchcat-0.2.0-20261006T100000.000Z.db",
+		"pre-migration-0.2.0-rc-1-20261004T100000.000Z.db",
+		"pre-migration-0.2.0-20261005T100000.000Z.db",
+		"pre-migration-0.2.0-20261006T100000.000Z.db",
 		"unrelated.db",
+		"slouchcat-backup-0.1.0-20260901T100000Z.tar.gz",
+		"pre-restore-0.1.0-20260901T100000.000Z.sqlite",
 	}
 	for _, n := range names {
 		if err := os.WriteFile(filepath.Join(dir, n), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := pruneBackups(dir, KeepBackups); err != nil {
+	if err := pruneBackups(dir, KeepBackups, isPreMigrationBackup); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := os.ReadDir(dir)
@@ -181,8 +185,8 @@ func TestPruneBackupsKeepsNewestFive(t *testing.T) {
 	for _, e := range entries {
 		left = append(left, e.Name())
 	}
-	if len(left) != 6 || strings.Contains(strings.Join(left, " "), "20261001T") {
-		t.Fatalf("want the five newest backups plus unrelated.db, got %v", left)
+	if len(left) != 8 || strings.Contains(strings.Join(left, " "), "20261001T") {
+		t.Fatalf("want the five newest backups plus the three other files, got %v", left)
 	}
 }
 

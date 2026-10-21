@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -160,17 +161,40 @@ func serve(cfg config.Config) int {
 		return 2
 	}
 	log.Info("starting slouchcat", "version", version, "config", cfg)
-	if err := serveUntilSignal(cfg, log, started); err != nil {
+	var restart atomic.Bool
+	if err := serveUntilSignal(cfg, log, started, &restart); err != nil {
 		log.Error("server stopped with error", "err", err)
 		return 1
+	}
+	if restart.Load() {
+		reexec(log)
 	}
 	log.Info("server stopped")
 	return 0
 }
 
-func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) error {
+// reexec replaces the stopped server with a fresh start of the same binary (a staged restore,
+// A-4): same PID, so Docker and the end-to-end runner see no exit. When the exec fails the process
+// exits with 0 and the container's restart policy starts it again.
+func reexec(log *slog.Logger) {
+	exe, err := os.Executable()
+	if err == nil {
+		log.Info("restarting")
+		err = syscall.Exec(exe, os.Args, os.Environ()) //nolint:gosec // G204: the server's own binary with its own arguments
+	}
+	log.Error("restart failed; exiting for the container to start again", "err", err)
+}
+
+// serveUntilSignal runs the server until SIGINT or SIGTERM, or until the administration asks for a
+// restart after a staged restore: then restart is set and the server shuts down the same way.
+func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time, restart *atomic.Bool) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	requestRestart := func() {
+		log.Info("restart requested")
+		restart.Store(true)
+		stop()
+	}
 
 	for _, dir := range []string{cfg.ConfigDir, cfg.CacheDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -220,7 +244,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		library.WithNewEpisodes(notifySvc.NewEpisodes))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
-		WithTrakt(metaSvc)
+		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart)
 	keys.admin = adminSvc
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).

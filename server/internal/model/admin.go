@@ -284,6 +284,10 @@ type Backup struct {
 	Kind            string // manual, auto
 }
 
+// MaxBackupBytes caps what a backup to restore may unpack to; the upload may be as large plus its
+// multipart framing.
+const MaxBackupBytes = 2 << 30
+
 // BackupRequest creates a backup; a passphrase is required with secrets.
 type BackupRequest struct {
 	IncludeSecrets bool
