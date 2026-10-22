@@ -460,6 +460,14 @@ func (s *Service) triggerScan(ctx context.Context, libraryID int64) {
 	})
 }
 
+// RequestPathScan queues a targeted scan of directories of a root for a caller outside the
+// watcher: the webhook receiver of package integrations reports what Radarr or Sonarr changed
+// (I-8, decision 5.6). The directories are relative to the root ("." is the root itself) and
+// join the same coalescing as a watcher event, so a burst of webhooks becomes one scan.
+func (s *Service) RequestPathScan(ctx context.Context, libraryID, rootID int64, dirs []string) {
+	s.triggerPathScan(ctx, libraryID, rootID, dirs)
+}
+
 // triggerPathScan is called by the watcher of a root with the directories that changed: it
 // merges them into the pending scan.path job of the library, debounced like triggerScan. When
 // that job is already running, the directories wait here and are queued once it has finished.

@@ -607,3 +607,25 @@ type Watchlist struct {
 	ItemID    string
 	CreatedAt int64
 }
+
+type WebhookEvent struct {
+	ID            int64
+	IntegrationID int64
+	ReceivedAt    int64
+	Event         string
+	ReportedPath  sql.NullString
+	ResolvedPath  sql.NullString
+	Result        string
+}
+
+type WebhookIntegration struct {
+	ID         int64
+	Name       string
+	Kind       string
+	TokenHash  string
+	TokenTail  string
+	PathMap    string
+	LastSeenAt sql.NullInt64
+	CreatedAt  int64
+	UpdatedAt  int64
+}
