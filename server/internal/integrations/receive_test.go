@@ -3,6 +3,7 @@ package integrations
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -226,6 +227,56 @@ func TestReceiveRefusesTheEleventhRequestInASecond(t *testing.T) {
 	// The limit is per integration: the other one is unaffected.
 	if _, err := e.svc.Receive(ctx, e.sonarr.Token, model.WebhookPayload{Event: "Test"}); err != nil {
 		t.Errorf("the other integration was limited too: %v", err)
+	}
+}
+
+// The event log must not claim a scan that never reached the queue (review finding): a failing
+// RequestPathScan answers with an error and leaves no entry, so Radarr retries.
+func TestReceiveWithoutAQueuedScanRecordsNothing(t *testing.T) {
+	e := newReceiveEnv(t)
+	ctx := context.Background()
+	e.scan.err = errors.New("queue is gone")
+
+	if _, err := e.svc.Receive(ctx, e.radarr.Token, model.WebhookPayload{
+		Event: "Download", MoviePath: "/movies/Dune (2021)",
+	}); err == nil {
+		t.Fatal("a failing scan request was answered as a success")
+	}
+	events, err := e.svc.Events(ctx, e.radarr.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 0 {
+		t.Errorf("%d log entries for a scan that was never queued: %+v", len(events), events)
+	}
+
+	// Once the queue works again, the same webhook is recorded as it should be.
+	e.scan.err = nil
+	if _, err := e.svc.Receive(ctx, e.radarr.Token, model.WebhookPayload{
+		Event: "Download", MoviePath: "/movies/Dune (2021)",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if last := e.lastEvent(t, e.radarr.ID); last.Result != model.ResultScanQueued {
+		t.Errorf("result %q, want %q", last.Result, model.ResultScanQueued)
+	}
+}
+
+// A service that sends an over-long event name keeps its log entry, shortened (the column holds
+// 80 characters); losing the entry would blind the one surface that answers "did it arrive".
+func TestReceiveKeepsTheLogEntryOfAnOverlongEventName(t *testing.T) {
+	e := newReceiveEnv(t)
+	ctx := context.Background()
+	long := strings.Repeat("Ü", 200)
+	if _, err := e.svc.Receive(ctx, e.radarr.Token, model.WebhookPayload{Event: long}); err != nil {
+		t.Fatal(err)
+	}
+	last := e.lastEvent(t, e.radarr.ID)
+	if got := len([]rune(last.Event)); got != 80 {
+		t.Errorf("stored event name has %d characters, want 80", got)
+	}
+	if last.Result != model.ResultIgnored {
+		t.Errorf("result %q, want %q", last.Result, model.ResultIgnored)
 	}
 }
 

@@ -21,7 +21,7 @@ offen, weil sie Regeln berühren, die sonst überall gelten:
 
 | Punkt | Entscheid |
 |---|---|
-| CSRF | Die Route `POST {BasePath}/webhooks/{token}` ist von der Header-Pflicht ausgenommen (`csrfExemptRoutes` in `internal/api/webhook_handlers.go`, im Vertrag beschrieben). Der Header schützt davor, dass ein **Browser** eine Anfrage mit dem mitlaufenden Sitzungs-Cookie stellt. Diese Route liest kein Cookie: Ihre einzige Autorisierung ist das Geheimnis im Pfad. Wer es nicht hat, erreicht nichts; wer es hat, braucht keinen Umweg über einen fremden Browser. Der Header würde hier also nichts schützen und den Endpunkt für seinen einzigen Zweck unbrauchbar machen. Die Ausnahme ist eine Liste, kein Schalter: jede weitere Route müsste einzeln eingetragen werden |
+| CSRF | Die Route `POST {BasePath}/webhooks/{token}` ist von der Header-Pflicht ausgenommen (`csrfExemptRoutes` in `internal/api/webhook_handlers.go`, im Vertrag beschrieben). Der Header schützt davor, dass ein **Browser** eine Anfrage mit dem mitlaufenden Sitzungs-Cookie stellt. Der Handler dieser Route sieht keine Sitzung an: Seine einzige Autorisierung ist das Geheimnis im Pfad, und `SameSite=Lax` hält das Cookie ohnehin von einer fremdseitigen POST-Anfrage fern. (Die Middleware liest das Cookie wie bei jeder Operation — das ist ihr Verhalten, nicht das des Handlers.) Wer das Geheimnis nicht hat, erreicht nichts; wer es hat, braucht keinen Umweg über einen fremden Browser. Der Header würde hier also nichts schützen und den Endpunkt für seinen einzigen Zweck unbrauchbar machen. Die Ausnahme ist eine Liste, kein Schalter: jede weitere Route müsste einzeln eingetragen werden, und spätestens bei der zweiten gehört die Begründung neu geprüft |
 | Sichtbarkeit | `x-visibility: public`, weil die Anfrage keine Sitzung trägt — nicht, weil sie offen stünde. Das Token ist ein 256-Bit-Zufallswert, gespeichert als SHA-256 (3.8 Punkt 2), und ein unbekanntes Token wird mit 401 beantwortet, **ohne** Protokolleintrag: Es gibt keine Integration, der man ihn zuschreiben könnte, und ein Protokoll über fremde Versuche wäre ein Kanal, den ein Fremder füllen kann |
 | Token im Log | Der Pfadbestandteil wird in jedem String redigiert (`webhookPath` in `internal/logging`), auch in Fehlermeldungen und in der `instance` eines Problem-Dokuments. Der gemeldete Dateipfad bleibt lesbar — er ist die Information, die beim Suchen eines Fehlers zählt (A-9) |
 | Wirkung | Eine Meldung erzeugt genau einen `scan.path`-Auftrag über `library.RequestPathScan` — denselben, den der inotify-Watcher erzeugt, mit derselben Zusammenfassung über die Debounce-Regel der Queue (3.6). Kein zweiter Scan-Weg, nur ein zweiter Auslöser; auch Löschungen laufen über denselben Pfad-Scan |
@@ -36,6 +36,22 @@ Kennung im Rumpf — ein Token je Integration lässt sich einzeln erneuern und e
 Auftragstyp `webhook.scan` — er müsste die Zusammenfassung, den Abbruch und den Verlustschutz von `scan.path`
 nachbauen. (d) Unbekannte Ereignisse mit 4xx ablehnen — in Radarr kreuzt man die Ereignisse grosszügig an; eine
 Ablehnung würde dort als Fehler erscheinen, obwohl nichts falsch ist.
+
+## Annahmen, die beim Bauen sichtbar wurden
+
+- **Pfade sind absolut und in der Schreibweise dieses Servers.** Umsetzung und Auflösung rechnen mit
+  Schrägstrichen; Slouchcat läuft laut Spec ausschliesslich als Docker-Stack auf Linux. Ein Radarr auf Windows
+  würde `C:\Media\Filme\…` melden, und dafür lässt sich keine Umsetzung eintragen — die Quelle müsste
+  ebenfalls absolut im Linux-Sinn sein. Solche Meldungen enden mit 422 `path_outside_roots`, dessen Text diese
+  Annahme nennt. Unterstützt wird der Fall bewusst nicht: Er kommt in einem Linux-Haushaltsstack nicht vor, und
+  eine zweite Pfadschreibweise zöge sich durch Umsetzung, Auflösung und Prüfung. Die `Test`-Nutzlast beider
+  Dienste trägt übrigens den fest eingebauten Unsinn-Pfad `C:\testpath` — ein Grund mehr, dass `Test` nie
+  einen Scan auslöst.
+- **Ein relativer gemeldeter Pfad liegt unter nichts**, auch nicht unter der Quelle `/`. Sonst überlebten seine
+  `..`-Teile die Umsetzung und `path.Join` zielte auf ein anderes Verzeichnis als gemeint. Beide Seiten eines
+  Vergleichs müssen absolut sein (`under` in `internal/integrations/pathmap.go`).
+- **Die Zahl der Dashboard-Kachel zählt Protokollzeilen**, und davon hält jede Integration 20. Die Kachel ist
+  eine Lebenszeichen-Anzeige, keine Buchhaltung; der Text sagt darum «im Protokoll der letzten 24 Stunden».
 
 ## Folgen
 

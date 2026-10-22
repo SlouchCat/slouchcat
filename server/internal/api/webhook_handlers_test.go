@@ -42,10 +42,11 @@ type recordingScanner struct {
 	calls [][]string // directories per call
 }
 
-func (r *recordingScanner) RequestPathScan(_ context.Context, _, _ int64, dirs []string) {
+func (r *recordingScanner) RequestPathScan(_ context.Context, _, _ int64, dirs []string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.calls = append(r.calls, dirs)
+	return nil
 }
 
 func (r *recordingScanner) taken() [][]string {

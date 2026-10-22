@@ -49,9 +49,10 @@ const TokenChars = 43
 const MaxEvents = 20
 
 // PathScanner queues a targeted scan of directories of a library root. Package library
-// implements it; the webhook joins the coalescing of the watcher (3.4).
+// implements it; the webhook joins the coalescing of the watcher (3.4). An error means that
+// nothing will scan the directories, so the receiver must not claim it did.
 type PathScanner interface {
-	RequestPathScan(ctx context.Context, libraryID, rootID int64, dirs []string)
+	RequestPathScan(ctx context.Context, libraryID, rootID int64, dirs []string) error
 }
 
 // Service implements the administration of the integrations and the receiver of their webhooks.

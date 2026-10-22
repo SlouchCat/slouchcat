@@ -934,7 +934,7 @@ type profileFixture struct {
 // contractPathScanner stands in for package library: the contract never queues a real scan.
 type contractPathScanner struct{}
 
-func (contractPathScanner) RequestPathScan(context.Context, int64, int64, []string) {}
+func (contractPathScanner) RequestPathScan(context.Context, int64, int64, []string) error { return nil }
 
 // testTokenKey is the stream-token key of the contract fixtures.
 var testTokenKey = []byte("contract-test-stream-token-key!!")

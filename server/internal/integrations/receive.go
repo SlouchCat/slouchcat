@@ -81,7 +81,12 @@ func (s *Service) Receive(ctx context.Context, token string, p model.WebhookPayl
 	if err != nil {
 		return model.WebhookReceipt{}, err
 	}
-	s.scan.RequestPathScan(ctx, target.LibraryID, target.RootID, []string{target.Dir})
+	// The log says what happened, so the entry is written only once the job is really queued.
+	// A failure answers 500 and leaves no entry: Radarr and Sonarr retry, and the administration
+	// is not told about a scan that never ran.
+	if err := s.scan.RequestPathScan(ctx, target.LibraryID, target.RootID, []string{target.Dir}); err != nil {
+		return model.WebhookReceipt{}, fmt.Errorf("queue path scan: %w", err)
+	}
 	s.record(ctx, integ.ID, event, reported, target.Abs, model.ResultScanQueued)
 	return model.WebhookReceipt{Result: model.ResultScanQueued, Path: target.Abs}, nil
 }
@@ -89,8 +94,11 @@ func (s *Service) Receive(ctx context.Context, token string, p model.WebhookPayl
 // record writes one entry of the event log. A failure must not fail the webhook: Radarr would
 // retry an import that already queued its scan, so the error is logged and the call goes on.
 func (s *Service) record(ctx context.Context, integrationID int64, event, reported, resolved, result string) {
+	// A webhook that queued a scan must appear in the log even when the caller hung up, so the
+	// insert outlives the request context.
+	ctx = context.WithoutCancel(ctx)
 	if _, err := s.write.InsertWebhookEvent(ctx, appq.InsertWebhookEventParams{
-		IntegrationID: integrationID, Now: s.now().UnixMilli(), Event: event,
+		IntegrationID: integrationID, Now: s.now().UnixMilli(), Event: truncateEvent(event),
 		ReportedPath: nullString(reported), ResolvedPath: nullString(resolved), Result: result,
 	}); err != nil {
 		s.log.ErrorContext(ctx, "record webhook event", "integration_id", integrationID,
@@ -127,4 +135,19 @@ func (l *limiters) drop(id int64) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	delete(l.by, id)
+}
+
+// maxEventName is the width of webhook_events.event (migration 00017). A service that sends a
+// longer name keeps its log entry, shortened, instead of losing it to the CHECK constraint.
+const maxEventName = 80
+
+func truncateEvent(event string) string {
+	if len(event) <= maxEventName {
+		return event
+	}
+	runes := []rune(event)
+	if len(runes) > maxEventName {
+		runes = runes[:maxEventName]
+	}
+	return string(runes)
 }

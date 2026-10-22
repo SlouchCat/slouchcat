@@ -3,6 +3,7 @@ package integrations
 import (
 	"context"
 	"errors"
+	"path"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -33,6 +34,21 @@ func TestMapTakesTheLongestMatchingPrefix(t *testing.T) {
 		if got := Map(pairs, c.reported); got != c.want {
 			t.Errorf("Map(%q) = %q, want %q", c.reported, got, c.want)
 		}
+	}
+}
+
+// A mapping whose source is the root must not swallow a relative report: its ".." would survive
+// into the part below and aim path.Join somewhere the mapping never meant (review finding).
+func TestMapNeverMatchesARelativeReport(t *testing.T) {
+	pairs := []model.PathMapping{{From: "/", To: "/srv/media"}}
+	for _, reported := range []string{"../../etc/passwd", "relative/dir", "..", "."} {
+		if got := Map(pairs, reported); got != path.Clean(reported) {
+			t.Errorf("Map(%q) = %q; a relative report must stay as it is", reported, got)
+		}
+	}
+	// An absolute report below the root still maps.
+	if got := Map(pairs, "/filme/Dune"); got != "/srv/media/filme/Dune" {
+		t.Errorf("Map(/filme/Dune) = %q", got)
 	}
 }
 

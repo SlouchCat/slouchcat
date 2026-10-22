@@ -23,6 +23,7 @@ var fakeSecrets = []string{
 	"vapid-FAKE-private", "p256dh-FAKE-key", "authsecret-FAKE", "push.example.test/FAKE-endpoint",
 	// M9: the webhook token travels in the path of the receiver (I-8, plan 3.8 point 8).
 	"WebhookFAKEtoken_01234567890abcdefghij", "WebhookFAKEerrtoken-01234567890abcdef",
+	"WebhookFAKEshouty-01234567890abcdefgh",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -98,6 +99,8 @@ func logAll(t *testing.T, format Format) string {
 		"err", fmt.Errorf("receive: %w", errors.New(`POST "/api/v1/webhooks/WebhookFAKEerrtoken-01234567890abcdef": EOF`)),
 		"reported_path", "/movies/Dune (2021)",
 	)
+	// A mistyped route still carries a real token: the guard must not care about the spelling.
+	log.Info("webhook 404", "path", "/api/v1/WEBHOOKS/WebhookFAKEshouty-01234567890abcdefgh")
 	return buf.String()
 }
 

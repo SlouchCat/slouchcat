@@ -14,9 +14,10 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
-// fakeScanner records the path scans the service asks for.
+// fakeScanner records the path scans the service asks for; err makes the next call fail.
 type fakeScanner struct {
 	calls []scanCall
+	err   error
 }
 
 type scanCall struct {
@@ -24,8 +25,12 @@ type scanCall struct {
 	dirs              []string
 }
 
-func (f *fakeScanner) RequestPathScan(_ context.Context, libraryID, rootID int64, dirs []string) {
+func (f *fakeScanner) RequestPathScan(_ context.Context, libraryID, rootID int64, dirs []string) error {
+	if f.err != nil {
+		return f.err
+	}
 	f.calls = append(f.calls, scanCall{libraryID: libraryID, rootID: rootID, dirs: dirs})
+	return nil
 }
 
 type env struct {

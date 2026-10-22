@@ -47,9 +47,10 @@ func (s *server) ReceiveWebhook(ctx context.Context, req gen.ReceiveWebhookReque
 const webhookRoute = "/webhooks/{token}"
 
 // csrfExemptRoutes are the routes that may arrive without the CSRF header. The header defends
-// against a browser sending a request with the ambient session cookie; the webhook receiver
-// authorises by a secret in its path and ignores cookies, so the header would protect nothing
-// while making the endpoint unusable for Radarr and Sonarr (I-8).
+// against a browser sending a request with the ambient session cookie. The receiver's handler
+// never looks at a session — its only authorisation is the secret in the path — and SameSite=Lax
+// keeps the cookie off a cross-site POST anyway, so the header would protect nothing while making
+// the endpoint unusable for Radarr and Sonarr, which are not browsers (I-8, ADR 0010).
 var csrfExemptRoutes = map[string]bool{http.MethodPost + " " + BasePath + webhookRoute: true}
 
 // Administration of the integrations (M9): the main account with its primary profile creates,

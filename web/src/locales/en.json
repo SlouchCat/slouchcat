@@ -1282,8 +1282,8 @@
       "webhooks": {
         "title": "Webhooks",
         "none": "No integration set up.",
-        "count_one": "{{count}} report in 24 hours, from {{total}} integrations.",
-        "count_other": "{{count}} reports in 24 hours, from {{total}} integrations.",
+        "count_one": "{{count}} report in the log of the last 24 hours, from {{total}} integrations.",
+        "count_other": "{{count}} reports in the log of the last 24 hours, from {{total}} integrations.",
         "silent": "Nothing reported for seven days: {{names}}",
         "manage": "Manage webhooks"
       },
@@ -1392,7 +1392,7 @@
           "dismiss": "Hide"
         },
         "pathMap": {
-          "intro": "Translates the path Radarr or Sonarr reports. The longest matching start wins; without an entry the reported path is used as it is.",
+          "intro": "Translates the path Radarr or Sonarr reports. Needed as soon as the same storage is mounted differently on each side — say “/mnt/medien/Filme” in the service and “/media/Filme” here. The longest matching start wins; without an entry the reported path is used as it is. Both paths must be absolute and start with “/”.",
           "from": "Path in the service",
           "to": "Path on this server",
           "add": "Add row",

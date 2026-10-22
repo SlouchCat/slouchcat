@@ -1282,8 +1282,8 @@
       "webhooks": {
         "title": "Webhooks",
         "none": "Keine Integration eingerichtet.",
-        "count_one": "{{count}} Meldung in 24 Stunden, von {{total}} Integrationen.",
-        "count_other": "{{count}} Meldungen in 24 Stunden, von {{total}} Integrationen.",
+        "count_one": "{{count}} Meldung im Protokoll der letzten 24 Stunden, von {{total}} Integrationen.",
+        "count_other": "{{count}} Meldungen im Protokoll der letzten 24 Stunden, von {{total}} Integrationen.",
         "silent": "Seit sieben Tagen ohne Meldung: {{names}}",
         "manage": "Webhooks verwalten"
       },
@@ -1392,7 +1392,7 @@
           "dismiss": "Ausblenden"
         },
         "pathMap": {
-          "intro": "Setzt den Pfad um, den Radarr oder Sonarr meldet. Der längste passende Anfang gewinnt; ohne Eintrag gilt der gemeldete Pfad unverändert.",
+          "intro": "Setzt den Pfad um, den Radarr oder Sonarr meldet. Nötig, sobald derselbe Speicher auf beiden Seiten anders hängt — etwa «/mnt/medien/Filme» im Dienst und «/media/Filme» hier. Der längste passende Anfang gewinnt; ohne Eintrag gilt der gemeldete Pfad unverändert. Beide Pfade müssen absolut sein und mit «/» beginnen.",
           "from": "Pfad im Dienst",
           "to": "Pfad auf diesem Server",
           "add": "Zeile hinzufügen",

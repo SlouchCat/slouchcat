@@ -314,7 +314,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnauthorized, "invalid_webhook_token", "No integration uses this address.")
 	case errors.Is(err, model.ErrWebhookPathOutside):
 		p.write(w, r, http.StatusUnprocessableEntity, "path_outside_roots",
-			"The reported path lies under no library root; check the path mapping of the integration.")
+			"The reported path lies under no library root. Slouchcat maps and resolves absolute "+
+				"paths in the shape its own server uses, so check the path mapping of the integration.")
 	case errors.Is(err, model.ErrWebhookRateLimited):
 		w.Header().Set("Retry-After", "1")
 		p.write(w, r, http.StatusTooManyRequests, "too_many_requests", "This integration sends too fast.")

@@ -41,9 +41,11 @@ func Map(pairs []model.PathMapping, reported string) string {
 }
 
 // under reports whether p is prefix itself or lies below it, and returns the part below. The
-// comparison runs on whole path components, so "/movies" does not match "/moviesclub".
+// comparison runs on whole path components, so "/movies" does not match "/moviesclub". Both sides
+// must be absolute: a relative p lies below nothing, not even below "/", because its ".." would
+// survive into the part below and let path.Join aim somewhere else entirely.
 func under(p, prefix string) (string, bool) {
-	if prefix == "" || prefix == "." {
+	if !path.IsAbs(p) || !path.IsAbs(prefix) {
 		return "", false
 	}
 	if p == prefix {
