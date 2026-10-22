@@ -126,6 +126,13 @@ Lock-Datei) und die erzeugten Testmedien werden zwischengespeichert, mit Schlüs
 ändern, wenn ihre Eingaben sich ändern. `task ci` selbst ist unberührt und führt weiterhin genau
 das aus, was es lokal ausführt (Plan Abschnitt 4).
 
+**Ergebnis.** Zwei aufeinanderfolgende grüne Läufe auf dem Branch (39845660078, Versuch 1 und 2):
+**30,3 min** und **37,2 min** gegen 47,5 / 53,6 / 55,9 min bei den grünen Läufen vorher und den
+Abbruch bei 75 min. Das Setup braucht noch 1,5 bis 1,7 min statt 3 bis 25. Der Abstand zum
+75-Minuten-Limit liegt damit bei 38 bis 45 Minuten statt bei 0 bis 20. Der grösste Einzelgewinn kam
+nicht vom Caching, sondern vom Ende der Doppelläufe: `task ci` selbst braucht 28,4 bis 35,6 min
+statt 43,5 bis 49,0 — vorher nahmen sich zwei gleichzeitige Läufe die Rechenzeit weg.
+
 **Noch offen: die Go-Testsuite.** Sie bleibt der lange Pol. `internal/api` braucht allein rund
 24 Minuten in der CI (382 s lokal), angeführt von `TestContractChildProfiles` mit 112 s in elf
 nacheinander laufenden Unterfällen, die sich eine Fixture teilen und sie verändern. Kein Test in
