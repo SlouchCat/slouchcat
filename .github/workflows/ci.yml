@@ -1,10 +1,23 @@
 # Runs exactly what `task ci` runs locally (plan section 4: "Lokal und CI identisch").
 name: ci
 
+# A branch with an open pull request used to fire twice for the same commit: once for `push`
+# (every branch) and once for `pull_request`. Two full runs raced for the same quota and the same
+# 75-minute limit, which is how run 39789916437 was cancelled while its twin 39790013960 ran on.
+# `push` is therefore limited to main (the record of what is merged) and everything else is checked
+# through its pull request. A branch without one is checked as soon as it has one, and
+# `workflow_dispatch` runs it by hand before that.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+# One run per branch: a new push replaces the run of the commit it supersedes. Runs on main are
+# never cancelled -- they record whether what was merged is sound.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
