@@ -323,7 +323,8 @@ test('the dashboard tile counts the reports of the last 24 hours', async ({
     await page.goto('/admin');
     await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
     const tile = page.getByRole('region', { name: 'Webhooks', exact: true });
-    await expect(tile).toContainText('in 24 Stunden');
+    // One webhook arrived above, so the tile names it and the single integration it came from.
+    await expect(tile).toContainText('1 Meldung im Protokoll der letzten 24 Stunden');
     const manage = tile.getByRole('link', { name: 'Webhooks verwalten' });
     await manage.focus();
     await expectVisibleFocus(page);
