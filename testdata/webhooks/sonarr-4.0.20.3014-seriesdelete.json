@@ -1,0 +1,44 @@
+{
+  "applicationUrl": "",
+  "deletedFiles": true,
+  "eventType": "SeriesDelete",
+  "instanceName": "Sonarr",
+  "series": {
+    "genres": [
+      "Drama",
+      "Science Fiction"
+    ],
+    "id": 680,
+    "images": [
+      {
+        "coverType": "banner",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/graphical/170551-g3.jpg",
+        "url": "/MediaCover/680/banner.jpg?lastWrite=639282690225798655"
+      },
+      {
+        "coverType": "poster",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/posters/170551-1.jpg",
+        "url": "/MediaCover/680/poster.jpg?lastWrite=639282690225898657"
+      },
+      {
+        "coverType": "fanart",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/fanart/original/170551-2.jpg",
+        "url": "/MediaCover/680/fanart.jpg?lastWrite=639282690225978658"
+      }
+    ],
+    "imdbId": "tt1748166",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "path": "/mnt/medien/_webhook-test/Pioneer One (2010) [tvdb-170551]",
+    "tags": [],
+    "title": "Pioneer One",
+    "titleSlug": "pioneer-one",
+    "tmdbId": 33050,
+    "tvMazeId": 4908,
+    "tvdbId": 170551,
+    "type": "standard",
+    "year": 2010
+  }
+}

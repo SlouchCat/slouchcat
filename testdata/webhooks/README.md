@@ -15,7 +15,8 @@ zum Beispiel `radarr-5.14.0.9383-download.json`. Der Dienst ist `radarr` oder `s
 Version kommt aus dem `User-Agent` der Meldung (Radarr und Sonarr senden dort
 «Radarr/5.14.0.9383 (linux x86_64)»), das Ereignis ist `eventType` in Kleinschrift
 (`download`, `rename`, `moviefiledelete`, `episodefiledelete`, `moviedelete`, `seriesdelete`,
-`test`, `grab`). Der Test in `server/internal/integrations` liest jede Datei dieses Musters und
+`test`, `grab`). Der Test in `server/internal/api` (`webhook_handlers_test.go`) liest jede Datei dieses
+Musters und
 leitet Dienst und erwartete Wirkung aus dem Namen ab — neue Aufzeichnungen brauchen keine
 Codeänderung.
 

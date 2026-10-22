@@ -96,7 +96,16 @@ test('an integration is created by keyboard and its address is shown exactly onc
     await expectVisibleFocus(page);
     await page.keyboard.type(name);
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, webhooks.getByRole('radio', { name: 'Radarr' }));
+    const radarr = webhooks.getByRole('radio', { name: 'Radarr' });
+    const sonarr = webhooks.getByRole('radio', { name: 'Sonarr' });
+    await expectFocusOn(page, radarr);
+    // The kind is a radio group: the arrow keys move and select inside it, Tab leaves it.
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, sonarr);
+    await expect(sonarr).toBeChecked();
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, radarr);
+    await expect(radarr).toBeChecked();
     await page.keyboard.press('Tab');
     const submit = webhooks.getByRole('button', { name: 'Integration anlegen' });
     await expectFocusOn(page, submit);
@@ -202,10 +211,13 @@ test('a webhook to the address scans the reported directory and lands in the eve
     await expect(table.getByText('Ordner wird gelesen')).toBeVisible();
     await expect(table.getByText('Test quittiert')).toBeVisible();
 
-    // ↑ and ↓ move between the rows of the log, Tab leaves the table (DataTable).
+    // The log is a read-only table: it holds no controls, so Tab passes it by instead of
+    // stopping in it, and the next stop is the button below.
     await resetFocus(page);
     await tabTo(page, webhooks.getByRole('button', { name: 'Zeile hinzufügen' }), 160);
     await expectVisibleFocus(page);
+    await expect(table.getByRole('button')).toHaveCount(0);
+    await expect(table.getByRole('link')).toHaveCount(0);
     await expectNoFocusTrap(page, 200);
   } finally {
     await removeIntegrations(owner, name);
@@ -317,6 +329,12 @@ test('the dashboard tile counts the reports of the last 24 hours', async ({
     await expectVisibleFocus(page);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/admin\/integrations$/);
+    await expect(region(page, 'Webhooks von Radarr und Sonarr')).toBeVisible();
+
+    // Browser back returns to the overview the tile sits on.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
   } finally {
     await removeIntegrations(owner, name);
   }

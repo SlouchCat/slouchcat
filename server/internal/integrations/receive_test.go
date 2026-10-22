@@ -77,17 +77,27 @@ func TestReceiveReadsTheSonarrPathAndTheRadarrPathPerKind(t *testing.T) {
 	e := newReceiveEnv(t)
 	ctx := context.Background()
 
-	res, err := e.svc.Receive(ctx, e.sonarr.Token, model.WebhookPayload{
-		Event: "Download", SeriesPath: "/tv/Slouchcat Test Show",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Path != "/media/Serien/Slouchcat Test Show" {
-		t.Errorf("path %q", res.Path)
-	}
-	if call := e.scan.calls[len(e.scan.calls)-1]; call.rootID != e.seriesRoot {
-		t.Errorf("root %d, want the series root %d", call.rootID, e.seriesRoot)
+	// Every acting event of a series, including the two deletions Sonarr sends (5.6).
+	for _, event := range []string{"Download", "Rename", "EpisodeFileDelete", "SeriesDelete"} {
+		before := len(e.scan.calls)
+		res, err := e.svc.Receive(ctx, e.sonarr.Token, model.WebhookPayload{
+			Event: event, SeriesPath: "/tv/Slouchcat Test Show",
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", event, err)
+		}
+		if res.Result != model.ResultScanQueued {
+			t.Errorf("%s: result %q, want %q", event, res.Result, model.ResultScanQueued)
+		}
+		if res.Path != "/media/Serien/Slouchcat Test Show" {
+			t.Errorf("%s: path %q", event, res.Path)
+		}
+		if len(e.scan.calls) != before+1 {
+			t.Fatalf("%s: %d scans queued, want one", event, len(e.scan.calls)-before)
+		}
+		if call := e.scan.calls[len(e.scan.calls)-1]; call.rootID != e.seriesRoot {
+			t.Errorf("%s: root %d, want the series root %d", event, call.rootID, e.seriesRoot)
+		}
 	}
 
 	// A Sonarr body on a Radarr address carries no movie.folderPath: 422, logged, no scan.
@@ -161,6 +171,14 @@ func TestReceiveRejectsAnUnknownTokenWithoutTouchingAnything(t *testing.T) {
 func TestReceiveRejectsAPathOutsideEveryRootAndLogsBothPaths(t *testing.T) {
 	e := newReceiveEnv(t)
 	ctx := context.Background()
+	// The mapping applies but lands nowhere: the two columns must hold two different paths, so
+	// the administration sees what was reported and what Slouchcat made of it (5.6).
+	if _, err := e.svc.SetPathMap(ctx, e.radarr.ID, []model.PathMapping{
+		{From: "/movies", To: "/media/Filme"},
+		{From: "/elsewhere", To: "/nicht/eingehaengt"},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := e.svc.Receive(ctx, e.radarr.Token, model.WebhookPayload{
 		Event: "Download", MoviePath: "/elsewhere/Dune (2021)",
 	}); !errors.Is(err, model.ErrWebhookPathOutside) {
@@ -173,8 +191,24 @@ func TestReceiveRejectsAPathOutsideEveryRootAndLogsBothPaths(t *testing.T) {
 	if last.Result != model.ResultOutsideRoots {
 		t.Errorf("result %q, want %q", last.Result, model.ResultOutsideRoots)
 	}
-	if last.ReportedPath != "/elsewhere/Dune (2021)" || last.ResolvedPath != "/elsewhere/Dune (2021)" {
-		t.Errorf("log entry keeps reported %q and resolved %q", last.ReportedPath, last.ResolvedPath)
+	if last.ReportedPath != "/elsewhere/Dune (2021)" {
+		t.Errorf("reported path %q", last.ReportedPath)
+	}
+	if last.ResolvedPath != "/nicht/eingehaengt/Dune (2021)" {
+		t.Errorf("resolved path %q, want the mapped one", last.ResolvedPath)
+	}
+	if last.ReportedPath == last.ResolvedPath {
+		t.Error("both columns hold the same path, so the mapping is not visible in the log")
+	}
+
+	// Without a mapping both columns hold the reported path, which is correct too.
+	if _, err := e.svc.Receive(ctx, e.sonarr.Token, model.WebhookPayload{
+		Event: "Download", SeriesPath: "/woanders/Show",
+	}); !errors.Is(err, model.ErrWebhookPathOutside) {
+		t.Fatalf("sonarr: error %v, want ErrWebhookPathOutside", err)
+	}
+	if last := e.lastEvent(t, e.sonarr.ID); last.ReportedPath != "/woanders/Show" || last.ResolvedPath != "/woanders/Show" {
+		t.Errorf("without a mapping: reported %q, resolved %q", last.ReportedPath, last.ResolvedPath)
 	}
 }
 

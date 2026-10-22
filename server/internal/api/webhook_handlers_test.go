@@ -191,8 +191,10 @@ func TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads(t *testing.T) {
 		t.Run(r.file, func(t *testing.T) {
 			wf := newWebhookFixture(t)
 			reported := r.reportedPath(t)
+			// Only an acting event names a real directory. The Test payload of both services
+			// carries the dummy "C:\testpath", which must never become a path mapping.
 			dir := ""
-			if reported != "" {
+			if reported != "" && recordedActing[r.event] {
 				dir = path.Dir(reported)
 			}
 			kind := model.IntegrationRadarr
