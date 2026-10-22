@@ -55,24 +55,27 @@ Regeln, die sich bewährt haben:
 | M6 Hörbücher und Podcasts | gemerged 21.10. | #11 |
 | CI: Go-Testlimit 30 min | gemerged 21.10. | #12 |
 | M7 Entdecken und Kuratierung (Cat's Empfehlungen, Reihen, FTS-Suche, Trakt-Reihen, Favoriten) | gemerged 21.10. (Merge dd0aa9f); CI-Job-Limit dabei auf 75 min angehoben | #14 |
-| M8 Administration und Benachrichtigungen | offen | |
+| M8 Administration und Benachrichtigungen | gemerged 22.10. (Merge `f7c57e6`) | #15 |
 | M9 Integrationen (Radarr/Sonarr lesend, Seerr-Bereich, Bazarr, SABnzbd) | offen; Frage 10 vorab | |
 | M10 Härtung und Release | offen | |
 
 Weitere offene Pull Requests: #9 `claude/ideas-collection` ist Marcos Ideensammlung für nach 1.0 (nicht
 Teil der Meilensteine; mergen nur auf sein Wort).
 
-**Stand bei der Übergabe:** M0 bis M7 sind in `main`, das Docker-Image auf Marcos Rechner ist auf dem M7-Stand neu
-gebaut, der Container ist gesund. Keine Meilenstein-Session läuft. Die alte Hauptsession hatte M8 als Karte
-vorgeschlagen; diese Karte gehört zum alten Account und verfällt. Die neue Hauptsession schlägt M8 selbst vor.
+**Stand bei der Übergabe (21. Oktober):** M0 bis M7 waren in `main`; die neue Hauptsession hat die Übergabe
+gelesen, M8 als Karte vorgeschlagen und nach dem Merge das Image neu gebaut.
 
-**Nächste Schritte der Hauptsession:** (1) Falls Pull Request #13 (diese Übergabe) noch offen ist: mergen, sobald die
-Checks grün sind, dann `git fetch origin main:main`. (2) M8 „Administration und Benachrichtigungen" als frische
-Session starten (Briefing nach Abschnitt 7; Spec-IDs A-1 bis A-9 und E-8 Kanäle; Entscheide 5.2 und 5.5 sind
-bestätigt; vorab Marco fragen, welche Kanäle er mit echten Zugangsdaten testen will und ob die Sicherung zusätzlich
-auf einen NAS-Pfad geschrieben werden soll). (3) Nach dem Merge Image neu bauen (Abschnitt 5). (4) Danach M9
-Integrationen (Frage 10 vorab) und M10 Härtung und Release. Offen aus M5 bis M7 bei Marco: Android-Checklisten,
-Messung auf CT 190, O-6-Langzeittest bis 19. November.
+**Stand am 22. Oktober:** M0 bis M8 sind in `main` (M8 als Pull Request #15, Merge `f7c57e6`), das Docker-Image
+auf Marcos Rechner ist auf dem M8-Stand neu gebaut, der Container ist `healthy`. Keine Meilenstein-Session läuft.
+
+**Nächste Schritte der Hauptsession:** (1) M9 „Integrationen" als frische Session vorschlagen (Briefing nach
+Abschnitt 7; Spec-IDs I-1 bis I-4, I-6 und E-4 Filter „in Beschaffung"; Entscheide 5.1 und 5.6; **Entscheidungsfrage
+10 ist vorab fällig**: wer wünschen darf und wie Konten den Seerr-Benutzern zugeordnet werden; vorab klären, welche
+Instanzen von Radarr, Sonarr, Overseerr oder Jellyseerr Marco im Netz hat und wo deren Schlüssel herkommen).
+(2) Danach M10 Härtung und Release. (3) Nach jedem Merge Image neu bauen (Abschnitt 5). Offen aus M5 bis M8 bei
+Marco: Android-Checklisten (jetzt auch M8: E-Mail und Web-Push mit echten Zugangsdaten), QSV-Erkennung des
+Assistenten auf CT 190, O-6-Langzeittest bis 19. November. Telegram ist gebaut, aber nur gegen die Attrappe
+geprüft (Entscheid vom 21. Oktober).
 
 ## 4. Offene Punkte bei Marco (nicht blockierend)
 
