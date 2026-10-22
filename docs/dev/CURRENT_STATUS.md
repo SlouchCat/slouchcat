@@ -114,8 +114,8 @@ zum entfernten Kanal.
 
 | Prüfung | Befund |
 |---|---|
-| `task ci` | rot an **genau einer** Stelle: `TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads` meldet die fehlenden Aufzeichnungen (siehe «Offen»). Alles davor grün: `gen:check` ohne Drift, Lint auf beiden Seiten, `go test -race ./...` über alle übrigen Pakete (`store` 366 s, `api`, `notify`, `admin`, `integrations`) |
-| Nach dem Abbruch separat gelaufen | `task web:test` 74 Dateien grün; `task web:e2e -- admin-webhooks notification-channels admin-integrations admin-home` 54 Tests grün in Chromium und Firefox; `task storybook:test` grün. Der Abbruch in `server:test` überspringt sonst `build`, `e2e` und die Storybook-Prüfung |
+| `task ci` | **exit 0** (22. Oktober 2026, Stand `6c6c9b4`, Protokoll `ci4.log` im Scratchpad): gen, `gen:check` ohne Drift, Lint auf beiden Seiten (golangci-lint 0 issues, itemsaccess, vet, eslint, stylelint, tsc, prettier), `go test -race ./...` über 31 Pakete, Vitest 577 in 74 Dateien (+ 4 + 2), Build, Playwright **404 von 404** in Chromium und Firefox (18.7 min), Storybook 155 Screenshots |
+| Aufgezeichnete Nutzlasten (I-8) | `testdata/webhooks/`: **Radarr 6.4.4.10685** und **Sonarr 4.0.20.3014**, je sechs echte Meldungen aus Marcos Installation. `TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads` schickt jede über die echte Route und prüft Ergebnis, gescannten Ordner, Protokolleintrag und dass der Dateiname zum `eventType` passt |
 | Vertragstest 10.2 | `go test ./internal/api/ -run TestContract` grün; `receiveWebhook` im `publicRegistry`, die sechs Admin-Operationen im `adminRegistry` |
 | Paket `integrations` | `go test ./internal/integrations/` grün (Token, Pfad-Umsetzung, Auflösung, Empfänger, Ratenbegrenzung, letzter Kontakt) |
 | Kein Token im Log (A-9) | `go test ./internal/logging/` grün; die Redaction maskiert `/webhooks/<token>` in jedem String, der gemeldete Dateipfad bleibt lesbar |
@@ -127,15 +127,43 @@ zum entfernten Kanal.
 | 11 Anfragen in einer Sekunde → 429 | `docs/perf/M9.md` 3: 10× 200, die elfte 429 mit `Retry-After: 1` |
 | Antwortzeit des Endpunkts | `docs/perf/M9.md` 2: p50 2.3 ms, p95 25.2 ms über 200 Anfragen |
 
+### Review und Verifikation (eigene Durchgänge, nicht im Schreibkontext)
+
+Beide Durchgänge liefen als eigene Agenten gegen den fertigen Branch. Die Review meldete keinen kritischen und
+keinen hohen Befund; behoben wurden daraus:
+
+1. **`under()` mit der Quelle `/`** gab für einen *relativen* gemeldeten Pfad «liegt darunter» zurück, ohne ihn
+   anzusehen. Mit einer `/`-Umsetzung konnte ein gebastelter relativer `folderPath` den Scan auf eine andere
+   Bibliothek lenken — aus den Wurzeln ausbrechen ging nie, `Resolve` verbietet das. Beide Seiten des Vergleichs
+   müssen jetzt absolut sein; `TestMapNeverMatchesARelativeReport` hält es fest.
+2. **`scan_queued` ohne eingereihten Auftrag.** `RequestPathScan` gab nichts zurück und `flushPathScan` schluckt
+   jeden Fehler, also behauptete das Protokoll bei abgebrochener Verbindung einen Scan, der nie lief.
+   `RequestPathScan` meldet jetzt, ob die Ordner einen eingereihten Auftrag oder einen geplanten Wiederholversuch
+   erreicht haben; nur dann entsteht der Eintrag, sonst antwortet der Server 500 und der Arr-Dienst wiederholt.
+   Der Eintrag selbst überlebt den Abbruch des Anrufers (`context.WithoutCancel`).
+3. Kleineres: die Redaction-Schranken waren gross-/kleinschreibungsabhängig, während jedes Muster dahinter es
+   nicht ist (ein `/WEBHOOKS/<token>` auf einer 404 wäre unredigiert ins Log gewandert); ein `eventType` über
+   80 Zeichen verlor seinen Protokolleintrag an die CHECK-Regel, statt gekürzt zu werden; die Dashboard-Zahl
+   zählt Protokollzeilen, von denen je Integration 20 bleiben, versprach im Text aber eine vollständige Zahl.
+
+Aus der Verifikation kamen dazu: der Tastaturtest **behauptete** Pfeiltasten über dem Ereignisprotokoll, drückte
+aber keine (das Protokoll ist eine reine Lesetabelle ohne Bedienelemente — jetzt prüft der Test die Pfeiltasten
+an der Auswahl Radarr/Sonarr, belegt die fehlenden Bedienelemente und geht mit dem Browser zurück); «422 mit
+beiden Pfaden» war nur mit identischen Pfaden getestet; `EpisodeFileDelete` und `SeriesDelete` waren nie
+ausgeführt; `ratelimit.Allow` hatte keinen Test im eigenen Paket.
+
 ### Offen
 
-1. **Aufgezeichnete Nutzlasten.** Die Matrixzeile I-8 verlangt Integrationstests gegen echte, aufgezeichnete
-   Radarr- und Sonarr-Nutzlasten mit gepinnter Version im Dateinamen. Marco zeichnet sie an seinen Diensten auf;
-   Empfänger und Anleitung liegen in `testdata/webhooks/` (`record.py`, `README.md`). Der Test dagegen ist
-   geschrieben (`internal/api/webhook_handlers_test.go`) und **schlägt bis dahin mit einem Hinweis auf die
-   Anleitung fehl**, statt still nichts zu prüfen. `task ci` ist genau an dieser einen Stelle rot.
-2. **Android und O-6** aus M5 bis M8 bleiben offen; der Langzeittest läuft (Tag 30 am 19. November).
-3. **M10** bringt Härtung und Release 1.0.
+1. **Bewusst nicht gebaut: Windows-Pfade in der Umsetzungstabelle.** Umsetzung und Auflösung rechnen mit
+   Schrägstrichen; Slouchcat läuft laut Spec nur auf Linux, und Marcos Dienste melden `/mnt/medien/…`. Die
+   Annahme steht in ADR 0010, und die 422-Meldung nennt sie, statt auf etwas Unmögliches zu verweisen.
+2. **Das Formular der Pfad-Umsetzung zieht nicht nach**, wenn ein zweiter Admin dieselbe Integration gleichzeitig
+   ändert; der eigene Speicherweg ist abgedeckt. Kleinigkeit für M10.
+3. **Einmaliger Vitest-Aussetzer unter Last:** `react-aria` meldete in `LoginPage.test.tsx` einen Timer nach dem
+   Abbau der JSDOM-Umgebung («document is not defined»). Die Datei gehört nicht zu M9; sechs weitere Vollläufe
+   blieben sauber, der CI-Lauf ebenfalls. Beobachten, nicht in M9 reparieren.
+4. **Android und O-6** aus M5 bis M8 bleiben offen; der Langzeittest läuft (Tag 30 am 19. November).
+5. **M10** bringt Härtung und Release 1.0.
 
 ## Meilenstein M8 – Administration und Benachrichtigungen
 
