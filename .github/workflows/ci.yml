@@ -49,16 +49,46 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The package downloads are the single biggest source of variance in this workflow: the same
+      # step took 57 s, 214 s and over 20 min on three runs of 22 October, because the Azure mirror
+      # throttles without warning (run 39789916437 spent 11.5 min on ffmpeg alone). The .deb files
+      # are therefore cached. The key is stable, so the cache is written once and only packages
+      # that Ubuntu has bumped since are fetched again.
+      - name: Cache the system packages
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-debs
+          key: apt-debs-noble-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      # apt deletes a .deb after installing it, so without this the cache would stay empty. The
+      # settings go into a drop-in rather than onto a command line because `playwright
+      # install-deps` runs apt itself and has to pick them up too. The Binary:: line matters: the
+      # `apt` binary ships its own Keep-Downloaded-Packages "0" that overrides the general one, so
+      # setting only the general option would still lose every .deb that `apt` rather than
+      # `apt-get` installs.
+      - name: Point apt at the cache
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99slouchcat >/dev/null <<EOF
+          Dir::Cache::archives "$HOME/apt-debs";
+          APT::Keep-Downloaded-Packages "true";
+          Binary::apt::APT::Keep-Downloaded-Packages "true";
+          EOF
+          mkdir -p ~/apt-debs/partial
+          apt-config dump | grep -iE 'Dir::Cache::archives|Keep-Downloaded-Packages'
+
       # One apt transaction for everything the suite needs from the system: ffmpeg for the probe
       # tests and the test media, pulseaudio for the Firefox audio sink below, and Playwright's own
-      # library list. Three separate steps used to run `apt-get update` three times and downloaded
-      # the same index again each time; on 22 October that cost 11.5 min for ffmpeg alone
-      # (run 39789916437), because the package downloads are at the mercy of the Azure mirror.
+      # library list. Three separate steps used to run `apt-get update` three times.
       - name: Install the system packages (ffmpeg, pulseaudio, Playwright libraries)
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg pulseaudio pulseaudio-utils
           pnpm --filter @slouchcat/web exec playwright install-deps chromium firefox
+
+      # apt ran as root and left the files that way; the cache is saved as the runner user.
+      - name: Hand the cached packages back to the runner
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" ~/apt-debs
 
       # Firefox drives an audio-only title from its audio sink. A runner has no audio output, so
       # the sink fails, the element reports MediaError 3 ("OnMediaSinkAudioError"), hls.js detaches
