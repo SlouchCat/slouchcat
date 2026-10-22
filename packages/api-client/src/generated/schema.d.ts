@@ -2658,6 +2658,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Webhook integrations of Radarr and Sonarr (I-8) */
+        get: operations["listIntegrations"];
+        put?: never;
+        /**
+         * Create a webhook integration and reveal its address once (I-8)
+         * @description The answer is the only moment the full address exists: it carries `url` and `token`, which are
+         *     stored as a SHA-256 and can never be shown again (plan 3.8 point 2). Later reads show the last
+         *     four characters only; `renewIntegrationToken` reveals a new address.
+         */
+        post: operations["createIntegration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/integrations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a webhook integration and its event log (I-8) */
+        delete: operations["deleteIntegration"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/integrations/{id}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renew the token of an integration and reveal the new address once (I-8)
+         * @description The old address stops working at once; the new one appears in this answer and never again.
+         */
+        post: operations["renewIntegrationToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/integrations/{id}/path-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the path mapping of an integration (I-8)
+         * @description Prefix pairs that translate the path Radarr or Sonarr reports into the path this server sees
+         *     (`/movies` → `/media/Filme`); the longest matching source wins. The list may be empty, which is
+         *     the default and fits a service that sees the same paths as Slouchcat.
+         */
+        put: operations["setIntegrationPathMap"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/integrations/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Event log of an integration (I-8)
+         * @description The newest 20 reports of this integration, newest first; older ones are dropped.
+         */
+        get: operations["listIntegrationEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/webhooks/{token}": {
         parameters: {
             query?: never;
@@ -4434,6 +4536,7 @@ export interface components {
                 cache: components["schemas"]["StorageInfo"];
             };
             integrations: components["schemas"]["IntegrationStatus"][];
+            webhooks: components["schemas"]["WebhookTileStatus"];
             /** @description The newest errors of the server log, newest first, redacted like the log itself. */
             errors: components["schemas"]["ErrorEntry"][];
             update: components["schemas"]["UpdateState"];
@@ -4951,6 +5054,93 @@ export interface components {
              */
             path?: string;
         };
+        /** @description One webhook address handed to Radarr or Sonarr (I-8). It never carries the token. */
+        Integration: {
+            /** Format: int64 */
+            id: number;
+            /** @example Radarr */
+            name: string;
+            /** @enum {string} */
+            kind: "radarr" | "sonarr";
+            /** @description Last four characters of the token, so an address can be recognised in a list. */
+            tokenTail: string;
+            /** @description Prefix pairs, longest match wins; empty by default. */
+            pathMap: components["schemas"]["PathMapping"][];
+            /**
+             * Format: date-time
+             * @description When this integration last reported; absent until the first webhook.
+             */
+            lastSeenAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /**
+         * @description A just created or renewed integration together with its full address. This is the only
+         *     answer that contains it; afterwards only `tokenTail` remains (plan 3.8 point 2).
+         */
+        IntegrationCreated: {
+            integration: components["schemas"]["Integration"];
+            /**
+             * @description The complete address to paste into "Connect → Webhook".
+             * @example https://slouchcat.example.ch/api/v1/webhooks/4C8c...
+             */
+            url: string;
+            /** @description The token alone, for an address the administration assembles itself. */
+            token: string;
+        };
+        IntegrationRequest: {
+            name: string;
+            /** @enum {string} */
+            kind: "radarr" | "sonarr";
+        };
+        /** @description Translates a prefix of the reported path into a prefix on this server. */
+        PathMapping: {
+            /**
+             * @description Absolute prefix as Radarr or Sonarr sees it.
+             * @example /movies
+             */
+            from: string;
+            /**
+             * @description Absolute prefix on this server.
+             * @example /media/Filme
+             */
+            to: string;
+        };
+        PathMapRequest: {
+            pathMap: components["schemas"]["PathMapping"][];
+        };
+        /** @description One received webhook in the log of an integration (the newest 20). */
+        IntegrationEvent: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            receivedAt: string;
+            /**
+             * @description The event as Radarr or Sonarr named it.
+             * @example Download
+             */
+            event: string;
+            /** @description The directory the service reported; absent for events without one. */
+            reportedPath?: string;
+            /** @description The directory after the path mapping; absent for events without one. */
+            resolvedPath?: string;
+            /**
+             * @description `scan_queued`: a targeted scan runs; `acknowledged`: the Test event; `ignored`: no effect;
+             *     `outside_roots`: the mapped path lies under no library root; `invalid_payload`: an acting
+             *     event without a directory.
+             * @enum {string}
+             */
+            result: "scan_queued" | "acknowledged" | "ignored" | "outside_roots" | "invalid_payload";
+        };
+        /** @description The "Webhooks" tile of the dashboard (A-3, decision 5.6). */
+        WebhookTileStatus: {
+            /** @description Configured integrations. */
+            total: number;
+            /** @description Webhooks received in the last 24 hours. */
+            eventsLast24h: number;
+            /** @description Names that have reported nothing for seven days. */
+            silent: string[];
+        };
     };
     responses: {
         /** @description No valid session (`unauthenticated`). */
@@ -5073,6 +5263,7 @@ export interface components {
         /** @description File name of a backup from `listBackups` (no path part). */
         BackupName: string;
         AnnouncementID: number;
+        IntegrationID: number;
         ChannelName: components["schemas"]["Channel"];
         PushSubscriptionID: number;
     };
@@ -10520,6 +10711,206 @@ export interface operations {
                 };
             };
             /** @description Spike not enabled or file missing (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listIntegrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every integration, oldest first; the address is never part of it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Integration"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    createIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntegrationRequest"];
+            };
+        };
+        responses: {
+            /** @description The integration with its address, shown once. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationCreated"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Validation failed (`validation_failed`; `name` 1 to 80 characters and unused, `kind` radarr or sonarr). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IntegrationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted; the address stops working immediately. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown integration (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    renewIntegrationToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IntegrationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The integration with its new address, shown once. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationCreated"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown integration (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setIntegrationPathMap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IntegrationID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PathMapRequest"];
+            };
+        };
+        responses: {
+            /** @description The integration with its new mapping. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Integration"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown integration (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; both paths absolute, every source only once). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listIntegrationEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IntegrationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The log entries, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationEvent"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown integration (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

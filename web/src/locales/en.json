@@ -1279,6 +1279,14 @@
         "checked": "Checked: {{date}}",
         "manage": "Set up integrations"
       },
+      "webhooks": {
+        "title": "Webhooks",
+        "none": "No integration set up.",
+        "count_one": "{{count}} report in 24 hours, from {{total}} integrations.",
+        "count_other": "{{count}} reports in 24 hours, from {{total}} integrations.",
+        "silent": "Nothing reported for seven days: {{names}}",
+        "manage": "Manage webhooks"
+      },
       "server": {
         "title": "Server",
         "version": "Version",
@@ -1356,6 +1364,72 @@
           "description": "For the rows “Trending” and “Popular” of the home page."
         },
         "traktStatus": "State of the Trakt lists"
+      },
+      "webhooks": {
+        "title": "Webhooks from Radarr and Sonarr",
+        "intro": "Radarr and Sonarr report changed files here, so new titles appear at once. Slouchcat never calls those services itself.",
+        "empty": "No integration set up yet.",
+        "address": "Address ends in …{{tail}}",
+        "lastSeen": "Last report: {{at}}",
+        "neverSeen": "Has never reported anything.",
+        "kind": {
+          "radarr": "Radarr",
+          "sonarr": "Sonarr"
+        },
+        "form": {
+          "name": "Name",
+          "nameHint": "Your choice; it only tells the entries of this list apart.",
+          "kind": "Service",
+          "submit": "Create integration"
+        },
+        "created": {
+          "title": "Address for “{{name}}”",
+          "once": "Copy it now — the address is not shown again.",
+          "label": "Full address",
+          "copy": "Copy address",
+          "copied": "Address copied.",
+          "copyFailed": "Copying failed; the address is selected, press Ctrl+C.",
+          "dismiss": "Hide"
+        },
+        "pathMap": {
+          "intro": "Translates the path Radarr or Sonarr reports. The longest matching start wins; without an entry the reported path is used as it is.",
+          "from": "Path in the service",
+          "to": "Path on this server",
+          "add": "Add row",
+          "remove": "Remove the row for {{from}}",
+          "removeAction": "Remove",
+          "saved": "Path mapping saved."
+        },
+        "log": {
+          "caption": "Reports from {{name}}",
+          "empty": "No reports yet.",
+          "at": "Time",
+          "event": "Event",
+          "reported": "Reported path",
+          "resolved": "Mapped path",
+          "result": "Result"
+        },
+        "result": {
+          "scan_queued": "Directory is read",
+          "acknowledged": "Test acknowledged",
+          "ignored": "No effect",
+          "outside_roots": "Outside the libraries",
+          "invalid_payload": "Without a path"
+        },
+        "renew": {
+          "action": "Renew token",
+          "label": "Renew the token of {{name}}",
+          "title": "Renew the token of “{{name}}”?",
+          "body": "The current address stops working at once. The new one is shown once and has to be entered in Radarr or Sonarr again.",
+          "confirm": "Renew"
+        },
+        "delete": {
+          "action": "Delete",
+          "label": "Delete {{name}}",
+          "title": "Delete “{{name}}”?",
+          "body": "The address stops working at once, and the report log goes with it.",
+          "confirm": "Delete"
+        }
       },
       "email": {
         "title": "E-mail server",

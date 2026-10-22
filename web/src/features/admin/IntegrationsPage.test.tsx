@@ -26,6 +26,8 @@ const settings = (overrides: Partial<AdminSettings> = {}): AdminSettings => ({
 const routes = (extra: Routes = {}): Routes => ({
   ...signedIn,
   'GET /admin/settings': () => json(settings()),
+  // M9: the page also carries the webhook integrations (I-8); its own tests live next door.
+  'GET /admin/integrations': () => json([]),
   ...extra,
 });
 

@@ -992,6 +992,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	adm.WithAnnouncements(pf.notifySvc)
 	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
 	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
+	adm.WithIntegrations(pf.integrations)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,

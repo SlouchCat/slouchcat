@@ -322,3 +322,13 @@ func (s *Service) Authenticate(ctx context.Context, token string) (model.Integra
 	}
 	return toModel(row)
 }
+
+// EventsSince counts the webhooks of every integration received since a point in time; the
+// dashboard tile shows the last 24 hours (5.6).
+func (s *Service) EventsSince(ctx context.Context, since time.Time) (int, error) {
+	n, err := s.read.CountWebhookEventsSince(ctx, since.UnixMilli())
+	if err != nil {
+		return 0, fmt.Errorf("count webhook events: %w", err)
+	}
+	return int(n), nil
+}

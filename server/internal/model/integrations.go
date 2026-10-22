@@ -65,3 +65,11 @@ type IntegrationEvent struct {
 	ResolvedPath string
 	Result       string
 }
+
+// WebhookStatus is the "Webhooks" tile of the admin dashboard (A-3, decision 5.6). It keeps the
+// integration status filled now that the Arr clients of I-1 are gone.
+type WebhookStatus struct {
+	Total         int      // configured integrations
+	EventsLast24h int      // webhooks received in the last 24 hours
+	Silent        []string // names that reported nothing for seven days
+}

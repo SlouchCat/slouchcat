@@ -293,6 +293,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		}
 		return u + api.BasePath
 	}))
+	adminSvc.WithIntegrations(integrationSvc)
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
 	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,

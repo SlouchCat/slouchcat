@@ -44,6 +44,8 @@ const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard => ({
     { key: 'email', state: 'missing' },
     { key: 'updateCheck', state: 'disabled' },
   ],
+  // M9: two integrations, one of them silent for a week (I-8).
+  webhooks: { total: 2, eventsLast24h: 3, silent: ['Sonarr'] },
   errors: [
     {
       at: '2026-10-21T09:15:00Z',

@@ -76,6 +76,10 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 		Integrations: make([]gen.IntegrationStatus, 0, len(d.Integrations)),
 		Errors:       make([]gen.ErrorEntry, 0, len(d.Errors)),
 		Update:       toUpdateState(d.Update),
+		Webhooks: gen.WebhookTileStatus{
+			Total: d.Webhooks.Total, EventsLast24h: d.Webhooks.EventsLast24h,
+			Silent: append([]string{}, d.Webhooks.Silent...),
+		},
 	}
 	for _, st := range d.Streams {
 		out.Streams = append(out.Streams, toAdminStream(st))

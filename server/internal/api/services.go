@@ -228,6 +228,16 @@ type AdminService interface {
 	UpdateAnnouncement(ctx context.Context, id int64, title, body string) (model.Announcement, error)
 	PublishAnnouncement(ctx context.Context, id int64) (model.Announcement, error)
 	DeleteAnnouncement(ctx context.Context, id int64) error
+
+	// Webhook integrations of Radarr and Sonarr (M9, I-8): *model.ValidationError and
+	// model.ErrNotFound. CreateIntegration and RenewIntegrationToken return the integration with
+	// its address, which exists only in that answer.
+	ListIntegrations(ctx context.Context) ([]model.Integration, error)
+	CreateIntegration(ctx context.Context, name, kind string) (model.Integration, error)
+	RenewIntegrationToken(ctx context.Context, id int64) (model.Integration, error)
+	SetIntegrationPathMap(ctx context.Context, id int64, pairs []model.PathMapping) (model.Integration, error)
+	DeleteIntegration(ctx context.Context, id int64) error
+	IntegrationEvents(ctx context.Context, id int64) ([]model.IntegrationEvent, error)
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer

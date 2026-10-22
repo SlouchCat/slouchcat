@@ -1279,6 +1279,14 @@
         "checked": "Geprüft: {{date}}",
         "manage": "Integrationen einrichten"
       },
+      "webhooks": {
+        "title": "Webhooks",
+        "none": "Keine Integration eingerichtet.",
+        "count_one": "{{count}} Meldung in 24 Stunden, von {{total}} Integrationen.",
+        "count_other": "{{count}} Meldungen in 24 Stunden, von {{total}} Integrationen.",
+        "silent": "Seit sieben Tagen ohne Meldung: {{names}}",
+        "manage": "Webhooks verwalten"
+      },
       "server": {
         "title": "Server",
         "version": "Version",
@@ -1356,6 +1364,72 @@
           "description": "Für die Reihen «Trending» und «Beliebt» der Startseite."
         },
         "traktStatus": "Stand der Trakt-Listen"
+      },
+      "webhooks": {
+        "title": "Webhooks von Radarr und Sonarr",
+        "intro": "Radarr und Sonarr melden geänderte Dateien hierher, damit neue Titel sofort erscheinen. Slouchcat fragt die Dienste nie von sich aus ab.",
+        "empty": "Noch keine Integration eingerichtet.",
+        "address": "Adresse endet auf …{{tail}}",
+        "lastSeen": "Letzte Meldung: {{at}}",
+        "neverSeen": "Hat noch nie etwas gemeldet.",
+        "kind": {
+          "radarr": "Radarr",
+          "sonarr": "Sonarr"
+        },
+        "form": {
+          "name": "Name",
+          "nameHint": "Frei wählbar, nur zur Unterscheidung in dieser Liste.",
+          "kind": "Dienst",
+          "submit": "Integration anlegen"
+        },
+        "created": {
+          "title": "Adresse für «{{name}}»",
+          "once": "Jetzt kopieren — danach ist die Adresse nicht mehr sichtbar.",
+          "label": "Vollständige Adresse",
+          "copy": "Adresse kopieren",
+          "copied": "Adresse kopiert.",
+          "copyFailed": "Kopieren ging nicht; die Adresse ist markiert, mit Strg+C kopieren.",
+          "dismiss": "Ausblenden"
+        },
+        "pathMap": {
+          "intro": "Setzt den Pfad um, den Radarr oder Sonarr meldet. Der längste passende Anfang gewinnt; ohne Eintrag gilt der gemeldete Pfad unverändert.",
+          "from": "Pfad im Dienst",
+          "to": "Pfad auf diesem Server",
+          "add": "Zeile hinzufügen",
+          "remove": "Zeile für {{from}} entfernen",
+          "removeAction": "Entfernen",
+          "saved": "Pfad-Umsetzung gespeichert."
+        },
+        "log": {
+          "caption": "Meldungen von {{name}}",
+          "empty": "Noch keine Meldungen.",
+          "at": "Zeit",
+          "event": "Ereignis",
+          "reported": "Gemeldeter Pfad",
+          "resolved": "Umgesetzter Pfad",
+          "result": "Ergebnis"
+        },
+        "result": {
+          "scan_queued": "Ordner wird gelesen",
+          "acknowledged": "Test quittiert",
+          "ignored": "Ohne Wirkung",
+          "outside_roots": "Ausserhalb der Bibliotheken",
+          "invalid_payload": "Ohne Pfad"
+        },
+        "renew": {
+          "action": "Token erneuern",
+          "label": "Token von {{name}} erneuern",
+          "title": "Token von «{{name}}» erneuern?",
+          "body": "Die bisherige Adresse hört sofort auf zu arbeiten. Die neue wird einmal angezeigt und muss in Radarr oder Sonarr neu eingetragen werden.",
+          "confirm": "Erneuern"
+        },
+        "delete": {
+          "action": "Löschen",
+          "label": "{{name}} löschen",
+          "title": "«{{name}}» löschen?",
+          "body": "Die Adresse hört sofort auf zu arbeiten, und das Meldungsprotokoll verschwindet mit.",
+          "confirm": "Löschen"
+        }
       },
       "email": {
         "title": "E-Mail-Server",

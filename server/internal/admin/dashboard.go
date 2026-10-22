@@ -103,6 +103,14 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 	if d.Integrations, err = s.integrations(ctx, d.Update); err != nil {
 		return model.Dashboard{}, err
 	}
+	// The webhook tile (M9): without the integrations service the tile stays empty instead of
+	// failing the whole dashboard.
+	if s.webhooks != nil {
+		if d.Webhooks, err = s.WebhookStatus(ctx); err != nil {
+			return model.Dashboard{}, err
+		}
+	}
+	d.Webhooks.Silent = append([]string{}, d.Webhooks.Silent...)
 	if s.ops.errors != nil {
 		for _, e := range s.ops.errors.Entries() {
 			msg := e.Message
