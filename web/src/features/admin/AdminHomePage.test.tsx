@@ -1,7 +1,7 @@
 import type { Dashboard, JobSummary, SystemInfo } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 
 // The administration's overview (A-2, A-3): the dashboard asked every 5 s, failed jobs queued
@@ -85,20 +85,6 @@ const routes = (extra: Routes = {}): Routes => ({
   'GET /admin/dashboard': () => json(dashboard()),
   'GET /admin/system': () => json(system),
   ...extra,
-});
-
-// The /admin routes are lazyRouteComponent(() => import(...)), so the first render of this file
-// waits for Vite to transform that whole module graph. That cost falls inside findBy's one-second
-// window: the first test took 417 ms locally but 1046 ms on a loaded CI runner, and failed with an
-// empty <body><div /></body> while every other test in the file needed 8-633 ms. Importing the
-// pages once up front moves the transform out of the assertion window; nothing is waited for
-// differently afterwards. See docs/dev/CURRENT_STATUS.md, "Flackernder AdminHomePage-Test".
-beforeAll(async () => {
-  await Promise.all([
-    import('@/features/admin/AdminLayout'),
-    import('@/features/admin/AdminHomePage'),
-    import('@/features/admin/DevicesPage'),
-  ]);
 });
 
 describe('admin overview (A-2, A-3)', () => {

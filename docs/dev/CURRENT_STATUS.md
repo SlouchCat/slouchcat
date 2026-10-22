@@ -83,20 +83,29 @@ Nutzdaten abgewiesen werden, nur jetzt zuverlässig.
 **Offen.** Der genaue CI-Fall liess sich lokal nicht nachstellen (0 Treffer in 2900 Archiven auf
 `main`); der Mechanismus ist bewiesen, und die Behebung nimmt dem Test die Abhängigkeit davon ganz.
 
-### Flackernder AdminHomePage-Test
+### Flackernde Web-Tests: die erste Darstellung bezahlt die Übersetzung
 
 `AdminHomePage.test.tsx` scheiterte auf `main` am reinen Dokumentations-Commit `09733c7`
-(Lauf 39767863551) mit `Unable to find role="heading" and name "Verwaltung"` — und zwar mit leerem
-`<body><div /></body>`: die App hatte noch gar nichts gezeichnet.
+(Lauf 39767863551) mit `Unable to find role="heading" and name "Verwaltung"`, und zwar mit leerem
+`<body><div /></body>`: die App hatte noch gar nichts gezeichnet. Derselbe Fehler traf danach
+`ProfileLimits.test.tsx` (Lauf 39837140392, `role="article"` mit Namen «Lena» nicht gefunden, Körper
+mit Skelett und leerer Profilliste) — ein Test von 571, der den ganzen Lauf rot machte.
 
-**Ursache.** Die `/admin`-Routen sind `lazyRouteComponent(() => import(...))`. Die erste Darstellung
-der Datei wartet deshalb darauf, dass Vite den ganzen Admin-Modulbaum übersetzt, und diese Kosten
-fallen *innerhalb* des Ein-Sekunden-Fensters von `findBy` an: lokal brauchte der erste Test 417 ms,
-auf einem ausgelasteten Runner 1046 ms — jeder andere Test derselben Datei 8 bis 633 ms.
+**Ursache.** Jede Seite der App wird über `lazyRouteComponent(() => import(...))` geladen. Die
+*erste* Darstellung in einem Worker wartet deshalb darauf, dass Vite diesen Modulbaum übersetzt, und
+diese Wartezeit fällt *innerhalb* des Ein-Sekunden-Fensters von `findBy` an — sie hat mit dem, was
+der Test prüft, nichts zu tun. Lokal brauchte der erste Test von `AdminHomePage` 417 ms, auf einem
+ausgelasteten Runner 1046 ms; jeder andere Test derselben Datei 8 bis 633 ms.
 
-**Behebung.** Die drei Seiten, die die Datei darstellt, werden einmal in `beforeAll` importiert; die
-Übersetzung fällt damit vor das Fenster. Kein Zeitlimit wurde erhöht. Der erste Test braucht jetzt
-168 ms, zehn Läufe hintereinander 165 bis 182 ms.
+**Das ist eine ganze Klasse, kein Einzelfall:** 23 der 43 Testdateien, die `renderApp` benutzen,
+stellen als Erstes eine lazy geladene Route dar. Jede von ihnen kann so rot werden.
+
+**Behebung.** Nicht Datei für Datei, sondern einmal zentral in `web/src/test/setup.ts`: die
+Seitenmodule werden in `beforeAll` aufgelöst, bevor ein Test etwas behauptet. Die Modulregistrierung
+gilt je Worker, die erste Testdatei bezahlt sie, jede weitere bekommt sie geschenkt. Kein Zeitlimit
+wurde erhöht und keine Zusicherung aufgeweicht. Kosten: die ganze Web-Suite braucht 9,17 s statt
+8,31 s (+0,86 s bei 571 Tests). Beide vormals flackernden Dateien laufen zehnmal hintereinander grün
+(97 bis 203 ms statt 417 ms).
 
 ### Jeder Commit startete zwei vollständige Läufe
 
