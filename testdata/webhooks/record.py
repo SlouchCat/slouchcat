@@ -5,15 +5,16 @@ Der Empfänger nimmt jede POST-Anfrage mit 200 an und legt den Rumpf als Datei a
 Dienst, Version und Ereignis: <dienst>-<version>-<ereignis>.json. Mehr macht er nicht; er prüft
 kein Token und gehört nie in den Betrieb.
 
-    python3 record.py --service radarr --version 5.14.0.9383 --out .
-    python3 record.py --service sonarr --version 4.0.10.2544 --out .
+    python3 record.py
+
+Dienst und Version kommen aus dem User-Agent der Meldung (Radarr und Sonarr senden dort
+«Radarr/5.14.0.9383 (linux x86_64)»), es ist also nichts nachzuschlagen. Nur wenn ein Dienst
+keinen brauchbaren User-Agent schickt, helfen --service und --version nach.
 
 Danach in Radarr/Sonarr unter «Einstellungen → Verbindungen → + → Webhook» die Adresse
 http://<diese-maschine>:9099/ eintragen, Methode POST, und die Ereignisse ankreuzen. «Test»
 schreibt sofort eine Datei; Import, Umbenennung und Löschung entstehen beim nächsten echten
 Vorgang.
-
-Die Versionsnummer steht in Radarr/Sonarr unter «System → Status».
 """
 
 import argparse
@@ -24,10 +25,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MAX_BODY = 1 << 20  # 1 MiB; eine Arr-Nutzlast ist ein paar Kilobyte gross.
 
+# "Radarr/5.14.0.9383 (linux x86_64)" → Dienst und Version.
+AGENT = re.compile(r"\b(radarr|sonarr)/([0-9][0-9.]*)", re.IGNORECASE)
+
 
 class Recorder(BaseHTTPRequestHandler):
-    service = "unknown"
-    version = "unknown"
+    service = None  # Rückfall, wenn der User-Agent nichts hergibt
+    version = None
     out = pathlib.Path(".")
 
     def do_POST(self):  # noqa: N802 (Name von BaseHTTPRequestHandler vorgegeben)
@@ -38,7 +42,8 @@ class Recorder(BaseHTTPRequestHandler):
             event = str(payload.get("eventType", "unknown"))
         except (ValueError, AttributeError):
             payload, event = None, "unparsable"
-        name = f"{self.service}-{self.version}-{slug(event)}.json"
+        service, version = self.identify()
+        name = f"{service}-{version}-{slug(event)}.json"
         path = self.out / name
         if payload is None:
             path = path.with_suffix(".raw")
@@ -50,6 +55,19 @@ class Recorder(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
+    def identify(self):
+        """Dienst und Version aus dem User-Agent; die Flaggen sind nur der Rückfall."""
+        match = AGENT.search(self.headers.get("User-Agent") or "")
+        if match:
+            return match.group(1).lower(), match.group(2)
+        if self.service and self.version:
+            return self.service, self.version
+        print(
+            f"  (kein Radarr/Sonarr im User-Agent {self.headers.get('User-Agent')!r};"
+            " mit --service und --version nachhelfen)"
+        )
+        return self.service or "unknown", self.version or "unknown"
+
     def log_message(self, fmt, *args):
         pass  # Die Zeile oben sagt schon alles.
 
@@ -60,8 +78,8 @@ def slug(s):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--service", required=True, choices=["radarr", "sonarr"])
-    p.add_argument("--version", required=True, help="Version aus «System → Status», z. B. 5.14.0.9383")
+    p.add_argument("--service", choices=["radarr", "sonarr"], help="nur nötig ohne brauchbaren User-Agent")
+    p.add_argument("--version", help="nur nötig ohne brauchbaren User-Agent, z. B. 5.14.0.9383")
     p.add_argument("--out", default=".", help="Zielordner für die JSON-Dateien")
     p.add_argument("--port", type=int, default=9099)
     args = p.parse_args()

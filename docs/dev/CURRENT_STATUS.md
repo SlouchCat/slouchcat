@@ -1,10 +1,13 @@
 # Aktueller Stand
 
 Stand: 22. Oktober 2026. M0 bis M8 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #6, #10, #11, #14 und #15; M8 am 22. Oktober 2026 auf Marcos Wort, Merge-Commit `f7c57e6`).
-Das Docker-Image auf Marcos Rechner ist auf dem M8-Stand gebaut, der Container ist `healthy`. Der CI-Job hat
-seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
-Nächster Meilenstein: M9 (Integrationen); Entscheidungsfrage 10 (Wünschen) ist vorab zu klären.
+Pull Requests #1 bis #6, #10, #11, #14 und #15; M8 am 22. Oktober 2026 auf Marcos Wort, Merge-Commit `f7c57e6`),
+dazu die Korrektur der Firefox-Tonspur (#18), die Statusnotiz zu M8 (#16) und der Zuschnitt von M9 (#17,
+Merge-Commit `09733c7`). **M9 ist gebaut und liegt als Pull Request gegen `main`** (Branch
+`claude/m9-webhook-receiver`); gemerged wird er auf Marcos Wort. Das Docker-Image auf Marcos Rechner ist auf dem
+M8-Stand gebaut, der Container ist `healthy`. Der CI-Job hat seit #14 ein Limit von 75 Minuten. Die Übergabe an
+eine neue Hauptsession steht in `docs/dev/HANDOVER.md`. Nächster und letzter Meilenstein: M10 (Härtung und
+Release 1.0).
 
 ## Befund: die CI braucht eine Audioausgabe für Firefox (22. Oktober 2026)
 
@@ -43,6 +46,96 @@ Workflow einen `if: failure()`-Schritt hat: beide Ordner beginnen mit einem Punk
 `actions/upload-artifact` überspringt versteckte Dateien ohne `include-hidden-files: true`. Bei den
 roten Läufen lagen deshalb nur die `dockerbuild`-Artefakte vor und die Traces fehlten. Das Flag ist
 jetzt gesetzt.
+
+## Meilenstein M9 – Schnelles Einlesen über Webhooks
+
+Vorab geklärt mit Marco (22. Oktober 2026, Entscheidungsprotokoll Frage 10): von den Integrationen bleibt nur der
+eingehende Webhook. I-1 bis I-4 und I-6 (Arr-Clients mit Polling, Beschaffungsstatus am Titel und als Suchfilter,
+Benachrichtigung bei Verfügbarkeit, Bereich «Wünschen» über Seerr samt AN-5 und AN-16, SABnzbd) sind ersatzlos
+gestrichen und stehen in den Non-Goals der Spec; Entscheid 5.1 ist damit gegenstandslos. Neu ist I-8, und
+Entscheid 5.6 ist auf Adresse, Token, Ereignisse, Pfad-Umsetzung, Protokoll und Dashboard-Kachel ausgebaut.
+Der Zuschnitt lief als eigener Pull Request voraus (#17); diese Umsetzung baut darauf auf.
+
+**Das Prinzip.** Slouchcat ruft Radarr und Sonarr nie ab — Steuerung bleibt ein Non-Goal, und mit I-1 ist auch
+das Polling entfallen. Die Verbindung ist rein eingehend: Der Admin legt eine Integration an, Slouchcat zeigt die
+vollständige Adresse `POST {BasePath}/webhooks/{token}` **einmal**, der Admin trägt sie in Radarr oder Sonarr
+unter «Connect → Webhook» ein. Jede Meldung endet in genau einem `scan.path`-Auftrag — demselben, den der
+inotify-Watcher erzeugt (Plan 3.4), mit derselben Zusammenfassung über die Debounce-Regel der Queue (3.6). Es gibt
+keinen zweiten Scan-Weg, nur einen zweiten Auslöser. Ohne eingerichteten Webhook bleibt der reguläre Abgleich die
+einzige Quelle; es geht nichts verloren, es dauert nur länger (AN-12).
+
+### Was gebaut wurde
+
+1. **Datenhaltung und Dienst** (Migration 00017, Paket `integrations`). `webhook_integrations` hält Name, Typ,
+   das Token als SHA-256 (3.8 Punkt 2), dessen letzte vier Zeichen für die Liste, die Pfad-Umsetzung als
+   JSON-Präfixpaare und den letzten Kontakt; `webhook_events` das Protokoll aus Zeit, Ereignis, gemeldetem Pfad,
+   umgesetztem Pfad und Ergebnis. Ein Trigger hält die letzten 20 Einträge je Integration — das Protokoll ist ein
+   Fenster, keine Geschichte. Das Paket erzeugt und prüft Tokens, setzt Pfade mit dem längsten passenden Präfix um
+   und löst das Ergebnis über `paths` gegen die registrierten Bibliothekswurzeln auf. Es greift **nie** auf
+   `items`, `media_files` oder `tracks` zu (CLAUDE.md Regel 2, `depguard` setzt es durch); die Wirkung läuft über
+   die neue Methode `library.RequestPathScan`.
+2. **Endpunkt** `POST /webhooks/{token}`, `x-visibility: public`, über den generierten strict server, mit Eintrag
+   im Vertragstest. `Download`, `Rename`, `MovieFileDelete`, `EpisodeFileDelete`, `MovieDelete` und `SeriesDelete`
+   nehmen den Pfad aus `movie.folderPath` (Radarr) bzw. `series.path` (Sonarr) und lösen den Scan aus; `Test` wird
+   mit 200 quittiert und protokolliert; jedes andere Ereignis wird mit 200 angenommen und ignoriert, damit eine
+   grosszügige Auswahl in Radarr nichts kaputt macht. Falsches Token → 401 ohne Protokolleintrag (es gibt keine
+   Integration, der man ihn zuschreiben könnte), Pfad ausserhalb jeder Wurzel → 422 mit beiden Pfaden im Protokoll,
+   mehr als 10 Anfragen je Sekunde und Integration → 429 (`ratelimit.Allow`, das nicht blockierende Gegenstück zu
+   `Wait`).
+3. **Admin-Oberfläche** auf der bestehenden Integrationsseite aus M8: anlegen, Adresse einmal mit Kopier-Knopf und
+   dem Hinweis «jetzt kopieren, danach nicht mehr sichtbar», danach nur die letzten vier Zeichen, Pfad-Umsetzung
+   pflegen, Protokoll der letzten 20 Meldungen, «Token erneuern», löschen, letzter Kontakt. Dazu die Kachel
+   «Webhooks» im Dashboard mit der Zahl der letzten 24 Stunden und einer Warnung, wenn eine Integration seit sieben
+   Tagen nichts gemeldet hat — damit bleibt A-3 «Integrationsstatus» nach dem Wegfall von I-1 gefüllt. Eine heute
+   angelegte Integration wird nicht gewarnt: sie ist schlicht noch nicht in Radarr eingetragen.
+4. **Kanal «Beschaffung» entfernt** (Migration 00018). Sein Erzeuger war I-1; ohne ihn wäre er eine Schaltfläche
+   ohne Wirkung. Weg sind `EventAcquisition`, `AcquisitionChanged`, die Texte, der Eintrag in `eventNames`, der
+   Wert im Vertrag und das Kästchen in der Oberfläche. Die Migration baut `deliveries` ohne den Namen in der
+   CHECK-Regel neu auf (SQLite kann keine CHECK-Regel löschen) und putzt ihn aus den gespeicherten Ereignislisten.
+   Die Einstellungsseite zeigt seither vier Ereignistypen statt fünf.
+
+Die Architekturentscheide stehen in ADR 0010 (`docs/adr/0010-webhook-empfang.md`), ADR 0009 hat einen Nachtrag
+zum entfernten Kanal.
+
+### Entscheide beim Bauen
+
+- **Kein CSRF-Header auf der Webhook-Route.** Radarr und Sonarr sind keine Browser und senden ihn nicht. Der
+  Header schützt davor, dass ein Browser eine Anfrage mit dem mitlaufenden Sitzungs-Cookie stellt; die
+  Webhook-Route liest kein Cookie, ihre Autorisierung ist das Geheimnis im Pfad. Die Ausnahme steht explizit in
+  `api/webhook_handlers.go` (`csrfExemptRoutes`) und im Vertrag.
+- **Strikt nach Typ.** Eine Sonarr-Nutzlast an einer Radarr-Adresse hat kein `movie.folderPath` und wird mit 422
+  und Protokolleintrag `invalid_payload` beantwortet, statt still auf `series.path` auszuweichen — eine falsch
+  eingetragene Adresse soll auffallen.
+- **Die CHECK-Regel sass woanders als erwartet.** Der Auftrag nannte `account_channels`; `acquisition` stand
+  tatsächlich in der CHECK-Regel von `deliveries` (Migration 00016), während `account_channels.events` ein
+  JSON-Array ohne CHECK ist. Die Migration behandelt beides.
+
+### Belege (DoD)
+
+| Prüfung | Befund |
+|---|---|
+| `task ci` | rot an **genau einer** Stelle: `TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads` meldet die fehlenden Aufzeichnungen (siehe «Offen»). Alles davor grün: `gen:check` ohne Drift, Lint auf beiden Seiten, `go test -race ./...` über alle übrigen Pakete (`store` 366 s, `api`, `notify`, `admin`, `integrations`) |
+| Nach dem Abbruch separat gelaufen | `task web:test` 74 Dateien grün; `task web:e2e -- admin-webhooks notification-channels admin-integrations admin-home` 54 Tests grün in Chromium und Firefox; `task storybook:test` grün. Der Abbruch in `server:test` überspringt sonst `build`, `e2e` und die Storybook-Prüfung |
+| Vertragstest 10.2 | `go test ./internal/api/ -run TestContract` grün; `receiveWebhook` im `publicRegistry`, die sechs Admin-Operationen im `adminRegistry` |
+| Paket `integrations` | `go test ./internal/integrations/` grün (Token, Pfad-Umsetzung, Auflösung, Empfänger, Ratenbegrenzung, letzter Kontakt) |
+| Kein Token im Log (A-9) | `go test ./internal/logging/` grün; die Redaction maskiert `/webhooks/<token>` in jedem String, der gemeldete Dateipfad bleibt lesbar |
+| Migration 00018 | `go test ./internal/store/ -run TestMigration00018` grün: Ereignis aus CHECK-Regel und JSON-Listen weg, andere Zustellungen und die Indexe erhalten |
+| Eingefrorener Stand | `testdata/db/M9.sql`, `TestFrozenM9StateCoversM9Data` und `TestFrozenStatesMigrate` grün |
+| Vier statt fünf Ereignistypen | `ChannelSettingsPage.test.tsx` und `notification-channels.spec.ts` zählen vier Kästchen und finden «Beschaffungsstatus» nicht mehr |
+| Tastaturtest | `web/e2e/admin-webhooks.spec.ts`: anlegen, Adresse einmal, Pfad-Umsetzung, Erneuern und Löschen mit Rückfrage, Dashboard-Kachel — alles über die Tastatur, mit sichtbarem Fokus und ohne Fokusfalle |
+| Import → sichtbar ohne Voll-Scan | `docs/perf/M9.md` 1: Platzhalterbaum (60'800 Dateien), neuer Ordner gemeldet → Titel nach **3.1 s** auffindbar, **0** `scan.library`-Jobs; der Voll-Scan derselben Bibliothek dauert 28.4 s |
+| 11 Anfragen in einer Sekunde → 429 | `docs/perf/M9.md` 3: 10× 200, die elfte 429 mit `Retry-After: 1` |
+| Antwortzeit des Endpunkts | `docs/perf/M9.md` 2: p50 2.3 ms, p95 25.2 ms über 200 Anfragen |
+
+### Offen
+
+1. **Aufgezeichnete Nutzlasten.** Die Matrixzeile I-8 verlangt Integrationstests gegen echte, aufgezeichnete
+   Radarr- und Sonarr-Nutzlasten mit gepinnter Version im Dateinamen. Marco zeichnet sie an seinen Diensten auf;
+   Empfänger und Anleitung liegen in `testdata/webhooks/` (`record.py`, `README.md`). Der Test dagegen ist
+   geschrieben (`internal/api/webhook_handlers_test.go`) und **schlägt bis dahin mit einem Hinweis auf die
+   Anleitung fehl**, statt still nichts zu prüfen. `task ci` ist genau an dieser einen Stelle rot.
+2. **Android und O-6** aus M5 bis M8 bleiben offen; der Langzeittest läuft (Tag 30 am 19. November).
+3. **M10** bringt Härtung und Release 1.0.
 
 ## Meilenstein M8 – Administration und Benachrichtigungen
 
@@ -144,7 +237,8 @@ danach ein Integrations-Fix, zwei Review-Agenten und zwei Korrektur-Agenten. Com
 
 1. **Echte Zugangsdaten:** SMTP in `deploy/.env` und Web-Push am Android-Handy prüft Marco nach dem Merge und dem
    neuen Image (Checkliste `m8-marco-tests.md`); QSV-Erkennung im Assistenten auf CT 190 mit dem neuen Image.
-2. **Beschaffungsstatus** (`acquisition`) hat Modell, Kanalwahl und Hook, aber keinen Erzeuger – M9 (Radarr/Sonarr).
+2. **Beschaffungsstatus** (`acquisition`) hatte Modell, Kanalwahl und Hook, aber nie einen Erzeuger; mit dem
+   Zuschnitt von M9 ist der Kanal am 22. Oktober 2026 ersatzlos entfernt worden (siehe M9, Schritt 4).
 3. **Release-Manifest:** die Update-Prüfung liest `https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json`;
    das Veröffentlichen gehört zu M10.
 4. **Verdichtung alter `progress_events`** (Plan 3.2, 90 Tage) ist nicht gebaut; die Statistik liest Rohdaten.

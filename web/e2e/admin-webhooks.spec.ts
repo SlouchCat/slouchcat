@@ -281,14 +281,16 @@ test('renewing and deleting ask first; Escape keeps everything', async ({ page, 
       fresh.slice(-4),
     );
 
-    // Deleting asks as well; after the confirmation the integration is gone.
+    // Deleting asks as well; after the confirmation the integration is gone. The revealed
+    // address is hidden first, so its heading cannot be mistaken for the integration's own.
+    await region(page, `Adresse für «${name}»`).getByRole('button', { name: 'Ausblenden' }).click();
     const remove = webhooks.getByRole('button', { name: `${name} löschen` });
     await remove.focus();
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: `«${name}» löschen?` });
     await expect(confirm.getByRole('button', { name: 'Löschen' })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(webhooks.getByRole('heading', { level: 3, name })).toHaveCount(0);
+    await expect(webhooks.getByRole('heading', { level: 3, name, exact: true })).toHaveCount(0);
     expect((await listIntegrations(owner)).find((i) => i.name === name)).toBeUndefined();
   } finally {
     await removeIntegrations(owner, name);
