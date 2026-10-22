@@ -63,6 +63,8 @@ jobs:
         run: task ci
 
       # Playwright artefacts (e2e/env.ts, storybook.config.ts): traces, screenshot diffs, reports.
+      # Both folders start with a dot, and the action skips hidden files unless told otherwise:
+      # without the flag every red run uploaded nothing, and the traces of a failure were lost.
       - name: Keep Playwright reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -71,6 +73,7 @@ jobs:
           path: |
             web/node_modules/.playwright/
             web/node_modules/.playwright-storybook/
+          include-hidden-files: true
           if-no-files-found: ignore
 
   # Container image for both platforms (P-1: images amd64 and arm64 start). Builds without pushing:

@@ -38,9 +38,11 @@ einen Pausenwunsch weiter. `AudioPlayerPage`, `OfflinePlayer` und `VideoPlayer` 
 Wunsch des Hörers (`wantPlaying`) statt des Elementzustands; ein Test in
 `AudioPlayerPage.test.tsx` deckt beide Fälle ab (er scheitert ohne die Korrektur).
 
-**Nicht behoben.** Die CI lädt die Playwright-Artefakte bei einem Fehlschlag nicht hoch, obwohl der
-Workflow einen `if: failure()`-Schritt hat — bei den roten Läufen lagen nur die `dockerbuild`-Artefakte
-vor, Traces aus der CI waren nicht verfügbar. Das ist für M10 vorgemerkt.
+**Zweiter Fund.** Die CI lud die Playwright-Artefakte bei einem Fehlschlag nicht hoch, obwohl der
+Workflow einen `if: failure()`-Schritt hat: beide Ordner beginnen mit einem Punkt, und
+`actions/upload-artifact` überspringt versteckte Dateien ohne `include-hidden-files: true`. Bei den
+roten Läufen lagen deshalb nur die `dockerbuild`-Artefakte vor und die Traces fehlten. Das Flag ist
+jetzt gesetzt.
 
 ## Meilenstein M8 – Administration und Benachrichtigungen
 
