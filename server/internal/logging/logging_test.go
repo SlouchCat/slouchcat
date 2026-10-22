@@ -21,6 +21,8 @@ var fakeSecrets = []string{
 	// M8: e-mail server, Telegram bot, backup passphrase, VAPID key and push subscription.
 	"smtp-FAKE-pass", "smtpkey-FAKE-pass", "bot-FAKE-token", "BotFakeSecret_123", "BotErrSecret-456", "phrase-FAKE-backup",
 	"vapid-FAKE-private", "p256dh-FAKE-key", "authsecret-FAKE", "push.example.test/FAKE-endpoint",
+	// M9: the webhook token travels in the path of the receiver (I-8, plan 3.8 point 8).
+	"WebhookFAKEtoken_01234567890abcdefghij", "WebhookFAKEerrtoken-01234567890abcdef",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -90,6 +92,12 @@ func logAll(t *testing.T, format Format) string {
 		),
 		"path", "/bottom/shelf",
 	)
+	// M9: the token in the path of the webhook receiver; the reported file path stays readable.
+	log.Info("webhook received",
+		"path", "/api/v1/webhooks/WebhookFAKEtoken_01234567890abcdefghij",
+		"err", fmt.Errorf("receive: %w", errors.New(`POST "/api/v1/webhooks/WebhookFAKEerrtoken-01234567890abcdef": EOF`)),
+		"reported_path", "/movies/Dune (2021)",
+	)
 	return buf.String()
 }
 
@@ -110,6 +118,7 @@ func TestRedaction(t *testing.T) {
 				"dt=" + Redacted, "lang=de", "/subtitles/3.vtt",
 				"auth=" + Redacted, "format=mp3", "access_token=" + Redacted, "sig=" + Redacted, "expires=99",
 				"api.telegram.org/bot" + Redacted + "/getMe", "/bot" + Redacted + "/sendMessage", "4242", "/bottom/shelf",
+				"/webhooks/" + Redacted, "/movies/Dune (2021)",
 			} {
 				if !strings.Contains(out, keep) {
 					t.Errorf("output lost non-secret %q", keep)

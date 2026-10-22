@@ -277,6 +277,8 @@ type publicCall struct {
 
 const unknownInvitationToken = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" // 43 characters
 
+const unknownWebhookToken = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" // 43 characters
+
 var publicRegistry = map[string]publicCall{
 	"getHealth":      {contract: "GET /healthz", path: "/healthz", status: http.StatusOK},
 	"getSetupStatus": {contract: "GET /setup", path: "/setup", status: http.StatusOK},
@@ -290,6 +292,9 @@ var publicRegistry = map[string]publicCall{
 	// M5: without the device cookie the revocation list is empty (K-7).
 	"checkOfflineRevocations": {contract: "POST /offline/revocations", path: "/offline/revocations", status: http.StatusOK,
 		body: `{"ids":["01J9AAAAAAAAAAAAAAAAAAAAAA"]}`},
+	// M9: an unknown webhook token is 401, whatever the body says (I-8).
+	"receiveWebhook": {contract: "POST /webhooks/{token}", path: "/webhooks/" + unknownWebhookToken,
+		body: `{"eventType":"Test"}`, status: http.StatusUnauthorized},
 	// M8 wizard checks: 409 setup_done, the fixture has an account.
 	"checkSetupPath":    {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusConflict},
 	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusConflict},

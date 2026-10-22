@@ -354,3 +354,13 @@ type PlaybackService interface {
 	// for an empty or oversized batch or a missing sentAt.
 	ReportOffline(ctx context.Context, session model.Session, sentAt time.Time, events []model.OfflineEvent) (model.OfflineEventResult, error)
 }
+
+// IntegrationService receives the webhooks of Radarr and Sonarr (package integrations, M9, I-8).
+// The administration operations of the same service live in AdminService.
+type IntegrationService interface {
+	// Receive handles one webhook for the integration the token belongs to. Errors:
+	// model.ErrWebhookToken (401), model.ErrWebhookRateLimited (429),
+	// model.ErrWebhookPathOutside (422) and *model.ValidationError (422, an acting event without
+	// a path). Every other event is accepted and reported as ignored.
+	Receive(ctx context.Context, token string, p model.WebhookPayload) (model.WebhookReceipt, error)
+}

@@ -35,6 +35,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/config"
 	"github.com/slouchcat/slouchcat/server/internal/discover"
+	"github.com/slouchcat/slouchcat/server/internal/integrations"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -282,6 +283,16 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// for the dashboard.
 	adminSvc.WithAnnouncements(notifySvc).WithTelegram(notifySvc).WithEmailTester(notifySvc).WithPushRotator(notifySvc).WithChannels(notifySvc)
 	notifySvc.SetConfig(adminSvc)
+	// Incoming Radarr/Sonarr webhooks (M9, I-8): the address shown once carries the public URL of
+	// the administration's settings, so it can be pasted into "Connect → Webhook" as it is.
+	integrationSvc := integrations.New(db, libSvc, log, integrations.WithBaseURL(func(ctx context.Context) string {
+		u, err := adminSvc.PublicURL(ctx)
+		if err != nil {
+			log.WarnContext(ctx, "public url for the webhook address", "err", err)
+			return ""
+		}
+		return u + api.BasePath
+	}))
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
 	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,
@@ -349,6 +360,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			Offline:  offlineSvc,
 			Notify:   notifySvc,
 			SpikeDir: cfg.SpikeDir,
+
+			Integrations: integrationSvc,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,

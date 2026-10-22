@@ -41,6 +41,18 @@ var (
 	ErrNotEditable    = errors.New("not editable")    // 422 not_editable (TMDB collections)
 )
 
+// Incoming webhook errors (M9, I-8).
+var (
+	// ErrWebhookToken: no integration holds the token in the path (401 invalid_webhook_token).
+	ErrWebhookToken = errors.New("unknown webhook token")
+	// ErrWebhookPathOutside: the reported path lies under no library root after the integration's
+	// mapping (422 path_outside_roots).
+	ErrWebhookPathOutside = errors.New("webhook path outside every library root")
+	// ErrWebhookRateLimited: more than ten requests in a second for one integration
+	// (429 too_many_requests).
+	ErrWebhookRateLimited = errors.New("too many webhook requests")
+)
+
 // Profile and access errors (M2).
 var (
 	ErrPinRequired            = errors.New("pin required")             // 403 pin_required

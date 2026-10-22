@@ -23,6 +23,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/discover"
+	"github.com/slouchcat/slouchcat/server/internal/integrations"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -926,7 +927,14 @@ type profileFixture struct {
 
 	notifySvc *notify.Service  // M8 channels and announcements (fake senders)
 	senders   *contractSenders // what they sent
+
+	integrations *integrations.Service // M9 webhook receiver
 }
+
+// contractPathScanner stands in for package library: the contract never queues a real scan.
+type contractPathScanner struct{}
+
+func (contractPathScanner) RequestPathScan(context.Context, int64, int64, []string) {}
 
 // testTokenKey is the stream-token key of the contract fixtures.
 var testTokenKey = []byte("contract-test-stream-token-key!!")
@@ -982,6 +990,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
 	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue, a.AllowAttempt)
 	adm.WithAnnouncements(pf.notifySvc)
+	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
+	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
@@ -989,6 +999,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		Playback: pf.pb,
 		Offline:  pf.off,
 		Notify:   pf.notifySvc,
+
+		Integrations: pf.integrations,
 	}
 	pf.h = NewHandler(pf.opts)
 	return pf

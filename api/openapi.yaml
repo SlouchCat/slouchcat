@@ -84,6 +84,8 @@ tags:
     description: Announcements of the main user to every profile (M8, A-7).
   - name: spike
     description: Temporary endpoints of the offline spike (M1a, removed after the M1b decision).
+  - name: integrations
+    description: Incoming webhooks of Radarr and Sonarr (M9, I-8).
 paths:
   /healthz:
     get:
@@ -4961,6 +4963,79 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /webhooks/{token}:
+    post:
+      operationId: receiveWebhook
+      summary: Receive a webhook of Radarr or Sonarr (I-8)
+      description: |
+        Radarr and Sonarr report a changed file here, so the title appears without waiting for the next
+        full comparison (AN-12). The administration creates an integration, Slouchcat shows the full
+        address once, and the administration pastes it into "Connect → Webhook". The token in the path is
+        the whole authorisation: the request carries no session, only the SHA-256 of the token is stored,
+        and the token is redacted in every log line (plan 3.8 points 2, 4 and 8). An unknown token answers
+        401 and leaves no trace that could be attributed to an integration.
+
+        `Download` (import and upgrade), `Rename`, `MovieFileDelete`, `EpisodeFileDelete`, `MovieDelete`
+        and `SeriesDelete` take the directory from `movie.folderPath` (Radarr) or `series.path` (Sonarr),
+        translate it with the integration's path mapping (longest matching prefix) and queue one
+        `scan.path` job for it — the same job the file watcher queues, with the same coalescing (3.4).
+        `Test` is acknowledged and logged, so the test button of Radarr and Sonarr turns green. Every
+        other event (`Grab`, `Health`, `ApplicationUpdate` …) is accepted with 200 and ignored, so a
+        generous selection in Radarr breaks nothing. A mapped path under no library root answers 422 and
+        records both paths in the event log. Each integration may send 10 requests per second.
+
+        This endpoint does not need the CSRF header: Radarr and Sonarr are not browsers, and the
+        authorisation is the secret in the path, never a cookie.
+      tags: [integrations]
+      x-visibility: public
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: The token of the integration; it is never logged.
+          schema:
+            type: string
+            minLength: 43
+            maxLength: 43
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookPayload"
+      responses:
+        "200":
+          description: The webhook was accepted; `result` says what came of it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResult"
+        "401":
+          description: No integration holds this token (`invalid_webhook_token`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            The reported path lies under no library root after the mapping (`path_outside_roots`), or an
+            acting event carried no path (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: More than 10 requests per second for this integration (`too_many_requests`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
 components:
   responses:
     Unauthenticated:
@@ -9139,3 +9214,51 @@ components:
           type: integer
           format: int64
           minimum: 0
+
+    WebhookPayload:
+      type: object
+      description: |
+        The body Radarr or Sonarr sends. Only `eventType` and the directory are read; every other field
+        is accepted and ignored, so a new field of a later version breaks nothing (I-8).
+      additionalProperties: true
+      properties:
+        eventType:
+          type: string
+          description: |
+            The event as the service names it: `Download`, `Rename`, `MovieFileDelete`,
+            `EpisodeFileDelete`, `MovieDelete`, `SeriesDelete`, `Test`, `Grab`, `Health` …
+          examples: ["Download"]
+        movie:
+          type: object
+          description: The film of a Radarr event.
+          additionalProperties: true
+          properties:
+            folderPath:
+              type: string
+              description: Directory of the film as Radarr sees it.
+              examples: ["/movies/Dune (2021)"]
+        series:
+          type: object
+          description: The series of a Sonarr event.
+          additionalProperties: true
+          properties:
+            path:
+              type: string
+              description: Directory of the series as Sonarr sees it.
+              examples: ["/tv/Slouchcat Test Show"]
+
+    WebhookResult:
+      type: object
+      description: What Slouchcat did with a received webhook.
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [scan_queued, acknowledged, ignored]
+          description: |
+            `scan_queued`: a targeted scan of the reported directory runs; `acknowledged`: the `Test`
+            event of Radarr or Sonarr; `ignored`: an event without an effect here.
+        path:
+          type: string
+          description: The directory that is scanned, after the path mapping; only with `scan_queued`.
+          examples: ["/media/Filme/Dune (2021)"]

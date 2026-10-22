@@ -2,7 +2,6 @@ package integrations
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -11,10 +10,6 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
-
-// ErrOutsideRoots means that the reported path lies under no registered library root after the
-// mapping; the receiver answers 422 and logs both paths (5.6).
-var ErrOutsideRoots = errors.New("path is outside every library root")
 
 // Target is a directory of a library root that a webhook asked to scan.
 type Target struct {
@@ -64,13 +59,13 @@ func under(p, prefix string) (string, bool) {
 }
 
 // Resolve maps the reported path and locates it under a registered library root. It reports
-// ErrOutsideRoots when no root contains the result, and the mapped path either way, so the event
+// model.ErrWebhookPathOutside when no root contains the result, and the mapped path either way, so the event
 // log can show both (5.6).
 func (s *Service) Resolve(ctx context.Context, pairs []model.PathMapping, reported string) (Target, error) {
 	mapped := Map(pairs, reported)
 	t := Target{Abs: mapped}
 	if !path.IsAbs(mapped) {
-		return t, ErrOutsideRoots
+		return t, model.ErrWebhookPathOutside
 	}
 	roots, err := s.read.ListAllLibraryRoots(ctx)
 	if err != nil {
@@ -89,7 +84,7 @@ func (s *Service) Resolve(ctx context.Context, pairs []model.PathMapping, report
 		longest, chosen, rel = len(dir), r, below
 	}
 	if longest < 0 {
-		return t, ErrOutsideRoots
+		return t, model.ErrWebhookPathOutside
 	}
 	root, err := paths.NewRoot(path.Clean(chosen.Path))
 	if err != nil {
@@ -98,7 +93,7 @@ func (s *Service) Resolve(ctx context.Context, pairs []model.PathMapping, report
 	// Resolve rejects every form that could leave the root; the mapping is admin input, so the
 	// check runs on its result as well (CLAUDE.md rule 4).
 	if _, err := paths.Resolve(root, rel); err != nil {
-		return t, ErrOutsideRoots
+		return t, model.ErrWebhookPathOutside
 	}
 	t.LibraryID, t.RootID, t.Dir = chosen.LibraryID, chosen.ID, rel
 	return t, nil

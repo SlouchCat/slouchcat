@@ -86,7 +86,8 @@ func csrfOK(r *http.Request) bool {
 func (p problems) authorize(auth AuthService, visibility map[string]string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !csrfOK(r) {
+			pattern := chi.RouteContext(r.Context()).RoutePattern()
+			if !csrfOK(r) && !csrfExemptRoutes[r.Method+" "+pattern] {
 				p.write(w, r, http.StatusForbidden, "csrf_header_missing",
 					"State-changing requests need the header "+CSRFHeader+": "+CSRFHeaderValue+".")
 				return
@@ -102,7 +103,6 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				setSessionCookie(w, r, token, session.ExpiresAt)
 			}
 			r = r.WithContext(ctx)
-			pattern := chi.RouteContext(ctx).RoutePattern()
 			vis, known := visibility[r.Method+" "+pattern]
 			switch {
 			case known && vis == "public":
@@ -310,6 +310,14 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, model.ErrNotFound):
 		p.write(w, r, http.StatusNotFound, "not_found", "")
+	case errors.Is(err, model.ErrWebhookToken):
+		p.write(w, r, http.StatusUnauthorized, "invalid_webhook_token", "No integration uses this address.")
+	case errors.Is(err, model.ErrWebhookPathOutside):
+		p.write(w, r, http.StatusUnprocessableEntity, "path_outside_roots",
+			"The reported path lies under no library root; check the path mapping of the integration.")
+	case errors.Is(err, model.ErrWebhookRateLimited):
+		w.Header().Set("Retry-After", "1")
+		p.write(w, r, http.StatusTooManyRequests, "too_many_requests", "This integration sends too fast.")
 	case errors.Is(err, model.ErrInvalidCredentials):
 		p.write(w, r, http.StatusUnauthorized, "invalid_credentials", "Unknown e-mail or wrong password.")
 	case errors.Is(err, model.ErrTooManyAttempts):

@@ -2658,6 +2658,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/webhooks/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive a webhook of Radarr or Sonarr (I-8)
+         * @description Radarr and Sonarr report a changed file here, so the title appears without waiting for the next
+         *     full comparison (AN-12). The administration creates an integration, Slouchcat shows the full
+         *     address once, and the administration pastes it into "Connect → Webhook". The token in the path is
+         *     the whole authorisation: the request carries no session, only the SHA-256 of the token is stored,
+         *     and the token is redacted in every log line (plan 3.8 points 2, 4 and 8). An unknown token answers
+         *     401 and leaves no trace that could be attributed to an integration.
+         *
+         *     `Download` (import and upgrade), `Rename`, `MovieFileDelete`, `EpisodeFileDelete`, `MovieDelete`
+         *     and `SeriesDelete` take the directory from `movie.folderPath` (Radarr) or `series.path` (Sonarr),
+         *     translate it with the integration's path mapping (longest matching prefix) and queue one
+         *     `scan.path` job for it — the same job the file watcher queues, with the same coalescing (3.4).
+         *     `Test` is acknowledged and logged, so the test button of Radarr and Sonarr turns green. Every
+         *     other event (`Grab`, `Health`, `ApplicationUpdate` …) is accepted with 200 and ignored, so a
+         *     generous selection in Radarr breaks nothing. A mapped path under no library root answers 422 and
+         *     records both paths in the event log. Each integration may send 10 requests per second.
+         *
+         *     This endpoint does not need the CSRF header: Radarr and Sonarr are not browsers, and the
+         *     authorisation is the secret in the path, never a cookie.
+         */
+        post: operations["receiveWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4865,6 +4902,54 @@ export interface components {
             count: number;
             /** Format: int64 */
             watchedMs: number;
+        };
+        /**
+         * @description The body Radarr or Sonarr sends. Only `eventType` and the directory are read; every other field
+         *     is accepted and ignored, so a new field of a later version breaks nothing (I-8).
+         */
+        WebhookPayload: {
+            /**
+             * @description The event as the service names it: `Download`, `Rename`, `MovieFileDelete`,
+             *     `EpisodeFileDelete`, `MovieDelete`, `SeriesDelete`, `Test`, `Grab`, `Health` …
+             * @example Download
+             */
+            eventType?: string;
+            /** @description The film of a Radarr event. */
+            movie?: {
+                /**
+                 * @description Directory of the film as Radarr sees it.
+                 * @example /movies/Dune (2021)
+                 */
+                folderPath?: string;
+            } & {
+                [key: string]: unknown;
+            };
+            /** @description The series of a Sonarr event. */
+            series?: {
+                /**
+                 * @description Directory of the series as Sonarr sees it.
+                 * @example /tv/Slouchcat Test Show
+                 */
+                path?: string;
+            } & {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /** @description What Slouchcat did with a received webhook. */
+        WebhookResult: {
+            /**
+             * @description `scan_queued`: a targeted scan of the reported directory runs; `acknowledged`: the `Test`
+             *     event of Radarr or Sonarr; `ignored`: an event without an effect here.
+             * @enum {string}
+             */
+            result: "scan_queued" | "acknowledged" | "ignored";
+            /**
+             * @description The directory that is scanned, after the path mapping; only with `scan_queued`.
+             * @example /media/Filme/Dune (2021)
+             */
+            path?: string;
         };
     };
     responses: {
@@ -10437,6 +10522,64 @@ export interface operations {
             /** @description Spike not enabled or file missing (`not_found`). */
             404: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    receiveWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The token of the integration; it is never logged. */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookPayload"];
+            };
+        };
+        responses: {
+            /** @description The webhook was accepted; `result` says what came of it. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookResult"];
+                };
+            };
+            /** @description No integration holds this token (`invalid_webhook_token`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The reported path lies under no library root after the mapping (`path_outside_roots`), or an
+             *     acting event carried no path (`validation_failed`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description More than 10 requests per second for this integration (`too_many_requests`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {

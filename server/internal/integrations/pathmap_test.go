@@ -87,8 +87,8 @@ func TestResolveFindsTheRootAndRejectsPathsOutsideEveryRoot(t *testing.T) {
 
 	// Outside every root: 422 with the mapped path for the log (5.6).
 	outside, err := e.svc.Resolve(ctx, pairs, "/data/other/Thing")
-	if !errors.Is(err, ErrOutsideRoots) {
-		t.Errorf("error %v, want ErrOutsideRoots", err)
+	if !errors.Is(err, model.ErrWebhookPathOutside) {
+		t.Errorf("error %v, want model.ErrWebhookPathOutside", err)
 	}
 	if outside.Abs != "/media/other/Thing" {
 		t.Errorf("mapped path %q, want the result of the mapping", outside.Abs)
@@ -98,13 +98,13 @@ func TestResolveFindsTheRootAndRejectsPathsOutsideEveryRoot(t *testing.T) {
 	}
 
 	// A relative report resolves against nothing.
-	if _, err := e.svc.Resolve(ctx, nil, "Dune (2021)"); !errors.Is(err, ErrOutsideRoots) {
-		t.Errorf("relative path: error %v, want ErrOutsideRoots", err)
+	if _, err := e.svc.Resolve(ctx, nil, "Dune (2021)"); !errors.Is(err, model.ErrWebhookPathOutside) {
+		t.Errorf("relative path: error %v, want model.ErrWebhookPathOutside", err)
 	}
 	// A report that climbs upwards is cleaned first and then lies outside every root; it never
 	// reaches the file system (rule 4: the resolution runs through package paths).
-	if _, err := e.svc.Resolve(ctx, pairs, "/data/movies/../../../etc"); !errors.Is(err, ErrOutsideRoots) {
-		t.Errorf("escaping path: error %v, want ErrOutsideRoots", err)
+	if _, err := e.svc.Resolve(ctx, pairs, "/data/movies/../../../etc"); !errors.Is(err, model.ErrWebhookPathOutside) {
+		t.Errorf("escaping path: error %v, want model.ErrWebhookPathOutside", err)
 	}
 }
 

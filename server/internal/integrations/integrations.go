@@ -66,6 +66,8 @@ type Service struct {
 	// slash; it prefixes the address shown once after creating or renewing a token. Empty
 	// leaves the address relative.
 	baseURL func(ctx context.Context) string
+
+	limits *limiters
 }
 
 // Option configures New.
@@ -85,7 +87,7 @@ func WithBaseURL(fn func(ctx context.Context) string) Option {
 func New(db *store.DB, scan PathScanner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		write: appq.New(db.Write), read: appq.New(db.Read),
-		scan: scan, log: log, now: time.Now,
+		scan: scan, log: log, now: time.Now, limits: newLimiters(),
 	}
 	for _, o := range opts {
 		o(s)
@@ -215,6 +217,7 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 	if err := s.write.DeleteWebhookIntegration(ctx, id); err != nil {
 		return fmt.Errorf("delete integration: %w", err)
 	}
+	s.limits.drop(id)
 	return nil
 }
 
@@ -304,19 +307,15 @@ func isUniqueViolation(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
-// ErrUnknownToken means that no integration holds this token; the receiver answers 401 and
-// writes nothing, because there is no integration to attribute the call to.
-var ErrUnknownToken = errors.New("unknown webhook token")
-
 // Authenticate finds the integration a token belongs to. The token is hashed before the lookup,
 // so the stored form never leaves the database (3.8 point 2); it is never logged (point 8).
 func (s *Service) Authenticate(ctx context.Context, token string) (model.Integration, error) {
 	if len(token) != TokenChars {
-		return model.Integration{}, ErrUnknownToken
+		return model.Integration{}, model.ErrWebhookToken
 	}
 	row, err := s.read.GetWebhookIntegrationByTokenHash(ctx, HashToken(token))
 	if errors.Is(err, sql.ErrNoRows) {
-		return model.Integration{}, ErrUnknownToken
+		return model.Integration{}, model.ErrWebhookToken
 	}
 	if err != nil {
 		return model.Integration{}, fmt.Errorf("find integration by token: %w", err)

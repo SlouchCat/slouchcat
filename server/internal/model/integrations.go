@@ -42,6 +42,20 @@ type Integration struct {
 	URL   string
 }
 
+// WebhookPayload is the part of a Radarr or Sonarr body the receiver reads; everything else in
+// the body is accepted and ignored, so a new field of a later version breaks nothing.
+type WebhookPayload struct {
+	Event      string // eventType
+	MoviePath  string // movie.folderPath (Radarr)
+	SeriesPath string // series.path (Sonarr)
+}
+
+// WebhookReceipt is the outcome of one received webhook.
+type WebhookReceipt struct {
+	Result string // one of the Result* constants
+	Path   string // the directory that is scanned (only with ResultScanQueued)
+}
+
 // IntegrationEvent is one received webhook in the log of an integration (the newest 20).
 type IntegrationEvent struct {
 	ID           int64
