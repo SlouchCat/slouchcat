@@ -178,6 +178,37 @@ describe('audio player (M6)', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
   });
 
+  // hls.js re-attaches the element after a media error (OnMediaSinkAudioError on a machine without
+  // an audio output, for example a CI runner). Attaching runs the HTML load algorithm, which sets
+  // `paused` without a `pause` event: the element reads as paused while the player still shows
+  // "Pause", and the reloaded source reports its metadata again.
+  it('a source that loads again keeps the pause, and Pause stops a silently paused element', async () => {
+    const media = stubMedia();
+    mockApi(routes());
+    const { region, audio } = await start();
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    expect(media.paused).toBe(false);
+
+    await user.click(within(region).getByRole('button', { name: 'Pause' }));
+    expect(media.paused).toBe(true);
+    // The re-attach of the paused player must not play on.
+    act(() => {
+      audio.dispatchEvent(new Event('loadedmetadata'));
+    });
+    expect(media.paused).toBe(true);
+
+    // Playing again, then the silent pause of the load algorithm: the button still says "Pause"
+    // and has to stop the element for good, not start it.
+    await user.click(within(region).getByRole('button', { name: 'Abspielen' }));
+    expect(media.paused).toBe(false);
+    media.paused = true;
+    await user.click(within(region).getByRole('button', { name: 'Pause' }));
+    act(() => {
+      audio.dispatchEvent(new Event('loadedmetadata'));
+    });
+    expect(media.paused).toBe(true);
+  });
+
   it('T sets the sleep timer: at the end of the chapter the player pauses', async () => {
     const media = stubMedia();
     mockApi(routes());

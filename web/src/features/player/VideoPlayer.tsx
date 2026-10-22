@@ -285,11 +285,21 @@ export function VideoPlayer({
     osdTimer.current = window.setTimeout(() => setOsd(null), 1200);
   };
 
+  // What the viewer wants, not what the element reports: re-attaching the element (hls.js after a
+  // media error) runs the load algorithm, which clears `paused` without a `pause` event. The
+  // element would then read as paused while the player still shows "Pause", and the reloaded
+  // source would play on even after a pause.
+  const wantPlaying = useRef(true);
+
   const togglePlay = useCallback(() => {
     const element = video.current;
     if (!element || locked.current) return;
-    if (element.paused || element.ended) element.play().catch(() => setPlaying(false));
-    else element.pause();
+    wantPlaying.current = !wantPlaying.current;
+    if (wantPlaying.current) element.play().catch(() => setPlaying(false));
+    else {
+      setPlaying(false);
+      element.pause();
+    }
   }, []);
 
   const seekTo = useCallback((ms: number) => {
@@ -624,9 +634,10 @@ export function VideoPlayer({
       const resume = resumeSeconds(resumeMs, element.duration * 1000);
       // hls.js already started at the resume position.
       if (resume > 0 && Math.abs(element.currentTime - resume) > 1) element.currentTime = resume;
-      element.play().catch(() => setPlaying(false));
+      if (wantPlaying.current) element.play().catch(() => setPlaying(false));
     };
     const onPlaying = () => {
+      wantPlaying.current = true;
       setPlaying(true);
       // The start of the route's first session (data-start-ms); a later session of a switch
       // measures from the menu choice instead (data-switch-ms).
@@ -644,8 +655,14 @@ export function VideoPlayer({
     const onSeeked = () => {
       seeked = true;
     };
-    const onPause = () => setPlaying(false);
+    // A pause the element reports (the viewer, the end of the title, a stop by the server) is a
+    // wish; the silent one of the load algorithm is not and fires no event.
+    const onPause = () => {
+      wantPlaying.current = false;
+      setPlaying(false);
+    };
     const onEnded = () => {
+      wantPlaying.current = false;
       setPlaying(false);
       maybeCountdown.current(element.currentTime * 1000, true);
     };

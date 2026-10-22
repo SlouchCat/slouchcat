@@ -46,7 +46,10 @@ export default defineConfig({
       use: {
         ...devices['Desktop Firefox'],
         // Chromium runs muted in Playwright, Firefox does not: the sine tones of the test media
-        // would beep through the speakers during every run.
+        // would beep through the speakers during every run. Volume 0 still needs an audio output:
+        // without one Firefox fails the audio sink of an audio-only title (MediaError 3
+        // "OnMediaSinkAudioError") and hls.js re-attaches the element over and over. A machine
+        // without a sound card therefore needs a null sink (CI workflow, docs/dev/SETUP.md).
         launchOptions: { firefoxUserPrefs: { 'media.volume_scale': '0.0' } },
       },
       // Flight mode cannot be emulated with a service worker in Playwright's Firefox: setOffline

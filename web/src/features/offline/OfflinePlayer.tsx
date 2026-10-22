@@ -362,11 +362,21 @@ export function OfflinePlayer({
     osdTimer.current = window.setTimeout(() => setOsd(null), 1200);
   }, []);
 
+  // What the listener wants, not what the element reports: re-attaching the element (hls.js after
+  // a media error) runs the load algorithm, which clears `paused` without a `pause` event. The
+  // element would then read as paused while the player still shows "Pause", and the reloaded
+  // source would play on even after a pause.
+  const wantPlaying = useRef(true);
+
   const togglePlay = useCallback(() => {
     const element = video.current;
     if (!element || locked.current) return;
-    if (element.paused || element.ended) element.play().catch(() => setPlaying(false));
-    else element.pause();
+    wantPlaying.current = !wantPlaying.current;
+    if (wantPlaying.current) element.play().catch(() => setPlaying(false));
+    else {
+      setPlaying(false);
+      element.pause();
+    }
   }, []);
   const seekTo = useCallback((ms: number) => {
     const element = video.current;
@@ -543,9 +553,10 @@ export function OfflinePlayer({
         element.currentTime = offset.current + resume;
         shiftCues();
       }
-      if (!locked.current) element.play().catch(() => setPlaying(false));
+      if (!locked.current && wantPlaying.current) element.play().catch(() => setPlaying(false));
     };
     const onPlaying = () => {
+      wantPlaying.current = true;
       setPlaying(true);
       setStartMs((value) => value ?? Math.round(performance.now() - openedAt));
       playedSince.current ??= performance.now();
@@ -563,7 +574,10 @@ export function OfflinePlayer({
       // Nothing outside the player's own buttons (media keys, notification) plays past the limit.
       if (locked.current) element.pause();
     };
+    // A pause the element reports (the listener, the sleep timer, the limit) is a wish; the silent
+    // one of the load algorithm is not and fires no event.
     const onPause = () => {
+      wantPlaying.current = false;
       setPlaying(false);
       if (element.ended) return;
       stopClock();
@@ -571,6 +585,7 @@ export function OfflinePlayer({
       if (locked.current) release(element);
     };
     const onEnded = () => {
+      wantPlaying.current = false;
       setPlaying(false);
       stopClock();
       sendLater.current('ended');

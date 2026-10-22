@@ -36,6 +36,18 @@ jobs:
       - name: Install ffmpeg (probe tests)
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
 
+      # Firefox drives an audio-only title from its audio sink. A runner has no audio output, so
+      # the sink fails, the element reports MediaError 3 ("OnMediaSinkAudioError"), hls.js detaches
+      # and re-attaches it, and the audiobook specs never play on (M6: H-1, H-3, O-5). A null sink
+      # is an output that goes nowhere; Chromium brings its own and needs none. The step fails
+      # loudly when the sink is missing, so the flake cannot come back unnoticed.
+      - name: Give Firefox an audio output (the runner has none)
+        run: |
+          sudo apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=slouchcat_null
+          pactl info
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -51,6 +63,8 @@ jobs:
         run: task ci
 
       # Playwright artefacts (e2e/env.ts, storybook.config.ts): traces, screenshot diffs, reports.
+      # Both folders start with a dot, and the action skips hidden files unless told otherwise:
+      # without the flag every red run uploaded nothing, and the traces of a failure were lost.
       - name: Keep Playwright reports on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -59,6 +73,7 @@ jobs:
           path: |
             web/node_modules/.playwright/
             web/node_modules/.playwright-storybook/
+          include-hidden-files: true
           if-no-files-found: ignore
 
   # Container image for both platforms (P-1: images amd64 and arm64 start). Builds without pushing:

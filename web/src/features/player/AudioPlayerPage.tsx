@@ -100,11 +100,21 @@ export function AudioPlayerPage({
     onProgress,
   });
 
+  // What the listener wants, not what the element reports: re-attaching the element (hls.js after
+  // a media error) runs the load algorithm, which clears `paused` without a `pause` event. The
+  // element would then read as paused while the player still shows "Pause", and the reloaded
+  // source would play on even after a pause.
+  const wantPlaying = useRef(true);
+
   const togglePlay = useCallback(() => {
     const element = audio.current;
     if (!element || locked.current) return;
-    if (element.paused || element.ended) element.play().catch(() => setPlaying(false));
-    else element.pause();
+    wantPlaying.current = !wantPlaying.current;
+    if (wantPlaying.current) element.play().catch(() => setPlaying(false));
+    else {
+      setPlaying(false);
+      element.pause();
+    }
   }, []);
 
   const seekTo = useCallback((ms: number) => {
@@ -181,13 +191,19 @@ export function AudioPlayerPage({
       const resume = startSeconds(resumeMs, explicitStart, element.duration * 1000);
       // hls.js already started at the resume position.
       if (resume > 0 && Math.abs(element.currentTime - resume) > 1) element.currentTime = resume;
-      if (!locked.current) element.play().catch(() => setPlaying(false));
+      if (!locked.current && wantPlaying.current) element.play().catch(() => setPlaying(false));
     };
     const onPlaying = () => {
+      wantPlaying.current = true;
       setPlaying(true);
       setStartMs((value) => value ?? Math.round(performance.now() - openedAt));
     };
-    const onPause = () => setPlaying(false);
+    // A pause the element reports (the listener, the sleep timer, the end of the title) is a wish;
+    // the silent one of the load algorithm is not and fires no event.
+    const onPause = () => {
+      wantPlaying.current = false;
+      setPlaying(false);
+    };
     const onTime = () => setCurrentMs(element.currentTime * 1000);
     const onDuration = () => {
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);

@@ -27,6 +27,22 @@ aus Ubuntu und nimmt den Benutzer in die Gruppe `docker` auf. Bis zur nächsten 
 
 Optional für GPU-Tests im Container (ab M1b): NVIDIA Container Toolkit.
 
+## Audioausgabe für die Playwright-Tests
+
+Firefox spielt einen reinen Audiotitel über seine Audioausgabe ab. Fehlt sie (Rechner ohne Soundkarte,
+Container, CI-Runner), scheitert die Ausgabe, das Medienelement meldet `MediaError 3`
+(«OnMediaSinkAudioError»), hls.js hängt es ab und neu an — und die Hörbuch-Specs kommen nie vom Fleck.
+Auf Marcos Rechner ist nichts zu tun. Auf einem Rechner ohne Soundkarte braucht es einmal eine
+Dummy-Ausgabe, wie sie auch die CI einrichtet:
+
+```bash
+sudo apt-get install -y pulseaudio pulseaudio-utils
+pulseaudio --start --exit-idle-time=-1
+pactl load-module module-null-sink sink_name=slouchcat_null
+```
+
+Chromium und WebKit bringen ihre eigene Ausgabe mit und brauchen das nicht.
+
 ## Täglich
 
 ```bash
