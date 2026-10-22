@@ -332,6 +332,12 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 		return model.Session{}, "", fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "guest account created", "account_id", acc.ID, "invitation_id", inv.ID, "max_rating", inv.MaxRating)
+	s.created(ctx, acc.ID)
+	if s.invitationAccepted != nil && inv.CreatedBy.Valid {
+		if err := s.invitationAccepted(ctx, inv.CreatedBy.Int64, email); err != nil {
+			s.log.WarnContext(ctx, "invitation accepted hook failed", "invitation_id", inv.ID, "err", err)
+		}
+	}
 	account := toAccount(acc, libs)
 	return s.StartSession(ctx, account, toProfile(prof, nil, account.Limits), userAgent)
 }

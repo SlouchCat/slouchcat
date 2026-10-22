@@ -30,6 +30,18 @@ const names: IconName[] = [
   'forward',
   'list',
   'moon',
+  'mic',
+  'wrench',
+  'users',
+  'user',
+  'monitor',
+  'star',
+  'stack',
+  'plug',
+  'bell',
+  'megaphone',
+  'chart',
+  'archive',
 ];
 
 const meta = {

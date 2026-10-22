@@ -61,6 +61,7 @@ const deleteExpiredPlaybackSessions = `-- name: DeleteExpiredPlaybackSessions :e
 DELETE FROM playback_sessions WHERE expires_at < ?1 OR revoked_at IS NOT NULL AND revoked_at < ?1
 `
 
+// Rows that ended before @before (the retention of the statistics).
 func (q *Queries) DeleteExpiredPlaybackSessions(ctx context.Context, before int64) (int64, error) {
 	result, err := q.db.ExecContext(ctx, deleteExpiredPlaybackSessions, before)
 	if err != nil {
@@ -312,14 +313,22 @@ func (q *Queries) ListActivePlaybackSessions(ctx context.Context, arg ListActive
 const listEndedPlaybackSessions = `-- name: ListEndedPlaybackSessions :many
 SELECT ps.id FROM playback_sessions AS ps
 LEFT JOIN sessions AS s ON s.id = ps.session_id
-WHERE ps.revoked_at IS NOT NULL OR ps.expires_at <= ?1
-   OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= ?1
+WHERE ps.expires_at >= ?1
+  AND (ps.revoked_at IS NOT NULL OR ps.expires_at <= ?2
+       OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= ?2)
 `
 
+type ListEndedPlaybackSessionsParams struct {
+	Since int64
+	Now   int64
+}
+
 // Revoked or expired playback sessions, and those whose browser session ended, whose transcode
-// output or open stream may still be running.
-func (q *Queries) ListEndedPlaybackSessions(ctx context.Context, now int64) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, listEndedPlaybackSessions, now)
+// output or open stream may still be running. A row ends at the latest when it expires, so a row
+// that expired before @since ended long ago and left nothing running (ended rows stay for the
+// statistics).
+func (q *Queries) ListEndedPlaybackSessions(ctx context.Context, arg ListEndedPlaybackSessionsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listEndedPlaybackSessions, arg.Since, arg.Now)
 	if err != nil {
 		return nil, err
 	}

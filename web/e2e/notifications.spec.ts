@@ -111,7 +111,7 @@ test('inbox by keyboard: arrows, Enter, "Alle als gelesen markieren"; no focus t
   await expectFocusOn(page, entries.first());
   await page.keyboard.press('ArrowUp');
   await expectVisibleFocus(page);
-  // The buttons are one row: "Zurück", then "Alle als gelesen markieren".
+  // The buttons are one row: "Zurück", "Kanäle einstellen", then "Alle als gelesen markieren".
   const readAll = page.getByRole('button', { name: 'Alle als gelesen markieren' });
   for (let presses = 0; presses < 3; presses += 1) {
     if (await readAll.evaluate((element) => element === document.activeElement)) break;

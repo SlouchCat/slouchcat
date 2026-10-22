@@ -1,4 +1,5 @@
 import { acceptInvitation, createInvitation } from './accounts';
+import { GUEST_PASSWORD } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 import { createDownload, openOfflineLibrary, storedDownloads, waitForComplete } from './offline';
@@ -9,7 +10,7 @@ import { H264_TITLE, itemIdByTitle } from './playback';
 // checkOfflineRevocations) and deletes the download with its files. The removal dialog says that a
 // device which never comes online again keeps its downloads.
 
-const GUEST = { email: 'gast-offline-e2e@slouchcat.test', password: 'gast-passwort-0123' };
+const GUEST = { email: 'gast-offline-e2e@slouchcat.test', password: GUEST_PASSWORD };
 
 test('a removed guest’s download disappears from the device at the next contact', async ({
   page,

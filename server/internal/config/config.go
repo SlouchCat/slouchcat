@@ -11,6 +11,7 @@ import (
 	"math"
 	"net"
 	"net/netip"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
+	"github.com/slouchcat/slouchcat/server/internal/notify/email"
 )
 
 // EnvPrefix is the prefix of every environment variable the server reads.
@@ -59,6 +61,46 @@ type Config struct {
 	// stay hidden. TraktBaseURL overrides the API base for mocks (development and tests only).
 	TraktClientID string
 	TraktBaseURL  string
+	// SMTP* configure the e-mail server of the notifications (M8, A-6); empty SMTPHost = none (the
+	// admin may store one in the settings). SMTPTLS is starttls (default), tls or none; SMTPPort
+	// defaults to 587, 465 or 25 by SMTPTLS when a host is set. Secrets come from the environment only.
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
+	SMTPTLS      string
+	// TelegramBotToken enables the Telegram channel (M8); TelegramBaseURL points the bot client at a
+	// mock and is honoured in development mode only (TelegramAPIBase).
+	TelegramBotToken string
+	TelegramBaseURL  string
+	// UpdateManifestURL is the release manifest of the update check (M8, A-5); another value than
+	// DefaultUpdateManifestURL is honoured in development mode only (ManifestURL).
+	UpdateManifestURL string
+	// PublicURL is the address of the server for links in e-mails and messages (M8); it wins over the
+	// stored setting. Empty = the setting or no links.
+	PublicURL string
+}
+
+// DefaultUpdateManifestURL is the release manifest the update check reads (M8, A-5).
+const DefaultUpdateManifestURL = "https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json"
+
+// TelegramAPIBase returns the base URL of the Telegram bot API client: TelegramBaseURL in
+// development mode (mocks), else empty, which means the real API.
+func (c Config) TelegramAPIBase() string {
+	if !c.Dev {
+		return ""
+	}
+	return c.TelegramBaseURL
+}
+
+// ManifestURL returns the release manifest the update check reads: UpdateManifestURL in development
+// mode, else DefaultUpdateManifestURL.
+func (c Config) ManifestURL() string {
+	if !c.Dev || c.UpdateManifestURL == "" {
+		return DefaultUpdateManifestURL
+	}
+	return c.UpdateManifestURL
 }
 
 // TranscodeDir is the work directory of HLS output: <cache>/transcode, wiped at every start.
@@ -160,6 +202,9 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	cfg.YouTubeAPIKey = strings.TrimSpace(env("YOUTUBE_API_KEY", ""))
 	cfg.TraktClientID = strings.TrimSpace(env("TRAKT_CLIENT_ID", ""))
 	cfg.TraktBaseURL = strings.TrimSpace(env("TRAKT_BASE_URL", ""))
+	if err := loadNotifyConfig(&cfg, env); err != nil {
+		return Config{}, err
+	}
 	cfg.TrailerAI = strings.ToLower(strings.TrimSpace(*trailerAI))
 	if cfg.TrailerAI == "" {
 		cfg.TrailerAI = "off"
@@ -227,7 +272,58 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("youtube_configured", c.YouTubeAPIKey != ""),
 		slog.Bool("trakt_configured", c.TraktClientID != ""),
 		slog.String("trailer_ai", c.TrailerAI),
+		slog.Bool("smtp_configured", c.SMTPHost != ""),
+		slog.String("smtp_tls", c.SMTPTLS),
+		slog.Bool("telegram_configured", c.TelegramBotToken != ""),
+		slog.String("public_url", c.PublicURL),
+		slog.Bool("update_manifest_default", c.ManifestURL() == DefaultUpdateManifestURL),
 	)
+}
+
+// loadNotifyConfig reads the e-mail server, the Telegram bot, the update manifest and the public URL
+// (M8) into cfg and validates them.
+func loadNotifyConfig(cfg *Config, env func(name, def string) string) error {
+	cfg.SMTPHost = strings.TrimSpace(env("SMTP_HOST", ""))
+	cfg.SMTPUser = strings.TrimSpace(env("SMTP_USER", ""))
+	cfg.SMTPPassword = env("SMTP_PASSWORD", "")
+	cfg.SMTPFrom = strings.TrimSpace(env("SMTP_FROM", ""))
+	cfg.SMTPTLS = strings.ToLower(strings.TrimSpace(env("SMTP_TLS", email.TLSStartTLS)))
+	defaultPort, ok := email.DefaultPort(cfg.SMTPTLS)
+	if !ok {
+		return fmt.Errorf("%sSMTP_TLS %q: want starttls, tls or none", EnvPrefix, cfg.SMTPTLS)
+	}
+	if v := strings.TrimSpace(env("SMTP_PORT", "")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 65535 {
+			return fmt.Errorf("%sSMTP_PORT: invalid port %q", EnvPrefix, v)
+		}
+		cfg.SMTPPort = n
+	} else if cfg.SMTPHost != "" {
+		cfg.SMTPPort = defaultPort
+	}
+	cfg.TelegramBotToken = strings.TrimSpace(env("TELEGRAM_BOT_TOKEN", ""))
+	cfg.TelegramBaseURL = strings.TrimSpace(env("TELEGRAM_BASE_URL", ""))
+	cfg.UpdateManifestURL = strings.TrimSpace(env("UPDATE_MANIFEST_URL", DefaultUpdateManifestURL))
+	if cfg.UpdateManifestURL == "" {
+		cfg.UpdateManifestURL = DefaultUpdateManifestURL
+	}
+	if !httpURL(cfg.UpdateManifestURL) {
+		return fmt.Errorf("%sUPDATE_MANIFEST_URL: want an http or https URL", EnvPrefix)
+	}
+	cfg.PublicURL = strings.TrimRight(strings.TrimSpace(env("PUBLIC_URL", "")), "/")
+	if cfg.PublicURL != "" {
+		u, err := url.Parse(cfg.PublicURL)
+		if err != nil || !httpURL(cfg.PublicURL) || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+			return fmt.Errorf("%sPUBLIC_URL: want an http or https URL without query, fragment or credentials", EnvPrefix)
+		}
+	}
+	return nil
+}
+
+// httpURL reports whether s is an absolute http or https URL with a host.
+func httpURL(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
 // privateNetworks are the networks of the value "private": RFC 1918, loopback, IPv6 loopback and

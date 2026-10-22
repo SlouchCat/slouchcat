@@ -58,6 +58,10 @@ type Service struct {
 
 	dummyOnce sync.Once
 	dummyHash string
+
+	// Hooks of package notify (M8), set before the service runs; nil = none.
+	accountCreated     func(ctx context.Context, accountID int64) error
+	invitationAccepted func(ctx context.Context, inviterAccountID int64, guestEmail string) error
 }
 
 // New returns the service on db.
@@ -76,6 +80,32 @@ func New(db *store.DB, log *slog.Logger) *Service {
 func (s *Service) WithClock(now func() time.Time) *Service {
 	s.now = now
 	return s
+}
+
+// WithAccountCreated runs fn after CreateOwner or AcceptInvitation committed a new account
+// (notify.EnsureDefaults: the default channels of plan 5.2) and returns the receiver. An error is
+// logged; the account stays.
+func (s *Service) WithAccountCreated(fn func(ctx context.Context, accountID int64) error) *Service {
+	s.accountCreated = fn
+	return s
+}
+
+// WithInvitationAccepted runs fn after a guest accepted an invitation, with the account that
+// created it and the guest's e-mail (notify.InvitationAccepted, M8 A-6), and returns the receiver.
+// An error is logged.
+func (s *Service) WithInvitationAccepted(fn func(ctx context.Context, inviterAccountID int64, guestEmail string) error) *Service {
+	s.invitationAccepted = fn
+	return s
+}
+
+// created runs the account hook.
+func (s *Service) created(ctx context.Context, accountID int64) {
+	if s.accountCreated == nil {
+		return
+	}
+	if err := s.accountCreated(ctx, accountID); err != nil {
+		s.log.WarnContext(ctx, "account created hook failed", "account_id", accountID, "err", err)
+	}
 }
 
 // SetupRequired reports whether no account exists yet.
@@ -178,6 +208,7 @@ func (s *Service) CreateOwner(ctx context.Context, email, password, language str
 		return model.Account{}, model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "owner account created", "account_id", acc.ID, "profile_id", prof.ID)
+	s.created(ctx, acc.ID)
 	return toAccount(acc, nil), toProfile(prof, nil, model.PlaybackLimits{}), nil
 }
 
@@ -432,7 +463,8 @@ func (s *Service) Logout(ctx context.Context, sessionID int64) error {
 // deviceRetention is how long a device (and its PIN counters) is kept without use.
 const deviceRetention = 400 * 24 * time.Hour
 
-// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago, and
+// DeleteExpiredSessions removes expired sessions and sessions revoked more than a day ago, except
+// those a playback session still refers to (package playback keeps them for the statistics), and
 // devices and PIN counters unused for 400 days (the lifetime of the device cookie).
 func (s *Service) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	now := s.now()

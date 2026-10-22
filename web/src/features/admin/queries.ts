@@ -1,21 +1,31 @@
 import type {
+  AdminAccount,
   AdminCollection,
+  AdminSettings,
+  AdminSettingsUpdate,
   AdminDevice,
   AdminItemHit,
   AdminPick,
   AdminPodcast,
   AdminItem,
   AdminStream,
+  Announcement,
+  Backup,
   CollectionRequest,
+  Dashboard,
   DuplicateGroup,
   Guest,
   HomeRowSetting,
   Invitation,
   IssueKind,
   IssuePage,
+  JobSummary,
   Library,
   PickRequest,
   PickUpdate,
+  SystemInfo,
+  Stats,
+  StatsDays,
   TraktStatus,
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
@@ -176,6 +186,35 @@ export const traktStatusQuery = queryOptions({
   queryFn: ({ signal }): Promise<TraktStatus> => request(api.GET('/admin/trakt', { signal })),
 });
 
+// Administration (M8): accounts, backups, statistics and announcements.
+
+/** The main account first, then the guests, with profiles and channels (A-2). */
+export const accountsQuery = queryOptions({
+  queryKey: ['admin', 'accounts'],
+  queryFn: ({ signal }): Promise<AdminAccount[]> => request(api.GET('/admin/accounts', { signal })),
+});
+
+/** Manual and automatic backups in the backup directory, newest first (A-4). */
+export const backupsQuery = queryOptions({
+  queryKey: ['admin', 'backups'],
+  queryFn: ({ signal }): Promise<Backup[]> => request(api.GET('/admin/backups', { signal })),
+});
+
+/** Usage over the last `days` days (A-8). */
+export const statsQuery = (days: StatsDays) =>
+  queryOptions({
+    queryKey: ['admin', 'stats', days],
+    queryFn: ({ signal }): Promise<Stats> =>
+      request(api.GET('/admin/stats', { params: { query: { days } }, signal })),
+  });
+
+/** Every announcement of the main user, newest first (A-7). */
+export const adminAnnouncementsQuery = queryOptions({
+  queryKey: ['admin', 'announcements'],
+  queryFn: ({ signal }): Promise<Announcement[]> =>
+    request(api.GET('/admin/announcements', { signal })),
+});
+
 export const createPicks = (body: PickRequest): Promise<AdminPick[]> =>
   request(api.POST('/admin/picks', { body }));
 
@@ -208,3 +247,44 @@ export const setHomeRows = (rows: HomeRowSetting[]): Promise<HomeRowSetting[]> =
   request(api.PUT('/admin/home-rows', { body: rows }));
 
 export const refreshTrakt = () => request(api.POST('/admin/trakt/refresh'));
+
+// Administration (M8): dashboard, system state, settings and integrations.
+
+/** Poll interval of the dashboard (A-3: a new error shows within 10 s). */
+export const DASHBOARD_POLL_MS = 5000;
+
+/** Streams, jobs, storage, integrations, errors and update state in one request (A-3). */
+export const dashboardQuery = queryOptions({
+  queryKey: ['admin', 'dashboard'],
+  queryFn: ({ signal }): Promise<Dashboard> => request(api.GET('/admin/dashboard', { signal })),
+  refetchInterval: DASHBOARD_POLL_MS,
+});
+
+/** Version, transcode hardware, inotify limit and file systems; they change with a restart only. */
+export const systemQuery = queryOptions({
+  queryKey: ['admin', 'system'],
+  queryFn: ({ signal }): Promise<SystemInfo> => request(api.GET('/admin/system', { signal })),
+  staleTime: 60_000,
+});
+
+export const retryJob = (id: number): Promise<JobSummary> =>
+  request(api.POST('/admin/jobs/{id}/retry', { params: { path: { id } } }));
+
+export const cancelJob = (id: number) =>
+  request(api.DELETE('/admin/jobs/{id}', { params: { path: { id } } }));
+
+/** Keys, e-mail server, Telegram bot, Web Push, update check and public URL (A-2). */
+export const settingsQuery = queryOptions({
+  queryKey: ['admin', 'settings'],
+  queryFn: ({ signal }): Promise<AdminSettings> => request(api.GET('/admin/settings', { signal })),
+});
+
+export const updateSettings = (body: AdminSettingsUpdate): Promise<AdminSettings> =>
+  request(api.PUT('/admin/settings', { body }));
+
+/** A test mail to the main account's address through the configured e-mail server. */
+export const sendTestEmail = () => request(api.POST('/admin/settings/email/test'));
+
+/** A new VAPID key pair; every push subscription goes with the old one. */
+export const rotatePushKeys = (): Promise<AdminSettings> =>
+  request(api.POST('/admin/settings/push/rotate'));

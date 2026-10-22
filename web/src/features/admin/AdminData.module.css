@@ -1,0 +1,90 @@
+/* Parts of the M8 data pages (accounts, backup, statistics, announcements) beyond the shared table
+   page layout of AdminTablePage.module.css. */
+
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.panelTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* A native file input in the look of the form fields (Field.module.css). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.label {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.hint {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.file {
+  max-width: 100%;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+}
+
+.file::file-selector-button {
+  min-height: var(--sc-size-control-height);
+  margin-right: var(--sc-space-3);
+  padding: 0 var(--sc-space-5);
+  border: 0;
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-weight: var(--sc-font-weight-semibold);
+  cursor: pointer;
+}
+
+/* Statistics: the four blocks and the playback tiles. */
+.blocks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-10);
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.blockTitle {
+  font-size: var(--sc-font-size-xl);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--sc-space-3);
+}

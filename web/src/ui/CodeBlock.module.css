@@ -1,0 +1,33 @@
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+/* Long commands wrap: a block that scrolled sideways would need a Tab stop of its own. */
+.code {
+  margin: 0;
+  color: var(--sc-color-text-primary);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+  line-height: var(--sc-font-line-height-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.status {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

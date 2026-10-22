@@ -177,9 +177,9 @@ func TestPollWatcherQueuesPathScan(t *testing.T) {
 
 	writeFile(t, dir, "Up (2009)/Up (2009).mkv", "u")
 	e.waitPathScan(".", "Up (2009)")
-	if st := w.Stats(); st.LastPass.Dirs != 3 {
-		t.Errorf("last pass = %+v", st.LastPass)
-	}
+	// The pass that found the new folder reports it; the stats may trail the queued job by a
+	// moment on a loaded machine.
+	waitFor(t, 5*time.Second, "a pass over three folders", func() bool { return w.Stats().LastPass.Dirs == 3 })
 	if e.queuedScans() != 0 {
 		t.Error("a change in one folder queued a full scan")
 	}
@@ -393,6 +393,10 @@ func TestStartRunsWatchersAndSchedules(t *testing.T) {
 	waitFor(t, 5*time.Second, "the sweep queued by Start", func() bool {
 		return e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = 'sweep'`, JobSweep) == 1
 	})
+	// The dashboard's inotify use is the sum of the watched directories of every root (M8).
+	if st := e.svc.WatcherStats()[lib.Roots[0].ID]; e.svc.WatchedDirs() != int64(st.Dirs) {
+		t.Errorf("WatchedDirs = %d, want %d of the only root", e.svc.WatchedDirs(), st.Dirs)
+	}
 	// A library created while Start runs gets its watcher.
 	dir2 := t.TempDir()
 	lib2, err := e.svc.Create(e.ctx, testRequest("Zweite", dir2))

@@ -108,4 +108,70 @@ describe('logout', () => {
     expect(queryClient.getQueryData(['item', 'secret'])).toBeUndefined();
     expect(queryClient.getQueryData(sessionQuery.queryKey)).toBeNull();
   });
+
+  describe('with a push subscription in this browser', () => {
+    afterEach(() => {
+      Reflect.deleteProperty(navigator, 'serviceWorker');
+      Reflect.deleteProperty(window, 'isSecureContext');
+    });
+
+    /** A browser whose service worker holds a push subscription. */
+    function subscribedBrowser() {
+      const unsubscribe = vi.fn(() => Promise.resolve(true));
+      const registration = {
+        pushManager: { getSubscription: () => Promise.resolve({ unsubscribe }) },
+      };
+      Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
+      Object.defineProperty(navigator, 'serviceWorker', {
+        value: { getRegistration: () => Promise.resolve(registration) },
+        configurable: true,
+      });
+      vi.stubGlobal('PushManager', function PushManager() {});
+      vi.stubGlobal('Notification', { requestPermission: vi.fn() });
+      return { unsubscribe };
+    }
+
+    const channels = json({
+      channels: [
+        {
+          channel: 'push',
+          enabled: true,
+          events: ['new_content'],
+          available: true,
+          push: {
+            subscriptions: [
+              { id: 3, createdAt: '2026-10-20T10:00:00Z', thisDevice: false },
+              { id: 4, createdAt: '2026-10-21T10:00:00Z', thisDevice: true },
+            ],
+          },
+        },
+      ],
+    });
+
+    it.each([
+      ['removes it on the server first, then ends it in the browser', 204],
+      ['ends it in the browser even when the server refuses (another profile)', 403],
+    ])('%s', async (_name, status) => {
+      const { unsubscribe } = subscribedBrowser();
+      const { calls } = mockApi({
+        ...signedIn,
+        'GET /me/channels': () => channels.clone(),
+        'DELETE /me/push-subscriptions/4': () =>
+          status === 204
+            ? new Response(null, { status })
+            : json({ code: 'primary_profile_required', status }, status),
+        'POST /auth/logout': () => new Response(null, { status: 204 }),
+        'GET /home': () => json(homePage),
+        'GET /setup': () => json({ setupRequired: false }),
+      });
+      const { router } = renderApp('/');
+      await userEvent.setup().click(await screen.findByRole('button', { name: 'Abmelden' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+      const order = calls
+        .filter((call) => call.method !== 'GET')
+        .map((call) => `${call.method} ${call.path}`);
+      expect(order).toEqual(['DELETE /me/push-subscriptions/4', 'POST /auth/logout']);
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+  });
 });

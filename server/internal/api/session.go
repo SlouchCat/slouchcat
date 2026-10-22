@@ -328,7 +328,7 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrPinInvalid):
 		p.write(w, r, http.StatusForbidden, "pin_invalid", "The PIN is wrong.")
 	case errors.Is(err, model.ErrPrimaryProfileRequired):
-		p.write(w, r, http.StatusForbidden, "primary_profile_required", "Only the account's primary profile may manage profiles.")
+		p.write(w, r, http.StatusForbidden, "primary_profile_required", "Only the account's primary profile may do this.")
 	case errors.Is(err, model.ErrPrimaryProfile):
 		p.write(w, r, http.StatusConflict, "primary_profile", "The primary profile of an account cannot be deleted.")
 	case errors.Is(err, model.ErrInvitationGone):
@@ -391,12 +391,70 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusBadGateway, "enclosure_unavailable", "The podcast host did not deliver the episode.")
 	case errors.Is(err, model.ErrTMDBUnreachable):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_unreachable", "TMDB did not answer; try again or leave the key empty.")
+	case errors.Is(err, model.ErrEnvWins), errors.Is(err, model.ErrSendFailed), errors.Is(err, model.ErrEmailSendFailed):
+		p.writeDetailed(w, r, err)
+	case errors.Is(err, model.ErrPassphraseRequired):
+		p.write(w, r, http.StatusUnprocessableEntity, "passphrase_required", "A backup with secrets needs a passphrase.")
+	case errors.Is(err, model.ErrPassphraseTooShort):
+		p.write(w, r, http.StatusUnprocessableEntity, "passphrase_too_short", "The passphrase needs at least 12 characters.")
+	case errors.Is(err, model.ErrPassphraseWrong):
+		p.write(w, r, http.StatusUnprocessableEntity, "passphrase_wrong", "The passphrase does not open the backup.")
+	case errors.Is(err, model.ErrBackupInvalid):
+		p.write(w, r, http.StatusUnprocessableEntity, "backup_invalid", "The file is not an intact Slouchcat backup.")
+	case errors.Is(err, model.ErrBackupNewerThanServer):
+		p.write(w, r, http.StatusUnprocessableEntity, "backup_newer_than_server", "The backup comes from a newer server version.")
+	case errors.Is(err, model.ErrEmailNotConfigured):
+		p.write(w, r, http.StatusUnprocessableEntity, "email_not_configured", "No e-mail server is configured.")
+	case errors.Is(err, model.ErrTelegramTokenInvalid):
+		p.write(w, r, http.StatusUnprocessableEntity, "telegram_token_invalid", "Telegram rejected the bot token.")
+	case errors.Is(err, model.ErrTelegramUnreachable):
+		p.write(w, r, http.StatusUnprocessableEntity, "telegram_unreachable", "Telegram did not answer; try again.")
+	case errors.Is(err, model.ErrEmailTaken):
+		p.write(w, r, http.StatusConflict, "email_taken", "Another account uses this e-mail.")
+	case errors.Is(err, model.ErrJobNotFailed):
+		p.write(w, r, http.StatusConflict, "job_not_failed", "Only a failed job can be queued again.")
+	case errors.Is(err, model.ErrUpdateCheckDisabled):
+		p.write(w, r, http.StatusUnprocessableEntity, "update_check_disabled", "The update check is switched off.")
+	case errors.Is(err, model.ErrChannelUnavailable):
+		p.write(w, r, http.StatusUnprocessableEntity, "channel_unavailable", "The server has this channel not configured.")
+	case errors.Is(err, model.ErrChannelDisabled):
+		p.write(w, r, http.StatusUnprocessableEntity, "channel_disabled", "The channel is switched off, not linked or without subscription.")
+	case errors.Is(err, model.ErrEventNotAllowed):
+		p.write(w, r, http.StatusUnprocessableEntity, "event_not_allowed", "Only the main account receives the event errors.")
+	case errors.Is(err, model.ErrPushUnavailable):
+		p.write(w, r, http.StatusNotFound, "push_unavailable", "Web Push is not set up on this server.")
+	case errors.Is(err, model.ErrAnnouncementPublished):
+		p.write(w, r, http.StatusConflict, "announcement_published", "A published announcement cannot be changed.")
 	case errors.As(err, &verr):
 		p.writeValidation(w, r, verr)
 	case errors.Is(err, context.Canceled):
 		// client went away; nothing to send
 	default:
 		p.internal(w, r, err)
+	}
+}
+
+// writeDetailed answers the M8 problems that carry a detail: env_wins names the field that comes
+// from the environment in errors, send_failed and email_send_failed say why the sending failed
+// (the services keep secrets out of that detail).
+func (p problems) writeDetailed(w http.ResponseWriter, r *http.Request, err error) {
+	var env *model.EnvWinsError
+	var send *model.SendError
+	detail := ""
+	if errors.As(err, &send) {
+		detail = send.Detail
+	}
+	switch {
+	case errors.Is(err, model.ErrEnvWins):
+		var fields []gen.FieldError
+		if errors.As(err, &env) {
+			fields = []gen.FieldError{{Field: env.Field, Code: "env_wins"}}
+		}
+		p.writeProblem(w, r, http.StatusUnprocessableEntity, "env_wins", "The value is set through the environment.", fields, nil)
+	case errors.Is(err, model.ErrEmailSendFailed):
+		p.write(w, r, http.StatusBadGateway, "email_send_failed", detail)
+	default:
+		p.write(w, r, http.StatusBadGateway, "send_failed", detail)
 	}
 }
 

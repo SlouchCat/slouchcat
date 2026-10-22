@@ -107,25 +107,30 @@ func (s *server) ListStreams(ctx context.Context, _ gen.ListStreamsRequestObject
 	}
 	out := make(gen.ListStreams200JSONResponse, 0, len(list))
 	for _, st := range list {
-		item := gen.AdminStream{
-			Id: st.ID, AccountEmail: st.AccountEmail, ProfileName: st.ProfileName, ItemId: st.ItemID, ItemTitle: st.ItemTitle,
-			MediaFileId: st.MediaFileID, Mode: gen.AdminStreamMode(st.Mode), Backend: optString(st.Backend), Hardware: st.Hardware,
-			Width: optPositive(st.Width), Height: optPositive(st.Height), Bitrate: optPositive(st.Bitrate), Reason: optString(st.Reason),
-			StartedAt: st.StartedAt.UTC(), LastActivityAt: st.LastActivityAt.UTC(), PositionMs: st.PositionMs, DurationMs: st.DurationMs,
-		}
-		if st.Quality != "" {
-			q := gen.Quality(st.Quality)
-			item.Quality = &q
-		}
-		if d := st.Device; d != nil {
-			item.Device = &struct {
-				Id   string  `json:"id"`
-				Name *string `json:"name,omitempty"`
-			}{Id: d.ID, Name: optString(d.Name)}
-		}
-		out = append(out, item)
+		out = append(out, toAdminStream(st))
 	}
 	return out, nil
+}
+
+// toAdminStream maps a running stream for listStreams and the dashboard (M8).
+func toAdminStream(st model.AdminStream) gen.AdminStream {
+	item := gen.AdminStream{
+		Id: st.ID, AccountEmail: st.AccountEmail, ProfileName: st.ProfileName, ItemId: st.ItemID, ItemTitle: st.ItemTitle,
+		MediaFileId: st.MediaFileID, Mode: gen.AdminStreamMode(st.Mode), Backend: optString(st.Backend), Hardware: st.Hardware,
+		Width: optPositive(st.Width), Height: optPositive(st.Height), Bitrate: optPositive(st.Bitrate), Reason: optString(st.Reason),
+		StartedAt: st.StartedAt.UTC(), LastActivityAt: st.LastActivityAt.UTC(), PositionMs: st.PositionMs, DurationMs: st.DurationMs,
+	}
+	if st.Quality != "" {
+		q := gen.Quality(st.Quality)
+		item.Quality = &q
+	}
+	if d := st.Device; d != nil {
+		item.Device = &struct {
+			Id   string  `json:"id"`
+			Name *string `json:"name,omitempty"`
+		}{Id: d.ID, Name: optString(d.Name)}
+	}
+	return item
 }
 
 func (s *server) StopStream(ctx context.Context, req gen.StopStreamRequestObject) (gen.StopStreamResponseObject, error) {

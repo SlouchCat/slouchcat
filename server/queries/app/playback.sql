@@ -126,11 +126,15 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- name: ListEndedPlaybackSessions :many
 -- Revoked or expired playback sessions, and those whose browser session ended, whose transcode
--- output or open stream may still be running.
+-- output or open stream may still be running. A row ends at the latest when it expires, so a row
+-- that expired before @since ended long ago and left nothing running (ended rows stay for the
+-- statistics).
 SELECT ps.id FROM playback_sessions AS ps
 LEFT JOIN sessions AS s ON s.id = ps.session_id
-WHERE ps.revoked_at IS NOT NULL OR ps.expires_at <= @now
-   OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= @now;
+WHERE ps.expires_at >= @since
+  AND (ps.revoked_at IS NOT NULL OR ps.expires_at <= @now
+       OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= @now);
 
 -- name: DeleteExpiredPlaybackSessions :execrows
+-- Rows that ended before @before (the retention of the statistics).
 DELETE FROM playback_sessions WHERE expires_at < @before OR revoked_at IS NOT NULL AND revoked_at < @before;

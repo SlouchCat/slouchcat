@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { AdminNav } from './AdminNav';
 import { Button } from './Button';
-import { Page } from './Page';
+import { Page, PageNav } from './Page';
 import { Panel } from './Panel';
 import { Text } from './Text';
 
@@ -42,4 +43,39 @@ export const Content: Story = {
       </Text>
     ),
   },
+};
+
+/** An admin page: the section navigation (PageNav) above the heading. */
+export const WithSectionNav: Story = {
+  args: {
+    layout: 'content',
+    children: (
+      <Text as="h1" variant="display">
+        Bibliotheken
+      </Text>
+    ),
+  },
+  decorators: [
+    (Story) => (
+      <PageNav
+        nav={
+          <AdminNav
+            label="Verwaltung"
+            groups={[
+              { links: [{ href: '#admin', label: 'Übersicht' }] },
+              {
+                label: 'Bibliothek',
+                links: [
+                  { href: '#libraries', label: 'Bibliotheken', current: true },
+                  { href: '#podcasts', label: 'Podcasts' },
+                ],
+              },
+            ]}
+          />
+        }
+      >
+        <Story />
+      </PageNav>
+    ),
+  ],
 };

@@ -1,0 +1,105 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 44rem;
+  margin-bottom: var(--sc-space-8);
+}
+
+.notice {
+  max-width: 44rem;
+  margin-bottom: var(--sc-space-6);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+  gap: var(--sc-space-4);
+  align-items: start;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.name {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.form,
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.block {
+  padding-bottom: var(--sc-space-4);
+  border-bottom: 1px solid var(--sc-color-border-subtle);
+}
+
+.state {
+  display: flex;
+}
+
+.instruction {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.subheading {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.devices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.deviceText {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.deviceName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+/* A live region that is always there (role status), so even its first message is announced.
+   Empty, it takes back the gap of the column it stands in. */
+.live:empty {
+  margin-block-start: calc(-1 * var(--sc-space-4));
+}

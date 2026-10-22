@@ -84,6 +84,8 @@ type Job struct {
 	Attempts       int
 	MaxAttempts    int
 	LastError      string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // Queue is the persistent queue on the writer connection of the database.
@@ -221,7 +223,8 @@ func (q *Queue) Release(ctx context.Context, workerID string, id int64) error {
 	return leaseResult("release", n, err)
 }
 
-// Cancel cancels a queued or running job. It reports whether a job was cancelled.
+// Cancel cancels a queued or running job, or dismisses a failed one. It reports whether a job was
+// cancelled.
 func (q *Queue) Cancel(ctx context.Context, id int64) (bool, error) {
 	n, err := q.q.CancelJob(ctx, systemq.CancelJobParams{Now: q.now().UnixMilli(), ID: id})
 	if err != nil {
@@ -281,5 +284,7 @@ func fromRow(r systemq.Job) Job {
 		Attempts:       int(r.Attempts),
 		MaxAttempts:    int(r.MaxAttempts),
 		LastError:      r.LastError.String,
+		CreatedAt:      time.UnixMilli(r.CreatedAt),
+		UpdatedAt:      time.UnixMilli(r.UpdatedAt),
 	}
 }

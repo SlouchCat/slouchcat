@@ -58,3 +58,22 @@
 .link {
   margin-top: var(--sc-space-1);
 }
+
+/* The check button of a field and its answer, right under the field. */
+.check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+/* The answer is a live region that is always there (announced the first time too); empty, it
+   takes back the gap above it. */
+.result:empty {
+  margin-block-start: calc(-1 * var(--sc-space-3));
+}

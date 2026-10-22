@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -52,6 +53,11 @@ type ProfileService interface {
 	// of another account.
 	SetOfflinePIN(ctx context.Context, session model.Session, id int64, pin string) error
 	RemoveOfflinePIN(ctx context.Context, session model.Session, id int64) error
+	// UpdateAccount changes the e-mail or the password of the session's account after checking the
+	// current password (M8, A-2) and returns the session with the changed account; a new password
+	// revokes every other session of the account. Errors: model.ErrInvalidCredentials,
+	// model.ErrEmailTaken, *model.ValidationError, model.ErrTooManyAttempts.
+	UpdateAccount(ctx context.Context, session model.Session, upd model.AccountUpdate) (model.Session, error)
 }
 
 // AccessService is the invitation and guest management of the main account plus the public
@@ -171,6 +177,57 @@ type AdminService interface {
 	// (model.ErrProviderNotConfigured without a client id).
 	TraktStatus(ctx context.Context) (model.TraktStatus, error)
 	RefreshTrakt(ctx context.Context) error
+
+	// M8 (design sections 1 and 3). Wizard checks (A-1): only while no account exists
+	// (model.ErrSetupDone), counted against the attempt limit of model.ClientIP of ctx
+	// (model.ErrTooManyAttempts); a bad path or key is described in the result, not an error.
+	CheckSetupPath(ctx context.Context, path string) (model.PathCheck, error)
+	CheckSetupTMDBKey(ctx context.Context, key string) (model.TMDBCheck, error)
+	// SystemInfo returns version, transcode hardware, inotify limit and file systems; no secrets.
+	SystemInfo(ctx context.Context) (model.SystemInfo, error)
+	// Dashboard returns the admin overview (A-3).
+	Dashboard(ctx context.Context) (model.Dashboard, error)
+	// RetryJob queues a failed job again (model.ErrNotFound, model.ErrJobNotFailed); CancelJob
+	// cancels a queued or running one (model.ErrNotFound for an unknown or ended job).
+	RetryJob(ctx context.Context, id int64) (model.JobSummary, error)
+	CancelJob(ctx context.Context, id int64) error
+	// Settings and integrations (A-2). UpdateSettings checks everything before it stores anything:
+	// *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable,
+	// model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.
+	Settings(ctx context.Context) (model.AdminSettings, error)
+	UpdateSettings(ctx context.Context, upd model.AdminSettingsUpdate) (model.AdminSettings, error)
+	// SendTestEmail sends a test mail to to, or to the main account when empty
+	// (model.ErrEmailNotConfigured, *model.SendError with model.ErrEmailSendFailed,
+	// model.ErrTooManyAttempts for the client in model.ClientIP of ctx).
+	SendTestEmail(ctx context.Context, to string) error
+	// RotatePushKeys creates a new VAPID pair and deletes every push subscription.
+	RotatePushKeys(ctx context.Context) (model.AdminSettings, error)
+	// Backup and restore (A-4). Names are file names of ListBackups (model.ErrNotFound otherwise).
+	// CreateBackup: model.ErrPassphraseRequired, model.ErrPassphraseTooShort. The restores stage the
+	// archive and schedule the restart: model.ErrBackupInvalid, model.ErrPassphraseRequired,
+	// model.ErrPassphraseWrong, model.ErrBackupNewerThanServer.
+	ListBackups(ctx context.Context) ([]model.Backup, error)
+	CreateBackup(ctx context.Context, req model.BackupRequest) (model.Backup, error)
+	OpenBackup(ctx context.Context, name string) (model.StreamSource, error)
+	DeleteBackup(ctx context.Context, name string) error
+	RestoreBackupUpload(ctx context.Context, archive io.Reader, passphrase string) (model.RestoreResult, error)
+	RestoreBackup(ctx context.Context, name, passphrase string) (model.RestoreResult, error)
+	// Update check (A-5); CheckForUpdate: model.ErrUpdateCheckDisabled. UpdateAvailable is the
+	// header notice of SessionInfo for the main account, answered from memory; nil = none.
+	UpdateState(ctx context.Context) (model.UpdateState, error)
+	CheckForUpdate(ctx context.Context) (model.UpdateState, error)
+	UpdateAvailable(ctx context.Context) *model.UpdateNotice
+	// ListAccounts returns the main account first, then the guests, newest first (A-2).
+	ListAccounts(ctx context.Context) ([]model.AdminAccount, error)
+	// Stats returns the statistics of the last days days: 7, 30, 90 or 365 (*model.ValidationError).
+	Stats(ctx context.Context, days int) (model.Stats, error)
+	// Announcements (A-7): *model.ValidationError, model.ErrNotFound, model.ErrAnnouncementPublished
+	// (UpdateAnnouncement of a published one). Publishing sends it on the channels once.
+	ListAnnouncements(ctx context.Context) ([]model.Announcement, error)
+	CreateAnnouncement(ctx context.Context, creator model.Account, in model.AnnouncementInput) (model.Announcement, error)
+	UpdateAnnouncement(ctx context.Context, id int64, title, body string) (model.Announcement, error)
+	PublishAnnouncement(ctx context.Context, id int64) (model.Announcement, error)
+	DeleteAnnouncement(ctx context.Context, id int64) error
 }
 
 // CatalogService answers the start page and the detail page through the visibility layer
@@ -207,7 +264,8 @@ type CatalogService interface {
 	RemoveFavorite(ctx context.Context, profile model.Profile, itemID string) error
 }
 
-// NotifyService is the in-app inbox of a profile (package notify, M7 E-8, plan 5.5). Entries whose
+// NotifyService is the in-app inbox of a profile (package notify, M7 E-8, plan 5.5), the
+// notification channels of an account and the announcements of a profile (M8). Inbox entries whose
 // episode the profile may no longer see are omitted.
 type NotifyService interface {
 	// Notifications returns one page, newest first, with the total and the unread count.
@@ -215,6 +273,31 @@ type NotifyService interface {
 	// MarkRead marks one entry of the profile (model.ErrNotFound for another profile's entry).
 	MarkRead(ctx context.Context, profile model.Profile, id int64) error
 	MarkAllRead(ctx context.Context, profile model.Profile) error
+
+	// Channels of the session's account (M8, A-6, 5.5): email, push and telegram in this order.
+	// Every method that changes them (all but Channels and PushPublicKey) answers
+	// model.ErrPrimaryProfileRequired for a session whose active profile is not the primary one.
+	// UpdateChannel: model.ErrNotFound (unknown channel), model.ErrChannelUnavailable (switching on a
+	// channel the server lacks), model.ErrEventNotAllowed (errors on a guest account),
+	// *model.ValidationError. TestChannel: model.ErrChannelUnavailable, model.ErrChannelDisabled,
+	// *model.SendError with model.ErrSendFailed, model.ErrTooManyAttempts (attempt limit of the
+	// client in model.ClientIP of ctx).
+	Channels(ctx context.Context, session model.Session) ([]model.ChannelSetting, error)
+	UpdateChannel(ctx context.Context, session model.Session, channel string, upd model.ChannelSettingUpdate) (model.ChannelSetting, error)
+	TestChannel(ctx context.Context, session model.Session, channel string) error
+	// CreateTelegramLink issues a new link code (model.ErrChannelUnavailable without a bot);
+	// DeleteTelegramLink unlinks the chat and drops an open code.
+	CreateTelegramLink(ctx context.Context, session model.Session) (model.ChannelSetting, error)
+	DeleteTelegramLink(ctx context.Context, session model.Session) error
+	// Web Push: the VAPID public key and the subscriptions of the session's account
+	// (model.ErrPushUnavailable without a key pair; DeletePushSubscription: model.ErrNotFound).
+	PushPublicKey(ctx context.Context) (string, error)
+	CreatePushSubscription(ctx context.Context, session model.Session, in model.PushSubscriptionInput) (model.PushSubscription, error)
+	DeletePushSubscription(ctx context.Context, session model.Session, id int64) error
+	// Announcements of the profile (A-7): the published ones it has not acknowledged, newest first;
+	// AckAnnouncement answers model.ErrNotFound for an unknown or unpublished one.
+	Announcements(ctx context.Context, profile model.Profile) ([]model.ProfileAnnouncement, error)
+	AckAnnouncement(ctx context.Context, profile model.Profile, id int64) error
 }
 
 // PlaybackService decides playback, issues and checks stream tokens and records progress

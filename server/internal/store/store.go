@@ -50,8 +50,8 @@ type Options struct {
 	now        func() time.Time // Overrides the clock in tests.
 }
 
-// Open checks the file system of the config directory, opens the database, backs it up when
-// migrations are pending and runs them.
+// Open checks the file system of the config directory, applies a staged restore (restore.go),
+// opens the database, backs it up when migrations are pending and runs them.
 func Open(ctx context.Context, opts Options) (*DB, error) {
 	fsType, err := paths.DetectFS(opts.ConfigDir)
 	if err != nil {
@@ -61,6 +61,9 @@ func Open(ctx context.Context, opts Options) (*DB, error) {
 		return nil, fmt.Errorf("%w (detected %s at %s)", ErrNetworkShare, fsType, opts.ConfigDir)
 	}
 	opts.Logger.Info("config directory checked", "dir", opts.ConfigDir, "fs_type", string(fsType))
+	if err := applyRestore(ctx, opts); err != nil {
+		return nil, err
+	}
 
 	path := filepath.Join(opts.ConfigDir, FileName)
 	_, statErr := os.Stat(path)

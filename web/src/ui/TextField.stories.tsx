@@ -29,6 +29,12 @@ export const States: Story = {
         description="Pfad im Container, nur lesend eingebunden."
       />
       <TextField label="Passwort" type="password" isInvalid defaultValue="kurz" />
+      <TextField
+        label="Text"
+        rows={4}
+        description="Höchstens 4000 Zeichen."
+        defaultValue={'Am Samstag ist der Server von 8 bis 10 Uhr nicht erreichbar.\nDanke!'}
+      />
     </Stack>
   ),
 };

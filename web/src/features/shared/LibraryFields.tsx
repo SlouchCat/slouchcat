@@ -1,4 +1,5 @@
 import type { LibraryRequest } from '@slouchcat/api-client';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text } from '@/ui';
 import { RadioGroup, TextField } from '@/ui/aria';
@@ -42,6 +43,12 @@ interface LibraryFieldsProps {
   /** Default age rating as a radio value ("0" … "18"). */
   rating: string;
   onRatingChange: (rating: string) => void;
+  /** The folder as a controlled value (the setup wizard checks it on blur). */
+  path?: string;
+  onPathChange?: (path: string) => void;
+  onPathBlur?: () => void;
+  /** Rendered right after the folder field (the wizard's check button and its result). */
+  pathAddon?: ReactNode;
 }
 
 /**
@@ -55,6 +62,10 @@ export function LibraryFields({
   onKindChange,
   rating,
   onRatingChange,
+  path,
+  onPathChange,
+  onPathBlur,
+  pathAddon,
 }: LibraryFieldsProps) {
   const { t } = useTranslation();
   return (
@@ -71,19 +82,25 @@ export function LibraryFields({
           {t('library.podcastsHint')}
         </Text>
       ) : (
-        <TextField
-          name={`${prefix}path`}
-          label={t('setup.library.path')}
-          description={t('setup.library.pathHint')}
-          autoComplete="off"
-          spellCheck="false"
-          mono
-          isRequired
-          validate={(value) => {
-            if (!value.trim()) return t('errors.field.required');
-            return value.trim().startsWith('/') ? null : t('errors.field.not_absolute');
-          }}
-        />
+        <>
+          <TextField
+            name={`${prefix}path`}
+            label={t('setup.library.path')}
+            description={t('setup.library.pathHint')}
+            autoComplete="off"
+            spellCheck="false"
+            mono
+            isRequired
+            value={path}
+            onChange={onPathChange}
+            onBlur={onPathBlur}
+            validate={(value) => {
+              if (!value.trim()) return t('errors.field.required');
+              return value.trim().startsWith('/') ? null : t('errors.field.not_absolute');
+            }}
+          />
+          {pathAddon}
+        </>
       )}
       {isAudioLibrary(kind) && (
         <RadioGroup

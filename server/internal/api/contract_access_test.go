@@ -132,14 +132,37 @@ var accountRegistry = map[string]accountCall{
 	"uploadOfflineEvents": {contract: "POST /offline/events", path: "/offline/events", want: allWant(http.StatusOK),
 		body: `{"sentAt":"2026-10-20T18:00:00Z","events":[{"profileId":999999,"itemId":"` + fixtureFilm6 + `","playbackId":"01JC0000000000000000000009",` +
 			`"positionMs":10000,"durationMs":7200000,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-20T17:59:50Z"}]}`},
+	// M8: the own account and the notification channels (TestContractChannels checks their rules).
+	// A wrong current password is refused for every session of an account, with or without a
+	// profile. The fixture's server has an e-mail server and a VAPID pair but no Telegram bot.
+	"updateAccount": {contract: "PUT /auth/account", path: "/auth/account", body: `{"currentPassword":"wrong-password","email":"renamed@example.ch"}`,
+		want: allWant(http.StatusUnauthorized)},
+	"getMyChannels": {contract: "GET /me/channels", path: "/me/channels", want: allWant(http.StatusOK)},
+	"updateMyChannel": {contract: "PUT /me/channels/{channel}", path: "/me/channels/email", body: `{"enabled":false,"events":["announcements"]}`,
+		want: allWant(http.StatusOK)},
+	"testMyChannel": {contract: "POST /me/channels/{channel}/test", path: "/me/channels/telegram/test",
+		want: allWant(http.StatusUnprocessableEntity)},
+	"createTelegramLink": {contract: "POST /me/channels/telegram/link", path: "/me/channels/telegram/link",
+		want: allWant(http.StatusUnprocessableEntity)},
+	"deleteTelegramLink": {contract: "DELETE /me/channels/telegram/link", path: "/me/channels/telegram/link", want: allWant(http.StatusNoContent)},
+	"getPushPublicKey":   {contract: "GET /push/vapid-key", path: "/push/vapid-key", want: allWant(http.StatusOK)},
+	"createPushSubscription": {contract: "POST /me/push-subscriptions", path: "/me/push-subscriptions",
+		body: pushSubscriptionBody("https://push.example.test/send/abc"), want: allWant(http.StatusCreated)},
+	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotFound)},
 }
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for the owner with the
-// primary profile (harmless bodies against unknown ids or invalid input).
+// primary profile (harmless bodies against unknown ids or invalid input). header replaces request
+// headers, such as the content type of a multipart body.
 type adminCall struct {
 	contract, path, body string
+	header               map[string]string
 	ownerStatus          int
 }
+
+// restoreUploadBody is a multipart body of restoreBackupUpload whose file is no backup.
+const restoreUploadBody = "--registry\r\nContent-Disposition: form-data; name=\"file\"; filename=\"backup.tar.gz\"\r\n" +
+	"Content-Type: application/octet-stream\r\n\r\nnot a backup\r\n--registry--\r\n"
 
 const unknownItemID = "01J0000000000000000000XXXX"
 
@@ -210,6 +233,34 @@ var adminRegistry = map[string]adminCall{
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// The fixture has no Trakt client id: 422 provider_not_configured.
 	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
+	// M8 administration: jobs 9999 do not exist; the fixture has no e-mail server (422
+	// email_not_configured), checks a mock manifest and writes backups into a temporary directory.
+	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
+	"getDashboard":        {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
+	"retryJob":            {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
+	"cancelJob":           {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
+	"getAdminSettings":    {contract: "GET /admin/settings", path: "/admin/settings", ownerStatus: http.StatusOK},
+	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusOK},
+	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusUnprocessableEntity},
+	"rotatePushKeys":      {contract: "POST /admin/settings/push/rotate", path: "/admin/settings/push/rotate", ownerStatus: http.StatusOK},
+	"listBackups":         {contract: "GET /admin/backups", path: "/admin/backups", ownerStatus: http.StatusOK},
+	"createBackup":        {contract: "POST /admin/backups", path: "/admin/backups", body: `{"includeSecrets":false}`, ownerStatus: http.StatusCreated},
+	"downloadBackup": {contract: "GET /admin/backups/{name}/download", path: "/admin/backups/missing.tar.gz/download",
+		ownerStatus: http.StatusNotFound},
+	"deleteBackup": {contract: "DELETE /admin/backups/{name}", path: "/admin/backups/missing.tar.gz", ownerStatus: http.StatusNotFound},
+	"restoreBackupUpload": {contract: "POST /admin/backups/restore", path: "/admin/backups/restore", body: restoreUploadBody,
+		header: map[string]string{"Content-Type": "multipart/form-data; boundary=registry"}, ownerStatus: http.StatusUnprocessableEntity},
+	"restoreBackup": {contract: "POST /admin/backups/{name}/restore", path: "/admin/backups/missing.tar.gz/restore", body: `{}`,
+		ownerStatus: http.StatusNotFound},
+	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
+	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
+	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
+	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusOK},
+	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusOK},
+	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusCreated},
+	"updateAnnouncement":  {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
+	"deleteAnnouncement":  {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
+	"publishAnnouncement": {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).
@@ -239,6 +290,9 @@ var publicRegistry = map[string]publicCall{
 	// M5: without the device cookie the revocation list is empty (K-7).
 	"checkOfflineRevocations": {contract: "POST /offline/revocations", path: "/offline/revocations", status: http.StatusOK,
 		body: `{"ids":["01J9AAAAAAAAAAAAAAAAAAAAAA"]}`},
+	// M8 wizard checks: 409 setup_done, the fixture has an account.
+	"checkSetupPath":    {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusConflict},
+	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusConflict},
 }
 
 // A missing registry entry fails the test: every operation of the contract is in exactly the
@@ -378,15 +432,15 @@ func TestContractAdminOperations(t *testing.T) {
 		method := strings.Fields(call.contract)[0]
 		t.Run(id, func(t *testing.T) {
 			for _, token := range []string{"pg", "pg18", "p6", "p0", "none"} {
-				rec := send(t, h, method, BasePath+call.path, token, call.body, nil)
+				rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
 				if rec.Code != http.StatusForbidden || problemCode(t, rec) != "forbidden" {
 					t.Errorf("%s: status %d (%s), want 403 forbidden", token, rec.Code, rec.Body.String())
 				}
 			}
-			if rec := send(t, h, method, BasePath+call.path, "", call.body, nil); rec.Code != http.StatusUnauthorized {
+			if rec := send(t, h, method, BasePath+call.path, "", call.body, call.header); rec.Code != http.StatusUnauthorized {
 				t.Errorf("without a session: status %d, want 401", rec.Code)
 			}
-			rec := send(t, h, method, BasePath+call.path, "p18", call.body, nil)
+			rec := send(t, h, method, BasePath+call.path, "p18", call.body, call.header)
 			if rec.Code != call.ownerStatus {
 				t.Errorf("owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}

@@ -588,6 +588,11 @@ var profileRegistry = map[string]profileCall{
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	"markAllNotificationsRead": {contract: "POST /notifications/read-all", path: "/notifications/read-all",
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNoContent }},
+	// M8 announcements of the active profile (TestContractAnnouncements checks them per profile).
+	"listMyAnnouncements": {contract: "GET /announcements", path: "/announcements",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"ackAnnouncement": {contract: "POST /announcements/{id}/ack", path: "/announcements/9999/ack",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNotFound }},
 	// M6: the paged episode list of a podcast. Every title of the loop is no podcast (404); the
 	// podcasts themselves are containers and checked in the subtest "audio".
 	"listPodcastEpisodes": {contract: "GET /items/{id}/episodes", path: "/items/{id}/episodes", perItem: true,
@@ -918,6 +923,9 @@ type profileFixture struct {
 	admin    *admin.Service
 	pb       *playback.Service
 	opts     Options
+
+	notifySvc *notify.Service  // M8 channels and announcements (fake senders)
+	senders   *contractSenders // what they sent
 }
 
 // testTokenKey is the stream-token key of the contract fixtures.
@@ -950,7 +958,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	}
 	pods := metadata.New(f.DB, jobs.NewQueue(f.DB.Write, nil), nil, t.TempDir(), transcode.Runner{}, log)
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
-		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods)
+		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods).
+		WithBackups(t.TempDir(), "test")
 
 	pa := profileAuth{Service: a, tokens: map[string]string{}}
 	sessions := map[string]model.Session{}
@@ -966,15 +975,20 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		playback.WithSubtitleConverter(fakeEmbeddedVTT, fakeSidecarVTT), playback.WithCacheDir(t.TempDir()))
 	adm.WithStreams(pf.pb)
 	pf.dlDir, pf.queue = filepath.Join(t.TempDir(), "downloads"), jobs.NewQueue(f.DB.Write, nil)
+	// M8 administration: the queue of the fixture, a mock release manifest and a fake VAPID rotation.
+	adm.WithJobs(pf.queue).WithPushRotator(contractPushRotator{adm}).WithUpdateCheck(contractManifest(t), nil).
+		WithSystem(admin.SystemSource{Version: "test", StartedAt: time.Now(), ConfigDir: t.TempDir(), CacheDir: f.CacheDir})
 	pf.off = offline.New(f.DB, visibility.New(f.DB, log), pf.queue, transcode.Runner{}, log, offline.WithDir(pf.dlDir),
 		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
+	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue, a.AllowAttempt)
+	adm.WithAnnouncements(pf.notifySvc)
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
 		Catalog:  discover.New(f.DB, f.CacheDir, log),
 		Playback: pf.pb,
 		Offline:  pf.off,
-		Notify:   notify.New(f.DB, visibility.New(f.DB, log), log),
+		Notify:   pf.notifySvc,
 	}
 	pf.h = NewHandler(pf.opts)
 	return pf
@@ -1324,7 +1338,9 @@ func TestContractChildProfiles(t *testing.T) {
 				method := strings.Fields(call.contract)[0]
 				if !call.perItem {
 					rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
-					if rec.Code >= 500 {
+					// An operation of the M8 base answers 501 until its lane lands; its entry expects it.
+					stub := rec.Code == http.StatusNotImplemented && call.want != nil && call.want(f, profile) == http.StatusNotImplemented
+					if rec.Code >= 500 && !stub {
 						t.Errorf("%s: status %d (%s)", op, rec.Code, rec.Body.String())
 					}
 					if call.want != nil {

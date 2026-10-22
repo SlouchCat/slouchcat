@@ -2,8 +2,118 @@
 
 Stand: 21. Oktober 2026. M0 bis M7 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
 Pull Requests #1 bis #6, #10, #11 und #14; M7 am 21. Oktober 2026 auf Marcos Wort, Merge-Commit `dd0aa9f`).
-Das Docker-Image auf Marcos Rechner ist auf dem M7-Stand gebaut. Der CI-Job hat seit #14 ein Limit von 75 Minuten.
-Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
+**M8 (Administration und Benachrichtigungen) ist auf dem Branch `claude/m8-admin` fertig** und wartet als Pull
+Request gegen `main` auf Marcos Wort. Das Docker-Image auf Marcos Rechner ist auf dem M7-Stand gebaut. Der CI-Job hat
+seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
+
+## Meilenstein M8 – Administration und Benachrichtigungen
+
+Vorab geklärt mit Marco (21. Oktober 2026, Entscheidungsprotokoll): Web-Push und E-Mail werden mit echten
+Zugangsdaten geprüft, Telegram ist vollständig gebaut und nur gegen den Mock getestet; die Sicherung bleibt in
+`/config/backups`, es gibt kein NAS-Ziel und keinen zweiten Mount. Die Architekturentscheide stehen in ADR 0009
+(`docs/adr/0009-administration-benachrichtigungen.md`): Kanäle gehören dem Konto und werden nur im Hauptprofil
+geändert, Zustellung über die Job-Queue mit Zeilen in `deliveries`, Fehlerring hinter der Redaction, Sicherung als
+tar.gz (mit Schlüssel age-verschlüsselt), Wiederherstellung per bereitgelegten Dateien und Neustart durch `exec`
+im selben Prozess, Update-Hinweis aus dem Release-Manifest, Statistiken aus `progress_events` (mit Gerät) und 400
+Tage lang aufbewahrten Wiedergabesitzungen. Der Entwurf liegt in den Sitzungsnotizen (`m8-design.md`). Die Umsetzung
+lief wie in M7 auf einer gemeinsamen Basis (Migration 00016, Vertrag 0.9.0 mit 145 Operationen, Modelltypen,
+501-Stubs) mit sechs Executor-Agenten (Opus) in Git-Worktrees (S1 Assistent/Dashboard/Einstellungen/Update/Konten,
+S2 Sicherung/Statistiken, S3 Kanäle/Zustellung/Ankündigungen, W1 Assistent/Übersicht/Navigation/Integrationen,
+W2 Konten/Sicherung/Statistiken/Ankündigungen, W3 Kanal-Einstellungen/Push/Ankündigungsdialog/E2E-Mocks/Log-Scan),
+danach ein Integrations-Fix, zwei Review-Agenten und zwei Korrektur-Agenten. Commits mit Bereich im Titel:
+
+| Schritt | Commit | Inhalt |
+|---|---|---|
+| Vorab | `docs(decisions)` `ca4f29d` | Antworten zu Kanälen und Sicherungsziel |
+| Basis | `feat(api,store,model,config,logging)` `cc1b4dc`, `fix(deploy)` `81fcf30` | Vertrag 0.9.0 (36 neue Operationen), Migration 00016 (`account_channels`, `telegram_links`, `push_subscriptions`, `deliveries`, `announcements`, `announcement_acks`, Standardkanäle), Konfiguration und Redaction für SMTP, Telegram, VAPID und Manifest; die Trakt Client ID wird jetzt im Compose durchgereicht (Lücke aus M7) |
+| 1 Assistent | `feat(admin,api)` `24c06fa`, `feat(web)` `e8d4b34` | Pfadprüfung mit Dateisystem und Warnung, TMDB-Prüfung mit klarer Meldung, GPU-Erkennung mit Compose-Override zum Kopieren, inotify-Hinweis (A-1) |
+| 2 Verwaltung, Dashboard | `feat(logging,jobs,library)` `5ae1c06`, `feat(auth)` `d90e366`, `24c06fa`, `feat(web)` `2316a7e`, `e8d4b34`, `feat(web)` `32a8334` | Fehlerring, Job-Zähler mit Erneut/Abbrechen, Speicher, Integrationsstatus, Konten mit eigener E-Mail/Passwort-Änderung, Übersicht mit Kartenraster und `AdminNav`, Integrationen (Schlüssel, SMTP, Telegram, Push, Update, öffentliche URL) (A-2, A-3) |
+| 3 Sicherung, Update | `feat(admin,store,api)` `4bbf6fb`, `24c06fa`, `32a8334` | Sicherung mit/ohne Schlüssel, Liste, Download, Wiederherstellung mit Neustart, Update-Prüfung mit Mock-Manifest und Badge (A-4, A-5) |
+| 4 Kanäle, Ankündigungen, Statistiken | `feat(notify)` `73d5616`, `feat(auth,jobs,library)` `fec54d8`, `feat(notify,admin)` `df35e4b`, `feat(web)` `93778e6`, `test(e2e)` `8cfae1a`, `9014e1d`, `32a8334` | Sender E-Mail/Web-Push/Telegram, Kanäle je Konto, Push-Abos, Telegram-Link, Zustellung über die Queue, Hooks (Einladung, Job-Fehler, Scan-Abbruch), Ankündigungen mit Dialog beim Start, Statistiken, Mocks und Log-Scan (A-6, A-7, A-8, A-9, E-8) |
+| Integration | `fix(metadata,api)` `c81d763`, `fix(web)` `438841b` | Trakt-Fehler im Fehlerring, Geräte-ID in Fortschrittsereignissen, Fokus der AdminNav über Seitenwechsel, Spec-Anpassungen |
+| Review-Korrekturen | `fix(web)` `74e1001`, `fix(server)` `9e7b973` | siehe unten |
+| DB-Stand, Doku | `test(store,testdata)`, `docs(adr,perf,status,decisions)`, `test(web)` | `testdata/db/M8.sql`, `TestFrozenM8StateCoversM8Data`, Storybook-Baselines, ADR 0009, `docs/perf/M8.md` |
+
+### Definition of Done (Plan M8 plus 6.2) mit Belegen
+
+| Kriterium | Ergebnis | Beleg |
+|---|---|---|
+| A-1 frischer Stack: Konto, Bibliothek, GPU erkannt, TMDB-Schlüssel geprüft | PASS: NVENC mit `compose.nvidia.yaml` auf dem Entwicklungsrechner, inotify-Limit 256'774 ohne Warnung; ungültiger Schlüssel → «Ungültig», nicht erreichbar → eigene Meldung; QSV auf CT 190 nach dem Merge durch die Hauptsession | `docs/perf/M8.md` 3, `go test ./internal/admin -run 'TestSetupSystemInfo|TestCheckSetupPath|TestCheckSetupTMDBKey'`, `go test ./internal/api -run TestSetupChecksOverHTTP`, `web/e2e/setup.spec.ts` |
+| A-2 jede Admin-Seite über eine Navigation erreichbar, gleiche Lint- und Tastaturchecks, Storybook-Screenshots ≤ 0.1 % | PASS: `/admin` mit Kartenraster (16 Karten) und `AdminNav` (15 Einträge), Kopfzeile mit einem Eintrag «Verwaltung»; 22 neue Baselines (AdminNav, CodeBlock, StatTile, LinkCard, Switch, MessageDialog, Page/WithSectionNav, AppHeader/WithUpdate), TextField-Baseline erneuert | `web/e2e/admin-home.spec.ts` («every admin page is reached through the admin navigation»), `task web:storybook:test` (155 Screenshots) |
+| A-3 Dashboard mit Streams, Jobs, Speicher, Integrationen, 50 Fehlern; provozierter Fehler < 10 s | PASS: Trakt-Mock auf 503 → «Trakt: Fehler» in der Kachel und Eintrag im Fehlerring in < 10 s; p95 225 ms während des Erst-Scans (die Job-Tabelle wächst dabei auf 50'907 Zeilen), 1.3 ms im Leerlauf mit allen Jobs | `web/e2e/admin-home.spec.ts` (A-3), `go test ./internal/admin -run 'TestDashboard'`, `docs/perf/M8.md` 1 |
+| A-4 Restore auf frischem Stack identisch; Archiv ohne Mediendatei; ohne Schlüssel Secrets neu | PASS: Tabellen-Hashes gleich (Go-Test und echter Lauf mit Neustart in derselben PID, 1.5–1.9 s), Archiv genau Manifest + DB (+ Schlüssel), ohne Schlüssel keine `v1:`-Werte und eigener `secret.key` | `go test ./internal/admin -run 'TestRestoreOnFreshStack|TestBackupArchive|TestBackupWithout'`, `go test ./internal/store -run 'TestApplyRestore'`, `m8-backup-evidence.sh` («A-4 Beleg: alle Vergleiche gleich»), `docs/perf/M8.md` 2, `web/e2e/admin-backup.spec.ts` |
+| A-5 Mock-Manifest: neuer → Hinweis, gleich → keiner, abschaltbar | PASS, Badge nur für das Hauptkonto; Mock-Manifest 99.0.0 → Badge «Update auf Version» in der Kopfzeile, Prüfung aus → weg | `go test ./internal/admin -run 'TestUpdateCheck'`, `go test ./internal/api -run TestAdminSystemShapesAndUpdateNotice`, `web/e2e/admin-integrations.spec.ts` (Update-Prüfung und Badge) |
+| A-6 Kanal-Mocks je Ereignistyp; je 1 echtes Gerät je Kanal | PASS gegen Mocks (SMTP mit AUTH, Push mit VAPID-JWT und aes128gcm entschlüsselt, Telegram-Bot-API mit Long-Polling) für neue Inhalte, Beschaffung (nur Hook), Fehler, Einladung, Ankündigung; echte Geräte: E-Mail und Web-Push prüft Marco nach dem Merge, Telegram ohne Bot (Entscheid) | `go test ./internal/notify/...`, `web/e2e/notification-channels.spec.ts`, Checkliste `m8-marco-tests.md` |
+| A-7 Ankündigung beim nächsten Start, nach Quittierung weg; Gast mit E-Mail-Opt-in erhält Mail | PASS (zweites Profil sieht den Dialog, nach «Verstanden» nicht mehr, Hauptprofil weiterhin; Gastkonto bekommt die Mail im SMTP-Mock, Hauptkonto ohne E-Mail nicht) | `web/e2e/announcements.spec.ts`, `go test ./internal/notify -run 'TestAnnounce'`, `go test ./internal/api -run TestContractAnnouncements` |
+| A-8 meistgesehene Titel, Schauzeit je Profil, Transcoding-Anteil, Geräteverteilung gegen Rohdaten | PASS: Fixture mit eigener Aggregation im Test verglichen; p95 1'333 ms bei 1 Mio. Ereignissen über 365 Tage; beendete Sitzungen bleiben 400 Tage | `go test ./internal/admin -run 'TestStats'`, `web/e2e/admin-stats.spec.ts`, `docs/perf/M8.md` 1 |
+| A-9 Log-Scan über einen kompletten E2E-Lauf: 0 Treffer | PASS: Scan im Playwright-Teardown über das Server-Log (Stufe debug) auf 13 Fake-Secrets und Muster, 0 Treffer; Gegenprobe mit eingeschleustem Passwort schlägt an | `web/e2e/global-teardown.ts`, `go test ./internal/logging` |
+| E-8 Kanal-Mocks erhalten die Nachricht mit Profilname (5.5) | PASS: Betreff `[e2e-owner] Neue Folge …` im SMTP-Mock; P6 erhält für eine unsichtbare Folge weder Eintrag noch Zustellung | `web/e2e/notification-channels.spec.ts` (E-8), `go test ./internal/notify -run 'TestNewEpisodes'` |
+| Kinderprofil-Vertragstest 10.2 über alle neuen Operationen | PASS: 145 Operationen; Admin-Operationen 403 für Gäste und Profile, Kanaländerungen 403 für Nicht-Hauptprofile, Ankündigungen je Profil, keine Push-Secrets in Antworten | `go test ./internal/api -run 'TestContract'` |
+| Tastaturtest je neue oder geänderte Seite (6.2 Pkt. 3) | PASS: `/setup`, `/admin`, `/admin/integrations`, `/admin/accounts`, `/admin/backup`, `/admin/stats`, `/admin/announcements`, `/settings/notifications`, Ankündigungsdialog, Benachrichtigungen (Link) | die genannten Specs |
+| Eingefrorener DB-Stand (6.2 Pkt. 4) | `testdata/db/M8.sql`; alle Stände M1a bis M8 migrieren bis 00016; kein Passwort im Klartext | `go test ./internal/store -run 'TestFrozen|TestMigration00016|TestDumpRoundTrip'` |
+| Messwerte (6.2 Pkt. 5) | `docs/perf/M8.md`; Gerätecheckliste Desktop Chromium und Firefox bestanden, Android ausstehend (Marco, nach dem Merge), Apple ungeprüft (Entscheid 2) | `docs/perf/M8.md` 6 |
+| `task ci` grün (6.2 Pkt. 2) | exit 0 (21. Oktober 2026, Stand `f945baa`): gen, gen:check, lint 0 issues (golangci-lint, itemsaccess, vet, eslint, stylelint, tsc, prettier), Go `-race` alle 30 Pakete inkl. `notify/{email,push,telegram}` und `version`, Vitest 570 (+ 4 + 2), Build, Playwright 392 von 392 in Chromium und Firefox (19.1 min) mit A-9-Scan über 56'706 Logzeilen (17 Secrets des Laufs, 0 Treffer), Storybook 155 Screenshots; danach nur Doku | `sg docker -c 'task ci'`, Protokoll `task-ci-1.log` im Scratchpad der Session |
+| Code-Review | Server 0 kritisch, 5 wichtig, 14 klein, 10 Nits; Web 0 kritisch, 3 wichtig, 8 klein, 12 Nits; alle wichtigen und die meisten kleinen behoben (siehe unten) | Sitzungsnotizen `m8-review-server.md`, `m8-review-web.md`, `m8-fix-server-notes.md`, `m8-fix-web-notes.md` |
+| Verifier-Agent (6.2 Pkt. 6) | «DoD bestätigt mit Ausnahmen» (keine Blocker): A-1 und A-6 PARTIAL, weil QSV auf CT 190, echte SMTP- und Web-Push-Geräte und die Android-Checkliste erst nach dem Merge möglich sind; eigene Läufe: Vertragstest `-race` ok (145 Operationen), notify/admin/store/logging/version ok, alle Stände M1a bis M8 migrieren, Lint und Codegen sauber, 35 M8-Specs in Chromium und 28 in beiden Browsern grün, Storybook 155, Sicherungsbeleg und GPU-Erkennung reproduziert, Statistik-Benchmark bestätigt (p95 36/140/426/1351 ms), Log-Scanner mit eingeschleusten Secrets geprüft (8 Treffer); Doku-Mängel behoben, offene Review-Punkte M-8, M-12, M-14 nachgetragen | Sitzungsnotizen `m8-verifier.md` |
+
+### Befunde der Review-Passage und ihre Behebung
+
+- **Server (wichtig):** (I-1) ein Neustart nach der Wiederherstellung ging verloren, wenn der geordnete Stopp in
+  die 10-s-Grenze lief (laufender Stream) – jetzt werden hängende Verbindungen geschlossen und der Prozess startet
+  trotzdem neu; (I-2) jedes Profil konnte die Kanäle des Kontos ändern und so die Benachrichtigungen mit Titeln anderer
+  Profile auf sein Gerät umleiten – Kanaländerungen verlangen jetzt das Hauptprofil (403 `primary_profile_required`,
+  Vertragstest); (I-3) der Transcoding-Anteil sah nur einen Tag, weil Wiedergabesitzungen nach 24 h gelöscht wurden –
+  beendete Sitzungen bleiben 400 Tage; (I-4) ein Fehler beim Sichern der alten Datenbank vor der Wiederherstellung
+  blockierte jeden Start – jetzt werden die Dateien ersatzweise verschoben; (I-5) «Abbrechen» für fehlgeschlagene
+  Jobs antwortete 404 – erlaubt. Klein: Wiederholung einer fehlgeschlagenen Zustellung, scrypt-Arbeitsfaktor
+  begrenzt, `git describe`-Versionen, E-Mail-Adresse folgt dem Konto, Versuchslimit und generische Meldung bei
+  Testnachrichten, `QUIT`-Fehler nach angenommener Mail, begrenzte Namenssuche der Sicherung, Feed-URLs im Manifest,
+  gemeinsame Helfer (`netguard`, Bot-Token-Form, TLS-Modi), drei ungenutzte Abfragen und der Push-Fehlerzähler
+  entfernt.
+- **Web (wichtig):** Schlüssel, SMTP-Passwort, Bot-Token und TMDB-Prüfung laufen über `useTransientMutation` (kein
+  Secret im Query-Cache); die Fehlerliste des Dashboards hat stabile Schlüssel und meldet nur «n neue Fehler»; der
+  Log-Scan kennt alle Fake-Secrets des Laufs (YouTube-Schlüssel, Gastpasswörter, Sitzungs-Cookie) und der E2E-Server
+  loggt auf `debug`. Klein: alte Fehlermeldungen verschwinden beim nächsten Versuch, Neustart-Seite gibt nach 90 s
+  auf, Abmelden beendet das Push-Abo des Geräts, `pushsubscriptionchange` im Service Worker, fehlgeschlagener Chunk
+  des Ankündigungsdialogs reisst die Seite nicht mit, Hinweis ohne Bot-Namen, `StatTile` statt lokaler Kacheln,
+  doppelte E2E-Helfer zusammengelegt.
+- **Offen gelassen (M10 Härtung):** Zustellungen, deren Einreihung nach dem Einfügen scheitert, bleiben `queued`;
+  der Assistent trägt Passwort und TMDB-Schlüssel noch als Mutationsvariablen (Vor-M8-Code); Update-Badge-Daten gehen
+  auch an Kinderprofile des Hauptkontos (die Oberfläche zeigt es nur dem Hauptprofil); Feldnamen bei `env_wins`
+  weichen von den Formularfeldern ab (Werte aus `.env` sind in der Oberfläche ohnehin gesperrt); ein neues Profil sieht
+  die ganze Ankündigungs-Historie (M-8); Push-Abos mit 401/403 werden nicht gelöscht und `CreatePushSubscription` hält
+  `vapidMu` nicht (M-12); ein endgültig fehlgeschlagener Job steht in «fehlgeschlagen», aber nicht im Fehlerring (M-14);
+  Nits N-5 bis N-10 (Sitzungsnotizen).
+
+### Abweichungen und Entscheide während M8
+
+- **Hauptprofil-Regel für Kanäle** (Review I-2), **400 Tage Wiedergabesitzungen** (I-3), **Neustart per `exec`**,
+  **Feed-URLs bleiben in Sicherungen ohne Schlüssel**: im Entscheidungsprotokoll vom 21. Oktober 2026.
+- **Multipart-Upload im strict server:** oapi-codegen reicht `multipart/form-data` als `*multipart.Reader`; die
+  Passphrase muss vor der Datei kommen; der Download ist ein Binär-Handler (Regel 6).
+- **`AdminSettingsUpdate.clear`** statt JSON-null (weder Go- noch TypeScript-Codegen unterscheiden null von fehlend).
+- **Statistik-Abfragen** aggregieren vorab und laufen parallel (Faktor 3–4 gegenüber dem Entwurf).
+- **Fortschrittsereignisse tragen das Gerät** (`progress_events.device_id` aus dem Geräte-Cookie); vorher blieb die
+  Spalte für Browser leer, die Geräteverteilung (A-8) wäre leer geblieben.
+- **Fehlgeschlagener Trakt-Abruf** wird als Error protokolliert (Fehlerring, A-3).
+- **Update-Prüfung ohne Manifest-URL** liest das echte GitHub-Manifest 60 s nach dem Start; im E2E-Lauf zeigt der
+  Mock standardmässig 404, damit kein Badge auf jeder Seite erscheint.
+- **E-Mail-Versand mit `tls: none`** sendet Zugangsdaten nur an localhost (Go-SMTP-Client); echte Server brauchen
+  STARTTLS oder TLS.
+- **Commit-Trailer:** die Lanes nennen das Modell, das die Arbeit gemacht hat (Opus 5.5 bzw. Fable 5.1).
+
+### Nicht in M8 (Plan) und offene Punkte für M9
+
+1. **Echte Zugangsdaten:** SMTP in `deploy/.env` und Web-Push am Android-Handy prüft Marco nach dem Merge und dem
+   neuen Image (Checkliste `m8-marco-tests.md`); QSV-Erkennung im Assistenten auf CT 190 mit dem neuen Image.
+2. **Beschaffungsstatus** (`acquisition`) hat Modell, Kanalwahl und Hook, aber keinen Erzeuger – M9 (Radarr/Sonarr).
+3. **Release-Manifest:** die Update-Prüfung liest `https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json`;
+   das Veröffentlichen gehört zu M10.
+4. **Verdichtung alter `progress_events`** (Plan 3.2, 90 Tage) ist nicht gebaut; die Statistik liest Rohdaten.
+5. **Android:** Gerätecheckliste `docs/perf/M8.md` 6 und die offenen Punkte aus M5 bis M7; O-6-Langzeittest läuft
+   (Tag 30 am 19. November).
+6. Offen gelassene Review-Punkte (oben) für M10.
+
 
 ## Meilenstein M7 – Entdecken und Kuratierung
 

@@ -1,4 +1,4 @@
-import type { SessionInfo } from '@slouchcat/api-client';
+import type { SessionInfo, StatsDays } from '@slouchcat/api-client';
 import type { QueryClient } from '@tanstack/react-query';
 import {
   createRootRouteWithContext,
@@ -11,6 +11,7 @@ import {
 import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
+import { isStatsDays } from '@/features/admin/statsDays';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
@@ -259,9 +260,34 @@ const personRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/catalog/PersonPage'), 'PersonPage'),
 });
 
-const maintenanceRoute = createRoute({
+/**
+ * The administration (M8, A-2): the overview with the dashboard and every admin page below one
+ * layout that puts the admin navigation above each page. The pages check the role themselves.
+ */
+const adminRoute = createRoute({
   getParentRoute: () => chromeRoute,
-  path: '/admin/maintenance',
+  path: '/admin',
+  component: lazyRouteComponent(() => import('@/features/admin/AdminLayout'), 'AdminLayout'),
+});
+
+const adminHomeRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/',
+  component: lazyRouteComponent(() => import('@/features/admin/AdminHomePage'), 'AdminHomePage'),
+});
+
+const integrationsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/integrations',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/IntegrationsPage'),
+    'IntegrationsPage',
+  ),
+});
+
+const maintenanceRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/maintenance',
   component: lazyRouteComponent(
     () => import('@/features/admin/MaintenancePage'),
     'MaintenancePage',
@@ -269,40 +295,46 @@ const maintenanceRoute = createRoute({
 });
 
 const devicesRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/devices',
+  getParentRoute: () => adminRoute,
+  path: '/devices',
   component: lazyRouteComponent(() => import('@/features/admin/DevicesPage'), 'DevicesPage'),
 });
 
 const streamsRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/streams',
+  getParentRoute: () => adminRoute,
+  path: '/streams',
   component: lazyRouteComponent(() => import('@/features/admin/StreamsPage'), 'StreamsPage'),
 });
 
 const adminItemRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/items/$itemId',
+  getParentRoute: () => adminRoute,
+  path: '/items/$itemId',
   component: lazyRouteComponent(() => import('@/features/admin/AdminItemPage'), 'AdminItemPage'),
 });
 
 const librariesRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/libraries',
+  getParentRoute: () => adminRoute,
+  path: '/libraries',
   component: lazyRouteComponent(() => import('@/features/admin/LibrariesPage'), 'LibrariesPage'),
 });
 
 const podcastsRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/podcasts',
+  getParentRoute: () => adminRoute,
+  path: '/podcasts',
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
+});
+
+const accessRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/access',
+  component: lazyRouteComponent(() => import('@/features/admin/AccessPage'), 'AccessPage'),
 });
 
 // admin M7
 /** Cat's recommendations; `add` (the detail page's link) opens the dialog with that title. */
 const picksRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/picks',
+  getParentRoute: () => adminRoute,
+  path: '/picks',
   validateSearch: (search: Record<string, unknown>): { add?: string } =>
     typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
       ? { add: search.add }
@@ -311,8 +343,8 @@ const picksRoute = createRoute({
 });
 
 const collectionsAdminRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/collections',
+  getParentRoute: () => adminRoute,
+  path: '/collections',
   component: lazyRouteComponent(
     () => import('@/features/admin/CollectionsPage'),
     'CollectionsPage',
@@ -320,11 +352,48 @@ const collectionsAdminRoute = createRoute({
 });
 
 const homeRowsRoute = createRoute({
-  getParentRoute: () => chromeRoute,
-  path: '/admin/home-rows',
+  getParentRoute: () => adminRoute,
+  path: '/home-rows',
   component: lazyRouteComponent(() => import('@/features/admin/HomeRowsPage'), 'HomeRowsPage'),
 });
 // end admin M7
+
+// admin M8: accounts, backup, statistics and announcements.
+const accountsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/accounts',
+  component: lazyRouteComponent(() => import('@/features/admin/AccountsPage'), 'AccountsPage'),
+});
+
+const backupRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/backup',
+  component: lazyRouteComponent(() => import('@/features/admin/BackupPage'), 'BackupPage'),
+});
+
+/**
+ * `days`: the period of the statistics (A-8); anything but 7, 30, 90 or 365 reads as none. The
+ * undefined member overrides the raw value, which the router would otherwise pass on.
+ */
+const statsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/stats',
+  validateSearch: (search: Record<string, unknown>): { days?: StatsDays } => {
+    const days = Number(search.days);
+    return { days: isStatsDays(days) ? days : undefined };
+  },
+  component: lazyRouteComponent(() => import('@/features/admin/StatsPage'), 'StatsPage'),
+});
+
+const announcementsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/announcements',
+  component: lazyRouteComponent(
+    () => import('@/features/admin/AnnouncementsPage'),
+    'AnnouncementsPage',
+  ),
+});
+// end admin M8
 
 const profileSettingsRoute = createRoute({
   getParentRoute: () => chromeRoute,
@@ -335,10 +404,13 @@ const profileSettingsRoute = createRoute({
   ),
 });
 
-const accessRoute = createRoute({
+const notificationSettingsRoute = createRoute({
   getParentRoute: () => chromeRoute,
-  path: '/admin/access',
-  component: lazyRouteComponent(() => import('@/features/admin/AccessPage'), 'AccessPage'),
+  path: '/settings/notifications',
+  component: lazyRouteComponent(
+    () => import('@/features/notifications/ChannelSettingsPage'),
+    'ChannelSettingsPage',
+  ),
 });
 
 const downloadsRoute = createRoute({
@@ -410,18 +482,28 @@ export const routeTree = rootRoute.addChildren([
         homeRoute,
         itemRoute,
         personRoute,
-        librariesRoute,
-        podcastsRoute,
-        // admin M7
-        picksRoute,
-        collectionsAdminRoute,
-        homeRowsRoute,
-        maintenanceRoute,
-        devicesRoute,
-        streamsRoute,
-        adminItemRoute,
-        accessRoute,
+        adminRoute.addChildren([
+          adminHomeRoute,
+          integrationsRoute,
+          librariesRoute,
+          podcastsRoute,
+          // admin M7
+          picksRoute,
+          collectionsAdminRoute,
+          homeRowsRoute,
+          maintenanceRoute,
+          devicesRoute,
+          streamsRoute,
+          adminItemRoute,
+          accessRoute,
+          // admin M8
+          accountsRoute,
+          backupRoute,
+          statsRoute,
+          announcementsRoute,
+        ]),
         profileSettingsRoute,
+        notificationSettingsRoute,
         downloadsRoute,
         // discover M7
         searchRoute,

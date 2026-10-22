@@ -53,6 +53,8 @@ type Service struct {
 	metadataCheck func(ctx context.Context, libraryID int64) (int, error)
 	// newEpisodes is told the ids of new series episodes after their batch commits (optional).
 	newEpisodes func(ctx context.Context, ids []string) error
+	// scanAborted is told when the loss protection aborts a scan (optional, M8).
+	scanAborted func(ctx context.Context, libraryName, reason string) error
 
 	mu        sync.Mutex
 	runCtx    context.Context // context of Start; watchers of libraries created later run under it
@@ -105,6 +107,13 @@ func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
 	return func(s *Service) { s.newEpisodes = fn }
 }
 
+// WithScanAborted runs fn when the loss protection aborts a full or path scan, with the library's
+// name and the abort code (root_missing, root_empty, loss_over_threshold; notify.ScanAborted, M8
+// A-3). An error is logged.
+func WithScanAborted(fn func(ctx context.Context, libraryName, reason string) error) Option {
+	return func(s *Service) { s.scanAborted = fn }
+}
+
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
@@ -124,8 +133,14 @@ func (s *Service) newID() string {
 	return ulid.MustNew(ulid.Timestamp(s.now()), ulid.DefaultEntropy()).String()
 }
 
-// ValidatePath checks that path is absolute, exists, is a directory and can be listed.
+// ValidatePath checks that path is absolute, exists, is a directory and can be listed (ValidateDir).
 func (s *Service) ValidatePath(_ context.Context, path string) error {
+	return ValidateDir(path)
+}
+
+// ValidateDir checks that path is absolute, exists, is a directory and can be listed; its errors
+// wrap model.ErrLibraryPathInvalid. The wizard's path check (M8, A-1) uses it without a service.
+func ValidateDir(path string) error {
 	if path == "" || !filepath.IsAbs(path) {
 		return fmt.Errorf("%w: not an absolute path", model.ErrLibraryPathInvalid)
 	}
@@ -200,7 +215,7 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	if err != nil {
 		return model.Library{}, fmt.Errorf("%w: %w", model.ErrLibraryPathInvalid, err)
 	}
-	watch, _ := watchMode(string(fsType))
+	watch, _ := WatchMode(string(fsType))
 
 	now := s.now().UnixMilli()
 	tx, err := s.db.Write.BeginTx(ctx, nil)
@@ -230,9 +245,9 @@ func nested(path, dir string) bool {
 	return path == dir || strings.HasPrefix(path, strings.TrimSuffix(dir, "/")+"/")
 }
 
-// watchMode picks the change detection of a file system class (plan 3.4) and the warning shown
+// WatchMode picks the change detection of a file system class (plan 3.4) and the warning shown
 // in the wizard and the dashboard.
-func watchMode(fsType string) (watch, warning string) {
+func WatchMode(fsType string) (watch, warning string) {
 	switch paths.FSType(fsType) {
 	case paths.FSExt4, paths.FSXFS, paths.FSBtrfs, paths.FSZFS:
 		return "inotify", ""
@@ -603,7 +618,7 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		},
 	}
 	for _, r := range roots {
-		_, warning := watchMode(r.FsType)
+		_, warning := WatchMode(r.FsType)
 		m.Roots = append(m.Roots, model.LibraryRoot{ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning})
 	}
 	return m, nil
@@ -716,6 +731,16 @@ func (s *Service) rootChanged(ctx context.Context, libraryID, rootID int64) func
 		}
 		s.triggerPathScan(ctx, libraryID, rootID, dirs)
 	}
+}
+
+// WatchedDirs returns the number of directories the running watchers hold with inotify, for the
+// inotify use on the dashboard (M8, A-3).
+func (s *Service) WatchedDirs() int64 {
+	var n int64
+	for _, st := range s.WatcherStats() {
+		n += int64(st.Dirs)
+	}
+	return n
 }
 
 // WatcherStats returns the statistics of the running watchers by root id.

@@ -76,6 +76,7 @@ type traktEnv struct {
 	clock *testClock
 	fake  *fakeTrakt
 	logs  *bytes.Buffer
+	ring  *logging.ErrorRing
 }
 
 // newTraktEnv returns a service with the fake Trakt; fixedID is passed to WithTrakt and keys
@@ -83,7 +84,8 @@ type traktEnv struct {
 func newTraktEnv(t *testing.T, fixedID string, keys KeySource) *traktEnv {
 	t.Helper()
 	logs := &bytes.Buffer{}
-	log := slog.New(logging.NewRedactingHandler(slog.NewTextHandler(&lockedWriter{w: logs}, nil)))
+	ring := logging.NewErrorRing(logging.ErrorRingSize)
+	log := slog.New(logging.NewRedactingHandler(ring.Wrap(slog.NewTextHandler(&lockedWriter{w: logs}, nil))))
 	db, err := store.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +96,7 @@ func newTraktEnv(t *testing.T, fixedID string, keys KeySource) *traktEnv {
 	q := jobs.NewQueue(db.Write, clock.now)
 	svc := New(db, q, keys, t.TempDir(), transcode.Runner{}, log, WithTrakt(fixedID, WithTraktBaseURL(fake.srv.URL),
 		WithTraktHTTPClient(fake.srv.Client()), WithTraktClock(clock.now), WithTraktLimiter(ratelimit.New("trakt-test", 1000, 100))))
-	return &traktEnv{db: db, svc: svc, queue: q, clock: clock, fake: fake, logs: logs}
+	return &traktEnv{db: db, svc: svc, queue: q, clock: clock, fake: fake, logs: logs, ring: ring}
 }
 
 // rows returns list/media/position/tmdb of every stored entry in key order.
@@ -163,6 +165,11 @@ func TestTraktRefresh(t *testing.T) {
 		!st.LastAttempt.Equal(first.Add(time.Hour)) {
 		t.Errorf("status after 503 = %+v", st)
 	}
+	// A-3: the failure is an error record of its own for the dashboard, with Trakt as its source.
+	if errs := e.ring.Entries(); len(errs) != 1 || errs[0].Source != "trakt" ||
+		errs[0].Message != "trakt refresh failed; lists emptied" || !strings.Contains(errs[0].Attrs["err"], "503") {
+		t.Errorf("error records after 503 = %+v", errs)
+	}
 
 	// 401: emptied as well, but no retry.
 	e.fake.status.Store(http.StatusUnauthorized)
@@ -171,6 +178,9 @@ func TestTraktRefresh(t *testing.T) {
 	}
 	if st := e.status(t); !strings.Contains(st.LastError, "401") {
 		t.Errorf("status after 401 = %+v", st)
+	}
+	if errs := e.ring.Entries(); len(errs) != 2 || errs[0].Source != "trakt" || !strings.Contains(errs[0].Attrs["err"], "401") {
+		t.Errorf("error records after 401 = %+v", errs)
 	}
 
 	e.clock.set(first.Add(2 * time.Hour))
@@ -183,6 +193,9 @@ func TestTraktRefresh(t *testing.T) {
 	}
 	if strings.Contains(e.logs.String(), traktTestID) {
 		t.Errorf("log names the client id:\n%s", e.logs.String())
+	}
+	if errs := e.ring.Entries(); len(errs) != 2 {
+		t.Errorf("error records after recovery = %+v", errs)
 	}
 	var stored int
 	if err := e.db.Read.QueryRow(`SELECT count(*) FROM settings WHERE value LIKE '%' || ? || '%'`, traktTestID).Scan(&stored); err != nil || stored != 0 {

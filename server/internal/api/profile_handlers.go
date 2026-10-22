@@ -72,7 +72,7 @@ func (s *server) SelectProfile(ctx context.Context, req gen.SelectProfileRequest
 			return s.problem(ctx, err), nil
 		}
 	}
-	return sessionSwitched{session: switched}, nil
+	return sessionSwitched{session: switched, update: s.updateNotice(ctx, switched)}, nil
 }
 
 func (s *server) ListProfiles(ctx context.Context, _ gen.ListProfilesRequestObject) (gen.ListProfilesResponseObject, error) {

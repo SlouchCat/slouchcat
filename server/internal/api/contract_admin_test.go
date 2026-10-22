@@ -2,11 +2,13 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -121,5 +123,30 @@ func TestContractAdminItemAndProviderErrors(t *testing.T) {
 	decode(t, rec, &page)
 	if rec.Code != http.StatusOK || page.Total != 1 || len(page.Items) != 1 || page.Items[0].Detail != "files_missing" {
 		t.Errorf("orphaned issues: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// A-3 (review I-5): DELETE /admin/jobs/{id} dismisses a failed job, which the dashboard lists with
+// "Abbrechen"; a cancelled one answers 404.
+func TestContractCancelFailedJob(t *testing.T) {
+	pf := newProfileFixture(t)
+	ctx := context.Background()
+	id, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "contract.fail", MaxAttempts: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := pf.queue.Claim(ctx, "contract", []string{"contract.fail"})
+	if err != nil || j == nil || j.ID != id {
+		t.Fatalf("claim: %v, %v", j, err)
+	}
+	if err := pf.queue.Fail(ctx, "contract", j, errors.New("boom")); err != nil {
+		t.Fatal(err)
+	}
+	path := fmt.Sprintf("%s/admin/jobs/%d", BasePath, id)
+	if rec := send(t, pf.h, http.MethodDelete, path, "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Errorf("cancel a failed job: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := send(t, pf.h, http.MethodDelete, path, "p18", "", nil); rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
+		t.Errorf("cancel it again: %d %s", rec.Code, rec.Body.String())
 	}
 }

@@ -304,6 +304,11 @@ func (s *Service) endScan(ctx context.Context, lib appq.Library, what string, er
 		return false, nil
 	case errors.As(err, &abort):
 		s.log.WarnContext(ctx, what+" aborted, nothing changed", "library_id", lib.ID, "reason", abort.code)
+		if s.scanAborted != nil {
+			if herr := s.scanAborted(ctx, lib.Name, abort.code); herr != nil {
+				s.log.WarnContext(ctx, "scan aborted hook failed", "library_id", lib.ID, "err", herr)
+			}
+		}
 		return true, s.finish(ctx, lib, "aborted", abort.code, 0, 0)
 	case errors.Is(context.Cause(ctx), errScanCancelled):
 		return true, err

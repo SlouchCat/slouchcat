@@ -37,6 +37,16 @@ export const paths = {
   adminCollections: '/admin/collections',
   adminHomeRows: '/admin/home-rows',
   person: (id: number) => `/people/${id}`,
+  /** Administration (M8): the overview with the dashboard and the cards of every admin page. */
+  admin: '/admin',
+  adminIntegrations: '/admin/integrations',
+  adminAccounts: '/admin/accounts',
+  adminAnnouncements: '/admin/announcements',
+  /** Usage statistics; `days` picks the period (7, 30, 90 or 365, default 30). */
+  adminStats: '/admin/stats',
+  adminBackup: '/admin/backup',
+  /** Notification channels of the signed-in account (M8). */
+  notificationSettings: '/settings/notifications',
   adminItem: (id: string) => `/admin/items/${encodeURIComponent(id)}`,
   invite: (token: string) => `/invite/${encodeURIComponent(token)}`,
 } as const;

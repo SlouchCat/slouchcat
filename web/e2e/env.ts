@@ -53,3 +53,24 @@ export const OWNER = {
 
 /** Name of the main account's primary profile: the setup wizard takes it from the e-mail address. */
 export const OWNER_PROFILE = OWNER.email.split('@')[0];
+
+// Mocks of the notification channels and the update check (M8, start-server.mjs), below the app's
+// port like the feed and Trakt: SMTP four, Web Push five, Telegram six, the release manifest seven,
+// the mailbox of the SMTP mock (HTTP) eight below (8093 … 8089 next to 8097).
+export const SMTP_PORT = Number(process.env.SLOUCHCAT_E2E_SMTP_PORT ?? PORT - 4);
+export const SMTP_HTTP_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_SMTP_HTTP_PORT ?? PORT - 8)}`;
+export const PUSH_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_PUSH_PORT ?? PORT - 5)}`;
+export const TELEGRAM_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_TELEGRAM_PORT ?? PORT - 6)}`;
+export const UPDATE_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_UPDATE_PORT ?? PORT - 7)}`;
+
+/** Copy of the server's log, written by start-server.mjs and scanned by global-teardown.ts (A-9). */
+export const SERVER_LOG = `${ARTEFACTS}server.log`;
+
+/** Passphrase of the backups the specs create (A-4); a fake secret the log scan looks for (A-9). */
+export const BACKUP_PASSPHRASE = 'e2e-backup-passphrase-7c41d9';
+
+/** YouTube key the integrations spec stores (A-2); a fake secret the log scan looks for (A-9). */
+export const YOUTUBE_KEY = 'e2e-youtube-key-0000-wxyz';
+
+/** Password of the guest accounts the specs create; a fake secret the log scan looks for (A-9). */
+export const GUEST_PASSWORD = 'gast-passwort-0123';

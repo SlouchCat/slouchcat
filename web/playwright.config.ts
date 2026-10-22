@@ -19,6 +19,8 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   globalSetup: './e2e/global-setup.ts',
+  // A-9: scans the server log of the run for secrets while the server still runs.
+  globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL: BASE_URL,
     storageState: STORAGE_STATE,

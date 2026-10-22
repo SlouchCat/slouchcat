@@ -42,6 +42,12 @@
   border-color: var(--sc-color-state-danger);
 }
 
+.multiline {
+  padding: var(--sc-space-3) var(--sc-space-4);
+  line-height: var(--sc-font-line-height-normal);
+  resize: vertical;
+}
+
 .mono {
   font-family: var(--sc-font-family-mono);
   font-size: var(--sc-font-size-sm);

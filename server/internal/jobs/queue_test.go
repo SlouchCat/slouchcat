@@ -275,6 +275,27 @@ func TestCancel(t *testing.T) {
 	if err != nil || got.State != StateCancelled {
 		t.Fatalf("state = %s, %v; want cancelled", got.State, err)
 	}
+
+	// A failed job is dismissed (the dashboard offers it); a done one stays done.
+	mustEnqueue(t, q, NewJob{Type: "a", MaxAttempts: 1})
+	failing := mustClaim(t, q, "w1")
+	if err := q.Fail(ctx, "w1", failing, errors.New("boom")); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := q.Cancel(ctx, failing.ID); err != nil || !ok {
+		t.Fatalf("cancel failed = %v, %v; want true", ok, err)
+	}
+	if got, err := q.Get(ctx, failing.ID); err != nil || got.State != StateCancelled {
+		t.Fatalf("failed job state = %s, %v; want cancelled", got.State, err)
+	}
+	mustEnqueue(t, q, NewJob{Type: "a"})
+	done := mustClaim(t, q, "w1")
+	if err := q.Complete(ctx, "w1", done.ID); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := q.Cancel(ctx, done.ID); err != nil || ok {
+		t.Fatalf("cancel done = %v, %v; want false", ok, err)
+	}
 }
 
 func TestSetQueuedPayloadOnlyWhileQueued(t *testing.T) {

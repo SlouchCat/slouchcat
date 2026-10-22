@@ -4,6 +4,14 @@ import { isApiError } from './client';
 // Problem codes of the contract that the UI translates. Unknown codes fall back to `unknown`.
 const problemKeys = {
   invalid_credentials: 'errors.code.invalid_credentials',
+  // Administration (M8): account, backup and announcements.
+  email_taken: 'errors.code.email_taken',
+  passphrase_required: 'errors.code.passphrase_required',
+  passphrase_too_short: 'errors.code.passphrase_too_short',
+  passphrase_wrong: 'errors.code.passphrase_wrong',
+  backup_invalid: 'errors.code.backup_invalid',
+  backup_newer_than_server: 'errors.code.backup_newer_than_server',
+  announcement_published: 'errors.code.announcement_published',
   library_path_invalid: 'errors.code.library_path_invalid',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
@@ -14,6 +22,12 @@ const problemKeys = {
   forbidden: 'errors.code.forbidden',
   csrf_header_missing: 'errors.code.csrf_header_missing',
   validation_failed: 'errors.code.validation_failed',
+  // Notification channels (M8, A-6).
+  channel_unavailable: 'errors.code.channel_unavailable',
+  channel_disabled: 'errors.code.channel_disabled',
+  event_not_allowed: 'errors.code.event_not_allowed',
+  send_failed: 'errors.code.send_failed',
+  push_unavailable: 'errors.code.push_unavailable',
   transcode_busy: 'errors.code.transcode_busy',
   pin_required: 'errors.code.pin_required',
   pin_invalid: 'errors.code.pin_invalid',
@@ -36,6 +50,14 @@ const problemKeys = {
   not_listable: 'errors.code.not_listable',
   not_favoritable: 'errors.code.not_favoritable',
   not_editable: 'errors.code.not_editable',
+  // Administration (M8).
+  env_wins: 'errors.code.env_wins',
+  telegram_token_invalid: 'errors.code.telegram_token_invalid',
+  telegram_unreachable: 'errors.code.telegram_unreachable',
+  email_not_configured: 'errors.code.email_not_configured',
+  email_send_failed: 'errors.code.email_send_failed',
+  job_not_failed: 'errors.code.job_not_failed',
+  update_check_disabled: 'errors.code.update_check_disabled',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".
@@ -58,6 +80,7 @@ const fieldKeys = {
   invalid_url: 'errors.field.invalid_url',
   library_kind: 'errors.field.library_kind',
   unknown_item: 'errors.field.unknown_item',
+  env_wins: 'errors.code.env_wins',
 } as const;
 
 const has = <K extends string>(map: Record<K, string>, key: string): key is K =>
@@ -91,6 +114,12 @@ const fieldOfCode: Record<string, string> = {
   feed_unreachable: 'feedUrl',
   feed_invalid: 'feedUrl',
   feed_exists: 'feedUrl',
+  telegram_token_invalid: 'telegram.botToken',
+  telegram_unreachable: 'telegram.botToken',
+  email_taken: 'email',
+  passphrase_required: 'passphrase',
+  passphrase_too_short: 'passphrase',
+  passphrase_wrong: 'passphrase',
 };
 
 export interface FormErrors {

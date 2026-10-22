@@ -260,7 +260,8 @@ func TestContractProfileHasNoCredentials(t *testing.T) {
 
 // I-7: Trakt is reached with the server key only. No profile schema and no operation under
 // /profiles or /auth mentions Trakt; the word appears only in the admin Trakt operations, their
-// TraktStatus schema and the start page rows that show the lists.
+// TraktStatus schema, the start page rows that show the lists and the server settings of the
+// administration (M8: the stored client id and its integration state).
 func TestContractNoTraktPerProfile(t *testing.T) {
 	data, err := os.ReadFile("../../../api/openapi.yaml")
 	if err != nil {
@@ -277,10 +278,11 @@ func TestContractNoTraktPerProfile(t *testing.T) {
 			if mentions {
 				t.Errorf("schema %s mentions Trakt (I-7: no Trakt account per profile)", name)
 			}
-		case strings.HasPrefix(lower, "trakt") || strings.HasPrefix(lower, "homerow"):
+		case strings.HasPrefix(lower, "trakt") || strings.HasPrefix(lower, "homerow") ||
+			strings.HasPrefix(lower, "adminsettings") || lower == "integrationstatus":
 		default:
 			if mentions {
-				t.Errorf("schema %s mentions Trakt; only the admin state and the home rows may", name)
+				t.Errorf("schema %s mentions Trakt; only the admin state, the home rows and the admin settings may", name)
 			}
 		}
 	}

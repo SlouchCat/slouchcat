@@ -118,11 +118,15 @@ type Service struct {
 	streams   Streams            // nil until WithStreams
 	podcasts  Podcasts           // nil until WithPodcasts
 	trakt     Trakt              // nil until WithTrakt
+	ops       opsState           // M8: system state, jobs, errors, notification settings, update check (dashboard.go)
+	backups   backupState        // directory and version from WithBackups, restart from WithRestart
 	keyring   *secrets.Keyring
 	tmdb      TMDBChecker
 	getenv    func(string) string
 	log       *slog.Logger
 	now       func() time.Time
+
+	announcements Announcements // nil until WithAnnouncements (M8)
 }
 
 // New returns the service. getenv is normally os.Getenv.

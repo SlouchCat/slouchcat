@@ -103,6 +103,20 @@
   }
 }
 
+.update {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--sc-space-1) var(--sc-space-3);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
 .profile {
   display: inline-flex;
   gap: var(--sc-space-2);

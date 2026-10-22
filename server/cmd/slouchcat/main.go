@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -38,7 +39,9 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/metadata"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/notify"
+	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
@@ -154,23 +157,67 @@ func healthcheck(cfg config.Config) int {
 
 func serve(cfg config.Config) int {
 	started := time.Now()
-	log, err := logging.New(os.Stdout, cfg.LogFormat, cfg.LogLevel)
+	// The error ring keeps the newest error records for the admin dashboard (M8, A-3).
+	log, errRing, err := logging.NewWithErrors(os.Stdout, cfg.LogFormat, cfg.LogLevel)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "slouchcat:", err)
 		return 2
 	}
 	log.Info("starting slouchcat", "version", version, "config", cfg)
-	if err := serveUntilSignal(cfg, log, started); err != nil {
+	var restart atomic.Bool
+	err = serveUntilSignal(cfg, log, errRing, started, &restart)
+	again, code := afterStop(err, restart.Load())
+	switch {
+	case again && err != nil:
+		log.Error("server stopped with error; restarting anyway", "err", err)
+	case err != nil:
 		log.Error("server stopped with error", "err", err)
-		return 1
 	}
-	log.Info("server stopped")
-	return 0
+	if again {
+		reexec(log)
+	}
+	if code == 0 {
+		log.Info("server stopped")
+	}
+	return code
 }
 
-func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) error {
+// afterStop decides how serve ends once the server stopped with err: it runs the binary again
+// whenever a restart was requested, also after an error on the way down (the staged restore of
+// the restart is applied only by the next start), and otherwise exits 1 on an error. A failed
+// exec ends with 0, so the container's restart policy starts the server again.
+func afterStop(err error, restart bool) (again bool, code int) {
+	switch {
+	case restart:
+		return true, 0
+	case err != nil:
+		return false, 1
+	}
+	return false, 0
+}
+
+// reexec replaces the stopped server with a fresh start of the same binary (a staged restore,
+// A-4): same PID, so Docker and the end-to-end runner see no exit. When the exec fails the process
+// exits with 0 and the container's restart policy starts it again.
+func reexec(log *slog.Logger) {
+	exe, err := os.Executable()
+	if err == nil {
+		log.Info("restarting")
+		err = syscall.Exec(exe, os.Args, os.Environ()) //nolint:gosec // G204: the server's own binary with its own arguments
+	}
+	log.Error("restart failed; exiting for the container to start again", "err", err)
+}
+
+// serveUntilSignal runs the server until SIGINT or SIGTERM, or until the administration asks for a
+// restart after a staged restore: then restart is set and the server shuts down the same way.
+func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.ErrorRing, started time.Time, restart *atomic.Bool) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	requestRestart := func() {
+		log.Info("restart requested")
+		restart.Store(true)
+		stop()
+	}
 
 	for _, dir := range []string{cfg.ConfigDir, cfg.CacheDir} {
 		if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -201,8 +248,15 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
 	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
 	// In-app inbox (M7, E-8): new episodes of favourite series and podcasts, checked against the
-	// profile's visibility before an entry is stored.
-	notifySvc := notify.New(db, visibility.New(db, log), log)
+	// profile's visibility before an entry is stored. Channels (M8, A-6): deliveries through the
+	// queue; the Telegram base URL and http push endpoints (mocks) only in development mode.
+	if !cfg.Dev && cfg.TelegramBaseURL != "" {
+		log.Warn("SLOUCHCAT_TELEGRAM_BASE_URL is ignored without --dev")
+	}
+	notifySvc := notify.New(db, visibility.New(db, log), log, notify.WithQueue(queue), notify.WithDevPush(cfg.Dev),
+		notify.WithSenders(notify.Senders{Telegram: &telegram.Client{BaseURL: cfg.TelegramAPIBase()}}),
+		notify.WithAttemptLimit(authSvc.AllowAttempt))
+	authSvc.WithAccountCreated(notifySvc.EnsureDefaults).WithInvitationAccepted(notifySvc.InvitationAccepted)
 	// The Trakt base URL points the lists at a mock; it is honoured in development mode only.
 	traktBase := ""
 	if cfg.Dev {
@@ -217,11 +271,17 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	libSvc := library.New(db, queue, runner, log,
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
-		library.WithNewEpisodes(notifySvc.NewEpisodes))
+		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
-		WithTrakt(metaSvc)
+		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart)
+	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, started)
 	keys.admin = adminSvc
+	// The channels (M8): admin stores the SMTP, Telegram and VAPID settings that notify reads, and
+	// notify checks tokens, sends test mails, rotates the push keys and reports the channel state
+	// for the dashboard.
+	adminSvc.WithAnnouncements(notifySvc).WithTelegram(notifySvc).WithEmailTester(notifySvc).WithPushRotator(notifySvc).WithChannels(notifySvc)
+	notifySvc.SetConfig(adminSvc)
 	// Offline downloads (M5): prepared in <cache>/downloads within the download budget, encoded with
 	// the transcode manager's admission (live playback preempts them, plan 3.5).
 	offlineSvc := offline.New(db, visibility.New(db, log), queue, runner, log,
@@ -234,13 +294,22 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
 		libSvc.RegisterJobs(worker)
 		metaSvc.RegisterJobs(worker)
+		adminSvc.RegisterJobs(worker)
+		worker.OnFinalFailure(notifySvc.JobFailed)
 		workers.Go(func() { worker.Run(ctx) })
 	}
 	// A worker of its own for download preparations: workers claim only the job types they
 	// registered, so long encodes never hold up scans and probes.
 	downloadWorker := jobs.NewWorker(queue, "download-1", log)
 	offlineSvc.RegisterJobs(downloadWorker)
+	downloadWorker.OnFinalFailure(notifySvc.JobFailed)
 	workers.Go(func() { downloadWorker.Run(ctx) })
+	// Notification deliveries (M8) on a worker of their own: a slow mail server never holds up
+	// scans. Run polls Telegram while link codes are open and prunes old deliveries.
+	notifyWorker := jobs.NewWorker(queue, "notify-1", log)
+	notifySvc.RegisterJobs(notifyWorker)
+	workers.Go(func() { notifyWorker.Run(ctx) })
+	workers.Go(func() { notifySvc.Run(ctx) })
 	workers.Go(func() {
 		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {
 			log.Error("library watchers stopped", "err", err)
@@ -250,6 +319,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	workers.Go(func() { metaSvc.RunPodcasts(ctx) })
 	// Trakt lists (M7, E-7): once a day when a client id is configured.
 	workers.Go(func() { metaSvc.RunTrakt(ctx) })
+	// Update check (M8, A-5): 60 s after the start, then once a day while it is switched on.
+	workers.Go(func() { adminSvc.RunUpdateCheck(ctx) })
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes
 		workers.Wait()
@@ -294,9 +365,43 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, started time.Time) er
 	case <-ctx.Done():
 	}
 	log.Info("shutting down")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	return shutdown(srv, shutdownTimeout, restart.Load(), log)
+}
+
+// shutdown stops srv and waits up to timeout for the running requests. On the way to a restart a
+// request still running then (a direct-play stream or an offline download keeps its connection for
+// minutes) is cut off: its client resumes against the restarted server, so this is a normal
+// restart and no error.
+func shutdown(srv *http.Server, timeout time.Duration, restarting bool, log *slog.Logger) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return srv.Shutdown(shutdownCtx)
+	err := srv.Shutdown(ctx)
+	if err == nil || !restarting || !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	log.Info("closing the remaining connections for the restart", "waited_ms", timeout.Milliseconds())
+	_ = srv.Close() // the listeners closed with Shutdown already; this ends the open connections
+	return nil
+}
+
+// wireAdmin hands the administration of M8 its collaborators: the job queue, the error ring of the
+// log, the start state (version, transcode capabilities, library watchers, directories), the
+// notification settings of the environment and the release manifest of the update check. The
+// collaborators of package notify (bot token check, test mail, VAPID rotation, channel state:
+// WithTelegram, WithEmailTester, WithPushRotator, WithChannels) are wired where notify builds them.
+func wireAdmin(a *admin.Service, cfg config.Config, queue *jobs.Queue, errRing *logging.ErrorRing, lib *library.Service,
+	caps transcode.Capabilities, started time.Time,
+) {
+	a.WithJobs(queue).WithErrors(errRing).WithUpdateCheck(cfg.ManifestURL(), nil).
+		WithSystem(admin.SystemSource{
+			Version: version, StartedAt: started, ConfigDir: cfg.ConfigDir, CacheDir: cfg.CacheDir, Caps: caps,
+			WatchedDirs: lib.WatchedDirs,
+		}).
+		WithNotifyEnv(admin.NotifyEnv{
+			SMTP: model.SMTPConfig{Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Password: cfg.SMTPPassword,
+				From: cfg.SMTPFrom, TLS: cfg.SMTPTLS},
+			TelegramBotToken: cfg.TelegramBotToken, PublicURL: cfg.PublicURL,
+		})
 }
 
 // lazyKeys hands the admin service to metadata as its key source after both exist.
