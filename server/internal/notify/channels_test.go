@@ -732,23 +732,6 @@ func TestChannelAvailabilityAndGetMe(t *testing.T) {
 	}
 }
 
-// M9 produces it; the hook already reaches the account's channels.
-func TestAcquisitionChanged(t *testing.T) {
-	e := newChanEnv(t)
-	ctx := context.Background()
-	e.enable(t, e.guest(), model.ChannelEmail, model.EventAcquisition)
-	if err := e.svc.AcquisitionChanged(ctx, e.f.Guest.ID, "Dune", "available"); err != nil {
-		t.Fatal(err)
-	}
-	e.drain(t)
-	if mails := e.mailer.sent(); len(mails) != 1 || mails[0].to != e.f.Guest.Email || mails[0].subject != "Acquisition: Dune" {
-		t.Errorf("mails = %+v", mails)
-	}
-	if err := e.svc.AcquisitionChanged(ctx, 99999, "x", "y"); err != nil {
-		t.Errorf("unknown account: %v", err)
-	}
-}
-
 // Without a queue (the M7 setup) events reach no channel and nothing fails.
 func TestEmitWithoutQueue(t *testing.T) {
 	e := newChanEnv(t)

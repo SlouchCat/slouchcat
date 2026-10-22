@@ -32,7 +32,6 @@ import styles from './ChannelSettingsPage.module.css';
 /** Events in the order of the checkboxes; `errors` is for the main account only. */
 const EVENTS: readonly EventType[] = [
   'new_content',
-  'acquisition',
   'errors',
   'invitations',
   'announcements',

@@ -41,7 +41,6 @@ const (
 // Event types (EventType).
 const (
 	EventNewContent    = "new_content"
-	EventAcquisition   = "acquisition"
 	EventErrors        = "errors"
 	EventInvitations   = "invitations"
 	EventAnnouncements = "announcements"

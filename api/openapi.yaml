@@ -9057,12 +9057,11 @@ components:
 
     EventType:
       type: string
-      enum: [new_content, acquisition, errors, invitations, announcements]
+      enum: [new_content, errors, invitations, announcements]
       description: |
         `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
-        `acquisition`: state of a requested title (M9); `errors`: failures the main user should see
-        (main account only); `invitations`: an invitation was accepted; `announcements`: the main
-        user published an announcement.
+        `errors`: failures the main user should see (main account only); `invitations`: an
+        invitation was accepted; `announcements`: the main user published an announcement.
 
     ChannelSettings:
       type: object

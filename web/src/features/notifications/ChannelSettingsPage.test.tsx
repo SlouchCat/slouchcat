@@ -73,8 +73,13 @@ describe('notification channels page', () => {
     expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveValue('owner@example.test');
     expect(within(mail).getByRole('checkbox', { name: 'Ankündigungen' })).toBeChecked();
     expect(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' })).not.toBeChecked();
-    // The main account may choose errors.
+    // The main account may choose errors. M9 removed the acquisition event with its producer
+    // I-1, so four types are left.
     expect(within(mail).getByRole('checkbox', { name: 'Fehler' })).toBeVisible();
+    expect(within(mail).getAllByRole('checkbox')).toHaveLength(4);
+    expect(
+      within(mail).queryByRole('checkbox', { name: 'Beschaffungsstatus' }),
+    ).not.toBeInTheDocument();
     expect(within(mail).getByText('Aus')).toBeVisible();
     expect(await card('Web-Push')).toBeVisible();
     expect(await card('Telegram')).toBeVisible();

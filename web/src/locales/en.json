@@ -2173,7 +2173,6 @@
       "events": {
         "label": "Events",
         "new_content": "New content",
-        "acquisition": "Acquisition status",
         "errors": "Errors",
         "invitations": "Invitations",
         "announcements": "Announcements"

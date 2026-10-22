@@ -2173,7 +2173,6 @@
       "events": {
         "label": "Ereignisse",
         "new_content": "Neue Inhalte",
-        "acquisition": "Beschaffungsstatus",
         "errors": "Fehler",
         "invitations": "Einladungen",
         "announcements": "Ankündigungen"

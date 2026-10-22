@@ -4831,12 +4831,11 @@ export interface components {
         Channel: "email" | "push" | "telegram";
         /**
          * @description `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
-         *     `acquisition`: state of a requested title (M9); `errors`: failures the main user should see
-         *     (main account only); `invitations`: an invitation was accepted; `announcements`: the main
-         *     user published an announcement.
+         *     `errors`: failures the main user should see (main account only); `invitations`: an
+         *     invitation was accepted; `announcements`: the main user published an announcement.
          * @enum {string}
          */
-        EventType: "new_content" | "acquisition" | "errors" | "invitations" | "announcements";
+        EventType: "new_content" | "errors" | "invitations" | "announcements";
         ChannelSettings: {
             /** @description email, push and telegram, in this order. */
             channels: components["schemas"]["ChannelSetting"][];
