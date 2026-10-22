@@ -665,7 +665,7 @@ func TestRestoreRejectsInvalidArchives(t *testing.T) {
 		"damaged db":      tarGz(t, meta(backupManifest{Format: 1}), entry{name: "slouchcat.db", typeflag: tar.TypeReg, data: append([]byte("SQLite format 3\x00"), bytes.Repeat([]byte{0xff}, 4096)...)}),
 		"foreign db":      tarGz(t, meta(backupManifest{Format: 1}), entry{name: "slouchcat.db", typeflag: tar.TypeReg, data: emptySQLite(t)}),
 		"truncated":       good[:len(good)/2],
-		"corrupt payload": corrupt(good),
+		"corrupt payload": corrupt(t, good),
 	} {
 		_, err := st.svc.RestoreBackupUpload(ctx, bytes.NewReader(archive), "")
 		if !errors.Is(err, model.ErrBackupInvalid) {
@@ -884,12 +884,42 @@ func emptySQLite(t *testing.T) []byte {
 	return data
 }
 
-// corrupt flips a byte in the middle of the compressed data.
-func corrupt(archive []byte) []byte {
-	out := slices.Clone(archive)
-	out[len(out)/2] ^= 0xff
-	return out
+// corrupt damages the compressed payload of an archive: it flips a byte, starting in the middle,
+// and walks on until the damage really shows.
+//
+// Not every flipped byte is damage. About 2.6 % of the positions of a gzip stream are slack bits of
+// the deflate encoding; a flip there decompresses to exactly the same bytes, and the gzip checksum,
+// which covers the *uncompressed* data, rightly still matches. Such an archive is intact, and a
+// restore must accept it. Flipping the middle byte blindly therefore asked for an error that must
+// not come whenever the middle happened to land on a slack bit -- and the middle moves, because the
+// keyring of a fresh stack is random and its encrypted setting changes the length of the archive.
+// See docs/dev/CURRENT_STATUS.md, "Flackernder Backup-Test".
+func corrupt(t *testing.T, archive []byte) []byte {
+	t.Helper()
+	for pos := len(archive) / 2; pos < len(archive); pos++ {
+		out := slices.Clone(archive)
+		out[pos] ^= 0xff
+		if _, err := io.ReadAll(mustGzipReader(out)); err != nil {
+			return out
+		}
+	}
+	t.Fatal("no byte in the second half of the archive damages the payload")
+	return nil
 }
+
+// mustGzipReader returns a reader over data; a header that no longer parses is damage in itself,
+// so it is reported as a reader that fails on the first read.
+func mustGzipReader(data []byte) io.Reader {
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return errReader{err}
+	}
+	return zr
+}
+
+type errReader struct{ err error }
+
+func (r errReader) Read([]byte) (int, error) { return 0, r.err }
 
 func copyTo(t *testing.T, src, dst string) {
 	t.Helper()
