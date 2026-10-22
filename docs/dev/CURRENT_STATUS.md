@@ -6,6 +6,42 @@ Pull Requests #1 bis #6, #10, #11 und #14; M7 am 21. Oktober 2026 auf Marcos Wor
 Request gegen `main` auf Marcos Wort. Das Docker-Image auf Marcos Rechner ist auf dem M7-Stand gebaut. Der CI-Job hat
 seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
 
+## Befund: die CI braucht eine Audioausgabe für Firefox (22. Oktober 2026)
+
+Nach dem M8-Merge war `main` rot: `web/e2e/audio-offline.spec.ts:121` (Leertaste pausiert nicht) und
+`web/e2e/audiobook.spec.ts:192` (Kapitel 9 kommt nicht von selbst) scheiterten auf dem GitHub-Runner,
+beide nur in Firefox. **Es war keine M8-Regression:** der Merge-Commit `f7c57e6` trägt denselben Baum
+wie die Branchspitze `f9cdb46` (`git diff` leer), und schon deren als grün geltender Lauf
+(`gh run view 39733786941`) hatte `audiobook.spec.ts:169` im ersten Versuch rot und nur im Retry grün.
+Die beiden Tests waren seit M6 grenzwertig.
+
+**Ursache.** Firefox treibt einen reinen Audiotitel über seine Audioausgabe. Ein Runner hat keine, die
+Ausgabe scheitert, das Medienelement meldet `MediaError 3` mit der Meldung «OnMediaSinkAudioError»,
+hls.js hängt das Element daraufhin ab und wieder an — und der Player startet die Wiedergabe neu. Das
+wiederholt sich etwa achtmal je Sekunde; die Wiedergabe kommt nie vom Fleck. Chromium bringt seine
+eigene Ausgabe mit und ist nicht betroffen. Belegt mit einer Messsonde im Playwright-Container
+(Ubuntu 24.04, ohne `/dev/snd`), die den Zyklus `suspend → error → emptied → loadedmetadata → play`
+samt Fehlercode aufzeichnet; die Serverlogs der CI zeigen dasselbe Bild als Endlosschleife über
+dieselben HLS-Segmente, während Chromium jedes Segment genau einmal holt.
+
+**Behebung.** Die CI richtet vor dem Lauf eine Dummy-Ausgabe ein (`pulseaudio` mit
+`module-null-sink`, neuer Schritt in `.github/workflows/ci.yml`, der laut scheitert, wenn die Ausgabe
+fehlt). In derselben Container-Umgebung laufen damit beide Specs und die ganzen Audio-Specs
+dreimal hintereinander grün (30 von 30, Laufzeiten wie in Chromium statt am Zeitlimit).
+Für Rechner ohne Soundkarte steht derselbe Befehl in `docs/dev/SETUP.md`.
+
+**Dabei gefundener Produktfehler.** Das Wiederanhängen des Medienelements läuft über den
+HTML-Load-Algorithmus, der `paused` **ohne** `pause`-Ereignis setzt. Die Player leiteten ihren Zustand
+nur aus Ereignissen ab und entschieden in `togglePlay` nach `element.paused`: In diesem Fenster zeigte
+der Knopf «Pause», startete aber die Wiedergabe, und `loadedmetadata` spielte anschliessend auch gegen
+einen Pausenwunsch weiter. `AudioPlayerPage`, `OfflinePlayer` und `VideoPlayer` merken sich jetzt den
+Wunsch des Hörers (`wantPlaying`) statt des Elementzustands; ein Test in
+`AudioPlayerPage.test.tsx` deckt beide Fälle ab (er scheitert ohne die Korrektur).
+
+**Nicht behoben.** Die CI lädt die Playwright-Artefakte bei einem Fehlschlag nicht hoch, obwohl der
+Workflow einen `if: failure()`-Schritt hat — bei den roten Läufen lagen nur die `dockerbuild`-Artefakte
+vor, Traces aus der CI waren nicht verfügbar. Das ist für M10 vorgemerkt.
+
 ## Meilenstein M8 – Administration und Benachrichtigungen
 
 Vorab geklärt mit Marco (21. Oktober 2026, Entscheidungsprotokoll): Web-Push und E-Mail werden mit echten
