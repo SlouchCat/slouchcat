@@ -44,6 +44,103 @@ Workflow einen `if: failure()`-Schritt hat: beide Ordner beginnen mit einem Punk
 roten Läufen lagen deshalb nur die `dockerbuild`-Artefakte vor und die Traces fehlten. Das Flag ist
 jetzt gesetzt.
 
+## Befund: zwei zeitabhängige Tests und eine doppelt laufende CI (22. Oktober 2026)
+
+Die CI war seit Tagen unzuverlässig und zu langsam; sie blockierte M9. Drei Ursachen, keine davon im
+M9-Code. Pull Request #20.
+
+### Flackernder Backup-Test – **kein Produktfehler**
+
+`TestRestoreRejectsInvalidArchives` meldete auf dem M9-Branch
+(Lauf 39790013960, Job 119863260398) `corrupt payload: err = <nil>, want ErrBackupInvalid` und
+anschliessend `slouchcat.db.restore exists after a refused restore`. Das liest sich wie der
+schlimmste Fall: eine beschädigte Sicherung wird nicht abgewiesen. **Das ist es nicht.**
+
+**Ursache.** Der Testhelfer `corrupt()` kippte das Byte in der *Mitte* der Archivdatei und erwartete,
+dass die Wiederherstellung das Archiv abweist. Nicht jedes gekippte Byte ist aber ein Schaden: rund
+2,6 Prozent der Positionen eines gzip-Stroms sind Füllbits der Deflate-Kodierung (Einträge in den
+Huffman-Tabellen für Zeichen, die gar nicht vorkommen). Ein Kipp dort entpackt sich zu **exakt
+denselben Bytes**. Die gzip-Prüfsumme läuft über die *entpackten* Daten, stimmt also zu Recht
+weiterhin, die Datenbank ist bytegleich — das Archiv ist unbeschädigt, und es abzuweisen wäre
+falsch. Welche Position die Mitte ist, hängt von der genauen Länge des Archivs ab, und die wandert:
+der Schlüsselbund eines frischen Stapels ist zufällig, sein verschlüsseltes Setting ändert die
+komprimierte Grösse (23 540 bis 23 555 Bytes über 2000 Läufe). Die zweite Meldung ist nur die Folge
+der angenommenen Wiederherstellung, kein zweiter Fehler.
+
+**Beleg, dass die Sicherung dicht ist.** Jedes einzelne Byte von fünf Archiven auf `main` und von
+drei auf einem M9-Schema gekippt — 190 000 Kipps — ergab **keinen einzigen** Fall, in dem ein Archiv
+angenommen wurde, dessen Nutzdaten sich unterschieden. Jeder Kipp wurde entweder erkannt
+(gzip-Prüfsumme oder Flate-Fehler, rund 22 940 je Archiv) oder war ein Null-Effekt mit bytegleicher
+Datenbank (rund 603 je Archiv). Die Integritätskette aus ADR 0009 — gzip-Prüfsumme,
+`PRAGMA integrity_check`, Schemaprüfung — hat kein Loch. Marco kann einer eingespielten Sicherung
+vertrauen.
+
+**Behebung.** `corrupt()` geht von der Mitte aus weiter, bis der Kipp die Nutzdaten wirklich
+beschädigt. Keine Zusicherung wurde aufgeweicht: der Test prüft weiterhin, dass beschädigte
+Nutzdaten abgewiesen werden, nur jetzt zuverlässig.
+`go test -run TestRestoreRejectsInvalidArchives -count=20 -race ./internal/admin/` ist grün.
+
+**Offen.** Der genaue CI-Fall liess sich lokal nicht nachstellen (0 Treffer in 2900 Archiven auf
+`main`); der Mechanismus ist bewiesen, und die Behebung nimmt dem Test die Abhängigkeit davon ganz.
+
+### Flackernde Web-Tests: die erste Darstellung bezahlt die Übersetzung
+
+`AdminHomePage.test.tsx` scheiterte auf `main` am reinen Dokumentations-Commit `09733c7`
+(Lauf 39767863551) mit `Unable to find role="heading" and name "Verwaltung"`, und zwar mit leerem
+`<body><div /></body>`: die App hatte noch gar nichts gezeichnet. Derselbe Fehler traf danach
+`ProfileLimits.test.tsx` (Lauf 39837140392, `role="article"` mit Namen «Lena» nicht gefunden, Körper
+mit Skelett und leerer Profilliste) — ein Test von 571, der den ganzen Lauf rot machte.
+
+**Ursache.** Jede Seite der App wird über `lazyRouteComponent(() => import(...))` geladen. Die
+*erste* Darstellung in einem Worker wartet deshalb darauf, dass Vite diesen Modulbaum übersetzt, und
+diese Wartezeit fällt *innerhalb* des Ein-Sekunden-Fensters von `findBy` an — sie hat mit dem, was
+der Test prüft, nichts zu tun. Lokal brauchte der erste Test von `AdminHomePage` 417 ms, auf einem
+ausgelasteten Runner 1046 ms; jeder andere Test derselben Datei 8 bis 633 ms.
+
+**Das ist eine ganze Klasse, kein Einzelfall:** 23 der 43 Testdateien, die `renderApp` benutzen,
+stellen als Erstes eine lazy geladene Route dar. Jede von ihnen kann so rot werden.
+
+**Behebung.** Nicht Datei für Datei, sondern einmal zentral in `web/src/test/setup.ts`: die
+Seitenmodule werden in `beforeAll` aufgelöst, bevor ein Test etwas behauptet. Die Modulregistrierung
+gilt je Worker, die erste Testdatei bezahlt sie, jede weitere bekommt sie geschenkt. Kein Zeitlimit
+wurde erhöht und keine Zusicherung aufgeweicht. Kosten: die ganze Web-Suite braucht 9,17 s statt
+8,31 s (+0,86 s bei 571 Tests). Beide vormals flackernden Dateien laufen zehnmal hintereinander grün
+(97 bis 203 ms statt 417 ms).
+
+### Jeder Commit startete zwei vollständige Läufe
+
+`.github/workflows/ci.yml` lauschte auf `push` für *jeden* Branch **und** auf `pull_request`. Jeder
+Commit auf einem Branch mit offenem Pull Request startete damit zwei vollständige Läufe, die sich
+auf demselben Kontingent und demselben 75-Minuten-Limit gegenseitig die Rechenzeit wegnahmen: Lauf
+39789916437 wurde bei 1 h 15 abgebrochen, während sein Zwilling 39790013960 weiterlief. `push` gilt
+jetzt nur noch für `main`, alles andere wird über seinen Pull Request geprüft, `workflow_dispatch`
+deckt einen Branch ohne Pull Request ab, und eine `concurrency`-Gruppe je Branch löst den Lauf des
+überholten Commits ab. Läufe auf `main` werden nie abgebrochen.
+
+### Ein Viertel der Zeit ging für Installationen drauf
+
+Im Lauf 39789916437 vergingen **25 der 75 Minuten**, bevor `task ci` überhaupt begann: ffmpeg
+11,5 min, Playwright-Browser 8,3 min, Testmedien 2,9 min, pulseaudio 1,7 min. Drei `apt-get update`
+sind jetzt eines; die Playwright-Browser (~400 MB, ändern sich nur mit der Version aus der
+Lock-Datei) und die erzeugten Testmedien werden zwischengespeichert, mit Schlüsseln, die sich
+ändern, wenn ihre Eingaben sich ändern. `task ci` selbst ist unberührt und führt weiterhin genau
+das aus, was es lokal ausführt (Plan Abschnitt 4).
+
+**Ergebnis.** Zwei aufeinanderfolgende grüne Läufe auf dem Branch (39845660078, Versuch 1 und 2):
+**30,3 min** und **37,2 min** gegen 47,5 / 53,6 / 55,9 min bei den grünen Läufen vorher und den
+Abbruch bei 75 min. Das Setup braucht noch 1,5 bis 1,7 min statt 3 bis 25. Der Abstand zum
+75-Minuten-Limit liegt damit bei 38 bis 45 Minuten statt bei 0 bis 20. Der grösste Einzelgewinn kam
+nicht vom Caching, sondern vom Ende der Doppelläufe: `task ci` selbst braucht 28,4 bis 35,6 min
+statt 43,5 bis 49,0 — vorher nahmen sich zwei gleichzeitige Läufe die Rechenzeit weg.
+
+**Noch offen: die Go-Testsuite.** Sie bleibt der lange Pol. `internal/api` braucht allein rund
+24 Minuten in der CI (382 s lokal), angeführt von `TestContractChildProfiles` mit 112 s in elf
+nacheinander laufenden Unterfällen, die sich eine Fixture teilen und sie verändern. Kein Test in
+`internal/api` ruft `t.Parallel()`. Das ist der nächste wirkliche Hebel und gehört in eine eigene
+Runde. Nicht die Ursache waren argon2id (`internal/api` legt genau zweimal ein Konto über
+`auth.New` an; das Paket `auth` nutzt längst billige Parameter und deckt die Produktionsparameter
+mit `TestPHCDefaultParams` ab) und echte Wartezeiten (10 bis 50 ms in Warteschleifen).
+
 ## Meilenstein M8 – Administration und Benachrichtigungen
 
 Vorab geklärt mit Marco (21. Oktober 2026, Entscheidungsprotokoll): Web-Push und E-Mail werden mit echten

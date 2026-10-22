@@ -1,10 +1,23 @@
 # Runs exactly what `task ci` runs locally (plan section 4: "Lokal und CI identisch").
 name: ci
 
+# A branch with an open pull request used to fire twice for the same commit: once for `push`
+# (every branch) and once for `pull_request`. Two full runs raced for the same quota and the same
+# 75-minute limit, which is how run 39789916437 was cancelled while its twin 39790013960 ran on.
+# `push` is therefore limited to main (the record of what is merged) and everything else is checked
+# through its pull request. A branch without one is checked as soon as it has one, and
+# `workflow_dispatch` runs it by hand before that.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
+  workflow_dispatch:
+
+# One run per branch: a new push replaces the run of the commit it supersedes. Runs on main are
+# never cancelled -- they record whether what was merged is sound.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
@@ -33,8 +46,49 @@ jobs:
       - name: Install task
         run: go install github.com/go-task/task/v3/cmd/task@v3.54.0
 
-      - name: Install ffmpeg (probe tests)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The package downloads are the single biggest source of variance in this workflow: the same
+      # step took 57 s, 214 s and over 20 min on three runs of 22 October, because the Azure mirror
+      # throttles without warning (run 39789916437 spent 11.5 min on ffmpeg alone). The .deb files
+      # are therefore cached. The key is stable, so the cache is written once and only packages
+      # that Ubuntu has bumped since are fetched again.
+      - name: Cache the system packages
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-debs
+          key: apt-debs-noble-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      # apt deletes a .deb after installing it, so without this the cache would stay empty. The
+      # settings go into a drop-in rather than onto a command line because `playwright
+      # install-deps` runs apt itself and has to pick them up too. The Binary:: line matters: the
+      # `apt` binary ships its own Keep-Downloaded-Packages "0" that overrides the general one, so
+      # setting only the general option would still lose every .deb that `apt` rather than
+      # `apt-get` installs.
+      - name: Point apt at the cache
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99slouchcat >/dev/null <<EOF
+          Dir::Cache::archives "$HOME/apt-debs";
+          APT::Keep-Downloaded-Packages "true";
+          Binary::apt::APT::Keep-Downloaded-Packages "true";
+          EOF
+          mkdir -p ~/apt-debs/partial
+          apt-config dump | grep -iE 'Dir::Cache::archives|Keep-Downloaded-Packages'
+
+      # One apt transaction for everything the suite needs from the system: ffmpeg for the probe
+      # tests and the test media, pulseaudio for the Firefox audio sink below, and Playwright's own
+      # library list. Three separate steps used to run `apt-get update` three times.
+      - name: Install the system packages (ffmpeg, pulseaudio, Playwright libraries)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg pulseaudio pulseaudio-utils
+          pnpm --filter @slouchcat/web exec playwright install-deps chromium firefox
+
+      # apt ran as root and left the files that way; the cache is saved as the runner user.
+      - name: Hand the cached packages back to the runner
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" ~/apt-debs
 
       # Firefox drives an audio-only title from its audio sink. A runner has no audio output, so
       # the sink fails, the element reports MediaError 3 ("OnMediaSinkAudioError"), hls.js detaches
@@ -43,16 +97,37 @@ jobs:
       # loudly when the sink is missing, so the flake cannot come back unnoticed.
       - name: Give Firefox an audio output (the runner has none)
         run: |
-          sudo apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=slouchcat_null
           pactl info
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # The browsers are a ~400 MB download that only changes with the Playwright version, which
+      # the lock file pins. Downloading them on every run cost 8.3 min in run 39789916437; the
+      # libraries they need come from the apt step above and are installed either way.
+      - name: Cache the Playwright browsers
+        id: playwright-browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Install Playwright browsers
-        run: pnpm --filter @slouchcat/web exec playwright install --with-deps chromium firefox
+      - name: Install the Playwright browsers
+        if: steps.playwright-browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter @slouchcat/web exec playwright install chromium firefox
+
+      # The test media is generated from ffmpeg's own lavfi sources, so the same scripts and the
+      # same ffmpeg always produce the same files -- both go into the key. The generator skips
+      # files that are already there, so a restored cache is checked rather than trusted, and a
+      # miss simply regenerates (2.9 min in run 39789916437).
+      - name: ffmpeg version (part of the test media cache key)
+        id: ffmpeg
+        run: echo "version=$(ffmpeg -version | head -1 | cut -d' ' -f3)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the generated test media
+        uses: actions/cache@v4
+        with:
+          path: testdata/media
+          key: testmedia-${{ runner.os }}-${{ steps.ffmpeg.outputs.version }}-${{ hashFiles('testdata/generate-media.sh', 'testdata/*.py') }}
 
       - name: Generate test media
         run: task testdata:media
