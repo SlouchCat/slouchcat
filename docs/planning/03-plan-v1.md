@@ -23,11 +23,11 @@ Slouchcat ist ein eigenständiger, selbst gehosteter Media-Server für einen Hau
 | Offline | O-1 … O-7 | Downloads im Browser-Speicher, Staffeln, Auto-Downloads, Flugmodus, kein Ablauf, Profilregeln offline |
 | Clients, Design | C-1 … C-5 | Eine PWA, Design-System mit Tokens, de/en, Tastatur-/Fernbedienungs-Navigation, OpenAPI |
 | Administration | A-1 … A-9 | Assistent, zentrale Verwaltung, Dashboard, Sicherung, Update-Hinweis, Kanäle, Statistiken, Ankündigungen, keine Secrets in Logs |
-| Integrationen | I-1 … I-7 | Radarr/Sonarr lesend, Seerr-Wunschbereich, Bazarr-Untertitel, SABnzbd optional, Trakt öffentlich |
+| Integrationen | I-5, I-7, I-8 | Radarr/Sonarr-Webhooks für schnelles Einlesen, Bazarr-Untertitel, Trakt öffentlich |
 
 Harte Rahmenbedingungen (Spec "Constraints"): nur Docker Compose auf Linux, GPU optional; genau ein Client (PWA); Medientypen Filme, Serien, Hörbücher, Podcasts; Solo mit Claude Code und oh-my-claudecode, keine Deadline; erster Meilenstein vertikaler Durchstich "innerhalb der ersten Wochen"; Stack nach "sehr stabil, läuft überall gut, performant" mit Klartext-Begründung.
 
-Nicht eingeplant (Spec "Non-Goals"): Musik, Fotos, Live-TV/DVR, TV-Apps, native Apps, Plugin-System, algorithmische Empfehlungen, Profil-Interaktion, Assistent/Zufall/Trailer-Reel/Themenlisten, Trakt-Login/Scrobbling, Freigabe-Anfragen, eigene Wunschverwaltung, Steuerung von Radarr/Sonarr/SABnzbd/Seerr, eigene Untertitel-Beschaffung, Mandanten, Cloud/native Pakete/Windows/macOS-Server, YouTube-Downloads.
+Nicht eingeplant (Spec "Non-Goals"): Musik, Fotos, Live-TV/DVR, TV-Apps, native Apps, Plugin-System, algorithmische Empfehlungen, Profil-Interaktion, Assistent/Zufall/Trailer-Reel/Themenlisten, Trakt-Login/Scrobbling, Freigabe-Anfragen, eigene Wunschverwaltung und Seerr-Bereich zum Wünschen, Beschaffungsstatus am Titel, SABnzbd-Fortschritt, Steuerung von Radarr/Sonarr/SABnzbd/Seerr, eigene Untertitel-Beschaffung, Mandanten, Cloud/native Pakete/Windows/macOS-Server, YouTube-Downloads.
 
 ---
 
@@ -109,10 +109,10 @@ Ein Server-Prozess `slouchcat` (Go), der auch die gebaute Web-App ausliefert. Mo
 | `transcode` | W-2, W-4, W-8 | Einziger Adapter um `ffmpeg`/`ffprobe`; HW-Erkennung; HLS; Admission Control (3.5) |
 | `discover` | E-1 … E-9 | Startseite, Reihen, Suche (FTS5), Merkliste, Favoriten, Top Picks, Sammlungen |
 | `offline` | O-1 … O-7 | Download-Aufträge und -Profile, Regeln, Entzugsliste |
-| `notify` | A-6, A-7, E-8, I-3 | Ereignisse, Kanäle, Ankündigungen; Empfänger über `visibility` gefiltert (5.5) |
+| `notify` | A-6, A-7, E-8 | Ereignisse, Kanäle, Ankündigungen; Empfänger über `visibility` gefiltert (5.5) |
 | `admin` | A-1 … A-5, A-8 | Assistent, Dashboard, Sicherung, Update-Prüfung, Statistiken |
-| `integrations` | I-1 … I-7 | Clients Radarr, Sonarr, Seerr, SABnzbd, Trakt; Webhook-Empfang |
-| `ratelimit` | B-3, E-7, I-4 | Gemeinsame Ratenbegrenzer je Anbieter (TMDB ≤ 20/s, TVDB ≤ 5/s, Trakt ≤ 1/s, YouTube nach Tageskontingent), Backoff bei 429 |
+| `integrations` | I-8 | Webhook-Empfang von Radarr und Sonarr, Pfad-Umsetzung, Ereignisprotokoll; löst über `library` einen `scan.path`-Auftrag aus und greift selbst nie auf `items` zu |
+| `ratelimit` | B-3, E-7, I-8 | Gemeinsame Ratenbegrenzer je Anbieter (TMDB ≤ 20/s, TVDB ≤ 5/s, Trakt ≤ 1/s, YouTube nach Tageskontingent), Backoff bei 429 |
 | `secrets` | A-9, 3.8 | Verschlüsselung ausgehender Zugangsdaten at rest |
 | `jobs` | alle | Persistente Queue (3.6) |
 | `paths` | B-1, 3.8 | Einzige Stelle für Dateisystempfade |
@@ -230,12 +230,12 @@ Veröffentlichung (löst AN-6 vs. A-5): Quellcode-Repository darf privat bleiben
 
 1. **Rechte nur serverseitig** (K-8): jeder Handler erhält einen Scope; Durchsetzung gemäss 3.3.
 2. **Tokens gehasht:** Sitzungs-, Einladungs-, Webhook- und API-Tokens sind 256-Bit-Zufallswerte, gespeichert als SHA-256. Passwörter und PINs mit argon2id. PIN-Sperre gemäss AN-11.
-3. **Ausgehende Secrets at rest verschlüsselt:** TMDB-, TVDB-, Trakt-, YouTube-, Arr-, Seerr-, SABnzbd-Schlüssel, SMTP-Passwort, Telegram-Token, VAPID-Schlüssel mit AES-256-GCM; Schlüssel in `/config/secret.key` (beim ersten Start erzeugt, Rechte 0600), nicht in der DB. In OpenAPI `writeOnly`, nie in Antworten. Sicherung (A-4) wahlweise ohne Schlüssel (Standard; Secrets nach Wiederherstellung neu eingeben) oder mit Schlüssel. Eine Sicherung mit Schlüssel wäre faktisch Klartext, darum gibt es sie nur passwortgeschützt: das ganze Archiv wird mit einer Passphrase verschlüsselt (age-Format, `filippo.io/age`, reines Go, mindestens 12 Zeichen), ohne Passphrase ist die Option gesperrt. Alternativ per Umgebungsvariable (`SLOUCHCAT_TMDB_API_KEY` usw.).
+3. **Ausgehende Secrets at rest verschlüsselt:** TMDB-, TVDB-, Trakt-, YouTube-Schlüssel, SMTP-Passwort, Telegram-Token, VAPID-Schlüssel mit AES-256-GCM; Schlüssel in `/config/secret.key` (beim ersten Start erzeugt, Rechte 0600), nicht in der DB. In OpenAPI `writeOnly`, nie in Antworten. Sicherung (A-4) wahlweise ohne Schlüssel (Standard; Secrets nach Wiederherstellung neu eingeben) oder mit Schlüssel. Eine Sicherung mit Schlüssel wäre faktisch Klartext, darum gibt es sie nur passwortgeschützt: das ganze Archiv wird mit einer Passphrase verschlüsselt (age-Format, `filippo.io/age`, reines Go, mindestens 12 Zeichen), ohne Passphrase ist die Option gesperrt. Alternativ per Umgebungsvariable (`SLOUCHCAT_TMDB_API_KEY` usw.).
 4. **Keine Secrets in Logs** (A-9): `slog` mit Redaction-Handler (`password`, `pin`, `token`, `apiKey`, `Authorization`, `X-Api-Key`, Query-Parameter `api_key`, `st`); Test mit Fake-Secrets über alle Integrations-Clients.
 5. **Externe Prozesse nur über Adapter:** `os/exec` nur im Paket `transcode` (`forbidigo`), immer `exec.CommandContext` mit Argumentliste, nie Shell.
 6. **Pfade nur über Pfad-Service:** `paths` löst relativ zu registrierten Wurzeln auf, verwirft `..`, folgt Symlinks nur innerhalb der Wurzeln; Lint verbietet Dateizugriff mit Benutzerdaten ausserhalb `paths`.
 7. **Sitzungen:** Web per Cookie (`HttpOnly`, `Secure`, `SameSite=Lax`, CSRF-Header-Prüfung), Fremd-Clients per Bearer (C-5); Medien-URLs mit Stream-Token (5.4); Entzug löscht alle Sitzungen und Stream-Tokens eines Kontos sofort (K-7).
-8. **Webhooks:** eigener Token je Integration, Ratenbegrenzung 10 Anfragen/s.
+8. **Webhooks:** eingehend, je Integration eine eigene Adresse mit eigenem 256-Bit-Token im Pfad (gehasht gespeichert wie jedes andere eingehende Token, Punkt 2), darum nur einmal anzeigbar; Ratenbegrenzung 10 Anfragen/s je Integration; der Pfadbestandteil mit dem Token wird in allen Logs redigiert (Punkt 4), ebenso der gemeldete Dateipfad bleibt sichtbar, das Token nie.
 9. **Nicht sichtbar heisst nicht vorhanden:** ID-Zugriffe auf nicht sichtbare Items liefern HTTP 404, nicht 403.
 
 ---
@@ -260,7 +260,7 @@ Update-Regel: Go immer eine der zwei neuesten unterstützten Versionen (Stand Ok
 | Player | `<video>`/`<audio>` + `hls.js`; natives HLS in Safari; eigene Bedienoberfläche | Klein, stabil | Der eingebaute Browser-Player, ergänzt um das Fehlende. |
 | Design-Tooling | Tokens im DTCG-Format, Style Dictionary (aktuelle Hauptversion) → CSS Custom Properties + TS-Typen; CSS Modules; Storybook ab M1b; selbst gehostete variable Schrift | `stylelint` (`color-no-hex`, `declaration-strict-value`), `eslint-plugin-i18next` | Farben, Schriften, Abstände und Bewegung sind an einer Stelle definiert. |
 | i18n | `i18next` + `react-i18next`, `web/src/locales/{de,en}.json` | C-3 | Alle Texte in einer deutschen und einer englischen Datei. |
-| Tests | Go `testing` + `testify`; Vitest + Testing Library; Playwright (Chromium, Firefox, WebKit); Test-Medien per ffmpeg `lavfi`; Integrationscontainer für Radarr, Sonarr, Seerr (gepinnt) | Reproduzierbar, keine geschützten Medien | Jede Funktion wird automatisch geprüft. |
+| Tests | Go `testing` + `testify`; Vitest + Testing Library; Playwright (Chromium, Firefox, WebKit); Test-Medien per ffmpeg `lavfi`; aufgezeichnete Webhook-Nutzlasten von Radarr und Sonarr (gepinnte Versionen, in `testdata/`) | Reproduzierbar, keine geschützten Medien | Jede Funktion wird automatisch geprüft. |
 | Lint / Sicherheit | `golangci-lint` (`forbidigo`, `depguard`, `gosec`), Analyzer `itemsaccess`, `govulncheck`, ESLint, Prettier, stylelint, `gitleaks` | Setzt 3.3 und 3.8 als Regeln durch | Werkzeuge prüfen den Code automatisch auf Fehler und Lecks. |
 | Monorepo / CI | pnpm Workspaces + Go-Modul `server/`; Taskfile (`task ci`, `task dev`); GitHub Actions ruft `task ci` | Lokal und CI identisch | Ein Befehl baut und prüft alles. |
 
@@ -281,16 +281,17 @@ CLAUDE.md Taskfile.yml
 
 ## 5. Entscheidungen
 
-Die Entscheide 5.1–5.3 sind **bestätigungspflichtig** durch den Auftraggeber (spätestens vor M2, siehe 5.7). 5.4–5.6 beantworten die offenen Fragen des Critic.
+Die Entscheide 5.1–5.3 sind **bestätigungspflichtig** durch den Auftraggeber (spätestens vor M2, siehe 5.7); 5.1 ist mit dem Zuschnitt vom 22. Oktober 2026 entfallen. 5.4–5.6 beantworten die offenen Fragen des Critic.
 
-### 5.1 Seerr-Einbettung (Spec "Offene Punkte" 1, I-4)
+### 5.1 Seerr-Einbettung (Spec "Offene Punkte" 1) — entfallen
 
-**Entscheid:** Eigener Bereich "Wünschen" mit Slouchcat-Oberfläche über die Seerr-API; keine iFrame-Einbettung, auch nicht als Übergang (Abweichung von der Spec-Empfehlung, die eine Übergangseinbettung erlaubt).
+**Entscheid vom 22. Oktober 2026 (Entscheidungsprotokoll Frage 10):** gegenstandslos. Slouchcat bindet Seerr
+gar nicht an, weder über die API noch als Einbettung. Wünsche entstehen direkt in Seerr. I-4 ist gestrichen
+und steht in den Non-Goals der Spec, ebenso AN-5 (Wunschrecht) und AN-16 (Kontozuordnung).
 
-- Der Admin **ordnet** jedem Slouchcat-Konto einen bestehenden Seerr-Benutzer zu; Slouchcat erzeugt keine Seerr-Benutzer (Schreibzugriff auf die Seerr-Verwaltung wäre Steuerung, Non-Goal). Wünsche laufen mit dem API-Schlüssel und Header `X-Api-User` des zugeordneten Benutzers. Konten ohne Zuordnung sehen den Bereich nicht.
-- Wünsche, Status und Historie bleiben in Seerr; Slouchcat speichert nur die Kontozuordnung (I-4).
-- Seerr-Suchergebnisse laufen durch `visibility` (Freigabe über TMDB `release_dates`, 7 Tage gecacht, über `ratelimit`); unbekannte Freigabe wird für Profile unter FSK 18 ausgeblendet.
-- **Begründung:** Seerr ist nicht im Durchstich; eine Übergangseinbettung wäre Wegwerfarbeit, bricht das Design (C-2), verlangt eigene Seerr-Logins und umgeht K-3.
+Der frühere Entscheid lautete: eigener Bereich "Wünschen" mit Slouchcat-Oberfläche über die Seerr-API, keine
+iFrame-Einbettung, Kontozuordnung durch den Admin. Er wurde nie umgesetzt und ist mit dem Zuschnitt von M9
+hinfällig geworden.
 
 ### 5.2 Ankündigungskanäle (Spec "Offene Punkte" 2, A-7)
 
@@ -308,9 +309,36 @@ Native Player senden keinen Bearer-Header. Der Stream-Start (`POST /playback/ses
 
 Kanäle gehören dem Konto (A-6), Favoriten dem Profil (E-8). Ein Ereignis für ein Profil geht an die Kanäle des Kontos mit Profilname als Präfix ("[Lena] Neue Folge …") und in den In-App-Eingang nur dieses Profils. Vor dem Versand prüft `notify` über `visibility`, ob das Profil das Item sehen darf; sonst entfällt die Benachrichtigung.
 
-### 5.6 Radarr/Sonarr-Webhooks (Critic, offene Frage 3)
+### 5.6 Radarr/Sonarr-Webhooks (Critic, offene Frage 3; erweitert am 22. Oktober 2026, I-8)
 
-Slouchcat registriert keine Webhooks selbst (Steuerung ist Non-Goal). Die Admin-Oberfläche zeigt die Webhook-URL mit Token zum Kopieren; der Admin trägt sie in Radarr/Sonarr ("Connect → Webhook", Ereignis "On Import") ein. Polling alle 5 min ist das Netz, falls kein Webhook eingerichtet ist.
+Slouchcat registriert keine Webhooks selbst (Steuerung ist Non-Goal) und ruft Radarr/Sonarr auch nicht ab —
+seit dem Wegfall von I-1 gibt es kein Polling mehr. Der Webhook ist die einzige Verbindung zu den Arr-Diensten
+und rein eingehend.
+
+- **Adresse je Integration:** Der Admin legt eine Integration an (Name, Typ Radarr oder Sonarr). Slouchcat
+  erzeugt ein 256-Bit-Token und zeigt die vollständige Adresse `POST {BasePath}/webhooks/{token}` **einmal**
+  zum Kopieren (gehasht gespeichert, 3.8 Punkt 2); später nur noch die letzten vier Zeichen, mit Knopf
+  "Token erneuern". Der Admin trägt die Adresse in Radarr/Sonarr unter "Connect → Webhook" ein.
+- **Ereignisse:** `Download` (Import und Upgrade), `Rename`, `MovieFileDelete`/`EpisodeFileDelete`,
+  `MovieDelete`/`SeriesDelete`. `Test` wird quittiert und protokolliert, damit der Test-Knopf in Radarr grün
+  wird. Alle übrigen Ereignisse (`Grab`, `Health`, `ApplicationUpdate` …) werden mit 200 angenommen und
+  ignoriert, damit eine grosszügige Auswahl in Radarr nichts kaputt macht.
+- **Pfad:** aus `movie.folderPath` (Radarr) bzw. `series.path` (Sonarr). Je Integration gibt es eine
+  Umsetzungstabelle aus Präfix-Paaren (`/movies` → `/media/Filme`), angewandt mit dem längsten passenden
+  Präfix; Standard leer. Das Ergebnis muss über `paths` unter einer registrierten Bibliothekswurzel liegen,
+  sonst HTTP 422 mit beiden Pfaden im Ereignisprotokoll.
+- **Wirkung:** ein `scan.path`-Auftrag auf das gemeldete Verzeichnis — derselbe Auftrag, den der
+  inotify-Watcher erzeugt (3.4), mit derselben Zusammenfassung mehrerer Meldungen. Kein zweiter Scan-Weg,
+  nur ein zweiter Auslöser. Löschungen laufen über denselben Pfad-Scan.
+- **Sichtbarkeit:** `x-visibility: public`, weil die Anfrage keine Sitzung trägt; die Autorisierung ist das
+  Token. Als JSON-Endpunkt läuft sie über den generierten strict server (Prinzip 3) mit Eintrag im
+  Vertragstest.
+- **Admin:** Liste der Integrationen mit letztem Kontakt, Ereignisprotokoll der letzten 20 Meldungen je
+  Integration (Zeit, Ereignis, gemeldeter Pfad, umgesetzter Pfad, Ergebnis) und eine Dashboard-Kachel
+  (Anzahl 24 h, Warnung nach 7 Tagen ohne Meldung) — damit bleibt A-3 "Integrationsstatus" nach dem Wegfall
+  von I-1 gefüllt.
+- **Ohne Webhook** bleibt der reguläre Abgleich aus 3.4 die einzige Quelle; es geht nichts verloren, es dauert
+  nur länger (AN-12).
 
 ### 5.7 Annahmen und stillschweigende Entscheide (zur Bestätigung)
 
@@ -320,18 +348,16 @@ Slouchcat registriert keine Webhooks selbst (Steuerung ist Non-Goal). Die Admin-
 | AN-2 | Hörbücher/Podcasts: Standard-Altersstufe je Bibliothek, überschreibbar je Titel; `itunes:explicit=true` → FSK 18 | H-4 | M6 |
 | AN-3 | Trakt: Top-100 laden, erste 20 Treffer aus der Bibliothek zeigen; unter 5 Treffern Reihe ausblenden | E-7, E-9 | M7 |
 | AN-4 | K-7 bei Downloads greift beim nächsten Serverkontakt; ein dauerhaft offline gehaltenes Gerät ist wegen O-6 nicht sperrbar; Hinweis im Admin | K-7, O-6 | M5 |
-| AN-5 | "Wünschen" ist ein Profilrecht (Standard: an für Profile des Hauptkontos ab FSK 12, aus für Gäste) | I-4, K-6 | M9 |
 | AN-6 | Quellcode privat möglich, Container-Paket und Release-Manifest öffentlich (3.7) | A-5 | M0 |
 | AN-7 | Testhardware (siehe unten) steht zur Verfügung | W-2, W-3, O-x | M1a |
 | AN-8 | Freigaben-Reihenfolge DE → AT → CH → GB → US. AT und CH bleiben drin, weil der Haushalt in der Schweiz steht und TMDB bei deutschsprachigen Veröffentlichungen oft nur AT- oder CH-Freigaben führt. Regel für alle Länder: Aufrunden auf die nächsthöhere FSK-Stufe (0/6/12/16/18), unbekannte Werte → `NULL`. AT: 0→0, 6→6, 10→12, 12→12, 14→16, 16→16, 18→18. CH: 0→0, 6→6, 7/8/10→12, 12→12, 14→16, 16→16, 18→18. BBFC: U→0, PG→6, 12/12A→12, 15→16, 18/R18→18. US-Kino: G→0, PG→6, PG-13→12, R→16, NC-17→18. US-TV: TV-Y/TV-G→0, TV-Y7/TV-PG→6, TV-14→16, TV-MA→18 | K-3 | M2 |
 | AN-9 | Vererbung: Folge und Staffel erben von der Serie, Extras vom Titel; eigene Stufe darf nur höher sein | K-3 | M3 |
 | AN-10 | O-5-Regel: je Profil und Item gewinnt das Ereignis mit der jüngsten serverseitig korrigierten Zeit; "fertig gesehen" bleibt bestehen, bis ein neueres Ereignis mit Position < 90 % kommt | O-5 | M5 |
 | AN-11 | PIN-Sperre ab 3. Fehlversuch: 30 s, 60 s, 120 s …, max. 15 min, je Profil und Gerät | K-4 | M2 |
-| AN-12 | B-4 (< 60 s) gilt garantiert für lokale Dateisysteme und Netzfreigaben mit eingerichtetem Arr-Webhook; sonst gemäss Messung in 3.4 | B-4 | M1a |
+| AN-12 | B-4 (< 60 s) gilt garantiert für lokale Dateisysteme und Netzfreigaben mit eingerichtetem Arr-Webhook (I-8, ab M9 verfügbar); sonst gemäss Messung in 3.4 | B-4 | M1a |
 | AN-13 | iOS: Auto-Downloads (O-3) nur bei geöffneter App, "nur WLAN" auf iOS nicht erkennbar (Einstellung dort ausgeblendet mit Hinweis) | O-3 | M5 |
 | AN-14 | Einladungslinks: einmalig, gültig 7 Tage, widerrufbar | K-6 | M2 |
 | AN-15 | Jede Installation hinterlegt eigene Schlüssel für TMDB, Trakt, YouTube (kostenlos); TVDB optional, nur mit eigener Lizenz bzw. Abo-PIN; Serien primär über TMDB | B-3, E-7, B-8 | M3 |
-| AN-16 | Zuordnung Slouchcat-Konto → bestehender Seerr-Benutzer durch den Admin, kein Erzeugen (5.1) | I-4 | M9 |
 | AN-17 | Software-Transcoding ist eine dokumentierte Ausnahme von W-3 (3.5) | W-3 | M1b |
 | AN-18 | Schauzeit-Limit offline: Server liefert beim Sync den Tagesrest je Profil, Client stoppt offline nach Geräteuhr bei 0; Nachbuchung und Überschreitung im Bericht beim nächsten Kontakt (deklarierte Ausnahme 2 von Prinzip 1, 3.3) | K-5, H-4, O-7 | M5 |
 | AN-19 | Offline-PIN: Verifier nur auf Geräten mit Downloads des Profils, erzeugt bei der nächsten Online-PIN-Eingabe; optional separate Offline-PIN ≥ 6 Stellen; Schutz nur gegen neugierige Mitbenutzer (deklarierte Ausnahme 1 von Prinzip 1, 3.3) | K-4, O-7 | M5 |
@@ -369,9 +395,9 @@ Ein Arbeitstag = ca. 6 h aktive Arbeit des Auftraggebers mit Agenten. Kalenderze
 | M6 Hörbücher, Podcasts | 6–10 | 120 | M5 |
 | M7 Entdecken, Kuratierung | 8–12 | 132 | M6 |
 | M8 Administration, Benachrichtigungen | 10–15 | 147 | M7 |
-| M9 Integrationen | 6–10 | 157 | M8 |
-| M10 Härtung, Release 1.0 | 10–14 | 171 | alle |
-| **Summe** | **112–171** | | |
+| M9 Schnelles Einlesen über Webhooks | 2–3 | 150 | M8 |
+| M10 Härtung, Release 1.0 | 10–14 | 164 | alle |
+| **Summe** | **108–164** | | |
 
 Gegenüber dem ersten Entwurf dieser Iteration angehoben: M1b (+Stream-Token und Bildpipeline aus M1a), M4 (Long Tail Safari/hls.js und Gerätetests), M5 (fMP4-Downloads, Offline-Schauzeit), M10 (Verifikationsaufwand). Die Kalenderzeit wird eher vom Testen auf echten Geräten begrenzt als vom Schreiben des Codes.
 
@@ -473,23 +499,30 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 - **Schritte:** (1) Assistent vollständig inkl. GPU-Erkennung, Compose-Override-Vorschlag, Dateisystem- und Watch-Limit-Warnung; (2) zentrale Verwaltung und Dashboard; (3) Sicherung/Wiederherstellung per Knopf ohne Schlüssel oder mit Schlüssel nur passwortgeschützt (3.8), Update-Hinweis über Release-Manifest; (4) Kanäle E-Mail, Web-Push (iOS nur installierte PWA), Telegram; Ankündigungen; Statistiken.
 - **DoD (zusätzlich zu 6.2):** Matrixzeilen A-1–A-9, E-8 (Kanäle) grün.
 
-### M9 – Integrationen (6–10 Tage)
+### M9 – Schnelles Einlesen über Webhooks (2–3 Tage)
 
-- **Ziel:** Beschaffungsstatus und Wünschen ohne Slouchcat zu verlassen.
-- **Spec-IDs:** I-1 … I-4, I-6, E-4 (Filter "in Beschaffung"), Entscheide 5.1 und 5.6.
-- **Schritte:** (1) Radarr/Sonarr-Clients, Polling 5 min, Webhook-Empfang (5.6); (2) Status am Titel und in der Suche, Benachrichtigung (I-3); (3) Bereich "Wünschen" mit Kontozuordnung (AN-16), Altersfilter, Wunschrecht (AN-5); Adapter getestet gegen Overseerr und Jellyseerr (gepinnte Versionen); (4) SABnzbd optional.
-- **DoD (zusätzlich zu 6.2):** Matrixzeilen I-1–I-4, I-6 und E-4 (Beschaffung) grün.
+- **Ziel:** Radarr und Sonarr melden Dateiänderungen, damit neue Titel ohne Verzögerung erscheinen — vor allem
+  auf Netzfreigaben, wo der reguläre Abgleich langsam ist (AN-12).
+- **Spec-IDs:** I-8, Entscheid 5.6.
+- **Schritte:** (1) Tabellen, Migration und Dienst für Webhook-Integrationen (Token gehasht, Pfad-Umsetzung,
+  Ereignisprotokoll); (2) Endpunkt `POST /webhooks/{token}` über den strict server mit Ratenbegrenzung,
+  Nutzlast-Erkennung für Radarr und Sonarr und `scan.path` als Wirkung (5.6); (3) Admin-Seite: Integration
+  anlegen, Adresse einmal anzeigen, Token erneuern, Pfad-Umsetzung pflegen, Ereignisprotokoll, Dashboard-Kachel,
+  Playwright-Tastaturtest; (4) Benachrichtigungskanal "Beschaffung" vollständig entfernen (Oberfläche, Texte,
+  Code, Vorwärts-Migration auf `account_channels`), weil sein Erzeuger I-1 entfallen ist.
+- **DoD (zusätzlich zu 6.2):** Matrixzeile I-8 grün; kein Token im Log-Scan (A-9); die Einstellungsseite zeigt
+  vier Ereignistypen statt fünf.
 
 ### M10 – Härtung und Release 1.0 (10–14 Tage)
 
 - **Ziel:** Version 1 vollständig, gemessen, dokumentiert.
 - **Spec-IDs:** C-4 (Gesamtaudit), C-5 (Nachweis), Constraints Betrieb.
 - **Schritte:** (1) Fremd-Client-Test (P-16); (2) Leistung auf Referenz-NAS und arm64; (3) Migrationstest aller DB-Stände M1a → 1.0; (4) Sicherheitsreview (Agent `security-reviewer`), Installationsanleitung de-CH; (5) Tag `v1.0.0`.
-- **DoD (zusätzlich zu 6.2):** alle 68 Matrixzeilen grün oder mit Abweichung nur gemäss AN-4, AN-12, AN-13, AN-17, AN-7 (Prüfung mangels Gerät "ungeprüft", einzeln aufgeführt) und VAAPI/AMD "best effort, ungetestet" (3.5); P-1–P-16 erfüllt.
+- **DoD (zusätzlich zu 6.2):** alle 64 Matrixzeilen grün oder mit Abweichung nur gemäss AN-4, AN-12, AN-13, AN-17, AN-7 (Prüfung mangels Gerät "ungeprüft", einzeln aufgeführt) und VAAPI/AMD "best effort, ungetestet" (3.5); P-1–P-16 erfüllt.
 
 ---
 
-## 7. Abnahmematrix (alle 68 Spec-IDs)
+## 7. Abnahmematrix (alle 64 Spec-IDs)
 
 "Mx" = Meilenstein, in dem die Zeile grün sein muss. E2E = Playwright gegen den gebauten Container. Fixtures gemäss 10.2.
 
@@ -529,7 +562,7 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 | E-1 | M1a, M7 | Test: Reihenfolge Karussell, Weiterschauen, Neu hinzugefügt, Merkliste, Sammlungen, Genres |
 | E-2 | M7 | E2E: Pick für alle und für ein Profil; Reihenfolge per Maus und Tastatur; Notiz sichtbar; vor Start und nach Ende des Zeitraums unsichtbar (Uhr-Mock) |
 | E-3 | M7 | 10.2: FSK-18-Pick "für alle" fehlt bei P0–P16, erscheint bei P18 |
-| E-4 | M7, M9 | Test: 2 Zeichen finden Titel, Person, Sammlung; jeder Filter einzeln und kombiniert (Genre, Jahr, Freigabe, Medientyp, Verfügbarkeit lokal/Download, ab M9 in Beschaffung); < 200 ms p95 bei 10 000 Titeln |
+| E-4 | M7 | Test: 2 Zeichen finden Titel, Person, Sammlung; jeder Filter einzeln und kombiniert (Genre, Jahr, Freigabe, Medientyp, Verfügbarkeit lokal/Download); < 200 ms p95 bei 10 000 Titeln |
 | E-5 | M7 | E2E: Merkliste von P1 und P2 getrennt; hinzufügen/entfernen; Reihe erscheint bzw. verschwindet |
 | E-6 | M7 | Fixture TMDB-Reihe (3 Filme) → Sammlung automatisch; manuelle Sammlung durch Admin; Mitglieder und Zähler nur sichtbare Titel |
 | E-7 | M7 | Trakt-Mock: nur Bibliothekstitel, max. 20, täglicher Lauf (Zeitplan-Test), AN-3 |
@@ -552,19 +585,15 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 | A-3 | M8 | Test: Dashboard zeigt Streams, Jobs (wartend/laufend/fehlgeschlagen), freien Speicher `/config` und `/cache`, Integrationsstatus, letzte 50 Fehler; provozierter Fehler erscheint < 10 s |
 | A-4 | M0, M8 | Restore auf frischem Stack ergibt identische Konten, Profile, Fortschritte (Tabellen-Hash); Archiv enthält keine Mediendatei; Variante ohne Schlüssel verlangt Secrets neu |
 | A-5 | M8 | Test mit Mock-Manifest: neuere Version → Hinweis, gleiche → keiner; abschaltbar |
-| A-6 | M8 | Kanal-Mocks je Ereignistyp (neue Inhalte, Beschaffung, Fehler, Einladung); manuell je 1 echtes Gerät pro Kanal |
+| A-6 | M8, M9 | Kanal-Mocks je Ereignistyp (neue Inhalte, Fehler, Einladung, Ankündigung); manuell je 1 echtes Gerät pro Kanal; ab M9 ohne den Typ "Beschaffung" |
 | A-7 | M8 | E2E: Ankündigung → beim nächsten Start sichtbar, nach Quittierung nicht mehr; Gast mit E-Mail-Opt-in erhält Mail (SMTP-Mock) |
 | A-8 | M8 | Test mit Fixtures: meistgesehene Titel, Schauzeit je Profil, Transcoding-Anteil, Geräteverteilung stimmen mit Rohdaten überein |
 | A-9 | M0, M8 | Log-Scan (`gitleaks`-Muster + Fake-Secrets) über einen kompletten E2E-Lauf: 0 Treffer |
-| I-1 | M9 | Integrationstest gegen Radarr- und Sonarr-Container: Verbindung prüfen, Status lesen; falscher Schlüssel → Meldung ohne Schlüssel im Log |
-| I-2 | M9 | Mock-Status gewünscht/in Beschaffung/verfügbar am Titel und als Suchfilter; Webhook → Titel sichtbar < 60 s |
-| I-3 | M9 | Test: Profile mit Merkliste, Favorit oder Wunsch erhalten Benachrichtigung bei Verfügbarkeit; P6 erhält keine für FSK-18-Titel |
-| I-4 | M9 | Integrationstest Seerr (Overseerr und Jellyseerr): Wunsch unter zugeordnetem Benutzer; Schema-Test: keine Wunsch-Tabelle in Slouchcat |
 | I-5 | M4 | Sidecar `.de.srt` ablegen → im Player < 60 s |
-| I-6 | M9 | SABnzbd-Mock: Fortschritt in % am Titel; ohne Anbindung fehlt nur diese Anzeige (Snapshot-Vergleich) |
 | I-7 | M7 | Trakt-Mock HTTP 503 → nur die zwei Reihen fehlen; Schema-Test: kein Trakt-Konto je Profil |
+| I-8 | M9 | Integrationstest mit aufgezeichneten Radarr- und Sonarr-Nutzlasten: Import → Titel sichtbar < 60 s ohne Voll-Scan; Umbenennen behält Fortschritt; Löschen → Titel verschwindet; `Test` → 200 und Eintrag im Protokoll; unbekanntes Ereignis → 200 ohne Wirkung; falsches Token → 401 und Log-Scan ohne Treffer; Pfad ausserhalb jeder Wurzel → 422 mit beiden Pfaden im Protokoll; 11 Anfragen in einer Sekunde → 429; Playwright-Tastaturtest der Admin-Seite |
 
-68 von 68 Zeilen haben einen konkreten Test oder eine Messgrösse.
+64 von 64 Zeilen haben einen konkreten Test oder eine Messgrösse. (Ursprünglich 68: I-1 bis I-4 und I-6 sind am 22. Oktober 2026 entfallen, I-8 ist dazugekommen.)
 
 ---
 
@@ -574,8 +603,8 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 |---|---|---|---|
 | P-1 | `docker compose up` auf frischem Linux-Host: `healthy` in < 5 s; Images amd64 und arm64 | Constraints | CI + Referenz-NAS |
 | P-2 | Leerlauf-RSS < 150 MB mit 5 000 Titeln; Image < 600 MB | Constraints | `docs/perf/` |
-| P-3 | Vertragstest 10.2 grün in jedem Meilenstein ab M2 | K-3, E-3, H-4, O-7, I-4 | CI |
-| P-4 | Änderungen < 60 s sichtbar gemäss AN-12; Scan-Abbruch bei fehlender Wurzel oder > 20 % Verlust | B-4, I-2, I-5 | Integrationstest |
+| P-3 | Vertragstest 10.2 grün in jedem Meilenstein ab M2 | K-3, E-3, H-4, O-7 | CI |
+| P-4 | Änderungen < 60 s sichtbar gemäss AN-12; Scan-Abbruch bei fehlender Wurzel oder > 20 % Verlust | B-4, I-5, I-8 | Integrationstest |
 | P-5 | Direct Play ohne ffmpeg-Prozess, wenn das Fähigkeitsprofil passt | W-1, W-7 | Prozesszähler |
 | P-6 | HDR10 → SDR je Backend (NVENC, QSV, Software): (a) Referenzbilder je Backend werden einmal per Sichtprüfung freigegeben, danach Regression SSIM ≥ 0.95 an 10 Testframes; (b) gegen die Software-Referenz (bt.2390) mittleres ΔE2000 ≤ 5 nur auf Graustufenkeil und Hautton-Feldern, weil Hardware-Backends eigene Kurven nutzen; Start am Handy < 5 s (Median aus 5, HW) | W-2, W-3 | Skript in `testdata/` + Messung |
 | P-7 | Spulen im laufenden Transcode und Remux < 3 s | W-3 | Playwright-Messung |
@@ -601,16 +630,15 @@ Alle 16 Kriterien haben ein Mass oder eine abschliessende Aufzählung.
 | PWA-Offline auf iOS (Löschung, Quote, Abbruch bei Sperre, kein Hintergrund) | mittel | hoch | Spike ab Tag 1 von M1a mit Schwellen 10.4; AN-13; bei No-Go native iOS-App direkt nach V1 (Spec "Constraints"), V1 wird nicht verzögert |
 | YouTube-Nutzungsbedingungen / Kontingent | mittel | mittel | Nur IFrame-Player; TMDB zuerst; Tageskontingent im Job; fehlender Trailer blendet Knopf aus |
 | Trakt/TMDB-Rate-Limits | mittel | mittel | Modul `ratelimit`, Backoff bei 429, Cache 24 h (Freigaben 7 Tage), Trakt 1 Lauf/Tag |
-| Solo-Kapazität / Scope | hoch | hoch | Zeitbudget 6.1; **Schnittlinie** (zuerst verschiebbar nach 1.x, nur mit Zustimmung des Auftraggebers): 1. Intro/Abspann-Erkennung (W-9 teilweise), 2. Dolby-Vision-Sonderbehandlung, 3. Statistiken (A-8), 4. SABnzbd (I-6), 5. Telegram-Kanal (A-6 teilweise), 6. KI-Trailer-Anbieter; **Warnschwelle:** Ist-Aufwand kumuliert > 1.3 × obere Schätzung am Ende eines Meilensteins → Schnittlinie mit Auftraggeber besprechen; **Abbruch- und Neuplanungskriterium:** nach M4 kumuliert > 135 Arbeitstage (1.5 × 90) → V1-Umfang neu planen |
+| Solo-Kapazität / Scope | hoch | hoch | Zeitbudget 6.1; **Schnittlinie** (zuerst verschiebbar nach 1.x, nur mit Zustimmung des Auftraggebers): 1. Intro/Abspann-Erkennung (W-9 teilweise), 2. Dolby-Vision-Sonderbehandlung, 3. Statistiken (A-8), 4. Telegram-Kanal (A-6 teilweise), 5. KI-Trailer-Anbieter; **Warnschwelle:** Ist-Aufwand kumuliert > 1.3 × obere Schätzung am Ende eines Meilensteins → Schnittlinie mit Auftraggeber besprechen; **Abbruch- und Neuplanungskriterium:** nach M4 kumuliert > 135 Arbeitstage (1.5 × 90) → V1-Umfang neu planen |
 | Datenmodell-Migrationen | mittel | hoch | goose-Vorlage mit `NO TRANSACTION` und `foreign_key_check`; `VACUUM INTO` vor jedem Lauf ab M0; eingefrorene DB-Stände ab M1a in CI |
 | Sichtbarkeitsleck (K-3) | mittel | hoch | View `visible_items`, `depguard`, Analyzer `itemsaccess`, Schema-Test `x-visibility`, Vertragstest 10.2, 404 statt 403; Freigaben nur per Trigger in derselben Transaktion plus nächtlicher Job `rating.verify` (3.2); Bilder nur über Item-ID mit Scope |
 | Datenverlust durch abgehängte Freigabe | mittel | hoch | Scan-Abbruch bei fehlender Wurzel oder > 20 % Verlust; 24-h-Karenz; Benutzerdaten am Item |
 | Überlast auf schwachem NAS | mittel | mittel | Admission Control, Prioritäten, `nice`/`oom_score_adj`; P-11 während Scan gemessen |
 | Testhardware fehlt | mittel | mittel | AN-7 mit Ersatzweg; fehlende Prüfung wird als "ungeprüft" dokumentiert, nicht als erfüllt |
 | TVDB-Lizenz / Schlüssel | mittel | niedrig | TMDB als Primärquelle auch für Serien; TVDB optional mit eigener Lizenz (AN-15); vor M3 klären |
-| Seerr-API-Änderungen, Unterschiede Overseerr/Jellyseerr | mittel | mittel | Adapter-Schicht, Integrationstests gegen beide Projekte mit gepinnten Versionen, Versionsprüfung beim Verbinden |
 | GPL-Pflichten für ffmpeg im Image | niedrig | mittel | Lizenzordner im Image, Link auf den passenden jellyfin-ffmpeg-Quellcode und schriftliches Quellcode-Angebot im Release |
-| Aufwand des `stat`-Durchlaufs auf SMB/NFS | hoch | mittel | Adaptives Intervall (3.4), Grenzwert < 15 s für 10 000 Dateien, Webhooks primär, AN-12 |
+| Aufwand des `stat`-Durchlaufs auf SMB/NFS | hoch | mittel | Adaptives Intervall (3.4), Grenzwert < 15 s für 10 000 Dateien, Webhooks primär (I-8, ab M9), AN-12 |
 | SQLite-Queue: doppelte Ausführung durch abgelaufene Leases | niedrig | mittel | Lease ≫ längste Transaktion, Batches, idempotente Jobs (3.6) |
 
 ---
@@ -634,7 +662,6 @@ Alle 16 Kriterien haben ein Mass oder eine abschliessende Aufzählung.
 - **ID-Endpunkte:** Mit der ID eines nicht sichtbaren Items liefert jede Operation HTTP 404: Detail, Stream-Start, HLS-Master- und Varianten-Playlist, Segmente, Direct-Play-Range, Untertitel, Download vorbereiten und abrufen, Bilder (`/items/{id}/images/...`; eine Auslieferung nur über Inhalts-Hash existiert nicht, Schema-Test prüft, dass keine Operation ohne Item-ID Bilder liefert), Trailer-Info, Merkliste/Favorit hinzufügen, Top-Pick-Detail.
 - **Freigabe-Änderung:** Admin hebt die Serie aus der Fixture von FSK 12 auf 16 → ab der ersten Anfrage nach der Änderung sind Serie, Staffeln und Folgen für P12 in allen Listen unsichtbar und per ID 404; der Startseiten-Cache liefert sie nicht mehr; beim nächsten Sync fehlt P12 in `allowed_profile_ids` der betroffenen Downloads. Umgekehrt (16 → 12) erscheinen sie wieder. Gleiches für eine Folge mit eigener höherer Stufe: Die Serie bleibt sichtbar, nur diese Folge nicht.
 - **Container-Verfügbarkeit:** Serie ohne verfügbare Folge, Podcast mit nur Feed-Episoden (Enclosure, keine Datei) und Staffel, deren Folgen alle über der Profilstufe liegen, verhalten sich gemäss 3.2/3.3 (Podcast sichtbar, die beiden anderen nicht).
-- **Seerr-Proxy:** Seerr-Mock liefert Treffer aller Stufen; P6 sieht keine über FSK 6 und keine ohne Freigabe.
 - **Benachrichtigungen und SSE:** Ereignis `item.available` für einen FSK-18-Titel erzeugt für P6 weder In-App-Eintrag noch Kanalnachricht (Dispatcher-Mock); ein SSE-Abonnement von P6 empfängt kein Ereignis zu diesem Titel.
 - **Offline:** Playwright prüft die Offline-Liste mit `allowed_profile_ids` für P6 und P18 auf demselben Gerät.
 - **Admin-Operationen:** Gast- und Profilsitzungen erhalten 403.
@@ -682,7 +709,7 @@ Gerät: installierte PWA auf iPhone (aktuelles iOS, wenn verfügbar zusätzlich 
 
 ## 12. ADR
 
-- **Decision:** Slouchcat V1 wird als ein Go-Server (`net/http` + chi, SQLite via `modernc.org/sqlite`, sqlc für statische Abfragen, Query-Builder in `visibility`, goose mit Sicherung vor jeder Migration, eigene Job-Queue) mit eingebetteter React/TypeScript-PWA (Vite, TanStack, react-aria-components, hls.js, OPFS) gebaut, spec-first über `api/openapi.yaml` mit `x-visibility`. Auslieferung als ein Docker-Container mit jellyfin-ffmpeg-Build (auch für Bilder), optional Caddy. Sichtbarkeit nur über die View `visible_items` mit per Trigger gepflegten Freigaben; offline schlägt der Client serverseitig berechnete `allowed_profile_ids` nach. Medien-Autorisierung über Stream-Token, deren Gültigkeit in `playback_sessions` liegt. Seerr über API mit Kontozuordnung, Ankündigungen über alle A-6-Kanäle, Trailer TMDB → YouTube → optional KI.
+- **Decision:** Slouchcat V1 wird als ein Go-Server (`net/http` + chi, SQLite via `modernc.org/sqlite`, sqlc für statische Abfragen, Query-Builder in `visibility`, goose mit Sicherung vor jeder Migration, eigene Job-Queue) mit eingebetteter React/TypeScript-PWA (Vite, TanStack, react-aria-components, hls.js, OPFS) gebaut, spec-first über `api/openapi.yaml` mit `x-visibility`. Auslieferung als ein Docker-Container mit jellyfin-ffmpeg-Build (auch für Bilder), optional Caddy. Sichtbarkeit nur über die View `visible_items` mit per Trigger gepflegten Freigaben; offline schlägt der Client serverseitig berechnete `allowed_profile_ids` nach. Medien-Autorisierung über Stream-Token, deren Gültigkeit in `playback_sessions` liegt. Von den Arr-Diensten nur eingehende Webhooks (5.6), Ankündigungen über alle A-6-Kanäle, Trailer TMDB → YouTube → optional KI.
 - **Drivers:** (1) Betriebsstabilität auf schwacher Hardware (40 %); (2) Prozess- und Streamingsteuerung (35 %); (3) Solo-Wartbarkeit mit Agenten (25 %).
 - **Alternatives considered:** Option A TypeScript durchgehend (Punkte 3.85; stärkste Alternative wegen Driver 3, verworfen wegen Langzeit-Wartung von Node-LTS und Server-npm-Abhängigkeiten sowie grösserem Image; bleibt Rückfall nach 2.5). Option C .NET (4.10; grösseres Image, LTS-Zwang, Jellyfin-Nähe). Rust und Python invalidiert. PostgreSQL und Redis verworfen (Zusatzcontainer ohne Nutzen für einen Haushalt). `goqite` als Queue geprüft in M0 (verworfen, falls Priorität, Idempotenz oder Zeitpläne fehlen). Bildverarbeitung mit `govips` (CGO) oder `x/image` verworfen (CGO bzw. kein WebP, langsam auf ARM). Separater Transcode-Container verworfen zugunsten Admission Control (Prinzip 2). Seerr-iFrame und Erzeugen von Seerr-Benutzern verworfen. Signierter Profil-Snapshot offline verworfen (täuscht Sicherheit vor). Rekursive CTE in der View verworfen zugunsten von Triggern (Lesekosten jeder Liste). Ablaufzeit im Stream-Token verworfen (bricht lange Wiedergaben ab). Shaka Player zurückgestellt.
 - **Why chosen:** Option B liefert das kleinste, langlebigste Betriebsartefakt und das beste Modell für nebenläufige Prozesse. Der Nachteil bei Driver 3 ist begrenzt, weil der Client keine Regeln implementiert und CI die Codegen-Drift prüft.
@@ -704,11 +731,25 @@ Was Marco bestätigen oder entscheiden muss, sortiert nach Frist. Ohne Rückmeld
 7. **Vor M3 – Serien und Zugangsschlüssel (AN-9, AN-15):** Folgen erben die Freigabe der Serie und können nur strenger werden; jede Installation trägt eigene, kostenlose Schlüssel für TMDB, Trakt und YouTube ein; TVDB nur, wenn du dafür eine Lizenz hast.
 8. **Vor M5 – Offline-Regeln (AN-4, AN-10, AN-13, AN-18, AN-19, AN-20):** Entzug eines Gastes löscht seine Downloads erst, wenn sein Gerät wieder online ist; auf dem iPhone laden automatische Downloads nur bei geöffneter App; das Schauzeit-Limit gilt offline mit dem Tagesrest vom letzten Kontakt; die PIN offline schützt nur vor neugierigen Mitbenutzern (für mehr Schutz: separate, längere Offline-PIN); bei Fortschritt von zwei Geräten gewinnt der neuere; vorbereitete Downloads belegen auf dem Server bis zu 50 GB und werden 24 h nach dem Laden gelöscht.
 9. **Vor M6/M7 – Hörbücher, Podcasts, Trakt (AN-2, AN-3):** Altersstufe je Hörbuch-/Podcast-Bibliothek, Podcasts mit "explicit" gelten als FSK 18; die Trakt-Reihen zeigen die ersten 20 Titel aus deiner Bibliothek und verschwinden bei weniger als 5 Treffern.
-10. **Vor M9 – Wünschen (AN-5, AN-16):** Wünschen dürfen standardmässig die Profile des Hauptkontos ab FSK 12, Gäste nicht; du ordnest jedem Konto einen bestehenden Seerr-Benutzer zu, Slouchcat legt dort keine Benutzer an.
+10. **Vor M9 – Zuschnitt der Integrationen (I-8):** beantwortet am 22. Oktober 2026 (Entscheidungsprotokoll Frage 10). Von M9 bleibt nur der Webhook-Empfang; Statusanzeige, Benachrichtigung bei Verfügbarkeit, der Bereich "Wünschen" über Seerr und SABnzbd entfallen ersatzlos.
 
 ---
 
 ## 14. Changelog
+
+### Nachtrag 22. Oktober 2026 – M9 auf den Webhook-Empfang zugeschnitten
+
+Entscheid des Auftraggebers, protokolliert als Frage 10 in `docs/planning/04-entscheidungen.md`.
+
+- **Gestrichen:** I-1 (Arr-Clients mit API-Schlüssel und Polling), I-2 (Beschaffungsstatus am Titel), I-3
+  (Benachrichtigung bei Verfügbarkeit), I-4 (Bereich "Wünschen" über Seerr), I-6 (SABnzbd-Fortschritt),
+  der Suchfilter "in Beschaffung" aus E-4, AN-5, AN-16 und Entscheid 5.1. Alles steht in den Non-Goals der
+  Spec; Statusanzeige und Wünschen sind Kandidaten für die Ideensammlung.
+- **Neu:** I-8 (Webhook-Empfang von Radarr und Sonarr mit Pfad-Umsetzung, Ereignisprotokoll und
+  Dashboard-Kachel), Entscheid 5.6 ausgebaut, M9 neu zugeschnitten auf 2–3 Tage, Abnahmematrix 68 → 64 Zeilen,
+  Gesamtaufwand 112–171 → 108–164 Arbeitstage.
+- **Folgearbeit in M9:** der in M8 angelegte Benachrichtigungskanal "Beschaffung" wird entfernt, weil sein
+  Erzeuger (I-1) entfallen ist.
 
 ### Iteration 2 (18. Oktober 2026)
 

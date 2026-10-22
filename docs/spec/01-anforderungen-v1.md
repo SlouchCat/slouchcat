@@ -2,7 +2,7 @@
 
 ## Metadata
 - Interview ID: 1988ea7e-cb27-4242-876d-c7f32bfc0756
-- Rounds: 19 (plus Runde 0 Topologie)
+- Rounds: 19 (plus Runde 0 Topologie und Nachtrag Runde 20 vom 22. Oktober 2026)
 - Final Ambiguity Score: 10 %
 - Type: greenfield
 - Generated: 2026-10-18
@@ -32,10 +32,10 @@
 | Offline-Wiedergabe | active | Downloads einzelner Titel, Staffeln, Auto-Downloads, kein Ablauf, Profilregeln offline | Kriterien O-1 bis O-7 |
 | Clients und Design | active | Web-App als PWA für Desktop, Handy, Tablet; eigenes Design-System; Admin-Oberfläche gleichwertig | Kriterien C-1 bis C-5; **TV-Apps und native Mobile-Apps zurückgestellt** (Runde 3) |
 | Server-Administration | active | Einrichtungsassistent, zentrale Verwaltung, Dashboard, Sicherung, Update-Hinweis, Benachrichtigungen, Statistiken, Ankündigungen | Kriterien A-1 bis A-9 |
-| Integrationen | active | Radarr/Sonarr lesend (Status), Seerr-Bereich zum Wünschen, Bazarr für Untertitel, SABnzbd optional, Trakt (öffentliche Listen), YouTube-Trailer | Kriterien I-1 bis I-7; **Steuerung der Arr-Dienste aus Slouchcat zurückgestellt** (Runde 12) |
+| Integrationen | active | Radarr/Sonarr-Webhooks für schnelles Einlesen, Bazarr für Untertitel, Trakt (öffentliche Listen), YouTube-Trailer | Kriterien I-5, I-7, I-8; **Statusanzeige, Wünschen über Seerr, SABnzbd und die Steuerung der Arr-Dienste zurückgestellt** (Runden 12 und 20) |
 
 ## Goal
-Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server für einen Haushalt und dessen eingeladene Gäste. Nutzer erleben ihn wie einen persönlichen Streamingdienst: Netflix-artige Profile mit Altersfreigabe und PIN, eine kuratierte Startseite mit „Cat's Empfehlungen“ (vom Hauptbenutzer gepflegte Top Picks), verlässliche Wiedergabe mit Transcoding und echte Offline-Wiedergabe. Server und Produkt sind gleichwertig: Die Admin-Oberfläche erhält dieselbe Design-Sorgfalt wie die Zuschauerseite, und die API ist von Anfang an für Fremd-Clients dokumentiert. Version 1 deckt Filme, Serien, Hörbücher und Podcasts ab, läuft als Docker-Stack auf Linux und wird über eine Web-App (PWA) bedient. Alle wichtigen Funktionen von Jellyfin sind enthalten; darüber hinaus Kuratierung, Schauzeit-Limits, Geräte-Fähigkeitsprofile, Beschaffungsstatus aus Radarr/Sonarr, ein Wunsch-Bereich über Seerr, Trakt-Top-Listen aus der eigenen Bibliothek und Favoriten mit Benachrichtigung bei neuen Folgen.
+Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server für einen Haushalt und dessen eingeladene Gäste. Nutzer erleben ihn wie einen persönlichen Streamingdienst: Netflix-artige Profile mit Altersfreigabe und PIN, eine kuratierte Startseite mit „Cat's Empfehlungen“ (vom Hauptbenutzer gepflegte Top Picks), verlässliche Wiedergabe mit Transcoding und echte Offline-Wiedergabe. Server und Produkt sind gleichwertig: Die Admin-Oberfläche erhält dieselbe Design-Sorgfalt wie die Zuschauerseite, und die API ist von Anfang an für Fremd-Clients dokumentiert. Version 1 deckt Filme, Serien, Hörbücher und Podcasts ab, läuft als Docker-Stack auf Linux und wird über eine Web-App (PWA) bedient. Alle wichtigen Funktionen von Jellyfin sind enthalten; darüber hinaus Kuratierung, Schauzeit-Limits, Geräte-Fähigkeitsprofile, Trakt-Top-Listen aus der eigenen Bibliothek und Favoriten mit Benachrichtigung bei neuen Folgen. Radarr und Sonarr melden neue und geänderte Dateien per Webhook, damit sie ohne Verzögerung in der Bibliothek erscheinen.
 
 ## Constraints
 - Betrieb ausschliesslich als Docker-Compose-Stack auf Linux (Heimserver oder NAS); GPU-Beschleunigung optional (NVENC, QuickSync, VAAPI). Kein natives Paket, keine Cloud-Variante in Version 1.
@@ -43,7 +43,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - Genau ein Client in Version 1: Web-App als PWA für Desktop, Handy und Tablet. Offline-Speicher liegt im Browser; dessen Grenzen (Quota, iOS-Eviction) sind in der Architektur zu adressieren.
 - Medientypen Version 1: Filme, Serien, Hörbücher, Podcasts. Architektur hält Musik, Fotos und Live-TV offen, baut sie aber nicht.
 - Untertitel-Beschaffung erfolgt über Bazarr, nicht in Slouchcat. Anzeige und Umschalten vorhandener Untertitel sind Slouchcats Aufgabe.
-- Wünschen von Inhalten erfolgt über Seerr (Overseerr/Jellyseerr) in einem eigenen Bereich von Slouchcat; Slouchcat baut keine eigene Wunschverwaltung.
+- Wünschen von Inhalten erfolgt ausserhalb von Slouchcat direkt in Seerr (Overseerr/Jellyseerr); Slouchcat baut weder eine eigene Wunschverwaltung noch einen Seerr-Bereich (Runde 20).
 - YouTube-Trailer werden eingebettet oder gestreamt, nicht heruntergeladen (Nutzungsbedingungen). Die Suche nach passenden Trailern darf über eine KI-API laufen, muss aber nicht.
 - Trakt liefert nur öffentliche Listen über einen Server-API-Schlüssel; kein Trakt-Login für Profile, kein Hochladen des Schauverlaufs.
 - Solo-Entwicklung mit Claude Code und oh-my-claudecode-Agenten, keine feste Deadline. Erstes Etappenziel: vertikaler Durchstich (Bibliothek scannen, Film abspielen, Startseite) innerhalb der ersten Wochen.
@@ -60,7 +60,10 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - Entdecken-Hilfen „Was schauen wir heute?“-Assistent, Zufallsauswahl, Trailer-Reel und automatische Themenlisten (Kandidaten für Version 1.x, in Runde 18 nicht gewählt).
 - Trakt-Konten je Profil, Scrobbling, Import von Trakt-Watchlists.
 - Freigabe-Anfragen von Kinderprofilen an den Hauptbenutzer.
-- Eigene Wunschverwaltung (Seerr übernimmt) und Steuerung von Radarr, Sonarr, SABnzbd aus Slouchcat heraus (Qualitätsprofile, Warteschlangen).
+- Eigene Wunschverwaltung und ein Bereich „Wünschen“ über die Seerr-API in Slouchcat; Wünsche entstehen direkt in Seerr (Runde 20).
+- Beschaffungsstatus aus Radarr/Sonarr am Titel und in der Suche („gewünscht“, „in Beschaffung“, „verfügbar“) sowie die Benachrichtigung bei Verfügbarkeit (Runde 20, Kandidaten für die Ideensammlung).
+- Download-Fortschritt aus SABnzbd am Titel (Runde 20).
+- Steuerung von Radarr, Sonarr, SABnzbd aus Slouchcat heraus (Qualitätsprofile, Warteschlangen).
 - Eigene Untertitel-Beschaffung (Bazarr übernimmt).
 - Mandantenfähigkeit (mehrere gleichberechtigte Haushalte auf einem Server).
 - Cloud-Betrieb, natives Installationspaket, Windows- oder macOS-Server.
@@ -146,13 +149,11 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] A-9 Protokolle enthalten keine Geheimnisse (Passwörter, Tokens, API-Schlüssel).
 
 ### Integrationen (I)
-- [ ] I-1 Radarr und Sonarr werden per URL und API-Schlüssel angebunden; Slouchcat liest deren Status.
-- [ ] I-2 Am Titel und in der Suche ist sichtbar, ob ein Inhalt gewünscht, in Beschaffung oder verfügbar ist; nach Verfügbarkeit erscheint er ohne manuellen Scan.
-- [ ] I-3 Eine Benachrichtigung geht an die interessierten Profile, sobald ein beschaffter Inhalt verfügbar ist.
-- [ ] I-4 Ein eigener Bereich „Wünschen" in Slouchcat bindet Seerr an, sodass Profile Filme und Serien wünschen können, ohne Slouchcat zu verlassen; Slouchcat verwaltet keine eigenen Wünsche.
 - [ ] I-5 Von Bazarr beschaffte Untertitel werden nach Ablage erkannt und sofort im Player angeboten.
-- [ ] I-6 SABnzbd kann optional angebunden werden, um den Download-Fortschritt am Titel zu zeigen; ohne Anbindung fehlt nur diese Anzeige.
 - [ ] I-7 Trakt wird über einen Server-API-Schlüssel angebunden und liefert nur öffentliche Listen; fällt Trakt aus, verschwinden die Reihen aus E-7 ohne weitere Auswirkung.
+- [ ] I-8 Radarr und Sonarr melden Import, Umbenennung und Löschung einer Datei per Webhook an Slouchcat. Jede Integration hat eine eigene Adresse mit eigenem Token; Slouchcat prüft das Token, setzt den gemeldeten Pfad gemäss der Umsetzungstabelle der Integration auf eine Bibliothekswurzel um und scannt gezielt diesen Ordner, sodass die Änderung ohne Voll-Scan sichtbar wird. Ohne eingerichteten Webhook bleibt der reguläre Abgleich die einzige Quelle, und es geht nichts verloren.
+
+> I-1 bis I-4 und I-6 (Statusanzeige, Benachrichtigung bei Verfügbarkeit, Bereich „Wünschen“ über Seerr, SABnzbd-Fortschritt) sind in Runde 20 entfallen und stehen in den Non-Goals. Die Nummern bleiben unbesetzt, damit ältere Verweise lesbar bleiben.
 
 ## Assumptions Exposed & Resolved
 | Assumption | Challenge | Resolution |
@@ -169,21 +170,22 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 | Profile = Netflix-Kopie | Runde 10 | Plus Schauzeit-Limits und Berichte; keine Freigabe-Anfragen |
 | Bibliothek = Jellyfin-Parität | Runde 11 | Plus Trailer (YouTube), Extras, Pflegewerkzeuge; Untertitel via Bazarr; Arr-Dienste als neuer Baustein |
 | „Voll integriert" = steuern | Runde 12 | Nur Status lesen und benachrichtigen |
+| Statusanzeige und Wünschen gehören zu Version 1 | Runde 20 | Nein: von den Arr-Diensten bleibt nur der Webhook-Empfang (I-8); I-1 bis I-4 und I-6 entfallen |
 | Design-Richtung ergibt sich später | Runde 14 | Dunkel und kinoartig, Akzentfarbe je Profil, Posterfarben im Hintergrund; ordentlich und übersichtlich |
 | Stack braucht eine Vorgabe des Auftraggebers | Runde 15 | Keine Vorgabe; Kriterien stabil, überall lauffähig, performant; Plan entscheidet |
 | Kein Ablaufdatum gilt auch auf iOS | Runde 16 | PWA zuerst mit Hinweis; native iOS-App nach Version 1 bei Bedarf |
 | Entdecken = Startseite plus Suche | Runden 17–18 | Plus Trakt-Top-Listen aus der eigenen Bibliothek und Favoriten-Benachrichtigung; Top Picks heissen „Cat's Empfehlungen“; lokale Hilfen nicht gewählt |
 | Trakt heisst Konto-Sync | Runde 19 | Nur öffentliche Listen, kein Login, kein Scrobbling |
-| Admin-Oberfläche ist Nebensache | Runde 13 | Gleichwertig, mit Benachrichtigungen, Statistiken, Ankündigungen; Hauptbenutzer per E-Mail; Wünschen via Seerr |
+| Admin-Oberfläche ist Nebensache | Runde 13 | Gleichwertig, mit Benachrichtigungen, Statistiken, Ankündigungen; Hauptbenutzer per E-Mail (Wünschen via Seerr in Runde 20 gestrichen) |
 
 ## Offene Punkte für die Planungsphase (mit Empfehlung, im Plan zu bestätigen)
-1. **Seerr-Einbettung:** Eigener Bereich über die Seerr-API mit Slouchcat-Oberfläche (Design konsistent, mehr Aufwand) oder Einbettung der Seerr-Oberfläche (schnell, Stilbruch). Empfehlung: API mit eigener Oberfläche, Einbettung als Übergangslösung im Durchstich erlaubt.
+1. **Seerr-Einbettung:** entfallen. In Runde 20 gestrichen, Slouchcat bindet Seerr weder über die API noch als Einbettung an (siehe Non-Goals).
 2. **Ankündigungen:** Nur In-App und E-Mail an Gastkonten, oder alle Kanäle aus A-6. Empfehlung: dieselben Kanäle wie A-6.
 3. **Trailer-Beschaffung:** YouTube-Data-API mit eigener Heuristik oder KI-API als Vermittler. Beide erfüllen B-8; Empfehlung: YouTube-API zuerst, KI-API als austauschbarer Anbieter dahinter.
 4. Offline auf iOS: entschieden in Runde 16 (siehe Constraints).
 
 ## Technical Context
-Greenfield. Leeres Repository unter `/mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat` (README, Vision, .gitignore). Betrieb als Docker-Compose-Stack auf Linux, GPU optional. Ein Web-Client als PWA. Externe Dienste: TMDB, TVDB, YouTube (eingebettet), Radarr, Sonarr, Seerr, Bazarr, optional SABnzbd, optional eine KI-API für die Trailer-Suche. Sprache, Framework, Datenbank und Transcoding-Werkzeug (voraussichtlich ffmpeg) werden in der Architekturphase entschieden. Entwicklungsumgebung: Linux Mint mit NVIDIA-GPU, Claude Code mit oh-my-claudecode.
+Greenfield. Leeres Repository unter `/mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat` (README, Vision, .gitignore). Betrieb als Docker-Compose-Stack auf Linux, GPU optional. Ein Web-Client als PWA. Externe Dienste: TMDB, TVDB, YouTube (eingebettet), Radarr und Sonarr (nur eingehende Webhooks), Bazarr, optional eine KI-API für die Trailer-Suche. Sprache, Framework, Datenbank und Transcoding-Werkzeug (voraussichtlich ffmpeg) werden in der Architekturphase entschieden. Entwicklungsumgebung: Linux Mint mit NVIDIA-GPU, Claude Code mit oh-my-claudecode.
 
 ## Ontology (Key Entities)
 | Entity | Type | Fields | Relationships |
@@ -210,9 +212,7 @@ Greenfield. Leeres Repository unter `/mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slou
 | Altersstufe | supporting | FSK 0/6/12/16/18 | Profil und Titel |
 | Ankündigung | supporting | Text, Zeitraum, Zielgruppe, Kanäle | vom Hauptbenutzer |
 | Benachrichtigungskanal | supporting | E-Mail, Web-Push, Telegram, Ereignisse | gehört zu Konto |
-| Integration (Arr-Dienst, Seerr, Bazarr, SABnzbd) | external system | URL, API-Schlüssel, Status | liefert Beschaffungsstatus |
-| Beschaffungsstatus | supporting | gewünscht, in Beschaffung, verfügbar | Titel × Integration |
-| Wunsch | external system | über Seerr | Profil × Titel |
+| Webhook-Integration (Radarr, Sonarr) | external system | Name, Typ, Token (als Prüfsumme), Pfad-Umsetzung, letzter Kontakt | meldet geänderte Pfade an den Scan |
 | API-Client | supporting | OpenAPI-Dokument | nutzt Server |
 
 ## Ontology Convergence
@@ -338,3 +338,21 @@ Keine Entität wurde umbenannt oder entfernt; das Modell wuchs nur durch bewusst
 **Mehrdeutigkeit:** 10 %
 
 </details>
+
+---
+
+## Nachtrag vom 22. Oktober 2026 – Runde 20: Integrationen neu zugeschnitten
+
+Dieser Abschnitt stammt nicht aus dem ursprünglichen Interview, sondern aus einem Nachgespräch mit dem
+Auftraggeber vor Meilenstein M9. Verbindlich protokolliert als Frage 10 in `docs/planning/04-entscheidungen.md`.
+
+**F:** Soll Slouchcat den Beschaffungsstatus der Arr-Dienste anzeigen und einen eigenen Bereich zum Wünschen
+über Seerr bekommen?
+
+**A:** Nein. Von den Integrationen bleibt nur der Webhook-Empfang: Radarr und Sonarr melden Import,
+Umbenennung und Löschung samt Pfad, damit Änderungen ohne Verzögerung in der Bibliothek erscheinen —
+insbesondere auf Netzfreigaben, wo der reguläre Abgleich langsam ist (AN-12). I-1 bis I-4 und I-6 entfallen
+und stehen in den Non-Goals; neu ist I-8. Je Integration eine eigene Adresse mit eigenem Token, eine
+Pfad-Umsetzungstabelle im Admin, ein Ereignisprotokoll der letzten 20 Meldungen und eine Kachel im Dashboard.
+Der in M8 angelegte Benachrichtigungskanal „Beschaffung“ wird vollständig entfernt, weil sein Erzeuger (I-1)
+entfällt.
