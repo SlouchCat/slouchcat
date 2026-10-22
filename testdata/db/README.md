@@ -90,3 +90,15 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Entwurf) und die Zustellung der Ankündigung an den E-Mail-Kanal (`deliveries`, nach dem fehlgeschlagenen Versuch gegen
   den nicht existierenden Mailserver wieder eingereiht). `TestFrozenM8StateCoversM8Data` prüft, dass jede dieser
   Datenarten nach der Migration vorhanden ist und kein Passwort im Klartext im Stand steht.
+- `M9.sql`: Stand nach M9 (Webhooks von Radarr und Sonarr; Migrationen 00017 und 00018). Erzeugt mit
+  `server/bin/slouchcat dump` nach einem Lauf gegen einen frischen Server (Skript in den Sitzungsnotizen
+  `freeze-m9.sh`): Assistent mit Hauptkonto `owner@example.test` und Filmbibliothek auf
+  `testdata/media/Movies`, dazu die Serienbibliothek auf `testdata/media/TV`, beide ohne TMDB-Schlüssel und
+  vom echten Scanner gelesen. Die M9-Daten stammen aus echten Aufrufen der API und der Webhook-Adresse:
+  die Integration «Radarr» mit Pfad-Umsetzung (`/movies` → Filmordner) und letztem Kontakt, die Integration
+  «Sonarr» ohne Umsetzung und ohne Meldung, und ein Ereignisprotokoll mit jedem Ergebnistyp
+  (`acknowledged` für `Test`, `scan_queued` für einen Import mit beiden Pfaden, `ignored` für `Health`,
+  `outside_roots` für einen Pfad ausserhalb jeder Wurzel, `invalid_payload` für `Rename` ohne Pfad). Die
+  Tokens stehen nur als SHA-256 darin, nie im Klartext (3.8 Punkt 2). `TestFrozenM9StateCoversM9Data` prüft,
+  dass jede dieser Datenarten nach der Migration vorhanden ist und dass der entfallene Kanal «Beschaffung»
+  nirgends mehr auftaucht.
