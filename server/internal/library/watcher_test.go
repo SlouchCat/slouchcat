@@ -177,9 +177,9 @@ func TestPollWatcherQueuesPathScan(t *testing.T) {
 
 	writeFile(t, dir, "Up (2009)/Up (2009).mkv", "u")
 	e.waitPathScan(".", "Up (2009)")
-	if st := w.Stats(); st.LastPass.Dirs != 3 {
-		t.Errorf("last pass = %+v", st.LastPass)
-	}
+	// The pass that found the new folder reports it; the stats may trail the queued job by a
+	// moment on a loaded machine.
+	waitFor(t, 5*time.Second, "a pass over three folders", func() bool { return w.Stats().LastPass.Dirs == 3 })
 	if e.queuedScans() != 0 {
 		t.Error("a change in one folder queued a full scan")
 	}

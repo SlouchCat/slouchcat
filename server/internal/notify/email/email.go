@@ -23,6 +23,7 @@ import (
 	"net/mail"
 	"net/smtp"
 	"net/textproto"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -88,9 +89,16 @@ func (s Sender) Send(ctx context.Context, to, subject, text, html string) error 
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 	err = s.deliver(ctx, from.Address, rcpt.Address, msg)
-	if err != nil && ctx.Err() != nil {
-		// A closed connection after a timeout or a cancellation says less than the context.
-		return fmt.Errorf("smtp %s: %w", s.addr(), ctx.Err())
+	if err != nil {
+		// A closed connection after a timeout or a cancellation says less than the context. The
+		// connection's deadline is the context's deadline, so a socket timeout means the same even
+		// when the context has not noticed it yet (the two expire in the same instant).
+		if cerr := ctx.Err(); cerr != nil {
+			return fmt.Errorf("smtp %s: %w", s.addr(), cerr)
+		}
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return fmt.Errorf("smtp %s: %w", s.addr(), context.DeadlineExceeded)
+		}
 	}
 	return err
 }

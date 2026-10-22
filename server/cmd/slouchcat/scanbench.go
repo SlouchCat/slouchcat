@@ -208,8 +208,8 @@ type interruptedLib struct {
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
 
-// benchEnv is one temporary server: database, library service, workers, watchers, HTTP handler
-// and a session of the owner profile.
+// benchEnv is one temporary server: database, library service, workers, watchers (when asked
+// for), HTTP handler and a session of the owner profile.
 type benchEnv struct {
 	dir     string
 	db      *store.DB
@@ -220,7 +220,11 @@ type benchEnv struct {
 	wg      sync.WaitGroup
 }
 
-func newBenchEnv(ctx context.Context, o scanbenchOptions) (*benchEnv, error) {
+// newBenchEnv builds the environment; watchers starts the change detection of the roots. The
+// interrupted run leaves it off: a watcher that notices the freshly written tree right after the
+// administrator's cancel would queue a path scan and the library would read "queued" instead of
+// "aborted" (a race the measurement is not about).
+func newBenchEnv(ctx context.Context, o scanbenchOptions, watchers bool) (*benchEnv, error) {
 	dir, err := os.MkdirTemp("", "slouchcat-scanbench-")
 	if err != nil {
 		return nil, err
@@ -271,11 +275,13 @@ func newBenchEnv(ctx context.Context, o scanbenchOptions) (*benchEnv, error) {
 		w.Handle(library.JobMetadataMatch, noop)
 		e.wg.Go(func() { w.Run(runCtx) })
 	}
-	e.wg.Go(func() {
-		if err := e.lib.Start(runCtx); err != nil && runCtx.Err() == nil {
-			o.log.Error("library watchers stopped", "err", err)
-		}
-	})
+	if watchers {
+		e.wg.Go(func() {
+			if err := e.lib.Start(runCtx); err != nil && runCtx.Err() == nil {
+				o.log.Error("library watchers stopped", "err", err)
+			}
+		})
+	}
 	return e, nil
 }
 
@@ -456,7 +462,7 @@ func (e *benchEnv) create(ctx context.Context, libs []benchLibrary) ([]int64, er
 
 func runScanbench(ctx context.Context, o scanbenchOptions) (scanbenchReport, error) {
 	rep := scanbenchReport{Root: o.root, Workers: o.workers}
-	e, err := newBenchEnv(ctx, o)
+	e, err := newBenchEnv(ctx, o, true)
 	if err != nil {
 		return rep, err
 	}
@@ -558,7 +564,7 @@ func (e *benchEnv) libraryReport(ctx context.Context, b benchLibrary, id int64) 
 // that the result equals the first run.
 func runInterrupted(ctx context.Context, o scanbenchOptions, full []libraryReport) (interruptReport, error) {
 	var rep interruptReport
-	e, err := newBenchEnv(ctx, o)
+	e, err := newBenchEnv(ctx, o, false)
 	if err != nil {
 		return rep, err
 	}
