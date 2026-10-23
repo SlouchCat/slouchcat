@@ -518,7 +518,7 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 - **Ziel:** Version 1 vollständig, gemessen, dokumentiert.
 - **Spec-IDs:** C-4 (Gesamtaudit), C-5 (Nachweis), Constraints Betrieb.
 - **Schritte:** (1) Fremd-Client-Test (P-16); (2) Leistung auf Referenz-NAS und arm64; (3) Migrationstest aller DB-Stände M1a → 1.0; (4) Sicherheitsreview (Agent `security-reviewer`), Installationsanleitung de-CH; (5) Tag `v1.0.0`.
-- **DoD (zusätzlich zu 6.2):** alle 64 Matrixzeilen grün oder mit Abweichung nur gemäss AN-4, AN-12, AN-13, AN-17, AN-7 (Prüfung mangels Gerät "ungeprüft", einzeln aufgeführt) und VAAPI/AMD "best effort, ungetestet" (3.5); P-1–P-16 erfüllt.
+- **DoD (zusätzlich zu 6.2):** alle 64 Matrixzeilen grün oder mit Abweichung nur gemäss AN-4, AN-12, AN-13, AN-17, AN-7 (Prüfung mangels Gerät "ungeprüft", einzeln aufgeführt), O-6 (Langzeitbeobachtung auf drei Tage verkürzt, Entscheid vom 23.10.2026) und VAAPI/AMD "best effort, ungetestet" (3.5); P-1–P-16 erfüllt.
 
 ---
 
@@ -573,7 +573,7 @@ Durchstich-Ziel "innerhalb der ersten Wochen" (Spec "Constraints"): M0 + M1a = 1
 | O-3 | M5, M6 | Test: Folge n beendet → n+1 lädt; Max.-Anzahl eingehalten; neue Podcast-Episode lädt; "nur WLAN" auf Android-Chrome geprüft; iOS gemäss AN-13 |
 | O-4 | M5 | Playwright offline + manuell Flugmodus (iPhone, iPad, Android, Desktop): Wiedergabe mit Untertitel und gewählter Tonspur |
 | O-5 | M5 | Test: 10 min offline gesehen, Wiederverbindung → zweites Gerät zeigt Position ±10 s innert 10 s; Konfliktfälle AN-10 |
-| O-6 | M5 (Start), M7 (abgehakt) | Schema-Test: kein Ablauffeld; Download nach 30 Tagen (Android, Desktop) bzw. 8 Tagen (iOS) abspielbar; nur Löschen durch Profil oder Entzug entfernt ihn |
+| O-6 | M5 (Start), M7 (abgehakt) | Schema-Test: kein Ablauffeld; nur Löschen durch Profil oder Entzug entfernt ihn; Download nach 30 Tagen (Android, Desktop) bzw. 8 Tagen (iOS) abspielbar — **auf Entscheid vom 23.10.2026 verkürzt auf drei Tage Desktop, Android nicht durchgeführt, iOS ungeprüft** (`docs/perf/M5-o6-langzeittest.md`) |
 | O-7 | M5 | Playwright: P6 sieht FSK-18-Download von P18 auf demselben Gerät nicht; Speicheranzeige = `estimate()` ±5 %; iOS-Hinweis sichtbar |
 | C-1 | M1a, M5 | Lighthouse "installierbar"; Kaltstart im Flugmodus zeigt Offline-Bibliothek < 3 s |
 | C-2 | M0 ff. | Lint 0 Verstösse; Admin und Zuschauer importieren dieselben `web/src/ui`-Komponenten (Import-Regel) |
