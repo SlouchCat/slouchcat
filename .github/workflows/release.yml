@@ -8,6 +8,11 @@
 # Its fields are the four the update check knows (server/internal/admin/update.go): version, url,
 # notes, publishedAt. `version` is the tag without the leading v, so it compares as a semantic
 # version against the one built into the binary.
+#
+# After the FIRST release: GitHub creates a new package private, whoever pushed it. Set
+# ghcr.io/slouchcat/slouchcat to public once by hand (package page -> Package settings -> Change
+# visibility), otherwise `docker compose pull` asks every installation for a login. Decision 1 of
+# 2026-10-18 says image and version information are public.
 name: release
 
 on:

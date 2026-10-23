@@ -1,14 +1,63 @@
 # Aktueller Stand
 
-Stand: 22. Oktober 2026. M0 bis M8 sind in `main` gemerged (`https://github.com/SlouchCat/slouchcat`,
-Pull Requests #1 bis #6, #10, #11, #14 und #15; M8 am 22. Oktober 2026 auf Marcos Wort, Merge-Commit `f7c57e6`),
-dazu die Korrektur der Firefox-Tonspur (#18), die Statusnotiz zu M8 (#16), der Zuschnitt von M9 (#17,
-Merge-Commit `09733c7`) und die CI-Korrekturen (#20, Merge-Commit `261bd4f`). **M9 ist gebaut und liegt als
-Pull Request #19 gegen `main`** (Branch `claude/m9-webhook-receiver`, mit `main` zusammengeführt); gemerged
-wird er auf Marcos Wort. Das Docker-Image auf Marcos Rechner ist auf dem
-M8-Stand gebaut, der Container ist `healthy`. Der CI-Job hat seit #14 ein Limit von 75 Minuten. Die Übergabe an
-eine neue Hauptsession steht in `docs/dev/HANDOVER.md`. Nächster und letzter Meilenstein: M10 (Härtung und
-Release 1.0).
+Stand: 23. Oktober 2026. **M0 bis M9 sind in `main`** (`https://github.com/SlouchCat/slouchcat`,
+Pull Requests #1 bis #6, #9, #10, #11, #14 bis #23; zuletzt der Merge-Commit `f17351b`). Der CI-Lauf auf
+`f17351b` ist **grün** (Job `ci` 59.8 min, Job `image` 2.8 min) — der erste Lauf, der alle Korrekturen
+aus #18, #20 und #21 zusammen geprüft hat. Marco hat M8 und M9 am 23. Oktober am laufenden Container
+abgenommen.
+
+**M10 «Härtung und Release 1.0» ist gebaut** und liegt auf dem Branch `claude/m10-hardening-release`.
+Das eigentliche Ergebnis ist der **Abnahmebericht `docs/dev/ABNAHME-1.0.md`**: je Zeile der
+Abnahmematrix und je Plan-Kriterium steht dort, womit sie belegt ist oder welche Abweichung gilt.
+Danach trägt das Repository den Tag `v1.0.0` — nur auf Marcos ausdrückliches Wort.
+
+Der CI-Job hat seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hauptsession steht in
+`docs/dev/HANDOVER.md`.
+
+## Meilenstein M10 – Härtung und Release 1.0
+
+Vorab geklärt mit Marco (23. Oktober 2026, Entscheidungsprotokoll): Er führt die offenen Prüfungen an
+echten Geräten **nicht** durch («Wird schon funktionieren. Werde bei der nächsten Version noch
+Änderungen vornehmen.»); die HDR-Referenzbilder aller vier Ketten hat er angesehen und freigegeben
+(P-6 a); arm64 bleibt mangels Gerät nur unter Emulation geprüft; Messungen auf dem Referenz-NAS
+CT 190 sind freigegeben.
+
+**Das Ergebnis dieses Meilensteins ist der Abnahmebericht `docs/dev/ABNAHME-1.0.md`.** Er führt jede
+der 64 Abnahmezeilen und jedes der 16 Plan-Kriterien einzeln auf — mit dem Beleg oder der geltenden
+Abweichung. Die acht Abweichungen stehen dort gesammelt in einer eigenen Tabelle, damit keine in
+einer Zeile untergeht; zwei davon (keine weiteren Gerätetests, arm64 nur emuliert) sind am
+23. Oktober neu dazugekommen und seither ausdrücklich in der DoD von M10 genannt.
+
+### Die acht offenen Punkte, mit denen M10 angetreten ist
+
+1. **Formularfehler blieben nach der Korrektur stehen** — der sichtbarste Mangel, gefunden bei Marcos
+   Abnahme. Zwei Ursachen: react-aria zeigt einen Server-Fehler wieder, sobald sich die Identität von
+   `validationErrors` ändert, und jede Seite baut dieses Objekt bei jedem Rendern neu aus dem Fehler
+   der Mutation — die Meldung kam also einen Rendervorgang nach dem Verschwinden zurück. Und
+   react-aria lässt sie nur beim nativen `change` los, das ein Textfeld erst beim Verlassen auslöst.
+   Neu ist `web/src/ui/Form` das Formular der App: Es reicht react-aria dasselbe Objekt, solange der
+   Inhalt gleich ist, und nimmt ein Feld heraus, sobald dieses Feld eine Änderung meldet. Die Marken
+   gehören zu der Antwort, unter der sie entstanden sind (Runden), damit die nächste Antwort immer
+   wieder für jedes Feld spricht — auch wenn der Server sich wörtlich wiederholt. Alle 24 Formulare
+   holen `Form` jetzt aus `@/ui/aria`; `no-restricted-imports` hält das schlichte react-aria-`Form`
+   aus den Features heraus.
+2. **Go-Testsuite parallelisiert.** `internal/api` war der lange Pol: 579 s von 9 min 41 s der ganzen
+   Suite auf dem Entwicklungsrechner. Die Fixtures waren schon unabhängig (eigene SQLite-Datei je
+   Test), nur lief nichts nebeneinander. Details und Messwerte unten.
+3. **Leerlaufspeicher auf CT 190 nachgemessen** — die 80-MB-Schranke war nie auf der Hardware
+   geprüft, für die sie gedacht ist (`docs/perf/M10.md` 1).
+4. **arm64-Schwelle nachgeführt** von 120 auf 180 MB, mit fünf eigenen Messungen dahinter
+   (`docs/perf/M10.md` 6).
+5. **Das Pfad-Umsetzungsformular zieht nach**, wenn ein zweiter Admin dieselbe Integration ändert:
+   ohne eigene Eingaben folgt es stillschweigend, mit eigenen Zeilen behält es sie, sagt Bescheid und
+   bietet an, die fremde Fassung zu übernehmen.
+6. **Verdichtung alter `progress_events`** (Plan 3.2, 90 Tage) gebaut — siehe unten.
+7. **Release-Manifest wird veröffentlicht.** `.github/workflows/release.yml` läuft nur auf einen Tag
+   `vX.Y.Z`: Image für amd64 und arm64 nach ghcr.io, das Manifest, das die Update-Prüfung liest, und
+   das Release mit dem ffmpeg-Quellcode-Angebot. Bis jemand taggt, wird nichts veröffentlicht.
+   `compose.yaml` nagelt die Fassung über `SLOUCHCAT_VERSION` fest.
+8. **O-6 als deklarierte Abweichung geführt** — namentlich in der Abweichungstabelle des
+   Abnahmeberichts (B-1) und in den Zeilen O-6 und P-9.
 
 ## Befund: die CI braucht eine Audioausgabe für Firefox (22. Oktober 2026)
 
