@@ -59,6 +59,88 @@ einer Zeile untergeht; zwei davon (keine weiteren Gerätetests, arm64 nur emulie
 8. **O-6 als deklarierte Abweichung geführt** — namentlich in der Abweichungstabelle des
    Abnahmeberichts (B-1) und in den Zeilen O-6 und P-9.
 
+### Die fünf Plan-Schritte
+
+1. **Fremd-Client-Test (P-16, zweite Hälfte von C-5).** `server/cmd/apicheck` ist ein Client, der den
+   Server **nur** über `api/openapi.yaml` kennt: Eine depguard-Regel verbietet ihm jeden Import aus
+   `internal/`, vor jedem Aufruf schlägt er Pfad und Methode im Vertrag nach, und ein Aufruf, den der
+   Vertrag nicht beschreibt, lässt den Lauf scheitern (gegengeprobt mit `/wishes`). Er richtet seine
+   Installation über `/setup` selbst ein und spielt die achtzehn Zuschauerfunktionen durch.
+   `task apicheck`: **18 von 18 ok**, 85 Aufrufe in 3 s. Nicht Teil von `task ci` — die CI läuft
+   ohnehin eine Stunde, und das hier ist ein Abnahmelauf, keine Regressionsschranke.
+2. **Leistung auf dem Referenz-NAS und arm64** — `docs/perf/M10.md` Abschnitte 1 bis 6.
+3. **Migrationstest aller DB-Stände M1a → 1.0.** `testdata/db/M10.sql` ist der eingefrorene Stand von
+   1.0; er trägt die Wiedergabe-Geschichte in beiden Formen (eine rohe Zeile, ein verdichteter Tag,
+   vom Server selbst verdichtet). `TestFrozenStatesMigrate` spielt elf Stände ein und migriert sie
+   auf das 1.0-Schema.
+4. **Sicherheitsreview und Installationsanleitung** — unten.
+5. **Tag `v1.0.0`** — nicht in diesem Meilenstein. Den setzt die Hauptsession auf Marcos
+   ausdrückliches Wort.
+
+### Sicherheitsreview (Schritt 4)
+
+Vollständig in `docs/dev/SICHERHEITSREVIEW-1.0.md`, geprüft wurde der ganze Baum gegen das
+Bedrohungsmodell aus Plan 3.8. **Kritisch 0, hoch 0, mittel 2, niedrig 8, Hinweis 11**; kein
+Geheimnis im Repository oder in der Historie. Alle neun geprüften Bereiche halten — darunter
+maschinell: alle 152 Operationen tragen `x-visibility`, alle 13 mit `ItemRef` in der Antwort sind
+`scoped`, und die Importeure von `store/systemq` sind genau die depguard-Liste.
+
+Vor dem Tag behoben: **M-1** (`SLOUCHCAT_TRUSTED_PROXIES=private` vertraut jedem Gerät im Heimnetz
+und macht mit offenem Port 8096 die Bremse der Anmeldeversuche wirkungslos — der Server warnt jetzt
+beim Start, und `.env.example`, die Installationsanleitung und der Kopfkommentar der `compose.yaml`
+empfehlen das Docker-Netz von Caddy als CIDR), **M-2** und **N-8** (alle fremden Actions auf
+Commit-SHA gepinnt, `.github/dependabot.yml`, Provenance und SBOM am Release-Image), **N-3**
+(`golang 1.27.3`) und **H-7**: Der temporäre Spike-Endpunkt `/spike/{variant}` aus M1a — mit
+`Access-Control-Allow-Origin: *` — war immer noch da und wäre mit dem öffentlichen 1.0 ausgeliefert
+worden. Er ist samt `SLOUCHCAT_SPIKE_DIR` und dem Generatorskript entfernt; das war ohnehin die seit
+M1b offene Nacharbeit.
+
+### Installationsanleitung
+
+`docs/INSTALLATION.md`: für jemanden, der Slouchcat zu Hause betreiben will und kein Entwickler ist.
+Von den Ordnern über `.env`, den ersten Start und den Assistenten bis HTTPS, Sicherung und
+Aktualisieren — mit einem eigenen Abschnitt «Was nicht geprüft ist», damit niemand die Lücken erst im
+Betrieb findet.
+
+### Ein Befund, den niemand gesucht hat
+
+Die Startseite war langsamer geworden, ohne dass es auffiel: gemessener LCP **2.702 s** statt unter
+2.5 s (P-10). Die Ursache war nicht die gewachsene Seite. Die Hülle verzögert das Startprogramm
+absichtlich, bis das Hero-Bild gezeichnet ist; der Bündler erzeugt seit einer Weile aber **zwei**
+Modul-Skripte, und die Regex in `deferStartScript()` traf nur das erste. Verzögert wurde das
+1-KiB-Laufzeit-Stück, der Einstiegspunkt mit 152 KiB stand wieder eifrig im Kopf. Gemeldet hat es
+nichts — der Plugin warf nur, wenn er gar kein Tag fand. Nach der Korrektur (alle Modul-Skripte in
+ihrer Reihenfolge, plus eine Schranke, die genau diesen Fall zum Build-Fehler macht): **1.802 s**,
+derselbe Wert wie in M1a, obwohl die Seite inzwischen ein Karussell und sieben Reihen trägt.
+Messung in `docs/perf/M10.md` Abschnitt 8.
+
+### Belege (DoD)
+
+| Prüfung | Befund |
+|---|---|
+| Abnahmebericht | `docs/dev/ABNAHME-1.0.md`: 64 Matrixzeilen und 16 Plan-Kriterien einzeln mit Beleg oder benannter Abweichung |
+| Fremd-Client (P-16, C-5) | `task apicheck` — 18 von 18 Zuschauerfunktionen ok, Exit-Code 0 |
+| Migrationstest (P-13) | `go test ./internal/store -run TestFrozenStatesMigrate` über elf Stände M1a → M10, dazu `TestFrozenM10StateCoversM10Data` |
+| Leerlaufspeicher (P-2) | 83.0 MB bei 50'570 Titeln auf CT 190 (Grenze 150 MB bei 5'000), `docs/perf/M10.md` 1b |
+| Antwortzeiten (P-11) | CT 190: Startseite p95 105.4 ms, während des Erst-Scans 109.8 ms, Suche p95 8.1–54.2 ms |
+| Startseite (P-10) | LCP 1.802 s (Grenze 2.5 s), acht Reihen, keine leere; `web/e2e/home.spec.ts` grün |
+| Grafikchip auf dem NAS (A-1) | `backend=qsv tonemapper=cpu budget=8`, `docs/perf/M10.md` 4 |
+| HDR-Referenzbilder (P-6 a) | am 23. Oktober von Marco angesehen und freigegeben, alle vier Ketten |
+| Sicherheitsreview | `docs/dev/SICHERHEITSREVIEW-1.0.md`, 0 kritisch / 0 hoch / 2 mittel, alle fünf dringenden Funde behoben |
+| Testdauer | `internal/api` 579 s → 288 s; sieben weitere Pakete je um 35 bis 45 % kürzer, `docs/perf/M10.md` 7 |
+| Verdichtung | `TestStatsSurviveCondensing`: dieselben Statistikzahlen vor und nach dem Verdichten |
+
+### Offen
+
+1. **Sieben Prüfungen an echten Geräten** führt Marco nicht durch (Entscheid 23. Oktober). Sie stehen
+   im Abnahmebericht namentlich als Abweichung C-1, nicht als grün.
+2. **arm64** ist nur unter Emulation geprüft (Abweichung C-2).
+3. Die niedrigen Funde und Hinweise des Sicherheitsreviews bleiben für 1.x; die Reihenfolge steht am
+   Ende des Berichts.
+4. Der Tag `v1.0.0` und das Veröffentlichen gehören der Hauptsession und Marcos Wort. Nach dem ersten
+   Release muss das Paket auf ghcr.io **einmal von Hand auf öffentlich gestellt** werden — GitHub legt
+   ein neues Paket privat an.
+
 ## Befund: die CI braucht eine Audioausgabe für Firefox (22. Oktober 2026)
 
 Nach dem M8-Merge war `main` rot: `web/e2e/audio-offline.spec.ts:121` (Leertaste pausiert nicht) und
