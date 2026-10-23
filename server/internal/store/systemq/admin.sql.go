@@ -1054,6 +1054,28 @@ func (q *Queries) AdminMergeProgress(ctx context.Context, arg AdminMergeProgress
 	return err
 }
 
+const adminMergeProgressDays = `-- name: AdminMergeProgressDays :exec
+INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays)
+SELECT d.profile_id, ?1, d.device_id, d.day, d.played_ms, d.plays
+FROM progress_days AS d WHERE d.item_id = ?2 AND true
+ON CONFLICT (profile_id, item_id, device_id, day) DO UPDATE
+SET played_ms = progress_days.played_ms + excluded.played_ms,
+    plays = progress_days.plays + excluded.plays
+`
+
+type AdminMergeProgressDaysParams struct {
+	TargetID string
+	SourceID string
+}
+
+// The condensed days of the source (M10, progress_days) are added to the target's days; a day the
+// target already has keeps its row with the played time and the plays of both. The source's rows
+// go with the source (ON DELETE CASCADE).
+func (q *Queries) AdminMergeProgressDays(ctx context.Context, arg AdminMergeProgressDaysParams) error {
+	_, err := q.db.ExecContext(ctx, adminMergeProgressDays, arg.TargetID, arg.SourceID)
+	return err
+}
+
 const adminMoveChildren = `-- name: AdminMoveChildren :exec
 UPDATE items SET parent_id = ?1, updated_at = ?2 WHERE parent_id = ?3
 `

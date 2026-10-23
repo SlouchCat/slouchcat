@@ -221,6 +221,17 @@ WHERE excluded.completed > progress.completed
 -- name: AdminMoveProgressEvents :exec
 UPDATE progress_events SET item_id = @target_id WHERE item_id = @source_id;
 
+-- name: AdminMergeProgressDays :exec
+-- The condensed days of the source (M10, progress_days) are added to the target's days; a day the
+-- target already has keeps its row with the played time and the plays of both. The source's rows
+-- go with the source (ON DELETE CASCADE).
+INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays)
+SELECT d.profile_id, @target_id, d.device_id, d.day, d.played_ms, d.plays
+FROM progress_days AS d WHERE d.item_id = @source_id AND true
+ON CONFLICT (profile_id, item_id, device_id, day) DO UPDATE
+SET played_ms = progress_days.played_ms + excluded.played_ms,
+    plays = progress_days.plays + excluded.plays;
+
 -- name: AdminMoveTopPicks :exec
 UPDATE top_picks SET item_id = @target_id WHERE item_id = @source_id;
 
