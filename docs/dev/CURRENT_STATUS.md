@@ -129,6 +129,28 @@ Messung in `docs/perf/M10.md` Abschnitt 8.
 | Sicherheitsreview | `docs/dev/SICHERHEITSREVIEW-1.0.md`, 0 kritisch / 0 hoch / 2 mittel, alle fünf dringenden Funde behoben |
 | Testdauer | `internal/api` 579 s → 288 s; sieben weitere Pakete je um 35 bis 45 % kürzer, `docs/perf/M10.md` 7 |
 | Verdichtung | `TestStatsSurviveCondensing`: dieselben Statistikzahlen vor und nach dem Verdichten |
+| `task ci` | **exit 0** (23. Oktober 2026, 21 min 41 s): Codegen ohne Drift, Lint beidseitig, `go test -race ./...`, Vitest 585 + 4 + 2, Bau, Playwright **404 von 404** in Chromium und Firefox (19.9 min), Storybook **156 von 156** |
+| Verifikation (DoD 6.2 Punkt 6) | `docs/dev/VERIFIKATION-1.0.md` — eigener Durchgang, sieben Befunde, alle behoben |
+
+### Zwei Fehler, die erst der vollständige Lauf gefunden hat
+
+Beide sassen in der Formular-Korrektur aus Punkt 1 — also in dem, was als Erstes fertig gemeldet war:
+
+1. **Das erste Zeichen jedes Feldes ging verloren.** Der Horcher, der ein bearbeitetes Feld
+   markiert, lief während des Tastendrucks; react-aria hatte den neuen Wert da noch nicht in den
+   Zustand der Seite geschrieben, und die Neuzeichnung setzte den alten zurück. Die Anmeldeseite
+   schickte `2e-owner@…` statt `e2e-owner@…`. **30 Playwright-Tests** haben es gemeldet, die
+   Unit-Tests nicht und können es auch nicht: jsdom ordnet die Ereignisse anders als ein Browser.
+   Genau davor warnte der Kopfkommentar von `web/src/lib/useEdited.ts`, der im Commit davor gelöscht
+   wurde. Die Markierung wartet jetzt einen Takt.
+2. **Vier Formulare hingen gar nicht an der neuen Komponente** (`AccountsPage`, `AnnouncementsPage`
+   und beide Formulare der `BackupPage`): Sie sperrten die Server-Meldungen mit einem
+   **formularweiten** Schalter, sodass ein Tastendruck in irgendeinem Feld alle Meldungen und den
+   Hinweis über dem Formular verschwinden liess — auch zu Feldern, die niemand angefasst hatte.
+   Gefunden hat das der unabhängige Verifikationsdurchgang.
+
+Die Lehre für den Bericht: Die Zusage «sitzt unter allen 24 Formularen» war zweimal falsch, und
+beide Male hat sie erst etwas gefunden, das **nicht** der schreibende Durchgang war.
 
 ### Offen
 

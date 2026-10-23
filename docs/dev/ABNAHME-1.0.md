@@ -214,7 +214,7 @@ Vor dem Tag behoben: **M-1** (Warnung beim Start und klarere Empfehlung für
 | Punkt | Stand |
 |---|---|
 | 1. Alle Matrixzeilen des Meilensteins grün | je Meilenstein in `docs/dev/CURRENT_STATUS.md` belegt; für 1.0 siehe Abschnitt 1 dieses Berichts |
-| 2. `task ci` grün, Vertragstest 10.2 grün | siehe Nachtrag (Lauf auf diesem Branch) |
+| 2. `task ci` grün, Vertragstest 10.2 grün | **grün**, Lauf vom 23. Oktober 2026 auf dem Stand dieses Branches, exit 0 in 21 min 41 s: Codegen ohne Drift, Lint auf beiden Seiten, `go test -race ./...` über alle Pakete, Vitest **585** plus 4 plus 2, Bau, Playwright **404 von 404** in Chromium und Firefox (19.9 min), Storybook **156 von 156** Screenshots. Der Vertragstest 10.2 läuft darin mit (`TestContract*`). |
 | 3. Playwright-Tastaturtest je neuer oder geänderter Seite | P-15 |
 | 4. Neuer eingefrorener DB-Stand, Migrationstest aller früheren Stände grün | **grün**: `testdata/db/M10.sql`, `TestFrozenStatesMigrate` über elf Stände (P-13) |
 | 5. Messwerte in `docs/perf/<Mx>.md`, Gerätecheckliste | `docs/perf/M10.md`; Gerätecheckliste siehe Abweichung C-1 |
@@ -236,7 +236,7 @@ Zusammengefasst, damit es nicht nur in Tabellenzeilen steht:
 
 ## 6. Nachträge
 
-Offen bis zum Pull Request: DoD 6.2 Punkt 2 (`task ci` auf diesem Branch).
+Keine. Alle Punkte der DoD sind eingetragen.
 
 ## 7. Was in M10 gefunden und behoben wurde
 
@@ -255,7 +255,13 @@ bekannt:
 Dazu die acht Punkte, mit denen M10 angetreten ist (`docs/dev/CURRENT_STATUS.md`), die fünf Funde
 des Sicherheitsreviews aus Abschnitt 3 und ein dritter, den erst die unabhängige Gegenprobe fand:
 
-3. **Vier Formulare hingen gar nicht an der Korrektur aus Punkt 1.** `AccountsPage`,
+3. **Die Korrektur aus Punkt 1 verschluckte das erste Zeichen jedes Feldes.** Der Horcher, der ein
+   bearbeitetes Feld markiert, lief *während* des Tastendrucks — bevor react-aria den neuen Wert in
+   den Zustand der Seite geschrieben hatte; die Neuzeichnung setzte den alten Wert zurück. Gefunden
+   hat es der vollständige `task ci`-Lauf mit 30 roten Playwright-Tests, nicht die Unit-Tests: jsdom
+   ordnet die Ereignisse anders als ein Browser, und der Test dazu läuft vor wie nach der Korrektur
+   grün. Die Markierung wartet jetzt einen Takt.
+4. **Vier Formulare hingen gar nicht an der Korrektur aus Punkt 1.** `AccountsPage`,
    `AnnouncementsPage` und die beiden Formulare der `BackupPage` sperrten die Server-Meldungen mit
    einem **formularweiten** Schalter: Ein Tastendruck in irgendeinem Feld liess *alle* Meldungen
    verschwinden, auch die zu einem Feld, das niemand angefasst hatte, und den Hinweis über dem
