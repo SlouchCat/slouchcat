@@ -6,10 +6,31 @@ Pull Requests #1 bis #6, #9, #10, #11, #14 bis #23; zuletzt der Merge-Commit `f1
 aus #18, #20 und #21 zusammen geprüft hat. Marco hat M8 und M9 am 23. Oktober am laufenden Container
 abgenommen.
 
-**M10 «Härtung und Release 1.0» ist gebaut** und liegt auf dem Branch `claude/m10-hardening-release`.
-Das eigentliche Ergebnis ist der **Abnahmebericht `docs/dev/ABNAHME-1.0.md`**: je Zeile der
-Abnahmematrix und je Plan-Kriterium steht dort, womit sie belegt ist oder welche Abweichung gilt.
-Danach trägt das Repository den Tag `v1.0.0` — nur auf Marcos ausdrückliches Wort.
+**Version 1.0.0 ist veröffentlicht** (23. Oktober 2026, auf Marcos Wort). M10 ist als #24 gemerged,
+dazu die zwei Nachbesserungen am Release-Weg (#31, #32). `main` steht auf `6f78a5c`, der Tag
+`v1.0.0` darauf. Das eigentliche Ergebnis des Meilensteins ist der **Abnahmebericht
+`docs/dev/ABNAHME-1.0.md`**: je Zeile der Abnahmematrix und je Plan-Kriterium steht dort, womit sie
+belegt ist oder welche Abweichung gilt.
+
+Nachgeprüft am veröffentlichten Stand, nicht an der Meldung des Workflows: `ghcr.io/slouchcat/slouchcat`
+ist öffentlich und liefert `:1.0.0` und `:latest` für **linux/amd64 und linux/arm64**; ein anonymes
+`docker pull` und ein Start daraus ergeben `healthy` nach 1.142 s bei 48.8 MB Leerlaufspeicher; der
+Lizenzordner im Image trägt `LICENSE`, `FFMPEG-NOTICE.md`, `FFMPEG-COPYRIGHT` und `FFMPEG-VERSION`.
+Das Manifest der Update-Prüfung antwortet unter
+`https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json` mit Fassung, Adresse
+und dem Text aus der Tag-Beschriftung.
+
+**Zwei Fehler im Release-Weg, beide erst beim Veröffentlichen aufgefallen** — er lässt sich nicht
+anders prüfen als durch ein Release:
+
+1. `ghcr.io/${{ github.repository }}` behielt das grosse S von `SlouchCat`; Docker-Paketnamen müssen
+   klein sein, der Build brach vor dem Hochladen ab. Der erste Tag `v1.0.0` wurde darum gelöscht und
+   nach der Korrektur neu gesetzt — veröffentlicht war zu dem Zeitpunkt nichts (#31).
+2. Die Release-Notes kamen aus dem Commit statt aus der Tag-Beschriftung: `actions/checkout` schreibt
+   `refs/tags/<tag>` direkt auf den Commit, das Beschriftungs-Objekt fehlt im Klon. Die schon
+   veröffentlichten Texte sind an Ort und Stelle korrigiert, die Ursache in #32 (dort steht auch,
+   dass eine **Organisationsregel** öffentliche Pakete verbieten kann — bis die umgestellt ist, bleibt
+   «Public» am Paket ausgegraut).
 
 Der CI-Job hat seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hauptsession steht in
 `docs/dev/HANDOVER.md`.

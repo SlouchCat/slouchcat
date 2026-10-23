@@ -9,10 +9,21 @@
 # notes, publishedAt. `version` is the tag without the leading v, so it compares as a semantic
 # version against the one built into the binary.
 #
-# After the FIRST release: GitHub creates a new package private, whoever pushed it. Set
-# ghcr.io/slouchcat/slouchcat to public once by hand (package page -> Package settings -> Change
-# visibility), otherwise `docker compose pull` asks every installation for a login. Decision 1 of
-# 2026-10-18 says image and version information are public.
+# After the FIRST release the package has to be made public by hand, once -- GitHub creates a new
+# one private, and `docker compose pull` would ask every installation for a login. Decision 1 of
+# 2026-10-18 says image and version information are public. It takes two settings, in this order,
+# and the first one is easy to miss:
+#
+#   1. https://github.com/organizations/<org>/settings/packages -- the organization has to allow
+#      public packages at all. Until it does, "Public" is greyed out further down with "Setting is
+#      disabled by organization administrators", and no amount of confirming changes anything.
+#      Needs an organization owner, not a repository admin.
+#   2. The package page -> Package settings -> Danger Zone -> Change visibility -> Public.
+#
+#   Check it without being signed in: ghcr.io hands out an anonymous pull token for a public
+#   package, and
+#     curl -s "https://ghcr.io/token?scope=repository:<org>/<name>:pull&service=ghcr.io"
+#   returns an error while it is private.
 name: release
 
 on:
