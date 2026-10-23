@@ -1,20 +1,19 @@
 import type { Backup, BackupRequest, components, RestoreResult } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { useEdited } from '@/lib/useEdited';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { ButtonLink, Notice, Page, Panel, Skeleton, Text } from '@/ui';
 import {
   AriaButton,
   ConfirmDialog,
   DataTable,
+  Form,
   FormDialog,
   RadioGroup,
   TextField,
@@ -69,12 +68,10 @@ function CreateDialog({ onClose }: { onClose: (created: Backup | null) => void }
       onClose(backup);
     },
   );
-  const { edited, submitted, onInput } = useEdited();
-  const errors = create.error && !edited ? formErrors(t, create.error) : null;
+  const errors = create.error ? formErrors(t, create.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    submitted();
     void create.run(
       mode === 'with' ? { includeSecrets: true, passphrase } : { includeSecrets: false },
     );
@@ -90,7 +87,7 @@ function CreateDialog({ onClose }: { onClose: (created: Backup | null) => void }
       description={t('admin.backup.create.intro')}
     >
       <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <div className={styles.form} onInput={onInput}>
+        <div className={styles.form}>
           {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
           <RadioGroup
             name="includeSecrets"
@@ -174,8 +171,7 @@ function RestoreDialog({
       backup ? restoreBackup(backup.name, passphrase) : restoreUpload(file!, passphrase),
     onAccepted,
   );
-  const { edited, submitted, onInput } = useEdited();
-  const errors = restore.error && !edited ? formErrors(t, restore.error) : null;
+  const errors = restore.error ? formErrors(t, restore.error) : null;
   const ready = backup ? passphrase !== '' : file !== null;
 
   return (
@@ -191,7 +187,7 @@ function RestoreDialog({
       }
     >
       <Form onSubmit={(event) => event.preventDefault()} validationErrors={errors?.fields}>
-        <div className={styles.form} onInput={onInput}>
+        <div className={styles.form}>
           {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
           <Notice tone="warning" live={false}>
             {t('admin.backup.restore.warning')}
@@ -247,7 +243,6 @@ function RestoreDialog({
               cancelLabel={t('common.cancel')}
               tone="danger"
               onConfirm={() => {
-                submitted();
                 void restore.run(undefined);
               }}
             />

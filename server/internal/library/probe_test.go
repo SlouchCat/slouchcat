@@ -33,6 +33,8 @@ func mediaJob(t *testing.T, typ, mediaFileID string) *jobs.Job {
 	return &jobs.Job{Type: typ, Payload: payload}
 }
 
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestProbeJobsOnTestMedia(t *testing.T) {
 	if ffprobePath() == "" {
 		t.Fatal("ffprobe is required for the probe tests (install ffmpeg)")
@@ -105,6 +107,7 @@ func TestProbeJobsOnTestMedia(t *testing.T) {
 // M3 review, finding 4: a probe that fails because of the environment (ffprobe not configured or
 // not found) is returned for a retry and stores no probe_error; only a failure of the file does.
 func TestProbeEnvironmentErrorsAreRetried(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, []string{"Alien (1979)/Alien (1979).mkv"})
 	lib := e.create(dir)
@@ -127,6 +130,7 @@ func TestProbeEnvironmentErrorsAreRetried(t *testing.T) {
 // A file that comes back unchanged after missing_since is probed again, so a probe that failed
 // while the file was away does not stay.
 func TestReturningFileIsProbedAgain(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:10])
 	lib := e.create(dir)
@@ -154,6 +158,7 @@ func TestReturningFileIsProbedAgain(t *testing.T) {
 }
 
 func TestKeyframeEncoding(t *testing.T) {
+	t.Parallel()
 	in := []time.Duration{4 * time.Second, 0, 2*time.Second + 2*time.Millisecond, -time.Millisecond, 2 * time.Hour}
 	b := EncodeKeyframes(in)
 	got, err := DecodeKeyframes(b)
@@ -184,6 +189,7 @@ func TestKeyframeEncoding(t *testing.T) {
 }
 
 func TestParseSidecar(t *testing.T) {
+	t.Parallel()
 	stem := "Hollow Man (2000) [imdb-tt0164052] - [German DL][Bluray-1080p][AC3 5.1][x264]-c0nFuSed"
 	cases := []struct {
 		name string
@@ -213,6 +219,7 @@ func TestParseSidecar(t *testing.T) {
 }
 
 func TestCanonicalContainer(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ format, ext, want string }{
 		{"matroska,webm", "mkv", "mkv"}, {"matroska,webm", "webm", "webm"},
 		{"mov,mp4,m4a,3gp,3g2,mj2", "mp4", "mp4"}, {"mov,mp4,m4a,3gp,3g2,mj2", "m4v", "m4v"},

@@ -1,9 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formatCountdown, useCountdown } from '@/lib/useCountdown';
 import { Notice, VisuallyHidden } from '@/ui';
-import { AriaButton, FormDialog, PinField } from '@/ui/aria';
+import { AriaButton, Form, FormDialog, PinField } from '@/ui/aria';
 import { openOfflineProfile } from './offlineProfiles';
 import { lockRemainingMs, pinRequirement } from './pin';
 import type { StoredProfile } from './types';

@@ -11,6 +11,7 @@ import (
 )
 
 func TestMaxBody(t *testing.T) {
+	t.Parallel()
 	var decodeErr error
 	h := MaxBody(MaxBodyBytes)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var v map[string]string
@@ -35,6 +36,7 @@ func TestMaxBody(t *testing.T) {
 // The offline batch routes take up to MaxBatchBodyBytes (500 events are about 150 KB), the backup
 // upload more (TestMaxBodyRestoreUpload), every other route keeps MaxBodyBytes.
 func TestMaxBodyBatchRoutes(t *testing.T) {
+	t.Parallel()
 	var decodeErr error
 	h := MaxBody(MaxBodyBytes)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var v map[string]string
@@ -71,6 +73,7 @@ func TestMaxBodyBatchRoutes(t *testing.T) {
 
 // The backup upload (restoreBackupUpload) streams up to MaxRestoreBodyBytes, one byte more fails.
 func TestMaxBodyRestoreUpload(t *testing.T) {
+	t.Parallel()
 	var n int64
 	var readErr error
 	h := MaxBody(MaxBodyBytes)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

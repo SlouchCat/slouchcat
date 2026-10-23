@@ -14,6 +14,7 @@ import (
 // podcast without episodes invisible, unrated audiobook 18), the episode lists are paged newest
 // first with their total, and an episode without images shows its podcast's cover.
 func TestPodcastsAndAudioVisibility(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddEdgeCases(t)
 	f.AddAudio(t)

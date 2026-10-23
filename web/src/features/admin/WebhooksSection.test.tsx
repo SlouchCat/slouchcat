@@ -168,6 +168,36 @@ describe('webhook integrations (I-8)', () => {
     await waitFor(() => expect(from).toHaveAccessibleDescription(/ungültig/i));
   });
 
+  it('follows a mapping another admin saved, and keeps unsaved rows with a warning', async () => {
+    const user = userEvent.setup();
+    let pathMap = radarr.pathMap;
+    mockApi(routes({ 'GET /admin/integrations': () => json([{ ...radarr, pathMap }]) }));
+    const { queryClient } = renderApp('/admin/integrations');
+
+    const section = await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
+    await within(section).findByRole('heading', { level: 3, name: 'Radarr' });
+    const to = within(section).getByLabelText('Pfad auf diesem Server');
+
+    // Nothing typed here: the form takes the other version over without saying anything.
+    pathMap = [{ from: '/movies', to: '/media/Kino' }];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'integrations'] });
+    await waitFor(() => expect(to).toHaveValue('/media/Kino'));
+    expect(within(section).queryByText(/Ein anderer Zugang/)).not.toBeInTheDocument();
+
+    // With a row typed here the form keeps it and offers the other version instead.
+    await user.clear(to);
+    await user.type(to, '/media/Eigen');
+    pathMap = [{ from: '/movies', to: '/media/Fremd' }];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'integrations'] });
+
+    expect(await within(section).findByText(/Ein anderer Zugang/)).toBeVisible();
+    expect(to).toHaveValue('/media/Eigen');
+
+    await user.click(within(section).getByRole('button', { name: 'Andere Fassung übernehmen' }));
+    expect(to).toHaveValue('/media/Fremd');
+    expect(within(section).queryByText(/Ein anderer Zugang/)).not.toBeInTheDocument();
+  });
+
   it('deletes an integration after a confirmation', async () => {
     const user = userEvent.setup();
     let deleted = 0;

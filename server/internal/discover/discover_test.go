@@ -24,6 +24,7 @@ func rowKeys(rows []model.HomeRow) []string {
 }
 
 func TestHomeRowsInOrderWithoutEmptyRows(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	ctx := context.Background()
@@ -47,6 +48,7 @@ func TestHomeRowsInOrderWithoutEmptyRows(t *testing.T) {
 }
 
 func TestFirstPickIsFirstHeroSlide(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	ctx := context.Background()
@@ -75,6 +77,7 @@ func TestFirstPickIsFirstHeroSlide(t *testing.T) {
 }
 
 func TestItemCarriesMimeType(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	d, err := s.Item(context.Background(), f.P18, f.Unrated().ID)
@@ -90,6 +93,7 @@ func TestItemCarriesMimeType(t *testing.T) {
 }
 
 func TestImageOpensThroughCacheRoot(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	ctx := context.Background()
@@ -163,6 +167,7 @@ func itemIDs(items []model.ItemSummary) []string {
 // E-1, E-9: all rows in the stored order; hidden and empty rows are omitted, a Trakt row also below
 // TraktMinHits titles; never more than eight rows.
 func TestHomeStoredOrderAndTraktRows(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	ctx := context.Background()
@@ -243,6 +248,7 @@ func TestHomeStoredOrderAndTraktRows(t *testing.T) {
 
 // E-2 through the service clock; E-3: the FSK-18 pick never reaches P12; the note travels.
 func TestHomePicksClockAndNote(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	exec(t, f, `INSERT INTO top_picks (item_id, profile_id, position, note, created_at) VALUES (?, ?, 0, 'zu alt', 1)`, f.Rated(18).ID, f.P12.ID)
@@ -272,6 +278,7 @@ func TestHomePicksClockAndNote(t *testing.T) {
 // E-5, E-8: watchlist and favourites belong to the profile; invisible titles answer not found,
 // seasons and extras are not listable, only series and podcasts are favourites.
 func TestWatchlistAndFavoriteWrites(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	now := time.UnixMilli(50_000)
 	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
@@ -372,6 +379,7 @@ func TestWatchlistAndFavoriteWrites(t *testing.T) {
 // title further back: the own pick wins in Home, and FirstPick (limit 1) agrees with the first
 // hero slide instead of returning the global row.
 func TestFirstPickAfterDeduplication(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	ctx := context.Background()

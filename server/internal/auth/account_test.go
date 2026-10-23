@@ -15,6 +15,7 @@ func ptr[T any](v T) *T { return &v }
 // A-2: the account changes its e-mail and password with the current password; a new password ends
 // the other sessions and keeps the calling one.
 func TestUpdateAccount(t *testing.T) {
+	t.Parallel()
 	ctx := model.WithClientIP(context.Background(), "192.0.2.10")
 	s, _ := newService(t)
 	acc, prof, err := s.CreateOwner(ctx, testEmail, testPassword, "de")
@@ -100,6 +101,7 @@ func TestUpdateAccount(t *testing.T) {
 // Every call counts against the attempt limit of the client, so the current password cannot be
 // guessed faster than a login.
 func TestUpdateAccountAttemptLimit(t *testing.T) {
+	t.Parallel()
 	ctx := model.WithClientIP(context.Background(), "192.0.2.11")
 	s, _ := newService(t)
 	acc, prof, err := s.CreateOwner(ctx, testEmail, testPassword, "de")

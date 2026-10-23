@@ -189,6 +189,7 @@ func (e *podcastEnv) jobs(t *testing.T, typ string) []string {
 }
 
 func TestSubscribePodcast(t *testing.T) {
+	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	ctx := context.Background()
 	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
@@ -228,6 +229,7 @@ func TestSubscribePodcast(t *testing.T) {
 }
 
 func TestSubscribePodcastErrors(t *testing.T) {
+	t.Parallel()
 	e := newPodcastEnv(t, 1)
 	ctx := context.Background()
 	for _, tc := range []struct {
@@ -276,6 +278,7 @@ func TestSubscribePodcastErrors(t *testing.T) {
 // H-2: a new episode appears with the next fetch; 304 keeps the state; explicit → 18; a failure is
 // recorded and cleared by the next success; a title change updates the episode by guid.
 func TestFetchPodcast(t *testing.T) {
+	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	ctx := context.Background()
 	p, err := e.svc.Subscribe(ctx, 3, e.feed.srv.URL+"/feed.xml")
@@ -347,6 +350,7 @@ func TestFetchPodcast(t *testing.T) {
 
 // At most the newest episodes of a feed are stored, undated ones last.
 func TestNewestEpisodes(t *testing.T) {
+	t.Parallel()
 	day := func(d int) time.Time { return time.Date(2025, 1, d, 0, 0, 0, 0, time.UTC) }
 	eps := []feed.Episode{{GUID: "a", PublishedAt: day(2)}, {GUID: "undated"}, {GUID: "b", PublishedAt: day(5)}, {GUID: "c", PublishedAt: day(3)}}
 	var got []string
@@ -364,6 +368,7 @@ func TestNewestEpisodes(t *testing.T) {
 // The poller queues a subscription once its last fetch is FeedInterval old (H-2: < 65 min with the
 // 5-minute tick and the wait of the job).
 func TestQueueDuePodcasts(t *testing.T) {
+	t.Parallel()
 	if FeedInterval+feedPollInterval > 60*time.Minute {
 		t.Errorf("FeedInterval %v plus the poller tick %v leaves no reserve below 65 minutes", FeedInterval, feedPollInterval)
 	}
@@ -426,6 +431,7 @@ func TestQueueDuePodcasts(t *testing.T) {
 // turns explicit ends open streams; an episode keeps an image only when it differs from the
 // channel's, and a new episode with its own image is queued for image.fetch.
 func TestFetchPodcastLocksAndEpisodeCovers(t *testing.T) {
+	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	rechecks := 0
 	e.svc.recheck = func(context.Context) error { rechecks++; return nil }
@@ -499,6 +505,7 @@ func TestFetchPodcastLocksAndEpisodeCovers(t *testing.T) {
 // M6 review m-2: two subscriptions of one feed at once store one podcast (unique index
 // items_podcast_feed); the other request answers feed_exists.
 func TestSubscribeConcurrently(t *testing.T) {
+	t.Parallel()
 	e := newPodcastEnv(t, 1)
 	body := e.feed.xml()
 	var arrived sync.WaitGroup
@@ -534,6 +541,7 @@ func TestSubscribeConcurrently(t *testing.T) {
 
 // M6 review m-12: at most 5 redirects, only to http and https, and a feed of at most 16 MiB.
 func TestFeedFetchLimits(t *testing.T) {
+	t.Parallel()
 	e := newPodcastEnv(t, 1)
 	body := e.feed.xml()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,14 @@
+# Keeps the pinned action SHAs current. The workflows pin every third-party action to a full commit
+# SHA with its tag as a comment (security review of 23 October 2026, M-2): the release job runs with
+# `contents: write` and `packages: write` and pushes to ghcr.io, and a tag is movable -- whoever
+# takes over one of those action repositories could otherwise run their own code there. A pin is
+# only safe while somebody moves it forward, which is what this file is for: Dependabot opens a
+# pull request per update, with the release notes to read before merging.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "chore(ci)"

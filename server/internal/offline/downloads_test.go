@@ -10,6 +10,7 @@ import (
 )
 
 func TestOptionsOfMovieSeasonAndOtherKinds(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -79,6 +80,7 @@ func TestOptionsOfMovieSeasonAndOtherKinds(t *testing.T) {
 }
 
 func TestCreateDownloads(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -141,6 +143,7 @@ func TestCreateDownloads(t *testing.T) {
 }
 
 func TestCreateSeasonDownloadsVisibleEpisodes(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -175,6 +178,7 @@ func TestCreateSeasonDownloadsVisibleEpisodes(t *testing.T) {
 }
 
 func TestDeleteWritesTombstone(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f

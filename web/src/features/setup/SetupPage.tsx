@@ -2,7 +2,6 @@ import type { PathCheck, SessionInfo, SetupRequest, TMDBCheck } from '@slouchcat
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -13,7 +12,7 @@ import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Logo, Notice, Page, Panel, Stack, Text, TextLink } from '@/ui';
-import { AriaButton, TextField } from '@/ui/aria';
+import { AriaButton, Form, TextField } from '@/ui/aria';
 import { LibraryFields, libraryRequest, type LibraryKind } from '../shared/LibraryFields';
 import { SystemState } from '../shared/SystemState';
 import styles from './SetupPage.module.css';

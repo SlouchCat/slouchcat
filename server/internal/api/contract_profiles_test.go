@@ -1207,6 +1207,7 @@ func homePage(t *testing.T, rec *httptest.ResponseRecorder) homePageJSON {
 }
 
 func TestContractChildProfiles(t *testing.T) {
+	t.Parallel()
 	ops := scopedOperations(t)
 	for id, call := range profileRegistry {
 		if contract, ok := ops[id]; !ok {
@@ -1555,6 +1556,7 @@ func countProgressEvents(t *testing.T, f *vistest.Fixture, profileID int64, item
 }
 
 func TestContractProgressCompletion(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m12 := f.Rated(12)
@@ -1592,6 +1594,7 @@ func TestContractProgressCompletion(t *testing.T) {
 }
 
 func TestContractStreamAndImageEdges(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(6)

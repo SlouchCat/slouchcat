@@ -37,6 +37,7 @@ func contractManifest(t *testing.T) string {
 // A-1: before the first account getSetupStatus carries the system state and both checks answer;
 // afterwards the state is gone and the checks answer 409 setup_done.
 func TestSetupChecksOverHTTP(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	rec := e.call(t, http.MethodGet, "/api/v1/setup", nil, nil)
 	wantStatus(t, rec, http.StatusOK)
@@ -92,6 +93,7 @@ func TestSetupChecksOverHTTP(t *testing.T) {
 
 // A-2: the account changes its e-mail and password with the current password; the session stays.
 func TestUpdateAccountOverHTTP(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	rec := e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
 	wantStatus(t, rec, http.StatusCreated)
@@ -123,6 +125,7 @@ func TestUpdateAccountOverHTTP(t *testing.T) {
 // check of the mock manifest the main account's session carries the update notice while a guest's
 // does not.
 func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	h := pf.h
 

@@ -8,6 +8,7 @@ import (
 // directory, without probing again; a deleted one leaves them. Full scans do the same; files that
 // are not probed yet are left to their probe.
 func TestSidecarSyncOnScans(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
 	film := "Film (2020)/Film (2020).mkv"
@@ -84,6 +85,7 @@ func TestSidecarSyncOnScans(t *testing.T) {
 }
 
 func TestSidecarsOf(t *testing.T) {
+	t.Parallel()
 	got := sidecarsOf("Film/Film.mkv", []string{"Film.de.srt", "Film.srt", "Other.de.srt", "Film.Director.en.srt", "Film.sdh.en.vtt"})
 	var rels []string
 	for _, sc := range got {

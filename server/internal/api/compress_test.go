@@ -29,6 +29,7 @@ func gunzip(t *testing.T, body []byte) []byte {
 // Web assets and JSON answers are gzipped for clients that accept it; images and media streams
 // stay as they are (P-10).
 func TestCompression(t *testing.T) {
+	t.Parallel()
 	js := []byte(strings.Repeat("export const slouchcat = 'start page';\n", 200))
 	web := webassets.NewHandler(fstest.MapFS{
 		"index.html":      {Data: []byte("<!doctype html><title>Slouchcat</title>")},

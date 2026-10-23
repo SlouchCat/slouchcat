@@ -54,6 +54,13 @@ tasks:
     cmds:
       - task: web:e2e
 
+  apicheck:
+    desc: >-
+      Third-party client test P-16 (the evidence for C-5): the contract-only client in
+      server/cmd/apicheck against a freshly started server; not part of `task ci`
+    cmds:
+      - task: server:apicheck
+
   ci:
     desc: Everything CI runs, in order; fails on codegen drift
     cmds:

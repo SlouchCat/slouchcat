@@ -78,6 +78,7 @@ func (e *env) queuedJobs(typ string) []int64 {
 // within ±2 s on at least 80 % of the episodes) and checks the hooks: probes queue the job, chapters
 // win, manual segments stay, a changed episode sets the season back to pending.
 func TestSegmentsDetectGeneratedSeason(t *testing.T) {
+	t.Parallel()
 	tv := filepath.Join(filepath.Dir(testMedia(t)), "TV")
 	if _, err := os.Stat(filepath.Join(tv, introShow)); err != nil {
 		t.Skipf("intro season missing (run `task testdata:media` in the repository root): %v", err)
@@ -250,6 +251,7 @@ func TestSegmentsDetectGeneratedSeason(t *testing.T) {
 // TestSegmentsDetectWithoutFiles: a season whose episodes have no probed file ends as none, and a
 // failing ffmpeg as failed.
 func TestSegmentsDetectWithoutFiles(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
 	for _, rel := range []string{"Show (2020)/Season 01/Show (2020) S01E01.mkv", "Show (2020)/Season 01/Show (2020) S01E02.mkv"} {

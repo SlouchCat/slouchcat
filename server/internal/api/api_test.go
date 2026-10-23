@@ -49,6 +49,7 @@ func decodeProblem(t *testing.T, rec *httptest.ResponseRecorder) gen.Problem {
 }
 
 func TestGetHealth(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	h := newTestHandler(t, &logs, http.NotFoundHandler())
 	rec := do(h, http.MethodGet, "/api/v1/healthz?api_key=FAKE-health-key")
@@ -77,6 +78,7 @@ func TestGetHealth(t *testing.T) {
 }
 
 func TestProblems(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	h := newTestHandler(t, &logs, http.NotFoundHandler())
 	for _, tc := range []struct {
@@ -97,6 +99,7 @@ func TestProblems(t *testing.T) {
 }
 
 func TestPanicBecomesProblem(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	h := newTestHandler(t, &logs, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		panic("kaputt")
@@ -116,6 +119,7 @@ func TestPanicBecomesProblem(t *testing.T) {
 }
 
 func TestWebFallback(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	h := newTestHandler(t, &logs, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("web:" + r.URL.Path))
@@ -128,6 +132,7 @@ func TestWebFallback(t *testing.T) {
 }
 
 func TestRequestIDPropagation(t *testing.T) {
+	t.Parallel()
 	var logs bytes.Buffer
 	h := newTestHandler(t, &logs, http.NotFoundHandler())
 	for incoming, keep := range map[string]bool{"proxy-1234.abc": true, "bad id\n": false, strings.Repeat("a", 65): false} {

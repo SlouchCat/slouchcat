@@ -6,12 +6,11 @@ import type {
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
 import { Chip, Notice, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, DataTable, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, DataTable, Form, RadioGroup, TextField } from '@/ui/aria';
 import {
   createIntegration,
   dashboardQuery,
@@ -33,6 +32,9 @@ const resultTone = {
   outside_roots: 'warning',
   invalid_payload: 'warning',
 } as const satisfies Record<IntegrationEvent['result'], string>;
+
+/** One mapping as a string, to tell two versions of it apart. */
+const stored = (pairs: PathMapping[]) => JSON.stringify(pairs);
 
 /**
  * The address of a just created or renewed integration: shown once, with a copy button. After
@@ -158,18 +160,40 @@ function NewIntegrationForm({ onCreated }: { onCreated: (created: IntegrationCre
 function PathMapForm({ integration }: { integration: Integration }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [rows, setRows] = useState<PathMapping[]>(() => integration.pathMap);
+  // `server` is the stored mapping this form started from; comparing it with the stored mapping of
+  // the moment says whether somebody else has saved this integration in between.
+  const [edit, setEdit] = useState(() => ({
+    server: stored(integration.pathMap),
+    rows: integration.pathMap,
+  }));
   const [message, setMessage] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: (pairs: PathMapping[]) => setIntegrationPathMap(integration.id, pairs),
     onSuccess: async (updated) => {
-      setRows(updated.pathMap);
+      setEdit({ server: stored(updated.pathMap), rows: updated.pathMap });
       setMessage(t('admin.integrations.webhooks.pathMap.saved'));
       await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
     },
   });
   const errors = save.error ? formErrors(t, save.error) : null;
+
+  // A second admin saved this integration while this form was open. With nothing typed here the
+  // form simply follows; with unsaved rows it keeps them and offers to take the other version.
+  const server = stored(integration.pathMap);
+  const typed = stored(edit.rows) !== edit.server;
+  if (edit.server !== server && !typed) {
+    setEdit({ server, rows: integration.pathMap });
+  }
+  const elsewhere = edit.server !== server && typed;
+  const takeOver = () => {
+    setMessage(null);
+    setEdit({ server, rows: integration.pathMap });
+  };
+
+  const rows = edit.rows;
+  const setRows = (next: (current: PathMapping[]) => PathMapping[]) =>
+    setEdit((current) => ({ ...current, rows: next(current.rows) }));
 
   const change = (index: number, field: keyof PathMapping) => (value: string) =>
     setRows((current) => current.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -183,6 +207,14 @@ function PathMapForm({ integration }: { integration: Integration }) {
   return (
     <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
       <Text tone="secondary">{t('admin.integrations.webhooks.pathMap.intro')}</Text>
+      {elsewhere && (
+        <Notice tone="warning">
+          {t('admin.integrations.webhooks.pathMap.elsewhere')}{' '}
+          <AriaButton variant="ghost" onPress={takeOver}>
+            {t('admin.integrations.webhooks.pathMap.takeOver')}
+          </AriaButton>
+        </Notice>
+      )}
       {rows.map((row, index) => (
         // The index is the identity here: the rows have no id, and reordering is not offered.
         <div key={index} className={styles.fields}>

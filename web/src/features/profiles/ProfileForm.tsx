@@ -2,7 +2,6 @@ import type { Profile, ProfileRequest } from '@slouchcat/api-client';
 import { accentNames, type AccentName } from '@slouchcat/design-tokens';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
@@ -11,7 +10,7 @@ import { currentLanguage, isLanguage, type Language } from '@/i18n';
 import { formText } from '@/lib/form';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { isAccentName, Notice } from '@/ui';
-import { AccentPicker, AriaButton, PinField, RadioGroup, TextField } from '@/ui/aria';
+import { AccentPicker, AriaButton, Form, PinField, RadioGroup, TextField } from '@/ui/aria';
 import { accentOptions, languageOptions, ratingOf, ratingOptions } from '../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
 import {

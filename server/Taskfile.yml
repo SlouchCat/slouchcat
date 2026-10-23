@@ -38,6 +38,59 @@ tasks:
       - mkdir -p ../.dev/config ../.dev/cache
       - go run ./cmd/slouchcat serve --dev --log-format text --config-dir ../.dev/config --cache-dir ../.dev/cache
 
+  apicheck:
+    desc: >-
+      Third-party client test P-16 (the evidence for C-5): starts a fresh server with its own
+      /config and its own port and lets the contract-only client in cmd/apicheck run through
+      every viewer function; needs ffmpeg and the test media (`task testdata:media`). Not part
+      of `task ci`. Arguments after `--` go to the client, for example `-report p16.md`.
+    vars:
+      # 0 lets the kernel pick a free port; the run then reads the real address out of the
+      # server's own log, so it never talks to someone else's server on a fixed port.
+      APICHECK_PORT: '{{.APICHECK_PORT | default "0"}}'
+    cmds:
+      - go build -o bin/apicheck ./cmd/apicheck
+      - task: build
+      # Through bash: the task runner's own shell has no job control, so it would wait for the
+      # server in the background for ever. bash starts it, stops it again and cleans up.
+      - |
+        bash -s -- "{{.APICHECK_PORT}}" {{.CLI_ARGS}} <<'APICHECK'
+        set -eu
+        port=$1
+        shift
+        root=$(mktemp -d -t slouchcat-apicheck-XXXXXX)
+        pid=""
+        cleanup() {
+          if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
+          rm -rf "$root"
+        }
+        trap cleanup EXIT
+        fail() {
+          echo "$1" >&2
+          echo "--- Server-Log, letzte 60 Zeilen ---" >&2
+          tail -n 60 "$root/server.log" >&2
+          exit 1
+        }
+        # The same throw-away setup the Playwright suite uses (web/e2e/start-server.mjs): own
+        # config and cache directory, own port, no TMDB key, development mode.
+        SLOUCHCAT_TMDB_API_KEY= bin/slouchcat serve \
+          --listen "127.0.0.1:$port" \
+          --config-dir "$root/config" --cache-dir "$root/cache" \
+          --dev --log-format text --log-level info >"$root/server.log" 2>&1 &
+        pid=$!
+        addr=""
+        for _ in $(seq 1 120); do
+          kill -0 "$pid" 2>/dev/null || fail "Der Server hat sich beim Start beendet."
+          addr=$(sed -n 's/.*msg=listening addr=\([^ ]*\).*/\1/p' "$root/server.log" | tail -n 1)
+          if [ -n "$addr" ]; then break; fi
+          sleep 0.5
+        done
+        [ -n "$addr" ] || fail "Der Server hat innert 60 s keine Adresse gemeldet."
+        bin/apicheck -base "http://$addr" \
+          -spec ../api/openapi.yaml -testdata ../testdata "$@" \
+          || fail "Der Fremd-Client-Test ist fehlgeschlagen."
+        APICHECK
+
   vuln:
     desc: Check dependencies for known vulnerabilities (needs network access)
     cmds:

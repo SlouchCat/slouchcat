@@ -73,6 +73,7 @@ func newAudioEnv(t *testing.T) *env {
 // O-1 for audio: AAC 128/96/64 kbit/s, estimate = rate × duration / 8 × 1.02, an AAC source within
 // 1.1 × the rate is copied (single part only); a podcast is no download.
 func TestAudioDownloadOptions(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	ctx := context.Background()
 	a := e.f.Audio
@@ -121,6 +122,7 @@ func TestAudioDownloadOptions(t *testing.T) {
 // An audiobook download: prepared through the encoder, the manifest says audio/mp4 with the
 // book's chapters, allowed_profile_ids lists the account's profiles that see the book (H-4).
 func TestAudiobookDownload(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	ctx := context.Background()
 	a := e.f.Audio
@@ -169,6 +171,7 @@ func sameIDs(got, want []int64) bool {
 // <id>/source.mp3, encodes it and removes the source once ready; a host that keeps failing ends
 // the download as source_unavailable.
 func TestEpisodeDownloadFromEnclosure(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	a := e.f.Audio
 	st := e.create(e.f.P12, e.devA, a.EnclosureOnly.ID, model.DownloadMedium)
@@ -204,6 +207,7 @@ func TestEpisodeDownloadFromEnclosure(t *testing.T) {
 
 // The enclosure fetch continues a partial file with a Range request.
 func TestFetchSourceResumes(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	ep := e.f.Audio.EnclosureOnly
 	id := "01J9AAAAAAAAAAAAAAAAAAAAAA"
@@ -236,6 +240,7 @@ func TestFetchSourceResumes(t *testing.T) {
 // started, newest first, up to maxCount; the explicit episode never for a profile under 18.
 // Listening alone (without a favourite) downloads nothing.
 func TestPodcastAutoDownloads(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	ctx := context.Background()
 	a := e.f.Audio
@@ -303,6 +308,7 @@ func TestPodcastAutoDownloads(t *testing.T) {
 // an answer that does not continue at the end of the partial file starts over. OQ-1 and M-2: the
 // enclosure of a public feed in the local network is refused, and the error names the host only.
 func TestFetchSourceResumeChecks(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	content := bytes.Repeat([]byte("0123456789"), 300)
 	var ifRange, encoding, answerRange string
@@ -397,6 +403,7 @@ func TestFetchSourceResumeChecks(t *testing.T) {
 // M6 review m-3: the job fetches the enclosure the feed names now; the URL stored with the download
 // is only the fallback.
 func TestEpisodeDownloadUsesCurrentEnclosure(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	a := e.f.Audio
 	st := e.create(e.f.P12, e.devA, a.EnclosureOnly.ID, model.DownloadMedium)
@@ -413,6 +420,7 @@ func TestEpisodeDownloadUsesCurrentEnclosure(t *testing.T) {
 // the chapters); a single file whose probe failed fails the download with encode_failed instead of
 // waiting forever.
 func TestAudioDownloadProbeErrors(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	a := e.f.Audio
 	st := e.create(e.f.P18, e.devA, a.Parts.ID, model.DownloadLow)
@@ -432,6 +440,7 @@ func TestAudioDownloadProbeErrors(t *testing.T) {
 // M6 review m-5: the estimate of an enclosure takes the copy decision of its MIME type and feed
 // size; a book whose parts are not all probed counts its summed duration, not the first part's.
 func TestAudioEstimates(t *testing.T) {
+	t.Parallel()
 	e := newAudioEnv(t)
 	ctx := context.Background()
 	a := e.f.Audio

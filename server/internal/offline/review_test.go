@@ -61,6 +61,7 @@ func contiguous(t *testing.T, e *env, id, init string) {
 // finds the index and plans a remux with other boundaries. The copy starts over instead of
 // appending remux segments to transcode segments.
 func TestPrepareStartsOverForAnotherPlan(t *testing.T) {
+	t.Parallel()
 	enc := &kfEncoder{fakeEncoder: newFakeEncoder(), kf: []time.Duration{0, 6 * time.Second, 12 * time.Second}}
 	e := newEnv(t, WithEncoder(enc))
 	m := e.f.Rated(18)
@@ -91,6 +92,7 @@ func TestPrepareStartsOverForAnotherPlan(t *testing.T) {
 // W1: the resumed run delivers another init segment (another backend since the last attempt): the
 // copy starts over at segment 0 in the same attempt.
 func TestPrepareStartsOverForAnotherInit(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
 	e.enc.failAt, e.enc.failCalls = 3, 1
@@ -112,6 +114,7 @@ func TestPrepareStartsOverForAnotherInit(t *testing.T) {
 
 // W1: an index entry off the planned segment times is not continued.
 func TestPrepareStartsOverForOtherSegmentTimes(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
 	e.enc.failAt, e.enc.failCalls = 3, 1
@@ -152,6 +155,7 @@ func (s *subEncoder) SubtitleStreams(ctx context.Context, path string, indexes [
 // W2: the lease goes back before the WebVTT conversion, so a live start never waits for the
 // sidecars; a preemption during them changes nothing.
 func TestPrepareReleasesTheLeaseBeforeTheSidecars(t *testing.T) {
+	t.Parallel()
 	enc := &subEncoder{fakeEncoder: newFakeEncoder(), entered: make(chan struct{}, 1), release: make(chan struct{})}
 	e := newEnv(t, WithEncoder(enc))
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
@@ -177,6 +181,7 @@ func TestPrepareReleasesTheLeaseBeforeTheSidecars(t *testing.T) {
 
 // W2: a preemption right after the last segment does not pause a complete encode.
 func TestPreparePreemptedAfterTheLastSegment(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
 	e.enc.after = func(n int) {
@@ -216,6 +221,7 @@ func (e *env) zombie(id string) {
 // W3: a download without a preparation job is queued again by the sync of its device and by the
 // reconciliation of Run; a download whose chain still holds a key is left alone.
 func TestUnfinishedDownloadWithoutJobIsQueuedAgain(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
@@ -259,6 +265,7 @@ func TestUnfinishedDownloadWithoutJobIsQueuedAgain(t *testing.T) {
 // W3: an error the last attempt meets outside the encoder (here the queue refuses the successor
 // of a budget wait) leaves the download failed, not queued without a job.
 func TestPrepareLastAttemptErrorFailsTheDownload(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	first := e.create(e.f.P18, e.devA, e.f.Rated(0).ID, model.DownloadLow)
 	e.runJobs()
@@ -287,6 +294,7 @@ func (e *env) sourcePath(fileID string) string {
 // W4: a source that is not probed yet or cannot be read waits like the budget, without using an
 // attempt, and the preparation goes on once the source is there.
 func TestPrepareWaitsForTheSource(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	m := e.f.Rated(12)
 	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", "", nil)
@@ -341,6 +349,7 @@ func TestPrepareWaitsForTheSource(t *testing.T) {
 
 // W4: an explicit createDownloads of a failed download prepares it again from the start.
 func TestCreateRetriesAFailedDownload(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	m := e.f.Rated(6)
 	st := e.create(e.f.P12, e.devA, m.ID, model.DownloadLow)
@@ -378,6 +387,7 @@ func (e *env) autoRule(p model.Profile, device string, maxCount int, itemID stri
 
 // W4: a failed auto-download takes no place in maxCount and is tried again after the wait.
 func TestAutoDownloadRetriesAfterAFailure(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -413,6 +423,7 @@ func nullID(id int64) sql.NullInt64 { return sql.NullInt64{Int64: id, Valid: tru
 // K1: a profile deletes a download only when it may see the title, requested it or is the
 // primary profile; any other download of the account is 404, like an invisible title.
 func TestDeleteNeedsARightOnTheDownload(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -462,6 +473,8 @@ func (a *gateAdmission) AcquireDownload(ctx context.Context, id string, cost flo
 }
 
 // K2: while admission waits the download is paused, preparing once the lease is held.
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestPreparePausedWhileWaitingForAdmission(t *testing.T) {
 	adm := &gateAdmission{gate: make(chan struct{})}
 	e := newEnv(t, WithAdmission(adm))
@@ -497,6 +510,7 @@ func TestPreparePausedWhileWaitingForAdmission(t *testing.T) {
 
 // K4: the embedded text tracks convert in one run; when that fails, each on its own.
 func TestSidecarsConvertTheEmbeddedTracksInOneRun(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	m := e.f.Rated(12)
 	st := e.create(e.f.P12, e.devA, m.ID, model.DownloadLow)
@@ -523,6 +537,7 @@ func TestSidecarsConvertTheEmbeddedTracksInOneRun(t *testing.T) {
 
 // K6: a failing auto-download rule does not cost the device its revocation list and profiles.
 func TestSyncSurvivesAFailingRule(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -543,6 +558,7 @@ func TestSyncSurvivesAFailingRule(t *testing.T) {
 
 // K7: a season whose every episode another account holds on the device is not downloadable.
 func TestCreateSeasonWithoutCreatableEpisode(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -558,6 +574,7 @@ func TestCreateSeasonWithoutCreatableEpisode(t *testing.T) {
 // K10: only a missing copy or an unreadable index evicts, and then the files go; another read
 // error leaves the copy alone.
 func TestManifestEvictsOnlyAMissingCopy(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	st := e.create(e.f.P12, e.devA, e.f.Rated(12).ID, model.DownloadLow)
@@ -602,6 +619,7 @@ func TestManifestEvictsOnlyAMissingCopy(t *testing.T) {
 // K11: the cleanup removes the files before the row turns evicted (here the update fails, the
 // files are gone already and the manifest heals the row).
 func TestCleanupRemovesTheFilesBeforeEvicting(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	st := e.create(e.f.P12, e.devA, e.f.Rated(12).ID, model.DownloadLow)

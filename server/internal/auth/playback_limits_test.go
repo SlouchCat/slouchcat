@@ -11,6 +11,7 @@ import (
 // all four limits at once, a guest update the three caps; the effective limits of a guest profile
 // are capped by its account, everywhere a profile is read.
 func TestPlaybackLimits(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	ownerSess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)

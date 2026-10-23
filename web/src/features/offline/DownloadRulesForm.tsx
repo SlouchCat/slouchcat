@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { Notice, Skeleton, Text } from '@/ui';
-import { AriaButton, CheckboxGroup, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, CheckboxGroup, Form, RadioGroup, TextField } from '@/ui/aria';
 import { kickOfflineEngine } from './engine';
 import { qualityLabel } from './labels';
 import { downloadRulesQuery } from './queries';

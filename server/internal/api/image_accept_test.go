@@ -11,6 +11,7 @@ import (
 )
 
 func TestAcceptsWebP(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		accept []string
 		want   bool
@@ -38,6 +39,7 @@ func TestAcceptsWebP(t *testing.T) {
 // The image endpoint answers WebP when the request names it, JPEG otherwise, always with
 // Vary: Accept, and every contract size of a kind is served.
 func TestImageNegotiation(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(6)

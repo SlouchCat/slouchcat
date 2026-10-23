@@ -455,6 +455,7 @@ func (e *env) imageJobs(t *testing.T) []string {
 }
 
 func TestCheckKey(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	if err := e.svc.CheckKey(ctx, goodToken); err != nil {
@@ -491,6 +492,7 @@ func TestCheckKey(t *testing.T) {
 }
 
 func TestCheckKeyRetriesAfter429(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	start := time.Now()
 	if err := e.svc.CheckKey(context.Background(), rateToken); err != nil {
@@ -508,6 +510,7 @@ func TestCheckKeyRetriesAfter429(t *testing.T) {
 }
 
 func TestMatchByTMDBID(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idByTMDB, title: "first film", year: 2001, tmdbID: 550})
 	if err := e.svc.match(context.Background(), idByTMDB); err != nil {
@@ -555,6 +558,7 @@ func TestMatchByTMDBID(t *testing.T) {
 // E-6: three films of one TMDB collection make one collection with three members in release
 // order; a film that leaves the collection leaves it on the next match but stays in a manual one.
 func TestMatchCollection(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "first film", year: 2001, tmdbID: 550})
@@ -627,6 +631,7 @@ func TestMatchCollection(t *testing.T) {
 }
 
 func TestCollectionPosition(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		date string
 		year sql.NullInt64
@@ -644,6 +649,7 @@ func TestCollectionPosition(t *testing.T) {
 }
 
 func TestMatchByIMDB(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idByIMDB, title: "Whatever", imdbID: "tt0000550"})
 	if err := e.svc.match(context.Background(), idByIMDB); err != nil {
@@ -658,6 +664,7 @@ func TestMatchByIMDB(t *testing.T) {
 }
 
 func TestMatchBySearchWithEnglishFallback(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2001})
 	if err := e.svc.match(context.Background(), idBySearch); err != nil {
@@ -677,6 +684,7 @@ func TestMatchBySearchWithEnglishFallback(t *testing.T) {
 }
 
 func TestMatchUnmatched(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idNoMatch, title: "Nothing", year: 1999})
 	e.addItem(t, itemSeed{id: idBroken, title: "Gone", tmdbID: 123456})
@@ -695,6 +703,7 @@ func TestMatchUnmatched(t *testing.T) {
 }
 
 func TestMatchWithoutCertification(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idNoRating, title: "Unrated", tmdbID: 602, ownRating: 6, ratingSource: "tmdb:DE"})
 	if err := e.svc.match(context.Background(), idNoRating); err != nil {
@@ -710,6 +719,7 @@ func TestMatchWithoutCertification(t *testing.T) {
 }
 
 func TestMatchRespectsLockedFieldsAndNFORating(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idLocked, title: "My Title", year: 1999, tmdbID: 550, ownRating: 16, ratingSource: "nfo",
 		locked: `["year","genres","title","imdb_id"]`})
@@ -758,6 +768,7 @@ func TestMatchRespectsLockedFieldsAndNFORating(t *testing.T) {
 }
 
 func TestMatchWithoutKeySkipsTMDB(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, "")
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
 	if err := e.svc.match(context.Background(), idByTMDB); err != nil {
@@ -772,6 +783,7 @@ func TestMatchWithoutKeySkipsTMDB(t *testing.T) {
 }
 
 func TestMatchInvalidKeyFails(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, "revoked")
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
 	if err := e.svc.match(context.Background(), idByTMDB); err != nil {
@@ -783,6 +795,7 @@ func TestMatchInvalidKeyFails(t *testing.T) {
 }
 
 func TestMatchTransientErrorIsRetried(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idBroken, title: "Down", tmdbID: 503})
 	err := e.svc.match(context.Background(), idBroken)
@@ -795,6 +808,7 @@ func TestMatchTransientErrorIsRetried(t *testing.T) {
 }
 
 func TestMatchIgnoresDeletedAndUnknownItems(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
 	mustExec(t, e.db.Write, `UPDATE items SET deleted_at = 1 WHERE id = ?`, idByTMDB)
@@ -951,6 +965,7 @@ func (e *env) checkPipeline(t *testing.T, id string, kinds ...string) map[string
 }
 
 func TestImageFetchStoresFilesAndIsIdempotent(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -1038,6 +1053,7 @@ func (e *env) insertM1aImage(t *testing.T, id, kind, size string, data []byte) s
 }
 
 func TestImageFetchReplacesM1aImages(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -1070,6 +1086,7 @@ func TestImageFetchReplacesM1aImages(t *testing.T) {
 }
 
 func TestQueueIncompleteImages(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -1142,6 +1159,7 @@ func TestQueueIncompleteImages(t *testing.T) {
 
 // M11: a locked M1a poster (w500 only, no original) is scaled into the new sizes without TMDB.
 func TestImageFetchScalesLockedM1aPoster(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -1203,6 +1221,7 @@ func failingPalette(t *testing.T) string {
 // M10: a palette failure keeps the previous accent; a poster without accent is retried a bounded
 // number of times and image.fetch fills it in.
 func TestAccentSurvivesPaletteFailure(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -1271,6 +1290,7 @@ func TestAccentSurvivesPaletteFailure(t *testing.T) {
 }
 
 func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -1299,6 +1319,7 @@ func TestImageFetchWithoutPathsStoresNothing(t *testing.T) {
 }
 
 func TestImageFetchRetryReusesOriginal(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
@@ -1336,6 +1357,8 @@ func TestImageFetchRetryReusesOriginal(t *testing.T) {
 	}
 }
 
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestJobChainWithWorker(t *testing.T) {
 	requireFFmpeg(t)
 	e := newEnv(t, goodToken)

@@ -2636,28 +2636,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/spike/{variant}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Download file of the offline spike (binary, Range)
-         * @description Temporary endpoint of the M1a offline spike (plan 10.4). Implemented as an `http.Handler` that
-         *     serves `spike-fmp4.mp4` or `spike-faststart.mp4` from the directory in `SLOUCHCAT_SPIKE_DIR` with
-         *     Range support. Without that setting the endpoint answers 404. Removed after the M1b decision.
-         */
-        get: operations["getSpikeFile"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/integrations": {
         parameters: {
             query?: never;
@@ -10670,46 +10648,6 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["PrimaryProfileRequired"];
             /** @description Unknown or of another account (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    getSpikeFile: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                variant: "fmp4" | "faststart";
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Whole file. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "video/mp4": string;
-                };
-            };
-            /** @description Requested byte range. */
-            206: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "video/mp4": string;
-                };
-            };
-            /** @description Spike not enabled or file missing (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

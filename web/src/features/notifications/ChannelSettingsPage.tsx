@@ -7,7 +7,6 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -15,7 +14,7 @@ import { useActiveSession } from '@/app/session';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ButtonLink, Chip, FactList, Notice, Page, Panel, Skeleton, Text, TextLink } from '@/ui';
-import { AriaButton, CheckboxGroup, Switch, TextField } from '@/ui/aria';
+import { AriaButton, CheckboxGroup, Form, Switch, TextField } from '@/ui/aria';
 import { PushError, pushSupported, subscribeThisDevice, unsubscribeThisDevice } from './push';
 import {
   channelsQuery,

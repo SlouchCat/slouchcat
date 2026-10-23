@@ -1,6 +1,6 @@
 // Package api wires the HTTP surface of Slouchcat: the generated strict server for the JSON API
 // under /api/v1 (contract api/openapi.yaml), the binary handlers for images, media streams, the
-// spike download and the backup download, the HLS endpoints of playback sessions (stream token,
+// the backup download, the HLS endpoints of playback sessions (stream token,
 // stream_token.go), RFC 9457 problem responses, request IDs, request logging, panic recovery,
 // Referrer-Policy, the CSRF header rule and the session middleware that enforces x-visibility per
 // route. Everything outside /api/v1 goes to the web app handler; the start page's app shell
@@ -29,7 +29,6 @@ const BasePath = "/api/v1"
 const (
 	binaryImagePath  = "/items/{id}/images/{kind}/{size}"
 	binaryStreamPath = "/items/{id}/stream"
-	binarySpikePath  = "/spike/{variant}"
 	hlsMasterPath    = "/playback/sessions/{id}/master.m3u8"
 	hlsMediaPath     = "/playback/sessions/{id}/media.m3u8"
 	hlsInitPath      = "/playback/sessions/{id}/init.mp4"
@@ -48,7 +47,6 @@ const (
 var binaryRoutes = map[string]string{
 	"GET " + BasePath + binaryImagePath:  "scoped",
 	"GET " + BasePath + binaryStreamPath: "scoped",
-	"GET " + BasePath + binarySpikePath:  "public",
 	"GET " + BasePath + hlsMasterPath:    "scoped",
 	"GET " + BasePath + hlsMediaPath:     "scoped",
 	"GET " + BasePath + hlsInitPath:      "scoped",
@@ -79,7 +77,6 @@ type Options struct {
 	Notify   NotifyService  // In-app inbox (M7, E-8), channels and announcements (M8); nil answers 501 on them.
 	// Integrations receives the webhooks of Radarr and Sonarr (M9, I-8); nil answers 501.
 	Integrations IntegrationService
-	SpikeDir     string // Directory with the spike download files; empty disables the endpoint.
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
 	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.
@@ -128,7 +125,6 @@ func NewHandler(o Options) http.Handler {
 		// prepared downloads through the download token (M5).
 		streamAuth := p.streamAuth(o.Playback)
 		r.With(authorize).Get(binaryImagePath, s.getItemImage)
-		r.With(authorize).Get(binarySpikePath, s.getSpikeFile)
 		r.With(streamAuth).Get(binaryStreamPath, s.getItemStream)
 		r.With(streamAuth).Get(hlsMasterPath, s.getPlaybackMaster)
 		r.With(streamAuth).Get(hlsMediaPath, s.getPlaybackMedia)

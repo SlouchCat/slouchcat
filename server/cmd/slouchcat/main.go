@@ -165,6 +165,9 @@ func serve(cfg config.Config) int {
 		return 2
 	}
 	log.Info("starting slouchcat", "version", version, "config", cfg)
+	if w := cfg.TrustedProxyWarning(); w != "" {
+		log.Warn(w)
+	}
 	var restart atomic.Bool
 	err = serveUntilSignal(cfg, log, errRing, started, &restart)
 	again, code := afterStop(err, restart.Load())
@@ -360,7 +363,6 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			Playback: playbackSvc,
 			Offline:  offlineSvc,
 			Notify:   notifySvc,
-			SpikeDir: cfg.SpikeDir,
 
 			Integrations: integrationSvc,
 		}),

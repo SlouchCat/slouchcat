@@ -477,6 +477,15 @@ type Progress struct {
 	PlaybackRate sql.NullFloat64
 }
 
+type ProgressDay struct {
+	ProfileID int64
+	ItemID    string
+	DeviceID  string
+	Day       int64
+	PlayedMs  int64
+	Plays     int64
+}
+
 type ProgressEvent struct {
 	ID                int64
 	ProfileID         int64

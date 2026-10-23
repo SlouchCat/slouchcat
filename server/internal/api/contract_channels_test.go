@@ -142,6 +142,7 @@ func drainDeliveries(t *testing.T, pf profileFixture) {
 // them; drafts reach nobody; a guest account with e-mail on (default) gets the mail, the main
 // account (e-mail off) none. Answers carry no title id.
 func TestContractAnnouncements(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	titles := f.All()
@@ -229,6 +230,7 @@ func TestContractAnnouncements(t *testing.T) {
 // may only read them); the rules of the contract hold and no answer carries the endpoint or the keys
 // of a push subscription.
 func TestContractChannels(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	h := pf.h
 	rec := send(t, h, http.MethodGet, BasePath+"/me/channels", "none", "", nil)

@@ -54,6 +54,7 @@ const kodiNFO = `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 func ip(n int) *int { return &n }
 
 func TestParseNFO(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		in     string

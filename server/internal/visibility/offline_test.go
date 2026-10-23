@@ -13,6 +13,7 @@ import (
 // M5: the profiles of an account that may see a title (downloads.allowed_profile_ids, plan 3.3),
 // read for every title against the fixture oracle, System scope only.
 func TestAllowedProfiles(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddEdgeCases(t)
 	f.AddSeries(t)
@@ -66,6 +67,7 @@ func TestAllowedProfiles(t *testing.T) {
 }
 
 func TestSummariesAndEpisodes(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	r := New(f.DB, vistest.Logger())

@@ -82,8 +82,9 @@ geprüft (Entscheid vom 21. Oktober).
 - Android-Checklisten: M5 (`docs/perf/M5.md` Abschnitt 7: Download, Staffel, Flugmodus, „nur WLAN") und
   M6 (`docs/perf/M6.md` Abschnitt 5: Hörbuch, Podcast, Flugmodus mit Kapitelsprung). Ergebnisse trägt die
   Hauptsession ein.
-- Offline-Spike: Tage 3 und 8 (bis 27. Oktober 2026) auf dem Handy prüfen; danach Spike-Seite und
-  `SLOUCHCAT_SPIKE_DIR` entfernen (eigener kleiner PR).
+- Offline-Spike: **erledigt in M10.** Der Spike-Endpunkt `/spike/{variant}` und
+  `SLOUCHCAT_SPIKE_DIR` sind entfernt (Sicherheitsreview vom 23. Oktober 2026, H-7); die Tage 3
+  und 8 am Handy entfallen mit dem Entscheid, keine weiteren Gerätetests zu machen.
 - O-6-Langzeittest (30 Tage ab 20. Oktober, Protokoll `docs/perf/M5-o6-langzeittest.md`): wird in M7
   weitergeführt und erst nach dem 19. November abgehakt.
 - HTTPS-Zugang (K-8) mit Marcos echter Domain testen.
@@ -97,13 +98,15 @@ geprüft (Entscheid vom 21. Oktober).
   angemeldet als MarcoBrechbuhl. Marco ist in der Gruppe `docker`; bis zur Neuanmeldung braucht er
   `sg docker -c "…"`. Für die Hauptsession funktioniert `sg docker -c` ebenfalls.
 - Laufender Server: Container `slouchcat` aus `deploy/compose.yaml`, Image-Tag
-  `ghcr.io/slouchcat/slouchcat:0.1`, Port 8096, Daten in Volumes, Medien read-only von SMB/NFS.
+  `ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.0.0`), Port 8096, Daten in Volumes,
+  Medien read-only von SMB/NFS. Seit dem Tag `v1.0.0` veröffentlicht die CI das Image selbst; für
+  einen Stand zwischen zwei Releases wird es weiterhin lokal gebaut (Befehl unten).
   `deploy/.env` enthält TMDB- und YouTube-Schlüssel (nie committen, nie anzeigen).
 - Testserver: Proxmox-CT 190 im lokalen Netz (Intel QuickSync), Zugang in `docs/dev/TESTSERVER.md`.
 - **Image nach jedem Merge neu bauen** (aus sauberem Worktree, nie aus dem Arbeitsbaum):
 
 ```bash
-cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile -t ghcr.io/slouchcat/slouchcat:0.1 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
+cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile -t ghcr.io/slouchcat/slouchcat:1.0.0 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
 ```
 
 - Kontrolle: `cd deploy && sg docker -c "docker compose ps"` muss `healthy` zeigen.

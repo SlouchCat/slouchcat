@@ -2,7 +2,6 @@ import type { AdminPick, PickRequest, PickUpdate } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
@@ -16,6 +15,7 @@ import {
   CheckboxGroup,
   ConfirmDialog,
   DataTable,
+  Form,
   FormDialog,
   TextField,
   type DataColumn,

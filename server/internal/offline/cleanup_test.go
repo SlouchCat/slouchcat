@@ -15,6 +15,7 @@ import (
 // without a fetch; orphaned directories, the partial files of failed preparations and tombstones
 // older than 400 days go as well.
 func TestCleanup(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -119,6 +120,7 @@ func (e *env) tombstoneIDs() []string {
 // k4 (M7 review): the cleanup deletes read inbox entries older than 90 days; unread and younger
 // read entries stay.
 func TestCleanupOldReadNotifications(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f

@@ -482,6 +482,10 @@ func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, 
 		{"progress events", func() error {
 			return q.AdminMoveProgressEvents(ctx, systemq.AdminMoveProgressEventsParams{TargetID: targetID, SourceID: id})
 		}},
+		// M10: the condensed days of the source are added to the target's (migration 00019).
+		{"progress days", func() error {
+			return q.AdminMergeProgressDays(ctx, systemq.AdminMergeProgressDaysParams{TargetID: targetID, SourceID: id})
+		}},
 		{"top picks", func() error {
 			return q.AdminMoveTopPicks(ctx, systemq.AdminMoveTopPicksParams{TargetID: targetID, SourceID: id})
 		}},

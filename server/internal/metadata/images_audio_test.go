@@ -85,6 +85,7 @@ func (e *env) checkCover(t *testing.T, id, sourcePrefix string, w, h int) {
 }
 
 func TestImageFetchFolderCover(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	// A "?" in a folder name stays part of the path (the version follows the last "?").
 	if err := os.MkdirAll(filepath.Join(root, "Verfasser", "Buch?"), 0o750); err != nil {
@@ -122,6 +123,7 @@ func TestImageFetchFolderCover(t *testing.T) {
 }
 
 func TestImageFetchEmbeddedCover(t *testing.T) {
+	t.Parallel()
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "testdata", "media", "Audiobooks"))
 	if err != nil {
 		t.Fatal(err)
@@ -154,6 +156,7 @@ func pngBytes(t *testing.T, w, h int) []byte {
 }
 
 func TestImageFetchRemoteCover(t *testing.T) {
+	t.Parallel()
 	cover := pngBytes(t, 400, 400)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/feed/cover.png", func(w http.ResponseWriter, r *http.Request) {
@@ -217,6 +220,7 @@ func TestImageFetchRemoteCover(t *testing.T) {
 }
 
 func TestQueueIncompleteImagesCoversAudio(t *testing.T) {
+	t.Parallel()
 	e := audioEnv(t, t.TempDir())
 	e.addAudio(t, idBookFolder, "audiobook", 3, nil, "Verfasser/Buch/cover.jpg", nil)
 	e.addAudio(t, idBookEmbedded, "audiobook", 3, nil, nil, nil) // no cover: nothing to queue
@@ -229,6 +233,7 @@ func TestQueueIncompleteImagesCoversAudio(t *testing.T) {
 }
 
 func TestImageConfigWebP(t *testing.T) {
+	t.Parallel()
 	header := func(chunk string, payload []byte) []byte {
 		b := append([]byte("RIFF\x00\x00\x00\x00WEBP"+chunk), make([]byte, 4)...)
 		return append(b, payload...)

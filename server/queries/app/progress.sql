@@ -59,3 +59,37 @@ FROM progress_events
 WHERE profile_id = @profile_id AND server_time >= @from_ms AND server_time < @to_ms
 GROUP BY quarter
 ORDER BY quarter;
+
+-- Condensation of old events into progress_days (M10, plan 3.2; package playback, condense.go).
+-- Only whole UTC days older than playback.ProgressRetention are condensed, one day per transaction,
+-- so the single writer is never held for long and a run that stops in the middle leaves whole days
+-- behind. The K-5 watch time above reads the running day only and is never affected.
+
+-- name: OldestCondensableDay :one
+-- The UTC day number (server_time / 86400000) of the oldest raw event before the day-aligned
+-- boundary, -1 when there is none left to condense.
+SELECT CAST(COALESCE(MIN(server_time) / 86400000, -1) AS INTEGER) AS day FROM progress_events
+WHERE server_time < @before;
+
+-- name: CondenseProgressDay :exec
+-- Adds one whole UTC day of raw events to progress_days: the played time summed, plays = the
+-- distinct playback sessions of the day plus the events without one, an event without a device
+-- under the empty device id. Run again for the same day (a late offline upload) it adds to the
+-- stored row instead of replacing it, so the condensation is idempotent over the rows it already
+-- deleted and never loses a late upload.
+INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays)
+SELECT profile_id, item_id, COALESCE(device_id, ''), @day, SUM(played_ms),
+       count(DISTINCT playback_session_id) + SUM(playback_session_id IS NULL)
+FROM progress_events
+WHERE server_time >= @day * 86400000 AND server_time < (@day + 1) * 86400000
+GROUP BY profile_id, item_id, COALESCE(device_id, '')
+ON CONFLICT (profile_id, item_id, device_id, day) DO UPDATE SET
+    played_ms = progress_days.played_ms + excluded.played_ms,
+    plays = progress_days.plays + excluded.plays;
+
+-- name: DeleteCondensedProgressEvents :execrows
+-- Deletes the raw events of a condensed UTC day; runs in the same transaction as
+-- CondenseProgressDay, so no event is ever counted twice or lost.
+DELETE FROM progress_events
+WHERE server_time >= CAST(@day AS INTEGER) * 86400000
+  AND server_time < (CAST(@day AS INTEGER) + 1) * 86400000;

@@ -169,6 +169,7 @@ func setupStatus(t *testing.T, e *authEnv) bool {
 }
 
 func TestSetupFlowEndToEnd(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	if !setupStatus(t, e) {
 		t.Fatal("fresh server does not require setup")
@@ -228,6 +229,7 @@ func TestSetupFlowEndToEnd(t *testing.T) {
 }
 
 func TestSetupConflictsAndValidation(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 
 	bad := setupBody()
@@ -278,6 +280,7 @@ func TestSetupConflictsAndValidation(t *testing.T) {
 }
 
 func TestLoginFailures(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
 	for _, body := range []map[string]any{
@@ -303,6 +306,7 @@ func TestLoginFailures(t *testing.T) {
 // The eleventh login of one client within a minute answers 429 too_many_attempts; another client
 // address still gets through. Setup attempts count the same way.
 func TestLoginTooManyAttempts(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
 	wrong := map[string]any{"email": "marco@example.ch", "password": "wrong-password"}

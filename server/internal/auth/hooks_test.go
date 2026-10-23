@@ -13,6 +13,7 @@ import (
 // M8: a new account (owner or guest) runs the account hook after its commit, an accepted
 // invitation tells the inviting account; a failing hook leaves the account in place.
 func TestAccountHooks(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	var mu sync.Mutex
 	var created []int64

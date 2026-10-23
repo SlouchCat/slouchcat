@@ -13,6 +13,7 @@ func theatrical(cert string) Release { return Release{Certification: cert, Type:
 // TestFSKTables checks every row of the AN-8 mapping, including the rounding up to the next
 // higher FSK step.
 func TestFSKTables(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		country, cert string
 		want          int
@@ -37,6 +38,7 @@ func TestFSKTables(t *testing.T) {
 }
 
 func TestFSKCountryOrderAndFallbacks(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name    string
 		in      ReleaseDates

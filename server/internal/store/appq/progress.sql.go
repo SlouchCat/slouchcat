@@ -10,6 +10,28 @@ import (
 	"database/sql"
 )
 
+const condenseProgressDay = `-- name: CondenseProgressDay :exec
+INSERT INTO progress_days (profile_id, item_id, device_id, day, played_ms, plays)
+SELECT profile_id, item_id, COALESCE(device_id, ''), ?1, SUM(played_ms),
+       count(DISTINCT playback_session_id) + SUM(playback_session_id IS NULL)
+FROM progress_events
+WHERE server_time >= ?1 * 86400000 AND server_time < (?1 + 1) * 86400000
+GROUP BY profile_id, item_id, COALESCE(device_id, '')
+ON CONFLICT (profile_id, item_id, device_id, day) DO UPDATE SET
+    played_ms = progress_days.played_ms + excluded.played_ms,
+    plays = progress_days.plays + excluded.plays
+`
+
+// Adds one whole UTC day of raw events to progress_days: the played time summed, plays = the
+// distinct playback sessions of the day plus the events without one, an event without a device
+// under the empty device id. Run again for the same day (a late offline upload) it adds to the
+// stored row instead of replacing it, so the condensation is idempotent over the rows it already
+// deleted and never loses a late upload.
+func (q *Queries) CondenseProgressDay(ctx context.Context, day int64) error {
+	_, err := q.db.ExecContext(ctx, condenseProgressDay, day)
+	return err
+}
+
 const countDuplicateProgressEvents = `-- name: CountDuplicateProgressEvents :one
 SELECT count(*) FROM progress_events
 WHERE playback_session_id IS ?1 AND seq = ?2
@@ -48,6 +70,22 @@ func (q *Queries) CountDuplicateProgressEvents(ctx context.Context, arg CountDup
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteCondensedProgressEvents = `-- name: DeleteCondensedProgressEvents :execrows
+DELETE FROM progress_events
+WHERE server_time >= CAST(?1 AS INTEGER) * 86400000
+  AND server_time < (CAST(?1 AS INTEGER) + 1) * 86400000
+`
+
+// Deletes the raw events of a condensed UTC day; runs in the same transaction as
+// CondenseProgressDay, so no event is ever counted twice or lost.
+func (q *Queries) DeleteCondensedProgressEvents(ctx context.Context, day int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteCondensedProgressEvents, day)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getLastPlaybackEventTime = `-- name: GetLastPlaybackEventTime :one
@@ -179,6 +217,25 @@ func (q *Queries) InsertProgressEvent(ctx context.Context, arg InsertProgressEve
 		arg.ServerTime,
 	)
 	return err
+}
+
+const oldestCondensableDay = `-- name: OldestCondensableDay :one
+
+SELECT CAST(COALESCE(MIN(server_time) / 86400000, -1) AS INTEGER) AS day FROM progress_events
+WHERE server_time < ?1
+`
+
+// Condensation of old events into progress_days (M10, plan 3.2; package playback, condense.go).
+// Only whole UTC days older than playback.ProgressRetention are condensed, one day per transaction,
+// so the single writer is never held for long and a run that stops in the middle leaves whole days
+// behind. The K-5 watch time above reads the running day only and is never affected.
+// The UTC day number (server_time / 86400000) of the oldest raw event before the day-aligned
+// boundary, -1 when there is none left to condense.
+func (q *Queries) OldestCondensableDay(ctx context.Context, before int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, oldestCondensableDay, before)
+	var day int64
+	err := row.Scan(&day)
+	return day, err
 }
 
 const sumPlayedMs = `-- name: SumPlayedMs :one

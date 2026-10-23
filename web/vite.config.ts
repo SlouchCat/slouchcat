@@ -19,22 +19,30 @@ function themeColorMeta(): Plugin {
 
 // Hero image first, start JS second (P-10). The server writes the first hero image into the start
 // page's shell (#hero-prepaint, api/preload.go). This inline loader, placed at the end of <body> by
-// deferStartScript, appends the module script once that image is painted (two frames after its
+// deferStartScript, appends the module scripts once that image is painted (two frames after its
 // load event, like the carousel) and right away when there is no such image (login, other pages),
 // the image failed or the document is hidden. The image and the JS then no longer share a slow
 // link, so the hero is on screen earlier; the JS arrives about as late as before, since the link
 // carries the same bytes either way. The timer is a safety net for a stalled image.
-const startLoader = (src: string) => `(function () {
+//
+// All of them, not just one: the bundler emits a runtime chunk of its own next to the entry, and
+// deferring only the first left the entry eager in the head. The LCP went from 1.802 s (M1a) to
+// 2.702 s that way, over the 2.5 s of P-10, and nothing said so -- the plugin only complained when
+// it found no tag at all. Module scripts run in the order they are inserted, so the runtime still
+// comes before the entry.
+const startLoader = (srcs: string[]) => `(function () {
   var img = document.querySelector('#hero-prepaint > img');
   var started = false;
   function start() {
     if (started) return;
     started = true;
-    var script = document.createElement('script');
-    script.type = 'module';
-    script.crossOrigin = 'anonymous';
-    script.src = ${JSON.stringify(src)};
-    document.head.appendChild(script);
+    ${JSON.stringify(srcs)}.forEach(function (src) {
+      var script = document.createElement('script');
+      script.type = 'module';
+      script.crossOrigin = 'anonymous';
+      script.src = src;
+      document.head.appendChild(script);
+    });
   }
   function afterPaint() {
     requestAnimationFrame(function () {
@@ -48,9 +56,9 @@ const startLoader = (src: string) => `(function () {
   setTimeout(start, 2500);
 })();`;
 
-const startScriptTag = /<script type="module" crossorigin src="([^"]+)"><\/script>\n?/;
+const startScriptTags = /<script type="module" crossorigin src="([^"]+)"><\/script>\n?/g;
 
-/** Replaces the start script tag of the built shell with the inline loader (see startLoader). */
+/** Replaces every module script tag of the built shell with the inline loader (see startLoader). */
 function deferStartScript(): Plugin {
   return {
     name: 'slouchcat:defer-start-script',
@@ -59,11 +67,19 @@ function deferStartScript(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler: (html) => {
-        const match = startScriptTag.exec(html);
-        if (!match?.[1]) throw new Error('index.html: start script tag not found');
+        const matches = [...html.matchAll(startScriptTags)];
+        if (matches.length === 0) throw new Error('index.html: no start script tag found');
+        const out = html.replaceAll(startScriptTags, '');
+        // The guard that was missing: a tag the pattern does not know would stay eager in the head
+        // and quietly undo the whole point of this plugin.
+        if (out.includes('<script type="module"')) {
+          throw new Error('index.html: a module script tag is left in the shell');
+        }
         return {
-          html: html.replace(match[0], ''),
-          tags: [{ tag: 'script', children: startLoader(match[1]), injectTo: 'body' }],
+          html: out,
+          tags: [
+            { tag: 'script', children: startLoader(matches.map((m) => m[1])), injectTo: 'body' },
+          ],
         };
       },
     },

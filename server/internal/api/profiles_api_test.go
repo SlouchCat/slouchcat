@@ -84,6 +84,7 @@ func problemOf(t *testing.T, rec *httptest.ResponseRecorder) gen.Problem {
 // the PIN lock counts per profile and device, selecting a profile clears the browser cache, a
 // non-primary profile cannot administrate, and the device cookie is issued once.
 func TestProfilePickerFlow(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	owner := newBrowser(t, e.h)
 
@@ -272,6 +273,7 @@ func TestProfilePickerFlow(t *testing.T) {
 // The profile limits: at most ten profiles, accents and languages from the fixed lists, names
 // bounded.
 func TestProfileValidation(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	b := newBrowser(t, e.h)
 	wantStatus(t, b.do(http.MethodPost, "/api/v1/setup", setupBody()), http.StatusCreated)
@@ -316,6 +318,7 @@ func TestProfileValidation(t *testing.T) {
 // The invitation flow over HTTP: preview, accept (one-time), the guest's limits, and a revoked,
 // expired and used link answering 410.
 func TestInvitationFlow(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	owner := newBrowser(t, e.h)
 	wantStatus(t, owner.do(http.MethodPost, "/api/v1/setup", setupBody()), http.StatusCreated)
@@ -426,6 +429,7 @@ func TestInvitationFlow(t *testing.T) {
 
 // Image URLs carry the profile id, so a browser cache never serves one profile's image to another.
 func TestImageURLsCarryProfileID(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
 	for _, tc := range []struct {
@@ -469,6 +473,7 @@ func TestImageURLsCarryProfileID(t *testing.T) {
 // The invitation token never reaches the log or a problem body: the request log, the problem
 // instance and the error logs mask the segment after /invitations/ and /invite/.
 func TestInvitationTokenStaysOutOfLogsAndProblems(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	owner := newBrowser(t, e.h)
 	wantStatus(t, owner.do(http.MethodPost, "/api/v1/setup", setupBody()), http.StatusCreated)

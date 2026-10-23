@@ -1,6 +1,5 @@
 import type { ProfileSummary } from '@slouchcat/api-client';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage, retryAfterSeconds } from '@/api/errors';
@@ -8,7 +7,7 @@ import { useSelectProfile } from '@/app/session';
 import { offlineSupported } from '@/features/offline/support';
 import { formatCountdown, useCountdown } from '@/lib/useCountdown';
 import { Notice, VisuallyHidden } from '@/ui';
-import { AriaButton, FormDialog, PinField } from '@/ui/aria';
+import { AriaButton, Form, FormDialog, PinField } from '@/ui/aria';
 import styles from './PinDialog.module.css';
 
 interface PinDialogProps {

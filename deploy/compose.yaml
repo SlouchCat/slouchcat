@@ -1,13 +1,19 @@
 # Slouchcat – Docker Compose (plan section 3.7).
 # Usage: cp .env.example .env && mkdir -p config cache && docker compose up -d
-# HTTPS: docker compose --profile https up -d (Caddy, see README and Caddyfile).
+# HTTPS: docker compose -f compose.yaml -f compose.https-only.yaml --profile https up -d
+#   (Caddy, see README and Caddyfile). The https-only override belongs to it: it stops the host
+#   publishing port 8096, so nothing but Caddy reaches the server. Without it, and with
+#   SLOUCHCAT_TRUSTED_PROXIES=private, any device in the home network can set X-Forwarded-For
+#   itself and so empty the limit on login attempts.
 # GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
 name: slouchcat
 
 services:
   slouchcat:
-    # Placeholder owner until the public GitHub repository exists (ADR 0001).
-    image: ghcr.io/slouchcat/slouchcat:0.1
+    # Published with every release (ADR 0001, .github/workflows/release.yml). The tag is pinned:
+    # an update is a conscious step (SLOUCHCAT_VERSION in .env, then `docker compose pull`), the
+    # update check only says that there is one. `docker compose up --build` builds locally instead.
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.0.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile

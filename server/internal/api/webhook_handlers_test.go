@@ -186,6 +186,7 @@ func postWebhook(t *testing.T, h http.Handler, token string, body []byte) *httpt
 }
 
 func TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads(t *testing.T) {
+	t.Parallel()
 	recordings := loadRecordings(t)
 	acting := map[string]int{}
 	for _, r := range recordings {
@@ -272,6 +273,7 @@ func TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads(t *testing.T) {
 }
 
 func TestWebhookAnswersWithoutTheCSRFHeaderAndNeverLogsTheToken(t *testing.T) {
+	t.Parallel()
 	wf := newWebhookFixture(t)
 	integ := wf.integration(t, "Radarr", model.IntegrationRadarr, "/movies")
 
@@ -294,6 +296,9 @@ func TestWebhookAnswersWithoutTheCSRFHeaderAndNeverLogsTheToken(t *testing.T) {
 	}
 }
 
+// Not parallel: the limit is ten requests per second and per integration, so the eleventh has to
+// arrive inside the same second. Under parallel load the eleven requests took longer than that
+// and the window had already rolled over (run of 23 October 2026).
 func TestWebhookRefusesTheEleventhRequestInASecond(t *testing.T) {
 	wf := newWebhookFixture(t)
 	integ := wf.integration(t, "Radarr", model.IntegrationRadarr, "/movies")
@@ -312,6 +317,7 @@ func TestWebhookRefusesTheEleventhRequestInASecond(t *testing.T) {
 }
 
 func TestWebhookAnswers422ForAPathOutsideEveryRoot(t *testing.T) {
+	t.Parallel()
 	wf := newWebhookFixture(t)
 	integ := wf.integration(t, "Radarr", model.IntegrationRadarr, "")
 	rec := postWebhook(t, wf.h, integ.Token,

@@ -72,6 +72,7 @@ func validationCodes(err error) []string {
 }
 
 func TestLockDurationCurve(t *testing.T) {
+	t.Parallel()
 	for failures, want := range map[int64]time.Duration{
 		0: 0, 1: 0, 2: 0, 3: 30 * time.Second, 4: time.Minute, 5: 2 * time.Minute, 6: 4 * time.Minute,
 		7: 8 * time.Minute, 8: 15 * time.Minute, 9: 15 * time.Minute, 200: 15 * time.Minute,
@@ -83,6 +84,7 @@ func TestLockDurationCurve(t *testing.T) {
 }
 
 func TestPINValidation(t *testing.T) {
+	t.Parallel()
 	for pin, want := range map[string]bool{"1234": true, "12345678": true, "123": false, "123456789": false, "12a4": false, "": false, " 1234": false, "１２３４": false} {
 		if ValidPIN(pin) != want {
 			t.Errorf("ValidPIN(%q) = %v, want %v", pin, !want, want)
@@ -94,6 +96,7 @@ func TestPINValidation(t *testing.T) {
 // … up to 15 min per profile and device; a right PIN resets; another device is unaffected; the
 // lock survives a new service on the same database (restart).
 func TestPINLockoutCurve(t *testing.T) {
+	t.Parallel()
 	s, clock := newService(t)
 	sess, _ := owner(t, s)
 	ctx := context.Background()
@@ -205,6 +208,7 @@ func TestPINLockoutCurve(t *testing.T) {
 }
 
 func TestSelectProfileWithoutPINAndOtherAccounts(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, token := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -266,6 +270,7 @@ func addGuestAccount(t *testing.T, s *Service, email string, maxRating int64, al
 
 // Login starts the session with the profile only when the account has exactly one without PIN.
 func TestLoginProfileChoice(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -324,6 +329,7 @@ func mustToken(t *testing.T, s *Service, session model.Session) string {
 }
 
 func TestProfileRules(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, token := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -444,6 +450,7 @@ func TestProfileRules(t *testing.T) {
 func boolPtr(b bool) *bool { return &b }
 
 func TestMaxTenProfiles(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -472,6 +479,7 @@ func TestMaxTenProfiles(t *testing.T) {
 // Guest accounts: created from an invitation with its ceiling and libraries; their profiles stay
 // within both; the ceiling can be changed and the libraries replaced.
 func TestGuestLimits(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	ownerSess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -575,6 +583,7 @@ func TestGuestLimits(t *testing.T) {
 // Invitation lifecycle: preview, accept, a second accept (410), expiry after 7 days, revocation,
 // unknown tokens, validation, and the stored hash.
 func TestInvitationLifecycle(t *testing.T) {
+	t.Parallel()
 	s, clock := newService(t)
 	ownerSess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -722,6 +731,7 @@ func byIDOf(list []model.Invitation, id int64) model.Invitation {
 
 // Two concurrent acceptances of one link: exactly one account is created.
 func TestInvitationAcceptedOnce(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	ownerSess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -760,6 +770,7 @@ func TestInvitationAcceptedOnce(t *testing.T) {
 
 // Resolve moves accounts.last_seen_at at most every five minutes, with the session touch.
 func TestAccountLastSeen(t *testing.T) {
+	t.Parallel()
 	s, clock := newService(t)
 	_, token := owner(t, s)
 	ctx := ctxOn(deviceA)

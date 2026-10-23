@@ -73,6 +73,7 @@ func refID(r *treeRef) string {
 func intIs(v *int, want int) bool { return v != nil && *v == want }
 
 func TestContractSeriesTree(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	show := f.Show
@@ -226,6 +227,7 @@ func TestContractSeriesTree(t *testing.T) {
 // Design 1: an extra alone makes no series available and lowers no minimum rating; the extra
 // itself is not found either, because an extra needs a visible parent (migration 00010).
 func TestContractExtrasNeverContainers(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	series, extra := f.AddLoneExtraSeries(t)
@@ -258,6 +260,7 @@ func TestContractExtrasNeverContainers(t *testing.T) {
 // the mass rating is hidden for P12 like its seasons: absent from the start page, 404 by id, its
 // trailers and its extra 404. With the episodes back at 12 everything returns.
 func TestContractSeriesHiddenWhenEpisodesAbove(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	show := f.Show

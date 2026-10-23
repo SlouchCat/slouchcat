@@ -83,6 +83,14 @@ export default defineConfig([
                 "Features import shared UI only from '@/ui' (react-aria parts from '@/ui/aria').",
             },
           ],
+          paths: [
+            {
+              name: 'react-aria-components',
+              importNames: ['Form'],
+              message:
+                "Import Form from '@/ui/aria': it lets a server's field message go when the reader corrects that field.",
+            },
+          ],
         },
       ],
     },

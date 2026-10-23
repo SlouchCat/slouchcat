@@ -114,6 +114,7 @@ const chromeCaps = `{"containers":["mp4","webm"],"video":["h264","vp9"],"audio":
 // watch_limit_reached with the numbers; the report shows the minutes of today; only the primary
 // profile reads it.
 func TestHTTPWatchLimit(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
 	clock := &stepClock{now: time.Date(2026, 10, 20, 17, 0, 0, 0, time.Local)}
@@ -200,6 +201,7 @@ func TestHTTPWatchLimit(t *testing.T) {
 // W-8: max 720p → output 720p; one stream → the second start 409 with the numbers; 4 Mbit/s →
 // bit rate <= 4 Mbit/s; a manual 480p → transcode on 480p.
 func TestHTTPPlaybackLimits(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m6, m0 := f.Rated(6), f.Rated(0)
@@ -259,6 +261,7 @@ func TestHTTPPlaybackLimits(t *testing.T) {
 // switch of the same browser session and title replaces the playback (its token answers 401, its
 // own stop 404) instead of counting as a second stream.
 func TestHTTPGuestStreamCapAndSwitch(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	if _, err := f.DB.Write.Exec(`UPDATE accounts SET max_streams = 1 WHERE id = ?`, f.Guest.ID); err != nil {
@@ -292,6 +295,7 @@ func TestHTTPGuestStreamCapAndSwitch(t *testing.T) {
 // W-4 over HTTP: the subtitle URL of a text track works without the cookie; another track of the
 // playback answers 404, a forged token 401; the selection names the track.
 func TestHTTPSubtitles(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(6)
@@ -341,6 +345,7 @@ func TestHTTPSubtitles(t *testing.T) {
 // W-6 and W-7: two streams in the overview with profile, device, title, quality and mode; the
 // administrator's stop answers 401 for the stream and stops ffmpeg; the device carries the
 // reported capabilities, its owner and the last contact; forgetting it removes it.
+// Not parallel: checks the last contact of a device against the clock (W-7, one minute).
 func TestHTTPAdminStreamsAndDevices(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h

@@ -139,6 +139,18 @@ Neustart `healthy`, im Stack-Container lesbar (`/media/nas/Filme` 1771 Ordner, 1
 gelesen). Der Stack hat noch keine Bibliotheken: Marco legt sie in `/admin/libraries` mit den Pfaden
 `/media/nas/Filme`, `/media/nas/KinderFilme`, `/media/nas/Serien` usw. an.
 
+## Messungen für 1.0 (23. Oktober 2026)
+
+Die M10-Messungen liefen in einem eigenen Container `slouchcat-m10` auf Port 8097 aus dem Image
+`slouchcat:m10` (`VERSION=1.0.0-rc.m10`), mit `--device /dev/dri --group-add 993` und dem
+Platzhalterbaum als zwei Bibliotheken. Der M1b-Stack auf Port 8096 blieb unberührt. Ergebnisse in
+`docs/perf/M10.md`: `healthy` 1.20–1.22 s, Leerlauf-RSS 83.0 MB bei 50'570 Titeln, Startseite p95
+105.4 ms, Suche p95 8.1–54.2 ms, Backend `qsv` mit CPU-Tonemapping und Budget 8.
+
+Der Mess-Container und sein Konfigurationsordner sind danach entfernt worden; das Image
+`slouchcat:m10` liegt noch im CT (rund 0.5 GB), damit eine Nachmessung es nicht neu übertragen muss.
+`docker rmi slouchcat:m10` räumt es weg.
+
 ## Noch offen
 
 - `smbpasswd -a media` im Container (Marco, Passwort nur dort).

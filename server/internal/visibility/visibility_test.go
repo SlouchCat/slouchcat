@@ -17,6 +17,7 @@ func text(lang, title, overview string) scopedq.ItemText {
 }
 
 func TestPickTextsFallback(t *testing.T) {
+	t.Parallel()
 	both := []scopedq.ItemText{text("en", "Alien", "In space"), text("de", "Alien – Das unheimliche Wesen", "")}
 	got := pickTexts(both, "de", "alien")
 	if got.title != "Alien – Das unheimliche Wesen" || got.overview != "In space" {
@@ -34,6 +35,7 @@ func TestPickTextsFallback(t *testing.T) {
 }
 
 func TestPickGenres(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		raw, lang string
 		want      []string
@@ -63,6 +65,7 @@ func ids(items []model.ItemSummary) []string {
 }
 
 func TestReaderFiltersByProfile(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	r := New(f.DB, vistest.Logger())
 	ctx := context.Background()
@@ -132,6 +135,7 @@ func TestReaderFiltersByProfile(t *testing.T) {
 }
 
 func TestReaderMapsDetailInProfileLanguage(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	r := New(f.DB, vistest.Logger())
 	ctx := context.Background()
@@ -192,6 +196,7 @@ func TestReaderMapsDetailInProfileLanguage(t *testing.T) {
 }
 
 func TestReaderMediaFileAndImage(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	r := New(f.DB, vistest.Logger())
 	ctx := context.Background()
@@ -261,6 +266,7 @@ func TestReaderMediaFileAndImage(t *testing.T) {
 // B-5: the versions of a title are ordered by height, then age; MediaFile("") picks the same
 // primary file as the detail list, so playback and the detail page agree.
 func TestReaderVersionsPrimaryFirst(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	r := New(f.DB, vistest.Logger())
@@ -305,6 +311,7 @@ func TestReaderVersionsPrimaryFirst(t *testing.T) {
 }
 
 func TestReaderRejectsUnscopedReads(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	r := New(f.DB, vistest.Logger())
 	ctx := context.Background()
@@ -328,6 +335,7 @@ func TestReaderRejectsUnscopedReads(t *testing.T) {
 }
 
 func TestFixtureIDsMatchContract(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	for _, m := range f.Movies {
 		if len(m.ID) != 26 || len(m.FileID) != 26 {
@@ -340,6 +348,7 @@ func TestFixtureIDsMatchContract(t *testing.T) {
 // tree (AN-9: an episode's own rating counts only when higher, a series needs its smallest child
 // to fit) and the guest account's ceiling and library rights.
 func TestFixtureRulesMatchView(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddEdgeCases(t)
 	f.AddSeries(t)
@@ -373,6 +382,7 @@ func TestFixtureRulesMatchView(t *testing.T) {
 }
 
 func TestSystemItemRating(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	r := New(f.DB, vistest.Logger())

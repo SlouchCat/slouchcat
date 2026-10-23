@@ -32,6 +32,7 @@ func media(codec, pix, transfer string, dv, w, h int, bitRate int64, audio strin
 }
 
 func TestDecidePerProfileAndSource(t *testing.T) {
+	t.Parallel()
 	type want struct {
 		copy, audioCopy, tonemap bool
 		w, h, videoKbps          int
@@ -125,6 +126,7 @@ func TestDecidePerProfileAndSource(t *testing.T) {
 // The estimate of an encode uses the rate and size that transcode.NewPlan gives the encoder, so
 // the file lands within O-1's ±10 % (stream A encodes at Plan.VideoBitrate).
 func TestEstimateMatchesPlan(t *testing.T) {
+	t.Parallel()
 	for _, s := range []struct{ w, h int }{{1920, 1080}, {1920, 800}, {1280, 720}, {720, 576}, {854, 480}, {640, 360}, {3840, 2160}} {
 		for _, prof := range model.DownloadProfiles {
 			in := media("hevc", "yuv420p10le", "smpte2084", 0, s.w, s.h, 30_000_000, "eac3", 6)
@@ -142,6 +144,7 @@ func TestEstimateMatchesPlan(t *testing.T) {
 }
 
 func TestSelectedAudioAndDefaults(t *testing.T) {
+	t.Parallel()
 	p := testProbe()
 	if got := defaultAudio(&p); got != 1 {
 		t.Errorf("default audio = %d, want 1", got)

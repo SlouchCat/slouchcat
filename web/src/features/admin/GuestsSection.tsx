@@ -1,13 +1,12 @@
 import type { Guest, GuestUpdate } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
 import { Chip, Notice, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, FormDialog, RadioGroup } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, Form, FormDialog, RadioGroup } from '@/ui/aria';
 import { ratingOf, ratingOptions } from '../shared/choices';
 import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
 import {

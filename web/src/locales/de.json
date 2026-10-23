@@ -1398,6 +1398,8 @@
           "add": "Zeile hinzufügen",
           "remove": "Zeile für {{from}} entfernen",
           "removeAction": "Entfernen",
+          "elsewhere": "Ein anderer Zugang hat die Pfad-Umsetzung dieser Integration inzwischen geändert. Deine Zeilen stehen noch hier und werden beim Speichern übernommen.",
+          "takeOver": "Andere Fassung übernehmen",
           "saved": "Pfad-Umsetzung gespeichert."
         },
         "log": {

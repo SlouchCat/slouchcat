@@ -72,6 +72,7 @@ func itemRefsIn(t *testing.T, rec *httptest.ResponseRecorder) []string {
 
 // The administration view and the provider errors through the HTTP layer.
 func TestContractAdminItemAndProviderErrors(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	h := pf.h
 	rec := send(t, h, http.MethodGet, BasePath+"/admin/items/"+fixtureFilm6, "p18", "", nil)
@@ -129,6 +130,7 @@ func TestContractAdminItemAndProviderErrors(t *testing.T) {
 // A-3 (review I-5): DELETE /admin/jobs/{id} dismisses a failed job, which the dashboard lists with
 // "Abbrechen"; a cancelled one answers 404.
 func TestContractCancelFailedJob(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	ctx := context.Background()
 	id, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "contract.fail", MaxAttempts: 1})

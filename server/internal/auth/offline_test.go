@@ -32,6 +32,7 @@ var hexSalt = regexp.MustCompile(`^[0-9a-f]{32}$`)
 // AN-19: every new normal PIN gets a fresh salt (an offline verifier of the old PIN stops
 // working), removing the PIN clears the salt, and neither touches the offline PIN.
 func TestPinSaltFollowsPIN(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -115,6 +116,7 @@ func verifies(t *testing.T, stored, pin string) bool {
 // AN-19: the separate offline PIN (6 to 12 digits) is stored as a PBKDF2-SHA256 verifier that
 // verifies exactly that PIN; only the primary profile manages it, and only for its own account.
 func TestOfflinePIN(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -216,6 +218,7 @@ func TestOfflinePIN(t *testing.T) {
 // PIN, the offline verifier, nothing for a profile without either, and nothing for profiles of
 // other accounts or unknown ids.
 func TestOfflinePinsScoping(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)

@@ -11,6 +11,7 @@ import (
 
 // M4: tracks, segments and the next episode go through visible_items like every title read.
 func TestReaderTracksAndSegments(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	tracks := f.AddTracks(t)

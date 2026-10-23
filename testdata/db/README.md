@@ -102,3 +102,13 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Tokens stehen nur als SHA-256 darin, nie im Klartext (3.8 Punkt 2). `TestFrozenM9StateCoversM9Data` prüft,
   dass jede dieser Datenarten nach der Migration vorhanden ist und dass der entfallene Kanal «Beschaffung»
   nirgends mehr auftaucht.
+- `M10.sql`: Stand nach M10 (Härtung und Release 1.0; Migration 00019 `progress_days`). Erzeugt mit
+  `freeze-m10.sh` aus den Sitzungsnotizen gegen einen frischen Server: derselbe Aufbau wie M9 (Hauptkonto
+  `owner@example.test`, Film- und Serienbibliothek auf `testdata/media`, zwei Webhook-Integrationen mit
+  vollem Ereignisprotokoll), dazu **die Wiedergabe-Geschichte in beiden Formen**. Zwei gemeldete
+  Fortschritts-Ereignisse; das ältere wurde auf 200 Tage zurückdatiert, und der Aufräumlauf des Servers
+  (`internal/playback/condense.go`) hat es selbst nach `progress_days` verdichtet und die Rohzeile
+  gelöscht. Der Stand trägt also eine verdichtete Tageszeile, eine rohe Ereigniszeile innerhalb des
+  90-Tage-Fensters und einen Fortschritt in `progress`. `TestFrozenM10StateCoversM10Data` prüft das;
+  `TestFrozenStatesMigrate` spielt ihn zusammen mit allen früheren Ständen ein — das ist der
+  Migrationstest M1a → 1.0 aus Schritt 3 von M10 (P-13).

@@ -82,6 +82,7 @@ var codePattern = regexp.MustCompile(`^[A-Z2-9]{6}$`)
 // A-6: the account asks for a code, the user sends "/start <code>" to the bot, the poller links
 // the chat, switches the channel on and confirms in the chat.
 func TestTelegramLinkFlow(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	bot := newBotServer(t)
 	e.svc.telegram = &telegram.Client{BaseURL: bot.srv.URL}
@@ -170,6 +171,7 @@ func TestTelegramLinkFlow(t *testing.T) {
 }
 
 func TestLinkCodeIn(t *testing.T) {
+	t.Parallel()
 	for text, want := range map[string]string{
 		"/start ABC234":       "ABC234",
 		"/start abc234":       "ABC234",
@@ -202,6 +204,8 @@ func TestLinkCodeIn(t *testing.T) {
 
 // Run deletes finished deliveries after 30 days (queued ones stay) and returns when its context
 // ends.
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestRunPrunesAndStops(t *testing.T) {
 	e := newChanEnv(t)
 	e.svc.linkPoll = 10 * time.Millisecond

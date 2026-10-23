@@ -6,7 +6,6 @@ import type {
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
@@ -17,6 +16,7 @@ import {
   AriaButton,
   ConfirmDialog,
   DataTable,
+  Form,
   FormDialog,
   TextField,
   type DataColumn,

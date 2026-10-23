@@ -9,6 +9,7 @@ import (
 // the M3 cases the web e2e specs rely on: versions, extras, the unplayable file, the duplicate,
 // the title without year, specials and the multi-episode file.
 func TestScanGeneratedMedia(t *testing.T) {
+	t.Parallel()
 	if ffprobePath() == "" {
 		t.Fatal("ffprobe is required for the probe tests (install ffmpeg)")
 	}

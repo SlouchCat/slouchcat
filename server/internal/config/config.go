@@ -35,7 +35,6 @@ type Config struct {
 	Dev       bool           // Development mode.
 	FFmpeg    string         // ffmpeg binary (name on PATH or absolute path).
 	FFprobe   string         // ffprobe binary (name on PATH or absolute path).
-	SpikeDir  string         // Directory with the offline spike files; empty disables the endpoint (M1a only).
 	Workers   int            // Number of job workers.
 	// HW selects the transcode backend: auto (detect), nvenc, qsv, vaapi or software (M1b).
 	HW string
@@ -143,7 +142,6 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	dev := fs.Bool("dev", devDefault, "development mode (env SLOUCHCAT_DEV)")
 	ffmpeg := fs.String("ffmpeg", env("FFMPEG", "ffmpeg"), "ffmpeg binary (env SLOUCHCAT_FFMPEG)")
 	ffprobe := fs.String("ffprobe", env("FFPROBE", "ffprobe"), "ffprobe binary (env SLOUCHCAT_FFPROBE)")
-	spikeDir := fs.String("spike-dir", env("SPIKE_DIR", ""), "directory with the offline spike files, empty = disabled (env SLOUCHCAT_SPIKE_DIR)")
 	workers := fs.Int("workers", 0, "number of job workers, 0 = automatic (env SLOUCHCAT_WORKERS)")
 	hw := fs.String("hw", env("HW", "auto"), "transcode backend: auto, nvenc, qsv, vaapi or software (env SLOUCHCAT_HW)")
 	hdrTonemap := fs.String("hdr-tonemap", env("HDR_TONEMAP", "auto"), "HDR to SDR tonemapping: auto, gpu or cpu (env SLOUCHCAT_HDR_TONEMAP)")
@@ -224,11 +222,6 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	if cfg.Workers == 0 {
 		cfg.Workers = max(2, min(4, runtime.NumCPU()))
 	}
-	if *spikeDir != "" {
-		if cfg.SpikeDir, err = absDir("spike dir", *spikeDir); err != nil {
-			return Config{}, err
-		}
-	}
 	if err := cfg.LogLevel.UnmarshalText([]byte(*logLevel)); err != nil {
 		return Config{}, fmt.Errorf("log level: %w", err)
 	}
@@ -261,7 +254,6 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("dev", c.Dev),
 		slog.String("ffmpeg", c.FFmpeg),
 		slog.String("ffprobe", c.FFprobe),
-		slog.String("spike_dir", c.SpikeDir),
 		slog.Int("workers", c.Workers),
 		slog.String("hw", c.HW),
 		slog.String("hdr_tonemap", c.HDRTonemap),
@@ -329,6 +321,30 @@ func httpURL(s string) bool {
 // privateNetworks are the networks of the value "private": RFC 1918, loopback, IPv6 loopback and
 // unique local addresses.
 var privateNetworks = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128", "fc00::/7"}
+
+// TrustedProxyWarning reports why the configured trusted proxies are a risk, or "" when they are
+// not one. SLOUCHCAT_TRUSTED_PROXIES=private trusts every sender out of a whole private network,
+// and in a household the clients live in those networks themselves: a device in the same network
+// can then set X-Forwarded-For and hand the server any client address it likes. The limit on login
+// attempts is keyed on that address, so a fresh value per attempt empties it (security review of
+// 23 October 2026, M-1). That is only safe while nothing but the reverse proxy can reach this
+// port, which the server cannot see from the inside -- hence a warning and not a refusal. Naming
+// the proxy's own network instead (for example 172.18.0.0/16, `docker network inspect` prints it)
+// ends both the risk and this warning.
+func (c Config) TrustedProxyWarning() string {
+	for _, p := range c.TrustedProxies {
+		for _, wide := range privateNetworks {
+			if w, err := netip.ParsePrefix(wide); err == nil && p == w.Masked() {
+				return "trusted_proxies covers the whole private network " + p.String() +
+					": every device in it can set X-Forwarded-For and so pick its own client address," +
+					" which empties the limit on login attempts. Safe only while nothing but the reverse" +
+					" proxy reaches this port (deploy/compose.https-only.yaml). Name the proxy's own" +
+					" network as a CIDR instead."
+			}
+		}
+	}
+	return ""
+}
 
 // ParseTrustedProxies parses SLOUCHCAT_TRUSTED_PROXIES: empty = no proxy is trusted, "private" =
 // privateNetworks, otherwise a comma-separated list of CIDRs or single addresses.

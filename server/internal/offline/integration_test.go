@@ -25,6 +25,7 @@ var subtitlesClip = filepath.Join("..", "..", "..", "testdata", "media", "Movies
 // a remux in high and a constant-rate encode in low, each a playable fragmented MP4 whose index
 // matches the file, with the WebVTT sidecars; the encode lands within ±10 % of its estimate (O-1).
 func TestPrepareWithRealEncoder(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	runner := transcode.Runner{FFmpegPath: "ffmpeg", FFprobePath: "ffprobe"}
 	if _, err := runner.Version(ctx); err != nil {
@@ -131,6 +132,7 @@ var testEpisode = filepath.Join("..", "..", "..", "testdata", "media", "Podcasts
 // encoder into a fragmented MP4 with AAC in each quality, within ±10 % of the estimate for its
 // duration; the fetched source is gone afterwards.
 func TestEpisodeDownloadWithRealEncoder(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	runner := transcode.Runner{FFmpegPath: "ffmpeg", FFprobePath: "ffprobe"}
 	if _, err := runner.Version(ctx); err != nil {

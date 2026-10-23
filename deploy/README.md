@@ -117,9 +117,11 @@ docker compose ps             # Status "healthy" nach wenigen Sekunden
 ```
 
 Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist auf
-`ghcr.io/slouchcat/slouchcat:0.1`; der Besitzer `slouchcat` ist ein Platzhalter, bis das öffentliche
-GitHub-Repository existiert (ADR 0001, offene Folgepunkte). Ohne veröffentlichtes Image baut
-`docker compose up --build` lokal aus dem Dockerfile.
+`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.0.0`); das Image entsteht bei jedem
+Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
+Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
+`docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
+`docker compose up --build` baut stattdessen lokal aus dem Dockerfile.
 
 ### Volumes
 
@@ -493,7 +495,8 @@ task deploy:healthy-time
 `scripts/measure-healthy.sh` startet einen Wegwerf-Container aus `slouchcat:dev` mit temporärem
 `/config` und `/cache`, fragt alle 100 ms `docker inspect --format '{{.State.Health.Status}}'` ab, gibt
 die Sekunden bis `healthy` aus und schlägt fehl, wenn das länger als 5 s dauert. Nach 3 s Leerlauf
-folgen `VmRSS` von PID 1 und `docker stats --no-stream`; liegt das RSS über 60 MB (DoD M0), schlägt
+folgen `VmRSS` von PID 1 und `docker stats --no-stream`; liegt das RSS über der Schranke (seit dem
+23. Oktober 2026 80 MB, Begründung im Kopf des Skripts und in `docs/perf/M9.md` Abschnitt 5), schlägt
 das Skript ebenfalls fehl. Grenzwerte über `MAX_HEALTHY_SECONDS`, `MAX_RSS_MB`, `IDLE_SECONDS`.
 
 ## Lizenzen im Image
