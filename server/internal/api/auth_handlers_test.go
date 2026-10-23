@@ -79,7 +79,13 @@ type authEnv struct {
 	logs *bytes.Buffer
 }
 
-func newAuthEnv(t *testing.T) *authEnv {
+func newAuthEnv(t *testing.T) *authEnv { return newAuthEnvAt(t, &stepClock{now: time.Now()}) }
+
+// newAuthEnvAt is newAuthEnv with a clock the caller owns. A test that counts login attempts
+// against the limit has to hold the clock still: the bucket refills over time, every wrong
+// password costs an argon2id hash, and on a loaded machine those hashes take longer than the
+// window, so the limit never trips.
+func newAuthEnvAt(t *testing.T, clock *stepClock) *authEnv {
 	t.Helper()
 	var logs bytes.Buffer
 	log, err := logging.New(&logs, logging.FormatJSON, slog.LevelDebug)
@@ -96,7 +102,7 @@ func newAuthEnv(t *testing.T) *authEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := auth.New(db, log)
+	a := auth.New(db, log).WithClock(clock.Now)
 	tmdb := &authTestTMDB{}
 	adm := admin.New(db, a, &authTestLibraries{}, ring, tmdb, func(string) string { return "" }, log)
 	h := NewHandler(Options{
@@ -307,7 +313,7 @@ func TestLoginFailures(t *testing.T) {
 // address still gets through. Setup attempts count the same way.
 func TestLoginTooManyAttempts(t *testing.T) {
 	t.Parallel()
-	e := newAuthEnv(t)
+	e := newAuthEnvAt(t, &stepClock{now: time.Now()})
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
 	wrong := map[string]any{"email": "marco@example.ch", "password": "wrong-password"}
 	for range 9 { // the setup took the first attempt

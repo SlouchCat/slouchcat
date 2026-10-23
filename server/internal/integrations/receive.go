@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
@@ -110,19 +111,24 @@ func nullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
 }
 
-// limiters holds one rate limiter per integration (3.8 point 8), created on first use.
+// limiters holds one rate limiter per integration (3.8 point 8), created on first use. They run on
+// the service's clock, so a test can hold the second still while it sends its requests.
 type limiters struct {
-	mu sync.Mutex
-	by map[int64]*ratelimit.Limiter
+	mu  sync.Mutex
+	by  map[int64]*ratelimit.Limiter
+	now func() time.Time
 }
 
-func newLimiters() *limiters { return &limiters{by: map[int64]*ratelimit.Limiter{}} }
+func newLimiters(now func() time.Time) *limiters {
+	return &limiters{by: map[int64]*ratelimit.Limiter{}, now: now}
+}
 
 func (l *limiters) allow(id int64) bool {
 	l.mu.Lock()
 	lim := l.by[id]
 	if lim == nil {
-		lim = ratelimit.New(fmt.Sprintf("webhook:%d", id), RequestsPerSecond, RequestsPerSecond)
+		lim = ratelimit.New(fmt.Sprintf("webhook:%d", id), RequestsPerSecond, RequestsPerSecond,
+			ratelimit.WithClock(l.now))
 		l.by[id] = lim
 	}
 	l.mu.Unlock()

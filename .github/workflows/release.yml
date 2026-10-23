@@ -38,12 +38,16 @@ jobs:
           # object to read it from.
           fetch-depth: 0
 
-      - name: Read the version out of the tag
+      # The image name has to be lower case: a Docker repository name may not carry a capital, and
+      # github.repository keeps the spelling of the owner ("SlouchCat/slouchcat"). The first run of
+      # this workflow died on exactly that, before it pushed anything.
+      - name: Read the version out of the tag and the image name out of the repository
         id: version
         run: |
           tag="${GITHUB_REF_NAME}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
         with:
@@ -69,8 +73,8 @@ jobs:
           build-args: VERSION=${{ steps.version.outputs.version }}
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
-            ghcr.io/${{ github.repository }}:latest
+            ${{ steps.version.outputs.image }}:${{ steps.version.outputs.version }}
+            ${{ steps.version.outputs.image }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: mode=max
@@ -83,7 +87,7 @@ jobs:
       - name: Attest the build provenance
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ${{ steps.version.outputs.image }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 

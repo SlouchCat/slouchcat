@@ -88,11 +88,13 @@ func WithBaseURL(fn func(ctx context.Context) string) Option {
 func New(db *store.DB, scan PathScanner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		write: appq.New(db.Write), read: appq.New(db.Read),
-		scan: scan, log: log, now: time.Now, limits: newLimiters(),
+		scan: scan, log: log, now: time.Now,
 	}
 	for _, o := range opts {
 		o(s)
 	}
+	// After the options, so WithClock reaches the limiters too.
+	s.limits = newLimiters(func() time.Time { return s.now() })
 	return s
 }
 

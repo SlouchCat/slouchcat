@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/integrations"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -134,11 +135,19 @@ type webhookFixture struct {
 }
 
 func newWebhookFixture(t *testing.T) webhookFixture {
+	return newWebhookFixtureAt(t, &stepClock{now: time.Now()})
+}
+
+// newWebhookFixtureAt is newWebhookFixture with a clock the caller owns: the rate limit is ten
+// requests per second, and only a still clock makes "inside the same second" a property of the
+// test instead of a property of how busy the machine is.
+func newWebhookFixtureAt(t *testing.T, clock *stepClock) webhookFixture {
 	t.Helper()
 	pf := newProfileFixture(t)
 	scanner := &recordingScanner{}
 	svc := integrations.New(pf.f.DB, scanner, slog.New(slog.NewTextHandler(io.Discard, nil)),
-		integrations.WithBaseURL(func(context.Context) string { return "https://slouchcat.example.ch" + BasePath }))
+		integrations.WithBaseURL(func(context.Context) string { return "https://slouchcat.example.ch" + BasePath }),
+		integrations.WithClock(clock.Now))
 	o := pf.opts
 	o.Integrations = svc
 	// The recordings are mapped onto one root, so every reported directory resolves.
@@ -296,11 +305,13 @@ func TestWebhookAnswersWithoutTheCSRFHeaderAndNeverLogsTheToken(t *testing.T) {
 	}
 }
 
-// Not parallel: the limit is ten requests per second and per integration, so the eleventh has to
-// arrive inside the same second. Under parallel load the eleven requests took longer than that
-// and the window had already rolled over (run of 23 October 2026).
+// The limit is ten requests per second and per integration, so the eleventh has to arrive inside
+// the same second. The clock stands still for the whole test: with the real one the eleven
+// requests took longer than a second on the CI runner, the bucket refilled in the middle and the
+// eleventh came back 200 (run 39956652341 of 23 October 2026).
 func TestWebhookRefusesTheEleventhRequestInASecond(t *testing.T) {
-	wf := newWebhookFixture(t)
+	t.Parallel()
+	wf := newWebhookFixtureAt(t, &stepClock{now: time.Now()})
 	integ := wf.integration(t, "Radarr", model.IntegrationRadarr, "/movies")
 	for i := range integrations.RequestsPerSecond {
 		if rec := postWebhook(t, wf.h, integ.Token, []byte(`{"eventType":"Test"}`)); rec.Code != http.StatusOK {
