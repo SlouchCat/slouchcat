@@ -9,6 +9,7 @@ import (
 // M8 A-3: the loss protection tells the hook which library it stopped and why; a scan that runs
 // through does not.
 func TestScanAbortedHook(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	type abort struct{ name, reason string }
 	var got []abort

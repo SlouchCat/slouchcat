@@ -15,6 +15,7 @@ import (
 )
 
 func TestManifest(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -77,6 +78,7 @@ func TestManifest(t *testing.T) {
 }
 
 func TestDownloadToken(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -158,6 +160,7 @@ func TestDownloadToken(t *testing.T) {
 }
 
 func TestParseIndexStopsAtTheFirstUnusableLine(t *testing.T) {
+	t.Parallel()
 	good := `{"init":10,"codecs":"c","width":2,"height":2}` + "\n" +
 		`{"n":0,"startMs":0,"durationMs":4000,"offset":10,"length":5}` + "\n" +
 		`{"n":1,"startMs":4000,"durationMs":4000,"offset":15,"length":5}` + "\n"

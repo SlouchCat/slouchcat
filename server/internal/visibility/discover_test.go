@@ -29,6 +29,7 @@ func exec(t *testing.T, f *vistest.Fixture, query string, args ...any) {
 
 // E-2: a pick is visible only inside its time window, by the Reader's clock.
 func TestPicksTimeWindowClock(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	m0 := f.Rated(0).ID
@@ -58,6 +59,7 @@ func TestPicksTimeWindowClock(t *testing.T) {
 // E-1, E-2, E-3: a pick for one profile carries its note and reaches only that profile; a pick of
 // a title above the profile's ceiling never appears, not even when it targets the profile.
 func TestPicksPerProfileWithNote(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	r := New(f.DB, vistest.Logger())
@@ -93,6 +95,7 @@ func TestPicksPerProfileWithNote(t *testing.T) {
 }
 
 func TestWatchlistFavoritesAndDetail(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	r := New(f.DB, vistest.Logger())
@@ -165,6 +168,7 @@ func TestWatchlistFavoritesAndDetail(t *testing.T) {
 
 // E-6, 10.2: a collection counts only visible members and exists only through one.
 func TestCollectionsCountVisibleMembers(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	r := New(f.DB, vistest.Logger())
@@ -224,6 +228,7 @@ func TestCollectionsCountVisibleMembers(t *testing.T) {
 }
 
 func TestGenresOfVisibleTitles(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	r := New(f.DB, vistest.Logger())
@@ -250,6 +255,7 @@ func TestGenresOfVisibleTitles(t *testing.T) {
 // AN-3: a Trakt list shows the visible library titles with its TMDB ids in list order, movies as
 // films and shows as series only.
 func TestTraktRowIntersection(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
@@ -316,6 +322,7 @@ func TestTraktRowIntersection(t *testing.T) {
 // E-7, AN-3: a Trakt row shows at most the first 20 library hits in list order, even when more of
 // the list is in the library and the caller asks for more.
 func TestTraktRowAtMostTwenty(t *testing.T) {
+	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
 	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)

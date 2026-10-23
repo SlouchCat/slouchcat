@@ -9,6 +9,7 @@ import (
 )
 
 func TestSummaryImagesAndAccent(t *testing.T) {
+	t.Parallel()
 	row := func(kind, size, format, hash string, w int, accent string) scopedq.Image {
 		return scopedq.Image{Kind: kind, Size: size, Format: format, ContentHash: hash, Width: int64(w), Height: int64(w * 3 / 2),
 			Accent: sql.NullString{String: accent, Valid: accent != ""}}
@@ -59,6 +60,7 @@ func TestSummaryImagesAndAccent(t *testing.T) {
 
 // B-5: every version is labelled, from the file name or else from the probed height.
 func TestVersionLabel(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		parsed string
 		height int64

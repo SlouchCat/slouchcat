@@ -12,6 +12,7 @@ import (
 )
 
 func TestMatchExpression(t *testing.T) {
+	t.Parallel()
 	for in, want := range map[string]string{
 		"Fi":                   `"Fi"*`,
 		"  Herr der  Ringe ":   `"Herr"* "der"* "Ringe"*`,
@@ -76,6 +77,7 @@ func textQuery(q string) model.SearchQuery { return model.SearchQuery{Text: q, M
 
 // E-4: two characters find titles, people and collections, each only through visible titles.
 func TestSearchTitlesPeopleCollections(t *testing.T) {
+	t.Parallel()
 	f := searchFixture(t)
 	r := New(f.DB, vistest.Logger())
 	for _, tc := range []struct {
@@ -149,6 +151,7 @@ func ptrTo(m vistest.Movie) *vistest.Movie { return &m }
 
 // E-4: each filter alone and combined; with a text and without one (browse).
 func TestSearchFilters(t *testing.T) {
+	t.Parallel()
 	f := searchFixture(t)
 	r := New(f.DB, vistest.Logger())
 	exec(t, f, `UPDATE items SET genres = '{"de":["Abenteuer","Drama"],"en":["Adventure","Drama"]}' WHERE id IN (?, ?)`, f.Rated(12).ID, f.Rated(18).ID)
@@ -279,6 +282,7 @@ func TestSearchFilters(t *testing.T) {
 
 // Without a text the filters browse the visible titles by title, without people and collections.
 func TestSearchBrowseByFilters(t *testing.T) {
+	t.Parallel()
 	f := searchFixture(t)
 	r := New(f.DB, vistest.Logger())
 	q := model.SearchQuery{Genre: "Adventure", MaxRating: -1, Limit: MaxSearchPage}
@@ -318,6 +322,7 @@ func TestSearchBrowseByFilters(t *testing.T) {
 }
 
 func TestAdminSearch(t *testing.T) {
+	t.Parallel()
 	f := searchFixture(t)
 	f.AddEdgeCases(t)
 	r := New(f.DB, vistest.Logger())
@@ -381,6 +386,7 @@ func edge(f *vistest.Fixture, pick func(vistest.Movie) bool) vistest.Movie {
 // episodes the profile may see. The podcast stays visible to P12 through episodes it can stream
 // from their enclosure; its only present file belongs to the explicit episode (FSK 18).
 func TestSearchLocalCountsVisibleEpisodesOnly(t *testing.T) {
+	t.Parallel()
 	f := searchFixture(t)
 	r := New(f.DB, vistest.Logger())
 	for _, m := range f.Audio.Episodes {
@@ -401,6 +407,7 @@ func TestSearchLocalCountsVisibleEpisodesOnly(t *testing.T) {
 
 // n5 (M7 review): collectionsByID keeps the order of the ids it gets (the search rank).
 func TestCollectionsByIDKeepOrder(t *testing.T) {
+	t.Parallel()
 	f := searchFixture(t)
 	r := New(f.DB, vistest.Logger())
 	ctx := context.Background()

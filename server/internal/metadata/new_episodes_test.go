@@ -16,6 +16,7 @@ import (
 // M7 E-8: a feed fetch tells the new-episode hook about the episodes it inserted, after their
 // transaction; updated and unchanged episodes are not announced.
 func TestPodcastNewEpisodesHook(t *testing.T) {
+	t.Parallel()
 	e := newPodcastEnv(t, 2)
 	var mu sync.Mutex
 	var heard []string

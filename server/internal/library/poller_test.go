@@ -60,6 +60,7 @@ func passBoth(t *testing.T, serial, parallel *Poller) (PassStats, PassStats) {
 }
 
 func TestPollerParallelMatchesSerial(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeTree(t, dir)
 	serial, parallel := newPollers(t, dir)
@@ -99,6 +100,8 @@ func TestPollerParallelMatchesSerial(t *testing.T) {
 	}
 }
 
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestPollerPassCancel(t *testing.T) {
 	dir := t.TempDir()
 	writeTree(t, dir)
@@ -151,6 +154,7 @@ func TestPollerPassCancel(t *testing.T) {
 
 // More than MaxChangedDirs changed directories are reported as nil: the root needs a full scan.
 func TestPollerReportsTooManyChangesAsNil(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	calls := 0
 	var reported []string

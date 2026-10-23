@@ -473,6 +473,7 @@ func (f *fakeTVDB) expire() {
 }
 
 func TestMatchMovieStoresCreditsAndImagePaths(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
@@ -512,6 +513,7 @@ func TestMatchMovieStoresCreditsAndImagePaths(t *testing.T) {
 }
 
 func TestMatchSeriesTMDB(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	// The folder year is one off: the search with the year finds nothing, the one without does.
@@ -645,6 +647,7 @@ func TestMatchSeriesTMDB(t *testing.T) {
 }
 
 func TestMatchSeriesByTVDBIDThroughFind(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addTree(t, node{title: "Whatever", tvdbID: 81189})
 	if err := e.svc.match(context.Background(), idSeries); err != nil {
@@ -659,6 +662,7 @@ func TestMatchSeriesByTVDBIDThroughFind(t *testing.T) {
 }
 
 func TestMatchEpisodeNeedsMatchedSeries(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addTree(t, node{title: "Test Show", tmdbID: 900})
 	if err := e.svc.match(context.Background(), idE0101); err != nil {
@@ -680,6 +684,7 @@ func TestMatchEpisodeNeedsMatchedSeries(t *testing.T) {
 }
 
 func TestMatchSeriesTVDBFallback(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, tvdb: tvdbKey, pin: tvdbPin})
 	ctx := context.Background()
 	e.addNode(t, node{id: idSeries, kind: "series", title: "Only On TVDB", year: 2015})
@@ -744,6 +749,7 @@ func TestMatchSeriesTVDBFallback(t *testing.T) {
 }
 
 func TestMatchSeriesManualTVDBSkipsTMDB(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, tvdb: tvdbKey, pin: tvdbPin})
 	e.addNode(t, node{id: idSeries, kind: "series", title: "Anything", tvdbID: 424242, locked: `["tmdb_id","tvdb_id","imdb_id"]`})
 	if err := e.svc.match(context.Background(), idSeries); err != nil {
@@ -762,6 +768,7 @@ func TestMatchSeriesManualTVDBSkipsTMDB(t *testing.T) {
 }
 
 func TestMatchSeriesWithoutTVDBKeyIsUnmatched(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	e.addNode(t, node{id: idSeries, kind: "series", title: "Only On TVDB", year: 2015})
 	if err := e.svc.match(context.Background(), idSeries); err != nil {
@@ -776,6 +783,7 @@ func TestMatchSeriesWithoutTVDBKeyIsUnmatched(t *testing.T) {
 }
 
 func TestMatchSeriesRejectedTVDBKeyFails(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tvdb: "wrong-key"})
 	e.addNode(t, node{id: idSeries, kind: "series", title: "Only On TVDB", year: 2015})
 	if err := e.svc.match(context.Background(), idSeries); err != nil {
@@ -796,6 +804,7 @@ func TestMatchSeriesRejectedTVDBKeyFails(t *testing.T) {
 }
 
 func TestQueuePendingMetadata(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "Pending movie"})
@@ -835,6 +844,7 @@ func TestQueuePendingMetadata(t *testing.T) {
 }
 
 func TestQueueIncompleteImagesCoversSeriesTree(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addTree(t, node{title: "Test Show", tmdbID: 900})
@@ -855,6 +865,7 @@ func TestQueueIncompleteImagesCoversSeriesTree(t *testing.T) {
 }
 
 func TestImageFetchSeriesTree(t *testing.T) {
+	t.Parallel()
 	requireFFmpeg(t)
 	e := newEnvWith(t, testKeys{tmdb: goodToken, tvdb: tvdbKey, pin: tvdbPin})
 	ctx := context.Background()
@@ -900,6 +911,7 @@ func TestImageFetchSeriesTree(t *testing.T) {
 }
 
 func TestTVDBSearchCandidates(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tvdb: tvdbKey, pin: tvdbPin})
 	cs, err := e.svc.tvdb.SearchSeries(context.Background(), SeriesQuery{Title: "Only On TVDB"})
 	if err != nil {

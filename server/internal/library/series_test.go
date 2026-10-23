@@ -72,6 +72,7 @@ func (e *env) episode(series string, season, episode int) string {
 }
 
 func TestSeriesScanBuildsTree(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := seriesDirTree(t)
 	lib := e.createSeries(dir)
@@ -150,6 +151,7 @@ func TestSeriesScanBuildsTree(t *testing.T) {
 }
 
 func TestSeriesRenameKeepsEpisodeAndProgress(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := seriesDirTree(t)
 	lib := e.createSeries(dir)
@@ -181,6 +183,7 @@ func TestSeriesRenameKeepsEpisodeAndProgress(t *testing.T) {
 }
 
 func TestSeriesMissingEpisodesAndSweep(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := seriesDirTree(t)
 	lib := e.createSeries(dir)
@@ -249,6 +252,7 @@ func TestSeriesMissingEpisodesAndSweep(t *testing.T) {
 }
 
 func TestSeriesPathScanNewSeason(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := seriesDirTree(t)
 	lib := e.createSeries(dir)
@@ -302,6 +306,7 @@ func cancelRunsAt(svc **Service, clk *testClock, libraryID *int64, n int64) func
 }
 
 func TestCancelScanMidScanAndResume(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	var files []string
 	for s := 1; s <= 4; s++ {
@@ -351,6 +356,8 @@ func TestCancelScanMidScanAndResume(t *testing.T) {
 	}
 }
 
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestCancelScanQueuedAndWaiting(t *testing.T) {
 	e := newEnv(t)
 	dir := seriesDirTree(t)
@@ -419,6 +426,7 @@ func TestCancelScanQueuedAndWaiting(t *testing.T) {
 }
 
 func TestIgnoreFiles(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := seriesDirTree(t)
 	lib := e.createSeries(dir)
@@ -456,6 +464,7 @@ func TestIgnoreFiles(t *testing.T) {
 }
 
 func TestProbeErrorOnBrokenFile(t *testing.T) {
+	t.Parallel()
 	if ffprobePath() == "" {
 		t.Fatal("ffprobe is required for the probe tests (install ffmpeg)")
 	}
@@ -516,6 +525,7 @@ func TestProbeErrorOnBrokenFile(t *testing.T) {
 // M3 review, finding 17: files without an episode marker are logged once per directory and scan
 // with their count, not once per file.
 func TestNoEpisodeMarkerLoggedPerDirectory(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	var logs bytes.Buffer
 	e.svc.log = slog.New(slog.NewTextHandler(&logs, nil))
@@ -535,6 +545,7 @@ func TestNoEpisodeMarkerLoggedPerDirectory(t *testing.T) {
 // M3 review, finding 6: the metadata job replaces the folder year with the first air date; a new
 // episode in the same series folder still joins the series instead of creating a second one.
 func TestSeriesFolderWinsOverChangedYear(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, []string{"Show (2019)/Season 01/Show - S01E01.mkv"})
 	lib := e.createSeries(dir)
@@ -563,6 +574,7 @@ func TestSeriesFolderWinsOverChangedYear(t *testing.T) {
 }
 
 func TestSeriesRelinkByProviderID(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	files := []string{
 		"Keep (2001)/Season 01/Keep - S01E01.mkv", "Keep (2001)/Season 01/Keep - S01E02.mkv",
@@ -605,6 +617,7 @@ func TestSeriesRelinkByProviderID(t *testing.T) {
 }
 
 func TestScanRunsMetadataCheck(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	var checked []int64
 	WithMetadataCheck(func(_ context.Context, libraryID int64) (int, error) {

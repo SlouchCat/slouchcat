@@ -47,6 +47,7 @@ func readEntries(t *testing.T, e *env, id string) (indexHeader, []indexEntry) {
 }
 
 func TestPrepareAppendsSegmentsIndexAndSubtitles(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	f := e.f
 	m := f.Rated(12)
@@ -100,6 +101,7 @@ func TestPrepareAppendsSegmentsIndexAndSubtitles(t *testing.T) {
 }
 
 func TestPrepareRemuxesCopyableSource(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P18, e.devA, e.f.Rated(18).ID, model.DownloadHigh)
 	e.runJobs()
@@ -120,6 +122,7 @@ func TestPrepareRemuxesCopyableSource(t *testing.T) {
 // A crash in the middle of a write: the next attempt cuts media.mp4 and index.jsonl back to the
 // last complete segment and continues there.
 func TestPrepareResumesAfterCrash(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
 	e.enc.failAt, e.enc.failCalls = 3, 1
@@ -163,6 +166,7 @@ func appendTo(t *testing.T, path string, data []byte) {
 
 // AN-20: with the budget full a preparation waits; it starts once room is free.
 func TestPrepareWaitsForBudget(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	first := e.create(e.f.P18, e.devA, e.f.Rated(0).ID, model.DownloadLow)
 	e.runJobs()
@@ -207,6 +211,7 @@ func TestPrepareWaitsForBudget(t *testing.T) {
 // Plan 3.5: live playback preempts the lease; the preparation pauses, gives the budget back and
 // continues 30 s later where it stopped.
 func TestPreparePausesOnPreemption(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
 	e.enc.after = func(n int) {
@@ -243,6 +248,7 @@ func TestPreparePausesOnPreemption(t *testing.T) {
 
 // A failing encode is retried by the queue; after the last attempt the download is failed.
 func TestPrepareFailsAfterLastAttempt(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
 	e.enc.failAt, e.enc.failCalls = 0, 100
@@ -269,6 +275,7 @@ func TestPrepareFailsAfterLastAttempt(t *testing.T) {
 
 // The title becomes invisible for the requesting profile before the job runs: failed not_visible.
 func TestPrepareFailsWhenNoLongerVisible(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	m := e.f.Rated(12)
 	st := e.create(e.f.P12, e.devA, m.ID, model.DownloadLow)
@@ -285,6 +292,7 @@ func TestPrepareFailsWhenNoLongerVisible(t *testing.T) {
 
 // A download deleted during its preparation stops the encode and leaves no files.
 func TestPrepareStopsWhenDeleted(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	st := e.create(e.f.P12, e.devA, e.f.Rated(6).ID, model.DownloadLow)
 	e.enc.after = func(n int) {
@@ -302,6 +310,8 @@ func TestPrepareStopsWhenDeleted(t *testing.T) {
 }
 
 // The download worker of main.go: a worker with RegisterJobs only claims download.prepare.
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestRegisterJobsClaimsOnlyPreparations(t *testing.T) {
 	e := newEnv(t)
 	ctx, cancel := context.WithCancel(context.Background())

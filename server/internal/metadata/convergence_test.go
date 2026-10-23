@@ -37,6 +37,7 @@ func (e *env) activeJobs(t *testing.T, jobType string) []string {
 // After a scan, a title matched before M3 (no image paths, no trailer check) gets one match, and
 // titles whose trailers are pending (YouTube quota) get trailer.find; neither repeats once done.
 func TestQueuePendingMetadataUpgradesAndQueuesTrailers(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "Matched in M2", tmdbID: 550})
@@ -83,6 +84,7 @@ func TestQueuePendingMetadataUpgradesAndQueuesTrailers(t *testing.T) {
 // changed the ids and locked fields meanwhile; it returns a retryable error and the retry uses the
 // new ids.
 func TestMatchWritesNothingAfterAManualMatchMeanwhile(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
@@ -121,6 +123,7 @@ func TestMatchWritesNothingAfterAManualMatchMeanwhile(t *testing.T) {
 // Finding 5 for the season transactions: a series whose ids changed after the job resolved it
 // gets no season or episode texts of the old candidate.
 func TestSeasonWriteChecksTheSeriesSnapshot(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addTree(t, node{title: "Test Show", tmdbID: 900})
@@ -147,6 +150,7 @@ func TestSeasonWriteChecksTheSeriesSnapshot(t *testing.T) {
 
 // Finding 13: a manual match or refresh moves a match job a scan queued at priority 4 to 7.
 func TestManualMatchRaisesTheQueuedJob(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
@@ -181,6 +185,7 @@ func TestManualMatchRaisesTheQueuedJob(t *testing.T) {
 // Finding 20: a match that changes the own rating rechecks the open streams; one that keeps it
 // does not.
 func TestMatchRatingChangeRechecksVisibility(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	calls := 0

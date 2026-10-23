@@ -106,6 +106,7 @@ func ptr(v int) *int { return &v }
 // 5.5, E-8: a new episode reaches the inbox of a profile with the series as favourite only when the
 // profile may see the episode; the dispatcher is never called for the others.
 func TestNewEpisodesVisibility(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -159,6 +160,7 @@ func TestNewEpisodesVisibility(t *testing.T) {
 }
 
 func TestPodcastEpisodes(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	a := e.f.Audio
@@ -175,6 +177,7 @@ func TestPodcastEpisodes(t *testing.T) {
 }
 
 func TestMarkRead(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -230,6 +233,7 @@ func TestMarkRead(t *testing.T) {
 // k3, k4 (M7 review): without any favourite a batch stores nothing; one call notifies at most
 // MaxPerParent episodes of one series, in the order of the ids, and a later call notifies the rest.
 func TestNewEpisodesBatchAndCap(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -268,6 +272,7 @@ func TestNewEpisodesBatchAndCap(t *testing.T) {
 
 // n2 (M7 review): "mark all read" leaves the entries of episodes the profile may not see untouched.
 func TestMarkAllReadOnlyVisible(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f

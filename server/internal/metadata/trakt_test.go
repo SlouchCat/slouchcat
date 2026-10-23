@@ -134,6 +134,7 @@ func (e *traktEnv) status(t *testing.T) model.TraktStatus {
 // E-7, I-7: a run replaces the lists (entries without a TMDB id skipped), a failure empties them
 // and records the error, the next success clears it. The client id never reaches the log.
 func TestTraktRefresh(t *testing.T) {
+	t.Parallel()
 	e := newTraktEnv(t, traktTestID, staticKey(""))
 	ctx := context.Background()
 	if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
@@ -206,6 +207,7 @@ func TestTraktRefresh(t *testing.T) {
 // E-7: the schedule queues the first run right away, the next one 24 hours after the last
 // attempt, none in between; the admin refresh queues one any time.
 func TestTraktSchedule(t *testing.T) {
+	t.Parallel()
 	e := newTraktEnv(t, "", traktKeys{id: traktTestID})
 	ctx := context.Background()
 	start := e.clock.now()
@@ -244,6 +246,8 @@ func TestTraktSchedule(t *testing.T) {
 }
 
 // RunTrakt checks at once on start.
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestRunTraktStartsAtOnce(t *testing.T) {
 	e := newTraktEnv(t, traktTestID, staticKey(""))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -268,6 +272,7 @@ func TestRunTraktStartsAtOnce(t *testing.T) {
 
 // Without a client id there is no job and the status says so.
 func TestTraktNotConfigured(t *testing.T) {
+	t.Parallel()
 	e := newTraktEnv(t, "", staticKey(""))
 	ctx := context.Background()
 	if ok, err := e.svc.QueueDueTrakt(ctx); ok || err != nil {
@@ -293,6 +298,7 @@ func TestTraktNotConfigured(t *testing.T) {
 // Trakt rows as documented; while the id stays but no run succeeds for two intervals (a hung job),
 // the status counts no entries either, like the start page (visibility.TraktMaxAge).
 func TestTraktRowsGoWithoutClientID(t *testing.T) {
+	t.Parallel()
 	if visibility.TraktMaxAge != 2*TraktInterval {
 		t.Fatalf("visibility.TraktMaxAge = %v, want twice TraktInterval", visibility.TraktMaxAge)
 	}

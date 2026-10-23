@@ -38,6 +38,7 @@ func profileIDs(s model.OfflineSync) []int64 {
 }
 
 func TestSyncFetchesRevocationsAndEvictedCopies(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	f := e.f
 	kept := e.create(f.P12, e.devA, f.Rated(6).ID, model.DownloadLow)
@@ -85,6 +86,7 @@ func TestSyncFetchesRevocationsAndEvictedCopies(t *testing.T) {
 }
 
 func TestSyncProfilesPinsWatchTimeAndRules(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	f := e.f
 	// The 6 film on device A: P18, P16, P12 and P6 may play it, P0 not.
@@ -171,6 +173,7 @@ func TestSyncProfilesPinsWatchTimeAndRules(t *testing.T) {
 // The response for P6 on a device where P18 holds an FSK-18 download names neither the title nor
 // its id; the download appears with its allowed profiles only.
 func TestSyncHidesTitlesOfOtherProfiles(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	f := e.f
 	m18 := f.Rated(18)
@@ -188,6 +191,7 @@ func TestSyncHidesTitlesOfOtherProfiles(t *testing.T) {
 // Plan 10.2: the series goes from 12 to 16; at the next sync P12 drops out of the allowed
 // profiles of its episode download and its sync no longer carries the title.
 func TestAllowedProfilesAfterRatingChange(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	f := e.f
 	st := e.create(f.P12, e.devA, f.Show.E1.ID, model.DownloadLow)
@@ -215,6 +219,7 @@ func TestAllowedProfilesAfterRatingChange(t *testing.T) {
 // guest account, a forgotten device and a title removed for good (SQLite fires the trigger of the
 // child table for cascaded deletes).
 func TestTombstonesThroughCascades(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -244,6 +249,7 @@ func TestTombstonesThroughCascades(t *testing.T) {
 // O-3, AN-13: the next episode of the last watched one, while fewer than maxCount unfinished
 // auto-downloads are on the device; only the device of the rule; invisible episodes skipped.
 func TestAutoDownloads(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	f := e.f
@@ -325,6 +331,7 @@ func TestAutoDownloads(t *testing.T) {
 }
 
 func TestSyncValidation(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ctx := context.Background()
 	s := e.session(e.f.P18, e.devA)
@@ -365,6 +372,7 @@ func TestSyncValidation(t *testing.T) {
 
 // O-6: a download on the device has no expiry, so the table has no expiry-like column.
 func TestDownloadsHaveNoExpiryColumn(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	rows, err := e.f.DB.Read.Query(`SELECT name FROM pragma_table_info('downloads')`)
 	if err != nil {

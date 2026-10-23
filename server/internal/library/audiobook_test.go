@@ -164,6 +164,7 @@ func seq(n int) []string {
 }
 
 func TestScanAudiobookFixtures(t *testing.T) {
+	t.Parallel()
 	if ffprobePath() == "" {
 		t.Fatal("ffprobe is required for the probe tests (install ffmpeg)")
 	}
@@ -253,6 +254,7 @@ func TestScanAudiobookFixtures(t *testing.T) {
 }
 
 func TestAudiobookPathScanPartAddedAndRemoved(t *testing.T) {
+	t.Parallel()
 	if ffprobePath() == "" {
 		t.Fatal("ffprobe is required for the probe tests (install ffmpeg)")
 	}
@@ -316,6 +318,7 @@ func TestAudiobookPathScanPartAddedAndRemoved(t *testing.T) {
 }
 
 func TestAudiobookLossProtectionCountsAudio(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "A/Buch/01.mp3", "x")
@@ -334,6 +337,7 @@ func TestAudiobookLossProtectionCountsAudio(t *testing.T) {
 }
 
 func TestAudiobookMetadataPrecedence(t *testing.T) {
+	t.Parallel()
 	if ffprobePath() == "" {
 		t.Fatal("ffprobe is required for the probe tests (install ffmpeg)")
 	}
@@ -385,6 +389,7 @@ func TestAudiobookMetadataPrecedence(t *testing.T) {
 }
 
 func TestFolderAndTagMeta(t *testing.T) {
+	t.Parallel()
 	vol := func(m bookMeta) float64 {
 		if m.volume == nil {
 			return -1
@@ -432,6 +437,7 @@ func TestFolderAndTagMeta(t *testing.T) {
 }
 
 func TestOrderPartsAndChapters(t *testing.T) {
+	t.Parallel()
 	probe := func(track string, d time.Duration, marks ...transcode.Chapter) *transcode.Probe {
 		p := &transcode.Probe{Format: transcode.Format{Duration: d, Tags: map[string]string{}}, Chapters: marks}
 		if track != "" {

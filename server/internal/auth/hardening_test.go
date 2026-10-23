@@ -40,6 +40,7 @@ func isLocked(err error) bool { return errors.Is(err, model.ErrPinLocked) }
 // A client cannot get fresh PIN attempts by sending other device cookies: the counter belongs to
 // the device the session started on.
 func TestPINLockIgnoresDeviceCookieOfRequest(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	kid := pinProfile(t, s, sess)
@@ -68,6 +69,7 @@ func TestPINLockIgnoresDeviceCookieOfRequest(t *testing.T) {
 // Sessions get a device when they start: the cookie's, or a fresh random one without cookie; a
 // session from before the migration (no device) gets one on its next request, and keeps it.
 func TestSessionDeviceFixedAtStart(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, token := owner(t, s)
 	if sess.DeviceID != deviceA {
@@ -102,6 +104,7 @@ func TestSessionDeviceFixedAtStart(t *testing.T) {
 // Over all devices, more than 20 wrong PINs within an hour lock the profile for 15 min for
 // everyone; the window then starts over.
 func TestPINProfileCeiling(t *testing.T) {
+	t.Parallel()
 	s, clock := newService(t)
 	sess, _ := owner(t, s)
 	kid := pinProfile(t, s, sess)
@@ -149,6 +152,7 @@ func TestPINProfileCeiling(t *testing.T) {
 
 // A device counter whose last failure is older than 24 h starts over.
 func TestPINCounterDecays(t *testing.T) {
+	t.Parallel()
 	s, clock := newService(t)
 	sess, _ := owner(t, s)
 	kid := pinProfile(t, s, sess)
@@ -174,6 +178,7 @@ func TestPINCounterDecays(t *testing.T) {
 // SetSessionProfile only takes a profile that exists in the session's account; a vanished one is
 // reported as zero rows, which SelectProfile maps to ErrNotFound.
 func TestSetSessionProfileGuard(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	other := addGuestAccount(t, s, "other@example.ch", 18, true, nil)
@@ -194,6 +199,7 @@ func TestSetSessionProfileGuard(t *testing.T) {
 
 // Devices and PIN counters unused for 400 days go with the sweep of expired sessions.
 func TestStaleDevicesPruned(t *testing.T) {
+	t.Parallel()
 	s, clock := newService(t)
 	sess, _ := owner(t, s)
 	kid := pinProfile(t, s, sess)
@@ -245,6 +251,7 @@ func mustSession(t *testing.T, s *Service, device string, like model.Session) mo
 // A profile of another account (real, existing) is not found for every management call, and the
 // foreign profile stays untouched.
 func TestForeignProfilesAreNotFound(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -274,6 +281,7 @@ func TestForeignProfilesAreNotFound(t *testing.T) {
 // Revoking a guest: sessions are revoked before end runs, the account is deleted after the first
 // call, and end runs again afterwards.
 func TestRevokeAccountOrder(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	ownerSess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -301,6 +309,7 @@ func TestRevokeAccountOrder(t *testing.T) {
 
 // The profile limit is enforced inside the write transaction: concurrent creations cannot exceed it.
 func TestConcurrentProfileCreationRespectsLimit(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	var wg sync.WaitGroup
@@ -329,6 +338,7 @@ func TestConcurrentProfileCreationRespectsLimit(t *testing.T) {
 
 // allLibraries false needs libraries: invitations, guests and profiles answer libraryIds required.
 func TestRestrictedWithoutLibrariesIsRefused(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -376,6 +386,7 @@ func TestRestrictedWithoutLibrariesIsRefused(t *testing.T) {
 
 // Lowering a guest's ceiling lowers its profiles in the same step; raising it leaves them.
 func TestGuestCeilingClampsProfiles(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)
@@ -428,6 +439,7 @@ func mapsEqual(a, b map[string]int) bool {
 
 // listAccountLibraries: the main account sees every library, a guest its own, by name.
 func TestListAccountLibraries(t *testing.T) {
+	t.Parallel()
 	s, _ := newService(t)
 	sess, _ := owner(t, s)
 	ctx := ctxOn(deviceA)

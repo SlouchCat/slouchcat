@@ -175,6 +175,7 @@ func (e *env) trailerState(t *testing.T, id string) (string, int64) {
 }
 
 func TestTrailersFromTMDB(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytKey})
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
@@ -206,6 +207,7 @@ func TestTrailersFromTMDB(t *testing.T) {
 }
 
 func TestTrailersYouTubeFallback(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytKey})
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2002})
@@ -236,6 +238,7 @@ func TestTrailersYouTubeFallback(t *testing.T) {
 }
 
 func TestTrailersQuotaExhaustedStaysPending(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytKey})
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idBySearch, title: "Searched Film", year: 2002})
@@ -292,6 +295,7 @@ func TestTrailersQuotaExhaustedStaysPending(t *testing.T) {
 }
 
 func TestTrailersRefreshKeepsManualRows(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken})
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
@@ -335,6 +339,7 @@ func TestTrailersRefreshKeepsManualRows(t *testing.T) {
 }
 
 func TestTrailersSkipAndFail(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, youtube: ytKey})
 	ctx := context.Background()
 	// Locked trailers, series without tmdb_id: no request.
@@ -380,6 +385,7 @@ func TestTrailersSkipAndFail(t *testing.T) {
 }
 
 func TestTrailerAIConfig(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, nil))
 	if _, ok := newAITrailers("off", log).(nopAITrailers); !ok || buf.Len() != 0 {
@@ -395,6 +401,7 @@ func TestTrailerAIConfig(t *testing.T) {
 }
 
 func TestParseISODuration(t *testing.T) {
+	t.Parallel()
 	for in, want := range map[string]int{"PT45S": 45, "PT2M10S": 130, "PT1H": 3600, "P1DT1S": 86401, "PT12M": 720} {
 		if got, ok := parseISODuration(in); !ok || got != want {
 			t.Errorf("%s = %d, %v; want %d", in, got, ok, want)
@@ -410,6 +417,7 @@ func TestParseISODuration(t *testing.T) {
 // TestNoSecretsInLogs runs the TMDB, TVDB and YouTube clients against failing servers with fake
 // keys and logs their errors through the redacting handler (CLAUDE.md rule 10).
 func TestNoSecretsInLogs(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	log := slog.New(logging.NewRedactingHandler(slog.NewTextHandler(&lockedWriter{w: &buf}, nil)))
 	keys := testKeys{tmdb: goodToken, tvdb: tvdbKey, pin: tvdbPin, youtube: ytKey}

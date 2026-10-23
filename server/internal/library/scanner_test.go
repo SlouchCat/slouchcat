@@ -53,6 +53,7 @@ func tree(t *testing.T, files []string) string {
 }
 
 func TestScanCreatesItemsAndConverges(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies)
 	lib := e.create(dir)
@@ -117,6 +118,7 @@ func TestScanCreatesItemsAndConverges(t *testing.T) {
 }
 
 func TestScanRenameKeepsItemAndProgress(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:5])
 	lib := e.create(dir)
@@ -168,6 +170,7 @@ func TestScanRenameKeepsItemAndProgress(t *testing.T) {
 }
 
 func TestScanMovedAcrossDevicesMatchesByHash(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:5])
 	lib := e.create(dir)
@@ -191,6 +194,7 @@ func TestScanMovedAcrossDevicesMatchesByHash(t *testing.T) {
 }
 
 func TestLossProtection(t *testing.T) {
+	t.Parallel()
 	ten := twentyMovies[:10]
 	missing := func(e *env) int { return e.count(`SELECT count(*) FROM media_files WHERE missing_since IS NOT NULL`) }
 
@@ -282,6 +286,7 @@ func TestLossProtection(t *testing.T) {
 }
 
 func TestMissingFileReappearsAndSweep(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	ten := twentyMovies[:10]
 	dir := tree(t, ten)
@@ -343,6 +348,7 @@ func TestMissingFileReappearsAndSweep(t *testing.T) {
 }
 
 func TestIdentityByProviderIDs(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	files := append([]string{"Heat (1995) [tmdb-949]/Heat (1995).mkv"}, twentyMovies[4:10]...)
 	dir := tree(t, files)
@@ -387,6 +393,7 @@ func TestIdentityByProviderIDs(t *testing.T) {
 }
 
 func TestExtrasBecomeExtraItemsAndSamplesAreSkipped(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, []string{
 		"Alien (1979)/Alien (1979).mkv",
@@ -446,6 +453,7 @@ func TestExtrasBecomeExtraItemsAndSamplesAreSkipped(t *testing.T) {
 // M3 review, finding 2: a new extra never attaches to a soft-deleted film, also when the film has
 // no provider id (it is not reachable for a relink then, but still owns its folder).
 func TestExtraNeverAttachesToDeletedFilm(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:10]) // Alien first; one lost file stays below the loss threshold
 	lib := e.create(dir)
@@ -470,6 +478,7 @@ func TestExtraNeverAttachesToDeletedFilm(t *testing.T) {
 // M3 review, finding 19: a returning extra file restores the extra but not its soft-deleted film
 // while the film's own file is still missing; the film's file brings the film back.
 func TestReturningExtraKeepsDeletedFilmDeleted(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	extraRel := "Alien (1979)/Trailers/Alien Trailer.mkv"
 	dir := tree(t, append(slices.Clone(twentyMovies[:10]), extraRel))
@@ -509,6 +518,7 @@ func TestReturningExtraKeepsDeletedFilmDeleted(t *testing.T) {
 // M3 review, finding 16: an extra without a parent title (two films share its folder) is skipped
 // once; unchanged rescans neither hash nor write it, and a scan with other changes tries again.
 func TestOrphanExtraIsNotReplannedByUnchangedRescans(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, []string{"Double/Film A (2001).mkv", "Double/Film B (2002).mkv", "Double/Trailers/Trailer.mkv"})
 	lib := e.create(dir)
@@ -540,6 +550,7 @@ func TestOrphanExtraIsNotReplannedByUnchangedRescans(t *testing.T) {
 }
 
 func TestSecondVersionAttachesToSameItem(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, []string{"Avatar (2009)/Avatar (2009) - 1080p.mkv", "Avatar (2009)/Avatar (2009) - 2160p.mkv"})
 	lib := e.create(dir)
@@ -553,6 +564,7 @@ func TestSecondVersionAttachesToSameItem(t *testing.T) {
 }
 
 func TestScanRunsImageCheck(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	var checked []int64
 	fail := false
@@ -583,6 +595,7 @@ func TestScanRunsImageCheck(t *testing.T) {
 }
 
 func TestLibraryAdministration(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:2])
 
@@ -636,6 +649,7 @@ func TestLibraryAdministration(t *testing.T) {
 }
 
 func TestWatchMode(t *testing.T) {
+	t.Parallel()
 	cases := map[string][2]string{
 		"ext4": {"inotify", ""}, "xfs": {"inotify", ""}, "btrfs": {"inotify", ""}, "zfs": {"inotify", ""},
 		"nfs": {"poll", "network_share"}, "smb": {"poll", "network_share"},
@@ -651,6 +665,7 @@ func TestWatchMode(t *testing.T) {
 // A symlink to a file inside the root is followed and counted; one whose target leaves the root
 // is skipped with a warning and the scan still ends done.
 func TestScanSkipsSymlinkLeavingRoot(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	var logs bytes.Buffer
 	e.svc.log = slog.New(slog.NewTextHandler(&logs, nil))
@@ -681,6 +696,7 @@ func TestScanSkipsSymlinkLeavingRoot(t *testing.T) {
 
 // The sweep deletes a title only when every one of its files has been missing for 24 h.
 func TestSweepNeedsAllFilesMissingForGrace(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	files := append([]string{"Avatar (2009)/Avatar (2009) - 1080p.mkv", "Avatar (2009)/Avatar (2009) - 2160p.mkv"}, twentyMovies[:9]...)
 	dir := tree(t, files)
@@ -709,6 +725,7 @@ func TestSweepNeedsAllFilesMissingForGrace(t *testing.T) {
 // A title soft-deleted less than 30 days ago comes back with its id and progress when a new file
 // (different content) with the same TMDB id appears; after 30 days a new title is created.
 func TestRelinkDeletedTitleByProviderID(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	files := append([]string{"Heat (1995) [tmdb-949]/Heat (1995).mkv"}, twentyMovies[4:10]...)
 	dir := tree(t, files)
@@ -764,6 +781,7 @@ func TestRelinkDeletedTitleByProviderID(t *testing.T) {
 
 // Without a year, equal titles only merge within the same movie folder.
 func TestTitleWithoutYearMergesOnlyInSameFolder(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, []string{"Horror/Halloween/Halloween.mkv", "Klassiker/Halloween/Halloween.mkv"})
 	lib := e.create(dir)
@@ -810,6 +828,7 @@ func (e *env) touched(since time.Time) (items, files, jobs int) {
 }
 
 func TestPathScanNewFileTouchesOnlyItsFolder(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:10])
 	lib := e.create(dir)
@@ -853,6 +872,7 @@ func TestPathScanNewFileTouchesOnlyItsFolder(t *testing.T) {
 }
 
 func TestPathScanRenameKeepsFile(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:10])
 	lib := e.create(dir)
@@ -900,6 +920,7 @@ func TestPathScanRenameKeepsFile(t *testing.T) {
 }
 
 func TestPathScanMissingFilesAndFolders(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	files := append([]string{"Avatar (2009)/Avatar (2009) - 1080p.mkv", "Avatar (2009)/Avatar (2009) - 2160p.mkv"}, twentyMovies[:10]...)
 	dir := tree(t, files)
@@ -938,6 +959,7 @@ func TestPathScanMissingFilesAndFolders(t *testing.T) {
 }
 
 func TestPathScanLossProtection(t *testing.T) {
+	t.Parallel()
 	ten := twentyMovies[:10]
 	missing := func(e *env) int { return e.count(`SELECT count(*) FROM media_files WHERE missing_since IS NOT NULL`) }
 
@@ -1023,6 +1045,7 @@ func TestPathScanLossProtection(t *testing.T) {
 
 // A path scan waits for a running full scan of the same library instead of racing it.
 func TestPathScanWaitsForFullScan(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, twentyMovies[:3])
 	lib := e.create(dir)
@@ -1056,6 +1079,7 @@ func TestPathScanWaitsForFullScan(t *testing.T) {
 }
 
 func TestCleanDirs(t *testing.T) {
+	t.Parallel()
 	got := cleanDirs([]string{"b/", "a", ".", "a", "../x", "/abs", "@eaDir/x", "a/.hidden", "c/./d"})
 	if want := []string{".", "a", "b", "c/d"}; !slices.Equal(got, want) {
 		t.Errorf("cleanDirs = %q, want %q", got, want)

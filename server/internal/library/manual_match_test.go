@@ -21,6 +21,7 @@ func (noKeys) TraktClientID(context.Context) (string, error)        { return "",
 // files by path, inode and hash, never by title, and the refresh keeps the locked provider ids
 // (the metadata package proves in TestAssignMatchAndRefresh that the match job honours the locks).
 func TestManualMatchSurvivesScansAndRefresh(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := tree(t, []string{"Wrong Title (2001)/Wrong Title (2001).mkv"})
 	lib := e.create(dir)

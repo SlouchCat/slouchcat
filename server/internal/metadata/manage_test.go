@@ -25,6 +25,7 @@ func fieldCodes(t *testing.T, err error) []string {
 func intp(n int) *int { return &n }
 
 func TestSearch(t *testing.T) {
+	t.Parallel()
 	e := newEnvWith(t, testKeys{tmdb: goodToken, tvdb: tvdbKey, pin: tvdbPin})
 	ctx := context.Background()
 
@@ -90,6 +91,7 @@ func (e *env) addFile(t *testing.T, fileID, itemID string) {
 
 // B-6: a manual match survives refreshes and keeps the files of the title.
 func TestAssignMatchAndRefresh(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550, imdbID: "tt0000550", locked: `["title"]`})
@@ -174,6 +176,7 @@ func TestAssignMatchAndRefresh(t *testing.T) {
 }
 
 func TestRefreshEpisodeAndSeason(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addTree(t, node{title: "Test Show", tmdbID: 900})
@@ -203,6 +206,7 @@ func TestRefreshEpisodeAndSeason(t *testing.T) {
 }
 
 func TestManualTrailers(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})

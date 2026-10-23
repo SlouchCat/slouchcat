@@ -58,6 +58,7 @@ const (
 )
 
 func TestOwnerLoginResolveLogout(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := newService(t)
 
@@ -117,6 +118,7 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 }
 
 func TestTokenStoredOnlyAsHash(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := newService(t)
 	acc, prof, err := s.CreateOwner(ctx, testEmail, testPassword, "")
@@ -140,6 +142,7 @@ func TestTokenStoredOnlyAsHash(t *testing.T) {
 }
 
 func TestWrongPasswordAndUnknownEmail(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := newService(t)
 	if _, _, err := s.CreateOwner(ctx, testEmail, testPassword, "de"); err != nil {
@@ -161,6 +164,7 @@ func TestWrongPasswordAndUnknownEmail(t *testing.T) {
 }
 
 func TestSessionExpiryAndSlidingTouch(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, clock := newService(t)
 	acc, prof, err := s.CreateOwner(ctx, testEmail, testPassword, "de")
@@ -209,6 +213,7 @@ func TestSessionExpiryAndSlidingTouch(t *testing.T) {
 }
 
 func TestValidation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := newService(t)
 	cases := []struct {
@@ -244,6 +249,7 @@ func TestValidation(t *testing.T) {
 }
 
 func TestPHCDefaultParams(t *testing.T) {
+	t.Parallel()
 	encoded, err := hashPassword(testPassword, defaultParams)
 	if err != nil {
 		t.Fatal(err)
@@ -269,6 +275,7 @@ func TestPHCDefaultParams(t *testing.T) {
 }
 
 func TestPHCParamsReadFromString(t *testing.T) {
+	t.Parallel()
 	encoded, err := hashPassword(testPassword, testParams)
 	if err != nil {
 		t.Fatal(err)
@@ -292,6 +299,7 @@ func TestPHCParamsReadFromString(t *testing.T) {
 
 // Logout revokes the playback sessions of the browser session with it (plan 5.4), and only those.
 func TestLogoutRevokesPlaybackSessions(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger())

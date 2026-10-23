@@ -231,6 +231,7 @@ var movieCorpus = []nameCase{
 }
 
 func TestParseMoviePathCorpus(t *testing.T) {
+	t.Parallel()
 	if len(movieCorpus) < 150 {
 		t.Fatalf("corpus has %d paths, want at least 150", len(movieCorpus))
 	}
@@ -259,6 +260,7 @@ func TestParseMoviePathCorpus(t *testing.T) {
 }
 
 func TestVersionLabel(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"Avatar (2009)/Avatar (2009) - 1080p.mkv":                                                    "1080p",
 		"Avatar (2009)/Avatar (2009) - 4K.mkv":                                                       "2160p",
@@ -277,6 +279,7 @@ func TestVersionLabel(t *testing.T) {
 }
 
 func TestIsVideoAndIgnored(t *testing.T) {
+	t.Parallel()
 	for _, n := range []string{"a.mkv", "a.MP4", "a.m4v", "a.mov", "a.avi", "a.wmv", "a.webm", "a.ts", "a.m2ts", "a.mpg", "a.mpeg"} {
 		if !IsVideo(n) {
 			t.Errorf("IsVideo(%q) = false", n)
@@ -300,6 +303,7 @@ func TestIsVideoAndIgnored(t *testing.T) {
 }
 
 func TestSortTitle(t *testing.T) {
+	t.Parallel()
 	cases := map[string]string{
 		"The Matrix": "matrix", "A Quiet Place": "quiet place", "An Education": "education",
 		"Der Untergang": "untergang", "Die Hard": "hard", "Das Boot": "boot", "Ein Mädchen": "mädchen",

@@ -48,6 +48,7 @@ func addBook(t *testing.T, db *store.DB, id string, rating int, rootID int64) (p
 }
 
 func TestAudiobookChaptersAndParts(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	r := New(f.DB, vistest.Logger())
 	ctx := context.Background()

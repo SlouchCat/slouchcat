@@ -19,6 +19,7 @@ import (
 // Plan 5.2: the main account starts with every channel off (new content, errors, invitations and
 // announcements chosen), a guest with e-mail on for announcements. available follows the server.
 func TestChannelDefaults(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	owner, err := e.svc.Channels(ctx, e.owner())
@@ -72,6 +73,7 @@ func TestChannelDefaults(t *testing.T) {
 }
 
 func TestUpdateChannel(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	addr := func(s string) *string { return &s }
@@ -135,6 +137,7 @@ func TestUpdateChannel(t *testing.T) {
 
 // Auth calls EnsureDefaults for a new account; the rows exist before the first read.
 func TestEnsureDefaultsIdempotent(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	e.exec(t, `DELETE FROM account_channels`)
 	ctx := context.Background()
@@ -155,6 +158,7 @@ func TestEnsureDefaultsIdempotent(t *testing.T) {
 // in front of the subject, only when the account switched e-mail on for new content, and never for
 // a profile that may not see the episode.
 func TestNewContentByEmail(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.favorite(t, e.f.Show.Series.ID, e.f.P12, e.f.P6)
@@ -214,6 +218,7 @@ func TestNewContentByEmail(t *testing.T) {
 // A-7: publishing sends the announcement to every account that chose it: the guest (e-mail on by
 // default) gets a mail, the main account with e-mail off none.
 func TestAnnouncementsSendAndAcknowledge(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	draft, err := e.svc.CreateAnnouncement(ctx, e.f.Account, model.AnnouncementInput{Title: "Wartung", Body: "Am Samstag\nkurz offline."})
@@ -306,6 +311,7 @@ func TestAnnouncementsSendAndAcknowledge(t *testing.T) {
 // The event errors goes to the main account only, once per source and hour; a failed delivery
 // job raises none.
 func TestErrorsOwnerOnlyWithDedupe(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.cfg.set(func(c *fakeConfig) { c.token = testBotToken })
@@ -356,6 +362,7 @@ func TestErrorsOwnerOnlyWithDedupe(t *testing.T) {
 // Push: a subscription the push service no longer knows is deleted; with none left the delivery
 // is skipped. The payload carries title, body and link.
 func TestPushGoneAndSkipped(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.enable(t, e.owner(), model.ChannelPush, model.EventInvitations)
@@ -401,6 +408,7 @@ func TestPushGoneAndSkipped(t *testing.T) {
 // A failing sender is retried by the queue; after the last attempt the delivery ends failed with
 // the error, which carries no secret. A retry of its job by the admin sends it again.
 func TestDeliveryRetriesThenFails(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.enable(t, e.owner(), model.ChannelEmail, model.EventInvitations)
@@ -441,6 +449,7 @@ func TestDeliveryRetriesThenFails(t *testing.T) {
 
 // A channel switched off after the event skips its delivery.
 func TestDeliverySkippedWhenSwitchedOff(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.enable(t, e.owner(), model.ChannelEmail, model.EventInvitations)
@@ -457,6 +466,7 @@ func TestDeliverySkippedWhenSwitchedOff(t *testing.T) {
 }
 
 func TestTestChannel(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	if err := e.svc.TestChannel(ctx, e.owner(), model.ChannelEmail); !errors.Is(err, model.ErrChannelDisabled) {
@@ -510,6 +520,7 @@ func TestTestChannel(t *testing.T) {
 // ADR 0005 (review I-2): a profile other than the primary one reads the channels of its account but
 // changes and tests none; a session without a profile changes them.
 func TestChannelChangesNeedThePrimaryProfile(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.cfg.set(func(c *fakeConfig) { c.token = testBotToken })
@@ -556,6 +567,7 @@ func TestChannelChangesNeedThePrimaryProfile(t *testing.T) {
 
 // Test messages count against the client's attempt limit before anything is sent (review M-11).
 func TestTestChannelAttemptLimit(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	calls := 0
@@ -578,6 +590,7 @@ func TestTestChannelAttemptLimit(t *testing.T) {
 }
 
 func TestSendTestEmail(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	if err := e.svc.SendTestEmail(ctx, ""); err != nil {
@@ -605,6 +618,7 @@ func TestSendTestEmail(t *testing.T) {
 // The VAPID pair is created once, also under concurrent first use; a rotation replaces it and
 // deletes every subscription.
 func TestVAPIDKeys(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	var wg sync.WaitGroup
@@ -648,6 +662,7 @@ func TestVAPIDKeys(t *testing.T) {
 }
 
 func TestPushSubscriptions(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.exec(t, `INSERT INTO devices (id, created_at, last_seen_at) VALUES (?, 1, 1)`, strings.Repeat("a", 32))
@@ -704,6 +719,7 @@ func TestPushSubscriptions(t *testing.T) {
 }
 
 func TestChannelAvailabilityAndGetMe(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	got, err := e.svc.ChannelAvailability(ctx)
@@ -734,6 +750,7 @@ func TestChannelAvailabilityAndGetMe(t *testing.T) {
 
 // Without a queue (the M7 setup) events reach no channel and nothing fails.
 func TestEmitWithoutQueue(t *testing.T) {
+	t.Parallel()
 	e := newChanEnv(t)
 	bare := New(e.f.DB, e.svc.vis, e.svc.log)
 	bare.SetConfig(e.cfg)

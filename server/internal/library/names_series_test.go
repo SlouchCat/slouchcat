@@ -145,6 +145,7 @@ var seriesCorpus = []seriesCase{
 }
 
 func TestParseSeriesPathCorpus(t *testing.T) {
+	t.Parallel()
 	if len(seriesCorpus) < 80 {
 		t.Fatalf("corpus has %d paths, want at least 80", len(seriesCorpus))
 	}
@@ -186,6 +187,7 @@ func TestParseSeriesPathCorpus(t *testing.T) {
 }
 
 func TestParseSeriesPathDetails(t *testing.T) {
+	t.Parallel()
 	p := ParseSeriesPath("Show (2020) {tvdb-1}/Season 01/Show - S01E01 - Pilot - 2160p {edition-Extended}.mkv")
 	if p.Series == nil || p.VersionLabel != "2160p Extended" || p.Series.SeriesDir != "Show (2020) {tvdb-1}" ||
 		p.Series.SeasonDir != "Show (2020) {tvdb-1}/Season 01" {
@@ -204,6 +206,7 @@ func TestParseSeriesPathDetails(t *testing.T) {
 }
 
 func TestExtraKinds(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct{ kind, title string }{
 		"Alien (1979)/Trailers/Teaser.mkv":                 {"trailer", "Teaser"},
 		"Alien (1979)/Featurettes/Making Of.mkv":           {"featurette", "Making Of"},
@@ -271,6 +274,7 @@ const episodeNFO = `<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 </episodedetails>`
 
 func TestParseSeriesNFO(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		in     string

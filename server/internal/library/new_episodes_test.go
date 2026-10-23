@@ -12,6 +12,7 @@ import (
 // committed (the items are readable then), for full and path scans; files of known episodes,
 // extras and rescans announce nothing.
 func TestNewEpisodesHook(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	var mu sync.Mutex
 	var heard []string

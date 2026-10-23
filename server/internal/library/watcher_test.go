@@ -85,6 +85,8 @@ func (e *env) waitPathScan(want ...string) {
 	})
 }
 
+// Not parallel: this test waits on the clock (an interval, a debounce window or a
+// cancellation), and parallel load would stretch the wait past what it asserts.
 func TestInotifyWatcherQueuesDebouncedPathScan(t *testing.T) {
 	e := newEnv(t)
 	dir := t.TempDir()
@@ -162,6 +164,7 @@ func TestInotifyWatcherQueuesDebouncedPathScan(t *testing.T) {
 
 // A poll watcher queues scan.path with the directories its stat pass found changed.
 func TestPollWatcherQueuesPathScan(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "Alien (1979)/Alien (1979).mkv", "a")
@@ -192,6 +195,7 @@ func TestPollWatcherQueuesPathScan(t *testing.T) {
 // Changes reported while a scan.path job waits merge into it; while it runs they wait in memory;
 // more than MaxChangedDirs fall back to a full scan.
 func TestTriggerPathScanCoalesces(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
 	lib := e.create(dir)
@@ -244,6 +248,7 @@ func TestTriggerPathScanCoalesces(t *testing.T) {
 }
 
 func TestPollerDetectsChanges(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	writeFile(t, dir, "Alien (1979)/Alien (1979).mkv", "a")
 	writeFile(t, dir, "Alien (1979)/movie.nfo", "n")
@@ -339,6 +344,7 @@ func TestPollerDetectsChanges(t *testing.T) {
 }
 
 func TestPollInterval(t *testing.T) {
+	t.Parallel()
 	cases := map[time.Duration]time.Duration{
 		0:                45 * time.Second,
 		time.Second:      45 * time.Second,
@@ -354,6 +360,7 @@ func TestPollInterval(t *testing.T) {
 }
 
 func TestPollWatcherQueuesScan(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
 	lib := e.create(dir)
@@ -374,6 +381,7 @@ func TestPollWatcherQueuesScan(t *testing.T) {
 }
 
 func TestStartRunsWatchersAndSchedules(t *testing.T) {
+	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
 	writeFile(t, dir, "Alien (1979)/Alien (1979).mkv", "a")
@@ -420,6 +428,7 @@ func TestStartRunsWatchersAndSchedules(t *testing.T) {
 
 // TestPollerPassOverTestMedia measures a stat pass over the generated test media.
 func TestPollerPassOverTestMedia(t *testing.T) {
+	t.Parallel()
 	p := NewPoller(mustRoot(t, filepath.Dir(testMedia(t))), nil)
 	if _, err := p.Pass(context.Background()); err != nil {
 		t.Fatal(err)

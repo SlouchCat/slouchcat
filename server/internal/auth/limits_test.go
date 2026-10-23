@@ -13,6 +13,9 @@ import (
 )
 
 // More concurrent logins than argon2id slots all finish; the slots are free afterwards.
+// Not parallel: argonSlots is package state shared by every login, so this test has to be the
+// only one running. Go runs the tests without t.Parallel() first and starts the parallel ones
+// afterwards, which is exactly the window these two need.
 func TestConcurrentLoginsBeyondArgonSlots(t *testing.T) {
 	ctx := context.Background()
 	s, _ := newService(t)
@@ -41,6 +44,9 @@ func TestConcurrentLoginsBeyondArgonSlots(t *testing.T) {
 }
 
 // A login waiting for a slot gives up with its request context.
+// Not parallel: argonSlots is package state shared by every login, so this test has to be the
+// only one running. Go runs the tests without t.Parallel() first and starts the parallel ones
+// afterwards, which is exactly the window these two need.
 func TestLoginWaitsForArgonSlotWithContext(t *testing.T) {
 	s, _ := newService(t)
 	for range maxArgonRuns {
@@ -64,6 +70,7 @@ func TestLoginWaitsForArgonSlotWithContext(t *testing.T) {
 // The 11th attempt of one client within a minute is refused; another client still gets through,
 // and the bucket refills over time.
 func TestLoginAttemptLimitPerClient(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, clock := newService(t)
 	if _, _, err := s.CreateOwner(ctx, testEmail, testPassword, "de"); err != nil {
@@ -97,6 +104,7 @@ func TestLoginAttemptLimitPerClient(t *testing.T) {
 
 // Buckets idle for longer than bucketIdleAfter are dropped when a new client arrives.
 func TestAttemptBucketsExpire(t *testing.T) {
+	t.Parallel()
 	var l attemptLimiter
 	start := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
 	for i := range 3 {
@@ -114,6 +122,7 @@ func TestAttemptBucketsExpire(t *testing.T) {
 
 // Over-long e-mail and password are refused before any argon2id run.
 func TestLoginRejectsOverlongInputWithoutHashing(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	s, _ := newService(t)
 	runs := argonRuns.Load()
@@ -142,6 +151,7 @@ func TestLoginRejectsOverlongInputWithoutHashing(t *testing.T) {
 // The bucket table is capped: addresses beyond maxBuckets push out the least recently used one,
 // which then starts with a full bucket again; the cap holds however many addresses appear.
 func TestAttemptLimiterCapsBuckets(t *testing.T) {
+	t.Parallel()
 	var l attemptLimiter
 	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
 	for range attemptBurst {
