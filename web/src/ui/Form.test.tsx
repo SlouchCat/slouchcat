@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { AriaButton } from './AriaButton';
 import { Form } from './Form';
+import { RadioGroup } from './RadioGroup';
 import { TextField } from './TextField';
 
 /**
@@ -24,6 +25,15 @@ function SmtpForm({ answer }: { answer: Record<string, string> | null }) {
     >
       <TextField name="host" label="Server" value={host} onChange={setHost} />
       <TextField name="port" label="Port" defaultValue="587" />
+      <RadioGroup
+        name="tls"
+        label="Verschlüsselung"
+        defaultValue="starttls"
+        options={[
+          { value: 'starttls', label: 'STARTTLS' },
+          { value: 'none', label: 'Keine' },
+        ]}
+      />
       <AriaButton type="submit">Speichern</AriaButton>
     </Form>
   );
@@ -49,6 +59,20 @@ describe('Form', () => {
     expect(await screen.findByText(message)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Server'), 'x');
+
+    expect(screen.queryByText(message)).not.toBeInTheDocument();
+    expect(screen.getByText(required)).toBeInTheDocument();
+  });
+
+  it('drops the message of a choice the reader changes', async () => {
+    // A control that is not a text input. It still goes through the `input` listener here --
+    // jsdom fires `input` for a radio too -- so this does not exercise the `change` path; that one
+    // is the belt and braces for a control that reports only when it is done.
+    const user = userEvent.setup();
+    render(<SmtpForm answer={{ tls: message, host: required }} />);
+    expect(await screen.findByText(message)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'Keine' }));
 
     expect(screen.queryByText(message)).not.toBeInTheDocument();
     expect(screen.getByText(required)).toBeInTheDocument();

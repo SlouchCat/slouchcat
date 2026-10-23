@@ -23,6 +23,9 @@ ersten öffentlichen Tag zu erledigen und beides in Minuten bis Stunden.
 | **N-3** | `.tool-versions` steht auf `golang 1.27.3`. Das ausgelieferte Image baut ohnehin mit `golang:1.27-trixie`, die CI liest die Fassung aus `server/go.mod`. |
 | **H-7** | Der temporäre Spike-Endpunkt `/spike/{variant}` ist aus dem Vertrag, dem Server und der Konfiguration entfernt, zusammen mit `SLOUCHCAT_SPIKE_DIR` und `testdata/generate-spike-media.sh`. |
 
+Eine Zahl im Bericht ist seither überholt: Der Vertrag hatte zum Zeitpunkt des Reviews 152
+Operationen, nach dem Entfernen des Spike-Endpunkts sind es **151**.
+
 Alles Übrige bleibt offen und steht unten mit Einordnung; die Reihenfolge am Dateiende gilt
 weiterhin, ab Punkt 6.
 

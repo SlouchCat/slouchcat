@@ -10,7 +10,6 @@ import { sessionQuery, useActiveSession } from '@/app/session';
 import { formText, MIN_PASSWORD } from '@/lib/form';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { useEdited } from '@/lib/useEdited';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { ButtonLink, Chip, Notice, Page, Skeleton, Text } from '@/ui';
 import { AriaButton, DataTable, Form, FormDialog, TextField, type DataColumn } from '@/ui/aria';
@@ -46,8 +45,7 @@ function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boo
       onClose(true);
     },
   );
-  const { edited, submitted, onInput } = useEdited();
-  const errors = save.error && !edited ? accountErrors(t, save.error) : null;
+  const errors = save.error ? accountErrors(t, save.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,7 +55,6 @@ function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boo
     // The server needs at least one change; say so here instead of sending an empty update.
     setUnchanged(!changesEmail && !newPassword);
     if (!changesEmail && !newPassword) return;
-    submitted();
     void save.run({
       ...(changesEmail ? { email: nextEmail } : {}),
       currentPassword: formText(data, 'currentPassword', false),
@@ -75,7 +72,7 @@ function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boo
       description={t('admin.accounts.edit.intro')}
     >
       <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <div className={styles.form} onInput={onInput}>
+        <div className={styles.form}>
           {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
           {unchanged && <Notice tone="warning">{t('admin.accounts.edit.unchanged')}</Notice>}
           <TextField

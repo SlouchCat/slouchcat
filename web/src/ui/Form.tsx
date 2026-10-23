@@ -72,9 +72,11 @@ export function Form({
   useEffect(() => {
     const element = form.current;
     if (!element) return;
-    // `input` covers typing, `change` the controls that report only when they are done (a native
-    // select, a file input); both bubble to the form. A mark belongs to the round it was made in,
-    // so one left over from the previous answer is ignored instead of hiding the new one.
+    // `input` covers typing and every control jsdom and the browsers fire it for; `change` is the
+    // belt and braces for one that reports only when it is done, and it is what react-aria itself
+    // listens to. Both bubble to the form, and a field marked twice is marked once. A mark belongs
+    // to the round it was made in, so one left over from the previous answer is ignored instead of
+    // hiding the new one.
     const changed = (event: Event) => {
       const { name } = (event.target ?? {}) as { name?: string };
       if (!name) return;

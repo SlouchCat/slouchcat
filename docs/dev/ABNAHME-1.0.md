@@ -10,15 +10,16 @@ Bericht allein beurteilen können, ob du 1.0 veröffentlichen willst.
 ## Das Ergebnis in zwei Zeilen
 
 **64 von 64 Abnahmezeilen und 16 von 16 Plan-Kriterien sind erfüllt** — 55 Zeilen und 13 Kriterien
-ohne Einschränkung, 9 Zeilen und 3 Kriterien mit einer ausdrücklich beschlossenen Abweichung. Keine
-Zeile ist ohne Beleg geblieben, und keine ist als grün gezählt worden, ohne dass dabei steht, was an
-ihr fehlt.
+ohne Einschränkung, 9 Zeilen und 3 Kriterien mit einer der neun ausdrücklich beschlossenen
+Abweichungen. Keine Zeile ist ohne Beleg geblieben, und keine ist als grün gezählt worden, ohne dass
+dabei steht, was an ihr fehlt.
 
 **Die Abweichungen sind der Teil, den du lesen solltest** (Tabelle unten): Slouchcat ist auf keinem
 Apple-Gerät und auf keinem arm64-Rechner gelaufen, AMD-Grafikchips sind ungemessen, HTTPS ist nie
 mit deiner echten Domain geprüft worden, und sieben weitere Prüfungen an echten Geräten hast du am
-23. Oktober abgewählt. Nichts davon ist ein Fehler, den jemand gefunden hat — es ist, was niemand
-geprüft hat.
+23. Oktober abgewählt. Das meiste davon ist kein Fehler, den jemand gefunden hat — es ist, was
+niemand geprüft hat. Die eine Ausnahme ist AW-6: die Farbumrechnung auf deiner NVIDIA-Karte liegt
+gemessen über der Grenze, und du hast das am 20. Oktober angenommen.
 
 ## Wie du ihn liest
 
@@ -35,22 +36,26 @@ Wo ein Messwert steht, findest du ihn mit Hardware und Methode in `docs/perf/`.
 
 ## Die Abweichungen, die gelten
 
-Sie stehen hier zusammen, damit keine davon in einer Tabellenzeile untergeht. Alle sind im
-Entscheidungsprotokoll `docs/planning/04-entscheidungen.md` mit Datum eingetragen.
+Sie stehen hier zusammen, damit keine davon in einer Tabellenzeile untergeht. Acht der neun sind im
+Entscheidungsprotokoll `docs/planning/04-entscheidungen.md` mit Datum eingetragen; **AW-2 nicht** —
+VAAPI und AMD gelten seit der ersten Fassung des Plans als «best effort, ungetestet»
+(`docs/planning/03-plan-v1.md` Abschnitte 3.5 und 10.3), ohne eigenen Entscheid.
 
 | Nr. | Abweichung | Beschlossen | Betrifft |
 |---|---|---|---|
-| **A-1** | **Kein Apple-Gerät.** iPhone, iPad und Mac standen nie zur Verfügung. iOS und macOS gelten nach dem Ersatzweg von AN-7 als ungeprüft: Safari ist nie gelaufen, der iOS-Offline-Spike (AN-13) ist nur dokumentiert, Web-Push unter iOS ist nicht geprüft. | Entscheid 2, 18.10.2026 | W-3, O-3, O-4, O-6, A-6, P-6, P-9 |
-| **A-2** | **VAAPI und AMD «best effort, ungetestet».** Der Weg ist gebaut (`compose.amd.yaml`), aber nie auf echter AMD-Hardware gemessen. | Plan 3.5 und 10.3 | W-2, P-6 |
-| **A-3** | **Ohne Grafikchip langsamer und kleiner.** Software-Transcoding startet in bis zu 10 s statt unter 5 und liefert bei 4K-HDR höchstens 1080p-SDR. | AN-17, Entscheid 4, 19.10.2026 | W-2, W-3, P-6 |
-| **A-4** | **Netzfreigaben dürfen länger brauchen**, wo kein Webhook meldet. Die Eine-Minute-Zusage von B-4 hängt am eingerichteten Webhook. | AN-12, Entscheid 3, 18.10.2026 | B-4, P-4 |
-| **A-5** | **Entzug wirkt erst beim nächsten Serverkontakt.** Ein dauerhaft offline gehaltenes Gerät ist nicht sperrbar. | AN-4, Entscheid 8, 20.10.2026 | K-7, O-6 |
-| **B-1** | **O-6-Langzeittest bei Tag 3 abgeschlossen** statt bei Tag 30; der Android-Teil wurde nicht durchgeführt. Belegt bleiben: kein Ablauffeld, Entfernen nur durch Löschen oder Entzug, drei Tage Offline-Wiedergabe auf Chromium und Firefox. | Entscheid 23.10.2026 | O-6, P-9 |
-| **C-1** | **Keine weiteren Gerätetests vor 1.0.** Der Auftraggeber führt die offenen Prüfungen an echten Geräten nicht durch («Wird schon funktionieren. Werde bei der nächsten Version noch Änderungen vornehmen.»). Betroffen: HTTPS mit der echten Domain (K-8), der echte Radarr-Import bis ins Ereignisprotokoll (I-8), Web-Push am Android-Handy und Telegram mit einem echten Bot (A-6), die Installation der PWA am Android-Handy (C-1), «nur WLAN» auf Android-Chrome (O-3), Flugmodus-Wiedergabe am echten Gerät (O-4), die Startzeit eines 4K-HDR-Films am Handy (W-3). | Entscheid 23.10.2026 | K-8, I-8, A-6, C-1, O-3, O-4, W-3 |
-| **C-2** | **arm64 nur unter Emulation geprüft.** Es steht kein arm64-Gerät zur Verfügung. Das Image baut für `linux/arm64` und startet unter QEMU; auf echter arm64-Hardware ist es nie gelaufen. | Entscheid 23.10.2026 | P-1 |
+| **AW-1** | **Kein Apple-Gerät.** iPhone, iPad und Mac standen nie zur Verfügung. iOS und macOS gelten nach dem Ersatzweg von AN-7 als ungeprüft: Safari ist nie gelaufen, der iOS-Offline-Spike (AN-13) ist nur dokumentiert, Web-Push unter iOS ist nicht geprüft. | Entscheid 2, 18.10.2026 | W-3, O-3, O-4, O-6, AW-6, P-6, P-9 |
+| **AW-2** | **VAAPI und AMD «best effort, ungetestet».** Der Weg ist gebaut (`compose.amd.yaml`), aber nie auf echter AMD-Hardware gemessen. | Plan 3.5 und 10.3 | W-2, P-6 |
+| **AW-3** | **Ohne Grafikchip langsamer und kleiner.** Software-Transcoding startet in bis zu 10 s statt unter 5 und liefert bei 4K-HDR höchstens 1080p-SDR. | AN-17, Entscheid 4, 19.10.2026 | W-2, W-3, P-6 |
+| **AW-4** | **Netzfreigaben dürfen länger brauchen**, wo kein Webhook meldet. Die Eine-Minute-Zusage von B-4 hängt am eingerichteten Webhook. | AN-12, Entscheid 3, 18.10.2026 | B-4, P-4 |
+| **AW-5** | **Entzug wirkt erst beim nächsten Serverkontakt.** Ein dauerhaft offline gehaltenes Gerät ist nicht sperrbar. | AN-4, Entscheid 8, 20.10.2026 | K-7, O-6 |
+| **AW-6** | **`tonemap_cuda` reisst die Farbgrenze von P-6 auf Hauttönen:** ΔE2000 5.87 statt höchstens 5 gegen die `hable`-Referenz. Angenommen, weil dieselbe Kette gegen die Ausgangsfarben des Testbilds die genaueste ist (ΔE 3.78 gegenüber 7.02 und 9.63) — die Abweichung ist Helligkeit, nicht Farbton. Das ist die Kette, die im Image auf einer NVIDIA-Karte läuft. | Entscheid vom 20.10.2026 | W-2, P-6 |
+| **AW-7** | **O-6-Langzeittest bei Tag 3 abgeschlossen** statt bei Tag 30; der Android-Teil wurde nicht durchgeführt. Belegt bleiben: kein Ablauffeld, Entfernen nur durch Löschen oder Entzug, drei Tage Offline-Wiedergabe auf Chromium und Firefox. | Entscheid 23.10.2026 | O-6, P-9 |
+| **AW-8** | **Keine weiteren Gerätetests vor 1.0.** Der Auftraggeber führt die offenen Prüfungen an echten Geräten nicht durch («Wird schon funktionieren. Werde bei der nächsten Version noch Änderungen vornehmen.»). Betroffen: HTTPS mit der echten Domain (K-8), der echte Radarr-Import bis ins Ereignisprotokoll (I-8), Web-Push am Android-Handy und Telegram mit einem echten Bot (A-6), die Installation der PWA am Android-Handy (C-1), «nur WLAN» auf Android-Chrome (O-3), Flugmodus-Wiedergabe am echten Gerät (O-4), die Startzeit eines 4K-HDR-Films am Handy (W-3). | Entscheid 23.10.2026 | K-8, I-8, AW-6, AW-8, O-3, O-4, W-3 |
+| **AW-9** | **arm64 nur unter Emulation geprüft.** Es steht kein arm64-Gerät zur Verfügung. Das Image baut für `linux/arm64` und startet unter QEMU; auf echter arm64-Hardware ist es nie gelaufen. | Entscheid 23.10.2026 | P-1 |
 
-**A-1 bis A-5** waren in der DoD von M10 von Anfang an vorgesehen. **B-1** kam am 23. Oktober dazu.
-**C-1 und C-2** sind neu und gehen über die ursprüngliche Liste hinaus; die DoD in
+**AW-1 bis AW-6** waren in der DoD von M10 vorgesehen oder, wie AW-6, vor M10 beschlossen.
+**AW-7** kam am 23. Oktober dazu.
+**AW-8 und AW-9** sind neu und gehen über die ursprüngliche Liste hinaus; die DoD in
 `docs/planning/03-plan-v1.md` nennt sie seit dem 23. Oktober ausdrücklich. Ohne sie wäre M10 nicht
 abgeschlossen, sondern offen.
 
@@ -62,12 +67,12 @@ abgeschlossen, sondern offen.
 |---|---|---|---|
 | K-1 | grün | | `go test ./internal/api -run 'TestLogin\|TestContractProfileHasNoCredentials'`; `web/e2e/login.spec.ts` |
 | K-2 | grün | | `web/e2e/profiles.spec.ts` (Stufen 0/6/12/16/18, PIN setzen und entfernen, Löschen mit Rückfrage); `go test ./internal/api -run TestContractLibraryRightRevoked` |
-| K-3 | grün | | Vertragstest 10.2: `go test ./internal/api -run 'TestContractCoversEveryOperation\|TestContractChildProfiles\|TestContractAccountOperations\|TestContractAdminOperations\|TestContractPublicOperations'`; je Meilenstein nachgeführt, zuletzt 145 Operationen plus `receiveWebhook` |
+| K-3 | grün | | Vertragstest 10.2: `go test ./internal/api -run 'TestContractCoversEveryOperation\|TestContractChildProfiles\|TestContractAccountOperations\|TestContractAdminOperations\|TestContractPublicOperations'`; je Meilenstein nachgeführt, zuletzt über alle 151 Operationen des Vertrags |
 | K-4 | grün | | `go test ./internal/auth -run 'TestPIN\|TestSelectProfile'` (Sperrkurve AN-11 mit Uhr-Mock); `web/e2e/profiles.spec.ts`, `web/e2e/offline-pin.spec.ts` |
 | K-5 | grün | | `go test ./internal/playback -run 'Watch\|TestReportDedupesAndBoundsPlayedTime'`; `web/e2e/watch-limit.spec.ts`, `web/e2e/offline-watch-limit.spec.ts` |
 | K-6 | grün | | `web/e2e/invite.spec.ts`, `web/e2e/access.spec.ts`; `go test ./internal/auth -run TestInvitation` |
-| K-7 | grün | A-5 | `go test ./internal/api -run TestContractGuestRevocation` (Median 1.2 ms bis zum Schliessen), `docs/perf/M2.md` 2; offline `web/e2e/offline-revocation.spec.ts` |
-| K-8 | grün mit Abweichung | C-1 | Die Zeile hat zwei Hälften. **Automatisiert, belegt:** der Vertragstest 10.2 läuft direkt gegen die API ohne Oberfläche (`go test ./internal/api -run TestContract`). **Manuell, teilweise:** HTTPS ist gegen die interne CA von Caddy geprüft — HTTP/2 200, `Secure`-Cookie, Range 206, Weiterleitung 308 (`docs/dev/CURRENT_STATUS.md`, M2-DoD), dazu `task deploy:caddy:validate`. **Nicht belegt:** ein Durchlauf mit der echten Domain und einem Let's-Encrypt-Zertifikat. |
+| K-7 | grün | AW-5 | `go test ./internal/api -run TestContractGuestRevocation` (Median 1.2 ms bis zum Schliessen), `docs/perf/M2.md` 2; offline `web/e2e/offline-revocation.spec.ts` |
+| K-8 | grün mit Abweichung | AW-8 | Die Zeile hat zwei Hälften. **Automatisiert, belegt:** der Vertragstest 10.2 läuft direkt gegen die API ohne Oberfläche (`go test ./internal/api -run TestContract`). **Manuell, teilweise:** HTTPS ist gegen die interne CA von Caddy geprüft — HTTP/2 200, `Secure`-Cookie, Range 206, Weiterleitung 308 (`docs/dev/CURRENT_STATUS.md`, M2-DoD), dazu `task deploy:caddy:validate`. **Nicht belegt:** ein Durchlauf mit der echten Domain und einem Let's-Encrypt-Zertifikat. |
 
 ### Bibliothek (B)
 
@@ -76,7 +81,7 @@ abgeschlossen, sondern offen.
 | B-1 | grün | | `web/e2e/admin-libraries.spec.ts`; Schreibversuch im Container schlägt mit «Read-only file system» fehl |
 | B-2 | grün | | `go test ./internal/library -run 'TestParseMoviePathCorpus\|TestParseSeriesPathCorpus'` — 184 Film- und 93 Serienpfade je 100 %, dazu 42 NFO-Fälle (Grenze 98 %) |
 | B-3 | grün | | `go test ./internal/api -run TestContractProfileLanguage`; `docs/perf/M3.md` 2: 25 von 25 Referenzfilmen mit Poster |
-| B-4 | grün | A-4 | `go test ./internal/library -run 'TestScanRenameKeepsItemAndProgress\|TestSeriesPathScanNewSeason'`; Messwerte `docs/perf/M1a.md` 1a (NFS 48.4 s) und 1b (SMB 33–37 s), `docs/perf/M9.md` 1 (Webhook 3.1 s) |
+| B-4 | grün | AW-4 | `go test ./internal/library -run 'TestScanRenameKeepsItemAndProgress\|TestSeriesPathScanNewSeason'`; Messwerte `docs/perf/M1a.md` 1a (NFS 48.4 s) und 1b (SMB 33–37 s), `docs/perf/M9.md` 1 (Webhook 3.1 s) |
 | B-5 | grün | | `web/e2e/versions.spec.ts`; `go test ./internal/visibility -run TestReaderVersionsPrimaryFirst` |
 | B-6 | grün | | `go test ./internal/library -run TestManualMatchSurvivesScansAndRefresh` (drei Voll-Scans und ein Refresh) |
 | B-7 | grün | | `web/e2e/extras.spec.ts`; `go test ./internal/library -run TestExtrasBecomeExtraItemsAndSamplesAreSkipped` |
@@ -97,14 +102,14 @@ abgeschlossen, sondern offen.
 | ID | Stand | Abw. | Beleg |
 |---|---|---|---|
 | W-1 | grün | | `go test ./internal/playback -run TestDecide`; Prozesszählung im Container: 206 in 1.7 ms, kein ffmpeg |
-| W-2 | grün mit Abweichung | A-2, A-3 | Testmatrix 10.3 vollständig (`docs/perf/M4.md` 1); HDR→SDR auf NVENC und QSV gemessen, Referenzbilder am **23.10.2026 von Marco freigegeben**. `tonemap_cuda` liegt mit ΔE2000 5.87 auf Hauttönen über der Grenze 5 — am 20.10.2026 ausdrücklich angenommen, weil es gegen die Ausgangsfarben die genaueste Kette ist (ΔE 3.78). VAAPI/AMD ungetestet. |
-| W-3 | grün mit Abweichung | A-1, A-3, C-1 | Serverseitig gemessen: `docs/perf/M4.md` 2 (NVENC `tonemap_cuda` 0.50 s, QSV-Hybrid 1.85 s, zwei Streams im CT 3.0 s), Spulen `docs/perf/M1b.md` 1 (langsamster Sprung 438 ms); `web/e2e/hdr.spec.ts`, `web/e2e/hls.spec.ts`. **Nicht belegt:** die Stoppuhr am echten Handy. |
+| W-2 | grün mit Abweichung | AW-2, AW-3, AW-6 | Testmatrix 10.3 vollständig (`docs/perf/M4.md` 1); HDR→SDR auf NVENC und QSV gemessen, Referenzbilder am **23.10.2026 von Marco freigegeben**. `tonemap_cuda` liegt mit ΔE2000 5.87 auf Hauttönen über der Grenze 5 — am 20.10.2026 ausdrücklich angenommen, weil es gegen die Ausgangsfarben die genaueste Kette ist (ΔE 3.78). VAAPI/AMD ungetestet. |
+| W-3 | grün mit Abweichung | AW-1, AW-3, AW-8 | Serverseitig gemessen: `docs/perf/M4.md` 2 (NVENC `tonemap_cuda` 0.50 s, QSV-Hybrid 1.85 s, zwei Streams im CT 3.0 s), Spulen `docs/perf/M1b.md` 1 (langsamster Sprung 438 ms); `web/e2e/hdr.spec.ts`, `web/e2e/hls.spec.ts`. **Nicht belegt:** die Stoppuhr am echten Handy. |
 | W-4 | grün | | `web/e2e/tracks.spec.ts` (Wechsel ≤ 3000 ms, SRT als `text/vtt`, PGS eingebrannt) |
 | W-5 | grün | | `web/e2e/resume.spec.ts` (zwei Browser-Kontexte, ±10 s) |
 | W-6 | grün | | `web/e2e/admin-streams.spec.ts`; `go test ./internal/playback -run 'StreamOverview\|Streams'` |
 | W-7 | grün | | `web/e2e/admin-devices.spec.ts`; `go test ./internal/playback -run Device` |
 | W-8 | grün | | `web/e2e/quality.spec.ts`; `go test ./internal/playback -run 'Limit\|Quality\|Budget\|GuestStreamCap'` |
-| W-9 | grün | | `docs/perf/M4.md` 3: generierte Staffel 5 von 5, echte Staffel 8 von 9 Intros ±2 s = 89 % (Grenze 80 %); `go test ./internal/segments` |
+| W-9 | grün | | Intro-Erkennung: `docs/perf/M4.md` 3 — generierte Staffel 5 von 5, echte Staffel 8 von 9 Intros ±2 s = 89 % (Grenze 80 %), `go test ./internal/segments`. Auto-Next nach 10-s-Countdown und Kapitelsprung ±1 s: `server/internal/segments/segments_test.go` und `web/e2e/chapters.spec.ts`. |
 | W-10 | grün | | `web/e2e/trailer.spec.ts` (`youtube-nocookie.com`, offline ausgeblendet) |
 
 ### Entdecken (E)
@@ -127,17 +132,17 @@ abgeschlossen, sondern offen.
 |---|---|---|---|
 | O-1 | grün | | `web/e2e/downloads.spec.ts`, `web/e2e/audio-download.spec.ts`; `docs/perf/M5.md` 2 und `docs/perf/M6.md` 3, alle Grössen innerhalb ±10 % |
 | O-2 | grün | | `web/e2e/season-download.spec.ts` (Staffel mit 6 Folgen, eine Aktion) |
-| O-3 | grün mit Abweichung | A-1, C-1 | `web/e2e/auto-download.spec.ts`, `web/e2e/podcast-auto-download.spec.ts`; `go test ./internal/offline -run 'TestAutoDownloads\|TestPodcastAutoDownloads'`. **«Nur WLAN»** ist nur gegen den Vitest-Mock von `navigator.connection` belegt, nicht auf Android-Chrome. |
-| O-4 | grün mit Abweichung | A-1, C-1 | `web/e2e/offline-playback.spec.ts` (Chromium und Firefox offline, englische Tonspur, zwei WebVTT-Spuren, Spulen); `docs/perf/M5.md` 1. **Nicht belegt:** der manuelle Flugmodus-Teil am echten Gerät. |
+| O-3 | grün mit Abweichung | AW-1, AW-8 | `web/e2e/auto-download.spec.ts`, `web/e2e/podcast-auto-download.spec.ts`; `go test ./internal/offline -run 'TestAutoDownloads\|TestPodcastAutoDownloads'`. **«Nur WLAN»** ist nur gegen den Vitest-Mock von `navigator.connection` belegt, nicht auf Android-Chrome. |
+| O-4 | grün mit Abweichung | AW-1, AW-8 | `web/e2e/offline-playback.spec.ts` (Chromium und Firefox offline, englische Tonspur, zwei WebVTT-Spuren, Spulen); `docs/perf/M5.md` 1. **Nicht belegt:** der manuelle Flugmodus-Teil am echten Gerät. |
 | O-5 | grün | | `web/e2e/offline-playback.spec.ts` (258–263 ms bis zur Position auf dem zweiten Gerät, Grenze 10 s); `go test ./internal/playback -run TestReportOffline` (AN-10-Konfliktfälle) |
-| O-6 | grün mit Abweichung | B-1, A-1, A-5 | `go test ./internal/offline -run TestDownloadsHaveNoExpiryColumn` (kein Ablauffeld); Entfernen nur durch Löschen oder Entzug: `go test ./internal/offline -run TestTombstonesThroughCascades`, `web/e2e/offline-revocation.spec.ts`. Langzeittest `docs/perf/M5-o6-langzeittest.md`: Tag 0, 1 und 3 auf Chromium und Firefox bestanden. **Nicht belegt: die 30-Tage-Beobachtung; Android wurde nie gestartet; iOS ist ungeprüft.** |
+| O-6 | grün mit Abweichung | AW-7, AW-1, AW-5 | `go test ./internal/offline -run TestDownloadsHaveNoExpiryColumn` (kein Ablauffeld); Entfernen nur durch Löschen oder Entzug: `go test ./internal/offline -run TestTombstonesThroughCascades`, `web/e2e/offline-revocation.spec.ts`. Langzeittest `docs/perf/M5-o6-langzeittest.md`: Tag 0, 1 und 3 auf Chromium und Firefox bestanden. **Nicht belegt: die 30-Tage-Beobachtung; Android wurde nie gestartet; iOS ist ungeprüft.** |
 | O-7 | grün | | `web/e2e/offline-profiles.spec.ts` (P6 sieht den FSK-18-Download von P18 nicht, Speicheranzeige ±5 %, iOS-Hinweis) |
 
 ### Client und Vertrag (C)
 
 | ID | Stand | Abw. | Beleg |
 |---|---|---|---|
-| C-1 | grün mit Abweichung | C-1 | Offline-Kaltstart im Flugmodus: Chromium 1334/1357 ms, Firefox 1446/1427 ms (Grenze 3 s), `docs/perf/M5.md` 5 und `docs/perf/M5-o6-langzeittest.md`; Manifest und Service Worker in `web/vite.config.ts`, `web/e2e/offline-cold-start.spec.ts`. **Der Lighthouse-Teil «installierbar» fehlt:** Lighthouse 12 kennt diese Prüfung nicht mehr, und die Installation am Android-Handy wurde nicht durchgeführt. |
+| C-1 | grün mit Abweichung | AW-8 | Offline-Kaltstart im Flugmodus: Chromium 1334/1357 ms, Firefox 1446/1427 ms (Grenze 3 s), `docs/perf/M5.md` 5 und `docs/perf/M5-o6-langzeittest.md`; Manifest und Service Worker in `web/vite.config.ts`, `web/e2e/offline-cold-start.spec.ts`. **Der Lighthouse-Teil «installierbar» fehlt:** Lighthouse 12 kennt diese Prüfung nicht mehr, und die Installation am Android-Handy wurde nicht durchgeführt. |
 | C-2 | grün | | `task lint` mit 0 Verstössen in jeder `task ci`-Zeile: `color-no-hex`, `declaration-strict-value`, `eslint-plugin-i18next`, `no-restricted-imports`, `depguard`, `forbidigo`, Analyzer `itemsaccess` |
 | C-3 | grün | | Vitest `locales.test.ts` (0 fehlende Schlüssel de/en); `web/e2e/profiles.spec.ts` (Sprachwechsel ohne Neuladen) |
 | C-4 | grün | | Tastatursuite je Seite, Helfer `web/e2e/keyboard.ts`; vollständige Seitenliste unter P-15 |
@@ -152,7 +157,7 @@ abgeschlossen, sondern offen.
 | A-3 | grün | | `web/e2e/admin-home.spec.ts` (provozierter Fehler < 10 s); `docs/perf/M8.md` 1 (p95 225 ms während des Erst-Scans). Die Kachel «Webhooks» aus M9 füllt den Integrationsstatus, nachdem I-1 entfallen ist. |
 | A-4 | grün | | `go test ./internal/admin -run 'TestRestoreOnFreshStack\|TestBackupArchiveHasOnlyDatabaseAndManifest\|TestBackupWithoutSecretsStripsEncryptedSettings\|TestBackupWithSecretsNeedsPassphrase'`; `docs/perf/M8.md` 2 (Neustart in derselben PID, 1.5–1.9 s, gleiche Tabellen-Hashes) |
 | A-5 | grün | | `go test ./internal/admin -run TestUpdateCheck`; `web/e2e/admin-integrations.spec.ts` (Mock-Manifest 99.0.0 → Hinweis, Prüfung aus → kein Hinweis). Das echte Manifest entsteht seit M10 bei jedem Release (`.github/workflows/release.yml`). |
-| A-6 | grün mit Abweichung | A-1, C-1 | Alle vier Kanäle gegen Mocks: `go test ./internal/notify/...`, `web/e2e/notification-channels.spec.ts`. Echtes Gerät: **E-Mail am 23.10.2026 von Marco bestätigt** (Testnachricht über sein SMTP-Konto). Vier statt fünf Ereignistypen seit M9. **Nicht belegt:** Web-Push am Android-Handy, Telegram mit einem echten Bot; Web-Push unter iOS ungeprüft. |
+| A-6 | grün mit Abweichung | AW-1, AW-8 | Alle vier Kanäle gegen Mocks: `go test ./internal/notify/...`, `web/e2e/notification-channels.spec.ts`. Echtes Gerät: **E-Mail am 23.10.2026 von Marco bestätigt** (Testnachricht über sein SMTP-Konto). Vier statt fünf Ereignistypen seit M9. **Nicht belegt:** Web-Push am Android-Handy, Telegram mit einem echten Bot; Web-Push unter iOS ungeprüft. |
 | A-7 | grün | | `web/e2e/announcements.spec.ts`, `web/e2e/admin-announcements.spec.ts`; `go test ./internal/notify -run TestAnnounce` |
 | A-8 | grün | | `go test ./internal/admin -run TestStats` (Fixture gegen eigene Aggregation); `docs/perf/M8.md` 1 (p95 1'333 ms bei 1 Mio. Ereignissen) |
 | A-9 | grün | | Log-Scan über einen kompletten E2E-Lauf: 0 Treffer bei 13 eingeschleusten Fake-Secrets über 56'706 Logzeilen, Gegenprobe schlägt an (`web/e2e/log-scan.ts`); `go test ./internal/logging` |
@@ -163,21 +168,21 @@ abgeschlossen, sondern offen.
 |---|---|---|---|
 | I-5 | grün | | `web/e2e/sidecar.spec.ts` (30.5 s Chromium, 30.8 s Firefox, Grenze 60 s) |
 | I-7 | grün | | `go test ./internal/api -run TestContractNoTraktPerProfile` (kein Trakt-Konto je Profil); `go test ./internal/metadata -run TestTraktRowsGoWithoutClientID` |
-| I-8 | grün mit Abweichung | C-1 | `go test ./internal/api -run TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads` mit **echten aufgezeichneten Nutzlasten** aus Marcos Radarr 6.4.4.10685 und Sonarr 4.0.20.3014 (je sechs Meldungen); `go test ./internal/integrations/`; `web/e2e/admin-webhooks.spec.ts`; `docs/perf/M9.md` 1 (Titel nach 3.1 s sichtbar, 0 `scan.library`-Jobs), 3 (11. Anfrage 429). Die Verbindung von Radarr zu Slouchcat steht (Abnahme 23.10.2026). **Nicht belegt:** ein echter Import bis zum Eintrag im Ereignisprotokoll samt Pfad-Umsetzung. |
+| I-8 | grün mit Abweichung | AW-8 | `go test ./internal/api -run TestWebhookHandlesTheRecordedRadarrAndSonarrPayloads` mit **echten aufgezeichneten Nutzlasten** aus Marcos Radarr 6.4.4.10685 und Sonarr 4.0.20.3014 (je sechs Meldungen); `go test ./internal/integrations/`; `web/e2e/admin-webhooks.spec.ts`; `docs/perf/M9.md` 1 (Titel nach 3.1 s sichtbar, 0 `scan.library`-Jobs), 3 (11. Anfrage 429). Die Verbindung von Radarr zu Slouchcat steht (Abnahme 23.10.2026). **Nicht belegt:** ein echter Import bis zum Eintrag im Ereignisprotokoll samt Pfad-Umsetzung. |
 
 ## 2. Die 16 Plan-Kriterien
 
 | ID | Stand | Abw. | Beleg |
 |---|---|---|---|
-| P-1 | grün mit Abweichung | C-2 | `healthy` auf dem Entwicklungsrechner 1.130–1.264 s, auf dem **Referenz-NAS CT 190 1.200–1.221 s** (`docs/perf/M10.md` 1a), unter QEMU/arm64 1.32–1.44 s — alle unter 5 s. Beide Plattformen werden in jedem CI-Lauf gebaut und gestartet (Job `image`). **Nicht belegt:** echte arm64-Hardware. |
+| P-1 | grün mit Abweichung | AW-9 | `healthy` auf dem Entwicklungsrechner 1.130–1.264 s, auf dem **Referenz-NAS CT 190 1.200–1.221 s** (`docs/perf/M10.md` 1a), unter QEMU/arm64 1.32–1.44 s — alle unter 5 s. Beide Plattformen werden in jedem CI-Lauf gebaut und gestartet (Job `image`). **Nicht belegt:** echte arm64-Hardware. |
 | P-2 | grün | | **Leerlauf-RSS 83.0 MB bei 50'570 Titeln auf dem Referenz-NAS** (`docs/perf/M10.md` 1b), Grenze 150 MB bei 5'000; Image 507 MB, Grenze 600 MB |
 | P-3 | grün | | Vertragstest 10.2 in jedem Meilenstein ab M2 grün; `TestContractCoversEveryOperation` lässt jede Operation ohne Registry-Eintrag fehlschlagen |
-| P-4 | grün | A-4 | `go test ./internal/library -run TestLossProtection` (fehlende Wurzel, leere Wurzel, über 20 % Verlust); Messwerte `docs/perf/M1a.md` 1/1a/1b, `docs/perf/M9.md` 1, `docs/perf/M10.md` 2 |
+| P-4 | grün | AW-4 | `go test ./internal/library -run TestLossProtection` (fehlende Wurzel, leere Wurzel, über 20 % Verlust); Messwerte `docs/perf/M1a.md` 1/1a/1b, `docs/perf/M9.md` 1, `docs/perf/M10.md` 2 |
 | P-5 | grün | | Prozesszählung im Container (kein ffmpeg bei Direct Play); `go test ./internal/playback -run TestDecide`; `depguard` hält `transcode` aus `api` und `playback` heraus |
-| P-6 | grün mit Abweichung | A-1, A-2, A-3 | **(a) Referenzbilder am 23.10.2026 von Marco freigegeben**, Regression SSIM ≥ 0.95 an 10 Testframes läuft (`testdata/hdr-quality.sh`). (b) ΔE2000: QSV-Hybrid 0.00, NVENC `libplacebo` 2.91/3.71, `tonemap_cuda` 3.22 und **5.87 auf Hauttönen** — über der Grenze 5, am 20.10.2026 angenommen. Start < 5 s serverseitig gemessen, nicht am Handy. |
+| P-6 | grün mit Abweichung | AW-1, AW-2, AW-3, AW-6 | **(a) Referenzbilder am 23.10.2026 von Marco freigegeben**, Regression SSIM ≥ 0.95 an 10 Testframes läuft (`testdata/hdr-quality.sh`). (b) ΔE2000: QSV-Hybrid 0.00, NVENC `libplacebo` 2.91/3.71, `tonemap_cuda` 3.22 und **5.87 auf Hauttönen** — über der Grenze 5, am 20.10.2026 angenommen. Start < 5 s serverseitig gemessen, nicht am Handy. |
 | P-7 | grün | | `docs/perf/M1b.md` 1: langsamster Sprung 438 ms (Firefox/Software), Remux 30–254 ms, echter Film 557–960 ms; Grenze 3 s |
 | P-8 | grün | | `web/e2e/resume.spec.ts`, `web/e2e/audiobook.spec.ts`, `web/e2e/offline-playback.spec.ts` (258–263 ms, Grenze ±10 s) |
-| P-9 | grün mit Abweichung | B-1, A-1 | `web/e2e/offline-playback.spec.ts`, `web/e2e/offline-cold-start.spec.ts`; Langzeitprotokoll `docs/perf/M5-o6-langzeittest.md` (Tag 0, 1, 3). **Prüfdauer 3 statt 30 Tage, Android nicht durchgeführt, iOS-Teil entfällt mangels Gerät.** |
+| P-9 | grün mit Abweichung | AW-7, AW-1 | `web/e2e/offline-playback.spec.ts`, `web/e2e/offline-cold-start.spec.ts`; Langzeitprotokoll `docs/perf/M5-o6-langzeittest.md` (Tag 0, 1, 3). **Prüfdauer 3 statt 30 Tage, Android nicht durchgeführt, iOS-Teil entfällt mangels Gerät.** |
 | P-10 | grün | | Reihen: `go test ./internal/api -run TestContractHomeRows`, `web/e2e/home.spec.ts` — Karussell plus sieben Reihen, keine leere (`GET /home` liefert acht). **LCP am 23.10.2026 neu gemessen** (Lighthouse 12.8.2 Mobile, simuliert, Median aus drei Läufen): **1.802 s**, Grenze 2.5 s. Die erste Messung ergab 2.702 s; Ursache war eine Regression in `deferStartScript()`, die in M10 behoben wurde (`docs/perf/M10.md` 8). |
 | P-11 | grün | | Entwicklungsrechner (`docs/perf/M7.md` 1a/1b): Suche p95 102.0 ms, Startseite p95 160.7 ms, während des Scans 229.9 ms. **Referenz-NAS CT 190** (`docs/perf/M10.md` 3): Startseite p95 105.4 ms, während des Erst-Scans 109.8 ms, Suche p95 8.1–54.2 ms — alle unter den Grenzen 300 bzw. 200 ms. |
 | P-12 | grün | | `task lint`: 0 Farbwerte ausserhalb Tokens, 0 UI-Literaltexte, 0 Operationen ohne `x-visibility`, 0 `os/exec` ausserhalb `transcode` |
@@ -213,7 +218,7 @@ Vor dem Tag behoben: **M-1** (Warnung beim Start und klarere Empfehlung für
 | 3. Playwright-Tastaturtest je neuer oder geänderter Seite | P-15 |
 | 4. Neuer eingefrorener DB-Stand, Migrationstest aller früheren Stände grün | **grün**: `testdata/db/M10.sql`, `TestFrozenStatesMigrate` über elf Stände (P-13) |
 | 5. Messwerte in `docs/perf/<Mx>.md`, Gerätecheckliste | `docs/perf/M10.md`; Gerätecheckliste siehe Abweichung C-1 |
-| 6. Verifier-Agent bestätigt die DoD anhand von Belegen | siehe Nachtrag |
+| 6. Verifier-Agent bestätigt die DoD anhand von Belegen | **grün mit Vorbehalten, danach behoben**: `docs/dev/VERIFIKATION-1.0.md`. Ein eigener Durchgang prüfte 29 der 64 Zeilen und 8 der 16 Kriterien gegen den Plan, löste 51 Go-Testnamen und 44 E2E-Spezifikationen auf (keine Leiche) und lief `TestFrozenStatesMigrate` (11 von 11), `task apicheck` (18 von 18), `TestContractCoversEveryOperation` und `Form.test.tsx` selbst nach. Kein Beleg deckte seine Anforderung nicht. Die sieben Befunde — darunter die vier Formulare mit dem formularweiten Riegel und die Farb-Abweichung ohne Nummer — sind alle behoben. |
 
 ## 5. Was 1.0 nicht kann
 
@@ -231,9 +236,7 @@ Zusammengefasst, damit es nicht nur in Tabellenzeilen steht:
 
 ## 6. Nachträge
 
-Offen bis zum Pull Request: DoD 6.2 Punkt 2 (`task ci` auf diesem Branch) und Punkt 6 (eigener
-Verifikationsdurchgang gegen diese Belege). Beides wird hier eingetragen, bevor der Pull Request
-zur Abnahme steht.
+Offen bis zum Pull Request: DoD 6.2 Punkt 2 (`task ci` auf diesem Branch).
 
 ## 7. Was in M10 gefunden und behoben wurde
 
@@ -249,5 +252,11 @@ bekannt:
    `Access-Control-Allow-Origin: *`) war immer noch im Bild. Er wäre mit dem öffentlichen 1.0
    ausgeliefert worden. Er ist entfernt.
 
-Dazu die sieben Punkte, mit denen M10 angetreten ist (`docs/dev/CURRENT_STATUS.md`), und die fünf
-Funde des Sicherheitsreviews aus Abschnitt 3.
+Dazu die acht Punkte, mit denen M10 angetreten ist (`docs/dev/CURRENT_STATUS.md`), die fünf Funde
+des Sicherheitsreviews aus Abschnitt 3 und ein dritter, den erst die unabhängige Gegenprobe fand:
+
+3. **Vier Formulare hingen gar nicht an der Korrektur aus Punkt 1.** `AccountsPage`,
+   `AnnouncementsPage` und die beiden Formulare der `BackupPage` sperrten die Server-Meldungen mit
+   einem **formularweiten** Schalter: Ein Tastendruck in irgendeinem Feld liess *alle* Meldungen
+   verschwinden, auch die zu einem Feld, das niemand angefasst hatte, und den Hinweis über dem
+   Formular dazu. Der Schalter stammte aus der Zeit vor `web/src/ui/Form` und ist jetzt gelöscht.

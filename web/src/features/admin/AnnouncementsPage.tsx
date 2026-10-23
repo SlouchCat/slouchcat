@@ -8,7 +8,6 @@ import { useActiveSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { useEdited } from '@/lib/useEdited';
 import { Chip, Notice, Page, Skeleton, Text } from '@/ui';
 import {
   AriaButton,
@@ -58,14 +57,12 @@ function AnnouncementDialog({
       onClose(saved);
     },
   });
-  const { edited, submitted, onInput } = useEdited();
-  const errors = save.error && !edited ? formErrors(t, save.error) : null;
+  const errors = save.error ? formErrors(t, save.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const body = { title: formText(form, 'title'), body: formText(form, 'body') };
-    submitted();
     save.mutate(announcement ? body : { ...body, publish: publishNow });
   };
 
@@ -81,7 +78,7 @@ function AnnouncementDialog({
       }
     >
       <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <div className={styles.form} onInput={onInput}>
+        <div className={styles.form}>
           {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
           <TextField
             name="title"
