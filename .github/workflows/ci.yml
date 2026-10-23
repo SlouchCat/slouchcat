@@ -200,7 +200,7 @@ jobs:
           tags: slouchcat:ci-arm64
           cache-from: type=gha
 
-      - name: amd64 turns healthy (< 5 s, idle RSS < 60 MB)
+      - name: amd64 turns healthy (< 5 s, idle RSS below the gate in measure-healthy.sh)
         run: IMAGE=slouchcat:ci-amd64 deploy/scripts/measure-healthy.sh
 
       # Under QEMU the emulator's own memory counts towards the RSS, hence the higher limit.

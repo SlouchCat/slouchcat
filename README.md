@@ -4,8 +4,10 @@ Selbst gehosteter Media-Server mit kompromisslosem Design. Eigenständige, von E
 losgelöste Lösung für einen Haushalt und seine Gäste: Filme, Serien, Hörbücher und Podcasts, Profile mit
 Altersfreigabe, kuratierte Startseite, Transcoding mit GPU, echte Offline-Wiedergabe in der PWA.
 
-Status: Meilenstein M0 (Projektfundament) abgeschlossen, M1a (Durchstich) steht an; Details in
-`docs/dev/CURRENT_STATUS.md`.
+Status: Version 1.0. Die Meilensteine M0 bis M10 sind umgesetzt; der Nachweis je Abnahmezeile steht in
+`docs/dev/ABNAHME-1.0.md`, der laufende Stand in `docs/dev/CURRENT_STATUS.md`.
+
+**Installieren:** `docs/INSTALLATION.md`.
 
 ## Aufbau
 
@@ -17,10 +19,11 @@ packages/design-tokens/   Design-Tokens (DTCG) → CSS Custom Properties und Typ
 packages/api-client/      generierter TypeScript-Client
 deploy/                   Dockerfile, compose.yaml und GPU-Overrides
 testdata/                 Generator für Test-Medien, DB-Stände
-docs/spec/                Anforderungen (Deep-Interview-Spec, 68 Abnahmekriterien)
+docs/spec/                Anforderungen (Deep-Interview-Spec, 64 Abnahmekriterien)
 docs/planning/            Vision, Plan V1, Entscheidungsprotokoll, Reviews
 docs/adr/                 Architekturentscheide
-docs/dev/                 Entwicklungs-Setup und aktueller Stand
+docs/dev/                 Entwicklungs-Setup, aktueller Stand, Abnahmebericht
+docs/INSTALLATION.md      Installationsanleitung für den Betrieb zu Hause
 ```
 
 ## Entwicklung
