@@ -45,10 +45,25 @@ type Limiter struct {
 	sleep func(ctx context.Context, d time.Duration) error
 }
 
+// Option configures New.
+type Option func(*Limiter)
+
+// WithClock replaces time.Now (tests). A test that asserts what happens inside one window has to
+// own the clock: on a loaded machine the requests themselves take longer than the window, and the
+// bucket refills in the middle of the test.
+func WithClock(now func() time.Time) Option {
+	return func(l *Limiter) { l.now = now }
+}
+
 // New returns a limiter called name (for errors) that allows perSecond requests per second with
 // bursts of up to burst requests. It starts full.
-func New(name string, perSecond float64, burst int) *Limiter {
-	return newLimiter(name, perSecond, burst, time.Now, sleepCtx)
+func New(name string, perSecond float64, burst int, opts ...Option) *Limiter {
+	l := newLimiter(name, perSecond, burst, time.Now, sleepCtx)
+	for _, opt := range opts {
+		opt(l)
+	}
+	l.last = l.now()
+	return l
 }
 
 func newLimiter(name string, perSecond float64, burst int, now func() time.Time,
