@@ -43,6 +43,22 @@ const message = 'Dieser Wert ist ungültig.';
 const required = 'Pflichtfeld.';
 
 describe('Form', () => {
+  it('keeps every character the reader types', async () => {
+    // The listener that marks a field must not re-render while the input event is still being
+    // handled: react-aria has not written the new value into the page's state yet, so the render
+    // puts the old value back and the character is gone. The Playwright suite caught exactly that
+    // -- the login page received "2e-owner@…" for "e2e-owner@…" -- and no unit test saw it,
+    // because typing a single character still leaves the message assertions right.
+    const user = userEvent.setup();
+    render(<SmtpForm answer={{ host: message }} />);
+
+    const host = screen.getByLabelText('Server');
+    await user.clear(host);
+    await user.type(host, 'smtp.beispiel.ch');
+
+    expect(host).toHaveValue('smtp.beispiel.ch');
+  });
+
   it('drops the server message of a field while it is corrected', async () => {
     const user = userEvent.setup();
     render(<SmtpForm answer={{ host: message }} />);

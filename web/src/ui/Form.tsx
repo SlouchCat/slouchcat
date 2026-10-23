@@ -72,24 +72,39 @@ export function Form({
   useEffect(() => {
     const element = form.current;
     if (!element) return;
-    // `input` covers typing and every control jsdom and the browsers fire it for; `change` is the
-    // belt and braces for one that reports only when it is done, and it is what react-aria itself
-    // listens to. Both bubble to the form, and a field marked twice is marked once. A mark belongs
-    // to the round it was made in, so one left over from the previous answer is ignored instead of
-    // hiding the new one.
+    // `input` covers typing and every control the browsers fire it for; `change` is the belt and
+    // braces for one that reports only when it is done, and it is what react-aria itself listens
+    // to. Both bubble to the form. A mark belongs to the round it was made in, so one left over
+    // from the previous answer is ignored instead of hiding the new one, and `seen` keeps it at
+    // one mark per field per round.
+    //
+    // The mark waits for the next tick, and that is not a detail. This listener runs before React
+    // dispatches its own handlers, so react-aria has not yet written the new value into the page's
+    // state: a render started from here puts the old value back into the input and the character
+    // is gone. The Playwright suite found exactly that -- the login page received "2e-owner@…"
+    // for "e2e-owner@…" -- and no unit test saw it, because jsdom does not order the events the
+    // way a browser does.
+    const seen = new Set<string>();
+    const timers = new Set<ReturnType<typeof setTimeout>>();
     const changed = (event: Event) => {
       const { name } = (event.target ?? {}) as { name?: string };
-      if (!name) return;
-      setMarked((previous) => {
-        const fields = previous.round === round ? previous.fields : nothing;
-        return fields.includes(name) ? previous : { round, fields: [...fields, name] };
+      if (!name || seen.has(name)) return;
+      seen.add(name);
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        setMarked((previous) => {
+          const fields = previous.round === round ? previous.fields : nothing;
+          return fields.includes(name) ? previous : { round, fields: [...fields, name] };
+        });
       });
+      timers.add(timer);
     };
     element.addEventListener('input', changed);
     element.addEventListener('change', changed);
     return () => {
       element.removeEventListener('input', changed);
       element.removeEventListener('change', changed);
+      for (const timer of timers) clearTimeout(timer);
     };
   }, [round]);
 
