@@ -92,12 +92,24 @@ jobs:
           push-to-registry: true
 
       # The notes are the message of the annotated tag, without its first line (which repeats the
-      # version). A lightweight tag has no message; the manifest then points at the release page.
+      # version).
+      #
+      # The tag object has to be fetched first. actions/checkout fetches the one ref it checks out
+      # and writes refs/tags/<tag> straight to the commit, so the annotation is not in the clone at
+      # all: `git tag -l --format=%(contents:body)` then reads the commit's message instead, and
+      # the first release went out carrying a commit subject as its notes. --force replaces that
+      # lightweight ref with the real tag object. `git for-each-ref` is used rather than `git tag
+      # -l` because it fails loudly on a ref that is not there.
       - name: Write the release manifest and the notes
         run: |
           set -euo pipefail
-          notes="$(git tag -l --format='%(contents:body)' "${GITHUB_REF_NAME}" | sed -e 's/[[:space:]]*$//')"
-          subject="$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}")"
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          ref="refs/tags/${GITHUB_REF_NAME}"
+          if [ "$(git cat-file -t "${GITHUB_REF_NAME}")" != tag ]; then
+            echo "::warning::$GITHUB_REF_NAME is not an annotated tag; the release carries no notes of its own"
+          fi
+          notes="$(git for-each-ref --format='%(contents:body)' "$ref" | sed -e 's/[[:space:]]*$//')"
+          subject="$(git for-each-ref --format='%(contents:subject)' "$ref")"
           [ -n "$notes" ] || notes="$subject"
           [ -n "$notes" ] || notes="Slouchcat ${{ steps.version.outputs.version }}"
           printf '%s\n' "$notes" > release-notes.md
