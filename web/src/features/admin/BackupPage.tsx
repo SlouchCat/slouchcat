@@ -10,7 +10,16 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useEdited } from '@/lib/useEdited';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { ButtonLink, Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, DataTable, Form, FormDialog, RadioGroup, TextField, type DataColumn } from '@/ui/aria';
+import {
+  AriaButton,
+  ConfirmDialog,
+  DataTable,
+  Form,
+  FormDialog,
+  RadioGroup,
+  TextField,
+  type DataColumn,
+} from '@/ui/aria';
 import { backupsQuery } from './queries';
 import { reloadToLogin, RESTART_GIVE_UP_MS, RESTART_POLL_MS, restartedSince } from './restart';
 import data from './AdminData.module.css';

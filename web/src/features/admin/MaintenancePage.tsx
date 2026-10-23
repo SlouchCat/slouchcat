@@ -16,7 +16,16 @@ import { useActiveSession } from '@/app/session';
 import { formatBytes } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, Form, FormDialog, RadioGroup, SelectableList, Tabs, type SelectableItem } from '@/ui/aria';
+import {
+  AriaButton,
+  ConfirmDialog,
+  Form,
+  FormDialog,
+  RadioGroup,
+  SelectableList,
+  Tabs,
+  type SelectableItem,
+} from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../shared/choices';
 import { MatchDialog } from './MatchDialog';
 import {

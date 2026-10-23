@@ -128,7 +128,7 @@ abgeschlossen, sondern offen.
 | C-2 | grün | | `task lint` mit 0 Verstössen in jeder `task ci`-Zeile: `color-no-hex`, `declaration-strict-value`, `eslint-plugin-i18next`, `no-restricted-imports`, `depguard`, `forbidigo`, Analyzer `itemsaccess` |
 | C-3 | grün | | Vitest `locales.test.ts` (0 fehlende Schlüssel de/en); `web/e2e/profiles.spec.ts` (Sprachwechsel ohne Neuladen) |
 | C-4 | grün | | Tastatursuite je Seite, Helfer `web/e2e/keyboard.ts`; vollständige Seitenliste unter P-15 |
-| C-5 | *siehe unten* | | Codegen-Drift 0 über `task gen:check`. Fremd-Client-Test: siehe P-16. |
+| C-5 | grün | | Codegen-Drift 0 über `task gen:check` in jeder `task ci`-Zeile. Fremd-Client-Test: `task apicheck`, **18 von 18 Zuschauerfunktionen ok** (siehe P-16). |
 
 ### Administration (A)
 
@@ -165,26 +165,44 @@ abgeschlossen, sondern offen.
 | P-7 | grün | | `docs/perf/M1b.md` 1: langsamster Sprung 438 ms (Firefox/Software), Remux 30–254 ms, echter Film 557–960 ms; Grenze 3 s |
 | P-8 | grün | | `web/e2e/resume.spec.ts`, `web/e2e/audiobook.spec.ts`, `web/e2e/offline-playback.spec.ts` (258–263 ms, Grenze ±10 s) |
 | P-9 | grün mit Abweichung | B-1, A-1 | `web/e2e/offline-playback.spec.ts`, `web/e2e/offline-cold-start.spec.ts`; Langzeitprotokoll `docs/perf/M5-o6-langzeittest.md` (Tag 0, 1, 3). **Prüfdauer 3 statt 30 Tage, Android nicht durchgeführt, iOS-Teil entfällt mangels Gerät.** |
-| P-10 | *siehe unten* | | Reihen: `go test ./internal/api -run TestContractHomeRows`, `web/e2e/home.spec.ts` (Karussell plus höchstens acht Reihen, keine leere). LCP: siehe Nachtrag. |
+| P-10 | grün | | Reihen: `go test ./internal/api -run TestContractHomeRows`, `web/e2e/home.spec.ts` — Karussell plus sieben Reihen, keine leere (`GET /home` liefert acht). **LCP am 23.10.2026 neu gemessen** (Lighthouse 12.8.2 Mobile, simuliert, Median aus drei Läufen): **1.802 s**, Grenze 2.5 s. Die erste Messung ergab 2.702 s; Ursache war eine Regression in `deferStartScript()`, die in M10 behoben wurde (`docs/perf/M10.md` 8). |
 | P-11 | grün | | Entwicklungsrechner (`docs/perf/M7.md` 1a/1b): Suche p95 102.0 ms, Startseite p95 160.7 ms, während des Scans 229.9 ms. **Referenz-NAS CT 190** (`docs/perf/M10.md` 3): Startseite p95 105.4 ms, während des Erst-Scans 109.8 ms, Suche p95 8.1–54.2 ms — alle unter den Grenzen 300 bzw. 200 ms. |
 | P-12 | grün | | `task lint`: 0 Farbwerte ausserhalb Tokens, 0 UI-Literaltexte, 0 Operationen ohne `x-visibility`, 0 `os/exec` ausserhalb `transcode` |
-| P-13 | *siehe unten* | | Sicherung und Wiederherstellung identisch, automatische Sicherung vor jeder Migration, Passphrase erzwungen: `go test ./internal/store -run 'TestBackupBeforePendingMigration\|TestPruneBackupsKeepsNewestFive'`, `go test ./internal/admin -run 'TestRestoreOnFreshStack\|TestBackupWithSecretsNeedsPassphrase'`. Migrationstest aller DB-Stände: siehe Nachtrag. |
+| P-13 | grün | | Sicherung und Wiederherstellung identisch, automatische Sicherung vor jeder Migration, Passphrase erzwungen: `go test ./internal/store -run 'TestBackupBeforePendingMigration\|TestPruneBackupsKeepsNewestFive'`, `go test ./internal/admin -run 'TestRestoreOnFreshStack\|TestBackupWithSecretsNeedsPassphrase'`. **Migrationstest aller DB-Stände M1a → 1.0:** `go test ./internal/store -run TestFrozenStatesMigrate` über elf eingefrorene Stände (`testdata/db/M1a.sql` … `M10.sql`), dazu `TestFrozenM10StateCoversM10Data`. |
 | P-14 | grün | | 0 Treffer über einen kompletten E2E-Lauf, Gegenprobe schlägt an (`web/e2e/log-scan.ts`); `docs/perf/M8.md` 5 |
 | P-15 | grün | | Tastatursuite auf allen vorhandenen Seiten, Zuschauer und Admin, Helfer `web/e2e/keyboard.ts`: `profiles`, `home`, `detail`, `series`, `episode`, `player`, `tracks`, `quality`, `chapters`, `audiobook`, `audio-offline`, `search`, `watchlist`, `downloads`, `offline-pin`, `offline-playback`, `offline-cold-start`, `notifications`, `announcements`; `setup`, `admin-home`, `admin-libraries`, `admin-accounts`, `access`, `invite`, `admin-devices`, `admin-streams`, `admin-integrations`, `admin-webhooks`, `admin-picks`, `admin-home-rows`, `admin-collections`, `maintenance`, `notification-channels`, `admin-announcements`, `admin-stats`, `admin-backup`. Die Seite «Wünschen» ist mit dem M9-Zuschnitt entfallen und am 23.10.2026 aus der Liste in Plan Abschnitt 8 gestrichen. |
-| P-16 | *siehe unten* | | Fremd-Client-Test: siehe Nachtrag. |
+| P-16 | grün | | `task apicheck`: der Client in `server/cmd/apicheck` kennt den Server nur über `api/openapi.yaml` (eine depguard-Regel verbietet ihm jeden Import aus `internal/`), schlägt vor jedem Aufruf Pfad und Methode im Vertrag nach und lässt einen Aufruf scheitern, den der Vertrag nicht beschreibt. Lauf vom 23.10.2026: **18 von 18 Zuschauerfunktionen ok**, 0 fehlgeschlagen, 85 Aufrufe in 3 s, Exit-Code 0. «Wünschen» entfällt mit dem M9-Zuschnitt und steht nicht mehr im Vertrag. |
 
-## 3. Gemeinsame DoD (Plan 6.2)
+## 3. Sicherheitsreview (M10 Schritt 4)
+
+Der vollständige Bericht steht in `docs/dev/SICHERHEITSREVIEW-1.0.md`. Geprüft wurde der ganze Baum
+gegen das Bedrohungsmodell aus Plan 3.8, nicht gegen ein allgemeines.
+
+| | |
+|---|---|
+| Gesamtrisiko | **mittel, kein Release-Blocker** |
+| Funde | kritisch 0 · hoch 0 · **mittel 2** · niedrig 8 · Hinweis 11 |
+| Geheimnisse im Repository oder in der Historie | **keine** — nichts zu wechseln |
+| Geprüft und haltend | Sichtbarkeit und Altersfreigabe (alle 152 Operationen tragen `x-visibility`, alle 13 mit `ItemRef` in der Antwort sind `scoped`), Autorisierung der Medienströme, Sitzungen und Konten, der Webhook-Empfänger, Dateizugriff, externe Prozesse, Geheimnisse, Image und Betrieb, der Release-Weg |
+
+Vor dem Tag behoben: **M-1** (Warnung beim Start und klarere Empfehlung für
+`SLOUCHCAT_TRUSTED_PROXIES`), **M-2** (alle fremden Actions auf Commit-SHA gepinnt, Dependabot),
+**N-8** (Provenance, SBOM und Attestation am Release-Image), **N-3** (`golang 1.27.3`) und **H-7**
+(der temporäre Spike-Endpunkt ist entfernt). Die übrigen Funde sind im Bericht eingeordnet und für
+1.x vorgemerkt.
+
+## 4. Gemeinsame DoD (Plan 6.2)
 
 | Punkt | Stand |
 |---|---|
 | 1. Alle Matrixzeilen des Meilensteins grün | je Meilenstein in `docs/dev/CURRENT_STATUS.md` belegt; für 1.0 siehe Abschnitt 1 dieses Berichts |
 | 2. `task ci` grün, Vertragstest 10.2 grün | siehe Nachtrag (Lauf auf diesem Branch) |
 | 3. Playwright-Tastaturtest je neuer oder geänderter Seite | P-15 |
-| 4. Neuer eingefrorener DB-Stand, Migrationstest aller früheren Stände grün | P-13, siehe Nachtrag |
+| 4. Neuer eingefrorener DB-Stand, Migrationstest aller früheren Stände grün | **grün**: `testdata/db/M10.sql`, `TestFrozenStatesMigrate` über elf Stände (P-13) |
 | 5. Messwerte in `docs/perf/<Mx>.md`, Gerätecheckliste | `docs/perf/M10.md`; Gerätecheckliste siehe Abweichung C-1 |
 | 6. Verifier-Agent bestätigt die DoD anhand von Belegen | siehe Nachtrag |
 
-## 4. Was 1.0 nicht kann
+## 5. Was 1.0 nicht kann
 
 Zusammengefasst, damit es nicht nur in Tabellenzeilen steht:
 
@@ -198,9 +216,25 @@ Zusammengefasst, damit es nicht nur in Tabellenzeilen steht:
   Mensch hat es am Handy gesehen.
 - **Der Langzeittest der Downloads lief drei Tage statt dreissig.**
 
-## 5. Nachträge
+## 6. Nachträge
 
-Dieser Abschnitt wird vor dem Pull Request aufgelöst; bis dahin stehen hier die Punkte, deren Lauf
-noch aussteht: P-10 (LCP), P-13 (Migrationstest M1a → 1.0), P-16 und C-5 (Fremd-Client),
-DoD 6.2 Punkt 2 (`task ci` auf diesem Branch) und Punkt 6 (Verifikation), dazu der Sicherheitsreview
-aus M10 Schritt 4.
+Offen bis zum Pull Request: DoD 6.2 Punkt 2 (`task ci` auf diesem Branch) und Punkt 6 (eigener
+Verifikationsdurchgang gegen diese Belege). Beides wird hier eingetragen, bevor der Pull Request
+zur Abnahme steht.
+
+## 7. Was in M10 gefunden und behoben wurde
+
+Zwei Dinge, die ohne diesen Meilenstein in 1.0 gegangen wären — beide waren vorher nicht als Mangel
+bekannt:
+
+1. **Die Startseite war langsamer geworden, ohne dass es jemand sah.** Der gemessene LCP lag bei
+   2.702 s statt unter 2.5 s. Nicht weil die Seite gewachsen ist, sondern weil der Bündler seit
+   einer Weile zwei Skript-Dateien erzeugt und die Verzögerungslogik nur die erste erwischte: Das
+   eigentliche Startprogramm lag wieder im Weg des Bildes. Nach der Korrektur 1.802 s — derselbe
+   Wert wie in M1a, obwohl die Seite inzwischen ein Karussell und sieben Reihen trägt.
+2. **Ein temporärer Endpunkt aus dem allerersten Meilenstein** (`/spike/{variant}`, mit
+   `Access-Control-Allow-Origin: *`) war immer noch im Bild. Er wäre mit dem öffentlichen 1.0
+   ausgeliefert worden. Er ist entfernt.
+
+Dazu die sieben Punkte, mit denen M10 angetreten ist (`docs/dev/CURRENT_STATUS.md`), und die fünf
+Funde des Sicherheitsreviews aus Abschnitt 3.

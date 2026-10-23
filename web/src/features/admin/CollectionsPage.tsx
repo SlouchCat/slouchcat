@@ -12,7 +12,15 @@ import { useActiveSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Chip, Notice, Page, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, DataTable, Form, FormDialog, TextField, type DataColumn } from '@/ui/aria';
+import {
+  AriaButton,
+  ConfirmDialog,
+  DataTable,
+  Form,
+  FormDialog,
+  TextField,
+  type DataColumn,
+} from '@/ui/aria';
 import { moveBy, titleMeta, TitleSearch, useMoveButtons } from './CurationParts';
 import {
   adminCollectionQuery,
