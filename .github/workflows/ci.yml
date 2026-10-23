@@ -203,8 +203,12 @@ jobs:
       - name: amd64 turns healthy (< 5 s, idle RSS below the gate in measure-healthy.sh)
         run: IMAGE=slouchcat:ci-amd64 deploy/scripts/measure-healthy.sh
 
-      # Under QEMU the emulator's own memory counts towards the RSS, hence the higher limit.
-      # Under QEMU the start takes about 7 s on the runner (the backend detection's software test
-      # encode runs emulated); P-1's 5 s applies to real hardware, this step only proves the image starts.
+      # Emulated, so both numbers are the emulator's as much as the server's: P-1's 5 s and P-2's
+      # memory apply to real hardware, and this step only proves that the arm64 image starts at all.
+      # The RSS gate was 120 MB and read 114.9 MB on 23 October -- 96 % of its own limit, about to
+      # break for the same reason the amd64 gate did. Measured that day: five runs of the 1.0 image
+      # under QEMU on the reference machine gave 94.3 to 105.2 MB (healthy 6.8 to 8.6 s), the runner
+      # 114.9 MB. 180 MB clears that spread of 20 MB with room to spare and still catches a server
+      # that starts eating memory. See docs/perf/M10.md section 6.
       - name: arm64 starts under emulation (healthy within 30 s)
-        run: IMAGE=slouchcat:ci-arm64 MAX_HEALTHY_SECONDS=30 MAX_RSS_MB=120 deploy/scripts/measure-healthy.sh
+        run: IMAGE=slouchcat:ci-arm64 MAX_HEALTHY_SECONDS=30 MAX_RSS_MB=180 deploy/scripts/measure-healthy.sh
