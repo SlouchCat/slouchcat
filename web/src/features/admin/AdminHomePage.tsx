@@ -184,6 +184,37 @@ function IntegrationsTile({ integrations }: { integrations: Dashboard['integrati
   );
 }
 
+/**
+ * The incoming Radarr/Sonarr webhooks (M9, I-8): how many arrived in the last 24 hours and which
+ * integration has gone quiet for a week — a silent one usually means a changed address.
+ */
+function WebhooksTile({ webhooks }: { webhooks: Dashboard['webhooks'] }) {
+  const { t } = useTranslation();
+  return (
+    <Tile title={t('admin.home.webhooks.title')}>
+      {webhooks.total === 0 ? (
+        <Text tone="secondary">{t('admin.home.webhooks.none')}</Text>
+      ) : (
+        <>
+          <Text>
+            {t('admin.home.webhooks.count', {
+              count: webhooks.eventsLast24h,
+              total: webhooks.total,
+            })}
+          </Text>
+          {webhooks.silent.length > 0 && (
+            <span className={styles.integrationName}>
+              <StatusDot state="warning" />
+              {t('admin.home.webhooks.silent', { names: webhooks.silent.join(', ') })}
+            </span>
+          )}
+        </>
+      )}
+      <TextLink href={paths.adminIntegrations}>{t('admin.home.webhooks.manage')}</TextLink>
+    </Tile>
+  );
+}
+
 function ServerTile({ system }: { system: SystemInfo }) {
   const { t, i18n } = useTranslation();
   return (
@@ -486,6 +517,7 @@ export function AdminHomePage() {
                 </Tile>
                 <StorageTile storage={data.storage} />
                 <IntegrationsTile integrations={data.integrations} />
+                <WebhooksTile webhooks={data.webhooks} />
                 {(failed.length > 0 || message || jobError) && (
                   <Tile title={t('admin.home.jobs.recent')} wide>
                     {jobError && <Notice tone="danger">{problemMessage(t, jobError)}</Notice>}

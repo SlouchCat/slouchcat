@@ -33,10 +33,10 @@ redigiert; ein Ring im Prozess reicht für «letzte 50 Fehler».
 
 | Punkt | Entscheid |
 |---|---|
-| Kanäle | Kanäle gehören dem **Konto** (`account_channels` je Kanal: `email`, `push`, `telegram`, mit Ereignisliste `new_content`, `acquisition`, `errors`, `invitations`, `announcements`). Standard nach 5.2: In-App immer, E-Mail für Gäste an (nur Ankündigungen), übrige aus; die Zeilen entstehen mit dem Konto (Migration rückfüllt). Ändern dürfen nur Sitzungen **ohne Profil oder mit dem Hauptprofil** (ADR 0005, 403 `primary_profile_required`), Lesen jedes Profil. Push-Abos hängen am Konto und am Gerät (`push_subscriptions`, VAPID-Paar einmal erzeugt, verschlüsselt in `settings`), Telegram über einen Link-Code (`/start CODE`, 15 Minuten) und die Chat-ID im Kanal |
+| Kanäle | Kanäle gehören dem **Konto** (`account_channels` je Kanal: `email`, `push`, `telegram`, mit Ereignisliste `new_content`, `errors`, `invitations`, `announcements`; `acquisition` ist am 22. Oktober 2026 mit M9 entfallen, siehe Nachtrag). Standard nach 5.2: In-App immer, E-Mail für Gäste an (nur Ankündigungen), übrige aus; die Zeilen entstehen mit dem Konto (Migration rückfüllt). Ändern dürfen nur Sitzungen **ohne Profil oder mit dem Hauptprofil** (ADR 0005, 403 `primary_profile_required`), Lesen jedes Profil. Push-Abos hängen am Konto und am Gerät (`push_subscriptions`, VAPID-Paar einmal erzeugt, verschlüsselt in `settings`), Telegram über einen Link-Code (`/start CODE`, 15 Minuten) und die Chat-ID im Kanal |
 | 5.5 | Ein Profil-Ereignis geht an die Kanäle des Kontos mit `[Profilname] ` als Präfix und in den In-App-Eingang nur dieses Profils; `notify` prüft vorher `visibility.Visible`. `errors` erreicht nur Hauptkonten und wird je Quelle 60 Minuten dedupliziert |
 | Zustellung | `notify.Emit` schreibt je Konto und Kanal eine Zeile `deliveries` und einen Job `notify.deliver` (Priorität 3, fünf Versuche mit Backoff der Queue, Idempotenz je Zustellung). Der Job rendert und sendet über die Sender `notify/email` (net/smtp, TLS/STARTTLS/keine, Zugangsdaten nur verschlüsselt oder an localhost), `notify/push` (RFC 8291/8292 über `webpush-go`, nur https ausser `--dev`, `netguard` gegen interne Ziele, 404/410 löscht das Abo) und `notify/telegram` (Bot-API, Token nur im Pfad, der im Log maskiert wird). Ein Fehlschlag von `notify.deliver` erzeugt kein `errors`-Ereignis (keine Schleife) |
-| Hooks | Erzeuger rufen `notify`: neue Folgen (M7), `InvitationAccepted` (auth), `JobFailed` (jobs, beim letzten Versuch), `ScanAborted` (library, Verlustschutz), `AcquisitionChanged` (Signatur für M9). Ankündigungen (`announcements`, `announcement_acks` je Profil) laufen über denselben Weg |
+| Hooks | Erzeuger rufen `notify`: neue Folgen (M7), `InvitationAccepted` (auth), `JobFailed` (jobs, beim letzten Versuch), `ScanAborted` (library, Verlustschutz). Ankündigungen (`announcements`, `announcement_acks` je Profil) laufen über denselben Weg |
 | Fehler | `logging.ErrorRing` hält hinter der Redaction die letzten 50 `Error`-Einträge im Prozess; das Dashboard zeigt sie mit den endgültig fehlgeschlagenen Jobs der Queue. Ein fehlgeschlagener Trakt-Abruf wird als Error protokolliert |
 | Sicherung | tar.gz mit genau `manifest.json`, `slouchcat.db` (VACUUM INTO über eine eigene Leseverbindung) und – nur mit Schlüssel – `secret.key`; nie eine Mediendatei. Ohne Schlüssel entfallen in der Kopie die `v1:`-Settings, der VAPID-Public-Key, Push-Abos, Telegram-Links, PIN-Zähler und Sitzungen (`secure_delete`); private Feed-URLs bleiben (Manifest `includesFeedCredentials`). Mit Schlüssel ist das Archiv age/scrypt-verschlüsselt (Passphrase ≥ 12 Zeichen, Arbeitsfaktor beim Lesen auf 2^20 begrenzt). Automatische Kopien (`pre-migration-*`, `pre-restore-*`) liegen daneben und sind aus der Liste wiederherstellbar |
 | Wiederherstellung | Archiv wird entpackt und geprüft (Einträge, Grössen, Manifest-Format, Version und Schema nicht neuer als der Server, `integrity_check`), dann als `slouchcat.db.restore` (+ `secret.key.restore`) bereitgelegt. Nach der Antwort 202 fährt der Server geordnet herunter und ersetzt sich mit `syscall.Exec` durch dieselbe Binärdatei (gleiche PID; schlägt das fehl, Exit 0 für die Neustartregel des Containers). `store.Open` wendet den Stand vor den Migrationen an: aktuelle Datenbank als `pre-restore-*` sichern (bei Fehler verschieben statt kopieren), Dateien tauschen, dann normale Migrationen |
@@ -55,5 +55,15 @@ redigiert; ein Ring im Prozess reicht für «letzte 50 Fehler».
   jedes Fake-Secret des Laufs (A-9).
 - Der Client enthält weiterhin keine Sichtbarkeitsregel (Prinzip 1): Kanäle, Ankündigungen und Statistiken kommen
   gefiltert vom Server; die Hauptprofil-Regel setzt der Server durch, die Oberfläche blendet nur die Bedienelemente aus.
-- Offen: Beschaffungsstatus-Ereignisse (M9), Mehrfachzustellung bei fehlgeschlagener Einreihung nach dem Einfügen
-  (M10), Umwandlung alter `progress_events` zu Tageswerten (Plan 3.2, nach 1.0).
+- Offen: Mehrfachzustellung bei fehlgeschlagener Einreihung nach dem Einfügen (M10), Umwandlung alter
+  `progress_events` zu Tageswerten (Plan 3.2, nach 1.0).
+
+## Nachtrag vom 22. Oktober 2026 (M9)
+
+Der Kanal-Ereignistyp `acquisition` ist ersatzlos entfallen. Sein Erzeuger war I-1, der Radarr/Sonarr-Client
+mit dem Beschaffungsstatus eines Titels; mit dem Zuschnitt von M9 auf den reinen Webhook-Empfang (Frage 10 im
+Entscheidungsprotokoll) gibt es ihn nicht mehr, und ohne Erzeuger wäre der Kanal eine Schaltfläche ohne
+Wirkung. Entfernt sind `EventAcquisition` und `AcquisitionChanged` in `internal/model` und `internal/notify`,
+die Texte, der Eintrag im Vertrag (`EventType`) und die Oberfläche; die Vorwärts-Migration 00018 baut
+`deliveries` ohne den Namen neu auf und putzt ihn aus den gespeicherten Ereignislisten. Die Einstellungsseite
+zeigt seither vier Ereignistypen statt fünf. Alles andere in diesem ADR bleibt gültig.

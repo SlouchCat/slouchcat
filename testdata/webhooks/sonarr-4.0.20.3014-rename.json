@@ -1,0 +1,114 @@
+{
+  "applicationUrl": "",
+  "eventType": "Rename",
+  "instanceName": "Sonarr",
+  "renamedEpisodeFiles": [
+    {
+      "dateAdded": "2026-10-22T12:31:13.5059381Z",
+      "id": 69091,
+      "languages": [
+        {
+          "id": 4,
+          "name": "German"
+        },
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "mediaInfo": {
+        "audioChannels": 5.1,
+        "audioCodec": "EAC3",
+        "audioLanguages": [
+          "ger",
+          "eng"
+        ],
+        "height": 1080,
+        "subtitles": [
+          "ger",
+          "ara",
+          "cat",
+          "cze",
+          "dan",
+          "gre",
+          "eng",
+          "spa",
+          "baq",
+          "fin",
+          "fil",
+          "fre",
+          "glg",
+          "heb",
+          "hrv",
+          "hun",
+          "ind",
+          "ita",
+          "jpn",
+          "kor",
+          "may",
+          "nob",
+          "dut",
+          "pol",
+          "por",
+          "rum",
+          "rus",
+          "swe",
+          "tha",
+          "tur",
+          "ukr",
+          "vie",
+          "chi"
+        ],
+        "videoCodec": "h265",
+        "videoDynamicRange": "",
+        "videoDynamicRangeType": "",
+        "width": 1920
+      },
+      "path": "/mnt/medien/_webhook-test/Pioneer One (2010) [tvdb-170551]/Season 01/Pioneer One (2010) - S01E01 - Earthfall [HDTV-1080p][EAC3 5.1][h265].mkv",
+      "previousPath": "/mnt/medien/_webhook-test/Pioneer One (2010) [tvdb-170551]/Season 01/Pioneer One - S01E01.mkv",
+      "previousRelativePath": "Season 01/Pioneer One - S01E01.mkv",
+      "quality": "HDTV-1080p",
+      "qualityVersion": 1,
+      "relativePath": "Season 01/Pioneer One (2010) - S01E01 - Earthfall [HDTV-1080p][EAC3 5.1][h265].mkv",
+      "size": 1207560934
+    }
+  ],
+  "series": {
+    "genres": [
+      "Drama",
+      "Science Fiction"
+    ],
+    "id": 680,
+    "images": [
+      {
+        "coverType": "banner",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/graphical/170551-g3.jpg",
+        "url": "/MediaCover/680/banner.jpg?lastWrite=639282690225798655"
+      },
+      {
+        "coverType": "poster",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/posters/170551-1.jpg",
+        "url": "/MediaCover/680/poster.jpg?lastWrite=639282690225898657"
+      },
+      {
+        "coverType": "fanart",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/fanart/original/170551-2.jpg",
+        "url": "/MediaCover/680/fanart.jpg?lastWrite=639282690225978658"
+      }
+    ],
+    "imdbId": "tt1748166",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "path": "/mnt/medien/_webhook-test/Pioneer One (2010) [tvdb-170551]",
+    "tags": [],
+    "title": "Pioneer One",
+    "titleSlug": "pioneer-one",
+    "tmdbId": 33050,
+    "tvMazeId": 4908,
+    "tvdbId": 170551,
+    "type": "standard",
+    "year": 2010
+  }
+}

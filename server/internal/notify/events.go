@@ -11,9 +11,9 @@ import (
 )
 
 // Hooks of the packages that raise events (design 3.1): auth (an invitation was accepted), jobs (a
-// job failed for good), library (the loss protection aborted a scan) and, from M9 on, the
-// acquisition. Each renders its texts in the recipient's language and calls Emit. NewEpisodes
-// (notify.go) is the hook of library and metadata for new content.
+// job failed for good) and library (the loss protection aborted a scan). Each renders its texts in
+// the recipient's language and calls Emit. NewEpisodes (notify.go) is the hook of library and
+// metadata for new content.
 
 // InvitationAccepted tells the account that created the invitation that a guest accepted it (event
 // invitations; auth.WithInvitationAccepted).
@@ -59,22 +59,6 @@ func (s *Service) ScanAborted(ctx context.Context, libraryName, reason string) e
 	return s.Emit(ctx, model.Event{
 		Type: model.EventErrors, Source: "scan:" + libraryName, Subject: text(lang, "scan_aborted_subject", libraryName),
 		Body: text(lang, "scan_aborted_body", libraryName, text(lang, reason)), Link: "/admin/libraries",
-	})
-}
-
-// AcquisitionChanged tells an account the new state of a title it requested (event acquisition).
-// Its producer, the acquisition, comes with M9.
-func (s *Service) AcquisitionChanged(ctx context.Context, accountID int64, title, state string) error {
-	acc, err := s.write.NotifyAccount(ctx, accountID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("account: %w", err)
-	}
-	return s.Emit(ctx, model.Event{
-		Type: model.EventAcquisition, AccountID: accountID, Subject: text(acc.Language, "acquisition_subject", title),
-		Body: text(acc.Language, "acquisition_body", state),
 	})
 }
 

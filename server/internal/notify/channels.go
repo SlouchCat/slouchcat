@@ -20,7 +20,7 @@ import (
 // EventType).
 var (
 	channelNames = []string{model.ChannelEmail, model.ChannelPush, model.ChannelTelegram}
-	eventNames   = []string{model.EventNewContent, model.EventAcquisition, model.EventErrors, model.EventInvitations, model.EventAnnouncements}
+	eventNames   = []string{model.EventNewContent, model.EventErrors, model.EventInvitations, model.EventAnnouncements}
 )
 
 const maxEmailLen = 254

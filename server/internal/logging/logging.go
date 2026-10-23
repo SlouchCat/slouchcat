@@ -10,8 +10,9 @@
 //     string value, inside error messages and inside the log message itself, so a logged URL keeps
 //     its shape.
 //
-//   - Invitation tokens in URL paths (/invitations/<token>, /invite/<token>) and Telegram bot tokens
-//     in API paths (/bot<id>:<secret>/…) are masked in every string value.
+//   - Invitation tokens in URL paths (/invitations/<token>, /invite/<token>), webhook tokens in the
+//     path of the receiver (/webhooks/<token>, M9) and Telegram bot tokens in API paths
+//     (/bot<id>:<secret>/…) are masked in every string value.
 //
 // A new key name that can carry a secret belongs in sensitiveKeys and in the test.
 package logging
@@ -110,18 +111,29 @@ func (h *RedactingHandler) WithGroup(name string) slog.Handler {
 // API and /invite/<token> of the web app.
 var sensitivePath = regexp.MustCompile(`(?i)(/(?:invitations|invite)/)[A-Za-z0-9_-]{16,}`)
 
+// webhookPath matches the token in the path of the webhook receiver, /webhooks/<token> (M9, I-8);
+// it is the whole authorisation of that route and must never reach a log (plan 3.8 point 8). The
+// reported file path stays visible.
+var webhookPath = regexp.MustCompile(`(?i)(/webhooks/)[A-Za-z0-9_-]{16,}`)
+
 // botPath matches the token in a Telegram bot API path, /bot<bot id>:<secret>/<method> (M8); the
 // URL of every bot request carries it.
-var botPath = regexp.MustCompile(`(/bot)[0-9]+:[A-Za-z0-9_-]+`)
+var botPath = regexp.MustCompile(`(?i)(/bot)[0-9]+:[A-Za-z0-9_-]+`)
 
-// RedactString masks the values of secret query parameters, invitation tokens in paths and
-// Telegram bot tokens in paths in s.
+// RedactString masks the values of secret query parameters and the tokens that travel in a URL
+// path (invitation, webhook, Telegram bot) in s.
 func RedactString(s string) string {
-	if strings.Contains(s, "/invit") {
+	// The guards only skip work; they must not decide. They are therefore as case-insensitive as
+	// the patterns behind them, or a mistyped /WEBHOOKS/<token> would pass through in the clear.
+	lower := strings.ToLower(s)
+	if strings.Contains(lower, "/invit") {
 		s = sensitivePath.ReplaceAllString(s, "${1}"+Redacted)
 	}
-	if strings.Contains(s, "/bot") {
+	if strings.Contains(lower, "/bot") {
 		s = botPath.ReplaceAllString(s, "${1}"+Redacted)
+	}
+	if strings.Contains(lower, "/webhooks/") {
+		s = webhookPath.ReplaceAllString(s, "${1}"+Redacted)
 	}
 	if !strings.Contains(s, "=") {
 		return s

@@ -30,13 +30,7 @@ import {
 import styles from './ChannelSettingsPage.module.css';
 
 /** Events in the order of the checkboxes; `errors` is for the main account only. */
-const EVENTS: readonly EventType[] = [
-  'new_content',
-  'acquisition',
-  'errors',
-  'invitations',
-  'announcements',
-];
+const EVENTS: readonly EventType[] = ['new_content', 'errors', 'invitations', 'announcements'];
 
 /** While a Telegram link code is open, the page asks every few seconds whether the bot got it. */
 const LINK_POLL_MS = 3000;

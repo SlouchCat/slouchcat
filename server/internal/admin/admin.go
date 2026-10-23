@@ -127,6 +127,7 @@ type Service struct {
 	now       func() time.Time
 
 	announcements Announcements // nil until WithAnnouncements (M8)
+	webhooks      Integrations  // nil until WithIntegrations (M9)
 }
 
 // New returns the service. getenv is normally os.Getenv.

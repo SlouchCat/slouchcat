@@ -1,0 +1,28 @@
+{
+  "applicationUrl": "",
+  "episodes": [
+    {
+      "episodeNumber": 1,
+      "id": 123,
+      "seasonNumber": 1,
+      "seriesId": 0,
+      "title": "Test title",
+      "tvdbId": 0
+    }
+  ],
+  "eventType": "Test",
+  "instanceName": "Sonarr",
+  "series": {
+    "id": 1,
+    "path": "C:\\testpath",
+    "tags": [
+      "test-tag"
+    ],
+    "title": "Test Title",
+    "tmdbId": 0,
+    "tvMazeId": 0,
+    "tvdbId": 1234,
+    "type": "standard",
+    "year": 0
+  }
+}

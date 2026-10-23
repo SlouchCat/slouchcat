@@ -214,3 +214,54 @@ func TestPenaltyCapsRetryAfter(t *testing.T) {
 		t.Fatalf("penalty after many strikes = %v, want %v", got, MaxBackoff)
 	}
 }
+
+// Allow is the non-blocking counterpart of Wait, used by the incoming webhook receiver (I-8,
+// plan 3.8 point 8): it takes a token when one is free and refuses otherwise, instead of holding
+// the caller. A running Backoff refuses every call.
+func TestAllowTakesATokenOrRefuses(t *testing.T) {
+	c := newFakeClock()
+	l := newLimiter("webhook", 10, 10, c.nowFn, c.sleepF)
+
+	// The bucket starts full: ten in a row pass, the eleventh does not.
+	for i := range 10 {
+		if !l.Allow() {
+			t.Fatalf("request %d was refused although the bucket was full", i+1)
+		}
+	}
+	if l.Allow() {
+		t.Error("the eleventh request in the same instant was allowed")
+	}
+	if len(c.slept) != 0 {
+		t.Errorf("Allow slept %v; it must never block", c.slept)
+	}
+
+	// After a tenth of a second exactly one token is back.
+	c.advance(100 * time.Millisecond)
+	if !l.Allow() {
+		t.Error("no token after 100 ms at ten per second")
+	}
+	if l.Allow() {
+		t.Error("two tokens after 100 ms at ten per second")
+	}
+
+	// A refusal does not consume anything: after a full second the bucket is full again.
+	c.advance(time.Second)
+	for i := range 10 {
+		if !l.Allow() {
+			t.Fatalf("request %d after the refill was refused", i+1)
+		}
+	}
+}
+
+func TestAllowRefusesDuringBackoff(t *testing.T) {
+	c := newFakeClock()
+	l := newLimiter("webhook", 10, 10, c.nowFn, c.sleepF)
+	l.Backoff(c.nowFn().Add(2 * time.Second))
+	if l.Allow() {
+		t.Fatal("a request was allowed during the backoff")
+	}
+	c.advance(2 * time.Second)
+	if !l.Allow() {
+		t.Error("the backoff did not end")
+	}
+}

@@ -84,6 +84,8 @@ tags:
     description: Announcements of the main user to every profile (M8, A-7).
   - name: spike
     description: Temporary endpoints of the offline spike (M1a, removed after the M1b decision).
+  - name: integrations
+    description: Incoming webhooks of Radarr and Sonarr (M9, I-8).
 paths:
   /healthz:
     get:
@@ -4961,6 +4963,252 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/integrations:
+    get:
+      operationId: listIntegrations
+      summary: Webhook integrations of Radarr and Sonarr (I-8)
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Every integration, oldest first; the address is never part of it.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Integration"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: createIntegration
+      summary: Create a webhook integration and reveal its address once (I-8)
+      description: |
+        The answer is the only moment the full address exists: it carries `url` and `token`, which are
+        stored as a SHA-256 and can never be shown again (plan 3.8 point 2). Later reads show the last
+        four characters only; `renewIntegrationToken` reveals a new address.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntegrationRequest"
+      responses:
+        "201":
+          description: The integration with its address, shown once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationCreated"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: Validation failed (`validation_failed`; `name` 1 to 80 characters and unused, `kind` radarr or sonarr).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/integrations/{id}:
+    delete:
+      operationId: deleteIntegration
+      summary: Delete a webhook integration and its event log (I-8)
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/IntegrationID"
+      responses:
+        "204":
+          description: Deleted; the address stops working immediately.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown integration (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/integrations/{id}/token:
+    post:
+      operationId: renewIntegrationToken
+      summary: Renew the token of an integration and reveal the new address once (I-8)
+      description: |
+        The old address stops working at once; the new one appears in this answer and never again.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/IntegrationID"
+      responses:
+        "200":
+          description: The integration with its new address, shown once.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationCreated"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown integration (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/integrations/{id}/path-map:
+    put:
+      operationId: setIntegrationPathMap
+      summary: Replace the path mapping of an integration (I-8)
+      description: |
+        Prefix pairs that translate the path Radarr or Sonarr reports into the path this server sees
+        (`/movies` → `/media/Filme`); the longest matching source wins. The list may be empty, which is
+        the default and fits a service that sees the same paths as Slouchcat.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/IntegrationID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PathMapRequest"
+      responses:
+        "200":
+          description: The integration with its new mapping.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Integration"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown integration (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; both paths absolute, every source only once).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/integrations/{id}/events:
+    get:
+      operationId: listIntegrationEvents
+      summary: Event log of an integration (I-8)
+      description: The newest 20 reports of this integration, newest first; older ones are dropped.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/IntegrationID"
+      responses:
+        "200":
+          description: The log entries, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IntegrationEvent"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown integration (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /webhooks/{token}:
+    post:
+      operationId: receiveWebhook
+      summary: Receive a webhook of Radarr or Sonarr (I-8)
+      description: |
+        Radarr and Sonarr report a changed file here, so the title appears without waiting for the next
+        full comparison (AN-12). The administration creates an integration, Slouchcat shows the full
+        address once, and the administration pastes it into "Connect → Webhook". The token in the path is
+        the whole authorisation: the request carries no session, only the SHA-256 of the token is stored,
+        and the token is redacted in every log line (plan 3.8 points 2, 4 and 8). An unknown token answers
+        401 and leaves no trace that could be attributed to an integration.
+
+        `Download` (import and upgrade), `Rename`, `MovieFileDelete`, `EpisodeFileDelete`, `MovieDelete`
+        and `SeriesDelete` take the directory from `movie.folderPath` (Radarr) or `series.path` (Sonarr),
+        translate it with the integration's path mapping (longest matching prefix) and queue one
+        `scan.path` job for it — the same job the file watcher queues, with the same coalescing (3.4).
+        `Test` is acknowledged and logged, so the test button of Radarr and Sonarr turns green. Every
+        other event (`Grab`, `Health`, `ApplicationUpdate` …) is accepted with 200 and ignored, so a
+        generous selection in Radarr breaks nothing. A mapped path under no library root answers 422 and
+        records both paths in the event log. Each integration may send 10 requests per second.
+
+        This endpoint does not need the CSRF header: Radarr and Sonarr are not browsers, and the
+        authorisation is the secret in the path, never a cookie.
+      tags: [integrations]
+      x-visibility: public
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: The token of the integration; it is never logged.
+          schema:
+            type: string
+            minLength: 43
+            maxLength: 43
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookPayload"
+      responses:
+        "200":
+          description: The webhook was accepted; `result` says what came of it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookResult"
+        "401":
+          description: No integration holds this token (`invalid_webhook_token`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            The reported path lies under no library root after the mapping (`path_outside_roots`), or an
+            acting event carried no path (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: More than 10 requests per second for this integration (`too_many_requests`); `Retry-After` names the pause in seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
 components:
   responses:
     Unauthenticated:
@@ -5172,6 +5420,13 @@ components:
         maxLength: 200
         pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$"
     AnnouncementID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    IntegrationID:
       name: id
       in: path
       required: true
@@ -8245,7 +8500,7 @@ components:
     Dashboard:
       type: object
       description: The admin overview (A-3); no `ItemRef`.
-      required: [streams, jobs, storage, integrations, errors, update]
+      required: [streams, jobs, storage, integrations, webhooks, errors, update]
       properties:
         streams:
           type: array
@@ -8265,6 +8520,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IntegrationStatus"
+        webhooks:
+          $ref: "#/components/schemas/WebhookTileStatus"
         errors:
           type: array
           maxItems: 50
@@ -8800,12 +9057,11 @@ components:
 
     EventType:
       type: string
-      enum: [new_content, acquisition, errors, invitations, announcements]
+      enum: [new_content, errors, invitations, announcements]
       description: |
         `new_content`: a new episode of a favourite (per profile, prefixed with the profile name);
-        `acquisition`: state of a requested title (M9); `errors`: failures the main user should see
-        (main account only); `invitations`: an invitation was accepted; `announcements`: the main
-        user published an announcement.
+        `errors`: failures the main user should see (main account only); `invitations`: an
+        invitation was accepted; `announcements`: the main user published an announcement.
 
     ChannelSettings:
       type: object
@@ -9139,3 +9395,186 @@ components:
           type: integer
           format: int64
           minimum: 0
+
+    WebhookPayload:
+      type: object
+      description: |
+        The body Radarr or Sonarr sends. Only `eventType` and the directory are read; every other field
+        is accepted and ignored, so a new field of a later version breaks nothing (I-8).
+      additionalProperties: true
+      properties:
+        eventType:
+          type: string
+          description: |
+            The event as the service names it: `Download`, `Rename`, `MovieFileDelete`,
+            `EpisodeFileDelete`, `MovieDelete`, `SeriesDelete`, `Test`, `Grab`, `Health` …
+          examples: ["Download"]
+        movie:
+          type: object
+          description: The film of a Radarr event.
+          additionalProperties: true
+          properties:
+            folderPath:
+              type: string
+              description: Directory of the film as Radarr sees it.
+              examples: ["/movies/Dune (2021)"]
+        series:
+          type: object
+          description: The series of a Sonarr event.
+          additionalProperties: true
+          properties:
+            path:
+              type: string
+              description: Directory of the series as Sonarr sees it.
+              examples: ["/tv/Slouchcat Test Show"]
+
+    WebhookResult:
+      type: object
+      description: What Slouchcat did with a received webhook.
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [scan_queued, acknowledged, ignored]
+          description: |
+            `scan_queued`: a targeted scan of the reported directory runs; `acknowledged`: the `Test`
+            event of Radarr or Sonarr; `ignored`: an event without an effect here.
+        path:
+          type: string
+          description: The directory that is scanned, after the path mapping; only with `scan_queued`.
+          examples: ["/media/Filme/Dune (2021)"]
+
+    Integration:
+      type: object
+      description: One webhook address handed to Radarr or Sonarr (I-8). It never carries the token.
+      required: [id, name, kind, tokenTail, pathMap, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+          examples: ["Radarr"]
+        kind:
+          type: string
+          enum: [radarr, sonarr]
+        tokenTail:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: Last four characters of the token, so an address can be recognised in a list.
+        pathMap:
+          type: array
+          description: Prefix pairs, longest match wins; empty by default.
+          items:
+            $ref: "#/components/schemas/PathMapping"
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: When this integration last reported; absent until the first webhook.
+        createdAt:
+          type: string
+          format: date-time
+
+    IntegrationCreated:
+      type: object
+      description: |
+        A just created or renewed integration together with its full address. This is the only
+        answer that contains it; afterwards only `tokenTail` remains (plan 3.8 point 2).
+      required: [integration, url, token]
+      properties:
+        integration:
+          $ref: "#/components/schemas/Integration"
+        url:
+          type: string
+          description: The complete address to paste into "Connect → Webhook".
+          examples: ["https://slouchcat.example.ch/api/v1/webhooks/4C8c..."]
+        token:
+          type: string
+          description: The token alone, for an address the administration assembles itself.
+
+    IntegrationRequest:
+      type: object
+      required: [name, kind]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        kind:
+          type: string
+          enum: [radarr, sonarr]
+
+    PathMapping:
+      type: object
+      description: Translates a prefix of the reported path into a prefix on this server.
+      required: [from, to]
+      properties:
+        from:
+          type: string
+          description: Absolute prefix as Radarr or Sonarr sees it.
+          examples: ["/movies"]
+        to:
+          type: string
+          description: Absolute prefix on this server.
+          examples: ["/media/Filme"]
+
+    PathMapRequest:
+      type: object
+      required: [pathMap]
+      properties:
+        pathMap:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/PathMapping"
+
+    IntegrationEvent:
+      type: object
+      description: One received webhook in the log of an integration (the newest 20).
+      required: [id, receivedAt, event, result]
+      properties:
+        id:
+          type: integer
+          format: int64
+        receivedAt:
+          type: string
+          format: date-time
+        event:
+          type: string
+          description: The event as Radarr or Sonarr named it.
+          examples: ["Download"]
+        reportedPath:
+          type: string
+          description: The directory the service reported; absent for events without one.
+        resolvedPath:
+          type: string
+          description: The directory after the path mapping; absent for events without one.
+        result:
+          type: string
+          enum: [scan_queued, acknowledged, ignored, outside_roots, invalid_payload]
+          description: |
+            `scan_queued`: a targeted scan runs; `acknowledged`: the Test event; `ignored`: no effect;
+            `outside_roots`: the mapped path lies under no library root; `invalid_payload`: an acting
+            event without a directory.
+
+    WebhookTileStatus:
+      type: object
+      description: The "Webhooks" tile of the dashboard (A-3, decision 5.6).
+      required: [total, eventsLast24h, silent]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          description: Configured integrations.
+        eventsLast24h:
+          type: integer
+          minimum: 0
+          description: Webhooks received in the last 24 hours.
+        silent:
+          type: array
+          description: Names that have reported nothing for seven days.
+          items:
+            type: string

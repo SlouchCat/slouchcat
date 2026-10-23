@@ -16,11 +16,16 @@ import type {
   DuplicateGroup,
   Guest,
   HomeRowSetting,
+  Integration,
+  IntegrationCreated,
+  IntegrationEvent,
+  IntegrationRequest,
   Invitation,
   IssueKind,
   IssuePage,
   JobSummary,
   Library,
+  PathMapping,
   PickRequest,
   PickUpdate,
   SystemInfo,
@@ -288,3 +293,36 @@ export const sendTestEmail = () => request(api.POST('/admin/settings/email/test'
 /** A new VAPID key pair; every push subscription goes with the old one. */
 export const rotatePushKeys = (): Promise<AdminSettings> =>
   request(api.POST('/admin/settings/push/rotate'));
+
+/** Webhook integrations of Radarr and Sonarr (M9, I-8). */
+export const integrationsQuery = queryOptions({
+  queryKey: ['admin', 'integrations'],
+  queryFn: ({ signal }): Promise<Integration[]> =>
+    request(api.GET('/admin/integrations', { signal })),
+});
+
+/** The event log of one integration: the newest 20 reports. */
+export const integrationEventsQuery = (id: number) =>
+  queryOptions({
+    queryKey: ['admin', 'integrations', id, 'events'],
+    queryFn: ({ signal }): Promise<IntegrationEvent[]> =>
+      request(api.GET('/admin/integrations/{id}/events', { params: { path: { id } }, signal })),
+  });
+
+/** Creates an integration; the answer carries the address, which is never shown again. */
+export const createIntegration = (body: IntegrationRequest): Promise<IntegrationCreated> =>
+  request(api.POST('/admin/integrations', { body }));
+
+/** A new token: the old address stops working, the new one appears once. */
+export const renewIntegrationToken = (id: number): Promise<IntegrationCreated> =>
+  request(api.POST('/admin/integrations/{id}/token', { params: { path: { id } } }));
+
+/** Replaces the prefix pairs of an integration. */
+export const setIntegrationPathMap = (id: number, pathMap: PathMapping[]): Promise<Integration> =>
+  request(
+    api.PUT('/admin/integrations/{id}/path-map', { params: { path: { id } }, body: { pathMap } }),
+  );
+
+/** Removes an integration and its event log; its address stops working at once. */
+export const deleteIntegration = (id: number) =>
+  request(api.DELETE('/admin/integrations/{id}', { params: { path: { id } } }));

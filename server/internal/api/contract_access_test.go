@@ -167,18 +167,27 @@ const restoreUploadBody = "--registry\r\nContent-Disposition: form-data; name=\"
 const unknownItemID = "01J0000000000000000000XXXX"
 
 var adminRegistry = map[string]adminCall{
-	"listLibraries":     {contract: "GET /admin/libraries", path: "/admin/libraries", ownerStatus: http.StatusOK},
-	"createLibrary":     {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"movies","path":""}`, ownerStatus: http.StatusUnprocessableEntity},
-	"getLibrary":        {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
-	"scanLibrary":       {contract: "POST /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
-	"acceptLibraryLoss": {contract: "POST /admin/libraries/{id}/accept-loss", path: "/admin/libraries/777/accept-loss", ownerStatus: http.StatusNotFound},
-	"listInvitations":   {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
-	"createInvitation":  {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
-	"revokeInvitation":  {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},
-	"listGuests":        {contract: "GET /admin/guests", path: "/admin/guests", ownerStatus: http.StatusOK},
-	"updateGuest":       {contract: "PATCH /admin/guests/{id}", path: "/admin/guests/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
-	"revokeGuest":       {contract: "DELETE /admin/guests/{id}", path: "/admin/guests/9999", ownerStatus: http.StatusNotFound},
-	"setItemRating":     {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
+	"listLibraries": {contract: "GET /admin/libraries", path: "/admin/libraries", ownerStatus: http.StatusOK},
+	// M9 webhook integrations (I-8): the fixture has none, so every id is unknown.
+	"listIntegrations": {contract: "GET /admin/integrations", path: "/admin/integrations", ownerStatus: http.StatusOK},
+	"createIntegration": {contract: "POST /admin/integrations", path: "/admin/integrations",
+		body: `{"name":"","kind":"radarr"}`, ownerStatus: http.StatusUnprocessableEntity},
+	"deleteIntegration":     {contract: "DELETE /admin/integrations/{id}", path: "/admin/integrations/9999", ownerStatus: http.StatusNotFound},
+	"renewIntegrationToken": {contract: "POST /admin/integrations/{id}/token", path: "/admin/integrations/9999/token", ownerStatus: http.StatusNotFound},
+	"setIntegrationPathMap": {contract: "PUT /admin/integrations/{id}/path-map", path: "/admin/integrations/9999/path-map",
+		body: `{"pathMap":[]}`, ownerStatus: http.StatusNotFound},
+	"listIntegrationEvents": {contract: "GET /admin/integrations/{id}/events", path: "/admin/integrations/9999/events", ownerStatus: http.StatusNotFound},
+	"createLibrary":         {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"movies","path":""}`, ownerStatus: http.StatusUnprocessableEntity},
+	"getLibrary":            {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
+	"scanLibrary":           {contract: "POST /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
+	"acceptLibraryLoss":     {contract: "POST /admin/libraries/{id}/accept-loss", path: "/admin/libraries/777/accept-loss", ownerStatus: http.StatusNotFound},
+	"listInvitations":       {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
+	"createInvitation":      {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
+	"revokeInvitation":      {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},
+	"listGuests":            {contract: "GET /admin/guests", path: "/admin/guests", ownerStatus: http.StatusOK},
+	"updateGuest":           {contract: "PATCH /admin/guests/{id}", path: "/admin/guests/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
+	"revokeGuest":           {contract: "DELETE /admin/guests/{id}", path: "/admin/guests/9999", ownerStatus: http.StatusNotFound},
+	"setItemRating":         {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
 	// M3: requests against fixture titles that leave the fixture unchanged (the fake metadata and
 	// library services of the contract fixture record nothing).
 	"cancelLibraryScan": {contract: "DELETE /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
@@ -277,6 +286,8 @@ type publicCall struct {
 
 const unknownInvitationToken = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" // 43 characters
 
+const unknownWebhookToken = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" // 43 characters
+
 var publicRegistry = map[string]publicCall{
 	"getHealth":      {contract: "GET /healthz", path: "/healthz", status: http.StatusOK},
 	"getSetupStatus": {contract: "GET /setup", path: "/setup", status: http.StatusOK},
@@ -290,6 +301,9 @@ var publicRegistry = map[string]publicCall{
 	// M5: without the device cookie the revocation list is empty (K-7).
 	"checkOfflineRevocations": {contract: "POST /offline/revocations", path: "/offline/revocations", status: http.StatusOK,
 		body: `{"ids":["01J9AAAAAAAAAAAAAAAAAAAAAA"]}`},
+	// M9: an unknown webhook token is 401, whatever the body says (I-8).
+	"receiveWebhook": {contract: "POST /webhooks/{token}", path: "/webhooks/" + unknownWebhookToken,
+		body: `{"eventType":"Test"}`, status: http.StatusUnauthorized},
 	// M8 wizard checks: 409 setup_done, the fixture has an account.
 	"checkSetupPath":    {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusConflict},
 	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusConflict},

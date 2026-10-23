@@ -460,6 +460,30 @@ func (s *Service) triggerScan(ctx context.Context, libraryID int64) {
 	})
 }
 
+// ErrScanNotQueued means that the directories of a RequestPathScan reached neither a queued job
+// nor a scheduled retry, so nothing will scan them unless something else changes.
+var ErrScanNotQueued = errors.New("path scan was not queued")
+
+// RequestPathScan queues a targeted scan of directories of a root for a caller outside the
+// watcher: the webhook receiver of package integrations reports what Radarr or Sonarr changed
+// (I-8, decision 5.6). The directories are relative to the root ("." is the root itself) and
+// join the same coalescing as a watcher event, so a burst of webhooks becomes one scan.
+//
+// Unlike the watcher, that caller answers a request and records what came of it, so it needs to
+// know: the directories are either queued (the library has none pending any more, which also
+// covers the switch to a full scan) or waiting for the retry of a running job. Anything else —
+// a failed enqueue, an unreadable payload — leaves them pending with nobody to pick them up and
+// returns ErrScanNotQueued.
+func (s *Service) RequestPathScan(ctx context.Context, libraryID, rootID int64, dirs []string) error {
+	s.triggerPathScan(ctx, libraryID, rootID, dirs)
+	s.pathMu.Lock()
+	defer s.pathMu.Unlock()
+	if _, pending := s.pathPending[libraryID]; !pending || s.pathRetrying[libraryID] {
+		return nil
+	}
+	return fmt.Errorf("%w: library %d", ErrScanNotQueued, libraryID)
+}
+
 // triggerPathScan is called by the watcher of a root with the directories that changed: it
 // merges them into the pending scan.path job of the library, debounced like triggerScan. When
 // that job is already running, the directories wait here and are queued once it has finished.

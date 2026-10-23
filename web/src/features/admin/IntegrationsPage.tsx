@@ -24,6 +24,7 @@ import {
   settingsQuery,
   updateSettings,
 } from './queries';
+import { WebhooksSection } from './WebhooksSection';
 import styles from './IntegrationsPage.module.css';
 import table from './AdminTablePage.module.css';
 
@@ -630,8 +631,9 @@ function PublicUrlSection({ settings }: { settings: AdminSettings }) {
 }
 
 /**
- * Integrations (A-2, M7's key page): provider keys, e-mail server with a test mail, Telegram bot,
- * Web Push keys, the update check and the public address. Secrets are write-only: a stored key
+ * Integrations (A-2, M7's key page): provider keys, the incoming webhooks of Radarr and Sonarr
+ * (M9, I-8), the e-mail server with a test mail, the Telegram bot, the Web Push keys, the update
+ * check and the public address. Secrets are write-only: a stored key
  * shows its last four characters at most; a value from deploy/.env cannot be changed here.
  */
 export function IntegrationsPage() {
@@ -670,6 +672,7 @@ export function IntegrationsPage() {
           {settings.data && (
             <>
               <KeysSection keys={settings.data.keys} />
+              <WebhooksSection />
               <EmailSection email={settings.data.email} />
               <TelegramSection telegram={settings.data.telegram} />
               <PushSection push={settings.data.push} />

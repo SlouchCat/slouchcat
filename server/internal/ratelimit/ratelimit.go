@@ -108,6 +108,27 @@ func (l *Limiter) reserve() time.Duration {
 	return wait
 }
 
+// Allow takes one token if one is free right now and reports whether it did. Unlike Wait it never
+// blocks: an incoming request that finds the bucket empty is refused with HTTP 429 instead of being
+// held (plan 3.8 point 8, the webhook receiver of I-8). A running Backoff refuses every call.
+func (l *Limiter) Allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	if now.Before(l.backoffUntil) {
+		return false
+	}
+	if now.After(l.last) {
+		l.tokens = min(l.burst, l.tokens+now.Sub(l.last).Seconds()*l.rate)
+		l.last = now
+	}
+	if l.tokens < 1 {
+		return false
+	}
+	l.tokens--
+	return true
+}
+
 // Backoff makes every Wait block until until. After the pause the limiter grants requests at its
 // rate again, without a burst.
 func (l *Limiter) Backoff(until time.Time) {

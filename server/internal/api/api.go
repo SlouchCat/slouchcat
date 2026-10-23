@@ -77,7 +77,9 @@ type Options struct {
 	Playback PlaybackService
 	Offline  OfflineService // Downloads, sync and the download token (M5).
 	Notify   NotifyService  // In-app inbox (M7, E-8), channels and announcements (M8); nil answers 501 on them.
-	SpikeDir string         // Directory with the spike download files; empty disables the endpoint.
+	// Integrations receives the webhooks of Radarr and Sonarr (M9, I-8); nil answers 501.
+	Integrations IntegrationService
+	SpikeDir     string // Directory with the spike download files; empty disables the endpoint.
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
 	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.

@@ -1,0 +1,74 @@
+{
+  "applicationUrl": "",
+  "eventType": "Rename",
+  "instanceName": "Radarr",
+  "movie": {
+    "folderPath": "/mnt/medien/_webhook-test/Big Buck Bunny (2008) [tmdb-10378]",
+    "genres": [
+      "Animation",
+      "Comedy",
+      "Family"
+    ],
+    "id": 2651,
+    "images": [
+      {
+        "coverType": "poster",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/i9jJzvoXET4D9pOkoEwncSdNNER.jpg",
+        "url": "/MediaCover/2651/poster.jpg?h=575804ada86e356966a7"
+      },
+      {
+        "coverType": "fanart",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/xtdybjRRZ15mCrPOvEld305myys.jpg",
+        "url": "/MediaCover/2651/fanart.jpg?h=a54364feca427354955c"
+      }
+    ],
+    "imdbId": "tt1254207",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "overview": "Follow a day of the life of Big Buck Bunny when he meets three bullying rodents: Frank, Rinky, and Gamera. The rodents amuse themselves by harassing helpless creatures by throwing fruits, nuts and rocks at them. After the deaths of two of Bunny's favorite butterflies, and an offensive attack on Bunny himself, Bunny sets aside his gentle nature and orchestrates a complex plan for revenge.",
+    "releaseDate": "2008-07-09",
+    "tags": [],
+    "title": "Big Buck Bunny",
+    "tmdbId": 10378,
+    "year": 2008
+  },
+  "renamedMovieFiles": [
+    {
+      "dateAdded": "2026-10-22T12:29:51.8482571Z",
+      "id": 6689,
+      "indexerFlags": "0",
+      "languages": [
+        {
+          "id": 4,
+          "name": "German"
+        }
+      ],
+      "mediaInfo": {
+        "audioChannels": 5.1,
+        "audioCodec": "AC3",
+        "audioLanguages": [
+          "ger"
+        ],
+        "height": 1080,
+        "subtitles": [
+          "ger",
+          "eng"
+        ],
+        "videoCodec": "x265",
+        "videoDynamicRange": "",
+        "videoDynamicRangeType": "",
+        "width": 1920
+      },
+      "path": "/mnt/medien/_webhook-test/Big Buck Bunny (2008) [tmdb-10378]/Big Buck Bunny (2008) [imdb-tt1254207] - [German][WEBDL-1080p][AC3 5.1][x265]-off-scheme.mkv",
+      "previousPath": "/mnt/medien/_webhook-test/Big Buck Bunny (2008) [tmdb-10378]/zzz-off-scheme.mkv",
+      "previousRelativePath": "zzz-off-scheme.mkv",
+      "quality": "WEBDL-1080p",
+      "qualityVersion": 1,
+      "relativePath": "Big Buck Bunny (2008) [imdb-tt1254207] - [German][WEBDL-1080p][AC3 5.1][x265]-off-scheme.mkv",
+      "releaseGroup": "off-scheme",
+      "size": 4140189780
+    }
+  ]
+}

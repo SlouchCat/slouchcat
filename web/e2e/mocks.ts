@@ -138,7 +138,7 @@ async function expectStatus(response: APIResponse, ok: number[]): Promise<void> 
 }
 
 export type ChannelName = 'email' | 'push' | 'telegram';
-export type EventName = 'new_content' | 'acquisition' | 'errors' | 'invitations' | 'announcements';
+export type EventName = 'new_content' | 'errors' | 'invitations' | 'announcements';
 
 export interface ChannelData {
   channel: ChannelName;

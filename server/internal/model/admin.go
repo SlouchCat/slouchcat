@@ -91,7 +91,8 @@ type Dashboard struct {
 	Config       StorageInfo
 	Cache        StorageInfo
 	Integrations []IntegrationStatus
-	Errors       []ErrorEntry // newest first, at most 50
+	Webhooks     WebhookStatus // the "Webhooks" tile (M9, I-8)
+	Errors       []ErrorEntry  // newest first, at most 50
 	Update       UpdateState
 }
 
