@@ -1,6 +1,6 @@
 # O-6-Langzeittest – Protokoll (Start M5, Abschluss M7)
 
-Stand: 21. Oktober 2026 (Tag 1, M7). Grundlage: Spec O-6 («Downloads haben kein Ablaufdatum»), Plan
+Stand: 23. Oktober 2026 — **abgeschlossen bei Tag 3** auf Entscheid des Auftraggebers (siehe «Abschluss» unten). Grundlage: Spec O-6 («Downloads haben kein Ablaufdatum»), Plan
 `docs/planning/03-plan-v1.md` Abnahmematrix O-6 und P-9 (Prüfdauer 30 Tage auf Android und Desktop, Start in
 M5, Abschluss in M7), Entscheid 2 (kein iPhone, kein iPad, kein Mac) und Entscheid 8.
 
@@ -12,9 +12,9 @@ Zugriffs entfernt nichts den Download.
 
 | Gerät | Start | Tag 1 (21.10.) | Tag 3 (23.10.) | Tag 8 (28.10.) | Tag 30 (19.11.) | Ergebnis |
 |---|---|---|---|---|---|---|
-| Desktop Chromium 156 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, «Slouchcat Test H264» in «Mittel», 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1334 ms, Sprung auf 50 % 41 ms) | bestanden (Kaltstart 1340 ms, Sprung 30 ms) | | | | läuft |
-| Desktop Firefox 157 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, derselbe Film, 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1446 ms, Sprung auf 50 % 19 ms) | bestanden (Kaltstart 1431 ms, Sprung 18 ms) | | | | läuft |
-| Android Chrome (installierte PWA, Marco) | ausstehend: braucht einen Server mit M5, also das neu gebaute Image nach dem Merge (siehe unten) | | | | | |
+| Desktop Chromium 156 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, «Slouchcat Test H264» in «Mittel», 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1334 ms, Sprung auf 50 % 41 ms) | bestanden (Kaltstart 1340 ms, Sprung 30 ms) | bestanden (Kaltstart 1344 ms, Sprung 37 ms) | entfällt | entfällt | **bestanden bis Tag 3** |
+| Desktop Firefox 157 (Entwicklungsrechner, eigenes Browser-Profil) | 20.10.2026, derselbe Film, 2'658'803 Byte; Tag 0 ohne Server bestanden (Kaltstart 1446 ms, Sprung auf 50 % 19 ms) | bestanden (Kaltstart 1431 ms, Sprung 18 ms) | bestanden (Kaltstart 1466 ms, Sprung 18 ms) | entfällt | entfällt | **bestanden bis Tag 3** |
+| Android Chrome (installierte PWA, Marco) | nie gestartet | – | – | – | – | **nicht durchgeführt** |
 | iOS Safari (installierte PWA) | ungeprüft, keine Hardware (Entscheid 2, AN-7); der 8-Tage-Test nach P-9 entfällt mangels Gerät | | | | | ungeprüft |
 
 Abweichung vom Plan: Der Plan wollte den Test am ersten Tag von M5 starten. Ein Download gibt es aber erst mit
@@ -75,3 +75,36 @@ unter Speicherdruck räumen, auf dem Entwicklungsrechner mit rund 10 GB Quote un
 | 20.10.2026 | Desktop Firefox 157 | `check` (Tag 0, zweiter Lauf mit der strengeren Bewertung) | bestanden: Kaltstart 1427 ms, Download vollständig, Sprung 18 ms | – |
 | 21.10.2026 | Desktop Chromium 156 | `check` (Tag 1, kein Server auf 8098) | bestanden: Kaltstart 1340 ms, Download vollständig (2'658'803 Byte), Sprung 30 ms | – |
 | 21.10.2026 | Desktop Firefox 157 | `check` (Tag 1, kein Server auf 8098) | bestanden: Kaltstart 1431 ms, Download vollständig, Sprung 18 ms | – |
+| 23.10.2026 | Desktop Chromium 156 | `check` (Tag 3, kein Server auf 8098) | bestanden: Kaltstart 1344 ms, Download vollständig (2'658'803 Byte), Sprung 37 ms | – |
+| 23.10.2026 | Desktop Firefox 157 | `check` (Tag 3, kein Server auf 8098) | bestanden: Kaltstart 1466 ms, Download vollständig (2'658'803 Byte), Sprung 18 ms | – |
+
+## Abschluss (23. Oktober 2026)
+
+Der Auftraggeber hat auf die restliche Laufzeit verzichtet; der Test endet bei Tag 3 statt bei Tag 30. Damit
+dieser Verzicht bei der Abnahme von 1.0 nicht übersehen wird, steht hier getrennt, was belegt ist und was nicht.
+
+**Belegt, und zwar durch automatische Tests, nicht durch dieses Protokoll:**
+
+- Es gibt **kein Ablauffeld**: Der Schema-Test der Abnahmezeile O-6 lässt keines zu.
+- Ein Download verschwindet **nur** durch Löschen im Profil oder durch Entzug des Zugriffs (K-7, AN-4); das ist
+  in den Offline-Tests von M5 abgedeckt, inklusive der Entzugsliste beim nächsten Serverkontakt.
+- Ein 20.10. geladener Film spielte am 20., 21. und 23. Oktober ohne Server ab, in Chromium und in Firefox,
+  jedes Mal vollständig und innerhalb der Grenzen (Kaltstart unter 3 s, Sprung unter 2 s).
+
+**Nicht belegt:**
+
+- Dass der Browser die Datei **über 30 Tage** behält. Beobachtet sind drei Tage. Das ist allerdings Verhalten von
+  Chrome und Firefox, nicht von Slouchcat: Der Browser darf seinen Speicher unter Druck räumen, und in den
+  Playwright-Profilen ist `persist()` nicht einmal gewährt (`persisted: false`) — der Test lief also im
+  ungünstigeren Fall.
+- **Android** wurde nie gestartet; es fehlt damit die Beobachtung auf einem echten Mobilgerät. Marcos
+  Spike-Download vom 19.10. (`docs/perf/M1-ios-offline.md`) belegt unabhängig davon, dass OPFS-Dateien auf
+  seinem Android-Gerät mindestens acht Tage überdauern.
+- **iOS** bleibt ungeprüft mangels Gerät (Entscheid 2, AN-7), wie von Anfang an dokumentiert.
+
+**Folge für die Abnahme:** Die Matrixzeile O-6 gilt als erfüllt mit der deklarierten Abweichung «Langzeit-
+beobachtung auf drei Tage verkürzt, Android nicht durchgeführt, iOS ungeprüft». Sie gehört in die Liste der
+Abweichungen in der Definition of Done von M10, neben AN-4, AN-7, AN-12, AN-13 und AN-17.
+
+Der Zustand unter `~/.local/share/slouchcat-o6` wird nicht mehr gebraucht und darf gelöscht werden; das Skript
+`web/scripts/o6-longterm.mjs` bleibt im Repository, damit die Messung jederzeit wiederholbar ist.
