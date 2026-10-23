@@ -265,6 +265,26 @@ ausgeführt; `ratelimit.Allow` hatte keinen Test im eigenen Paket.
 4. **Android und O-6** aus M5 bis M8 bleiben offen; der Langzeittest läuft (Tag 30 am 19. November).
 5. **M10** bringt Härtung und Release 1.0.
 
+## Abnahme durch Marco am 23. Oktober 2026 (M8 und M9 am laufenden Container)
+
+Geprüft am Stand `a314b4d` mit dem neu gebauten Image.
+
+| Prüfung | Ergebnis |
+|---|---|
+| **E-Mail (A-6)** | läuft; Testnachricht über sein SMTP-Konto zugestellt |
+| **Grafikchip im Assistenten (A-1)** | meldete zunächst «Kein Grafikchip erkannt» — **richtig**, denn `deploy/compose.yaml` reicht ohne Override keine GPU durch. Seit dem 23. Oktober lädt `COMPOSE_FILE=compose.yaml:compose.nvidia.yaml` in `deploy/.env` die NVIDIA-Datei immer mit; der Container sieht nun die RTX 4070 (Treiber 595.99.02), `transcode backend detected backend=nvenc tonemapper=cuda`, Budget 12 statt 4 |
+| **Webhook-Integration (I-8)** | Verbindung von Radarr zu Slouchcat steht; ob eine Meldung bis zum Pfad-Scan durchläuft, zeigt das Ereignisprotokoll und ist noch nicht bestätigt |
+
+**Noch offen bei Marco:** Web-Push am Android-Handy, QSV-Erkennung auf CT 190, der zweite Teil des
+Webhook-Tests (Ereignisprotokoll nach einem echten Import, inklusive der Pfad-Umsetzung von `/mnt/medien/…`
+auf die Bibliothekswurzel), HTTPS mit der echten Domain (K-8) und die Android-Checklisten aus M5 bis M8.
+
+**Mangel, gefunden bei dieser Abnahme (für M10):** Die Feldfehler des Servers bleiben im Formular stehen, bis
+erneut abgesendet wird — sie verschwinden nicht, wenn der Wert korrigiert wird. Beim Einrichten des
+E-Mail-Servers sah es dadurch so aus, als seien gültige Eingaben ungültig. Betrifft alle Formulare, die
+`validationErrors` von react-aria aus einer Server-Antwort füttern (`IntegrationsPage`, und dieselbe Stelle in
+`ChannelSettingsPage` und `WebhooksSection`).
+
 ## Meilenstein M8 – Administration und Benachrichtigungen
 
 Vorab geklärt mit Marco (21. Oktober 2026, Entscheidungsprotokoll): Web-Push und E-Mail werden mit echten
@@ -363,15 +383,16 @@ danach ein Integrations-Fix, zwei Review-Agenten und zwei Korrektur-Agenten. Com
 
 ### Nicht in M8 (Plan) und offene Punkte für M9
 
-1. **Echte Zugangsdaten:** SMTP in `deploy/.env` und Web-Push am Android-Handy prüft Marco nach dem Merge und dem
-   neuen Image (Checkliste `m8-marco-tests.md`); QSV-Erkennung im Assistenten auf CT 190 mit dem neuen Image.
+1. **Echte Zugangsdaten: am 23. Oktober 2026 von Marco geprüft.** E-Mail läuft mit seinem SMTP-Konto
+   (`mail.nerdboxmail.com:587`, STARTTLS, Zugangsdaten in `deploy/.env`). Web-Push am Android-Handy und die
+   QSV-Erkennung auf CT 190 stehen noch aus.
 2. **Beschaffungsstatus** (`acquisition`) hatte Modell, Kanalwahl und Hook, aber nie einen Erzeuger; mit dem
    Zuschnitt von M9 ist der Kanal am 22. Oktober 2026 ersatzlos entfernt worden (siehe M9, Schritt 4).
 3. **Release-Manifest:** die Update-Prüfung liest `https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json`;
    das Veröffentlichen gehört zu M10.
 4. **Verdichtung alter `progress_events`** (Plan 3.2, 90 Tage) ist nicht gebaut; die Statistik liest Rohdaten.
-5. **Android:** Gerätecheckliste `docs/perf/M8.md` 6 und die offenen Punkte aus M5 bis M7; O-6-Langzeittest läuft
-   (Tag 30 am 19. November).
+5. **Android:** Gerätecheckliste `docs/perf/M8.md` 6 und die offenen Punkte aus M5 bis M7. Der O-6-Langzeittest
+   ist am 23. Oktober 2026 bei Tag 3 abgeschlossen worden (`docs/perf/M5-o6-langzeittest.md`).
 6. Offen gelassene Review-Punkte (oben) für M10.
 
 
