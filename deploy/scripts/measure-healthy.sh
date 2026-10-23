@@ -1,15 +1,24 @@
 #!/usr/bin/env bash
-# Measures the M0 DoD values of the container (plan M0: healthy in < 5 s, idle RSS < 60 MB).
+# Measures the startup values of the container (plan M0: healthy in < 5 s; idle RSS, see below).
 # Starts a throwaway container from IMAGE with a temporary /config and /cache, polls the
 # health status every 100 ms, prints the time until "healthy", then the idle RSS.
 #
-# Env: IMAGE (default slouchcat:dev), MAX_HEALTHY_SECONDS (5), MAX_RSS_MB (60),
+# The RSS gate is a regression guard, not an acceptance criterion: P-2 asks for an idle RSS below
+# 150 MB with 5 000 titles, and this measures an empty container. The gate was 60 MB in M0, when
+# the server did little more than serve a health endpoint. Eight milestones later the same
+# container carries administration, notifications, jobs, statistics and offline, and on 22 October
+# 2026 it failed main by half a megabyte (60.5 MB) -- noise, not a regression. Measured on the
+# reference machine with M9 in place: 46.5, 50.2 and 51.0 MB; the GitHub runner reads about 10 MB
+# higher than that. 80 MB therefore leaves room for the runner and for what M10 adds, and still
+# catches a real regression long before P-2 would. See docs/perf/M9.md.
+#
+# Env: IMAGE (default slouchcat:dev), MAX_HEALTHY_SECONDS (5), MAX_RSS_MB (80),
 #      IDLE_SECONDS (3), DOCKER (docker).
 set -euo pipefail
 
 IMAGE="${IMAGE:-slouchcat:dev}"
 MAX_HEALTHY_SECONDS="${MAX_HEALTHY_SECONDS:-5}"
-MAX_RSS_MB="${MAX_RSS_MB:-60}"
+MAX_RSS_MB="${MAX_RSS_MB:-80}"
 IDLE_SECONDS="${IDLE_SECONDS:-3}"
 DOCKER="${DOCKER:-docker}"
 
