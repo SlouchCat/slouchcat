@@ -21,6 +21,7 @@ import (
 // encrypted variants and the restore itself are covered in package admin; here the scrypt work of
 // age would only slow the race detector down.
 func TestContractBackupFlow(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	h := pf.h
 
@@ -110,6 +111,7 @@ func TestContractBackupFlow(t *testing.T) {
 // M8 statistics (A-8): the owner gets every list as an array (never null) and plain StatTitles; a
 // period other than 7, 30, 90 or 365 days is refused.
 func TestContractStatsShape(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	rec := send(t, pf.h, http.MethodGet, BasePath+"/admin/stats", "p18", "", nil)
 	if rec.Code != http.StatusOK {
@@ -141,6 +143,7 @@ func TestContractStatsShape(t *testing.T) {
 // A-8: a progress event of a browser belongs to the device of its session (the device cookie), so
 // the statistics count that device.
 func TestContractProgressCountsTheDevice(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	m := pf.f.Rated(6)
 	body := fmt.Sprintf(`{"mediaFileId":%q,"positionMs":10000,"durationMs":%d,"playedMs":10000,"seq":1,"state":"playing","clientTime":%q}`,

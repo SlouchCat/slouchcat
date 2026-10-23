@@ -157,6 +157,7 @@ func createDownload(t *testing.T, h http.Handler, token, itemID, body string) st
 // A device that P18 and P6 share: P18's FSK-18 download appears in P6's sync with its allowed
 // profiles only; no part of the answer names the title (plan 3.3, design 3.4).
 func TestOfflineSyncOfASharedDevice(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	shared := pf.sessions["p6"].DeviceID
@@ -212,6 +213,7 @@ func TestOfflineSyncOfASharedDevice(t *testing.T) {
 // The path of a download through the API: create, prepare, sync, manifest, file and subtitle with
 // the token URLs, the complete fetch, the rating change of plan 10.2 and the deletion.
 func TestOfflineDownloadFlow(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	e1 := f.Show.E1
@@ -335,6 +337,7 @@ func TestOfflineDownloadFlow(t *testing.T) {
 // K-7, AN-4: revoking a guest deletes its downloads through the cascade; its sync answers 401 and
 // checkOfflineRevocations, by the device cookie alone, lists the ids the device must delete.
 func TestOfflineGuestRevocation(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	id := createDownload(t, h, "pg", f.Rated(6).ID, `{"quality":"medium"}`)

@@ -64,6 +64,7 @@ func getWithToken(h http.Handler, path, token string) *httptest.ResponseRecorder
 }
 
 func TestStartPagePreloadHeaders(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	log := vistest.Logger()
 	session := model.Session{ID: 1, Account: f.Account, Profile: f.P18, ExpiresAt: time.Now().Add(time.Hour)}
@@ -178,6 +179,7 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 }
 
 func TestHeroLinkFallsBackToSingleImage(t *testing.T) {
+	t.Parallel()
 	img := func(kind, size string) *model.Image {
 		return &model.Image{Kind: kind, Size: size, ContentHash: "h"}
 	}
@@ -202,6 +204,7 @@ func TestHeroLinkFallsBackToSingleImage(t *testing.T) {
 }
 
 func TestHeroPrepaint(t *testing.T) {
+	t.Parallel()
 	img := func(kind, size string) *model.Image {
 		return &model.Image{Kind: kind, Size: size, ContentHash: "h"}
 	}

@@ -120,6 +120,7 @@ func parseYAML(t *testing.T, data []byte) map[string]any {
 }
 
 func TestContractOpenAPI(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("../../../api/openapi.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -134,6 +135,7 @@ func TestContractOpenAPI(t *testing.T) {
 }
 
 func TestContractRejectsViolations(t *testing.T) {
+	t.Parallel()
 	doc := parseYAML(t, []byte(`
 openapi: 3.1.0
 paths:
@@ -210,6 +212,7 @@ components:
 
 // The binary routes mounted by hand carry the same x-visibility as the contract.
 func TestBinaryRoutesMatchContract(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("../../../api/openapi.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -228,6 +231,7 @@ func TestBinaryRoutesMatchContract(t *testing.T) {
 
 // K-1: profiles carry no e-mail and no password; a profile request needs only the name.
 func TestContractProfileHasNoCredentials(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("../../../api/openapi.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -263,6 +267,7 @@ func TestContractProfileHasNoCredentials(t *testing.T) {
 // TraktStatus schema, the start page rows that show the lists and the server settings of the
 // administration (M8: the stored client id and its integration state).
 func TestContractNoTraktPerProfile(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("../../../api/openapi.yaml")
 	if err != nil {
 		t.Fatal(err)

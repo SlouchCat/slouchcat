@@ -44,6 +44,7 @@ func (r *dispatchRecorder) of(p model.Profile) []string {
 // P6 holds a favourite (set while the series was rated lower) to prove the negative, P12 and P18
 // receive the series-level episode.
 func TestContractNotifications(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
 	rec := &dispatchRecorder{calls: map[int64][]string{}}

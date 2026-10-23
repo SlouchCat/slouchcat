@@ -51,6 +51,7 @@ func picksOf(t *testing.T, h http.Handler, token string) []string {
 }
 
 func TestContractAdminPicks(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	create := func(body string) []gen.AdminPick {
@@ -184,6 +185,7 @@ func TestContractAdminPicks(t *testing.T) {
 }
 
 func TestContractAdminCollections(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	call := func(method, path, body string, status int) gen.AdminCollection {
@@ -281,6 +283,7 @@ func TestContractAdminCollections(t *testing.T) {
 
 // E-9: the stored order and the hidden flag reach the start page.
 func TestContractHomeRows(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	h := pf.h
 	rec := send(t, h, http.MethodGet, BasePath+"/admin/home-rows", "p18", "", nil)

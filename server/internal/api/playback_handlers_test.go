@@ -95,6 +95,7 @@ func streamParam(t *testing.T, streamURL string) string {
 
 // Plan 5.4: token-only access, 401 for missing, forged and revoked tokens, revocation by stop and
 // logout, only the owning browser session may stop, Referrer-Policy everywhere.
+// Not parallel: asserts that a stopped stream answers 401 within a second.
 func TestStreamTokenEndpoints(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
@@ -213,6 +214,7 @@ func TestStreamTokenEndpoints(t *testing.T) {
 }
 
 func TestStartPlaybackBusy(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	m := pf.f.Rated(0)
 	pf.f.SetMediaFile(t, m.FileID, "mkv", "hevc", "aac", `{"format":{"duration":90000000000},"streams":[{"type":"video","codec":"hevc"}]}`, nil)
@@ -225,6 +227,7 @@ func TestStartPlaybackBusy(t *testing.T) {
 
 // I2, plan 5.4: stopping a direct-play session ends a Range response "bytes=0-" that is already
 // streaming to a client that stopped reading (browser buffer full), within a second.
+// Not parallel: asserts that stopping ends the running Range response within a second.
 func TestStopEndsRunningRangeResponse(t *testing.T) {
 	pf := newProfileFixture(t)
 	m := pf.f.Rated(12)

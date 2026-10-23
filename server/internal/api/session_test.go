@@ -90,6 +90,7 @@ func problemCode(t *testing.T, rec *httptest.ResponseRecorder) string {
 // hand are covered as well. Stubbed handlers answer 500 behind the gate, which proves the gate
 // opened.
 func TestAuthorizeByVisibility(t *testing.T) {
+	t.Parallel()
 	h := newSessionTestHandler()
 	cases := []struct {
 		name          string
@@ -139,6 +140,7 @@ func TestAuthorizeByVisibility(t *testing.T) {
 
 // Every operation of the contract is known to the middleware with a usable marker.
 func TestEveryRouteHasVisibility(t *testing.T) {
+	t.Parallel()
 	spec, err := gen.GetSpec()
 	if err != nil {
 		t.Fatal(err)
@@ -155,6 +157,7 @@ func TestEveryRouteHasVisibility(t *testing.T) {
 }
 
 func TestMapError(t *testing.T) {
+	t.Parallel()
 	h := newSessionTestHandler()
 	p := problems{log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	_ = h
@@ -219,6 +222,7 @@ func TestMapError(t *testing.T) {
 }
 
 func TestSessionCookie(t *testing.T) {
+	t.Parallel()
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
 	now := time.Now()
@@ -248,6 +252,7 @@ func TestSessionCookie(t *testing.T) {
 }
 
 func TestContextHelpers(t *testing.T) {
+	t.Parallel()
 	req := httptest.NewRequest(http.MethodGet, "/x", nil)
 	ctx := context.WithValue(context.WithValue(context.Background(), requestKey{}, req), sessionKey{}, model.Session{ID: 7})
 	if requestFrom(ctx) != req {
@@ -264,6 +269,7 @@ func TestContextHelpers(t *testing.T) {
 // A request whose session Resolve extended carries a fresh cookie with the new expiry; a session
 // that was not extended gets no cookie.
 func TestAuthorizeReissuesExtendedSessionCookie(t *testing.T) {
+	t.Parallel()
 	h := newSessionTestHandler()
 	rec := request(t, h, http.MethodGet, "/api/v1/auth/session", "sliding", false)
 	if rec.Code != http.StatusOK {
@@ -294,6 +300,7 @@ func TestAuthorizeReissuesExtendedSessionCookie(t *testing.T) {
 // session's device (the revocation list of checkOfflineRevocations is read by the cookie, K-7),
 // and an extended session renews it with a fresh MaxAge.
 func TestDeviceCookieFollowsTheSession(t *testing.T) {
+	t.Parallel()
 	h := newSessionTestHandler()
 	get := func(token, cookie string) []*http.Cookie {
 		t.Helper()
@@ -345,6 +352,7 @@ func cookiesNamed(rec *httptest.ResponseRecorder, name string) []*http.Cookie {
 }
 
 func TestClientIP(t *testing.T) {
+	t.Parallel()
 	private, err := config.ParseTrustedProxies("private")
 	if err != nil {
 		t.Fatal(err)

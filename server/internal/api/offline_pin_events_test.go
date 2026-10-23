@@ -37,6 +37,7 @@ func hasOfflinePinOf(t *testing.T, h http.Handler, token string) map[int64]bool 
 // account; Profile.hasOfflinePin follows (also in the session); a short PIN is 422, a non-primary
 // profile 403 primary_profile_required, a profile of another account 404.
 func TestOfflinePinEndpoints(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	path := func(id int64) string { return fmt.Sprintf("%s/profiles/%d/offline-pin", BasePath, id) }
@@ -104,6 +105,7 @@ type offlineResult struct {
 // to the last position (±10 s). A guest's session only books its own profiles. The upload of 500
 // events passes the body limit; 501 events and a batch without sentAt are 422.
 func TestUploadOfflineEvents(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(12)

@@ -12,6 +12,7 @@ import (
 )
 
 func TestLibraryEndpoints(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	rec := e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
 	wantStatus(t, rec, http.StatusCreated)
@@ -75,6 +76,7 @@ func TestLibraryEndpoints(t *testing.T) {
 
 // A non-owner session is refused on admin routes (M2 brings guests; the role exists in the schema).
 func TestLibraryEndpointsRefuseGuests(t *testing.T) {
+	t.Parallel()
 	e := newAuthEnv(t)
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
 	ctx := context.Background()

@@ -312,6 +312,7 @@ var publicRegistry = map[string]publicCall{
 // A missing registry entry fails the test: every operation of the contract is in exactly the
 // registry of its x-visibility, with the same method and path.
 func TestContractCoversEveryOperation(t *testing.T) {
+	t.Parallel()
 	ops := contractOperations(t)
 	ids := make([]string, 0, len(ops))
 	for id := range ops {
@@ -380,6 +381,7 @@ func assertNoSecrets(t *testing.T, label string, rec *httptest.ResponseRecorder)
 // Account operations work without a chosen profile, never answer 403 profile_required, never
 // contain a title id and never expose hashes.
 func TestContractAccountOperations(t *testing.T) {
+	t.Parallel()
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
@@ -432,6 +434,7 @@ func TestContractAccountOperations(t *testing.T) {
 // Admin operations: the guest, the owner's non-primary profile and an owner without a chosen
 // profile get 403 forbidden; the owner with the primary profile gets through.
 func TestContractAdminOperations(t *testing.T) {
+	t.Parallel()
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	h := pf.h
@@ -473,6 +476,7 @@ func TestContractAdminOperations(t *testing.T) {
 
 // Public operations work without a session and carry no title ids.
 func TestContractPublicOperations(t *testing.T) {
+	t.Parallel()
 	ops := contractOperations(t)
 	pf := newProfileFixture(t)
 	titles := pf.f.All()
@@ -523,6 +527,7 @@ func setRating(t *testing.T, h http.Handler, token, itemID, body string) *httpte
 // stream of an episode answers 404 on its next segment request. Back to 12 they return, while the
 // episode with its own rating 16 stays invisible for P12.
 func TestContractRatingChange(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	show := f.Show
@@ -685,6 +690,8 @@ func TestContractRatingChange(t *testing.T) {
 
 // K-7: revoking a guest answers 401 for its cookie and its stream tokens from the next request on
 // and aborts a Range response that is already streaming.
+// Not parallel: K-7 asks for the open Range response to end within one second of the
+// revocation, and that second is measured on the clock.
 func TestContractGuestRevocation(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
@@ -798,6 +805,7 @@ func TestContractGuestRevocation(t *testing.T) {
 // Removing a library right takes effect with the next request: after the owner's primary profile
 // takes library 1 away from PX, the titles of library 1 answer 404 for PX and leave its start page.
 func TestContractLibraryRightRevoked(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	movie := f.Rated(12)
@@ -869,6 +877,7 @@ func TestContractLibraryRightRevoked(t *testing.T) {
 
 // B-3: the texts follow the profile language, falling back to English.
 func TestContractProfileLanguage(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	title := func(token, id string) string {
@@ -920,6 +929,7 @@ func TestContractProfileLanguage(t *testing.T) {
 // listAccountLibraries: the main account sees every library, a guest the ones of its account, both
 // by name, without a profile and without titles.
 func TestListAccountLibraries(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
 	type lib struct {
@@ -963,6 +973,7 @@ func TestListAccountLibraries(t *testing.T) {
 
 // A guest (with its own primary profile) cannot touch the profiles of another account: its
 // management calls with the owner's profile ids answer 404, and nothing changes.
+// Not parallel: waits a second for the stream of a revoked guest to close.
 func TestContractGuestCannotReachOwnerProfiles(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
@@ -1048,6 +1059,7 @@ func expectClosed(t *testing.T, what string, closed <-chan struct{}) {
 // Direct play of an episode that stops being visible: the open Range response ends when the
 // administrator raises the series (plan 10.2 for direct play; HLS ends with its next segment request).
 func TestContractRatingChangeEndsOpenDirectStream(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	e1 := f.Show.E1
@@ -1073,6 +1085,7 @@ func TestContractRatingChangeEndsOpenDirectStream(t *testing.T) {
 // M3 review, findings 9 and 10: merging a title into another deletes the source, so an open
 // direct stream of the source ends like after a rating change.
 func TestContractMergeEndsOpenDirectStream(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	source, target := f.Rated(6), f.Rated(0)
@@ -1091,6 +1104,7 @@ func TestContractMergeEndsOpenDirectStream(t *testing.T) {
 // Lowering a guest's ceiling, taking a library right from a profile and changing a profile's
 // rating all end the open direct streams they hide.
 func TestContractLoweredAccessEndsOpenDirectStreams(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(12)
@@ -1150,6 +1164,7 @@ func (p *slipPlayback) EndAccount(ctx context.Context, id int64) error {
 // new can be authorised), and a stream that a request already past its checks opens between the
 // steps is still ended by the second call after the account is gone.
 func TestContractGuestRevocationOrder(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
 	m := f.Rated(6)

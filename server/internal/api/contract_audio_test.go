@@ -24,6 +24,7 @@ import (
 // TestContractChildProfiles), and the administration of audio libraries and podcasts.
 
 func TestContractAudio(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	a := f.Audio
@@ -169,6 +170,7 @@ func (c *contractLibraries) Get(ctx context.Context, id int64) (model.Library, e
 
 // M6 administration: the default rating of an audio library (AN-2) and the podcast subscriptions.
 func TestContractAudioAdmin(t *testing.T) {
+	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
 	a := f.Audio
