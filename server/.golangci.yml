@@ -39,6 +39,12 @@ linters:
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/systemq
               desc: unfiltered queries are allowed only in visibility, admin, library, metadata, jobs, notify and offline (CLAUDE.md rule 2)
+        apicheck:
+          files:
+            - "**/cmd/apicheck/**"
+          deny:
+            - pkg: github.com/slouchcat/slouchcat/server/internal
+              desc: the P-16 third-party client knows the server only through api/openapi.yaml; importing a package of this server would make it an inside client and void the evidence (plan section 8, P-16)
     forbidigo:
       analyze-types: true
       forbid:
