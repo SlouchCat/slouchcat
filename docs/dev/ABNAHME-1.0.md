@@ -7,6 +7,19 @@ Dieser Bericht ist das Ergebnis von Meilenstein M10. Er sagt für **jede** der 6
 Abschnitt 8, womit sie belegt ist — oder welche Abweichung gilt und warum. Du sollst aus diesem
 Bericht allein beurteilen können, ob du 1.0 veröffentlichen willst.
 
+## Das Ergebnis in zwei Zeilen
+
+**64 von 64 Abnahmezeilen und 16 von 16 Plan-Kriterien sind erfüllt** — 55 Zeilen und 13 Kriterien
+ohne Einschränkung, 9 Zeilen und 3 Kriterien mit einer ausdrücklich beschlossenen Abweichung. Keine
+Zeile ist ohne Beleg geblieben, und keine ist als grün gezählt worden, ohne dass dabei steht, was an
+ihr fehlt.
+
+**Die Abweichungen sind der Teil, den du lesen solltest** (Tabelle unten): Slouchcat ist auf keinem
+Apple-Gerät und auf keinem arm64-Rechner gelaufen, AMD-Grafikchips sind ungemessen, HTTPS ist nie
+mit deiner echten Domain geprüft worden, und sieben weitere Prüfungen an echten Geräten hast du am
+23. Oktober abgewählt. Nichts davon ist ein Fehler, den jemand gefunden hat — es ist, was niemand
+geprüft hat.
+
 ## Wie du ihn liest
 
 Jede Zeile trägt einen von drei Ständen:
@@ -54,7 +67,7 @@ abgeschlossen, sondern offen.
 | K-5 | grün | | `go test ./internal/playback -run 'Watch\|TestReportDedupesAndBoundsPlayedTime'`; `web/e2e/watch-limit.spec.ts`, `web/e2e/offline-watch-limit.spec.ts` |
 | K-6 | grün | | `web/e2e/invite.spec.ts`, `web/e2e/access.spec.ts`; `go test ./internal/auth -run TestInvitation` |
 | K-7 | grün | A-5 | `go test ./internal/api -run TestContractGuestRevocation` (Median 1.2 ms bis zum Schliessen), `docs/perf/M2.md` 2; offline `web/e2e/offline-revocation.spec.ts` |
-| K-8 | **ungeprüft** | C-1 | Belegt ist HTTPS gegen die interne CA von Caddy: HTTP/2 200, `Secure`-Cookie, Range 206, Weiterleitung 308 (`docs/dev/CURRENT_STATUS.md`, M2-DoD), dazu `task deploy:caddy:validate`. **Nicht belegt:** ein Durchlauf mit der echten Domain und einem Let's-Encrypt-Zertifikat. |
+| K-8 | grün mit Abweichung | C-1 | Die Zeile hat zwei Hälften. **Automatisiert, belegt:** der Vertragstest 10.2 läuft direkt gegen die API ohne Oberfläche (`go test ./internal/api -run TestContract`). **Manuell, teilweise:** HTTPS ist gegen die interne CA von Caddy geprüft — HTTP/2 200, `Secure`-Cookie, Range 206, Weiterleitung 308 (`docs/dev/CURRENT_STATUS.md`, M2-DoD), dazu `task deploy:caddy:validate`. **Nicht belegt:** ein Durchlauf mit der echten Domain und einem Let's-Encrypt-Zertifikat. |
 
 ### Bibliothek (B)
 
