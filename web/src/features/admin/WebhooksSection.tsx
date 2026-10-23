@@ -6,12 +6,11 @@ import type {
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
 import { Chip, Notice, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, DataTable, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, DataTable, Form, RadioGroup, TextField } from '@/ui/aria';
 import {
   createIntegration,
   dashboardQuery,

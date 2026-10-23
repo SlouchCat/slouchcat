@@ -1,7 +1,6 @@
 import type { Backup, BackupRequest, components, RestoreResult } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -11,15 +10,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useEdited } from '@/lib/useEdited';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { ButtonLink, Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import {
-  AriaButton,
-  ConfirmDialog,
-  DataTable,
-  FormDialog,
-  RadioGroup,
-  TextField,
-  type DataColumn,
-} from '@/ui/aria';
+import { AriaButton, ConfirmDialog, DataTable, Form, FormDialog, RadioGroup, TextField, type DataColumn } from '@/ui/aria';
 import { backupsQuery } from './queries';
 import { reloadToLogin, RESTART_GIVE_UP_MS, RESTART_POLL_MS, restartedSince } from './restart';
 import data from './AdminData.module.css';

@@ -1,13 +1,12 @@
 import type { Profile } from '@slouchcat/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Notice } from '@/ui';
-import { AriaButton, FormDialog, PinField } from '@/ui/aria';
+import { AriaButton, Form, FormDialog, PinField } from '@/ui/aria';
 import styles from './ProfileForm.module.css';
 
 interface PinSetDialogProps {

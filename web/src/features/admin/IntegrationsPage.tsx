@@ -7,7 +7,6 @@ import type {
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -16,7 +15,7 @@ import { sessionQuery, useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Page, Panel, Skeleton, Text, TextLink } from '@/ui';
-import { AriaButton, ConfirmDialog, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, Form, RadioGroup, TextField } from '@/ui/aria';
 import {
   dashboardQuery,
   rotatePushKeys,

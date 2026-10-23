@@ -1,13 +1,12 @@
 import type { AdminItem, MetadataCandidate, MetadataProvider } from '@slouchcat/api-client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { formText } from '@/lib/form';
 import { CandidateCard, Notice } from '@/ui';
-import { AriaButton, FormDialog, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
 import styles from './MaintenancePage.module.css';
 
 type MatchKind = 'movie' | 'series';

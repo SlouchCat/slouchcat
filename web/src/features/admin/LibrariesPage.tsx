@@ -1,14 +1,13 @@
 import type { Library, LibraryRequest, Rating } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, FormDialog, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../shared/choices';
 import {
   isAudioLibrary,

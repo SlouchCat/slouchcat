@@ -6,21 +6,13 @@ import type {
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Chip, Notice, Page, Skeleton, Text } from '@/ui';
-import {
-  AriaButton,
-  ConfirmDialog,
-  DataTable,
-  FormDialog,
-  TextField,
-  type DataColumn,
-} from '@/ui/aria';
+import { AriaButton, ConfirmDialog, DataTable, Form, FormDialog, TextField, type DataColumn } from '@/ui/aria';
 import { moveBy, titleMeta, TitleSearch, useMoveButtons } from './CurationParts';
 import {
   adminCollectionQuery,

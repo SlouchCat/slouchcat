@@ -8,7 +8,6 @@ import {
 } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -17,15 +16,7 @@ import { useActiveSession } from '@/app/session';
 import { formatBytes } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import {
-  AriaButton,
-  ConfirmDialog,
-  FormDialog,
-  RadioGroup,
-  SelectableList,
-  Tabs,
-  type SelectableItem,
-} from '@/ui/aria';
+import { AriaButton, ConfirmDialog, Form, FormDialog, RadioGroup, SelectableList, Tabs, type SelectableItem } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../shared/choices';
 import { MatchDialog } from './MatchDialog';
 import {

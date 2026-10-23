@@ -1,7 +1,6 @@
 import type { Announcement, AnnouncementRequest, AnnouncementUpdate } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -11,15 +10,7 @@ import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useEdited } from '@/lib/useEdited';
 import { Chip, Notice, Page, Skeleton, Text } from '@/ui';
-import {
-  AriaButton,
-  CheckboxGroup,
-  ConfirmDialog,
-  DataTable,
-  FormDialog,
-  TextField,
-  type DataColumn,
-} from '@/ui/aria';
+import { AriaButton, CheckboxGroup, ConfirmDialog, DataTable, Form, FormDialog, TextField, type DataColumn } from '@/ui/aria';
 import { adminAnnouncementsQuery } from './queries';
 import data from './AdminData.module.css';
 import styles from './AdminTablePage.module.css';

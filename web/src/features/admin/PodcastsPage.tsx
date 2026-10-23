@@ -1,7 +1,6 @@
 import type { AdminPodcast, Library, PodcastCreate } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { codeMessage, formErrors, problemMessage } from '@/api/errors';
@@ -11,15 +10,7 @@ import { formText } from '@/lib/form';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ButtonLink, Chip, Notice, Page, Skeleton, Text } from '@/ui';
-import {
-  AriaButton,
-  ConfirmDialog,
-  DataTable,
-  FormDialog,
-  RadioGroup,
-  TextField,
-  type DataColumn,
-} from '@/ui/aria';
+import { AriaButton, ConfirmDialog, DataTable, Form, FormDialog, RadioGroup, TextField, type DataColumn } from '@/ui/aria';
 import { librariesQuery, podcastsQuery } from './queries';
 import styles from './AdminTablePage.module.css';
 

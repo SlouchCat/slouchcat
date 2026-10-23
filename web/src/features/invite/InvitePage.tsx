@@ -6,7 +6,6 @@ import type {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi, useRouter } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -17,7 +16,7 @@ import { formatDateTime } from '@/lib/format';
 import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { ButtonLink, Chip, Logo, Notice, Page, Panel, Skeleton, Stack, Text } from '@/ui';
-import { AriaButton, RadioGroup, TextField } from '@/ui/aria';
+import { AriaButton, Form, RadioGroup, TextField } from '@/ui/aria';
 import { languageOptions } from '../shared/choices';
 import styles from './InvitePage.module.css';
 

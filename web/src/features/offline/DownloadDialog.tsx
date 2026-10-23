@@ -1,14 +1,13 @@
 import type { ItemRef } from '@slouchcat/api-client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Form } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { trackLabel } from '@/features/player/labels';
 import { formatBytes } from '@/lib/format';
 import { Notice, Skeleton, Text } from '@/ui';
-import { AriaButton, FormDialog, RadioGroup } from '@/ui/aria';
+import { AriaButton, Form, FormDialog, RadioGroup } from '@/ui/aria';
 import { createDownloads, persistAsked, persistOnFirstDownload } from './actions';
 import { qualityLabel } from './labels';
 import { downloadOptionsQuery } from './queries';
