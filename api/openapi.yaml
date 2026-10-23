@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 0.9.0
+  version: 1.0.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -82,8 +82,6 @@ tags:
     description: Notification channels of the signed-in account (e-mail, Web Push, Telegram; M8).
   - name: announcements
     description: Announcements of the main user to every profile (M8, A-7).
-  - name: spike
-    description: Temporary endpoints of the offline spike (M1a, removed after the M1b decision).
   - name: integrations
     description: Incoming webhooks of Radarr and Sonarr (M9, I-8).
 paths:
@@ -4918,46 +4916,6 @@ paths:
           $ref: "#/components/responses/PrimaryProfileRequired"
         "404":
           description: Unknown or of another account (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
-  /spike/{variant}:
-    get:
-      operationId: getSpikeFile
-      summary: Download file of the offline spike (binary, Range)
-      description: |
-        Temporary endpoint of the M1a offline spike (plan 10.4). Implemented as an `http.Handler` that
-        serves `spike-fmp4.mp4` or `spike-faststart.mp4` from the directory in `SLOUCHCAT_SPIKE_DIR` with
-        Range support. Without that setting the endpoint answers 404. Removed after the M1b decision.
-      tags: [spike]
-      x-visibility: public
-      security: []
-      parameters:
-        - name: variant
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [fmp4, faststart]
-      responses:
-        "200":
-          description: Whole file.
-          content:
-            video/mp4:
-              schema:
-                type: string
-                format: binary
-        "206":
-          description: Requested byte range.
-          content:
-            video/mp4:
-              schema:
-                type: string
-                format: binary
-        "404":
-          description: Spike not enabled or file missing (`not_found`).
           content:
             application/problem+json:
               schema:

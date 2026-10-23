@@ -82,8 +82,9 @@ geprüft (Entscheid vom 21. Oktober).
 - Android-Checklisten: M5 (`docs/perf/M5.md` Abschnitt 7: Download, Staffel, Flugmodus, „nur WLAN") und
   M6 (`docs/perf/M6.md` Abschnitt 5: Hörbuch, Podcast, Flugmodus mit Kapitelsprung). Ergebnisse trägt die
   Hauptsession ein.
-- Offline-Spike: Tage 3 und 8 (bis 27. Oktober 2026) auf dem Handy prüfen; danach Spike-Seite und
-  `SLOUCHCAT_SPIKE_DIR` entfernen (eigener kleiner PR).
+- Offline-Spike: **erledigt in M10.** Der Spike-Endpunkt `/spike/{variant}` und
+  `SLOUCHCAT_SPIKE_DIR` sind entfernt (Sicherheitsreview vom 23. Oktober 2026, H-7); die Tage 3
+  und 8 am Handy entfallen mit dem Entscheid, keine weiteren Gerätetests zu machen.
 - O-6-Langzeittest (30 Tage ab 20. Oktober, Protokoll `docs/perf/M5-o6-langzeittest.md`): wird in M7
   weitergeführt und erst nach dem 19. November abgehakt.
 - HTTPS-Zugang (K-8) mit Marcos echter Domain testen.

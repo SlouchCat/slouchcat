@@ -39,7 +39,6 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_LOG_FORMAT":          "text",
 		"SLOUCHCAT_DEV":                 "true",
 		"SLOUCHCAT_FFPROBE":             "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		"SLOUCHCAT_SPIKE_DIR":           "/srv/spike",
 		"SLOUCHCAT_WORKERS":             "3",
 		"SLOUCHCAT_HW":                  "nvenc",
 		"SLOUCHCAT_HDR_TONEMAP":         "gpu",
@@ -69,7 +68,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	absCache, _ := filepath.Abs("rel/cache")
 	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
-		SpikeDir: "/srv/spike", Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
+		Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
 		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental",
 		TraktClientID: "trakt-id", TraktBaseURL: "http://127.0.0.1:9/trakt",
 		SMTPHost: "smtp.example.test", SMTPPort: 465, SMTPUser: "mailer", SMTPPassword: "smtp-FAKE-password",
@@ -212,5 +211,30 @@ func TestNotifyConfig(t *testing.T) {
 	}
 	if logged := cfg.LogValue().String(); !strings.Contains(logged, "update_manifest_default=true") || !strings.Contains(logged, "smtp_configured=false") {
 		t.Errorf("LogValue: %s", logged)
+	}
+}
+
+// A whole private network as a trusted proxy is warned about, a named one is not (M-1 of the
+// security review of 23 October 2026).
+func TestTrustedProxyWarning(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		warn  bool
+	}{
+		{"", false},
+		{"private", true},
+		{"192.168.0.0/16", true},
+		{"10.0.0.0/8, 172.18.0.0/16", true},
+		{"172.18.0.0/16", false},
+		{"172.18.0.2", false},
+	} {
+		proxies, err := ParseTrustedProxies(tc.value)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.value, err)
+		}
+		got := Config{TrustedProxies: proxies}.TrustedProxyWarning()
+		if (got != "") != tc.warn {
+			t.Errorf("TrustedProxies %q: warning %q, want warning = %v", tc.value, got, tc.warn)
+		}
 	}
 }

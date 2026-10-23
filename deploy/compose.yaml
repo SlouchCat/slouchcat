@@ -1,6 +1,10 @@
 # Slouchcat – Docker Compose (plan section 3.7).
 # Usage: cp .env.example .env && mkdir -p config cache && docker compose up -d
-# HTTPS: docker compose --profile https up -d (Caddy, see README and Caddyfile).
+# HTTPS: docker compose -f compose.yaml -f compose.https-only.yaml --profile https up -d
+#   (Caddy, see README and Caddyfile). The https-only override belongs to it: it stops the host
+#   publishing port 8096, so nothing but Caddy reaches the server. Without it, and with
+#   SLOUCHCAT_TRUSTED_PROXIES=private, any device in the home network can set X-Forwarded-For
+#   itself and so empty the limit on login attempts.
 # GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
 name: slouchcat
 

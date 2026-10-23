@@ -22,13 +22,17 @@ on:
 permissions:
   contents: write
   packages: write
+  # For the build provenance below: the attestation is signed with a short-lived OIDC token, so
+  # whoever pulls the image can check that it came out of this workflow and this commit.
+  id-token: write
+  attestations: write
 
 jobs:
   release:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           # The annotated tag's message becomes the release notes; a shallow checkout has no tag
           # object to read it from.
@@ -41,13 +45,13 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
         with:
           platforms: arm64
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -56,7 +60,8 @@ jobs:
       # Both platforms of P-1 in one image index. VERSION goes into the binary, so the running
       # server reports the release it was built from and the update check compares against it.
       - name: Build and push linux/amd64 and linux/arm64
-        uses: docker/build-push-action@v6
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: deploy/Dockerfile
@@ -68,6 +73,19 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      # Signs a statement that this image index came out of this workflow, this commit and this
+      # runner, and stores it next to the image. `gh attestation verify
+      # oci://ghcr.io/slouchcat/slouchcat:<version> --repo SlouchCat/slouchcat` checks it. It is
+      # what makes a tampered registry or a compromised workflow visible afterwards.
+      - name: Attest the build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
       # The notes are the message of the annotated tag, without its first line (which repeats the
       # version). A lightweight tag has no message; the manifest then points at the release page.

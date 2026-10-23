@@ -118,7 +118,6 @@ func TestAuthorizeByVisibility(t *testing.T) {
 		{name: "post with csrf header reaches handler", method: "POST", path: "/api/v1/auth/logout", token: "owner", csrf: true, wantStatus: 204},
 		{name: "image route without session", method: "GET", path: "/api/v1/items/01ARZ3NDEKTSV4RRFFQ69G5FAV/images/poster/w500", wantStatus: 401, wantCode: "unauthenticated"},
 		{name: "stream route without session", method: "GET", path: "/api/v1/items/01ARZ3NDEKTSV4RRFFQ69G5FAV/stream", wantStatus: 401, wantCode: "unauthenticated"},
-		{name: "spike is public but disabled", method: "GET", path: "/api/v1/spike/fmp4", wantStatus: 404, wantCode: "not_found"},
 		{name: "unknown route stays 404", method: "POST", path: "/api/v1/nothing", wantStatus: 404, wantCode: "not_found"},
 		{name: "wrong method stays 405", method: "POST", path: "/api/v1/healthz", wantStatus: 405, wantCode: "method_not_allowed"},
 	}

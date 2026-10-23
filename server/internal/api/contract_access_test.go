@@ -297,7 +297,6 @@ var publicRegistry = map[string]publicCall{
 	"getInvitation": {contract: "GET /invitations/{token}", path: "/invitations/" + unknownInvitationToken, status: http.StatusNotFound},
 	"acceptInvitation": {contract: "POST /invitations/{token}/accept", path: "/invitations/" + unknownInvitationToken + "/accept", status: http.StatusNotFound,
 		body: `{"email":"guest2@example.ch","password":"long-enough-password","profileName":"G"}`},
-	"getSpikeFile": {contract: "GET /spike/{variant}", path: "/spike/fmp4", status: http.StatusNotFound},
 	// M5: without the device cookie the revocation list is empty (K-7).
 	"checkOfflineRevocations": {contract: "POST /offline/revocations", path: "/offline/revocations", status: http.StatusOK,
 		body: `{"ids":["01J9AAAAAAAAAAAAAAAAAAAAAA"]}`},

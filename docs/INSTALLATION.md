@@ -145,10 +145,15 @@ In `.env`:
 ```bash
 SLOUCHCAT_DOMAIN=media.beispiel.ch
 ACME_EMAIL=du@beispiel.ch
-SLOUCHCAT_TRUSTED_PROXIES=private
+SLOUCHCAT_TRUSTED_PROXIES=172.18.0.0/16
 SLOUCHCAT_PUBLIC_URL=https://media.beispiel.ch
 COMPOSE_FILE=compose.yaml:compose.https-only.yaml
 ```
+
+`SLOUCHCAT_TRUSTED_PROXIES` sagt dem Server, wessen Angabe «von welchem Gerät kommt diese Anfrage»
+er glauben darf. Trag das Docker-Netz von Caddy ein — `docker network inspect slouchcat_default`
+zeigt es, meistens `172.18.0.0/16`. Der Wert `private` tut es auch, vertraut aber jedem Gerät in
+deinem Heimnetz; der Server warnt dann beim Start.
 
 Dann:
 
