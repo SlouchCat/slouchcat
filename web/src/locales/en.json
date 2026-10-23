@@ -1398,6 +1398,8 @@
           "add": "Add row",
           "remove": "Remove the row for {{from}}",
           "removeAction": "Remove",
+          "elsewhere": "Someone else has changed the path mapping of this integration in the meantime. Your rows are still here and will be stored when you save.",
+          "takeOver": "Take the other version",
           "saved": "Path mapping saved."
         },
         "log": {
