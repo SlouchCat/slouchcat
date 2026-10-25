@@ -27,6 +27,8 @@ describe('admin libraries page', () => {
                 fsType: 'nfs',
                 watch: 'poll',
                 warning: 'network_share',
+                itemCount: 0,
+                fileCount: 0,
               },
             ],
             scan: { state: 'failed', itemCount: 0, fileCount: 0, lastError: 'permission denied' },
@@ -170,7 +172,16 @@ describe('admin libraries page', () => {
       name: 'Hörbücher',
       kind: 'audiobooks',
       defaultRating: 0,
-      roots: [{ id: 3, path: '/media/Hoerbuecher', fsType: 'ext4', watch: 'inotify' }],
+      roots: [
+        {
+          id: 3,
+          path: '/media/Hoerbuecher',
+          fsType: 'ext4',
+          watch: 'inotify',
+          itemCount: 0,
+          fileCount: 0,
+        },
+      ],
     });
     const podcasts = library({
       id: 4,

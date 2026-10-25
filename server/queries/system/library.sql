@@ -99,3 +99,10 @@ SELECT count(*) FROM media_files WHERE root_id = @root_id;
 -- name: DeleteLibraryRoot :execrows
 -- ON DELETE CASCADE clears media_files of the folder; the triggers set items.available.
 DELETE FROM library_roots WHERE id = @id AND library_id = @library_id;
+
+-- name: CountLibraryRootContent :one
+-- What a folder holds, for the confirmation of its removal (idea 02, E12): its media files, and
+-- the titles that have at least one file in it. The second number is the upper bound of what the
+-- removal takes out -- a title with a file in another folder of the library stays -- and one pass
+-- over the root_id index answers both.
+SELECT count(*) AS files, count(DISTINCT item_id) AS items FROM media_files WHERE root_id = @root_id;

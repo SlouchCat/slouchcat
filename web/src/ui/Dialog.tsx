@@ -2,12 +2,14 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type ReactElement,
   type ReactNode,
   type RefObject,
 } from 'react';
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { AriaButton } from './AriaButton';
+import { TextField } from './TextField';
 import styles from './Dialog.module.css';
 
 interface ConfirmDialogProps {
@@ -70,6 +72,93 @@ export function ConfirmDialog({
         </Modal>
       </ModalOverlay>
     </DialogTrigger>
+  );
+}
+
+interface ConfirmInputDialogProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  title: string;
+  /** What the confirmation really does, in full sentences; several paragraphs are welcome. */
+  children: ReactNode;
+  /** The text that has to be typed, character for character. */
+  expected: string;
+  /** Label of the field ("Type the path to confirm"). */
+  inputLabel: string;
+  /** Under the field while what is typed is not `expected` yet. */
+  mismatchText: string;
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  isPending?: boolean;
+}
+
+/**
+ * Confirmation that has to be typed out: the button stays disabled until the field repeats
+ * `expected` exactly (idea 02, E12). ConfirmDialog is one keystroke away from done, which is
+ * right for "accept the loss" and wrong for an action that takes thousands of titles out of a
+ * library and deletes the offline packages on the devices.
+ *
+ * It is an `alertdialog` like ConfirmDialog, opened and closed by the page (it needs to know
+ * which row it asks about), and the focus starts in the field, not on the confirming button.
+ */
+export function ConfirmInputDialog({
+  isOpen,
+  onOpenChange,
+  title,
+  children,
+  expected,
+  inputLabel,
+  mismatchText,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  isPending,
+}: ConfirmInputDialogProps) {
+  // A fresh field per opening and per row: a path left over from the last time would be a
+  // confirmation nobody gave. The reset is derived from what is being confirmed, not done in an
+  // effect, so no render happens with the old text still in the field.
+  const [entry, setEntry] = useState({ asked: '', typed: '' });
+  const asked = isOpen ? expected : '';
+  const typed = entry.asked === asked ? entry.typed : '';
+  const matches = typed.trim() === expected;
+
+  return (
+    <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange}>
+      <Modal className={styles.modal}>
+        <Dialog className={styles.dialog} role="alertdialog">
+          <div className={styles.head}>
+            <Heading slot="title" className={styles.title}>
+              {title}
+            </Heading>
+          </div>
+          <div className={styles.body}>{children}</div>
+          <TextField
+            label={inputLabel}
+            value={typed}
+            onChange={(value) => setEntry({ asked, typed: value })}
+            mono
+            autoFocus
+            autoComplete="off"
+            spellCheck="false"
+            description={matches ? undefined : mismatchText}
+          />
+          <div className={styles.actions}>
+            <AriaButton variant="ghost" onPress={() => onOpenChange(false)}>
+              {cancelLabel}
+            </AriaButton>
+            <AriaButton
+              variant="danger"
+              isDisabled={!matches}
+              isPending={isPending}
+              onPress={onConfirm}
+            >
+              {confirmLabel}
+            </AriaButton>
+          </div>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
 

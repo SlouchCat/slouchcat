@@ -10,7 +10,7 @@ export { BarChart, type BarDatum } from './BarChart';
 export { CheckboxGroup } from './CheckboxGroup';
 export { CodeBlock } from './CodeBlock';
 export { DataTable, type DataColumn } from './DataTable';
-export { ConfirmDialog, FormDialog } from './Dialog';
+export { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
 export { Form } from './Form';
 export { LinkCard } from './LinkCard';
 export { MenuButton } from './Menu';

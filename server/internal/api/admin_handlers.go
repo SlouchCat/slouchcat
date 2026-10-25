@@ -120,7 +120,8 @@ func optRating(v *int) *gen.Rating {
 func toLibrary(l model.Library) gen.Library {
 	roots := make([]gen.LibraryRoot, 0, len(l.Roots))
 	for _, r := range l.Roots {
-		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch)}
+		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch),
+			ItemCount: r.ItemCount, FileCount: r.FileCount}
 		if r.Warning != "" {
 			root.Warning = &r.Warning
 		}

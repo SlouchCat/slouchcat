@@ -4068,6 +4068,14 @@ export interface components {
             watch: "inotify" | "poll" | "inotify_poll";
             /** @description Stable code for a warning shown in the wizard, for example `network_share`. */
             warning?: string;
+            /**
+             * @description Titles with at least one file in this folder. It is the upper bound of what
+             *     `removeLibraryRoot` takes out of the library: a title that also has a file in another
+             *     folder of the library stays. The confirmation dialog names this number (idea 02, E12).
+             */
+            itemCount: number;
+            /** @description Media files registered in this folder; they all go with the folder. */
+            fileCount: number;
         };
         LibraryScan: {
             state: components["schemas"]["ScanState"];

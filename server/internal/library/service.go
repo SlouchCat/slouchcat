@@ -662,7 +662,14 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 	}
 	for _, r := range roots {
 		_, warning := WatchMode(r.FsType)
-		m.Roots = append(m.Roots, model.LibraryRoot{ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning})
+		content, err := sq.CountLibraryRootContent(ctx, r.ID)
+		if err != nil {
+			return model.Library{}, fmt.Errorf("count content of root %d: %w", r.ID, err)
+		}
+		m.Roots = append(m.Roots, model.LibraryRoot{
+			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning,
+			ItemCount: int(content.Items), FileCount: int(content.Files),
+		})
 	}
 	return m, nil
 }

@@ -7628,7 +7628,7 @@ components:
 
     LibraryRoot:
       type: object
-      required: [id, path, fsType, watch]
+      required: [id, path, fsType, watch, itemCount, fileCount]
       properties:
         id:
           type: integer
@@ -7645,6 +7645,15 @@ components:
         warning:
           type: string
           description: Stable code for a warning shown in the wizard, for example `network_share`.
+        itemCount:
+          type: integer
+          description: |
+            Titles with at least one file in this folder. It is the upper bound of what
+            `removeLibraryRoot` takes out of the library: a title that also has a file in another
+            folder of the library stays. The confirmation dialog names this number (idea 02, E12).
+        fileCount:
+          type: integer
+          description: Media files registered in this folder; they all go with the folder.
 
     LibraryScan:
       type: object

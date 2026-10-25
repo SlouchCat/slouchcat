@@ -149,7 +149,9 @@
       "passphrase_wrong": "Die Passphrase stimmt nicht.",
       "backup_invalid": "Diese Datei ist keine gültige Sicherung von Slouchcat, oder sie ist beschädigt.",
       "backup_newer_than_server": "Die Sicherung stammt von einer neueren Version von Slouchcat. Aktualisiere zuerst den Server.",
-      "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern."
+      "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.",
+      "scan_running": "Ein Scan dieser Bibliothek läuft gerade. Warte, bis er fertig ist, oder brich ihn ab.",
+      "confirm_mismatch": "Der abgetippte Pfad stimmt nicht mit dem Ordner überein. Nichts wurde entfernt."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -601,7 +603,38 @@
         "description": "Alle Titel, deren Stufe von der Bibliothek kommt, folgen sofort. Von Hand gesetzte Stufen bleiben.",
         "submit": "Speichern",
         "saved": "Die Standardstufe von {{name}} ist jetzt {{rating}}."
-      }
+      },
+      "folders": {
+        "title": "Ordner von {{name}}",
+        "description": "Eine Bibliothek kann mehrere Ordner haben. Scan und Überwachung nehmen einen neuen Ordner sofort auf.",
+        "none": "Diese Bibliothek hat keinen Ordner. Es wird nichts gescannt, bis du einen hinzufügst.",
+        "content": "{{items}} Titel · {{files}} Dateien",
+        "add": {
+          "label": "Ordner hinzufügen",
+          "submit": "Hinzufügen"
+        },
+        "remove": {
+          "action": "Entfernen",
+          "label": "Ordner {{path}} entfernen",
+          "title": "Ordner wirklich entfernen?",
+          "inputLabel": "Tippe den Pfad, um zu bestätigen",
+          "mismatch": "Tippe {{path}} genau so ab, dann wird der Knopf aktiv.",
+          "confirm": "Ordner entfernen",
+          "lead": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwinden damit aus allen Listen. Was das heisst:",
+          "soft": "Die Titel werden weich gelöscht: Sie verschwinden aus allen Listen, aber Fortschritt, Merkliste und Picks bleiben an ihnen hängen. Ein Titel, von dem eine Datei in einem anderen Ordner dieser Bibliothek liegt, bleibt sichtbar.",
+          "downloads": "Wirklich weg sind die Offline-Downloads: Geräte, die einen dieser Titel geladen haben, löschen das Paket beim nächsten Abgleich.",
+          "playback": "Eine laufende Wiedergabe aus diesem Ordner bricht mitten im Strom ab.",
+          "webhooks": "Die Umsetzungstabelle von Radarr und Sonarr zeigt für diesen Pfad danach ins Leere; Meldungen dazu werden abgelehnt.",
+          "relink": "Legst du denselben Ordner binnen 30 Tagen wieder an, kommen Titel mit TMDB-, TVDB- oder IMDb-Id samt ihren Benutzerdaten zurück. Titel ohne solche Id werden neu angelegt.",
+          "oneWay": "Liegt der Ordner ausserhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen.",
+          "last": "Es ist der letzte Ordner: {{name}} bleibt bestehen, hat danach aber keinen Ordner mehr und scannt nichts."
+        }
+      },
+      "openFolders": "Ordner",
+      "openFoldersLabel": "Ordner von {{name}} bearbeiten",
+      "rootCount_one": "{{count}} Ordner",
+      "rootCount_other": "{{count}} Ordner",
+      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst."
     },
     "access": {
       "title": "Zugriff",

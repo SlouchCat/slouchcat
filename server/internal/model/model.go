@@ -934,6 +934,11 @@ type LibraryRoot struct {
 	FSType  string
 	Watch   string // inotify, poll, inotify_poll
 	Warning string // network_share, fuse_unknown or empty
+	// ItemCount is the number of titles with a file in this folder, the upper bound of what
+	// removing it takes out of the library; FileCount is the files in it, which all go with it
+	// (idea 02, E12).
+	ItemCount int
+	FileCount int
 }
 
 // LibraryScan is the state of the running or last scan.

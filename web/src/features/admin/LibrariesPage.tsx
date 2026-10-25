@@ -17,6 +17,7 @@ import {
 } from '../shared/LibraryFields';
 import { PathBrowserButton } from '../shared/PathBrowserButton';
 import { LibraryCard } from './LibraryCard';
+import { LibraryFoldersDialog } from './LibraryFoldersDialog';
 import { isScanning, librariesQuery } from './queries';
 import styles from './LibrariesPage.module.css';
 
@@ -159,6 +160,39 @@ function DefaultRatingAction({
   );
 }
 
+/**
+ * "Folders" of one library: the card names how many there are, this opens the dialog that lists
+ * them and adds or removes one (idea 02, E16). A podcast library has none, so it has no button.
+ */
+function FoldersAction({
+  library,
+  onChanged,
+}: {
+  library: Library;
+  onChanged: (library: Library) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <AriaButton
+        variant="ghost"
+        icon="folder"
+        aria-label={t('admin.libraries.openFoldersLabel', { name: library.name })}
+        onPress={() => setOpen(true)}
+      >
+        {t('admin.libraries.openFolders')}
+      </AriaButton>
+      <LibraryFoldersDialog
+        library={library}
+        isOpen={open}
+        onOpenChange={setOpen}
+        onChanged={onChanged}
+      />
+    </>
+  );
+}
+
 /** Minimal library administration for M1a (A-1, B-1): scan state, rescan, loss protection. */
 export function LibrariesPage() {
   const { t } = useTranslation();
@@ -245,6 +279,12 @@ export function LibrariesPage() {
                     >
                       {t('admin.libraries.cancel')}
                     </AriaButton>
+                  )}
+                  {library.kind !== 'podcasts' && (
+                    <FoldersAction
+                      library={library}
+                      onChanged={(updated) => void refresh(updated)}
+                    />
                   )}
                   {isAudioLibrary(library.kind) && (
                     <DefaultRatingAction

@@ -79,6 +79,26 @@ func (q *Queries) CountLibraryProbeErrors(ctx context.Context, libraryID int64) 
 	return count, err
 }
 
+const countLibraryRootContent = `-- name: CountLibraryRootContent :one
+SELECT count(*) AS files, count(DISTINCT item_id) AS items FROM media_files WHERE root_id = ?1
+`
+
+type CountLibraryRootContentRow struct {
+	Files int64
+	Items int64
+}
+
+// What a folder holds, for the confirmation of its removal (idea 02, E12): its media files, and
+// the titles that have at least one file in it. The second number is the upper bound of what the
+// removal takes out -- a title with a file in another folder of the library stays -- and one pass
+// over the root_id index answers both.
+func (q *Queries) CountLibraryRootContent(ctx context.Context, rootID int64) (CountLibraryRootContentRow, error) {
+	row := q.db.QueryRowContext(ctx, countLibraryRootContent, rootID)
+	var i CountLibraryRootContentRow
+	err := row.Scan(&i.Files, &i.Items)
+	return i, err
+}
+
 const countMediaFilesOfRoot = `-- name: CountMediaFilesOfRoot :one
 SELECT count(*) FROM media_files WHERE root_id = ?1
 `
