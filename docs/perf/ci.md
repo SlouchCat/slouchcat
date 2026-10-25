@@ -43,31 +43,47 @@ jedem Lauf aus dem Quelltext übersetzt.
 
 ## 2. Nachher
 
-**Run 40223187251**, Commit `e75811b`, grün, warme Caches.
+**Run 40225244202**, Commit `a1b1d7f`, der Endstand dieses Zweigs, grün.
 
 | Job | Dauer |
 |---|---|
 | `server test groups` | 0 min 6 s |
 | `build` (Binary mit den Web-Assets) | 1 min 15 s |
-| `server (generators, linters)` | 1 min 24 s |
-| `image (amd64, arm64)` | 2 min 44 s |
-| `e2e (shard 1)` | 3 min 59 s |
-| `server tests (3)` | 4 min 32 s |
-| `e2e (shard 4)` | 4 min 39 s |
-| `server tests (rest)` | 4 min 56 s |
-| `e2e (shard 3)` | 5 min 13 s |
-| `web (linters, unit tests, Storybook)` | 5 min 30 s |
-| `e2e (shard 6)` | 5 min 53 s |
-| `e2e (shard 2)` | 5 min 54 s |
-| `server tests (2)` | 6 min 25 s |
-| `e2e (shard 5)` | 6 min 59 s |
-| `server tests (4)` | 7 min 27 s |
-| `server tests (1)` | **8 min 49 s** |
-| `ci` (Gate, führt die Shard-Berichte zusammen) | 0 min 35 s |
-| **Lauf gesamt (Wanduhr)** | **11 min 27 s** |
+| `server (generators, linters)` | 1 min 19 s |
+| `image (amd64, arm64)` | 2 min 46 s |
+| `web (linters, unit tests, Storybook)` | 4 min 38 s |
+| `e2e (shard 1)` | 4 min 40 s |
+| `e2e (shard 4)` | 4 min 52 s |
+| `e2e (shard 3)` | 5 min 5 s |
+| `e2e (shard 6)` | 5 min 30 s |
+| `server tests (1)` | 5 min 59 s |
+| `server tests (3)` | 6 min 16 s |
+| `e2e (shard 2)` | 6 min 38 s |
+| `e2e (shard 5)` | 7 min 13 s |
+| `server tests (rest)` | 7 min 4 s |
+| `server tests (2)` | 7 min 24 s |
+| `server tests (4)` | **7 min 33 s** |
+| `ci` (Gate, führt die Shard-Berichte zusammen) | 0 min 28 s |
+| **Lauf gesamt (Wanduhr)** | **10 min 46 s** |
 
-**56 min 54 s auf 11 min 27 s**, Faktor 5.0. Der Richtwert von 25 Minuten ist mit mehr als der
-halben Zeit Abstand eingehalten.
+**56 min 54 s auf 10 min 46 s**, Faktor 5.3. Der Richtwert von 25 Minuten ist mit mehr als der
+doppelten Zeit Abstand eingehalten.
+
+### Alle Läufe dieses Zweigs
+
+| Run | Commit | Zuschnitt | Caches | Ergebnis | Wanduhr |
+|---|---|---|---|---|---|
+| 40220711169 | `e75811b`* | 3 Go-Gruppen | **kalt** (apt neu verschlüsselt, Treffer: keiner) | grün | 22 min 58 s |
+| 40223187251 | `e75811b` | 5 Go-Gruppen | warm | grün | 11 min 27 s |
+| 40224518268 | `e75811b` | 5 Go-Gruppen | warm | grün | 9 min 53 s |
+| 40225244202 | `a1b1d7f` | 5 Go-Gruppen | warm | grün | 10 min 46 s |
+
+\* Derselbe Zweig, aber vor dem Commit, der `rest` weiter geteilt hat.
+
+Der kalte Lauf zeigt, wofür der apt-Cache da ist: In Shard 4 brauchte der Schritt
+`./.github/actions/system-packages` allein **16 Minuten 9 Sekunden**, während die Playwright-Suite
+desselben Shards in 4 Minuten 14 Sekunden durch war. Der Azure-Spiegel drosselt ohne Vorwarnung;
+mit warmem Cache fällt der Schritt auf Sekunden, und alle sechs Shards liegen dann eng beieinander.
 
 ## 3. Wie die Shards verteilt sind
 
@@ -138,17 +154,23 @@ Gruppen erreichen dasselbe Ziel, ohne eine Zeile Testcode anzufassen.
 
 ## 5. Was die Untergrenze setzt
 
-Längster Job in Run 40223187251: **`server tests (1)` mit 8 min 49 s**, also `internal/api` samt
-Einrichtung des Jobs (checkout, Go, `task`, ffmpeg, Testmedien: rund 2 Minuten). Das Gate wartet auf
-ihn und braucht danach 35 Sekunden.
+Längster Job in Run 40225244202: **`server tests (4)` mit 7 min 33 s**, dicht gefolgt von
+`server tests (2)` (7 min 24 s), `e2e (shard 5)` (7 min 13 s) und `server tests (rest)` (7 min 4 s).
+Das Gate wartet auf den letzten und braucht danach 28 Sekunden.
 
-Weiter zu senken ginge nur über das Paket selbst — `internal/api` ist ein einzelnes Paket und lässt
-sich mit diesem Werkzeug nicht teilen. Entweder zerlegt man es, oder man beschleunigt seine Tests.
-Beides ist eine Aufgabe für sich.
+Die Gruppen sind damit ausgeglichen: Es gibt keinen einzelnen Pol mehr, den man wegnehmen könnte,
+sondern vier ungefähr gleich lange. Wer weiter senken will, muss entweder die Gruppen noch feiner
+schneiden — dann wächst aber der Anteil, den jeder Job für die Einrichtung zahlt — oder die Tests
+selbst beschleunigen.
 
-Die zweite Untergrenze liegt beim Einrichten: Jeder Job zahlt checkout, Werkzeuge und Caches erneut.
-Bei 17 Jobs summiert sich das zu mehr Läufer-Minuten als vorher, auch wenn die Wanduhrzeit sinkt.
-Für ein öffentliches Repository ist das kostenlos.
+Die Einrichtung ist nämlich die zweite Untergrenze: checkout, Werkzeuge, Caches und die Testmedien
+kosten je Go-Job rund zwei Minuten, je e2e-Shard rund zweieinhalb. Bei 17 Jobs summiert sich das zu
+mehr Läufer-Minuten als vorher, auch wenn die Wanduhrzeit sinkt. Für ein öffentliches Repository ist
+das kostenlos.
+
+Welcher Job der längste ist, schwankt von Lauf zu Lauf um ein bis zwei Minuten — in Run 40223187251
+war es `server tests (1)` mit 8 min 49 s, in Run 40224518268 `server tests (4)` mit 9 min 13 s. Das
+ist die Streuung der Läufer selbst, nicht der Zuschnitt.
 
 ## 6. Was die Umstellung gefunden hat
 
@@ -167,6 +189,24 @@ Bestätigungsdialog hatte in Firefox keinen sichtbaren Fokus, in der ausgeliefer
 Belege: `task ci:e2e -- maintenance.spec.ts --project=firefox` vorher 1 Fehler und 4 grün, nachher 5
 grün; `task storybook:test` 160 grün, kein Grundbild bewegt.
 
+### Ein Flattern, das nicht vom Sharden kommt
+
+In Run 40223187251 meldete Shard 4 **ein** `flaky`:
+`admin-library-folders.spec.ts › the folders dialog opens from the keyboard and lists the folder`
+(Firefox), mit `Error: Tab did not reach the element within 80 presses` im ersten Versuch und grün
+im zweiten.
+
+Nachgeprüft, weil ein flatternder Shard den ganzen Umbau in Frage stellte — er tut es nicht:
+
+| Prüfung | Ergebnis |
+|---|---|
+| Die Spec **allein**, ohne jede andere davor | 1 flaky, 2 grün — flattert auch so |
+| Dieselbe Spec mit `main`s Fassung von `Button.module.css` | 1 flaky, 2 grün — nicht die neue CSS-Regel |
+
+Die Datei kam am 25. Oktober 2026 mit Pull Request #35 nach `main`. Das Flattern ist also
+vorbestehend und von der Aufteilung unabhängig; es gehört in eine eigene Aufgabe. Bleiben wird es
+auffallen, weil `retries: 1` es als `flaky` ausweist statt es zu verstecken.
+
 ## 7. Lokal
 
 `task ci` bleibt der eine Befehl, der alles baut und prüft. Er ruft dieselben Aufgaben auf, die die
@@ -175,15 +215,23 @@ Jobs aufrufen, nur nacheinander:
 ```
 task ci   -> exit 0
             Server: gen, gen:check, lint, test (alle Pakete auf einmal)
-            Web:    gen, gen:check, lint, test (585 Tests), Storybook (160 Bilder)
+            Web:    gen, gen:check, lint, test (599 Tests in 77 Dateien), Storybook (160 Bilder)
             build, e2e (426 Tests)
 ```
 
-Auf dem Entwicklungsrechner mit 28 Threads: **1670.7 s** Wanduhr. Das ist langsamer als der
-CI-Lauf, und das ist richtig so — CI verteilt auf 17 Maschinen, was hier eine Maschine
-nacheinander tut.
+Auf dem Entwicklungsrechner mit 28 Threads: **1606.0 s** Wanduhr (Stand `a1b1d7f`, also derselbe
+Prüfumfang wie Run 40225244202). Das ist langsamer als der CI-Lauf, und das ist richtig so — CI
+verteilt auf 17 Maschinen, was hier eine Maschine nacheinander tut.
 
-Eine Einschränkung, die man kennen muss: **Auf einer Maschine müssen die Shards nacheinander
-laufen.** Sie wollen alle denselben Port und dasselbe Artefaktverzeichnis, und der `blob`-Reporter
-leert sein Verzeichnis bei jedem Start. In CI stellt sich die Frage nicht, weil jeder Shard einen
-eigenen Läufer hat.
+Eine Einschränkung, die man kennen muss: **Auf einer Maschine läuft die Suite nur einmal
+gleichzeitig.** Die Shards wollen alle denselben Port und dasselbe Artefaktverzeichnis, und der
+`blob`-Reporter leert sein Verzeichnis bei jedem Start. In CI stellt sich die Frage nicht, weil
+jeder Shard einen eigenen Läufer hat.
+
+Das gilt **maschinenweit, nicht je Arbeitsverzeichnis**: `web/e2e/start-server.mjs` belegt 8097 für
+den Server und 8089 bis 8095 für die Mocks, und zwei Slouchcat-Prüfungen auf demselben Rechner
+greifen sich diese Ports gegenseitig weg — auch aus zwei verschiedenen Klonen oder Worktrees. Beim
+Umbau am 25. Oktober 2026 sah das so aus: ein Shard-Lauf fiel mit 68 von 70 Tests, weil ein
+`start-server.mjs` einer anderen Sitzung noch auf 8097 lauschte; derselbe Shard auf
+`SLOUCHCAT_E2E_PORT=8197` war sofort wieder grün. Wer parallel prüfen will, setzt die Variable, und
+zwar mit mindestens zehn Schritten Abstand, weil die Mock-Ports von ihr abgezählt werden.
