@@ -221,14 +221,8 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 		return model.Library{}, err
 	}
 	path := filepath.Clean(req.Path)
-	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
-	if err != nil {
-		return model.Library{}, fmt.Errorf("list roots: %w", err)
-	}
-	for _, r := range roots {
-		if nested(path, r.Path) || nested(r.Path, path) {
-			return model.Library{}, fmt.Errorf("%w: overlaps the root of library %d", model.ErrLibraryPathInvalid, r.LibraryID)
-		}
+	if err := s.refuseOverlap(ctx, path); err != nil {
+		return model.Library{}, err
 	}
 	fsType, err := paths.DetectFS(path)
 	if err != nil {
@@ -262,6 +256,46 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 // nested reports whether path equals dir or lies below it.
 func nested(path, dir string) bool {
 	return path == dir || strings.HasPrefix(path, strings.TrimSuffix(dir, "/")+"/")
+}
+
+// refuseOverlap rejects a folder that is, or lies below, or holds a folder of any library. path
+// must be absolute and cleaned.
+//
+// It compares twice: once on the paths as they are written, and once on what
+// filepath.EvalSymlinks makes of them. The second pass matters because the first one compares
+// text while the scanner walks what the kernel resolves: /media/zwei -> /media/Filme reads as a
+// different folder and indexes the same files a second time under a second root id. A title that
+// then has a file "under another root" never leaves when one of the two is removed, although the
+// administrator confirmed that it would. A root that cannot be resolved right now (its share is
+// not mounted) keeps its written path for the comparison, so a folder is never let in because a
+// NAS was briefly away.
+//
+// What this does not catch: a bind mount, and two spellings of one name on a case-insensitive or
+// Unicode-folding share. Both need a stat of every stored root on every call; the folders of one
+// server are few and set by hand, and the damage is a double index, not an escape from the
+// browsable roots.
+func (s *Service) refuseOverlap(ctx context.Context, path string) error {
+	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
+	if err != nil {
+		return fmt.Errorf("list roots: %w", err)
+	}
+	real := resolved(path)
+	for _, r := range roots {
+		old := filepath.Clean(r.Path)
+		oldReal := resolved(old)
+		if nested(path, old) || nested(old, path) || nested(real, oldReal) || nested(oldReal, real) {
+			return fmt.Errorf("%w: overlaps the root of library %d", model.ErrLibraryPathInvalid, r.LibraryID)
+		}
+	}
+	return nil
+}
+
+// resolved is the path with its symlinks resolved, or the path itself when it cannot be resolved.
+func resolved(path string) string {
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		return real
+	}
+	return path
 }
 
 // WatchMode picks the change detection of a file system class (plan 3.4) and the warning shown

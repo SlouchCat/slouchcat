@@ -89,7 +89,12 @@ interface ConfirmInputDialogProps {
   mismatchText: string;
   confirmLabel: string;
   cancelLabel: string;
-  onConfirm: () => void;
+  /**
+   * Gets what was typed, trimmed. The caller passes it on to the server, which compares it
+   * against its own row: the gate then lives in one place instead of two, and a mistake in this
+   * component cannot confirm anything by itself.
+   */
+  onConfirm: (typed: string) => void;
   isPending?: boolean;
 }
 
@@ -98,6 +103,9 @@ interface ConfirmInputDialogProps {
  * `expected` exactly (idea 02, E12). ConfirmDialog is one keystroke away from done, which is
  * right for "accept the loss" and wrong for an action that takes thousands of titles out of a
  * library and deletes the offline packages on the devices.
+ *
+ * It slows a hand down; it stops nothing that means it. Anything that can send the request can
+ * send the confirmation with it, and no server can tell whether a human typed it.
  *
  * It is an `alertdialog` like ConfirmDialog, opened and closed by the page (it needs to know
  * which row it asks about), and the focus starts in the field, not on the confirming button.
@@ -116,15 +124,33 @@ export function ConfirmInputDialog({
   isPending,
 }: ConfirmInputDialogProps) {
   // A fresh field per opening and per row: a path left over from the last time would be a
-  // confirmation nobody gave. The reset is derived from what is being confirmed, not done in an
-  // effect, so no render happens with the old text still in the field.
+  // confirmation nobody gave. Two things make that hold. The value is tied to what is being
+  // confirmed, so switching rows empties it without an effect; and every way out clears it, so
+  // reopening the *same* row starts empty too -- otherwise the administrator who typed the path,
+  // read the consequences and pressed Escape would find the button already armed on his next
+  // click, which is the very mis-aimed click this dialog exists for.
   const [entry, setEntry] = useState({ asked: '', typed: '' });
   const asked = isOpen ? expected : '';
   const typed = entry.asked === asked ? entry.typed : '';
   const matches = typed.trim() === expected;
+  const clear = () => setEntry({ asked: '', typed: '' });
+  const close = () => {
+    clear();
+    onOpenChange(false);
+  };
 
   return (
-    <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange}>
+    <ModalOverlay
+      className={styles.overlay}
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          onOpenChange(true);
+          return;
+        }
+        close();
+      }}
+    >
       <Modal className={styles.modal}>
         <Dialog className={styles.dialog} role="alertdialog">
           <div className={styles.head}>
@@ -144,14 +170,18 @@ export function ConfirmInputDialog({
             description={matches ? undefined : mismatchText}
           />
           <div className={styles.actions}>
-            <AriaButton variant="ghost" onPress={() => onOpenChange(false)}>
+            <AriaButton variant="ghost" onPress={close}>
               {cancelLabel}
             </AriaButton>
             <AriaButton
               variant="danger"
               isDisabled={!matches}
               isPending={isPending}
-              onPress={onConfirm}
+              onPress={() => {
+                const confirmed = typed.trim();
+                clear();
+                onConfirm(confirmed);
+              }}
             >
               {confirmLabel}
             </AriaButton>

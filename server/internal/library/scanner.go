@@ -265,6 +265,11 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 		return err
 	case !ok:
 		s.log.InfoContext(ctx, "library has no folder, nothing to scan", "library_id", lib.ID, "kind", lib.Kind)
+		// A job queued before the last folder went still holds the library in "queued"; nothing
+		// else would ever finish it, and the interface offers no way out of that state.
+		if lib.LastScanState == "queued" || lib.LastScanState == "running" {
+			return s.setState(ctx, lib.ID, "aborted", abortCancelled)
+		}
 		return nil
 	}
 	start := s.now()

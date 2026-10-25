@@ -2417,7 +2417,10 @@ paths:
         a title without one comes back as a new title. A title with a file under another folder of
         the library stays, and keeps its download. `confirmPath` must repeat the folder's path
         exactly, so a mis-aimed click cannot do it (`confirm_mismatch`); it is compared against the
-        stored row, never against anything else the request carries. The library may lose its last
+        stored row, never against anything else the request carries. It guards against a slip and
+        against a stale list, not against a caller that means it: whatever can send this request
+        can send the confirmation with it, and no server can tell whether a human typed it. The
+        library may lose its last
         folder and then holds none at all; its settings stay. A POST and not a DELETE, because the
         confirmation travels in the body and a DELETE body is dropped by some proxies and HTTP
         clients.

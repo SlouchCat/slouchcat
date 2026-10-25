@@ -321,7 +321,10 @@ type SoftDeleteItemsOfRootWithoutOtherFilesParams struct {
 // downloads.media_file_id cascades too, so a surviving title would lose its download.
 // Titles that live only in this folder leave the library at once. Unlike
 // SoftDeleteItemWithoutFiles this carries 'audiobook': an audiobook library would keep empty
-// rows behind otherwise.
+// rows behind otherwise. "Another folder" means any other registered folder, not only one of
+// the same library: folders may not overlap, so the two coincide, except for a title that was
+// given a file of another library by AdminMoveMediaFiles while merging. Keeping that title is
+// the safe reading -- it still has a file to play.
 func (q *Queries) SoftDeleteItemsOfRootWithoutOtherFiles(ctx context.Context, arg SoftDeleteItemsOfRootWithoutOtherFilesParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, softDeleteItemsOfRootWithoutOtherFiles, arg.Now, arg.RootID)
 	if err != nil {

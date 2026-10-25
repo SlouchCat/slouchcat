@@ -73,7 +73,10 @@ WHERE r.library_id = @library_id AND m.probe_error IS NOT NULL;
 -- name: SoftDeleteItemsOfRootWithoutOtherFiles :execrows
 -- Titles that live only in this folder leave the library at once. Unlike
 -- SoftDeleteItemWithoutFiles this carries 'audiobook': an audiobook library would keep empty
--- rows behind otherwise.
+-- rows behind otherwise. "Another folder" means any other registered folder, not only one of
+-- the same library: folders may not overlap, so the two coincide, except for a title that was
+-- given a file of another library by AdminMoveMediaFiles while merging. Keeping that title is
+-- the safe reading -- it still has a file to play.
 UPDATE items SET deleted_at = @now, updated_at = @now
 WHERE items.deleted_at IS NULL
   AND items.kind IN ('movie', 'episode', 'extra', 'audiobook')

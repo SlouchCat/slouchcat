@@ -371,17 +371,18 @@ func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Librar
 // check and the browsable-root rule live in package library; this only refuses what is not a
 // path at all.
 func (s *Service) AddLibraryRoot(ctx context.Context, libraryID int64, path string) (model.Library, error) {
+	trimmed := strings.TrimSpace(path)
 	var verr *model.ValidationError
-	switch trimmed := strings.TrimSpace(path); {
+	switch {
 	case trimmed == "":
 		verr = verr.Add("path", "required")
-	case len(path) > maxLibraryPath:
+	case len(trimmed) > maxLibraryPath:
 		verr = verr.Add("path", "too_long")
 	}
 	if verr != nil {
 		return model.Library{}, verr
 	}
-	return s.libraries.AddRoot(ctx, libraryID, strings.TrimSpace(path))
+	return s.libraries.AddRoot(ctx, libraryID, trimmed)
 }
 
 // RemoveLibraryRoot removes a folder from a library and lets the titles that live only there
@@ -393,7 +394,7 @@ func (s *Service) RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64
 	switch {
 	case strings.TrimSpace(confirmPath) == "":
 		verr = verr.Add("confirmPath", "required")
-	case len(confirmPath) > maxLibraryPath:
+	case len(strings.TrimSpace(confirmPath)) > maxLibraryPath:
 		verr = verr.Add("confirmPath", "too_long")
 	}
 	if verr != nil {

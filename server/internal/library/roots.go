@@ -39,14 +39,8 @@ func (s *Service) AddRoot(ctx context.Context, libraryID int64, path string) (mo
 		return model.Library{}, err
 	}
 	clean := filepath.Clean(path)
-	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
-	if err != nil {
-		return model.Library{}, fmt.Errorf("list roots: %w", err)
-	}
-	for _, r := range roots {
-		if nested(clean, r.Path) || nested(r.Path, clean) {
-			return model.Library{}, fmt.Errorf("%w: overlaps the root of library %d", model.ErrLibraryPathInvalid, r.LibraryID)
-		}
+	if err := s.refuseOverlap(ctx, clean); err != nil {
+		return model.Library{}, err
 	}
 	fsType, err := paths.DetectFS(clean)
 	if err != nil {
@@ -112,7 +106,7 @@ func (s *Service) RemoveRoot(ctx context.Context, libraryID, rootID int64, confi
 		return model.Library{}, err
 	}
 	s.forgetRoot(libraryID, rootID)
-	s.dropQueuedPathScan(ctx, libraryID, rootID)
+	s.settleScans(ctx, libraryID, rootID)
 
 	// Warn and not Info: the project keeps no audit table, so this line and the notification are
 	// the only trace that thousands of titles left the library on one click.
@@ -146,12 +140,15 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	if err != nil {
 		return 0, 0, fmt.Errorf("soft delete items of root %d: %w", rootID, err)
 	}
-	seasons, err := q.SoftDeleteEmptySeasons(ctx, ms)
-	if err != nil {
+	// The two sweeps are the ones the hourly sweep uses and are not filtered by library: a
+	// season or series anywhere that just lost its last undeleted child goes with them. That is
+	// the right effect -- the hourly sweep would do it an hour later -- but their row counts
+	// must not reach the number this function reports, or the notification would credit this
+	// removal with titles it never touched.
+	if _, err := q.SoftDeleteEmptySeasons(ctx, ms); err != nil {
 		return 0, 0, fmt.Errorf("soft delete empty seasons: %w", err)
 	}
-	series, err := q.SoftDeleteEmptySeries(ctx, ms)
-	if err != nil {
+	if _, err := q.SoftDeleteEmptySeries(ctx, ms); err != nil {
 		return 0, 0, fmt.Errorf("soft delete empty series: %w", err)
 	}
 	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: rootID, Now: now}); err != nil {
@@ -167,7 +164,7 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	if err := tx.Commit(); err != nil {
 		return 0, 0, fmt.Errorf("remove library root %d: %w", rootID, err)
 	}
-	return items + seasons + series, files, nil
+	return items, files, nil
 }
 
 // forgetRoot stops the watcher of a removed root and drops what the service still holds for it:
@@ -195,10 +192,61 @@ func (s *Service) forgetRoot(libraryID, rootID int64) {
 	s.orphanMu.Unlock()
 }
 
+// settleScans clears what the removed root left in the queue. It takes the root out of a queued
+// scan.path job, and when the library has no folder at all any more it drops its queued
+// scan.library job as well and puts the scan state to rest.
+//
+// The second half is not cosmetic. enqueueScan marks a library "queued" when it queues the job;
+// a library without a folder queues none, but one queued a moment before the last folder went is
+// still in the queue, and the job that drops a cancelled or folderless scan writes no state. The
+// library would then wait for a scan that can never run: the list polls it every five seconds,
+// "Erneut scannen" stays disabled because it counts as scanning, and "Scan abbrechen" finds no
+// job to cancel. There is no way out of that from the interface.
+//
+// Every failure is logged only -- the folder is gone either way.
+func (s *Service) settleScans(ctx context.Context, libraryID, rootID int64) {
+	s.dropQueuedPathScan(ctx, libraryID, rootID)
+	switch ok, err := s.scannable(ctx, libraryID); {
+	case err != nil:
+		s.log.WarnContext(ctx, "check folders after removing a root", "library_id", libraryID, "err", err)
+		return
+	case ok:
+		return
+	}
+	s.cancelQueuedJob(ctx, scanKey(libraryID))
+	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
+	if err != nil {
+		s.log.WarnContext(ctx, "read scan state after removing the last root", "library_id", libraryID, "err", err)
+		return
+	}
+	if lib.LastScanState != "queued" && lib.LastScanState != "running" {
+		return
+	}
+	// abortCancelled, because that is what it is from the outside: a scan that was asked for and
+	// will not happen. The interface already shows it as a stopped scan without a loss to accept.
+	if err := s.setState(ctx, libraryID, "aborted", abortCancelled); err != nil {
+		s.log.WarnContext(ctx, "put the scan state to rest", "library_id", libraryID, "err", err)
+	}
+}
+
+// cancelQueuedJob cancels the active job holding key, if there is one.
+func (s *Service) cancelQueuedJob(ctx context.Context, key string) {
+	id, err := systemq.New(s.db.Write).GetActiveJobIDByKey(ctx, sql.NullString{String: key, Valid: true})
+	if errors.Is(err, sql.ErrNoRows) {
+		return
+	}
+	if err != nil {
+		s.log.WarnContext(ctx, "find job to cancel", "key", key, "err", err)
+		return
+	}
+	if _, err := s.queue.Cancel(ctx, id); err != nil {
+		s.log.WarnContext(ctx, "cancel job", "key", key, "job_id", id, "err", err)
+	}
+}
+
 // dropQueuedPathScan takes the removed root out of a queued scan.path job of the library, and
 // cancels the job when nothing else is left in it. A running job is left alone: it holds the
-// roots it started with and ends on its own. Every failure is logged only -- the root is gone
-// either way, and a path scan of a root that no longer exists finds nothing and stops.
+// roots it started with and ends on its own.
 func (s *Service) dropQueuedPathScan(ctx context.Context, libraryID, rootID int64) {
 	id, err := systemq.New(s.db.Write).GetActiveJobIDByKey(ctx, sql.NullString{String: pathScanKey(libraryID), Valid: true})
 	if errors.Is(err, sql.ErrNoRows) {
@@ -209,7 +257,11 @@ func (s *Service) dropQueuedPathScan(ctx context.Context, libraryID, rootID int6
 		return
 	}
 	j, err := s.queue.Get(ctx, id)
-	if err != nil || j.State != jobs.StateQueued {
+	if err != nil {
+		s.log.WarnContext(ctx, "load path scan of removed root", "job_id", id, "err", err)
+		return
+	}
+	if j.State != jobs.StateQueued {
 		return
 	}
 	var held pathScanPayload

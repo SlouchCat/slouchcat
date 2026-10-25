@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -89,6 +90,36 @@ func TestAddRootKeepsTheBrowsableRootRule(t *testing.T) {
 	outside := tree(t, secondFolder)
 	if _, err := e.svc.AddRoot(e.ctx, lib.ID, outside); !errors.Is(err, ErrNotBrowsable) {
 		t.Fatalf("adding a folder outside the browsable roots: err = %v, want ErrNotBrowsable", err)
+	}
+}
+
+// TestAddRootRefusesAnOverlapThroughASymlink: comparing the written paths is not enough. A
+// folder that resolves onto an existing root would be indexed a second time under a second root
+// id, and a title with "a file under another root" would then survive the removal of either --
+// although the dialog said it would leave.
+func TestAddRootRefusesAnOverlapThroughASymlink(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	first := tree(t, firstFolder)
+	lib := e.create(first)
+
+	link := filepath.Join(t.TempDir(), "zweitweg")
+	if err := os.Symlink(first, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.AddRoot(e.ctx, lib.ID, link); !errors.Is(err, model.ErrLibraryPathInvalid) {
+		t.Fatalf("adding a symlink onto an existing root: err = %v, want ErrLibraryPathInvalid", err)
+	}
+	// The other direction too: a link that resolves to a folder holding the root.
+	above := filepath.Join(t.TempDir(), "darueber")
+	if err := os.Symlink(filepath.Dir(first), above); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.AddRoot(e.ctx, lib.ID, above); !errors.Is(err, model.ErrLibraryPathInvalid) {
+		t.Fatalf("adding a symlink above an existing root: err = %v, want ErrLibraryPathInvalid", err)
+	}
+	if got := e.count(`SELECT count(*) FROM library_roots WHERE library_id = ?`, lib.ID); got != 1 {
+		t.Fatalf("roots = %d, want 1", got)
 	}
 }
 
@@ -347,6 +378,42 @@ func TestRemoveLastRootLeavesTheLibraryWithoutAFolder(t *testing.T) {
 	}
 }
 
+// TestRemoveLastRootEndsAQueuedScan: enqueueScan marks a library "queued" when it queues the
+// job. A job queued a moment before the last folder went would otherwise leave the library
+// waiting for a scan that can never run -- the list polls it every five seconds, "Erneut
+// scannen" counts it as scanning and "Scan abbrechen" finds no job to cancel.
+func TestRemoveLastRootEndsAQueuedScan(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, firstFolder)
+	lib := e.create(dir)
+	e.scan(lib.ID)
+	rootID := rootIDOf(t, e, lib.ID, dir)
+
+	// A scan is asked for and waits in the queue.
+	if _, err := e.svc.QueueScan(e.ctx, lib.ID); err != nil {
+		t.Fatal(err)
+	}
+	queued, err := e.svc.Get(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queued.Scan.State != "queued" {
+		t.Fatalf("scan state = %q, want queued", queued.Scan.State)
+	}
+
+	after, err := e.svc.RemoveRoot(e.ctx, lib.ID, rootID, dir)
+	if err != nil {
+		t.Fatalf("remove the last root: %v", err)
+	}
+	if after.Scan.State == "queued" || after.Scan.State == "running" {
+		t.Fatalf("scan state = %q: the library waits for a scan that will never run", after.Scan.State)
+	}
+	if got := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state IN ('queued', 'running')`, JobScanLibrary); got != 0 {
+		t.Fatalf("active scan jobs = %d, want 0", got)
+	}
+}
+
 // TestRemoveRootReportsWhatLeft covers the only trace the operation has: the notification with
 // the numbers (there is no audit table).
 func TestRemoveRootReportsWhatLeft(t *testing.T) {
@@ -375,6 +442,8 @@ func TestRemoveRootReportsWhatLeft(t *testing.T) {
 	if got[0].library != lib.Name || got[0].path != dir {
 		t.Fatalf("report = %+v, want library %q on %q", got[0], lib.Name, dir)
 	}
+	// Exactly the titles of this folder: the empty-season and empty-series sweeps run unfiltered
+	// and must not be credited to this removal.
 	if got[0].items != int64(len(firstFolder)) || got[0].files != int64(len(firstFolder)) {
 		t.Fatalf("report counts = %d titles, %d files; want %d and %d",
 			got[0].items, got[0].files, len(firstFolder), len(firstFolder))

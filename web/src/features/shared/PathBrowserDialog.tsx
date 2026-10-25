@@ -90,6 +90,9 @@ export function PathBrowserDialog({
   // below. It does not: the field keeps the text and says so, because this dialog decides no
   // path -- the server does, when the form is submitted.
   const goToTyped = () => {
+    // Before the roots have arrived nothing can be matched against them, and saying "below no
+    // browsable folder" then would be a verdict about a list the dialog has not seen yet.
+    if (roots.isPending) return;
     const target = startPosition(roots.data, field.trim());
     if (!target) {
       setGoToMissed(true);

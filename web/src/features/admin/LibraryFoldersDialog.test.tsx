@@ -41,7 +41,7 @@ describe('library folders dialog', () => {
     const dialog = await openFolders(user);
     expect(within(dialog).getByText('/media/Filme')).toBeVisible();
     expect(within(dialog).getByText('/media/Filme-2')).toBeVisible();
-    expect(within(dialog).getByText('3 Titel · 4 Dateien')).toBeVisible();
+    expect(within(dialog).getByText('Titel: 3 · Dateien: 4')).toBeVisible();
   });
 
   it('leaves no scan to start for a library without a folder', async () => {
@@ -162,6 +162,94 @@ describe('library folders dialog', () => {
         }),
       );
     });
+  });
+
+  it('starts the confirmation empty again after it was closed unconfirmed', async () => {
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([withTwoFolders]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    const dialog = await openFolders(user);
+    const openConfirm = async () => {
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Ordner /media/Filme-2 entfernen' }),
+      );
+      return screen.findByRole('alertdialog', { name: 'Ordner wirklich entfernen?' });
+    };
+
+    let confirm = await openConfirm();
+    await user.type(
+      within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen'),
+      '/media/Filme-2',
+    );
+    await waitFor(() =>
+      expect(within(confirm).getByRole('button', { name: 'Ordner entfernen' })).toBeEnabled(),
+    );
+    // Second thoughts.
+    await user.click(within(confirm).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+
+    // The same row again: the path has to be typed once more, or the next click would remove the
+    // folder without anybody confirming anything.
+    confirm = await openConfirm();
+    expect(within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen')).toHaveValue('');
+    expect(within(confirm).getByRole('button', { name: 'Ordner entfernen' })).toBeDisabled();
+  });
+
+  it('sends the path as it was typed, not as the list knows it', async () => {
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([withTwoFolders]),
+      'POST /admin/libraries/1/roots/2/removal': () => json(library()),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    const dialog = await openFolders(user);
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Ordner /media/Filme-2 entfernen' }),
+    );
+    const confirm = await screen.findByRole('alertdialog', { name: 'Ordner wirklich entfernen?' });
+    // Surrounding spaces are trimmed before the request leaves.
+    await user.type(
+      within(confirm).getByLabelText('Tippe den Pfad, um zu bestätigen'),
+      '  /media/Filme-2  ',
+    );
+    await user.click(within(confirm).getByRole('button', { name: 'Ordner entfernen' }));
+
+    await waitFor(() => {
+      expect(calls).toContainEqual(
+        expect.objectContaining({
+          method: 'POST',
+          path: '/admin/libraries/1/roots/2/removal',
+          body: { confirmPath: '/media/Filme-2' },
+        }),
+      );
+    });
+  });
+
+  it('forgets an error when the dialog is closed with the close button', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([library()]),
+      'POST /admin/libraries/1/roots': () => problem(422, 'library_path_invalid'),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    let dialog = await openFolders(user);
+    await user.type(within(dialog).getByLabelText('Ordner hinzufügen'), '/etc');
+    await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
+    expect(
+      await within(dialog).findByText(/Diesen Ordner gibt es auf dem Server nicht/),
+    ).toBeVisible();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Schliessen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    dialog = await openFolders(user);
+    expect(within(dialog).queryByText(/Diesen Ordner gibt es auf dem Server nicht/)).toBeNull();
+    expect(within(dialog).getByLabelText('Ordner hinzufügen')).toHaveValue('');
   });
 
   it('warns that it is the last folder and reports a running scan', async () => {

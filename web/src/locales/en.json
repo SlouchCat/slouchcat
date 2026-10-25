@@ -609,7 +609,7 @@
         "title": "Folders of {{name}}",
         "description": "A library can hold several folders. The scan and the watcher pick up a new one at once.",
         "none": "This library has no folder. Nothing is scanned until you add one.",
-        "content": "{{items}} titles · {{files}} files",
+        "content": "Titles: {{items}} · files: {{files}}",
         "add": {
           "label": "Add a folder",
           "submit": "Add"
@@ -621,7 +621,8 @@
           "inputLabel": "Type the path to confirm",
           "mismatch": "Type {{path}} exactly, then the button becomes active.",
           "confirm": "Remove the folder",
-          "lead": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} titles leave every list with it. What that means:",
+          "lead_one": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} title leaves every list with it. What that means:",
+          "lead_other": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} titles leave every list with it. What that means:",
           "soft": "The titles are soft-deleted: they vanish from every list, but progress, watchlist entries and picks stay attached to them. A title with a file in another folder of this library stays visible.",
           "downloads": "Really gone are the offline downloads: devices that hold one of these titles delete the package at their next sync.",
           "playback": "A playback running from this folder breaks off mid-stream.",

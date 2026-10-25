@@ -73,11 +73,19 @@ export function LibraryFoldersDialog({
   });
 
   const remove = useMutation({
-    mutationFn: (root: LibraryRoot): Promise<Library> =>
+    // The path travels as it was typed, not as the list knows it: the server compares it against
+    // its own row, so the gate sits there and not only in the dialog.
+    mutationFn: ({
+      root,
+      confirmPath,
+    }: {
+      root: LibraryRoot;
+      confirmPath: string;
+    }): Promise<Library> =>
       request(
         api.POST('/admin/libraries/{id}/roots/{rootId}/removal', {
           params: { path: { id: library.id, rootId: root.id } },
-          body: { confirmPath: root.path },
+          body: { confirmPath },
         }),
       ),
     onSuccess: async (updated) => {
@@ -88,6 +96,16 @@ export function LibraryFoldersDialog({
 
   // The contract reports the folder as `library.path`; the field of this dialog is `path`.
   const addErrors = add.error ? formErrors(t, add.error, { 'library.path': 'path' }) : null;
+
+  // Every way out of the dialog clears it, the "Schliessen" button included: closing on an error
+  // and opening again must not show the message of a request that is long over.
+  const close = () => {
+    add.reset();
+    remove.reset();
+    setPath('');
+    setRemoving(null);
+    onOpenChange(false);
+  };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (path.trim()) add.mutate(path.trim());
@@ -98,12 +116,11 @@ export function LibraryFoldersDialog({
       <FormDialog
         isOpen={isOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            add.reset();
-            remove.reset();
-            setPath('');
+          if (open) {
+            onOpenChange(true);
+            return;
           }
-          onOpenChange(open);
+          close();
         }}
         title={t('admin.libraries.folders.title', { name: library.name })}
         description={t('admin.libraries.folders.description')}
@@ -141,7 +158,7 @@ export function LibraryFoldersDialog({
                     variant="ghost"
                     icon="trash"
                     aria-label={t('admin.libraries.folders.remove.label', { path: root.path })}
-                    isPending={remove.isPending && remove.variables?.id === root.id}
+                    isPending={remove.isPending && remove.variables?.root.id === root.id}
                     onPress={() => {
                       remove.reset();
                       setRemoving(root);
@@ -182,7 +199,7 @@ export function LibraryFoldersDialog({
           </Form>
 
           <div className={styles.close}>
-            <AriaButton variant="ghost" onPress={() => onOpenChange(false)}>
+            <AriaButton variant="ghost" onPress={close}>
               {t('common.close')}
             </AriaButton>
           </div>
@@ -201,8 +218,8 @@ export function LibraryFoldersDialog({
         confirmLabel={t('admin.libraries.folders.remove.confirm')}
         cancelLabel={t('common.cancel')}
         isPending={remove.isPending}
-        onConfirm={() => {
-          if (removing) remove.mutate(removing);
+        onConfirm={(confirmPath) => {
+          if (removing) remove.mutate({ root: removing, confirmPath });
         }}
       >
         {remove.error && <Notice tone="danger">{problemMessage(t, remove.error)}</Notice>}

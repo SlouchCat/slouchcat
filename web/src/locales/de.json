@@ -609,7 +609,7 @@
         "title": "Ordner von {{name}}",
         "description": "Eine Bibliothek kann mehrere Ordner haben. Scan und Überwachung nehmen einen neuen Ordner sofort auf.",
         "none": "Diese Bibliothek hat keinen Ordner. Es wird nichts gescannt, bis du einen hinzufügst.",
-        "content": "{{items}} Titel · {{files}} Dateien",
+        "content": "Titel: {{items}} · Dateien: {{files}}",
         "add": {
           "label": "Ordner hinzufügen",
           "submit": "Hinzufügen"
@@ -621,7 +621,8 @@
           "inputLabel": "Tippe den Pfad, um zu bestätigen",
           "mismatch": "Tippe {{path}} genau so ab, dann wird der Knopf aktiv.",
           "confirm": "Ordner entfernen",
-          "lead": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwinden damit aus allen Listen. Was das heisst:",
+          "lead_one": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwindet damit aus allen Listen. Was das heisst:",
+          "lead_other": "Du entfernst <path>{{path}}</path> aus der Bibliothek {{name}}. Bis zu {{count}} Titel verschwinden damit aus allen Listen. Was das heisst:",
           "soft": "Die Titel werden weich gelöscht: Sie verschwinden aus allen Listen, aber Fortschritt, Merkliste und Picks bleiben an ihnen hängen. Ein Titel, von dem eine Datei in einem anderen Ordner dieser Bibliothek liegt, bleibt sichtbar.",
           "downloads": "Wirklich weg sind die Offline-Downloads: Geräte, die einen dieser Titel geladen haben, löschen das Paket beim nächsten Abgleich.",
           "playback": "Eine laufende Wiedergabe aus diesem Ordner bricht mitten im Strom ab.",
