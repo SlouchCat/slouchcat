@@ -210,8 +210,8 @@ func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 	}
 
 	// The stored order applies, hidden rows are left out (the administration writes home_rows).
-	// Reversed, released sits between watchlist and recent; it has no reader in this package yet,
-	// so it is empty and omitted like any empty row.
+	// Reversed, released sits between watchlist and recent; no fixture title is dated inside its
+	// window yet, so it is empty and omitted like any empty row.
 	exec(t, f, `UPDATE home_rows SET position = 7 - position`)
 	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key IN ('continue', 'genres')`)
 	rows, err = s.Home(ctx, f.P18)
@@ -226,9 +226,10 @@ func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 	if _, err := s.FirstPick(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("first pick of a hidden picks row: err = %v", err)
 	}
-	// Eight non-empty rows at most (E-9): every row of every profile fixture fits. P18 gets every
-	// row but the empty released row, in the reversed order.
+	// Eight non-empty rows at most (E-9): every row of every profile fixture fits. With the film
+	// rated 0 released a month ago, P18 gets all eight rows in the reversed order.
 	exec(t, f, `UPDATE home_rows SET hidden = 0`)
+	f.SetReleaseDate(t, f.Rated(0).ID, time.Now().UTC().AddDate(0, -1, 0).Format(time.DateOnly))
 	for _, p := range []model.Profile{f.P0, f.P6, f.P12, f.P16, f.P18} {
 		rows, err := s.Home(ctx, p)
 		if err != nil {
@@ -237,7 +238,7 @@ func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 		if len(rows) > MaxRows {
 			t.Errorf("%s: %d rows", p.Name, len(rows))
 		}
-		want := []string{RowGenres, RowCollections, RowWatchlist, RowRecent, RowContinue, RowPicks, RowSpotlight}
+		want := []string{RowGenres, RowCollections, RowWatchlist, RowReleased, RowRecent, RowContinue, RowPicks, RowSpotlight}
 		if p.ID == f.P18.ID && !slices.Equal(rowKeys(rows), want) {
 			t.Errorf("P18 with every row filled: rows = %v, want %v", rowKeys(rows), want)
 		}
@@ -456,7 +457,7 @@ func TestSpotlightMinHits(t *testing.T) {
 
 // DoD step 2, "Ausfall kostet nur die Reihe": a failed run empties spotlight_entries; the spotlight
 // row disappears and every other row of the answer is equal field by field to the answer before.
-// (P18 has six other rows here: released has no reader in this package and stays empty.)
+// (P18 has seven other rows here, released included: the film rated 0 is dated inside its window.)
 func TestSpotlightOutageLeavesEverythingElse(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
@@ -464,6 +465,7 @@ func TestSpotlightOutageLeavesEverythingElse(t *testing.T) {
 	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
 	ctx := context.Background()
 	// The trending movies are the fixture films 1000..1004: five hits for P18, min_hits is 5.
+	f.SetReleaseDate(t, f.Rated(0).ID, "2026-09-01")
 	for i := range 5 {
 		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, now.Add(-time.Hour).UnixMilli())
 	}
@@ -483,10 +485,52 @@ func TestSpotlightOutageLeavesEverythingElse(t *testing.T) {
 		t.Errorf("spotlight row after the outage = %+v, want it absent", got)
 	}
 	others := slices.DeleteFunc(slices.Clone(before), func(r model.HomeRow) bool { return r.Key == RowSpotlight })
-	if len(others) != 6 {
-		t.Fatalf("rows besides spotlight before the outage = %v, want 6", rowKeys(others))
+	if len(others) != 7 {
+		t.Fatalf("rows besides spotlight before the outage = %v, want 7", rowKeys(others))
 	}
 	if !reflect.DeepEqual(after, others) {
 		t.Errorf("rows after the outage differ from the run before:\n got  %+v\n want %+v", after, others)
+	}
+}
+
+// M11 step 3, S-5, E-9: the row released shows the visible titles dated in the last twelve months
+// by the service clock, in its stored place (default order: spotlight, picks, continue, recent,
+// released, watchlist, collections, genres), and is omitted while no visible title is dated.
+func TestHomeReleasedRow(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	now := time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
+	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
+	ctx := context.Background()
+
+	// The fixture titles are dated 2010 to 2015 (films) and after 2030 (series, audio): no row.
+	for _, p := range []model.Profile{f.P0, f.P12, f.P18} {
+		rows, err := s.Home(ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := rowOf(rows, RowReleased); got.Key != "" {
+			t.Errorf("%s released row without dated titles = %v, want it absent", p.Name, itemIDs(got.Items))
+		}
+	}
+
+	// The film rated 12 released in July: P12 sees the row behind recent, P6 does not see the film.
+	f.SetReleaseDate(t, f.Rated(12).ID, "2026-07-01")
+	rows, err := s.Home(ctx, f.P12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{RowPicks, RowRecent, RowReleased, RowCollections, RowGenres}; !slices.Equal(rowKeys(rows), want) {
+		t.Errorf("P12 rows = %v, want %v", rowKeys(rows), want)
+	}
+	if got := itemIDs(rowOf(rows, RowReleased).Items); !slices.Equal(got, []string{f.Rated(12).ID}) {
+		t.Errorf("P12 released row = %v, want the film rated 12", got)
+	}
+	rows, err = s.Home(ctx, f.P6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rowOf(rows, RowReleased); got.Key != "" {
+		t.Errorf("P6 released row = %v, want it absent (the film rated 12 is invisible)", itemIDs(got.Items))
 	}
 }

@@ -181,3 +181,32 @@ FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 JOIN visible_items AS vp ON vp.item_id = i.parent_id AND vp.profile_id = @profile_id
 WHERE i.id IN (sqlc.slice('item_ids'));
+
+-- Recently released (M11, S-5, S-6, ADR 0011): films and audiobooks by their own release_date,
+-- series by the release_date of their newest VISIBLE episode, within [since, today] (twelve months,
+-- fixed), newest first. The window sits in the episode join, so the partial index items_released
+-- (release_date DESC WHERE release_date IS NOT NULL AND deleted_at IS NULL) carries both branches
+-- and the aggregation runs over the episodes of one year only. A series whose newest episode the
+-- profile may not see is dated by the newest one it may see; a series without a visible dated
+-- episode is absent. A title dated in the future is not released yet and is left out.
+-- name: ListRecentlyReleased :many
+SELECT sqlc.embed(i), r.released FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = @profile_id
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND t.release_date IS NOT NULL AND t.release_date >= @since AND t.release_date <= @today
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = @profile_id
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= @since AND e.release_date <= @today
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = @profile_id
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+    GROUP BY s.id
+) AS r
+JOIN items AS i ON i.id = r.item_id
+ORDER BY r.released DESC, i.id DESC
+LIMIT @limit_count;

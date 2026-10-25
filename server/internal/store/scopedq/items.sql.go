@@ -674,6 +674,133 @@ func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedPa
 	return items, nil
 }
 
+const listRecentlyReleased = `-- name: ListRecentlyReleased :many
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, r.released FROM (
+    SELECT t.id AS item_id, t.release_date AS released
+    FROM items AS t
+    JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = ?1
+    WHERE t.kind IN ('movie', 'audiobook') AND t.deleted_at IS NULL
+      AND t.release_date IS NOT NULL AND t.release_date >= ?2 AND t.release_date <= ?3
+    UNION ALL
+    SELECT s.id, max(e.release_date)
+    FROM items AS s
+    JOIN visible_items AS vs ON vs.item_id = s.id AND vs.profile_id = ?1
+    JOIN items AS se ON se.parent_id = s.id AND se.kind = 'season' AND se.deleted_at IS NULL
+    JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode' AND e.deleted_at IS NULL
+                   AND e.release_date IS NOT NULL AND e.release_date >= ?2 AND e.release_date <= ?3
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+    WHERE s.kind = 'series' AND s.deleted_at IS NULL
+    GROUP BY s.id
+) AS r
+JOIN items AS i ON i.id = r.item_id
+ORDER BY r.released DESC, i.id DESC
+LIMIT ?4
+`
+
+type ListRecentlyReleasedParams struct {
+	ProfileID  int64
+	Since      sql.NullString
+	Today      sql.NullString
+	LimitCount int64
+}
+
+type ListRecentlyReleasedRow struct {
+	Item     Item
+	Released sql.NullString
+}
+
+// Recently released (M11, S-5, S-6, ADR 0011): films and audiobooks by their own release_date,
+// series by the release_date of their newest VISIBLE episode, within [since, today] (twelve months,
+// fixed), newest first. The window sits in the episode join, so the partial index items_released
+// (release_date DESC WHERE release_date IS NOT NULL AND deleted_at IS NULL) carries both branches
+// and the aggregation runs over the episodes of one year only. A series whose newest episode the
+// profile may not see is dated by the newest one it may see; a series without a visible dated
+// episode is absent. A title dated in the future is not released yet and is left out.
+func (q *Queries) ListRecentlyReleased(ctx context.Context, arg ListRecentlyReleasedParams) ([]ListRecentlyReleasedRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentlyReleased,
+		arg.ProfileID,
+		arg.Since,
+		arg.Today,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentlyReleasedRow{}
+	for rows.Next() {
+		var i ListRecentlyReleasedRow
+		if err := rows.Scan(
+			&i.Item.ID,
+			&i.Item.Kind,
+			&i.Item.ParentID,
+			&i.Item.LibraryID,
+			&i.Item.Title,
+			&i.Item.SortTitle,
+			&i.Item.OriginalTitle,
+			&i.Item.Year,
+			&i.Item.ReleaseDate,
+			&i.Item.RuntimeMinutes,
+			&i.Item.Genres,
+			&i.Item.TmdbID,
+			&i.Item.ImdbID,
+			&i.Item.OwnRating,
+			&i.Item.EffectiveRating,
+			&i.Item.MinChildRating,
+			&i.Item.Available,
+			&i.Item.RatingSource,
+			&i.Item.EnclosureUrl,
+			&i.Item.LockedFields,
+			&i.Item.MetadataState,
+			&i.Item.MetadataError,
+			&i.Item.MatchedAt,
+			&i.Item.AddedAt,
+			&i.Item.CreatedAt,
+			&i.Item.UpdatedAt,
+			&i.Item.DeletedAt,
+			&i.Item.SeasonNumber,
+			&i.Item.EpisodeNumber,
+			&i.Item.EpisodeEnd,
+			&i.Item.TvdbID,
+			&i.Item.ExtraKind,
+			&i.Item.TmdbPosterPath,
+			&i.Item.TmdbBackdropPath,
+			&i.Item.TrailerState,
+			&i.Item.TrailerCheckedAt,
+			&i.Item.SegmentsState,
+			&i.Item.SegmentsCheckedAt,
+			&i.Item.Author,
+			&i.Item.Narrator,
+			&i.Item.SeriesName,
+			&i.Item.SeriesIndex,
+			&i.Item.Explicit,
+			&i.Item.DurationMs,
+			&i.Item.CoverUrl,
+			&i.Item.CoverPath,
+			&i.Item.FeedUrl,
+			&i.Item.FeedEtag,
+			&i.Item.FeedModified,
+			&i.Item.FeedCheckedAt,
+			&i.Item.FeedError,
+			&i.Item.Guid,
+			&i.Item.PublishedAt,
+			&i.Item.EnclosureType,
+			&i.Item.EnclosureLength,
+			&i.Released,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopPicks = `-- name: ListTopPicks :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, t.note, t.profile_id AS pick_profile_id
 FROM top_picks AS t

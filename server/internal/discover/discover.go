@@ -6,7 +6,7 @@
 // intersected with the library), picks (Cat's recommendations), continue (continue watching), recent
 // (recently added), released (recently released), watchlist, collections and genres, in the order
 // the administration stored (table home_rows); hidden and empty rows are omitted, the spotlight row
-// also below the configured minimum of hits, spotlight_config.min_hits (AN-3); released has no reader yet and stays empty. The package
+// also below the configured minimum of hits, spotlight_config.min_hits (AN-3) (released: by release date within twelve months, a series by its newest visible episode, S-5, S-6). The package
 // also answers search, genres, collections, the watchlist and the favourites of a profile (m7.go).
 // It holds no SQL on titles: reads go through visibility, the writes of watchlist and favourites
 // through store/appq, whose tables name titles only by id.
@@ -134,6 +134,8 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (
 		row.Collections, err = s.vis.Collections(ctx, scope, visibility.MaxRowItems)
 	case RowGenres:
 		row.Genres, err = s.vis.Genres(ctx, scope, visibility.MaxRowItems)
+	case RowReleased:
+		row.Items, err = s.vis.Released(ctx, scope, visibility.MaxRowItems)
 	case RowSpotlight:
 		row.Items, err = s.spotlightRow(ctx, scope)
 	}
