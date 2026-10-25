@@ -3,6 +3,7 @@ package browse
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
@@ -38,6 +39,23 @@ func ClassifyRoots(dirs []string, log *slog.Logger) []model.BrowseRoot {
 		root.FSType = string(fsType)
 		_, root.Warning = library.WatchMode(string(fsType))
 		out = append(out, root)
+	}
+	return out
+}
+
+// ResolveRoots returns the configured directories with their symlinks resolved, for
+// WithConfinedTo. One that cannot be resolved is left out: it does not exist, and a root that
+// does not exist cannot confine anything. Runs at start-up, never per request -- EvalSymlinks
+// walks the path, and on a mount that stopped answering that walk blocks.
+func ResolveRoots(dirs []string, log *slog.Logger) []string {
+	out := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		resolved, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			log.Warn("browse root skipped: cannot be resolved", "path", dir, "err", err)
+			continue
+		}
+		out = append(out, resolved)
 	}
 	return out
 }

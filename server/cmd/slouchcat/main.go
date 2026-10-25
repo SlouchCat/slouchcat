@@ -286,7 +286,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before
 		// any account exists and must make no system call per request (idea 02, E5).
-		WithBrowse(cfg.BrowseRoots, browse.ClassifyRoots(cfg.BrowseRoots, log), browse.New(log))
+		WithBrowse(cfg.BrowseRoots, browse.ClassifyRoots(cfg.BrowseRoots, log),
+			browse.New(log, browse.WithConfinedTo(browse.ResolveRoots(cfg.BrowseRoots, log))))
 	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, started)
 	keys.admin = adminSvc
 	// The channels (M8): admin stores the SMTP, Telegram and VAPID settings that notify reads, and

@@ -187,8 +187,10 @@ export async function ensureEmptyLibrary(api: APIRequestContext): Promise<number
   );
   const existing = libraries.find((library) => library.name === name);
   if (existing) return existing.id;
-  // Below the media root of the run: a library folder must lie below a browsable root (E14).
-  const root = join(MEDIA_DIR, 'E2E leer');
+  // Below the media root of the run, because a library folder must lie below a browsable root
+  // (idea 02, E14), and in a hidden folder, because the scanner and the folder browser skip
+  // hidden entries -- so it does not turn up in the listings of the other specs.
+  const root = join(MEDIA_DIR, '.e2e', 'E2E leer');
   mkdirSync(root, { recursive: true });
   writeFileSync(join(root, 'readme.txt'), 'no media here');
   const created = await json<{ id: number }>(

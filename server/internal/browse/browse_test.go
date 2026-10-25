@@ -35,7 +35,17 @@ func tree(t *testing.T, dirs, files []string) (string, []Root, *Lister) {
 			t.Fatal(err)
 		}
 	}
-	return dir, []Root{{ID: "c0", Dir: dir, Browsable: true}}, New(discard)
+	return dir, []Root{{ID: "c0", Dir: dir, Browsable: true}}, New(discard, WithConfinedTo([]string{resolve(t, dir)}))
+}
+
+// resolve is EvalSymlinks for a test directory (macOS puts t.TempDir() behind /private).
+func resolve(t *testing.T, dir string) string {
+	t.Helper()
+	out, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 func TestListDirectories(t *testing.T) {
@@ -118,6 +128,14 @@ func TestListSymlinkIsShownButNotEntered(t *testing.T) {
 	if strings.Contains(fmt.Sprintf("%+v", got), outside) {
 		t.Errorf("the answer names the target of the symlink: %+v", got)
 	}
+	// E15 in the server, not in the dialog: a symlink that stays inside the root would be
+	// followed by the *os.Root, and the contract says it cannot be entered.
+	if err := os.Symlink(filepath.Join(dir, "Filme"), filepath.Join(dir, "innen")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.List(ctx, roots, Request{RootID: "c0", Rel: "innen"}); !errors.Is(err, model.ErrPathNotBrowsable) {
+		t.Errorf("entering a symlink inside the root = %v, want ErrPathNotBrowsable", err)
+	}
 	for _, rel := range []string{"aussen", "aussen/config"} {
 		out, err := l.List(ctx, roots, Request{RootID: "c0", Rel: rel})
 		if !errors.Is(err, model.ErrPathNotBrowsable) {
@@ -164,6 +182,41 @@ func TestListProblems(t *testing.T) {
 	closed := []Root{{ID: "l1", Dir: dir, Browsable: false, LibraryID: 1, LibraryName: "Alt"}}
 	if _, err := l.List(ctx, closed, Request{RootID: "l1"}); !errors.Is(err, model.ErrPathNotBrowsable) {
 		t.Errorf("a root that is not browsable = %v, want ErrPathNotBrowsable", err)
+	}
+}
+
+// E14 in the browser: a root whose own path is a symlink out of the configured roots is not
+// listed, however lexically well it sits below one. os.OpenRoot resolves the root path itself,
+// so only the resolved path says where the listing would land.
+func TestListRefusesARootThatResolvesOutside(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	media := t.TempDir()
+	secret := t.TempDir()
+	if err := os.Mkdir(filepath.Join(secret, "config"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(media, "ablage")
+	if err := os.Symlink(secret, link); err != nil {
+		t.Fatal(err)
+	}
+	l := New(discard, WithConfinedTo([]string{resolve(t, media)}))
+	// A library root on that symlink: lexically below /media, in truth the other directory.
+	roots := []Root{
+		{ID: "c0", Dir: media, Browsable: true},
+		{ID: "l1", Dir: link, Browsable: true, LibraryID: 1, LibraryName: "Alt"},
+	}
+	out, err := l.List(ctx, roots, Request{RootID: "l1"})
+	if !errors.Is(err, model.ErrPathNotBrowsable) {
+		t.Fatalf("a root that resolves outside = %+v, %v; want ErrPathNotBrowsable", out, err)
+	}
+	if strings.Contains(fmt.Sprintf("%+v%v", out, err), "config") {
+		t.Errorf("the answer names what lies behind the root: %+v %v", out, err)
+	}
+	// Without configured roots the rule is off, as it is everywhere else.
+	free := New(discard)
+	if _, err := free.List(ctx, roots, Request{RootID: "l1"}); err != nil {
+		t.Errorf("without configured roots = %v, want the listing", err)
 	}
 }
 
@@ -414,6 +467,24 @@ func TestListTouchesNothingForAnUnknownRoot(t *testing.T) {
 	if f.reads.Load() != 0 || f.statfs.Load() != 0 || f.lstats.Load() != 0 {
 		t.Errorf("an unknown root cost %d name listings, %d lstats and %d statfs, want none",
 			f.reads.Load(), f.lstats.Load(), f.statfs.Load())
+	}
+}
+
+// The numbers the package comment and ADR 0012 name are the ones a server really runs with.
+func TestDefaults(t *testing.T) {
+	t.Parallel()
+	l := New(discard)
+	if l.Slots() != DefaultSlots || DefaultSlots != 16 {
+		t.Errorf("slots = %d, DefaultSlots = %d; want 16", l.Slots(), DefaultSlots)
+	}
+	if l.watchdog != DefaultWatchdog || DefaultWatchdog != 3*time.Second {
+		t.Errorf("watchdog = %s, want 3s", l.watchdog)
+	}
+	if l.grace != DefaultGrace || DefaultGrace != time.Minute {
+		t.Errorf("grace = %s, want a minute", l.grace)
+	}
+	if l.LostSlots() != 0 || len(l.confinedTo) != 0 {
+		t.Errorf("a fresh lister = %d lost slots, %d confined roots", l.LostSlots(), len(l.confinedTo))
 	}
 }
 

@@ -53,21 +53,24 @@ oder «Verknüpfung, wird nicht durchsucht»; die Kopfzeile nennt Dateisystem, �
 Warnung für Netzfreigaben des aktuellen Verzeichnisses. Der Einrichtungsassistent bekommt kein
 Blättern, sondern die konfigurierten Wurzeln als anklickbare Vorschläge.
 
-**Was sich für den Betrieb ändert.** `SLOUCHCAT_BROWSE_ROOTS` (Vorgabe `/media`) nennt die Ordner,
-die der Browser auflisten darf **und** unter denen eine neue Bibliothek liegen muss. Bestehende
-Bibliothekswurzeln behalten Bestandsschutz (Pfadgleichheit, nie ein Präfix); eine leere Liste
-schaltet die Regel ab, damit eine Installation mit Medien anderswo ihre Einrichtung abschliessen
-kann. Begründung und verworfene Alternativen stehen in ADR `docs/adr/0012-browsbare-wurzeln.md`.
+**Was sich für den Betrieb ändert.** `SLOUCHCAT_BROWSE_ROOTS` nennt die Ordner, die der Browser
+auflisten darf **und** unter denen eine neue Bibliothek liegen muss. Die Vorgabe ist `/media`, die
+Regel greift also vom ersten Start an; wer seine Medien anderswo hat, muss die Variable setzen,
+bevor er eine Bibliothek dort anlegen kann — auch im Einrichtungsassistenten, der dann
+`not_browsable` mit dem Namen der Variablen antwortet. Nur eine **ausdrücklich leere** Variable
+schaltet die Regel ab, und dann warnt der Start. Bestehende Bibliothekswurzeln behalten
+Bestandsschutz (Pfadgleichheit, nie ein Präfix). Begründung und verworfene Alternativen stehen in
+ADR `docs/adr/0012-browsbare-wurzeln.md`.
 
 **Belege je Schritt** (alle lokal gelaufen):
 
 | Schritt | Beleg |
 |---|---|
-| 1 `paths.ReadDir`, `paths.FSTypeAt` | `go test ./internal/paths/`, `GOOS=darwin go build ./...` |
+| 1 `paths.ReadDirNames`, `paths.LstatAll`, `paths.FSTypeAt` | `go test ./internal/paths/`, `GOOS=darwin go build ./...` |
 | 2 `SLOUCHCAT_BROWSE_ROOTS` | `go test ./internal/config/` |
 | 3 `Service.ValidateNewRoot` (E14) | `go test ./internal/library/ ./internal/admin/`; Pfad ausserhalb und `<wurzel>/ablage -> /config` ergeben 422, `checkSetupPath` antwortet `not_browsable` ohne `os.Stat` |
 | 4 geteilte Pfadregeln | `go tool golangci-lint run ./...`; die `depguard`-Regel `browse` weist einen Import von `store/systemq` und `transcode` zurück |
-| 5 Paket `browse` | `go test -race ./internal/browse/`: Blättern über 300 Ordner, `@eaDir` gefiltert, Symlink sichtbar und nicht betretbar, blockierende Dateisystem-Schnittstelle ergibt 503 und danach `browse_busy`, ein zurückgekehrter Aufruf zählt nicht als verlorener Platz, eine Seite kostet eine Namensliste plus ein `lstat` je angezeigter Zeile |
+| 5 Paket `browse` | `go test -race ./internal/browse/`: Blättern über 300 Ordner, `@eaDir` gefiltert, Symlink sichtbar und nicht betretbar (auch einer, der innerhalb der Wurzel bleibt), eine Wurzel, die über einen Symlink hinausführt, wird abgelehnt, blockierende Dateisystem-Schnittstelle ergibt 503 und danach `browse_busy`, ein zurückgekehrter Aufruf zählt nicht als verlorener Platz, eine Seite kostet eine Namensliste (`paths.ReadDirNames`) plus ein `lstat` je angezeigter Zeile |
 | 6 Vertrag | `task gen:check`, `task server:ci` |
 | 7 Handler und Drosseln | `go test ./internal/api/ ./internal/admin/`: gleicher Körper für unbekannte Wurzel und fehlenden Pfad, 403 nur für Sitzung und CSRF, `Cache-Control: no-store`, zehn Wurzellisten lassen `POST /setup` durch |
 | 8 `PathList`, `FormDialog` | `task web:lint`, `task web:test`, `task web:storybook:test` |
@@ -85,7 +88,10 @@ Bestandsschutz einer über einen Symlink erreichten Bibliothekswurzel.
 
 **Nicht abgedeckt:** die Schritte 12 bis 14; ein echtes Netzlaufwerk, das mitten in einer
 Auflistung hängen bleibt (im Test steht dafür eine blockierende Dateisystem-Schnittstelle); ein
-Ordner mit 50 000 Einträgen am echten NAS; und die Sicht am Handy, die Marco selbst prüft.
+Ordner mit 50 000 Einträgen am echten NAS; und die Sicht am Handy, die Marco selbst prüft. Die
+Zusage «vor der Ablehnung eines Pfads ausserhalb der Wurzeln kein `os.Stat`» ist in
+`internal/library` nur indirekt belegt (eine Datei ausserhalb ergibt `not_browsable` statt
+`not_directory`), nicht mit einem Zähler in einer eingeschleusten Schnittstelle.
 `BrowseRoots` liest je Seite die Bibliotheken aus der Datenbank — bewusst in Kauf genommen, weil
 die Abfrage auf dem Leser-Pool läuft und das Dashboard häufiger abfragt.
 

@@ -3,6 +3,7 @@ package browse
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"path"
@@ -92,6 +93,18 @@ func (realFS) FSTypeAt(root paths.Root, rel string) (paths.FSType, error) {
 	return paths.FSTypeAt(root, rel)
 }
 
+// Errors of the file system work that are never shown to a caller: both answer like an unknown
+// root (E6), so neither tells anything about what lies behind them.
+var (
+	// errRootEscapes: the root itself resolves outside every configured root. Its path may be
+	// lexically below one and still be a symlink that leaves it -- os.OpenRoot resolves the root
+	// path itself, and only what lies below the result is locked in (E14).
+	errRootEscapes = errors.New("browse: the root resolves outside the configured roots")
+	// errSymlinkEntry: the last part of the path is a symlink. An *os.Root follows one that stays
+	// inside the root, so the refusal is the server's, not the dialog's (E15, CLAUDE.md rule 12).
+	errSymlinkEntry = errors.New("browse: a symlinked directory is not browsable")
+)
+
 // Lister lists directories below browsable roots. Its semaphore and watchdog are server-wide, so
 // one is made once and shared.
 type Lister struct {
@@ -101,6 +114,10 @@ type Lister struct {
 	watchdog time.Duration
 	grace    time.Duration
 	lost     atomic.Int64
+	// confinedTo are the configured roots with their symlinks resolved, as they were at start-up.
+	// A root must resolve below one of them before anything is read; empty switches the rule off,
+	// as an empty SLOUCHCAT_BROWSE_ROOTS does everywhere else.
+	confinedTo []string
 }
 
 // Option configures New.
@@ -115,6 +132,12 @@ func WithWatchdog(d time.Duration) Option { return func(l *Lister) { l.watchdog 
 // WithGrace replaces how long a given-up call may still come back before its slot counts as
 // lost, for tests.
 func WithGrace(d time.Duration) Option { return func(l *Lister) { l.grace = d } }
+
+// WithConfinedTo names the configured roots with their symlinks resolved (ResolveRoots). Every
+// root a request names must resolve below one of them, whatever its own path looks like.
+func WithConfinedTo(resolved []string) Option {
+	return func(l *Lister) { l.confinedTo = append([]string(nil), resolved...) }
+}
 
 // WithSlots replaces how many listings may run at once, for tests.
 func WithSlots(n int) Option { return func(l *Lister) { l.slots = make(chan struct{}, n) } }
@@ -200,6 +223,9 @@ func (l *Lister) List(ctx context.Context, roots []Root, req Request) (model.Dir
 // until the page is full, which on a folder with 50 000 files means 50 000 stats for one page.
 func (l *Lister) readPage(dir paths.Root, rel, cursor string, limit int) readResult {
 	var out readResult
+	if out.err = l.confined(dir, rel); out.err != nil {
+		return out
+	}
 	names, err := l.fs.ReadDirNames(dir, rel, MaxEntries+1)
 	if err != nil {
 		out.err = err
@@ -222,8 +248,36 @@ func (l *Lister) readPage(dir paths.Root, rel, cursor string, limit int) readRes
 	if out.entries, out.err = l.fs.LstatAll(dir, rel, page); out.err != nil {
 		return out
 	}
-	out.fsType, out.err = l.fs.FSTypeAt(dir, rel)
+	// The class of the file system is a detail of the answer, not the answer: a directory that
+	// was read must not be thrown away because statfs did not work.
+	if fsType, err := l.fs.FSTypeAt(dir, rel); err == nil {
+		out.fsType = fsType
+	}
 	return out
+}
+
+// confined refuses a root that resolves outside the configured ones, and a path whose last part
+// is a symlink. Both run before anything is read and both answer like an unknown root.
+func (l *Lister) confined(dir paths.Root, rel string) error {
+	if len(l.confinedTo) > 0 {
+		resolved, err := filepath.EvalSymlinks(dir.Dir())
+		if err != nil || !library.UnderAnyRoot(resolved, l.confinedTo) {
+			return errRootEscapes
+		}
+	}
+	if rel == "." {
+		return nil
+	}
+	// An *os.Root refuses a symlink that leaves the root, but follows one that stays inside it.
+	// The contract says a symlinked directory cannot be entered, so the server says so.
+	entries, err := l.fs.LstatAll(dir, ".", []string{rel})
+	if err != nil {
+		return err
+	}
+	if len(entries) == 1 && entries[0].Type()&fs.ModeSymlink != 0 {
+		return errSymlinkEntry
+	}
+	return nil
 }
 
 // entry turns one directory entry into a row, with the library it already belongs to. Files are
@@ -305,13 +359,19 @@ func (l *Lister) watchSlot(done <-chan readResult, rootID, why string) {
 	defer grace.Stop()
 	select {
 	case <-done:
+		return
 	case <-grace.C:
-		lost := l.lost.Add(1)
-		// The root is named by its opaque id, not by its path: this line lands in the error ring
-		// of the dashboard, and a root path carries folder names (CLAUDE.md rule 10).
-		l.log.Error("browse: "+why+"; its slot stays taken until the call returns",
-			"root_id", rootID, "lost_slots", lost, "slots", cap(l.slots), "watchdog", l.watchdog)
 	}
+	lost := l.lost.Add(1)
+	// The root is named by its opaque id, not by its path: this line lands in the error ring of
+	// the dashboard, and a root path carries folder names (CLAUDE.md rule 10).
+	l.log.Error("browse: "+why+"; its slot stays taken until the call returns",
+		"root_id", rootID, "lost_slots", lost, "slots", cap(l.slots), "watchdog", l.watchdog)
+	// A call that answers after all -- a share that woke up again -- gives its slot back, and
+	// the count has to follow, or the dashboard keeps reporting a browser that works as dead.
+	<-done
+	l.log.Info("browse: a listing came back long after it was given up; its slot is free again",
+		"root_id", rootID, "lost_slots", l.lost.Add(-1), "slots", cap(l.slots))
 }
 
 // paginate returns the page that follows cursor and the name the next cursor must follow, empty

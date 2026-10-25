@@ -30,7 +30,8 @@ func browseEnv(t *testing.T) (*authEnv, string) {
 	}
 	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
 	wire := func(a *admin.Service) {
-		a.WithBrowse([]string{dir}, browse.ClassifyRoots([]string{dir}, quiet), browse.New(quiet))
+		a.WithBrowse([]string{dir}, browse.ClassifyRoots([]string{dir}, quiet),
+			browse.New(quiet, browse.WithConfinedTo(browse.ResolveRoots([]string{dir}, quiet))))
 	}
 	return newAuthEnvAt(t, &stepClock{now: time.Now()}, wire), dir
 }
