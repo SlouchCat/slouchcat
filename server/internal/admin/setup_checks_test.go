@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -14,6 +15,7 @@ import (
 func TestCheckSetupPath(t *testing.T) {
 	ctx := model.WithClientIP(context.Background(), "192.0.2.20")
 	f := newFixture(t)
+	f.libs.validateDir = true
 	dir := t.TempDir()
 	file := filepath.Join(dir, "film.mkv")
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
@@ -59,6 +61,47 @@ func TestCheckSetupPath(t *testing.T) {
 	var verr *model.ValidationError
 	if _, err := f.svc.CheckSetupPath(ctx, "  "); !errors.As(err, &verr) {
 		t.Errorf("empty path: %v, want a validation error", err)
+	}
+}
+
+// E14: a path below no browsable root answers not_browsable and is not described any further.
+// The evidence that nothing stat'ed it is the file: library.PathProblem would have answered
+// not_directory for it, which is exactly the leak the own branch avoids.
+func TestCheckSetupPathNotBrowsable(t *testing.T) {
+	ctx := model.WithClientIP(context.Background(), "192.0.2.24")
+	f := newFixture(t)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "film.mkv")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.libs.notBrowsable = map[string]bool{dir: true, file: true, "/config": true}
+	for _, path := range []string{dir, file, "/config"} {
+		got, err := f.svc.CheckSetupPath(ctx, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.OK || got.Problem != library.PathNotBrowsable {
+			t.Errorf("CheckSetupPath(%q) = %+v, want problem not_browsable", path, got)
+		}
+		if got.FSType != "" || got.WatchMode != "" || got.Warning != "" {
+			t.Errorf("CheckSetupPath(%q) describes the path: %+v", path, got)
+		}
+	}
+	if len(f.libs.validated) != 3 {
+		t.Errorf("the check ran %d times, want one per path", len(f.libs.validated))
+	}
+}
+
+// A failure that is not about the path -- the database, say -- must not be described as a path
+// problem: the operator would go and fix a folder that is fine.
+func TestCheckSetupPathPassesOnOtherFailures(t *testing.T) {
+	ctx := model.WithClientIP(context.Background(), "192.0.2.25")
+	f := newFixture(t)
+	boom := errors.New("database is locked")
+	f.libs.validateErr = boom
+	if _, err := f.svc.CheckSetupPath(ctx, t.TempDir()); !errors.Is(err, boom) {
+		t.Errorf("CheckSetupPath with a failing check = %v, want the error itself", err)
 	}
 }
 

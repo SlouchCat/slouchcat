@@ -13,6 +13,10 @@ const problemKeys = {
   backup_newer_than_server: 'errors.code.backup_newer_than_server',
   announcement_published: 'errors.code.announcement_published',
   library_path_invalid: 'errors.code.library_path_invalid',
+  // The folder browser of the library form (idea 02).
+  path_not_browsable: 'errors.code.path_not_browsable',
+  path_unreachable: 'errors.code.path_unreachable',
+  browse_busy: 'errors.code.browse_busy',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
   provider_not_configured: 'errors.code.provider_not_configured',
@@ -75,6 +79,10 @@ const fieldKeys = {
   not_burnable: 'errors.field.not_burnable',
   not_absolute: 'errors.field.not_absolute',
   library_path_invalid: 'errors.code.library_path_invalid',
+  // The folder browser of the library form (idea 02).
+  path_not_browsable: 'errors.code.path_not_browsable',
+  path_unreachable: 'errors.code.path_unreachable',
+  browse_busy: 'errors.code.browse_busy',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
   invalid_url: 'errors.field.invalid_url',

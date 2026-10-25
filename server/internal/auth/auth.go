@@ -53,7 +53,7 @@ type Service struct {
 	now    func() time.Time
 	params argonParams
 
-	attempts attemptLimiter
+	attempts Limiter
 	pinMu    sync.Mutex // serialises PIN checks (pin.go)
 
 	dummyOnce sync.Once

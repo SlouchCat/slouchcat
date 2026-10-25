@@ -70,6 +70,13 @@ Die Ordner `config` und `cache` müssen dem Benutzer aus `PUID`/`PGID` gehören:
 sudo chown -R "$(id -u):$(id -g)" config cache
 ```
 
+Im Formular «Bibliothek hinzufügen» steht neben dem Ordnerfeld der Knopf «Durchsuchen …». Er zeigt die
+Unterordner von `/media`, du klickst dich zum richtigen Ordner und musst den Pfad im Container nicht
+auswendig wissen. Aus demselben Grund darf eine neue Bibliothek nur unter `/media` liegen. Hast du in
+`compose.yaml` eine zweite Einhängung ergänzt, trägst du sie komma-getrennt in
+`SLOUCHCAT_BROWSE_ROOTS` ein (zum Beispiel `SLOUCHCAT_BROWSE_ROOTS=/media,/media2`). Bibliotheken, die
+es schon gibt, bleiben in jedem Fall bestehen.
+
 Den TMDB-Lesetoken kannst du hier eintragen (`SLOUCHCAT_TMDB_API_KEY=…`) oder beim ersten Start im
 Assistenten angeben. Beides ist gleichwertig; in `.env` bleibt er auch nach einer Wiederherstellung
 erhalten. **Schlüssel gehören nur in diese Datei**, nie in eine Nachricht und nie in ein

@@ -33,6 +33,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/api"
 	"github.com/slouchcat/slouchcat/server/internal/auth"
+	"github.com/slouchcat/slouchcat/server/internal/browse"
 	"github.com/slouchcat/slouchcat/server/internal/config"
 	"github.com/slouchcat/slouchcat/server/internal/discover"
 	"github.com/slouchcat/slouchcat/server/internal/integrations"
@@ -168,6 +169,9 @@ func serve(cfg config.Config) int {
 	if w := cfg.TrustedProxyWarning(); w != "" {
 		log.Warn(w)
 	}
+	if w := cfg.BrowseRootWarning(); w != "" {
+		log.Warn(w)
+	}
 	var restart atomic.Bool
 	err = serveUntilSignal(cfg, log, errRing, started, &restart)
 	again, code := afterStop(err, restart.Load())
@@ -275,10 +279,15 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	libSvc := library.New(db, queue, runner, log,
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
-		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted))
+		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
+		library.WithBrowseRoots(cfg.BrowseRoots))
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
-		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart)
+		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
+		// The browsable roots are classified once, here: the wizard's root list answers before
+		// any account exists and must make no system call per request (idea 02, E5).
+		WithBrowse(cfg.BrowseRoots, browse.ClassifyRoots(cfg.BrowseRoots, log),
+			browse.New(log, browse.WithConfinedTo(browse.ResolveRoots(cfg.BrowseRoots, log))))
 	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, started)
 	keys.admin = adminSvc
 	// The channels (M8): admin stores the SMTP, Telegram and VAPID settings that notify reads, and

@@ -22,7 +22,8 @@ func TestDefaults(t *testing.T) {
 	}
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
 		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off",
-		DownloadBudgetGB: DefaultDownloadBudgetGB, SMTPTLS: "starttls", UpdateManifestURL: DefaultUpdateManifestURL}
+		DownloadBudgetGB: DefaultDownloadBudgetGB, SMTPTLS: "starttls", UpdateManifestURL: DefaultUpdateManifestURL,
+		BrowseRoots: []string{DefaultBrowseRoots}}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -74,7 +75,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		SMTPHost: "smtp.example.test", SMTPPort: 465, SMTPUser: "mailer", SMTPPassword: "smtp-FAKE-password",
 		SMTPFrom: "Slouchcat <media@example.test>", SMTPTLS: "tls", TelegramBotToken: "123456:bot-FAKE-token",
 		TelegramBaseURL: "http://127.0.0.1:9/telegram", UpdateManifestURL: "http://127.0.0.1:9/manifest.json",
-		PublicURL: "https://media.example.test"}
+		PublicURL: "https://media.example.test", BrowseRoots: []string{DefaultBrowseRoots}}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}
@@ -235,6 +236,89 @@ func TestTrustedProxyWarning(t *testing.T) {
 		got := Config{TrustedProxies: proxies}.TrustedProxyWarning()
 		if (got != "") != tc.warn {
 			t.Errorf("TrustedProxies %q: warning %q, want warning = %v", tc.value, got, tc.warn)
+		}
+	}
+}
+
+func TestBrowseRoots(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  []string
+	}{
+		{"", nil},
+		{"   ", nil},
+		{",,", nil},
+		{"/media", []string{"/media"}},
+		{"/media, /mnt/nas/", []string{"/media", "/mnt/nas"}},
+		{"/media,/media/", []string{"/media"}},
+		{"/media/./Filme", []string{"/media/Filme"}},
+	} {
+		got, err := ParseBrowseRoots(tc.value)
+		if err != nil {
+			t.Errorf("ParseBrowseRoots(%q): %v", tc.value, err)
+			continue
+		}
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("ParseBrowseRoots(%q) = %v, want %v", tc.value, got, tc.want)
+		}
+	}
+	for _, value := range []string{"media", "./media", "/media,relative"} {
+		if _, err := ParseBrowseRoots(value); err == nil {
+			t.Errorf("ParseBrowseRoots(%q): expected an error for a path that is not absolute", value)
+		}
+	}
+	// A root that does not exist is no error here: it is logged and skipped at start-up, so a typo
+	// does not keep the server from coming up (idea 02, 6.1).
+	if got, err := ParseBrowseRoots("/does/not/exist"); err != nil || !reflect.DeepEqual(got, []string{"/does/not/exist"}) {
+		t.Errorf("ParseBrowseRoots of a missing directory = %v, %v; want it kept", got, err)
+	}
+}
+
+func TestBrowseRootsFromFlagAndEnv(t *testing.T) {
+	env := envMap(map[string]string{"SLOUCHCAT_BROWSE_ROOTS": "/srv/media"})
+	cfg, err := Load(nil, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(cfg.BrowseRoots, []string{"/srv/media"}) {
+		t.Errorf("env: browse roots = %v", cfg.BrowseRoots)
+	}
+	cfg, err = Load([]string{"--browse-roots", "/a,/b"}, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(cfg.BrowseRoots, []string{"/a", "/b"}) {
+		t.Errorf("flag: browse roots = %v", cfg.BrowseRoots)
+	}
+	if _, err := Load([]string{"--browse-roots", "relative"}, envMap(nil)); err == nil {
+		t.Error("expected an error for a browse root that is not absolute")
+	}
+	// Switched off: the folder browser has nothing to list and library paths are not restricted.
+	cfg, err = Load([]string{"--browse-roots", ""}, envMap(nil))
+	if err != nil || cfg.BrowseRoots != nil {
+		t.Errorf("empty browse roots = %v, %v", cfg.BrowseRoots, err)
+	}
+}
+
+func TestBrowseRootWarning(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		warn  bool
+	}{
+		{"/media", false},
+		// A value that falls apart into no root at all switches the rule off; that must be said.
+		{"", true},
+		{"  ", true},
+		{",,", true},
+		{"/media,/", true},
+		{"/", true},
+	} {
+		roots, err := ParseBrowseRoots(tc.value)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.value, err)
+		}
+		if got := (Config{BrowseRoots: roots}).BrowseRootWarning(); (got != "") != tc.warn {
+			t.Errorf("BrowseRoots %q: warning %q, want warning = %v", tc.value, got, tc.warn)
 		}
 	}
 }

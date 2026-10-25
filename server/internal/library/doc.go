@@ -144,4 +144,15 @@
 // an incremental stat pass (Poller) for NFS and SMB with the interval max(45 s, 3 × pass duration),
 // and both for FUSE and unknown file systems. Every detected change queues a debounced scan.path
 // of the changed directories; Start adds a full scan per library every 6 hours.
+//
+// # Rules shared with the folder browser
+//
+// Package browse (idea 02) shows the administrator the directories a library folder could be,
+// and it must show what a scan would see. It therefore takes four rules from here and keeps none
+// of its own: Ignored (hidden entries, NAS metadata folders, disc structures), WatchMode (the
+// change detection and the warning of a file system class), PathProblem and ProblemFromError
+// (why a folder is not usable), and ValidateNewRoot with ErrNotBrowsable (a new library folder
+// lies below a browsable root, E14). A second copy of any of them would let the dialog promise
+// something the scan then does differently. Those four, package paths, package model and the
+// standard library are all that browse may import; server/.golangci.yml holds it to that list.
 package library

@@ -38,12 +38,32 @@ func acquireArgon(ctx context.Context) (release func(), err error) {
 	}
 }
 
-// attemptLimiter is a token bucket per client address: attemptsPerMin refill per minute, up to
-// attemptBurst. Buckets idle for bucketIdleAfter are dropped when a new one is created, and the
-// table never holds more than maxBuckets (the least recently used goes first).
-type attemptLimiter struct {
+// Limiter is a token bucket per client address: perMin tokens refill per minute, up to burst.
+// Buckets idle for bucketIdleAfter are dropped when a new one is created, and the table never
+// holds more than maxBuckets (the least recently used goes first).
+//
+// The zero Limiter is the limit of login, setup, PIN and invitation attempts, which share one
+// pot. NewLimiter makes a pot of its own for an operation that must not empty that one -- the
+// wizard's root list, which the setup page fetches on every load (idea 02, E5).
+type Limiter struct {
 	mu      sync.Mutex
+	perMin  float64
+	burst   float64
 	buckets map[string]*bucket
+}
+
+// NewLimiter returns a limiter with its own pot: perMin tokens per minute and client address, up
+// to burst at once.
+func NewLimiter(perMin, burst float64) *Limiter {
+	return &Limiter{perMin: perMin, burst: burst}
+}
+
+// rates returns the configured rates, or those of the shared attempt pot for the zero Limiter.
+func (l *Limiter) rates() (perMin, burst float64) {
+	if l.perMin == 0 {
+		return attemptsPerMin, attemptBurst
+	}
+	return l.perMin, l.burst
 }
 
 type bucket struct {
@@ -51,8 +71,9 @@ type bucket struct {
 	last   time.Time
 }
 
-// allow takes one token for ip at now or returns model.ErrTooManyAttempts.
-func (l *attemptLimiter) allow(ip string, now time.Time) error {
+// Allow takes one token for ip at now or returns model.ErrTooManyAttempts.
+func (l *Limiter) Allow(ip string, now time.Time) error {
+	perMin, burst := l.rates()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	b, ok := l.buckets[ip]
@@ -71,11 +92,11 @@ func (l *attemptLimiter) allow(ip string, now time.Time) error {
 		if len(l.buckets) >= maxBuckets {
 			delete(l.buckets, oldest) // the client that was seen longest ago starts over
 		}
-		b = &bucket{tokens: attemptBurst, last: now}
+		b = &bucket{tokens: burst, last: now}
 		l.buckets[ip] = b
 	}
 	if elapsed := now.Sub(b.last); elapsed > 0 {
-		b.tokens = min(attemptBurst, b.tokens+elapsed.Minutes()*attemptsPerMin)
+		b.tokens = min(burst, b.tokens+elapsed.Minutes()*perMin)
 	}
 	b.last = now
 	if b.tokens < 1 {
@@ -88,5 +109,5 @@ func (l *attemptLimiter) allow(ip string, now time.Time) error {
 // AllowAttempt counts a login or setup attempt of the client in ctx (model.WithClientIP) and
 // returns model.ErrTooManyAttempts when the client exceeded attemptsPerMin.
 func (s *Service) AllowAttempt(ctx context.Context) error {
-	return s.attempts.allow(model.ClientIP(ctx), s.now())
+	return s.attempts.Allow(model.ClientIP(ctx), s.now())
 }

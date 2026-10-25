@@ -1,9 +1,8 @@
 import { expect, type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CSRF } from './catalog';
-import { OWNER, STORAGE_STATE } from './env';
+import { MEDIA_DIR, OWNER, STORAGE_STATE } from './env';
 
 // Helpers for the profile and access specs. They log in with a session of their own (the cookie
 // lands in the page's context): a profile switch changes the session on the server, and the
@@ -188,7 +187,10 @@ export async function ensureEmptyLibrary(api: APIRequestContext): Promise<number
   );
   const existing = libraries.find((library) => library.name === name);
   if (existing) return existing.id;
-  const root = mkdtempSync(join(tmpdir(), 'slouchcat-e2e-empty-'));
+  // Below the media root of the run, because a library folder must lie below a browsable root
+  // (idea 02, E14), and in a hidden folder, because the scanner and the folder browser skip
+  // hidden entries -- so it does not turn up in the listings of the other specs.
+  const root = join(MEDIA_DIR, '.e2e', 'E2E leer');
   mkdirSync(root, { recursive: true });
   writeFileSync(join(root, 'readme.txt'), 'no media here');
   const created = await json<{ id: number }>(

@@ -46,11 +46,26 @@ async function answerKeyCheck(page: Page, answer: object): Promise<void> {
   await page.route('**/api/v1/setup/tmdb-check', (route) => route.fulfill({ json: answer }));
 }
 
+/**
+ * The configured media roots the wizard offers under the folder field (idea 02, E5). The real
+ * server answers 409 here, because the run's account exists; the suggestions are mocked so the
+ * page can be tested at all.
+ */
+const SETUP_ROOTS = [
+  { id: 'c0', path: '/media', browsable: true, source: 'configured' },
+  { id: 'c1', path: '/mnt/nas', browsable: true, source: 'configured' },
+];
+
+async function answerSetupRoots(page: Page): Promise<void> {
+  await page.route('**/api/v1/setup/roots', (route) => route.fulfill({ json: SETUP_ROOTS }));
+}
+
 const step = (page: Page, name: RegExp) => page.getByRole('region', { name });
 
 test.beforeEach(async ({ page }) => {
   await answerPathCheck(page, { ok: true, fsType: 'ext4', watchMode: 'inotify' });
   await answerKeyCheck(page, { ok: true });
+  await answerSetupRoots(page);
   await page.route('**/api/v1/setup', async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({ json: { setupRequired: true, system } });
@@ -78,6 +93,9 @@ test('Tab walks through the four steps in order with a visible focus ring', asyn
     page.getByLabel('Name', { exact: true }),
     page.getByRole('radio', { name: 'Filme' }),
     page.getByLabel('Ordner', { exact: true }),
+    // The configured roots stand between the field and the check button (idea 02, E5).
+    page.getByRole('button', { name: '/media', exact: true }),
+    page.getByRole('button', { name: '/mnt/nas', exact: true }),
     page.getByRole('button', { name: 'Ordner prüfen' }),
     page.getByRole('link', { name: /Token auf themoviedb.org erstellen/ }),
     page.getByLabel('API-Lesezugriffs-Token'),
@@ -159,7 +177,8 @@ test('the folder is checked on leaving the field: file system and network share 
   await tabTo(page, page.getByLabel('Ordner', { exact: true }));
   await page.keyboard.type('/media/nas/Filme');
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Ordner prüfen' }));
+  await expectFocusOn(page, page.getByRole('button', { name: '/media', exact: true }));
+  await tabTo(page, page.getByRole('button', { name: 'Ordner prüfen' }));
   await expect(
     library.getByText('Dateisystem cifs · Änderungen werden regelmässig abgefragt'),
   ).toBeVisible();
@@ -168,6 +187,27 @@ test('the folder is checked on leaving the field: file system and network share 
   // Enter on the button asks again only for a changed folder.
   await page.keyboard.press('Enter');
   expect(checks.count).toBe(1);
+  await expectNoFocusTrap(page);
+});
+
+// Idea 02, E5: the wizard offers the configured roots, no browsing. Enter on one of them fills
+// the folder field, and the field stays the equal way in.
+test('the configured roots are suggestions the keyboard can take', async ({ page }) => {
+  // Before an account exists the wizard never asks for a listing: no browse button, no request.
+  const listings: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/api/v1/admin/fs/')) listings.push(request.url());
+  });
+  const path = page.getByLabel('Ordner', { exact: true });
+  await resetFocus(page);
+  await tabTo(page, page.getByRole('button', { name: '/mnt/nas', exact: true }));
+  await page.keyboard.press('Enter');
+  await expect(path).toHaveValue('/mnt/nas');
+  // The field stays the equal way in: it can still be typed over.
+  await path.fill('/media/Filme');
+  await expect(path).toHaveValue('/media/Filme');
+  await expect(page.getByRole('button', { name: 'Durchsuchen …' })).toHaveCount(0);
+  expect(listings).toEqual([]);
   await expectNoFocusTrap(page);
 });
 

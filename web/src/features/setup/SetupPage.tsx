@@ -14,10 +14,34 @@ import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Logo, Notice, Page, Panel, Stack, Text, TextLink } from '@/ui';
 import { AriaButton, Form, TextField } from '@/ui/aria';
 import { LibraryFields, libraryRequest, type LibraryKind } from '../shared/LibraryFields';
+import { setupRootsQuery } from '../shared/pathBrowser';
 import { SystemState } from '../shared/SystemState';
 import styles from './SetupPage.module.css';
 
 const TMDB_KEY_URL = 'https://www.themoviedb.org/settings/api';
+
+/**
+ * The media roots the server was configured with (SLOUCHCAT_BROWSE_ROOTS), as clickable
+ * suggestions under the folder field (idea 02, E5). No browsing here: before an account exists a
+ * listing with a path would be a way to enumerate the container, so the wizard gets the roots and
+ * nothing below them. The field stays the way in; this only saves guessing how the mount is
+ * named inside the container.
+ */
+function RootSuggestions({ onPick }: { onPick: (path: string) => void }) {
+  const { t } = useTranslation();
+  const roots = useQuery(setupRootsQuery);
+  if (!roots.data || roots.data.length === 0) return null;
+  return (
+    <div className={styles.roots}>
+      <span className={styles.rootsLabel}>{t('setup.library.roots')}</span>
+      {roots.data.map((root) => (
+        <AriaButton key={root.id} icon="folder" onPress={() => onPick(root.path)}>
+          {root.path}
+        </AriaButton>
+      ))}
+    </div>
+  );
+}
 
 function Step({
   step,
@@ -83,8 +107,12 @@ function PathResult({ check }: { check: PathCheck }) {
 }
 
 /** The field message of a path the server described as unusable (the texts of the submit). */
-const pathProblemKey = (problem: NonNullable<PathCheck['problem']>) =>
-  problem === 'not_absolute' ? 'errors.field.not_absolute' : 'errors.code.library_path_invalid';
+const pathProblemKey = (problem: NonNullable<PathCheck['problem']>) => {
+  if (problem === 'not_absolute') return 'errors.field.not_absolute';
+  // The server does not describe a folder below no browsable root, so neither does the message.
+  if (problem === 'not_browsable') return 'errors.code.path_not_browsable';
+  return 'errors.code.library_path_invalid';
+};
 
 /**
  * First-start wizard (A-1): main account, first library with a check of its folder, optional TMDB
@@ -264,6 +292,12 @@ export function SetupPage() {
               onPathBlur={() => checkPath(false)}
               pathAddon={
                 <div className={styles.check}>
+                  <RootSuggestions
+                    onPick={(picked) => {
+                      setPath(picked);
+                      setBlank((state) => ({ ...state, path: false }));
+                    }}
+                  />
                   <div>
                     <AriaButton
                       icon="folder"

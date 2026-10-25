@@ -39,6 +39,10 @@ func (f *authTestLibraries) ValidatePath(_ context.Context, path string) error {
 	return nil
 }
 
+func (f *authTestLibraries) ValidateNewRoot(ctx context.Context, path string) error {
+	return f.ValidatePath(ctx, path)
+}
+
 func (f *authTestLibraries) Create(_ context.Context, req model.LibraryRequest) (model.Library, error) {
 	started := time.Date(2026, 10, 18, 14, 0, 0, 0, time.FixedZone("CEST", 2*3600))
 	lib := model.Library{
@@ -85,7 +89,7 @@ func newAuthEnv(t *testing.T) *authEnv { return newAuthEnvAt(t, &stepClock{now: 
 // against the limit has to hold the clock still: the bucket refills over time, every wrong
 // password costs an argon2id hash, and on a loaded machine those hashes take longer than the
 // window, so the limit never trips.
-func newAuthEnvAt(t *testing.T, clock *stepClock) *authEnv {
+func newAuthEnvAt(t *testing.T, clock *stepClock, wire ...func(*admin.Service)) *authEnv {
 	t.Helper()
 	var logs bytes.Buffer
 	log, err := logging.New(&logs, logging.FormatJSON, slog.LevelDebug)
@@ -105,6 +109,9 @@ func newAuthEnvAt(t *testing.T, clock *stepClock) *authEnv {
 	a := auth.New(db, log).WithClock(clock.Now)
 	tmdb := &authTestTMDB{}
 	adm := admin.New(db, a, &authTestLibraries{}, ring, tmdb, func(string) string { return "" }, log)
+	for _, w := range wire {
+		w(adm)
+	}
 	h := NewHandler(Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: http.NotFoundHandler(), Auth: a, Profiles: a, Access: a, Admin: adm,
 	})

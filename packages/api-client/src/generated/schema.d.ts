@@ -95,6 +95,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/setup/roots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The configured media roots, for the wizard (A-1)
+         * @description The roots the wizard offers below the folder field (`SLOUCHCAT_BROWSE_ROOTS`), so the operator
+         *     need not guess how the mount is named inside the container. It takes no parameter and lists
+         *     nothing below a root: before an account exists, a listing with a path parameter would be an
+         *     enumeration primitive, and the attempt limit is per client address, which a misconfigured
+         *     `SLOUCHCAT_TRUSTED_PROXIES` lets the caller choose. The answer is the same for every caller and
+         *     never changes while the server runs, so it does not count against the attempt limit either --
+         *     that limit is shared with signing in, and the wizard fetches this list on every load. It has a
+         *     limit of its own instead, and it answers from a list filled at start-up, so the one
+         *     unauthenticated operation that touches the file system does not touch it per request. The file
+         *     system type is left out here: before an account exists, nobody learns which mount is a network
+         *     share. Allowed only while no account exists.
+         */
+        get: operations["listSetupRoots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/login": {
         parameters: {
             query?: never;
@@ -1097,6 +1127,59 @@ export interface paths {
          *     of the known files vanished (plan 3.2). After this confirmation the next scan applies the loss.
          */
         post: operations["acceptLibraryLoss"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/fs/browse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Directories below a browsable root, for the folder field (A-2)
+         * @description Lists the subdirectories of a directory below a browsable root, so the administrator picks a
+         *     library folder instead of typing it. The request names a root by its id and a path relative to
+         *     it, never an absolute path: the handler resolves it with the `paths` package and reads it
+         *     through the `*os.Root` of that root, so a symlink that leaves the root is not browsable. An
+         *     empty `rel` lists the root itself; `listBrowseRoots` names the roots. The listed directory
+         *     carries its file system, the watch mode the scanner would choose and the warning for network
+         *     shares; every row carries the library the directory already belongs to. Directories are sorted
+         *     by name and never counted; `cursor` and `nextCursor` page through a large directory,
+         *     `truncated` says that it holds more entries than the server reads. A path below no root and a
+         *     path that does not exist answer alike, so the endpoint tells nothing about the file system
+         *     outside the roots. A POST and not a GET, because the request log keeps the query string and a
+         *     media path carries folder names, not secrets it would redact.
+         */
+        post: operations["browseServerPaths"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/fs/roots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The roots the folder picker may browse (A-2)
+         * @description The configured roots (`SLOUCHCAT_BROWSE_ROOTS`) together with the roots of the libraries that
+         *     exist; the dialog starts here and `browseServerPaths` goes below them. An empty list means that
+         *     no configured root exists and no library has been created yet.
+         */
+        get: operations["listBrowseRoots"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4467,6 +4550,107 @@ export interface components {
             /** @description The limit is below 65536 or more than 80 % of it are used; the UI shows the sysctl command. */
             warn: boolean;
         };
+        /**
+         * @description Change detection the scanner would choose for this directory (plan 3.4). Its own schema with
+         *     its own constant names: a generated enum without them takes package-wide, unprefixed names,
+         *     and `Inotify`, `Poll` and `InotifyPoll` belong to `LibraryRoot.watch` already.
+         * @enum {string}
+         */
+        BrowseWatch: "inotify" | "poll" | "inotify_poll";
+        /**
+         * @description A hint, not an error; the library works with polling.
+         * @enum {string}
+         */
+        BrowseWarning: "network_share" | "fuse_unknown";
+        BrowseRequest: {
+            /** @description Id of a root from `listBrowseRoots`; stable for the lifetime of the server process. */
+            rootId: string;
+            /**
+             * @description Directory below the root, slash-separated and relative; empty or absent lists the root
+             *     itself. Absolute paths, `..` segments and NUL bytes are rejected (`validation_failed`).
+             * @example Filme/Action
+             */
+            rel?: string;
+            /**
+             * @description `nextCursor` of the previous page; without it the first page is returned. Longer than
+             *     `rel`, because it carries the root, the directory and the last name of the page.
+             */
+            cursor?: string;
+            /** @description Rows per page; without it the server answers with 200. */
+            limit?: number;
+        };
+        BrowseRoot: {
+            /** @description Opaque id for `BrowseRequest.rootId`. */
+            id: string;
+            /** @description Absolute path of the root, as it is shown to the administrator. */
+            path: string;
+            /**
+             * @description False for a grandfathered library root that lies below no configured root: the dialog shows
+             *     it so a directory can carry its library's name, but it cannot be entered.
+             */
+            browsable?: boolean;
+            /**
+             * @description `configured`: from `SLOUCHCAT_BROWSE_ROOTS`; `library`: a root of an existing library.
+             * @enum {string}
+             */
+            source: "configured" | "library";
+            /** @description Detected file system class (`ext4`, `xfs`, `btrfs`, `zfs`, `fuse`, `nfs`, `smb`, `unknown`), as in `LibraryRoot`; omitted by `listSetupRoots`. */
+            fsType?: string;
+            /** @description Omitted by `listSetupRoots`, which answers before any account exists. */
+            warning?: components["schemas"]["BrowseWarning"];
+            /**
+             * Format: int64
+             * @description The library this root belongs to; absent for a configured root that is none.
+             */
+            libraryId?: number;
+            libraryName?: string;
+        };
+        /** @description One directory below a browsable root, with its subdirectories. */
+        DirectoryListing: {
+            rootId: string;
+            /** @description The listed directory relative to the root; empty at the root itself. */
+            rel: string;
+            /** @description Absolute path of the listed directory, ready for the folder field. */
+            path?: string;
+            /** @description One level up, relative to the root; absent at the root, empty one level below it. */
+            parentRel?: string;
+            /** @description `rel` is empty: there is no way further up, the dialog goes back to the roots. */
+            atRoot: boolean;
+            fsType?: string;
+            watch?: components["schemas"]["BrowseWatch"];
+            warning?: components["schemas"]["BrowseWarning"];
+            /**
+             * @description The directory lies below a root but could not be listed; `entries` is then empty. A path
+             *     below no root answers 404 instead.
+             * @enum {string}
+             */
+            problem?: "not_readable" | "not_directory";
+            /** @description The directory holds more than 50 000 entries; the server read the first 50 000. */
+            truncated?: boolean;
+            /** @description Pass as `cursor` for the next page; absent on the last page. */
+            nextCursor?: string;
+            entries: components["schemas"]["DirectoryEntry"][];
+        };
+        /** @description One subdirectory as the folder picker shows it. */
+        DirectoryEntry: {
+            /** @description Name of the subdirectory, without its path. */
+            name: string;
+            /** @description Path of the subdirectory relative to the root, for the next `BrowseRequest`. */
+            rel: string;
+            /** @description Absolute path of the subdirectory, ready for the folder field. */
+            path?: string;
+            /**
+             * @description A symlinked directory: it is listed, because the scanner sees it too, but it cannot be
+             *     entered (`path_not_browsable`), because that would leave the root.
+             */
+            symlink?: boolean;
+            /**
+             * Format: int64
+             * @description The library this directory already belongs to; absent otherwise. A new library may not overlap it.
+             */
+            libraryId?: number;
+            libraryName?: string;
+        };
         PathCheckRequest: {
             /** @example /media/movies */
             path: string;
@@ -4488,10 +4672,12 @@ export interface components {
              */
             warning?: "network_share" | "fuse_unknown";
             /**
-             * @description Why the path is not usable; set exactly when `ok` is false.
+             * @description Why the path is not usable; set exactly when `ok` is false. `not_browsable`: the path lies
+             *     below none of the browsable roots (`SLOUCHCAT_BROWSE_ROOTS`). The path is then not described
+             *     further, so the answer tells nothing about the file system outside those roots.
              * @enum {string}
              */
-            problem?: "not_absolute" | "missing" | "not_directory" | "not_readable";
+            problem?: "not_absolute" | "missing" | "not_directory" | "not_readable" | "not_browsable";
         };
         TMDBCheckRequest: {
             /** @description TMDB v4 read access token; neither stored nor logged. */
@@ -4518,6 +4704,17 @@ export interface components {
             /** @description The newest errors of the server log, newest first, redacted like the log itself. */
             errors: components["schemas"]["ErrorEntry"][];
             update: components["schemas"]["UpdateState"];
+            browse?: components["schemas"]["BrowseHealth"];
+        };
+        /**
+         * @description The state of the folder browser of the library form. A listing that hangs on a mount which
+         *     stopped answering keeps its slot for good, because a blocked system call cannot be cancelled;
+         *     `lostSlots` counts them. At `lostSlots` equal to `slots` the browser answers `browse_busy`
+         *     until the server restarts. A warning, not an error: nothing else is affected.
+         */
+        BrowseHealth: {
+            lostSlots: number;
+            slots: number;
         };
         JobCounts: {
             queued: number;
@@ -5477,6 +5674,45 @@ export interface operations {
                 };
             };
             /** @description Too many attempts from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listSetupRoots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The configured roots. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrowseRoot"][];
+                };
+            };
+            /** @description Setup already completed (`setup_done`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too many requests from this client (`too_many_attempts`); `Retry-After` names the pause in seconds. */
             429: {
                 headers: {
                     "Retry-After"?: number;
@@ -7770,6 +8006,88 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    browseServerPaths: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrowseRequest"];
+            };
+        };
+        responses: {
+            /** @description The directory with its subdirectories. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryListing"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such root, or `rel` names nothing below it (`path_not_browsable`). Both answer alike. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): `rel` is absolute, holds a `..` segment or a NUL
+             *     byte, is longer than 4096 bytes, or `cursor` does not belong to this directory.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The file system did not answer within three seconds (`path_unreachable`; a dead network
+             *     mount blocks in the kernel and cannot be cancelled), or too many listings are already
+             *     running (`browse_busy`).
+             */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listBrowseRoots: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The browsable roots. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrowseRoot"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
         };
     };
     listInvitations: {

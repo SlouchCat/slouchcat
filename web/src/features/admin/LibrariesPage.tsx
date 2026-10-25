@@ -1,6 +1,6 @@
 import type { Library, LibraryRequest, Rating } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -15,6 +15,7 @@ import {
   libraryRequest,
   type LibraryKind,
 } from '../shared/LibraryFields';
+import { PathBrowserButton } from '../shared/PathBrowserButton';
 import { LibraryCard } from './LibraryCard';
 import { isScanning, librariesQuery } from './queries';
 import styles from './LibrariesPage.module.css';
@@ -24,13 +25,17 @@ function AddLibraryForm() {
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<LibraryKind>('movies');
   const [rating, setRating] = useState('0');
+  // The folder is a controlled value, so the browse dialog can write the chosen path into it.
+  const [path, setPath] = useState('');
   const [formKey, setFormKey] = useState(0);
+  const pathInput = useRef<HTMLInputElement>(null);
   const create = useMutation({
     mutationFn: (body: LibraryRequest): Promise<Library> =>
       request(api.POST('/admin/libraries', { body })),
     onSuccess: async () => {
       setFormKey((key) => key + 1);
       setRating('0');
+      setPath('');
       await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
     },
   });
@@ -62,6 +67,10 @@ function AddLibraryForm() {
           onKindChange={setKind}
           rating={rating}
           onRatingChange={setRating}
+          path={path}
+          onPathChange={setPath}
+          pathInputRef={pathInput}
+          pathAddon={<PathBrowserButton path={path} onPathChange={setPath} fieldRef={pathInput} />}
         />
         <div>
           <AriaButton type="submit" variant="primary" icon="plus" isPending={create.isPending}>

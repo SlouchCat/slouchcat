@@ -77,3 +77,17 @@
 .result:empty {
   margin-block-start: calc(-1 * var(--sc-space-3));
 }
+
+/* The configured media roots the wizard offers under the folder field (idea 02, E5): clickable
+   suggestions, no browsing -- before an account exists the server lists nothing below a root. */
+.roots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: baseline;
+}
+
+.rootsLabel {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

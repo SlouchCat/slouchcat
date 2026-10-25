@@ -95,6 +95,9 @@
     "code": {
       "invalid_credentials": "E-mail address or password is wrong.",
       "library_path_invalid": "This folder does not exist on the server or cannot be read. Enter an absolute path inside the container.",
+      "path_not_browsable": "This folder is not released. Only folders below the released media folders (SLOUCHCAT_BROWSE_ROOTS) can be used.",
+      "path_unreachable": "The folder does not answer. Check whether the network share is still mounted.",
+      "browse_busy": "The folder browser is busy right now. Try again in a moment.",
       "tmdb_key_invalid": "TMDB rejected the key. Check the read access token.",
       "tmdb_unreachable": "TMDB cannot be reached right now. Try again or leave the field empty.",
       "setup_done": "Slouchcat is already set up. Please sign in.",
@@ -187,6 +190,7 @@
       "kind": "Content",
       "path": "Folder",
       "pathHint": "Absolute path inside the container, for example /media/Movies.",
+      "roots": "Released folders:",
       "check": "Check folder",
       "checking": "Checking …",
       "warning": {
@@ -239,7 +243,26 @@
     },
     "defaultRating": "Default age rating",
     "defaultRatingHint": "Applies to every title of this library. Single titles can only be rated stricter afterwards.",
-    "podcastsHint": "Podcasts need no folder: you subscribe to their feeds under Podcasts."
+    "podcastsHint": "Podcasts need no folder: you subscribe to their feeds under Podcasts.",
+    "browse": {
+      "title": "Choose a folder",
+      "open": "Browse …",
+      "apply": "Apply",
+      "list": "Folders in this directory",
+      "upOneLevel": "One level up",
+      "roots": "Released folders",
+      "applies": "“Apply” writes: {{path}}",
+      "appliesNothing": "Choose a folder; “Apply” then writes its path into the field.",
+      "empty": "This folder has no subfolders.",
+      "emptyRoots": "No folder is released. Set {{name}} to the media folders of the container and restart the server.",
+      "loadMore": "Load more",
+      "truncated": "This folder holds a great many entries. The first 50,000 are shown; type the path to reach the rest.",
+      "symlink": "Symlink, not scanned",
+      "closedRoot": "Not released, shown only",
+      "notReadable": "This folder cannot be read. Check the permissions inside the container.",
+      "notDirectory": "This is not a folder.",
+      "inLibrary": "Belongs to library {{name}}"
+    }
   },
   "home": {
     "title": "Home",
@@ -1300,6 +1323,12 @@
         "job": "Job {{id}} ({{type}})",
         "new_one": "{{count}} new error",
         "new_other": "{{count}} new errors"
+      },
+      "browse": {
+        "title": "Folder browser blocked",
+        "hanging": "A mount stopped answering: {{count}} listing hangs in the kernel and cannot be cancelled. The folder browser still works, with fewer slots. A restart frees them.",
+        "hanging_other": "A mount stopped answering: {{count}} listings hang in the kernel and cannot be cancelled. The folder browser still works, with fewer slots. A restart frees them.",
+        "off": "Every slot of the folder browser hangs on a mount that stopped answering. No folder can be browsed until the server restarts; typing a path by hand still works."
       }
     },
     "integrations": {

@@ -80,6 +80,7 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 			Total: d.Webhooks.Total, EventsLast24h: d.Webhooks.EventsLast24h,
 			Silent: append([]string{}, d.Webhooks.Silent...),
 		},
+		Browse: &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
 	}
 	for _, st := range d.Streams {
 		out.Streams = append(out.Streams, toAdminStream(st))
