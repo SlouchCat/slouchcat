@@ -12,7 +12,7 @@ import styles from './PathBrowserDialog.module.css';
 interface PathBrowserDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  /** The folder the dialog starts in; a path below a root opens that root. */
+  /** The folder field's value; a path below a root opens the dialog in that folder. */
   currentPath: string;
   /** "Apply": the chosen absolute path goes into the folder field. */
   onApply: (path: string) => void;
@@ -29,9 +29,9 @@ interface Position {
 const NO_ROOT: Position = { rootId: '', rel: '' };
 
 /**
- * The folder picker of the library form (idea 02). It starts on the browsable roots, goes one
- * level down per Enter and back up with Backspace; "Apply" writes the path of the directory the
- * dialog stands in -- or of the marked row -- into the folder field.
+ * The folder picker of the library form (idea 02). It starts on the browsable roots -- or in the
+ * folder the field already names -- goes one level down per Enter and back up with Backspace;
+ * "Apply" writes the marked folder, or the one the dialog stands in, into the field.
  *
  * Everything it shows comes from the server: which roots exist, what lies below them, which
  * folder belongs to a library already. The client decides no path (plan 2.1, principle 1).
@@ -44,16 +44,24 @@ export function PathBrowserDialog({
   returnFocus,
 }: PathBrowserDialogProps) {
   const { t } = useTranslation();
-  const [position, setPosition] = useState<Position>(NO_ROOT);
+  // null: the user has not navigated yet, so the dialog stands where the field points -- or on
+  // the roots when the field is empty or names something below none of them. Derived, not an
+  // effect: the start follows the roots as soon as they arrive, without a second render pass.
+  const [position, setPosition] = useState<Position | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
   const roots = useQuery({ ...browseRootsQuery, enabled: isOpen });
-  const atRoots = position.rootId === '';
-  const dir = useInfiniteQuery(directoryQuery(position.rootId, position.rel, isOpen && !atRoots));
+  const here = position ?? startPosition(roots.data, currentPath) ?? NO_ROOT;
+  const atRoots = here.rootId === '';
+  const dir = useInfiniteQuery(directoryQuery(here.rootId, here.rel, isOpen && !atRoots));
   const listing = lastPage(dir.data?.pages);
+  // `keepPreviousData` holds the rows of the directory we came from on screen while the next one
+  // loads, so the list keeps the focus. Everything but those rows -- the path, the warnings, the
+  // way up and what "Apply" writes -- waits for the answer, or it would describe the wrong folder.
+  const shown = listing?.rootId === here.rootId && listing.rel === here.rel ? listing : undefined;
 
   const close = () => {
-    setPosition(NO_ROOT);
+    setPosition(null);
     setSelected(null);
     onOpenChange(false);
   };
@@ -67,16 +75,18 @@ export function PathBrowserDialog({
       if (root?.browsable) goTo({ rootId: root.id, rel: '' });
       return;
     }
-    const entry = listing?.entries.find((e) => e.rel === id);
-    if (entry && !entry.symlink) goTo({ rootId: position.rootId, rel: entry.rel });
+    const entry = shown?.entries.find((e) => e.rel === id);
+    if (entry && !entry.symlink) goTo({ rootId: here.rootId, rel: entry.rel });
   };
+  // Back to the roots whenever the current directory is unknown -- still loading, or the server
+  // refused it. Going nowhere would strand the keyboard in a folder it cannot leave.
   const up = () => {
     if (atRoots) return;
-    if (!listing || listing.atRoot) {
+    if (!shown || shown.atRoot) {
       goTo(NO_ROOT);
       return;
     }
-    goTo({ rootId: position.rootId, rel: listing.parentRel ?? '' });
+    goTo({ rootId: here.rootId, rel: shown.parentRel ?? '' });
   };
   // Backspace and Left go up, Right goes down: the two keys a file dialog is expected to answer
   // to. The ListBox brings the rest (arrows, Home, End, Enter); the dialog holds no text field,
@@ -94,7 +104,7 @@ export function PathBrowserDialog({
   };
 
   const items = atRoots ? rootItems(t, roots.data) : entryItems(t, listing?.entries);
-  const chosen = chosenPath(atRoots, roots.data, listing, selected);
+  const chosen = chosenPath(atRoots, roots.data, shown, selected);
   const pending = atRoots ? roots.isPending : dir.isPending;
   const error = atRoots ? roots.error : dir.error;
 
@@ -110,37 +120,35 @@ export function PathBrowserDialog({
     >
       <div className={styles.body}>
         <div className={styles.head}>
-          <p className={styles.path}>
-            {atRoots ? t('library.browse.roots') : (listing?.path ?? '')}
-          </p>
-          {!atRoots && listing && (
+          <p className={styles.path}>{atRoots ? t('library.browse.roots') : (shown?.path ?? '')}</p>
+          {shown && (
             <Text tone="secondary" variant="caption">
               {[
-                listing.fsType && t('admin.libraries.fsType', { type: listing.fsType }),
-                listing.watch && t(`admin.libraries.watch.${listing.watch}`),
+                shown.fsType && t('admin.libraries.fsType', { type: shown.fsType }),
+                shown.watch && t(`admin.libraries.watch.${shown.watch}`),
               ]
                 .filter(Boolean)
                 .join(t('format.separator'))}
             </Text>
           )}
         </div>
-        {!atRoots && listing?.warning && (
+        {shown?.warning && (
           <Notice
             tone="warning"
             live={false}
-            title={t(`setup.library.warning.${listing.warning}.title`)}
+            title={t(`setup.library.warning.${shown.warning}.title`)}
           >
-            {t(`setup.library.warning.${listing.warning}.body`)}
+            {t(`setup.library.warning.${shown.warning}.body`)}
           </Notice>
         )}
-        {listing?.problem && (
+        {shown?.problem && (
           <Notice tone="warning" live={false}>
             {t(
-              `library.browse.${listing.problem === 'not_readable' ? 'notReadable' : 'notDirectory'}`,
+              `library.browse.${shown.problem === 'not_readable' ? 'notReadable' : 'notDirectory'}`,
             )}
           </Notice>
         )}
-        {listing?.truncated && (
+        {shown?.truncated && (
           <Notice tone="warning" live={false}>
             {t('library.browse.truncated')}
           </Notice>
@@ -149,8 +157,10 @@ export function PathBrowserDialog({
         {pending && <Skeleton shape="block" />}
         {!pending && !error && (
           <PathList
-            // A fresh list per directory, so the focus moves to its first row (PathList.autoFocus).
-            key={`${position.rootId}:${position.rel}`}
+            // A fresh list per directory the server answered with, so the focus moves to the
+            // first row of that directory. Keyed on the position instead, it would remount while
+            // the previous rows are still on screen and focus one of those (PathList.autoFocus).
+            key={atRoots ? 'roots' : `${listing?.rootId ?? ''}:${listing?.rel ?? ''}`}
             autoFocus
             label={t('library.browse.list')}
             items={items}
@@ -192,30 +202,56 @@ export function PathBrowserDialog({
           </AriaButton>
         </div>
       </div>
-      {currentPath !== '' && (
-        <p className={styles.current}>{t('library.browse.current', { path: currentPath })}</p>
-      )}
+      <p className={styles.current}>
+        {chosen === ''
+          ? t('library.browse.appliesNothing')
+          : t('library.browse.applies', { path: chosen })}
+      </p>
     </FormDialog>
   );
 }
 
 /** The newest page carries the state of the directory; the entries of all pages are shown. */
 function lastPage(pages: DirectoryListing[] | undefined): DirectoryListing | undefined {
-  if (!pages || pages.length === 0) return undefined;
-  const last = pages.at(-1);
+  const last = pages?.at(-1);
   if (!last) return undefined;
-  return { ...last, entries: pages.flatMap((page) => page.entries) };
+  return { ...last, entries: (pages ?? []).flatMap((page) => page.entries) };
+}
+
+/**
+ * The root and the path below it that `path` names, or undefined when it lies below none of the
+ * browsable roots. The longest matching root wins, so a library root below a configured one
+ * opens as itself.
+ */
+function startPosition(roots: BrowseRoot[] | undefined, path: string): Position | undefined {
+  if (path === '' || !roots) return undefined;
+  let best: Position | undefined;
+  let bestLength = -1;
+  for (const root of roots) {
+    if (root.browsable === false || root.path.length <= bestLength) continue;
+    if (path === root.path) {
+      best = { rootId: root.id, rel: '' };
+      bestLength = root.path.length;
+    } else if (path.startsWith(`${root.path.replace(/\/$/, '')}/`)) {
+      best = { rootId: root.id, rel: path.slice(root.path.replace(/\/$/, '').length + 1) };
+      bestLength = root.path.length;
+    }
+  }
+  return best;
 }
 
 function rootItems(t: TFunction, roots: BrowseRoot[] | undefined): PathItem[] {
   return (roots ?? []).map((root) => ({
     id: root.id,
     name: root.path,
-    note: root.libraryName
-      ? t('library.browse.inLibrary', { name: root.libraryName })
-      : root.browsable === false
+    // A root that cannot be entered says so first: it is almost always a library root too, and
+    // "belongs to library X" alone would leave Enter looking broken.
+    note:
+      root.browsable === false
         ? t('library.browse.closedRoot')
-        : undefined,
+        : root.libraryName
+          ? t('library.browse.inLibrary', { name: root.libraryName })
+          : undefined,
     closed: root.browsable === false,
   }));
 }

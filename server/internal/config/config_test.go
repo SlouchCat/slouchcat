@@ -306,7 +306,10 @@ func TestBrowseRootWarning(t *testing.T) {
 		warn  bool
 	}{
 		{"/media", false},
-		{"", false},
+		// A value that falls apart into no root at all switches the rule off; that must be said.
+		{"", true},
+		{"  ", true},
+		{",,", true},
 		{"/media,/", true},
 		{"/", true},
 	} {

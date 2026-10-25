@@ -25,7 +25,7 @@ func TestSetupRootsAnswersFromTheStartupList(t *testing.T) {
 	if err := os.Mkdir(dir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	f.svc.WithBrowse(browse.ClassifyRoots([]string{dir, "/does/not/exist"}, quiet), browse.New(quiet))
+	f.svc.WithBrowse([]string{dir, "/does/not/exist"}, browse.ClassifyRoots([]string{dir, "/does/not/exist"}, quiet), browse.New(quiet))
 
 	roots, err := f.svc.SetupRoots(ctx)
 	if err != nil {
@@ -57,7 +57,7 @@ func TestSetupRootsHasItsOwnLimit(t *testing.T) {
 	t.Parallel()
 	ctx := model.WithClientIP(context.Background(), "192.0.2.31")
 	f := newFixture(t)
-	f.svc.WithBrowse(browse.ClassifyRoots([]string{t.TempDir()}, quiet), browse.New(quiet))
+	f.svc.WithBrowse([]string{t.TempDir()}, browse.ClassifyRoots([]string{t.TempDir()}, quiet), browse.New(quiet))
 
 	var err error
 	for i := range setupRootsPerMin + 1 {
@@ -92,7 +92,7 @@ func TestBrowseRoots(t *testing.T) {
 		t.Fatal(err)
 	}
 	outside := t.TempDir()
-	f.svc.WithBrowse(browse.ClassifyRoots([]string{media}, quiet), browse.New(quiet))
+	f.svc.WithBrowse([]string{media}, browse.ClassifyRoots([]string{media}, quiet), browse.New(quiet))
 	for _, path := range []string{inside, outside, media} {
 		if _, err := f.libs.Create(ctx, model.LibraryRequest{Name: filepath.Base(path), Kind: "movies", Path: path}); err != nil {
 			t.Fatal(err)
@@ -138,7 +138,7 @@ func TestBrowseNotConfigured(t *testing.T) {
 	if got := f.svc.browseHealth(); got != (model.BrowseHealth{}) {
 		t.Errorf("browse health = %+v, want the zero value", got)
 	}
-	f.svc.WithBrowse(nil, browse.New(quiet))
+	f.svc.WithBrowse(nil, nil, browse.New(quiet))
 	if got := f.svc.browseHealth(); got.LostSlots != 0 || got.Slots != browse.DefaultSlots {
 		t.Errorf("browse health = %+v, want no lost slot and the default number", got)
 	}

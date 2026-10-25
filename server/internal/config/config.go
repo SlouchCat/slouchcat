@@ -362,11 +362,18 @@ func (c Config) TrustedProxyWarning() string {
 }
 
 // BrowseRootWarning reports why the configured browsable roots are a risk, or "" when they are
-// not one. The root "/" turns the folder browser into a file manager for the whole container and
-// lets a library be created on /config, where the database, the backups and secret.key live. The
-// server cannot tell a deliberate choice from a slip, so it warns and goes on, as it does for
+// not one. Two cases are a risk. An empty list switches the rule off that a new library folder
+// must lie below a browsable root, so a library may be created anywhere the server can read. And
+// the root "/" turns the folder browser into a file manager for the whole container. Both end at
+// /config, where the database, the backups and secret.key live. The server cannot tell a
+// deliberate choice from a slip, so it warns and goes on, as it does for
 // SLOUCHCAT_TRUSTED_PROXIES.
 func (c Config) BrowseRootWarning() string {
+	if len(c.BrowseRoots) == 0 {
+		return "browse_roots is empty: the folder browser has nothing to list, and a library may" +
+			" be created on any directory the server can read, /config with the database, the" +
+			" backups and secret.key included. Name the media mounts instead, for example /media."
+	}
 	for _, root := range c.BrowseRoots {
 		if root == "/" {
 			return "browse_roots contains \"/\": the folder browser then lists the whole container," +

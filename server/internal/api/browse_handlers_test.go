@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/browse"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 )
 
 // browseEnv is an authEnv whose folder browser may list one temporary directory.
@@ -28,7 +30,7 @@ func browseEnv(t *testing.T) (*authEnv, string) {
 	}
 	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
 	wire := func(a *admin.Service) {
-		a.WithBrowse(browse.ClassifyRoots([]string{dir}, quiet), browse.New(quiet))
+		a.WithBrowse([]string{dir}, browse.ClassifyRoots([]string{dir}, quiet), browse.New(quiet))
 	}
 	return newAuthEnvAt(t, &stepClock{now: time.Now()}, wire), dir
 }
@@ -150,6 +152,59 @@ func TestBrowseHidesWhatIsOutside(t *testing.T) {
 	if rec.Code != http.StatusForbidden || problemCode(t, rec) != "csrf_header_missing" {
 		t.Errorf("without the CSRF header: status %d (%s), want 403 csrf_header_missing", rec.Code, rec.Body.String())
 	}
+}
+
+// E9 over HTTP: a file system that does not answer gives 503 path_unreachable with Retry-After,
+// and once every slot is held by a call that never came back, browse_busy.
+func TestBrowseUnreachableAndBusy(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
+	blocked := make(chan struct{})
+	t.Cleanup(func() { close(blocked) })
+	wire := func(a *admin.Service) {
+		a.WithBrowse([]string{dir}, browse.ClassifyRoots([]string{dir}, quiet),
+			browse.New(quiet, browse.WithFS(blockingFS{blocked}), browse.WithSlots(1),
+				browse.WithWatchdog(20*time.Millisecond), browse.WithGrace(time.Minute)))
+	}
+	e := newAuthEnvAt(t, &stepClock{now: time.Now()}, wire)
+	rec := e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil)
+	wantStatus(t, rec, http.StatusCreated)
+	owner := sessionCookie(t, rec)
+	rootID := firstRootID(t, e, owner, dir)
+
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/fs/browse", map[string]any{"rootId": rootID}, owner)
+	wantStatus(t, rec, http.StatusServiceUnavailable)
+	if code := problemCode(t, rec); code != "path_unreachable" {
+		t.Errorf("code = %s, want path_unreachable", code)
+	}
+	if got := rec.Header().Get("Retry-After"); got != "30" {
+		t.Errorf("Retry-After = %q, want 30", got)
+	}
+	// The slot is held by the call that never came back; the next one is turned away at once.
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/fs/browse", map[string]any{"rootId": rootID}, owner)
+	wantStatus(t, rec, http.StatusServiceUnavailable)
+	if code := problemCode(t, rec); code != "browse_busy" {
+		t.Errorf("code = %s, want browse_busy", code)
+	}
+}
+
+// blockingFS never answers, like a dead network mount.
+type blockingFS struct{ block chan struct{} }
+
+func (f blockingFS) ReadDirNames(paths.Root, string, int) ([]string, error) {
+	<-f.block
+	return nil, nil
+}
+
+func (f blockingFS) LstatAll(paths.Root, string, []string) ([]fs.DirEntry, error) {
+	<-f.block
+	return nil, nil
+}
+
+func (f blockingFS) FSTypeAt(paths.Root, string) (paths.FSType, error) {
+	<-f.block
+	return paths.FSUnknown, nil
 }
 
 // E5: the wizard's root list does not count against the attempt limit, which it shares with the

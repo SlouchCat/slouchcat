@@ -42,9 +42,9 @@ interface PathListProps {
 }
 
 /**
- * A list of folders with one Tab stop (react-aria ListBox): the arrow keys move from row to row,
- * Home and End jump, Enter enters the folder. SelectableList is a CheckboxGroup with a Tab stop
- * per row, which is the opposite of what a long folder list needs.
+ * A list of folders with one Tab stop (react-aria ListBox): the arrow keys move from row to row
+ * and mark the row they land on, Home and End jump, Enter enters the folder. SelectableList is a
+ * CheckboxGroup with a Tab stop per row, which is the opposite of what a long folder list needs.
  *
  * A closed row stays in the list and keeps its mark, but it cannot be entered: the scanner sees a
  * symlinked folder too, and a folder that is missing from the dialog sends the administrator
@@ -89,6 +89,11 @@ export function PathList({
       className={styles.list}
       items={items}
       selectionMode="single"
+      // The mark follows the focus, and Enter keeps entering the folder. With the default
+      // behaviour (toggle) react-aria makes the action primary only while nothing is selected
+      // (useSelectableItem: hasPrimaryAction = manager.isEmpty), so the first marked row would
+      // take Enter away from the list for good.
+      selectionBehavior="replace"
       selectedKeys={selectedId ? [selectedId] : []}
       disallowEmptySelection={false}
       onSelectionChange={(keys) => {

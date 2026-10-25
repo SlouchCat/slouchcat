@@ -27,17 +27,23 @@ const setupRootsPerMin = 60
 // browseState is what the service needs for the folder browser; zero means not configured, and
 // then the browser answers as if nothing were browsable.
 type browseState struct {
-	// configured are the roots of SLOUCHCAT_BROWSE_ROOTS as browse.ClassifyRoots found them at
-	// start-up: only the ones that exist, with their file system class.
+	// dirs is SLOUCHCAT_BROWSE_ROOTS as it was configured, unfiltered. It is the list E14 is
+	// measured against, so that the boundary of the browser and the boundary of a new library
+	// root are the same one -- a root that was not mounted at start-up must not widen either.
+	dirs []string
+	// configured are those of dirs that browse.ClassifyRoots found at start-up: only the ones
+	// that exist, with their file system class. They are what the dialog offers.
 	configured []model.BrowseRoot
 	lister     *browse.Lister
 	limit      *auth.Limiter
 }
 
-// WithBrowse wires the folder browser: the configured roots, classified once at start-up, and
-// the lister that reads directories. Returns the receiver.
-func (s *Service) WithBrowse(configured []model.BrowseRoot, lister *browse.Lister) *Service {
-	s.browse = browseState{configured: configured, lister: lister, limit: auth.NewLimiter(setupRootsPerMin, setupRootsPerMin)}
+// WithBrowse wires the folder browser: the configured roots as they stand in the configuration,
+// the same roots classified once at start-up, and the lister that reads directories. Returns the
+// receiver.
+func (s *Service) WithBrowse(dirs []string, configured []model.BrowseRoot, lister *browse.Lister) *Service {
+	s.browse = browseState{dirs: dirs, configured: configured, lister: lister,
+		limit: auth.NewLimiter(setupRootsPerMin, setupRootsPerMin)}
 	return s
 }
 
@@ -71,10 +77,6 @@ func (s *Service) SetupRoots(ctx context.Context) ([]model.BrowseRoot, error) {
 // entered. Without a configured root the rule is off and every library root may be entered.
 func (s *Service) BrowseRoots(ctx context.Context) ([]model.BrowseRoot, error) {
 	out := slices.Clone(s.browse.configured)
-	dirs := make([]string, 0, len(out))
-	for _, r := range out {
-		dirs = append(dirs, r.Path)
-	}
 	libs, err := s.libraries.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list libraries: %w", err)
@@ -88,7 +90,7 @@ func (s *Service) BrowseRoots(ctx context.Context) ([]model.BrowseRoot, error) {
 			}
 			out = append(out, model.BrowseRoot{
 				ID: "l" + strconv.FormatInt(root.ID, 10), Path: root.Path,
-				Browsable:   len(dirs) == 0 || library.UnderAnyRoot(root.Path, dirs),
+				Browsable:   len(s.browse.dirs) == 0 || library.UnderAnyRoot(root.Path, s.browse.dirs),
 				Source:      model.BrowseRootLibrary,
 				FSType:      root.FSType,
 				Warning:     root.Warning,

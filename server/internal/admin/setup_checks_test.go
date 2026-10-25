@@ -93,6 +93,18 @@ func TestCheckSetupPathNotBrowsable(t *testing.T) {
 	}
 }
 
+// A failure that is not about the path -- the database, say -- must not be described as a path
+// problem: the operator would go and fix a folder that is fine.
+func TestCheckSetupPathPassesOnOtherFailures(t *testing.T) {
+	ctx := model.WithClientIP(context.Background(), "192.0.2.25")
+	f := newFixture(t)
+	boom := errors.New("database is locked")
+	f.libs.validateErr = boom
+	if _, err := f.svc.CheckSetupPath(ctx, t.TempDir()); !errors.Is(err, boom) {
+		t.Errorf("CheckSetupPath with a failing check = %v, want the error itself", err)
+	}
+}
+
 // A-1: the key check names an invalid key and an unreachable TMDB; the key is not stored.
 func TestCheckSetupTMDBKey(t *testing.T) {
 	ctx := model.WithClientIP(context.Background(), "192.0.2.21")

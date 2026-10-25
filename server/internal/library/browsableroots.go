@@ -50,13 +50,15 @@ func (s *Service) ValidateNewRoot(ctx context.Context, path string) error {
 	return ValidateDir(path)
 }
 
-// checkBrowsable runs the two passes of E14 on an absolute, cleaned path.
+// checkBrowsable runs the two passes of E14 on an absolute, cleaned path. A path that fails both
+// is still allowed when it is a library root already: grandfathering is the last word, so a
+// symlinked folder that has been a root for months keeps working.
 func (s *Service) checkBrowsable(ctx context.Context, path string) error {
 	if len(s.browseRoots) == 0 {
 		return nil
 	}
-	if UnderAnyRoot(path, s.browseRoots) {
-		return s.checkResolved(path)
+	if UnderAnyRoot(path, s.browseRoots) && s.resolvedUnderRoot(path) {
+		return nil
 	}
 	grandfathered, err := s.isLibraryRoot(ctx, path)
 	if err != nil {
@@ -68,13 +70,15 @@ func (s *Service) checkBrowsable(ctx context.Context, path string) error {
 	return nil
 }
 
-// checkResolved repeats the lexical check on the paths with their symlinks resolved. A path that
-// cannot be resolved (it does not exist yet, or a link loops) is left to ValidateDir, which names
-// the real problem; it never reaches the file system through this function.
-func (s *Service) checkResolved(path string) error {
+// resolvedUnderRoot repeats the lexical check on the paths with their symlinks resolved. A path
+// that cannot be resolved (it does not exist yet, or a link loops) passes: ValidateDir names the
+// real problem afterwards, and this function never reaches the file system for it. The same
+// holds when no configured root can be resolved -- then there is nothing to compare against, and
+// refusing everything would lock the administrator out over a directory they cannot traverse.
+func (s *Service) resolvedUnderRoot(path string) bool {
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		return nil
+		return true
 	}
 	roots := make([]string, 0, len(s.browseRoots))
 	for _, root := range s.browseRoots {
@@ -82,16 +86,15 @@ func (s *Service) checkResolved(path string) error {
 			roots = append(roots, r)
 		}
 	}
-	if !UnderAnyRoot(resolved, roots) {
-		return ErrNotBrowsable
-	}
-	return nil
+	return len(roots) == 0 || UnderAnyRoot(resolved, roots)
 }
 
 // isLibraryRoot reports whether path is the root of a library already (exact equality).
 func (s *Service) isLibraryRoot(ctx context.Context, path string) (bool, error) {
 	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
 	if err != nil {
+		// Not wrapped in ErrLibraryPathInvalid: a database that does not answer is no statement
+		// about the path, and the wizard must not describe the folder because of it.
 		return false, fmt.Errorf("list roots: %w", err)
 	}
 	for _, r := range roots {

@@ -33,6 +33,9 @@ type fakeLibraries struct {
 	// the check ran, so a test can show that no stat followed it.
 	notBrowsable map[string]bool
 	validated    []string
+	// validateErr is returned by ValidateNewRoot before anything else, for the case that the
+	// check fails for a reason that is not the path.
+	validateErr error
 	// validateDir lets the fake describe real directories (library.ValidateDir) instead of
 	// accepting every path; the wizard's path check needs that, the setup tests do not.
 	validateDir bool
@@ -50,6 +53,9 @@ func (f *fakeLibraries) ValidatePath(_ context.Context, path string) error {
 
 func (f *fakeLibraries) ValidateNewRoot(ctx context.Context, path string) error {
 	f.validated = append(f.validated, path)
+	if f.validateErr != nil {
+		return f.validateErr
+	}
 	if f.notBrowsable[path] {
 		return library.ErrNotBrowsable
 	}

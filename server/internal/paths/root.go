@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 )
 
 // Open opens the root directory for file access that cannot escape it: every Open, Stat or
@@ -39,23 +40,28 @@ func Walk(root Root, fn fs.WalkDirFunc) error {
 // batches so a capped read does not pull the whole directory into memory first.
 const readDirBatch = 1024
 
-// ReadDir reads one level of the subtree rel of root (slash-separated, "." for the root itself)
-// through the root's *os.Root, so a symlink that leaves the root is not followed and rel cannot
-// escape the root. max caps the number of entries read (0 or less reads all of them); a directory
-// with more entries than max is read up to max, which the caller sees from the result's length.
-// The entries come in directory order, not sorted (getdents).
-func ReadDir(root Root, rel string, max int) ([]fs.DirEntry, error) {
+// ReadDirNames reads the names of one level of the subtree rel of root (slash-separated, "." for
+// the root itself) through the root's *os.Root, so rel cannot escape the root. max caps how many
+// names are read (0 or less reads all of them); a directory with more entries than max is read up
+// to max, which the caller sees from the result's length. The names come in directory order, not
+// sorted (getdents).
+//
+// Names only, and that is the point. os.File.ReadDir on a file that was opened through an *os.Root
+// cannot trust the d_type of the directory entry and runs an lstat per entry instead (os,
+// newUnixDirent): on a directory with 50 000 entries that is 50 000 system calls, each one a round
+// trip on a network share. LstatAll asks for the few entries a page actually shows.
+func ReadDirNames(root Root, rel string, max int) ([]string, error) {
 	dir, err := openDir(root, rel)
 	if err != nil {
 		return nil, err
 	}
 	defer dir.Close()
 	if max <= 0 {
-		return dir.ReadDir(-1)
+		return dir.Readdirnames(-1)
 	}
-	out := make([]fs.DirEntry, 0, min(max, readDirBatch))
+	out := make([]string, 0, min(max, readDirBatch))
 	for len(out) < max {
-		batch, err := dir.ReadDir(min(readDirBatch, max-len(out)))
+		batch, err := dir.Readdirnames(min(readDirBatch, max-len(out)))
 		out = append(out, batch...)
 		switch {
 		case errors.Is(err, io.EOF), err == nil && len(batch) == 0:
@@ -65,6 +71,37 @@ func ReadDir(root Root, rel string, max int) ([]fs.DirEntry, error) {
 			// directory above all: the caller must see it, not an empty listing.
 			return out, fmt.Errorf("read dir %s: %w", rel, err)
 		}
+	}
+	return out, nil
+}
+
+// LstatAll returns one entry per name below rel, read with an lstat through the root's own
+// descriptor: no symlink is followed and no name can leave the root. A name that vanished between
+// the listing and this call, or that cannot be read on its own, is left out -- a directory listing
+// is a snapshot, and one entry must not cost the whole page.
+func LstatAll(root Root, rel string, names []string) ([]fs.DirEntry, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	if _, err := Resolve(root, rel); err != nil {
+		return nil, err
+	}
+	r, err := Open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	out := make([]fs.DirEntry, 0, len(names))
+	for _, name := range names {
+		child := name
+		if rel != "." {
+			child = path.Join(rel, name)
+		}
+		info, err := r.Lstat(child)
+		if err != nil {
+			continue
+		}
+		out = append(out, fs.FileInfoToDirEntry(info))
 	}
 	return out, nil
 }

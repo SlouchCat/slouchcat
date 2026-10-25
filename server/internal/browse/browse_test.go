@@ -204,7 +204,7 @@ func TestListPagesAndTruncates(t *testing.T) {
 	ctx := context.Background()
 	roots := []Root{{ID: "c0", Dir: "/media", Browsable: true}}
 
-	f := &fakeFS{entries: dirEntries(300), fsType: paths.FSExt4}
+	f := &fakeFS{names: dirNames(300), fsType: paths.FSExt4}
 	l := New(discard, WithFS(f))
 	seen := []string{}
 	req := Request{RootID: "c0", Limit: 120}
@@ -236,13 +236,15 @@ func TestListPagesAndTruncates(t *testing.T) {
 			t.Fatalf("the pages are not sorted and free of repeats: %q after %q", seen[i], seen[i-1])
 		}
 	}
-	if f.reads.Load() != 3 || f.stats.Load() != 3 {
-		t.Errorf("three pages cost %d reads and %d statfs, want one each per page and nothing per row",
-			f.reads.Load(), f.stats.Load())
+	// The cost of a page is one listing of names, one lstat per row it shows and one statfs on
+	// the listed directory -- never a stat per entry of the whole directory (E7).
+	if f.reads.Load() != 3 || f.statfs.Load() != 3 || f.lstats.Load() != 300 {
+		t.Errorf("three pages of 120 cost %d name listings, %d lstats and %d statfs; want 3, 300 and 3",
+			f.reads.Load(), f.lstats.Load(), f.statfs.Load())
 	}
 
 	// More entries than the server reads: exactly one page plus the mark.
-	f = &fakeFS{entries: dirEntries(MaxEntries + 1), fsType: paths.FSNFS}
+	f = &fakeFS{names: dirNames(MaxEntries + 1), fsType: paths.FSNFS}
 	l = New(discard, WithFS(f))
 	got, err := l.List(ctx, roots, Request{RootID: "c0"})
 	if err != nil {
@@ -254,8 +256,9 @@ func TestListPagesAndTruncates(t *testing.T) {
 	if got.Watch != "poll" || got.Warning != "network_share" {
 		t.Errorf("an NFS directory = watch %q, warning %q; want poll and the network share hint", got.Watch, got.Warning)
 	}
-	if f.reads.Load() != 1 || f.stats.Load() != 1 {
-		t.Errorf("one page cost %d reads and %d statfs", f.reads.Load(), f.stats.Load())
+	if f.reads.Load() != 1 || f.statfs.Load() != 1 || f.lstats.Load() != DefaultLimit {
+		t.Errorf("one page of a directory with %d entries cost %d name listings, %d lstats and %d statfs; want 1, %d and 1",
+			MaxEntries+1, f.reads.Load(), f.lstats.Load(), f.statfs.Load(), DefaultLimit)
 	}
 }
 
@@ -274,6 +277,9 @@ func TestListMarksLibraryFolders(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{"Filme": "Filme", "Serien": "Serien", "Neu": ""}
+	if len(got.Entries) != len(want) {
+		t.Fatalf("entries = %v, want all three directories", names(got))
+	}
 	for _, e := range got.Entries {
 		if e.LibraryName != want[e.Name] {
 			t.Errorf("%s belongs to %q, want %q", e.Name, e.LibraryName, want[e.Name])
@@ -291,7 +297,7 @@ func TestListWatchdogAndBusy(t *testing.T) {
 	blocked := make(chan struct{})
 	t.Cleanup(func() { close(blocked) }) // let the goroutines end with the test
 	f := &fakeFS{block: blocked, fsType: paths.FSNFS}
-	l := New(discard, WithFS(f), WithSlots(3), WithWatchdog(20*time.Millisecond))
+	l := New(discard, WithFS(f), WithSlots(3), WithWatchdog(20*time.Millisecond), WithGrace(50*time.Millisecond))
 
 	for i := range 3 {
 		start := time.Now()
@@ -302,9 +308,9 @@ func TestListWatchdogAndBusy(t *testing.T) {
 			t.Fatalf("call %d waited %s, want the watchdog to end it", i, waited)
 		}
 	}
-	if l.LostSlots() != 3 {
-		t.Errorf("lost slots = %d, want one per hanging call", l.LostSlots())
-	}
+	// The slot counts as lost only after the grace period, because a cancelled request and a
+	// slow but living share come back inside it.
+	waitFor(t, func() bool { return l.LostSlots() == 3 }, "three lost slots")
 	for i := range 2 {
 		if _, err := l.List(ctx, roots, Request{RootID: "c0"}); !errors.Is(err, model.ErrBrowseBusy) {
 			t.Errorf("call %d after every slot was lost = %v, want ErrBrowseBusy", i, err)
@@ -325,8 +331,8 @@ func TestListFreesSlotAfterSlowCall(t *testing.T) {
 	ctx := context.Background()
 	roots := []Root{{ID: "c0", Dir: "/media", Browsable: true}}
 	released := make(chan struct{})
-	f := &fakeFS{block: released, entries: dirEntries(2), fsType: paths.FSExt4}
-	l := New(discard, WithFS(f), WithSlots(1), WithWatchdog(20*time.Millisecond))
+	f := &fakeFS{block: released, names: dirNames(2), fsType: paths.FSExt4}
+	l := New(discard, WithFS(f), WithSlots(1), WithWatchdog(20*time.Millisecond), WithGrace(time.Minute))
 
 	if _, err := l.List(ctx, roots, Request{RootID: "c0"}); !errors.Is(err, model.ErrPathUnreachable) {
 		t.Fatalf("the slow call = %v, want ErrPathUnreachable", err)
@@ -351,10 +357,53 @@ func TestListFreesSlotAfterSlowCall(t *testing.T) {
 	}
 }
 
+// A call the caller gave up on but that comes back inside the grace period is no lost slot: a
+// closed dialog cancels its request, and a slow but living share answers late. Counting those
+// would show the browser as dead on the dashboard and flush the error ring (50 entries).
+func TestListDoesNotCountASlotThatComesBack(t *testing.T) {
+	t.Parallel()
+	roots := []Root{{ID: "c0", Dir: "/media", Browsable: true}}
+	released := make(chan struct{})
+	f := &fakeFS{block: released, names: dirNames(2), fsType: paths.FSExt4}
+	l := New(discard, WithFS(f), WithSlots(2), WithWatchdog(10*time.Millisecond), WithGrace(2*time.Second))
+
+	// Given up by the watchdog.
+	if _, err := l.List(context.Background(), roots, Request{RootID: "c0"}); !errors.Is(err, model.ErrPathUnreachable) {
+		t.Fatalf("the slow call = %v, want ErrPathUnreachable", err)
+	}
+	// Given up by the caller, as a closed dialog does.
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := l.List(cancelled, roots, Request{RootID: "c0"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("the cancelled call = %v, want context.Canceled", err)
+	}
+	if l.LostSlots() != 0 {
+		t.Fatalf("lost slots = %d before the share answered, want 0", l.LostSlots())
+	}
+	close(released)
+	// Both calls return; neither counts, and the dashboard stays quiet.
+	waitFor(t, func() bool { return len(l.slots) == 0 }, "both slots back")
+	if l.LostSlots() != 0 {
+		t.Errorf("lost slots = %d after both calls came back, want 0", l.LostSlots())
+	}
+}
+
+// waitFor polls cond for up to two seconds.
+func waitFor(t *testing.T, cond func() bool, what string) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for %s", what)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 // An unknown root is refused before anything touches the file system (E6).
 func TestListTouchesNothingForAnUnknownRoot(t *testing.T) {
 	t.Parallel()
-	f := &fakeFS{entries: dirEntries(1), fsType: paths.FSExt4}
+	f := &fakeFS{names: dirNames(1), fsType: paths.FSExt4}
 	l := New(discard, WithFS(f))
 	roots := []Root{{ID: "c0", Dir: "/media", Browsable: true}}
 	for _, id := range []string{"c1", "/media", "../config"} {
@@ -362,8 +411,9 @@ func TestListTouchesNothingForAnUnknownRoot(t *testing.T) {
 			t.Errorf("rootId %q = %v, want ErrPathNotBrowsable", id, err)
 		}
 	}
-	if f.reads.Load() != 0 || f.stats.Load() != 0 {
-		t.Errorf("an unknown root cost %d reads and %d statfs, want none", f.reads.Load(), f.stats.Load())
+	if f.reads.Load() != 0 || f.statfs.Load() != 0 || f.lstats.Load() != 0 {
+		t.Errorf("an unknown root cost %d name listings, %d lstats and %d statfs, want none",
+			f.reads.Load(), f.lstats.Load(), f.statfs.Load())
 	}
 }
 
@@ -375,16 +425,18 @@ func names(l model.DirectoryListing) []string {
 	return out
 }
 
-// fakeFS counts its calls and can block for ever, like a dead network mount.
+// fakeFS counts its calls and can block for ever, like a dead network mount. reads counts the
+// listings of names, lstats counts the names that were typed one by one, and statfs the class of
+// the listed directory -- the three system calls a page may cost.
 type fakeFS struct {
-	entries      []fs.DirEntry
-	err          error
-	fsType       paths.FSType
-	block        chan struct{} // nil: answer at once; else wait for it to close
-	reads, stats atomic.Int64
+	names                 []string
+	err                   error
+	fsType                paths.FSType
+	block                 chan struct{} // nil: answer at once; else wait for it to close
+	reads, lstats, statfs atomic.Int64
 }
 
-func (f *fakeFS) ReadDir(_ paths.Root, _ string, max int) ([]fs.DirEntry, error) {
+func (f *fakeFS) ReadDirNames(_ paths.Root, _ string, max int) ([]string, error) {
 	f.reads.Add(1)
 	if f.block != nil {
 		<-f.block
@@ -392,19 +444,28 @@ func (f *fakeFS) ReadDir(_ paths.Root, _ string, max int) ([]fs.DirEntry, error)
 	if f.err != nil {
 		return nil, f.err
 	}
-	return f.entries[:min(len(f.entries), max)], nil
+	return f.names[:min(len(f.names), max)], nil
+}
+
+func (f *fakeFS) LstatAll(_ paths.Root, _ string, names []string) ([]fs.DirEntry, error) {
+	f.lstats.Add(int64(len(names)))
+	out := make([]fs.DirEntry, 0, len(names))
+	for _, name := range names {
+		out = append(out, fakeEntry{name: name})
+	}
+	return out, nil
 }
 
 func (f *fakeFS) FSTypeAt(paths.Root, string) (paths.FSType, error) {
-	f.stats.Add(1)
+	f.statfs.Add(1)
 	return f.fsType, nil
 }
 
-// dirEntries returns n directories in an order getdents could return them: not sorted.
-func dirEntries(n int) []fs.DirEntry {
-	out := make([]fs.DirEntry, 0, n)
+// dirNames returns n directory names in an order getdents could return them: not sorted.
+func dirNames(n int) []string {
+	out := make([]string, 0, n)
 	for i := range n {
-		out = append(out, fakeEntry{name: fmt.Sprintf("d%06d", (i*7919)%n)})
+		out = append(out, fmt.Sprintf("d%06d", (i*7919)%n))
 	}
 	return out
 }

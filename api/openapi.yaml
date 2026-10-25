@@ -8560,8 +8560,10 @@ components:
           examples: ["Filme/Action"]
         cursor:
           type: string
-          description: "`nextCursor` of the previous page; without it the first page is returned."
-          maxLength: 4096
+          description: |
+            `nextCursor` of the previous page; without it the first page is returned. Longer than
+            `rel`, because it carries the root, the directory and the last name of the page.
+          maxLength: 12288
         limit:
           type: integer
           description: Rows per page; without it the server answers with 200.

@@ -88,6 +88,32 @@ func TestValidateNewRoot(t *testing.T) {
 	}
 }
 
+// A library root that passes the lexical check but resolves outside keeps its right: it has been
+// a root for months, and an update must not stop the installation (E14, grandfathering last).
+func TestValidateNewRootGrandfathersASymlinkedRoot(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	media := t.TempDir()
+	elsewhere := t.TempDir()
+	link := filepath.Join(media, "ablage")
+	if err := os.Symlink(elsewhere, link); err != nil {
+		t.Fatal(err)
+	}
+	e.create(link) // created before the rule existed
+	WithBrowseRoots([]string{media})(e.svc)
+
+	if err := e.svc.ValidateNewRoot(e.ctx, link); err != nil {
+		t.Errorf("the existing root behind a symlink = %v, want nil", err)
+	}
+	// A new folder on the same symlink is still refused: only the existing root is protected.
+	if err := os.Mkdir(filepath.Join(elsewhere, "neu"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.ValidateNewRoot(e.ctx, filepath.Join(link, "neu")); !errors.Is(err, ErrNotBrowsable) {
+		t.Errorf("a new folder behind the symlink = %v, want ErrNotBrowsable", err)
+	}
+}
+
 // Without a configured root every valid folder passes: an installation whose media are somewhere
 // else must still be able to finish its setup (E14).
 func TestValidateNewRootWithoutRoots(t *testing.T) {

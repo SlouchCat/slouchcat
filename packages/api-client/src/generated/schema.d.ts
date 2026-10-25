@@ -4571,7 +4571,10 @@ export interface components {
              * @example Filme/Action
              */
             rel?: string;
-            /** @description `nextCursor` of the previous page; without it the first page is returned. */
+            /**
+             * @description `nextCursor` of the previous page; without it the first page is returned. Longer than
+             *     `rel`, because it carries the root, the directory and the last name of the page.
+             */
             cursor?: string;
             /** @description Rows per page; without it the server answers with 200. */
             limit?: number;

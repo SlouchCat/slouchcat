@@ -67,7 +67,7 @@ kann. Begründung und verworfene Alternativen stehen in ADR `docs/adr/0012-brows
 | 2 `SLOUCHCAT_BROWSE_ROOTS` | `go test ./internal/config/` |
 | 3 `Service.ValidateNewRoot` (E14) | `go test ./internal/library/ ./internal/admin/`; Pfad ausserhalb und `<wurzel>/ablage -> /config` ergeben 422, `checkSetupPath` antwortet `not_browsable` ohne `os.Stat` |
 | 4 geteilte Pfadregeln | `go tool golangci-lint run ./...`; die `depguard`-Regel `browse` weist einen Import von `store/systemq` und `transcode` zurück |
-| 5 Paket `browse` | `go test -race ./internal/browse/`: Blättern über 300 Ordner, `@eaDir` gefiltert, Symlink sichtbar und nicht betretbar, blockierende Dateisystem-Schnittstelle ergibt 503 und danach `browse_busy` |
+| 5 Paket `browse` | `go test -race ./internal/browse/`: Blättern über 300 Ordner, `@eaDir` gefiltert, Symlink sichtbar und nicht betretbar, blockierende Dateisystem-Schnittstelle ergibt 503 und danach `browse_busy`, ein zurückgekehrter Aufruf zählt nicht als verlorener Platz, eine Seite kostet eine Namensliste plus ein `lstat` je angezeigter Zeile |
 | 6 Vertrag | `task gen:check`, `task server:ci` |
 | 7 Handler und Drosseln | `go test ./internal/api/ ./internal/admin/`: gleicher Körper für unbekannte Wurzel und fehlenden Pfad, 403 nur für Sitzung und CSRF, `Cache-Control: no-store`, zehn Wurzellisten lassen `POST /setup` durch |
 | 8 `PathList`, `FormDialog` | `task web:lint`, `task web:test`, `task web:storybook:test` |
@@ -75,9 +75,19 @@ kann. Begründung und verworfene Alternativen stehen in ADR `docs/adr/0012-brows
 | 10 Tastaturtest | `task web:e2e` (`web/e2e/admin-folder-browser.spec.ts`) |
 | 11 Doku und ADR | `task ci` |
 
+**Review vor dem Pull Request** (zwei getrennte Durchgänge, Sicherheit und Code): 0 kritische, 0
+hohe Sicherheitsfunde; behoben wurden ein Zähler, der jede abgebrochene Anfrage als verlorenen
+Semaphorplatz zählte (das Dashboard hätte den Browser nach 16 Klicks dauerhaft als tot gemeldet),
+ein `stat` je Verzeichniseintrag statt je angezeigter Zeile, Enter, das nach der ersten markierten
+Zeile nicht mehr abstieg (`selectionBehavior`), veraltete Hinweise und Pfade beim Wechsel des
+Ordners, der Wurzelpfad im Fehlerring, die fehlende Startwarnung bei leerer Wurzelliste und der
+Bestandsschutz einer über einen Symlink erreichten Bibliothekswurzel.
+
 **Nicht abgedeckt:** die Schritte 12 bis 14; ein echtes Netzlaufwerk, das mitten in einer
-Auflistung hängen bleibt (im Test steht dafür eine blockierende Dateisystem-Schnittstelle); und die
-Sicht am Handy, die Marco selbst prüft.
+Auflistung hängen bleibt (im Test steht dafür eine blockierende Dateisystem-Schnittstelle); ein
+Ordner mit 50 000 Einträgen am echten NAS; und die Sicht am Handy, die Marco selbst prüft.
+`BrowseRoots` liest je Seite die Bibliotheken aus der Datenbank — bewusst in Kauf genommen, weil
+die Abfrage auf dem Leser-Pool läuft und das Dashboard häufiger abfragt.
 
 ## Meilenstein M10 – Härtung und Release 1.0
 

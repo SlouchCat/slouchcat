@@ -54,11 +54,15 @@ func (s *Service) CheckSetupPath(ctx context.Context, path string) (model.PathCh
 	}
 	// A path below no browsable root is answered before anything touches it: library.PathProblem
 	// would stat it and so tell a caller without an account whether it exists (idea 02, E14).
-	if err := s.libraries.ValidateNewRoot(ctx, path); err != nil {
-		if errors.Is(err, library.ErrNotBrowsable) {
-			return model.PathCheck{Problem: library.PathNotBrowsable}, nil
-		}
+	switch err := s.libraries.ValidateNewRoot(ctx, path); {
+	case errors.Is(err, library.ErrNotBrowsable):
+		return model.PathCheck{Problem: library.PathNotBrowsable}, nil
+	case errors.Is(err, model.ErrLibraryPathInvalid):
 		return model.PathCheck{Problem: library.PathProblem(path)}, nil
+	case err != nil:
+		// Something other than the path went wrong (the database, say). Describing the folder
+		// now would send the operator to fix a folder that is fine.
+		return model.PathCheck{}, err
 	}
 	fsType, err := paths.DetectFS(filepath.Clean(path))
 	if err != nil {

@@ -27,11 +27,19 @@ const (
 	MaxEntries = 50_000
 	// MaxRel is the longest relative path a request may carry, as in the contract.
 	MaxRel = 4096
+	// MaxCursor is the longest cursor a request may carry. A cursor carries the root id, the
+	// directory and the last name of the page, base64 encoded, so it is longer than the path it
+	// belongs to: a limit of MaxRel would make a deep directory unpageable.
+	MaxCursor = 3 * MaxRel
 	// DefaultSlots is how many listings may run at once, server-wide. See the package comment on
 	// why a lost slot never comes back and why the number is 16.
 	DefaultSlots = 16
 	// DefaultWatchdog is how long a listing waits for the file system before it gives up on it.
 	DefaultWatchdog = 3 * time.Second
+	// DefaultGrace is how much longer a given-up call may still come back before its slot counts
+	// as lost. A cancelled request and a slow but living share come back well inside it; a call
+	// blocked in the kernel never does.
+	DefaultGrace = time.Minute
 )
 
 // Root is a directory the picker may browse, with the library it already belongs to. The caller
@@ -60,9 +68,11 @@ type Request struct {
 }
 
 // FS is the file system a Lister reads. The default one goes through package paths; a test
-// injects one that blocks or counts its calls.
+// injects one that blocks or counts its calls. The split between names and lstat is what bounds
+// the cost of a page: the names of a whole directory are cheap, an lstat per entry is not.
 type FS interface {
-	ReadDir(root paths.Root, rel string, max int) ([]fs.DirEntry, error)
+	ReadDirNames(root paths.Root, rel string, max int) ([]string, error)
+	LstatAll(root paths.Root, rel string, names []string) ([]fs.DirEntry, error)
 	FSTypeAt(root paths.Root, rel string) (paths.FSType, error)
 }
 
@@ -70,8 +80,12 @@ type FS interface {
 // a file system path (CLAUDE.md rule 4).
 type realFS struct{}
 
-func (realFS) ReadDir(root paths.Root, rel string, max int) ([]fs.DirEntry, error) {
-	return paths.ReadDir(root, rel, max)
+func (realFS) ReadDirNames(root paths.Root, rel string, max int) ([]string, error) {
+	return paths.ReadDirNames(root, rel, max)
+}
+
+func (realFS) LstatAll(root paths.Root, rel string, names []string) ([]fs.DirEntry, error) {
+	return paths.LstatAll(root, rel, names)
 }
 
 func (realFS) FSTypeAt(root paths.Root, rel string) (paths.FSType, error) {
@@ -85,6 +99,7 @@ type Lister struct {
 	log      *slog.Logger
 	slots    chan struct{}
 	watchdog time.Duration
+	grace    time.Duration
 	lost     atomic.Int64
 }
 
@@ -97,12 +112,17 @@ func WithFS(f FS) Option { return func(l *Lister) { l.fs = f } }
 // WithWatchdog replaces how long a listing waits for the file system, for tests.
 func WithWatchdog(d time.Duration) Option { return func(l *Lister) { l.watchdog = d } }
 
+// WithGrace replaces how long a given-up call may still come back before its slot counts as
+// lost, for tests.
+func WithGrace(d time.Duration) Option { return func(l *Lister) { l.grace = d } }
+
 // WithSlots replaces how many listings may run at once, for tests.
 func WithSlots(n int) Option { return func(l *Lister) { l.slots = make(chan struct{}, n) } }
 
 // New returns a Lister.
 func New(log *slog.Logger, opts ...Option) *Lister {
-	l := &Lister{fs: realFS{}, log: log, slots: make(chan struct{}, DefaultSlots), watchdog: DefaultWatchdog}
+	l := &Lister{fs: realFS{}, log: log, slots: make(chan struct{}, DefaultSlots),
+		watchdog: DefaultWatchdog, grace: DefaultGrace}
 	for _, o := range opts {
 		o(l)
 	}
@@ -138,7 +158,7 @@ func (l *Lister) List(ctx context.Context, roots []Root, req Request) (model.Dir
 		// rather than as a path the caller may learn about.
 		return model.DirectoryListing{}, model.ErrPathNotBrowsable
 	}
-	read, err := l.read(ctx, dir, rel)
+	read, err := l.guard(ctx, root.ID, func() readResult { return l.readPage(dir, rel, cursor, limit) })
 	if err != nil {
 		return model.DirectoryListing{}, err
 	}
@@ -161,25 +181,65 @@ func (l *Lister) List(ctx context.Context, roots []Root, req Request) (model.Dir
 	}
 	out.FSType = string(read.fsType)
 	out.Watch, out.Warning = library.WatchMode(string(read.fsType))
-	out.Truncated = len(read.entries) > MaxEntries
-
-	names := subdirectories(read.entries)
-	slices.SortFunc(names, func(a, b dirName) int { return strings.Compare(a.name, b.name) })
-	page, next := paginate(names, cursor, limit)
-	out.NextCursor = encodeCursor(root.ID, rel, next)
-	for _, n := range page {
-		out.Entries = append(out.Entries, l.entry(root, roots, rel, n))
+	out.Truncated = read.truncated
+	out.NextCursor = encodeCursor(root.ID, rel, read.next)
+	for _, e := range read.entries {
+		if row, ok := l.entry(root, roots, rel, e); ok {
+			out.Entries = append(out.Entries, row)
+		}
 	}
 	return out, nil
 }
 
-// entry turns one subdirectory into a row, with the library it already belongs to.
-func (l *Lister) entry(root Root, roots []Root, rel string, n dirName) model.DirectoryEntry {
-	childRel := n.name
-	if rel != "." {
-		childRel = path.Join(rel, n.name)
+// readPage does every file system call of one listing: the names of the directory, the lstat of
+// the names this page shows, and one fstatfs on the directory itself. Nothing per name that the
+// page does not show -- that is the whole reason the names are read without their type.
+//
+// The page is cut from the sorted names, not from the directories among them, so a page of a
+// folder full of files can hold fewer rows than `limit` asked for. The alternative is to stat
+// until the page is full, which on a folder with 50 000 files means 50 000 stats for one page.
+func (l *Lister) readPage(dir paths.Root, rel, cursor string, limit int) readResult {
+	var out readResult
+	names, err := l.fs.ReadDirNames(dir, rel, MaxEntries+1)
+	if err != nil {
+		out.err = err
+		return out
 	}
-	e := model.DirectoryEntry{Name: n.name, Rel: childRel, Path: absOf(root.Dir, childRel), Symlink: n.symlink}
+	out.truncated = len(names) > MaxEntries
+	if out.truncated {
+		names = names[:MaxEntries]
+	}
+	kept := make([]string, 0, min(len(names), DefaultLimit))
+	for _, name := range names {
+		// The same filter the scanner uses, so the dialog shows what a scan would see.
+		if !library.Ignored(name) {
+			kept = append(kept, name)
+		}
+	}
+	slices.Sort(kept)
+	page, next := paginate(kept, cursor, limit)
+	out.next = next
+	if out.entries, out.err = l.fs.LstatAll(dir, rel, page); out.err != nil {
+		return out
+	}
+	out.fsType, out.err = l.fs.FSTypeAt(dir, rel)
+	return out
+}
+
+// entry turns one directory entry into a row, with the library it already belongs to. Files are
+// dropped: the picker shows folders only, and a listing with 50 000 files would be the normal
+// case otherwise. A symlink is kept without looking at its target -- that would be a stat on a
+// path outside the root, and the scanner does not follow it either (E15).
+func (l *Lister) entry(root Root, roots []Root, rel string, entry fs.DirEntry) (model.DirectoryEntry, bool) {
+	symlink := entry.Type()&fs.ModeSymlink != 0
+	if !symlink && !entry.IsDir() {
+		return model.DirectoryEntry{}, false
+	}
+	childRel := entry.Name()
+	if rel != "." {
+		childRel = path.Join(rel, entry.Name())
+	}
+	e := model.DirectoryEntry{Name: entry.Name(), Rel: childRel, Path: absOf(root.Dir, childRel), Symlink: symlink}
 	for _, r := range roots {
 		if r.LibraryID == 0 {
 			continue
@@ -191,20 +251,22 @@ func (l *Lister) entry(root Root, roots []Root, rel string, n dirName) model.Dir
 			break
 		}
 	}
-	return e
+	return e, true
 }
 
 // readResult is what one trip to the file system brought back.
 type readResult struct {
-	entries []fs.DirEntry
-	fsType  paths.FSType
-	err     error
+	entries   []fs.DirEntry
+	fsType    paths.FSType
+	next      string // the name the next cursor must follow; empty on the last page
+	truncated bool
+	err       error
 }
 
-// read does every file system call of one listing in a goroutine of its own and waits for it at
+// guard runs the file system work of one listing in a goroutine of its own and waits for it at
 // most l.watchdog. A call that blocks in the kernel keeps its slot for good; see the package
 // comment.
-func (l *Lister) read(ctx context.Context, dir paths.Root, rel string) (readResult, error) {
+func (l *Lister) guard(ctx context.Context, rootID string, work func() readResult) (readResult, error) {
 	select {
 	case l.slots <- struct{}{}:
 	default:
@@ -216,14 +278,7 @@ func (l *Lister) read(ctx context.Context, dir paths.Root, rel string) (readResu
 	done := make(chan readResult, 1)
 	go func() {
 		defer func() { <-l.slots }()
-		var out readResult
-		// One read of at most MaxEntries+1 names, so the caller can tell a full directory from
-		// one that holds more, and one fstatfs on the directory itself. Nothing per row.
-		out.entries, out.err = l.fs.ReadDir(dir, rel, MaxEntries+1)
-		if out.err == nil {
-			out.fsType, out.err = l.fs.FSTypeAt(dir, rel)
-		}
-		done <- out
+		done <- work()
 	}()
 
 	timer := time.NewTimer(l.watchdog)
@@ -232,71 +287,51 @@ func (l *Lister) read(ctx context.Context, dir paths.Root, rel string) (readResu
 	case out := <-done:
 		return out, nil
 	case <-ctx.Done():
-		l.lostSlot(ctx, dir, "the request was cancelled while the file system was reading")
+		go l.watchSlot(done, rootID, "the request was cancelled while the file system was reading")
 		return readResult{}, ctx.Err()
 	case <-timer.C:
-		l.lostSlot(ctx, dir, "the file system did not answer")
+		go l.watchSlot(done, rootID, "the file system did not answer")
 		return readResult{}, model.ErrPathUnreachable
 	}
 }
 
-// lostSlot records a slot that the goroutine still holds. Error level, once per loss: this is
-// how a dead mount becomes visible, and the count is bounded by the number of slots.
-func (l *Lister) lostSlot(ctx context.Context, dir paths.Root, why string) {
-	lost := l.lost.Add(1)
-	l.log.ErrorContext(ctx, "browse: "+why+"; its slot stays taken until the call returns",
-		"root", dir.Dir(), "lost_slots", lost, "slots", cap(l.slots), "watchdog", l.watchdog)
-}
-
-// dirName is one subdirectory of the listed directory.
-type dirName struct {
-	name    string
-	symlink bool
-}
-
-// subdirectories keeps the directories and the symlinks of a raw listing and drops everything
-// else: files, and the entries library.Ignored names (hidden, NAS metadata folders, disc
-// structures), so the list shows what a scan would see.
-//
-// A symlink is kept without looking at its target. Asking what it points at would mean a stat
-// per row, and for a link out of the root one that reads outside it; the scanner does not follow
-// them either, so the row says so and cannot be entered (E15).
-func subdirectories(entries []fs.DirEntry) []dirName {
-	out := make([]dirName, 0, min(len(entries), DefaultLimit))
-	for _, e := range entries {
-		if library.Ignored(e.Name()) {
-			continue
-		}
-		switch {
-		case e.Type()&fs.ModeSymlink != 0:
-			out = append(out, dirName{name: e.Name(), symlink: true})
-		case e.IsDir():
-			out = append(out, dirName{name: e.Name()})
-		}
+// watchSlot waits a while longer for the call the caller gave up on. Comes it back, the slot was
+// never lost and nothing is counted or logged -- a closed dialog cancels its request, and a slow
+// but living share answers late; neither is a fault. Only a call that is still gone after the
+// grace period counts as a lost slot, once, on Error: that is how a dead mount becomes visible,
+// and the count is bounded by the number of slots.
+func (l *Lister) watchSlot(done <-chan readResult, rootID, why string) {
+	grace := time.NewTimer(l.grace)
+	defer grace.Stop()
+	select {
+	case <-done:
+	case <-grace.C:
+		lost := l.lost.Add(1)
+		// The root is named by its opaque id, not by its path: this line lands in the error ring
+		// of the dashboard, and a root path carries folder names (CLAUDE.md rule 10).
+		l.log.Error("browse: "+why+"; its slot stays taken until the call returns",
+			"root_id", rootID, "lost_slots", lost, "slots", cap(l.slots), "watchdog", l.watchdog)
 	}
-	return out
 }
 
 // paginate returns the page that follows cursor and the name the next cursor must follow, empty
 // on the last page.
-func paginate(names []dirName, cursor string, limit int) (page []dirName, next string) {
+func paginate(names []string, cursor string, limit int) (page []string, next string) {
 	if cursor != "" {
 		names = names[sortedIndexAfter(names, cursor):]
 	}
 	if len(names) <= limit {
 		return names, ""
 	}
-	return names[:limit], names[limit-1].name
+	return names[:limit], names[limit-1]
 }
 
 // sortedIndexAfter returns the index of the first name after cursor in a sorted slice.
-func sortedIndexAfter(names []dirName, cursor string) int {
-	i, _ := slices.BinarySearchFunc(names, cursor, func(a dirName, b string) int {
-		return strings.Compare(a.name, b)
-	})
-	// BinarySearchFunc returns the position of the cursor itself when it is still there; the page
+func sortedIndexAfter(names []string, cursor string) int {
+	i, _ := slices.BinarySearch(names, cursor)
+	// BinarySearch returns the position of the cursor itself when it is still there; the page
 	// starts after it.
-	if i < len(names) && names[i].name == cursor {
+	if i < len(names) && names[i] == cursor {
 		return i + 1
 	}
 	return i
@@ -398,7 +433,7 @@ func decodeCursor(cursor, rootID, rel string) (string, string) {
 	if cursor == "" {
 		return "", ""
 	}
-	if len(cursor) > MaxRel {
+	if len(cursor) > MaxCursor {
 		return "", "too_long"
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(cursor)
