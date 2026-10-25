@@ -2,14 +2,37 @@
 #
 # Format: "<group> <package below server/>". Everything this file does not name forms the group
 # "rest", which scripts/testgroups.sh computes from `go list ./...` -- so a new package is tested
-# from its first day without anyone having to remember this file. `scripts/testgroups.sh --check`
-# runs in `task server:lint` and fails when a name here is no longer a package.
+# from its first day without anyone having to remember this file. The workflow does not list the
+# groups either; it asks `scripts/testgroups.sh --matrix` and builds its matrix from the answer, so
+# a group added here gets a job by itself.
+#
+# `scripts/testgroups.sh --check` runs in `task server:lint` and fails when a name here is no
+# longer a package.
 #
 # Locally this file does nothing: `task server:test` and `task ci` run every package at once.
 #
-# Only the two heavy packages are named. Measured on four cores (`taskset -c 0-3`, the runner's
-# shape), each package alone: internal/api 211.7 s, internal/admin 205.1 s. In the serial CI run
-# the same two reported 918.7 s and 776.4 s -- four fifths of that was waiting, because
-# `go test -p 4` runs four package binaries at once and each one asks for four cores of its own.
+# How the groups were cut. Serial run 40207488836 on a four-core runner needed 19 minutes for
+# `go test -race ./...`; the same thing measured locally with `taskset -c 0-3` took 1196 s, so the
+# four-core model is faithful. The per-package elapsed times of that run are the weights -- not CPU
+# time, but close enough to it while all four cores are busy:
+#
+#   api 775.6  admin 762.9  store 416.0  library 360.5  metadata 329.9  playback 262.4
+#   offline 251.3  notify 162.8  auth 153.2  integrations 120.8  visibility 97.4  jobs 87.3
+#   transcode 76.2  cmd/slouchcat 51.5  discover 51.4  segments 18.6  everything else under 2
+#
+# Five groups of roughly 780 to 845 each. First cut was api, admin and one big "rest": run
+# 40220711169 then had `server tests (rest)` at 18 min 45 s, which was the whole workflow's floor,
+# so "rest" was split further along the same weights.
+#
+# Group 1 and group 2 are one package each because they are the two heavy ones; the others are
+# bundles, which also use the four cores better -- `go test -p 4` runs several package binaries at
+# once, and a single serial package leaves three cores idle.
 1 internal/api
 2 internal/admin
+
+3 internal/store
+3 internal/library
+
+4 internal/metadata
+4 internal/playback
+4 internal/offline
