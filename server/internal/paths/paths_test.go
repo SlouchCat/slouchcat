@@ -167,6 +167,13 @@ func TestReadDirReadsOneLevel(t *testing.T) {
 		t.Error("ReadDir went into a subdirectory; it reads one level")
 	}
 
+	// Reading something that is no directory fails, capped or not; an empty listing would let a
+	// caller mistake a file for an empty folder.
+	for _, max := range []int{0, 10} {
+		if _, err := ReadDir(root, "note.txt", max); err == nil {
+			t.Errorf("ReadDir of a file (max=%d) = nil, want an error", max)
+		}
+	}
 	// The symlink is listed, but it cannot be read through: that would leave the root.
 	if _, err := ReadDir(root, "aussen", 0); err == nil {
 		t.Error("reading through a symlink that leaves the root must fail")

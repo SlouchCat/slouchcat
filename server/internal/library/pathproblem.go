@@ -38,7 +38,9 @@ func PathProblem(path string) string {
 
 // ProblemFromError names the same states from the error of a read that already happened, without
 // touching the path again: the folder browser lists a directory through an *os.Root and must not
-// stat a path it assembled from a request (CLAUDE.md rule 4).
+// stat a path it assembled from a request (CLAUDE.md rule 4). It returns "" for an error it
+// cannot place -- an *os.Root refusing a symlink that leaves the root, for one -- and the caller
+// decides what that means; the browser answers 404 for it, so such a path reveals nothing.
 func ProblemFromError(err error) string {
 	switch {
 	case err == nil:
@@ -47,7 +49,9 @@ func ProblemFromError(err error) string {
 		return PathMissing
 	case errors.Is(err, syscall.ENOTDIR):
 		return PathNotDirectory
-	default:
+	case errors.Is(err, fs.ErrPermission):
 		return PathNotReadable
+	default:
+		return ""
 	}
 }

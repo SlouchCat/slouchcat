@@ -57,10 +57,12 @@ func ReadDir(root Root, rel string, max int) ([]fs.DirEntry, error) {
 	for len(out) < max {
 		batch, err := dir.ReadDir(min(readDirBatch, max-len(out)))
 		out = append(out, batch...)
-		if errors.Is(err, io.EOF) || len(batch) == 0 {
-			break
-		}
-		if err != nil {
+		switch {
+		case errors.Is(err, io.EOF), err == nil && len(batch) == 0:
+			return out, nil
+		case err != nil:
+			// Not the end of the directory but a real failure, a read of something that is no
+			// directory above all: the caller must see it, not an empty listing.
 			return out, fmt.Errorf("read dir %s: %w", rel, err)
 		}
 	}
