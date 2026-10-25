@@ -15,6 +15,7 @@
 
 .item {
   display: flex;
+
   /* Never shrink below the content: the list is a flex column that scrolls, and a shrinking row
      would push its second line (the mark on a phone) under the row beneath it. */
   flex: none;

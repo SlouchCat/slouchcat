@@ -1,5 +1,6 @@
 .body {
   display: flex;
+
   /* Fills the dialog so the list takes the room and the buttons sit at the bottom instead of
      halfway up with empty space below them. min-height: 0 lets the list scroll inside it. */
   flex: 1;
