@@ -1301,6 +1301,12 @@
         "job": "Job {{id}} ({{type}})",
         "new_one": "{{count}} new error",
         "new_other": "{{count}} new errors"
+      },
+      "browse": {
+        "title": "Folder browser blocked",
+        "hanging": "A mount stopped answering: {{count}} listing hangs in the kernel and cannot be cancelled. The folder browser still works, with fewer slots. A restart frees them.",
+        "hanging_other": "A mount stopped answering: {{count}} listings hang in the kernel and cannot be cancelled. The folder browser still works, with fewer slots. A restart frees them.",
+        "off": "Every slot of the folder browser hangs on a mount that stopped answering. No folder can be browsed until the server restarts; typing a path by hand still works."
       }
     },
     "integrations": {

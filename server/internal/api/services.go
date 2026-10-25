@@ -183,6 +183,14 @@ type AdminService interface {
 	// (model.ErrTooManyAttempts); a bad path or key is described in the result, not an error.
 	CheckSetupPath(ctx context.Context, path string) (model.PathCheck, error)
 	CheckSetupTMDBKey(ctx context.Context, key string) (model.TMDBCheck, error)
+	// The folder browser of the library form (idea 02, A-2). SetupRoots answers the wizard from
+	// the list filled at start-up, with its own limit for model.ClientIP of ctx
+	// (model.ErrTooManyAttempts) and only while no account exists (model.ErrSetupDone).
+	// BrowsePaths: *model.ValidationError, model.ErrPathNotBrowsable, model.ErrPathUnreachable,
+	// model.ErrBrowseBusy.
+	SetupRoots(ctx context.Context) ([]model.BrowseRoot, error)
+	BrowseRoots(ctx context.Context) ([]model.BrowseRoot, error)
+	BrowsePaths(ctx context.Context, req model.BrowseRequest) (model.DirectoryListing, error)
 	// SystemInfo returns version, transcode hardware, inotify limit and file systems; no secrets.
 	SystemInfo(ctx context.Context) (model.SystemInfo, error)
 	// Dashboard returns the admin overview (A-3).

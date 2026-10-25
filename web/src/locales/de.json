@@ -1301,6 +1301,12 @@
         "job": "Job {{id}} ({{type}})",
         "new_one": "{{count}} neuer Fehler",
         "new_other": "{{count}} neue Fehler"
+      },
+      "browse": {
+        "title": "Ordner-Browser blockiert",
+        "hanging": "Eine Einhängung antwortet nicht mehr: {{count}} Auflistung hängt im Kern fest und lässt sich nicht abbrechen. Der Ordner-Browser arbeitet weiter, aber mit weniger Plätzen. Ein Neustart gibt sie frei.",
+        "hanging_other": "Eine Einhängung antwortet nicht mehr: {{count}} Auflistungen hängen im Kern fest und lassen sich nicht abbrechen. Der Ordner-Browser arbeitet weiter, aber mit weniger Plätzen. Ein Neustart gibt sie frei.",
+        "off": "Alle Plätze des Ordner-Browsers hängen an einer Einhängung, die nicht mehr antwortet. Bis zum Neustart lässt sich kein Ordner mehr durchsuchen; Pfade von Hand einzutippen geht weiterhin."
       }
     },
     "integrations": {

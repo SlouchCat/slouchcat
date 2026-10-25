@@ -111,6 +111,7 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 		}
 	}
 	d.Webhooks.Silent = append([]string{}, d.Webhooks.Silent...)
+	d.Browse = s.browseHealth()
 	if s.ops.errors != nil {
 		for _, e := range s.ops.errors.Entries() {
 			msg := e.Message

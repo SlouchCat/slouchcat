@@ -8763,6 +8763,24 @@ components:
             $ref: "#/components/schemas/ErrorEntry"
         update:
           $ref: "#/components/schemas/UpdateState"
+        browse:
+          $ref: "#/components/schemas/BrowseHealth"
+
+    BrowseHealth:
+      type: object
+      description: |
+        The state of the folder browser of the library form. A listing that hangs on a mount which
+        stopped answering keeps its slot for good, because a blocked system call cannot be cancelled;
+        `lostSlots` counts them. At `lostSlots` equal to `slots` the browser answers `browse_busy`
+        until the server restarts. A warning, not an error: nothing else is affected.
+      required: [lostSlots, slots]
+      properties:
+        lostSlots:
+          type: integer
+          minimum: 0
+        slots:
+          type: integer
+          minimum: 0
 
     JobCounts:
       type: object

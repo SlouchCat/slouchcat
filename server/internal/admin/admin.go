@@ -130,6 +130,7 @@ type Service struct {
 	log       *slog.Logger
 	now       func() time.Time
 
+	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)
 	webhooks      Integrations  // nil until WithIntegrations (M9)
 }

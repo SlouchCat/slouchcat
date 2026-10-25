@@ -364,6 +364,14 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 			ext["maxStreams"], ext["activeStreams"] = sl.MaxStreams, sl.ActiveStreams
 		}
 		p.writeExtended(w, r, http.StatusConflict, "stream_limit_reached", "The profile already runs as many streams as it may.", ext)
+	case errors.Is(err, model.ErrPathNotBrowsable):
+		p.write(w, r, http.StatusNotFound, "path_not_browsable", "No such folder below a browsable root.")
+	case errors.Is(err, model.ErrPathUnreachable):
+		w.Header().Set("Retry-After", "30")
+		p.write(w, r, http.StatusServiceUnavailable, "path_unreachable", "The file system did not answer; the mount may be gone.")
+	case errors.Is(err, model.ErrBrowseBusy):
+		w.Header().Set("Retry-After", "30")
+		p.write(w, r, http.StatusServiceUnavailable, "browse_busy", "Too many folder listings are running; try again later.")
 	case errors.Is(err, model.ErrTranscodeBusy):
 		w.Header().Set("Retry-After", "30")
 		p.write(w, r, http.StatusServiceUnavailable, "transcode_busy", "The server is busy transcoding; try again later.")

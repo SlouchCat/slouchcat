@@ -105,14 +105,14 @@ func TestLoginAttemptLimitPerClient(t *testing.T) {
 // Buckets idle for longer than bucketIdleAfter are dropped when a new client arrives.
 func TestAttemptBucketsExpire(t *testing.T) {
 	t.Parallel()
-	var l attemptLimiter
+	var l Limiter
 	start := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
 	for i := range 3 {
-		if err := l.allow(fmt.Sprintf("203.0.113.%d", i), start); err != nil {
+		if err := l.Allow(fmt.Sprintf("203.0.113.%d", i), start); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := l.allow("203.0.113.9", start.Add(bucketIdleAfter+time.Second)); err != nil {
+	if err := l.Allow("203.0.113.9", start.Add(bucketIdleAfter+time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	if len(l.buckets) != 1 {
@@ -152,19 +152,19 @@ func TestLoginRejectsOverlongInputWithoutHashing(t *testing.T) {
 // which then starts with a full bucket again; the cap holds however many addresses appear.
 func TestAttemptLimiterCapsBuckets(t *testing.T) {
 	t.Parallel()
-	var l attemptLimiter
+	var l Limiter
 	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
 	for range attemptBurst {
-		if err := l.allow("first", now); err != nil {
+		if err := l.Allow("first", now); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := l.allow("first", now); !errors.Is(err, model.ErrTooManyAttempts) {
+	if err := l.Allow("first", now); !errors.Is(err, model.ErrTooManyAttempts) {
 		t.Fatalf("first client not limited: %v", err)
 	}
 	for i := range maxBuckets + 500 {
 		now = now.Add(time.Millisecond) // all within the idle window
-		if err := l.allow(fmt.Sprintf("10.%d.%d.%d", i>>16, (i>>8)&255, i&255), now); err != nil {
+		if err := l.Allow(fmt.Sprintf("10.%d.%d.%d", i>>16, (i>>8)&255, i&255), now); err != nil {
 			t.Fatal(err)
 		}
 		if len(l.buckets) > maxBuckets {
@@ -177,7 +177,31 @@ func TestAttemptLimiterCapsBuckets(t *testing.T) {
 	if _, ok := l.buckets["first"]; ok {
 		t.Error("the least recently used bucket was not evicted")
 	}
-	if err := l.allow("first", now); err != nil {
+	if err := l.Allow("first", now); err != nil {
 		t.Errorf("evicted client starts over: %v", err)
+	}
+}
+
+// A limiter with its own rates keeps its own pot: the wizard's root list must not empty the one
+// that login, setup, PIN and invitation attempts share (idea 02, E5).
+func TestLimiterWithOwnRates(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 10, 25, 9, 0, 0, 0, time.UTC)
+	own := NewLimiter(60, 60)
+	var shared Limiter
+	for i := range 60 {
+		if err := own.Allow("198.51.100.7", now); err != nil {
+			t.Fatalf("request %d of its own pot: %v", i, err)
+		}
+	}
+	if err := own.Allow("198.51.100.7", now); !errors.Is(err, model.ErrTooManyAttempts) {
+		t.Errorf("request 61 = %v, want ErrTooManyAttempts", err)
+	}
+	if err := shared.Allow("198.51.100.7", now); err != nil {
+		t.Errorf("the shared pot of the same client = %v, want it untouched", err)
+	}
+	// A minute later the own pot is full again.
+	if err := own.Allow("198.51.100.7", now.Add(time.Minute)); err != nil {
+		t.Errorf("after a minute = %v", err)
 	}
 }

@@ -43,6 +43,24 @@ type BrowseRoot struct {
 	LibraryName string
 }
 
+// BrowseRequest names the directory the folder picker wants to see: a root by its id and a path
+// relative to it, never an absolute path (E1).
+type BrowseRequest struct {
+	RootID string
+	Rel    string // empty lists the root itself
+	Cursor string
+	Limit  int // 0 = the server's default page size
+}
+
+// BrowseHealth is the state of the folder browser on the dashboard. Above zero LostSlots a
+// listing hangs in the kernel on a mount that stopped answering; at LostSlots == Slots the
+// browser answers ErrBrowseBusy until the server restarts. It is a warning, not an error: the
+// rest of the server is unaffected.
+type BrowseHealth struct {
+	LostSlots int
+	Slots     int
+}
+
 // DirectoryListing is one directory below a browsable root with its subdirectories.
 type DirectoryListing struct {
 	RootID string

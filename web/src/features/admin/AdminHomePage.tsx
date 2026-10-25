@@ -482,6 +482,13 @@ export function AdminHomePage() {
                 {t('admin.home.update.body', { current: data.update.currentVersion })}
               </Notice>
             )}
+            {data?.browse && data.browse.lostSlots > 0 && (
+              <Notice tone="warning" title={t('admin.home.browse.title')} live={false}>
+                {data.browse.lostSlots >= data.browse.slots
+                  ? t('admin.home.browse.off')
+                  : t('admin.home.browse.hanging', { count: data.browse.lostSlots })}
+              </Notice>
+            )}
             {dashboard.isPending && <Skeleton shape="block" />}
             {dashboard.isError && (
               <Notice

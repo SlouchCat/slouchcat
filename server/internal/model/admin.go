@@ -94,6 +94,7 @@ type Dashboard struct {
 	Webhooks     WebhookStatus // the "Webhooks" tile (M9, I-8)
 	Errors       []ErrorEntry  // newest first, at most 50
 	Update       UpdateState
+	Browse       BrowseHealth // the folder browser of the library form (idea 02)
 }
 
 // JobCounts counts the active and failed jobs, with the newest failed ones.

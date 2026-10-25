@@ -4701,6 +4701,17 @@ export interface components {
             /** @description The newest errors of the server log, newest first, redacted like the log itself. */
             errors: components["schemas"]["ErrorEntry"][];
             update: components["schemas"]["UpdateState"];
+            browse?: components["schemas"]["BrowseHealth"];
+        };
+        /**
+         * @description The state of the folder browser of the library form. A listing that hangs on a mount which
+         *     stopped answering keeps its slot for good, because a blocked system call cannot be cancelled;
+         *     `lostSlots` counts them. At `lostSlots` equal to `slots` the browser answers `browse_busy`
+         *     until the server restarts. A warning, not an error: nothing else is affected.
+         */
+        BrowseHealth: {
+            lostSlots: number;
+            slots: number;
         };
         JobCounts: {
             queued: number;

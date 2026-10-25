@@ -178,11 +178,11 @@ var adminRegistry = map[string]adminCall{
 		body: `{"pathMap":[]}`, ownerStatus: http.StatusNotFound},
 	"listIntegrationEvents": {contract: "GET /admin/integrations/{id}/events", path: "/admin/integrations/9999/events", ownerStatus: http.StatusNotFound},
 	"createLibrary":         {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"movies","path":""}`, ownerStatus: http.StatusUnprocessableEntity},
-	// Idea 02, the folder browser: the contract is in place, the handlers follow in the next
-	// commit, so both answer 501 for now.
-	"listBrowseRoots": {contract: "GET /admin/fs/roots", path: "/admin/fs/roots", ownerStatus: http.StatusNotImplemented},
+	// Idea 02, the folder browser: the fixture has no browsable root, so the list is empty and
+	// every id is unknown -- the same 404 a path outside the roots gets.
+	"listBrowseRoots": {contract: "GET /admin/fs/roots", path: "/admin/fs/roots", ownerStatus: http.StatusOK},
 	"browseServerPaths": {contract: "POST /admin/fs/browse", path: "/admin/fs/browse",
-		body: `{"rootId":"does-not-exist"}`, ownerStatus: http.StatusNotImplemented},
+		body: `{"rootId":"does-not-exist"}`, ownerStatus: http.StatusNotFound},
 	"getLibrary":        {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
 	"scanLibrary":       {contract: "POST /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
 	"acceptLibraryLoss": {contract: "POST /admin/libraries/{id}/accept-loss", path: "/admin/libraries/777/accept-loss", ownerStatus: http.StatusNotFound},
@@ -310,8 +310,8 @@ var publicRegistry = map[string]publicCall{
 		body: `{"eventType":"Test"}`, status: http.StatusUnauthorized},
 	// M8 wizard checks: 409 setup_done, the fixture has an account.
 	"checkSetupPath": {contract: "POST /setup/path-check", path: "/setup/path-check", body: `{"path":"/tmp"}`, status: http.StatusConflict},
-	// Idea 02: the handler follows in the next commit.
-	"listSetupRoots":    {contract: "GET /setup/roots", path: "/setup/roots", status: http.StatusNotImplemented},
+	// Idea 02: the wizard's root list ends with the wizard, like the two checks above.
+	"listSetupRoots":    {contract: "GET /setup/roots", path: "/setup/roots", status: http.StatusConflict},
 	"checkSetupTmdbKey": {contract: "POST /setup/tmdb-check", path: "/setup/tmdb-check", body: `{"tmdbApiKey":"not-a-key"}`, status: http.StatusConflict},
 }
 
