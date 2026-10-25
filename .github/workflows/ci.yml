@@ -54,19 +54,40 @@ jobs:
       # golangci-lint and sqlc need no ffmpeg and no test media.
       - run: task server:gen server:gen:check server:lint
 
+  # The groups are not listed here. They are read out of server/testgroups.txt, so adding a group
+  # there gives it a job by itself; a list in this file as well would be the same names in two
+  # places, and the half that was forgotten would be the half that runs no tests. The job needs
+  # nothing but the checkout: `--matrix` answers from that one text file, without Go.
+  server-groups:
+    name: server test groups
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      groups: ${{ steps.groups.outputs.groups }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - id: groups
+        run: |
+          set -euo pipefail
+          groups=$(server/scripts/testgroups.sh --matrix)
+          echo "groups=$groups" >> "$GITHUB_OUTPUT"
+          echo "Test groups: $groups"
+
   server-test:
     name: server tests (${{ matrix.group }})
+    needs: server-groups
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
       # Every group reports its own result: a failure in one is not a reason to hide the others.
       fail-fast: false
       matrix:
-        # Which packages a group holds is server/testgroups.txt, not this list. "rest" is every
-        # package no group names, so a new package is tested from its first day without anyone
-        # having to touch either file. `task server:test` without GROUP -- what `task ci` and every
-        # local run do -- still runs all of them at once.
-        group: ['1', '2', 'rest']
+        # Which packages a group holds is server/testgroups.txt. "rest" is every package no group
+        # names, so a new package is tested from its first day without anyone having to touch any
+        # of this. `task server:test` without GROUP -- what `task ci` and every local run do --
+        # still runs all of them at once.
+        group: ${{ fromJSON(needs.server-groups.outputs.groups) }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
@@ -309,7 +330,7 @@ jobs:
     # Must run even when something before it failed, otherwise the gate would be "skipped" instead
     # of red and a broken run could look mergeable.
     if: always()
-    needs: [server-lint, server-test, web, build, e2e, image]
+    needs: [server-lint, server-groups, server-test, web, build, e2e, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -352,18 +373,22 @@ jobs:
       # Named one by one rather than with `contains(needs.*.result, 'failure')`, so the log says
       # which job it was, and so a job that was skipped or cancelled is red here too instead of
       # slipping through as "not a failure".
+      #
+      # A job added to this workflow has to be added here and to `needs:` above, or the gate does
+      # not watch it. That is the price of naming them; ADR 0013 carries it as a standing rule.
       - name: Every job of this workflow must be green
         run: |
           set -eu
           status=0
           check() {
-            printf '%-12s %s\n' "$1" "$2"
+            printf '%-14s %s\n' "$1" "$2"
             [ "$2" = success ] || status=1
           }
-          check server-lint '${{ needs.server-lint.result }}'
-          check server-test '${{ needs.server-test.result }}'
-          check web         '${{ needs.web.result }}'
-          check build       '${{ needs.build.result }}'
-          check e2e         '${{ needs.e2e.result }}'
-          check image       '${{ needs.image.result }}'
+          check server-lint   '${{ needs.server-lint.result }}'
+          check server-groups '${{ needs.server-groups.result }}'
+          check server-test   '${{ needs.server-test.result }}'
+          check web           '${{ needs.web.result }}'
+          check build         '${{ needs.build.result }}'
+          check e2e           '${{ needs.e2e.result }}'
+          check image         '${{ needs.image.result }}'
           exit $status

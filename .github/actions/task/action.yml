@@ -1,14 +1,18 @@
 # Puts the `task` runner on PATH at the version pinned in .tool-versions.
 #
-# Four of the five jobs run their checks through `task`, so this used to be
+# Four of the six jobs run their checks through `task`, so this used to be
 # `go install github.com/go-task/task/v3/cmd/task@v3.54.0` in every one of them: a Go toolchain and
 # a compile (20-40 s) for a binary that upstream ships ready-made. The release archive is a 2 s
-# download, and the web and e2e jobs then need no Go at all.
+# download, and the web, e2e and gate jobs then need no Go at all.
 #
 # The version comes out of .tool-versions, the same file the developers' asdf reads, so CI cannot
-# silently drift to another task version than the one `task ci` runs with locally.
+# silently drift to another task version than the one `task ci` runs with locally. The archive's
+# SHA-256 is recorded in .github/task-checksums.txt and checked before anything is unpacked.
+#
+# linux/amd64 only, which is what every runner in this workflow is (ubuntu-24.04). On another
+# architecture the download 404s and `curl --fail` stops the job, which is the loud failure.
 name: Install the task runner
-description: Installs go-task at the version pinned in .tool-versions
+description: Installs go-task at the version pinned in .tool-versions, checked against a recorded SHA-256
 
 runs:
   using: composite
@@ -17,14 +21,23 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        version=$(awk '$1 == "task" { print $2 }' .tool-versions)
+        version=$(awk '$1 == "task" { print $2; exit }' .tool-versions)
         if [ -z "$version" ]; then
           echo "::error file=.tool-versions::no line 'task <version>' in .tool-versions" >&2
           exit 1
         fi
-        mkdir -p "$HOME/.local/bin"
+        archive="task_${version}_linux_amd64.tar.gz"
+        if ! grep -q "  ${archive}\$" .github/task-checksums.txt; then
+          echo "::error file=.github/task-checksums.txt::no SHA-256 for ${archive}; see the header of that file" >&2
+          exit 1
+        fi
+        work=$(mktemp -d)
         curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
-          "https://github.com/go-task/task/releases/download/v${version}/task_linux_amd64.tar.gz" \
-          | tar -xz -C "$HOME/.local/bin" task
+          --output "$work/$archive" \
+          "https://github.com/go-task/task/releases/download/v${version}/task_linux_amd64.tar.gz"
+        grep "  ${archive}\$" .github/task-checksums.txt | (cd "$work" && sha256sum --check --strict -)
+        mkdir -p "$HOME/.local/bin"
+        tar -xzf "$work/$archive" -C "$HOME/.local/bin" task
+        rm -rf "$work"
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
         "$HOME/.local/bin/task" --version

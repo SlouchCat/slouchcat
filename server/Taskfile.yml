@@ -38,7 +38,12 @@ tasks:
     vars:
       GROUP: '{{.GROUP | default "all"}}'
     cmds:
-      - go test -race -timeout 30m $(scripts/testgroups.sh "{{.GROUP}}")
+      # In two steps, not `go test ... $(scripts/testgroups.sh ...)`: a command substitution throws
+      # its exit status away, so a broken group would reach `go test` as an empty argument list.
+      - |
+        set -eu
+        packages=$(scripts/testgroups.sh "{{.GROUP}}")
+        go test -race -timeout 30m $packages
 
   build:
     desc: Build the static server binary into bin/slouchcat

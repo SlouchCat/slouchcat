@@ -1,0 +1,13 @@
+# SHA-256 of the task release archives CI downloads (.github/actions/task). One line per version,
+# in the format `sha256sum` writes and reads, so the action can check it with `sha256sum -c`.
+#
+# Why this file: every other third-party action in this workflow is pinned to a commit hash, and
+# the task binary ends up on PATH ahead of every later step -- it deserves the same treatment. A
+# release asset can be replaced after the fact; a hash recorded here cannot.
+#
+# When .tool-versions moves `task` to a new version, add its line. Upstream publishes the value in
+# `task_checksums.txt` of the release:
+#   v=3.54.0
+#   curl -fsSL "https://github.com/go-task/task/releases/download/v$v/task_checksums.txt" \
+#     | grep task_linux_amd64.tar.gz
+680859dbb4d881a9c72d4d9a8f510825450849af8567deacd7302c01124416fb  task_3.54.0_linux_amd64.tar.gz
