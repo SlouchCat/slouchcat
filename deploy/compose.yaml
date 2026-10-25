@@ -48,6 +48,11 @@ services:
       SLOUCHCAT_SMTP_TLS: ${SLOUCHCAT_SMTP_TLS:-}
       SLOUCHCAT_TELEGRAM_BOT_TOKEN: ${SLOUCHCAT_TELEGRAM_BOT_TOKEN:-}
       SLOUCHCAT_PUBLIC_URL: ${SLOUCHCAT_PUBLIC_URL:-}
+      # Folders the folder browser of the library form may list, and below which a new library
+      # folder must lie (idea 02); comma-separated. Empty = /media, the mount above. Never "/":
+      # the browser would show the whole container, including /config with the database, the
+      # backups and secret.key, and a library could be created there.
+      SLOUCHCAT_BROWSE_ROOTS: ${SLOUCHCAT_BROWSE_ROOTS:-}
       # Empty = ignore X-Forwarded-For; "private" = RFC 1918, loopback and fc00::/7; or a CIDR list.
       # Set it to "private" when the https profile or another reverse proxy is in front (README).
       SLOUCHCAT_TRUSTED_PROXIES: ${SLOUCHCAT_TRUSTED_PROXIES:-}

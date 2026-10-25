@@ -35,6 +35,50 @@ anders prüfen als durch ein Release:
 Der CI-Job hat seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hauptsession steht in
 `docs/dev/HANDOVER.md`.
 
+**Nach 1.0 in Arbeit:** der Ordner-Browser im Bibliotheksformular (Idee 02, beauftragt am
+25. Oktober 2026) auf dem Zweig `claude/ordner-browser`; der Abschnitt dazu steht gleich unten.
+
+## Nach 1.0: Ordner-Browser im Bibliotheksformular (Idee 02, 25. Oktober 2026)
+
+Marco hat die Umsetzung am 25. Oktober 2026 beauftragt (Eintrag im Entscheidungsprotokoll,
+Issue #33). Gebaut sind die **Schritte 1 bis 11** aus Abschnitt 10 des Konzepts
+`docs/ideas/02-ordner-browser.md`, je ein Commit auf `claude/ordner-browser`. Die Schritte 12 bis 14
+(mehrere Wurzeln je Bibliothek, Löschweg, Bibliothek ohne Ordner) sind eine eigene Fähigkeit und
+bleiben offen.
+
+**Was es jetzt gibt.** Neben dem Ordnerfeld der Seite «Bibliotheken» steht «Durchsuchen …». Der
+Dialog zeigt die freigegebenen Wurzeln, steigt mit Enter ab, geht mit der Rücktaste hinauf und
+schreibt den Pfad mit «Übernehmen» ins Feld. Jede Zeile trägt bei Bedarf «Gehört zu Bibliothek X»
+oder «Verknüpfung, wird nicht durchsucht»; die Kopfzeile nennt Dateisystem, Überwachungsart und die
+Warnung für Netzfreigaben des aktuellen Verzeichnisses. Der Einrichtungsassistent bekommt kein
+Blättern, sondern die konfigurierten Wurzeln als anklickbare Vorschläge.
+
+**Was sich für den Betrieb ändert.** `SLOUCHCAT_BROWSE_ROOTS` (Vorgabe `/media`) nennt die Ordner,
+die der Browser auflisten darf **und** unter denen eine neue Bibliothek liegen muss. Bestehende
+Bibliothekswurzeln behalten Bestandsschutz (Pfadgleichheit, nie ein Präfix); eine leere Liste
+schaltet die Regel ab, damit eine Installation mit Medien anderswo ihre Einrichtung abschliessen
+kann. Begründung und verworfene Alternativen stehen in ADR `docs/adr/0012-browsbare-wurzeln.md`.
+
+**Belege je Schritt** (alle lokal gelaufen):
+
+| Schritt | Beleg |
+|---|---|
+| 1 `paths.ReadDir`, `paths.FSTypeAt` | `go test ./internal/paths/`, `GOOS=darwin go build ./...` |
+| 2 `SLOUCHCAT_BROWSE_ROOTS` | `go test ./internal/config/` |
+| 3 `Service.ValidateNewRoot` (E14) | `go test ./internal/library/ ./internal/admin/`; Pfad ausserhalb und `<wurzel>/ablage -> /config` ergeben 422, `checkSetupPath` antwortet `not_browsable` ohne `os.Stat` |
+| 4 geteilte Pfadregeln | `go tool golangci-lint run ./...`; die `depguard`-Regel `browse` weist einen Import von `store/systemq` und `transcode` zurück |
+| 5 Paket `browse` | `go test -race ./internal/browse/`: Blättern über 300 Ordner, `@eaDir` gefiltert, Symlink sichtbar und nicht betretbar, blockierende Dateisystem-Schnittstelle ergibt 503 und danach `browse_busy` |
+| 6 Vertrag | `task gen:check`, `task server:ci` |
+| 7 Handler und Drosseln | `go test ./internal/api/ ./internal/admin/`: gleicher Körper für unbekannte Wurzel und fehlenden Pfad, 403 nur für Sitzung und CSRF, `Cache-Control: no-store`, zehn Wurzellisten lassen `POST /setup` durch |
+| 8 `PathList`, `FormDialog` | `task web:lint`, `task web:test`, `task web:storybook:test` |
+| 9 Dialog und Vorschläge | `task web:lint`, `task web:test` |
+| 10 Tastaturtest | `task web:e2e` (`web/e2e/admin-folder-browser.spec.ts`) |
+| 11 Doku und ADR | `task ci` |
+
+**Nicht abgedeckt:** die Schritte 12 bis 14; ein echtes Netzlaufwerk, das mitten in einer
+Auflistung hängen bleibt (im Test steht dafür eine blockierende Dateisystem-Schnittstelle); und die
+Sicht am Handy, die Marco selbst prüft.
+
 ## Meilenstein M10 – Härtung und Release 1.0
 
 Vorab geklärt mit Marco (23. Oktober 2026, Entscheidungsprotokoll): Er führt die offenen Prüfungen an
