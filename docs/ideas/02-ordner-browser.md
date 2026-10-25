@@ -85,12 +85,16 @@ entschieden, die übrigen sind Entwurfsentscheide aus der Prüfung.
 | **E13** | Letzte Wurzel einer Film-, Serien- oder Hörbuchbibliothek | **Entfernen erlaubt; die Bibliothek bleibt ohne Ordner bestehen** (Marco, 25. Oktober 2026) | Damit gibt es den Zustand «Videobibliothek ohne Wurzel», den heute nur Podcasts kennen. Scanner, Watcher, Dashboard und Oberfläche müssen ihn aushalten: kein Scan, keine Überwachung, kein `root_missing`-Abbruch, und ein eigener Text statt `admin.libraries.noRoots` («Kein Ordner: Die Titel kommen aus abonnierten Feeds»), der hier falsch wäre |
 | **E14** | Pfad beim Anlegen | **Neue Bibliotheken und neue Wurzeln müssen unter einer konfigurierten Wurzel liegen** (Marco, 25. Oktober 2026), geprüft **lexikalisch und danach auf dem mit `filepath.EvalSymlinks` aufgelösten Pfad**. Die Regel sitzt **nicht** in `library.ValidateDir`, sondern als `Service.ValidateNewRoot` eine Ebene höher. Bestandsschutz heisst: Pfadgleichheit mit einer bestehenden `library_roots`-Zeile, nie ein Präfix | Ohne das ist die Wurzelliste keine Grenze: Wer die Admin-Sitzung hat, legt eine Bibliothek auf `/config` an, und weil E4 Bibliothekswurzeln in die Browse-Liste hineinvereinigt, hat er sich damit `/config` selbst freigeschaltet. Mit E14 ist die Kette durchtrennt — aber nur mit der Realpfad-Prüfung: `paths.Open` ruft `os.OpenRoot(root.dir)`, und der Wurzelpfad **selbst** wird vom Kern samt Symlinks aufgelöst. Eine rein lexikalische Prüfung liesse `/media/ablage -> /config` durch. Die Regel sitzt im Dienst und nicht in `ValidateDir`, weil `ValidateDir` auch `checkSetupPath` und `RunSetup` bedient: in `ValidateDir` könnte eine Installation mit Medien unter `/data` und ungesetzter Variable die Einrichtung gar nicht mehr abschliessen. Bei leerer Wurzelliste lässt `ValidateNewRoot` darum jeden gültigen Pfad durch und der Start schreibt eine Warnung. **Nachtrag aus der Umsetzung (25. Oktober 2026, ADR 0012):** leer ist die Liste nur, wenn die Variable ausdrücklich leer gesetzt wird — die Vorgabe `/media` ist nicht leer, die Regel greift also auch im Einrichtungsassistenten. Eine Erstinstallation mit Medien unter `/data` und ungesetzter Variable bekommt `not_browsable` mit dem Namen der Variablen, statt stillschweigend durchzukommen; das ist gewollt, weil sie sich sonst selbst `/config` freischalten könnte, und von Marco am 25. Oktober 2026 so bestätigt. Bestandsschutz als Präfix wäre ohnehin toter Code, weil `Create` überlappende Pfade schon heute ablehnt. Zwei Folgen, die dastehen müssen: eine bestandsgeschützte Wurzel ausserhalb der Liste wird im Dialog **angezeigt** (für die Marke «gehört zu …»), aber nicht betreten; und wer sie mit E12 entfernt, kann sie ohne Konfigurationsänderung nicht wieder hinzufügen |
 | **E15** | Symlinks | **Anzeigen mit dem Vermerk «Verknüpfung, wird nicht durchsucht», nicht betretbar** (Marco, 25. Oktober 2026). **Nachtrag aus der Umsetzung:** das Verbot setzt der **Server** durch (`Lister.confined` prüft die letzte Komponente mit `Lstat` über den `*os.Root`), nicht der Dialog — sonst stünde ein Entscheid im Client (harte Regel 12) und der Vertragstext sagte etwas anderes als der Code | Betreten führte aus der Wurzel heraus; tragend ist dabei nicht `*os.Root` (das verweigert nur Symlinks, die die Wurzel **verlassen**, und folgt einem, der innerhalb bleibt), sondern dass `fs.WalkDir` ihnen nicht folgt. Weglassen wäre ruhiger, aber wer den Ordner im Terminal sieht und im Dialog nicht findet, sucht den Fehler bei Slouchcat. Der Scanner folgt ihnen ebenfalls nicht, die Anzeige deckt sich also mit dem, was später in der Bibliothek landet |
+| **E16** | Ort der Ordnerverwaltung | **Eigener Dialog «Bibliothek bearbeiten»** (Marco, 25. Oktober 2026, nach den Emby-Bildern). Die Bibliothekskarte nennt nur die **Zahl** der Ordner, bei genau einem den Pfad selbst | Emby löst es so, und Marco will es so: die Karte bleibt kurz, auch wenn eine Bibliothek fünf Ordner hat. Der Dialog führt die Liste, je Zeile ein «Entfernen», darunter «Ordner hinzufügen». Das ersetzt die ausgeklappte Wurzelliste auf `LibraryCard`, die 6.7 ursprünglich vorsah |
+| **E17** | Bestätigung beim Entfernen | **Abgetippter Pfad bleibt** (Marco, 25. Oktober 2026, auf Nachfrage bestätigt). E12 gilt unverändert | Emby fragt nur Ja/Nein. Marco hat die Verschärfung ausdrücklich behalten: Mit dem Ordner verschwinden sofort alle Titel, die nur dort liegen — bei einem Fehlklick tausende —, und die Offline-Pakete auf den Geräten sind wirklich weg. Das ist der einzige Punkt, an dem das Vorhaben bewusst strenger ist als Emby |
+| **E18** | Form des Ordner-Dialogs | **Pfadfeld oben im Dialog, Liste darunter, «OK» unten** (Marco, 25. Oktober 2026). Tippen und Klicken im selben Fenster; eine Zeile zu markieren schreibt ihren Pfad ins Feld, «OK» übernimmt den **Feldwert** | Emby-Form. Sie kostet Umbau an gebautem und abgenommenem Code (PR #34, Schritt 9) und hebt die Begründung aus E11 teilweise auf: der Dialog hat jetzt doch ein Textfeld. Die Tastenbelegung trägt das, weil der Rücktasten- und Pfeil-Links-Griff als Zuhörer **auf der `ListBox`** sitzt (`PathList.onKeyDown`) und nicht auf dem Dialog — ein Rücktastendruck im Pfadfeld löscht dort ein Zeichen und blättert nicht hinauf. Der Server bleibt der Entscheider: ein von Hand getippter Pfad wird nicht geprüft, sondern beim Abschicken mit 422 beantwortet, genau wie heute im Feld der Seite |
 
 ## 5. Nutzerfluss
 
 1. Der Administrator öffnet **Verwaltung → Bibliotheken**, füllt «Name», wählt «Inhalt».
-2. Er drückt **«Durchsuchen …»** neben dem Ordnerfeld. Der Dialog öffnet, der Fokus landet in der Liste:
-   auf der Zeile, die zum aktuellen Feldwert passt, sonst auf der ersten (E11).
+2. Er drückt **«Durchsuchen …»** neben dem Ordnerfeld. Der Dialog öffnet mit dem Pfadfeld oben und der
+   Liste darunter (E18); der Fokus landet in der Liste: auf der Zeile, die zum aktuellen Feldwert passt,
+   sonst auf der ersten (E11).
 3. Ohne Pfad im Feld zeigt der Dialog die **Wurzeln** (konfiguriert plus Bibliothekswurzeln). Mit Pfad
    zeigt er dessen Verzeichnis.
 4. Pfeiltasten bewegen, **Enter** oder **Pfeil rechts** steigt ab, **Rücktaste** oder **Pfeil links**
@@ -100,8 +104,11 @@ entschieden, die übrigen sind Entwurfsentscheide aus der Prüfung.
    durchsucht» (Symlinks erscheinen, sind aber nicht betretbar), «nicht lesbar». Dateisystem und
    Netzfreigabe-Warnung stehen in der Kopfzeile, nicht je Zeile: sie je Zeile zu ermitteln hiesse bis zu
    500 blockierbare `statfs`-Aufrufe pro Anfrage (6.4).
-6. **«Übernehmen»** schreibt den Pfad ins Feld, schliesst den Dialog und setzt den Fokus **auf das
-   Textfeld**, nicht zurück auf den Knopf — sonst muss der Benutzer zurück-tabben, um nachzubessern.
+6. Jede markierte Zeile schreibt ihren absoluten Pfad in das **Pfadfeld des Dialogs**; wer lieber tippt,
+   tippt dort und drückt **«Gehe zu»**, dann springt die Liste in diesen Ordner (E18). **«OK»** übernimmt
+   den Feldwert in das Ordnerfeld der Seite, schliesst den Dialog und setzt den Fokus **auf dieses
+   Feld**, nicht zurück auf den Knopf — sonst muss der Benutzer zurück-tabben, um nachzubessern. Ein von
+   Hand getippter Pfad wird vom Dialog nicht geprüft; darüber entscheidet der Server beim Abschicken.
 7. **Escape** oder «Abbrechen» schliesst ohne Änderung; der Fokus geht zurück auf «Durchsuchen …».
 8. Abschicken wie heute. Überschneidet der Pfad eine bestehende Wurzel, antwortet der Server wie bisher
    mit `422`; die Marke im Dialog hat das vorher sichtbar gemacht.
@@ -602,8 +609,10 @@ registrierten Wurzeln auf; nach dem Entfernen beantwortet der Server die Meldung
 `ErrWebhookPathOutside`, und die zugehörigen Paare bleiben als Leichen stehen. Beides gehört in den Text
 der Sicherheitsabfrage, zusammen mit der Zahl der betroffenen Titel.
 
-Oberfläche: Die Wurzelliste steht auf `LibraryCard`, «Ordner hinzufügen» öffnet denselben Browser-Dialog.
-Das Entfernen braucht eine **neue Variante von `ConfirmDialog` mit Eingabefeld** («Tippe den Pfad, um zu
+Oberfläche (E16 bis E18): Die Bibliothekskarte nennt nur noch die **Zahl** der Ordner, bei genau einem
+den Pfad selbst; die Liste und beide Knöpfe stehen im neuen Dialog «Bibliothek bearbeiten». Dort trägt
+jede Zeile ein «Entfernen», darunter steht «Ordner hinzufügen» und öffnet den Ordner-Dialog. Das
+Entfernen braucht eine **neue Variante von `ConfirmDialog` mit Eingabefeld** («Tippe den Pfad, um zu
 bestätigen») — abgetippte Bestätigungen gibt es im Projekt heute nirgends. Nach `addLibraryRoot` und
 `removeLibraryRoot` muss der Abfrageschlüssel `['fs','browse',…]` entwertet werden, sonst stimmt die
 Marke «gehört zu Bibliothek X» nicht mehr.
@@ -746,7 +755,8 @@ der **diesen** Schritt beweist.
 | 10 | `test(e2e): keyboard test for the folder browser` | `task web:e2e` | 7, 9; **Tor nach harter Regel 8, ohne diesen Schritt ist die Funktion nicht fertig** |
 | 11 | `docs: the folder browser and SLOUCHCAT_BROWSE_ROOTS` — `docs/INSTALLATION.md`, Kommentar in `deploy/compose.yaml`, `docs/dev/CURRENT_STATUS.md`, ADR `docs/adr/0012-browsbare-wurzeln.md` | `task ci` | 2 |
 | 12 | `feat(api): add and remove library roots` — Vertrag, `library.AddRoot`/`RemoveRoot`, Scan-Sperre, Löschweg in einer Transaktion samt Umhängen der Downloads, wurzelgefilterte Weichlöschung mit `audiobook`, `confirmPath`, Warn-Log und `notify`-Ereignis | `task server:ci`; Tests: nach `removeLibraryRoot` kein Titel mit `deleted_at IS NULL` und null Dateien; ein Titel mit Datei unter einer zweiten Wurzel bleibt verfügbar **und behält seinen Download**; falscher `confirmPath` ergibt 422; laufender Scan ergibt 409 | 3, 7 |
-| 13 | `feat(web): several folders per library` — Wurzelliste auf `LibraryCard`, «Ordner hinzufügen» über denselben Dialog, `ConfirmDialog` mit Eingabefeld samt Folgenliste, Entwertung des Browse-Schlüssels, Texte de und en | `task web:test`, `task web:lint` | 9, 12 |
+| 13 | `feat(web): several folders per library` — Dialog «Bibliothek bearbeiten» mit der Ordnerliste (E16), «Ordner hinzufügen» über denselben Dialog, Zahl der Ordner auf `LibraryCard`, `ConfirmDialog` mit Eingabefeld samt Folgenliste (E17), Entwertung des Browse-Schlüssels, Texte de und en | `task web:test`, `task web:lint` | 9, 12 |
+| 13a | `feat(web): the folder picker takes a typed path` — Emby-Form des Ordner-Dialogs (E18): Pfadfeld oben, Liste darunter, «OK» übernimmt den Feldwert; «Gehe zu» springt zum getippten Pfad | `task web:test`, `task web:lint`, `task storybook:test` | 9 |
 | 14 | `feat: a video library without a folder` — Scanner, Watcher, Knopf «Scan starten», Dashboard und Oberfläche halten den Zustand aus, eigener Text statt `admin.libraries.noRoots` | `task server:ci`, `task web:e2e` | 12 |
 
 | Teil | Arbeitstage |
@@ -757,7 +767,8 @@ der **diesen** Schritt beweist.
 | Schritt 11 und ADR | 1 |
 | **Summe Ordner-Browser** | **11–14** |
 | Schritte 12–14 (mehrere Wurzeln, Löschweg mit Downloads und Spuren, Bibliothek ohne Ordner) | 4–5 |
-| **Summe mit Anschluss** | **15–19** |
+| Schritt 13a (Emby-Form des Ordner-Dialogs, E18) | 1 |
+| **Summe mit Anschluss** | **16–20** |
 
 Die Schätzung für 8–10 liegt bewusst hoch: `ListBox` wird im Projekt heute nirgends benutzt, es ist also
 ein neuer Primitivbaustein samt Story, CSS unter `declaration-strict-value` und `color-no-hex`,
