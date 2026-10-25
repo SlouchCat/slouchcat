@@ -25,9 +25,7 @@ export default defineConfig({
   // the screenshots -- and the gate job merges all of them into the one HTML report that a red run
   // uploads (`playwright merge-reports`). A single HTML report per shard would be six reports with
   // a sixth of the run in each.
-  reporter: process.env.CI
-    ? [['list'], ['blob', { outputDir: `${ARTEFACTS}blob` }]]
-    : 'list',
+  reporter: process.env.CI ? [['list'], ['blob', { outputDir: `${ARTEFACTS}blob` }]] : 'list',
   timeout: 30_000,
   expect: { timeout: 10_000 },
   globalSetup: './e2e/global-setup.ts',
