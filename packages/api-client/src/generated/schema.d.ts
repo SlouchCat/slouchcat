@@ -4573,8 +4573,8 @@ export interface components {
             rel?: string;
             /** @description `nextCursor` of the previous page; without it the first page is returned. */
             cursor?: string;
-            /** @default 200 */
-            limit: number;
+            /** @description Rows per page; without it the server answers with 200. */
+            limit?: number;
         };
         BrowseRoot: {
             /** @description Opaque id for `BrowseRequest.rootId`. */

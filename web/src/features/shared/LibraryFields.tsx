@@ -1,5 +1,5 @@
 import type { LibraryRequest } from '@slouchcat/api-client';
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text } from '@/ui';
 import { RadioGroup, TextField } from '@/ui/aria';
@@ -47,6 +47,8 @@ interface LibraryFieldsProps {
   path?: string;
   onPathChange?: (path: string) => void;
   onPathBlur?: () => void;
+  /** The folder input, for code that moves the focus back into it (the browse dialog). */
+  pathInputRef?: Ref<HTMLInputElement>;
   /** Rendered right after the folder field (the wizard's check button and its result). */
   pathAddon?: ReactNode;
 }
@@ -65,6 +67,7 @@ export function LibraryFields({
   path,
   onPathChange,
   onPathBlur,
+  pathInputRef,
   pathAddon,
 }: LibraryFieldsProps) {
   const { t } = useTranslation();
@@ -91,6 +94,7 @@ export function LibraryFields({
             spellCheck="false"
             mono
             isRequired
+            inputRef={pathInputRef}
             value={path}
             onChange={onPathChange}
             onBlur={onPathBlur}

@@ -1,4 +1,4 @@
-import type { Ref } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ListBox, ListBoxItem, Text as AriaText } from 'react-aria-components';
 import { Icon } from './Icon';
 import styles from './PathList.module.css';
@@ -27,8 +27,18 @@ interface PathListProps {
   onAction?: (id: string) => void;
   /** Shown instead of the rows when there are none. */
   emptyText: string;
-  /** The list element, so a dialog can move the focus into it when it opens. */
-  listRef?: Ref<HTMLDivElement>;
+  /**
+   * Keys the list itself does not use. The ListBox answers to the arrows, Home, End and Enter;
+   * a folder dialog adds Backspace and the sideways arrows on top of that. It is a listener on
+   * the element, because ListBox takes no onKeyDown of its own and a wrapper with a key handler
+   * would be a non-interactive element pretending to be one.
+   */
+  onKeyDown?: (event: KeyboardEvent) => void;
+  /**
+   * Move the focus to the first row as soon as there is one (a dialog that opens on the list).
+   * It happens once per mounted list: give the list a key per directory to focus it again.
+   */
+  autoFocus?: boolean;
 }
 
 /**
@@ -47,11 +57,34 @@ export function PathList({
   onSelectionChange,
   onAction,
   emptyText,
-  listRef,
+  onKeyDown,
+  autoFocus,
 }: PathListProps) {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const handler = useRef(onKeyDown);
+  useEffect(() => {
+    handler.current = onKeyDown;
+  }, [onKeyDown]);
+  useEffect(() => {
+    if (!node) return;
+    const listener = (event: KeyboardEvent) => handler.current?.(event);
+    node.addEventListener('keydown', listener);
+    return () => node.removeEventListener('keydown', listener);
+  }, [node]);
+  // The rows arrive with the answer of the server, after the list itself: this runs after every
+  // render until there is a row to focus, then stops. The ListBox's own autoFocus is no use
+  // here, because the dialog shows a skeleton while the first answer is on its way.
+  const pending = useRef(autoFocus === true);
+  useEffect(() => {
+    if (!pending.current || !node) return;
+    const first = node.querySelector<HTMLElement>('[role="option"]');
+    if (!first) return;
+    pending.current = false;
+    first.focus();
+  });
   return (
     <ListBox
-      ref={listRef}
+      ref={setNode}
       aria-label={label}
       className={styles.list}
       items={items}

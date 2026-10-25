@@ -153,6 +153,11 @@ export type InotifyInfo = components['schemas']['InotifyInfo'];
 export type PathCheckRequest = components['schemas']['PathCheckRequest'];
 export type PathCheck = components['schemas']['PathCheck'];
 export type TMDBCheckRequest = components['schemas']['TMDBCheckRequest'];
+// The folder browser of the library form (idea 02).
+export type BrowseRequest = components['schemas']['BrowseRequest'];
+export type BrowseRoot = components['schemas']['BrowseRoot'];
+export type DirectoryListing = components['schemas']['DirectoryListing'];
+export type DirectoryEntry = components['schemas']['DirectoryEntry'];
 export type TMDBCheck = components['schemas']['TMDBCheck'];
 export type Dashboard = components['schemas']['Dashboard'];
 export type JobCounts = components['schemas']['JobCounts'];

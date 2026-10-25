@@ -96,6 +96,8 @@
       "invalid_credentials": "E-Mail-Adresse oder Passwort stimmen nicht.",
       "library_path_invalid": "Diesen Ordner gibt es auf dem Server nicht, oder er ist nicht lesbar. Gib einen absoluten Pfad im Container an.",
       "path_not_browsable": "Dieser Ordner ist nicht freigegeben. Erlaubt sind nur Ordner unterhalb der freigegebenen Medienordner (SLOUCHCAT_BROWSE_ROOTS).",
+      "path_unreachable": "Der Ordner antwortet nicht. Prüfe, ob die Netzfreigabe noch eingehängt ist.",
+      "browse_busy": "Der Ordner-Browser ist gerade ausgelastet. Versuche es in einem Moment erneut.",
       "tmdb_key_invalid": "TMDB hat den Schlüssel abgelehnt. Prüfe das Lesezugriffs-Token.",
       "tmdb_unreachable": "TMDB ist gerade nicht erreichbar. Versuche es erneut oder lass das Feld leer.",
       "setup_done": "Slouchcat ist bereits eingerichtet. Melde dich an.",
@@ -188,6 +190,7 @@
       "kind": "Inhalt",
       "path": "Ordner",
       "pathHint": "Absoluter Pfad im Container, zum Beispiel /media/Filme.",
+      "roots": "Freigegebene Ordner:",
       "check": "Ordner prüfen",
       "checking": "Wird geprüft …",
       "warning": {
@@ -240,7 +243,25 @@
     },
     "defaultRating": "Standard-Altersstufe",
     "defaultRatingHint": "Gilt für jeden Titel dieser Bibliothek. Einzelne Titel lassen sich danach nur strenger einstufen.",
-    "podcastsHint": "Podcasts brauchen keinen Ordner: Du abonnierst ihre Feeds unter Podcasts."
+    "podcastsHint": "Podcasts brauchen keinen Ordner: Du abonnierst ihre Feeds unter Podcasts.",
+    "browse": {
+      "title": "Ordner auswählen",
+      "open": "Durchsuchen …",
+      "apply": "Übernehmen",
+      "list": "Ordner",
+      "upOneLevel": "Eine Ebene höher",
+      "roots": "Freigegebene Ordner",
+      "current": "Im Feld steht: {{path}}",
+      "empty": "Dieser Ordner hat keine Unterordner.",
+      "emptyRoots": "Es ist kein Ordner freigegeben. Setze {{name}} auf die Medienordner des Containers und starte den Server neu.",
+      "loadMore": "Mehr laden",
+      "truncated": "Dieser Ordner hat sehr viele Einträge. Angezeigt werden die ersten 50 000; den Rest erreichst du, indem du den Pfad eintippst.",
+      "symlink": "Verknüpfung, wird nicht durchsucht",
+      "closedRoot": "Nicht freigegeben, nur Anzeige",
+      "notReadable": "Dieser Ordner lässt sich nicht lesen. Prüfe die Rechte im Container.",
+      "notDirectory": "Das ist kein Ordner.",
+      "inLibrary": "Gehört zu Bibliothek {{name}}"
+    }
   },
   "home": {
     "title": "Startseite",

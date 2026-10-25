@@ -1,0 +1,38 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.path {
+  margin: 0;
+  color: var(--sc-color-text-primary);
+  font-family: var(--sc-font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.current {
+  margin: var(--sc-space-3) 0 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}

@@ -37,6 +37,9 @@ test('Tab reaches header, rescan and the add form in order; no focus trap', asyn
   await expectFocusOn(page, page.getByRole('radio', { name: 'Serien' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByLabel('Ordner', { exact: true }));
+  // The folder browser of idea 02 sits right after the field, as the wizard's check does.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Durchsuchen …' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Hinzufügen' }));
   await expectNoFocusTrap(page);
@@ -63,6 +66,8 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await expectFocusOn(page, folder);
   await page.keyboard.type('/does/not/exist/slouchcat-e2e-audio');
   await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Durchsuchen …' }));
+  await page.keyboard.press('Tab');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 0' }));
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
@@ -82,6 +87,8 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await expectFocusOn(page, page.getByRole('radio', { name: 'Podcasts' }));
   await expect(folder).toHaveCount(0);
   await expect(page.getByText(/Podcasts brauchen keinen Ordner/)).toBeVisible();
+  // Without a folder field there is nothing to browse either; the next stop is the rating.
+  await expect(page.getByRole('button', { name: 'Durchsuchen …' })).toHaveCount(0);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
   await expectNoFocusTrap(page);
