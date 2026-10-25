@@ -79,6 +79,36 @@ func (q *Queries) CountLibraryProbeErrors(ctx context.Context, libraryID int64) 
 	return count, err
 }
 
+const countMediaFilesOfRoot = `-- name: CountMediaFilesOfRoot :one
+SELECT count(*) FROM media_files WHERE root_id = ?1
+`
+
+// For the Warn line of the removal: how many files go with the folder.
+func (q *Queries) CountMediaFilesOfRoot(ctx context.Context, rootID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countMediaFilesOfRoot, rootID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteLibraryRoot = `-- name: DeleteLibraryRoot :execrows
+DELETE FROM library_roots WHERE id = ?1 AND library_id = ?2
+`
+
+type DeleteLibraryRootParams struct {
+	ID        int64
+	LibraryID int64
+}
+
+// ON DELETE CASCADE clears media_files of the folder; the triggers set items.available.
+func (q *Queries) DeleteLibraryRoot(ctx context.Context, arg DeleteLibraryRootParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteLibraryRoot, arg.ID, arg.LibraryID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteMediaFile = `-- name: DeleteMediaFile :exec
 DELETE FROM media_files WHERE id = ?1
 `
@@ -175,6 +205,32 @@ func (q *Queries) ListIgnoredFilesByRoot(ctx context.Context, rootID int64) ([]s
 	return items, nil
 }
 
+const moveDownloadsOffRoot = `-- name: MoveDownloadsOffRoot :execrows
+UPDATE downloads SET media_file_id = (
+        SELECT m.id FROM media_files AS m
+        WHERE m.item_id = downloads.item_id AND m.root_id <> ?1
+        ORDER BY m.missing_since IS NOT NULL, m.id LIMIT 1
+    ), updated_at = ?2
+WHERE downloads.media_file_id IN (SELECT m.id FROM media_files AS m WHERE m.root_id = ?1)
+  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = downloads.item_id AND m.root_id <> ?1)
+`
+
+type MoveDownloadsOffRootParams struct {
+	RootID int64
+	Now    int64
+}
+
+// Downloads of the titles that survive move to a file of theirs under another folder; a present
+// file wins over a missing one. Without this the cascade of the next delete would take them, and
+// the tombstone trigger would tell the device to drop a package whose title is still visible.
+func (q *Queries) MoveDownloadsOffRoot(ctx context.Context, arg MoveDownloadsOffRootParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, moveDownloadsOffRoot, arg.RootID, arg.Now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const softDeleteEmptySeasons = `-- name: SoftDeleteEmptySeasons :execrows
 UPDATE items SET deleted_at = ?1, updated_at = ?1
 WHERE kind = 'season' AND deleted_at IS NULL
@@ -219,6 +275,35 @@ type SoftDeleteItemWithoutFilesParams struct {
 // A movie, episode or extra whose last media file was removed leaves the library.
 func (q *Queries) SoftDeleteItemWithoutFiles(ctx context.Context, arg SoftDeleteItemWithoutFilesParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, softDeleteItemWithoutFiles, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const softDeleteItemsOfRootWithoutOtherFiles = `-- name: SoftDeleteItemsOfRootWithoutOtherFiles :execrows
+
+UPDATE items SET deleted_at = ?1, updated_at = ?1
+WHERE items.deleted_at IS NULL
+  AND items.kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id = ?2)
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id <> ?2)
+`
+
+type SoftDeleteItemsOfRootWithoutOtherFilesParams struct {
+	Now    sql.NullInt64
+	RootID int64
+}
+
+// Removing a folder from a library (idea 02, E12). The order of the three queries is not taste:
+// media_files.root_id cascades on delete, so a title left without any file would never be seen
+// by SoftDeleteItemsMissingSince again (it requires EXISTS (SELECT 1 FROM media_files ...)), and
+// downloads.media_file_id cascades too, so a surviving title would lose its download.
+// Titles that live only in this folder leave the library at once. Unlike
+// SoftDeleteItemWithoutFiles this carries 'audiobook': an audiobook library would keep empty
+// rows behind otherwise.
+func (q *Queries) SoftDeleteItemsOfRootWithoutOtherFiles(ctx context.Context, arg SoftDeleteItemsOfRootWithoutOtherFilesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, softDeleteItemsOfRootWithoutOtherFiles, arg.Now, arg.RootID)
 	if err != nil {
 		return 0, err
 	}

@@ -1133,6 +1133,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/libraries/{id}/roots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a folder to a library (B-1)
+         * @description Adds a second or further directory to a library; the scan and the watcher pick it up at
+         *     once. The path must lie below a browsable root (idea 02, E14), must not overlap a root of
+         *     this or another library, and a podcast library takes no root at all. The answer is the
+         *     library with its new folder; its first scan is queued like the one of a new library.
+         */
+        post: operations["addLibraryRoot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries/{id}/roots/{rootId}/removal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove a folder from a library and delete its titles (B-1)
+         * @description Removes the directory from the library. The titles that live only there leave the library:
+         *     they are soft-deleted, so they vanish from every list, and their offline downloads are
+         *     dropped on the devices that hold them. Their progress, watchlist entries and picks stay
+         *     attached to the soft-deleted title, as they do for a detached disk; a title that carries a
+         *     provider id comes back with all of it when the same folder is added again within 30 days,
+         *     a title without one comes back as a new title. A title with a file under another folder of
+         *     the library stays, and keeps its download. `confirmPath` must repeat the folder's path
+         *     exactly, so a mis-aimed click cannot do it (`confirm_mismatch`); it is compared against the
+         *     stored row, never against anything else the request carries. The library may lose its last
+         *     folder and then holds none at all; its settings stay. A POST and not a DELETE, because the
+         *     confirmation travels in the body and a DELETE body is dropped by some proxies and HTTP
+         *     clients.
+         */
+        post: operations["removeLibraryRoot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/fs/browse": {
         parameters: {
             query?: never;
@@ -3956,6 +4010,22 @@ export interface components {
              */
             defaultRating?: components["schemas"]["Rating"];
         };
+        /** @description A further folder of a library (idea 02, E8). */
+        LibraryRootRequest: {
+            /**
+             * @description Absolute directory on the server, below a browsable root (idea 02, E14), for example
+             *     `/media/Filme-2`.
+             */
+            path: string;
+        };
+        /**
+         * @description The confirmation of a folder removal (idea 02, E12). It is typed by the administrator and
+         *     compared against the stored row, so a mis-aimed click cannot delete the titles of a folder.
+         */
+        LibraryRootRemoval: {
+            /** @description The folder's path, repeated by the administrator. */
+            confirmPath: string;
+        };
         /** @description Changes to a library; every field is optional. */
         LibraryUpdate: {
             name?: string;
@@ -5432,6 +5502,8 @@ export interface components {
         /** @description Download token from `DownloadManifest.fileUrl`. Redacted in all logs. */
         DownloadToken: string;
         LibraryID: number;
+        /** @description The id of the folder inside the library (`Library.roots[].id`). */
+        LibraryRootID: number;
         /** @description Job id from the dashboard. */
         JobID: number;
         /** @description File name of a backup from `listBackups` (no path part). */
@@ -7999,6 +8071,119 @@ export interface operations {
             };
             /** @description Unknown library (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    addLibraryRoot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryRootRequest"];
+            };
+        };
+        responses: {
+            /** @description The library with its new folder. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `library_path_invalid`: not absolute, not readable, below no browsable root, or
+             *     overlapping a root of this or another library. `validation_failed` for a missing or
+             *     over-long path, and for a podcast library, which takes no folder.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    removeLibraryRoot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+                /** @description The id of the folder inside the library (`Library.roots[].id`). */
+                rootId: components["parameters"]["LibraryRootID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryRootRemoval"];
+            };
+        };
+        responses: {
+            /** @description The library without the folder. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such library, or the folder is not one of its roots (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description A scan of this library is running (`scan_running`); it holds the roots it started with,
+             *     so the folder is removed after it finished or was cancelled.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `confirmPath` does not repeat the folder's path (`confirm_mismatch`), or it is missing
+             *     (`validation_failed`).
+             */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -344,6 +344,25 @@ func (s *Service) lockScan(ctx context.Context, libraryID int64) (func(), error)
 	}
 }
 
+// tryLockScan takes the scan lock of a library without waiting: it reports false when a scan
+// holds it. RemoveRoot uses it, because waiting for a scan of a large collection would hold the
+// request open for hours; the administrator is told to try again instead (model.ErrScanRunning).
+func (s *Service) tryLockScan(libraryID int64) (unlock func(), ok bool) {
+	s.mu.Lock()
+	ch := s.scanLocks[libraryID]
+	if ch == nil {
+		ch = make(chan struct{}, 1)
+		s.scanLocks[libraryID] = ch
+	}
+	s.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, true
+	default:
+		return func() {}, false
+	}
+}
+
 func (s *Service) setState(ctx context.Context, id int64, state, msg string) error {
 	err := appq.New(s.db.Write).SetLibraryScanStatus(ctx, appq.SetLibraryScanStatusParams{
 		State: state, Error: sql.NullString{String: msg, Valid: msg != ""}, Now: s.now().UnixMilli(), ID: id,

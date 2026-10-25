@@ -346,6 +346,11 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "setup_done", "The setup wizard already ran.")
 	case errors.Is(err, model.ErrLibraryPathInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "library_path_invalid", "The library path must be an absolute, readable directory on the server.")
+	case errors.Is(err, model.ErrScanRunning):
+		w.Header().Set("Retry-After", "30")
+		p.write(w, r, http.StatusConflict, "scan_running", "A scan of this library is running; it holds the folders it started with.")
+	case errors.Is(err, model.ErrConfirmMismatch):
+		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed path does not repeat the folder that is about to be removed.")
 	case errors.Is(err, model.ErrTMDBKeyInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "tmdb_key_invalid", "TMDB rejected the key.")
 	case errors.Is(err, model.ErrUnauthenticated):

@@ -55,17 +55,23 @@ type Service struct {
 	newEpisodes func(ctx context.Context, ids []string) error
 	// scanAborted is told when the loss protection aborts a scan (optional, M8).
 	scanAborted func(ctx context.Context, libraryName, reason string) error
+	// rootRemoved is told when an administrator removed a library folder (optional, idea 02,
+	// E12): the project keeps no audit table, so the notification and the Warn line are the
+	// only trace of it.
+	rootRemoved func(ctx context.Context, libraryName, path string, items, files int64) error
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
 
-	mu        sync.Mutex
-	runCtx    context.Context // context of Start; watchers of libraries created later run under it
-	wg        sync.WaitGroup
-	watchers  map[int64]*Watcher          // by root id
-	retrying  map[int64]bool              // library ids with a pending re-queue (scan was running)
-	scanLocks map[int64]chan struct{}     // by library id; see lockScan
-	runs      map[int64]map[*scanRun]bool // running scans by library id; see CancelScan
+	mu       sync.Mutex
+	runCtx   context.Context // context of Start; watchers of libraries created later run under it
+	wg       sync.WaitGroup
+	watchers map[int64]*Watcher // by root id
+	// watcherStop ends the watcher of one root (RemoveRoot); Start's context ends them all.
+	watcherStop map[int64]context.CancelFunc
+	retrying    map[int64]bool              // library ids with a pending re-queue (scan was running)
+	scanLocks   map[int64]chan struct{}     // by library id; see lockScan
+	runs        map[int64]map[*scanRun]bool // running scans by library id; see CancelScan
 
 	statsMu    sync.Mutex
 	writeStats WriteStats // see TakeWriteStats
@@ -117,11 +123,19 @@ func WithScanAborted(fn func(ctx context.Context, libraryName, reason string) er
 	return func(s *Service) { s.scanAborted = fn }
 }
 
+// WithRootRemoved runs fn after an administrator removed a library folder, with the library's
+// name, the folder's path and how many titles and media files went with it (notify.RootRemoved,
+// idea 02, E12). An error is logged; the folder is gone either way.
+func WithRootRemoved(fn func(ctx context.Context, libraryName, path string, items, files int64) error) Option {
+	return func(s *Service) { s.rootRemoved = fn }
+}
+
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		db: db, queue: queue, probe: probe, log: log, now: time.Now,
-		watchers: map[int64]*Watcher{}, retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
+		watchers: map[int64]*Watcher{}, watcherStop: map[int64]context.CancelFunc{},
+		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},
 		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
 		orphans: map[int64]map[string]fileStamp{},
@@ -741,10 +755,14 @@ func (s *Service) startWatcher(root appq.LibraryRoot) {
 		return
 	}
 	libraryID := root.LibraryID
-	w := NewWatcher(pr, root.Watch, s.rootChanged(ctx, libraryID, root.ID), s.log.With("library_id", libraryID, "root_id", root.ID))
+	// Every watcher gets its own cancel, so RemoveRoot can end one without ending the rest.
+	wctx, stop := context.WithCancel(ctx)
+	w := NewWatcher(pr, root.Watch, s.rootChanged(wctx, libraryID, root.ID), s.log.With("library_id", libraryID, "root_id", root.ID))
 	s.watchers[root.ID] = w
+	s.watcherStop[root.ID] = stop
 	s.wg.Go(func() {
-		if err := w.Run(ctx); err != nil && ctx.Err() == nil {
+		defer stop()
+		if err := w.Run(wctx); err != nil && wctx.Err() == nil {
 			s.log.Error("library watcher stopped", "library_id", libraryID, "root_id", root.ID, "err", err)
 		}
 	})
