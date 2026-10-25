@@ -32,13 +32,46 @@ anders prüfen als durch ein Release:
    dass eine **Organisationsregel** öffentliche Pakete verbieten kann — bis die umgestellt ist, bleibt
    «Public» am Paket ausgegraut).
 
-Der CI-Job hat seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hauptsession steht in
-`docs/dev/HANDOVER.md`.
+Die CI läuft seit dem 25. Oktober 2026 in parallelen Jobs statt in einem seriellen (Abschnitt gleich
+unten). Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
 
 **Nach 1.0 in Arbeit:** der Ordner-Browser im Bibliotheksformular (Idee 02, beauftragt am
 25. Oktober 2026). Die Schritte 1 bis 11 sind als PR #34 (Merge-Commit `b551a63`) in `main`; die
 Schritte 12 bis 14 stehen auf dem Zweig `claude/bibliothek-wurzeln`. Der Abschnitt dazu steht gleich
 unten.
+
+## Nach 1.0: die CI läuft in parallelen Jobs (25. Oktober 2026)
+
+Der Workflow hatte einen einzigen Job, der `task ci` am Stück ausführte, und brauchte dafür **56
+Minuten 52 Sekunden** (Run 40207488836 auf `b551a63`). Jeder Pull Request wartete also knapp eine
+Stunde auf sein erstes Urteil, und ein Tippfehler im ESLint-Lauf zeigte sich erst, wenn die
+Go-Tests durch waren.
+
+Geprüft wird unverändert dasselbe. Es läuft nur nebeneinander: ein Job für die Server-Codegeneratoren
+und -Linter, eine Matrix für die Go-Testgruppen, ein Job für die Web-Seite samt Storybook, ein Job,
+der das Binary einmal baut, sechs Shards der Playwright-Suite, der unveränderte `image`-Job, und
+zuletzt ein Gate-Job, der auf alle wartet. **Der Lauf dauert damit 11 Minuten 27 Sekunden** (Run
+40223187251), also ein Fünftel von vorher.
+
+**Für den Alltag ändert sich nichts.** `task ci` bleibt der eine Befehl, der lokal alles baut und
+prüft (Plan-Abschnitt 4). Er ruft dieselben Aufgaben auf, die die Jobs aufrufen — `ci:server`,
+`ci:web`, `ci:e2e` und `build` —, nur nacheinander. Eine neue Prüfung kommt in eine dieser drei
+Aufgaben, nicht in den Workflow; CI ruft nie etwas auf, das es als Aufgabe nicht gibt.
+
+**Der Statusprüfname bleibt `ci / ci`**, weil der Gate-Job weiterhin `ci` heisst. Auf `main` ist
+derzeit weder ein Branch-Schutz noch ein Ruleset gesetzt, der Name ist also Konvention; wird der
+Gate-Job je umbenannt, muss die Merge-Bedingung mit umbenannt werden.
+
+Begründung und Gegenleistung stehen im ADR `docs/adr/0013-ci-parallele-jobs.md`, die Zahlen je Job
+in `docs/perf/ci.md`.
+
+**Nebenbefund, der die App betrifft.** Das Sharden liess `web/e2e/maintenance.spec.ts` zum ersten
+Mal in Firefox durch seinen Entfernen-Zweig laufen — bis dahin hatte Chromium die kaputte Datei
+immer schon entfernt, und Firefox nahm den kurzen Pfad. In Firefox fiel der Test am sichtbaren
+Fokus: «Entfernen» in einem Bestätigungsdialog hatte dort **keinen Fokusring**, auch in der
+ausgelieferten Fassung (harte Regel 8). Ursache ist `:focus-visible`, das Firefox einem aus dem Code
+heraus fokussierten Knopf nicht gibt; react-aria setzt für denselben Fall `data-focus-visible`, und
+acht andere Komponenten hörten längst darauf. Der Knopf tut es jetzt auch.
 
 ## Nach 1.0: Ordner-Browser im Bibliotheksformular (Idee 02, 25. Oktober 2026)
 
