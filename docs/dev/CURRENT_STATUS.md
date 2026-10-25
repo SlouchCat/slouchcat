@@ -36,15 +36,17 @@ Der CI-Job hat seit #14 ein Limit von 75 Minuten. Die Übergabe an eine neue Hau
 `docs/dev/HANDOVER.md`.
 
 **Nach 1.0 in Arbeit:** der Ordner-Browser im Bibliotheksformular (Idee 02, beauftragt am
-25. Oktober 2026) auf dem Zweig `claude/ordner-browser`; der Abschnitt dazu steht gleich unten.
+25. Oktober 2026). Die Schritte 1 bis 11 sind als PR #34 (Merge-Commit `b551a63`) in `main`; die
+Schritte 12 bis 14 stehen auf dem Zweig `claude/bibliothek-wurzeln`. Der Abschnitt dazu steht gleich
+unten.
 
 ## Nach 1.0: Ordner-Browser im Bibliotheksformular (Idee 02, 25. Oktober 2026)
 
 Marco hat die Umsetzung am 25. Oktober 2026 beauftragt (Eintrag im Entscheidungsprotokoll,
-Issue #33). Gebaut sind die **Schritte 1 bis 11** aus Abschnitt 10 des Konzepts
-`docs/ideas/02-ordner-browser.md`, je ein Commit auf `claude/ordner-browser`. Die Schritte 12 bis 14
-(mehrere Wurzeln je Bibliothek, Löschweg, Bibliothek ohne Ordner) sind eine eigene Fähigkeit und
-bleiben offen.
+Issue #33). Die **Schritte 1 bis 11** aus Abschnitt 10 des Konzepts `docs/ideas/02-ordner-browser.md`
+sind als PR #34 in `main`. Die **Schritte 12 bis 14** (mehrere Ordner je Bibliothek, Löschweg,
+Bibliothek ohne Ordner) stehen auf `claude/bibliothek-wurzeln`; ihr eigener Abschnitt folgt weiter
+unten.
 
 **Was es jetzt gibt.** Neben dem Ordnerfeld der Seite «Bibliotheken» steht «Durchsuchen …». Der
 Dialog zeigt die freigegebenen Wurzeln, steigt mit Enter ab, geht mit der Rücktaste hinauf und
@@ -94,6 +96,60 @@ Zusage «vor der Ablehnung eines Pfads ausserhalb der Wurzeln kein `os.Stat`» i
 `not_directory`), nicht mit einem Zähler in einer eingeschleusten Schnittstelle.
 `BrowseRoots` liest je Seite die Bibliotheken aus der Datenbank — bewusst in Kauf genommen, weil
 die Abfrage auf dem Leser-Pool läuft und das Dashboard häufiger abfragt.
+
+## Nach 1.0: mehrere Ordner je Bibliothek (Idee 02, Schritte 12 bis 14, 25. Oktober 2026)
+
+Auf `claude/bibliothek-wurzeln`, aufbauend auf PR #34. Marco hat am 25. Oktober 2026 die Bilder
+seiner Emby-Installation gezeigt und drei Entscheide gefällt, die im Konzept als **E16 bis E18**
+stehen: die Ordnerliste zieht von der Bibliothekskarte in einen eigenen Dialog «Ordner von X»
+(E16), die abgetippte Bestätigung beim Entfernen **bleibt** (E17, E12 unverändert), und der
+Ordner-Dialog bekommt die Emby-Form mit dem Pfadfeld oben und «OK» unten (E18).
+
+**Was es jetzt gibt.** Die Bibliothekskarte nennt den Pfad, solange es einen Ordner gibt, und sonst
+nur die Zahl («2 Ordner»). Der Knopf «Ordner» öffnet die Liste; je Zeile steht «Entfernen», darunter
+«Ordner hinzufügen» mit demselben Browser-Dialog. Das Entfernen verlangt den abgetippten Pfad und
+sagt im Text, was wirklich geschieht: Die Titel werden **weich** gelöscht und behalten Fortschritt,
+Merkliste und Picks; ein Titel mit einer Datei in einem anderen Ordner derselben Bibliothek bleibt
+sichtbar; wirklich weg sind die Offline-Downloads; eine laufende Wiedergabe bricht ab; die
+Umsetzungstabelle von Radarr und Sonarr zeigt danach ins Leere; derselbe Ordner binnen 30 Tagen
+wieder angelegt holt Titel mit Provider-Id samt Benutzerdaten zurück; und ein Ordner ausserhalb von
+`SLOUCHCAT_BROWSE_ROOTS` lässt sich ohne Konfigurationsänderung nicht wieder hinzufügen.
+
+**Der Löschweg** läuft unter der Scan-Sperre der Bibliothek und in **einer** Transaktion, in dieser
+Reihenfolge: Titel der Wurzel ohne Datei unter einer anderen weich löschen (mit `audiobook`, das
+`SoftDeleteItemWithoutFiles` nicht führt), dann leere Staffeln und Serien, dann die Downloads der
+**überlebenden** Titel auf eine verbleibende Datei umhängen, dann die Wurzelzeile löschen; danach
+Watcher beenden, `pathPending`, `orphans` und den Anteil an einem eingereihten `scan.path`-Auftrag
+verwerfen. Die Reihenfolge ist Pflicht: `media_files.root_id` und `downloads.media_file_id` tragen
+`ON DELETE CASCADE`, und `SoftDeleteItemsMissingSince` sieht nur Titel, die noch eine Datei haben.
+Ein laufender Scan ergibt 409 `scan_running`, ein falscher `confirmPath` 422 `confirm_mismatch`.
+
+**Bibliothek ohne Ordner** (E13): Sie bleibt mit ihren Einstellungen bestehen, queued aber keinen
+Scan mehr und meldet deshalb auch kein `done` mit null Dateien; der Knopf «Erneut scannen» ist dort
+abgeschaltet, und die Karte bekommt einen eigenen Satz statt `admin.libraries.noRoots`, der Titel aus
+abonnierten Feeds verspricht.
+
+Eine Audit-Tabelle gibt es nicht, darum schreibt das Entfernen eine Zeile auf `Warn` (Bibliothek,
+Ordner, Zahl der gelöschten Titel und Dateien) und meldet über `notify`, wie es der Verlustschutz für
+`root_missing` tut.
+
+**Belege je Schritt** (alle lokal gelaufen):
+
+| Schritt | Beleg |
+|---|---|
+| 12 `addLibraryRoot`, `removeLibraryRoot` | `task server:ci`; `go test ./internal/library/`: nach `removeLibraryRoot` kein Titel mit `deleted_at IS NULL` und null Dateien, ein Titel mit Datei unter einer zweiten Wurzel bleibt verfügbar **und behält seinen Download** (ohne Tombstone), ein Titel, der geht, nimmt seinen Download samt Tombstone mit, Hörbücher gehen mit, falscher `confirmPath` ergibt `ErrConfirmMismatch`, laufender Scan `ErrScanRunning`; `go test ./internal/api/`: 201, 200, 404, 409 `scan_running`, 422 `confirm_mismatch` |
+| 13 Oberfläche | `task web:lint`, `task web:test` (`LibraryFoldersDialog.test.tsx`), `task storybook:test` (neue Story `TypedConfirmation`) |
+| 13a Emby-Form des Dialogs (E18) | `task web:lint`, `task web:test` (`PathBrowserDialog.test.tsx`), `task web:e2e` (`admin-folder-browser.spec.ts`: Rücktaste im Pfadfeld blättert nicht hinauf) |
+| 14 Bibliothek ohne Ordner | `go test ./internal/library/` (kein Scan-Auftrag, Zustand unverändert), `task web:e2e` |
+| Tastaturtest (harte Regel 8) | `task web:e2e` (`web/e2e/admin-library-folders.spec.ts`) |
+
+**Nicht abgedeckt:** `task server:vuln` meldet auf dieser Maschine GO-2026-6809 (`crypto/x509`,
+behoben in go1.27.3) — lokal ist go1.27.2 installiert, `.tool-versions` pinnt 1.27.3; in CI ist der
+Befund damit weg, auf dieser Maschine braucht es den Werkzeugwechsel, den Marco selbst macht. Der
+Löschweg ist im e2e-Lauf nur an leeren Ordnern geprüft (Titel, Downloads und Tombstones decken die
+Go-Tests ab, nicht der Browser). Die Zahl im Bestätigungstext ist die **Obergrenze** (Titel mit einer
+Datei in diesem Ordner); wie viele davon eine Datei anderswo haben, zählt der Server erst beim
+Entfernen. Und die Sicht am Handy prüft Marco selbst.
 
 ## Meilenstein M10 – Härtung und Release 1.0
 
