@@ -27,3 +27,7 @@ testdata/media/
 
 # Taskfile cache
 .task/
+
+# Merged Playwright report of the CI shards (`playwright merge-reports`, gate job of ci.yml)
+web/playwright-report/
+blob-reports/

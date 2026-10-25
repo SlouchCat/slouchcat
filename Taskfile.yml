@@ -61,26 +61,57 @@ tasks:
     cmds:
       - task: server:apicheck
 
+  # The one local command that builds and checks everything (plan section 4). It runs the same
+  # checks as CI, in an order that makes sense on one machine; CI runs the three ci:* tasks below
+  # in parallel jobs instead. Whatever is added to one of them is therefore in `task ci` too --
+  # that is the point of the split (ADR 0013).
   ci:
     desc: Everything CI runs, in order; fails on codegen drift
     cmds:
-      - task: gen
-      - task: gen:check
-      - task: lint
-      - task: test
+      - task: ci:server
+      - task: ci:web
       - task: build
-      - task: e2e
+      - task: ci:e2e
+
+  # The three halves `task ci` is made of, each one a CI job. Not to be confused with `server:ci`
+  # and `web:ci`, which are the older per-area shortcuts and also run `server:vuln` (network).
+  ci:server:
+    desc: The server half of `task ci` (CI job "server"); needs ffmpeg and the test media
+    cmds:
+      - task: server:gen
+      - task: server:gen:check
+      - task: server:lint
+      - task: server:test
+
+  ci:web:
+    desc: The web half of `task ci` (CI job "web"); the Storybook screenshots need Docker
+    cmds:
+      - task: web:gen
+      - task: web:gen:check
+      - task: web:lint
+      - task: web:test
       - task: storybook:test
+
+  ci:e2e:
+    desc: >-
+      The Playwright suite of `task ci` (CI job "e2e"); expects `task build` and `task
+      testdata:media`. Arguments after `--` go to Playwright, for example `-- --shard=1/6`.
+    cmds:
+      - task: e2e
 
   storybook:test:
     desc: Storybook screenshot checks of web/src/ui against the committed baselines (needs Docker)
     cmds:
       - task: web:storybook:test
 
+  # Split in two so each CI job can check its own generators right after running them: the server
+  # job never runs the TypeScript generator and the web job never runs sqlc, so neither of them
+  # could judge the other's output.
   gen:check:
     desc: Fail when generated code differs from the committed state (codegen drift)
     cmds:
-      - git diff --exit-code --stat -- server/internal/api/gen server/internal/store packages/api-client/src/generated
+      - task: server:gen:check
+      - task: web:gen:check
 
   dev:
     desc: Run server and web dev server together

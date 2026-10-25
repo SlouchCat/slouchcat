@@ -47,7 +47,22 @@
   color: var(--sc-color-bg-base);
 }
 
-.primary:focus-visible {
+/*
+ * The focus ring of a react-aria button. global.css draws it on `:focus-visible`, and Firefox does
+ * not grant that to a button the page focused from code -- react-aria focuses the default button
+ * of a confirmation itself (ConfirmDialog, `autoFocus`). react-aria tracks the input modality on
+ * its own and marks the button `data-focus-visible`, so the ring and the fill follow that marker as
+ * well. The other react-aria components here already do it this way (Menu, Tabs, Switch,
+ * CheckboxGroup, SelectableList, AccentPicker, Field, PathList); the button was the one left out,
+ * and "Entfernen" in a confirmation therefore had no visible focus in Firefox (hard rule 8).
+ */
+.button[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.primary:focus-visible,
+.primary[data-focus-visible] {
   background-color: var(--sc-accent);
   color: var(--sc-on-accent);
 }
@@ -57,7 +72,8 @@
   color: var(--sc-color-text-primary);
 }
 
-.secondary:focus-visible {
+.secondary:focus-visible,
+.secondary[data-focus-visible] {
   background-color: var(--sc-color-surface-2);
 }
 
@@ -66,7 +82,8 @@
   color: var(--sc-color-text-secondary);
 }
 
-.ghost:focus-visible {
+.ghost:focus-visible,
+.ghost[data-focus-visible] {
   background-color: var(--sc-color-surface-2);
   color: var(--sc-color-text-primary);
 }

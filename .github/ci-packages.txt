@@ -1,0 +1,22 @@
+# System packages the CI jobs install with apt, one per line, first column the job that needs it.
+#
+# This file is the cache key of the .deb files (.github/actions/system-packages). It exists so the
+# key follows the package list and nothing else: the key used to be a hash of ci.yml, so every
+# edit to the workflow -- a comment, a timeout, a job name -- threw the cache away and paid for
+# ffmpeg again (479 s in run 40207488836, 11.5 min in run 39789916437, because the Azure mirror
+# throttles without warning).
+#
+# Playwright's own library list is not here: it comes from `playwright install-deps` and follows
+# the Playwright version, so pnpm-lock.yaml is hashed next to this file.
+#
+# Format: <job> <package>. Lines starting with # and empty lines are ignored.
+
+# The server tests probe the generated media and run ffmpeg (internal/library, internal/transcode,
+# internal/playback), and `task testdata:media` generates that media with ffmpeg in the first place.
+server ffmpeg
+
+# The e2e shards need the same ffmpeg, plus PulseAudio for the null sink that Firefox plays the
+# audio-only titles through (see the comment at the sink step in ci.yml).
+e2e ffmpeg
+e2e pulseaudio
+e2e pulseaudio-utils

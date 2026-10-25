@@ -1,4 +1,11 @@
-# Runs exactly what `task ci` runs locally (plan section 4: "Lokal und CI identisch").
+# Runs the same checks as `task ci` locally -- the same tasks, split over parallel jobs instead of
+# one after the other. `task ci` remains the one local command that builds and checks everything
+# (plan section 4); what the jobs below run are its parts, `task ci:server`, `task ci:web` and
+# `task ci:e2e`, and `task ci` still runs all of them. Why the split, and what it costs in exchange:
+# ADR docs/adr/0013-ci-parallele-jobs.md. Measured times: docs/perf/ci.md.
+#
+# The serial job this replaced took 56 minutes, which is longer than most pull requests deserve to
+# wait (run 40207488836).
 name: ci
 
 # A branch with an open pull request used to fire twice for the same commit: once for `push`
@@ -23,9 +30,16 @@ permissions:
   contents: read
 
 jobs:
-  ci:
+  # ---------------------------------------------------------------------------------------------
+  # Server: the generators with their drift check and the linters, then the tests in parallel
+  # groups. Split in two because the linters take about 90 seconds and the tests about 19 minutes:
+  # running the linters once instead of once per test group saves three minutes of runner time and
+  # reports a lint error minutes before the tests are through.
+  # ---------------------------------------------------------------------------------------------
+  server-lint:
+    name: server (generators, linters)
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
@@ -34,61 +48,155 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
 
-      # pnpm first: setup-node@v5 caches the package manager named in package.json#packageManager
-      # and needs the binary on PATH.
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: ./.github/actions/task
 
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
-        with:
-          node-version-file: .tool-versions
-          cache: pnpm
+      # The first three steps of `task ci:server`; the fourth, server:test, is the job below.
+      # golangci-lint and sqlc need no ffmpeg and no test media.
+      - run: task server:gen server:gen:check server:lint
 
-      - name: Install task
-        run: go install github.com/go-task/task/v3/cmd/task@v3.54.0
+  # The groups are not listed here. They are read out of server/testgroups.txt, so adding a group
+  # there gives it a job by itself; a list in this file as well would be the same names in two
+  # places, and the half that was forgotten would be the half that runs no tests. The job needs
+  # nothing but the checkout: `--matrix` answers from that one text file, without Go.
+  server-groups:
+    name: server test groups
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      groups: ${{ steps.groups.outputs.groups }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # The package downloads are the single biggest source of variance in this workflow: the same
-      # step took 57 s, 214 s and over 20 min on three runs of 22 October, because the Azure mirror
-      # throttles without warning (run 39789916437 spent 11.5 min on ffmpeg alone). The .deb files
-      # are therefore cached. The key is stable, so the cache is written once and only packages
-      # that Ubuntu has bumped since are fetched again.
-      - name: Cache the system packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/apt-debs
-          key: apt-debs-noble-${{ hashFiles('.github/workflows/ci.yml') }}
-
-      # apt deletes a .deb after installing it, so without this the cache would stay empty. The
-      # settings go into a drop-in rather than onto a command line because `playwright
-      # install-deps` runs apt itself and has to pick them up too. The Binary:: line matters: the
-      # `apt` binary ships its own Keep-Downloaded-Packages "0" that overrides the general one, so
-      # setting only the general option would still lose every .deb that `apt` rather than
-      # `apt-get` installs.
-      - name: Point apt at the cache
+      - id: groups
         run: |
-          sudo tee /etc/apt/apt.conf.d/99slouchcat >/dev/null <<EOF
-          Dir::Cache::archives "$HOME/apt-debs";
-          APT::Keep-Downloaded-Packages "true";
-          Binary::apt::APT::Keep-Downloaded-Packages "true";
-          EOF
-          mkdir -p ~/apt-debs/partial
-          apt-config dump | grep -iE 'Dir::Cache::archives|Keep-Downloaded-Packages'
+          set -euo pipefail
+          groups=$(server/scripts/testgroups.sh --matrix)
+          echo "groups=$groups" >> "$GITHUB_OUTPUT"
+          echo "Test groups: $groups"
 
-      # One apt transaction for everything the suite needs from the system: ffmpeg for the probe
-      # tests and the test media, pulseaudio for the Firefox audio sink below, and Playwright's own
-      # library list. Three separate steps used to run `apt-get update` three times.
-      - name: Install the system packages (ffmpeg, pulseaudio, Playwright libraries)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg pulseaudio pulseaudio-utils
-          pnpm --filter @slouchcat/web exec playwright install-deps chromium firefox
+  server-test:
+    name: server tests (${{ matrix.group }})
+    needs: server-groups
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      # Every group reports its own result: a failure in one is not a reason to hide the others.
+      fail-fast: false
+      matrix:
+        # Which packages a group holds is server/testgroups.txt. "rest" is every package no group
+        # names, so a new package is tested from its first day without anyone having to touch any
+        # of this. `task server:test` without GROUP -- what `task ci` and every local run do --
+        # still runs all of them at once.
+        group: ${{ fromJSON(needs.server-groups.outputs.groups) }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      # apt ran as root and left the files that way; the cache is saved as the runner user.
-      - name: Hand the cached packages back to the runner
-        if: always()
-        run: sudo chown -R "$(id -u):$(id -g)" ~/apt-debs
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: ./.github/actions/task
+
+      # ffmpeg: the probe and transcode tests run it, and the test media are generated with it.
+      - uses: ./.github/actions/system-packages
+        with:
+          group: server
+
+      - uses: ./.github/actions/test-media
+
+      - run: task server:test GROUP=${{ matrix.group }}
+
+  # ---------------------------------------------------------------------------------------------
+  # Web: generators with their drift check, linters, Vitest and the Storybook screenshot checks.
+  # No Go, no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official
+  # Playwright Docker image, which brings its own Chromium and its own libraries.
+  # ---------------------------------------------------------------------------------------------
+  web:
+    name: web (linters, unit tests, Storybook)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - run: task ci:web
+
+      # Screenshot diffs of the Storybook run (storybook.config.ts). The folder starts with a dot,
+      # and the action skips hidden files unless told otherwise: without the flag every red run
+      # uploaded nothing.
+      - name: Keep the Storybook report on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: storybook-report
+          path: web/node_modules/.playwright-storybook/
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------------------------
+  # The server binary with the web assets embedded, built once and handed to the e2e shards. Six
+  # shards building the same binary would be six Go toolchains and six Vite builds for one file.
+  # ---------------------------------------------------------------------------------------------
+  build:
+    name: build (server binary with the web assets)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      # web:build then server:build: the PWA is copied into the Go embed folder before the binary
+      # is linked, so the binary serves exactly this build.
+      - run: task build
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: slouchcat-binary
+          path: server/bin/slouchcat
+          retention-days: 1
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------------------------
+  # The Playwright suite, split into shards. Each shard is a whole run of its own on a runner of
+  # its own: its own server with its own database and its own global setup. Within a shard
+  # `workers: 1` still holds, so nothing races; what a shard does not have is the data of the spec
+  # files that landed in the other shards, which is why every spec creates what it needs.
+  # ---------------------------------------------------------------------------------------------
+  e2e:
+    name: e2e (shard ${{ matrix.shard }})
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # The length of this list is the shard count: `strategy.job-total` below reads it, so the
+        # two can never drift apart.
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      # ffmpeg for the test media, PulseAudio for the sink below, and Playwright's own library list.
+      - uses: ./.github/actions/system-packages
+        with:
+          group: e2e
+          playwright-browsers: chromium firefox
 
       # Firefox drives an audio-only title from its audio sink. A runner has no audio output, so
       # the sink fails, the element reports MediaError 3 ("OnMediaSinkAudioError"), hls.js detaches
@@ -115,46 +223,40 @@ jobs:
         if: steps.playwright-browsers.outputs.cache-hit != 'true'
         run: pnpm --filter @slouchcat/web exec playwright install chromium firefox
 
-      # The test media is generated from ffmpeg's own lavfi sources, so the same scripts and the
-      # same ffmpeg always produce the same files -- both go into the key. The generator skips
-      # files that are already there, so a restored cache is checked rather than trusted, and a
-      # miss simply regenerates (2.9 min in run 39789916437).
-      - name: ffmpeg version (part of the test media cache key)
-        id: ffmpeg
-        run: echo "version=$(ffmpeg -version | head -1 | cut -d' ' -f3)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/test-media
 
-      - name: Cache the generated test media
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: testdata/media
-          key: testmedia-${{ runner.os }}-${{ steps.ffmpeg.outputs.version }}-${{ hashFiles('testdata/generate-media.sh', 'testdata/*.py') }}
+          name: slouchcat-binary
+          path: server/bin
 
-      - name: Generate test media
-        run: task testdata:media
+      # An artefact is a zip, and a zip from upload-artifact carries no execute bit: without this
+      # the server never starts and every spec of the shard fails at the first page load.
+      - name: Make the binary executable again (artefacts lose the bit)
+        run: chmod +x server/bin/slouchcat
 
-      # Includes the Storybook screenshot checks, which run in the Playwright Docker image
-      # (task web:storybook:test; the runner has Docker).
-      - name: task ci
-        run: task ci
+      - run: task ci:e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
-      # Playwright artefacts (e2e/env.ts, storybook.config.ts): traces, screenshot diffs, reports.
-      # Both folders start with a dot, and the action skips hidden files unless told otherwise:
-      # without the flag every red run uploaded nothing, and the traces of a failure were lost.
-      - name: Keep Playwright reports on failure
-        if: failure()
+      # The blob report is the machine-readable form of the run, traces and screenshots included.
+      # The gate job merges the six of them into one HTML report; a single report per shard would
+      # be six reports with a sixth of the run in each. Uploaded on green runs too, because a shard
+      # that passed on its retry is the interesting one.
+      - name: Keep the blob report
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: playwright-report
-          path: |
-            web/node_modules/.playwright/
-            web/node_modules/.playwright-storybook/
+          name: e2e-blob-${{ matrix.shard }}
+          path: web/node_modules/.playwright/blob/
           include-hidden-files: true
           if-no-files-found: ignore
+          retention-days: 7
 
-  # Container image for both platforms (P-1: images amd64 and arm64 start). Builds without pushing:
-  # there is no registry yet (ADR 0001). The Go binary is cross-compiled; only the apt stage of the
-  # arm64 image runs under QEMU. Each image is then loaded and must turn healthy in < 5 s.
+  # ---------------------------------------------------------------------------------------------
+  # Container image for both platforms (P-1: images amd64 and arm64 start). Unchanged; it already
+  # ran next to the old serial job.
+  # ---------------------------------------------------------------------------------------------
   image:
+    name: image (amd64, arm64)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -166,6 +268,8 @@ jobs:
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      # Builds without pushing: there is no registry yet for a pull request (ADR 0001). The Go
+      # binary is cross-compiled; only the apt stage of the arm64 image runs under QEMU.
       - name: Build linux/amd64 and linux/arm64 (no push)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -212,3 +316,79 @@ jobs:
       # that starts eating memory. See docs/perf/M10.md section 6.
       - name: arm64 starts under emulation (healthy within 30 s)
         run: IMAGE=slouchcat:ci-arm64 MAX_HEALTHY_SECONDS=30 MAX_RSS_MB=180 deploy/scripts/measure-healthy.sh
+
+  # ---------------------------------------------------------------------------------------------
+  # The gate. One job that waits for every other one and is green only when all of them are, so
+  # there stays exactly one status check to require for a merge, and it is still called "ci / ci"
+  # -- the name the old serial job had. Do not rename this job without changing that setting.
+  #
+  # It also merges the shards' blob reports into the one HTML report with all the traces, which is
+  # what a red run uploads.
+  # ---------------------------------------------------------------------------------------------
+  ci:
+    name: ci
+    # Must run even when something before it failed, otherwise the gate would be "skipped" instead
+    # of red and a broken run could look mergeable.
+    if: always()
+    needs: [server-lint, server-groups, server-test, web, build, e2e, image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      # `continue-on-error` on all three report steps: whether the report could be assembled must
+      # never decide whether the gate is green. That is what the last step is for. A shard that
+      # died before it wrote its blob would otherwise let the download fail and hide the summary
+      # that says which job broke.
+      - name: Collect the blob reports of the shards
+        if: needs.e2e.result != 'skipped'
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: e2e-blob-*
+          merge-multiple: true
+          path: blob-reports
+
+      - uses: ./.github/actions/node
+        if: needs.e2e.result != 'skipped'
+        continue-on-error: true
+
+      # `merge-reports` reads the shards' blob files and writes one HTML report, with every test of
+      # the run and the traces of the failures. It runs in web/, so the path is relative to it.
+      - name: Merge the shards into one Playwright report
+        if: needs.e2e.result != 'skipped'
+        continue-on-error: true
+        run: pnpm --filter @slouchcat/web exec playwright merge-reports --reporter html ../blob-reports
+
+      - name: Keep the merged Playwright report
+        if: needs.e2e.result != 'skipped'
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+      # Named one by one rather than with `contains(needs.*.result, 'failure')`, so the log says
+      # which job it was, and so a job that was skipped or cancelled is red here too instead of
+      # slipping through as "not a failure".
+      #
+      # A job added to this workflow has to be added here and to `needs:` above, or the gate does
+      # not watch it. That is the price of naming them; ADR 0013 carries it as a standing rule.
+      - name: Every job of this workflow must be green
+        run: |
+          set -eu
+          status=0
+          check() {
+            printf '%-14s %s\n' "$1" "$2"
+            [ "$2" = success ] || status=1
+          }
+          check server-lint   '${{ needs.server-lint.result }}'
+          check server-groups '${{ needs.server-groups.result }}'
+          check server-test   '${{ needs.server-test.result }}'
+          check web           '${{ needs.web.result }}'
+          check build         '${{ needs.build.result }}'
+          check e2e           '${{ needs.e2e.result }}'
+          check image         '${{ needs.image.result }}'
+          exit $status

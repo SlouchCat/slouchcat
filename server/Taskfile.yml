@@ -13,17 +13,37 @@ tasks:
       - go tool oapi-codegen -config oapi-codegen.yaml ../api/openapi.yaml
       - go tool sqlc generate
 
+  # Half of the root `gen:check`: the server job runs it right after `server:gen`, so codegen drift
+  # is caught in the job that produced it. Paths are relative to server/ (this file's dir).
+  gen:check:
+    desc: Fail when the generated Go code differs from the committed state (codegen drift)
+    cmds:
+      - git diff --exit-code --stat -- internal/api/gen internal/store
+
   lint:
     desc: golangci-lint, the itemsaccess analyzer and go vet
     cmds:
       - go tool golangci-lint run ./...
       - go run ./tools/itemsaccess/cmd/itemsaccess ./...
       - go vet ./...
+      # A group in testgroups.txt that names a package which no longer exists would run no tests
+      # and still pass. Here that is a red lint instead.
+      - scripts/testgroups.sh --check
 
   test:
-    desc: Run all server tests with the race detector
+    desc: >-
+      Run the server tests with the race detector. GROUP picks one of the parallel CI groups
+      (`task server:test GROUP=rest`, see testgroups.txt); without it every package runs, which is
+      what `task ci` and every local run do.
+    vars:
+      GROUP: '{{.GROUP | default "all"}}'
     cmds:
-      - go test -race -timeout 30m ./...
+      # In two steps, not `go test ... $(scripts/testgroups.sh ...)`: a command substitution throws
+      # its exit status away, so a broken group would reach `go test` as an empty argument list.
+      - |
+        set -eu
+        packages=$(scripts/testgroups.sh "{{.GROUP}}")
+        go test -race -timeout 30m $packages
 
   build:
     desc: Build the static server binary into bin/slouchcat

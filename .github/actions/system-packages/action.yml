@@ -1,0 +1,117 @@
+# Installs the apt packages of one job from .github/ci-packages.txt, with the downloaded .deb files
+# cached between runs.
+#
+# Why the cache exists: the package downloads are the single biggest source of variance in this
+# workflow. The same step took 57 s, 214 s and over 20 min on three runs of 22 October, because the
+# Azure mirror throttles without warning (run 39789916437 spent 11.5 min on ffmpeg alone).
+#
+# Why the key changed: it used to be `apt-debs-noble-${{ hashFiles('.github/workflows/ci.yml') }}`.
+# That hash moved with every edit to the workflow, so the first run after any change -- including
+# this rebuild -- started from nothing ("Cache not found for input keys: apt-debs-noble-..." in run
+# 40207488836, 479 s). On top of that a cache written on a branch is not visible to main or to
+# other branches, so a key that only ever matches itself almost never hits. The key now follows the
+# package list and the Playwright version, and `restore-keys` falls back to the newest cache of the
+# same job, so adding one package fetches that one package instead of all of them.
+name: Install the system packages
+description: Installs this job's apt packages from .github/ci-packages.txt, with a cache of the .deb files
+
+inputs:
+  group:
+    description: First column in .github/ci-packages.txt, usually the job name
+    required: true
+  playwright-browsers:
+    description: >-
+      Browsers whose system libraries `playwright install-deps` should add, space separated
+      (for example "chromium firefox"). Empty means Playwright is not involved.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Read the package list
+      id: packages
+      shell: bash
+      run: |
+        set -euo pipefail
+        list=$(awk -v group="${{ inputs.group }}" \
+          '$1 == group { print $2 }' .github/ci-packages.txt | sort -u | tr '\n' ' ')
+        if [ -z "${list// /}" ]; then
+          echo "::error file=.github/ci-packages.txt::no package for group '${{ inputs.group }}'" >&2
+          exit 1
+        fi
+        echo "list=${list% }" >> "$GITHUB_OUTPUT"
+        echo "Packages for ${{ inputs.group }}: ${list% }"
+
+    # The key holds the package list and -- when Playwright is involved -- the lock file that pins
+    # the Playwright version, because `playwright install-deps` derives its own library list from
+    # it. `restore-keys` is a prefix: a changed list still starts from the newest cache of this job.
+    - name: Cache the system packages
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ~/apt-debs
+        key: apt-debs-noble-${{ inputs.group }}-${{ hashFiles('.github/ci-packages.txt', 'pnpm-lock.yaml') }}
+        restore-keys: |
+          apt-debs-noble-${{ inputs.group }}-
+
+    # apt deletes a .deb after installing it, so without this the cache would stay empty. The
+    # settings go into a drop-in rather than onto a command line because `playwright install-deps`
+    # runs apt itself and has to pick them up too. The Binary:: line matters: the `apt` binary ships
+    # its own Keep-Downloaded-Packages "0" that overrides the general one, so setting only the
+    # general option would still lose every .deb that `apt` rather than `apt-get` installs.
+    # The ownership and the $HOME bit matter as much as the settings. apt drops to the
+    # unprivileged user `_apt` to download, and if that user cannot reach the archive folder, apt
+    # falls back to downloading as root and says so: "W: Download is performed unsandboxed as root
+    # as file ... couldn't be accessed by user '_apt'". Handing the folder to `_apt` -- and giving
+    # $HOME the execute bit others need to traverse it -- keeps the sandbox on and the warning
+    # away. The runner is thrown away after the job, so the bit is not set back.
+    #
+    # `partial/` is emptied rather than restored: a run cancelled mid-download saves its half a
+    # .deb into the cache, and the next run would start from that fragment.
+    - name: Point apt at the cache
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo tee /etc/apt/apt.conf.d/99slouchcat >/dev/null <<EOF
+        Dir::Cache::archives "$HOME/apt-debs";
+        APT::Keep-Downloaded-Packages "true";
+        Binary::apt::APT::Keep-Downloaded-Packages "true";
+        EOF
+        mkdir -p ~/apt-debs
+        rm -rf ~/apt-debs/partial
+        mkdir -p ~/apt-debs/partial
+        chmod o+x "$HOME"
+        sudo chown -R _apt:root ~/apt-debs
+        apt-config dump | grep -iE 'Dir::Cache::archives|Keep-Downloaded-Packages'
+
+    # One apt transaction for everything this job needs from the system. Three separate steps used
+    # to run `apt-get update` three times.
+    #
+    # The package list goes through the environment, not straight into the command line. Word
+    # splitting is what we want here, but a workflow expression pasted into a shell body is the
+    # shape that turns a file in the repository into a command; `.github/ci-packages.txt` is
+    # editable by any pull request.
+    - name: Install the packages
+      shell: bash
+      env:
+        PACKAGES: ${{ steps.packages.outputs.list }}
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        # shellcheck disable=SC2086 -- one word per package is the point.
+        sudo apt-get install -y --no-install-recommends $PACKAGES
+
+    - name: Install the Playwright system libraries
+      if: inputs.playwright-browsers != ''
+      shell: bash
+      env:
+        BROWSERS: ${{ inputs.playwright-browsers }}
+      # shellcheck disable=SC2086 -- one word per browser is the point.
+      run: pnpm --filter @slouchcat/web exec playwright install-deps $BROWSERS
+
+    # apt ran as `_apt` and root and left the files that way; the cache is saved as the runner user,
+    # in the post step of actions/cache above, which runs after every step of the job.
+    - name: Hand the cached packages back to the runner
+      if: always()
+      shell: bash
+      run: sudo chown -R "$(id -u):$(id -g)" ~/apt-debs
