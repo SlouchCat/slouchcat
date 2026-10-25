@@ -1,6 +1,7 @@
 # ADR 0008: Entdecken – Suchindex, Startseiten-Reihen, Trakt und Benachrichtigungen
 
-- Status: angenommen (21. Oktober 2026)
+- Status: angenommen (21. Oktober 2026); **zwei Zeilen seit M11 teilweise abgelöst durch
+  [ADR 0011](0011-spotlight.md)** — siehe den Hinweis unter der Entscheidstabelle
 - Quelle: `docs/planning/03-plan-v1.md`, Abschnitte 3.1 (Module `discover`, `notify`, `ratelimit`), 3.3
   (Query-Builder in `visibility`), 3.4 Schritt 5, 5.5, 5.7 AN-3 und M7; Entscheid 9 (Trakt-Teil) in
   `docs/planning/04-entscheidungen.md`; Spec E-1 bis E-9, I-7; Entwurf in den Sitzungsnotizen `m7-design.md`
@@ -42,6 +43,22 @@ die Hooks der schreibenden Pakete sind präziser. (g) Trakt-Konten je Profil ode
 | Trakt (AN-3, I-7) | Täglicher Job `trakt.refresh` über `ratelimit` (1/s) mit dem Server-Schlüssel (`SLOUCHCAT_TRAKT_CLIENT_ID`, sonst Setting) holt die vier öffentlichen Listen (trending/popular × movies/shows, je 100) in `trakt_lists(list, media, position, tmdb_id)`; die Reihe eines Profils ist der Join auf `items.tmdb_id` und `visible_items`, Reihenfolge nach Position, höchstens 20, **ausgeblendet unter 5 Treffern**. Ein fehlgeschlagener Lauf **leert** die Tabelle: die Reihen verschwinden, sonst passiert nichts. Kein Trakt-Konto je Profil, nichts wird gesendet; ein Schema-Test hält das fest |
 | Benachrichtigungen (E-8, 5.5) | `library` (neue Folgen nach dem Commit eines Scan-Batches) und `metadata` (neue Episoden nach dem Feed-Abruf) rufen einen Hook `notify.NewEpisodes(ids)`. `notify` ermittelt Serie bzw. Podcast, die Profile mit Favorit darauf und prüft je Profil `visibility.Visible`; nur dann entsteht ein Eintrag in `notifications` (eindeutig je Profil und Folge). Beim Lesen joint der Eingang erneut `visible_items`. Kanäle (M8) hängen an einer `Dispatcher`-Schnittstelle mit No-op-Standard |
 | Favoriten und Auto-Downloads (O-3) | Die Regel «neue Episoden» gilt für **favorisierte** Podcasts des Profils; der M6-Ersatz «in den letzten 60 Tagen gehört» entfällt |
+
+> **Teilweise abgelöst durch ADR 0011 (25. Oktober 2026).** Zwei Zeilen dieser Tabelle gelten ab
+> Meilenstein M11 nicht mehr; sie bleiben hier stehen, damit nachvollziehbar ist, was M7 entschieden
+> hat.
+>
+> - **«Startseite», Satz «ohne Picks gibt es kein Karussell»:** die Bühne ist nicht mehr an `picks`
+>   gebunden. Welche Reihe als Band gezeichnet wird, sagt der Server im Vertrag
+>   (`HomePage.heroRow`), und das ist allein `spotlight`. Cat's Empfehlungen ist immer Posterzeile;
+>   fehlt Spotlight, hat die Seite **keine** Bühne.
+> - **«Trakt (AN-3, I-7)», vier feste Listen mit «höchstens 20, ausgeblendet unter 5»:** an ihre
+>   Stelle tritt **eine in der Verwaltung wählbare** Liste; Anzahl (5 bis 20), Mindesttreffer
+>   (0 bis 10) und Abrufintervall (6 bis 48 Stunden) stehen in `spotlight_config`. Der Cache heisst
+>   `spotlight_entries`, `trakt_lists` entfällt.
+>
+> Unverändert gültig bleibt alles Übrige, insbesondere I-7: nur Server-Schlüssel, kein Trakt-Konto
+> je Profil, nichts wird gesendet, und ein Ausfall kostet nur die Reihe.
 
 ## Folgen
 
