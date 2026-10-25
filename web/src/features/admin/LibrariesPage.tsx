@@ -24,6 +24,8 @@ function AddLibraryForm() {
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<LibraryKind>('movies');
   const [rating, setRating] = useState('0');
+  // The folder is a controlled value, so the browse dialog can write the chosen path into it.
+  const [path, setPath] = useState('');
   const [formKey, setFormKey] = useState(0);
   const create = useMutation({
     mutationFn: (body: LibraryRequest): Promise<Library> =>
@@ -31,6 +33,7 @@ function AddLibraryForm() {
     onSuccess: async () => {
       setFormKey((key) => key + 1);
       setRating('0');
+      setPath('');
       await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
     },
   });
@@ -62,6 +65,8 @@ function AddLibraryForm() {
           onKindChange={setKind}
           rating={rating}
           onRatingChange={setRating}
+          path={path}
+          onPathChange={setPath}
         />
         <div>
           <AriaButton type="submit" variant="primary" icon="plus" isPending={create.isPending}>

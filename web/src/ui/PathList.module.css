@@ -1,0 +1,75 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  max-height: 22rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  cursor: pointer;
+}
+
+/* P-15: every row shows a ring of its own. The e2e helper reads the computed outline of the
+   focused element, so a background alone would not count as visible focus. */
+.item[data-focused],
+.item[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.item[data-selected] {
+  background-color: var(--sc-color-surface-2);
+}
+
+.item[data-hovered] {
+  background-color: var(--sc-color-surface-2);
+}
+
+/* A folder that is listed but cannot be entered (a symlink, a root outside the browsable ones). */
+.item[data-closed] {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
+.main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.name {
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  color: var(--sc-color-text-muted);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.note {
+  flex: none;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+  text-align: end;
+}
+
+.empty {
+  padding: var(--sc-space-4);
+  color: var(--sc-color-text-muted);
+  text-align: center;
+}

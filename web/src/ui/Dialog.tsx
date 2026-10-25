@@ -1,4 +1,11 @@
-import { useCallback, type ReactElement, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactElement,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { AriaButton } from './AriaButton';
 import styles from './Dialog.module.css';
@@ -72,6 +79,19 @@ interface FormDialogProps {
   title: string;
   /** Short text under the title. */
   description?: string;
+  /**
+   * Focused when the dialog opens, instead of the first field: a CSS selector inside the dialog,
+   * or a ref. A dialog whose content is a list has no field for `focusFirstField` to find.
+   */
+  initialFocus?: string | RefObject<HTMLElement | null>;
+  /**
+   * Focused after the dialog closed, instead of the button that opened it. react-aria returns
+   * the focus to the opener, which is right for Escape and Cancel; a dialog that wrote something
+   * into a field wants the focus in that field, so the user can correct it without tabbing back.
+   * The holder decides per close by setting the ref before it closes the dialog, and clearing it
+   * when the focus should go back to the opener.
+   */
+  returnFocus?: RefObject<HTMLElement | null>;
   /** The form. It closes the dialog itself (`onOpenChange(false)`) after a successful submit. */
   children: ReactNode;
 }
@@ -86,21 +106,52 @@ export function FormDialog({
   onOpenChange,
   title,
   description,
+  initialFocus,
+  returnFocus,
   children,
 }: FormDialogProps) {
   // A dialog opened with Enter counts as a "virtual" click for react-aria, which then focuses the
   // dialog itself and skips `autoFocus` of a field inside. The first field gets the focus here,
   // before the dialog's own effect looks at the focus.
-  const focusFirstField = useCallback((root: HTMLDivElement | null) => {
-    if (!root) return;
-    // The first field in document order: a text field, or the checked radio of a group that
-    // comes first (a dialog may start with radios and have text fields further down).
-    const field =
-      root.querySelector<HTMLElement>(
-        'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), textarea, select, input:checked',
-      ) ?? root.querySelector<HTMLElement>('input, button');
-    field?.focus();
-  }, []);
+  const focusFirstField = useCallback(
+    (root: HTMLDivElement | null) => {
+      if (!root) return;
+      if (initialFocus) {
+        const wanted =
+          typeof initialFocus === 'string'
+            ? root.querySelector<HTMLElement>(initialFocus)
+            : initialFocus.current;
+        if (wanted) {
+          wanted.focus();
+          return;
+        }
+      }
+      // The first field in document order: a text field, or the checked radio of a group that
+      // comes first (a dialog may start with radios and have text fields further down).
+      const field =
+        root.querySelector<HTMLElement>(
+          'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), textarea, select, input:checked',
+        ) ?? root.querySelector<HTMLElement>('input, button');
+      field?.focus();
+    },
+    [initialFocus],
+  );
+
+  // react-aria restores the focus to the opener when the overlay unmounts; the next frame takes
+  // it over to the element the holder named for this close.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (isOpen) {
+      wasOpen.current = true;
+      return;
+    }
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
+    const target = returnFocus?.current;
+    if (!target) return;
+    const frame = requestAnimationFrame(() => target.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, returnFocus]);
 
   return (
     <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange}>
