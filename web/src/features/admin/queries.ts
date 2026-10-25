@@ -42,6 +42,14 @@ export const SCAN_POLL_MS = 5000;
 export const isScanning = (library: Library) =>
   library.scan.state === 'queued' || library.scan.state === 'running';
 
+/**
+ * Whether "Scan again" does anything: a library without a folder has nothing to walk (idea 02,
+ * E13), and the server queues no job for it either. A podcast library has never had a folder;
+ * its button fetches the subscriptions instead (M6).
+ */
+export const canScan = (library: Library) =>
+  library.kind === 'podcasts' || library.roots.length > 0;
+
 export const librariesQuery = queryOptions({
   queryKey: ['admin', 'libraries'],
   queryFn: ({ signal }): Promise<Library[]> => request(api.GET('/admin/libraries', { signal })),

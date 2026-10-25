@@ -12,10 +12,14 @@ import (
 // Handlers of library administration (contract tag admin). Errors go through serviceProblem
 // (auth_handlers.go).
 
-func (e serviceProblem) VisitListLibrariesResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
-func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error   { return e.visit(w) }
+func (e serviceProblem) VisitListLibrariesResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error     { return e.visit(w) }
+func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitAddLibraryRootResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitRemoveLibraryRootResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitAcceptLibraryLossResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -59,6 +63,25 @@ func (s *server) ScanLibrary(ctx context.Context, req gen.ScanLibraryRequestObje
 	return gen.ScanLibrary202JSONResponse(toLibrary(lib)), nil
 }
 
+// AddLibraryRoot adds a further folder to a library (idea 02, E8).
+func (s *server) AddLibraryRoot(ctx context.Context, req gen.AddLibraryRootRequestObject) (gen.AddLibraryRootResponseObject, error) {
+	lib, err := s.opts.Admin.AddLibraryRoot(ctx, req.Id, deref(req.Body).Path)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.AddLibraryRoot201JSONResponse(toLibrary(lib)), nil
+}
+
+// RemoveLibraryRoot removes a folder from a library; the typed confirmation travels in the body
+// (idea 02, E12), which is why it is a POST and not a DELETE.
+func (s *server) RemoveLibraryRoot(ctx context.Context, req gen.RemoveLibraryRootRequestObject) (gen.RemoveLibraryRootResponseObject, error) {
+	lib, err := s.opts.Admin.RemoveLibraryRoot(ctx, req.Id, req.RootId, deref(req.Body).ConfirmPath)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.RemoveLibraryRoot200JSONResponse(toLibrary(lib)), nil
+}
+
 func (s *server) AcceptLibraryLoss(ctx context.Context, req gen.AcceptLibraryLossRequestObject) (gen.AcceptLibraryLossResponseObject, error) {
 	lib, err := s.opts.Admin.AcceptLibraryLoss(ctx, req.Id)
 	if err != nil {
@@ -97,7 +120,8 @@ func optRating(v *int) *gen.Rating {
 func toLibrary(l model.Library) gen.Library {
 	roots := make([]gen.LibraryRoot, 0, len(l.Roots))
 	for _, r := range l.Roots {
-		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch)}
+		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch),
+			ItemCount: r.ItemCount, FileCount: r.FileCount}
 		if r.Warning != "" {
 			root.Warning = &r.Warning
 		}

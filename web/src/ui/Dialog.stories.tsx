@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AriaButton } from './AriaButton';
-import { ConfirmDialog, FormDialog } from './Dialog';
+import { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
 import { PinField } from './PinField';
 
 const meta = {
@@ -48,6 +48,39 @@ export const Form: Story = {
         />
         <AriaButton variant="primary">Öffnen</AriaButton>
       </FormDialog>
+    </>
+  ),
+};
+
+/**
+ * Confirmation that has to be typed out (idea 02, E12): the button stays disabled until the
+ * field repeats the path, and the text says what the removal really does.
+ */
+export const TypedConfirmation: Story = {
+  render: () => (
+    <>
+      {/* The dialog sits in a portal; this keeps the story root from being empty. */}
+      <AriaButton variant="danger">Ordner entfernen</AriaButton>
+      <ConfirmInputDialog
+        isOpen
+        onOpenChange={() => undefined}
+        title="Ordner wirklich entfernen?"
+        expected="/media/Filme-2"
+        inputLabel="Tippe den Pfad, um zu bestätigen"
+        mismatchText="Tippe /media/Filme-2 genau so ab, dann wird der Knopf aktiv."
+        confirmLabel="Ordner entfernen"
+        cancelLabel="Abbrechen"
+        onConfirm={() => undefined}
+      >
+        <p>
+          Du entfernst <code>/media/Filme-2</code> aus der Bibliothek Filme. Bis zu 3 Titel
+          verschwinden damit aus allen Listen.
+        </p>
+        <ul>
+          <li>Fortschritt, Merkliste und Picks bleiben an den Titeln hängen.</li>
+          <li>Wirklich weg sind die Offline-Downloads auf den Geräten.</li>
+        </ul>
+      </ConfirmInputDialog>
     </>
   ),
 };

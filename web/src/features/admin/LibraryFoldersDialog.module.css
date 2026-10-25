@@ -1,0 +1,66 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.rowMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.path {
+  overflow-wrap: anywhere;
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding-top: var(--sc-space-4);
+  border-top: var(--sc-border-width-thin) solid var(--sc-color-border-subtle);
+}
+
+.addActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.close {
+  display: flex;
+  justify-content: flex-end;
+}

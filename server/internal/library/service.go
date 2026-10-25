@@ -55,17 +55,23 @@ type Service struct {
 	newEpisodes func(ctx context.Context, ids []string) error
 	// scanAborted is told when the loss protection aborts a scan (optional, M8).
 	scanAborted func(ctx context.Context, libraryName, reason string) error
+	// rootRemoved is told when an administrator removed a library folder (optional, idea 02,
+	// E12): the project keeps no audit table, so the notification and the Warn line are the
+	// only trace of it.
+	rootRemoved func(ctx context.Context, libraryName, path string, items, files int64) error
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
 
-	mu        sync.Mutex
-	runCtx    context.Context // context of Start; watchers of libraries created later run under it
-	wg        sync.WaitGroup
-	watchers  map[int64]*Watcher          // by root id
-	retrying  map[int64]bool              // library ids with a pending re-queue (scan was running)
-	scanLocks map[int64]chan struct{}     // by library id; see lockScan
-	runs      map[int64]map[*scanRun]bool // running scans by library id; see CancelScan
+	mu       sync.Mutex
+	runCtx   context.Context // context of Start; watchers of libraries created later run under it
+	wg       sync.WaitGroup
+	watchers map[int64]*Watcher // by root id
+	// watcherStop ends the watcher of one root (RemoveRoot); Start's context ends them all.
+	watcherStop map[int64]context.CancelFunc
+	retrying    map[int64]bool              // library ids with a pending re-queue (scan was running)
+	scanLocks   map[int64]chan struct{}     // by library id; see lockScan
+	runs        map[int64]map[*scanRun]bool // running scans by library id; see CancelScan
 
 	statsMu    sync.Mutex
 	writeStats WriteStats // see TakeWriteStats
@@ -117,11 +123,19 @@ func WithScanAborted(fn func(ctx context.Context, libraryName, reason string) er
 	return func(s *Service) { s.scanAborted = fn }
 }
 
+// WithRootRemoved runs fn after an administrator removed a library folder, with the library's
+// name, the folder's path and how many titles and media files went with it (notify.RootRemoved,
+// idea 02, E12). An error is logged; the folder is gone either way.
+func WithRootRemoved(fn func(ctx context.Context, libraryName, path string, items, files int64) error) Option {
+	return func(s *Service) { s.rootRemoved = fn }
+}
+
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		db: db, queue: queue, probe: probe, log: log, now: time.Now,
-		watchers: map[int64]*Watcher{}, retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
+		watchers: map[int64]*Watcher{}, watcherStop: map[int64]context.CancelFunc{},
+		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},
 		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
 		orphans: map[int64]map[string]fileStamp{},
@@ -207,14 +221,8 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 		return model.Library{}, err
 	}
 	path := filepath.Clean(req.Path)
-	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
-	if err != nil {
-		return model.Library{}, fmt.Errorf("list roots: %w", err)
-	}
-	for _, r := range roots {
-		if nested(path, r.Path) || nested(r.Path, path) {
-			return model.Library{}, fmt.Errorf("%w: overlaps the root of library %d", model.ErrLibraryPathInvalid, r.LibraryID)
-		}
+	if err := s.refuseOverlap(ctx, path); err != nil {
+		return model.Library{}, err
 	}
 	fsType, err := paths.DetectFS(path)
 	if err != nil {
@@ -248,6 +256,46 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 // nested reports whether path equals dir or lies below it.
 func nested(path, dir string) bool {
 	return path == dir || strings.HasPrefix(path, strings.TrimSuffix(dir, "/")+"/")
+}
+
+// refuseOverlap rejects a folder that is, or lies below, or holds a folder of any library. path
+// must be absolute and cleaned.
+//
+// It compares twice: once on the paths as they are written, and once on what
+// filepath.EvalSymlinks makes of them. The second pass matters because the first one compares
+// text while the scanner walks what the kernel resolves: /media/zwei -> /media/Filme reads as a
+// different folder and indexes the same files a second time under a second root id. A title that
+// then has a file "under another root" never leaves when one of the two is removed, although the
+// administrator confirmed that it would. A root that cannot be resolved right now (its share is
+// not mounted) keeps its written path for the comparison, so a folder is never let in because a
+// NAS was briefly away.
+//
+// What this does not catch: a bind mount, and two spellings of one name on a case-insensitive or
+// Unicode-folding share. Both need a stat of every stored root on every call; the folders of one
+// server are few and set by hand, and the damage is a double index, not an escape from the
+// browsable roots.
+func (s *Service) refuseOverlap(ctx context.Context, path string) error {
+	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
+	if err != nil {
+		return fmt.Errorf("list roots: %w", err)
+	}
+	real := resolved(path)
+	for _, r := range roots {
+		old := filepath.Clean(r.Path)
+		oldReal := resolved(old)
+		if nested(path, old) || nested(old, path) || nested(real, oldReal) || nested(oldReal, real) {
+			return fmt.Errorf("%w: overlaps the root of library %d", model.ErrLibraryPathInvalid, r.LibraryID)
+		}
+	}
+	return nil
+}
+
+// resolved is the path with its symlinks resolved, or the path itself when it cannot be resolved.
+func resolved(path string) string {
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		return real
+	}
+	return path
 }
 
 // WatchMode picks the change detection of a file system class (plan 3.4) and the warning shown
@@ -413,8 +461,29 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 	return files, itemsDeleted, nil
 }
 
-// enqueueScan queues scan.library and marks the library queued. It returns the job.
+// scannable reports whether a full scan of the library would have anything to walk. A library
+// without a folder has not: a podcast library never had one (its titles come from feeds, M6),
+// and a video or audio library can lose its last one (idea 02, E13). Both keep their settings
+// and their titles; they simply do not scan.
+func (s *Service) scannable(ctx context.Context, libraryID int64) (bool, error) {
+	roots, err := appq.New(s.db.Read).ListLibraryRoots(ctx, libraryID)
+	if err != nil {
+		return false, fmt.Errorf("list roots of library %d: %w", libraryID, err)
+	}
+	return len(roots) > 0, nil
+}
+
+// enqueueScan queues scan.library and marks the library queued. It returns the job, or the zero
+// job when the library has no folder to walk: queueing one would leave the library "queued" for
+// good, and letting it run would end in "done" with zero files, which reads like a successful
+// scan of an empty folder (idea 02, step 14).
 func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.Duration) (jobs.Job, error) {
+	switch ok, err := s.scannable(ctx, libraryID); {
+	case err != nil:
+		return jobs.Job{}, err
+	case !ok:
+		return jobs.Job{}, nil
+	}
 	payload, err := json.Marshal(libraryPayload{libraryID})
 	if err != nil {
 		return jobs.Job{}, err
@@ -648,7 +717,14 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 	}
 	for _, r := range roots {
 		_, warning := WatchMode(r.FsType)
-		m.Roots = append(m.Roots, model.LibraryRoot{ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning})
+		content, err := sq.CountLibraryRootContent(ctx, r.ID)
+		if err != nil {
+			return model.Library{}, fmt.Errorf("count content of root %d: %w", r.ID, err)
+		}
+		m.Roots = append(m.Roots, model.LibraryRoot{
+			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning,
+			ItemCount: int(content.Items), FileCount: int(content.Files),
+		})
 	}
 	return m, nil
 }
@@ -741,10 +817,14 @@ func (s *Service) startWatcher(root appq.LibraryRoot) {
 		return
 	}
 	libraryID := root.LibraryID
-	w := NewWatcher(pr, root.Watch, s.rootChanged(ctx, libraryID, root.ID), s.log.With("library_id", libraryID, "root_id", root.ID))
+	// Every watcher gets its own cancel, so RemoveRoot can end one without ending the rest.
+	wctx, stop := context.WithCancel(ctx)
+	w := NewWatcher(pr, root.Watch, s.rootChanged(wctx, libraryID, root.ID), s.log.With("library_id", libraryID, "root_id", root.ID))
 	s.watchers[root.ID] = w
+	s.watcherStop[root.ID] = stop
 	s.wg.Go(func() {
-		if err := w.Run(ctx); err != nil && ctx.Err() == nil {
+		defer stop()
+		if err := w.Run(wctx); err != nil && wctx.Err() == nil {
 			s.log.Error("library watcher stopped", "library_id", libraryID, "root_id", root.ID, "err", err)
 		}
 	})

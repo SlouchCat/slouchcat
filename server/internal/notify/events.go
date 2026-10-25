@@ -62,6 +62,18 @@ func (s *Service) ScanAborted(ctx context.Context, libraryName, reason string) e
 	})
 }
 
+// RootRemoved tells the main account that an administrator removed a folder from a library and
+// how many titles and files went with it (event errors; library.WithRootRemoved, idea 02, E12).
+// Removing 4000 titles should draw at least as much attention as an unplugged NAS cable, and the
+// project keeps no audit table.
+func (s *Service) RootRemoved(ctx context.Context, libraryName, path string, items, files int64) error {
+	lang := s.ownerLanguage(ctx)
+	return s.Emit(ctx, model.Event{
+		Type: model.EventErrors, Source: "library:" + libraryName, Subject: text(lang, "root_removed_subject", libraryName),
+		Body: text(lang, "root_removed_body", path, libraryName, items, files), Link: "/admin/libraries",
+	})
+}
+
 // ownerLanguage is the language of the main account's primary profile (German without one).
 func (s *Service) ownerLanguage(ctx context.Context) string {
 	owner, err := s.write.NotifyOwner(ctx)

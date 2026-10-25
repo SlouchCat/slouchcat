@@ -257,6 +257,21 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 	if err != nil {
 		return fmt.Errorf("load library: %w", err)
 	}
+	// A library without a folder is left exactly as it is: no "running", no "done" with zero
+	// files (idea 02, E13). Checked here as well as in enqueueScan, because a job queued before
+	// the last folder was removed may still be waiting in the queue.
+	switch ok, err := s.scannable(ctx, lib.ID); {
+	case err != nil:
+		return err
+	case !ok:
+		s.log.InfoContext(ctx, "library has no folder, nothing to scan", "library_id", lib.ID, "kind", lib.Kind)
+		// A job queued before the last folder went still holds the library in "queued"; nothing
+		// else would ever finish it, and the interface offers no way out of that state.
+		if lib.LastScanState == "queued" || lib.LastScanState == "running" {
+			return s.setState(ctx, lib.ID, "aborted", abortCancelled)
+		}
+		return nil
+	}
 	start := s.now()
 	if err := s.setState(ctx, lib.ID, "running", ""); err != nil {
 		return err
@@ -341,6 +356,25 @@ func (s *Service) lockScan(ctx context.Context, libraryID int64) (func(), error)
 		return func() { <-ch }, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
+	}
+}
+
+// tryLockScan takes the scan lock of a library without waiting: it reports false when a scan
+// holds it. RemoveRoot uses it, because waiting for a scan of a large collection would hold the
+// request open for hours; the administrator is told to try again instead (model.ErrScanRunning).
+func (s *Service) tryLockScan(libraryID int64) (unlock func(), ok bool) {
+	s.mu.Lock()
+	ch := s.scanLocks[libraryID]
+	if ch == nil {
+		ch = make(chan struct{}, 1)
+		s.scanLocks[libraryID] = ch
+	}
+	s.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, true
+	default:
+		return func() {}, false
 	}
 }
 

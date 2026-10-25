@@ -67,6 +67,13 @@ type Libraries interface {
 	Get(ctx context.Context, id int64) (model.Library, error) // model.ErrNotFound
 	QueueScan(ctx context.Context, id int64) (model.Library, error)
 	AcceptLoss(ctx context.Context, id int64) (model.Library, error)
+	// AddRoot adds a further folder to a library (idea 02, E8); model.ErrNotFound,
+	// *model.ValidationError for a podcast library, model.ErrLibraryPathInvalid.
+	AddRoot(ctx context.Context, libraryID int64, path string) (model.Library, error)
+	// RemoveRoot removes a folder and soft-deletes the titles that live only there (E12).
+	// confirmPath must repeat the stored path; model.ErrNotFound, model.ErrConfirmMismatch,
+	// model.ErrScanRunning.
+	RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error)
 }
 
 // LibraryMaintenance is implemented by package library (M3): cancelling a scan and removing
@@ -358,6 +365,42 @@ func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, err
 // AcceptLibraryLoss lifts the loss protection for the next scan and queues it.
 func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Library, error) {
 	return s.libraries.AcceptLoss(ctx, id)
+}
+
+// AddLibraryRoot adds a further folder to a library (idea 02, E8). The path rules, the overlap
+// check and the browsable-root rule live in package library; this only refuses what is not a
+// path at all.
+func (s *Service) AddLibraryRoot(ctx context.Context, libraryID int64, path string) (model.Library, error) {
+	trimmed := strings.TrimSpace(path)
+	var verr *model.ValidationError
+	switch {
+	case trimmed == "":
+		verr = verr.Add("path", "required")
+	case len(trimmed) > maxLibraryPath:
+		verr = verr.Add("path", "too_long")
+	}
+	if verr != nil {
+		return model.Library{}, verr
+	}
+	return s.libraries.AddRoot(ctx, libraryID, trimmed)
+}
+
+// RemoveLibraryRoot removes a folder from a library and lets the titles that live only there
+// leave it (idea 02, E12). confirmPath is compared against the stored row inside package
+// library, never here: a confirmation checked against another value from the same request would
+// confirm nothing.
+func (s *Service) RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error) {
+	var verr *model.ValidationError
+	switch {
+	case strings.TrimSpace(confirmPath) == "":
+		verr = verr.Add("confirmPath", "required")
+	case len(strings.TrimSpace(confirmPath)) > maxLibraryPath:
+		verr = verr.Add("confirmPath", "too_long")
+	}
+	if verr != nil {
+		return model.Library{}, verr
+	}
+	return s.libraries.RemoveRoot(ctx, libraryID, rootID, confirmPath)
 }
 
 // queueRefresh queues a metadata match for the title, which fills in the rating again now that the

@@ -30,7 +30,12 @@ const (
 )
 
 // authTestLibraries is an in-memory admin.Libraries.
-type authTestLibraries struct{ libs []model.Library }
+type authTestLibraries struct {
+	libs []model.Library
+	// scanRunning makes RemoveRoot answer model.ErrScanRunning, as package library does while
+	// a scan holds the lock of that library.
+	scanRunning bool
+}
 
 func (f *authTestLibraries) ValidatePath(_ context.Context, path string) error {
 	if path == authTestBadPath {
@@ -71,6 +76,42 @@ func (f *authTestLibraries) AcceptLoss(ctx context.Context, id int64) (model.Lib
 	return f.Get(ctx, id)
 }
 
+// AddRoot and RemoveRoot answer like package library does (idea 02, E8 and E12), so the handler
+// tests see the real statuses: 422 for a confirmation that does not repeat the folder, 409 while
+// a scan runs.
+func (f *authTestLibraries) AddRoot(ctx context.Context, id int64, path string) (model.Library, error) {
+	lib, err := f.Get(ctx, id)
+	if err != nil {
+		return model.Library{}, err
+	}
+	if err := f.ValidatePath(ctx, path); err != nil {
+		return model.Library{}, err
+	}
+	lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(lib.Roots) + 1), Path: path, FSType: "ext4", Watch: "inotify"})
+	f.libs[id-1] = lib
+	return lib, nil
+}
+
+func (f *authTestLibraries) RemoveRoot(ctx context.Context, id, rootID int64, confirmPath string) (model.Library, error) {
+	lib, err := f.Get(ctx, id)
+	if err != nil {
+		return model.Library{}, err
+	}
+	idx := slices.IndexFunc(lib.Roots, func(r model.LibraryRoot) bool { return r.ID == rootID })
+	if idx < 0 {
+		return model.Library{}, model.ErrNotFound
+	}
+	if strings.TrimSpace(confirmPath) != lib.Roots[idx].Path {
+		return model.Library{}, model.ErrConfirmMismatch
+	}
+	if f.scanRunning {
+		return model.Library{}, model.ErrScanRunning
+	}
+	lib.Roots = slices.Delete(lib.Roots, idx, idx+1)
+	f.libs[id-1] = lib
+	return lib, nil
+}
+
 type authTestTMDB struct{ err error }
 
 func (f *authTestTMDB) CheckKey(context.Context, string) error { return f.err }
@@ -80,6 +121,7 @@ type authEnv struct {
 	db   *store.DB
 	auth *auth.Service
 	tmdb *authTestTMDB
+	libs *authTestLibraries
 	logs *bytes.Buffer
 }
 
@@ -108,14 +150,15 @@ func newAuthEnvAt(t *testing.T, clock *stepClock, wire ...func(*admin.Service)) 
 	}
 	a := auth.New(db, log).WithClock(clock.Now)
 	tmdb := &authTestTMDB{}
-	adm := admin.New(db, a, &authTestLibraries{}, ring, tmdb, func(string) string { return "" }, log)
+	libs := &authTestLibraries{}
+	adm := admin.New(db, a, libs, ring, tmdb, func(string) string { return "" }, log)
 	for _, w := range wire {
 		w(adm)
 	}
 	h := NewHandler(Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: http.NotFoundHandler(), Auth: a, Profiles: a, Access: a, Admin: adm,
 	})
-	return &authEnv{h: h, db: db, auth: a, tmdb: tmdb, logs: &logs}
+	return &authEnv{h: h, db: db, auth: a, tmdb: tmdb, libs: libs, logs: &logs}
 }
 
 // call sends a request with an optional JSON body and cookie; POSTs carry the CSRF header.

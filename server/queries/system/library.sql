@@ -64,3 +64,48 @@ SELECT count(*) FROM (
 SELECT count(*) FROM media_files AS m
 JOIN library_roots AS r ON r.id = m.root_id
 WHERE r.library_id = @library_id AND m.probe_error IS NOT NULL;
+
+-- Removing a folder from a library (idea 02, E12). The order of the three queries is not taste:
+-- media_files.root_id cascades on delete, so a title left without any file would never be seen
+-- by SoftDeleteItemsMissingSince again (it requires EXISTS (SELECT 1 FROM media_files ...)), and
+-- downloads.media_file_id cascades too, so a surviving title would lose its download.
+
+-- name: SoftDeleteItemsOfRootWithoutOtherFiles :execrows
+-- Titles that live only in this folder leave the library at once. Unlike
+-- SoftDeleteItemWithoutFiles this carries 'audiobook': an audiobook library would keep empty
+-- rows behind otherwise. "Another folder" means any other registered folder, not only one of
+-- the same library: folders may not overlap, so the two coincide, except for a title that was
+-- given a file of another library by AdminMoveMediaFiles while merging. Keeping that title is
+-- the safe reading -- it still has a file to play.
+UPDATE items SET deleted_at = @now, updated_at = @now
+WHERE items.deleted_at IS NULL
+  AND items.kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id = @root_id)
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id <> @root_id);
+
+-- name: MoveDownloadsOffRoot :execrows
+-- Downloads of the titles that survive move to a file of theirs under another folder; a present
+-- file wins over a missing one. Without this the cascade of the next delete would take them, and
+-- the tombstone trigger would tell the device to drop a package whose title is still visible.
+UPDATE downloads SET media_file_id = (
+        SELECT m.id FROM media_files AS m
+        WHERE m.item_id = downloads.item_id AND m.root_id <> @root_id
+        ORDER BY m.missing_since IS NOT NULL, m.id LIMIT 1
+    ), updated_at = @now
+WHERE downloads.media_file_id IN (SELECT m.id FROM media_files AS m WHERE m.root_id = @root_id)
+  AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = downloads.item_id AND m.root_id <> @root_id);
+
+-- name: CountMediaFilesOfRoot :one
+-- For the Warn line of the removal: how many files go with the folder.
+SELECT count(*) FROM media_files WHERE root_id = @root_id;
+
+-- name: DeleteLibraryRoot :execrows
+-- ON DELETE CASCADE clears media_files of the folder; the triggers set items.available.
+DELETE FROM library_roots WHERE id = @id AND library_id = @library_id;
+
+-- name: CountLibraryRootContent :one
+-- What a folder holds, for the confirmation of its removal (idea 02, E12): its media files, and
+-- the titles that have at least one file in it. The second number is the upper bound of what the
+-- removal takes out -- a title with a file in another folder of the library stays -- and one pass
+-- over the root_id index answers both.
+SELECT count(*) AS files, count(DISTINCT item_id) AS items FROM media_files WHERE root_id = @root_id;

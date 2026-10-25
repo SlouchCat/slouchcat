@@ -2358,6 +2358,117 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/libraries/{id}/roots:
+    post:
+      operationId: addLibraryRoot
+      summary: Add a folder to a library (B-1)
+      description: |
+        Adds a second or further directory to a library; the scan and the watcher pick it up at
+        once. The path must lie below a browsable root (idea 02, E14), must not overlap a root of
+        this or another library, and a podcast library takes no root at all. The answer is the
+        library with its new folder; its first scan is queued like the one of a new library.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LibraryRootRequest"
+      responses:
+        "201":
+          description: The library with its new folder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Library"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown library (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            `library_path_invalid`: not absolute, not readable, below no browsable root, or
+            overlapping a root of this or another library. `validation_failed` for a missing or
+            over-long path, and for a podcast library, which takes no folder.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/libraries/{id}/roots/{rootId}/removal:
+    post:
+      operationId: removeLibraryRoot
+      summary: Remove a folder from a library and delete its titles (B-1)
+      description: |
+        Removes the directory from the library. The titles that live only there leave the library:
+        they are soft-deleted, so they vanish from every list, and their offline downloads are
+        dropped on the devices that hold them. Their progress, watchlist entries and picks stay
+        attached to the soft-deleted title, as they do for a detached disk; a title that carries a
+        provider id comes back with all of it when the same folder is added again within 30 days,
+        a title without one comes back as a new title. A title with a file under another folder of
+        the library stays, and keeps its download. `confirmPath` must repeat the folder's path
+        exactly, so a mis-aimed click cannot do it (`confirm_mismatch`); it is compared against the
+        stored row, never against anything else the request carries. It guards against a slip and
+        against a stale list, not against a caller that means it: whatever can send this request
+        can send the confirmation with it, and no server can tell whether a human typed it. The
+        library may lose its last
+        folder and then holds none at all; its settings stay. A POST and not a DELETE, because the
+        confirmation travels in the body and a DELETE body is dropped by some proxies and HTTP
+        clients.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+        - $ref: "#/components/parameters/LibraryRootID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LibraryRootRemoval"
+      responses:
+        "200":
+          description: The library without the folder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Library"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: No such library, or the folder is not one of its roots (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            A scan of this library is running (`scan_running`); it holds the roots it started with,
+            so the folder is removed after it finished or was cancelled.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            `confirmPath` does not repeat the folder's path (`confirm_mismatch`), or it is missing
+            (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/fs/browse:
     post:
       operationId: browseServerPaths
@@ -5490,6 +5601,15 @@ components:
         type: integer
         format: int64
         minimum: 1
+    LibraryRootID:
+      name: rootId
+      in: path
+      required: true
+      description: The id of the folder inside the library (`Library.roots[].id`).
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
     JobID:
       name: id
       in: path
@@ -7436,6 +7556,32 @@ components:
             and `podcasts` (`not_allowed` otherwise), default 0. Single titles may be set stricter, never
             below it (`rating_below_library_default`).
 
+    LibraryRootRequest:
+      type: object
+      required: [path]
+      description: A further folder of a library (idea 02, E8).
+      properties:
+        path:
+          type: string
+          description: |
+            Absolute directory on the server, below a browsable root (idea 02, E14), for example
+            `/media/Filme-2`.
+          minLength: 1
+          maxLength: 4096
+
+    LibraryRootRemoval:
+      type: object
+      required: [confirmPath]
+      description: |
+        The confirmation of a folder removal (idea 02, E12). It is typed by the administrator and
+        compared against the stored row, so a mis-aimed click cannot delete the titles of a folder.
+      properties:
+        confirmPath:
+          type: string
+          description: The folder's path, repeated by the administrator.
+          minLength: 1
+          maxLength: 4096
+
     LibraryUpdate:
       type: object
       description: Changes to a library; every field is optional.
@@ -7485,7 +7631,7 @@ components:
 
     LibraryRoot:
       type: object
-      required: [id, path, fsType, watch]
+      required: [id, path, fsType, watch, itemCount, fileCount]
       properties:
         id:
           type: integer
@@ -7502,6 +7648,15 @@ components:
         warning:
           type: string
           description: Stable code for a warning shown in the wizard, for example `network_share`.
+        itemCount:
+          type: integer
+          description: |
+            Titles with at least one file in this folder. It is the upper bound of what
+            `removeLibraryRoot` takes out of the library: a title that also has a file in another
+            folder of the library stays. The confirmation dialog names this number (idea 02, E12).
+        fileCount:
+          type: integer
+          description: Media files registered in this folder; they all go with the folder.
 
     LibraryScan:
       type: object
