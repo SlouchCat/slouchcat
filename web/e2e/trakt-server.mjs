@@ -21,7 +21,7 @@ export const TRAKT_CLIENT_ID = 'e2e';
 /**
  * The library titles the lists point at, by TMDB id: the test media carry these ids in their
  * folder names (`{tmdb-NNNN}`, testdata/generate-media.sh). Five films and two series, so each
- * row maps seven titles, above the server's minimum of five hits (discover.TraktMinHits).
+ * row maps seven titles, above the default minimum of five hits (spotlight_config.min_hits).
  */
 export const TRAKT_ENTRIES = {
   movies: [

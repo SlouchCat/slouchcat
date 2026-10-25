@@ -2,6 +2,7 @@ package visibility
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"slices"
@@ -280,17 +281,17 @@ func TestSpotlightRowIntersection(t *testing.T) {
 		{f.P12, []string{f.Rated(0).ID, series, f.Rated(6).ID, f.Rated(12).ID}},
 		{f.P0, []string{f.Rated(0).ID}},
 	} {
-		got, err := r.SpotlightRow(ctx, Profile(tc.p), 20)
+		got, hits, err := r.SpotlightRow(ctx, Profile(tc.p), 20)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !slices.Equal(ids(got), tc.want) {
-			t.Errorf("%s trending = %v, want %v", tc.p.Name, ids(got), tc.want)
+		if !slices.Equal(ids(got), tc.want) || hits != len(tc.want) {
+			t.Errorf("%s trending = %v (%d hits), want %v", tc.p.Name, ids(got), hits, tc.want)
 		}
 	}
 	// The configured list key selects the entries.
 	exec(t, f, `UPDATE spotlight_config SET list_key = 'popular'`)
-	got, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+	got, _, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,13 +299,13 @@ func TestSpotlightRowIntersection(t *testing.T) {
 		t.Errorf("P18 popular = %v, want %v", ids(got), want)
 	}
 	exec(t, f, `UPDATE spotlight_config SET list_key = 'trending'`)
-	// The limit keeps the list order.
-	got, err = r.SpotlightRow(ctx, Profile(f.P18), 2)
+	// The limit keeps the list order; the hits are counted before the cut.
+	got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{f.Rated(0).ID, series}; !slices.Equal(ids(got), want) {
-		t.Errorf("P18 trending limit 2 = %v, want %v", ids(got), want)
+	if want := []string{f.Rated(0).ID, series}; !slices.Equal(ids(got), want) || hits != 6 {
+		t.Errorf("P18 trending limit 2 = %v (%d hits), want %v of 6 hits", ids(got), hits, want)
 	}
 	// W1, S-8: entries fetched more than twice spotlight_config.interval_hours ago are stale (the
 	// refresh stopped) and show nothing; the boundary is inclusive and follows the configuration.
@@ -317,11 +318,11 @@ func TestSpotlightRowIntersection(t *testing.T) {
 		}{{limit, 6}, {limit + time.Millisecond, 0}} {
 			at := fetched.Add(tc.age)
 			stale := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return at }))
-			got, err := stale.SpotlightRow(ctx, Profile(f.P18), 20)
+			got, hits, err := stale.SpotlightRow(ctx, Profile(f.P18), 20)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(got) != tc.want {
+			if len(got) != tc.want || hits != tc.want {
 				t.Errorf("interval %dh: P18 trending %v after the fetch = %v, want %d titles", hours, tc.age, ids(got), tc.want)
 			}
 		}
@@ -349,11 +350,312 @@ func TestSpotlightRowAtMostTwenty(t *testing.T) {
 	for i := 24; i >= 5; i-- {
 		want = append(want, fmt.Sprintf("01J9TRAKT0000000000000%04d", i))
 	}
-	got, err := r.SpotlightRow(ctx, Profile(f.P0), 50)
+	got, hits, err := r.SpotlightRow(ctx, Profile(f.P0), 50)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(ids(got), want) {
-		t.Errorf("spotlight row = %d titles %v, want the first 20 of the list %v", len(got), ids(got), want)
+	if !slices.Equal(ids(got), want) || hits != 25 {
+		t.Errorf("spotlight row = %d titles %v (%d hits), want the first 20 of the list %v of 25 hits", len(got), ids(got), hits, want)
+	}
+}
+
+// spotlightFilms adds n films rated 0 (visible to every profile) with TMDB ids 8001..8000+n and
+// lists them as trending movies in natural order: film k (1-based) at position k. It returns the
+// item ids, film k at index k-1.
+func spotlightFilms(t *testing.T, f *vistest.Fixture, n int, fetched time.Time) []string {
+	t.Helper()
+	out := make([]string, 0, n)
+	for k := 1; k <= n; k++ {
+		id := fmt.Sprintf("01J9SPOTLIGHT00000000%05d", k)
+		exec(t, f, `INSERT INTO items (id, kind, library_id, title, sort_title, genres, tmdb_id, own_rating, metadata_state, added_at, created_at, updated_at)
+		            VALUES (?, 'movie', ?, ?, ?, '[]', ?, 0, 'matched', 1, 1, 1)`, id, f.LibraryID(), fmt.Sprintf("Spotlight %02d", k), fmt.Sprintf("spotlight %02d", k), 8000+k)
+		exec(t, f, `INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, video_codec, audio_codec, width, height, duration_ms, created_at, updated_at)
+		            VALUES (?, ?, ?, ?, 1, 1, 'mp4', 'h264', 'aac', 1920, 1080, 1000, 1, 1)`, fmt.Sprintf("01J9SPOTFILE000000000%05d", k), id, f.RootID(), fmt.Sprintf("spotlight-%02d.mp4", k))
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, k, 8000+k, fetched.UnixMilli())
+		out = append(out, id)
+	}
+	return out
+}
+
+// override writes the curation of the trending movie with TMDB id 8000+k (film k of spotlightFilms);
+// rank 0 means not pinned.
+func override(t *testing.T, f *vistest.Fixture, k int, hidden bool, rank int, note string) {
+	t.Helper()
+	exec(t, f, `INSERT INTO spotlight_overrides (list_key, media, tmdb_id, hidden, pinned_rank, note, updated_at)
+	            VALUES ('trending', 'movie', ?, ?, ?, ?, 1)`,
+		8000+k, hidden, sql.NullInt64{Int64: int64(rank), Valid: rank > 0}, sql.NullString{String: note, Valid: note != ""})
+}
+
+// films maps 1-based film numbers to the item ids of spotlightFilms.
+func films(all []string, ks ...int) []string {
+	out := make([]string, 0, len(ks))
+	for _, k := range ks {
+		out = append(out, all[k-1])
+	}
+	return out
+}
+
+// Plan 5.3, "pinned_rank, angewandt als Einfügen — nicht als Sortierschlüssel": the row is the
+// natural list order with the pinned entries INSERTED at their rank, in the sequence dedup, insert,
+// cut. Every case starts from six library hits in natural order 1..6.
+func TestSpotlightRowPinnedRankIsAnInsertion(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	all := spotlightFilms(t, f, 6, fetched)
+	type pin struct{ film, rank int }
+	for _, tc := range []struct {
+		name string
+		pins []pin
+		want []int
+	}{
+		// The failure of the first version: position + offset made "entry 5 to place 1" tie with
+		// entry 1, which won, so the moved entry stuck on place 2.
+		{"entry 5 to place 1 (failure of the first version)", []pin{{5, 1}}, []int{5, 1, 2, 3, 4, 6}},
+		// The failure of the second version: sorting pinned before free put "entry 1 to place 5"
+		// on place 1, exactly where it was moved away from.
+		{"entry 1 to place 5 (failure of the second version)", []pin{{1, 5}}, []int{2, 3, 4, 5, 1, 6}},
+		{"a single entry with rank 3 lands on place 3, not place 1", []pin{{6, 3}}, []int{1, 2, 6, 3, 4, 5}},
+		// [A, x, B, y, z]: two pinned in their rank order, the free ones keep theirs around them.
+		{"two pinned in their rank order beside free entries", []pin{{6, 1}, {1, 3}}, []int{6, 2, 1, 3, 4, 5}},
+		{"a rank beyond the list appends at the end", []pin{{2, 10}}, []int{1, 3, 4, 5, 6, 2}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			exec(t, f, `DELETE FROM spotlight_overrides`)
+			for _, p := range tc.pins {
+				override(t, f, p.film, false, p.rank, "")
+			}
+			got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := films(all, tc.want...); !slices.Equal(ids(got), want) || hits != 6 {
+				t.Errorf("row = %v (%d hits), want %v (6 hits)", ids(got), hits, want)
+			}
+		})
+	}
+
+	// "Reihenfolge der Schritte": dedup runs before the insertion. A movie and a show with the same
+	// TMDB id are two different items, so the duplicate that reaches dedup is the same title listed
+	// twice; both rows join the same override and are pinned. It appears once, on its rank.
+	t.Run("a title listed twice and pinned appears once (dedup before insert)", func(t *testing.T) {
+		exec(t, f, `DELETE FROM spotlight_overrides`)
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', 7, 8004, ?)`, fetched.UnixMilli())
+		t.Cleanup(func() { exec(t, f, `DELETE FROM spotlight_entries WHERE position = 7`) })
+		override(t, f, 4, false, 2, "")
+		got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := films(all, 1, 4, 2, 3, 5, 6); !slices.Equal(ids(got), want) || hits != 6 {
+			t.Errorf("row = %v (%d hits), want %v (6 hits)", ids(got), hits, want)
+		}
+	})
+
+	// The note travels as ItemSummary.Note (ItemRef.note) on its title, and only there.
+	t.Run("the note travels with its title", func(t *testing.T) {
+		exec(t, f, `DELETE FROM spotlight_overrides`)
+		override(t, f, 2, false, 0, "Marcos Tipp")
+		got, _, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(ids(got), all) {
+			t.Fatalf("row = %v, want the natural order %v", ids(got), all)
+		}
+		for i, it := range got {
+			want := ""
+			if i == 1 {
+				want = "Marcos Tipp"
+			}
+			if it.Note != want {
+				t.Errorf("note of film %d = %q, want %q", i+1, it.Note, want)
+			}
+		}
+	})
+
+	// An orphaned override (its title is not in the list) changes nothing, its rank included.
+	t.Run("an orphaned override changes nothing", func(t *testing.T) {
+		exec(t, f, `DELETE FROM spotlight_overrides`)
+		override(t, f, 50, false, 1, "verwaist")
+		got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(ids(got), all) || hits != 6 {
+			t.Errorf("row = %v (%d hits), want the natural order %v", ids(got), hits, all)
+		}
+	})
+}
+
+// Plan 5.3: the cut to item_count comes last, and the hits are counted after dedup and before the
+// cut (min_hits counts hits, not shown titles).
+func TestSpotlightRowCutComesLast(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	all := spotlightFilms(t, f, 12, fetched)
+
+	t.Run("hits are counted before the cut", func(t *testing.T) {
+		got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 5)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := films(all, 1, 2, 3, 4, 5); !slices.Equal(ids(got), want) || hits != 12 {
+			t.Errorf("row = %v (%d hits), want %v of 12 hits", ids(got), hits, want)
+		}
+	})
+	// Item count 5 and natural position 10 pinned to rank 5: cutting first would drop it.
+	t.Run("a pinned entry takes its place before the cut", func(t *testing.T) {
+		override(t, f, 10, false, 5, "")
+		got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 5)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := films(all, 1, 2, 3, 4, 10); !slices.Equal(ids(got), want) || hits != 12 {
+			t.Errorf("row = %v (%d hits), want %v of 12 hits", ids(got), hits, want)
+		}
+	})
+}
+
+// DoD step 2, "Anheftung jenseits des alten Fensters": a library hit at natural position 55 pinned
+// to rank 1 is on place 1 with item_count 20. The former 2 × n window fetched 40 rows and would have
+// swallowed it silently; this case is the proof that the window is gone.
+func TestSpotlightRowPinBeyondTheOldWindow(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	all := spotlightFilms(t, f, 60, fetched)
+	override(t, f, 55, false, 1, "")
+	got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := slices.Concat(films(all, 55), all[:19])
+	if !slices.Equal(ids(got), want) || hits != 60 {
+		t.Errorf("row = %v (%d hits), want %v of 60 hits", ids(got), hits, want)
+	}
+}
+
+// DoD step 2, "hidden verbraucht nichts": 30 hidden entries at the head of the list do not shorten
+// the row, because hidden filters in SQL and not in Go (plan 5.3).
+func TestSpotlightRowHiddenConsumesNothing(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	all := spotlightFilms(t, f, 50, fetched)
+	for k := 1; k <= 30; k++ {
+		override(t, f, k, true, 0, "")
+	}
+	got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := all[30:]; !slices.Equal(ids(got), want) || hits != 20 {
+		t.Errorf("row = %d titles %v (%d hits), want the 20 visible hits behind the hidden ones %v", len(got), ids(got), hits, want)
+	}
+}
+
+// DoD step 2, "Kuratierung überlebt" (P4): an override hangs on the title (list, medium, TMDB id),
+// never on a position, so a run that delivers the same titles in a completely different order keeps
+// every override on its title.
+func TestSpotlightOverrideSurvivesReorder(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	all := spotlightFilms(t, f, 6, fetched)
+	override(t, f, 2, true, 0, "")         // hidden
+	override(t, f, 3, false, 1, "")        // pinned to rank 1
+	override(t, f, 5, false, 0, "Notiz 5") // note
+	check := func(stage string, want []string) {
+		t.Helper()
+		got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(ids(got), want) || hits != 5 {
+			t.Errorf("%s: row = %v (%d hits), want %v (5 hits)", stage, ids(got), hits, want)
+		}
+		for _, it := range got {
+			wantNote := ""
+			if it.ID == all[4] {
+				wantNote = "Notiz 5"
+			}
+			if it.Note != wantNote {
+				t.Errorf("%s: note of %s = %q, want %q", stage, it.ID, it.Note, wantNote)
+			}
+		}
+	}
+	check("before the run", films(all, 3, 1, 4, 5, 6))
+
+	// A run replaces the cache as a whole: the same titles, positions reversed (film k at 7-k).
+	exec(t, f, `DELETE FROM spotlight_entries`)
+	for k := 1; k <= 6; k++ {
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, 7-k, 8000+k, fetched.UnixMilli())
+	}
+	// Natural order now 6,5,4,3,2,1; film 2 stays hidden, film 3 stays on rank 1, the note on film 5.
+	check("after the reordering run", films(all, 3, 6, 5, 4, 1))
+}
+
+// DoD step 2, "Listenwechsel": after a change of list_key no override of the old list applies, so
+// the notes do not tip onto the titles of another list.
+func TestSpotlightOverridesBelongToTheirList(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	all := spotlightFilms(t, f, 6, fetched)
+	// The same titles in the same order under popular.
+	exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at)
+	            SELECT 'popular', media, position, tmdb_id, fetched_at FROM spotlight_entries WHERE list_key = 'trending'`)
+	override(t, f, 1, true, 0, "")
+	override(t, f, 6, false, 1, "")
+	override(t, f, 2, false, 0, "nur trending")
+
+	got, _, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := films(all, 6, 2, 3, 4, 5); !slices.Equal(ids(got), want) || got[1].Note != "nur trending" {
+		t.Fatalf("trending row = %v (%+v), want %v with the note on film 2", ids(got), got, want)
+	}
+	exec(t, f, `UPDATE spotlight_config SET list_key = 'popular'`)
+	got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(ids(got), all) || hits != 6 {
+		t.Errorf("popular row = %v (%d hits), want the natural order %v without the trending curation", ids(got), hits, all)
+	}
+	for _, it := range got {
+		if it.Note != "" {
+			t.Errorf("popular row: note %q on %s, want none", it.Note, it.ID)
+		}
+	}
+}
+
+// A disabled spotlight (spotlight_config.enabled = 0) gives no row and no hits, and no error.
+func TestSpotlightRowDisabled(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	fetched := time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return fetched.Add(time.Hour) }))
+	spotlightFilms(t, f, 6, fetched)
+	exec(t, f, `UPDATE spotlight_config SET enabled = 0`)
+	got, hits, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
+	if err != nil || got != nil || hits != 0 {
+		t.Errorf("disabled spotlight = %v, %d hits, %v; want nil, 0, nil", ids(got), hits, err)
 	}
 }

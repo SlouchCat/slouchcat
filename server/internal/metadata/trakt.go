@@ -2,7 +2,9 @@ package metadata
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -27,8 +29,6 @@ const (
 	traktJobKey     = "trakt"
 	traktPriority   = 2
 
-	// TraktInterval is the age of the last attempt after which RunTrakt queues the next run.
-	TraktInterval = 24 * time.Hour
 	// traktPollInterval is how often RunTrakt checks whether a run is due.
 	traktPollInterval = 15 * time.Minute
 
@@ -37,15 +37,6 @@ const (
 	SettingTraktLastAttempt = "trakt_last_attempt"
 	SettingTraktLastError   = "trakt_last_error"
 )
-
-// spotlightListKey is the list_key the run stores its entries under (spotlight_config.list_key
-// of migration 00021).
-const spotlightListKey = trakt.ListTrending
-
-// traktLists are the lists of one run in their storage order.
-var traktLists = []struct{ list, media string }{
-	{trakt.ListTrending, trakt.MediaMovie}, {trakt.ListTrending, trakt.MediaShow},
-}
 
 // traktConfig is the Trakt part of the service.
 type traktConfig struct {
@@ -123,7 +114,7 @@ func (s *Service) traktClientID(ctx context.Context) (string, error) {
 }
 
 // RunTrakt queues trakt.refresh at the start and then checks every 15 minutes whether the last
-// attempt is TraktInterval old, until ctx ends (E-7).
+// attempt is spotlight_config.interval_hours old, until ctx ends (E-7, S-8).
 func (s *Service) RunTrakt(ctx context.Context) {
 	t := time.NewTicker(traktPollInterval)
 	defer t.Stop()
@@ -140,7 +131,8 @@ func (s *Service) RunTrakt(ctx context.Context) {
 }
 
 // QueueDueTrakt queues trakt.refresh when a client id is configured and the last attempt is
-// TraktInterval old or there was none (one tick of RunTrakt). It reports whether it queued.
+// spotlight_config.interval_hours old or there was none (one tick of RunTrakt). It reports whether
+// it queued.
 // Without a client id it empties the stored entries, so the start page drops the spotlight row
 // (the documented behaviour of an empty SLOUCHCAT_TRAKT_CLIENT_ID).
 func (s *Service) QueueDueTrakt(ctx context.Context) (bool, error) {
@@ -155,7 +147,11 @@ func (s *Service) QueueDueTrakt(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if last != nil && s.trakt.now().Sub(*last) < TraktInterval {
+	cfg, err := appq.New(s.db.Read).GetSpotlightConfig(ctx)
+	if err != nil {
+		return false, fmt.Errorf("get spotlight config: %w", err)
+	}
+	if last != nil && s.trakt.now().Sub(*last) < time.Duration(cfg.IntervalHours)*time.Hour {
 		return false, nil
 	}
 	return true, s.enqueueTrakt(ctx)
@@ -247,28 +243,29 @@ func (s *Service) handleTraktRefresh(ctx context.Context, _ *jobs.Job) error {
 	return err
 }
 
-// refreshTraktLists fetches the lists and stores them as the spotlight entries, or empties the
-// table and records the error. The client id never reaches the log or the stored error.
+// refreshTraktLists fetches the configured spotlight list and stores it as the spotlight entries,
+// or empties the table and records the error. The client id never reaches the log or the stored
+// error; neither does list_url, which can carry a user name (plan 8.4): the log names the list by
+// its key and, for a user list, by the first eight hex digits of a SHA-256 of the address.
 func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error {
+	cfg, err := appq.New(s.db.Read).GetSpotlightConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("get spotlight config: %w", err)
+	}
+	ref := trakt.ListRef{Kind: cfg.ListKey, Media: cfg.Media, URL: cfg.ListUrl.String}
 	c := trakt.New(clientID, trakt.WithBaseURL(s.trakt.base), trakt.WithHTTPClient(s.trakt.http),
 		trakt.WithLimiter(s.trakt.limiter), trakt.WithUserAgent(s.trakt.agent))
 	attempt := s.trakt.now()
-	var entries [][]trakt.Entry
-	var fetchErr error
-	for _, l := range traktLists {
-		e, err := c.List(ctx, l.list, l.media, trakt.MaxLimit)
-		if err != nil {
-			fetchErr = fmt.Errorf("%s %s: %w", l.list, l.media, err)
-			break
+	entries, fetchErr := c.Fetch(ctx, ref, trakt.MaxLimit)
+	if fetchErr != nil {
+		fetchErr = fmt.Errorf("%s: %w", spotlightListLabel(ref), fetchErr)
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		entries = append(entries, e)
-	}
-	if fetchErr != nil && ctx.Err() != nil {
-		return ctx.Err()
 	}
 	ms := attempt.UnixMilli()
 	stamp := strconv.FormatInt(ms, 10)
-	err := s.inTxApp(ctx, func(q *systemq.Queries, app *appq.Queries) error {
+	err = s.inTxApp(ctx, func(q *systemq.Queries, app *appq.Queries) error {
 		if err := q.SpotlightDeleteEntries(ctx); err != nil {
 			return fmt.Errorf("empty spotlight entries: %w", err)
 		}
@@ -281,14 +278,12 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 			}
 			return nil
 		}
-		for _, list := range entries {
-			for _, e := range list {
-				if err := q.SpotlightInsertEntry(ctx, systemq.SpotlightInsertEntryParams{
-					ListKey: spotlightListKey, Media: e.Media, Position: int64(e.Position), TmdbID: e.TMDBID,
-					Title: nullStr(e.Title), Year: positive(int64(e.Year)), Now: ms,
-				}); err != nil {
-					return fmt.Errorf("store spotlight entry: %w", err)
-				}
+		for _, e := range entries {
+			if err := q.SpotlightInsertEntry(ctx, systemq.SpotlightInsertEntryParams{
+				ListKey: cfg.ListKey, Media: e.Media, Position: int64(e.Position), TmdbID: e.TMDBID,
+				Title: nullStr(e.Title), Year: positive(int64(e.Year)), Now: ms,
+			}); err != nil {
+				return fmt.Errorf("store spotlight entry: %w", err)
 			}
 		}
 		if err := app.UpsertSetting(ctx, appq.UpsertSettingParams{Key: SettingTraktLastSuccess, Value: stamp, Now: ms}); err != nil {
@@ -307,12 +302,21 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 		s.log.ErrorContext(ctx, "trakt refresh failed; lists emptied", "component", "trakt", "err", fetchErr)
 		return fmt.Errorf("trakt refresh: %w", fetchErr)
 	}
-	n := 0
-	for _, l := range entries {
-		n += len(l)
-	}
-	s.log.InfoContext(ctx, "spotlight list refreshed", "entries", n)
+	s.log.InfoContext(ctx, "spotlight list refreshed", "list", spotlightListLabel(ref), "entries", len(entries),
+		"duration", s.trakt.now().Sub(attempt))
 	return nil
+}
+
+// spotlightListLabel names a list for logs and errors without its address: the kind and media,
+// for a user list plus the first eight hex digits of a SHA-256 of the address, enough to tell two
+// lists apart without naming a user (plan 8.4).
+func spotlightListLabel(ref trakt.ListRef) string {
+	label := ref.Kind + " " + ref.Media
+	if ref.Kind == trakt.KindURL {
+		sum := sha256.Sum256([]byte(ref.URL))
+		label += " " + hex.EncodeToString(sum[:])[:8]
+	}
+	return label
 }
 
 // inTxApp runs fn with the system and app queries of one write transaction.

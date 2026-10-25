@@ -391,15 +391,3 @@ func notFound(err error) error {
 func clamp(limit int) int64 {
 	return int64(max(1, min(limit, MaxRowItems)))
 }
-
-func dedupe(items []scopedq.Item) []scopedq.Item {
-	seen := make(map[string]bool, len(items))
-	out := items[:0]
-	for _, it := range items {
-		if !seen[it.ID] {
-			seen[it.ID] = true
-			out = append(out, it)
-		}
-	}
-	return out
-}

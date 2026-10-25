@@ -7,99 +7,106 @@ package scopedq
 
 import (
 	"context"
+	"database/sql"
 )
 
 const listSpotlightRow = `-- name: ListSpotlightRow :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM spotlight_entries AS e
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, o.pinned_rank, o.note FROM spotlight_entries AS e
 JOIN items AS i ON i.tmdb_id = e.tmdb_id
                AND i.kind = CASE e.media WHEN 'movie' THEN 'movie' ELSE 'series' END
                AND i.deleted_at IS NULL
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE e.list_key = ?2 AND e.fetched_at >= ?3
+LEFT JOIN spotlight_overrides AS o ON o.list_key = e.list_key AND o.media = e.media AND o.tmdb_id = e.tmdb_id
+WHERE e.list_key = ?2 AND e.fetched_at >= ?3 AND coalesce(o.hidden, 0) = 0
 ORDER BY e.position, e.media, i.id
-LIMIT ?4
 `
 
 type ListSpotlightRowParams struct {
 	ProfileID  int64
 	ListKey    string
 	MinFetched int64
-	LimitCount int64
+}
+
+type ListSpotlightRowRow struct {
+	Item       Item
+	PinnedRank sql.NullInt64
+	Note       sql.NullString
 }
 
 // The spotlight list (M11, ADR 0011) intersected with the visible library titles by TMDB id, in
-// list order. A title held twice (as film and as show) appears twice; the caller deduplicates.
-// Entries fetched before min_fetched are stale (no successful run for two intervals) and left out.
-func (q *Queries) ListSpotlightRow(ctx context.Context, arg ListSpotlightRowParams) ([]Item, error) {
-	rows, err := q.db.QueryContext(ctx, listSpotlightRow,
-		arg.ProfileID,
-		arg.ListKey,
-		arg.MinFetched,
-		arg.LimitCount,
-	)
+// list order, with the curation of the main user: hidden entries are filtered here (filtering in
+// Go would eat into a window), pinned_rank and note travel along. There is no LIMIT on purpose
+// (plan 5.3): a pinned entry far down the list must reach the caller, which deduplicates, places
+// the pinned entries by rank and cuts to item_count. The cache holds at most 100 rows per medium.
+// A title held twice (as film and as show) appears twice. Entries fetched before min_fetched are
+// stale (no successful run for two intervals) and left out.
+func (q *Queries) ListSpotlightRow(ctx context.Context, arg ListSpotlightRowParams) ([]ListSpotlightRowRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSpotlightRow, arg.ProfileID, arg.ListKey, arg.MinFetched)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Item{}
+	items := []ListSpotlightRowRow{}
 	for rows.Next() {
-		var i Item
+		var i ListSpotlightRowRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Kind,
-			&i.ParentID,
-			&i.LibraryID,
-			&i.Title,
-			&i.SortTitle,
-			&i.OriginalTitle,
-			&i.Year,
-			&i.ReleaseDate,
-			&i.RuntimeMinutes,
-			&i.Genres,
-			&i.TmdbID,
-			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
-			&i.Available,
-			&i.RatingSource,
-			&i.EnclosureUrl,
-			&i.LockedFields,
-			&i.MetadataState,
-			&i.MetadataError,
-			&i.MatchedAt,
-			&i.AddedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SeasonNumber,
-			&i.EpisodeNumber,
-			&i.EpisodeEnd,
-			&i.TvdbID,
-			&i.ExtraKind,
-			&i.TmdbPosterPath,
-			&i.TmdbBackdropPath,
-			&i.TrailerState,
-			&i.TrailerCheckedAt,
-			&i.SegmentsState,
-			&i.SegmentsCheckedAt,
-			&i.Author,
-			&i.Narrator,
-			&i.SeriesName,
-			&i.SeriesIndex,
-			&i.Explicit,
-			&i.DurationMs,
-			&i.CoverUrl,
-			&i.CoverPath,
-			&i.FeedUrl,
-			&i.FeedEtag,
-			&i.FeedModified,
-			&i.FeedCheckedAt,
-			&i.FeedError,
-			&i.Guid,
-			&i.PublishedAt,
-			&i.EnclosureType,
-			&i.EnclosureLength,
+			&i.Item.ID,
+			&i.Item.Kind,
+			&i.Item.ParentID,
+			&i.Item.LibraryID,
+			&i.Item.Title,
+			&i.Item.SortTitle,
+			&i.Item.OriginalTitle,
+			&i.Item.Year,
+			&i.Item.ReleaseDate,
+			&i.Item.RuntimeMinutes,
+			&i.Item.Genres,
+			&i.Item.TmdbID,
+			&i.Item.ImdbID,
+			&i.Item.OwnRating,
+			&i.Item.EffectiveRating,
+			&i.Item.MinChildRating,
+			&i.Item.Available,
+			&i.Item.RatingSource,
+			&i.Item.EnclosureUrl,
+			&i.Item.LockedFields,
+			&i.Item.MetadataState,
+			&i.Item.MetadataError,
+			&i.Item.MatchedAt,
+			&i.Item.AddedAt,
+			&i.Item.CreatedAt,
+			&i.Item.UpdatedAt,
+			&i.Item.DeletedAt,
+			&i.Item.SeasonNumber,
+			&i.Item.EpisodeNumber,
+			&i.Item.EpisodeEnd,
+			&i.Item.TvdbID,
+			&i.Item.ExtraKind,
+			&i.Item.TmdbPosterPath,
+			&i.Item.TmdbBackdropPath,
+			&i.Item.TrailerState,
+			&i.Item.TrailerCheckedAt,
+			&i.Item.SegmentsState,
+			&i.Item.SegmentsCheckedAt,
+			&i.Item.Author,
+			&i.Item.Narrator,
+			&i.Item.SeriesName,
+			&i.Item.SeriesIndex,
+			&i.Item.Explicit,
+			&i.Item.DurationMs,
+			&i.Item.CoverUrl,
+			&i.Item.CoverPath,
+			&i.Item.FeedUrl,
+			&i.Item.FeedEtag,
+			&i.Item.FeedModified,
+			&i.Item.FeedCheckedAt,
+			&i.Item.FeedError,
+			&i.Item.Guid,
+			&i.Item.PublishedAt,
+			&i.Item.EnclosureType,
+			&i.Item.EnclosureLength,
+			&i.PinnedRank,
+			&i.Note,
 		); err != nil {
 			return nil, err
 		}

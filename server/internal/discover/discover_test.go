@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
@@ -165,7 +166,7 @@ func itemIDs(items []model.ItemSummary) []string {
 }
 
 // E-1, E-9, ADR 0011: all rows in the stored order; hidden and empty rows are omitted, the spotlight
-// row also below TraktMinHits titles; never more than eight rows.
+// row also below spotlight_config.min_hits hits (5 after the migration); never more than eight rows.
 func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
@@ -203,7 +204,7 @@ func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 			t.Fatal(err)
 		}
 		spotlight := rowOf(rows, RowSpotlight)
-		if tc.shown != (len(spotlight.Items) >= TraktMinHits) || (!tc.shown && spotlight.Key != "") {
+		if tc.shown != (len(spotlight.Items) >= 5) || (!tc.shown && spotlight.Key != "") {
 			t.Errorf("%s spotlight row = %v, want shown %v", tc.p.Name, itemIDs(spotlight.Items), tc.shown)
 		}
 	}
@@ -408,5 +409,84 @@ func TestFirstPickAfterDeduplication(t *testing.T) {
 	}
 	if picks := rowOf(rows, RowPicks).Items; first.ID != f.Rated(12).ID || len(picks) == 0 || picks[0].ID != first.ID {
 		t.Errorf("FirstPick(P16) = %s, Home picks = %v, want the global pick of the film rated 12 first", first.ID, itemIDs(picks))
+	}
+}
+
+// Plan 5.3 and 8.1, "Mindesttreffer": min_hits counts the hits after dedup and before the cut to
+// item_count, not the shown titles. The row appears at exactly min_hits hits, is absent at one
+// fewer, and min_hits = 0 shows it with a single hit. The key case of the plan: item_count 5 and
+// min_hits 10 mean "show 5 if there are at least 10", so 12 hits show 5 titles and 9 hits none;
+// counting after the cut, the row would never appear.
+func TestSpotlightMinHits(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	now := time.Date(2026, 10, 21, 4, 0, 0, 0, time.UTC)
+	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
+	ctx := context.Background()
+	f.AddSpotlightFilms(t, 12)
+	for _, tc := range []struct {
+		name                 string
+		minHits, count, hits int
+		want                 int // titles shown, 0 = row absent
+	}{
+		{"exactly min_hits", 5, 20, 5, 5},
+		{"one fewer than min_hits", 5, 20, 4, 0},
+		{"min_hits 0 with a single hit", 0, 20, 1, 1},
+		{"exactly min_hits 10 above item_count 5", 10, 5, 10, 5},
+		{"min_hits 10, item_count 5, 12 hits show 5 titles", 10, 5, 12, 5},
+		{"min_hits 10, item_count 5, 9 hits show none", 10, 5, 9, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			exec(t, f, `UPDATE spotlight_config SET min_hits = ?, item_count = ?`, tc.minHits, tc.count)
+			exec(t, f, `DELETE FROM spotlight_entries`)
+			for k := 1; k <= tc.hits; k++ {
+				exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, k, 8000+k, now.Add(-time.Hour).UnixMilli())
+			}
+			rows, err := s.Home(ctx, f.P18)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := rowOf(rows, RowSpotlight)
+			if (got.Key != "") != (tc.want > 0) || len(got.Items) != tc.want {
+				t.Errorf("spotlight row = %v (key %q), want %d titles", itemIDs(got.Items), got.Key, tc.want)
+			}
+		})
+	}
+}
+
+// DoD step 2, "Ausfall kostet nur die Reihe": a failed run empties spotlight_entries; the spotlight
+// row disappears and every other row of the answer is equal field by field to the answer before.
+// (P18 has six other rows here: released has no reader in this package and stays empty.)
+func TestSpotlightOutageLeavesEverythingElse(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	now := time.Date(2026, 10, 21, 4, 0, 0, 0, time.UTC)
+	s := New(f.DB, f.CacheDir, vistest.Logger(), WithClock(func() time.Time { return now }))
+	ctx := context.Background()
+	// The trending movies are the fixture films 1000..1004: five hits for P18, min_hits is 5.
+	for i := range 5 {
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, now.Add(-time.Hour).UnixMilli())
+	}
+	before, err := s.Home(ctx, f.P18)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rowOf(before, RowSpotlight); len(got.Items) != 5 {
+		t.Fatalf("spotlight row before the outage = %v, want 5 titles", itemIDs(got.Items))
+	}
+	exec(t, f, `DELETE FROM spotlight_entries`) // what a failed run leaves behind
+	after, err := s.Home(ctx, f.P18)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rowOf(after, RowSpotlight); got.Key != "" {
+		t.Errorf("spotlight row after the outage = %+v, want it absent", got)
+	}
+	others := slices.DeleteFunc(slices.Clone(before), func(r model.HomeRow) bool { return r.Key == RowSpotlight })
+	if len(others) != 6 {
+		t.Fatalf("rows besides spotlight before the outage = %v, want 6", rowKeys(others))
+	}
+	if !reflect.DeepEqual(after, others) {
+		t.Errorf("rows after the outage differ from the run before:\n got  %+v\n want %+v", after, others)
 	}
 }

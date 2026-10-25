@@ -6,7 +6,7 @@
 // intersected with the library), picks (Cat's recommendations), continue (continue watching), recent
 // (recently added), released (recently released), watchlist, collections and genres, in the order
 // the administration stored (table home_rows); hidden and empty rows are omitted, the spotlight row
-// also below TraktMinHits titles (AN-3); released has no reader yet and stays empty. The package
+// also below the configured minimum of hits, spotlight_config.min_hits (AN-3); released has no reader yet and stays empty. The package
 // also answers search, genres, collections, the watchlist and the favourites of a profile (m7.go).
 // It holds no SQL on titles: reads go through visibility, the writes of watchlist and favourites
 // through store/appq, whose tables name titles only by id.
@@ -40,10 +40,6 @@ const (
 	RowCollections = model.RowCollections
 	RowGenres      = model.RowGenres
 )
-
-// TraktMinHits is the smallest number of visible library titles the spotlight row needs; with fewer
-// the row is omitted (AN-3).
-const TraktMinHits = 5
 
 // MaxRows caps the start page (E-9; the contract's HomePage.rows maxItems).
 const MaxRows = 8
@@ -79,7 +75,7 @@ func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Servi
 }
 
 // Home returns the rows of the start page in the stored order (E-9), without hidden and empty
-// rows and without a spotlight row of fewer than TraktMinHits titles; never more than MaxRows.
+// rows and without a spotlight row below its configured minimum of hits; never more than MaxRows.
 func (s *Service) Home(ctx context.Context, profile model.Profile) ([]model.HomeRow, error) {
 	scope := visibility.Profile(profile)
 	keys, err := s.rowOrder(ctx)
@@ -139,12 +135,27 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (
 	case RowGenres:
 		row.Genres, err = s.vis.Genres(ctx, scope, visibility.MaxRowItems)
 	case RowSpotlight:
-		row.Items, err = s.vis.SpotlightRow(ctx, scope, visibility.MaxRowItems)
-		if len(row.Items) < TraktMinHits {
-			row.Items = nil
-		}
+		row.Items, err = s.spotlightRow(ctx, scope)
 	}
 	return row, err
+}
+
+// spotlightRow reads the spotlight row with the configured size and omits it below the configured
+// minimum of hits (AN-3, S-3). min_hits counts the hits before the cut to item_count (plan 5.3):
+// "show 5 if there are at least 10" is a valid setting, not a row that never appears.
+func (s *Service) spotlightRow(ctx context.Context, scope visibility.Scope) ([]model.ItemSummary, error) {
+	cfg, err := s.read.GetSpotlightConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get spotlight config: %w", err)
+	}
+	items, hits, err := s.vis.SpotlightRow(ctx, scope, int(cfg.ItemCount))
+	if err != nil {
+		return nil, err
+	}
+	if hits < int(cfg.MinHits) {
+		return nil, nil
+	}
+	return items, nil
 }
 
 // FirstPick returns the first title of the picks row, the slide the start page's hero carousel
