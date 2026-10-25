@@ -276,8 +276,8 @@
       "watchlist": "Watchlist",
       "collections": "Collections",
       "genres": "Genres",
-      "traktTrending": "Trending on Trakt",
-      "traktPopular": "Popular on Trakt"
+      "spotlight": "Spotlight",
+      "released": "Recently released"
     },
     "remaining": "{{time}} left",
     "empty": {
@@ -1190,8 +1190,11 @@
       "lastError": "Last error",
       "never": "Never",
       "noError": "–",
-      "trending": "“Trending” entries",
-      "popular": "“Popular” entries",
+      "list": "List",
+      "lists": {
+        "trending": "Trending"
+      },
+      "entries": "Entries",
       "refresh": "Refresh now",
       "queued": "The Trakt lists are being fetched."
     },

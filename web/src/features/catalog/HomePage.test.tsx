@@ -296,8 +296,8 @@ describe('start page', () => {
               collections: [{ id: collectionId, name: 'Alien-Reihe', count: 3, cover: alien }],
             },
             { key: 'genres', items: [], genres: [{ name: 'Science-Fiction', count: 12 }] },
-            { key: 'trakt_trending', items: [arrival] },
-            { key: 'trakt_popular', items: [alien] },
+            { key: 'spotlight', items: [arrival] },
+            { key: 'released', items: [alien] },
           ],
         }),
     });
@@ -315,8 +315,8 @@ describe('start page', () => {
       'Merkliste',
       'Sammlungen',
       'Genres',
-      'Trending bei Trakt',
-      'Beliebt bei Trakt',
+      'Spotlight',
+      'Kürzlich veröffentlicht',
     ]);
 
     const collections = screen.getByRole('region', { name: 'Sammlungen' });
@@ -330,7 +330,7 @@ describe('start page', () => {
       '/search?genre=Science-Fiction',
     );
     expect(
-      within(screen.getByRole('region', { name: 'Trending bei Trakt' })).getByRole('link', {
+      within(screen.getByRole('region', { name: 'Spotlight' })).getByRole('link', {
         name: /Arrival/,
       }),
     ).toHaveAttribute('href', `/items/${ids.arrival}`);

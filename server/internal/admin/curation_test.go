@@ -299,7 +299,7 @@ func TestHomeRows(t *testing.T) {
 	}
 
 	order := []string{model.RowRecent, model.RowPicks, model.RowGenres, model.RowContinue, model.RowWatchlist,
-		model.RowCollections, model.RowTraktPopular, model.RowTraktTrending}
+		model.RowCollections, model.RowReleased, model.RowSpotlight}
 	in := make([]model.HomeRowSetting, 0, len(order))
 	for i, k := range order {
 		// Positions in the request do not matter: the slice order is the display order.

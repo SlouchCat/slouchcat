@@ -34,14 +34,14 @@ import styles from './HomePage.module.css';
 const authed = getRouteApi('/_authed/_active');
 
 const rowTitleKey = {
+  spotlight: 'home.rows.spotlight',
   continue: 'home.rows.continue',
   recent: 'home.rows.recent',
+  released: 'home.rows.released',
   picks: 'home.picks',
   watchlist: 'home.rows.watchlist',
   collections: 'home.rows.collections',
   genres: 'home.rows.genres',
-  trakt_trending: 'home.rows.traktTrending',
-  trakt_popular: 'home.rows.traktPopular',
 } as const;
 
 // Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.

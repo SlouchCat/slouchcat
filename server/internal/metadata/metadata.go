@@ -42,8 +42,8 @@
 //   - podcast.fetch, payload {"podcastId": "<ULID>"}, key podcast:<podcastId>, priority 4: fetches
 //     the RSS feed of a podcast subscription (podcast.go, M6 H-2) and stores the channel and its
 //     episodes; RunPodcasts enqueues it for every subscription not fetched for FeedInterval.
-//   - trakt.refresh, payload {}, key trakt, priority 2: fetches the public Trakt lists (trending
-//     and popular, movies and shows, top 100 each) and replaces trakt_lists; a failure empties the
+//   - trakt.refresh, payload {}, key trakt, priority 2: fetches the public Trakt list trending
+//     (movies and shows, top 100 each) and replaces spotlight_entries; a failure empties the
 //     table (I-7). RunTrakt enqueues it once a day when a client id is configured (trakt.go, M7).
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never

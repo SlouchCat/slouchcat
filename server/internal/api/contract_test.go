@@ -264,8 +264,9 @@ func TestContractProfileHasNoCredentials(t *testing.T) {
 
 // I-7: Trakt is reached with the server key only. No profile schema and no operation under
 // /profiles or /auth mentions Trakt; the word appears only in the admin Trakt operations, their
-// TraktStatus schema, the start page rows that show the lists and the server settings of the
-// administration (M8: the stored client id and its integration state).
+// TraktStatus schema, the spotlight configuration and its entries (M11: the Trakt list the start
+// page row shows), the start page rows and the server settings of the administration (M8: the
+// stored client id and its integration state).
 func TestContractNoTraktPerProfile(t *testing.T) {
 	t.Parallel()
 	data, err := os.ReadFile("../../../api/openapi.yaml")
@@ -284,21 +285,22 @@ func TestContractNoTraktPerProfile(t *testing.T) {
 				t.Errorf("schema %s mentions Trakt (I-7: no Trakt account per profile)", name)
 			}
 		case strings.HasPrefix(lower, "trakt") || strings.HasPrefix(lower, "homerow") ||
-			strings.HasPrefix(lower, "adminsettings") || lower == "integrationstatus":
+			strings.HasPrefix(lower, "spotlight") || strings.HasPrefix(lower, "adminsettings") ||
+			lower == "integrationstatus":
 		default:
 			if mentions {
-				t.Errorf("schema %s mentions Trakt; only the admin state, the home rows and the admin settings may", name)
+				t.Errorf("schema %s mentions Trakt; only the admin state, the spotlight, the home rows and the admin settings may", name)
 			}
 		}
 	}
 	paths, _ := doc["paths"].(map[string]any)
 	for path, item := range paths {
 		mentions := strings.Contains(strings.ToLower(fmt.Sprint(item)), "trakt")
-		if strings.HasPrefix(path, "/admin/trakt") || path == "/home" {
+		if strings.HasPrefix(path, "/admin/trakt") || strings.HasPrefix(path, "/admin/spotlight") || path == "/home" {
 			continue
 		}
 		if mentions {
-			t.Errorf("operation %s mentions Trakt; only /admin/trakt* and /home may", path)
+			t.Errorf("operation %s mentions Trakt; only /admin/trakt*, /admin/spotlight* and /home may", path)
 		}
 	}
 	if _, ok := paths["/admin/trakt"]; !ok {

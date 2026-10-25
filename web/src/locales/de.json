@@ -276,8 +276,8 @@
       "watchlist": "Merkliste",
       "collections": "Sammlungen",
       "genres": "Genres",
-      "traktTrending": "Trending bei Trakt",
-      "traktPopular": "Beliebt bei Trakt"
+      "spotlight": "Spotlight",
+      "released": "Kürzlich veröffentlicht"
     },
     "remaining": "Noch {{time}}",
     "empty": {
@@ -1190,8 +1190,11 @@
       "lastError": "Letzter Fehler",
       "never": "Noch nie",
       "noError": "–",
-      "trending": "Einträge «Trending»",
-      "popular": "Einträge «Beliebt»",
+      "list": "Liste",
+      "lists": {
+        "trending": "Trending"
+      },
+      "entries": "Einträge",
       "refresh": "Jetzt aktualisieren",
       "queued": "Die Trakt-Listen werden abgerufen."
     },

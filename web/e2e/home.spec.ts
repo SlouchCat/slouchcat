@@ -65,43 +65,40 @@ test('a pick with a note shows in the hero (E-2)', async ({ page, owner }) => {
   }
 });
 
-test('Trakt rows come from the mock and go while Trakt is down (E-7, I-7)', async ({
+test('The spotlight row comes from the mock and goes while Trakt is down (E-7, I-7)', async ({
   page,
   owner,
 }) => {
   test.setTimeout(120_000);
-  const trending = page.getByRole('region', { name: ROW_TITLES.traktTrending });
-  const popular = page.getByRole('region', { name: ROW_TITLES.traktPopular });
-  const both = ['trakt_trending', 'trakt_popular'];
-  const traktRows = async () => (await homeRowKeys(owner)).filter((key) => both.includes(key));
+  const spotlight = page.getByRole('region', { name: ROW_TITLES.spotlight });
+  const only = ['spotlight'];
+  const traktRows = async () => (await homeRowKeys(owner)).filter((key) => only.includes(key));
   // Fails at once with a clear message when the mock does not run (a server of your own).
   await traktMockStatus(200);
 
   // The server asks the mock right after its start (no run within 24 h yet).
-  await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(both);
+  await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(only);
   await page.reload();
-  await expect(trending).toBeVisible();
-  await expect(popular).toBeVisible();
-  // Every row shows the library titles the lists point at (5 films and 2 series).
+  await expect(spotlight).toBeVisible();
+  // The row shows the library titles the list points at (5 films and 2 series).
   for (const entry of [...TRAKT_ENTRIES.movies, ...TRAKT_ENTRIES.shows]) {
     await expect(
-      trending.getByRole('link').filter({ has: page.getByText(entry.title, { exact: true }) }),
+      spotlight.getByRole('link').filter({ has: page.getByText(entry.title, { exact: true }) }),
     ).toHaveCount(1);
   }
 
   try {
-    // Trakt down: the refresh fails, the lists are emptied and both rows disappear (I-7).
+    // Trakt down: the refresh fails, the list is emptied and the row disappears (I-7).
     await traktMockStatus(503);
     await refreshTrakt(owner);
     await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual([]);
     await page.reload();
     await expect(recentRow(page)).toBeVisible();
-    await expect(trending).toHaveCount(0);
-    await expect(popular).toHaveCount(0);
+    await expect(spotlight).toHaveCount(0);
   } finally {
     await traktMockStatus(200);
     await refreshTrakt(owner);
-    await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(both);
+    await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(only);
   }
 });
 

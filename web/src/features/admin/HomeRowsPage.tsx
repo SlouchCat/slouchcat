@@ -15,14 +15,14 @@ import curation from './Curation.module.css';
 
 /** The row names of the start page (the same keys as its headings). */
 const rowTitleKey = {
+  spotlight: 'home.rows.spotlight',
   picks: 'home.picks',
   continue: 'home.rows.continue',
   recent: 'home.rows.recent',
+  released: 'home.rows.released',
   watchlist: 'home.rows.watchlist',
   collections: 'home.rows.collections',
   genres: 'home.rows.genres',
-  trakt_trending: 'home.rows.traktTrending',
-  trakt_popular: 'home.rows.traktPopular',
 } as const satisfies Record<HomeRowKey, string>;
 
 /** After "Jetzt aktualisieren" the status is asked again this often for a while. */
@@ -79,8 +79,13 @@ function TraktSection() {
               [t('admin.trakt.lastSuccess'), date(status.data.lastSuccess)],
               [t('admin.trakt.lastAttempt'), date(status.data.lastAttempt)],
               [t('admin.trakt.lastError'), lastError(status.data.lastError)],
-              [t('admin.trakt.trending'), String(status.data.trending)],
-              [t('admin.trakt.popular'), String(status.data.popular)],
+              [
+                t('admin.trakt.list'),
+                t(`admin.trakt.lists.${status.data.listKey}`, {
+                  defaultValue: status.data.listKey,
+                }),
+              ],
+              [t('admin.trakt.entries'), String(status.data.entries)],
             ]}
           />
         </>

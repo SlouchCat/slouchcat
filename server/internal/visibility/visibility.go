@@ -23,6 +23,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -64,6 +65,7 @@ func System(reason string) Scope {
 // Reader runs scoped reads against the reader pool of the database.
 type Reader struct {
 	q    *scopedq.Queries
+	app  *appq.Queries    // spotlight_config (SpotlightRow)
 	sys  *systemq.Queries // the system scope only (SystemItemRating)
 	read *sql.DB          // the search builder (search.go); every statement it builds joins visible_items
 	log  *slog.Logger
@@ -80,7 +82,7 @@ func WithClock(now func() time.Time) Option {
 
 // New returns a Reader on the read connections of db; log is the redacting logger.
 func New(db *store.DB, log *slog.Logger, opts ...Option) *Reader {
-	r := &Reader{q: scopedq.New(db.Read), sys: systemq.New(db.Read), read: db.Read, log: log, now: time.Now}
+	r := &Reader{q: scopedq.New(db.Read), app: appq.New(db.Read), sys: systemq.New(db.Read), read: db.Read, log: log, now: time.Now}
 	for _, o := range opts {
 		o(r)
 	}

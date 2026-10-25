@@ -2,13 +2,14 @@
 // It reads titles only through the visibility package and opens stored images only through the
 // paths package, relative to the cache directory.
 //
-// Start page (M7, E-1, E-9): the eight rows picks (Cat's recommendations), continue (continue
-// watching), recent (recently added), watchlist, collections, genres and the Trakt rows trending
-// and popular, in the order the administration stored (table home_rows); hidden and empty rows are
-// omitted, a Trakt row also below TraktMinHits titles (AN-3). The package also answers search,
-// genres, collections, the watchlist and the favourites of a profile (m7.go). It holds no SQL on
-// titles: reads go through visibility, the writes of watchlist and favourites through store/appq,
-// whose tables name titles only by id.
+// Start page (M7, M11, E-1, E-9, ADR 0011): the eight rows spotlight (the configured Trakt list
+// intersected with the library), picks (Cat's recommendations), continue (continue watching), recent
+// (recently added), released (recently released), watchlist, collections and genres, in the order
+// the administration stored (table home_rows); hidden and empty rows are omitted, the spotlight row
+// also below TraktMinHits titles (AN-3); released has no reader yet and stays empty. The package
+// also answers search, genres, collections, the watchlist and the favourites of a profile (m7.go).
+// It holds no SQL on titles: reads go through visibility, the writes of watchlist and favourites
+// through store/appq, whose tables name titles only by id.
 package discover
 
 import (
@@ -28,20 +29,20 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
-// Home row keys (model.HomeRow.Key), in the default order of E-1.
+// Home row keys (model.HomeRow.Key), in the default order of ADR 0011.
 const (
-	RowPicks         = model.RowPicks
-	RowContinue      = model.RowContinue
-	RowRecent        = model.RowRecent
-	RowWatchlist     = model.RowWatchlist
-	RowCollections   = model.RowCollections
-	RowGenres        = model.RowGenres
-	RowTraktTrending = model.RowTraktTrending
-	RowTraktPopular  = model.RowTraktPopular
+	RowSpotlight   = model.RowSpotlight
+	RowPicks       = model.RowPicks
+	RowContinue    = model.RowContinue
+	RowRecent      = model.RowRecent
+	RowReleased    = model.RowReleased
+	RowWatchlist   = model.RowWatchlist
+	RowCollections = model.RowCollections
+	RowGenres      = model.RowGenres
 )
 
-// TraktMinHits is the smallest number of visible library titles a Trakt row needs; with fewer the
-// row is omitted (AN-3).
+// TraktMinHits is the smallest number of visible library titles the spotlight row needs; with fewer
+// the row is omitted (AN-3).
 const TraktMinHits = 5
 
 // MaxRows caps the start page (E-9; the contract's HomePage.rows maxItems).
@@ -78,7 +79,7 @@ func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Servi
 }
 
 // Home returns the rows of the start page in the stored order (E-9), without hidden and empty
-// rows and without a Trakt row of fewer than TraktMinHits titles; never more than MaxRows.
+// rows and without a spotlight row of fewer than TraktMinHits titles; never more than MaxRows.
 func (s *Service) Home(ctx context.Context, profile model.Profile) ([]model.HomeRow, error) {
 	scope := visibility.Profile(profile)
 	keys, err := s.rowOrder(ctx)
@@ -137,12 +138,8 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (
 		row.Collections, err = s.vis.Collections(ctx, scope, visibility.MaxRowItems)
 	case RowGenres:
 		row.Genres, err = s.vis.Genres(ctx, scope, visibility.MaxRowItems)
-	case RowTraktTrending, RowTraktPopular:
-		list := visibility.TraktTrending
-		if key == RowTraktPopular {
-			list = visibility.TraktPopular
-		}
-		row.Items, err = s.vis.TraktRow(ctx, scope, list, visibility.MaxRowItems)
+	case RowSpotlight:
+		row.Items, err = s.vis.SpotlightRow(ctx, scope, visibility.MaxRowItems)
 		if len(row.Items) < TraktMinHits {
 			row.Items = nil
 		}

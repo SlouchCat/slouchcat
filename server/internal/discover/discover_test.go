@@ -164,9 +164,9 @@ func itemIDs(items []model.ItemSummary) []string {
 	return out
 }
 
-// E-1, E-9: all rows in the stored order; hidden and empty rows are omitted, a Trakt row also below
-// TraktMinHits titles; never more than eight rows.
-func TestHomeStoredOrderAndTraktRows(t *testing.T) {
+// E-1, E-9, ADR 0011: all rows in the stored order; hidden and empty rows are omitted, the spotlight
+// row also below TraktMinHits titles; never more than eight rows.
+func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
@@ -189,12 +189,11 @@ func TestHomeStoredOrderAndTraktRows(t *testing.T) {
 		t.Errorf("P18 genres row = %+v", got)
 	}
 
-	// Trakt: the trending movies are the films 1000..1004 (rated 0 to 18): five visible hits for
-	// P18, four for P16, three for P12.
+	// Spotlight: the trending movies are the films 1000..1004 (rated 0 to 18): five visible hits
+	// for P18, four for P16, three for P12.
 	for i := range 5 {
-		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, time.Now().UnixMilli())
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, time.Now().UnixMilli())
 	}
-	exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', 1, 1000, ?)`, time.Now().UnixMilli())
 	for _, tc := range []struct {
 		p     model.Profile
 		shown bool
@@ -203,23 +202,22 @@ func TestHomeStoredOrderAndTraktRows(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		trending := rowOf(rows, RowTraktTrending)
-		if tc.shown != (len(trending.Items) >= TraktMinHits) || (!tc.shown && trending.Key != "") {
-			t.Errorf("%s trending row = %v, want shown %v", tc.p.Name, itemIDs(trending.Items), tc.shown)
-		}
-		if rowOf(rows, RowTraktPopular).Key != "" {
-			t.Errorf("%s: popular row with one hit is shown", tc.p.Name)
+		spotlight := rowOf(rows, RowSpotlight)
+		if tc.shown != (len(spotlight.Items) >= TraktMinHits) || (!tc.shown && spotlight.Key != "") {
+			t.Errorf("%s spotlight row = %v, want shown %v", tc.p.Name, itemIDs(spotlight.Items), tc.shown)
 		}
 	}
 
 	// The stored order applies, hidden rows are left out (the administration writes home_rows).
+	// Reversed, released sits between watchlist and recent; it has no reader in this package yet,
+	// so it is empty and omitted like any empty row.
 	exec(t, f, `UPDATE home_rows SET position = 7 - position`)
 	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key IN ('continue', 'genres')`)
 	rows, err = s.Home(ctx, f.P18)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{RowTraktTrending, RowCollections, RowWatchlist, RowRecent, RowPicks}; !slices.Equal(rowKeys(rows), want) {
+	if want := []string{RowCollections, RowWatchlist, RowRecent, RowPicks, RowSpotlight}; !slices.Equal(rowKeys(rows), want) {
 		t.Errorf("P18 rows reordered = %v, want %v", rowKeys(rows), want)
 	}
 	// A hidden picks row also drops the hero preload.
@@ -227,11 +225,9 @@ func TestHomeStoredOrderAndTraktRows(t *testing.T) {
 	if _, err := s.FirstPick(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("first pick of a hidden picks row: err = %v", err)
 	}
-	// Eight non-empty rows at most (E-9): every row of every profile fixture fits.
+	// Eight non-empty rows at most (E-9): every row of every profile fixture fits. P18 gets every
+	// row but the empty released row, in the reversed order.
 	exec(t, f, `UPDATE home_rows SET hidden = 0`)
-	for i := range 5 {
-		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', ?, ?, ?)`, i+2, 1000+i, time.Now().UnixMilli())
-	}
 	for _, p := range []model.Profile{f.P0, f.P6, f.P12, f.P16, f.P18} {
 		rows, err := s.Home(ctx, p)
 		if err != nil {
@@ -240,8 +236,9 @@ func TestHomeStoredOrderAndTraktRows(t *testing.T) {
 		if len(rows) > MaxRows {
 			t.Errorf("%s: %d rows", p.Name, len(rows))
 		}
-		if p.ID == f.P18.ID && len(rows) != MaxRows {
-			t.Errorf("P18 with every row filled: rows = %v", rowKeys(rows))
+		want := []string{RowGenres, RowCollections, RowWatchlist, RowRecent, RowContinue, RowPicks, RowSpotlight}
+		if p.ID == f.P18.ID && !slices.Equal(rowKeys(rows), want) {
+			t.Errorf("P18 with every row filled: rows = %v, want %v", rowKeys(rows), want)
 		}
 	}
 }

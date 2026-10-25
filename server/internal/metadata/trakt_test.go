@@ -19,7 +19,6 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
-	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
 const traktTestID = "trakt-secret-client-id"
@@ -32,12 +31,15 @@ type traktKeys struct {
 
 func (k traktKeys) TraktClientID(context.Context) (string, error) { return k.id, nil }
 
-// fakeTrakt serves the four lists: trending in the {watchers, movie|show} shape, popular flat,
-// one entry without a TMDB id in each; status != 0 answers with that status.
+// fakeTrakt serves the four public lists: trending in the {watchers, movie|show} shape, popular
+// flat, one entry without a TMDB id in each; status != 0 answers with that status. popularHits
+// counts the requests of a popular list, which a run must not fetch (the spotlight configuration
+// of migration 00021 holds the one list trending).
 type fakeTrakt struct {
-	srv    *httptest.Server
-	status atomic.Int32
-	hits   atomic.Int32
+	srv         *httptest.Server
+	status      atomic.Int32
+	hits        atomic.Int32
+	popularHits atomic.Int32
 }
 
 func newFakeTrakt(t *testing.T) *fakeTrakt {
@@ -62,8 +64,15 @@ func newFakeTrakt(t *testing.T) *fakeTrakt {
 		{"watchers": 2, "movie": {"title": "Ohne", "year": 2021, "ids": {"slug": "ohne"}}},
 		{"watchers": 1, "movie": {"title": "Film B", "year": 2022, "ids": {"tmdb": 12}}}]`))
 	mux.HandleFunc("GET /shows/trending", serve(`[{"watchers": 5, "show": {"title": "Serie A", "year": 2019, "ids": {"tmdb": 21}}}]`))
-	mux.HandleFunc("GET /movies/popular", serve(`[{"title": "Film C", "year": 1999, "ids": {"tmdb": 13}}, {"title": "Ohne", "ids": {}}]`))
-	mux.HandleFunc("GET /shows/popular", serve(`[{"title": "Serie B", "ids": {"tmdb": 22}}, {"title": "Serie C", "year": 2001, "ids": {"tmdb": 23}}]`))
+	popular := func(body string) http.HandlerFunc {
+		h := serve(body)
+		return func(w http.ResponseWriter, r *http.Request) {
+			f.popularHits.Add(1)
+			h(w, r)
+		}
+	}
+	mux.HandleFunc("GET /movies/popular", popular(`[{"title": "Film C", "year": 1999, "ids": {"tmdb": 13}}, {"title": "Ohne", "ids": {}}]`))
+	mux.HandleFunc("GET /shows/popular", popular(`[{"title": "Serie B", "ids": {"tmdb": 22}}, {"title": "Serie C", "year": 2001, "ids": {"tmdb": 23}}]`))
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
 	return f
@@ -99,11 +108,11 @@ func newTraktEnv(t *testing.T, fixedID string, keys KeySource) *traktEnv {
 	return &traktEnv{db: db, svc: svc, queue: q, clock: clock, fake: fake, logs: logs, ring: ring}
 }
 
-// rows returns list/media/position/tmdb of every stored entry in key order.
+// rows returns list_key/media/position/tmdb/year of every stored spotlight entry in key order.
 func (e *traktEnv) rows(t *testing.T) []string {
 	t.Helper()
-	rs, err := e.db.Read.Query(`SELECT list || ' ' || media || ' ' || position || ' ' || tmdb_id || ' ' || COALESCE(year, 0)
-	                            FROM trakt_lists ORDER BY list DESC, media, position`)
+	rs, err := e.db.Read.Query(`SELECT list_key || ' ' || media || ' ' || position || ' ' || tmdb_id || ' ' || COALESCE(year, 0)
+	                            FROM spotlight_entries ORDER BY list_key, media, position`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,8 +140,10 @@ func (e *traktEnv) status(t *testing.T) model.TraktStatus {
 	return st
 }
 
-// E-7, I-7: a run replaces the lists (entries without a TMDB id skipped), a failure empties them
-// and records the error, the next success clears it. The client id never reaches the log.
+// E-7, I-7, ADR 0011: a run replaces the spotlight entries with the trending list of both media
+// under list_key trending (entries without a TMDB id skipped, the popular lists not fetched), a
+// failure empties them and records the error, the next success clears it. The client id never
+// reaches the log.
 func TestTraktRefresh(t *testing.T) {
 	t.Parallel()
 	e := newTraktEnv(t, traktTestID, staticKey(""))
@@ -140,14 +151,16 @@ func TestTraktRefresh(t *testing.T) {
 	if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"trending movie 1 11 2020", "trending movie 3 12 2022", "trending show 1 21 2019",
-		"popular movie 1 13 1999", "popular show 1 22 0", "popular show 2 23 2001"}
+	want := []string{"trending movie 1 11 2020", "trending movie 3 12 2022", "trending show 1 21 2019"}
 	if got := e.rows(t); strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("rows = %v, want %v", got, want)
 	}
+	if n := e.fake.hits.Load(); n != 2 || e.fake.popularHits.Load() != 0 {
+		t.Errorf("requests = %d (popular %d), want the two trending lists only", n, e.fake.popularHits.Load())
+	}
 	first := e.clock.now()
 	st := e.status(t)
-	if !st.Configured || st.Trending != 3 || st.Popular != 3 || st.LastError != "" ||
+	if !st.Configured || st.ListKey != "trending" || st.Entries != 3 || st.LastError != "" ||
 		st.LastSuccess == nil || !st.LastSuccess.Equal(first) || st.LastAttempt == nil || !st.LastAttempt.Equal(first) {
 		t.Errorf("status after success = %+v", st)
 	}
@@ -162,7 +175,7 @@ func TestTraktRefresh(t *testing.T) {
 		t.Errorf("rows after 503 = %v", got)
 	}
 	st = e.status(t)
-	if st.Trending != 0 || st.Popular != 0 || !strings.Contains(st.LastError, "503") || !st.LastSuccess.Equal(first) ||
+	if st.Entries != 0 || st.ListKey != "trending" || !strings.Contains(st.LastError, "503") || !st.LastSuccess.Equal(first) ||
 		!st.LastAttempt.Equal(first.Add(time.Hour)) {
 		t.Errorf("status after 503 = %+v", st)
 	}
@@ -189,7 +202,7 @@ func TestTraktRefresh(t *testing.T) {
 	if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
 		t.Fatal(err)
 	}
-	if st := e.status(t); st.LastError != "" || st.Trending != 3 || !st.LastSuccess.Equal(first.Add(2*time.Hour)) {
+	if st := e.status(t); st.LastError != "" || st.Entries != 3 || !st.LastSuccess.Equal(first.Add(2*time.Hour)) {
 		t.Errorf("status after recovery = %+v", st)
 	}
 	if strings.Contains(e.logs.String(), traktTestID) {
@@ -197,6 +210,9 @@ func TestTraktRefresh(t *testing.T) {
 	}
 	if errs := e.ring.Entries(); len(errs) != 2 {
 		t.Errorf("error records after recovery = %+v", errs)
+	}
+	if n := e.fake.popularHits.Load(); n != 0 {
+		t.Errorf("popular requests = %d, want none", n)
 	}
 	var stored int
 	if err := e.db.Read.QueryRow(`SELECT count(*) FROM settings WHERE value LIKE '%' || ? || '%'`, traktTestID).Scan(&stored); err != nil || stored != 0 {
@@ -294,39 +310,45 @@ func TestTraktNotConfigured(t *testing.T) {
 	}
 }
 
-// W1 (M7 review): removing the client id empties the stored lists, so the start page drops the
-// Trakt rows as documented; while the id stays but no run succeeds for two intervals (a hung job),
-// the status counts no entries either, like the start page (visibility.TraktMaxAge).
+// W1 (M7 review), S-8: while the client id stays but no run succeeds for two intervals (a hung
+// job), the status counts no entries, like the start page (visibility.SpotlightRow). The staleness
+// limit is twice spotlight_config.interval_hours, not a constant: two intervals prove that the
+// limit follows the configuration, with the boundary inclusive. Removing the client id empties the
+// stored entries, so the start page drops the spotlight row as documented.
 func TestTraktRowsGoWithoutClientID(t *testing.T) {
 	t.Parallel()
-	if visibility.TraktMaxAge != 2*TraktInterval {
-		t.Fatalf("visibility.TraktMaxAge = %v, want twice TraktInterval", visibility.TraktMaxAge)
-	}
 	keys := &traktKeys{id: traktTestID}
 	e := newTraktEnv(t, "", keys)
 	ctx := context.Background()
-	if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
-		t.Fatal(err)
-	}
 	start := e.clock.now()
-	if st := e.status(t); st.Trending != 3 || st.Popular != 3 {
-		t.Fatalf("status after the run = %+v", st)
-	}
-	// A hung job: the entries stay stored but are stale after two intervals.
-	e.clock.set(start.Add(2*TraktInterval - time.Minute))
-	if st := e.status(t); st.Trending != 3 {
-		t.Errorf("status just before the entries turn stale = %+v", st)
-	}
-	e.clock.set(start.Add(2 * TraktInterval))
-	if st := e.status(t); st.Trending != 3 {
-		t.Errorf("status when the entries turn stale = %+v (boundary is inclusive)", st)
-	}
-	e.clock.set(start.Add(2*TraktInterval + time.Minute))
-	if st := e.status(t); st.Trending != 0 || st.Popular != 0 || !st.Configured {
-		t.Errorf("status with stale entries = %+v, want no entries", st)
-	}
-	if len(e.rows(t)) == 0 {
-		t.Fatal("stale entries were deleted, want them kept until the next run")
+	for _, hours := range []int{6, 48} {
+		if _, err := e.db.Write.Exec(`UPDATE spotlight_config SET interval_hours = ?`, hours); err != nil {
+			t.Fatal(err)
+		}
+		e.clock.set(start)
+		if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
+			t.Fatal(err)
+		}
+		if st := e.status(t); st.Entries != 3 || st.ListKey != "trending" {
+			t.Fatalf("interval %dh: status after the run = %+v", hours, st)
+		}
+		limit := 2 * time.Duration(hours) * time.Hour
+		// A hung job: the entries stay stored but are stale after two intervals.
+		e.clock.set(start.Add(limit - time.Minute))
+		if st := e.status(t); st.Entries != 3 {
+			t.Errorf("interval %dh: status just before the entries turn stale = %+v", hours, st)
+		}
+		e.clock.set(start.Add(limit))
+		if st := e.status(t); st.Entries != 3 {
+			t.Errorf("interval %dh: status when the entries turn stale = %+v (boundary is inclusive)", hours, st)
+		}
+		e.clock.set(start.Add(limit + time.Minute))
+		if st := e.status(t); st.Entries != 0 || !st.Configured {
+			t.Errorf("interval %dh: status with stale entries = %+v, want no entries", hours, st)
+		}
+		if len(e.rows(t)) == 0 {
+			t.Fatalf("interval %dh: stale entries were deleted, want them kept until the next run", hours)
+		}
 	}
 
 	// The client id goes: the next tick empties the table and queues nothing.
@@ -337,7 +359,7 @@ func TestTraktRowsGoWithoutClientID(t *testing.T) {
 	if got := e.rows(t); len(got) != 0 {
 		t.Errorf("rows without client id = %v", got)
 	}
-	if st := e.status(t); st.Configured || st.Trending != 0 || st.Popular != 0 {
+	if st := e.status(t); st.Configured || st.Entries != 0 {
 		t.Errorf("status without client id = %+v", st)
 	}
 	// A second tick finds nothing to empty.

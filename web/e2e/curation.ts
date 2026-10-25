@@ -32,14 +32,14 @@ export interface HomeRowData {
 
 /** The start page rows in the order of migration 00015 (E-1), none hidden. */
 export const DEFAULT_HOME_ROWS = [
+  'spotlight',
   'picks',
   'continue',
   'recent',
+  'released',
   'watchlist',
   'collections',
   'genres',
-  'trakt_trending',
-  'trakt_popular',
 ] as const;
 
 async function ok<T>(response: APIResponse, expected: number[]): Promise<T> {

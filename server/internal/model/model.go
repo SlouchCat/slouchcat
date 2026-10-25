@@ -642,26 +642,26 @@ type ItemDetail struct {
 // HomeRow is one row of the start page (M7: key order from home_rows). Collections and Genres
 // are set only on the rows collections and genres, whose Items stay empty.
 type HomeRow struct {
-	Key         string // picks, continue, recent, watchlist, collections, genres, trakt_trending, trakt_popular
+	Key         string // spotlight, picks, continue, recent, released, watchlist, collections, genres
 	Items       []ItemSummary
 	Collections []CollectionRef
 	Genres      []GenreRef
 }
 
-// Home row keys (model.HomeRow.Key, table home_rows), in the default order of E-1.
+// Home row keys (model.HomeRow.Key, table home_rows), in the default order of ADR 0011.
 const (
-	RowPicks         = "picks"
-	RowContinue      = "continue"
-	RowRecent        = "recent"
-	RowWatchlist     = "watchlist"
-	RowCollections   = "collections"
-	RowGenres        = "genres"
-	RowTraktTrending = "trakt_trending"
-	RowTraktPopular  = "trakt_popular"
+	RowSpotlight   = "spotlight"
+	RowPicks       = "picks"
+	RowContinue    = "continue"
+	RowRecent      = "recent"
+	RowReleased    = "released"
+	RowWatchlist   = "watchlist"
+	RowCollections = "collections"
+	RowGenres      = "genres"
 )
 
 // HomeRowKeys lists every row key in the default order.
-var HomeRowKeys = []string{RowPicks, RowContinue, RowRecent, RowWatchlist, RowCollections, RowGenres, RowTraktTrending, RowTraktPopular}
+var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres}
 
 // Discover (M7). ---------------------------------------------------------------------------
 
@@ -801,14 +801,16 @@ type AdminCollectionItem struct {
 	Position int
 }
 
-// TraktStatus is the state of the daily Trakt lists (E-7, I-7).
+// TraktStatus is the state of the spotlight list fetched from Trakt (E-7, I-7, ADR 0011): ListKey
+// is the configured list (spotlight_config.list_key), Entries the fetched entries of all media that
+// are not yet stale (fetched within twice the configured interval), before the library intersection.
 type TraktStatus struct {
 	Configured  bool
 	LastSuccess *time.Time
 	LastAttempt *time.Time
 	LastError   string
-	Trending    int
-	Popular     int
+	ListKey     string
+	Entries     int
 }
 
 // PlaybackInfo is the answer of startPlayback.

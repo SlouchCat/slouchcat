@@ -5,14 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 
 const keys = [
+  'spotlight',
   'picks',
   'continue',
   'recent',
+  'released',
   'watchlist',
   'collections',
   'genres',
-  'trakt_trending',
-  'trakt_popular',
 ] as const;
 const defaultRows: HomeRowSetting[] = keys.map((key, position) => ({
   key,
@@ -23,8 +23,8 @@ const configured: TraktStatus = {
   configured: true,
   lastSuccess: '2026-10-20T06:00:00Z',
   lastAttempt: '2026-10-20T06:00:00Z',
-  trending: 40,
-  popular: 38,
+  listKey: 'trending',
+  entries: 40,
 };
 
 const rowNames = () =>
@@ -50,20 +50,20 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
 
     await screen.findByRole('table', { name: 'Reihen der Startseite' });
     expect(rowNames()).toEqual([
+      'Spotlight',
       "Cat's Empfehlungen",
       'Weiterschauen',
       'Neu hinzugefügt',
+      'Kürzlich veröffentlicht',
       'Merkliste',
       'Sammlungen',
       'Genres',
-      'Trending bei Trakt',
-      'Beliebt bei Trakt',
     ]);
-    expect(screen.getByRole('button', { name: "Cat's Empfehlungen nach oben" })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Beliebt bei Trakt nach unten' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Spotlight nach oben' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Genres nach unten' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Neu hinzugefügt nach oben' }));
-    expect(rowNames().slice(0, 3)).toEqual([
+    expect(rowNames().slice(1, 4)).toEqual([
       "Cat's Empfehlungen",
       'Neu hinzugefügt',
       'Weiterschauen',
@@ -71,7 +71,7 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Neu hinzugefügt nach oben' })).toHaveFocus(),
     );
-    expect(screen.getByText(/Neu hinzugefügt steht jetzt an Stelle 2/)).toBeVisible();
+    expect(screen.getByText(/Neu hinzugefügt steht jetzt an Stelle 3/)).toBeVisible();
     await user.click(screen.getByRole('checkbox', { name: 'Genres ausblenden' }));
     // Nothing is stored before "Speichern".
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
@@ -80,14 +80,14 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
     expect(await screen.findByText('Die Startseite ist gespeichert.')).toBeVisible();
     const body = calls.find((call) => call.method === 'PUT')?.body as HomeRowSetting[];
     expect(body.map((row) => row.key)).toEqual([
+      'spotlight',
       'picks',
       'recent',
       'continue',
+      'released',
       'watchlist',
       'collections',
       'genres',
-      'trakt_trending',
-      'trakt_popular',
     ]);
     expect(body.map((row) => row.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     expect(body.find((row) => row.key === 'genres')?.hidden).toBe(true);
@@ -110,8 +110,8 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
 
     const section = await screen.findByRole('region', { name: 'Trakt' });
     expect(await within(section).findByText('Ja')).toBeVisible();
+    expect(within(section).getByText('Trending')).toBeVisible();
     expect(within(section).getByText('40')).toBeVisible();
-    expect(within(section).getByText('38')).toBeVisible();
     expect(within(section).getByText('trakt_unavailable: HTTP 503')).toBeVisible();
     await user.click(within(section).getByRole('button', { name: 'Jetzt aktualisieren' }));
     expect(await within(section).findByText('Die Trakt-Listen werden abgerufen.')).toBeVisible();
@@ -123,7 +123,7 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
       ...signedIn,
       'GET /admin/home-rows': () => json(defaultRows),
       'GET /admin/trakt': () =>
-        json({ configured: false, trending: 0, popular: 0 } satisfies TraktStatus),
+        json({ configured: false, listKey: 'trending', entries: 0 } satisfies TraktStatus),
       'POST /admin/trakt/refresh': () => problem(422, 'provider_not_configured'),
     });
     renderApp('/admin/home-rows');

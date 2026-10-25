@@ -13,14 +13,14 @@ export const TRAKT_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_T
 
 /** Row titles of the start page (home.rows.* in the locales). */
 export const ROW_TITLES = {
+  spotlight: 'Spotlight',
   picks: "Cat's Empfehlungen",
   continue: 'Weiterschauen',
   recent: 'Neu hinzugefügt',
+  released: 'Kürzlich veröffentlicht',
   watchlist: 'Merkliste',
   collections: 'Sammlungen',
   genres: 'Genres',
-  traktTrending: 'Trending bei Trakt',
-  traktPopular: 'Beliebt bei Trakt',
 } as const;
 
 async function expectStatus(response: APIResponse, ok: number[]): Promise<void> {

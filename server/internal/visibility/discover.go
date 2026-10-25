@@ -12,9 +12,10 @@ import (
 )
 
 // Discover reads of M7 (design 3.1, queries/scoped/discover.sql): the watchlist and the favourites
-// of a profile, collections, genres and the Trakt rows. Each joins visible_items: an entry whose
-// title became invisible is left out, a collection exists for the profile only through a visible
-// member and counts only visible members, a Trakt entry shows only a visible library title.
+// of a profile, collections, genres and the spotlight row (M11, queries/scoped/spotlight.sql). Each
+// joins visible_items: an entry whose title became invisible is left out, a collection exists for
+// the profile only through a visible member and counts only visible members, a spotlight entry
+// shows only a visible library title.
 
 // Pages of the watchlist and of a collection: at most MaxPage titles, DefaultPage without a limit.
 const (
@@ -249,31 +250,27 @@ func (r *Reader) Collection(ctx context.Context, s Scope, id string, offset, lim
 	}, nil
 }
 
-// Trakt lists of a Trakt row (AN-3).
-const (
-	TraktTrending = "trending"
-	TraktPopular  = "popular"
-)
-
-// TraktMaxAge is the age after which stored Trakt entries count as stale and no longer show: twice
-// the daily refresh interval (metadata.TraktInterval), so a refresh job that stopped running (client
-// id removed, worker hung) does not leave old lists on the start page for ever.
-const TraktMaxAge = 48 * time.Hour
-
-// TraktRow returns the visible library titles of a Trakt list (trending or popular, movies and
-// shows matched by TMDB id) in list order, each once, at most limit (clamped to 1..MaxRowItems).
-// Entries older than TraktMaxAge by the Reader's clock are left out.
-func (r *Reader) TraktRow(ctx context.Context, s Scope, list string, limit int) ([]model.ItemSummary, error) {
+// SpotlightRow returns the visible library titles of the configured spotlight list
+// (spotlight_config.list_key, movies and shows matched by TMDB id) in list order, each once, at most
+// limit (clamped to 1..MaxRowItems). Entries fetched more than twice spotlight_config.interval_hours
+// ago by the Reader's clock are stale and left out (S-8), so a refresh job that stopped running
+// (client id removed, worker hung) does not leave an old list on the start page for ever.
+func (r *Reader) SpotlightRow(ctx context.Context, s Scope, limit int) ([]model.ItemSummary, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
 	}
+	cfg, err := r.app.GetSpotlightConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get spotlight config: %w", err)
+	}
 	n := clamp(limit)
-	items, err := r.q.ListTraktRow(ctx, scopedq.ListTraktRowParams{
-		ProfileID: pid, List: list, MinFetched: r.now().Add(-TraktMaxAge).UnixMilli(), LimitCount: 2 * n, // room for duplicates
+	minFetched := r.now().Add(-2 * time.Duration(cfg.IntervalHours) * time.Hour).UnixMilli()
+	items, err := r.q.ListSpotlightRow(ctx, scopedq.ListSpotlightRowParams{
+		ProfileID: pid, ListKey: cfg.ListKey, MinFetched: minFetched, LimitCount: 2 * n, // room for duplicates
 	})
 	if err != nil {
-		return nil, fmt.Errorf("list trakt row: %w", err)
+		return nil, fmt.Errorf("list spotlight row: %w", err)
 	}
 	items = dedupe(items)
 	if len(items) > int(n) {

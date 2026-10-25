@@ -188,7 +188,7 @@ func (s *server) GetTraktStatus(ctx context.Context, _ gen.GetTraktStatusRequest
 	}
 	return gen.GetTraktStatus200JSONResponse(gen.TraktStatus{
 		Configured: st.Configured, LastSuccess: utc(st.LastSuccess), LastAttempt: utc(st.LastAttempt),
-		LastError: optString(st.LastError), Trending: st.Trending, Popular: st.Popular,
+		LastError: optString(st.LastError), ListKey: st.ListKey, Entries: st.Entries,
 	}), nil
 }
 

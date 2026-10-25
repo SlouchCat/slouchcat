@@ -427,12 +427,17 @@ export interface paths {
         };
         /**
          * Rows of the start page for the active profile
-         * @description Returns the rows in the order the main user set (`setHomeRows`): `picks` (Cat's recommendations,
-         *     E-2, with the optional `note` on each item), `continue`, `recent`, `watchlist` (E-5), `collections`
-         *     (`collections` instead of `items`, E-6), `genres` (`genres` instead of `items`), `trakt_trending`
-         *     and `trakt_popular` (the first 20 library titles of the public Trakt lists, hidden under 5 hits
-         *     and while Trakt is unavailable, E-7, I-7, AN-3). Empty and hidden rows are omitted; never more than
-         *     eight (E-9). Every item passed the visibility layer of the active profile.
+         * @description Returns the rows in the order the main user set (`setHomeRows`): `spotlight` (the library titles
+         *     of the public Trakt list chosen in the administration, in list order with the curation of the
+         *     main user applied, E-7, I-7, ADR 0011; how many titles it shows and below how many hits it is
+         *     omitted are settings, not constants), `picks` (Cat's recommendations, E-2, with the optional
+         *     `note` on each item), `continue`, `recent`, `released` (titles released in the last twelve
+         *     months by `releaseDate`, a series by its newest visible episode), `watchlist` (E-5),
+         *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
+         *     `items`). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
+         *     are omitted; never more than eight (E-9). `heroRow` names the row the client draws as the
+         *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
+         *     a poster row. Every item passed the visibility layer of the active profile.
          */
         get: operations["getHome"];
         put?: never;
@@ -2130,10 +2135,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * State of the daily Trakt lists (E-7, I-7)
-         * @description Whether a Trakt client id is configured (`SLOUCHCAT_TRAKT_CLIENT_ID`), when the lists were last
-         *     fetched and how many entries each list holds. Trakt is reached with the server key only; there is
-         *     no Trakt account per profile and nothing is sent to Trakt (I-7).
+         * State of the Trakt fetch behind the spotlight row (E-7, I-7)
+         * @description Whether a Trakt client id is configured (`SLOUCHCAT_TRAKT_CLIENT_ID`), when the spotlight list
+         *     was last fetched, which list it is (`listKey`) and how many entries it holds before the library
+         *     intersection. Trakt is reached with the server key only; there is no Trakt account per profile
+         *     and nothing is sent to Trakt (I-7).
          */
         get: operations["getTraktStatus"];
         put?: never;
@@ -2154,8 +2160,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Fetch the Trakt lists now
-         * @description Queues the daily job out of schedule; the result shows up in `getTraktStatus`.
+         * Fetch the spotlight list now
+         * @description Queues the fetch job out of schedule; the result shows up in `getTraktStatus`. Kept from
+         *     contract 1.0 until `refreshSpotlight` replaces it (M11 step 4).
          */
         post: operations["refreshTrakt"];
         delete?: never;
@@ -3372,8 +3379,17 @@ export interface components {
             durationMs?: number;
             /** @description Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18). */
             explicit?: boolean;
-            /** @description The personal note of the main user on this pick (E-2); only in the row `picks`. */
+            /**
+             * @description The personal note of the main user on this title (E-2): on a pick in the row `picks` and
+             *     on a curated entry in the row `spotlight`.
+             */
             note?: string;
+            /**
+             * @description Whether a trailer is stored for the title. Set only on the items of the rows `spotlight`
+             *     and `picks` of `getHome`; everywhere else the field is absent, which means unknown, not
+             *     "no trailer" (`ItemDetail.trailerCount` is the complete answer).
+             */
+            hasTrailer?: boolean;
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
             /** @description On the watchlist of the active profile (E-5). */
@@ -3494,8 +3510,12 @@ export interface components {
             /** @description Audio and subtitle tracks of the file (detail page and versions). */
             tracks?: components["schemas"]["TrackList"];
         };
-        /** @enum {string} */
-        HomeRowKey: "picks" | "continue" | "recent" | "watchlist" | "collections" | "genres" | "trakt_trending" | "trakt_popular";
+        /**
+         * @description The eight rows of the start page (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
+         *     by `spotlight` and `released` (ADR 0011); removed values are never reused.
+         * @enum {string}
+         */
+        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres";
         HomeRow: {
             key: components["schemas"]["HomeRowKey"];
             /** @description The titles of the row; empty for `collections` and `genres`. */
@@ -3507,6 +3527,14 @@ export interface components {
         };
         HomePage: {
             rows: components["schemas"]["HomeRow"][];
+            /**
+             * @description The row the client draws as the stage (a framed band with backdrop and a poster strip)
+             *     instead of as a poster row, at its place in `rows`, not necessarily first. The server
+             *     decides which row that is (ADR 0011); a client draws large whatever is named here and
+             *     does not interpret the key itself. Absent when the start page has no stage: then every
+             *     row is a poster row. A row named here is always present in `rows`.
+             */
+            heroRow?: components["schemas"]["HomeRowKey"];
         };
         PlaybackRequest: {
             /** @description Which file to play; defaults to the primary file. */
@@ -4541,11 +4569,16 @@ export interface components {
             lastSuccess?: string;
             /** Format: date-time */
             lastAttempt?: string;
-            /** @description Why the last attempt failed; the rows are hidden meanwhile (I-7). */
+            /** @description Why the last attempt failed; the spotlight row is hidden meanwhile (I-7). */
             lastError?: string;
-            /** @description Entries (films and shows) of the trending list, before the library intersection. */
-            trending: number;
-            popular: number;
+            /** @description The list the spotlight row is configured to show (`getSpotlightConfig`). */
+            listKey: string;
+            /**
+             * @description Entries (films and shows) of that list that are young enough to show, before the library
+             *     intersection; 0 after a failed run or when the last success is older than twice the
+             *     fetch interval.
+             */
+            entries: number;
         };
         /**
          * @description The server's state for the wizard (A-1) and the dashboard (A-3). Carries no secret, so the wizard

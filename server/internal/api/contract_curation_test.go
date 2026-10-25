@@ -290,7 +290,7 @@ func TestContractHomeRows(t *testing.T) {
 	adminCurationAnswer(t, rec, http.StatusOK)
 	var rows []gen.HomeRowSetting
 	decode(t, rec, &rows)
-	if len(rows) != 8 || rows[0].Key != "picks" || rows[7].Key != "trakt_popular" {
+	if len(rows) != 8 || rows[0].Key != "spotlight" || rows[7].Key != "genres" {
 		t.Fatalf("default rows %+v", rows)
 	}
 
@@ -328,7 +328,7 @@ func TestContractHomeRows(t *testing.T) {
 		return keys
 	}
 
-	order := []string{"recent", "continue", "picks", "watchlist", "collections", "genres", "trakt_trending", "trakt_popular"}
+	order := []string{"recent", "continue", "picks", "watchlist", "collections", "genres", "spotlight", "released"}
 	set(order, "")
 	keys := homeKeys(order)
 	if !slices.Contains(keys, "recent") || !slices.Contains(keys, "picks") || keys[0] != "recent" {
@@ -341,7 +341,7 @@ func TestContractHomeRows(t *testing.T) {
 
 	for name, body := range map[string]string{
 		"seven rows":  `[{"key":"picks","position":0,"hidden":false}]`,
-		"twice picks": `[{"key":"picks","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},{"key":"trakt_trending","position":6,"hidden":false},{"key":"trakt_popular","position":7,"hidden":false}]`,
+		"twice picks": `[{"key":"picks","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},{"key":"spotlight","position":6,"hidden":false},{"key":"released","position":7,"hidden":false}]`,
 		"empty":       `[]`,
 	} {
 		if got := fieldProblem(t, send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18", body, nil)); got != "rows invalid_value" {

@@ -65,15 +65,16 @@ test('start page rows by keyboard: reorder and hide change the start page', asyn
     const table = page.getByRole('table', { name: 'Reihen der Startseite' });
     await expect(table.getByRole('rowheader')).toHaveCount(8);
 
-    // "Neu hinzugefügt" one up: the focus stays on the button, the row moved.
+    // "Neu hinzugefügt" one up: the focus stays on the button, the row moved. Spotlight holds
+    // row 0 and picks row 1 (ADR 0011), so recent moves from 3 to 2.
     await resetFocus(page);
     const up = table.getByRole('button', { name: 'Neu hinzugefügt nach oben' });
     await tabTo(page, up, 60);
     await page.keyboard.press('Enter');
     await expectFocusOn(page, up);
-    await expect(table.getByRole('rowheader').nth(1)).toHaveText('Neu hinzugefügt');
-    await expect(table.getByRole('rowheader').nth(2)).toHaveText('Weiterschauen');
-    await expect(page.getByText(/Neu hinzugefügt steht jetzt an Stelle 2/)).toBeVisible();
+    await expect(table.getByRole('rowheader').nth(2)).toHaveText('Neu hinzugefügt');
+    await expect(table.getByRole('rowheader').nth(3)).toHaveText('Weiterschauen');
+    await expect(page.getByText(/Neu hinzugefügt steht jetzt an Stelle 3/)).toBeVisible();
 
     // ↓ to the next row ("Weiterschauen" now), ↑ back.
     await arrowTo(page, table.getByRole('button', { name: 'Weiterschauen nach oben' }));

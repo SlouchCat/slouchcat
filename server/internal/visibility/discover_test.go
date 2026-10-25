@@ -252,9 +252,10 @@ func TestGenresOfVisibleTitles(t *testing.T) {
 	}
 }
 
-// AN-3: a Trakt list shows the visible library titles with its TMDB ids in list order, movies as
-// films and shows as series only.
-func TestTraktRowIntersection(t *testing.T) {
+// AN-3, ADR 0011: the spotlight row shows the visible library titles of the configured list with
+// their TMDB ids in list order, movies as films and shows as series only; entries of another list
+// key do not show.
+func TestSpotlightRowIntersection(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
@@ -265,9 +266,9 @@ func TestTraktRowIntersection(t *testing.T) {
 	// show at position 1 is the series (tmdb 1020); a movie entry with the series' id, a show entry
 	// with a film's id and an id outside the library match nothing.
 	for i := range 5 {
-		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, fetched.UnixMilli())
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, fetched.UnixMilli())
 	}
-	exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES
+	exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES
 	            ('trending', 'show', 1, 1020, ?1), ('trending', 'movie', 6, 1020, ?1), ('trending', 'show', 2, 1001, ?1),
 	            ('trending', 'movie', 7, 424242, ?1), ('popular', 'movie', 1, 1000, ?1)`, fetched.UnixMilli())
 	series := f.Show.Series.ID
@@ -279,7 +280,7 @@ func TestTraktRowIntersection(t *testing.T) {
 		{f.P12, []string{f.Rated(0).ID, series, f.Rated(6).ID, f.Rated(12).ID}},
 		{f.P0, []string{f.Rated(0).ID}},
 	} {
-		got, err := r.TraktRow(ctx, Profile(tc.p), TraktTrending, 20)
+		got, err := r.SpotlightRow(ctx, Profile(tc.p), 20)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -287,41 +288,49 @@ func TestTraktRowIntersection(t *testing.T) {
 			t.Errorf("%s trending = %v, want %v", tc.p.Name, ids(got), tc.want)
 		}
 	}
-	got, err := r.TraktRow(ctx, Profile(f.P18), TraktPopular, 20)
+	// The configured list key selects the entries.
+	exec(t, f, `UPDATE spotlight_config SET list_key = 'popular'`)
+	got, err := r.SpotlightRow(ctx, Profile(f.P18), 20)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{f.Rated(0).ID}; !slices.Equal(ids(got), want) {
 		t.Errorf("P18 popular = %v, want %v", ids(got), want)
 	}
+	exec(t, f, `UPDATE spotlight_config SET list_key = 'trending'`)
 	// The limit keeps the list order.
-	got, err = r.TraktRow(ctx, Profile(f.P18), TraktTrending, 2)
+	got, err = r.SpotlightRow(ctx, Profile(f.P18), 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{f.Rated(0).ID, series}; !slices.Equal(ids(got), want) {
 		t.Errorf("P18 trending limit 2 = %v, want %v", ids(got), want)
 	}
-	// W1: entries older than TraktMaxAge are stale (the refresh stopped) and show nothing.
-	for _, tc := range []struct {
-		age  time.Duration
-		want int
-	}{{TraktMaxAge, 6}, {TraktMaxAge + time.Millisecond, 0}} {
-		at := fetched.Add(tc.age)
-		stale := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return at }))
-		got, err := stale.TraktRow(ctx, Profile(f.P18), TraktTrending, 20)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(got) != tc.want {
-			t.Errorf("P18 trending %v after the fetch = %v, want %d titles", tc.age, ids(got), tc.want)
+	// W1, S-8: entries fetched more than twice spotlight_config.interval_hours ago are stale (the
+	// refresh stopped) and show nothing; the boundary is inclusive and follows the configuration.
+	for _, hours := range []int{6, 48} {
+		exec(t, f, `UPDATE spotlight_config SET interval_hours = ?`, hours)
+		limit := 2 * time.Duration(hours) * time.Hour
+		for _, tc := range []struct {
+			age  time.Duration
+			want int
+		}{{limit, 6}, {limit + time.Millisecond, 0}} {
+			at := fetched.Add(tc.age)
+			stale := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return at }))
+			got, err := stale.SpotlightRow(ctx, Profile(f.P18), 20)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(got) != tc.want {
+				t.Errorf("interval %dh: P18 trending %v after the fetch = %v, want %d titles", hours, tc.age, ids(got), tc.want)
+			}
 		}
 	}
 }
 
-// E-7, AN-3: a Trakt row shows at most the first 20 library hits in list order, even when more of
-// the list is in the library and the caller asks for more.
-func TestTraktRowAtMostTwenty(t *testing.T) {
+// E-7, AN-3: the spotlight row shows at most the first 20 library hits in list order, even when
+// more of the list is in the library and the caller asks for more.
+func TestSpotlightRowAtMostTwenty(t *testing.T) {
 	t.Parallel()
 	f := discoverFixture(t)
 	ctx := context.Background()
@@ -335,16 +344,16 @@ func TestTraktRowAtMostTwenty(t *testing.T) {
 		exec(t, f, `INSERT INTO media_files (id, item_id, root_id, rel_path, size, mtime, container, video_codec, audio_codec, width, height, duration_ms, created_at, updated_at)
 		            VALUES (?, ?, ?, ?, 1, 1, 'mp4', 'h264', 'aac', 1920, 1080, 1000, 1, 1)`, fmt.Sprintf("01J9TRAKTF00000000000%05d", i), id, f.RootID(), fmt.Sprintf("trakt-%02d.mp4", i))
 		// Positions run backwards, so the row order must come from the list, not from the ids.
-		exec(t, f, `INSERT INTO trakt_lists (list, media, position, tmdb_id, fetched_at) VALUES ('popular', 'movie', ?, ?, ?)`, 100-i, 8000+i, fetched.UnixMilli())
+		exec(t, f, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, 100-i, 8000+i, fetched.UnixMilli())
 	}
 	for i := 24; i >= 5; i-- {
 		want = append(want, fmt.Sprintf("01J9TRAKT0000000000000%04d", i))
 	}
-	got, err := r.TraktRow(ctx, Profile(f.P0), TraktPopular, 50)
+	got, err := r.SpotlightRow(ctx, Profile(f.P0), 50)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !slices.Equal(ids(got), want) {
-		t.Errorf("popular row = %d titles %v, want the first 20 of the list %v", len(got), ids(got), want)
+		t.Errorf("spotlight row = %d titles %v, want the first 20 of the list %v", len(got), ids(got), want)
 	}
 }

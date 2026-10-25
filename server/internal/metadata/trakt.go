@@ -17,10 +17,11 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/trakt"
 )
 
-// Trakt lists (M7, AN-3, E-7, I-7). The job trakt.refresh (key "trakt", priority 2) fetches the
-// top 100 of the four public lists (trending and popular, movies and shows) with the server's
-// client id and replaces trakt_lists in one transaction. A failure empties the table, so the two
-// start page rows disappear (I-7), and stores the error. RunTrakt queues the job once a day.
+// Spotlight list (M7, M11, AN-3, E-7, I-7, ADR 0011). The job trakt.refresh (key "trakt",
+// priority 2) fetches the top 100 of the public trending list (movies and shows) with the server's
+// client id and replaces spotlight_entries in one transaction, under list_key "trending" (the one
+// list of the singleton spotlight_config). A failure empties the table, so the spotlight row
+// disappears (I-7), and stores the error. RunTrakt queues the job once a day.
 const (
 	JobTraktRefresh = "trakt.refresh"
 	traktJobKey     = "trakt"
@@ -37,10 +38,13 @@ const (
 	SettingTraktLastError   = "trakt_last_error"
 )
 
+// spotlightListKey is the list_key the run stores its entries under (spotlight_config.list_key
+// of migration 00021).
+const spotlightListKey = trakt.ListTrending
+
 // traktLists are the lists of one run in their storage order.
 var traktLists = []struct{ list, media string }{
 	{trakt.ListTrending, trakt.MediaMovie}, {trakt.ListTrending, trakt.MediaShow},
-	{trakt.ListPopular, trakt.MediaMovie}, {trakt.ListPopular, trakt.MediaShow},
 }
 
 // traktConfig is the Trakt part of the service.
@@ -137,15 +141,15 @@ func (s *Service) RunTrakt(ctx context.Context) {
 
 // QueueDueTrakt queues trakt.refresh when a client id is configured and the last attempt is
 // TraktInterval old or there was none (one tick of RunTrakt). It reports whether it queued.
-// Without a client id it empties stored lists, so the start page drops the Trakt rows (the
-// documented behaviour of an empty SLOUCHCAT_TRAKT_CLIENT_ID).
+// Without a client id it empties the stored entries, so the start page drops the spotlight row
+// (the documented behaviour of an empty SLOUCHCAT_TRAKT_CLIENT_ID).
 func (s *Service) QueueDueTrakt(ctx context.Context) (bool, error) {
 	id, err := s.traktClientID(ctx)
 	if err != nil {
 		return false, err
 	}
 	if id == "" {
-		return false, s.dropTraktLists(ctx)
+		return false, s.dropSpotlightEntries(ctx)
 	}
 	last, err := s.traktSettingTime(ctx, SettingTraktLastAttempt)
 	if err != nil {
@@ -170,19 +174,19 @@ func (s *Service) RefreshTrakt(ctx context.Context) error {
 	return s.enqueueTrakt(ctx)
 }
 
-// dropTraktLists empties trakt_lists when it holds entries.
-func (s *Service) dropTraktLists(ctx context.Context) error {
-	counts, err := s.read.TraktCountLists(ctx, 0)
+// dropSpotlightEntries empties spotlight_entries when it holds entries.
+func (s *Service) dropSpotlightEntries(ctx context.Context) error {
+	n, err := s.read.SpotlightCountEntries(ctx, 0)
 	if err != nil {
-		return fmt.Errorf("count trakt lists: %w", err)
+		return fmt.Errorf("count spotlight entries: %w", err)
 	}
-	if len(counts) == 0 {
+	if n == 0 {
 		return nil
 	}
-	if err := systemq.New(s.db.Write).TraktDeleteLists(ctx); err != nil {
-		return fmt.Errorf("empty trakt lists: %w", err)
+	if err := systemq.New(s.db.Write).SpotlightDeleteEntries(ctx); err != nil {
+		return fmt.Errorf("empty spotlight entries: %w", err)
 	}
-	s.log.InfoContext(ctx, "trakt lists emptied: no client id configured")
+	s.log.InfoContext(ctx, "spotlight entries emptied: no client id configured")
 	return nil
 }
 
@@ -195,8 +199,9 @@ func (s *Service) enqueueTrakt(ctx context.Context) error {
 }
 
 // TraktStatus returns whether a client id is configured, the times of the last success and
-// attempt, the last error and the stored entries per list that are younger than twice
-// TraktInterval (the entries the start page still shows, visibility.TraktMaxAge).
+// attempt, the last error, the configured list and the stored entries fetched within twice
+// spotlight_config.interval_hours (S-8: the entries the start page still shows,
+// visibility.SpotlightRow).
 func (s *Service) TraktStatus(ctx context.Context) (model.TraktStatus, error) {
 	id, err := s.traktClientID(ctx)
 	if err != nil {
@@ -212,23 +217,22 @@ func (s *Service) TraktStatus(ctx context.Context) (model.TraktStatus, error) {
 	if st.LastError, err = s.traktSetting(ctx, SettingTraktLastError); err != nil {
 		return model.TraktStatus{}, err
 	}
-	counts, err := s.read.TraktCountLists(ctx, s.trakt.now().Add(-2*TraktInterval).UnixMilli())
+	cfg, err := appq.New(s.db.Read).GetSpotlightConfig(ctx)
 	if err != nil {
-		return model.TraktStatus{}, fmt.Errorf("count trakt lists: %w", err)
+		return model.TraktStatus{}, fmt.Errorf("get spotlight config: %w", err)
 	}
-	for _, c := range counts {
-		switch c.List {
-		case trakt.ListTrending:
-			st.Trending = int(c.Entries)
-		case trakt.ListPopular:
-			st.Popular = int(c.Entries)
-		}
+	st.ListKey = cfg.ListKey
+	minFetched := s.trakt.now().Add(-2 * time.Duration(cfg.IntervalHours) * time.Hour).UnixMilli()
+	n, err := s.read.SpotlightCountEntries(ctx, minFetched)
+	if err != nil {
+		return model.TraktStatus{}, fmt.Errorf("count spotlight entries: %w", err)
 	}
+	st.Entries = int(n)
 	return st, nil
 }
 
 // handleTraktRefresh runs one refresh. A run without client id does nothing. A failure has
-// emptied the lists and stored the error; an unreachable Trakt is returned, so the queue retries
+// emptied the entries and stored the error; an unreachable Trakt is returned, so the queue retries
 // with backoff, a refused client id is not (the next daily run or the admin tries again).
 func (s *Service) handleTraktRefresh(ctx context.Context, _ *jobs.Job) error {
 	id, err := s.traktClientID(ctx)
@@ -243,8 +247,8 @@ func (s *Service) handleTraktRefresh(ctx context.Context, _ *jobs.Job) error {
 	return err
 }
 
-// refreshTraktLists fetches the four lists and stores them, or empties the table and records the
-// error. The client id never reaches the log or the stored error.
+// refreshTraktLists fetches the lists and stores them as the spotlight entries, or empties the
+// table and records the error. The client id never reaches the log or the stored error.
 func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error {
 	c := trakt.New(clientID, trakt.WithBaseURL(s.trakt.base), trakt.WithHTTPClient(s.trakt.http),
 		trakt.WithLimiter(s.trakt.limiter), trakt.WithUserAgent(s.trakt.agent))
@@ -265,8 +269,8 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 	ms := attempt.UnixMilli()
 	stamp := strconv.FormatInt(ms, 10)
 	err := s.inTxApp(ctx, func(q *systemq.Queries, app *appq.Queries) error {
-		if err := q.TraktDeleteLists(ctx); err != nil {
-			return fmt.Errorf("empty trakt lists: %w", err)
+		if err := q.SpotlightDeleteEntries(ctx); err != nil {
+			return fmt.Errorf("empty spotlight entries: %w", err)
 		}
 		if err := app.UpsertSetting(ctx, appq.UpsertSettingParams{Key: SettingTraktLastAttempt, Value: stamp, Now: ms}); err != nil {
 			return fmt.Errorf("store trakt attempt: %w", err)
@@ -277,13 +281,13 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 			}
 			return nil
 		}
-		for i, list := range entries {
+		for _, list := range entries {
 			for _, e := range list {
-				if err := q.TraktInsertEntry(ctx, systemq.TraktInsertEntryParams{
-					List: traktLists[i].list, Media: e.Media, Position: int64(e.Position), TmdbID: e.TMDBID,
+				if err := q.SpotlightInsertEntry(ctx, systemq.SpotlightInsertEntryParams{
+					ListKey: spotlightListKey, Media: e.Media, Position: int64(e.Position), TmdbID: e.TMDBID,
 					Title: nullStr(e.Title), Year: positive(int64(e.Year)), Now: ms,
 				}); err != nil {
-					return fmt.Errorf("store trakt entry: %w", err)
+					return fmt.Errorf("store spotlight entry: %w", err)
 				}
 			}
 		}
@@ -307,7 +311,7 @@ func (s *Service) refreshTraktLists(ctx context.Context, clientID string) error 
 	for _, l := range entries {
 		n += len(l)
 	}
-	s.log.InfoContext(ctx, "trakt lists refreshed", "entries", n)
+	s.log.InfoContext(ctx, "spotlight list refreshed", "entries", n)
 	return nil
 }
 

@@ -246,9 +246,9 @@ var adminRegistry = map[string]adminCall{
 	"setCollectionItems": {contract: "PUT /admin/collections/{id}/items", path: "/admin/collections/" + unknownItemID + "/items", body: `{"itemIds":[]}`, ownerStatus: http.StatusNotFound},
 	"getHomeRows":        {contract: "GET /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK},
 	"setHomeRows": {contract: "PUT /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK,
-		body: `[{"key":"picks","position":0,"hidden":false},{"key":"continue","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},` +
-			`{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},` +
-			`{"key":"trakt_trending","position":6,"hidden":false},{"key":"trakt_popular","position":7,"hidden":false}]`},
+		body: `[{"key":"spotlight","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"continue","position":2,"hidden":false},` +
+			`{"key":"recent","position":3,"hidden":false},{"key":"released","position":4,"hidden":false},{"key":"watchlist","position":5,"hidden":false},` +
+			`{"key":"collections","position":6,"hidden":false},{"key":"genres","position":7,"hidden":false}]`},
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// The fixture has no Trakt client id: 422 provider_not_configured.
 	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
