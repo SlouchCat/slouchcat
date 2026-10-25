@@ -39,6 +39,10 @@ func (f *authTestLibraries) ValidatePath(_ context.Context, path string) error {
 	return nil
 }
 
+func (f *authTestLibraries) ValidateNewRoot(ctx context.Context, path string) error {
+	return f.ValidatePath(ctx, path)
+}
+
 func (f *authTestLibraries) Create(_ context.Context, req model.LibraryRequest) (model.Library, error) {
 	started := time.Date(2026, 10, 18, 14, 0, 0, 0, time.FixedZone("CEST", 2*3600))
 	lib := model.Library{

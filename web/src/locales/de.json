@@ -95,6 +95,7 @@
     "code": {
       "invalid_credentials": "E-Mail-Adresse oder Passwort stimmen nicht.",
       "library_path_invalid": "Diesen Ordner gibt es auf dem Server nicht, oder er ist nicht lesbar. Gib einen absoluten Pfad im Container an.",
+      "path_not_browsable": "Dieser Ordner ist nicht freigegeben. Erlaubt sind nur Ordner unterhalb der freigegebenen Medienordner (SLOUCHCAT_BROWSE_ROOTS).",
       "tmdb_key_invalid": "TMDB hat den Schlüssel abgelehnt. Prüfe das Lesezugriffs-Token.",
       "tmdb_unreachable": "TMDB ist gerade nicht erreichbar. Versuche es erneut oder lass das Feld leer.",
       "setup_done": "Slouchcat ist bereits eingerichtet. Melde dich an.",

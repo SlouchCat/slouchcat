@@ -57,7 +57,11 @@ const jobMetadataMatch = "metadata.match"
 
 // Libraries is implemented by package library.
 type Libraries interface {
-	ValidatePath(ctx context.Context, path string) error                         // model.ErrLibraryPathInvalid when not absolute, missing, not a directory or not readable
+	ValidatePath(ctx context.Context, path string) error // model.ErrLibraryPathInvalid when not absolute, missing, not a directory or not readable
+	// ValidateNewRoot adds the rule of E14 to ValidatePath: a folder that is about to become a
+	// library root must lie below a browsable root (library.ErrNotBrowsable, which wraps
+	// model.ErrLibraryPathInvalid) unless it is a root already.
+	ValidateNewRoot(ctx context.Context, path string) error
 	Create(ctx context.Context, req model.LibraryRequest) (model.Library, error) // validates, detects the file system, inserts library + root, queues the first scan
 	List(ctx context.Context) ([]model.Library, error)
 	Get(ctx context.Context, id int64) (model.Library, error) // model.ErrNotFound
@@ -192,7 +196,7 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	if verr != nil {
 		return model.Session{}, "", verr
 	}
-	if err := s.libraries.ValidatePath(ctx, req.Library.Path); err != nil {
+	if err := s.libraries.ValidateNewRoot(ctx, req.Library.Path); err != nil {
 		return model.Session{}, "", err
 	}
 	if key != "" {

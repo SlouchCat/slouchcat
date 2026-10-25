@@ -27,6 +27,9 @@ import { startTraktServer, TRAKT_CLIENT_ID } from './trakt-server.mjs';
 import { startUpdateServer } from './update-server.mjs';
 
 const binary = fileURLToPath(new URL('../../server/bin/slouchcat', import.meta.url));
+// The folder browser and the rule that a new library folder lies below a browsable root (idea 02,
+// E14) default to /media, which no test machine has: the suite's libraries live in testdata/media.
+const browseRoots = fileURLToPath(new URL('../../testdata/media', import.meta.url));
 const port = process.env.SLOUCHCAT_E2E_PORT ?? '8097';
 
 if (!existsSync(binary)) {
@@ -91,6 +94,8 @@ const server = spawn(
       // address (X-Forwarded-For, e2e/fixtures.ts), so the limit of 10 attempts per minute and
       // address does not couple tests to each other. The browser connects from the loopback.
       SLOUCHCAT_TRUSTED_PROXIES: 'private',
+      // The library folders of the suite lie here, not under the default /media (idea 02, E14).
+      SLOUCHCAT_BROWSE_ROOTS: browseRoots,
       // The public Trakt lists come from the local mock (trakt-server.mjs) with a fake client id.
       SLOUCHCAT_TRAKT_CLIENT_ID: TRAKT_CLIENT_ID,
       SLOUCHCAT_TRAKT_BASE_URL: `http://127.0.0.1:${trakt.port}`,

@@ -12,6 +12,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
@@ -28,13 +29,31 @@ type fakeLibraries struct {
 	created []model.LibraryRequest
 	scanned []int64
 	lost    []int64
+	// notBrowsable answers library.ErrNotBrowsable for these paths (E14), and counts how often
+	// the check ran, so a test can show that no stat followed it.
+	notBrowsable map[string]bool
+	validated    []string
+	// validateDir lets the fake describe real directories (library.ValidateDir) instead of
+	// accepting every path; the wizard's path check needs that, the setup tests do not.
+	validateDir bool
 }
 
 func (f *fakeLibraries) ValidatePath(_ context.Context, path string) error {
 	if path == badPath {
 		return model.ErrLibraryPathInvalid
 	}
+	if f.validateDir {
+		return library.ValidateDir(path)
+	}
 	return nil
+}
+
+func (f *fakeLibraries) ValidateNewRoot(ctx context.Context, path string) error {
+	f.validated = append(f.validated, path)
+	if f.notBrowsable[path] {
+		return library.ErrNotBrowsable
+	}
+	return f.ValidatePath(ctx, path)
 }
 
 func (f *fakeLibraries) Create(_ context.Context, req model.LibraryRequest) (model.Library, error) {

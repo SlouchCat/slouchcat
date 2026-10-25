@@ -83,8 +83,12 @@ function PathResult({ check }: { check: PathCheck }) {
 }
 
 /** The field message of a path the server described as unusable (the texts of the submit). */
-const pathProblemKey = (problem: NonNullable<PathCheck['problem']>) =>
-  problem === 'not_absolute' ? 'errors.field.not_absolute' : 'errors.code.library_path_invalid';
+const pathProblemKey = (problem: NonNullable<PathCheck['problem']>) => {
+  if (problem === 'not_absolute') return 'errors.field.not_absolute';
+  // The server does not describe a folder below no browsable root, so neither does the message.
+  if (problem === 'not_browsable') return 'errors.code.path_not_browsable';
+  return 'errors.code.library_path_invalid';
+};
 
 /**
  * First-start wizard (A-1): main account, first library with a check of its folder, optional TMDB

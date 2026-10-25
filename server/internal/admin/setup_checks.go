@@ -3,11 +3,8 @@ package admin
 import (
 	"context"
 	"errors"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -18,14 +15,11 @@ import (
 // wizard runs, before RunSetup. Both count against the attempt limit of the client and are refused
 // once an account exists, like RunSetup. A bad path or key is described in the result, not an error.
 
-// Problems of PathCheck and TMDBCheck.
+// Problems of TMDBCheck; the problems of PathCheck live in package library, which the folder
+// browser shares them with (library.PathNotAbsolute and friends).
 const (
-	pathNotAbsolute  = "not_absolute"
-	pathMissing      = "missing"
-	pathNotDirectory = "not_directory"
-	pathNotReadable  = "not_readable"
-	tmdbInvalid      = "invalid"
-	tmdbUnreachable  = "unreachable"
+	tmdbInvalid     = "invalid"
+	tmdbUnreachable = "unreachable"
 )
 
 // setupCheckAllowed counts the attempt and refuses the checks once the wizard ran.
@@ -56,31 +50,22 @@ func (s *Service) CheckSetupPath(ctx context.Context, path string) (model.PathCh
 	case len(path) > maxLibraryPath:
 		return model.PathCheck{}, (&model.ValidationError{}).Add("path", "too_long")
 	case !filepath.IsAbs(path):
-		return model.PathCheck{Problem: pathNotAbsolute}, nil
+		return model.PathCheck{Problem: library.PathNotAbsolute}, nil
 	}
-	if err := library.ValidateDir(path); err != nil {
-		return model.PathCheck{Problem: pathProblem(path)}, nil
+	// A path below no browsable root is answered before anything touches it: library.PathProblem
+	// would stat it and so tell a caller without an account whether it exists (idea 02, E14).
+	if err := s.libraries.ValidateNewRoot(ctx, path); err != nil {
+		if errors.Is(err, library.ErrNotBrowsable) {
+			return model.PathCheck{Problem: library.PathNotBrowsable}, nil
+		}
+		return model.PathCheck{Problem: library.PathProblem(path)}, nil
 	}
 	fsType, err := paths.DetectFS(filepath.Clean(path))
 	if err != nil {
-		return model.PathCheck{Problem: pathProblem(path)}, nil
+		return model.PathCheck{Problem: library.PathProblem(path)}, nil
 	}
 	watch, warning := library.WatchMode(string(fsType))
 	return model.PathCheck{OK: true, FSType: string(fsType), WatchMode: watch, Warning: warning}, nil
-}
-
-// pathProblem names why a path that failed the check is not usable; the errors of the check do
-// not tell a file from a directory (os.OpenRoot), a stat of the path does.
-func pathProblem(path string) string {
-	fi, err := os.Stat(path)
-	switch {
-	case errors.Is(err, fs.ErrNotExist):
-		return pathMissing
-	case errors.Is(err, syscall.ENOTDIR), err == nil && !fi.IsDir():
-		return pathNotDirectory
-	default:
-		return pathNotReadable
-	}
 }
 
 // CheckSetupTMDBKey asks TMDB whether the key is valid; the key is neither stored nor logged.

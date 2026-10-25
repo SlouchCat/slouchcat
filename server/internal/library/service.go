@@ -55,6 +55,9 @@ type Service struct {
 	newEpisodes func(ctx context.Context, ids []string) error
 	// scanAborted is told when the loss protection aborts a scan (optional, M8).
 	scanAborted func(ctx context.Context, libraryName, reason string) error
+	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
+	// empty switches the rule off.
+	browseRoots []string
 
 	mu        sync.Mutex
 	runCtx    context.Context // context of Start; watchers of libraries created later run under it
@@ -133,7 +136,9 @@ func (s *Service) newID() string {
 	return ulid.MustNew(ulid.Timestamp(s.now()), ulid.DefaultEntropy()).String()
 }
 
-// ValidatePath checks that path is absolute, exists, is a directory and can be listed (ValidateDir).
+// ValidatePath checks that path is absolute, exists, is a directory and can be listed
+// (ValidateDir), without the browsable-root rule of E14; ValidateNewRoot adds that rule for a
+// path that is about to become a library root.
 func (s *Service) ValidatePath(_ context.Context, path string) error {
 	return ValidateDir(path)
 }
@@ -198,7 +203,7 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 		s.log.InfoContext(ctx, "library created", "library_id", lib.ID, "kind", lib.Kind)
 		return s.toModel(ctx, lib)
 	}
-	if err := s.ValidatePath(ctx, req.Path); err != nil {
+	if err := s.ValidateNewRoot(ctx, req.Path); err != nil {
 		return model.Library{}, err
 	}
 	path := filepath.Clean(req.Path)

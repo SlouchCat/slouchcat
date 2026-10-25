@@ -8430,8 +8430,11 @@ components:
           description: A hint, not an error; the library works with polling.
         problem:
           type: string
-          enum: [not_absolute, missing, not_directory, not_readable]
-          description: Why the path is not usable; set exactly when `ok` is false.
+          enum: [not_absolute, missing, not_directory, not_readable, not_browsable]
+          description: |
+            Why the path is not usable; set exactly when `ok` is false. `not_browsable`: the path lies
+            below none of the browsable roots (`SLOUCHCAT_BROWSE_ROOTS`). The path is then not described
+            further, so the answer tells nothing about the file system outside those roots.
 
     TMDBCheckRequest:
       type: object
