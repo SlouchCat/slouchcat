@@ -55,16 +55,18 @@ export function PathBrowserDialog({
   // the roots when the field is empty or names something below none of them. Derived, not an
   // effect: the start follows the roots as soon as they arrive, without a second render pass.
   const [position, setPosition] = useState<Position | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  // What "OK" hands on. null means "untouched since the dialog opened", so the field shows the
-  // value of the field outside; close() sets it back to null, which is the reset -- derived, not
-  // an effect, so no render shows a path from the last time the dialog was open.
+  // What was typed by hand, or null while nothing was. close() sets it back to null, which is
+  // the reset -- derived, not an effect, so no render shows a path from the last time the dialog
+  // was open.
   const [draft, setDraft] = useState<string | null>(null);
   const [goToMissed, setGoToMissed] = useState(false);
-  const field = draft ?? currentPath;
 
   const roots = useQuery({ ...browseRootsQuery, enabled: isOpen });
-  const here = position ?? startPosition(roots.data, currentPath) ?? NO_ROOT;
+  // Where the dialog stands before anything was clicked: the folder the field names, or the one
+  // configured root when there is only one. Emby opens in a folder, not on a list of mount
+  // points, and with a single root that list holds exactly one row to click through.
+  const here =
+    position ?? startPosition(roots.data, currentPath) ?? soleRoot(roots.data) ?? NO_ROOT;
   const atRoots = here.rootId === '';
   const dir = useInfiniteQuery(directoryQuery(here.rootId, here.rel, isOpen && !atRoots));
   const listing = lastPage(dir.data?.pages);
@@ -72,17 +74,19 @@ export function PathBrowserDialog({
   // loads, so the list keeps the focus. Everything but those rows -- the path, the warnings, the
   // way up and what "Apply" writes -- waits for the answer, or it would describe the wrong folder.
   const shown = listing?.rootId === here.rootId && listing.rel === here.rel ? listing : undefined;
+  // What "OK" hands on: what was typed, else the folder the dialog stands in, else the value of
+  // the field outside. Standing somewhere and offering something else would be a trap -- in Emby
+  // the field and the list always say the same thing.
+  const field = draft ?? shown?.path ?? currentPath;
 
   const close = () => {
     setPosition(null);
-    setSelected(null);
     setDraft(null);
     setGoToMissed(false);
     onOpenChange(false);
   };
   const goTo = (next: Position, path?: string) => {
     setPosition(next);
-    setSelected(null);
     setGoToMissed(false);
     if (path !== undefined) setDraft(path);
   };
@@ -109,13 +113,6 @@ export function PathBrowserDialog({
     const entry = shown?.entries.find((e) => e.rel === id);
     if (entry && !entry.symlink) goTo({ rootId: here.rootId, rel: entry.rel }, entry.path);
   };
-  // Marking a row is the other way to fill the field: arrow keys alone are enough to choose.
-  const mark = (id: string | null) => {
-    setSelected(id);
-    setGoToMissed(false);
-    const path = id === null ? undefined : pathOf(atRoots, roots.data, shown, id);
-    if (path) setDraft(path);
-  };
   // Back to the roots whenever the current directory is unknown -- still loading, or the server
   // refused it. Going nowhere would strand the keyboard in a folder it cannot leave.
   const up = () => {
@@ -127,17 +124,24 @@ export function PathBrowserDialog({
     goTo({ rootId: here.rootId, rel: shown.parentRel ?? '' });
   };
   // Backspace and Left go up, Right goes down: the two keys a file dialog is expected to answer
-  // to. The ListBox brings the rest (arrows, Home, End, Enter); the dialog holds no text field,
-  // so Backspace cannot swallow a keystroke meant for one.
+  // to. The ListBox brings the rest (arrows, Home, End, Enter). The grip sits on the list, not
+  // on the dialog, so Backspace in the path field above still edits the text (E18).
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Backspace' || event.key === 'ArrowLeft') {
       event.preventDefault();
       up();
       return;
     }
-    if (event.key === 'ArrowRight' && selected) {
-      event.preventDefault();
-      enter(selected);
+    if (event.key === 'ArrowRight') {
+      // The rows carry no selection any more, so the row under the focus is read from the DOM:
+      // react-aria writes its key there.
+      const key = (event.target as HTMLElement | null)
+        ?.closest('[role="option"]')
+        ?.getAttribute('data-key');
+      if (key) {
+        event.preventDefault();
+        enter(key);
+      }
     }
   };
 
@@ -154,6 +158,7 @@ export function PathBrowserDialog({
       title={t('library.browse.title')}
       initialFocus='[role="option"]'
       returnFocus={returnFocus}
+      size="wide"
     >
       <div className={styles.body}>
         <div className={styles.field}>
@@ -222,8 +227,6 @@ export function PathBrowserDialog({
             autoFocus
             label={t('library.browse.list')}
             items={items}
-            selectedId={selected}
-            onSelectionChange={mark}
             onAction={enter}
             onKeyDown={onKeyDown}
             emptyText={
@@ -322,15 +325,15 @@ function entryItems(t: TFunction, entries: DirectoryEntry[] | undefined): PathIt
   }));
 }
 
-/** The absolute path of a marked row, which goes into the field (E18). */
-function pathOf(
-  atRoots: boolean,
-  roots: BrowseRoot[] | undefined,
-  listing: DirectoryListing | undefined,
-  id: string,
-): string | undefined {
-  if (atRoots) {
-    return roots?.find((root) => root.id === id)?.path;
-  }
-  return listing?.entries.find((entry) => entry.rel === id)?.path;
+/**
+ * The one configured root to open in, or undefined when there are several (then the list of roots
+ * is a real choice and the dialog shows it). Library roots do not count: they are listed so a
+ * folder can carry its library's name, and one of them is no place to start.
+ */
+function soleRoot(roots: BrowseRoot[] | undefined): Position | undefined {
+  const configured = (roots ?? []).filter(
+    (root) => root.source === 'configured' && root.browsable !== false,
+  );
+  const [only] = configured;
+  return configured.length === 1 && only ? { rootId: only.id, rel: '' } : undefined;
 }

@@ -62,22 +62,35 @@ describe('path browser dialog (Emby shape, idea 02 E18)', () => {
     vi.unstubAllGlobals();
   });
 
-  it('writes the marked row into the path field and hands that value on with OK', async () => {
+  it('opens inside the one configured root instead of on a list of roots', async () => {
+    mount();
+    const user = userEvent.setup();
+    await open(user);
+
+    // Emby opens in a folder; with a single configured root the list of roots would hold one row
+    // to click through before anything useful appears.
+    expect(within(dialog()).getByRole('option', { name: /Filme/ })).toBeVisible();
+    expect(within(dialog()).queryByRole('option', { name: '/media' })).toBeNull();
+  });
+
+  it('enters a folder on one click and hands the folder it stands in to OK', async () => {
     mount();
     const user = userEvent.setup();
     await open(user);
 
     const field = within(dialog()).getByLabelText('Ordner');
-    expect(field).toHaveValue('');
-
-    await user.click(within(dialog()).getByRole('option', { name: /\/media/ }));
-    await waitFor(() => expect(field).toHaveValue('/media'));
+    // One click goes down, it does not merely mark the row.
+    await user.click(within(dialog()).getByRole('option', { name: /Serien/ }));
+    await waitFor(() => expect(field).toHaveValue('/media/Serien'));
+    await waitFor(() =>
+      expect(within(dialog()).getByRole('option', { name: /Fallout/ })).toBeVisible(),
+    );
 
     await user.click(within(dialog()).getByRole('button', { name: 'OK' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     // The library form's own folder field now carries it.
     const form = screen.getByRole('region', { name: 'Bibliothek hinzufügen' });
-    expect(within(form).getByLabelText('Ordner')).toHaveValue('/media');
+    expect(within(form).getByLabelText('Ordner')).toHaveValue('/media/Serien');
   });
 
   it('takes the list to a path that was typed', async () => {
@@ -103,6 +116,7 @@ describe('path browser dialog (Emby shape, idea 02 E18)', () => {
     await open(user);
 
     const field = within(dialog()).getByLabelText('Ordner');
+    await user.clear(field);
     await user.type(field, '/etc/secrets');
     await user.click(within(dialog()).getByRole('button', { name: 'Gehe zu' }));
 
@@ -122,11 +136,15 @@ describe('path browser dialog (Emby shape, idea 02 E18)', () => {
     const user = userEvent.setup();
     await open(user);
 
-    await user.type(within(dialog()).getByLabelText('Ordner'), '/media/Filme');
+    const field = within(dialog()).getByLabelText('Ordner');
+    // The field starts on the folder the dialog stands in, not empty.
+    await waitFor(() => expect(field).toHaveValue('/media'));
+    await user.clear(field);
+    await user.type(field, '/media/Tippfehler');
     await user.click(within(dialog()).getByRole('button', { name: 'Abbrechen' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
     await open(user);
-    expect(within(dialog()).getByLabelText('Ordner')).toHaveValue('');
+    await waitFor(() => expect(within(dialog()).getByLabelText('Ordner')).toHaveValue('/media'));
   });
 });

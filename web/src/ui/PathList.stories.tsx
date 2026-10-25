@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { useState } from 'react';
 import { PathList, type PathItem } from './PathList';
 
 const items: PathItem[] = [
@@ -15,24 +14,15 @@ const items: PathItem[] = [
   },
 ];
 
-function Browsing() {
-  const [selected, setSelected] = useState<string | null>('Serien');
-  return (
-    <PathList
-      label="Ordner"
-      items={items}
-      selectedId={selected}
-      onSelectionChange={setSelected}
-      emptyText="Keine Unterordner."
-    />
-  );
-}
-
 const meta = {
   title: 'UI/PathList',
   component: PathList,
-  args: { label: 'Ordner', items, emptyText: 'Keine Unterordner.' },
-  render: () => <Browsing />,
+  args: {
+    label: 'Ordner',
+    items,
+    emptyText: 'Keine Unterordner.',
+    onAction: () => undefined,
+  },
   decorators: [
     (Story) => (
       <div style={{ maxWidth: '40rem' }}>
@@ -47,7 +37,10 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-/** Tab reaches the list as one stop, the arrow keys walk the rows. */
+/**
+ * Tab reaches the list as one stop, the arrow keys walk the rows. The rows carry no selection:
+ * one click or Enter enters the folder, which is what a folder picker is for.
+ */
 export const Focused: Story = { tags: ['press:Tab+ArrowDown'] };
 
 /** A folder without subfolders: the dialog says so instead of showing an empty box. */

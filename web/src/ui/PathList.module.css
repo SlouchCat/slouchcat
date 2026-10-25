@@ -1,8 +1,12 @@
 .list {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--sc-space-1);
-  max-height: 22rem;
+
+  /* Grows with the dialog instead of ending at a fixed height: a folder browser that shows four
+     rows at a time is a folder browser nobody uses. The holder decides how tall it may get. */
+  min-height: 12rem;
   margin: 0;
   padding: 0;
   overflow-y: auto;
@@ -11,9 +15,16 @@
 
 .item {
   display: flex;
+  /* Never shrink below the content: the list is a flex column that scrolls, and a shrinking row
+     would push its second line (the mark on a phone) under the row beneath it. */
+  flex: none;
   gap: var(--sc-space-3);
   align-items: center;
-  padding: var(--sc-space-2) var(--sc-space-3);
+
+  /* A row is a touch target: 2.75rem is the 44 px every phone guideline asks for, and one click
+     enters the folder, so a miss costs a step back instead of nothing. */
+  min-height: 2.75rem;
+  padding: var(--sc-space-3) var(--sc-space-4);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-primary);
@@ -26,10 +37,6 @@
 .item[data-focus-visible] {
   outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
   outline-offset: var(--sc-focus-ring-offset);
-}
-
-.item[data-selected] {
-  background-color: var(--sc-color-surface-2);
 }
 
 .item[data-hovered] {
@@ -66,6 +73,21 @@
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);
   text-align: end;
+}
+
+/* On a phone the mark ("Gehört zu Bibliothek Hörbücher") is wider than the name beside it, and
+   a row that refuses to give way breaks the folder name letter by letter. Below this width the
+   mark drops to a line of its own; the chevron keeps its place on the first line. */
+@media (width < 30rem) {
+  .item {
+    flex-wrap: wrap;
+  }
+
+  .note {
+    order: 2;
+    flex-basis: 100%;
+    text-align: start;
+  }
 }
 
 .empty {
