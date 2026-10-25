@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -43,6 +44,10 @@ type Config struct {
 	// TrustedProxies are the networks whose X-Forwarded-For header the server believes (reverse
 	// proxy in front); empty ignores the header.
 	TrustedProxies []netip.Prefix
+	// BrowseRoots are the directories the folder browser of the library form may list, and the
+	// directories a new library root must lie below (idea 02, E4 and E14). Absolute, cleaned and
+	// without duplicates; the default is DefaultBrowseRoots.
+	BrowseRoots []string
 	// TranscodeBudget overrides the admission budget of the transcode backend; 0 = backend default.
 	TranscodeBudget float64
 	// DownloadBudgetGB caps the prepared downloads in <cache>/downloads (AN-20, decision 8: 100 GB);
@@ -112,6 +117,10 @@ func (c Config) DownloadsDir() string { return filepath.Join(c.CacheDir, "downlo
 // DefaultDownloadBudgetGB is the download budget without SLOUCHCAT_DOWNLOAD_BUDGET_GB (decision 8).
 const DefaultDownloadBudgetGB = 100
 
+// DefaultBrowseRoots is the value of SLOUCHCAT_BROWSE_ROOTS when it is not set: the media mount of
+// deploy/compose.yaml, which is the only one a normal installation has (idea 02, E4).
+const DefaultBrowseRoots = "/media"
+
 // hwBackends are the values of SLOUCHCAT_HW / --hw.
 var hwBackends = map[string]bool{"auto": true, "nvenc": true, "qsv": true, "vaapi": true, "software": true}
 
@@ -147,6 +156,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	hdrTonemap := fs.String("hdr-tonemap", env("HDR_TONEMAP", "auto"), "HDR to SDR tonemapping: auto, gpu or cpu (env SLOUCHCAT_HDR_TONEMAP)")
 	proxies := fs.String("trusted-proxies", env("TRUSTED_PROXIES", ""),
 		"reverse proxies whose X-Forwarded-For is trusted: empty = none, private = RFC 1918, loopback and fc00::/7, or comma-separated CIDRs (env SLOUCHCAT_TRUSTED_PROXIES)")
+	browseRoots := fs.String("browse-roots", env("BROWSE_ROOTS", DefaultBrowseRoots),
+		"directories the folder browser may list and new library folders must lie below, comma-separated (env SLOUCHCAT_BROWSE_ROOTS)")
 	budget := fs.Float64("transcode-budget", 0, "transcode admission budget, 0 = backend default (env SLOUCHCAT_TRANSCODE_BUDGET)")
 	downloadBudget := fs.Int("download-budget-gb", DefaultDownloadBudgetGB, "space for prepared downloads in GB (env SLOUCHCAT_DOWNLOAD_BUDGET_GB)")
 	trailerAI := fs.String("trailer-ai", env("TRAILER_AI", "off"), "AI step of the trailer search: off (env SLOUCHCAT_TRAILER_AI)")
@@ -193,6 +204,9 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 	if cfg.TrustedProxies, err = ParseTrustedProxies(*proxies); err != nil {
 		return Config{}, fmt.Errorf("trusted proxies: %w", err)
+	}
+	if cfg.BrowseRoots, err = ParseBrowseRoots(*browseRoots); err != nil {
+		return Config{}, fmt.Errorf("browse roots: %w", err)
 	}
 	cfg.HW, cfg.TranscodeBudget, cfg.DownloadBudgetGB = *hw, *budget, *downloadBudget
 	cfg.HDRTonemap = strings.ToLower(strings.TrimSpace(*hdrTonemap))
@@ -258,6 +272,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("hw", c.HW),
 		slog.String("hdr_tonemap", c.HDRTonemap),
 		slog.Any("trusted_proxies", c.TrustedProxies),
+		slog.Any("browse_roots", c.BrowseRoots),
 		slog.Float64("transcode_budget", c.TranscodeBudget),
 		slog.Int("download_budget_gb", c.DownloadBudgetGB),
 		slog.Bool("tvdb_configured", c.TVDBAPIKey != ""),
@@ -344,6 +359,47 @@ func (c Config) TrustedProxyWarning() string {
 		}
 	}
 	return ""
+}
+
+// BrowseRootWarning reports why the configured browsable roots are a risk, or "" when they are
+// not one. The root "/" turns the folder browser into a file manager for the whole container and
+// lets a library be created on /config, where the database, the backups and secret.key live. The
+// server cannot tell a deliberate choice from a slip, so it warns and goes on, as it does for
+// SLOUCHCAT_TRUSTED_PROXIES.
+func (c Config) BrowseRootWarning() string {
+	for _, root := range c.BrowseRoots {
+		if root == "/" {
+			return "browse_roots contains \"/\": the folder browser then lists the whole container," +
+				" including /config with the database, the backups and secret.key, and a library may be" +
+				" created there. Name the media mounts instead, for example /media."
+		}
+	}
+	return ""
+}
+
+// ParseBrowseRoots parses SLOUCHCAT_BROWSE_ROOTS: a comma-separated list of absolute directories,
+// cleaned and without duplicates; empty means no root at all, which switches the folder browser
+// off and lets every valid path through when a library is created (idea 02, E14). Whether a root
+// exists is not checked here: a missing one is logged and skipped at start-up, so a typo does not
+// keep the server from coming up.
+func ParseBrowseRoots(value string) ([]string, error) {
+	out := []string{}
+	for item := range strings.SplitSeq(value, ",") {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			continue
+		}
+		if !filepath.IsAbs(item) {
+			return nil, fmt.Errorf("%q is not an absolute path", item)
+		}
+		if clean := filepath.Clean(item); !slices.Contains(out, clean) {
+			out = append(out, clean)
+		}
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
 }
 
 // ParseTrustedProxies parses SLOUCHCAT_TRUSTED_PROXIES: empty = no proxy is trusted, "private" =

@@ -168,6 +168,9 @@ func serve(cfg config.Config) int {
 	if w := cfg.TrustedProxyWarning(); w != "" {
 		log.Warn(w)
 	}
+	if w := cfg.BrowseRootWarning(); w != "" {
+		log.Warn(w)
+	}
 	var restart atomic.Bool
 	err = serveUntilSignal(cfg, log, errRing, started, &restart)
 	again, code := afterStop(err, restart.Load())
