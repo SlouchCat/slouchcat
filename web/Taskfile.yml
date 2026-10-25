@@ -32,6 +32,13 @@ tasks:
     cmds:
       - pnpm -w run gen
 
+  # The other half of the root `gen:check`: the web job runs it right after `web:gen`. The path
+  # leaves web/ because the generated client is a workspace package of its own.
+  gen:check:
+    desc: Fail when the generated TypeScript client differs from the committed state
+    cmds:
+      - git diff --exit-code --stat -- ../packages/api-client/src/generated
+
   lint:
     desc: ESLint, stylelint, tsc --noEmit for every package, then prettier --check
     deps: [tokens]

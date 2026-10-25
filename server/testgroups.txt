@@ -1,0 +1,15 @@
+# Which server test packages CI runs in which parallel job (scripts/testgroups.sh, ADR 0013).
+#
+# Format: "<group> <package below server/>". Everything this file does not name forms the group
+# "rest", which scripts/testgroups.sh computes from `go list ./...` -- so a new package is tested
+# from its first day without anyone having to remember this file. `scripts/testgroups.sh --check`
+# runs in `task server:lint` and fails when a name here is no longer a package.
+#
+# Locally this file does nothing: `task server:test` and `task ci` run every package at once.
+#
+# Only the two heavy packages are named. Measured on four cores (`taskset -c 0-3`, the runner's
+# shape), each package alone: internal/api 211.7 s, internal/admin 205.1 s. In the serial CI run
+# the same two reported 918.7 s and 776.4 s -- four fifths of that was waiting, because
+# `go test -p 4` runs four package binaries at once and each one asks for four cores of its own.
+1 internal/api
+2 internal/admin
