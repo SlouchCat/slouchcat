@@ -2,6 +2,7 @@ package paths
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -118,5 +119,118 @@ func TestOpenAndWalkStayInsideRoot(t *testing.T) {
 	want := []string{".", "Movies", "Movies/A (2020)", "Movies/A (2020)/A (2020).mkv", "link"}
 	if strings.Join(seen, "|") != strings.Join(want, "|") {
 		t.Errorf("walk = %v, want %v (symlinked directory listed but not entered)", seen, want)
+	}
+}
+
+// ReadDir reads exactly one level, lists a symlinked directory without following it and refuses
+// every rel that Resolve refuses (the folder browser of idea 02 reads directories with it).
+func TestReadDirReadsOneLevel(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(outside, "config"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	for _, sub := range []string{"Filme", "Serien", "Filme/Action"} {
+		if err := os.MkdirAll(filepath.Join(dir, sub), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "aussen")); err != nil {
+		t.Fatal(err)
+	}
+	root, err := NewRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	entries, err := ReadDir(root, ".", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]fs.FileMode{}
+	for _, e := range entries {
+		got[e.Name()] = e.Type()
+	}
+	if len(got) != 4 {
+		t.Errorf("ReadDir(.) = %v, want four entries of the top level only", got)
+	}
+	if mode, ok := got["aussen"]; !ok || mode&fs.ModeSymlink == 0 {
+		t.Errorf("the symlink out of the root is listed as %v, want a symlink entry", mode)
+	}
+	if mode, ok := got["Filme"]; !ok || !mode.IsDir() {
+		t.Errorf("Filme = %v, want a directory", mode)
+	}
+	if _, ok := got["Action"]; ok {
+		t.Error("ReadDir went into a subdirectory; it reads one level")
+	}
+
+	// The symlink is listed, but it cannot be read through: that would leave the root.
+	if _, err := ReadDir(root, "aussen", 0); err == nil {
+		t.Error("reading through a symlink that leaves the root must fail")
+	}
+	if entries, err := ReadDir(root, "Filme", 0); err != nil || len(entries) != 1 {
+		t.Errorf("ReadDir(Filme) = %v, %v; want one entry", entries, err)
+	}
+	for _, rel := range []string{"", "..", "a/../b", "/etc", "a\x00b"} {
+		if _, err := ReadDir(root, rel, 0); !errors.Is(err, ErrOutsideRoot) {
+			t.Errorf("ReadDir(%q) error = %v, want ErrOutsideRoot", rel, err)
+		}
+	}
+}
+
+// max caps how many entries a huge directory costs; the caller sees the cap from the length.
+func TestReadDirMax(t *testing.T) {
+	dir := t.TempDir()
+	for i := range 2500 {
+		if err := os.Mkdir(filepath.Join(dir, fmt.Sprintf("d%04d", i)), 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := NewRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, max := range []int{1, 200, 2000} {
+		entries, err := ReadDir(root, ".", max)
+		if err != nil || len(entries) != max {
+			t.Errorf("ReadDir(max=%d) = %d entries, %v", max, len(entries), err)
+		}
+	}
+	entries, err := ReadDir(root, ".", 5000)
+	if err != nil || len(entries) != 2500 {
+		t.Errorf("ReadDir(max=5000) = %d entries, %v; want all 2500", len(entries), err)
+	}
+}
+
+// FSTypeAt classifies through the descriptor of the directory, so it agrees with DetectFS on the
+// same directory and refuses a rel that leaves the root.
+func TestFSTypeAt(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "Filme"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	root, err := NewRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := DetectFS(filepath.Join(dir, "Filme"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := FSTypeAt(root, "Filme")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("FSTypeAt = %s, DetectFS = %s", got, want)
+	}
+	if _, err := FSTypeAt(root, "../.."); !errors.Is(err, ErrOutsideRoot) {
+		t.Errorf("FSTypeAt(../..) error = %v, want ErrOutsideRoot", err)
+	}
+	if _, err := FSTypeAt(root, "missing"); err == nil {
+		t.Error("expected an error for a directory that does not exist")
 	}
 }

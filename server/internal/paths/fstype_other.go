@@ -12,3 +12,6 @@ func DetectFS(dir string) (FSType, error) {
 	}
 	return FSUnknown, nil
 }
+
+// fstatfs returns FSUnknown on platforms without Linux statfs magic numbers.
+func fstatfs(*os.File) (FSType, error) { return FSUnknown, nil }
