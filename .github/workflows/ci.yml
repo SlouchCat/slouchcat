@@ -266,7 +266,7 @@ jobs:
         with:
           platforms: arm64
 
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       # Builds without pushing: there is no registry yet for a pull request (ADR 0001). The Go
       # binary is cross-compiled; only the apt stage of the arm64 image runs under QEMU.
