@@ -25,6 +25,12 @@ export const MOVIES_DIR = fileURLToPath(new URL('../../testdata/media/Movies', i
 export const TV_DIR = fileURLToPath(new URL('../../testdata/media/TV', import.meta.url));
 
 /**
+ * The media root of the run: the server may browse it and a library folder must lie below it
+ * (idea 02, E14, web/e2e/start-server.mjs sets SLOUCHCAT_BROWSE_ROOTS to it).
+ */
+export const MEDIA_DIR = fileURLToPath(new URL('../../testdata/media', import.meta.url));
+
+/**
  * Generated audiobooks (`task testdata:media`, M6): one M4B with 12 chapters and one folder of 10
  * MP3 files, scanned as the library "Hörbücher" (kind audiobooks, default rating 0).
  */
