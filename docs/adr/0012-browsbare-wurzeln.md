@@ -66,7 +66,7 @@ genau nicht das Modell, das harte Regel 8 für eine lange Ordnerliste verlangt.
 - `checkSetupPath` hat einen eigenen Zweig `not_browsable`, der **vor** jedem `os.Stat` greift.
   Ohne ihn verriete der Assistent einem Aufrufer ohne Konto, ob ein Pfad existiert und ob er eine
   Datei ist.
-- **Der Einrichtungsassistent gilt mit.** `RunSetup` und `checkSetupPath` prüfen dieselbe Regel,
+- **Der Einrichtungsassistent gilt mit** (von Marco am 25. Oktober 2026 so bestätigt). `RunSetup` und `checkSetupPath` prüfen dieselbe Regel,
   und die Vorgabeliste ist nicht leer (`/media`). Eine Installation mit Medien unter `/data` und
   ungesetzter Variable kann die Einrichtung darum **nicht** abschliessen; sie bekommt
   `not_browsable` mit dem Hinweis auf `SLOUCHCAT_BROWSE_ROOTS`. Die Begründung zu E14 im Konzept
