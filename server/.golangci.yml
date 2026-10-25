@@ -39,6 +39,19 @@ linters:
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/systemq
               desc: unfiltered queries are allowed only in visibility, admin, library, metadata, jobs, notify and offline (CLAUDE.md rule 2)
+        browse:
+          # The folder browser (idea 02) is the first code that lists directories. It gets its own
+          # boundary instead of a place in internal/admin, which may read titles unfiltered: a
+          # directory walker has no business in that package, and that exception list stays small.
+          # It reads through internal/paths, shares the scanner's rules (Ignored, WatchMode,
+          # PathProblem) with internal/library and knows nothing else of the server.
+          files:
+            - "**/internal/browse/**"
+          allow:
+            - $gostd
+            - github.com/slouchcat/slouchcat/server/internal/paths
+            - github.com/slouchcat/slouchcat/server/internal/model
+            - github.com/slouchcat/slouchcat/server/internal/library
         apicheck:
           files:
             - "**/cmd/apicheck/**"
