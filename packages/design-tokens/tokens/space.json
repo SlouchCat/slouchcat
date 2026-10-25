@@ -2,34 +2,76 @@
   "space": {
     "$type": "dimension",
     "$description": "Spacing scale on a 4 px base.",
-    "0": { "$value": "0px" },
-    "1": { "$value": "4px" },
-    "2": { "$value": "8px" },
-    "3": { "$value": "12px" },
-    "4": { "$value": "16px" },
-    "5": { "$value": "20px" },
-    "6": { "$value": "24px" },
-    "8": { "$value": "32px" },
-    "10": { "$value": "40px" },
-    "12": { "$value": "48px" },
-    "16": { "$value": "64px" },
-    "20": { "$value": "80px" },
-    "24": { "$value": "96px" }
+    "0": {
+      "$value": "0px"
+    },
+    "1": {
+      "$value": "4px"
+    },
+    "2": {
+      "$value": "8px"
+    },
+    "3": {
+      "$value": "12px"
+    },
+    "4": {
+      "$value": "16px"
+    },
+    "5": {
+      "$value": "20px"
+    },
+    "6": {
+      "$value": "24px"
+    },
+    "8": {
+      "$value": "32px"
+    },
+    "10": {
+      "$value": "40px"
+    },
+    "12": {
+      "$value": "48px"
+    },
+    "16": {
+      "$value": "64px"
+    },
+    "20": {
+      "$value": "80px"
+    },
+    "24": {
+      "$value": "96px"
+    }
   },
   "radius": {
     "$type": "dimension",
-    "none": { "$value": "0px" },
-    "sm": { "$value": "4px" },
-    "md": { "$value": "8px" },
-    "lg": { "$value": "12px" },
-    "xl": { "$value": "20px" },
-    "full": { "$value": "9999px" }
+    "none": {
+      "$value": "0px"
+    },
+    "sm": {
+      "$value": "4px"
+    },
+    "md": {
+      "$value": "8px"
+    },
+    "lg": {
+      "$value": "12px"
+    },
+    "xl": {
+      "$value": "20px"
+    },
+    "full": {
+      "$value": "9999px"
+    }
   },
   "focus": {
     "ring": {
       "$type": "dimension",
-      "width": { "$value": "3px" },
-      "offset": { "$value": "2px" }
+      "width": {
+        "$value": "3px"
+      },
+      "offset": {
+        "$value": "2px"
+      }
     },
     "scale": {
       "$type": "number",
@@ -40,14 +82,49 @@
   "size": {
     "$type": "dimension",
     "poster": {
-      "sm": { "$value": "8.5rem", "$description": "Poster card width on phones." },
-      "md": { "$value": "10.5rem" },
-      "lg": { "$value": "12.5rem", "$description": "Poster card width on large screens." }
+      "sm": {
+        "$value": "8.5rem",
+        "$description": "Poster card width on phones."
+      },
+      "md": {
+        "$value": "10.5rem"
+      },
+      "lg": {
+        "$value": "12.5rem",
+        "$description": "Poster card width on large screens."
+      }
     },
-    "header": { "height": { "$value": "4rem" } },
-    "content": { "max": { "$value": "90rem", "$description": "Maximum width of page content." } },
-    "form": { "max": { "$value": "34rem", "$description": "Maximum width of a form column." } },
-    "hero": { "min": { "$value": "26rem" }, "max": { "$value": "52rem" } },
+    "header": {
+      "height": {
+        "$value": "4rem"
+      }
+    },
+    "content": {
+      "max": {
+        "$value": "90rem",
+        "$description": "Maximum width of page content."
+      }
+    },
+    "form": {
+      "max": {
+        "$value": "34rem",
+        "$description": "Maximum width of a form column."
+      }
+    },
+    "dialog": {
+      "wide": {
+        "$value": "56rem",
+        "$description": "Maximum width of a dialog whose content is a list, such as the folder browser."
+      }
+    },
+    "hero": {
+      "min": {
+        "$value": "26rem"
+      },
+      "max": {
+        "$value": "52rem"
+      }
+    },
     "control": {
       "height": {
         "$value": "2.75rem",

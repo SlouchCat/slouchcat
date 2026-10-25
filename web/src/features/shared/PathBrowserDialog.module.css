@@ -1,8 +1,13 @@
 .body {
   display: flex;
+
+  /* Fills the dialog so the list takes the room and the buttons sit at the bottom instead of
+     halfway up with empty space below them. min-height: 0 lets the list scroll inside it. */
+  flex: 1;
   flex-direction: column;
   gap: var(--sc-space-3);
   min-width: 0;
+  min-height: 0;
 }
 
 .head {
@@ -40,4 +45,17 @@
 .field > :first-child {
   flex: 1;
   min-width: 0;
+}
+
+/* On a phone the button beside the field leaves the path unreadable; below this width it goes
+   under the field, which then has the whole row. */
+@media (width < 30rem) {
+  .field {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .field > :first-child {
+    flex-basis: 100%;
+  }
 }

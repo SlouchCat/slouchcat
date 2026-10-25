@@ -20,10 +20,7 @@ interface PathListProps {
   /** Spoken name of the list. */
   label: string;
   items: readonly PathItem[];
-  /** The row that is marked; null for none. */
-  selectedId?: string | null;
-  onSelectionChange?: (id: string | null) => void;
-  /** Enter, Right arrow or a double click on a row. */
+  /** Enter or a single click on a row. */
   onAction?: (id: string) => void;
   /** Shown instead of the rows when there are none. */
   emptyText: string;
@@ -42,9 +39,14 @@ interface PathListProps {
 }
 
 /**
- * A list of folders with one Tab stop (react-aria ListBox): the arrow keys move from row to row
- * and mark the row they land on, Home and End jump, Enter enters the folder. SelectableList is a
+ * A list of folders with one Tab stop (react-aria ListBox): the arrow keys move from row to row,
+ * Home and End jump, and Enter or a single click enters the folder. SelectableList is a
  * CheckboxGroup with a Tab stop per row, which is the opposite of what a long folder list needs.
+ *
+ * The rows carry no selection. A folder picker has nothing to select -- the folder you are
+ * standing in is the answer -- and with selectionMode "single" react-aria makes the first click
+ * mark a row and only the second one act on it. One click has to go down, the way a file dialog
+ * works everywhere else.
  *
  * A closed row stays in the list and keeps its mark, but it cannot be entered: the scanner sees a
  * symlinked folder too, and a folder that is missing from the dialog sends the administrator
@@ -53,8 +55,6 @@ interface PathListProps {
 export function PathList({
   label,
   items,
-  selectedId,
-  onSelectionChange,
   onAction,
   emptyText,
   onKeyDown,
@@ -88,19 +88,9 @@ export function PathList({
       aria-label={label}
       className={styles.list}
       items={items}
-      selectionMode="single"
-      // The mark follows the focus, and Enter keeps entering the folder. With the default
-      // behaviour (toggle) react-aria makes the action primary only while nothing is selected
-      // (useSelectableItem: hasPrimaryAction = manager.isEmpty), so the first marked row would
-      // take Enter away from the list for good.
-      selectionBehavior="replace"
-      selectedKeys={selectedId ? [selectedId] : []}
-      disallowEmptySelection={false}
-      onSelectionChange={(keys) => {
-        if (keys === 'all') return;
-        const [first] = [...keys];
-        onSelectionChange?.(first === undefined ? null : String(first));
-      }}
+      // Without selection every row has a primary action, so one click and Enter both go down
+      // (useSelectableItem: hasPrimaryAction). The arrow keys still walk the rows.
+      selectionMode="none"
       onAction={(key) => onAction?.(String(key))}
       renderEmptyState={() => <div className={styles.empty}>{emptyText}</div>}
     >

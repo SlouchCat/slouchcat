@@ -26,7 +26,10 @@ async function arrowDownTo(page: Page, row: Locator, max = 12) {
   throw new Error(`ArrowDown did not reach the row within ${max} presses`);
 }
 
-/** Opens the dialog from the keyboard and waits until the roots are listed. */
+/**
+ * Opens the dialog from the keyboard and waits until the rows are there. With one configured
+ * root the dialog opens inside it, so the first rows are the folders of testdata/media.
+ */
 async function openDialog(page: Page) {
   await browse(page).focus();
   await page.keyboard.press('Enter');
@@ -41,8 +44,13 @@ test.beforeEach(async ({ page }) => {
   await resetFocus(page);
 });
 
-test('the dialog opens on the roots, walks the rows and shows a ring on each', async ({ page }) => {
+test('the dialog opens inside the root, walks the rows and shows a ring on each', async ({
+  page,
+}) => {
   await openDialog(page);
+  // One configured root, so the dialog stands in it and its folders are the first thing shown
+  // instead of a list with a single row to click through.
+  await expect(movies(page)).toBeVisible();
   // The focus lands in the list, not on the first breadcrumb or button (idea 02, E11).
   await expectFocusOn(page, rows(page).first());
   const count = await rows(page).count();
@@ -68,17 +76,15 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
   page,
 }) => {
   await openDialog(page);
-  // The first root is testdata/media itself; below it lie the folders of the test libraries.
-  await page.keyboard.press('Enter');
   await expect(movies(page)).toBeVisible();
 
-  // Down to "Movies" with the arrow keys alone: the mark follows the focus and writes its path
-  // into the dialog's own field, which is what "OK" hands on (E18).
+  // Down to "Movies" with the arrow keys, then Enter: entering a folder is what writes the path
+  // into the dialog's own field, which is what "OK" hands on (E18). The rows carry no selection
+  // of their own -- the folder the dialog stands in is the answer.
   await arrowDownTo(page, movies(page));
   await expectFocusOn(page, movies(page));
-  await expect(dialogFolder(page)).toHaveValue(/testdata\/media\/Movies$/);
-  // Enter still enters the folder after a row was marked.
   await page.keyboard.press('Enter');
+  await expect(dialogFolder(page)).toHaveValue(/testdata\/media\/Movies$/);
   await expect(
     page
       .getByRole('dialog')
@@ -87,16 +93,17 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
   ).toBeVisible();
   await expect(movies(page)).toHaveCount(0);
 
-  // Backspace goes back up to the root of the browsable root, and once more to the roots list.
+  // Backspace goes back up to the browsable root, and once more to the list of roots.
   await page.keyboard.press('Backspace');
   await expect(movies(page)).toBeVisible();
   await page.keyboard.press('Backspace');
   await expect(page.getByRole('dialog').getByText('Freigegebene Ordner')).toBeVisible();
 
-  // Back down with the right arrow instead of Enter, then apply the marked folder.
+  // Back down with the right arrow instead of Enter, then into "Movies" and apply it.
   await page.keyboard.press('ArrowRight');
   await expect(movies(page)).toBeVisible();
   await arrowDownTo(page, movies(page));
+  await page.keyboard.press('ArrowRight');
   const chosen = await dialogFolder(page).inputValue();
   expect(chosen).toMatch(/testdata\/media\/Movies$/);
   await page.getByRole('button', { name: 'OK' }).click();
@@ -109,8 +116,7 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
 
 test('a folder already in the field opens the dialog in that folder', async ({ page }) => {
   await openDialog(page);
-  await page.keyboard.press('Enter');
-  await arrowDownTo(page, movies(page));
+  await movies(page).click();
   await page.getByRole('button', { name: 'OK' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const chosen = await folder(page).inputValue();
@@ -136,15 +142,25 @@ test('Escape closes without a change and returns the focus to the button', async
 
 test('a folder that already belongs to a library says so', async ({ page }) => {
   await openDialog(page);
-  await page.keyboard.press('Enter');
   await expect(movies(page)).toContainText('Gehört zu Bibliothek');
+});
+
+test('one click enters a folder instead of marking it', async ({ page }) => {
+  await openDialog(page);
+  await expect(movies(page)).toBeVisible();
+  // A single click, not a double one: the folder opens and its path lands in the field.
+  await movies(page).click();
+  await expect(movies(page)).toHaveCount(0);
+  await expect(dialogFolder(page)).toHaveValue(/testdata\/media\/Movies$/);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await folder(page).fill('');
 });
 
 test('the path field takes a typed folder and Backspace there edits instead of going up', async ({
   page,
 }) => {
   await openDialog(page);
-  await page.keyboard.press('Enter');
   await expect(movies(page)).toBeVisible();
   const inside = await dialogFolder(page).inputValue();
 

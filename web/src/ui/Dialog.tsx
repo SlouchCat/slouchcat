@@ -211,6 +211,11 @@ interface FormDialogProps {
    * when the focus should go back to the opener.
    */
   returnFocus?: RefObject<HTMLElement | null>;
+  /**
+   * "wide" gives the dialog the room a list needs instead of the width of a form column: a
+   * folder browser read through a letterbox is the slowest way to find a folder.
+   */
+  size?: 'regular' | 'wide';
   /** The form. It closes the dialog itself (`onOpenChange(false)`) after a successful submit. */
   children: ReactNode;
 }
@@ -227,6 +232,7 @@ export function FormDialog({
   description,
   initialFocus,
   returnFocus,
+  size = 'regular',
   children,
 }: FormDialogProps) {
   // A dialog opened with Enter counts as a "virtual" click for react-aria, which then focuses the
@@ -274,7 +280,7 @@ export function FormDialog({
 
   return (
     <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal className={styles.modal}>
+      <Modal className={`${styles.modal} ${size === 'wide' ? styles.wide : ''}`}>
         <Dialog className={styles.dialog}>
           <div className={styles.head}>
             <Heading slot="title" className={styles.title}>
