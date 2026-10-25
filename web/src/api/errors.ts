@@ -17,6 +17,9 @@ const problemKeys = {
   path_not_browsable: 'errors.code.path_not_browsable',
   path_unreachable: 'errors.code.path_unreachable',
   browse_busy: 'errors.code.browse_busy',
+  // Removing a folder from a library (idea 02, E12).
+  scan_running: 'errors.code.scan_running',
+  confirm_mismatch: 'errors.code.confirm_mismatch',
   tmdb_key_invalid: 'errors.code.tmdb_key_invalid',
   tmdb_unreachable: 'errors.code.tmdb_unreachable',
   provider_not_configured: 'errors.code.provider_not_configured',

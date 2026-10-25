@@ -49,6 +49,7 @@ export type AdminStream = components['schemas']['AdminStream'];
 export type ProgressEvent = components['schemas']['ProgressEvent'];
 export type Progress = components['schemas']['Progress'];
 export type Library = components['schemas']['Library'];
+export type LibraryRoot = components['schemas']['LibraryRoot'];
 export type LibrarySummary = components['schemas']['LibrarySummary'];
 export type LibraryRequest = components['schemas']['LibraryRequest'];
 export type LibraryUpdate = components['schemas']['LibraryUpdate'];

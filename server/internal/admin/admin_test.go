@@ -38,7 +38,9 @@ type fakeLibraries struct {
 	validateErr error
 	// validateDir lets the fake describe real directories (library.ValidateDir) instead of
 	// accepting every path; the wizard's path check needs that, the setup tests do not.
-	validateDir bool
+	validateDir  bool
+	addedRoots   []addedRoot
+	removedRoots []removedRoot
 }
 
 func (f *fakeLibraries) ValidatePath(_ context.Context, path string) error {
@@ -97,6 +99,44 @@ func (f *fakeLibraries) QueueScan(ctx context.Context, id int64) (model.Library,
 func (f *fakeLibraries) AcceptLoss(ctx context.Context, id int64) (model.Library, error) {
 	f.lost = append(f.lost, id)
 	return f.Get(ctx, id)
+}
+
+// addedRoot and removedRoot record what the admin service forwarded (idea 02, E8 and E12).
+type addedRoot struct {
+	libraryID int64
+	path      string
+}
+
+type removedRoot struct {
+	libraryID, rootID int64
+	confirmPath       string
+}
+
+func (f *fakeLibraries) AddRoot(ctx context.Context, libraryID int64, path string) (model.Library, error) {
+	if err := f.ValidateNewRoot(ctx, path); err != nil {
+		return model.Library{}, err
+	}
+	if _, err := f.Get(ctx, libraryID); err != nil {
+		return model.Library{}, err
+	}
+	f.addedRoots = append(f.addedRoots, addedRoot{libraryID, path})
+	return f.Get(ctx, libraryID)
+}
+
+func (f *fakeLibraries) RemoveRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error) {
+	lib, err := f.Get(ctx, libraryID)
+	if err != nil {
+		return model.Library{}, err
+	}
+	idx := slices.IndexFunc(lib.Roots, func(r model.LibraryRoot) bool { return r.ID == rootID })
+	if idx < 0 {
+		return model.Library{}, model.ErrNotFound
+	}
+	if confirmPath != lib.Roots[idx].Path {
+		return model.Library{}, model.ErrConfirmMismatch
+	}
+	f.removedRoots = append(f.removedRoots, removedRoot{libraryID, rootID, confirmPath})
+	return lib, nil
 }
 
 type fakeTMDB struct {
@@ -497,5 +537,48 @@ func TestSetItemRating(t *testing.T) {
 	}
 	if _, err := f.svc.SetItemRating(ctx, id, &twelve); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("deleted item: %v", err)
+	}
+}
+
+// TestLibraryRootDelegation: the admin service refuses what is not a path and not a confirmation
+// at all, and leaves every rule about the path itself to package library (idea 02, E8 and E12).
+func TestLibraryRootDelegation(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	if _, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Name: "Filme", Kind: "movies", Path: "/media/Filme"}); err != nil {
+		t.Fatal(err)
+	}
+	var verr *model.ValidationError
+	if _, err := f.svc.AddLibraryRoot(ctx, 1, "   "); !errors.As(err, &verr) ||
+		!slices.Equal(verr.Fields, []model.FieldError{{Field: "path", Code: "required"}}) {
+		t.Fatalf("AddLibraryRoot without a path: %v", err)
+	}
+	if _, err := f.svc.AddLibraryRoot(ctx, 1, "/"+strings.Repeat("x", 4096)); !errors.As(err, &verr) ||
+		!slices.Equal(verr.Fields, []model.FieldError{{Field: "path", Code: "too_long"}}) {
+		t.Fatalf("AddLibraryRoot with an over-long path: %v", err)
+	}
+	// The path arrives trimmed, and the browsable-root rule of E14 runs on it.
+	if _, err := f.svc.AddLibraryRoot(ctx, 1, " /media/Filme-2 "); err != nil {
+		t.Fatalf("AddLibraryRoot: %v", err)
+	}
+	if !slices.Equal(f.libs.addedRoots, []addedRoot{{1, "/media/Filme-2"}}) {
+		t.Fatalf("addedRoots = %+v", f.libs.addedRoots)
+	}
+	if !slices.Contains(f.libs.validated, "/media/Filme-2") {
+		t.Fatalf("the new folder did not go through ValidateNewRoot: %v", f.libs.validated)
+	}
+
+	if _, err := f.svc.RemoveLibraryRoot(ctx, 1, 1, " "); !errors.As(err, &verr) ||
+		!slices.Equal(verr.Fields, []model.FieldError{{Field: "confirmPath", Code: "required"}}) {
+		t.Fatalf("RemoveLibraryRoot without a confirmation: %v", err)
+	}
+	if _, err := f.svc.RemoveLibraryRoot(ctx, 1, 1, "/media/Filme-2"); !errors.Is(err, model.ErrConfirmMismatch) {
+		t.Fatalf("RemoveLibraryRoot with the wrong folder: %v", err)
+	}
+	if _, err := f.svc.RemoveLibraryRoot(ctx, 1, 1, "/media/Filme"); err != nil {
+		t.Fatalf("RemoveLibraryRoot: %v", err)
+	}
+	if !slices.Equal(f.libs.removedRoots, []removedRoot{{1, 1, "/media/Filme"}}) {
+		t.Fatalf("removedRoots = %+v", f.libs.removedRoots)
 	}
 }

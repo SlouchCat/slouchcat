@@ -18,9 +18,16 @@ var (
 	ErrInvalidCredentials = errors.New("invalid credentials")  // 401 invalid_credentials
 	ErrSetupDone          = errors.New("setup already done")   // 409 setup_done
 	ErrLibraryPathInvalid = errors.New("library path invalid") // 422 library_path_invalid
-	ErrTMDBKeyInvalid     = errors.New("tmdb key invalid")     // 422 tmdb_key_invalid
-	ErrTMDBUnreachable    = errors.New("tmdb unreachable")     // 422 tmdb_unreachable
-	ErrTooManyAttempts    = errors.New("too many attempts")    // 429 too_many_attempts
+	// ErrScanRunning: a library root cannot be removed while a scan of that library runs, because
+	// the scan loads the roots once and writes media_files with their ids afterwards (409
+	// scan_running, idea 02, E12).
+	ErrScanRunning = errors.New("scan running") // 409 scan_running
+	// ErrConfirmMismatch: the typed confirmation does not repeat what is about to be removed
+	// (422 confirm_mismatch, idea 02, E12).
+	ErrConfirmMismatch = errors.New("confirmation does not match") // 422 confirm_mismatch
+	ErrTMDBKeyInvalid  = errors.New("tmdb key invalid")            // 422 tmdb_key_invalid
+	ErrTMDBUnreachable = errors.New("tmdb unreachable")            // 422 tmdb_unreachable
+	ErrTooManyAttempts = errors.New("too many attempts")           // 429 too_many_attempts
 	// ErrProviderNotConfigured: a metadata provider without key was asked (422 provider_not_configured).
 	ErrProviderNotConfigured = errors.New("provider not configured")
 )
@@ -927,6 +934,11 @@ type LibraryRoot struct {
 	FSType  string
 	Watch   string // inotify, poll, inotify_poll
 	Warning string // network_share, fuse_unknown or empty
+	// ItemCount is the number of titles with a file in this folder, the upper bound of what
+	// removing it takes out of the library; FileCount is the files in it, which all go with it
+	// (idea 02, E12).
+	ItemCount int
+	FileCount int
 }
 
 // LibraryScan is the state of the running or last scan.

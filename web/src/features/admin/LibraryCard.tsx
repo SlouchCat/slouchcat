@@ -113,32 +113,60 @@ export function LibraryCard({ library, actions }: LibraryCardProps) {
         </Notice>
       )}
 
-      {/* A podcast library has no folder: its titles come from feeds (M6). */}
-      {library.roots.length === 0 && library.kind === 'podcasts' ? (
-        <p className={styles.muted}>{t('admin.libraries.noRoots')}</p>
-      ) : (
-        <div className={styles.roots}>
-          <h3 className={styles.rootsTitle}>{t('admin.libraries.roots')}</h3>
-          <ul className={styles.rootList}>
-            {library.roots.map((root) => (
-              <li key={root.id} className={styles.root}>
-                <code className={styles.path}>{root.path}</code>
-                <span className={styles.rootMeta}>
-                  <Chip tone="info">{t('admin.libraries.fsType', { type: root.fsType })}</Chip>
-                  {root.warning === 'network_share' && (
-                    <Chip tone="warning" icon="warning">
-                      {t('admin.libraries.warning.network_share')}
-                    </Chip>
-                  )}
-                  <span className={styles.muted}>{t(watchKeys[root.watch])}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <Folders library={library} />
 
       <div className={styles.actions}>{actions}</div>
     </Panel>
+  );
+}
+
+/**
+ * The folders of a library in one line: the path when there is one, their number when there are
+ * more (idea 02, E16). The list itself and the way in and out live in the folders dialog, so a
+ * library with five folders does not push everything else off the card.
+ */
+function Folders({ library }: { library: Library }) {
+  const { t } = useTranslation();
+  const [first] = library.roots;
+
+  if (library.roots.length === 0) {
+    // A podcast library never had a folder: its titles come from feeds (M6). A video or audio
+    // library can lose its last one (idea 02, E13), and then it needs its own sentence -- the
+    // podcast text would be wrong, and silence would look like a bug.
+    return (
+      <p className={styles.muted}>
+        {library.kind === 'podcasts' ? t('admin.libraries.noRoots') : t('admin.libraries.noFolder')}
+      </p>
+    );
+  }
+  return (
+    <div className={styles.roots}>
+      <h3 className={styles.rootsTitle}>{t('admin.libraries.roots')}</h3>
+      {library.roots.length === 1 && first ? (
+        <div className={styles.root}>
+          <code className={styles.path}>{first.path}</code>
+          <span className={styles.rootMeta}>
+            <Chip tone="info">{t('admin.libraries.fsType', { type: first.fsType })}</Chip>
+            {first.warning === 'network_share' && (
+              <Chip tone="warning" icon="warning">
+                {t('admin.libraries.warning.network_share')}
+              </Chip>
+            )}
+            <span className={styles.muted}>{t(watchKeys[first.watch])}</span>
+          </span>
+        </div>
+      ) : (
+        <div className={styles.root}>
+          <span>{t('admin.libraries.rootCount', { count: library.roots.length })}</span>
+          <span className={styles.rootMeta}>
+            {library.roots.some((root) => root.warning === 'network_share') && (
+              <Chip tone="warning" icon="warning">
+                {t('admin.libraries.warning.network_share')}
+              </Chip>
+            )}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

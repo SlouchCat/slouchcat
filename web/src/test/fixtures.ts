@@ -215,7 +215,9 @@ export const library = (overrides: Partial<Library> = {}): Library => ({
   name: 'Filme',
   kind: 'movies',
   createdAt: '2026-10-18T18:00:00Z',
-  roots: [{ id: 1, path: '/media/Filme', fsType: 'ext4', watch: 'inotify' }],
+  roots: [
+    { id: 1, path: '/media/Filme', fsType: 'ext4', watch: 'inotify', itemCount: 12, fileCount: 14 },
+  ],
   scan: { state: 'done', itemCount: 12, fileCount: 14, finishedAt: '2026-10-18T18:05:00Z' },
   ...overrides,
 });

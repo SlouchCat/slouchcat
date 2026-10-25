@@ -149,7 +149,9 @@
       "passphrase_wrong": "The passphrase is wrong.",
       "backup_invalid": "This file is not a valid Slouchcat backup, or it is damaged.",
       "backup_newer_than_server": "The backup comes from a newer version of Slouchcat. Update the server first.",
-      "announcement_published": "The announcement is already published and can no longer be changed."
+      "announcement_published": "The announcement is already published and can no longer be changed.",
+      "scan_running": "A scan of this library is running. Wait for it to finish, or cancel it.",
+      "confirm_mismatch": "The typed path does not match the folder. Nothing was removed."
     },
     "field": {
       "required": "Required.",
@@ -247,12 +249,10 @@
     "browse": {
       "title": "Choose a folder",
       "open": "Browse …",
-      "apply": "Apply",
+      "apply": "OK",
       "list": "Folders in this directory",
       "upOneLevel": "One level up",
       "roots": "Released folders",
-      "applies": "“Apply” writes: {{path}}",
-      "appliesNothing": "Choose a folder; “Apply” then writes its path into the field.",
       "empty": "This folder has no subfolders.",
       "emptyRoots": "No folder is released. Set {{name}} to the media folders of the container and restart the server.",
       "loadMore": "Load more",
@@ -261,7 +261,10 @@
       "closedRoot": "Not released, shown only",
       "notReadable": "This folder cannot be read. Check the permissions inside the container.",
       "notDirectory": "This is not a folder.",
-      "inLibrary": "Belongs to library {{name}}"
+      "inLibrary": "Belongs to library {{name}}",
+      "folder": "Folder",
+      "goTo": "Go to",
+      "notUnderRoot": "This path lies below none of the browsable folders, so the list stays where it is. “OK” hands it on anyway; the server decides about it when the form is submitted. {{name}} sets which folders are browsable."
     }
   },
   "home": {
@@ -601,7 +604,39 @@
         "description": "Every title whose rating comes from the library follows at once. Ratings set by hand stay.",
         "submit": "Save",
         "saved": "The default rating of {{name}} is now {{rating}}."
-      }
+      },
+      "folders": {
+        "title": "Folders of {{name}}",
+        "description": "A library can hold several folders. The scan and the watcher pick up a new one at once.",
+        "none": "This library has no folder. Nothing is scanned until you add one.",
+        "content": "Titles: {{items}} · files: {{files}}",
+        "add": {
+          "label": "Add a folder",
+          "submit": "Add"
+        },
+        "remove": {
+          "action": "Remove",
+          "label": "Remove the folder {{path}}",
+          "title": "Really remove this folder?",
+          "inputLabel": "Type the path to confirm",
+          "mismatch": "Type {{path}} exactly, then the button becomes active.",
+          "confirm": "Remove the folder",
+          "lead_one": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} title leaves every list with it. What that means:",
+          "lead_other": "You are removing <path>{{path}}</path> from the library {{name}}. Up to {{count}} titles leave every list with it. What that means:",
+          "soft": "The titles are soft-deleted: they vanish from every list, but progress, watchlist entries and picks stay attached to them. A title with a file in another folder of this library stays visible.",
+          "downloads": "Really gone are the offline downloads: devices that hold one of these titles delete the package at their next sync.",
+          "playback": "A playback running from this folder breaks off mid-stream.",
+          "webhooks": "The path map of Radarr and Sonarr points nowhere for this path afterwards; reports about it are refused.",
+          "relink": "Add the same folder again within 30 days and titles with a TMDB, TVDB or IMDb id come back with their user data. Titles without such an id are created anew.",
+          "oneWay": "If the folder lies outside the browsable folders (SLOUCHCAT_BROWSE_ROOTS), it cannot be added again without a change to the configuration.",
+          "last": "It is the last folder: {{name}} stays, but holds no folder afterwards and scans nothing."
+        }
+      },
+      "openFolders": "Folders",
+      "openFoldersLabel": "Edit the folders of {{name}}",
+      "rootCount_one": "{{count}} folder",
+      "rootCount_other": "{{count}} folders",
+      "noFolder": "No folder: nothing is scanned until you add one under “Folders”."
     },
     "access": {
       "title": "Access",
