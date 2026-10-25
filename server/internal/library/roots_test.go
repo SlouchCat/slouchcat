@@ -321,13 +321,29 @@ func TestRemoveLastRootLeavesTheLibraryWithoutAFolder(t *testing.T) {
 	if after.Name != lib.Name || after.Kind != lib.Kind {
 		t.Fatalf("the library changed: %+v", after)
 	}
-	// The scan of a library without a folder runs through without touching anything.
-	state := e.scan(lib.ID)
-	if state.Scan.State == "failed" {
-		t.Fatalf("scan state = %q, last error %q", state.Scan.State, state.Scan.LastError)
-	}
 	if got := e.count(`SELECT count(*) FROM items WHERE library_id = ? AND deleted_at IS NULL`, lib.ID); got != 0 {
 		t.Fatalf("titles left = %d, want 0", got)
+	}
+
+	// Asking for a scan queues nothing: a job would leave the library "queued" for good, and a
+	// run would end in "done" with zero files, which reads like a successful scan of an empty
+	// folder (step 14).
+	jobsBefore := e.jobCount(JobScanLibrary)
+	queued, err := e.svc.QueueScan(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatalf("queue scan without a folder: %v", err)
+	}
+	if got := e.jobCount(JobScanLibrary); got != jobsBefore {
+		t.Fatalf("scan jobs = %d, want %d (none queued)", got, jobsBefore)
+	}
+	if queued.Scan.State == "queued" {
+		t.Fatal("the library without a folder waits for a scan that will never run")
+	}
+	// Running one by hand leaves the state exactly as it was.
+	before := queued.Scan.State
+	state := e.scan(lib.ID)
+	if state.Scan.State != before {
+		t.Fatalf("scan state = %q, want it unchanged at %q", state.Scan.State, before)
 	}
 }
 

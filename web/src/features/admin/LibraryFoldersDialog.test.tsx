@@ -44,6 +44,19 @@ describe('library folders dialog', () => {
     expect(within(dialog).getByText('3 Titel · 4 Dateien')).toBeVisible();
   });
 
+  it('leaves no scan to start for a library without a folder', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([library({ roots: [] })]),
+    });
+    renderApp('/admin/libraries');
+
+    const card = await screen.findByRole('article', { name: 'Filme' });
+    // Nothing to walk, so the button cannot promise a scan (idea 02, E13).
+    expect(within(card).getByRole('button', { name: 'Erneut scannen' })).toBeDisabled();
+    expect(within(card).getByRole('button', { name: 'Ordner von Filme bearbeiten' })).toBeEnabled();
+  });
+
   it('shows the single folder on the card and its own sentence without one', async () => {
     mockApi({
       ...signedIn,

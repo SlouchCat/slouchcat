@@ -427,8 +427,29 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 	return files, itemsDeleted, nil
 }
 
-// enqueueScan queues scan.library and marks the library queued. It returns the job.
+// scannable reports whether a full scan of the library would have anything to walk. A library
+// without a folder has not: a podcast library never had one (its titles come from feeds, M6),
+// and a video or audio library can lose its last one (idea 02, E13). Both keep their settings
+// and their titles; they simply do not scan.
+func (s *Service) scannable(ctx context.Context, libraryID int64) (bool, error) {
+	roots, err := appq.New(s.db.Read).ListLibraryRoots(ctx, libraryID)
+	if err != nil {
+		return false, fmt.Errorf("list roots of library %d: %w", libraryID, err)
+	}
+	return len(roots) > 0, nil
+}
+
+// enqueueScan queues scan.library and marks the library queued. It returns the job, or the zero
+// job when the library has no folder to walk: queueing one would leave the library "queued" for
+// good, and letting it run would end in "done" with zero files, which reads like a successful
+// scan of an empty folder (idea 02, step 14).
 func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.Duration) (jobs.Job, error) {
+	switch ok, err := s.scannable(ctx, libraryID); {
+	case err != nil:
+		return jobs.Job{}, err
+	case !ok:
+		return jobs.Job{}, nil
+	}
 	payload, err := json.Marshal(libraryPayload{libraryID})
 	if err != nil {
 		return jobs.Job{}, err

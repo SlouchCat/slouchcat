@@ -257,6 +257,16 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 	if err != nil {
 		return fmt.Errorf("load library: %w", err)
 	}
+	// A library without a folder is left exactly as it is: no "running", no "done" with zero
+	// files (idea 02, E13). Checked here as well as in enqueueScan, because a job queued before
+	// the last folder was removed may still be waiting in the queue.
+	switch ok, err := s.scannable(ctx, lib.ID); {
+	case err != nil:
+		return err
+	case !ok:
+		s.log.InfoContext(ctx, "library has no folder, nothing to scan", "library_id", lib.ID, "kind", lib.Kind)
+		return nil
+	}
 	start := s.now()
 	if err := s.setState(ctx, lib.ID, "running", ""); err != nil {
 		return err

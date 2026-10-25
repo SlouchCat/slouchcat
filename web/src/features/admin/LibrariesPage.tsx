@@ -18,7 +18,7 @@ import {
 import { PathBrowserButton } from '../shared/PathBrowserButton';
 import { LibraryCard } from './LibraryCard';
 import { LibraryFoldersDialog } from './LibraryFoldersDialog';
-import { isScanning, librariesQuery } from './queries';
+import { canScan, isScanning, librariesQuery } from './queries';
 import styles from './LibrariesPage.module.css';
 
 function AddLibraryForm() {
@@ -265,7 +265,7 @@ export function LibrariesPage() {
                 <>
                   <AriaButton
                     icon="refresh"
-                    isDisabled={isScanning(library)}
+                    isDisabled={isScanning(library) || !canScan(library)}
                     isPending={scan.isPending && scan.variables === library.id}
                     onPress={() => scan.mutate(library.id)}
                   >
