@@ -249,12 +249,10 @@
     "browse": {
       "title": "Ordner auswählen",
       "open": "Durchsuchen …",
-      "apply": "Übernehmen",
+      "apply": "OK",
       "list": "Ordner in diesem Verzeichnis",
       "upOneLevel": "Eine Ebene höher",
       "roots": "Freigegebene Ordner",
-      "applies": "«Übernehmen» schreibt: {{path}}",
-      "appliesNothing": "Wähle einen Ordner, dann schreibt «Übernehmen» seinen Pfad ins Feld.",
       "empty": "Dieser Ordner hat keine Unterordner.",
       "emptyRoots": "Es ist kein Ordner freigegeben. Setze {{name}} auf die Medienordner des Containers und starte den Server neu.",
       "loadMore": "Mehr laden",
@@ -263,7 +261,10 @@
       "closedRoot": "Nicht freigegeben, nur Anzeige",
       "notReadable": "Dieser Ordner lässt sich nicht lesen. Prüfe die Rechte im Container.",
       "notDirectory": "Das ist kein Ordner.",
-      "inLibrary": "Gehört zu Bibliothek {{name}}"
+      "inLibrary": "Gehört zu Bibliothek {{name}}",
+      "folder": "Ordner",
+      "goTo": "Gehe zu",
+      "notUnderRoot": "Dieser Pfad liegt unter keinem freigegebenen Ordner, die Liste bleibt also stehen. «OK» übernimmt ihn trotzdem; ob er taugt, entscheidet der Server beim Abschicken. Freigegeben wird mit {{name}}."
     }
   },
   "home": {

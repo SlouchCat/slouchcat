@@ -30,9 +30,14 @@
   flex: 1;
 }
 
-.current {
-  margin: var(--sc-space-3) 0 0;
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
-  overflow-wrap: anywhere;
+.field {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.field > :first-child {
+  flex: 1;
+  min-width: 0;
 }

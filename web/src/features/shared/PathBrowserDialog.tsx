@@ -5,7 +5,7 @@ import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { Notice, Skeleton, Text } from '@/ui';
-import { AriaButton, FormDialog, PathList, type PathItem } from '@/ui/aria';
+import { AriaButton, FormDialog, PathList, TextField, type PathItem } from '@/ui/aria';
 import { browseRootsQuery, directoryQuery } from './pathBrowser';
 import styles from './PathBrowserDialog.module.css';
 
@@ -29,12 +29,19 @@ interface Position {
 const NO_ROOT: Position = { rootId: '', rel: '' };
 
 /**
- * The folder picker of the library form (idea 02). It starts on the browsable roots -- or in the
- * folder the field already names -- goes one level down per Enter and back up with Backspace;
- * "Apply" writes the marked folder, or the one the dialog stands in, into the field.
+ * The folder picker of the library form (idea 02, E18): a path field on top, the list below it,
+ * "OK" at the bottom -- the shape Marco picked after comparing the plan with Emby. Typing and
+ * clicking lead to the same place: marking a row writes its path into the field, "Gehe zu" takes
+ * the list to what was typed, and "OK" hands the field's value on.
+ *
+ * It starts on the browsable roots -- or in the folder the field already names -- goes one level
+ * down per Enter and back up with Backspace. The Backspace and left-arrow grip sits on the list
+ * (PathList.onKeyDown), not on the dialog, so the path field keeps both keys for editing.
  *
  * Everything it shows comes from the server: which roots exist, what lies below them, which
- * folder belongs to a library already. The client decides no path (plan 2.1, principle 1).
+ * folder belongs to a library already. The client decides no path (plan 2.1, principle 1): a
+ * typed path that lies below no root is not refused here, it is handed on and the server answers
+ * it when the form is submitted.
  */
 export function PathBrowserDialog({
   isOpen,
@@ -49,6 +56,12 @@ export function PathBrowserDialog({
   // effect: the start follows the roots as soon as they arrive, without a second render pass.
   const [position, setPosition] = useState<Position | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  // What "OK" hands on. null means "untouched since the dialog opened", so the field shows the
+  // value of the field outside; close() sets it back to null, which is the reset -- derived, not
+  // an effect, so no render shows a path from the last time the dialog was open.
+  const [draft, setDraft] = useState<string | null>(null);
+  const [goToMissed, setGoToMissed] = useState(false);
+  const field = draft ?? currentPath;
 
   const roots = useQuery({ ...browseRootsQuery, enabled: isOpen });
   const here = position ?? startPosition(roots.data, currentPath) ?? NO_ROOT;
@@ -63,20 +76,42 @@ export function PathBrowserDialog({
   const close = () => {
     setPosition(null);
     setSelected(null);
+    setDraft(null);
+    setGoToMissed(false);
     onOpenChange(false);
   };
-  const goTo = (next: Position) => {
+  const goTo = (next: Position, path?: string) => {
     setPosition(next);
     setSelected(null);
+    setGoToMissed(false);
+    if (path !== undefined) setDraft(path);
+  };
+  // "Gehe to": the list follows what was typed, when the server's root list knows a root it lies
+  // below. It does not: the field keeps the text and says so, because this dialog decides no
+  // path -- the server does, when the form is submitted.
+  const goToTyped = () => {
+    const target = startPosition(roots.data, field.trim());
+    if (!target) {
+      setGoToMissed(true);
+      return;
+    }
+    goTo(target);
   };
   const enter = (id: string) => {
     if (atRoots) {
       const root = roots.data?.find((r) => r.id === id);
-      if (root?.browsable) goTo({ rootId: root.id, rel: '' });
+      if (root?.browsable) goTo({ rootId: root.id, rel: '' }, root.path);
       return;
     }
     const entry = shown?.entries.find((e) => e.rel === id);
-    if (entry && !entry.symlink) goTo({ rootId: here.rootId, rel: entry.rel });
+    if (entry && !entry.symlink) goTo({ rootId: here.rootId, rel: entry.rel }, entry.path);
+  };
+  // Marking a row is the other way to fill the field: arrow keys alone are enough to choose.
+  const mark = (id: string | null) => {
+    setSelected(id);
+    setGoToMissed(false);
+    const path = id === null ? undefined : pathOf(atRoots, roots.data, shown, id);
+    if (path) setDraft(path);
   };
   // Back to the roots whenever the current directory is unknown -- still loading, or the server
   // refused it. Going nowhere would strand the keyboard in a folder it cannot leave.
@@ -104,7 +139,6 @@ export function PathBrowserDialog({
   };
 
   const items = atRoots ? rootItems(t, roots.data) : entryItems(t, listing?.entries);
-  const chosen = chosenPath(atRoots, roots.data, shown, selected);
   const pending = atRoots ? roots.isPending : dir.isPending;
   const error = atRoots ? roots.error : dir.error;
 
@@ -119,6 +153,27 @@ export function PathBrowserDialog({
       returnFocus={returnFocus}
     >
       <div className={styles.body}>
+        <div className={styles.field}>
+          <TextField
+            label={t('library.browse.folder')}
+            value={field}
+            onChange={(value) => {
+              setDraft(value);
+              setGoToMissed(false);
+            }}
+            mono
+            autoComplete="off"
+            spellCheck="false"
+          />
+          <AriaButton icon="refresh" onPress={goToTyped}>
+            {t('library.browse.goTo')}
+          </AriaButton>
+        </div>
+        {goToMissed && (
+          <Notice tone="warning" live={false}>
+            {t('library.browse.notUnderRoot', { name: 'SLOUCHCAT_BROWSE_ROOTS' })}
+          </Notice>
+        )}
         <div className={styles.head}>
           <p className={styles.path}>{atRoots ? t('library.browse.roots') : (shown?.path ?? '')}</p>
           {shown && (
@@ -165,7 +220,7 @@ export function PathBrowserDialog({
             label={t('library.browse.list')}
             items={items}
             selectedId={selected}
-            onSelectionChange={setSelected}
+            onSelectionChange={mark}
             onAction={enter}
             onKeyDown={onKeyDown}
             emptyText={
@@ -192,9 +247,9 @@ export function PathBrowserDialog({
           </AriaButton>
           <AriaButton
             variant="primary"
-            isDisabled={chosen === ''}
+            isDisabled={field.trim() === ''}
             onPress={() => {
-              onApply(chosen);
+              onApply(field.trim());
               close();
             }}
           >
@@ -202,11 +257,6 @@ export function PathBrowserDialog({
           </AriaButton>
         </div>
       </div>
-      <p className={styles.current}>
-        {chosen === ''
-          ? t('library.browse.appliesNothing')
-          : t('library.browse.applies', { path: chosen })}
-      </p>
     </FormDialog>
   );
 }
@@ -269,19 +319,15 @@ function entryItems(t: TFunction, entries: DirectoryEntry[] | undefined): PathIt
   }));
 }
 
-/** "Apply" takes the marked row, or the directory the dialog stands in. */
-function chosenPath(
+/** The absolute path of a marked row, which goes into the field (E18). */
+function pathOf(
   atRoots: boolean,
   roots: BrowseRoot[] | undefined,
   listing: DirectoryListing | undefined,
-  selected: string | null,
-): string {
+  id: string,
+): string | undefined {
   if (atRoots) {
-    return (selected && roots?.find((root) => root.id === selected)?.path) || '';
+    return roots?.find((root) => root.id === id)?.path;
   }
-  if (selected) {
-    const entry = listing?.entries.find((e) => e.rel === selected);
-    if (entry?.path) return entry.path;
-  }
-  return listing?.path ?? '';
+  return listing?.entries.find((entry) => entry.rel === id)?.path;
 }

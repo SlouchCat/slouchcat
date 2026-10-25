@@ -249,12 +249,10 @@
     "browse": {
       "title": "Choose a folder",
       "open": "Browse …",
-      "apply": "Apply",
+      "apply": "OK",
       "list": "Folders in this directory",
       "upOneLevel": "One level up",
       "roots": "Released folders",
-      "applies": "“Apply” writes: {{path}}",
-      "appliesNothing": "Choose a folder; “Apply” then writes its path into the field.",
       "empty": "This folder has no subfolders.",
       "emptyRoots": "No folder is released. Set {{name}} to the media folders of the container and restart the server.",
       "loadMore": "Load more",
@@ -263,7 +261,10 @@
       "closedRoot": "Not released, shown only",
       "notReadable": "This folder cannot be read. Check the permissions inside the container.",
       "notDirectory": "This is not a folder.",
-      "inLibrary": "Belongs to library {{name}}"
+      "inLibrary": "Belongs to library {{name}}",
+      "folder": "Folder",
+      "goTo": "Go to",
+      "notUnderRoot": "This path lies below none of the browsable folders, so the list stays where it is. “OK” hands it on anyway; the server decides about it when the form is submitted. {{name}} sets which folders are browsable."
     }
   },
   "home": {
