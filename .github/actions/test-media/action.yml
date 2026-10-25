@@ -1,0 +1,27 @@
+# The generated test media (testdata/media), which the server tests and the e2e shards both read.
+# Needs ffmpeg and the task runner on PATH.
+#
+# The media are generated from ffmpeg's own lavfi sources, so the same scripts and the same ffmpeg
+# always produce the same files -- both go into the key. The generator skips files that are already
+# there, so a restored cache is checked rather than trusted, and a miss simply regenerates (2.9 min
+# in run 39789916437).
+name: Generate the test media
+description: Restores or generates testdata/media
+
+runs:
+  using: composite
+  steps:
+    - name: ffmpeg version (part of the test media cache key)
+      id: ffmpeg
+      shell: bash
+      run: echo "version=$(ffmpeg -version | head -1 | cut -d' ' -f3)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache the generated test media
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: testdata/media
+        key: testmedia-${{ runner.os }}-${{ steps.ffmpeg.outputs.version }}-${{ hashFiles('testdata/generate-media.sh', 'testdata/*.py') }}
+
+    - name: Generate test media
+      shell: bash
+      run: task testdata:media

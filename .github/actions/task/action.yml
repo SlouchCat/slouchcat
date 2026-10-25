@@ -1,0 +1,30 @@
+# Puts the `task` runner on PATH at the version pinned in .tool-versions.
+#
+# Four of the five jobs run their checks through `task`, so this used to be
+# `go install github.com/go-task/task/v3/cmd/task@v3.54.0` in every one of them: a Go toolchain and
+# a compile (20-40 s) for a binary that upstream ships ready-made. The release archive is a 2 s
+# download, and the web and e2e jobs then need no Go at all.
+#
+# The version comes out of .tool-versions, the same file the developers' asdf reads, so CI cannot
+# silently drift to another task version than the one `task ci` runs with locally.
+name: Install the task runner
+description: Installs go-task at the version pinned in .tool-versions
+
+runs:
+  using: composite
+  steps:
+    - name: Install task
+      shell: bash
+      run: |
+        set -euo pipefail
+        version=$(awk '$1 == "task" { print $2 }' .tool-versions)
+        if [ -z "$version" ]; then
+          echo "::error file=.tool-versions::no line 'task <version>' in .tool-versions" >&2
+          exit 1
+        fi
+        mkdir -p "$HOME/.local/bin"
+        curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+          "https://github.com/go-task/task/releases/download/v${version}/task_linux_amd64.tar.gz" \
+          | tar -xz -C "$HOME/.local/bin" task
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        "$HOME/.local/bin/task" --version
