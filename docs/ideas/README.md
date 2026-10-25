@@ -31,3 +31,4 @@ werden kann. Nichts hier ist beauftragt.
 | Nr. | Idee | Status | Konzept | Issue |
 |---|---|---|---|---|
 | 01 | Metadaten- und Scraper-Einstellungen je Bibliothek (Sprachen, Bildarten, Anbieter) | Ausgearbeitet | [01-metadaten-einstellungen.md](01-metadaten-einstellungen.md) | [#8](https://github.com/SlouchCat/slouchcat/issues/8) |
+| 02 | Ordner-Browser im Bibliotheksformular (Dialog mit Liste statt getipptem Pfad) | Übernommen | [02-ordner-browser.md](02-ordner-browser.md) | [#33](https://github.com/SlouchCat/slouchcat/issues/33) |
