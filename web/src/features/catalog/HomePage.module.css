@@ -8,23 +8,10 @@
 }
 
 .rows {
-  --rows-gap: var(--sc-space-6);
-
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--rows-gap);
-}
-
-/*
- * On wide screens the row right below the stage tucks slightly into the stage's bottom scrim; the
- * stage stands in the rows block, so the block's gap is taken back as well. A row above a stage
- * further down the list keeps the normal gap.
- */
-@media (width >= 768px) {
-  .underHero {
-    margin-top: calc(-1 * (var(--rows-gap) + var(--sc-space-8)));
-  }
+  gap: var(--sc-space-6);
 }
 
 .empty {

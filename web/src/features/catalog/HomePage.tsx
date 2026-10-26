@@ -168,6 +168,7 @@ export function HomePage() {
       backdropUrl: imageUrl(item.images.backdrop),
       backdropSmallUrl: imageUrl(item.images.backdropSmall),
       posterUrl: imageUrl(item.images.poster),
+      posterSmallUrl: imageUrl(item.images.posterSmall),
       meta: <ItemMeta item={item} />,
       note: item.note,
       playHref: paths.play(item.id),
@@ -249,10 +250,10 @@ export function HomePage() {
       <main className={styles.home}>
         <VisuallyHidden as="h1">{t('home.title')}</VisuallyHidden>
         {rows.length > 0 && (
-          // A stage on top keeps the band at the page's top edge; otherwise the rows start below
-          // the header.
-          <div className={stageLeads ? styles.rows : `${styles.rows} ${styles.padded}`}>
-            {rows.map((row, index) => {
+          // The rows start below the header, the framed band too when it leads (#hero-prepaint in
+          // global.css paints its first image at that place).
+          <div className={`${styles.rows} ${styles.padded}`}>
+            {rows.map((row) => {
               if (isStage(row)) {
                 return (
                   <HeroCarousel
@@ -263,15 +264,6 @@ export function HomePage() {
                     detailsLabel={t('item.details')}
                     onArtShown={() => setHeroShown(true)}
                   />
-                );
-              }
-              // The row right below the stage tucks into its bottom scrim; the row above a stage
-              // further down keeps the normal spacing.
-              if (isStage(rows[index - 1])) {
-                return (
-                  <div key={row.key} className={styles.underHero}>
-                    {posterRow(row)}
-                  </div>
                 );
               }
               return posterRow(row);

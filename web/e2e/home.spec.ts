@@ -18,6 +18,8 @@ import { TRAKT_ENTRIES } from './trakt-server.mjs';
  * is the server's decision; by default it is the spotlight row on top (DEFAULT_HOME_ROWS).
  */
 const hero = (page: Page) => page.locator('main section[aria-roledescription]');
+/** The band's poster strip: one button per slide, named after its title (step 7b). */
+const strip = (page: Page) => hero(page).getByRole('list').getByRole('button');
 /** The sections of the start page top to bottom: the stage (if any) and the poster rows. */
 const sections = (page: Page) =>
   page.locator('main section:is([aria-labelledby], [aria-roledescription])');
@@ -88,15 +90,18 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
   await page.reload();
   await expect(spotlight).toBeVisible();
   await expect(sections(page).first()).toHaveAttribute('aria-roledescription');
-  // The band shows the library titles the list points at (5 films and 2 series), one per slide.
+  // The band shows the library titles the list points at (5 films and 2 series), one per slide;
+  // the poster strip under it has one poster per slide, named after the title it shows.
   const entries = [...TRAKT_ENTRIES.movies, ...TRAKT_ENTRIES.shows].map((entry) => entry.title);
-  const dots = spotlight.locator('button[aria-label]');
-  await expect(dots).toHaveCount(entries.length);
+  const posters = strip(page);
+  await expect(posters).toHaveCount(entries.length);
   const shown: string[] = [];
   for (let slide = 0; slide < entries.length; slide += 1) {
-    await dots.nth(slide).click();
-    await expect(dots.nth(slide)).toHaveAttribute('aria-current', 'true');
-    shown.push((await spotlight.getByRole('heading', { level: 2 }).textContent()) ?? '');
+    await posters.nth(slide).click();
+    await expect(posters.nth(slide)).toHaveAttribute('aria-current', 'true');
+    const title = (await spotlight.getByRole('heading', { level: 2 }).textContent()) ?? '';
+    await expect(posters.nth(slide)).toHaveAccessibleName(title);
+    shown.push(title);
   }
   expect(shown.toSorted()).toEqual(entries.toSorted());
 
@@ -114,6 +119,113 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
     await refreshSpotlight(owner);
     await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(only);
   }
+});
+
+test('the band: arrow keys move in the poster strip, Enter selects, the focus stays (7b, C-4)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  // The server asks the mock right after its start; the band needs its titles.
+  await expect
+    .poll(async () => (await homeRowKeys(owner)).includes('spotlight'), {
+      timeout: 60_000,
+      intervals: [1000],
+    })
+    .toBe(true);
+  // The carousel stands still (reduced motion, checked in the next test), so only the keys move it.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  const posters = strip(page);
+  expect(await posters.count()).toBeGreaterThan(2);
+  const heading = hero(page).getByRole('heading', { level: 2 });
+  const first = (await posters.nth(0).getAttribute('aria-label')) ?? '';
+  const second = (await posters.nth(1).getAttribute('aria-label')) ?? '';
+  await expect(heading).toHaveText(first);
+
+  // Down from the play button lands on the active poster.
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, hero(page).getByRole('link', { name: 'Abspielen' }));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, posters.nth(0));
+
+  // Arrow keys move the focus only: the slide stays until Enter.
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, posters.nth(1));
+  await expect(heading).toHaveText(first);
+  await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+  await expect(posters.nth(1)).not.toHaveAttribute('aria-current');
+
+  // Enter shows the focused poster's slide; the poster keeps the focus.
+  await page.keyboard.press('Enter');
+  await expect(heading).toHaveText(second);
+  await expect(posters.nth(1)).toHaveAttribute('aria-current', 'true');
+  await expect(posters.nth(0)).not.toHaveAttribute('aria-current');
+  await expectFocusOn(page, posters.nth(1));
+
+  // The active poster is the strip's one Tab stop (roving tabindex): Tab
+  // leaves the strip, Shift+Tab returns to it.
+  await page.keyboard.press('Tab');
+  expect(
+    await posters.evaluateAll((buttons) =>
+      buttons.includes(document.activeElement as HTMLButtonElement),
+    ),
+  ).toBe(false);
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, posters.nth(1));
+
+  // The strip's first poster holds the focus on arrow left: it never leaves the band sideways.
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, posters.nth(0));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, posters.nth(0));
+  await expect(heading).toHaveText(second);
+
+  // Up returns to the buttons, down again lands on the active poster, not the last focused one.
+  await page.keyboard.press('ArrowUp');
+  expect(
+    await hero(page)
+      .getByRole('link')
+      .evaluateAll((links) => links.includes(document.activeElement as HTMLAnchorElement)),
+  ).toBe(true);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, posters.nth(1));
+});
+
+test('prefers-reduced-motion stops the rotation (7b)', async ({ page, owner }) => {
+  test.setTimeout(90_000);
+  await expect
+    .poll(async () => (await homeRowKeys(owner)).includes('spotlight'), {
+      timeout: 60_000,
+      intervals: [1000],
+    })
+    .toBe(true);
+  const heading = hero(page).getByRole('heading', { level: 2 });
+  const posters = strip(page);
+  // Focus and pointer stay out of the band, which pause it as well.
+  await page.clock.install();
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  const first = (await posters.nth(0).getAttribute('aria-label')) ?? '';
+  const second = (await posters.nth(1).getAttribute('aria-label')) ?? '';
+
+  // Without the preference the band moves on after its interval (8 s) ...
+  await expect(heading).toHaveText(first);
+  await page.clock.runFor(9000);
+  await expect(heading).toHaveText(second);
+
+  // ... with it, it stays on its slide.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  await expect(heading).toHaveText(first);
+  await page.clock.runFor(30_000);
+  await expect(heading).toHaveText(first);
+  await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
 });
 
 test('spotlight on a later position: the band stands third, nothing painted ahead (3.5)', async ({
@@ -203,7 +315,7 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
 
     // Right on the last button pages the carousel; focus stays on the button.
     const before = await hero(page).getByRole('heading', { level: 2 }).textContent();
-    const slides = await hero(page).locator('button[aria-label]').count();
+    const slides = await strip(page).count();
     await page.keyboard.press('ArrowRight');
     await expectFocusOn(page, details);
     if (slides > 1) {
@@ -212,9 +324,9 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, play);
 
-    // Down to the rows: the picks and "Weiterschauen" may stand between the stage and "Neu
-    // hinzugefügt".
-    for (let presses = 0; presses < 4; presses += 1) {
+    // Down to the rows: the poster strip, the picks and "Weiterschauen" may stand between the
+    // buttons and "Neu hinzugefügt".
+    for (let presses = 0; presses < 5; presses += 1) {
       if (
         await recentRow(page)
           .getByRole('link')
@@ -284,6 +396,10 @@ test('Tab: skip link, header, hero, then the cards; no focus trap', async ({ pag
   if ((await hero(page).count()) > 0) {
     await tabTo(page, hero(page).getByRole('link', { name: 'Abspielen' }), 3);
     await tabTo(page, hero(page).getByRole('link', { name: 'Details' }), 2);
+    // The poster strip is one Tab stop: its active poster.
+    if ((await strip(page).count()) > 1) {
+      await tabTo(page, strip(page).and(page.locator('[aria-current="true"]')), 1);
+    }
   }
   await tabTo(
     page,

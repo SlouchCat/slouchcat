@@ -292,8 +292,7 @@
     "carousel": {
       "roledescription": "Karussell",
       "slide": "Folie",
-      "position": "{{index}} von {{count}}",
-      "show": "Empfehlung {{index}} von {{count}} anzeigen"
+      "position": "{{index}} von {{count}}"
     },
     "row": {
       "previous": "Zurückblättern",

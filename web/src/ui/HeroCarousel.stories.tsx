@@ -8,6 +8,7 @@ const slides: HeroSlide[] = [
     id: 'dusk',
     title: 'Die Stunde der Dämmerung',
     backdropUrl: art.backdropDusk,
+    posterUrl: art.posterDusk,
     meta: (
       <>
         <Chip tone="outline">FSK 12</Chip>
@@ -21,6 +22,13 @@ const slides: HeroSlide[] = [
     id: 'ember',
     title: 'Glut',
     posterUrl: art.posterEmber,
+    playHref: '#play',
+    detailsHref: '#details',
+  },
+  {
+    id: 'moss',
+    title: 'Moos und Stein',
+    posterUrl: art.posterMoss,
     playHref: '#play',
     detailsHref: '#details',
   },
@@ -41,12 +49,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+/** The framed band with the strip of two posters under it; the first slide is active. */
+export const Default: Story = { args: { slides: slides.slice(0, 2) } };
 
 /** Play focused: the primary button fills with the profile accent. */
-export const Focused: Story = { tags: ['press:Tab'] };
+export const Focused: Story = { args: { slides: slides.slice(0, 2) }, tags: ['press:Tab'] };
 
-/** A title with a poster only: the poster, blurred, stands in for the backdrop. */
+/** A title with a poster only: the poster, blurred, stands in for the backdrop; one slide, no strip. */
 export const PosterOnly: Story = { args: { slides: [slides[1] as HeroSlide] } };
 
 /** A pick with the main user's note (E-2): a line under the title. */
@@ -58,3 +67,9 @@ export const WithNote: Story = {
     ],
   },
 };
+
+/**
+ * The poster strip with three slides, reached by Tab: the active slide's poster carries the accent
+ * edge and the focus ring, the others are dimmed.
+ */
+export const PosterStrip: Story = { tags: ['press:Tab+Tab+Tab'] };

@@ -60,15 +60,19 @@ img {
 
 /*
  * First hero image, written into the start page's shell by the server (P-10, api/preload.go): the
- * geometry of the carousel's image (HeroCarousel.module.css), above the page and below the header,
- * until the carousel shows its own image and dismissHeroPrepaint() fades it out.
+ * geometry of the band's frame (.stage in HeroCarousel.module.css, below the start page's top
+ * padding in HomePage.module.css), above the page and below the header, until the carousel shows
+ * its own image and dismissHeroPrepaint() fades it out.
  */
 #hero-prepaint {
   position: absolute;
   z-index: var(--sc-z-raised);
-  inset: 0 0 auto;
-  height: clamp(var(--sc-size-hero-min), 78vh, var(--sc-size-hero-max));
+  top: calc(var(--sc-size-header-height) + var(--sc-space-8));
+  right: var(--page-gutter);
+  left: var(--page-gutter);
+  height: clamp(var(--sc-size-hero-min), 60vh, var(--sc-size-hero-max));
   overflow: hidden;
+  border-radius: var(--sc-radius-xl);
   pointer-events: none;
   transition: opacity var(--sc-motion-duration-crossfade) var(--sc-motion-easing-standard);
 }

@@ -162,9 +162,12 @@ describe('start page', () => {
     });
     const { container } = renderApp('/');
     const hero = await screen.findByRole('region', { name: 'Spotlight' });
-    const images = () => [...container.querySelectorAll('img')];
+    // The band's artwork; the poster strip's images are counted apart.
+    const images = () => [...container.querySelectorAll('.art img')];
+    const strip = () => [...within(hero).getByRole('list').querySelectorAll('img')];
 
     expect(images()).toHaveLength(1);
+    expect(strip()).toHaveLength(0);
     const [first] = images();
     const base = `/api/v1/items/${ids.heat}/images/backdrop`;
     expect(first).toHaveAttribute('src', `${base}/w780?v=ghi`);
@@ -186,9 +189,18 @@ describe('start page', () => {
     );
     expect(images()[1]).toHaveAttribute('loading', 'lazy');
     expect(images()[1]).toHaveAttribute('fetchpriority', 'low');
+    // The strip's posters join with it (P-10); a slide without a poster keeps the empty frame.
+    expect(strip().map((image) => image.getAttribute('src'))).toEqual([
+      `/api/v1/items/${ids.heat}/images/poster/w500?v=abc`,
+      `/api/v1/items/${ids.alien}/images/poster/w500?v=abc`,
+    ]);
+    for (const image of strip()) {
+      expect(image).toHaveAttribute('loading', 'lazy');
+      expect(image).not.toHaveAttribute('fetchpriority');
+    }
 
     // A slide without the small size falls back to w1280 without srcset.
-    fireEvent.click(within(hero).getByRole('button', { name: 'Empfehlung 3 von 3 anzeigen' }));
+    fireEvent.click(within(hero).getByRole('button', { name: 'Arrival' }));
     const third = images().find((image) => image.getAttribute('src')?.includes(ids.arrival));
     expect(third).toHaveAttribute(
       'src',
@@ -265,9 +277,12 @@ describe('start page', () => {
     expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
     await act(() => vi.advanceTimersByTimeAsync(8000));
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
-    expect(
-      within(hero).getByRole('button', { name: 'Empfehlung 2 von 2 anzeigen' }),
-    ).toHaveAttribute('aria-current', 'true');
+    // The strip marks the active slide's poster, named after its title.
+    expect(within(hero).getByRole('button', { name: 'Arrival' })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    expect(within(hero).getByRole('button', { name: 'Heat' })).not.toHaveAttribute('aria-current');
   });
 
   it('shows the header with profile name and the admin link for the owner', async () => {
@@ -441,13 +456,11 @@ describe('start page', () => {
         true,
       ]);
 
-      // Spacing without a stage: the rows block starts below the header, nothing tucks in.
+      // Spacing without a stage: the rows block starts below the header.
       expect(rowsBlock()).toHaveClass('padded');
-      expect(rowsBlock()).not.toHaveClass('underHero');
-      expect(document.querySelector('main .underHero')).toBeNull();
     });
 
-    it('stands at its place: on position 2 below two poster rows, the row below tucks in', async () => {
+    it('stands at its place: on position 2 below two poster rows, with the normal gaps', async () => {
       mockApi({
         ...signedIn,
         'GET /home': () =>
@@ -461,19 +474,19 @@ describe('start page', () => {
             ],
           }),
       });
-      const { container } = renderApp('/');
+      renderApp('/');
       const stage = await screen.findByRole('region', { name: 'Spotlight' });
       expect(sections().indexOf(stage)).toBe(2);
       expect(stage).toHaveAttribute('aria-roledescription', 'Karussell');
 
-      // The rows block starts below the header; the row above the stage keeps the normal gap, the
-      // row below it tucks into the band.
+      // The rows block starts below the header; the framed band and the rows around it all stand
+      // in it with the normal gap.
       expect(rowsBlock()).toHaveClass('padded');
-      const recent = screen.getByRole('region', { name: 'Neu hinzugefügt' });
-      const watchlist = screen.getByRole('region', { name: 'Merkliste' });
-      expect(recent.parentElement).toBe(rowsBlock());
-      expect(watchlist.parentElement).toHaveClass('underHero');
-      expect(container.querySelectorAll('.underHero')).toHaveLength(1);
+      expect(stage.parentElement).toBe(rowsBlock());
+      expect(screen.getByRole('region', { name: 'Neu hinzugefügt' }).parentElement).toBe(
+        rowsBlock(),
+      );
+      expect(screen.getByRole('region', { name: 'Merkliste' }).parentElement).toBe(rowsBlock());
 
       // Not the page's first image: the posters of the first row do not wait for the band's art.
       const firstPoster = within(screen.getByRole('region', { name: "Cat's Empfehlungen" }))
@@ -486,11 +499,10 @@ describe('start page', () => {
       const painted = prepaint();
       mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
       const { container } = renderApp('/');
-      await screen.findByRole('region', { name: 'Spotlight' });
-      expect(rowsBlock()).not.toHaveClass('padded');
-      expect(screen.getByRole('region', { name: 'Weiterschauen' }).parentElement).toHaveClass(
-        'underHero',
-      );
+      const stage = await screen.findByRole('region', { name: 'Spotlight' });
+      // The framed band starts below the header like any row; #hero-prepaint paints there.
+      expect(rowsBlock()).toHaveClass('padded');
+      expect(stage.parentElement).toBe(rowsBlock());
 
       const backdrop = container.querySelector('img[fetchpriority="high"]');
       expect(backdrop).toHaveAttribute(

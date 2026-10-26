@@ -292,8 +292,7 @@
     "carousel": {
       "roledescription": "carousel",
       "slide": "slide",
-      "position": "{{index}} of {{count}}",
-      "show": "Show pick {{index}} of {{count}}"
+      "position": "{{index}} of {{count}}"
     },
     "row": {
       "previous": "Scroll back",
