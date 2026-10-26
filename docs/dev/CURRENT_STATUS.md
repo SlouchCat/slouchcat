@@ -69,6 +69,8 @@ der Hauptsitzung, die Hälften je Schritt über `executor`-Agenten auf getrennte
 | 7a | `04e6ed6` | Startseite liest `heroRow`, Band an seiner Stelle | grün (434) |
 | 7b | `c03d050` | gerahmtes Band mit Posterleiste, fünf Storybook-Baselines; Revert-Probe grün | grün (438) |
 | 8 | `176cd1b` | Trailer-Knopf an der Bühne | grün (440) |
+| 9 | `926101f`, `ba236d4` | Doku, Belege, Messwerte | grün (440) |
+| Folge | `3a4b4c9` | ohne Bühne: `Link`-Preload des ersten Posters, `fetchpriority="high"` (Entscheid vom 26.10.) | grün (440) |
 
 ### Abnahmezeilen (Spec-IDs und Plan-Kriterien)
 
@@ -83,7 +85,7 @@ der Hauptsitzung, die Hälften je Schritt über `executor`-Agenten auf getrennte
 | A-2 Verwaltung an einem Ort | PASS: Karte und Navigationseintrag «Spotlight» in der Gruppe Kuratierung | `web/e2e/admin-home.spec.ts` (17 Karten) |
 | C-5 Vertrag ehrlich | PASS: Fassung 1.1.0, Enum getauscht, sechs neue Operationen, jede mit `x-visibility` und Registry-Eintrag | `TestContractCoversEveryOperation`, `TestEveryRouteHasVisibility`, `TestBinaryRoutesMatchContract` |
 | K-3 Sichtbarkeit je Profil | PASS: Spotlight und «Kürzlich veröffentlicht» über `visible_items`, Admin-Zahlen systemweit | `go test ./internal/store -run Scoped`, `TestSpotlightRowIntersection`, `TestReleasedSeriesWithInvisibleNewestEpisode` |
-| P-10 LCP < 2.5 s | **Mit Bühne PASS: 1.652 s** (M10: 1.802 s). **Ohne Bühne verfehlt: 4.101 s** — ohne Prepaint wird kein Bild vorgeladen; Folge-Commit vorgeschlagen (`startPagePreload` lädt das erste Poster vor), Entscheid von Marco offen | `docs/perf/M11.md` 3a/3b |
+| P-10 LCP < 2.5 s | **Mit Bühne PASS: 1.652 s** (M10: 1.802 s). **Ohne Bühne verfehlt: 4.101 s, nach dem Folge-Commit `3a4b4c9` 4.031 s** — der Preload wirkt (Ladeverzug 0.1 s), das Poster wird aber erst gemalt, wenn React rendert (Renderverzug 3.3 s); dafür bräuchte es ein Prepaint der ersten Posterzeile im Shell wie bei der Bühne. Bis dahin **erklärte Abweichung** für den Zustand ohne Bühne | `docs/perf/M11.md` 3a–3c |
 | P-11 Startseiten-API < 300 ms p95 | PASS unter Last: 232.7 ms auf `m11-s6` mit gefüllter Liste (CT 190 während des `segments.detect`-Nachlaufs, Last 17 auf 2 vCPU; M10 auf ruhigem Server 105.4 ms); Lauf auf ruhigem Server offen | `docs/perf/M11.md` 1 und 2 |
 
 ### Planabweichungen und Befunde
@@ -106,7 +108,8 @@ der Hauptsitzung, die Hälften je Schritt über `executor`-Agenten auf getrennte
 
 ### Offen
 
-- Marcos Entscheid zu P-10 ohne Bühne (Folge-Commit jetzt, erklärte Abweichung, später).
+- P-10 ohne Bühne: Prepaint der ersten Posterzeile im Shell (eigener Schritt; der Folge-Commit
+  `3a4b4c9` ist die Voraussetzung, reicht aber nicht — 4.031 s).
 - P-11 auf ruhigem Server (CT 190 arbeitet den `segments.detect`-Nachlauf ab) und der Vergleichslauf auf
   `m11-s2`; `GET /` (LCP-Pfad) ist über die Lighthouse-Läufe mit abgedeckt.
 - Mockup-I-Abnahme am laufenden Container (Image `m11-s8` liegt auf CT 190).
