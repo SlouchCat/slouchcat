@@ -66,6 +66,8 @@ const problemKeys = {
   email_send_failed: 'errors.code.email_send_failed',
   job_not_failed: 'errors.code.job_not_failed',
   update_check_disabled: 'errors.code.update_check_disabled',
+  // The spotlight list (M11): another entry holds the place an entry is pinned to.
+  rank_taken: 'errors.code.rank_taken',
 } as const;
 
 // Field error codes (`Problem.errors[].code`); unknown codes read as "invalid value".

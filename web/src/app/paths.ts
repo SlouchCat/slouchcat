@@ -36,6 +36,8 @@ export const paths = {
   adminPicks: '/admin/picks',
   adminCollections: '/admin/collections',
   adminHomeRows: '/admin/home-rows',
+  /** The spotlight list of the start page (M11, ADR 0011). */
+  adminSpotlight: '/admin/spotlight',
   person: (id: number) => `/people/${id}`,
   /** Administration (M8): the overview with the dashboard and the cards of every admin page. */
   admin: '/admin',

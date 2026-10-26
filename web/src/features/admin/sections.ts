@@ -19,6 +19,7 @@ export interface AdminSection {
     | 'profiles'
     | 'devices'
     | 'streams'
+    | 'spotlight'
     | 'picks'
     | 'collections'
     | 'homeRows'
@@ -49,6 +50,7 @@ export const adminSections: readonly AdminSection[] = [
   { key: 'profiles', href: paths.profileSettings, icon: 'user', group: 'accounts' },
   { key: 'devices', href: paths.adminDevices, icon: 'monitor', group: 'accounts' },
   { key: 'streams', href: paths.adminStreams, icon: 'play', group: 'accounts' },
+  { key: 'spotlight', href: paths.adminSpotlight, icon: 'spotlight', group: 'curation' },
   { key: 'picks', href: paths.adminPicks, icon: 'star', group: 'curation' },
   { key: 'collections', href: paths.adminCollections, icon: 'stack', group: 'curation' },
   { key: 'homeRows', href: paths.adminHomeRows, icon: 'list', group: 'curation' },

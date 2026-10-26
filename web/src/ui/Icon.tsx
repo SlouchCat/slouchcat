@@ -149,6 +149,13 @@ const paths = {
       <path d="M5 9v9.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4" fill="none" />
     </>
   ),
+  // A stage light: the lamp at the top, its cone of light down to the spot on the floor.
+  spotlight: (
+    <>
+      <path d="M9.5 3.5h5l-1 4h-3l-1-4ZM10.5 7.5 5 17M13.5 7.5 19 17" fill="none" />
+      <ellipse cx="12" cy="18.5" rx="7" ry="2" fill="none" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;

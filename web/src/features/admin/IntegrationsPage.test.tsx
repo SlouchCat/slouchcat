@@ -58,7 +58,7 @@ describe('integrations (A-2)', () => {
     ).not.toBeInTheDocument();
     expect(within(keys).getByRole('link', { name: 'Stand der Trakt-Listen' })).toHaveAttribute(
       'href',
-      '/admin/home-rows',
+      '/admin/spotlight',
     );
     // Only a stored key can be deleted; the value itself is never shown.
     expect(within(keys).getByRole('button', { name: 'TMDB-Token löschen' })).toBeVisible();

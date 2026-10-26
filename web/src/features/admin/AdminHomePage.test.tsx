@@ -349,6 +349,7 @@ describe('admin overview (A-2, A-3)', () => {
       ['Streams', '/admin/streams'],
     ]);
     expect(cards('Kuratierung')).toEqual([
+      ['Spotlight', '/admin/spotlight'],
       ["Cat's Empfehlungen", '/admin/picks'],
       ['Sammlungen', '/admin/collections'],
       ['Startseite', '/admin/home-rows'],
@@ -385,6 +386,7 @@ describe('admin navigation (A-2)', () => {
       'Zugriff',
       'Geräte',
       'Streams',
+      'Spotlight',
       "Cat's Empfehlungen",
       'Sammlungen',
       'Startseite',

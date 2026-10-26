@@ -59,7 +59,7 @@ test('keys show their source; the Trakt id from the environment is read-only', a
   await expect(keys.getByRole('button', { name: 'TMDB-Token löschen' })).toHaveCount(0);
   await expect(keys.getByRole('link', { name: 'Stand der Trakt-Listen' })).toHaveAttribute(
     'href',
-    '/admin/home-rows',
+    '/admin/spotlight',
   );
 });
 

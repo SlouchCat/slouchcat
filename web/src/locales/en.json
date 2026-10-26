@@ -144,6 +144,7 @@
       "email_send_failed": "The mail server did not accept the mail.",
       "job_not_failed": "This job has not failed.",
       "update_check_disabled": "The update check is switched off.",
+      "rank_taken": "Another entry of the list already holds this place.",
       "email_taken": "This e-mail address already belongs to another account.",
       "passphrase_required": "Enter the passphrase.",
       "passphrase_too_short": "The passphrase is too short: at least 12 characters.",
@@ -1199,6 +1200,126 @@
       "refresh": "Refresh now",
       "queued": "The Trakt lists are being fetched."
     },
+    "spotlight": {
+      "title": "Spotlight",
+      "intro": "A public Trakt list as a row of the start page. Only titles in your own library are shown; each profile sees only what its age rating allows.",
+      "enabled": "Show on the start page",
+      "lists": {
+        "trending": "Trending on Trakt",
+        "popular": "Popular on Trakt",
+        "watched_weekly": "Most watched (last week)",
+        "collected_monthly": "Most collected (last month)",
+        "anticipated": "Most anticipated",
+        "boxoffice": "Box office",
+        "url": "Public list by address"
+      },
+      "media": {
+        "movie": "Films only",
+        "show": "Series only",
+        "both": "Films and series"
+      },
+      "source": {
+        "title": "Source",
+        "list": "Trakt list",
+        "listHint": "Public lists, no Trakt login.",
+        "listHintLink": "Key under Integrations",
+        "listUrl": "Address of the list",
+        "listUrlHint": "A public list on trakt.tv, such as https://trakt.tv/users/name/lists/name-of-the-list. Watchlists are not possible.",
+        "media": "Media",
+        "mediaFixed": "This list sets the media.",
+        "mediaFilters": "The list mixes films and series: the media filters its entries after the fetch.",
+        "itemCount": "At most",
+        "itemCountHint": "titles in the row, per profile (5–20)",
+        "minHits": "Hide below",
+        "minHitsHint": "hits in the library, per profile (0–10)",
+        "intervalHours": "Fetch every … hours",
+        "intervalHoursHint": "6 to 48 hours",
+        "refresh": "Fetch now",
+        "queued": "The list is being fetched.",
+        "saved": "Spotlight is saved."
+      },
+      "state": {
+        "fetched": "Last fetched {{date}}",
+        "never": "Never fetched",
+        "failed": "Last fetch failed: {{reason}}",
+        "hits": "{{hits}} of {{entries}} titles in the library",
+        "keySet": "Key set",
+        "noKey": "No key",
+        "separator": " · "
+      },
+      "missing": {
+        "noKey": "Without a Trakt key the row is missing from the start page.",
+        "disabled": "Spotlight is switched off: the row is missing from the start page.",
+        "failed": "The row is missing from the start page until a fetch succeeds.",
+        "empty": "The list is empty: the row is missing from the start page.",
+        "belowMinHits": "Only {{hits}} hits in the library, fewer than the required {{min}}: the row is missing from the start page. Profiles that see fewer titles may not get it even otherwise."
+      },
+      "entries": {
+        "title": "Entries of the list",
+        "intro": "Order from Trakt; your own changes stay through the next fetch.",
+        "empty": "No entries yet. Fetch the list once Trakt is set up.",
+        "columns": {
+          "rank": "Rank",
+          "title": "Title",
+          "status": "Status",
+          "note": "Own note",
+          "actions": "Actions"
+        },
+        "media": {
+          "movie": "Film",
+          "show": "Series"
+        },
+        "meta": "{{media}} · {{year}}",
+        "untitled": "TMDB {{id}}",
+        "state": {
+          "visible": "Visible",
+          "hidden": "Hidden",
+          "missing": "Not in the library"
+        },
+        "pinned": "Pinned to place {{rank}}",
+        "quoted": "“{{note}}”",
+        "none": "–",
+        "notInLibrary": "Not in the library, does not appear on the start page",
+        "hide": "Hide",
+        "hideLabel": "Hide {{title}}",
+        "show": "Show",
+        "showLabel": "Show {{title}}",
+        "hidden": "{{title}} is hidden.",
+        "shown": "{{title}} is shown again."
+      },
+      "pin": {
+        "action": "Pin",
+        "label": "Pin {{title}}",
+        "title": "Pin {{title}}",
+        "rank": "Place in the row",
+        "rankHint": "1 is the first place. The place holds for the whole list; a profile with fewer hits sees the title earlier.",
+        "done": "{{title}} is pinned to place {{rank}}."
+      },
+      "unpin": {
+        "action": "Unpin",
+        "label": "Unpin {{title}}",
+        "done": "{{title}} is no longer pinned."
+      },
+      "note": {
+        "action": "Note",
+        "label": "Note on {{title}}",
+        "title": "Note on {{title}}",
+        "field": "Note",
+        "hint": "At most {{max}} characters. Empty removes the note.",
+        "saved": "The note on {{title}} is saved.",
+        "removed": "The note on {{title}} is removed."
+      },
+      "orphans": {
+        "title": "Orphaned overrides",
+        "intro": "Overrides of titles that are no longer in the list. They take effect again only when the title returns.",
+        "override": "Override",
+        "remove": "Remove",
+        "removeLabel": "Remove the override of {{title}}",
+        "removed": "The override of {{title}} is removed."
+      },
+      "rowSettings": "Where the row stands on the start page and whether it appears is set under “Start page”.",
+      "rowSettingsLink": "Go to “Start page”"
+    },
     "nav": {
       "label": "Administration",
       "overview": "Overview",
@@ -1242,6 +1363,10 @@
         "title": "Streams",
         "description": "See and stop running playbacks."
       },
+      "spotlight": {
+        "title": "Spotlight",
+        "description": "The Trakt list shown on the start page and its entries."
+      },
       "picks": {
         "title": "Cat's picks",
         "description": "The carousel of the home page."
@@ -1252,7 +1377,7 @@
       },
       "homeRows": {
         "title": "Home page",
-        "description": "Order of the rows and the Trakt lists."
+        "description": "Order of the rows on the start page."
       },
       "announcements": {
         "title": "Announcements",

@@ -358,6 +358,13 @@ const homeRowsRoute = createRoute({
 });
 // end admin M7
 
+// admin M11: the spotlight list of the start page (ADR 0011).
+const spotlightRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/spotlight',
+  component: lazyRouteComponent(() => import('@/features/admin/SpotlightPage'), 'SpotlightPage'),
+});
+
 // admin M8: accounts, backup, statistics and announcements.
 const accountsRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -491,6 +498,8 @@ export const routeTree = rootRoute.addChildren([
           picksRoute,
           collectionsAdminRoute,
           homeRowsRoute,
+          // admin M11
+          spotlightRoute,
           maintenanceRoute,
           devicesRoute,
           streamsRoute,

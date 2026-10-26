@@ -216,7 +216,7 @@ function KeyForm({ keyName, state }: { keyName: KeyName; state: KeyState }) {
       </Form>
       <Outcome error={errors?.form ? save.error : null} message={message} />
       {keyName === 'trakt' && (
-        <TextLink href={paths.adminHomeRows}>{t('admin.integrations.keys.traktStatus')}</TextLink>
+        <TextLink href={paths.adminSpotlight}>{t('admin.integrations.keys.traktStatus')}</TextLink>
       )}
     </div>
   );

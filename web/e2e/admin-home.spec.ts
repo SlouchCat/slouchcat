@@ -31,6 +31,7 @@ const NAV_PAGES = [
   ['Zugriff', '/admin/access'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
+  ['Spotlight', '/admin/spotlight'],
   ["Cat's Empfehlungen", '/admin/picks'],
   ['Sammlungen', '/admin/collections'],
   ['Startseite', '/admin/home-rows'],
@@ -201,7 +202,7 @@ test('Tab: header, navigation, dashboard, cards; Enter on a card; no focus trap'
 }) => {
   await openOverview(page);
   const cards = page.getByRole('region', { name: 'Alle Verwaltungsseiten' });
-  await expect(cards.getByRole('link')).toHaveCount(16);
+  await expect(cards.getByRole('link')).toHaveCount(17);
   await expect(cards.getByRole('link', { name: 'Benachrichtigungen' })).toHaveAttribute(
     'href',
     '/settings/notifications',

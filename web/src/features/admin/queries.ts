@@ -32,6 +32,7 @@ import type {
   Stats,
   StatsDays,
   TraktStatus,
+  components,
 } from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
@@ -199,6 +200,28 @@ export const traktStatusQuery = queryOptions({
   queryFn: ({ signal }): Promise<TraktStatus> => request(api.GET('/admin/trakt', { signal })),
 });
 
+// The spotlight list of the start page (M11, ADR 0011).
+
+export type SpotlightConfig = components['schemas']['SpotlightConfig'];
+export type SpotlightConfigUpdate = components['schemas']['SpotlightConfigUpdate'];
+export type SpotlightEntries = components['schemas']['SpotlightEntries'];
+export type SpotlightEntry = components['schemas']['SpotlightEntry'];
+export type SpotlightEntryOverride = components['schemas']['SpotlightEntryOverride'];
+
+/** The chosen list, its numbers and the catalogue of list kinds (`listKinds`). */
+export const spotlightConfigQuery = queryOptions({
+  queryKey: ['admin', 'spotlight', 'config'],
+  queryFn: ({ signal }): Promise<SpotlightConfig> =>
+    request(api.GET('/admin/spotlight', { signal })),
+});
+
+/** The fetched entries in list order with library hit and override, and the orphaned overrides. */
+export const spotlightEntriesQuery = queryOptions({
+  queryKey: ['admin', 'spotlight', 'entries'],
+  queryFn: ({ signal }): Promise<SpotlightEntries> =>
+    request(api.GET('/admin/spotlight/entries', { signal })),
+});
+
 // Administration (M8): accounts, backups, statistics and announcements.
 
 /** The main account first, then the guests, with profiles and channels (A-2). */
@@ -261,6 +284,25 @@ export const setHomeRows = (rows: HomeRowSetting[]): Promise<HomeRowSetting[]> =
 
 // Queues the spotlight fetch (the Trakt section's "Jetzt aktualisieren").
 export const refreshTrakt = () => request(api.POST('/admin/spotlight/refresh'));
+
+export const setSpotlightConfig = (body: SpotlightConfigUpdate): Promise<SpotlightConfig> =>
+  request(api.PUT('/admin/spotlight', { body }));
+
+/** Hides, pins or annotates one entry; `{}` removes its override (an orphan's "Entfernen"). */
+export const setSpotlightEntryOverride = (
+  media: SpotlightEntry['media'],
+  tmdbId: number,
+  body: SpotlightEntryOverride,
+): Promise<SpotlightEntry> =>
+  request(
+    api.PATCH('/admin/spotlight/entries/{media}/{tmdbId}', {
+      params: { path: { media, tmdbId } },
+      body,
+    }),
+  );
+
+/** Queues the spotlight fetch out of schedule ("Jetzt abrufen"); at most once a minute (429). */
+export const refreshSpotlight = () => request(api.POST('/admin/spotlight/refresh'));
 
 // Administration (M8): dashboard, system state, settings and integrations.
 
