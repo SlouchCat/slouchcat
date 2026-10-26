@@ -7,10 +7,10 @@ import {
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, SpatialButtonLink } from './Button';
+import { Button, SpatialButton, SpatialButtonLink } from './Button';
 import styles from './HeroCarousel.module.css';
 import { PosterFallback } from './PosterFallback';
-import { SpatialGroup, useSpatialItem } from './spatial';
+import { setSpatialFocus, SpatialGroup, useSpatialItem } from './spatial';
 
 export interface HeroSlide {
   id: string;
@@ -26,6 +26,8 @@ export interface HeroSlide {
   meta?: ReactNode;
   /** Personal note of the main user on this pick (E-2), shown under the title. */
   note?: string;
+  /** The title has a trailer (only `true` shows the trailer button; absent means unknown). */
+  hasTrailer?: boolean;
   playHref: string;
   detailsHref: string;
 }
@@ -36,6 +38,11 @@ interface HeroCarouselProps {
   slides: readonly HeroSlide[];
   playLabel: string;
   detailsLabel: string;
+  trailerLabel: string;
+  /** Opens the trailer of a slide; the button stands only on slides with `hasTrailer: true`. */
+  onTrailerPress?: (slide: HeroSlide) => void;
+  /** Holds the carousel on its slide, for example while a dialog opened from it is on screen. */
+  paused?: boolean;
   intervalMs?: number;
   /** Called once the first image is on screen (loaded and painted) or has failed. */
   onArtShown?: () => void;
@@ -43,6 +50,7 @@ interface HeroCarouselProps {
 
 export const HERO_PLAY_KEY = 'hero-play';
 const HERO_DETAILS_KEY = 'hero-details';
+const HERO_TRAILER_KEY = 'hero-trailer';
 const stripKey = (slide: HeroSlide) => `hero-strip-${slide.id}`;
 
 const prefersReducedMotion = () =>
@@ -141,9 +149,11 @@ function StripPoster({
  * inside it (or reduced motion is requested).
  *
  * Keyboard: arrow left on the first button and arrow right on the last button page through the
- * slides; the buttons keep focus. In the poster strip the arrow keys move the focus only, Enter (or
- * a click) shows the focused poster's slide; the poster keeps focus. Entering the strip from above
- * or by Tab lands on the active poster; the strip's ends hold the focus inside the band.
+ * slides; the buttons keep focus. The buttons are play, details and, on a slide with a trailer,
+ * trailer, so the last one is details or trailer depending on the slide. In the poster strip the
+ * arrow keys move the focus only, Enter (or a click) shows the focused poster's slide; the poster
+ * keeps focus. Entering the strip from above or by Tab lands on the active poster; the strip's ends
+ * hold the focus inside the band.
  *
  * Artwork loads on demand (P-10): only the active slide's image is in the document at first, eager
  * and with high priority. Once it is on screen, the next slide's image joins (lazy, low priority) so
@@ -155,6 +165,9 @@ export function HeroCarousel({
   slides,
   playLabel,
   detailsLabel,
+  trailerLabel,
+  onTrailerPress,
+  paused: held = false,
   intervalMs = 8000,
   onArtShown,
 }: HeroCarouselProps) {
@@ -164,7 +177,7 @@ export function HeroCarousel({
   const [focusWithin, setFocusWithin] = useState(false);
   const [reducedMotion] = useState(prefersReducedMotion);
   const count = slides.length;
-  const paused = hovered || focusWithin || reducedMotion || count < 2;
+  const paused = held || hovered || focusWithin || reducedMotion || count < 2;
 
   const current = Math.min(index, count - 1);
   const slide = slides[current];
@@ -204,6 +217,15 @@ export function HeroCarousel({
     if (direction !== 'right') return true;
     if (count > 1) stepRef.current(1);
     return false;
+  };
+  const trailer = slide?.hasTrailer === true && onTrailerPress !== undefined;
+  // Paging away from the trailer button to a slide without a trailer takes the button away: the
+  // focus moves to details first, which is the last button then.
+  const pageFromTrailer = (direction: string) => {
+    if (direction === 'right' && count > 1 && slides[next]?.hasTrailer !== true) {
+      setSpatialFocus(HERO_DETAILS_KEY);
+    }
+    return pageForward(direction);
   };
   // The ends of the poster strip hold the focus inside the band.
   const holdEnds = (position: number) => (direction: string) =>
@@ -301,7 +323,7 @@ export function HeroCarousel({
             </SpatialButtonLink>
             <SpatialButtonLink
               focusKey={HERO_DETAILS_KEY}
-              onArrowPress={pageForward}
+              onArrowPress={trailer ? undefined : pageForward}
               href={slide.detailsHref}
               variant="secondary"
               size="lg"
@@ -309,6 +331,18 @@ export function HeroCarousel({
             >
               {detailsLabel}
             </SpatialButtonLink>
+            {trailer && (
+              <SpatialButton
+                focusKey={HERO_TRAILER_KEY}
+                onArrowPress={pageFromTrailer}
+                variant="secondary"
+                size="lg"
+                icon="play"
+                onPress={() => onTrailerPress?.(slide)}
+              >
+                {trailerLabel}
+              </SpatialButton>
+            )}
           </SpatialGroup>
         </div>
 

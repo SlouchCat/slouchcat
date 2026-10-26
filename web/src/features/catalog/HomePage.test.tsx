@@ -1,5 +1,6 @@
-import type { ItemRef } from '@slouchcat/api-client';
+import type { ItemRef, Trailer } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { alien, arrival, heat, homePage, ids } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn } from '@/test/api';
@@ -512,6 +513,96 @@ describe('start page', () => {
       expect(painted.dataset.done).toBeUndefined();
       fireEvent.load(backdrop!);
       await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+
+    describe('the trailer button (step 8, W-10)', () => {
+      const trailers: Trailer[] = [
+        {
+          id: 1,
+          lang: 'de',
+          youtubeId: 'abcdefghijk',
+          embedUrl: 'https://www.youtube-nocookie.com/embed/abcdefghijk',
+          source: 'manual',
+          official: false,
+        },
+      ];
+      const stagePage = (first: ItemRef) => ({
+        heroRow: 'spotlight',
+        rows: [{ key: 'spotlight', items: [first, arrival] }],
+      });
+
+      it.each([
+        { hasTrailer: true, buttons: ['Abspielen', 'Details', 'Trailer'] },
+        { hasTrailer: false, buttons: ['Abspielen', 'Details'] },
+        { hasTrailer: undefined, buttons: ['Abspielen', 'Details'] },
+      ])('hasTrailer $hasTrailer: the stage shows $buttons', async ({ hasTrailer, buttons }) => {
+        mockApi({ ...signedIn, 'GET /home': () => json(stagePage({ ...heat, hasTrailer })) });
+        renderApp('/');
+        const stage = await screen.findByRole('region', { name: 'Spotlight' });
+        expect(within(stage).getByRole('heading', { name: 'Heat' })).toBeVisible();
+        // The action buttons in their order; the strip's posters are named after their titles.
+        const actions = [...stage.querySelectorAll('a, button')]
+          .map((element) => element.textContent)
+          .filter((name) => ['Abspielen', 'Details', 'Trailer'].includes(name ?? ''));
+        expect(actions).toEqual(buttons);
+      });
+
+      it('opens the trailer dialog of the slide; Escape closes it and returns the focus', async () => {
+        const { calls } = mockApi({
+          ...signedIn,
+          'GET /home': () => json(stagePage({ ...heat, hasTrailer: true })),
+          [`GET /items/${ids.heat}/trailers`]: () => json(trailers),
+        });
+        const { router } = renderApp('/');
+        const user = userEvent.setup();
+        const stage = await screen.findByRole('region', { name: 'Spotlight' });
+
+        const button = within(stage).getByRole('button', { name: 'Trailer' });
+        await user.click(button);
+        const dialog = await screen.findByRole('dialog', { name: 'Trailer: Heat' });
+        const frame = await within(dialog).findByTitle('Trailer von Heat (YouTube)');
+        expect(frame.getAttribute('src')).toBe(
+          'https://www.youtube-nocookie.com/embed/abcdefghijk?autoplay=1',
+        );
+        expect(calls.some((call) => call.path === `/items/${ids.heat}/trailers`)).toBe(true);
+        // The privacy note of the detail page's dialog stays.
+        expect(
+          within(dialog).getByText(
+            'Der Trailer wird von YouTube abgespielt (youtube-nocookie.com).',
+          ),
+        ).toBeVisible();
+
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(router.state.location.pathname).toBe('/');
+        await waitFor(() => expect(button).toHaveFocus());
+      });
+
+      it('holds the stage on its slide while the dialog is open', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        mockApi({
+          ...signedIn,
+          'GET /home': () => json(stagePage({ ...heat, hasTrailer: true })),
+          [`GET /items/${ids.heat}/trailers`]: () => json(trailers),
+        });
+        renderApp('/');
+        const stage = await screen.findByRole('region', { name: 'Spotlight' });
+        // A click without focus: only the open dialog holds the carousel.
+        fireEvent.click(within(stage).getByRole('button', { name: 'Trailer' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Trailer: Heat' });
+        await act(() => vi.advanceTimersByTimeAsync(16_000));
+        // The modal dialog hides the page from the accessibility tree meanwhile.
+        expect(within(stage).getByRole('heading', { name: 'Heat', hidden: true })).toBeVisible();
+
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Schliessen' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        // The dialog restores the focus a frame after closing; with the focus off the stage it
+        // moves on again.
+        await act(() => vi.advanceTimersByTimeAsync(100));
+        (document.activeElement as HTMLElement | null)?.blur();
+        await act(() => vi.advanceTimersByTimeAsync(8000));
+        expect(within(stage).getByRole('heading', { name: 'Arrival' })).toBeVisible();
+      });
     });
 
     it.each([

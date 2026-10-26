@@ -2,7 +2,7 @@ import type { HomeRow, ItemRef } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -32,6 +32,11 @@ import { homeQuery } from './queries';
 import styles from './HomePage.module.css';
 
 const authed = getRouteApi('/_authed/_active');
+
+// The trailer dialog needs react-aria, which the start page does not load up front (P-10).
+const TrailerPanel = lazy(() =>
+  import('./TrailerPanel').then((module) => ({ default: module.TrailerPanel })),
+);
 
 const rowTitleKey = {
   spotlight: 'home.rows.spotlight',
@@ -109,6 +114,8 @@ export function HomePage() {
   // Posters wait until the hero artwork is on screen: on a slow link they would share its
   // bandwidth (P-10). The frames keep their size, so nothing shifts.
   const [heroShown, setHeroShown] = useState(false);
+  // The stage slide whose trailer dialog is open (W-10).
+  const [trailerSlide, setTrailerSlide] = useState<HeroSlide>();
   // Only a stage at the top is the page's first image: the server paints it into the shell, and the
   // posters wait for it. A stage further down has no prepaint and holds no poster back.
   const leadRow = home.data?.rows.find(hasEntries);
@@ -171,6 +178,7 @@ export function HomePage() {
       posterSmallUrl: imageUrl(item.images.posterSmall),
       meta: <ItemMeta item={item} />,
       note: item.note,
+      hasTrailer: item.hasTrailer,
       playHref: paths.play(item.id),
       detailsHref: paths.item(item.id),
     }));
@@ -262,6 +270,9 @@ export function HomePage() {
                     slides={slides(row)}
                     playLabel={t('item.play')}
                     detailsLabel={t('item.details')}
+                    trailerLabel={t('item.trailer')}
+                    onTrailerPress={setTrailerSlide}
+                    paused={trailerSlide !== undefined}
                     onArtShown={() => setHeroShown(true)}
                   />
                 );
@@ -284,6 +295,15 @@ export function HomePage() {
               </div>
             )}
           </div>
+        )}
+        {trailerSlide && (
+          <Suspense fallback={null}>
+            <TrailerPanel
+              itemId={trailerSlide.id}
+              title={trailerSlide.title}
+              onClose={() => setTrailerSlide(undefined)}
+            />
+          </Suspense>
         )}
       </main>
     </SpatialPage>

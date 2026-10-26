@@ -194,6 +194,132 @@ test('the band: arrow keys move in the poster strip, Enter selects, the focus st
   await expectFocusOn(page, posters.nth(1));
 });
 
+test('the trailer button on the stage: keys, dialog, paging (step 8, W-10, C-4)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  // The server asks the mock right after its start; the band needs its titles.
+  await expect
+    .poll(async () => (await homeRowKeys(owner)).includes('spotlight'), {
+      timeout: 60_000,
+      intervals: [1000],
+    })
+    .toBe(true);
+  type Slide = { id: string; title: string; hasTrailer?: boolean };
+  const spotlightItems = async () => {
+    const response = await owner.get('/api/v1/home');
+    expect(response.status(), await response.text()).toBe(200);
+    const { rows } = (await response.json()) as { rows: { key: string; items: Slide[] }[] };
+    return rows.find((row) => row.key === 'spotlight')?.items ?? [];
+  };
+  const items = await spotlightItems();
+  expect(items.length).toBeGreaterThan(2);
+  const [first] = items;
+  if (!first) throw new Error('no spotlight title');
+  // The e2e server finds no trailers (no TMDB or YouTube key): a manual one for the first slide
+  // only, as trailer.spec.ts does on the detail page.
+  const created = await owner.post(`/api/v1/admin/items/${first.id}/trailers`, {
+    headers: CSRF,
+    data: { lang: 'de', youtubeId: 'dQw4w9WgXcQ' },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  try {
+    // D3: the spotlight row says which titles have a trailer; only the first one has.
+    expect((await spotlightItems()).map((item) => item.hasTrailer)).toEqual(
+      items.map((_, position) => position === 0),
+    );
+    await page.route('**://www.youtube-nocookie.com/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<!doctype html><title>yt</title>',
+      }),
+    );
+    // The carousel stands still, so only the keys move it.
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.reload();
+    await expect(hero(page)).toBeVisible();
+    await resetFocus(page);
+    const posters = strip(page);
+    const last = (await posters.count()) - 1;
+    const play = hero(page).getByRole('link', { name: 'Abspielen' });
+    const details = hero(page).getByRole('link', { name: 'Details' });
+    const trailer = hero(page).getByRole('button', { name: 'Trailer', exact: true });
+    await expect(hero(page).getByRole('heading', { level: 2 })).toHaveText(first.title);
+
+    // Abspielen → Details → Trailer by arrows, and the same order by Tab; nothing pages on the way.
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, play);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, details);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, trailer);
+    await expectVisibleFocus(page);
+    await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, details);
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, trailer);
+
+    // Enter opens the dialog of the slide's title; Escape closes it, the focus is back on the button.
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: `Trailer: ${first.title}` });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('iframe')).toHaveAttribute(
+      'src',
+      /^https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ/,
+    );
+    await expect(
+      dialog.getByText('Der Trailer wird von YouTube abgespielt (youtube-nocookie.com).'),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/\/$/);
+    await expectFocusOn(page, trailer);
+    await expectVisibleFocus(page);
+
+    // The arrow keys still page on the outer buttons: left on Abspielen goes back to the last slide,
+    // a title without a trailer, so the stage has no trailer button there.
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, details);
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, play);
+    await page.keyboard.press('ArrowLeft');
+    await expect(posters.nth(last)).toHaveAttribute('aria-current', 'true');
+    await expectFocusOn(page, play);
+    await expect(trailer).toHaveCount(0);
+
+    // Without the trailer button Details is the last one: right on it pages forward.
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, details);
+    await page.keyboard.press('ArrowRight');
+    await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+    await expectFocusOn(page, details);
+    await expect(trailer).toBeVisible();
+
+    // With it, right on Trailer pages forward; the next title has none, so the focus moves to
+    // Details instead of getting lost with the button.
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, trailer);
+    await page.keyboard.press('ArrowRight');
+    await expect(posters.nth(1)).toHaveAttribute('aria-current', 'true');
+    await expect(trailer).toHaveCount(0);
+    await expectFocusOn(page, details);
+    await expectVisibleFocus(page);
+  } finally {
+    // Leave the title without trailers for the other specs.
+    const item = (await (await owner.get(`/api/v1/admin/items/${first.id}`)).json()) as {
+      trailers: { id: number }[];
+    };
+    for (const entry of item.trailers) {
+      await owner.delete(`/api/v1/admin/items/${first.id}/trailers/${entry.id}`, {
+        headers: CSRF,
+      });
+    }
+  }
+});
+
 test('prefers-reduced-motion stops the rotation (7b)', async ({ page, owner }) => {
   test.setTimeout(90_000);
   await expect
