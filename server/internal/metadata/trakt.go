@@ -27,7 +27,11 @@ import (
 const (
 	JobTraktRefresh = "trakt.refresh"
 	traktJobKey     = "trakt"
-	traktPriority   = 2
+	// traktPriority is the nightly run; traktManualPriority is "Jetzt abrufen" and a changed client
+	// id, which run before the scan backlog like a manual match (M11: on a library with thousands
+	// of queued segments.detect jobs of priority 2 the manual fetch waited for days otherwise).
+	traktPriority       = 2
+	traktManualPriority = 7
 
 	// traktPollInterval is how often RunTrakt checks whether a run is due.
 	traktPollInterval = 15 * time.Minute
@@ -154,7 +158,7 @@ func (s *Service) QueueDueTrakt(ctx context.Context) (bool, error) {
 	if last != nil && s.trakt.now().Sub(*last) < time.Duration(cfg.IntervalHours)*time.Hour {
 		return false, nil
 	}
-	return true, s.enqueueTrakt(ctx)
+	return true, s.enqueueTrakt(ctx, traktPriority)
 }
 
 // RefreshTrakt queues trakt.refresh out of schedule (admin button);
@@ -167,7 +171,7 @@ func (s *Service) RefreshTrakt(ctx context.Context) error {
 	if id == "" {
 		return model.ErrProviderNotConfigured
 	}
-	return s.enqueueTrakt(ctx)
+	return s.enqueueTrakt(ctx, traktManualPriority)
 }
 
 // dropSpotlightEntries empties spotlight_entries when it holds entries.
@@ -186,10 +190,17 @@ func (s *Service) dropSpotlightEntries(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) enqueueTrakt(ctx context.Context) error {
-	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobTraktRefresh, Priority: traktPriority, IdempotencyKey: traktJobKey,
-		Payload: []byte(`{}`)}); err != nil {
+// enqueueTrakt queues the refresh with priority, or raises the priority of the one already waiting
+// under the key (Enqueue returns that job): a manual request must not be swallowed by a queued
+// nightly run.
+func (s *Service) enqueueTrakt(ctx context.Context, priority int) error {
+	id, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobTraktRefresh, Priority: priority, IdempotencyKey: traktJobKey,
+		Payload: []byte(`{}`)})
+	if err != nil {
 		return fmt.Errorf("enqueue %s: %w", JobTraktRefresh, err)
+	}
+	if _, err := s.queue.RaiseQueuedPriority(ctx, id, priority); err != nil {
+		return fmt.Errorf("raise %s: %w", JobTraktRefresh, err)
 	}
 	return nil
 }

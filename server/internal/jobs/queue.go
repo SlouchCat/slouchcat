@@ -247,6 +247,21 @@ func (q *Queue) SetQueuedPayload(ctx context.Context, id int64, payload json.Raw
 	return n == 1, nil
 }
 
+// RaiseQueuedPriority raises the priority of a job that no worker has claimed yet to at least
+// priority (0..9) and reports whether the job was still queued. It never lowers a priority: a
+// manual request overtakes a scheduled job that holds the same idempotency key, instead of being
+// swallowed by it (Enqueue returns the waiting job on a key conflict).
+func (q *Queue) RaiseQueuedPriority(ctx context.Context, id int64, priority int) (bool, error) {
+	if priority < 0 || priority > 9 {
+		return false, fmt.Errorf("priority %d outside 0..9", priority)
+	}
+	n, err := q.q.RaiseQueuedJobPriority(ctx, systemq.RaiseQueuedJobPriorityParams{Priority: int64(priority), Now: q.now().UnixMilli(), ID: id})
+	if err != nil {
+		return false, fmt.Errorf("raise priority of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
 // Get returns a job by ID.
 func (q *Queue) Get(ctx context.Context, id int64) (Job, error) {
 	row, err := q.q.GetJob(ctx, id)

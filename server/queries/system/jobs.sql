@@ -14,6 +14,11 @@ WHERE idempotency_key = @idempotency_key AND state IN ('queued', 'running');
 -- Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'queued';
 
+-- name: RaiseQueuedJobPriority :execrows
+-- Raises the priority of a job that no worker has claimed yet and never lowers it: a manual
+-- spotlight refresh (M11) overtakes the nightly one that already waits behind a scan backlog.
+UPDATE jobs SET priority = max(priority, @priority), updated_at = @now WHERE id = @id AND state = 'queued';
+
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = @id;
 

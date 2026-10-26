@@ -360,8 +360,25 @@ func TestTraktSchedule(t *testing.T) {
 				JobTraktRefresh).Scan(&queued); err != nil || queued != 1 {
 				t.Errorf("trakt jobs = %d %v, want one active job", queued, err)
 			}
+			// "Jetzt abrufen" does not vanish behind the queued nightly run (same key): it raises
+			// that job to the manual priority, so it overtakes a scan backlog of priority 2.
 			if err := e.svc.RefreshTrakt(ctx); err != nil {
 				t.Errorf("refresh: %v", err)
+			}
+			var manual int
+			if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = 'trakt' AND state = 'queued' AND priority = ?`,
+				JobTraktRefresh, traktManualPriority).Scan(&manual); err != nil || manual != 1 {
+				t.Errorf("queued trakt jobs at manual priority = %d %v, want the one waiting job raised", manual, err)
+			}
+			// The next nightly tick keeps the raised priority: Enqueue returns the waiting job and
+			// the raise never lowers.
+			e.clock.set(start.Add(3 * interval))
+			if _, err := e.svc.QueueDueTrakt(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND priority = ?`,
+				JobTraktRefresh, traktManualPriority).Scan(&manual); err != nil || manual != 1 {
+				t.Errorf("queued trakt jobs after the nightly tick = %d %v, want still one at the manual priority", manual, err)
 			}
 		})
 	}
