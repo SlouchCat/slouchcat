@@ -24,7 +24,7 @@ export { Notice } from './Notice';
 export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
 export { Page, PageNav } from './Page';
 export { Panel } from './Panel';
-export { PosterCard } from './PosterCard';
+export { dismissPosterPrepaint, PosterCard } from './PosterCard';
 export { PosterFallback } from './PosterFallback';
 export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';

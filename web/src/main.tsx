@@ -8,7 +8,7 @@ import { createQueryClient } from '@/app/queryClient';
 import { createAppRouter } from '@/app/router';
 import { registerServiceWorker } from '@/app/serviceWorker';
 import { sessionQuery } from '@/app/session';
-import { dismissHeroPrepaint, loadSpatialNavigation } from '@/ui';
+import { dismissHeroPrepaint, dismissPosterPrepaint, loadSpatialNavigation } from '@/ui';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Missing #root element in index.html');
@@ -29,9 +29,12 @@ const queryClient = createQueryClient({
   },
 });
 const router = createAppRouter(queryClient);
-// The hero image the server painted into the start page's shell never outlives the start page.
+// The images the server painted into the start page's shell never outlive the start page.
 router.subscribe('onResolved', ({ toLocation }) => {
-  if (toLocation.pathname !== '/') dismissHeroPrepaint();
+  if (toLocation.pathname !== '/') {
+    dismissHeroPrepaint();
+    dismissPosterPrepaint();
+  }
 });
 
 createRoot(container).render(

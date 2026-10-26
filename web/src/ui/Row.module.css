@@ -4,10 +4,12 @@
   gap: var(--sc-space-2);
 }
 
+/* The title block keeps the height #poster-prepaint (global.css) counts with: --row-header-height. */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: var(--row-header-height);
   padding: 0 var(--page-gutter);
 }
 

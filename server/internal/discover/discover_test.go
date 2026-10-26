@@ -621,10 +621,10 @@ func TestHeroRowStageRule(t *testing.T) {
 	}
 }
 
-// P-10: without a stage FirstPoster answers the first title of the first row, the card the start
-// page loads first; with a stage (on top or further down), without rows and with a first row of
-// genres it answers model.ErrNotFound.
-func TestFirstPoster(t *testing.T) {
+// P-10: without a stage FirstRow answers the titles of the first row, the cards the start page
+// loads first; with a stage (on top or further down), without rows and with a first row of genres
+// it answers model.ErrNotFound.
+func TestFirstRow(t *testing.T) {
 	t.Parallel()
 	f := spotlightFixture(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
@@ -632,8 +632,8 @@ func TestFirstPoster(t *testing.T) {
 
 	notFound := func(name string) {
 		t.Helper()
-		if item, err := s.FirstPoster(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
-			t.Errorf("%s: FirstPoster = %s, %v; want ErrNotFound", name, item.ID, err)
+		if items, err := s.FirstRow(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("%s: FirstRow = %d titles, %v; want ErrNotFound", name, len(items), err)
 		}
 	}
 	notFound("stage on top")
@@ -645,11 +645,15 @@ func TestFirstPoster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if page.HeroRow != "" || len(page.Rows) == 0 || page.Rows[0].Key != RowRecent || len(page.Rows[0].Items) == 0 {
-		t.Fatalf("no stage: hero row %q, rows %v; want recent first", page.HeroRow, rowKeys(page.Rows))
+	if page.HeroRow != "" || len(page.Rows) == 0 || page.Rows[0].Key != RowRecent || len(page.Rows[0].Items) < 2 {
+		t.Fatalf("no stage: hero row %q, rows %v; want recent first with several titles", page.HeroRow, rowKeys(page.Rows))
 	}
-	if item, err := s.FirstPoster(ctx, f.P18); err != nil || item.ID != page.Rows[0].Items[0].ID {
-		t.Errorf("no stage: FirstPoster = %s, %v; want %s", item.ID, err, page.Rows[0].Items[0].ID)
+	items, err := s.FirstRow(ctx, f.P18)
+	if err != nil {
+		t.Fatalf("no stage: FirstRow: %v", err)
+	}
+	if got, want := itemIDs(items), itemIDs(page.Rows[0].Items); !slices.Equal(got, want) {
+		t.Errorf("no stage: FirstRow = %v, want %v", got, want)
 	}
 
 	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key <> 'genres'`)

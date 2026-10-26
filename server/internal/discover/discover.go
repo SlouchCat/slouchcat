@@ -100,7 +100,7 @@ func (s *Service) Home(ctx context.Context, profile model.Profile) (model.HomePa
 }
 
 // page builds the rows of the start page and names the stage; it is the one computation behind
-// Home, FirstHero and FirstPoster. With untilHero it stops once the stage row is placed: the rows
+// Home, FirstHero and FirstRow. With untilHero it stops once the stage row is placed: the rows
 // after it change neither the stage nor its place.
 func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bool) (model.HomePage, error) {
 	keys, err := s.rowOrder(ctx)
@@ -227,20 +227,21 @@ func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.I
 	return page.Rows[i].Items[0], i == 0, nil
 }
 
-// FirstPoster returns the first title of the first row of the start page when the page has no
-// stage, or model.ErrNotFound when it has one (the stage image is preloaded instead, FirstHero),
-// when it has no rows, or when its first row holds collections or genres rather than titles. That
-// title's poster is the first image of a page without a stage, the card the client loads first
-// (P-10); the app shell of the start page preloads it. It derives from the same computation as Home.
-func (s *Service) FirstPoster(ctx context.Context, profile model.Profile) (model.ItemSummary, error) {
+// FirstRow returns the titles of the first row of the start page when the page has no stage, or
+// model.ErrNotFound when it has one (the stage image is preloaded and painted instead, FirstHero),
+// when it has no rows, or when its first row holds collections or genres rather than titles. Those
+// titles are the first cards of a page without a stage, the images the client loads first (P-10);
+// the app shell of the start page preloads the first poster and paints the first cards ahead. It
+// derives from the same computation as Home, so it follows its rule.
+func (s *Service) FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error) {
 	page, err := s.page(ctx, visibility.Profile(profile), true)
 	if err != nil {
-		return model.ItemSummary{}, err
+		return nil, err
 	}
 	if page.HeroRow != "" || len(page.Rows) == 0 || len(page.Rows[0].Items) == 0 {
-		return model.ItemSummary{}, model.ErrNotFound
+		return nil, model.ErrNotFound
 	}
-	return page.Rows[0].Items[0], nil
+	return page.Rows[0].Items, nil
 }
 
 // Item returns the detail of a visible title (with its series tree, extras, cast and trailer

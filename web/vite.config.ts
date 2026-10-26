@@ -18,8 +18,9 @@ function themeColorMeta(): Plugin {
 }
 
 // Hero image first, start JS second (P-10). The server writes the first hero image into the start
-// page's shell (#hero-prepaint, api/preload.go). This inline loader, placed at the end of <body> by
-// deferStartScript, appends the module scripts once that image is painted (two frames after its
+// page's shell (#hero-prepaint, api/preload.go), or without a stage the first cards of the first
+// row (#poster-prepaint), whose first image counts here. This inline loader, placed at the end of
+// <body> by deferStartScript, appends the module scripts once that image is painted (two frames after its
 // load event, like the carousel) and right away when there is no such image (login, other pages),
 // the image failed or the document is hidden. The image and the JS then no longer share a slow
 // link, so the hero is on screen earlier; the JS arrives about as late as before, since the link
@@ -31,7 +32,7 @@ function themeColorMeta(): Plugin {
 // it found no tag at all. Module scripts run in the order they are inserted, so the runtime still
 // comes before the entry.
 const startLoader = (srcs: string[]) => `(function () {
-  var img = document.querySelector('#hero-prepaint > img');
+  var img = document.querySelector('#hero-prepaint > img, #poster-prepaint > img');
   var started = false;
   function start() {
     if (started) return;

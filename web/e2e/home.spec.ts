@@ -91,6 +91,9 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
   await page.reload();
   await expect(spotlight).toBeVisible();
   await expect(sections(page).first()).toHaveAttribute('aria-roledescription');
+  // With a stage the server paints no cards ahead (P-10); read from the network, as the service
+  // worker answers the navigation from its precache.
+  expect(await (await page.request.get('/')).text()).not.toContain('id="poster-prepaint"');
   // The band shows the library titles the list points at (5 films and 2 series), one per slide;
   // the poster strip under it has one poster per slide, named after the title it shows.
   const entries = [...TRAKT_ENTRIES.movies, ...TRAKT_ENTRIES.shows].map((entry) => entry.title);
@@ -388,6 +391,8 @@ test('spotlight on a later position: the band stands third, nothing painted ahea
     // The element, not the name: the shell's inline loader script names #hero-prepaint as well.
     expect(await shell?.text()).not.toContain('id="hero-prepaint"');
     await expect(page.locator('#hero-prepaint')).toHaveCount(0);
+    // A stage anywhere on the page: the server paints no cards ahead either (P-10).
+    expect(await (await page.request.get('/')).text()).not.toContain('id="poster-prepaint"');
   } finally {
     await setHomeRows(owner, DEFAULT_HOME_ROWS);
   }
@@ -458,6 +463,39 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
       'src',
       new RegExp(`/items/${cover.itemId}/images/poster/`),
     );
+
+    // P-10: the shell paints the first cards ahead, the cover first and with priority. Read from
+    // the network like the header above. Attribute values hold ">" (sizes), so no [^>] here.
+    const html = await (await page.request.get('/')).text();
+    const prepaint = /<div id="poster-prepaint"[^>]*>.*?<\/div>/.exec(html)?.[0] ?? '';
+    expect(prepaint, html).toMatch(
+      new RegExp(
+        `^<div id="poster-prepaint" aria-hidden="true"><img class="square" src="[^"]*/items/${cover.itemId}/images/poster/.*? fetchpriority="high" decoding="sync">`,
+      ),
+    );
+    // No layout shift when the app takes over: the prepainted cover lies exactly on the card's
+    // image. The markup goes in where the shell has it, in front of #root; the card is measured at
+    // rest, without the focus scale.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    const firstLink = sections(page).first().getByRole('link').first();
+    await expect
+      .poll(() => firstLink.evaluate((link) => getComputedStyle(link).transform))
+      .toBe('none');
+    const [painted, card] = await page.evaluate((markup) => {
+      document.getElementById('poster-prepaint')?.remove();
+      window.scrollTo(0, 0);
+      document.getElementById('root')?.insertAdjacentHTML('beforebegin', markup);
+      const box = (element: Element | null | undefined) => {
+        const rect = element?.getBoundingClientRect();
+        return rect ? [rect.left, rect.top, rect.width, rect.height] : [];
+      };
+      return [
+        box(document.querySelector('#poster-prepaint > img')),
+        box(document.querySelector('main section[aria-labelledby] a img')),
+      ];
+    }, prepaint);
+    expect(painted).toHaveLength(4);
+    painted.forEach((value, index) => expect(value).toBeCloseTo(card[index] ?? Number.NaN, 0));
   } finally {
     const on = await put(true);
     expect(on.status(), await on.text()).toBe(200);

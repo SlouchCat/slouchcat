@@ -11,6 +11,12 @@
 
   /* Horizontal page padding; rows bleed to the edge and use it as their inner padding. */
   --page-gutter: var(--sc-space-4);
+
+  /*
+   * Height of a row's title block (.header in Row.module.css): one line of the row title, or the
+   * paging buttons where a fine pointer shows them. #poster-prepaint places the first cards below it.
+   */
+  --row-header-height: calc(var(--sc-font-size-lg) * var(--sc-font-line-height-snug));
 }
 
 *,
@@ -88,6 +94,55 @@ img {
   object-position: center 25%;
 }
 
+/*
+ * First cards of a start page without a stage, written into the shell by the server (P-10,
+ * api/preload.go): the geometry of the first row's cards (Row.module.css, PosterCard.module.css)
+ * below the start page's top padding (HomePage.module.css), above the page and below the header,
+ * until the first card shows its own image and dismissPosterPrepaint() fades them out. From the
+ * top: header and padding, the row's title block and gap, the card list's top padding.
+ */
+#poster-prepaint {
+  position: absolute;
+  z-index: var(--sc-z-raised);
+  top: calc(
+    var(--sc-size-header-height) + var(--sc-space-8) + var(--row-header-height) +
+      var(--sc-space-2) + var(--sc-space-4)
+  );
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sc-space-4);
+  overflow: hidden;
+  padding: 0 var(--page-gutter);
+  pointer-events: none;
+  transition: opacity var(--sc-motion-duration-crossfade) var(--sc-motion-easing-standard);
+}
+
+#poster-prepaint[data-done] {
+  opacity: 0;
+}
+
+#poster-prepaint > img {
+  flex: none;
+  width: var(--sc-size-poster-sm);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  object-fit: cover;
+}
+
+/* Audiobooks and podcasts: a square cover, like PosterCard's `square` shape (M6). */
+#poster-prepaint > img.square {
+  aspect-ratio: 1 / 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root {
+    --row-header-height: var(--sc-size-control-height);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -102,10 +157,18 @@ img {
   :root {
     --page-gutter: var(--sc-space-10);
   }
+
+  #poster-prepaint > img {
+    width: var(--sc-size-poster-md);
+  }
 }
 
 @media (width >= 1440px) {
   :root {
     --page-gutter: var(--sc-space-16);
+  }
+
+  #poster-prepaint > img {
+    width: var(--sc-size-poster-lg);
   }
 }

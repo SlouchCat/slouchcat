@@ -248,6 +248,83 @@ describe('start page', () => {
     expect(priorities).toEqual(['high', null, null]);
   });
 
+  describe('the poster prepaint (P-10)', () => {
+    afterEach(() => document.getElementById('poster-prepaint')?.remove());
+
+    /** The first cards the server paints into the shell when there is no stage (api/preload.go). */
+    function prepaint() {
+      const element = document.createElement('div');
+      element.id = 'poster-prepaint';
+      document.body.append(element);
+      return element;
+    }
+
+    it('without a stage gives way only once the first card shows its poster', async () => {
+      const painted = prepaint();
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'recent', items: [alien, heat] }] }),
+      });
+      const { container } = renderApp('/');
+      await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
+      const [first, second] = container.querySelectorAll('img');
+      expect(first).toHaveAttribute('fetchpriority', 'high');
+
+      // Another card's poster does not count; the first card's does, once it is painted.
+      fireEvent.load(second!);
+      await act(() => new Promise((resolve) => requestAnimationFrame(() => resolve(undefined))));
+      expect(painted.dataset.done).toBeUndefined();
+      fireEvent.load(first!);
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+
+    it('gives way when the poster of the first card fails', async () => {
+      const painted = prepaint();
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'recent', items: [alien] }] }),
+      });
+      const { container } = renderApp('/');
+      await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
+      expect(painted.dataset.done).toBeUndefined();
+      fireEvent.error(container.querySelector('img')!);
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+
+    it.each([
+      { first: 'a stage on top', home: homePage },
+      {
+        first: 'a stage further down',
+        home: {
+          heroRow: 'spotlight',
+          rows: [
+            { key: 'recent', items: [alien] },
+            { key: 'spotlight', items: [heat] },
+          ],
+        },
+      },
+      {
+        first: 'a title without poster',
+        home: { rows: [{ key: 'recent', items: [{ ...alien, images: {} }] }] },
+      },
+      {
+        first: 'genres',
+        home: {
+          rows: [
+            { key: 'genres', items: [], genres: [{ name: 'Drama', count: 2 }] },
+            { key: 'recent', items: [alien] },
+          ],
+        },
+      },
+    ])('gives way at once with $first', async ({ home }) => {
+      const painted = prepaint();
+      mockApi({ ...signedIn, 'GET /home': () => json(home) });
+      renderApp('/');
+      await screen.findByRole('region', { name: 'Neu hinzugefügt' });
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+  });
+
   it('fetches no card with high priority when the page has a stage', async () => {
     mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     const { container } = renderApp('/');

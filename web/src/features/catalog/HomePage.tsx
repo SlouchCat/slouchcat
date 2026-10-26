@@ -14,6 +14,7 @@ import {
   ButtonLink,
   CollectionCard,
   dismissHeroPrepaint,
+  dismissPosterPrepaint,
   GenreChip,
   HERO_PLAY_KEY,
   HeroCarousel,
@@ -50,6 +51,7 @@ const rowTitleKey = {
 } as const;
 
 // Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.
+// The server paints as many ahead on a page without a stage (posterPrepaintCards, api/preload.go).
 const EAGER_POSTERS = 6;
 
 const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
@@ -130,6 +132,18 @@ export function HomePage() {
   useEffect(() => {
     if (prepaintDone) dismissHeroPrepaint();
   }, [prepaintDone]);
+  // Without a stage the server painted the first cards of the first row into the shell instead
+  // (P-10); they give way once the first card shows its own poster, or right away when the page
+  // has a stage, starts with collections or genres, or its first title has no poster.
+  const [posterShown, setPosterShown] = useState(false);
+  const leadCard = home.data?.heroRow ? undefined : leadRow?.items[0];
+  const leadCardHasArt = Boolean(
+    leadCard && (leadCard.images.poster ?? leadCard.images.posterSmall),
+  );
+  const posterPrepaintDone = home.isError || (home.isSuccess && (!leadCardHasArt || posterShown));
+  useEffect(() => {
+    if (posterPrepaintDone) dismissPosterPrepaint();
+  }, [posterPrepaintDone]);
 
   if (home.isPending) {
     return (
@@ -239,6 +253,9 @@ export function HomePage() {
             accent={item.accent}
             eager={eagerRow && itemIndex < EAGER_POSTERS}
             priority={posterLeads && eagerRow && itemIndex === 0}
+            onImageShown={
+              posterLeads && eagerRow && itemIndex === 0 ? () => setPosterShown(true) : undefined
+            }
             deferImage={heroHasArt && !heroShown}
             shape={isAudioKind(item.kind) ? 'square' : 'poster'}
             progress={

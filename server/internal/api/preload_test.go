@@ -40,8 +40,8 @@ func (emptyCatalog) FirstHero(context.Context, model.Profile) (model.ItemSummary
 	return model.ItemSummary{}, false, model.ErrNotFound
 }
 
-func (emptyCatalog) FirstPoster(context.Context, model.Profile) (model.ItemSummary, error) {
-	return model.ItemSummary{}, model.ErrNotFound
+func (emptyCatalog) FirstRow(context.Context, model.Profile) ([]model.ItemSummary, error) {
+	return nil, model.ErrNotFound
 }
 
 const appShell = `<!doctype html><title>Slouchcat</title><body><!--hero--><div id="root"></div>`
@@ -74,6 +74,7 @@ type homeAnswer struct {
 		Key   string `json:"key"`
 		Items []struct {
 			ID         string `json:"id"`
+			Kind       string `json:"kind"`
 			HasTrailer *bool  `json:"hasTrailer"`
 			Images     struct {
 				Backdrop      struct{ URL string } `json:"backdrop"`
@@ -188,8 +189,8 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 			if rec.Code != http.StatusOK || rec.Body.String() != tc.body {
 				t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
 			}
-			if strings.Contains(rec.Body.String(), "hero-prepaint") {
-				t.Errorf("body carries the hero image: %q", rec.Body.String())
+			if strings.Contains(rec.Body.String(), "prepaint") {
+				t.Errorf("body carries a prepaint: %q", rec.Body.String())
 			}
 			if got := rec.Header().Get("Link"); got != "" {
 				t.Errorf("Link = %q, want none", got)
@@ -215,10 +216,11 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		}
 	})
 
-	// Step 4 DoD "FirstHero im leeren Fall": without a stage there is neither a prepaint nor a
+	// Step 4 DoD "FirstHero im leeren Fall": without a stage there is neither a hero prepaint nor a
 	// hero preload, even though picks is filled (picks is never the stage). P-10: the poster of the
-	// first card is preloaded instead, with the card's srcset and sizes, and not painted ahead.
-	t.Run("no stage: first poster preload", func(t *testing.T) {
+	// first card is preloaded instead, with the card's srcset and sizes, and the first cards of the
+	// row (up to six) are painted ahead with the same URLs, the first one with priority.
+	t.Run("no stage: first poster preload and poster prepaint", func(t *testing.T) {
 		exec(`UPDATE home_rows SET hidden = 1 WHERE key = 'spotlight'`)
 		defer exec(`UPDATE home_rows SET hidden = 0 WHERE key = 'spotlight'`)
 		page := getHome(t, h, "p18")
@@ -230,9 +232,33 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		if small == "" || large == "" {
 			t.Fatalf("first card %s without both posters", card.ID)
 		}
+		var cards strings.Builder
+		for i, item := range page.Rows[0].Items[:min(len(page.Rows[0].Items), 6)] {
+			small, large := item.Images.PosterSmall.URL, item.Images.Poster.URL
+			if small == "" || large == "" {
+				t.Fatalf("card %d (%s) without both posters", i, item.ID)
+			}
+			class := ""
+			if item.Kind == "audiobook" || item.Kind == "podcast" || item.Kind == "podcast_episode" {
+				class = `class="square" `
+			}
+			cards.WriteString(`<img ` + class + `src="` + esc(small) + `" srcset="` + esc(small) + " 200w, " + esc(large) +
+				` 400w" sizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem" alt="" loading="eager"`)
+			if i == 0 {
+				cards.WriteString(` fetchpriority="high" decoding="sync"`)
+			}
+			cards.WriteString(">")
+		}
+		posters := `<div id="poster-prepaint" aria-hidden="true">` + cards.String() + `</div>`
 		rec := getWithToken(h, "/", "p18")
-		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
-			t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
+		if rec.Code != http.StatusOK || rec.Body.String() != shellWith(posters) {
+			t.Fatalf("status %d, body %q\nwant %q", rec.Code, rec.Body.String(), shellWith(posters))
+		}
+		if strings.Contains(rec.Body.String(), "hero-prepaint") {
+			t.Errorf("body carries the hero image: %q", rec.Body.String())
+		}
+		if got := rec.Header().Get("Content-Length"); got != strconv.Itoa(len(shellWith(posters))) {
+			t.Errorf("Content-Length = %q", got)
 		}
 		poster := "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 200w, " + large +
 			` 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"; fetchpriority=high`
@@ -384,6 +410,63 @@ func TestHeroPrepaint(t *testing.T) {
 	for _, tc := range cases {
 		if got := heroPrepaint(tc.item, 7); got != tc.want {
 			t.Errorf("%s: heroPrepaint = %q\nwant %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestPosterPrepaint(t *testing.T) {
+	t.Parallel()
+	img := func(size string) *model.Image {
+		return &model.Image{Kind: "poster", Size: size, ContentHash: "h"}
+	}
+	card := func(id, kind string) model.ItemSummary {
+		return model.ItemSummary{ID: id, Kind: kind, Poster: img("w400"), PosterSmall: img("w200")}
+	}
+	const sizes = `sizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"`
+	both := func(id string) string {
+		u := "/api/v1/items/" + id + "/images/poster/"
+		return `src="` + u + `w200?v=h&amp;p=7" srcset="` + u + `w200?v=h&amp;p=7 200w, ` + u + `w400?v=h&amp;p=7 400w" ` + sizes
+	}
+	const (
+		open  = `<div id="poster-prepaint" aria-hidden="true">`
+		first = ` alt="" loading="eager" fetchpriority="high" decoding="sync">`
+		rest  = ` alt="" loading="eager">`
+	)
+	many := make([]model.ItemSummary, 8)
+	for i := range many {
+		many[i] = card(string(rune('a'+i)), "movie")
+	}
+	cases := []struct {
+		name  string
+		items []model.ItemSummary
+		want  string
+	}{
+		{"two cards, the first with priority", []model.ItemSummary{card("a", "movie"), card("b", "series")},
+			open + `<img ` + both("a") + first + `<img ` + both("b") + rest + `</div>`},
+		// The eager cards only (EAGER_POSTERS): the seventh and eighth are left to the app.
+		{"at most six", many,
+			open + `<img ` + both("a") + first + `<img ` + both("b") + rest + `<img ` + both("c") + rest +
+				`<img ` + both("d") + rest + `<img ` + both("e") + rest + `<img ` + both("f") + rest + `</div>`},
+		// Audiobooks and podcasts show a square cover (PosterCard shape).
+		{"square covers", []model.ItemSummary{card("a", "audiobook"), card("b", "podcast")},
+			open + `<img class="square" ` + both("a") + first + `<img class="square" ` + both("b") + rest + `</div>`},
+		{"single sizes", []model.ItemSummary{
+			{ID: "a", Poster: img("w400")}, {ID: "b", PosterSmall: img("w200")},
+		}, open + `<img src="/api/v1/items/a/images/poster/w400?v=h&amp;p=7"` + first +
+			`<img src="/api/v1/items/b/images/poster/w200?v=h&amp;p=7"` + rest + `</div>`},
+		// A card without poster shows the lettered fallback: the prepaint stops before it.
+		{"stops at a card without poster", []model.ItemSummary{
+			card("a", "movie"), {ID: "b", Backdrop: &model.Image{Kind: "backdrop", Size: "w1280", ContentHash: "h"}}, card("c", "movie"),
+		}, open + `<img ` + both("a") + first + `</div>`},
+		{"first card without poster", []model.ItemSummary{{ID: "a"}, card("b", "movie")}, ""},
+		{"no cards", nil, ""},
+		// Attribute values are escaped even though the URLs are built by the server.
+		{"escaped", []model.ItemSummary{{ID: "a", Poster: &model.Image{Kind: "poster", Size: `w400"><x&`, ContentHash: "h"}}},
+			open + `<img src="/api/v1/items/a/images/poster/w400&#34;&gt;&lt;x&amp;?v=h&amp;p=7"` + first + `</div>`},
+	}
+	for _, tc := range cases {
+		if got := posterPrepaint(tc.items, 7); got != tc.want {
+			t.Errorf("%s: posterPrepaint = %q\nwant %q", tc.name, got, tc.want)
 		}
 	}
 }
