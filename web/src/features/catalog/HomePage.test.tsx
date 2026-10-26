@@ -228,6 +228,40 @@ describe('start page', () => {
     }
   });
 
+  it('fetches the first card with high priority when the page has no stage', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          rows: [
+            { key: 'recent', items: [alien, heat] },
+            { key: 'watchlist', items: [heat] },
+          ],
+        }),
+    });
+    const { container } = renderApp('/');
+    await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
+    // The first card's poster is the page's first image, preloaded by the server too (P-10).
+    const priorities = [...container.querySelectorAll('img')].map((image) =>
+      image.getAttribute('fetchpriority'),
+    );
+    expect(priorities).toEqual(['high', null, null]);
+  });
+
+  it('fetches no card with high priority when the page has a stage', async () => {
+    mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
+    const { container } = renderApp('/');
+    await screen.findByRole('region', { name: 'Spotlight' });
+    fireEvent.load(container.querySelector('.art img')!);
+    // The band goes first: once its artwork is shown the cards join, none of them with priority.
+    const cards = () =>
+      ['Weiterschauen', 'Neu hinzugefügt'].flatMap((name) => [
+        ...screen.getByRole('region', { name }).querySelectorAll('img'),
+      ]);
+    await waitFor(() => expect(cards()).toHaveLength(2));
+    for (const image of cards()) expect(image).not.toHaveAttribute('fetchpriority');
+  });
+
   it('shows watch progress and the remaining time on "Weiterschauen" cards', async () => {
     mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     renderApp('/');

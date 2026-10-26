@@ -140,8 +140,9 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
 		r.With(authorize).Get(adminImagePath, s.getAdminItemImage)
 	})
-	// The catalog names the first stage title when it implements heroPicker (discover.Service does);
-	// the start page's app shell then carries a preload header for its image (preload.go).
+	// The catalog names the first stage title, or the first title without a stage, when it
+	// implements heroPicker (discover.Service does); the start page's app shell then carries a
+	// preload header for its image (preload.go).
 	picker, _ := o.Catalog.(heroPicker)
 	r.Handle("/*", compressText(startPagePreload(o.Auth, picker, o.Logger)(o.Web)))
 	return r

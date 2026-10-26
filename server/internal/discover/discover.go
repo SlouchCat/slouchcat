@@ -100,8 +100,8 @@ func (s *Service) Home(ctx context.Context, profile model.Profile) (model.HomePa
 }
 
 // page builds the rows of the start page and names the stage; it is the one computation behind
-// Home and FirstHero. With untilHero it stops once the stage row is placed: the rows after it
-// change neither the stage nor its place.
+// Home, FirstHero and FirstPoster. With untilHero it stops once the stage row is placed: the rows
+// after it change neither the stage nor its place.
 func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bool) (model.HomePage, error) {
 	keys, err := s.rowOrder(ctx)
 	if err != nil {
@@ -225,6 +225,22 @@ func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.I
 	}
 	i := slices.IndexFunc(page.Rows, func(r model.HomeRow) bool { return r.Key == page.HeroRow })
 	return page.Rows[i].Items[0], i == 0, nil
+}
+
+// FirstPoster returns the first title of the first row of the start page when the page has no
+// stage, or model.ErrNotFound when it has one (the stage image is preloaded instead, FirstHero),
+// when it has no rows, or when its first row holds collections or genres rather than titles. That
+// title's poster is the first image of a page without a stage, the card the client loads first
+// (P-10); the app shell of the start page preloads it. It derives from the same computation as Home.
+func (s *Service) FirstPoster(ctx context.Context, profile model.Profile) (model.ItemSummary, error) {
+	page, err := s.page(ctx, visibility.Profile(profile), true)
+	if err != nil {
+		return model.ItemSummary{}, err
+	}
+	if page.HeroRow != "" || len(page.Rows) == 0 || len(page.Rows[0].Items) == 0 {
+		return model.ItemSummary{}, model.ErrNotFound
+	}
+	return page.Rows[0].Items[0], nil
 }
 
 // Item returns the detail of a visible title (with its series tree, extras, cast and trailer

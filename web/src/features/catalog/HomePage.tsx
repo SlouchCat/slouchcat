@@ -167,6 +167,9 @@ export function HomePage() {
   const defaultFocusKey = stageLeads ? HERO_PLAY_KEY : ((rows[0] && firstKey(rows[0])) ?? 'header');
   // The eager posters belong to the first poster row, wherever the stage stands.
   const firstPosterRow = rows.find((row) => !isStage(row));
+  // Without a stage the first card is the page's first image: it is fetched with high priority,
+  // like the server's preload of it (P-10). With a stage the band goes first and no card competes.
+  const posterLeads = !rows.some(isStage);
 
   const slides = (row: HomeRow): HeroSlide[] =>
     row.items.map((item) => ({
@@ -235,6 +238,7 @@ export function HomePage() {
             posterSmallUrl={imageUrl(item.images.posterSmall)}
             accent={item.accent}
             eager={eagerRow && itemIndex < EAGER_POSTERS}
+            priority={posterLeads && eagerRow && itemIndex === 0}
             deferImage={heroHasArt && !heroShown}
             shape={isAudioKind(item.kind) ? 'square' : 'poster'}
             progress={

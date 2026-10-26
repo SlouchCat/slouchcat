@@ -8,7 +8,8 @@ import { useSpatialItem } from './spatial';
 
 // Rendered width of a card per breakpoint (Row.module.css, size.poster.* tokens); lets the browser
 // pick the w200 or w400 poster. w800 is left out on purpose: a phone at 3x would take it, and the
-// start page must not get heavier (P-10).
+// start page must not get heavier (P-10). The server's poster preload copies the srcset widths and
+// this value (posterSizes in server/internal/api/preload.go); change them together.
 const CARD_SIZES = '(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem';
 
 interface PosterCardProps {
@@ -28,6 +29,11 @@ interface PosterCardProps {
   progress?: { percent: number; label: string };
   /** Load the image eagerly (the first cards of the first row); every other poster is lazy. */
   eager?: boolean;
+  /**
+   * Fetch the image with high priority: the first card of a start page without a stage, the page's
+   * first image, which the server also preloads with these URLs and sizes (P-10).
+   */
+  priority?: boolean;
   /** Keep the image out of the document for now (the hero artwork goes first); the frame stays. */
   deferImage?: boolean;
   /** `square` for audiobooks and podcasts (cover 1:1, M6); the image URLs stay the same. */
@@ -50,6 +56,7 @@ export function PosterCard({
   badge,
   progress,
   eager = false,
+  priority = false,
   deferImage = false,
   shape = 'poster',
   focusKey,
@@ -77,6 +84,7 @@ export function PosterCard({
             width={400}
             height={shape === 'square' ? 400 : 600}
             loading={eager ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : undefined}
             decoding="async"
             draggable={false}
           />

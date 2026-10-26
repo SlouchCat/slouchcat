@@ -33,11 +33,15 @@ func (a preloadAuth) Resolve(_ context.Context, token string) (model.Session, bo
 	return model.Session{}, false, model.ErrNotFound
 }
 
-// emptyCatalog is a catalog whose profiles have no stage.
+// emptyCatalog is a catalog whose profiles have no stage and no titles.
 type emptyCatalog struct{ CatalogService }
 
 func (emptyCatalog) FirstHero(context.Context, model.Profile) (model.ItemSummary, bool, error) {
 	return model.ItemSummary{}, false, model.ErrNotFound
+}
+
+func (emptyCatalog) FirstPoster(context.Context, model.Profile) (model.ItemSummary, error) {
+	return model.ItemSummary{}, model.ErrNotFound
 }
 
 const appShell = `<!doctype html><title>Slouchcat</title><body><!--hero--><div id="root"></div>`
@@ -74,6 +78,8 @@ type homeAnswer struct {
 			Images     struct {
 				Backdrop      struct{ URL string } `json:"backdrop"`
 				BackdropSmall struct{ URL string } `json:"backdropSmall"`
+				Poster        struct{ URL string } `json:"poster"`
+				PosterSmall   struct{ URL string } `json:"posterSmall"`
 			} `json:"images"`
 		} `json:"items"`
 	} `json:"rows"`
@@ -210,20 +216,28 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 	})
 
 	// Step 4 DoD "FirstHero im leeren Fall": without a stage there is neither a prepaint nor a
-	// hero preload, even though picks is filled (picks is never the stage).
-	t.Run("no stage: data only", func(t *testing.T) {
+	// hero preload, even though picks is filled (picks is never the stage). P-10: the poster of the
+	// first card is preloaded instead, with the card's srcset and sizes, and not painted ahead.
+	t.Run("no stage: first poster preload", func(t *testing.T) {
 		exec(`UPDATE home_rows SET hidden = 1 WHERE key = 'spotlight'`)
 		defer exec(`UPDATE home_rows SET hidden = 0 WHERE key = 'spotlight'`)
 		page := getHome(t, h, "p18")
-		if page.HeroRow != nil || len(page.Rows) == 0 || page.Rows[0].Key != "picks" {
+		if page.HeroRow != nil || len(page.Rows) == 0 || page.Rows[0].Key != "picks" || len(page.Rows[0].Items) == 0 {
 			t.Fatalf("home: hero row %v, rows %+v; want no stage and picks first", page.HeroRow, page.Rows)
+		}
+		card := page.Rows[0].Items[0]
+		small, large := card.Images.PosterSmall.URL, card.Images.Poster.URL
+		if small == "" || large == "" {
+			t.Fatalf("first card %s without both posters", card.ID)
 		}
 		rec := getWithToken(h, "/", "p18")
 		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
 			t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
 		}
-		if got := rec.Header().Values("Link"); !slices.Equal(got, want[:2]) {
-			t.Errorf("Link = %q, want only the data preloads", got)
+		poster := "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 200w, " + large +
+			` 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"; fetchpriority=high`
+		if got := rec.Header().Values("Link"); !slices.Equal(got, append(slices.Clone(want[:2]), poster)) {
+			t.Errorf("Link = %q\nwant   %q", got, append(slices.Clone(want[:2]), poster))
 		}
 	})
 
@@ -311,6 +325,33 @@ func TestHeroLinkFallsBackToSingleImage(t *testing.T) {
 	for _, tc := range cases {
 		if got := heroLink(tc.item, 7); got != tc.want {
 			t.Errorf("%s: heroLink = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestPosterLink(t *testing.T) {
+	t.Parallel()
+	img := func(size string) *model.Image {
+		return &model.Image{Kind: "poster", Size: size, ContentHash: "h"}
+	}
+	cases := []struct {
+		name string
+		item model.ItemSummary
+		want string
+	}{
+		{"both posters", model.ItemSummary{ID: "a", Poster: img("w400"), PosterSmall: img("w200")},
+			`</api/v1/items/a/images/poster/w200?v=h&p=7>; rel=preload; as=image; imagesrcset="/api/v1/items/a/images/poster/w200?v=h&p=7 200w, ` +
+				`/api/v1/items/a/images/poster/w400?v=h&p=7 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"; fetchpriority=high`},
+		{"large poster only", model.ItemSummary{ID: "a", Poster: img("w400")},
+			"</api/v1/items/a/images/poster/w400?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
+		{"small poster only", model.ItemSummary{ID: "a", PosterSmall: img("w200")},
+			"</api/v1/items/a/images/poster/w200?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
+		// A card without poster shows the lettered fallback; a backdrop is never its image.
+		{"no poster", model.ItemSummary{ID: "a", Backdrop: &model.Image{Kind: "backdrop", Size: "w1280", ContentHash: "h"}}, ""},
+	}
+	for _, tc := range cases {
+		if got := posterLink(tc.item, 7); got != tc.want {
+			t.Errorf("%s: posterLink = %q\nwant %q", tc.name, got, tc.want)
 		}
 	}
 }

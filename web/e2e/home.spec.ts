@@ -1,6 +1,7 @@
 import { type Page } from '@playwright/test';
+import { audioItemId, AUDIO_READY_MS, M4B_TITLE } from './audio';
 import { CSRF, EXTRAS_TITLE } from './catalog';
-import { createPick, DEFAULT_HOME_ROWS, deletePick, setHomeRows } from './curation';
+import { createPick, DEFAULT_HOME_ROWS, deletePick, listPicks, setHomeRows } from './curation';
 import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
 import {
@@ -396,6 +397,7 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
   page,
   owner,
 }) => {
+  test.setTimeout(AUDIO_READY_MS + 30_000);
   // The plan checks the start page without SLOUCHCAT_TRAKT_CLIENT_ID. The e2e server always runs
   // with the mock's client id, so the spotlight row is switched off instead: the server then omits
   // the row and `heroRow` alike, which is the same page as without the key.
@@ -406,10 +408,39 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
   delete settings.listKinds;
   const put = (enabled: boolean) =>
     owner.put('/api/v1/admin/spotlight', { headers: CSRF, data: { ...settings, enabled } });
+  // The test films have no artwork; the M4B book has a cover. As the first pick its card is the
+  // first one of the page, the card whose poster the shell preloads (P-10).
+  const [cover] = await createPick(owner, { itemId: await audioItemId(owner, M4B_TITLE) });
+  if (!cover) throw new Error('no pick created');
   try {
+    const ids = (await listPicks(owner)).map((pick) => pick.id).filter((id) => id !== cover.id);
+    const order = await owner.put('/api/v1/admin/picks/order', {
+      headers: CSRF,
+      data: { ids: [cover.id, ...ids] },
+    });
+    expect(order.status(), await order.text()).toBe(204);
     const off = await put(false);
     expect(off.status(), await off.text()).toBe(200);
     expect(await homeRowKeys(owner)).not.toContain('spotlight');
+
+    // P-10: the shell's Link header preloads the first card's poster with high priority. It is
+    // read from the network: after the first visit the service worker answers the navigation
+    // from its precache, without the per-request header. The cover may still be on its way.
+    let link = '';
+    await expect
+      .poll(
+        async () => {
+          link = (await page.request.get('/'))
+            .headersArray()
+            .filter(({ name }) => name.toLowerCase() === 'link')
+            .map(({ value }) => value)
+            .join(', ');
+          return link;
+        },
+        { timeout: AUDIO_READY_MS, intervals: [1000] },
+      )
+      .toMatch(/\/images\/poster\/[^>]*>; rel=preload; as=image;.*?fetchpriority=high/);
+    expect(/<[^>]*\/items\/([^/]+)\/images\/poster\//.exec(link)?.[1], link).toBe(cover.itemId);
 
     const shell = await page.reload();
     await expect(recentRow(page)).toBeVisible();
@@ -420,9 +451,17 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
     // The element, not the name: the shell's inline loader script names #hero-prepaint as well.
     expect(await shell?.text()).not.toContain('id="hero-prepaint"');
     await expect(page.locator('#hero-prepaint')).toHaveCount(0);
+    // The card fetches the preloaded title's poster with high priority as well.
+    const firstCard = sections(page).first().getByRole('link').first().locator('img');
+    await expect(firstCard).toHaveAttribute('fetchpriority', 'high');
+    await expect(firstCard).toHaveAttribute(
+      'src',
+      new RegExp(`/items/${cover.itemId}/images/poster/`),
+    );
   } finally {
     const on = await put(true);
     expect(on.status(), await on.text()).toBe(200);
+    await deletePick(owner, cover.id);
   }
 });
 

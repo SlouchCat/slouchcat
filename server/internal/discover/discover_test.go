@@ -621,6 +621,46 @@ func TestHeroRowStageRule(t *testing.T) {
 	}
 }
 
+// P-10: without a stage FirstPoster answers the first title of the first row, the card the start
+// page loads first; with a stage (on top or further down), without rows and with a first row of
+// genres it answers model.ErrNotFound.
+func TestFirstPoster(t *testing.T) {
+	t.Parallel()
+	f := spotlightFixture(t)
+	s := New(f.DB, f.CacheDir, vistest.Logger())
+	ctx := context.Background()
+
+	notFound := func(name string) {
+		t.Helper()
+		if item, err := s.FirstPoster(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("%s: FirstPoster = %s, %v; want ErrNotFound", name, item.ID, err)
+		}
+	}
+	notFound("stage on top")
+	exec(t, f, `UPDATE home_rows SET position = CASE key WHEN 'spotlight' THEN 3 WHEN 'recent' THEN 0 ELSE position END`)
+	notFound("stage further down")
+
+	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key = 'spotlight'`)
+	page, err := s.Home(ctx, f.P18)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.HeroRow != "" || len(page.Rows) == 0 || page.Rows[0].Key != RowRecent || len(page.Rows[0].Items) == 0 {
+		t.Fatalf("no stage: hero row %q, rows %v; want recent first", page.HeroRow, rowKeys(page.Rows))
+	}
+	if item, err := s.FirstPoster(ctx, f.P18); err != nil || item.ID != page.Rows[0].Items[0].ID {
+		t.Errorf("no stage: FirstPoster = %s, %v; want %s", item.ID, err, page.Rows[0].Items[0].ID)
+	}
+
+	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key <> 'genres'`)
+	if page, err := s.Home(ctx, f.P18); err != nil || len(page.Rows) != 1 || page.Rows[0].Key != RowGenres {
+		t.Fatalf("genres only: rows %v, %v", rowKeys(page.Rows), err)
+	}
+	notFound("genres first")
+	exec(t, f, `UPDATE home_rows SET hidden = 1`)
+	notFound("no rows")
+}
+
 // Plan 3.6 (D3) and step 4: HasTrailer is set on every title of the rows spotlight and picks, true
 // exactly for the titles with a stored trailer, and stays nil in every other row.
 func TestHomeHasTrailerOnlyInSpotlightAndPicks(t *testing.T) {
