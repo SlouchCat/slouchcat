@@ -14,13 +14,6 @@
   gap: var(--sc-space-6);
 }
 
-/* On wide screens the first row tucks slightly into the hero's bottom scrim. */
-@media (width >= 768px) {
-  .underHero {
-    margin-top: calc(-1 * var(--sc-space-8));
-  }
-}
-
 .empty {
   display: flex;
   flex-direction: column;

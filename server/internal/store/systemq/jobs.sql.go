@@ -250,6 +250,26 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) (int64, er
 	return id, err
 }
 
+const raiseQueuedJobPriority = `-- name: RaiseQueuedJobPriority :execrows
+UPDATE jobs SET priority = max(priority, ?1), updated_at = ?2 WHERE id = ?3 AND state = 'queued'
+`
+
+type RaiseQueuedJobPriorityParams struct {
+	Priority interface{}
+	Now      int64
+	ID       int64
+}
+
+// Raises the priority of a job that no worker has claimed yet and never lowers it: a manual
+// spotlight refresh (M11) overtakes the nightly one that already waits behind a scan backlog.
+func (q *Queries) RaiseQueuedJobPriority(ctx context.Context, arg RaiseQueuedJobPriorityParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, raiseQueuedJobPriority, arg.Priority, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const releaseJob = `-- name: ReleaseJob :execrows
 UPDATE jobs
 SET state = 'queued', attempts = attempts - 1, lease_owner = NULL, lease_until = NULL, updated_at = ?1

@@ -476,8 +476,12 @@ type ItemSummary struct {
 	DurationMs  *int64
 	Explicit    bool
 
-	// Note is the main user's note on a pick (M7, E-2); only set in the row picks.
+	// Note is the main user's note on a pick (M7, E-2) or on a curated spotlight entry (M11); set
+	// in the rows picks and spotlight.
 	Note string
+	// HasTrailer says whether a trailer is stored (M11, D3); nil = not looked up (the contract's
+	// optional ItemRef.hasTrailer), filled for the rows spotlight and picks of the start page only.
+	HasTrailer *bool
 }
 
 // CastMember is one credit of a title (B-3).
@@ -641,27 +645,35 @@ type ItemDetail struct {
 
 // HomeRow is one row of the start page (M7: key order from home_rows). Collections and Genres
 // are set only on the rows collections and genres, whose Items stay empty.
+// HomePage is the answer of getHome: the rows in stored order and the key of the row the client
+// draws as the stage (ADR 0011: spotlight, when that row is present; "" when the page has no
+// stage). The server decides, the client only draws (CLAUDE.md rule 12).
+type HomePage struct {
+	Rows    []HomeRow
+	HeroRow string
+}
+
 type HomeRow struct {
-	Key         string // picks, continue, recent, watchlist, collections, genres, trakt_trending, trakt_popular
+	Key         string // spotlight, picks, continue, recent, released, watchlist, collections, genres
 	Items       []ItemSummary
 	Collections []CollectionRef
 	Genres      []GenreRef
 }
 
-// Home row keys (model.HomeRow.Key, table home_rows), in the default order of E-1.
+// Home row keys (model.HomeRow.Key, table home_rows), in the default order of ADR 0011.
 const (
-	RowPicks         = "picks"
-	RowContinue      = "continue"
-	RowRecent        = "recent"
-	RowWatchlist     = "watchlist"
-	RowCollections   = "collections"
-	RowGenres        = "genres"
-	RowTraktTrending = "trakt_trending"
-	RowTraktPopular  = "trakt_popular"
+	RowSpotlight   = "spotlight"
+	RowPicks       = "picks"
+	RowContinue    = "continue"
+	RowRecent      = "recent"
+	RowReleased    = "released"
+	RowWatchlist   = "watchlist"
+	RowCollections = "collections"
+	RowGenres      = "genres"
 )
 
 // HomeRowKeys lists every row key in the default order.
-var HomeRowKeys = []string{RowPicks, RowContinue, RowRecent, RowWatchlist, RowCollections, RowGenres, RowTraktTrending, RowTraktPopular}
+var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres}
 
 // Discover (M7). ---------------------------------------------------------------------------
 
@@ -750,7 +762,11 @@ type AdminPick struct {
 	StartsAt    *time.Time
 	EndsAt      *time.Time
 	CreatedAt   time.Time
+	PosterHash  string // content hash of the AdminPosterSize poster; "" = none stored
 }
+
+// AdminPosterSize is the poster size of the administration tables (posterUrl, M11 step 5b).
+const AdminPosterSize = "w200"
 
 // PickRequest creates picks: one global pick, or one per profile in ProfileIDs.
 type PickRequest struct {
@@ -801,14 +817,84 @@ type AdminCollectionItem struct {
 	Position int
 }
 
-// TraktStatus is the state of the daily Trakt lists (E-7, I-7).
+// TraktStatus is the state of the spotlight list fetched from Trakt (E-7, I-7, ADR 0011): ListKey
+// is the configured list (spotlight_config.list_key), Entries the fetched entries of all media that
+// are not yet stale (fetched within twice the configured interval), before the library intersection.
 type TraktStatus struct {
 	Configured  bool
 	LastSuccess *time.Time
 	LastAttempt *time.Time
 	LastError   string
-	Trending    int
-	Popular     int
+	ListKey     string
+	Entries     int
+}
+
+// Spotlight administration (M11, ADR 0011). The configuration is the singleton row of
+// spotlight_config; the list kinds come from package trakt. An entry is one row of the fetched
+// list with its library hit and its override; an orphan is an override without an entry.
+type SpotlightConfig struct {
+	Enabled       bool
+	ListKey       string
+	ListURL       string // only with ListKey "url"
+	Media         string // movie, show, both
+	ItemCount     int    // 5..20
+	MinHits       int    // 0..10
+	IntervalHours int    // 6..48
+	ListKinds     []SpotlightListKind
+}
+
+// SpotlightListKind is one kind of public Trakt list (trakt.Kind) for the administration.
+type SpotlightListKind struct {
+	Key          string
+	Media        []string
+	MediaFilters bool
+	NeedsURL     bool
+}
+
+// SpotlightConfigUpdate is the writable part of SpotlightConfig (setSpotlightConfig).
+type SpotlightConfigUpdate struct {
+	Enabled       bool
+	ListKey       string
+	ListURL       string
+	Media         string
+	ItemCount     int
+	MinHits       int
+	IntervalHours int
+}
+
+// SpotlightEntries is the answer of getSpotlightEntries.
+type SpotlightEntries struct {
+	ListKey string
+	Entries []SpotlightEntry
+	Orphans []SpotlightEntry
+}
+
+// SpotlightEntry is one fetched entry with its library hit (ItemID "" = no hit, never on the start
+// page) and its override; Orphaned marks an override without an entry (Position 0).
+type SpotlightEntry struct {
+	Media      string // movie, show
+	TmdbID     int64
+	Position   int
+	Title      string
+	Year       *int
+	ItemID     string
+	ItemTitle  string
+	Hidden     bool
+	PinnedRank *int
+	Note       string
+	Orphaned   bool
+	PosterHash string // content hash of the hit's AdminPosterSize poster; "" = no hit or none stored
+}
+
+// SpotlightOverrideUpdate is the body of setSpotlightEntryOverride: a nil pointer keeps the value,
+// Clear* removes it (JSON null); Empty is true for an empty body, which removes the override.
+type SpotlightOverrideUpdate struct {
+	Hidden          *bool
+	PinnedRank      *int
+	ClearPinnedRank bool
+	Note            *string
+	ClearNote       bool
+	Empty           bool
 }
 
 // PlaybackInfo is the answer of startPlayback.

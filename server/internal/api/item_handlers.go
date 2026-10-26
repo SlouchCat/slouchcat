@@ -50,12 +50,16 @@ func (s *server) GetHome(ctx context.Context, _ gen.GetHomeRequestObject) (gen.G
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.opts.Catalog.Home(ctx, session.Profile)
+	home, err := s.opts.Catalog.Home(ctx, session.Profile)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	page := gen.HomePage{Rows: make([]gen.HomeRow, 0, len(rows))}
-	for _, row := range rows {
+	page := gen.HomePage{Rows: make([]gen.HomeRow, 0, len(home.Rows))}
+	if home.HeroRow != "" { // the server names the stage (plan 3.5); absent = no stage
+		hero := gen.HomeRowKey(home.HeroRow)
+		page.HeroRow = &hero
+	}
+	for _, row := range home.Rows {
 		out := gen.HomeRow{Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}
 		switch row.Key {
 		case model.RowCollections: // M7: only these two rows carry their own lists
@@ -313,6 +317,28 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
+// getAdminItemImage serves a poster or backdrop of a title for the administration tables (binary
+// endpoint, CLAUDE.md rule 6): system-wide, without a profile check (M11 step 5b); the session
+// middleware lets only the owner with the primary profile through (x-visibility admin). Like
+// getItemImage, v only busts caches and the format follows the Accept header.
+func (s *server) getAdminItemImage(w http.ResponseWriter, r *http.Request) {
+	id, kind, size := chi.URLParam(r, "id"), chi.URLParam(r, "kind"), chi.URLParam(r, "size")
+	if !imageKinds[kind] || !imageSizes[kind][size] {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Admin.ItemImage(r.Context(), id, kind, size, acceptsWebP(r.Header.Values("Accept")))
+	if err != nil {
+		s.p.mapError(w, r, err)
+		return
+	}
+	defer src.File.Close()
+	w.Header().Set("Content-Type", src.MediaType)
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
 // getItemStream serves the media file of a direct-play session with Range support (binary
 // endpoint, CLAUDE.md rule 6), authorised by the stream token (streamGrant): http.ServeContent
 // answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404. A
@@ -378,6 +404,21 @@ func imageURL(itemID string, img model.Image, profileID int64) string {
 		"&p=" + strconv.FormatInt(profileID, 10)
 }
 
+// adminImageURL is the system-wide image URL of the administration (getAdminItemImage) with the
+// content hash for cache busting and, unlike imageURL, no profile id: no profile's cache is involved.
+func adminImageURL(itemID, kind, size, hash string) string {
+	return BasePath + "/admin/items/" + url.PathEscape(itemID) + "/images/" + kind + "/" + size + "?v=" + url.QueryEscape(hash)
+}
+
+// adminPosterURL is the poster URL of an administration table row, nil without poster.
+func adminPosterURL(itemID, hash string) *string {
+	if hash == "" {
+		return nil
+	}
+	u := adminImageURL(itemID, "poster", model.AdminPosterSize, hash)
+	return &u
+}
+
 func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef {
 	if img == nil {
 		return nil
@@ -405,6 +446,8 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		ref.Author = &it.Author
 	}
 	ref.Note = optString(it.Note) // a pick's note (M7); set only in the row picks
+	// Set only in the rows spotlight and picks of the start page (D3); nil stays absent.
+	ref.HasTrailer = it.HasTrailer
 	if it.PublishedAt != nil {
 		t := it.PublishedAt.UTC()
 		ref.PublishedAt = &t

@@ -42,6 +42,7 @@ const names: IconName[] = [
   'megaphone',
   'chart',
   'archive',
+  'spotlight',
 ];
 
 const meta = {

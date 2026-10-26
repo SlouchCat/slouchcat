@@ -23,6 +23,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -64,6 +65,7 @@ func System(reason string) Scope {
 // Reader runs scoped reads against the reader pool of the database.
 type Reader struct {
 	q    *scopedq.Queries
+	app  *appq.Queries    // spotlight_config (SpotlightRow)
 	sys  *systemq.Queries // the system scope only (SystemItemRating)
 	read *sql.DB          // the search builder (search.go); every statement it builds joins visible_items
 	log  *slog.Logger
@@ -80,7 +82,7 @@ func WithClock(now func() time.Time) Option {
 
 // New returns a Reader on the read connections of db; log is the redacting logger.
 func New(db *store.DB, log *slog.Logger, opts ...Option) *Reader {
-	r := &Reader{q: scopedq.New(db.Read), sys: systemq.New(db.Read), read: db.Read, log: log, now: time.Now}
+	r := &Reader{q: scopedq.New(db.Read), app: appq.New(db.Read), sys: systemq.New(db.Read), read: db.Read, log: log, now: time.Now}
 	for _, o := range opts {
 		o(r)
 	}
@@ -188,6 +190,36 @@ func (r *Reader) Recent(ctx context.Context, s Scope, limit int) ([]model.ItemSu
 	items, err := r.q.ListRecentlyAdded(ctx, scopedq.ListRecentlyAddedParams{ProfileID: pid, LimitCount: clamp(limit)})
 	if err != nil {
 		return nil, fmt.Errorf("list recently added: %w", err)
+	}
+	return r.summaries(ctx, s, pid, items)
+}
+
+// ReleasedMonths is the window of the row "recently released" (M11, S-5: twelve months, fixed).
+const ReleasedMonths = 12
+
+// Released returns the visible titles released in the last ReleasedMonths, newest first: films and
+// audiobooks by their release_date, a series by the release_date of its newest visible episode
+// (S-6), so a series whose newest episode the profile may not see is dated by the newest one it
+// may see and a series without a visible dated episode is absent. Titles without a date and titles
+// dated after today are left out. The dates are compared as YYYY-MM-DD in UTC.
+func (r *Reader) Released(ctx context.Context, s Scope, limit int) ([]model.ItemSummary, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	today := r.now().UTC()
+	since := today.AddDate(0, -ReleasedMonths, 0)
+	rows, err := r.q.ListRecentlyReleased(ctx, scopedq.ListRecentlyReleasedParams{
+		ProfileID: pid, LimitCount: clamp(limit),
+		Since: sql.NullString{String: since.Format(time.DateOnly), Valid: true},
+		Today: sql.NullString{String: today.Format(time.DateOnly), Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list recently released: %w", err)
+	}
+	items := make([]scopedq.Item, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, row.Item)
 	}
 	return r.summaries(ctx, s, pid, items)
 }
@@ -388,16 +420,4 @@ func notFound(err error) error {
 
 func clamp(limit int) int64 {
 	return int64(max(1, min(limit, MaxRowItems)))
-}
-
-func dedupe(items []scopedq.Item) []scopedq.Item {
-	seen := make(map[string]bool, len(items))
-	out := items[:0]
-	for _, it := range items {
-		if !seen[it.ID] {
-			seen[it.ID] = true
-			out = append(out, it)
-		}
-	}
-	return out
 }

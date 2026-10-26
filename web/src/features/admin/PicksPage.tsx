@@ -1,15 +1,26 @@
 import type { AdminPick, PickRequest, PickUpdate } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useRef, useState, type FormEvent } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useId, useRef, useState, type FormEvent } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
+import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { manageProfilesQuery } from '@/features/profiles/queries';
 import { formText } from '@/lib/form';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Chip, Notice, Page, Skeleton, Text } from '@/ui';
+import {
+  Icon,
+  Notice,
+  Page,
+  Panel,
+  Skeleton,
+  StatusDot,
+  Text,
+  TextLink,
+  type StatusDotState,
+} from '@/ui';
 import {
   AriaButton,
   CheckboxGroup,
@@ -28,6 +39,7 @@ import {
   toLocalInput,
   useMoveButtons,
 } from './CurationParts';
+import { PosterTitle } from './PosterTitle';
 import {
   adminItemQuery,
   createPicks,
@@ -38,6 +50,7 @@ import {
 } from './queries';
 import styles from './AdminTablePage.module.css';
 import curation from './Curation.module.css';
+import layout from './PicksPage.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/picks');
 
@@ -316,6 +329,7 @@ export function PicksPage() {
   const [message, setMessage] = useState<string | null>(null);
   const header = useRef<HTMLDivElement>(null);
   const addButton = useRef<HTMLButtonElement>(null);
+  const listId = useId();
 
   // The start page shows the picks: it is asked again after every change.
   const invalidate = () =>
@@ -376,29 +390,44 @@ export function PicksPage() {
     if (pick.endsAt) return t('admin.picks.window.until', { date: date(pick.endsAt) });
     return t('admin.picks.window.always');
   };
-  // Expired or scheduled as of the list's fetch (the list is asked again after every change).
+  // Expired, scheduled or limited as of the list's fetch (the list is asked again after every
+  // change); the dot marks a window, the word names the two states in which the row is missing.
   const now = picks.dataUpdatedAt;
-  const windowState = (pick: AdminPick) => {
+  const scheduled = (pick: AdminPick) => Boolean(pick.startsAt && Date.parse(pick.startsAt) > now);
+  const windowState = (pick: AdminPick): { dot: StatusDotState; word?: string } | null => {
     if (pick.endsAt && Date.parse(pick.endsAt) <= now) {
-      return <Chip tone="warning">{t('admin.picks.window.expired')}</Chip>;
+      return { dot: 'warning', word: t('admin.picks.window.expired') };
     }
-    if (pick.startsAt && Date.parse(pick.startsAt) > now) {
-      return <Chip tone="info">{t('admin.picks.window.scheduled')}</Chip>;
-    }
+    if (scheduled(pick)) return { dot: 'pending', word: t('admin.picks.window.scheduled') };
+    if (pick.endsAt) return { dot: 'success' };
     return null;
   };
 
   const count = picks.data?.length ?? 0;
+  const planned = picks.data?.filter(scheduled).length ?? 0;
+  const entries = t('admin.picks.count.entries', { count });
   const columns: DataColumn<AdminPick>[] = [
+    {
+      key: 'position',
+      header: t('admin.picks.columns.position'),
+      align: 'end',
+      // The place in the row; the list comes in the order of `position`, which may have gaps
+      // after a removal and is stale while a move is on its way to the server.
+      cell: (pick) => (
+        <span className={styles.numbers}>{(picks.data?.indexOf(pick) ?? 0) + 1}</span>
+      ),
+    },
     {
       key: 'title',
       header: t('admin.picks.columns.title'),
       rowHeader: true,
       cell: (pick) => (
-        <span className={styles.stack}>
-          <span>{pick.title}</span>
-          <span className={styles.muted}>{titleMeta(t, pick)}</span>
-        </span>
+        <PosterTitle posterUrl={pick.posterUrl}>
+          <span className={styles.stack}>
+            <span>{pick.title}</span>
+            <span className={styles.muted}>{titleMeta(t, pick)}</span>
+          </span>
+        </PosterTitle>
       ),
     },
     {
@@ -409,17 +438,28 @@ export function PicksPage() {
     {
       key: 'note',
       header: t('admin.picks.columns.note'),
-      cell: (pick) => pick.note ?? t('admin.picks.noNote'),
+      cell: (pick) =>
+        pick.note === undefined ? (
+          t('admin.picks.noNote')
+        ) : (
+          <span className={layout.note}>{t('admin.picks.quoted', { note: pick.note })}</span>
+        ),
     },
     {
       key: 'window',
       header: t('admin.picks.columns.window'),
-      cell: (pick) => (
-        <span className={styles.stack}>
-          <span>{timeWindow(pick)}</span>
-          {windowState(pick) && <span>{windowState(pick)}</span>}
-        </span>
-      ),
+      cell: (pick) => {
+        const state = windowState(pick);
+        return (
+          <span className={styles.stack}>
+            <span className={layout.dot}>
+              {state && <StatusDot state={state.dot} />}
+              {timeWindow(pick)}
+            </span>
+            {state?.word && <span className={styles.muted}>{state.word}</span>}
+          </span>
+        );
+      },
     },
     {
       key: 'actions',
@@ -487,27 +527,39 @@ export function PicksPage() {
 
   return (
     <Page>
-      <div ref={header} tabIndex={-1} className={styles.header}>
-        <Text as="h1" variant="display">
-          {t('admin.picks.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.picks.intro')}</Text>
+      <div className={layout.top}>
+        <div ref={header} tabIndex={-1} className={layout.intro}>
+          <Text as="h1" variant="display">
+            {t('admin.picks.title')}
+          </Text>
+          <Text tone="secondary">{t('admin.picks.intro')}</Text>
+        </div>
+        {allowed && (
+          <AriaButton ref={addButton} variant="primary" icon="plus" onPress={() => setAdding(true)}>
+            {t('admin.picks.add.action')}
+          </AriaButton>
+        )}
       </div>
       {!allowed ? (
         <Notice title={t('admin.access.notAllowed.title')}>
           {t('admin.access.notAllowed.body')}
         </Notice>
       ) : (
-        <div className={styles.body} aria-busy={picks.isPending}>
-          <div>
-            <AriaButton
-              ref={addButton}
-              variant="primary"
-              icon="plus"
-              onPress={() => setAdding(true)}
-            >
-              {t('admin.picks.add.action')}
-            </AriaButton>
+        <Panel as="section" aria-labelledby={listId}>
+          <div className={layout.cardHead}>
+            <Text as="h2" variant="title">
+              <span id={listId}>{t('admin.picks.list')}</span>
+            </Text>
+            {picks.data && (
+              <span className={layout.small}>
+                {planned > 0
+                  ? t('admin.picks.count.both', {
+                      entries,
+                      planned: t('admin.picks.count.planned', { count: planned }),
+                    })
+                  : entries}
+              </span>
+            )}
           </div>
           {actionError && <Notice tone="danger">{problemMessage(t, actionError)}</Notice>}
           <div role="status" className={curation.live}>
@@ -534,7 +586,17 @@ export function PicksPage() {
               rowKey={(pick) => String(pick.id)}
             />
           )}
-        </div>
+          <p className={layout.hint}>
+            <Icon name="info" size="sm" />
+            <span>
+              {/* Not <link>: the Trans parser takes it for the void HTML element. */}
+              <Trans
+                i18nKey="admin.picks.homeRowsHint"
+                components={{ page: <TextLink href={paths.adminHomeRows}>{null}</TextLink> }}
+              />
+            </span>
+          </p>
+        </Panel>
       )}
       {allowed && (adding || add) && (
         <AddPickDialog

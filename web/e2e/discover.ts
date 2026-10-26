@@ -13,14 +13,14 @@ export const TRAKT_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_T
 
 /** Row titles of the start page (home.rows.* in the locales). */
 export const ROW_TITLES = {
+  spotlight: 'Spotlight',
   picks: "Cat's Empfehlungen",
   continue: 'Weiterschauen',
   recent: 'Neu hinzugefügt',
+  released: 'Kürzlich veröffentlicht',
   watchlist: 'Merkliste',
   collections: 'Sammlungen',
   genres: 'Genres',
-  traktTrending: 'Trending bei Trakt',
-  traktPopular: 'Beliebt bei Trakt',
 } as const;
 
 async function expectStatus(response: APIResponse, ok: number[]): Promise<void> {
@@ -127,10 +127,23 @@ export async function resetTraktMock(): Promise<void> {
   if (!EXTERNAL_BASE_URL) await traktMockStatus(200);
 }
 
-/** "Jetzt aktualisieren" for the Trakt lists (admin API); the job runs in the background. */
-export async function refreshTrakt(api: APIRequestContext): Promise<void> {
-  const response = await api.post('/api/v1/admin/trakt/refresh', { headers: CSRF });
-  await expectStatus(response, [202]);
+/**
+ * "Jetzt abrufen" of the spotlight page (admin API): queues the spotlight fetch, the job runs in
+ * the background. The server allows one manual fetch a minute (429 `too_many_requests`, the stamp
+ * lives in the database); the suite shares one server across its workers, so a second refresh
+ * within that minute, from this test or another, is answered 429. The helper then waits and tries
+ * again until the minute is over, instead of relaxing the rule for the test.
+ */
+export async function refreshSpotlight(api: APIRequestContext): Promise<void> {
+  const deadline = Date.now() + 90_000;
+  for (;;) {
+    const response = await api.post('/api/v1/admin/spotlight/refresh', { headers: CSRF });
+    if (response.status() !== 429 || Date.now() > deadline) {
+      await expectStatus(response, [202]);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5_000));
+  }
 }
 
 /** Row keys of the start page for the request context's profile. */

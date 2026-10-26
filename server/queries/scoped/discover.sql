@@ -1,4 +1,4 @@
--- Discover reads of M7 (design 3.1): watchlist, favourites, collections, genres and the Trakt rows.
+-- Discover reads of M7 (design 3.1): watchlist, favourites, collections and genres (the spotlight row: spotlight.sql).
 -- Every query joins visible_items for the given profile, so an entry whose title became invisible
 -- is absent and a collection exists for the profile only through a visible member. Times are Unix
 -- milliseconds.
@@ -117,17 +117,4 @@ JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE g.lang = @lang AND i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 GROUP BY g.name
 ORDER BY item_count DESC, g.name
-LIMIT @limit_count;
-
--- A Trakt list (trending, popular; movies and shows) intersected with the visible library titles by
--- TMDB id (AN-3), in list order. A title held twice appears twice; the caller deduplicates. Entries
--- fetched before min_fetched are stale (no successful run for two intervals) and left out.
--- name: ListTraktRow :many
-SELECT i.* FROM trakt_lists AS t
-JOIN items AS i ON i.tmdb_id = t.tmdb_id
-               AND i.kind = CASE t.media WHEN 'movie' THEN 'movie' ELSE 'series' END
-               AND i.deleted_at IS NULL
-JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE t.list = @list AND t.fetched_at >= @min_fetched
-ORDER BY t.position, t.media, i.id
 LIMIT @limit_count;

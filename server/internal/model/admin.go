@@ -26,6 +26,8 @@ var (
 	ErrEmailTaken            = errors.New("email taken")                  // 409 email_taken
 	ErrJobNotFailed          = errors.New("job not failed")               // 409 job_not_failed
 	ErrUpdateCheckDisabled   = errors.New("update check disabled")        // 422 update_check_disabled
+	ErrRankTaken             = errors.New("spotlight rank taken")         // 409 rank_taken (M11)
+	ErrRefreshTooSoon        = errors.New("refresh too soon")             // 429 too_many_requests (M11: one manual spotlight refresh a minute)
 )
 
 // EnvWinsError is ErrEnvWins with the request field (contract name, for example "keys.tmdb") whose

@@ -61,8 +61,8 @@ type Config struct {
 	YouTubeAPIKey string
 	// TrailerAI selects the AI step of the trailer chain; "off" (default) is the only provider in M3.
 	TrailerAI string
-	// TraktClientID enables the daily Trakt lists (M7, AN-3, I-7); empty = off, the two Trakt rows
-	// stay hidden. TraktBaseURL overrides the API base for mocks (development and tests only).
+	// TraktClientID enables the daily Trakt list (M7, M11, AN-3, I-7); empty = off, the spotlight row
+	// stays hidden. TraktBaseURL overrides the API base for mocks (development and tests only).
 	TraktClientID string
 	TraktBaseURL  string
 	// SMTP* configure the e-mail server of the notifications (M8, A-6); empty SMTPHost = none (the

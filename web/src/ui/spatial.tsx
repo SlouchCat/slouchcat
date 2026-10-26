@@ -136,6 +136,8 @@ interface SpatialGroupProps {
   className?: string;
   /** Remember the last focused child, so returning to a row lands where the viewer left it. */
   rememberLastChild?: boolean;
+  /** Child that receives focus when the group is entered and no last child is remembered. */
+  preferredChildFocusKey?: string;
   as?: 'div' | 'ul' | 'nav' | 'section';
   'aria-label'?: string;
   'aria-labelledby'?: string;
@@ -147,6 +149,7 @@ export function SpatialGroup({
   focusKey,
   className,
   rememberLastChild = true,
+  preferredChildFocusKey,
   as: Tag = 'div',
   ...aria
 }: SpatialGroupProps) {
@@ -154,6 +157,7 @@ export function SpatialGroup({
   const { ref, focusKey: key } = useFocusable<object, HTMLElement>({
     focusKey,
     saveLastFocusedChild: rememberLastChild,
+    preferredChildFocusKey,
     trackChildren: false,
   });
   return (

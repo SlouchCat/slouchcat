@@ -98,6 +98,37 @@ func TestEnqueueDeduplicatesByIdempotencyKey(t *testing.T) {
 	}
 }
 
+// A manual request raises the priority of the job that waits under its key (M11: the spotlight
+// refresh behind a scan backlog); it never lowers one and leaves a claimed job alone.
+func TestRaiseQueuedPriority(t *testing.T) {
+	ctx := context.Background()
+	q, _ := newTestQueue(t)
+	id := mustEnqueue(t, q, NewJob{Type: "a", Priority: 2, IdempotencyKey: "trakt"})
+	if ok, err := q.RaiseQueuedPriority(ctx, id, 7); err != nil || !ok {
+		t.Fatalf("raise: %v %v", ok, err)
+	}
+	if j, err := q.Get(ctx, id); err != nil || j.Priority != 7 {
+		t.Fatalf("priority after raise = %+v %v, want 7", j, err)
+	}
+	if ok, err := q.RaiseQueuedPriority(ctx, id, 3); err != nil || !ok {
+		t.Fatalf("lower attempt: %v %v", ok, err)
+	}
+	if j, err := q.Get(ctx, id); err != nil || j.Priority != 7 {
+		t.Fatalf("priority after a lower attempt = %+v %v, want still 7", j, err)
+	}
+	if _, err := q.RaiseQueuedPriority(ctx, id, 10); err == nil {
+		t.Fatal("priority 10 must be refused")
+	}
+	// A raised job overtakes older batch work of its former priority, which is the point.
+	batch := mustEnqueue(t, q, NewJob{Type: "b", Priority: 2})
+	if j := mustClaim(t, q, "w1"); j == nil || j.ID != id {
+		t.Fatalf("claimed %+v, want the raised job %d before the batch job %d", j, id, batch)
+	}
+	if ok, err := q.RaiseQueuedPriority(ctx, id, 9); err != nil || ok {
+		t.Fatalf("raise of a running job: %v %v, want no change", ok, err)
+	}
+}
+
 func TestEnqueueValidates(t *testing.T) {
 	q, _ := newTestQueue(t)
 	for name, j := range map[string]NewJob{

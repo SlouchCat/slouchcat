@@ -255,111 +255,6 @@ func (q *Queries) ListFavorites(ctx context.Context, arg ListFavoritesParams) ([
 	return items, nil
 }
 
-const listTraktRow = `-- name: ListTraktRow :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM trakt_lists AS t
-JOIN items AS i ON i.tmdb_id = t.tmdb_id
-               AND i.kind = CASE t.media WHEN 'movie' THEN 'movie' ELSE 'series' END
-               AND i.deleted_at IS NULL
-JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE t.list = ?2 AND t.fetched_at >= ?3
-ORDER BY t.position, t.media, i.id
-LIMIT ?4
-`
-
-type ListTraktRowParams struct {
-	ProfileID  int64
-	List       string
-	MinFetched int64
-	LimitCount int64
-}
-
-// A Trakt list (trending, popular; movies and shows) intersected with the visible library titles by
-// TMDB id (AN-3), in list order. A title held twice appears twice; the caller deduplicates. Entries
-// fetched before min_fetched are stale (no successful run for two intervals) and left out.
-func (q *Queries) ListTraktRow(ctx context.Context, arg ListTraktRowParams) ([]Item, error) {
-	rows, err := q.db.QueryContext(ctx, listTraktRow,
-		arg.ProfileID,
-		arg.List,
-		arg.MinFetched,
-		arg.LimitCount,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Item{}
-	for rows.Next() {
-		var i Item
-		if err := rows.Scan(
-			&i.ID,
-			&i.Kind,
-			&i.ParentID,
-			&i.LibraryID,
-			&i.Title,
-			&i.SortTitle,
-			&i.OriginalTitle,
-			&i.Year,
-			&i.ReleaseDate,
-			&i.RuntimeMinutes,
-			&i.Genres,
-			&i.TmdbID,
-			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
-			&i.Available,
-			&i.RatingSource,
-			&i.EnclosureUrl,
-			&i.LockedFields,
-			&i.MetadataState,
-			&i.MetadataError,
-			&i.MatchedAt,
-			&i.AddedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SeasonNumber,
-			&i.EpisodeNumber,
-			&i.EpisodeEnd,
-			&i.TvdbID,
-			&i.ExtraKind,
-			&i.TmdbPosterPath,
-			&i.TmdbBackdropPath,
-			&i.TrailerState,
-			&i.TrailerCheckedAt,
-			&i.SegmentsState,
-			&i.SegmentsCheckedAt,
-			&i.Author,
-			&i.Narrator,
-			&i.SeriesName,
-			&i.SeriesIndex,
-			&i.Explicit,
-			&i.DurationMs,
-			&i.CoverUrl,
-			&i.CoverPath,
-			&i.FeedUrl,
-			&i.FeedEtag,
-			&i.FeedModified,
-			&i.FeedCheckedAt,
-			&i.FeedError,
-			&i.Guid,
-			&i.PublishedAt,
-			&i.EnclosureType,
-			&i.EnclosureLength,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listVisibleCollectionItems = `-- name: ListVisibleCollectionItems :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM collection_items AS ci
 JOIN items AS i ON i.id = ci.item_id
@@ -654,7 +549,7 @@ type ListWatchlistParams struct {
 	LimitCount  int64
 }
 
-// Discover reads of M7 (design 3.1): watchlist, favourites, collections, genres and the Trakt rows.
+// Discover reads of M7 (design 3.1): watchlist, favourites, collections and genres (the spotlight row: spotlight.sql).
 // Every query joins visible_items for the given profile, so an entry whose title became invisible
 // is absent and a collection exists for the profile only through a visible member. Times are Unix
 // milliseconds.

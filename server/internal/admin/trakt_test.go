@@ -47,7 +47,7 @@ func TestTrakt(t *testing.T) {
 	if err := f.svc.RefreshTrakt(ctx); !errors.Is(err, ErrNotConfigured) {
 		t.Errorf("refresh without WithTrakt: %v", err)
 	}
-	tr := &fakeTrakt{status: model.TraktStatus{Configured: true, Trending: 7, Popular: 3}}
+	tr := &fakeTrakt{status: model.TraktStatus{Configured: true, ListKey: "trending", Entries: 10}}
 	f.svc.WithTrakt(tr)
 	if st, err := f.svc.TraktStatus(ctx); err != nil || st != tr.status {
 		t.Errorf("status = %+v, %v", st, err)

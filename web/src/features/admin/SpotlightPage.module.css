@@ -1,0 +1,116 @@
+/* Page head: heading and intro on the left, the switch "Auf der Startseite zeigen" on the right. */
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4) var(--sc-space-8);
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--sc-space-8);
+}
+
+.intro {
+  display: flex;
+  flex: 1 1 28rem;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 44rem;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+}
+
+/* Card heading with a small text on its right (the entries' note on the order). */
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.small {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+}
+
+/* The source's fields in a row that wraps. */
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-5) var(--sc-space-6);
+  align-items: flex-start;
+}
+
+.wide {
+  display: flex;
+  flex: 1 1 100%;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.narrow {
+  flex: 0 1 12rem;
+  min-width: 0;
+}
+
+/* The card's last line, set off by a hairline: the state of the fetch and the two buttons. */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--sc-space-4);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.state {
+  display: flex;
+  flex: 1 1 24rem;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.stateLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.title {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.dot {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* A hidden entry: its poster and title at half strength, as on the mockup. */
+.dimmed {
+  opacity: 0.5;
+}
+
+.note {
+  font-style: italic;
+}
+
+.grey {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

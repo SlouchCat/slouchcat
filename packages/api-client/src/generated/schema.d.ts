@@ -427,12 +427,17 @@ export interface paths {
         };
         /**
          * Rows of the start page for the active profile
-         * @description Returns the rows in the order the main user set (`setHomeRows`): `picks` (Cat's recommendations,
-         *     E-2, with the optional `note` on each item), `continue`, `recent`, `watchlist` (E-5), `collections`
-         *     (`collections` instead of `items`, E-6), `genres` (`genres` instead of `items`), `trakt_trending`
-         *     and `trakt_popular` (the first 20 library titles of the public Trakt lists, hidden under 5 hits
-         *     and while Trakt is unavailable, E-7, I-7, AN-3). Empty and hidden rows are omitted; never more than
-         *     eight (E-9). Every item passed the visibility layer of the active profile.
+         * @description Returns the rows in the order the main user set (`setHomeRows`): `spotlight` (the library titles
+         *     of the public Trakt list chosen in the administration, in list order with the curation of the
+         *     main user applied, E-7, I-7, ADR 0011; how many titles it shows and below how many hits it is
+         *     omitted are settings, not constants), `picks` (Cat's recommendations, E-2, with the optional
+         *     `note` on each item), `continue`, `recent`, `released` (titles released in the last twelve
+         *     months by `releaseDate`, a series by its newest visible episode), `watchlist` (E-5),
+         *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
+         *     `items`). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
+         *     are omitted; never more than eight (E-9). `heroRow` names the row the client draws as the
+         *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
+         *     a poster row. Every item passed the visibility layer of the active profile.
          */
         get: operations["getHome"];
         put?: never;
@@ -1515,6 +1520,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/images/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poster or backdrop of a title for the administration (binary, system-wide)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`, but without the
+         *     profile check: the administration is system-wide (M11 step 5b, ADR 0011), so the picks page
+         *     shows the poster of a pick for a child profile that the main profile may not watch. `kind`
+         *     is `poster` or `backdrop`, `size` one of the stored sizes (`w200` for the admin tables).
+         *     `AdminPick.posterUrl` and `SpotlightEntry.posterUrl` point here with `?v=<content hash>`
+         *     for cache busting; the address carries no profile id. 404 when no such image is stored.
+         *     Not cached by the service worker: the administration is no offline case.
+         */
+        get: operations["getAdminItemImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/rating": {
         parameters: {
             query?: never;
@@ -2130,10 +2161,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * State of the daily Trakt lists (E-7, I-7)
-         * @description Whether a Trakt client id is configured (`SLOUCHCAT_TRAKT_CLIENT_ID`), when the lists were last
-         *     fetched and how many entries each list holds. Trakt is reached with the server key only; there is
-         *     no Trakt account per profile and nothing is sent to Trakt (I-7).
+         * State of the Trakt fetch behind the spotlight row (E-7, I-7)
+         * @description Whether a Trakt client id is configured (`SLOUCHCAT_TRAKT_CLIENT_ID`), when the spotlight list
+         *     was last fetched, which list it is (`listKey`) and how many entries it holds before the library
+         *     intersection. Trakt is reached with the server key only; there is no Trakt account per profile
+         *     and nothing is sent to Trakt (I-7).
          */
         get: operations["getTraktStatus"];
         put?: never;
@@ -2144,7 +2176,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/trakt/refresh": {
+    "/admin/spotlight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The spotlight configuration and the catalogue of list kinds (M11, ADR 0011)
+         * @description Which public Trakt list the spotlight row shows (`listKey`, for `url` the address of a
+         *     public user list), which media it holds, how many visible library hits the row shows at
+         *     most (`itemCount`, 5 to 20), below how many hits it is omitted (`minHits`, 0 to 10) and how
+         *     often the list is fetched (`intervalHours`, 6 to 48; entries count as stale after twice that).
+         *     `listKinds` is the fixed catalogue of the seven list kinds with the media each allows,
+         *     whether the media is a post-filter (the user list) and whether the kind needs an address;
+         *     the administration reads the catalogue from here instead of keeping its own table.
+         */
+        get: operations["getSpotlightConfig"];
+        /**
+         * Set the spotlight configuration
+         * @description Replaces the writable values. `422 validation_failed` names the field: `itemCount` outside
+         *     5..20, `minHits` outside 0..10, `intervalHours` outside 6..48, a `media` the list kind does
+         *     not offer (`boxoffice` takes `movie` only), a `listUrl` that is not a public user list of
+         *     trakt.tv, or a watchlist address (`listUrl: invalid_value`; importing watchlists is a
+         *     non-goal). Changing the list keeps the fetched entries of the old list until the next run;
+         *     the overrides belong to their list and do not move.
+         */
+        put: operations["setSpotlightConfig"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/spotlight/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The fetched spotlight list with its library hits and overrides
+         * @description The entries of the last successful fetch of the configured list in fetch order (at most 100
+         *     per medium), each with its library hit if the title is in the library — entries without a
+         *     hit are listed as well, so the administration shows what Trakt delivered, while the start
+         *     page never shows them — and with the override of the main user (hidden, pinned rank, note).
+         *     `orphans` are overrides of the configured list whose title is no longer in the fetched
+         *     entries; they stay deletable. Administration views name titles by id and title; they are
+         *     never ItemRefs.
+         */
+        get: operations["getSpotlightEntries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/spotlight/entries/{media}/{tmdbId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Hide, pin or annotate one entry of the spotlight list
+         * @description Writes the override of the entry (`media`, `tmdbId`) of the configured list: `hidden`,
+         *     `pinnedRank` (1-based place in the row; `null` unpins) and `note` (`null` removes it). An
+         *     empty body removes the override. The override hangs on the title and the list, never on a
+         *     position, so it survives a fetch that reorders the list. `409 rank_taken` when another
+         *     entry of the list already holds the rank; `404` when neither an entry nor an override of
+         *     that title exists.
+         */
+        patch: operations["setSpotlightEntryOverride"];
+        trace?: never;
+    };
+    "/admin/spotlight/refresh": {
         parameters: {
             query?: never;
             header?: never;
@@ -2154,10 +2272,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Fetch the Trakt lists now
-         * @description Queues the daily job out of schedule; the result shows up in `getTraktStatus`.
+         * Fetch the spotlight list now
+         * @description Queues the fetch job out of schedule; the result shows up in `getTraktStatus` and
+         *     `getSpotlightEntries`. At most once a minute: the time of the last manual refresh is stored
+         *     in the database, so the limit survives a restart.
          */
-        post: operations["refreshTrakt"];
+        post: operations["refreshSpotlight"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3372,8 +3492,17 @@ export interface components {
             durationMs?: number;
             /** @description Podcast or episode flagged `itunes:explicit` in the feed (AN-2: counts as FSK 18). */
             explicit?: boolean;
-            /** @description The personal note of the main user on this pick (E-2); only in the row `picks`. */
+            /**
+             * @description The personal note of the main user on this title (E-2): on a pick in the row `picks` and
+             *     on a curated entry in the row `spotlight`.
+             */
             note?: string;
+            /**
+             * @description Whether a trailer is stored for the title. Set only on the items of the rows `spotlight`
+             *     and `picks` of `getHome`; everywhere else the field is absent, which means unknown, not
+             *     "no trailer" (`ItemDetail.trailerCount` is the complete answer).
+             */
+            hasTrailer?: boolean;
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
             /** @description On the watchlist of the active profile (E-5). */
@@ -3494,8 +3623,12 @@ export interface components {
             /** @description Audio and subtitle tracks of the file (detail page and versions). */
             tracks?: components["schemas"]["TrackList"];
         };
-        /** @enum {string} */
-        HomeRowKey: "picks" | "continue" | "recent" | "watchlist" | "collections" | "genres" | "trakt_trending" | "trakt_popular";
+        /**
+         * @description The eight rows of the start page (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
+         *     by `spotlight` and `released` (ADR 0011); removed values are never reused.
+         * @enum {string}
+         */
+        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres";
         HomeRow: {
             key: components["schemas"]["HomeRowKey"];
             /** @description The titles of the row; empty for `collections` and `genres`. */
@@ -3507,6 +3640,14 @@ export interface components {
         };
         HomePage: {
             rows: components["schemas"]["HomeRow"][];
+            /**
+             * @description The row the client draws as the stage (a framed band with backdrop and a poster strip)
+             *     instead of as a poster row, at its place in `rows`, not necessarily first. The server
+             *     decides which row that is (ADR 0011); a client draws large whatever is named here and
+             *     does not interpret the key itself. Absent when the start page has no stage: then every
+             *     row is a poster row. A row named here is always present in `rows`.
+             */
+            heroRow?: components["schemas"]["HomeRowKey"];
         };
         PlaybackRequest: {
             /** @description Which file to play; defaults to the primary file. */
@@ -4471,6 +4612,11 @@ export interface components {
             endsAt?: string;
             /** Format: date-time */
             createdAt: string;
+            /**
+             * @description The poster (`w200`) through `getAdminItemImage`, system-wide and without profile id;
+             *     absent when no poster is stored (the page shows its placeholder).
+             */
+            posterUrl?: string;
         };
         PickRequest: {
             itemId: components["schemas"]["ItemID"];
@@ -4541,11 +4687,102 @@ export interface components {
             lastSuccess?: string;
             /** Format: date-time */
             lastAttempt?: string;
-            /** @description Why the last attempt failed; the rows are hidden meanwhile (I-7). */
+            /** @description Why the last attempt failed; the spotlight row is hidden meanwhile (I-7). */
             lastError?: string;
-            /** @description Entries (films and shows) of the trending list, before the library intersection. */
-            trending: number;
-            popular: number;
+            /** @description The list the spotlight row is configured to show (`getSpotlightConfig`). */
+            listKey: string;
+            /**
+             * @description Entries (films and shows) of that list that are young enough to show, before the library
+             *     intersection; 0 after a failed run or when the last success is older than twice the
+             *     fetch interval.
+             */
+            entries: number;
+        };
+        /** @description One of the seven kinds of public Trakt list the spotlight row can show (ADR 0011). */
+        SpotlightListKind: {
+            key: components["schemas"]["SpotlightListKey"];
+            /** @description The values of `media` this kind allows (`boxoffice` allows `movie` only). */
+            media: components["schemas"]["SpotlightMedia"][];
+            /**
+             * @description `true`: the media is a filter on the fetched entries, which carry their own media (the
+             *     user list). `false`: the media selects the list that is fetched.
+             */
+            mediaFilters: boolean;
+            /** @description The kind needs `listUrl` (the public user list). */
+            needsUrl: boolean;
+        };
+        /** @enum {string} */
+        SpotlightListKey: "trending" | "popular" | "watched_weekly" | "collected_monthly" | "anticipated" | "boxoffice" | "url";
+        /** @enum {string} */
+        SpotlightMedia: "movie" | "show" | "both";
+        SpotlightConfig: {
+            /** @description `false` keeps the row off the start page; the fetch keeps running. */
+            enabled: boolean;
+            listKey: components["schemas"]["SpotlightListKey"];
+            /** @description The address of the public user list; only with `listKey` `url`. */
+            listUrl?: string;
+            media: components["schemas"]["SpotlightMedia"];
+            /** @description How many visible library hits the row shows at most, per profile (S-3). */
+            itemCount: number;
+            /** @description Below this number of visible hits (counted before the cut to `itemCount`) the row is omitted (AN-3, S-3). */
+            minHits: number;
+            /** @description Hours between two fetches; entries older than twice this are stale and not shown (S-8). */
+            intervalHours: number;
+            /** @description The fixed catalogue of list kinds (read only). */
+            listKinds: components["schemas"]["SpotlightListKind"][];
+        };
+        /** @description The writable part of `SpotlightConfig`. */
+        SpotlightConfigUpdate: {
+            enabled: boolean;
+            listKey: components["schemas"]["SpotlightListKey"];
+            /** @description Required with `listKey` `url`, ignored otherwise. */
+            listUrl?: string;
+            media: components["schemas"]["SpotlightMedia"];
+            itemCount: number;
+            minHits: number;
+            intervalHours: number;
+        };
+        SpotlightEntries: {
+            listKey: components["schemas"]["SpotlightListKey"];
+            /** @description The fetched entries in fetch order, at most 100 per medium. */
+            entries: components["schemas"]["SpotlightEntry"][];
+            /** @description Overrides of this list whose title is not among the fetched entries any more. */
+            orphans: components["schemas"]["SpotlightEntry"][];
+        };
+        /**
+         * @description One entry of the fetched list with its library hit and its override. Not an `ItemRef`: the
+         *     administration is system-wide and names the library title by id and title only.
+         */
+        SpotlightEntry: {
+            /** @enum {string} */
+            media: "movie" | "show";
+            /** Format: int64 */
+            tmdbId: number;
+            /** @description The 1-based rank in the fetched list; 0 for an orphaned override. */
+            position: number;
+            /** @description The title as Trakt names it. */
+            title?: string;
+            year?: number;
+            /** @description The library title matched by TMDB id; absent when the library has no such title (never on the start page, S-4). */
+            itemId?: components["schemas"]["ItemID"];
+            itemTitle?: string;
+            hidden: boolean;
+            /** @description The 1-based place the entry is pinned to in the row; absent when not pinned. */
+            pinnedRank?: number;
+            note?: string;
+            /** @description The override has no entry in the fetched list. */
+            orphaned: boolean;
+            /** @description The poster (`w200`) of the library hit through `getAdminItemImage`; absent without hit or poster. */
+            posterUrl?: string;
+        };
+        /**
+         * @description The override of one entry. A field that is absent keeps its value; `null` clears it. An
+         *     empty object removes the override.
+         */
+        SpotlightEntryOverride: {
+            hidden?: boolean;
+            pinnedRank?: number | null;
+            note?: string | null;
         };
         /**
          * @description The server's state for the wizard (A-1) and the dashboard (A-3). Carries no secret, so the wizard
@@ -8851,6 +9088,45 @@ export interface operations {
             };
         };
     };
+    getAdminItemImage: {
+        parameters: {
+            query?: {
+                /** @description Content hash of the image, cache busting only; the server ignores it. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["ItemID"];
+                kind: "poster" | "backdrop";
+                size: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such title or no such image (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     setItemsRating: {
         parameters: {
             query?: never;
@@ -10045,7 +10321,142 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
         };
     };
-    refreshTrakt: {
+    getSpotlightConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The configuration. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotlightConfig"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setSpotlightConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpotlightConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description The stored configuration. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotlightConfig"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description A value is outside its range or the address is not a public user list (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getSpotlightEntries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotlightEntries"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setSpotlightEntryOverride: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media: "movie" | "show";
+                tmdbId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpotlightEntryOverride"];
+            };
+        };
+        responses: {
+            /** @description The entry with its override, or the orphaned override. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpotlightEntry"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Neither an entry nor an override of that title exists in the configured list (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Another entry of the list holds this rank (`rank_taken`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `note` `too_long`, `pinnedRank` `invalid_value`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    refreshSpotlight: {
         parameters: {
             query?: never;
             header?: never;
@@ -10065,6 +10476,15 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description No Trakt client id configured (`provider_not_configured`). */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A manual refresh ran less than a minute ago (`too_many_requests`). */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

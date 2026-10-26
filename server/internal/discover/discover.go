@@ -2,13 +2,18 @@
 // It reads titles only through the visibility package and opens stored images only through the
 // paths package, relative to the cache directory.
 //
-// Start page (M7, E-1, E-9): the eight rows picks (Cat's recommendations), continue (continue
-// watching), recent (recently added), watchlist, collections, genres and the Trakt rows trending
-// and popular, in the order the administration stored (table home_rows); hidden and empty rows are
-// omitted, a Trakt row also below TraktMinHits titles (AN-3). The package also answers search,
-// genres, collections, the watchlist and the favourites of a profile (m7.go). It holds no SQL on
-// titles: reads go through visibility, the writes of watchlist and favourites through store/appq,
-// whose tables name titles only by id.
+// Start page (M7, M11, E-1, E-9, ADR 0011): the eight rows spotlight (the configured Trakt list
+// intersected with the library, with the main user's curation), picks (Cat's recommendations),
+// continue (continue watching), recent (recently added), released (by release date within twelve
+// months, a series by its newest visible episode, S-5, S-6), watchlist, collections and genres, in
+// the order the administration stored (table home_rows); hidden and empty rows are omitted, the
+// spotlight row also below the configured minimum of hits, spotlight_config.min_hits (AN-3). The
+// page names the row the client draws as the stage (HomePage.HeroRow: spotlight when present, else
+// none; picks is never the stage) and carries hasTrailer for the rows spotlight and picks only (D3).
+// The package also answers search, genres, collections, the watchlist and the favourites of a
+// profile (m7.go).
+// It holds no SQL on titles: reads go through visibility, the writes of watchlist and favourites
+// through store/appq, whose tables name titles only by id.
 package discover
 
 import (
@@ -28,21 +33,17 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
-// Home row keys (model.HomeRow.Key), in the default order of E-1.
+// Home row keys (model.HomeRow.Key), in the default order of ADR 0011.
 const (
-	RowPicks         = model.RowPicks
-	RowContinue      = model.RowContinue
-	RowRecent        = model.RowRecent
-	RowWatchlist     = model.RowWatchlist
-	RowCollections   = model.RowCollections
-	RowGenres        = model.RowGenres
-	RowTraktTrending = model.RowTraktTrending
-	RowTraktPopular  = model.RowTraktPopular
+	RowSpotlight   = model.RowSpotlight
+	RowPicks       = model.RowPicks
+	RowContinue    = model.RowContinue
+	RowRecent      = model.RowRecent
+	RowReleased    = model.RowReleased
+	RowWatchlist   = model.RowWatchlist
+	RowCollections = model.RowCollections
+	RowGenres      = model.RowGenres
 )
-
-// TraktMinHits is the smallest number of visible library titles a Trakt row needs; with fewer the
-// row is omitted (AN-3).
-const TraktMinHits = 5
 
 // MaxRows caps the start page (E-9; the contract's HomePage.rows maxItems).
 const MaxRows = 8
@@ -78,27 +79,74 @@ func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Servi
 }
 
 // Home returns the rows of the start page in the stored order (E-9), without hidden and empty
-// rows and without a Trakt row of fewer than TraktMinHits titles; never more than MaxRows.
-func (s *Service) Home(ctx context.Context, profile model.Profile) ([]model.HomeRow, error) {
+// rows and without a spotlight row below its configured minimum of hits; never more than MaxRows.
+// HeroRow names the stage (plan 3.5): spotlight when that row is in the answer, at its stored
+// place, else nothing; picks is never the stage. The titles of the rows spotlight and picks carry
+// HasTrailer (D3); every other row leaves it nil.
+func (s *Service) Home(ctx context.Context, profile model.Profile) (model.HomePage, error) {
 	scope := visibility.Profile(profile)
+	page, err := s.page(ctx, scope, false)
+	if err != nil {
+		return model.HomePage{}, err
+	}
+	for i := range page.Rows {
+		if row := &page.Rows[i]; row.Key == RowSpotlight || row.Key == RowPicks {
+			if err := s.markTrailers(ctx, scope, row.Items); err != nil {
+				return model.HomePage{}, fmt.Errorf("home row %s: %w", row.Key, err)
+			}
+		}
+	}
+	return page, nil
+}
+
+// page builds the rows of the start page and names the stage; it is the one computation behind
+// Home, FirstHero and FirstRow. With untilHero it stops once the stage row is placed: the rows
+// after it change neither the stage nor its place.
+func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bool) (model.HomePage, error) {
 	keys, err := s.rowOrder(ctx)
 	if err != nil {
-		return nil, err
+		return model.HomePage{}, err
 	}
-	out := make([]model.HomeRow, 0, len(keys))
+	page := model.HomePage{Rows: make([]model.HomeRow, 0, len(keys))}
 	for _, key := range keys {
 		row, err := s.row(ctx, scope, key)
 		if err != nil {
-			return nil, fmt.Errorf("home row %s: %w", key, err)
+			return model.HomePage{}, fmt.Errorf("home row %s: %w", key, err)
 		}
 		if len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 {
-			out = append(out, row)
+			page.Rows = append(page.Rows, row)
+			if key == RowSpotlight {
+				page.HeroRow = RowSpotlight
+				if untilHero {
+					break
+				}
+			}
 		}
-		if len(out) == MaxRows {
+		if len(page.Rows) == MaxRows {
 			break
 		}
 	}
-	return out, nil
+	return page, nil
+}
+
+// markTrailers sets HasTrailer on every title of a row from one visibility query (D3).
+func (s *Service) markTrailers(ctx context.Context, scope visibility.Scope, items []model.ItemSummary) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(items))
+	for _, it := range items {
+		ids = append(ids, it.ID)
+	}
+	flags, err := s.vis.TrailerFlags(ctx, scope, ids)
+	if err != nil {
+		return err
+	}
+	for i := range items {
+		has := flags[items[i].ID]
+		items[i].HasTrailer = &has
+	}
+	return nil
 }
 
 // rowOrder returns the keys of the visible rows in their stored order (migration 00015 stores the
@@ -137,38 +185,63 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (
 		row.Collections, err = s.vis.Collections(ctx, scope, visibility.MaxRowItems)
 	case RowGenres:
 		row.Genres, err = s.vis.Genres(ctx, scope, visibility.MaxRowItems)
-	case RowTraktTrending, RowTraktPopular:
-		list := visibility.TraktTrending
-		if key == RowTraktPopular {
-			list = visibility.TraktPopular
-		}
-		row.Items, err = s.vis.TraktRow(ctx, scope, list, visibility.MaxRowItems)
-		if len(row.Items) < TraktMinHits {
-			row.Items = nil
-		}
+	case RowReleased:
+		row.Items, err = s.vis.Released(ctx, scope, visibility.MaxRowItems)
+	case RowSpotlight:
+		row.Items, err = s.spotlightRow(ctx, scope)
 	}
 	return row, err
 }
 
-// FirstPick returns the first title of the picks row, the slide the start page's hero carousel
-// shows first, or model.ErrNotFound when the row is empty or hidden. The app shell of the start
-// page uses it to preload the hero image (P-10); the order is the one of Home.
-func (s *Service) FirstPick(ctx context.Context, profile model.Profile) (model.ItemSummary, error) {
-	keys, err := s.rowOrder(ctx)
+// spotlightRow reads the spotlight row with the configured size and omits it below the configured
+// minimum of hits (AN-3, S-3). min_hits counts the hits before the cut to item_count (plan 5.3):
+// "show 5 if there are at least 10" is a valid setting, not a row that never appears.
+func (s *Service) spotlightRow(ctx context.Context, scope visibility.Scope) ([]model.ItemSummary, error) {
+	cfg, err := s.read.GetSpotlightConfig(ctx)
 	if err != nil {
-		return model.ItemSummary{}, err
+		return nil, fmt.Errorf("get spotlight config: %w", err)
 	}
-	if !slices.Contains(keys, RowPicks) {
-		return model.ItemSummary{}, model.ErrNotFound
-	}
-	items, err := s.vis.Picks(ctx, visibility.Profile(profile), 1)
+	items, hits, err := s.vis.SpotlightRow(ctx, scope, int(cfg.ItemCount))
 	if err != nil {
-		return model.ItemSummary{}, fmt.Errorf("first pick: %w", err)
+		return nil, err
 	}
-	if len(items) == 0 {
-		return model.ItemSummary{}, model.ErrNotFound
+	if hits < int(cfg.MinHits) {
+		return nil, nil
 	}
-	return items[0], nil
+	return items, nil
+}
+
+// FirstHero returns the first title of the stage row (HomePage.HeroRow) and whether that row is
+// the first row of the page, or model.ErrNotFound when the page has no stage. The app shell of the
+// start page uses it to preload the stage image and, only when the stage comes first, to paint it
+// ahead (P-10, plan 3.5). It derives from the same computation as Home, so it follows its rule.
+func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.ItemSummary, bool, error) {
+	page, err := s.page(ctx, visibility.Profile(profile), true)
+	if err != nil {
+		return model.ItemSummary{}, false, err
+	}
+	if page.HeroRow == "" {
+		return model.ItemSummary{}, false, model.ErrNotFound
+	}
+	i := slices.IndexFunc(page.Rows, func(r model.HomeRow) bool { return r.Key == page.HeroRow })
+	return page.Rows[i].Items[0], i == 0, nil
+}
+
+// FirstRow returns the titles of the first row of the start page when the page has no stage, or
+// model.ErrNotFound when it has one (the stage image is preloaded and painted instead, FirstHero),
+// when it has no rows, or when its first row holds collections or genres rather than titles. Those
+// titles are the first cards of a page without a stage, the images the client loads first (P-10);
+// the app shell of the start page preloads the first poster and paints the first cards ahead. It
+// derives from the same computation as Home, so it follows its rule.
+func (s *Service) FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error) {
+	page, err := s.page(ctx, visibility.Profile(profile), true)
+	if err != nil {
+		return nil, err
+	}
+	if page.HeroRow != "" || len(page.Rows) == 0 || len(page.Rows[0].Items) == 0 {
+		return nil, model.ErrNotFound
+	}
+	return page.Rows[0].Items, nil
 }
 
 // Item returns the detail of a visible title (with its series tree, extras, cast and trailer

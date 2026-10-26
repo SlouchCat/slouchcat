@@ -61,9 +61,11 @@ export const arrival: ItemRef = {
   images: {},
 };
 
+/** The start page as the server sends it by default (M11): the spotlight row is the stage, on top. */
 export const homePage: HomePage = {
+  heroRow: 'spotlight',
   rows: [
-    { key: 'picks', items: [heat, arrival] },
+    { key: 'spotlight', items: [heat, arrival] },
     { key: 'continue', items: [alien] },
     { key: 'recent', items: [arrival, heat] },
   ],

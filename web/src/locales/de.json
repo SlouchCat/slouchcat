@@ -122,6 +122,7 @@
       "primary_profile": "Das Hauptprofil kann nicht gelöscht werden.",
       "invitation_gone": "Dieser Einladungslink ist nicht mehr gültig.",
       "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut.",
+      "too_many_requests": "Die Liste wurde vor weniger als einer Minute abgerufen. Warte kurz und versuche es erneut.",
       "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers.",
       "watch_limit_reached": "Die Schauzeit dieses Profils für heute ist aufgebraucht.",
       "stream_limit_reached": "Dieses Profil spielt schon so viele Streams wie erlaubt.",
@@ -143,6 +144,7 @@
       "email_send_failed": "Der Mailserver hat die Mail nicht angenommen.",
       "job_not_failed": "Dieser Job ist nicht fehlgeschlagen.",
       "update_check_disabled": "Die Update-Prüfung ist ausgeschaltet.",
+      "rank_taken": "Diesen Platz hat schon ein anderer Eintrag der Liste.",
       "email_taken": "Diese E-Mail-Adresse gehört schon zu einem anderen Konto.",
       "passphrase_required": "Gib die Passphrase ein.",
       "passphrase_too_short": "Die Passphrase ist zu kurz: mindestens 12 Zeichen.",
@@ -276,8 +278,8 @@
       "watchlist": "Merkliste",
       "collections": "Sammlungen",
       "genres": "Genres",
-      "traktTrending": "Trending bei Trakt",
-      "traktPopular": "Beliebt bei Trakt"
+      "spotlight": "Spotlight",
+      "released": "Kürzlich veröffentlicht"
     },
     "remaining": "Noch {{time}}",
     "empty": {
@@ -290,8 +292,7 @@
     "carousel": {
       "roledescription": "Karussell",
       "slide": "Folie",
-      "position": "{{index}} von {{count}}",
-      "show": "Empfehlung {{index}} von {{count}} anzeigen"
+      "position": "{{index}} von {{count}}"
     },
     "row": {
       "previous": "Zurückblättern",
@@ -1019,13 +1020,23 @@
     },
     "picks": {
       "title": "Cat's Empfehlungen",
-      "intro": "Titel im Karussell der Startseite, für alle Profile oder für einzelne. Jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
-      "list": "Empfehlungen in der Reihenfolge des Karussells",
+      "intro": "Von Hand ausgesuchte Titel als eigene Reihe der Startseite. Für alle Profile oder für einzelne; jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
+      "list": "Empfehlungen in der Reihenfolge der Reihe",
       "empty": "Noch keine Empfehlung. Ohne Empfehlung zeigt die Startseite kein Karussell.",
       "allProfiles": "Alle",
       "noNote": "–",
+      "quoted": "«{{note}}»",
+      "count": {
+        "entries_one": "{{count}} Eintrag",
+        "entries_other": "{{count}} Einträge",
+        "planned_one": "{{count}} geplant",
+        "planned_other": "{{count}} geplant",
+        "both": "{{entries}} · {{planned}}"
+      },
+      "homeRowsHint": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter <page>Startseite</page> ein.",
       "moved": "{{title}} steht jetzt an Stelle {{position}}.",
       "columns": {
+        "position": "Nr.",
         "title": "Titel",
         "target": "Für",
         "note": "Notiz",
@@ -1176,24 +1187,129 @@
       "down": "Nach unten",
       "downLabel": "{{row}} nach unten",
       "moved": "{{row}} steht jetzt an Stelle {{position}}. Speichere, damit es gilt.",
-      "saved": "Die Startseite ist gespeichert."
+      "saved": "Die Startseite ist gespeichert.",
+      "spotlight": "Welche Trakt-Liste Spotlight zeigt, wann sie zuletzt abgerufen wurde und ob Trakt eingerichtet ist, steht unter «Spotlight».",
+      "spotlightLink": "Zur Seite «Spotlight»"
     },
-    "trakt": {
-      "title": "Trakt",
-      "intro": "Die Listen «Trending» und «Beliebt» von Trakt, einmal täglich mit dem Schlüssel des Servers abgerufen. Slouchcat sendet nichts an Trakt.",
-      "notConfigured": "Trakt ist nicht eingerichtet: Ohne Client ID (SLOUCHCAT_TRAKT_CLIENT_ID) bleiben die Trakt-Reihen weg.",
-      "configured": "Eingerichtet",
-      "yes": "Ja",
-      "no": "Nein",
-      "lastSuccess": "Letzter erfolgreicher Abruf",
-      "lastAttempt": "Letzter Versuch",
-      "lastError": "Letzter Fehler",
-      "never": "Noch nie",
-      "noError": "–",
-      "trending": "Einträge «Trending»",
-      "popular": "Einträge «Beliebt»",
-      "refresh": "Jetzt aktualisieren",
-      "queued": "Die Trakt-Listen werden abgerufen."
+    "spotlight": {
+      "title": "Spotlight",
+      "intro": "Eine öffentliche Trakt-Liste als Reihe der Startseite. Gezeigt werden nur Titel, die in der eigenen Bibliothek stehen; jedes Profil sieht nur, was seine Altersstufe erlaubt.",
+      "enabled": "Auf der Startseite zeigen",
+      "lists": {
+        "trending": "Trending bei Trakt",
+        "popular": "Beliebt bei Trakt",
+        "watched_weekly": "Meistgesehen (letzte Woche)",
+        "collected_monthly": "Meistgesammelt (letzter Monat)",
+        "anticipated": "Am meisten erwartet",
+        "boxoffice": "Kinocharts",
+        "url": "Öffentliche Liste per Adresse"
+      },
+      "media": {
+        "movie": "Nur Filme",
+        "show": "Nur Serien",
+        "both": "Filme und Serien"
+      },
+      "source": {
+        "title": "Quelle",
+        "list": "Trakt-Liste",
+        "listHint": "Öffentliche Listen, kein Trakt-Login.",
+        "listHintLink": "Schlüssel unter Integrationen",
+        "listUrl": "Adresse der Liste",
+        "listUrlHint": "Eine öffentliche Liste auf trakt.tv, etwa https://trakt.tv/users/name/lists/name-der-liste. Merklisten (Watchlists) gehen nicht.",
+        "media": "Medienart",
+        "mediaFixed": "Diese Liste gibt die Medienart vor.",
+        "mediaFilters": "Die Liste mischt Filme und Serien: Die Medienart filtert ihre Einträge nach dem Abruf.",
+        "itemCount": "Höchstens",
+        "itemCountHint": "Titel in der Reihe, je Profil (5–20)",
+        "minHits": "Ausblenden unter",
+        "minHitsHint": "Treffern in der Bibliothek, je Profil (0–10)",
+        "intervalHours": "Abruf alle … Stunden",
+        "intervalHoursHint": "6 bis 48 Stunden",
+        "refresh": "Jetzt abrufen",
+        "queued": "Die Liste wird abgerufen.",
+        "saved": "Spotlight ist gespeichert."
+      },
+      "state": {
+        "fetched": "Zuletzt abgerufen {{date}}",
+        "never": "Noch nie abgerufen",
+        "failed": "Letzter Abruf fehlgeschlagen: {{reason}}",
+        "hits": "{{hits}} von {{entries}} Titeln in der Bibliothek",
+        "keySet": "Schlüssel gesetzt",
+        "noKey": "Kein Schlüssel",
+        "separator": " · "
+      },
+      "missing": {
+        "noKey": "Ohne Trakt-Schlüssel fehlt die Reihe auf der Startseite.",
+        "disabled": "Spotlight ist ausgeschaltet: Die Reihe fehlt auf der Startseite.",
+        "failed": "Die Reihe fehlt auf der Startseite, bis ein Abruf gelingt.",
+        "empty": "Die Liste ist leer: Die Reihe fehlt auf der Startseite.",
+        "belowMinHits": "Nur {{hits}} Treffer in der Bibliothek, weniger als die verlangten {{min}}: Die Reihe fehlt auf der Startseite. Profile mit weniger sichtbaren Titeln können sie auch sonst nicht bekommen."
+      },
+      "entries": {
+        "title": "Einträge der Liste",
+        "intro": "Reihenfolge von Trakt; eigene Änderungen bleiben beim nächsten Abruf erhalten.",
+        "empty": "Noch keine Einträge. Rufe die Liste ab, sobald Trakt eingerichtet ist.",
+        "columns": {
+          "rank": "Rang",
+          "title": "Titel",
+          "status": "Status",
+          "note": "Eigene Notiz",
+          "actions": "Aktionen"
+        },
+        "media": {
+          "movie": "Film",
+          "show": "Serie"
+        },
+        "meta": "{{media}} · {{year}}",
+        "untitled": "TMDB {{id}}",
+        "state": {
+          "visible": "Sichtbar",
+          "hidden": "Ausgeblendet",
+          "missing": "Nicht in der Bibliothek"
+        },
+        "pinned": "Angeheftet auf Platz {{rank}}",
+        "quoted": "«{{note}}»",
+        "none": "–",
+        "notInLibrary": "Nicht in der Bibliothek, erscheint nicht auf der Startseite",
+        "hide": "Ausblenden",
+        "hideLabel": "{{title}} ausblenden",
+        "show": "Einblenden",
+        "showLabel": "{{title}} einblenden",
+        "hidden": "{{title}} ist ausgeblendet.",
+        "shown": "{{title}} wird wieder gezeigt."
+      },
+      "pin": {
+        "action": "Anheften",
+        "label": "{{title}} anheften",
+        "title": "{{title}} anheften",
+        "rank": "Platz in der Reihe",
+        "rankHint": "1 ist der erste Platz. Der Platz gilt für die ganze Liste; ein Profil mit weniger Treffern sieht den Titel früher.",
+        "done": "{{title}} ist auf Platz {{rank}} angeheftet."
+      },
+      "unpin": {
+        "action": "Lösen",
+        "label": "{{title}} lösen",
+        "done": "{{title}} ist nicht mehr angeheftet."
+      },
+      "note": {
+        "action": "Notiz",
+        "label": "Notiz zu {{title}}",
+        "title": "Notiz zu {{title}}",
+        "field": "Notiz",
+        "hint": "Höchstens {{max}} Zeichen. Leer entfernt die Notiz.",
+        "saved": "Die Notiz zu {{title}} ist gespeichert.",
+        "removed": "Die Notiz zu {{title}} ist entfernt."
+      },
+      "orphans": {
+        "title": "Verwaiste Anpassungen",
+        "intro": "Anpassungen an Titeln, die nicht mehr in der Liste stehen. Sie wirken erst wieder, wenn der Titel zurückkehrt.",
+        "override": "Anpassung",
+        "remove": "Entfernen",
+        "removeLabel": "Anpassung für {{title}} entfernen",
+        "removed": "Die Anpassung für {{title}} ist entfernt."
+      },
+      "rowSettings": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter «Startseite» ein.",
+      "rowSettingsLink": "Zur Seite «Startseite»"
     },
     "nav": {
       "label": "Verwaltung",
@@ -1238,6 +1354,10 @@
         "title": "Streams",
         "description": "Laufende Wiedergaben ansehen und beenden."
       },
+      "spotlight": {
+        "title": "Spotlight",
+        "description": "Die wählbare Trakt-Liste auf der Startseite und ihre Einträge."
+      },
       "picks": {
         "title": "Cat's Empfehlungen",
         "description": "Das Karussell der Startseite."
@@ -1248,7 +1368,7 @@
       },
       "homeRows": {
         "title": "Startseite",
-        "description": "Reihenfolge der Reihen und die Trakt-Listen."
+        "description": "Reihenfolge der Reihen auf der Startseite."
       },
       "announcements": {
         "title": "Ankündigungen",

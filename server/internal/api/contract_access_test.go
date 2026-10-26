@@ -246,12 +246,23 @@ var adminRegistry = map[string]adminCall{
 	"setCollectionItems": {contract: "PUT /admin/collections/{id}/items", path: "/admin/collections/" + unknownItemID + "/items", body: `{"itemIds":[]}`, ownerStatus: http.StatusNotFound},
 	"getHomeRows":        {contract: "GET /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK},
 	"setHomeRows": {contract: "PUT /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK,
-		body: `[{"key":"picks","position":0,"hidden":false},{"key":"continue","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},` +
-			`{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},` +
-			`{"key":"trakt_trending","position":6,"hidden":false},{"key":"trakt_popular","position":7,"hidden":false}]`},
+		body: `[{"key":"spotlight","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"continue","position":2,"hidden":false},` +
+			`{"key":"recent","position":3,"hidden":false},{"key":"released","position":4,"hidden":false},{"key":"watchlist","position":5,"hidden":false},` +
+			`{"key":"collections","position":6,"hidden":false},{"key":"genres","position":7,"hidden":false}]`},
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
-	// The fixture has no Trakt client id: 422 provider_not_configured.
-	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
+	// M11 spotlight: the fixture's list has no entry 4242, and it has no Trakt client id (422
+	// provider_not_configured).
+	"getSpotlightConfig": {contract: "GET /admin/spotlight", path: "/admin/spotlight", ownerStatus: http.StatusOK},
+	"setSpotlightConfig": {contract: "PUT /admin/spotlight", path: "/admin/spotlight", ownerStatus: http.StatusOK,
+		body: `{"enabled":true,"listKey":"trending","media":"both","itemCount":20,"minHits":5,"intervalHours":24}`},
+	"getSpotlightEntries": {contract: "GET /admin/spotlight/entries", path: "/admin/spotlight/entries", ownerStatus: http.StatusOK},
+	"setSpotlightEntryOverride": {contract: "PATCH /admin/spotlight/entries/{media}/{tmdbId}", path: "/admin/spotlight/entries/movie/4242",
+		body: `{"hidden":true}`, ownerStatus: http.StatusNotFound},
+	"refreshSpotlight": {contract: "POST /admin/spotlight/refresh", path: "/admin/spotlight/refresh", ownerStatus: http.StatusUnprocessableEntity},
+	// M11 step 5b: the binary image route of the administration; an unknown title answers 404
+	// (TestContractAdminItemImage serves real images).
+	"getAdminItemImage": {contract: "GET /admin/items/{id}/images/{kind}/{size}", path: "/admin/items/" + unknownItemID + "/images/poster/w200",
+		ownerStatus: http.StatusNotFound},
 	// M8 administration: jobs 9999 do not exist; the fixture has no e-mail server (422
 	// email_not_configured), checks a mock manifest and writes backups into a temporary directory.
 	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
@@ -473,12 +484,12 @@ func TestContractAdminOperations(t *testing.T) {
 				t.Errorf("owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}
 			// Administration views name titles by id (unfiltered, owner only) but never as ItemRef,
-			// which carries scoped image URLs.
+			// which carries scoped image URLs; their posters go through getAdminItemImage (M11 5b).
 			if refs := itemRefsIn(t, rec); len(refs) != 0 {
 				t.Errorf("response contains ItemRef objects %v", refs)
 			}
-			if strings.Contains(rec.Body.String(), "/images/") {
-				t.Errorf("response contains image URLs: %s", rec.Body.String())
+			if strings.Contains(rec.Body.String(), `"`+BasePath+`/items/`) {
+				t.Errorf("response contains scoped URLs: %s", rec.Body.String())
 			}
 			assertNoSecrets(t, id, rec)
 		})

@@ -140,6 +140,7 @@ func TestIsSensitiveKey(t *testing.T) {
 		"smtp_password": true, "smtpPassword": true, "bot_token": true, "botToken": true, "passphrase": true, "backup_passphrase": true,
 		"vapid_private_key": true, "vapidPrivateKey": true, "p256dh": true, "auth_secret": true, "endpoint": true, "push_endpoint": true,
 		"chat_id": false, "smtp_host": false, "smtp_user": false,
+		"list_url": true, "listUrl": true, "list_key": false,
 	} {
 		if got := isSensitiveKey(key); got != want {
 			t.Errorf("isSensitiveKey(%q) = %v, want %v", key, got, want)

@@ -69,6 +69,13 @@ Umsetzung in M0 (Grundgerüst):
 - Tabelle `job_schedules` (`type`, `cron_expr`, `next_run`) ist angelegt; der Scheduler, der daraus Jobs
   erzeugt, folgt mit dem ersten periodischen Job (spätestens `rating.verify`, Plan 3.2).
 - Alle Abfragen stehen in `server/queries/system/jobs.sql` (sqlc, Paket `store/systemq`).
+- **Ergänzung vom 26. Oktober 2026 (M11):** `RaiseQueuedPriority` hebt die Priorität eines noch nicht
+  beanspruchten Jobs an und senkt sie nie. Grund: Das zweite Einreihen unter einem aktiven Schlüssel
+  liefert den wartenden Job unverändert zurück, auch mit höherer Priorität — eine manuelle Handlung
+  (Spotlight «Jetzt abrufen», Schlüsselwechsel) blieb damit hinter einem Scan-Nachlauf gleicher
+  Priorität stehen, auf CT 190 hinter 1683 `segments.detect` für Tage. Manuelle Handlungen reihen mit
+  Priorität 7 (wie der manuelle Match) ein und heben den wartenden Job an; die nächtlichen Läufe bleiben
+  bei ihrer Priorität. Entscheid in `docs/planning/04-entscheidungen.md`.
 
 ## Konsequenzen
 

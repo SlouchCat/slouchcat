@@ -553,6 +553,39 @@ type Setting struct {
 	UpdatedAt int64
 }
 
+type SpotlightConfig struct {
+	ID                int64
+	Enabled           int64
+	ListKey           string
+	ListUrl           sql.NullString
+	Media             string
+	ItemCount         int64
+	MinHits           int64
+	IntervalHours     int64
+	LastManualRefresh sql.NullInt64
+	UpdatedAt         int64
+}
+
+type SpotlightEntry struct {
+	ListKey   string
+	Media     string
+	Position  int64
+	TmdbID    int64
+	Title     sql.NullString
+	Year      sql.NullInt64
+	FetchedAt int64
+}
+
+type SpotlightOverride struct {
+	ListKey    string
+	Media      string
+	TmdbID     int64
+	Hidden     int64
+	PinnedRank sql.NullInt64
+	Note       sql.NullString
+	UpdatedAt  int64
+}
+
 type TelegramLink struct {
 	AccountID int64
 	Code      string
@@ -594,16 +627,6 @@ type Trailer struct {
 	Source    string
 	Official  int64
 	CreatedAt int64
-}
-
-type TraktList struct {
-	List      string
-	Media     string
-	Position  int64
-	TmdbID    int64
-	Title     sql.NullString
-	Year      sql.NullInt64
-	FetchedAt int64
 }
 
 type VisibleItem struct {

@@ -45,10 +45,12 @@ const (
 //
 // M8 adds the e-mail server password (smtp_password), the Telegram bot token (bot_token), backup
 // passphrases, the VAPID private key and the parts of a push subscription: its keys (p256dh,
-// auth_secret) and its endpoint, a capability URL of the push service.
+// auth_secret) and its endpoint, a capability URL of the push service. M11 adds the address of
+// the spotlight user list (list_url): it can carry a Trakt user name (plan 8.4).
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
 	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
-	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint"}
+	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",
+	"listurl"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
 // st (stream token), dt (download token, M5) and the credentials of private podcast feeds and their

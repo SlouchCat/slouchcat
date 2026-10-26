@@ -65,6 +65,7 @@
 
 .segments {
   display: inline-flex;
+  flex-wrap: wrap;
   align-self: flex-start;
   gap: var(--sc-space-1);
   padding: var(--sc-space-1);

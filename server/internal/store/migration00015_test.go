@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -61,13 +62,23 @@ func TestMigration00015IndexesFrozenData(t *testing.T) {
 	if got := count(`SELECT count(*) FROM home_rows`); got != 8 {
 		t.Errorf("home_rows = %d, want 8", got)
 	}
-	if got := count(`SELECT count(*) FROM home_rows WHERE key = 'picks' AND position = 0`); got != 1 {
-		t.Error("picks is not the first row")
+	if got := count(`SELECT count(*) FROM home_rows WHERE key = 'spotlight' AND position = 0`); got != 1 {
+		t.Error("spotlight is not the first row")
 	}
-	for _, col := range []string{"watchlist", "favorites", "collections", "collection_items", "item_genres", "trakt_lists", "notifications"} {
+	// After the full run (00021, ADR 0011) the eight positions are exactly 0 to 7, in the default
+	// order: released directly behind recent.
+	defaultOrder := []string{"spotlight", "picks", "continue", "recent", "released", "watchlist", "collections", "genres"}
+	if got := homeRowOrder(t, db); !slices.Equal(got, defaultOrder) {
+		t.Errorf("home_rows order = %v, want %v", got, defaultOrder)
+	}
+	for _, col := range []string{"watchlist", "favorites", "collections", "collection_items", "item_genres",
+		"spotlight_config", "spotlight_entries", "spotlight_overrides", "notifications"} {
 		if got := count(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, col); got != 1 {
-			t.Errorf("table %s missing after 00015", col)
+			t.Errorf("table %s missing after the full migration run", col)
 		}
+	}
+	if got := count(`SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'trakt%'`); got != 0 {
+		t.Error("the Trakt cache table of 00015 is still present after 00021")
 	}
 
 	// Triggers: a new title with genres in both forms is searchable and has its genres split.

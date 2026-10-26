@@ -12,8 +12,8 @@ import {
 import { arrowTo, resetProgress } from './playback';
 
 // /admin/home-rows (M7, E-9) by keyboard (rule 8): "Neu hinzugefügt" moved above "Weiterschauen"
-// changes the start page's order, a hidden row is gone from it; the Trakt section shows its state
-// and "Jetzt aktualisieren". ↑/↓ between the rows, Tab, Enter and Space, browser back, no trap.
+// changes the start page's order, a hidden row is gone from it; the Trakt line leads to the
+// spotlight page. ↑/↓ between the rows, Tab, Enter and Space, browser back, no trap.
 
 /** A film the main profile has started, so its "Weiterschauen" row exists. */
 const STARTED_TITLE = 'Slouchcat Test Sidecar Subtitles';
@@ -65,15 +65,16 @@ test('start page rows by keyboard: reorder and hide change the start page', asyn
     const table = page.getByRole('table', { name: 'Reihen der Startseite' });
     await expect(table.getByRole('rowheader')).toHaveCount(8);
 
-    // "Neu hinzugefügt" one up: the focus stays on the button, the row moved.
+    // "Neu hinzugefügt" one up: the focus stays on the button, the row moved. Spotlight holds
+    // row 0 and picks row 1 (ADR 0011), so recent moves from 3 to 2.
     await resetFocus(page);
     const up = table.getByRole('button', { name: 'Neu hinzugefügt nach oben' });
     await tabTo(page, up, 60);
     await page.keyboard.press('Enter');
     await expectFocusOn(page, up);
-    await expect(table.getByRole('rowheader').nth(1)).toHaveText('Neu hinzugefügt');
-    await expect(table.getByRole('rowheader').nth(2)).toHaveText('Weiterschauen');
-    await expect(page.getByText(/Neu hinzugefügt steht jetzt an Stelle 2/)).toBeVisible();
+    await expect(table.getByRole('rowheader').nth(2)).toHaveText('Neu hinzugefügt');
+    await expect(table.getByRole('rowheader').nth(3)).toHaveText('Weiterschauen');
+    await expect(page.getByText(/Neu hinzugefügt steht jetzt an Stelle 3/)).toBeVisible();
 
     // ↓ to the next row ("Weiterschauen" now), ↑ back.
     await arrowTo(page, table.getByRole('button', { name: 'Weiterschauen nach oben' }));
@@ -115,26 +116,23 @@ test('start page rows by keyboard: reorder and hide change the start page', asyn
   }
 });
 
-test('Trakt section: state and "Jetzt aktualisieren" by keyboard', async ({ page, owner }) => {
-  const response = await owner.get('/api/v1/admin/trakt');
-  expect(response.status(), await response.text()).toBe(200);
-  // start-server.mjs always sets the client id of the Trakt mock; the refusal without one is
-  // covered by HomeRowsPage.test.tsx.
-  const status = (await response.json()) as { configured: boolean };
-  expect(status.configured, 'SLOUCHCAT_TRAKT_CLIENT_ID reaches the server').toBe(true);
+test('the Trakt line links to the spotlight page by keyboard', async ({ page }) => {
   await page.goto('/admin/home-rows');
-  const section = page.getByRole('region', { name: 'Trakt' });
-  await expect(section.getByText('Ja', { exact: true })).toBeVisible();
-  const refresh = section.getByRole('button', { name: 'Jetzt aktualisieren' });
+  await expect(page.getByRole('table', { name: 'Reihen der Startseite' })).toBeVisible();
+  // The Trakt state lives on the spotlight page only (M11 step 6): no section, no refresh here.
+  await expect(page.getByRole('region', { name: 'Trakt' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Jetzt aktualisieren' })).toHaveCount(0);
+
+  const link = page.getByRole('link', { name: 'Zur Seite «Spotlight»' });
   await resetFocus(page);
-  await tabTo(page, refresh, 80);
-  const queued = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'POST' && response.url().endsWith('/admin/trakt/refresh'),
-  );
-  await page.keyboard.press('Enter');
-  expect((await queued).status()).toBe(202);
-  await expect(section.getByText('Die Trakt-Listen werden abgerufen.')).toBeVisible();
+  await tabTo(page, link, 80);
   await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin\/spotlight$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/home-rows$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
   await expectNoFocusTrap(page);
 });

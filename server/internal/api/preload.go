@@ -13,12 +13,18 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// heroPicker names the first slide of the start page's hero carousel. The catalog service
-// (discover.Service) implements it; NewHandler takes it from Options.Catalog by type assertion, so
-// CatalogService stays as it is and a catalog without the method simply sends no preload.
+// heroPicker names the title whose image the start page shows first: the first title of the stage
+// (HomePage.heroRow, plan 3.5) or, without a stage, the first title of the first row. The catalog
+// service (discover.Service) implements it; NewHandler takes it from Options.Catalog by type
+// assertion, so CatalogService stays as it is and a catalog without the methods simply sends no
+// image preload.
 type heroPicker interface {
-	// FirstPick returns the first title of the picks row or model.ErrNotFound.
-	FirstPick(ctx context.Context, profile model.Profile) (model.ItemSummary, error)
+	// FirstHero returns the first title of the stage row and whether that row is the first row of
+	// the start page, or model.ErrNotFound when the page has no stage.
+	FirstHero(ctx context.Context, profile model.Profile) (item model.ItemSummary, first bool, err error)
+	// FirstRow returns the titles of the first row when the page has no stage, or
+	// model.ErrNotFound when it has one or its first row holds no titles.
+	FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
 }
 
 // Width descriptors of the hero srcset; they must match imageSource in web/src/ui/HeroCarousel.tsx.
@@ -27,8 +33,22 @@ const (
 	heroLargeWidth = "1280w"
 )
 
-// heroMarker is the comment in web/index.html where the start page's shell receives the first hero
-// image (heroPrepaint); every GET / replaces it, with nothing when there is no image.
+// Width descriptors and sizes of the poster srcset; they must match srcSet and CARD_SIZES in
+// web/src/ui/PosterCard.tsx, or the browser loads the card's image a second time.
+const (
+	posterSmallWidth = "200w"
+	posterLargeWidth = "400w"
+	posterSizes      = "(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"
+)
+
+// posterPrepaintCards is the number of cards the shell paints ahead on a start page without a
+// stage: the eagerly loaded cards of the first row (EAGER_POSTERS in web/src/features/catalog/
+// HomePage.tsx).
+const posterPrepaintCards = 6
+
+// heroMarker is the comment in web/index.html where the start page's shell receives its first
+// images: the first hero image (heroPrepaint) or, without a stage, the first cards of the first row
+// (posterPrepaint). Every GET / replaces it, with nothing when there is no image.
 const heroMarker = "<!--hero-->"
 
 // startPreloads are the API reads the start page makes first (router guard and home query). The
@@ -39,15 +59,20 @@ var startPreloads = []string{
 }
 
 // startPagePreload adds Link preload headers to the app shell of the start page (P-10): the session
-// and home data and the hero image. The browser fetches them while it still loads the JavaScript,
+// and home data and the first image. The browser fetches them while it still loads the JavaScript,
 // instead of after the app has run. Only GET / with a valid session gets the headers; the image is
-// the first pick of the session's profile, read through the catalog service and thus the
+// the first title of the stage of the session's profile or, without a stage, the poster of the
+// first title of the first row (the first card), read through the catalog service and thus the
 // visibility layer, and is left out on any error. The shell itself is always served. /index.html
 // is left out on purpose: the service worker precaches it, and a stored header would preload a
 // stale image later.
 //
-// The same request also writes the first hero image into the shell (heroPrepaint), so the browser
-// paints it as soon as it has loaded instead of after the JavaScript has run.
+// When the stage is the first row of the start page, the same request also writes its first image
+// into the shell (heroPrepaint), so the browser paints it as soon as it has loaded instead of after
+// the JavaScript has run. The prepaint sits at the top of the page, so a stage further down gets
+// only the preload header (plan 3.5): painting it ahead would flash a picture in the wrong place.
+// Without a stage the same request writes the first cards' posters into the shell instead
+// (posterPrepaint), at the place of the first row's cards.
 //
 // The shell is sent with Cache-Control: no-cache (webassets), so the header is computed per
 // request; Vary: Cookie keeps shared caches from handing it to another viewer.
@@ -74,15 +99,28 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 						w.Header().Add("Link", link)
 					}
 				}
-				item, err := firstPick(r.Context(), picker, session)
+				item, first, err := firstHero(r.Context(), picker, session)
+				link := ""
 				switch {
 				case err == nil:
-					if link := heroLink(item, session.Profile.ID); link != "" {
-						w.Header().Add("Link", link)
+					link = heroLink(item, session.Profile.ID)
+					if first {
+						prepaint = heroPrepaint(item, session.Profile.ID)
 					}
-					prepaint = heroPrepaint(item, session.Profile.ID)
-				case !errors.Is(err, model.ErrNotFound) && !errors.Is(err, context.Canceled):
-					log.WarnContext(r.Context(), "hero preload skipped", "err", err)
+				case errors.Is(err, model.ErrNotFound) && session.HasProfile():
+					// Without a stage the first card's poster is the page's first image: it is
+					// preloaded, and the first cards of the row are painted ahead.
+					var items []model.ItemSummary
+					if items, err = picker.FirstRow(r.Context(), session.Profile); err == nil && len(items) > 0 {
+						link = posterLink(items[0], session.Profile.ID)
+						prepaint = posterPrepaint(items, session.Profile.ID)
+					}
+				}
+				if link != "" {
+					w.Header().Add("Link", link)
+				}
+				if err != nil && !errors.Is(err, model.ErrNotFound) && !errors.Is(err, context.Canceled) {
+					log.WarnContext(r.Context(), "image preload skipped", "err", err)
 				}
 			}
 			shell := &shellWriter{ResponseWriter: w}
@@ -92,12 +130,12 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 	}
 }
 
-// firstPick is the first pick of the session's profile; a session without profile has none.
-func firstPick(ctx context.Context, picker heroPicker, session model.Session) (model.ItemSummary, error) {
+// firstHero is the first stage title of the session's profile; a session without profile has none.
+func firstHero(ctx context.Context, picker heroPicker, session model.Session) (model.ItemSummary, bool, error) {
 	if !session.HasProfile() {
-		return model.ItemSummary{}, model.ErrNotFound
+		return model.ItemSummary{}, false, model.ErrNotFound
 	}
-	return picker.FirstPick(ctx, session.Profile)
+	return picker.FirstHero(ctx, session.Profile)
 }
 
 // shellWriter holds back the app shell so startPagePreload can fill in the hero marker. The shell
@@ -131,7 +169,7 @@ func (s *shellWriter) flush(prepaint string) {
 		s.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	}
 	s.ResponseWriter.WriteHeader(s.status)
-	_, _ = s.ResponseWriter.Write(body) //nolint:gosec // G705: the only inserted text is heroPrepaint's output, built from html-escaped values and an integer profile id
+	_, _ = s.ResponseWriter.Write(body) //nolint:gosec // G705: the only inserted text is heroPrepaint's or posterPrepaint's output, built from html-escaped values and an integer profile id
 }
 
 // heroPrepaint returns the first hero image as markup for the app shell, or "" when the item has
@@ -157,6 +195,53 @@ func heroPrepaint(item model.ItemSummary, profileID int64) string {
 		` alt="" width="1280" height="720" fetchpriority="high" decoding="sync"></div>`
 }
 
+// posterPrepaint returns the first cards of a start page without a stage as markup for the app
+// shell: up to posterPrepaintCards posters, nothing but images. It sits outside #root with the
+// geometry of the first row's cards (#poster-prepaint in web/src/ui/global.css; a square cover for
+// audiobooks and podcasts, like PosterCard's shape) and the attributes of their images (URLs,
+// srcset, sizes; the first one with priority and sync decoding, like the preload); the start page
+// fades it out once its own first poster is on screen. It stops at the first title without a
+// poster: the card shows the lettered fallback there, and a gap would misplace the cards after it.
+func posterPrepaint(items []model.ItemSummary, profileID int64) string {
+	var b strings.Builder
+	for i, item := range items[:min(len(items), posterPrepaintCards)] {
+		var attrs string
+		switch {
+		case item.Poster != nil && item.PosterSmall != nil:
+			small, large := imageURL(item.ID, *item.PosterSmall, profileID), imageURL(item.ID, *item.Poster, profileID)
+			attrs = `src="` + html.EscapeString(small) + `" srcset="` +
+				html.EscapeString(small+" "+posterSmallWidth+", "+large+" "+posterLargeWidth) +
+				`" sizes="` + posterSizes + `"`
+		case item.Poster != nil:
+			attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.Poster, profileID)) + `"`
+		case item.PosterSmall != nil:
+			attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.PosterSmall, profileID)) + `"`
+		}
+		if attrs == "" {
+			break
+		}
+		b.WriteString("<img ")
+		if squareCover(item.Kind) {
+			b.WriteString(`class="square" `)
+		}
+		b.WriteString(attrs + ` alt="" loading="eager"`)
+		if i == 0 {
+			b.WriteString(` fetchpriority="high" decoding="sync"`)
+		}
+		b.WriteString(">")
+	}
+	if b.Len() == 0 {
+		return ""
+	}
+	return `<div id="poster-prepaint" aria-hidden="true">` + b.String() + `</div>`
+}
+
+// squareCover reports whether a card shows a square cover instead of a 2:3 poster: audiobooks and
+// podcasts (isAudioKind in web/src/features/catalog/labels.ts, M6).
+func squareCover(kind string) bool {
+	return kind == "audiobook" || kind == "podcast" || kind == "podcast_episode"
+}
+
 // heroLink returns the Link header value that preloads the image the hero shows for item, chosen
 // exactly like the carousel does (same URLs, srcset and sizes), or "" when the item has no image.
 func heroLink(item model.ItemSummary, profileID int64) string {
@@ -166,6 +251,22 @@ func heroLink(item model.ItemSummary, profileID int64) string {
 			large + " " + heroLargeWidth + `"; imagesizes="100vw"; fetchpriority=high`
 	}
 	for _, img := range []*model.Image{item.Backdrop, item.BackdropSmall, item.Poster} {
+		if img != nil {
+			return "<" + imageURL(item.ID, *img, profileID) + ">; rel=preload; as=image; fetchpriority=high"
+		}
+	}
+	return ""
+}
+
+// posterLink returns the Link header value that preloads the poster a PosterCard shows for item
+// (same URLs, srcset and sizes), or "" when the item has no poster.
+func posterLink(item model.ItemSummary, profileID int64) string {
+	if item.Poster != nil && item.PosterSmall != nil {
+		small, large := imageURL(item.ID, *item.PosterSmall, profileID), imageURL(item.ID, *item.Poster, profileID)
+		return "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " " + posterSmallWidth + ", " +
+			large + " " + posterLargeWidth + `"; imagesizes="` + posterSizes + `"; fetchpriority=high`
+	}
+	for _, img := range []*model.Image{item.Poster, item.PosterSmall} {
 		if img != nil {
 			return "<" + imageURL(item.ID, *img, profileID) + ">; rel=preload; as=image; fetchpriority=high"
 		}

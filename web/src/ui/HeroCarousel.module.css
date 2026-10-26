@@ -1,11 +1,33 @@
-/* Height and image placement are repeated by #hero-prepaint in global.css; keep them in step. */
+/*
+ * The band: a framed stage with the page gutter around it, the poster strip below. The frame's
+ * place and size are repeated by #hero-prepaint in global.css; keep them in step.
+ */
 .hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.stage {
   position: relative;
   display: flex;
   align-items: flex-end;
-  height: clamp(var(--sc-size-hero-min), 78vh, var(--sc-size-hero-max));
+  height: clamp(var(--sc-size-hero-min), 60vh, var(--sc-size-hero-max));
+  margin: 0 var(--page-gutter);
   overflow: hidden;
+  border-radius: var(--sc-radius-xl);
   isolation: isolate;
+}
+
+/* The frame's edge lies over the artwork, so the image fills the same box as the prepaint. */
+.stage::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
 }
 
 .art {
@@ -39,15 +61,14 @@
   opacity: 0.6;
 }
 
-/* Left scrim for the text, bottom scrim into the page, a light top scrim for the header. */
+/* Bottom and left scrims for the text; the frame keeps the artwork off the page around it. */
 .scrim {
   position: absolute;
   inset: 0;
   background-image:
     linear-gradient(
       to top,
-      var(--sc-color-bg-base) 0%,
-      var(--sc-color-scrim-solid) 4%,
+      var(--sc-color-scrim-strong) 0%,
       var(--sc-color-scrim-medium) 30%,
       var(--sc-color-scrim-clear) 60%
     ),
@@ -56,8 +77,7 @@
       var(--sc-color-scrim-strong) 0%,
       var(--sc-color-scrim-medium) 35%,
       var(--sc-color-scrim-clear) 70%
-    ),
-    linear-gradient(to bottom, var(--sc-color-scrim-medium) 0%, var(--sc-color-scrim-clear) 22%);
+    );
 }
 
 .content {
@@ -65,8 +85,8 @@
   flex-direction: column;
   gap: var(--sc-space-4);
   width: 100%;
-  max-width: calc(40rem + var(--page-gutter));
-  padding: 0 var(--page-gutter) var(--sc-space-12);
+  max-width: 44rem;
+  padding: var(--sc-space-6);
 }
 
 .eyebrow {
@@ -131,53 +151,133 @@
   margin-top: var(--sc-space-2);
 }
 
-.dots {
+/* Previous and next at the sides of the frame; a control-height square is the 44 px target. */
+.arrow {
   position: absolute;
-  right: var(--page-gutter);
-  bottom: var(--sc-space-12);
-  display: flex;
-  gap: var(--sc-space-2);
+  z-index: 2;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.dot {
+.previous {
+  left: var(--sc-space-3);
+}
+
+.next {
+  right: var(--sc-space-3);
+}
+
+/* The poster strip: one poster per slide, scrolling sideways when it overflows. */
+.strip {
+  overflow: auto hidden;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: var(--page-gutter);
+  scrollbar-width: none;
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+.posters {
+  display: flex;
+  gap: var(--sc-space-3);
+  width: max-content;
+  margin: 0;
+
+  /* Room for the focus ring and the focus scale, which the scroll container would clip. */
+  padding: var(--sc-space-3) var(--page-gutter);
+  list-style: none;
+}
+
+/* Two thirds of a row poster: the strip chooses, the rows below show. */
+.item {
+  width: calc(var(--sc-size-poster-sm) * 2 / 3);
+}
+
+.poster {
   position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
   overflow: hidden;
-  width: var(--sc-space-2);
-  height: var(--sc-space-2);
   padding: 0;
   border: 0;
-  border-radius: var(--sc-radius-full);
-  background-color: var(--sc-color-state-buffered);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
   cursor: pointer;
+  opacity: 0.6;
   transition:
-    width var(--sc-motion-duration-enter) var(--sc-motion-easing-standard),
-    background-color var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+    opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
 }
 
-.dot[data-active] {
-  width: var(--sc-space-8);
-  background-color: var(--sc-color-state-track);
+/* The active slide's poster: full strength with an accent edge inside the frame. */
+.poster[data-active] {
+  opacity: 1;
 }
 
-.timer {
+.poster::after {
   position: absolute;
   inset: 0;
-  background-color: var(--sc-color-text-primary);
+  border: var(--sc-focus-ring-width) solid transparent;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+.poster[data-active]::after {
+  border-color: var(--sc-accent);
+}
+
+.poster:focus-visible {
+  opacity: 1;
+  transform: scale(var(--sc-focus-scale));
+}
+
+@media (hover: hover) {
+  .poster:hover {
+    opacity: 1;
+  }
+}
+
+.posterImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Time to the next slide, along the active poster's bottom edge. */
+.timer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: var(--sc-space-1);
+  background-color: var(--sc-accent);
   transform-origin: left center;
   animation: timer var(--hero-interval) linear forwards;
 }
 
-.dot[data-paused] .timer {
+.poster[data-paused] .timer {
   animation: none;
+  opacity: 0;
 }
 
 @media (width < 768px) {
-  .dots {
+  .arrow {
     display: none;
   }
 
   .content {
-    padding-bottom: var(--sc-space-8);
+    padding: var(--sc-space-4);
+  }
+}
+
+@media (width >= 768px) {
+  .content {
+    padding: var(--sc-space-8) calc(var(--sc-size-control-height) + var(--sc-space-6));
   }
 }
 

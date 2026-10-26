@@ -27,7 +27,8 @@ func fieldProblem(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return (*p.Errors)[0].Field + " " + (*p.Errors)[0].Code
 }
 
-// adminCurationAnswer checks what every curation answer must hold: no ItemRef and no image URL.
+// adminCurationAnswer checks what every curation answer must hold: no ItemRef and no scoped URL
+// (posters go through getAdminItemImage, M11 step 5b).
 func adminCurationAnswer(t *testing.T, rec *httptest.ResponseRecorder, status int) {
 	t.Helper()
 	if rec.Code != status {
@@ -36,8 +37,8 @@ func adminCurationAnswer(t *testing.T, rec *httptest.ResponseRecorder, status in
 	if refs := itemRefsIn(t, rec); len(refs) != 0 {
 		t.Errorf("answer contains ItemRef objects %v", refs)
 	}
-	if strings.Contains(rec.Body.String(), "/images/") {
-		t.Errorf("answer contains image URLs: %s", rec.Body.String())
+	if strings.Contains(rec.Body.String(), `"`+BasePath+`/items/`) {
+		t.Errorf("answer contains scoped URLs: %s", rec.Body.String())
 	}
 }
 
@@ -290,7 +291,7 @@ func TestContractHomeRows(t *testing.T) {
 	adminCurationAnswer(t, rec, http.StatusOK)
 	var rows []gen.HomeRowSetting
 	decode(t, rec, &rows)
-	if len(rows) != 8 || rows[0].Key != "picks" || rows[7].Key != "trakt_popular" {
+	if len(rows) != 8 || rows[0].Key != "spotlight" || rows[7].Key != "genres" {
 		t.Fatalf("default rows %+v", rows)
 	}
 
@@ -328,7 +329,7 @@ func TestContractHomeRows(t *testing.T) {
 		return keys
 	}
 
-	order := []string{"recent", "continue", "picks", "watchlist", "collections", "genres", "trakt_trending", "trakt_popular"}
+	order := []string{"recent", "continue", "picks", "watchlist", "collections", "genres", "spotlight", "released"}
 	set(order, "")
 	keys := homeKeys(order)
 	if !slices.Contains(keys, "recent") || !slices.Contains(keys, "picks") || keys[0] != "recent" {
@@ -341,7 +342,7 @@ func TestContractHomeRows(t *testing.T) {
 
 	for name, body := range map[string]string{
 		"seven rows":  `[{"key":"picks","position":0,"hidden":false}]`,
-		"twice picks": `[{"key":"picks","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},{"key":"trakt_trending","position":6,"hidden":false},{"key":"trakt_popular","position":7,"hidden":false}]`,
+		"twice picks": `[{"key":"picks","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},{"key":"spotlight","position":6,"hidden":false},{"key":"released","position":7,"hidden":false}]`,
 		"empty":       `[]`,
 	} {
 		if got := fieldProblem(t, send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18", body, nil)); got != "rows invalid_value" {

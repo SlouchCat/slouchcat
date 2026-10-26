@@ -2,7 +2,7 @@ import type { HomeRow, ItemRef } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -14,6 +14,7 @@ import {
   ButtonLink,
   CollectionCard,
   dismissHeroPrepaint,
+  dismissPosterPrepaint,
   GenreChip,
   HERO_PLAY_KEY,
   HeroCarousel,
@@ -33,18 +34,24 @@ import styles from './HomePage.module.css';
 
 const authed = getRouteApi('/_authed/_active');
 
+// The trailer dialog needs react-aria, which the start page does not load up front (P-10).
+const TrailerPanel = lazy(() =>
+  import('./TrailerPanel').then((module) => ({ default: module.TrailerPanel })),
+);
+
 const rowTitleKey = {
+  spotlight: 'home.rows.spotlight',
   continue: 'home.rows.continue',
   recent: 'home.rows.recent',
+  released: 'home.rows.released',
   picks: 'home.picks',
   watchlist: 'home.rows.watchlist',
   collections: 'home.rows.collections',
   genres: 'home.rows.genres',
-  trakt_trending: 'home.rows.traktTrending',
-  trakt_popular: 'home.rows.traktPopular',
 } as const;
 
 // Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.
+// The server paints as many ahead on a page without a stage (posterPrepaintCards, api/preload.go).
 const EAGER_POSTERS = 6;
 
 const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
@@ -53,7 +60,7 @@ const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
 const hasEntries = (row: HomeRow) =>
   row.items.length > 0 || (row.collections?.length ?? 0) > 0 || (row.genres?.length ?? 0) > 0;
 
-/** Focus key of the first card of a row (the default focus without a hero). */
+/** Focus key of the first card of a row (the default focus when the stage does not lead). */
 function firstKey(row: HomeRow): string | undefined {
   const item = row.items[0];
   if (item) return cardKey(row, item);
@@ -66,6 +73,8 @@ function firstKey(row: HomeRow): string | undefined {
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
 
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
+  // A curated title carries the main user's note (picks, E-2); it says more than the year.
+  if (item.note) return item.note;
   if (row.key === 'continue' && item.progress) {
     const minutes = Math.max(
       1,
@@ -94,8 +103,10 @@ function HomeSkeleton() {
 }
 
 /**
- * Start page (E-1): Cat's picks as hero carousel (with the main user's note), then the rows in the
- * order the server returned: titles, collections (E-6) and genres, which open the search.
+ * Start page (E-1): the rows in the order the server returned: titles, collections (E-6) and
+ * genres, which open the search. The row the server names in `heroRow` is drawn as the stage (hero
+ * carousel) at its place in that order; the client never decides which row that is (3.5). Without
+ * `heroRow` every row is a poster row.
  */
 export function HomePage() {
   const { t } = useTranslation();
@@ -105,17 +116,34 @@ export function HomePage() {
   // Posters wait until the hero artwork is on screen: on a slow link they would share its
   // bandwidth (P-10). The frames keep their size, so nothing shifts.
   const [heroShown, setHeroShown] = useState(false);
-  const firstPick = home.data?.rows.find((row) => row.key === 'picks')?.items[0];
+  // The stage slide whose trailer dialog is open (W-10).
+  const [trailerSlide, setTrailerSlide] = useState<HeroSlide>();
+  // Only a stage at the top is the page's first image: the server paints it into the shell, and the
+  // posters wait for it. A stage further down has no prepaint and holds no poster back.
+  const leadRow = home.data?.rows.find(hasEntries);
+  const firstHero = leadRow && leadRow.key === home.data?.heroRow ? leadRow.items[0] : undefined;
   const heroHasArt = Boolean(
-    firstPick &&
-    (firstPick.images.backdrop ?? firstPick.images.backdropSmall ?? firstPick.images.poster),
+    firstHero &&
+    (firstHero.images.backdrop ?? firstHero.images.backdropSmall ?? firstHero.images.poster),
   );
-  // The server painted the first hero image into the shell (P-10); it gives way once the carousel
-  // shows its own image, or right away when the page has no hero art.
+  // The server painted the first stage image into the shell (P-10); it gives way once the carousel
+  // shows its own image, or right away when the page has no stage at the top or no art for it.
   const prepaintDone = home.isError || (home.isSuccess && (!heroHasArt || heroShown));
   useEffect(() => {
     if (prepaintDone) dismissHeroPrepaint();
   }, [prepaintDone]);
+  // Without a stage the server painted the first cards of the first row into the shell instead
+  // (P-10); they give way once the first card shows its own poster, or right away when the page
+  // has a stage, starts with collections or genres, or its first title has no poster.
+  const [posterShown, setPosterShown] = useState(false);
+  const leadCard = home.data?.heroRow ? undefined : leadRow?.items[0];
+  const leadCardHasArt = Boolean(
+    leadCard && (leadCard.images.poster ?? leadCard.images.posterSmall),
+  );
+  const posterPrepaintDone = home.isError || (home.isSuccess && (!leadCardHasArt || posterShown));
+  useEffect(() => {
+    if (posterPrepaintDone) dismissPosterPrepaint();
+  }, [posterPrepaintDone]);
 
   if (home.isPending) {
     return (
@@ -145,105 +173,132 @@ export function HomePage() {
 
   // The server omits empty rows (E-9); filter defensively so an empty row never renders.
   const rows = home.data.rows.filter(hasEntries);
-  const picks = rows.find((row) => row.key === 'picks' && row.items.length > 0);
-  const lists = rows.filter((row) => row !== picks);
-  const firstList = lists[0];
-  const defaultFocusKey = picks ? HERO_PLAY_KEY : ((firstList && firstKey(firstList)) ?? 'header');
+  const isStage = (row: HomeRow | undefined) =>
+    row !== undefined && row.key === home.data.heroRow && row.items.length > 0;
+  const stageLeads = isStage(rows[0]);
+  // The focus starts where the page starts: on the stage's play button when the stage is on top,
+  // else on the first card of the first row, also when the stage stands further down the list.
+  const defaultFocusKey = stageLeads ? HERO_PLAY_KEY : ((rows[0] && firstKey(rows[0])) ?? 'header');
+  // The eager posters belong to the first poster row, wherever the stage stands.
+  const firstPosterRow = rows.find((row) => !isStage(row));
+  // Without a stage the first card is the page's first image: it is fetched with high priority,
+  // like the server's preload of it (P-10). With a stage the band goes first and no card competes.
+  const posterLeads = !rows.some(isStage);
 
-  const slides: HeroSlide[] = (picks?.items ?? []).map((item) => ({
-    id: item.id,
-    title: item.title,
-    backdropUrl: imageUrl(item.images.backdrop),
-    backdropSmallUrl: imageUrl(item.images.backdropSmall),
-    posterUrl: imageUrl(item.images.poster),
-    meta: <ItemMeta item={item} />,
-    note: item.note,
-    playHref: paths.play(item.id),
-    detailsHref: paths.item(item.id),
-  }));
+  const slides = (row: HomeRow): HeroSlide[] =>
+    row.items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      backdropUrl: imageUrl(item.images.backdrop),
+      backdropSmallUrl: imageUrl(item.images.backdropSmall),
+      posterUrl: imageUrl(item.images.poster),
+      posterSmallUrl: imageUrl(item.images.posterSmall),
+      meta: <ItemMeta item={item} />,
+      note: item.note,
+      hasTrailer: item.hasTrailer,
+      playHref: paths.play(item.id),
+      detailsHref: paths.item(item.id),
+    }));
+
+  const posterRow = (row: HomeRow) => {
+    const title = t(rowTitleKey[row.key]);
+    const focusKey = `row-${row.key}`;
+    const eagerRow = row === firstPosterRow;
+    if (row.key === 'genres') {
+      return (
+        <Row key={row.key} title={title} focusKey={focusKey} variant="chips">
+          {(row.genres ?? []).map((genre) => (
+            <GenreChip
+              key={genre.name}
+              focusKey={`${row.key}-${genre.name}`}
+              href={genreHref(genre.name)}
+              name={genre.name}
+              count={genre.count}
+            />
+          ))}
+        </Row>
+      );
+    }
+    if (row.key === 'collections') {
+      return (
+        <Row key={row.key} title={title} focusKey={focusKey}>
+          {(row.collections ?? []).map((collection, itemIndex) => (
+            <CollectionCard
+              key={collection.id}
+              focusKey={`${row.key}-${collection.id}`}
+              href={paths.collection(collection.id)}
+              name={collection.name}
+              caption={t('collection.count', { count: collection.count })}
+              posterUrl={imageUrl(collection.cover?.images.poster)}
+              posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
+              accent={collection.cover?.accent}
+              eager={eagerRow && itemIndex < EAGER_POSTERS}
+              deferImage={heroHasArt && !heroShown}
+            />
+          ))}
+        </Row>
+      );
+    }
+    return (
+      <Row key={row.key} title={title} focusKey={focusKey}>
+        {row.items.map((item, itemIndex) => (
+          <PosterCard
+            key={item.id}
+            focusKey={cardKey(row, item)}
+            href={paths.item(item.id)}
+            title={item.title}
+            caption={cardCaption(t, row, item)}
+            posterUrl={imageUrl(item.images.poster)}
+            posterSmallUrl={imageUrl(item.images.posterSmall)}
+            accent={item.accent}
+            eager={eagerRow && itemIndex < EAGER_POSTERS}
+            priority={posterLeads && eagerRow && itemIndex === 0}
+            onImageShown={
+              posterLeads && eagerRow && itemIndex === 0 ? () => setPosterShown(true) : undefined
+            }
+            deferImage={heroHasArt && !heroShown}
+            shape={isAudioKind(item.kind) ? 'square' : 'poster'}
+            progress={
+              row.key === 'continue' && item.progress
+                ? {
+                    percent: item.progress.percent,
+                    label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
+                      percent: Math.round(item.progress.percent),
+                    }),
+                  }
+                : undefined
+            }
+          />
+        ))}
+      </Row>
+    );
+  };
 
   return (
     <SpatialPage defaultFocusKey={defaultFocusKey}>
       <main className={styles.home}>
         <VisuallyHidden as="h1">{t('home.title')}</VisuallyHidden>
-        {picks && (
-          <HeroCarousel
-            label={t('home.picks')}
-            slides={slides}
-            playLabel={t('item.play')}
-            detailsLabel={t('item.details')}
-            onArtShown={() => setHeroShown(true)}
-          />
-        )}
-        {lists.length > 0 && (
-          <div className={`${styles.rows} ${picks ? styles.underHero : styles.padded}`}>
-            {lists.map((row, rowIndex) => {
-              const title = t(rowTitleKey[row.key]);
-              const focusKey = `row-${row.key}`;
-              if (row.key === 'genres') {
+        {rows.length > 0 && (
+          // The rows start below the header, the framed band too when it leads (#hero-prepaint in
+          // global.css paints its first image at that place).
+          <div className={`${styles.rows} ${styles.padded}`}>
+            {rows.map((row) => {
+              if (isStage(row)) {
                 return (
-                  <Row key={row.key} title={title} focusKey={focusKey} variant="chips">
-                    {(row.genres ?? []).map((genre) => (
-                      <GenreChip
-                        key={genre.name}
-                        focusKey={`${row.key}-${genre.name}`}
-                        href={genreHref(genre.name)}
-                        name={genre.name}
-                        count={genre.count}
-                      />
-                    ))}
-                  </Row>
+                  <HeroCarousel
+                    key={row.key}
+                    label={t(rowTitleKey[row.key])}
+                    slides={slides(row)}
+                    playLabel={t('item.play')}
+                    detailsLabel={t('item.details')}
+                    trailerLabel={t('item.trailer')}
+                    onTrailerPress={setTrailerSlide}
+                    paused={trailerSlide !== undefined}
+                    onArtShown={() => setHeroShown(true)}
+                  />
                 );
               }
-              if (row.key === 'collections') {
-                return (
-                  <Row key={row.key} title={title} focusKey={focusKey}>
-                    {(row.collections ?? []).map((collection, itemIndex) => (
-                      <CollectionCard
-                        key={collection.id}
-                        focusKey={`${row.key}-${collection.id}`}
-                        href={paths.collection(collection.id)}
-                        name={collection.name}
-                        caption={t('collection.count', { count: collection.count })}
-                        posterUrl={imageUrl(collection.cover?.images.poster)}
-                        posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
-                        accent={collection.cover?.accent}
-                        eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
-                        deferImage={heroHasArt && !heroShown}
-                      />
-                    ))}
-                  </Row>
-                );
-              }
-              return (
-                <Row key={row.key} title={title} focusKey={focusKey}>
-                  {row.items.map((item, itemIndex) => (
-                    <PosterCard
-                      key={item.id}
-                      focusKey={cardKey(row, item)}
-                      href={paths.item(item.id)}
-                      title={item.title}
-                      caption={cardCaption(t, row, item)}
-                      posterUrl={imageUrl(item.images.poster)}
-                      posterSmallUrl={imageUrl(item.images.posterSmall)}
-                      accent={item.accent}
-                      eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
-                      deferImage={heroHasArt && !heroShown}
-                      shape={isAudioKind(item.kind) ? 'square' : 'poster'}
-                      progress={
-                        row.key === 'continue' && item.progress
-                          ? {
-                              percent: item.progress.percent,
-                              label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
-                                percent: Math.round(item.progress.percent),
-                              }),
-                            }
-                          : undefined
-                      }
-                    />
-                  ))}
-                </Row>
-              );
+              return posterRow(row);
             })}
           </div>
         )}
@@ -261,6 +316,15 @@ export function HomePage() {
               </div>
             )}
           </div>
+        )}
+        {trailerSlide && (
+          <Suspense fallback={null}>
+            <TrailerPanel
+              itemId={trailerSlide.id}
+              title={trailerSlide.title}
+              onClose={() => setTrailerSlide(undefined)}
+            />
+          </Suspense>
         )}
       </main>
     </SpatialPage>

@@ -42,6 +42,8 @@ const (
 	downloadFilePath      = "/downloads/{id}/file"
 	downloadSubtitlePath  = "/downloads/{id}/subtitles/{track}.vtt"
 	downloadSubtitleRoute = "/downloads/{id}/subtitles/{track}"
+	// adminImagePath serves the images of the administration tables system-wide (M11 step 5b).
+	adminImagePath = "/admin/items/{id}/images/{kind}/{size}"
 )
 
 var binaryRoutes = map[string]string{
@@ -57,6 +59,7 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + downloadSubtitlePath: "scoped",
 
 	"GET " + BasePath + backupDownloadPath: "admin",
+	"GET " + BasePath + adminImagePath:     "admin",
 }
 
 // Options configure NewHandler.
@@ -135,9 +138,11 @@ func NewHandler(o Options) http.Handler {
 		r.With(downloadAuth).Get(downloadFilePath, s.getDownloadFile)
 		r.With(downloadAuth).Get(downloadSubtitleRoute, s.getDownloadSubtitle)
 		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
+		r.With(authorize).Get(adminImagePath, s.getAdminItemImage)
 	})
-	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
-	// the start page's app shell then carries a preload header for its image (preload.go).
+	// The catalog names the first stage title, or the first title without a stage, when it
+	// implements heroPicker (discover.Service does); the start page's app shell then carries a
+	// preload header for its image (preload.go).
 	picker, _ := o.Catalog.(heroPicker)
 	r.Handle("/*", compressText(startPagePreload(o.Auth, picker, o.Logger)(o.Web)))
 	return r

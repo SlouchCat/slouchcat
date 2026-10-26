@@ -1,6 +1,11 @@
 # Aktueller Stand
 
-Stand: 23. Oktober 2026. **M0 bis M9 sind in `main`** (`https://github.com/SlouchCat/slouchcat`,
+Stand: 26. Oktober 2026. **M0 bis M10 sind in `main`** (`b87ac59`, Version 1.0.0 veröffentlicht), dazu
+nach 1.0 der Ordner-Browser (#34, #35), der Explorer-Entscheid (#37, #38) und die parallele CI (#36).
+**M11 «Spotlight und Kuratierung» ist gebaut und wartet auf dem Zweig `claude/m11-spotlight-7f52c5`
+auf die Abnahme** — der Abschnitt dazu steht gleich unten.
+
+Älterer Kopf (23. Oktober 2026): **M0 bis M9 sind in `main`** (`https://github.com/SlouchCat/slouchcat`,
 Pull Requests #1 bis #6, #9, #10, #11, #14 bis #23; zuletzt der Merge-Commit `f17351b`). Der CI-Lauf auf
 `f17351b` ist **grün** (Job `ci` 59.8 min, Job `image` 2.8 min) — der erste Lauf, der alle Korrekturen
 aus #18, #20 und #21 zusammen geprüft hat. Marco hat M8 und M9 am 23. Oktober am laufenden Container
@@ -39,6 +44,84 @@ unten). Die Übergabe an eine neue Hauptsession steht in `docs/dev/HANDOVER.md`.
 25. Oktober 2026). Die Schritte 1 bis 11 sind als PR #34 (Merge-Commit `b551a63`) in `main`; die
 Schritte 12 bis 14 stehen auf dem Zweig `claude/bibliothek-wurzeln`. Der Abschnitt dazu steht gleich
 unten.
+
+## Meilenstein M11 – Spotlight und Kuratierung (26. Oktober 2026, Zweig `claude/m11-spotlight-7f52c5`)
+
+Plan: `docs/planning/05-plan-spotlight.md` (Schritte 0 bis 9), Entscheide als Frage 11 in
+`docs/planning/04-entscheidungen.md`, ADR `docs/adr/0011-spotlight.md`, Messwerte `docs/perf/M11.md`.
+Marco hat die Schritte 0 bis 4 am 26. Oktober 2026 abgenommen und die Schritte 5 bis 9 freigegeben. Nicht
+gepusht, kein PR. Die Umsetzung lief mit oh-my-claudecode: Fundament, Vertrag, Reviews und Commits in
+der Hauptsitzung, die Hälften je Schritt über `executor`-Agenten auf getrennten Dateien.
+
+### Die Commits
+
+| Schritt | Commit | Inhalt | `task ci` |
+|---|---|---|---|
+| 0 | `d27bad6` | Frage 11 mit elf Antworten und fünf Folgeentscheiden, ADR 0011, Hinweis in ADR 0008; Anker des Plans von `2ca2282` auf `b87ac59` nachgezogen (69 Zeilenangaben geprüft), Migrationsnummer 00021 | grün (428) |
+| 1 | `327b7cd` | Migration 00021 (`home_rows` neu, `spotlight_config/entries/overrides`, Übergang der Trending-Zeilen, `trakt_lists` weg, Index `items_released`), Vertrag 1.1.0 (`HomeRowKey`, `heroRow`, `hasTrailer`, `note` 280, `TraktStatus`), 47 Dateien | grün (428) |
+| 2 | `1ee7493` | sieben Listenarten mit Pfadtabelle, Benutzerliste per Adresse mit Nachfilter, Watchlist abgelehnt; Overrides mit der Ordnungsregel (dedup, einfügen, schneiden), `min_hits` vor dem Schnitt, kein Abfragefenster | grün (428) |
+| 3 | `f42670a` | Reihe «Kürzlich veröffentlicht» (12 Monate, Serien über die neueste sichtbare Folge) | grün (428) |
+| 4 | `1143e0c` | fünf Admin-Operationen, `HomePage.heroRow`, `FirstHero`, Prepaint nur zuoberst, `hasTrailer` in zwei Reihen | 427 + Flake-Rerun |
+| 5 | `1f684f3` | Admin-Seite `/admin/spotlight` nach Mockup H, Symbol, Tastatur-Spec | grün (430) |
+| 5b | `fb6b5a1` | Admin-Bildroute `getAdminItemImage`, `posterUrl`, Picks-Seite nach Mockup I | grün (430) |
+| 6 | `c84d242` | Seite «Startseite» ohne Trakt-Block, Mock mit den S-2-Listen | grün (430) |
+| Fix | `4638000` | manueller Spotlight-Abruf mit Priorität 7, wartender Auftrag wird angehoben (eigener Commit, Entscheid vom 26.10.) | grün (430) |
+| 7a | `04e6ed6` | Startseite liest `heroRow`, Band an seiner Stelle | grün (434) |
+| 7b | `c03d050` | gerahmtes Band mit Posterleiste, fünf Storybook-Baselines; Revert-Probe grün | grün (438) |
+| 8 | `176cd1b` | Trailer-Knopf an der Bühne | grün (440) |
+| 9 | `926101f`, `ba236d4` | Doku, Belege, Messwerte | grün (440) |
+| Folge | `3a4b4c9` | ohne Bühne: `Link`-Preload des ersten Posters, `fetchpriority="high"` (Entscheid vom 26.10.) | grün (440) |
+| Folge | `db9d364` | ohne Bühne: Prepaint der ersten sechs Poster im Shell (`#poster-prepaint`), Ablösung nach dem ersten gezeichneten Poster, Deckungstest in e2e (Entscheid vom 26.10.) | grün (440) |
+
+### Abnahmezeilen (Spec-IDs und Plan-Kriterien)
+
+| Zeile | Stand | Beleg |
+|---|---|---|
+| E-1 Karussell zuoberst | **Abweichung, entschieden (Frage 11, S-1):** die Bühne ist `spotlight` und steht an ihrer gespeicherten Stelle; Cat's Empfehlungen ist Posterzeile | `go test ./internal/discover -run 'HeroRow|FirstHero'`, `web/e2e/home.spec.ts` («spotlight on a later position», «no stage») |
+| E-2 Cat's Empfehlungen handgepflegt | PASS, inhaltlich unverändert; Admin-Seite nach Mockup I mit Nr., Poster, Hinweiszeile | `web/e2e/admin-picks.spec.ts`, `PicksPage.test.tsx` |
+| E-7 Trakt-Reihen | **Abweichung, entschieden (S-2, S-3):** eine wählbare Liste statt zwei feste; Anzahl 5–20, Mindesttreffer 0–10, Intervall 6–48 h | `go test ./internal/trakt` (Pfad je Listenart), `go test ./internal/admin -run Spotlight`, `web/e2e/admin-spotlight.spec.ts` |
+| E-9 höchstens acht Reihen, Reihenfolge vom Hauptbenutzer | PASS wörtlich; Startwert `spotlight, picks, continue, recent, released, watchlist, collections, genres` | `TestHomeRowKeysAgree`, `TestFrozenStatesMigrate` (M1a–M10), `TestContractHomeRows` |
+| I-7 nur Server-Schlüssel, nichts gesendet | PASS; Watchlist-Adressen 422; `list_url` nie im Log (`listurl` in der Redaction-Liste) | `TestContractNoTraktPerProfile`, `TestSpotlightUserListSecrets`, `TestFetchUserListErrorsHideAddress` |
+| W-10 Trailer von der Detailseite | **Erweiterung (Frage 11):** zusätzlich an der Bühne, nur bei `hasTrailer`; offline nicht ausgeblendet (offener Punkt) | `web/e2e/home.spec.ts` («the trailer button on the stage») |
+| A-2 Verwaltung an einem Ort | PASS: Karte und Navigationseintrag «Spotlight» in der Gruppe Kuratierung | `web/e2e/admin-home.spec.ts` (17 Karten) |
+| C-5 Vertrag ehrlich | PASS: Fassung 1.1.0, Enum getauscht, sechs neue Operationen, jede mit `x-visibility` und Registry-Eintrag | `TestContractCoversEveryOperation`, `TestEveryRouteHasVisibility`, `TestBinaryRoutesMatchContract` |
+| K-3 Sichtbarkeit je Profil | PASS: Spotlight und «Kürzlich veröffentlicht» über `visible_items`, Admin-Zahlen systemweit | `go test ./internal/store -run Scoped`, `TestSpotlightRowIntersection`, `TestReleasedSeriesWithInvisibleNewestEpisode` |
+| P-10 LCP < 2.5 s | **Mit Bühne PASS: 1.652 s** (M10: 1.802 s). **Ohne Bühne PASS: 2.328 s** nach den zwei Folge-Commits (`3a4b4c9` Preload: 4.031 s, `db9d364` Prepaint: 2.328 s; vorher 4.101 s). Abstand zur Grenze 172 ms, CLS 0 | `docs/perf/M11.md` 3a–3d |
+| P-11 Startseiten-API < 300 ms p95 | PASS unter Last: 232.7 ms auf `m11-s6` mit gefüllter Liste (CT 190 während des `segments.detect`-Nachlaufs, Last 17 auf 2 vCPU; M10 auf ruhigem Server 105.4 ms); Lauf auf ruhigem Server offen | `docs/perf/M11.md` 1 und 2 |
+
+### Planabweichungen und Befunde
+
+- `POST /admin/trakt/refresh` blieb bis Schritt 4 im Vertrag (sonst zwischen 1 und 4 kein Endpunkt für
+  Knopf und drei Specs); die fünf Operationen kamen in Schritt 4 (strict server braucht Handler).
+- sqlc parst keine Window-Funktion: die Migration zählt den Rang korreliert.
+- Die Minutensperre von `refreshSpotlight` trifft die e2e-Suite (ein Server für alle Worker): der Helfer
+  wartet bei 429, der Knopftest akzeptiert 202 oder 429.
+- `itemsaccess` verbietet Titel-SQL auch in `discover_test.go`: Fixture-Helfer liegen in
+  `visibility/vistest`. `task server:gen:check` diffs gegen den Index: vor `task ci` alles stagen.
+- **Produktfehler, behoben (`4638000`):** der manuelle Spotlight-Abruf reihte mit Priorität 2 ein und wartete
+  auf CT 190 hinter 1683 `segments.detect`-Aufträgen (Tage). Jetzt Priorität 7 und Anheben des wartenden
+  Auftrags; nächtlicher Lauf unverändert; ADR 0002 ergänzt.
+- Der Storybook-Gate hat den dritten Knopf am Band nicht erkannt (dunkler Knopf auf dunklem Backdrop
+  unter der Pixelschwelle); die Baselines mussten mit `--update-snapshots=all` neu geschrieben werden.
+- Lighthouse-Methode: seit dem Gerätecookie braucht die `Cookie`-Kopfzeile beide Cookies, und
+  `--browse-roots` muss die Bibliothek umfassen (`docs/perf/M11.md` 3).
+- Kein Select-Bauteil in `web/src/ui`: die Auswahlfelder der Spotlight-Seite sind `RadioGroup`s.
+
+### Offen
+
+- P-10 ohne Bühne: erfüllt (2.328 s), aber nur 172 ms unter der Grenze; `uses-responsive-images`
+  (w400-Poster für 136 px breite Karten, 280 KiB) ist der nächste Hebel, falls der Abstand nicht reicht.
+- P-11 auf ruhigem Server (CT 190 arbeitet den `segments.detect`-Nachlauf ab) und der Vergleichslauf auf
+  `m11-s2`; `GET /` (LCP-Pfad) ist über die Lighthouse-Läufe mit abgedeckt.
+- Mockup-I-Abnahme am laufenden Container (Image `m11-s8` liegt auf CT 190).
+- Trailer-Knopf an der Bühne offline ausblenden wie auf der Detailseite (Folge-Commit).
+- Ausstiegsklausel D3 → D1 nach der Messung des `EXISTS` auf ruhigem Server.
+- Eingefrorener Stand `testdata/db/M11.sql` nach der Freigabe; Release-Notes für die brechende
+  Vertragsänderung 1.1.0 beim nächsten Tag.
+
+CT 190 stand vor M11 auf `ci-parallel` (`v1.0.0-46-gb87ac59`); Sicherungen `.env.bak-vor-m11-s2` und
+`/config/backups/pre-migration-v1.0.0-49-g1ee7493-20261025T232327.523Z.db`. Migration 00021 ist dort
+gelaufen; ein Rückweg führt über die Datenbanksicherung (nur vorwärts, Regel 5).
 
 ## Nach 1.0: die CI läuft in parallelen Jobs (25. Oktober 2026)
 
