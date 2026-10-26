@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { refreshTrakt, traktMockStatus } from './discover';
+import { refreshSpotlight, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -170,10 +170,10 @@ test('a provoked error shows on the dashboard within 10 s (A-3)', async ({ page,
   const integrations = page.getByRole('region', { name: 'Integrationen', exact: true });
   await expect(integrations.getByText(/^Trakt: /)).toBeVisible();
   try {
-    // Trakt is down; "Jetzt aktualisieren" runs the job at once.
+    // Trakt is down; the spotlight refresh runs the job at once.
     await traktMockStatus(503);
     const provoked = Date.now();
-    await refreshTrakt(owner);
+    await refreshSpotlight(owner);
     await expect(integrations.getByText('Trakt: Fehler')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('list', { name: 'Fehler aus dem Server-Log' })).toContainText(
       /trakt/i,
@@ -186,7 +186,7 @@ test('a provoked error shows on the dashboard within 10 s (A-3)', async ({ page,
   } finally {
     // A failed refresh empties the Trakt lists (I-7): fetch them again for the later specs.
     await traktMockStatus(200);
-    await refreshTrakt(owner);
+    await refreshSpotlight(owner);
     await expect
       .poll(
         async () =>

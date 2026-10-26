@@ -2,7 +2,7 @@ import type { HomeRowSetting, TraktStatus } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { json, mockApi, renderApp, signedIn } from '@/test/api';
 
 const keys = [
   'spotlight',
@@ -32,7 +32,7 @@ const rowNames = () =>
     .getAllByRole('rowheader')
     .map((cell) => cell.textContent);
 
-describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
+describe('admin start page rows (M7, E-9)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -43,7 +43,6 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
       ...signedIn,
       'GET /admin/home-rows': () => json(defaultRows),
       'PUT /admin/home-rows': (call) => json(call.body),
-      'GET /admin/trakt': () => json(configured),
     });
     renderApp('/admin/home-rows');
     const user = userEvent.setup();
@@ -97,62 +96,23 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
     ).toHaveTextContent('Startseite');
   });
 
-  it('shows the Trakt state and queues a refresh', async () => {
+  it('leaves the Trakt status to the spotlight page and links there in one line', async () => {
+    // The status endpoint still answers, so a status table would have data to show.
     const { calls } = mockApi({
       ...signedIn,
       'GET /admin/home-rows': () => json(defaultRows),
-      'GET /admin/trakt': () =>
-        json({ ...configured, lastError: 'trakt_unavailable: HTTP 503' } satisfies TraktStatus),
-      'POST /admin/spotlight/refresh': () => new Response(null, { status: 202 }),
-    });
-    renderApp('/admin/home-rows');
-    const user = userEvent.setup();
-
-    const section = await screen.findByRole('region', { name: 'Trakt' });
-    expect(await within(section).findByText('Ja')).toBeVisible();
-    expect(within(section).getByText('Trending')).toBeVisible();
-    expect(within(section).getByText('40')).toBeVisible();
-    expect(within(section).getByText('trakt_unavailable: HTTP 503')).toBeVisible();
-    await user.click(within(section).getByRole('button', { name: 'Jetzt aktualisieren' }));
-    expect(await within(section).findByText('Die Trakt-Listen werden abgerufen.')).toBeVisible();
-    expect(calls.some((call) => call.path === '/admin/spotlight/refresh')).toBe(true);
-  });
-
-  it('without a client id the refresh is refused with a notice', async () => {
-    mockApi({
-      ...signedIn,
-      'GET /admin/home-rows': () => json(defaultRows),
-      'GET /admin/trakt': () =>
-        json({ configured: false, listKey: 'trending', entries: 0 } satisfies TraktStatus),
-      'POST /admin/spotlight/refresh': () => problem(422, 'provider_not_configured'),
-    });
-    renderApp('/admin/home-rows');
-    const user = userEvent.setup();
-
-    const section = await screen.findByRole('region', { name: 'Trakt' });
-    expect(await within(section).findByText(/Trakt ist nicht eingerichtet/)).toBeVisible();
-    expect(within(section).getByText('Nein')).toBeVisible();
-    expect(within(section).getAllByText('Noch nie')).toHaveLength(2);
-    await user.click(within(section).getByRole('button', { name: 'Jetzt aktualisieren' }));
-    expect(
-      await within(section).findByText(/Dieser Anbieter ist nicht eingerichtet/),
-    ).toBeVisible();
-  });
-
-  it('a refresh within a minute of the last one shows the rate-limit notice', async () => {
-    mockApi({
-      ...signedIn,
-      'GET /admin/home-rows': () => json(defaultRows),
       'GET /admin/trakt': () => json(configured),
-      'POST /admin/spotlight/refresh': () => problem(429, 'too_many_requests'),
     });
     renderApp('/admin/home-rows');
-    const user = userEvent.setup();
 
-    const section = await screen.findByRole('region', { name: 'Trakt' });
-    await user.click(await within(section).findByRole('button', { name: 'Jetzt aktualisieren' }));
-    expect(
-      await within(section).findByText(/vor weniger als einer Minute abgerufen/),
-    ).toBeVisible();
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    const link = screen.getByRole('link', { name: 'Zur Seite «Spotlight»' });
+    expect(link).toHaveAttribute('href', '/admin/spotlight');
+    expect(link.parentElement).toHaveTextContent(/Welche Trakt-Liste Spotlight zeigt/);
+    expect(screen.queryByRole('region', { name: 'Trakt' })).toBeNull();
+    expect(screen.queryAllByRole('term')).toHaveLength(0);
+    expect(screen.queryByText('Letzter erfolgreicher Abruf')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Jetzt aktualisieren' })).toBeNull();
+    expect(calls.some((call) => call.path === '/admin/trakt')).toBe(false);
   });
 });

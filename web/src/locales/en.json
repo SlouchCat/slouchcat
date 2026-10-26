@@ -1188,27 +1188,9 @@
       "down": "Move down",
       "downLabel": "Move {{row}} down",
       "moved": "{{row}} is now at position {{position}}. Save to apply it.",
-      "saved": "The start page is saved."
-    },
-    "trakt": {
-      "title": "Trakt",
-      "intro": "The Trakt lists “Trending” and “Popular”, fetched once a day with the server's key. Slouchcat sends nothing to Trakt.",
-      "notConfigured": "Trakt is not set up: without a client id (SLOUCHCAT_TRAKT_CLIENT_ID) the Trakt rows stay away.",
-      "configured": "Set up",
-      "yes": "Yes",
-      "no": "No",
-      "lastSuccess": "Last successful fetch",
-      "lastAttempt": "Last attempt",
-      "lastError": "Last error",
-      "never": "Never",
-      "noError": "–",
-      "list": "List",
-      "lists": {
-        "trending": "Trending"
-      },
-      "entries": "Entries",
-      "refresh": "Refresh now",
-      "queued": "The Trakt lists are being fetched."
+      "saved": "The start page is saved.",
+      "spotlight": "Which Trakt list Spotlight shows, when it was last fetched and whether Trakt is set up is shown under “Spotlight”.",
+      "spotlightLink": "Go to “Spotlight”"
     },
     "spotlight": {
       "title": "Spotlight",

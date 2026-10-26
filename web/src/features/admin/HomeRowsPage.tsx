@@ -2,14 +2,14 @@ import type { HomeRowKey, HomeRowSetting } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { codeMessage, problemMessage } from '@/api/errors';
+import { problemMessage } from '@/api/errors';
+import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { FactList, Notice, Page, Skeleton, Text } from '@/ui';
+import { Notice, Page, Skeleton, Text, TextLink } from '@/ui';
 import { AriaButton, DataTable, type DataColumn } from '@/ui/aria';
 import { moveBy, useMoveButtons } from './CurationParts';
-import { homeRowsQuery, refreshTrakt, setHomeRows, traktStatusQuery } from './queries';
+import { homeRowsQuery, setHomeRows } from './queries';
 import styles from './AdminTablePage.module.css';
 import curation from './Curation.module.css';
 
@@ -25,85 +25,10 @@ const rowTitleKey = {
   genres: 'home.rows.genres',
 } as const satisfies Record<HomeRowKey, string>;
 
-/** After "Jetzt aktualisieren" the status is asked again this often for a while. */
-const TRAKT_POLL_MS = 2000;
-const TRAKT_POLL_FOR_MS = 30_000;
-
-/**
- * Trakt (E-7, I-7): whether the server has a client id, when the lists were fetched, the last
- * error and the number of entries; "Jetzt aktualisieren" queues the daily job at once.
- */
-function TraktSection() {
-  const { t, i18n } = useTranslation();
-  const queryClient = useQueryClient();
-  const [pollUntil, setPollUntil] = useState(0);
-  const status = useQuery({
-    ...traktStatusQuery,
-    refetchInterval: () => (Date.now() < pollUntil ? TRAKT_POLL_MS : false),
-  });
-  const refresh = useMutation({
-    mutationFn: refreshTrakt,
-    onSuccess: async () => {
-      setPollUntil(Date.now() + TRAKT_POLL_FOR_MS);
-      await queryClient.invalidateQueries({ queryKey: traktStatusQuery.queryKey });
-    },
-  });
-  const date = (iso: string | undefined) =>
-    iso ? formatDateTime(iso, i18n.language) : t('admin.trakt.never');
-  // `trakt_unavailable: HTTP 503`: the code in words when the UI knows it, else the server's text.
-  const lastError = (text: string | undefined) => {
-    if (!text) return t('admin.trakt.noError');
-    const [code = ''] = text.split(':');
-    return codeMessage(t, code.trim()) ?? text;
-  };
-
-  return (
-    <section className={curation.section} aria-labelledby="admin-trakt">
-      <div className={styles.stack}>
-        <Text as="h2" variant="title">
-          <span id="admin-trakt">{t('admin.trakt.title')}</span>
-        </Text>
-        <Text tone="secondary">{t('admin.trakt.intro')}</Text>
-      </div>
-      {status.isPending && <Skeleton shape="block" />}
-      {status.isError && <Notice tone="danger">{problemMessage(t, status.error)}</Notice>}
-      {status.data && (
-        <>
-          {!status.data.configured && <Notice>{t('admin.trakt.notConfigured')}</Notice>}
-          <FactList
-            facts={[
-              [
-                t('admin.trakt.configured'),
-                status.data.configured ? t('admin.trakt.yes') : t('admin.trakt.no'),
-              ],
-              [t('admin.trakt.lastSuccess'), date(status.data.lastSuccess)],
-              [t('admin.trakt.lastAttempt'), date(status.data.lastAttempt)],
-              [t('admin.trakt.lastError'), lastError(status.data.lastError)],
-              [
-                t('admin.trakt.list'),
-                t(`admin.trakt.lists.${status.data.listKey}`, {
-                  defaultValue: status.data.listKey,
-                }),
-              ],
-              [t('admin.trakt.entries'), String(status.data.entries)],
-            ]}
-          />
-        </>
-      )}
-      {refresh.isError && <Notice tone="danger">{problemMessage(t, refresh.error)}</Notice>}
-      {refresh.isSuccess && <Notice>{t('admin.trakt.queued')}</Notice>}
-      <div>
-        <AriaButton icon="refresh" isPending={refresh.isPending} onPress={() => refresh.mutate()}>
-          {t('admin.trakt.refresh')}
-        </AriaButton>
-      </div>
-    </section>
-  );
-}
-
 /**
  * Start page (M7, E-9): the order of its eight rows for every profile, each with "Nach oben",
- * "Nach unten" and "Ausblenden"; "Speichern" stores them at once. Below, the Trakt lists.
+ * "Nach unten" and "Ausblenden"; "Speichern" stores them at once. Order and hiding live only here;
+ * the Trakt list behind Spotlight and its state are on the spotlight page, one line links there.
  */
 export function HomeRowsPage() {
   const { t } = useTranslation();
@@ -252,7 +177,10 @@ export function HomeRowsPage() {
               </div>
             )}
           </div>
-          <TraktSection />
+          <Text tone="secondary">
+            {t('admin.homeRows.spotlight')}{' '}
+            <TextLink href={paths.adminSpotlight}>{t('admin.homeRows.spotlightLink')}</TextLink>
+          </Text>
         </>
       )}
     </Page>

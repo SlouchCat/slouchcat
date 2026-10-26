@@ -282,9 +282,6 @@ export const setCollectionItems = (id: string, itemIds: string[]): Promise<Admin
 export const setHomeRows = (rows: HomeRowSetting[]): Promise<HomeRowSetting[]> =>
   request(api.PUT('/admin/home-rows', { body: rows }));
 
-// Queues the spotlight fetch (the Trakt section's "Jetzt aktualisieren").
-export const refreshTrakt = () => request(api.POST('/admin/spotlight/refresh'));
-
 export const setSpotlightConfig = (body: SpotlightConfigUpdate): Promise<SpotlightConfig> =>
   request(api.PUT('/admin/spotlight', { body }));
 

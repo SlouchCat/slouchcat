@@ -124,7 +124,7 @@ test('spotlight by keyboard: source, fetch, hide, pin and note an entry', async 
     await expectVisibleFocus(page);
 
     // "Jetzt abrufen": 202 queues the fetch; 429 means another spec fetched within the last minute
-    // (one manual fetch a minute, discover.ts refreshTrakt). Both answers show their notice.
+    // (one manual fetch a minute, discover.ts refreshSpotlight). Both answers show their notice.
     const refresh = source.getByRole('button', { name: 'Jetzt abrufen' });
     await fromTop();
     await tabTo(page, refresh, 60);

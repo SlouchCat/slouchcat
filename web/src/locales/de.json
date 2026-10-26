@@ -1188,27 +1188,9 @@
       "down": "Nach unten",
       "downLabel": "{{row}} nach unten",
       "moved": "{{row}} steht jetzt an Stelle {{position}}. Speichere, damit es gilt.",
-      "saved": "Die Startseite ist gespeichert."
-    },
-    "trakt": {
-      "title": "Trakt",
-      "intro": "Die Listen «Trending» und «Beliebt» von Trakt, einmal täglich mit dem Schlüssel des Servers abgerufen. Slouchcat sendet nichts an Trakt.",
-      "notConfigured": "Trakt ist nicht eingerichtet: Ohne Client ID (SLOUCHCAT_TRAKT_CLIENT_ID) bleiben die Trakt-Reihen weg.",
-      "configured": "Eingerichtet",
-      "yes": "Ja",
-      "no": "Nein",
-      "lastSuccess": "Letzter erfolgreicher Abruf",
-      "lastAttempt": "Letzter Versuch",
-      "lastError": "Letzter Fehler",
-      "never": "Noch nie",
-      "noError": "–",
-      "list": "Liste",
-      "lists": {
-        "trending": "Trending"
-      },
-      "entries": "Einträge",
-      "refresh": "Jetzt aktualisieren",
-      "queued": "Die Trakt-Listen werden abgerufen."
+      "saved": "Die Startseite ist gespeichert.",
+      "spotlight": "Welche Trakt-Liste Spotlight zeigt, wann sie zuletzt abgerufen wurde und ob Trakt eingerichtet ist, steht unter «Spotlight».",
+      "spotlightLink": "Zur Seite «Spotlight»"
     },
     "spotlight": {
       "title": "Spotlight",

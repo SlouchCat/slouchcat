@@ -1,7 +1,7 @@
 import { type Page } from '@playwright/test';
 import { EXTRAS_TITLE } from './catalog';
 import { createPick, deletePick } from './curation';
-import { homeRowKeys, refreshTrakt, ROW_TITLES, traktMockStatus } from './discover';
+import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -91,14 +91,14 @@ test('The spotlight row comes from the mock and goes while Trakt is down (E-7, I
   try {
     // Trakt down: the refresh fails, the list is emptied and the row disappears (I-7).
     await traktMockStatus(503);
-    await refreshTrakt(owner);
+    await refreshSpotlight(owner);
     await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual([]);
     await page.reload();
     await expect(recentRow(page)).toBeVisible();
     await expect(spotlight).toHaveCount(0);
   } finally {
     await traktMockStatus(200);
-    await refreshTrakt(owner);
+    await refreshSpotlight(owner);
     await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(only);
   }
 });

@@ -128,13 +128,13 @@ export async function resetTraktMock(): Promise<void> {
 }
 
 /**
- * "Jetzt aktualisieren" (admin API): queues the spotlight fetch, the job runs in the background.
- * The server allows one manual fetch a minute (429 `too_many_requests`, the stamp lives in the
- * database); the suite shares one server across its workers, so a second refresh within that
- * minute, from this test or another, is answered 429. The helper then waits and tries again until
- * the minute is over, instead of relaxing the rule for the test.
+ * "Jetzt abrufen" of the spotlight page (admin API): queues the spotlight fetch, the job runs in
+ * the background. The server allows one manual fetch a minute (429 `too_many_requests`, the stamp
+ * lives in the database); the suite shares one server across its workers, so a second refresh
+ * within that minute, from this test or another, is answered 429. The helper then waits and tries
+ * again until the minute is over, instead of relaxing the rule for the test.
  */
-export async function refreshTrakt(api: APIRequestContext): Promise<void> {
+export async function refreshSpotlight(api: APIRequestContext): Promise<void> {
   const deadline = Date.now() + 90_000;
   for (;;) {
     const response = await api.post('/api/v1/admin/spotlight/refresh', { headers: CSRF });
