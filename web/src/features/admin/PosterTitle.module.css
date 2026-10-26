@@ -1,0 +1,23 @@
+/* Poster (40 x 60) in front of the two lines of a title cell. */
+.row {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+.poster {
+  display: block;
+  flex: none;
+  width: var(--sc-space-10);
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--sc-radius-sm);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

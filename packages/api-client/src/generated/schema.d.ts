@@ -1520,6 +1520,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/images/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poster or backdrop of a title for the administration (binary, system-wide)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`, but without the
+         *     profile check: the administration is system-wide (M11 step 5b, ADR 0011), so the picks page
+         *     shows the poster of a pick for a child profile that the main profile may not watch. `kind`
+         *     is `poster` or `backdrop`, `size` one of the stored sizes (`w200` for the admin tables).
+         *     `AdminPick.posterUrl` and `SpotlightEntry.posterUrl` point here with `?v=<content hash>`
+         *     for cache busting; the address carries no profile id. 404 when no such image is stored.
+         *     Not cached by the service worker: the administration is no offline case.
+         */
+        get: operations["getAdminItemImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/rating": {
         parameters: {
             query?: never;
@@ -4586,6 +4612,11 @@ export interface components {
             endsAt?: string;
             /** Format: date-time */
             createdAt: string;
+            /**
+             * @description The poster (`w200`) through `getAdminItemImage`, system-wide and without profile id;
+             *     absent when no poster is stored (the page shows its placeholder).
+             */
+            posterUrl?: string;
         };
         PickRequest: {
             itemId: components["schemas"]["ItemID"];
@@ -4741,6 +4772,8 @@ export interface components {
             note?: string;
             /** @description The override has no entry in the fetched list. */
             orphaned: boolean;
+            /** @description The poster (`w200`) of the library hit through `getAdminItemImage`; absent without hit or poster. */
+            posterUrl?: string;
         };
         /**
          * @description The override of one entry. A field that is absent keeps its value; `null` clears it. An
@@ -9045,6 +9078,45 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Unknown title or trailer (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminItemImage: {
+        parameters: {
+            query?: {
+                /** @description Content hash of the image, cache busting only; the server ignores it. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                id: components["schemas"]["ItemID"];
+                kind: "poster" | "backdrop";
+                size: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such title or no such image (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

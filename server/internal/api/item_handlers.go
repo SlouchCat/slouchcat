@@ -317,6 +317,28 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
+// getAdminItemImage serves a poster or backdrop of a title for the administration tables (binary
+// endpoint, CLAUDE.md rule 6): system-wide, without a profile check (M11 step 5b); the session
+// middleware lets only the owner with the primary profile through (x-visibility admin). Like
+// getItemImage, v only busts caches and the format follows the Accept header.
+func (s *server) getAdminItemImage(w http.ResponseWriter, r *http.Request) {
+	id, kind, size := chi.URLParam(r, "id"), chi.URLParam(r, "kind"), chi.URLParam(r, "size")
+	if !imageKinds[kind] || !imageSizes[kind][size] {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Admin.ItemImage(r.Context(), id, kind, size, acceptsWebP(r.Header.Values("Accept")))
+	if err != nil {
+		s.p.mapError(w, r, err)
+		return
+	}
+	defer src.File.Close()
+	w.Header().Set("Content-Type", src.MediaType)
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
 // getItemStream serves the media file of a direct-play session with Range support (binary
 // endpoint, CLAUDE.md rule 6), authorised by the stream token (streamGrant): http.ServeContent
 // answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404. A
@@ -380,6 +402,21 @@ func abortOnRevoke(w http.ResponseWriter, done <-chan struct{}) func() {
 func imageURL(itemID string, img model.Image, profileID int64) string {
 	return BasePath + "/items/" + url.PathEscape(itemID) + "/images/" + img.Kind + "/" + img.Size + "?v=" + url.QueryEscape(img.ContentHash) +
 		"&p=" + strconv.FormatInt(profileID, 10)
+}
+
+// adminImageURL is the system-wide image URL of the administration (getAdminItemImage) with the
+// content hash for cache busting and, unlike imageURL, no profile id: no profile's cache is involved.
+func adminImageURL(itemID, kind, size, hash string) string {
+	return BasePath + "/admin/items/" + url.PathEscape(itemID) + "/images/" + kind + "/" + size + "?v=" + url.QueryEscape(hash)
+}
+
+// adminPosterURL is the poster URL of an administration table row, nil without poster.
+func adminPosterURL(itemID, hash string) *string {
+	if hash == "" {
+		return nil
+	}
+	u := adminImageURL(itemID, "poster", model.AdminPosterSize, hash)
+	return &u
 }
 
 func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef {

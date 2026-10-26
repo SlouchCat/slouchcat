@@ -3040,6 +3040,66 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/items/{id}/images/{kind}/{size}:
+    get:
+      operationId: getAdminItemImage
+      summary: Poster or backdrop of a title for the administration (binary, system-wide)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6), like `getItemImage`, but without the
+        profile check: the administration is system-wide (M11 step 5b, ADR 0011), so the picks page
+        shows the poster of a pick for a child profile that the main profile may not watch. `kind`
+        is `poster` or `backdrop`, `size` one of the stored sizes (`w200` for the admin tables).
+        `AdminPick.posterUrl` and `SpotlightEntry.posterUrl` point here with `?v=<content hash>`
+        for cache busting; the address carries no profile id. 404 when no such image is stored.
+        Not cached by the service worker: the administration is no offline case.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ItemID"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [poster, backdrop]
+        - name: size
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: v
+          in: query
+          required: false
+          description: Content hash of the image, cache busting only; the server ignores it.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The image.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: No such title or no such image (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/items/rating:
     post:
       operationId: setItemsRating
@@ -8602,6 +8662,11 @@ components:
         createdAt:
           type: string
           format: date-time
+        posterUrl:
+          type: string
+          description: |
+            The poster (`w200`) through `getAdminItemImage`, system-wide and without profile id;
+            absent when no poster is stored (the page shows its placeholder).
 
     PickRequest:
       type: object
@@ -8922,6 +8987,9 @@ components:
         orphaned:
           type: boolean
           description: The override has no entry in the fetched list.
+        posterUrl:
+          type: string
+          description: The poster (`w200`) of the library hit through `getAdminItemImage`; absent without hit or poster.
 
     SpotlightEntryOverride:
       type: object

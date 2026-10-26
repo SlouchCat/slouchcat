@@ -27,7 +27,8 @@ func fieldProblem(t *testing.T, rec *httptest.ResponseRecorder) string {
 	return (*p.Errors)[0].Field + " " + (*p.Errors)[0].Code
 }
 
-// adminCurationAnswer checks what every curation answer must hold: no ItemRef and no image URL.
+// adminCurationAnswer checks what every curation answer must hold: no ItemRef and no scoped URL
+// (posters go through getAdminItemImage, M11 step 5b).
 func adminCurationAnswer(t *testing.T, rec *httptest.ResponseRecorder, status int) {
 	t.Helper()
 	if rec.Code != status {
@@ -36,8 +37,8 @@ func adminCurationAnswer(t *testing.T, rec *httptest.ResponseRecorder, status in
 	if refs := itemRefsIn(t, rec); len(refs) != 0 {
 		t.Errorf("answer contains ItemRef objects %v", refs)
 	}
-	if strings.Contains(rec.Body.String(), "/images/") {
-		t.Errorf("answer contains image URLs: %s", rec.Body.String())
+	if strings.Contains(rec.Body.String(), `"`+BasePath+`/items/`) {
+		t.Errorf("answer contains scoped URLs: %s", rec.Body.String())
 	}
 }
 

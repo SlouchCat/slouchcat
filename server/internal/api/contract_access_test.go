@@ -259,6 +259,10 @@ var adminRegistry = map[string]adminCall{
 	"setSpotlightEntryOverride": {contract: "PATCH /admin/spotlight/entries/{media}/{tmdbId}", path: "/admin/spotlight/entries/movie/4242",
 		body: `{"hidden":true}`, ownerStatus: http.StatusNotFound},
 	"refreshSpotlight": {contract: "POST /admin/spotlight/refresh", path: "/admin/spotlight/refresh", ownerStatus: http.StatusUnprocessableEntity},
+	// M11 step 5b: the binary image route of the administration; an unknown title answers 404
+	// (TestContractAdminItemImage serves real images).
+	"getAdminItemImage": {contract: "GET /admin/items/{id}/images/{kind}/{size}", path: "/admin/items/" + unknownItemID + "/images/poster/w200",
+		ownerStatus: http.StatusNotFound},
 	// M8 administration: jobs 9999 do not exist; the fixture has no e-mail server (422
 	// email_not_configured), checks a mock manifest and writes backups into a temporary directory.
 	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
@@ -480,12 +484,12 @@ func TestContractAdminOperations(t *testing.T) {
 				t.Errorf("owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}
 			// Administration views name titles by id (unfiltered, owner only) but never as ItemRef,
-			// which carries scoped image URLs.
+			// which carries scoped image URLs; their posters go through getAdminItemImage (M11 5b).
 			if refs := itemRefsIn(t, rec); len(refs) != 0 {
 				t.Errorf("response contains ItemRef objects %v", refs)
 			}
-			if strings.Contains(rec.Body.String(), "/images/") {
-				t.Errorf("response contains image URLs: %s", rec.Body.String())
+			if strings.Contains(rec.Body.String(), `"`+BasePath+`/items/`) {
+				t.Errorf("response contains scoped URLs: %s", rec.Body.String())
 			}
 			assertNoSecrets(t, id, rec)
 		})

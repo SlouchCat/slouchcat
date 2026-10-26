@@ -101,7 +101,7 @@
   align-items: center;
 }
 
-/* A hidden entry: its title at half strength, as on the mockup. */
+/* A hidden entry: its poster and title at half strength, as on the mockup. */
 .dimmed {
   opacity: 0.5;
 }

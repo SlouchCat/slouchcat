@@ -68,7 +68,8 @@ test('picks page by keyboard: add with a note, move to the top, time window, rem
       .getByRole('navigation', { name: 'Verwaltung' })
       .getByRole('link', { name: "Cat's Empfehlungen" }),
   ).toHaveAttribute('aria-current', 'page');
-  const table = page.getByRole('table', { name: 'Empfehlungen in der Reihenfolge des Karussells' });
+  const card = page.getByRole('region', { name: 'Empfehlungen in der Reihenfolge der Reihe' });
+  const table = card.getByRole('table', { name: 'Empfehlungen in der Reihenfolge der Reihe' });
   const row = (title: string) =>
     table
       .getByRole('row')
@@ -217,6 +218,21 @@ test('picks page by keyboard: add with a note, move to the top, time window, rem
   await expect(
     page.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" }).locator('..'),
   ).toBeFocused();
+  await expectNoFocusTrap(page);
+
+  // The hint under the table (mockup I) is one more Tab stop: it opens the start page settings,
+  // where the order of the rows lives; Back returns, and from the link Tab still leaves the page.
+  const homeRows = card.getByRole('link', { name: 'Startseite', exact: true });
+  // From "Hinzufügen", as above (Firefox starts Tab after a blurred element).
+  await add.focus();
+  await tabTo(page, homeRows, 60);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin\/home-rows$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/picks$/);
+  await expect(homeRows).toBeVisible();
+  await homeRows.focus();
   await expectNoFocusTrap(page);
 });
 

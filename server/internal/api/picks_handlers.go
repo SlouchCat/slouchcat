@@ -196,6 +196,7 @@ func toAdminPick(p model.AdminPick) gen.AdminPick {
 		Id: p.ID, ItemId: p.ItemID, Kind: gen.ItemKind(p.Kind), Title: p.Title, Year: p.Year,
 		ProfileId: p.ProfileID, ProfileName: optString(p.ProfileName), Position: p.Position, Note: optString(p.Note),
 		StartsAt: utc(p.StartsAt), EndsAt: utc(p.EndsAt), CreatedAt: p.CreatedAt.UTC(),
+		PosterUrl: adminPosterURL(p.ItemID, p.PosterHash),
 	}
 }
 

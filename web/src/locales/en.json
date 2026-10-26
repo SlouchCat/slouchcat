@@ -1021,13 +1021,23 @@
     },
     "picks": {
       "title": "Cat's picks",
-      "intro": "Titles in the start page carousel, for every profile or for single ones. Each profile only sees titles of its age rating and only within the chosen time window.",
-      "list": "Picks in carousel order",
+      "intro": "Hand-picked titles as a row of their own on the start page. For every profile or for single ones; each profile only sees titles of its age rating and only within the chosen time window.",
+      "list": "Picks in the order of the row",
       "empty": "No picks yet. Without picks the start page shows no carousel.",
       "allProfiles": "Everyone",
       "noNote": "–",
+      "quoted": "“{{note}}”",
+      "count": {
+        "entries_one": "{{count}} entry",
+        "entries_other": "{{count}} entries",
+        "planned_one": "{{count}} scheduled",
+        "planned_other": "{{count}} scheduled",
+        "both": "{{entries}} · {{planned}}"
+      },
+      "homeRowsHint": "Where the row stands on the start page and whether it appears is set under <page>Start page</page>.",
       "moved": "{{title}} is now at position {{position}}.",
       "columns": {
+        "position": "No.",
         "title": "Title",
         "target": "For",
         "note": "Note",

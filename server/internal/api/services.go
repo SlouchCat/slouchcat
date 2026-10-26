@@ -227,6 +227,10 @@ type AdminService interface {
 	SendTestEmail(ctx context.Context, to string) error
 	// RotatePushKeys creates a new VAPID pair and deletes every push subscription.
 	RotatePushKeys(ctx context.Context) (model.AdminSettings, error)
+	// ItemImage opens a stored image of a title system-wide, without a profile check
+	// (getAdminItemImage, M11 step 5b): WebP when preferWebP and stored, else JPEG.
+	// model.ErrNotFound for an unknown or deleted title, a missing image or a row without file.
+	ItemImage(ctx context.Context, itemID, kind, size string, preferWebP bool) (model.StreamSource, error)
 	// Backup and restore (A-4). Names are file names of ListBackups (model.ErrNotFound otherwise).
 	// CreateBackup: model.ErrPassphraseRequired, model.ErrPassphraseTooShort. The restores stage the
 	// archive and schedule the restart: model.ErrBackupInvalid, model.ErrPassphraseRequired,

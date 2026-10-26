@@ -203,6 +203,51 @@ func (q *Queries) AdminDeleteTopPick(ctx context.Context, id int64) (int64, erro
 	return result.RowsAffected()
 }
 
+const adminGetItemImage = `-- name: AdminGetItemImage :one
+
+SELECT im.rel_path, im.media_type, im.content_hash, im.created_at
+FROM images AS im
+JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
+WHERE im.item_id = ?1 AND im.kind = ?2 AND im.size = ?3 AND im.size <> 'original'
+  AND im.format IN (?4, 'jpeg')
+ORDER BY im.format = 'jpeg'
+LIMIT 1
+`
+
+type AdminGetItemImageParams struct {
+	ItemID string
+	Kind   string
+	Size   string
+	Format string
+}
+
+type AdminGetItemImageRow struct {
+	RelPath     string
+	MediaType   string
+	ContentHash string
+	CreatedAt   int64
+}
+
+// Images of the administration (getAdminItemImage, M11 step 5b): system-wide, without a profile.
+// Like the scoped GetItemImage, a deleted title has no image and the kept original is never served.
+// One stored image of a title: WebP when asked and stored, else JPEG.
+func (q *Queries) AdminGetItemImage(ctx context.Context, arg AdminGetItemImageParams) (AdminGetItemImageRow, error) {
+	row := q.db.QueryRowContext(ctx, adminGetItemImage,
+		arg.ItemID,
+		arg.Kind,
+		arg.Size,
+		arg.Format,
+	)
+	var i AdminGetItemImageRow
+	err := row.Scan(
+		&i.RelPath,
+		&i.MediaType,
+		&i.ContentHash,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const adminGetTopPick = `-- name: AdminGetTopPick :one
 SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
        i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
@@ -522,6 +567,60 @@ func (q *Queries) AdminListOrphaned(ctx context.Context, arg AdminListOrphanedPa
 			&i.LibraryID,
 			&i.Detail,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const adminListPosters = `-- name: AdminListPosters :many
+SELECT im.item_id, im.content_hash
+FROM images AS im
+JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
+WHERE im.size = ?1 AND im.kind = 'poster' AND im.format = 'jpeg' AND im.item_id IN (/*SLICE:item_ids*/?)
+`
+
+type AdminListPostersParams struct {
+	Size    string
+	ItemIds []string
+}
+
+type AdminListPostersRow struct {
+	ItemID      string
+	ContentHash string
+}
+
+// The poster of each title in one size (one row per title, the JPEG row: the URL only needs the
+// content hash, the handler picks the format by Accept); titles without that poster are absent.
+// @size comes before the slice: sqlc numbers it ?2 otherwise, which the expanded slice takes.
+func (q *Queries) AdminListPosters(ctx context.Context, arg AdminListPostersParams) ([]AdminListPostersRow, error) {
+	query := adminListPosters
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Size)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminListPostersRow{}
+	for rows.Next() {
+		var i AdminListPostersRow
+		if err := rows.Scan(&i.ItemID, &i.ContentHash); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

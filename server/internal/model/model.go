@@ -762,7 +762,11 @@ type AdminPick struct {
 	StartsAt    *time.Time
 	EndsAt      *time.Time
 	CreatedAt   time.Time
+	PosterHash  string // content hash of the AdminPosterSize poster; "" = none stored
 }
+
+// AdminPosterSize is the poster size of the administration tables (posterUrl, M11 step 5b).
+const AdminPosterSize = "w200"
 
 // PickRequest creates picks: one global pick, or one per profile in ProfileIDs.
 type PickRequest struct {
@@ -879,6 +883,7 @@ type SpotlightEntry struct {
 	PinnedRank *int
 	Note       string
 	Orphaned   bool
+	PosterHash string // content hash of the hit's AdminPosterSize poster; "" = no hit or none stored
 }
 
 // SpotlightOverrideUpdate is the body of setSpotlightEntryOverride: a nil pointer keeps the value,

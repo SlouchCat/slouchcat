@@ -1,5 +1,5 @@
 import type { AdminItem, AdminItemHit, AdminPick } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ids, profiles } from '@/test/fixtures';
@@ -14,6 +14,7 @@ const heatPick: AdminPick = {
   position: 0,
   note: 'Ein Klassiker',
   createdAt: '2026-10-01T10:00:00Z',
+  posterUrl: `/api/v1/admin/items/${ids.heat}/images/poster/w200?v=heat`,
 };
 const arrivalPick: AdminPick = {
   id: 12,
@@ -82,24 +83,76 @@ describe('admin picks page (M7, E-2)', () => {
     renderApp('/admin/picks');
 
     const table = await screen.findByRole('table', {
-      name: 'Empfehlungen in der Reihenfolge des Karussells',
+      name: 'Empfehlungen in der Reihenfolge der Reihe',
     });
     const rows = within(table).getAllByRole('row');
     expect(rows).toHaveLength(3);
     expect(within(rows[1]!).getByRole('rowheader')).toHaveTextContent('Heat');
     expect(within(rows[1]!).getByText('Film · 1995')).toBeVisible();
     expect(within(rows[1]!).getByText('Alle')).toBeVisible();
-    expect(within(rows[1]!).getByText('Ein Klassiker')).toBeVisible();
+    expect(within(rows[1]!).getByText('«Ein Klassiker»')).toBeVisible();
     expect(within(rows[1]!).getByText('Immer')).toBeVisible();
     expect(within(rows[2]!).getByText('Lena')).toBeVisible();
     expect(within(rows[2]!).getByText(/ bis /)).toBeVisible();
     expect(within(rows[2]!).getByText('Abgelaufen')).toBeVisible();
+    expect(screen.getByText('2 Einträge')).toBeVisible();
     // The ends of the list cannot move further.
     expect(within(rows[1]!).getByRole('button', { name: 'Heat nach oben' })).toBeDisabled();
     expect(within(rows[2]!).getByRole('button', { name: 'Arrival nach unten' })).toBeDisabled();
     expect(
       screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
     ).toHaveTextContent("Cat's Empfehlungen");
+  });
+
+  it('numbers the picks, shows their posters, counts the planned ones and points to the start page', async () => {
+    const planned: AdminPick = { ...alienPick, startsAt: '2099-01-01T10:00:00Z' };
+    // Positions with a gap, as after a removal: "Nr." is the place in the row.
+    mockApi({
+      ...routes,
+      'GET /admin/picks': () => json([heatPick, arrivalPick, { ...planned, position: 4 }]),
+    });
+    renderApp('/admin/picks');
+
+    const card = await screen.findByRole('region', {
+      name: 'Empfehlungen in der Reihenfolge der Reihe',
+    });
+    const table = await within(card).findByRole('table');
+    expect(within(table).getAllByRole('columnheader')[0]).toHaveTextContent('Nr.');
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
+    expect(within(card).getByText('3 Einträge · 1 geplant')).toBeVisible();
+    expect(within(rows[2]!).getByText('Geplant')).toBeVisible();
+
+    // The poster sits in the row header and adds no text to it (alt="").
+    const heat = within(rows[0]!).getByRole('rowheader');
+    expect(heat.textContent).toBe('HeatFilm · 1995');
+    const poster = heat.querySelector('img');
+    expect(poster).toHaveAttribute('alt', '');
+    expect(poster).toHaveAttribute('src', heatPick.posterUrl);
+    expect(within(heat).queryByRole('img')).toBeNull();
+    // Without a poster the placeholder, not a broken image.
+    const arrival = within(rows[1]!).getByRole('rowheader');
+    expect(arrival.textContent).toBe('ArrivalFilm · 2016');
+    expect(arrival.querySelector('img')).toBeNull();
+    expect(arrival.querySelector('svg')).not.toBeNull();
+    // An image that fails to load gives way to the placeholder as well.
+    fireEvent.error(poster!);
+    expect(heat.querySelector('img')).toBeNull();
+    expect(heat.querySelector('svg')).not.toBeNull();
+
+    // The order of the rows on the start page lives on its own page: the hint links there.
+    const hint = within(card).getByText(/^Wo die Reihe auf der Startseite steht/);
+    expect(hint).toHaveTextContent(
+      'Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter Startseite ein.',
+    );
+    expect(within(hint).getByRole('link', { name: 'Startseite' })).toHaveAttribute(
+      'href',
+      '/admin/home-rows',
+    );
   });
 
   it('"Nach unten" sends the whole new order; the focus stays with the moved title', async () => {

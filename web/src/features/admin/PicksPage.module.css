@@ -1,0 +1,51 @@
+/* Page head (mockup I): heading and intro on the left, "Hinzufügen" on the right. */
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4) var(--sc-space-8);
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--sc-space-8);
+}
+
+.intro {
+  display: flex;
+  flex: 1 1 28rem;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 44rem;
+}
+
+/* Card heading with the count of the picks on its right. */
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.small {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+}
+
+.note {
+  font-style: italic;
+}
+
+.dot {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* The line under the table that points to the start page settings. */
+.hint {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

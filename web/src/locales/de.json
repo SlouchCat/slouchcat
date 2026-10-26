@@ -1021,13 +1021,23 @@
     },
     "picks": {
       "title": "Cat's Empfehlungen",
-      "intro": "Titel im Karussell der Startseite, für alle Profile oder für einzelne. Jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
-      "list": "Empfehlungen in der Reihenfolge des Karussells",
+      "intro": "Von Hand ausgesuchte Titel als eigene Reihe der Startseite. Für alle Profile oder für einzelne; jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.",
+      "list": "Empfehlungen in der Reihenfolge der Reihe",
       "empty": "Noch keine Empfehlung. Ohne Empfehlung zeigt die Startseite kein Karussell.",
       "allProfiles": "Alle",
       "noNote": "–",
+      "quoted": "«{{note}}»",
+      "count": {
+        "entries_one": "{{count}} Eintrag",
+        "entries_other": "{{count}} Einträge",
+        "planned_one": "{{count}} geplant",
+        "planned_other": "{{count}} geplant",
+        "both": "{{entries}} · {{planned}}"
+      },
+      "homeRowsHint": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter <page>Startseite</page> ein.",
       "moved": "{{title}} steht jetzt an Stelle {{position}}.",
       "columns": {
+        "position": "Nr.",
         "title": "Titel",
         "target": "Für",
         "note": "Notiz",

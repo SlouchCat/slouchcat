@@ -354,3 +354,25 @@ UPDATE top_picks SET position = @position WHERE id = @id;
 -- name: AdminOwnerProfileIDs :many
 -- Profiles of the main account: the only targets of a pick.
 SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a.role = 'owner' ORDER BY p.id;
+
+-- Images of the administration (getAdminItemImage, M11 step 5b): system-wide, without a profile.
+-- Like the scoped GetItemImage, a deleted title has no image and the kept original is never served.
+
+-- name: AdminGetItemImage :one
+-- One stored image of a title: WebP when asked and stored, else JPEG.
+SELECT im.rel_path, im.media_type, im.content_hash, im.created_at
+FROM images AS im
+JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
+WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size <> 'original'
+  AND im.format IN (@format, 'jpeg')
+ORDER BY im.format = 'jpeg'
+LIMIT 1;
+
+-- name: AdminListPosters :many
+-- The poster of each title in one size (one row per title, the JPEG row: the URL only needs the
+-- content hash, the handler picks the format by Accept); titles without that poster are absent.
+-- @size comes before the slice: sqlc numbers it ?2 otherwise, which the expanded slice takes.
+SELECT im.item_id, im.content_hash
+FROM images AS im
+JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
+WHERE im.size = @size AND im.kind = 'poster' AND im.format = 'jpeg' AND im.item_id IN (sqlc.slice('item_ids'));

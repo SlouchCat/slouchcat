@@ -57,6 +57,7 @@ const dune: SpotlightEntry = {
   itemTitle: 'Dune: Part One',
   hidden: false,
   orphaned: false,
+  posterUrl: '/api/v1/admin/items/01J00000000000000000000001/images/poster/w200?v=dune',
 };
 const severance: SpotlightEntry = {
   media: 'show',
@@ -163,10 +164,17 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     const table = await entriesTable();
     const [first, second] = within(table).getAllByRole('row').slice(1);
     expect(within(first!).getByRole('rowheader')).toHaveTextContent('DuneFilm · 2021');
+    // Mockup H: the poster in front of the title, decorative (system-wide admin image route).
+    const poster = within(first!).getByRole('rowheader').querySelector('img');
+    expect(poster).toHaveAttribute('alt', '');
+    expect(poster).toHaveAttribute('src', dune.posterUrl);
     expect(within(first!).getByText('Sichtbar')).toBeVisible();
     expect(within(first!).getByRole('button', { name: 'Dune anheften' })).toBeVisible();
     // Plan S-4: an entry without a library title is listed, says so and has no actions.
     expect(within(second!).getByRole('rowheader')).toHaveTextContent('SeveranceSerie · 2022');
+    // Without a library hit there is no poster: the placeholder, never a broken image.
+    expect(within(second!).getByRole('rowheader').querySelector('img')).toBeNull();
+    expect(within(second!).getByRole('rowheader').querySelector('svg')).not.toBeNull();
     expect(within(second!).getByText('Nicht in der Bibliothek')).toBeVisible();
     expect(
       within(second!).getByText('Nicht in der Bibliothek, erscheint nicht auf der Startseite'),
@@ -278,6 +286,10 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     await user.click(within(table).getByRole('button', { name: 'Dune ausblenden' }));
     expect(await screen.findByText('Dune ist ausgeblendet.')).toBeVisible();
     expect(await within(row()).findByText('Ausgeblendet')).toBeVisible();
+    // Poster and title of a hidden entry at half strength.
+    expect(
+      within(row()).getByRole('rowheader').querySelector('img')?.parentElement?.parentElement,
+    ).toHaveClass('dimmed');
     const show = await within(table).findByRole('button', { name: 'Dune einblenden' });
     await user.click(show);
     expect(await screen.findByText('Dune wird wieder gezeigt.')).toBeVisible();

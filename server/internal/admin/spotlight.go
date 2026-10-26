@@ -234,7 +234,8 @@ func (s *Service) RefreshSpotlight(ctx context.Context) error {
 	return nil
 }
 
-// spotlightEntries reads the entries and the orphaned overrides of list key with q.
+// spotlightEntries reads the entries (with the poster hash of each library hit) and the orphaned
+// overrides of list key with q.
 func spotlightEntries(ctx context.Context, q *systemq.Queries, listKey string) (entries, orphans []model.SpotlightEntry, err error) {
 	rows, err := q.ListSpotlightEntriesAdmin(ctx, listKey)
 	if err != nil {
@@ -255,6 +256,19 @@ func spotlightEntries(ctx context.Context, q *systemq.Queries, listKey string) (
 			e.ItemID, e.ItemTitle = r.ItemID.String, r.ItemTitle
 		}
 		entries = append(entries, e)
+	}
+	hits := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if e.ItemID != "" {
+			hits = append(hits, e.ItemID)
+		}
+	}
+	hashes, err := posterHashes(ctx, q, hits)
+	if err != nil {
+		return nil, nil, err
+	}
+	for i := range entries {
+		entries[i].PosterHash = hashes[entries[i].ItemID]
 	}
 	orows, err := q.ListSpotlightOrphans(ctx, listKey)
 	if err != nil {

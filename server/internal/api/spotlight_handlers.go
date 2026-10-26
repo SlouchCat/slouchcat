@@ -117,5 +117,6 @@ func toSpotlightEntry(e model.SpotlightEntry) gen.SpotlightEntry {
 		Media: gen.SpotlightEntryMedia(e.Media), TmdbId: e.TmdbID, Position: e.Position,
 		Title: optString(e.Title), Year: e.Year, ItemId: optString(e.ItemID), ItemTitle: optString(e.ItemTitle),
 		Hidden: e.Hidden, PinnedRank: e.PinnedRank, Note: optString(e.Note), Orphaned: e.Orphaned,
+		PosterUrl: adminPosterURL(e.ItemID, e.PosterHash),
 	}
 }

@@ -40,6 +40,7 @@ import {
   type SpotlightEntry,
   type SpotlightEntryOverride,
 } from './queries';
+import { PosterTitle } from './PosterTitle';
 import styles from './AdminTablePage.module.css';
 import curation from './Curation.module.css';
 import layout from './SpotlightPage.module.css';
@@ -498,8 +499,8 @@ export function SpotlightPage() {
     await queryClient.invalidateQueries({ queryKey: traktStatusQuery.queryKey });
   };
 
-  const titleCell = (entry: SpotlightEntry) => (
-    <span className={`${styles.stack} ${entry.hidden ? layout.dimmed : ''}`}>
+  const titleText = (entry: SpotlightEntry, className = '') => (
+    <span className={`${styles.stack} ${className}`}>
       <span className={layout.title}>{name(entry)}</span>
       <span className={styles.muted}>
         {entry.year
@@ -510,6 +511,12 @@ export function SpotlightPage() {
           : t(`admin.spotlight.entries.media.${entry.media}`)}
       </span>
     </span>
+  );
+  // A hidden entry: poster and title at half strength (mockup H).
+  const titleCell = (entry: SpotlightEntry) => (
+    <PosterTitle posterUrl={entry.posterUrl} className={entry.hidden ? layout.dimmed : ''}>
+      {titleText(entry)}
+    </PosterTitle>
   );
   const pinnedText = (entry: SpotlightEntry) =>
     entry.pinnedRank === undefined
@@ -621,7 +628,7 @@ export function SpotlightPage() {
       key: 'title',
       header: t('admin.spotlight.entries.columns.title'),
       rowHeader: true,
-      cell: titleCell,
+      cell: (entry) => titleText(entry, entry.hidden ? layout.dimmed : ''),
     },
     { key: 'override', header: t('admin.spotlight.orphans.override'), cell: orphanSummary },
     {

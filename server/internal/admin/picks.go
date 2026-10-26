@@ -17,7 +17,8 @@ import (
 const maxPickNote = 280
 
 // ListTopPicks returns every pick, global ones and those of single profiles, in carousel order
-// (E-2). Titles are plain text, never an ItemRef.
+// (E-2). Titles are plain text, never an ItemRef; the poster is the content hash of the image
+// that getAdminItemImage serves.
 func (s *Service) ListTopPicks(ctx context.Context) ([]model.AdminPick, error) {
 	rows, err := s.sys.AdminListTopPicks(ctx)
 	if err != nil {
@@ -26,6 +27,9 @@ func (s *Service) ListTopPicks(ctx context.Context) ([]model.AdminPick, error) {
 	out := make([]model.AdminPick, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, toAdminPick(systemq.AdminGetTopPickRow(r)))
+	}
+	if err := withPosters(ctx, s.sys, out); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -97,6 +101,9 @@ func (s *Service) CreateTopPicks(ctx context.Context, req model.PickRequest) ([]
 		}
 		out = append(out, toAdminPick(row))
 	}
+	if err := withPosters(ctx, q, out); err != nil {
+		return nil, err
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit: %w", err)
 	}
@@ -151,10 +158,14 @@ func (s *Service) UpdateTopPick(ctx context.Context, id int64, upd model.PickUpd
 	if err != nil {
 		return model.AdminPick{}, fmt.Errorf("get top pick %d: %w", id, err)
 	}
+	out := []model.AdminPick{toAdminPick(row)}
+	if err := withPosters(ctx, q, out); err != nil {
+		return model.AdminPick{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return model.AdminPick{}, fmt.Errorf("commit: %w", err)
 	}
-	return toAdminPick(row), nil
+	return out[0], nil
 }
 
 // DeleteTopPick removes a pick; model.ErrNotFound for an unknown one.
