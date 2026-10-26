@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
-import { EXTRAS_TITLE } from './catalog';
-import { createPick, deletePick } from './curation';
+import { CSRF, EXTRAS_TITLE } from './catalog';
+import { createPick, DEFAULT_HOME_ROWS, deletePick, setHomeRows } from './curation';
 import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
 import {
@@ -13,7 +13,14 @@ import {
 import { itemIdByTitle } from './playback';
 import { TRAKT_ENTRIES } from './trakt-server.mjs';
 
-const hero = (page: Page) => page.getByRole('region', { name: "Cat's Empfehlungen" });
+/**
+ * The stage: the row the server names in `heroRow`, drawn as the carousel (M11). Which row that is
+ * is the server's decision; by default it is the spotlight row on top (DEFAULT_HOME_ROWS).
+ */
+const hero = (page: Page) => page.locator('main section[aria-roledescription]');
+/** The sections of the start page top to bottom: the stage (if any) and the poster rows. */
+const sections = (page: Page) =>
+  page.locator('main section:is([aria-labelledby], [aria-roledescription])');
 const recentRow = (page: Page) => page.getByRole('region', { name: 'Neu hinzugefügt' });
 
 test.beforeEach(async ({ page }) => {
@@ -40,7 +47,7 @@ test('rows: never an empty one, cards in a 2:3 frame, at most eight rows (E-1, E
   }
 });
 
-test('a pick with a note shows in the hero (E-2)', async ({ page, owner }) => {
+test('a pick with a note shows in the picks row (E-2)', async ({ page, owner }) => {
   const note = 'E2E: unbedingt mit Ton schauen.';
   // A second pick next to the baseline pick of the global setup (the H264 film).
   const [pick] = await createPick(owner, {
@@ -49,29 +56,26 @@ test('a pick with a note shows in the hero (E-2)', async ({ page, owner }) => {
   });
   if (!pick) throw new Error('no pick created');
   try {
-    // The carousel stands still (as in admin-picks.spec.ts): no slide change between the checks.
-    await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.reload();
-    await expect(hero(page)).toBeVisible();
-    // The pick is the newest; the carousel may start on another slide, so page through it.
-    const slides = Math.max(1, await hero(page).locator('button[aria-label]').count());
-    for (let slide = 0; slide < slides; slide += 1) {
-      if (await hero(page).getByText(note).isVisible()) break;
-      await hero(page).locator('button[aria-label]').nth(slide).click();
-    }
-    await expect(hero(page).getByText(note)).toBeVisible();
+    // The picks are never the stage (plan 3.5): a poster row whose card shows the note.
+    const picks = page.getByRole('region', { name: ROW_TITLES.picks });
+    await expect(picks).not.toHaveAttribute('aria-roledescription');
+    await expect(
+      picks.getByRole('link').filter({ hasText: EXTRAS_TITLE }).getByText(note),
+    ).toBeVisible();
   } finally {
     await deletePick(owner, pick.id);
   }
 });
 
-test('The spotlight row comes from the mock and goes while Trakt is down (E-7, I-7)', async ({
+test('The spotlight band comes from the mock and goes while Trakt is down (E-7, I-7)', async ({
   page,
   owner,
 }) => {
   // Two refreshes, each of which may wait for the server's one-a-minute limit (discover.ts).
   test.setTimeout(240_000);
-  const spotlight = page.getByRole('region', { name: ROW_TITLES.spotlight });
+  // The spotlight row is the stage: the carousel named after it.
+  const spotlight = hero(page).and(page.getByRole('region', { name: ROW_TITLES.spotlight }));
   const only = ['spotlight'];
   const traktRows = async () => (await homeRowKeys(owner)).filter((key) => only.includes(key));
   // Fails at once with a clear message when the mock does not run (a server of your own).
@@ -79,14 +83,22 @@ test('The spotlight row comes from the mock and goes while Trakt is down (E-7, I
 
   // The server asks the mock right after its start (no run within 24 h yet).
   await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(only);
+  // The carousel stands still (as in admin-picks.spec.ts): no slide change between the checks.
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.reload();
   await expect(spotlight).toBeVisible();
-  // The row shows the library titles the list points at (5 films and 2 series).
-  for (const entry of [...TRAKT_ENTRIES.movies, ...TRAKT_ENTRIES.shows]) {
-    await expect(
-      spotlight.getByRole('link').filter({ has: page.getByText(entry.title, { exact: true }) }),
-    ).toHaveCount(1);
+  await expect(sections(page).first()).toHaveAttribute('aria-roledescription');
+  // The band shows the library titles the list points at (5 films and 2 series), one per slide.
+  const entries = [...TRAKT_ENTRIES.movies, ...TRAKT_ENTRIES.shows].map((entry) => entry.title);
+  const dots = spotlight.locator('button[aria-label]');
+  await expect(dots).toHaveCount(entries.length);
+  const shown: string[] = [];
+  for (let slide = 0; slide < entries.length; slide += 1) {
+    await dots.nth(slide).click();
+    await expect(dots.nth(slide)).toHaveAttribute('aria-current', 'true');
+    shown.push((await spotlight.getByRole('heading', { level: 2 }).textContent()) ?? '');
   }
+  expect(shown.toSorted()).toEqual(entries.toSorted());
 
   try {
     // Trakt down: the refresh fails, the list is emptied and the row disappears (I-7).
@@ -96,10 +108,83 @@ test('The spotlight row comes from the mock and goes while Trakt is down (E-7, I
     await page.reload();
     await expect(recentRow(page)).toBeVisible();
     await expect(spotlight).toHaveCount(0);
+    await expect(hero(page)).toHaveCount(0);
   } finally {
     await traktMockStatus(200);
     await refreshSpotlight(owner);
     await expect.poll(traktRows, { timeout: 60_000, intervals: [1000] }).toEqual(only);
+  }
+});
+
+test('spotlight on a later position: the band stands third, nothing painted ahead (3.5)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  // The server asks the mock right after its start; the band needs its titles.
+  await expect
+    .poll(async () => (await homeRowKeys(owner)).includes('spotlight'), {
+      timeout: 60_000,
+      intervals: [1000],
+    })
+    .toBe(true);
+  // Two poster rows above the stage: the baseline pick and the recently added titles.
+  const order = [
+    'picks',
+    'recent',
+    'spotlight',
+    ...DEFAULT_HOME_ROWS.filter((key) => !['picks', 'recent', 'spotlight'].includes(key)),
+  ];
+  try {
+    await setHomeRows(owner, order);
+    const shell = await page.reload();
+    await expect(hero(page)).toBeVisible();
+    await expect(sections(page).nth(0)).toHaveAccessibleName(ROW_TITLES.picks);
+    await expect(sections(page).nth(1)).toHaveAccessibleName(ROW_TITLES.recent);
+    await expect(sections(page).nth(2)).toHaveAccessibleName(ROW_TITLES.spotlight);
+    await expect(sections(page).nth(2)).toHaveAttribute('aria-roledescription');
+    // The server paints the stage ahead only when it is on top. The test media have no backdrops,
+    // so the shell never holds a prepaint here; the positive case lives in HomePage.test.tsx and
+    // in the server's preload tests.
+    // The element, not the name: the shell's inline loader script names #hero-prepaint as well.
+    expect(await shell?.text()).not.toContain('id="hero-prepaint"');
+    await expect(page.locator('#hero-prepaint')).toHaveCount(0);
+  } finally {
+    await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  }
+});
+
+test('no stage: without the spotlight row the page starts with a poster row (3.5)', async ({
+  page,
+  owner,
+}) => {
+  // The plan checks the start page without SLOUCHCAT_TRAKT_CLIENT_ID. The e2e server always runs
+  // with the mock's client id, so the spotlight row is switched off instead: the server then omits
+  // the row and `heroRow` alike, which is the same page as without the key.
+  const stored = await owner.get('/api/v1/admin/spotlight');
+  expect(stored.status(), await stored.text()).toBe(200);
+  const settings = (await stored.json()) as Record<string, unknown>;
+  // The catalogue is read only; the update takes the other fields.
+  delete settings.listKinds;
+  const put = (enabled: boolean) =>
+    owner.put('/api/v1/admin/spotlight', { headers: CSRF, data: { ...settings, enabled } });
+  try {
+    const off = await put(false);
+    expect(off.status(), await off.text()).toBe(200);
+    expect(await homeRowKeys(owner)).not.toContain('spotlight');
+
+    const shell = await page.reload();
+    await expect(recentRow(page)).toBeVisible();
+    await expect(hero(page)).toHaveCount(0);
+    await expect(page.getByRole('region', { name: ROW_TITLES.spotlight })).toHaveCount(0);
+    await expect(sections(page).first()).toHaveAttribute('aria-labelledby');
+    await expect(sections(page).first()).not.toHaveAttribute('aria-roledescription');
+    // The element, not the name: the shell's inline loader script names #hero-prepaint as well.
+    expect(await shell?.text()).not.toContain('id="hero-prepaint"');
+    await expect(page.locator('#hero-prepaint')).toHaveCount(0);
+  } finally {
+    const on = await put(true);
+    expect(on.status(), await on.text()).toBe(200);
   }
 });
 
@@ -127,8 +212,9 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, play);
 
-    // Down to the rows.
-    for (let presses = 0; presses < 3; presses += 1) {
+    // Down to the rows: the picks and "Weiterschauen" may stand between the stage and "Neu
+    // hinzugefügt".
+    for (let presses = 0; presses < 4; presses += 1) {
       if (
         await recentRow(page)
           .getByRole('link')

@@ -10,11 +10,12 @@ describe('start page', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows the carousel, then "Weiterschauen" and "Neu hinzugefügt" in server order', async () => {
+  it('shows the stage the server names, then "Weiterschauen" and "Neu hinzugefügt" in server order', async () => {
     mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
     renderApp('/');
 
-    const hero = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    expect(hero).toHaveAttribute('aria-roledescription', 'Karussell');
     expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
     expect(within(hero).getByRole('link', { name: 'Abspielen' })).toHaveAttribute(
       'href',
@@ -153,10 +154,14 @@ describe('start page', () => {
     };
     mockApi({
       ...signedIn,
-      'GET /home': () => json({ rows: [{ key: 'picks', items: [heat, alien, wideOnly] }] }),
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          rows: [{ key: 'spotlight', items: [heat, alien, wideOnly] }],
+        }),
     });
     const { container } = renderApp('/');
-    const hero = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
     const images = () => [...container.querySelectorAll('img')];
 
     expect(images()).toHaveLength(1);
@@ -221,7 +226,7 @@ describe('start page', () => {
     expect(within(row).getByText('Noch 1 h 15 min')).toBeVisible();
   });
 
-  it('never renders an empty row and works without picks', async () => {
+  it('never renders an empty row and works without a stage', async () => {
     mockApi({
       ...signedIn,
       'GET /home': () =>
@@ -235,7 +240,7 @@ describe('start page', () => {
     renderApp('/');
     expect(await screen.findByRole('heading', { name: 'Neu hinzugefügt' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: 'Weiterschauen' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: "Cat's Empfehlungen" })).not.toBeInTheDocument();
+    expect(document.querySelector('[aria-roledescription="Karussell"]')).toBeNull();
   });
 
   it('shows an empty state when the server returns no rows', async () => {
@@ -252,10 +257,11 @@ describe('start page', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockApi({
       ...signedIn,
-      'GET /home': () => json({ rows: [{ key: 'picks', items: [heat, arrival] }] }),
+      'GET /home': () =>
+        json({ heroRow: 'spotlight', rows: [{ key: 'spotlight', items: [heat, arrival] }] }),
     });
     renderApp('/');
-    const hero = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
     expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
     await act(() => vi.advanceTimersByTimeAsync(8000));
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
@@ -280,6 +286,7 @@ describe('start page', () => {
   });
 
   it('renders every row kind in server order: titles, collections and genre chips (E-1, E-6)', async () => {
+    // Without `heroRow` there is no stage: every row is a poster row, the picks and spotlight too.
     const collectionId = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
     mockApi({
       ...signedIn,
@@ -302,14 +309,16 @@ describe('start page', () => {
         }),
     });
     renderApp('/');
-    const hero = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
-    expect(within(hero).getByText('Unbedingt im Kino-Modus schauen.')).toBeVisible();
+    const picks = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+    expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(
+      'Unbedingt im Kino-Modus schauen.',
+    );
 
     const headings = screen
       .getAllByRole('heading', { level: 2 })
-      .map((heading) => heading.textContent)
-      .filter((text) => text !== 'Heat');
+      .map((heading) => heading.textContent);
     expect(headings).toEqual([
+      "Cat's Empfehlungen",
       'Weiterschauen',
       'Neu hinzugefügt',
       'Merkliste',
@@ -369,5 +378,148 @@ describe('start page', () => {
     await waitFor(() =>
       expect(screen.getByRole('searchbox', { name: 'Suchbegriff' })).toHaveFocus(),
     );
+  });
+
+  describe('the stage (heroRow, M11)', () => {
+    const note = 'Unbedingt im Kino-Modus schauen.';
+    const carousels = () => document.querySelectorAll('[aria-roledescription="Karussell"]');
+    /** The sections of the rows block, top to bottom: the stage and the poster rows. */
+    const sections = () => [...document.querySelectorAll('main section')];
+    const rowsBlock = () => document.querySelector('main .rows');
+
+    afterEach(() => document.getElementById('hero-prepaint')?.remove());
+
+    /** The image the server paints into the shell when the stage is on top (api/preload.go). */
+    function prepaint() {
+      const element = document.createElement('div');
+      element.id = 'hero-prepaint';
+      document.body.append(element);
+      return element;
+    }
+
+    it('comes from the server: the named row is the band, the picks a poster row with their note', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            heroRow: 'spotlight',
+            rows: [
+              { key: 'spotlight', items: [arrival] },
+              { key: 'picks', items: [{ ...heat, note }] },
+              { key: 'recent', items: [alien] },
+            ],
+          }),
+      });
+      renderApp('/');
+      const stage = await screen.findByRole('region', { name: 'Spotlight' });
+      expect(stage).toHaveAttribute('aria-roledescription', 'Karussell');
+      expect(within(stage).getByRole('heading', { name: 'Arrival' })).toBeVisible();
+      expect(carousels()).toHaveLength(1);
+
+      const picks = screen.getByRole('region', { name: "Cat's Empfehlungen" });
+      expect(picks).not.toHaveAttribute('aria-roledescription');
+      expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(note);
+    });
+
+    it('is missing without heroRow: every row is a poster row, the picks too', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            rows: [
+              { key: 'picks', items: [{ ...heat, note }] },
+              { key: 'recent', items: [alien, arrival] },
+            ],
+          }),
+      });
+      renderApp('/');
+      const picks = await screen.findByRole('region', { name: "Cat's Empfehlungen" });
+      expect(carousels()).toHaveLength(0);
+      expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(note);
+      expect(sections().map((section) => section.hasAttribute('aria-labelledby'))).toEqual([
+        true,
+        true,
+      ]);
+
+      // Spacing without a stage: the rows block starts below the header, nothing tucks in.
+      expect(rowsBlock()).toHaveClass('padded');
+      expect(rowsBlock()).not.toHaveClass('underHero');
+      expect(document.querySelector('main .underHero')).toBeNull();
+    });
+
+    it('stands at its place: on position 2 below two poster rows, the row below tucks in', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            heroRow: 'spotlight',
+            rows: [
+              { key: 'picks', items: [heat] },
+              { key: 'recent', items: [alien] },
+              { key: 'spotlight', items: [arrival] },
+              { key: 'watchlist', items: [heat] },
+            ],
+          }),
+      });
+      const { container } = renderApp('/');
+      const stage = await screen.findByRole('region', { name: 'Spotlight' });
+      expect(sections().indexOf(stage)).toBe(2);
+      expect(stage).toHaveAttribute('aria-roledescription', 'Karussell');
+
+      // The rows block starts below the header; the row above the stage keeps the normal gap, the
+      // row below it tucks into the band.
+      expect(rowsBlock()).toHaveClass('padded');
+      const recent = screen.getByRole('region', { name: 'Neu hinzugefügt' });
+      const watchlist = screen.getByRole('region', { name: 'Merkliste' });
+      expect(recent.parentElement).toBe(rowsBlock());
+      expect(watchlist.parentElement).toHaveClass('underHero');
+      expect(container.querySelectorAll('.underHero')).toHaveLength(1);
+
+      // Not the page's first image: the posters of the first row do not wait for the band's art.
+      const firstPoster = within(screen.getByRole('region', { name: "Cat's Empfehlungen" }))
+        .getByRole('link', { name: /Heat/ })
+        .querySelector('img');
+      expect(firstPoster).toHaveAttribute('loading', 'eager');
+    });
+
+    it('on top dismisses the prepaint only once its own art is shown', async () => {
+      const painted = prepaint();
+      mockApi({ ...signedIn, 'GET /home': () => json(homePage) });
+      const { container } = renderApp('/');
+      await screen.findByRole('region', { name: 'Spotlight' });
+      expect(rowsBlock()).not.toHaveClass('padded');
+      expect(screen.getByRole('region', { name: 'Weiterschauen' }).parentElement).toHaveClass(
+        'underHero',
+      );
+
+      const backdrop = container.querySelector('img[fetchpriority="high"]');
+      expect(backdrop).toHaveAttribute(
+        'src',
+        `/api/v1/items/${ids.heat}/images/backdrop/w780?v=ghi`,
+      );
+      expect(painted.dataset.done).toBeUndefined();
+      fireEvent.load(backdrop!);
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+
+    it.each([
+      {
+        stage: 'further down',
+        home: {
+          heroRow: 'spotlight',
+          rows: [
+            { key: 'recent', items: [alien] },
+            { key: 'spotlight', items: [heat] },
+          ],
+        },
+      },
+      { stage: 'missing', home: { rows: [{ key: 'recent', items: [alien] }] } },
+    ])('$stage leaves no prepaint standing', async ({ home }) => {
+      const painted = prepaint();
+      mockApi({ ...signedIn, 'GET /home': () => json(home) });
+      renderApp('/');
+      await screen.findByRole('region', { name: 'Neu hinzugefügt' });
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
   });
 });

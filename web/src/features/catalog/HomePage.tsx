@@ -53,7 +53,7 @@ const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
 const hasEntries = (row: HomeRow) =>
   row.items.length > 0 || (row.collections?.length ?? 0) > 0 || (row.genres?.length ?? 0) > 0;
 
-/** Focus key of the first card of a row (the default focus without a hero). */
+/** Focus key of the first card of a row (the default focus when the stage does not lead). */
 function firstKey(row: HomeRow): string | undefined {
   const item = row.items[0];
   if (item) return cardKey(row, item);
@@ -66,6 +66,8 @@ function firstKey(row: HomeRow): string | undefined {
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
 
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
+  // A curated title carries the main user's note (picks, E-2); it says more than the year.
+  if (item.note) return item.note;
   if (row.key === 'continue' && item.progress) {
     const minutes = Math.max(
       1,
@@ -94,8 +96,10 @@ function HomeSkeleton() {
 }
 
 /**
- * Start page (E-1): Cat's picks as hero carousel (with the main user's note), then the rows in the
- * order the server returned: titles, collections (E-6) and genres, which open the search.
+ * Start page (E-1): the rows in the order the server returned: titles, collections (E-6) and
+ * genres, which open the search. The row the server names in `heroRow` is drawn as the stage (hero
+ * carousel) at its place in that order; the client never decides which row that is (3.5). Without
+ * `heroRow` every row is a poster row.
  */
 export function HomePage() {
   const { t } = useTranslation();
@@ -105,13 +109,16 @@ export function HomePage() {
   // Posters wait until the hero artwork is on screen: on a slow link they would share its
   // bandwidth (P-10). The frames keep their size, so nothing shifts.
   const [heroShown, setHeroShown] = useState(false);
-  const firstPick = home.data?.rows.find((row) => row.key === 'picks')?.items[0];
+  // Only a stage at the top is the page's first image: the server paints it into the shell, and the
+  // posters wait for it. A stage further down has no prepaint and holds no poster back.
+  const leadRow = home.data?.rows.find(hasEntries);
+  const firstHero = leadRow && leadRow.key === home.data?.heroRow ? leadRow.items[0] : undefined;
   const heroHasArt = Boolean(
-    firstPick &&
-    (firstPick.images.backdrop ?? firstPick.images.backdropSmall ?? firstPick.images.poster),
+    firstHero &&
+    (firstHero.images.backdrop ?? firstHero.images.backdropSmall ?? firstHero.images.poster),
   );
-  // The server painted the first hero image into the shell (P-10); it gives way once the carousel
-  // shows its own image, or right away when the page has no hero art.
+  // The server painted the first stage image into the shell (P-10); it gives way once the carousel
+  // shows its own image, or right away when the page has no stage at the top or no art for it.
   const prepaintDone = home.isError || (home.isSuccess && (!heroHasArt || heroShown));
   useEffect(() => {
     if (prepaintDone) dismissHeroPrepaint();
@@ -145,105 +152,129 @@ export function HomePage() {
 
   // The server omits empty rows (E-9); filter defensively so an empty row never renders.
   const rows = home.data.rows.filter(hasEntries);
-  const picks = rows.find((row) => row.key === 'picks' && row.items.length > 0);
-  const lists = rows.filter((row) => row !== picks);
-  const firstList = lists[0];
-  const defaultFocusKey = picks ? HERO_PLAY_KEY : ((firstList && firstKey(firstList)) ?? 'header');
+  const isStage = (row: HomeRow | undefined) =>
+    row !== undefined && row.key === home.data.heroRow && row.items.length > 0;
+  const stageLeads = isStage(rows[0]);
+  // The focus starts where the page starts: on the stage's play button when the stage is on top,
+  // else on the first card of the first row, also when the stage stands further down the list.
+  const defaultFocusKey = stageLeads ? HERO_PLAY_KEY : ((rows[0] && firstKey(rows[0])) ?? 'header');
+  // The eager posters belong to the first poster row, wherever the stage stands.
+  const firstPosterRow = rows.find((row) => !isStage(row));
 
-  const slides: HeroSlide[] = (picks?.items ?? []).map((item) => ({
-    id: item.id,
-    title: item.title,
-    backdropUrl: imageUrl(item.images.backdrop),
-    backdropSmallUrl: imageUrl(item.images.backdropSmall),
-    posterUrl: imageUrl(item.images.poster),
-    meta: <ItemMeta item={item} />,
-    note: item.note,
-    playHref: paths.play(item.id),
-    detailsHref: paths.item(item.id),
-  }));
+  const slides = (row: HomeRow): HeroSlide[] =>
+    row.items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      backdropUrl: imageUrl(item.images.backdrop),
+      backdropSmallUrl: imageUrl(item.images.backdropSmall),
+      posterUrl: imageUrl(item.images.poster),
+      meta: <ItemMeta item={item} />,
+      note: item.note,
+      playHref: paths.play(item.id),
+      detailsHref: paths.item(item.id),
+    }));
+
+  const posterRow = (row: HomeRow) => {
+    const title = t(rowTitleKey[row.key]);
+    const focusKey = `row-${row.key}`;
+    const eagerRow = row === firstPosterRow;
+    if (row.key === 'genres') {
+      return (
+        <Row key={row.key} title={title} focusKey={focusKey} variant="chips">
+          {(row.genres ?? []).map((genre) => (
+            <GenreChip
+              key={genre.name}
+              focusKey={`${row.key}-${genre.name}`}
+              href={genreHref(genre.name)}
+              name={genre.name}
+              count={genre.count}
+            />
+          ))}
+        </Row>
+      );
+    }
+    if (row.key === 'collections') {
+      return (
+        <Row key={row.key} title={title} focusKey={focusKey}>
+          {(row.collections ?? []).map((collection, itemIndex) => (
+            <CollectionCard
+              key={collection.id}
+              focusKey={`${row.key}-${collection.id}`}
+              href={paths.collection(collection.id)}
+              name={collection.name}
+              caption={t('collection.count', { count: collection.count })}
+              posterUrl={imageUrl(collection.cover?.images.poster)}
+              posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
+              accent={collection.cover?.accent}
+              eager={eagerRow && itemIndex < EAGER_POSTERS}
+              deferImage={heroHasArt && !heroShown}
+            />
+          ))}
+        </Row>
+      );
+    }
+    return (
+      <Row key={row.key} title={title} focusKey={focusKey}>
+        {row.items.map((item, itemIndex) => (
+          <PosterCard
+            key={item.id}
+            focusKey={cardKey(row, item)}
+            href={paths.item(item.id)}
+            title={item.title}
+            caption={cardCaption(t, row, item)}
+            posterUrl={imageUrl(item.images.poster)}
+            posterSmallUrl={imageUrl(item.images.posterSmall)}
+            accent={item.accent}
+            eager={eagerRow && itemIndex < EAGER_POSTERS}
+            deferImage={heroHasArt && !heroShown}
+            shape={isAudioKind(item.kind) ? 'square' : 'poster'}
+            progress={
+              row.key === 'continue' && item.progress
+                ? {
+                    percent: item.progress.percent,
+                    label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
+                      percent: Math.round(item.progress.percent),
+                    }),
+                  }
+                : undefined
+            }
+          />
+        ))}
+      </Row>
+    );
+  };
 
   return (
     <SpatialPage defaultFocusKey={defaultFocusKey}>
       <main className={styles.home}>
         <VisuallyHidden as="h1">{t('home.title')}</VisuallyHidden>
-        {picks && (
-          <HeroCarousel
-            label={t('home.picks')}
-            slides={slides}
-            playLabel={t('item.play')}
-            detailsLabel={t('item.details')}
-            onArtShown={() => setHeroShown(true)}
-          />
-        )}
-        {lists.length > 0 && (
-          <div className={`${styles.rows} ${picks ? styles.underHero : styles.padded}`}>
-            {lists.map((row, rowIndex) => {
-              const title = t(rowTitleKey[row.key]);
-              const focusKey = `row-${row.key}`;
-              if (row.key === 'genres') {
+        {rows.length > 0 && (
+          // A stage on top keeps the band at the page's top edge; otherwise the rows start below
+          // the header.
+          <div className={stageLeads ? styles.rows : `${styles.rows} ${styles.padded}`}>
+            {rows.map((row, index) => {
+              if (isStage(row)) {
                 return (
-                  <Row key={row.key} title={title} focusKey={focusKey} variant="chips">
-                    {(row.genres ?? []).map((genre) => (
-                      <GenreChip
-                        key={genre.name}
-                        focusKey={`${row.key}-${genre.name}`}
-                        href={genreHref(genre.name)}
-                        name={genre.name}
-                        count={genre.count}
-                      />
-                    ))}
-                  </Row>
+                  <HeroCarousel
+                    key={row.key}
+                    label={t(rowTitleKey[row.key])}
+                    slides={slides(row)}
+                    playLabel={t('item.play')}
+                    detailsLabel={t('item.details')}
+                    onArtShown={() => setHeroShown(true)}
+                  />
                 );
               }
-              if (row.key === 'collections') {
+              // The row right below the stage tucks into its bottom scrim; the row above a stage
+              // further down keeps the normal spacing.
+              if (isStage(rows[index - 1])) {
                 return (
-                  <Row key={row.key} title={title} focusKey={focusKey}>
-                    {(row.collections ?? []).map((collection, itemIndex) => (
-                      <CollectionCard
-                        key={collection.id}
-                        focusKey={`${row.key}-${collection.id}`}
-                        href={paths.collection(collection.id)}
-                        name={collection.name}
-                        caption={t('collection.count', { count: collection.count })}
-                        posterUrl={imageUrl(collection.cover?.images.poster)}
-                        posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
-                        accent={collection.cover?.accent}
-                        eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
-                        deferImage={heroHasArt && !heroShown}
-                      />
-                    ))}
-                  </Row>
+                  <div key={row.key} className={styles.underHero}>
+                    {posterRow(row)}
+                  </div>
                 );
               }
-              return (
-                <Row key={row.key} title={title} focusKey={focusKey}>
-                  {row.items.map((item, itemIndex) => (
-                    <PosterCard
-                      key={item.id}
-                      focusKey={cardKey(row, item)}
-                      href={paths.item(item.id)}
-                      title={item.title}
-                      caption={cardCaption(t, row, item)}
-                      posterUrl={imageUrl(item.images.poster)}
-                      posterSmallUrl={imageUrl(item.images.posterSmall)}
-                      accent={item.accent}
-                      eager={rowIndex === 0 && itemIndex < EAGER_POSTERS}
-                      deferImage={heroHasArt && !heroShown}
-                      shape={isAudioKind(item.kind) ? 'square' : 'poster'}
-                      progress={
-                        row.key === 'continue' && item.progress
-                          ? {
-                              percent: item.progress.percent,
-                              label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
-                                percent: Math.round(item.progress.percent),
-                              }),
-                            }
-                          : undefined
-                      }
-                    />
-                  ))}
-                </Row>
-              );
+              return posterRow(row);
             })}
           </div>
         )}
