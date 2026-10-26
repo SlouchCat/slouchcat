@@ -122,6 +122,7 @@
       "primary_profile": "Das Hauptprofil kann nicht gelöscht werden.",
       "invitation_gone": "Dieser Einladungslink ist nicht mehr gültig.",
       "too_many_attempts": "Zu viele Versuche. Warte einen Moment und versuche es dann erneut.",
+      "too_many_requests": "Die Liste wurde vor weniger als einer Minute abgerufen. Warte kurz und versuche es erneut.",
       "provider_not_configured": "Dieser Anbieter ist nicht eingerichtet. Hinterlege seinen Schlüssel in der Konfiguration des Servers.",
       "watch_limit_reached": "Die Schauzeit dieses Profils für heute ist aufgebraucht.",
       "stream_limit_reached": "Dieses Profil spielt schon so viele Streams wie erlaubt.",

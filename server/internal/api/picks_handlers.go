@@ -35,7 +35,6 @@ func (e serviceProblem) VisitSetCollectionItemsResponse(w http.ResponseWriter) e
 func (e serviceProblem) VisitGetHomeRowsResponse(w http.ResponseWriter) error    { return e.visit(w) }
 func (e serviceProblem) VisitSetHomeRowsResponse(w http.ResponseWriter) error    { return e.visit(w) }
 func (e serviceProblem) VisitGetTraktStatusResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitRefreshTraktResponse(w http.ResponseWriter) error   { return e.visit(w) }
 
 func (s *server) ListTopPicks(ctx context.Context, _ gen.ListTopPicksRequestObject) (gen.ListTopPicksResponseObject, error) {
 	picks, err := s.opts.Admin.ListTopPicks(ctx)
@@ -192,13 +191,6 @@ func (s *server) GetTraktStatus(ctx context.Context, _ gen.GetTraktStatusRequest
 	}), nil
 }
 
-func (s *server) RefreshTrakt(ctx context.Context, _ gen.RefreshTraktRequestObject) (gen.RefreshTraktResponseObject, error) {
-	if err := s.opts.Admin.RefreshTrakt(ctx); err != nil {
-		return s.problem(ctx, err), nil
-	}
-	return gen.RefreshTrakt202Response{}, nil
-}
-
 func toAdminPick(p model.AdminPick) gen.AdminPick {
 	return gen.AdminPick{
 		Id: p.ID, ItemId: p.ItemID, Kind: gen.ItemKind(p.Kind), Title: p.Title, Year: p.Year,
@@ -234,14 +226,21 @@ type pickNullsKey struct{}
 var pickUpdateFields = []string{"note", "startsAt", "endsAt"}
 
 // pickUpdateNulls records which top-level fields of a PATCH /admin/picks/{id} body are JSON null:
-// the generated PickUpdate cannot tell null (clear the field) from absent (keep it). Field names
+// the generated PickUpdate cannot tell null (clear the field) from absent (keep it). It does the
+// same for PATCH /admin/spotlight/entries/{media}/{tmdbId} (SpotlightEntryOverride, M11). Field names
 // match without regard to case, like encoding/json matches them when it decodes the body into
 // PickUpdate ({"Note": null} clears the note as {"note": null} does). The body is handed on
 // unchanged; a read error (such as a body over the size limit) reaches the decoder of the strict
 // handler after the bytes read so far.
 func pickUpdateNulls(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPatch || r.Body == nil || !strings.HasPrefix(r.URL.Path, BasePath+"/admin/picks/") {
+		names := pickUpdateFields
+		if strings.HasPrefix(r.URL.Path, BasePath+"/admin/spotlight/entries/") {
+			names = spotlightOverrideFields
+		} else if !strings.HasPrefix(r.URL.Path, BasePath+"/admin/picks/") {
+			names = nil
+		}
+		if r.Method != http.MethodPatch || r.Body == nil || names == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -255,7 +254,7 @@ func pickUpdateNulls(next http.Handler) http.Handler {
 		nulls := map[string]bool{}
 		if json.Unmarshal(raw, &fields) == nil {
 			for k, v := range fields {
-				for _, name := range pickUpdateFields {
+				for _, name := range names {
 					if strings.EqualFold(k, name) && string(bytes.TrimSpace(v)) == "null" {
 						nulls[name] = true
 					}

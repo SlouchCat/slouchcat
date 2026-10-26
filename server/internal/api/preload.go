@@ -13,12 +13,14 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// heroPicker names the first slide of the start page's hero carousel. The catalog service
-// (discover.Service) implements it; NewHandler takes it from Options.Catalog by type assertion, so
-// CatalogService stays as it is and a catalog without the method simply sends no preload.
+// heroPicker names the first title of the start page's stage (HomePage.heroRow, plan 3.5). The
+// catalog service (discover.Service) implements it; NewHandler takes it from Options.Catalog by
+// type assertion, so CatalogService stays as it is and a catalog without the method simply sends no
+// preload.
 type heroPicker interface {
-	// FirstPick returns the first title of the picks row or model.ErrNotFound.
-	FirstPick(ctx context.Context, profile model.Profile) (model.ItemSummary, error)
+	// FirstHero returns the first title of the stage row and whether that row is the first row of
+	// the start page, or model.ErrNotFound when the page has no stage.
+	FirstHero(ctx context.Context, profile model.Profile) (item model.ItemSummary, first bool, err error)
 }
 
 // Width descriptors of the hero srcset; they must match imageSource in web/src/ui/HeroCarousel.tsx.
@@ -41,13 +43,15 @@ var startPreloads = []string{
 // startPagePreload adds Link preload headers to the app shell of the start page (P-10): the session
 // and home data and the hero image. The browser fetches them while it still loads the JavaScript,
 // instead of after the app has run. Only GET / with a valid session gets the headers; the image is
-// the first pick of the session's profile, read through the catalog service and thus the
-// visibility layer, and is left out on any error. The shell itself is always served. /index.html
-// is left out on purpose: the service worker precaches it, and a stored header would preload a
-// stale image later.
+// the first title of the stage of the session's profile, read through the catalog service and thus
+// the visibility layer, and is left out on any error or without a stage. The shell itself is
+// always served. /index.html is left out on purpose: the service worker precaches it, and a stored
+// header would preload a stale image later.
 //
-// The same request also writes the first hero image into the shell (heroPrepaint), so the browser
-// paints it as soon as it has loaded instead of after the JavaScript has run.
+// When the stage is the first row of the start page, the same request also writes its first image
+// into the shell (heroPrepaint), so the browser paints it as soon as it has loaded instead of after
+// the JavaScript has run. The prepaint sits at the top of the page, so a stage further down gets
+// only the preload header (plan 3.5): painting it ahead would flash a picture in the wrong place.
 //
 // The shell is sent with Cache-Control: no-cache (webassets), so the header is computed per
 // request; Vary: Cookie keeps shared caches from handing it to another viewer.
@@ -74,13 +78,15 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 						w.Header().Add("Link", link)
 					}
 				}
-				item, err := firstPick(r.Context(), picker, session)
+				item, first, err := firstHero(r.Context(), picker, session)
 				switch {
 				case err == nil:
 					if link := heroLink(item, session.Profile.ID); link != "" {
 						w.Header().Add("Link", link)
 					}
-					prepaint = heroPrepaint(item, session.Profile.ID)
+					if first {
+						prepaint = heroPrepaint(item, session.Profile.ID)
+					}
 				case !errors.Is(err, model.ErrNotFound) && !errors.Is(err, context.Canceled):
 					log.WarnContext(r.Context(), "hero preload skipped", "err", err)
 				}
@@ -92,12 +98,12 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 	}
 }
 
-// firstPick is the first pick of the session's profile; a session without profile has none.
-func firstPick(ctx context.Context, picker heroPicker, session model.Session) (model.ItemSummary, error) {
+// firstHero is the first stage title of the session's profile; a session without profile has none.
+func firstHero(ctx context.Context, picker heroPicker, session model.Session) (model.ItemSummary, bool, error) {
 	if !session.HasProfile() {
-		return model.ItemSummary{}, model.ErrNotFound
+		return model.ItemSummary{}, false, model.ErrNotFound
 	}
-	return picker.FirstPick(ctx, session.Profile)
+	return picker.FirstHero(ctx, session.Profile)
 }
 
 // shellWriter holds back the app shell so startPagePreload can fill in the hero marker. The shell

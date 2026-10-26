@@ -50,12 +50,16 @@ func (s *server) GetHome(ctx context.Context, _ gen.GetHomeRequestObject) (gen.G
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.opts.Catalog.Home(ctx, session.Profile)
+	home, err := s.opts.Catalog.Home(ctx, session.Profile)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	page := gen.HomePage{Rows: make([]gen.HomeRow, 0, len(rows))}
-	for _, row := range rows {
+	page := gen.HomePage{Rows: make([]gen.HomeRow, 0, len(home.Rows))}
+	if home.HeroRow != "" { // the server names the stage (plan 3.5); absent = no stage
+		hero := gen.HomeRowKey(home.HeroRow)
+		page.HeroRow = &hero
+	}
+	for _, row := range home.Rows {
 		out := gen.HomeRow{Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}
 		switch row.Key {
 		case model.RowCollections: // M7: only these two rows carry their own lists
@@ -405,6 +409,8 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		ref.Author = &it.Author
 	}
 	ref.Note = optString(it.Note) // a pick's note (M7); set only in the row picks
+	// Set only in the rows spotlight and picks of the start page (D3); nil stays absent.
+	ref.HasTrailer = it.HasTrailer
 	if it.PublishedAt != nil {
 		t := it.PublishedAt.UTC()
 		ref.PublishedAt = &t

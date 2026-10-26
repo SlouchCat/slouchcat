@@ -4178,13 +4178,164 @@ paths:
         "403":
           $ref: "#/components/responses/AdminOnly"
 
-  /admin/trakt/refresh:
+  /admin/spotlight:
+    get:
+      operationId: getSpotlightConfig
+      summary: The spotlight configuration and the catalogue of list kinds (M11, ADR 0011)
+      description: |
+        Which public Trakt list the spotlight row shows (`listKey`, for `url` the address of a
+        public user list), which media it holds, how many visible library hits the row shows at
+        most (`itemCount`, 5 to 20), below how many hits it is omitted (`minHits`, 0 to 10) and how
+        often the list is fetched (`intervalHours`, 6 to 48; entries count as stale after twice that).
+        `listKinds` is the fixed catalogue of the seven list kinds with the media each allows,
+        whether the media is a post-filter (the user list) and whether the kind needs an address;
+        the administration reads the catalogue from here instead of keeping its own table.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpotlightConfig"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    put:
+      operationId: setSpotlightConfig
+      summary: Set the spotlight configuration
+      description: |
+        Replaces the writable values. `422 validation_failed` names the field: `itemCount` outside
+        5..20, `minHits` outside 0..10, `intervalHours` outside 6..48, a `media` the list kind does
+        not offer (`boxoffice` takes `movie` only), a `listUrl` that is not a public user list of
+        trakt.tv, or a watchlist address (`listUrl: invalid_value`; importing watchlists is a
+        non-goal). Changing the list keeps the fetched entries of the old list until the next run;
+        the overrides belong to their list and do not move.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpotlightConfigUpdate"
+      responses:
+        "200":
+          description: The stored configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpotlightConfig"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: A value is outside its range or the address is not a public user list (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/spotlight/entries:
+    get:
+      operationId: getSpotlightEntries
+      summary: The fetched spotlight list with its library hits and overrides
+      description: |
+        The entries of the last successful fetch of the configured list in fetch order (at most 100
+        per medium), each with its library hit if the title is in the library — entries without a
+        hit are listed as well, so the administration shows what Trakt delivered, while the start
+        page never shows them — and with the override of the main user (hidden, pinned rank, note).
+        `orphans` are overrides of the configured list whose title is no longer in the fetched
+        entries; they stay deletable. Administration views name titles by id and title; they are
+        never ItemRefs.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The entries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpotlightEntries"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/spotlight/entries/{media}/{tmdbId}:
+    patch:
+      operationId: setSpotlightEntryOverride
+      summary: Hide, pin or annotate one entry of the spotlight list
+      description: |
+        Writes the override of the entry (`media`, `tmdbId`) of the configured list: `hidden`,
+        `pinnedRank` (1-based place in the row; `null` unpins) and `note` (`null` removes it). An
+        empty body removes the override. The override hangs on the title and the list, never on a
+        position, so it survives a fetch that reorders the list. `409 rank_taken` when another
+        entry of the list already holds the rank; `404` when neither an entry nor an override of
+        that title exists.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: media
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [movie, show]
+        - name: tmdbId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SpotlightEntryOverride"
+      responses:
+        "200":
+          description: The entry with its override, or the orphaned override.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpotlightEntry"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Neither an entry nor an override of that title exists in the configured list (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: Another entry of the list holds this rank (`rank_taken`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `note` `too_long`, `pinnedRank` `invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/spotlight/refresh:
     post:
-      operationId: refreshTrakt
+      operationId: refreshSpotlight
       summary: Fetch the spotlight list now
       description: |
-        Queues the fetch job out of schedule; the result shows up in `getTraktStatus`. Kept from
-        contract 1.0 until `refreshSpotlight` replaces it (M11 step 4).
+        Queues the fetch job out of schedule; the result shows up in `getTraktStatus` and
+        `getSpotlightEntries`. At most once a minute: the time of the last manual refresh is stored
+        in the database, so the limit survives a restart.
       tags: [admin]
       x-visibility: admin
       responses:
@@ -4196,6 +4347,12 @@ paths:
           $ref: "#/components/responses/AdminOnly"
         "422":
           description: No Trakt client id configured (`provider_not_configured`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: A manual refresh ran less than a minute ago (`too_many_requests`).
           content:
             application/problem+json:
               schema:
@@ -8615,6 +8772,173 @@ components:
             Entries (films and shows) of that list that are young enough to show, before the library
             intersection; 0 after a failed run or when the last success is older than twice the
             fetch interval.
+
+    SpotlightListKind:
+      type: object
+      description: One of the seven kinds of public Trakt list the spotlight row can show (ADR 0011).
+      required: [key, media, mediaFilters, needsUrl]
+      properties:
+        key:
+          $ref: "#/components/schemas/SpotlightListKey"
+        media:
+          type: array
+          description: The values of `media` this kind allows (`boxoffice` allows `movie` only).
+          items:
+            $ref: "#/components/schemas/SpotlightMedia"
+        mediaFilters:
+          type: boolean
+          description: |
+            `true`: the media is a filter on the fetched entries, which carry their own media (the
+            user list). `false`: the media selects the list that is fetched.
+        needsUrl:
+          type: boolean
+          description: The kind needs `listUrl` (the public user list).
+
+    SpotlightListKey:
+      type: string
+      enum: [trending, popular, watched_weekly, collected_monthly, anticipated, boxoffice, url]
+
+    SpotlightMedia:
+      type: string
+      enum: [movie, show, both]
+
+    SpotlightConfig:
+      type: object
+      required: [enabled, listKey, media, itemCount, minHits, intervalHours, listKinds]
+      properties:
+        enabled:
+          type: boolean
+          description: "`false` keeps the row off the start page; the fetch keeps running."
+        listKey:
+          $ref: "#/components/schemas/SpotlightListKey"
+        listUrl:
+          type: string
+          description: The address of the public user list; only with `listKey` `url`.
+        media:
+          $ref: "#/components/schemas/SpotlightMedia"
+        itemCount:
+          type: integer
+          minimum: 5
+          maximum: 20
+          description: How many visible library hits the row shows at most, per profile (S-3).
+        minHits:
+          type: integer
+          minimum: 0
+          maximum: 10
+          description: Below this number of visible hits (counted before the cut to `itemCount`) the row is omitted (AN-3, S-3).
+        intervalHours:
+          type: integer
+          minimum: 6
+          maximum: 48
+          description: Hours between two fetches; entries older than twice this are stale and not shown (S-8).
+        listKinds:
+          type: array
+          description: The fixed catalogue of list kinds (read only).
+          items:
+            $ref: "#/components/schemas/SpotlightListKind"
+
+    SpotlightConfigUpdate:
+      type: object
+      description: The writable part of `SpotlightConfig`.
+      required: [enabled, listKey, media, itemCount, minHits, intervalHours]
+      properties:
+        enabled:
+          type: boolean
+        listKey:
+          $ref: "#/components/schemas/SpotlightListKey"
+        listUrl:
+          type: string
+          maxLength: 500
+          description: Required with `listKey` `url`, ignored otherwise.
+        media:
+          $ref: "#/components/schemas/SpotlightMedia"
+        itemCount:
+          type: integer
+          minimum: 5
+          maximum: 20
+        minHits:
+          type: integer
+          minimum: 0
+          maximum: 10
+        intervalHours:
+          type: integer
+          minimum: 6
+          maximum: 48
+
+    SpotlightEntries:
+      type: object
+      required: [listKey, entries, orphans]
+      properties:
+        listKey:
+          $ref: "#/components/schemas/SpotlightListKey"
+        entries:
+          type: array
+          description: The fetched entries in fetch order, at most 100 per medium.
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/SpotlightEntry"
+        orphans:
+          type: array
+          description: Overrides of this list whose title is not among the fetched entries any more.
+          items:
+            $ref: "#/components/schemas/SpotlightEntry"
+
+    SpotlightEntry:
+      type: object
+      description: |
+        One entry of the fetched list with its library hit and its override. Not an `ItemRef`: the
+        administration is system-wide and names the library title by id and title only.
+      required: [media, tmdbId, position, hidden, orphaned]
+      properties:
+        media:
+          type: string
+          enum: [movie, show]
+        tmdbId:
+          type: integer
+          format: int64
+        position:
+          type: integer
+          minimum: 0
+          description: The 1-based rank in the fetched list; 0 for an orphaned override.
+        title:
+          type: string
+          description: The title as Trakt names it.
+        year:
+          type: integer
+        itemId:
+          $ref: "#/components/schemas/ItemID"
+          description: The library title matched by TMDB id; absent when the library has no such title (never on the start page, S-4).
+        itemTitle:
+          type: string
+        hidden:
+          type: boolean
+        pinnedRank:
+          type: integer
+          minimum: 1
+          description: The 1-based place the entry is pinned to in the row; absent when not pinned.
+        note:
+          type: string
+          maxLength: 280
+        orphaned:
+          type: boolean
+          description: The override has no entry in the fetched list.
+
+    SpotlightEntryOverride:
+      type: object
+      description: |
+        The override of one entry. A field that is absent keeps its value; `null` clears it. An
+        empty object removes the override.
+      properties:
+        hidden:
+          type: boolean
+        pinnedRank:
+          type: integer
+          minimum: 1
+          nullable: true
+        note:
+          type: string
+          maxLength: 280
+          nullable: true
 
     # -------------------------------------------------------------------------------------------
     # Administration and notifications (M8).

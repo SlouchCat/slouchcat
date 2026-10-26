@@ -136,7 +136,7 @@ func NewHandler(o Options) http.Handler {
 		r.With(downloadAuth).Get(downloadSubtitleRoute, s.getDownloadSubtitle)
 		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
 	})
-	// The catalog names the first hero slide when it implements heroPicker (discover.Service does);
+	// The catalog names the first stage title when it implements heroPicker (discover.Service does);
 	// the start page's app shell then carries a preload header for its image (preload.go).
 	picker, _ := o.Catalog.(heroPicker)
 	r.Handle("/*", compressText(startPagePreload(o.Auth, picker, o.Logger)(o.Web)))

@@ -163,7 +163,8 @@ test('the overview shows streams, jobs, storage, integrations and errors (A-3)',
 });
 
 test('a provoked error shows on the dashboard within 10 s (A-3)', async ({ page, owner }) => {
-  test.setTimeout(120_000);
+  // Two refreshes, each of which may wait for the server's one-a-minute limit (discover.ts).
+  test.setTimeout(240_000);
   await openOverview(page);
   const integrations = page.getByRole('region', { name: 'Integrationen', exact: true });
   await expect(integrations.getByText(/^Trakt: /)).toBeVisible();

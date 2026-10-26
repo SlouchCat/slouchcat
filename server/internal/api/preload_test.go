@@ -33,11 +33,11 @@ func (a preloadAuth) Resolve(_ context.Context, token string) (model.Session, bo
 	return model.Session{}, false, model.ErrNotFound
 }
 
-// emptyCatalog is a catalog whose profiles have no picks.
+// emptyCatalog is a catalog whose profiles have no stage.
 type emptyCatalog struct{ CatalogService }
 
-func (emptyCatalog) FirstPick(context.Context, model.Profile) (model.ItemSummary, error) {
-	return model.ItemSummary{}, model.ErrNotFound
+func (emptyCatalog) FirstHero(context.Context, model.Profile) (model.ItemSummary, bool, error) {
+	return model.ItemSummary{}, false, model.ErrNotFound
 }
 
 const appShell = `<!doctype html><title>Slouchcat</title><body><!--hero--><div id="root"></div>`
@@ -63,10 +63,50 @@ func getWithToken(h http.Handler, path, token string) *httptest.ResponseRecorder
 	return rec
 }
 
+// homeAnswer is the part of GET /home the preload tests read.
+type homeAnswer struct {
+	HeroRow *string `json:"heroRow"`
+	Rows    []struct {
+		Key   string `json:"key"`
+		Items []struct {
+			ID         string `json:"id"`
+			HasTrailer *bool  `json:"hasTrailer"`
+			Images     struct {
+				Backdrop      struct{ URL string } `json:"backdrop"`
+				BackdropSmall struct{ URL string } `json:"backdropSmall"`
+			} `json:"images"`
+		} `json:"items"`
+	} `json:"rows"`
+}
+
+func getHome(t *testing.T, h http.Handler, token string) homeAnswer {
+	t.Helper()
+	var page homeAnswer
+	rec := getWithToken(h, BasePath+"/home", token)
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("home: status %d, err %v, body %s", rec.Code, err, rec.Body.String())
+	}
+	return page
+}
+
+// Plan 3.5 and step 4 (P-10): the shell of GET / preloads the first image of the stage whenever
+// there is one, and paints it ahead only when the stage is the first row of the start page.
 func TestStartPagePreloadHeaders(t *testing.T) {
 	t.Parallel()
 	f := vistest.New(t)
 	log := vistest.Logger()
+	ctx := context.Background()
+	exec := func(query string, args ...any) {
+		t.Helper()
+		if _, err := f.DB.Write.ExecContext(ctx, query, args...); err != nil {
+			t.Fatalf("%s: %v", query, err)
+		}
+	}
+	// The trending movies are the fixture films 1000..1004: five spotlight hits for P18, the
+	// default min_hits, so spotlight is the stage and the first row (migration 00021's order).
+	for i := range 5 {
+		exec(`INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, time.Now().UnixMilli())
+	}
 	session := model.Session{ID: 1, Account: f.Account, Profile: f.P18, ExpiresAt: time.Now().Add(time.Hour)}
 	auth := preloadAuth{sessions: map[string]model.Session{"p18": session, "extend": session}}
 	h := NewHandler(Options{
@@ -74,28 +114,16 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		Auth: auth, Catalog: discover.New(f.DB, f.CacheDir, log), Playback: playback.New(f.DB, log),
 	})
 
-	// The header names exactly the URLs the start page's carousel uses for its first slide.
-	var page struct {
-		Rows []struct {
-			Key   string `json:"key"`
-			Items []struct {
-				ID     string `json:"id"`
-				Images struct {
-					Backdrop      struct{ URL string } `json:"backdrop"`
-					BackdropSmall struct{ URL string } `json:"backdropSmall"`
-				} `json:"images"`
-			} `json:"items"`
-		} `json:"rows"`
-	}
-	home := getWithToken(h, BasePath+"/home", "p18")
-	if err := json.Unmarshal(home.Body.Bytes(), &page); err != nil || len(page.Rows) == 0 || page.Rows[0].Key != "picks" {
-		t.Fatalf("home: status %d, err %v, body %s", home.Code, err, home.Body.String())
+	// The header names exactly the URLs the start page's stage uses for its first title.
+	page := getHome(t, h, "p18")
+	if page.HeroRow == nil || *page.HeroRow != "spotlight" || len(page.Rows) == 0 || page.Rows[0].Key != "spotlight" {
+		t.Fatalf("home: hero row %v, rows %+v; want spotlight first", page.HeroRow, page.Rows)
 	}
 	first := page.Rows[0].Items[0]
-	if first.ID != f.Rated(18).ID {
-		t.Fatalf("first pick of P18 = %s, want the 18-rated movie", first.ID)
-	}
 	small, large := first.Images.BackdropSmall.URL, first.Images.Backdrop.URL
+	if small == "" || large == "" {
+		t.Fatalf("first stage title %s without both backdrops", first.ID)
+	}
 	want := []string{
 		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
 		"</api/v1/home>; rel=preload; as=fetch; crossorigin",
@@ -163,7 +191,43 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		})
 	}
 
-	t.Run("profile without picks: data only", func(t *testing.T) {
+	// Plan 3.5: a stage further down keeps the preload header but gets no prepaint, which would
+	// sit at the top of the page.
+	t.Run("stage further down: preload only", func(t *testing.T) {
+		exec(`UPDATE home_rows SET position = CASE key WHEN 'spotlight' THEN 3 WHEN 'recent' THEN 0 ELSE position END`)
+		defer exec(`UPDATE home_rows SET position = CASE key WHEN 'spotlight' THEN 0 WHEN 'recent' THEN 3 ELSE position END`)
+		page := getHome(t, h, "p18")
+		if page.HeroRow == nil || *page.HeroRow != "spotlight" || page.Rows[0].Key == "spotlight" {
+			t.Fatalf("home: hero row %v, first row %s; want spotlight further down", page.HeroRow, page.Rows[0].Key)
+		}
+		rec := getWithToken(h, "/", "p18")
+		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
+			t.Fatalf("status %d, body %q, want the shell without prepaint", rec.Code, rec.Body.String())
+		}
+		if got := rec.Header().Values("Link"); !slices.Equal(got, want) {
+			t.Errorf("Link = %q\nwant   %q", got, want)
+		}
+	})
+
+	// Step 4 DoD "FirstHero im leeren Fall": without a stage there is neither a prepaint nor a
+	// hero preload, even though picks is filled (picks is never the stage).
+	t.Run("no stage: data only", func(t *testing.T) {
+		exec(`UPDATE home_rows SET hidden = 1 WHERE key = 'spotlight'`)
+		defer exec(`UPDATE home_rows SET hidden = 0 WHERE key = 'spotlight'`)
+		page := getHome(t, h, "p18")
+		if page.HeroRow != nil || len(page.Rows) == 0 || page.Rows[0].Key != "picks" {
+			t.Fatalf("home: hero row %v, rows %+v; want no stage and picks first", page.HeroRow, page.Rows)
+		}
+		rec := getWithToken(h, "/", "p18")
+		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
+			t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
+		}
+		if got := rec.Header().Values("Link"); !slices.Equal(got, want[:2]) {
+			t.Errorf("Link = %q, want only the data preloads", got)
+		}
+	})
+
+	t.Run("catalog without a stage: data only", func(t *testing.T) {
 		h := NewHandler(Options{
 			Version: "test", Started: time.Now(), Logger: log, Web: shellHandler(),
 			Auth: auth, Catalog: emptyCatalog{},
@@ -176,6 +240,54 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 			t.Errorf("Link = %q, want only the data preloads", got)
 		}
 	})
+}
+
+// Plan 3.6 (D3) and 5.4 through GET /home: ItemRef.hasTrailer is present in the rows spotlight and
+// picks only, true for a title with a stored trailer; every other row leaves it out.
+func TestHomeHasTrailerOverHTTP(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	log := vistest.Logger()
+	ctx := context.Background()
+	for i := range 5 {
+		if _, err := f.DB.Write.ExecContext(ctx, `INSERT INTO spotlight_entries (list_key, media, position, tmdb_id, fetched_at) VALUES ('trending', 'movie', ?, ?, ?)`, i+1, 1000+i, time.Now().UnixMilli()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	session := model.Session{ID: 1, Account: f.Account, Profile: f.P18, ExpiresAt: time.Now().Add(time.Hour)}
+	h := NewHandler(Options{
+		Version: "test", Started: time.Now(), Logger: log, Web: shellHandler(),
+		Auth: preloadAuth{sessions: map[string]model.Session{"p18": session}}, Catalog: discover.New(f.DB, f.CacheDir, log), Playback: playback.New(f.DB, log),
+	})
+	before := getHome(t, h, "p18")
+	if len(before.Rows) < 2 || before.Rows[0].Key != "spotlight" || before.Rows[1].Key != "picks" {
+		t.Fatalf("rows %+v, want spotlight and picks first", before.Rows)
+	}
+	withTrailer := before.Rows[0].Items[0].ID
+	if _, err := f.DB.Write.ExecContext(ctx, `INSERT INTO trailers (item_id, lang, youtube_id, title, source, official, created_at) VALUES (?, 'en', 'FlagTrailer', 'Trailer', 'tmdb', 1, 1)`, withTrailer); err != nil {
+		t.Fatal(err)
+	}
+	page := getHome(t, h, "p18")
+	others := 0
+	for _, row := range page.Rows {
+		flagged := row.Key == "spotlight" || row.Key == "picks"
+		for _, it := range row.Items {
+			switch {
+			case !flagged:
+				others++
+				if it.HasTrailer != nil {
+					t.Errorf("row %s, %s: hasTrailer = %v, want absent", row.Key, it.ID, *it.HasTrailer)
+				}
+			case it.HasTrailer == nil:
+				t.Errorf("row %s, %s: hasTrailer absent", row.Key, it.ID)
+			case *it.HasTrailer != (it.ID == withTrailer):
+				t.Errorf("row %s, %s: hasTrailer = %v, want %v", row.Key, it.ID, *it.HasTrailer, it.ID == withTrailer)
+			}
+		}
+	}
+	if others == 0 {
+		t.Errorf("rows %+v: want titles outside spotlight and picks", page.Rows)
+	}
 }
 
 func TestHeroLinkFallsBackToSingleImage(t *testing.T) {

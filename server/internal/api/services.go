@@ -183,7 +183,17 @@ type AdminService interface {
 	// Trakt (E-7, I-7): the state of the daily lists and a refresh out of schedule
 	// (model.ErrProviderNotConfigured without a client id).
 	TraktStatus(ctx context.Context) (model.TraktStatus, error)
-	RefreshTrakt(ctx context.Context) error
+	// Spotlight (M11, ADR 0011): the configuration with the catalogue of list kinds, the fetched
+	// entries with hits and overrides, one override, and a manual fetch.
+	// SetSpotlightConfig: *model.ValidationError (ranges, media not offered by the kind, listUrl
+	// invalid_value for a non-list or watchlist address). SetSpotlightEntryOverride:
+	// model.ErrNotFound (neither entry nor override), model.ErrRankTaken, *model.ValidationError.
+	// RefreshSpotlight: model.ErrProviderNotConfigured, model.ErrRefreshTooSoon.
+	SpotlightConfig(ctx context.Context) (model.SpotlightConfig, error)
+	SetSpotlightConfig(ctx context.Context, in model.SpotlightConfigUpdate) (model.SpotlightConfig, error)
+	SpotlightEntries(ctx context.Context) (model.SpotlightEntries, error)
+	SetSpotlightEntryOverride(ctx context.Context, media string, tmdbID int64, in model.SpotlightOverrideUpdate) (model.SpotlightEntry, error)
+	RefreshSpotlight(ctx context.Context) error
 
 	// M8 (design sections 1 and 3). Wizard checks (A-1): only while no account exists
 	// (model.ErrSetupDone), counted against the attempt limit of model.ClientIP of ctx
@@ -258,7 +268,7 @@ type AdminService interface {
 // CatalogService answers the start page and the detail page through the visibility layer
 // (package discover).
 type CatalogService interface {
-	Home(ctx context.Context, profile model.Profile) ([]model.HomeRow, error)
+	Home(ctx context.Context, profile model.Profile) (model.HomePage, error)
 	// Item returns the detail or model.ErrNotFound when the item is unknown or not visible.
 	Item(ctx context.Context, profile model.Profile, itemID string) (model.ItemDetail, error)
 	// Image opens a stored image of a visible item (WebP when preferWebP and stored, else JPEG) or

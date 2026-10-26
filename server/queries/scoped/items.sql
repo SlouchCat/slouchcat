@@ -210,3 +210,10 @@ SELECT sqlc.embed(i), r.released FROM (
 JOIN items AS i ON i.id = r.item_id
 ORDER BY r.released DESC, i.id DESC
 LIMIT @limit_count;
+
+-- Which of the given visible titles have a stored trailer (ItemRef.hasTrailer, M11 D3: filled only
+-- for the rows spotlight and picks of the start page, so one query over at most 40 titles).
+-- name: ListVisibleTrailerItems :many
+SELECT DISTINCT t.item_id FROM trailers AS t
+JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = @profile_id
+WHERE t.item_id IN (sqlc.slice('item_ids'));

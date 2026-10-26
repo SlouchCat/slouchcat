@@ -122,6 +122,7 @@
       "primary_profile": "The primary profile cannot be deleted.",
       "invitation_gone": "This invitation link is no longer valid.",
       "too_many_attempts": "Too many attempts. Wait a moment and try again.",
+      "too_many_requests": "The list was fetched less than a minute ago. Wait a moment and try again.",
       "provider_not_configured": "This provider is not set up. Add its key to the server configuration.",
       "watch_limit_reached": "This profile has used up today's watch time.",
       "stream_limit_reached": "This profile already plays as many streams as allowed.",

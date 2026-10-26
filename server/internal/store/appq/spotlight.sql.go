@@ -7,6 +7,7 @@ package appq
 
 import (
 	"context"
+	"database/sql"
 )
 
 const getSpotlightConfig = `-- name: GetSpotlightConfig :one
@@ -34,4 +35,45 @@ func (q *Queries) GetSpotlightConfig(ctx context.Context) (SpotlightConfig, erro
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const setSpotlightConfig = `-- name: SetSpotlightConfig :exec
+UPDATE spotlight_config
+SET enabled = ?1, list_key = ?2, list_url = ?3, media = ?4,
+    item_count = ?5, min_hits = ?6, interval_hours = ?7, updated_at = ?8
+WHERE id = 1
+`
+
+type SetSpotlightConfigParams struct {
+	Enabled       int64
+	ListKey       string
+	ListUrl       sql.NullString
+	Media         string
+	ItemCount     int64
+	MinHits       int64
+	IntervalHours int64
+	Now           int64
+}
+
+func (q *Queries) SetSpotlightConfig(ctx context.Context, arg SetSpotlightConfigParams) error {
+	_, err := q.db.ExecContext(ctx, setSpotlightConfig,
+		arg.Enabled,
+		arg.ListKey,
+		arg.ListUrl,
+		arg.Media,
+		arg.ItemCount,
+		arg.MinHits,
+		arg.IntervalHours,
+		arg.Now,
+	)
+	return err
+}
+
+const setSpotlightManualRefresh = `-- name: SetSpotlightManualRefresh :exec
+UPDATE spotlight_config SET last_manual_refresh = ?1 WHERE id = 1
+`
+
+func (q *Queries) SetSpotlightManualRefresh(ctx context.Context, now sql.NullInt64) error {
+	_, err := q.db.ExecContext(ctx, setSpotlightManualRefresh, now)
+	return err
 }

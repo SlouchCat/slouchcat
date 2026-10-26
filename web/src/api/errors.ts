@@ -44,6 +44,7 @@ const problemKeys = {
   primary_profile: 'errors.code.primary_profile',
   invitation_gone: 'errors.code.invitation_gone',
   too_many_attempts: 'errors.code.too_many_attempts',
+  too_many_requests: 'errors.code.too_many_requests',
   watch_limit_reached: 'errors.code.watch_limit_reached',
   stream_limit_reached: 'errors.code.stream_limit_reached',
   device_required: 'errors.code.device_required',

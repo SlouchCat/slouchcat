@@ -69,7 +69,8 @@ test('The spotlight row comes from the mock and goes while Trakt is down (E-7, I
   page,
   owner,
 }) => {
-  test.setTimeout(120_000);
+  // Two refreshes, each of which may wait for the server's one-a-minute limit (discover.ts).
+  test.setTimeout(240_000);
   const spotlight = page.getByRole('region', { name: ROW_TITLES.spotlight });
   const only = ['spotlight'];
   const traktRows = async () => (await homeRowKeys(owner)).filter((key) => only.includes(key));

@@ -433,6 +433,10 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "telegram_unreachable", "Telegram did not answer; try again.")
 	case errors.Is(err, model.ErrEmailTaken):
 		p.write(w, r, http.StatusConflict, "email_taken", "Another account uses this e-mail.")
+	case errors.Is(err, model.ErrRankTaken):
+		p.write(w, r, http.StatusConflict, "rank_taken", "Another entry of the list already holds this place.")
+	case errors.Is(err, model.ErrRefreshTooSoon):
+		p.write(w, r, http.StatusTooManyRequests, "too_many_requests", "The list was fetched less than a minute ago; wait and try again.")
 	case errors.Is(err, model.ErrJobNotFailed):
 		p.write(w, r, http.StatusConflict, "job_not_failed", "Only a failed job can be queued again.")
 	case errors.Is(err, model.ErrUpdateCheckDisabled):

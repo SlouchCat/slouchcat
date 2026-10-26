@@ -250,8 +250,15 @@ var adminRegistry = map[string]adminCall{
 			`{"key":"recent","position":3,"hidden":false},{"key":"released","position":4,"hidden":false},{"key":"watchlist","position":5,"hidden":false},` +
 			`{"key":"collections","position":6,"hidden":false},{"key":"genres","position":7,"hidden":false}]`},
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
-	// The fixture has no Trakt client id: 422 provider_not_configured.
-	"refreshTrakt": {contract: "POST /admin/trakt/refresh", path: "/admin/trakt/refresh", ownerStatus: http.StatusUnprocessableEntity},
+	// M11 spotlight: the fixture's list has no entry 4242, and it has no Trakt client id (422
+	// provider_not_configured).
+	"getSpotlightConfig": {contract: "GET /admin/spotlight", path: "/admin/spotlight", ownerStatus: http.StatusOK},
+	"setSpotlightConfig": {contract: "PUT /admin/spotlight", path: "/admin/spotlight", ownerStatus: http.StatusOK,
+		body: `{"enabled":true,"listKey":"trending","media":"both","itemCount":20,"minHits":5,"intervalHours":24}`},
+	"getSpotlightEntries": {contract: "GET /admin/spotlight/entries", path: "/admin/spotlight/entries", ownerStatus: http.StatusOK},
+	"setSpotlightEntryOverride": {contract: "PATCH /admin/spotlight/entries/{media}/{tmdbId}", path: "/admin/spotlight/entries/movie/4242",
+		body: `{"hidden":true}`, ownerStatus: http.StatusNotFound},
+	"refreshSpotlight": {contract: "POST /admin/spotlight/refresh", path: "/admin/spotlight/refresh", ownerStatus: http.StatusUnprocessableEntity},
 	// M8 administration: jobs 9999 do not exist; the fixture has no e-mail server (422
 	// email_not_configured), checks a mock manifest and writes backups into a temporary directory.
 	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},

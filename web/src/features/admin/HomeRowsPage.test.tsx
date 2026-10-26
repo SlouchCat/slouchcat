@@ -103,7 +103,7 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
       'GET /admin/home-rows': () => json(defaultRows),
       'GET /admin/trakt': () =>
         json({ ...configured, lastError: 'trakt_unavailable: HTTP 503' } satisfies TraktStatus),
-      'POST /admin/trakt/refresh': () => new Response(null, { status: 202 }),
+      'POST /admin/spotlight/refresh': () => new Response(null, { status: 202 }),
     });
     renderApp('/admin/home-rows');
     const user = userEvent.setup();
@@ -115,7 +115,7 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
     expect(within(section).getByText('trakt_unavailable: HTTP 503')).toBeVisible();
     await user.click(within(section).getByRole('button', { name: 'Jetzt aktualisieren' }));
     expect(await within(section).findByText('Die Trakt-Listen werden abgerufen.')).toBeVisible();
-    expect(calls.some((call) => call.path === '/admin/trakt/refresh')).toBe(true);
+    expect(calls.some((call) => call.path === '/admin/spotlight/refresh')).toBe(true);
   });
 
   it('without a client id the refresh is refused with a notice', async () => {
@@ -124,7 +124,7 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
       'GET /admin/home-rows': () => json(defaultRows),
       'GET /admin/trakt': () =>
         json({ configured: false, listKey: 'trending', entries: 0 } satisfies TraktStatus),
-      'POST /admin/trakt/refresh': () => problem(422, 'provider_not_configured'),
+      'POST /admin/spotlight/refresh': () => problem(422, 'provider_not_configured'),
     });
     renderApp('/admin/home-rows');
     const user = userEvent.setup();
@@ -136,6 +136,23 @@ describe('admin start page rows (M7, E-9) and Trakt (E-7)', () => {
     await user.click(within(section).getByRole('button', { name: 'Jetzt aktualisieren' }));
     expect(
       await within(section).findByText(/Dieser Anbieter ist nicht eingerichtet/),
+    ).toBeVisible();
+  });
+
+  it('a refresh within a minute of the last one shows the rate-limit notice', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /admin/home-rows': () => json(defaultRows),
+      'GET /admin/trakt': () => json(configured),
+      'POST /admin/spotlight/refresh': () => problem(429, 'too_many_requests'),
+    });
+    renderApp('/admin/home-rows');
+    const user = userEvent.setup();
+
+    const section = await screen.findByRole('region', { name: 'Trakt' });
+    await user.click(await within(section).findByRole('button', { name: 'Jetzt aktualisieren' }));
+    expect(
+      await within(section).findByText(/vor weniger als einer Minute abgerufen/),
     ).toBeVisible();
   });
 });

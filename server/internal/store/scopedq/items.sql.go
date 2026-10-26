@@ -1613,6 +1613,53 @@ func (q *Queries) ListVisibleSeriesOf(ctx context.Context, arg ListVisibleSeries
 	return items, nil
 }
 
+const listVisibleTrailerItems = `-- name: ListVisibleTrailerItems :many
+SELECT DISTINCT t.item_id FROM trailers AS t
+JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
+WHERE t.item_id IN (/*SLICE:item_ids*/?)
+`
+
+type ListVisibleTrailerItemsParams struct {
+	ProfileID int64
+	ItemIds   []string
+}
+
+// Which of the given visible titles have a stored trailer (ItemRef.hasTrailer, M11 D3: filled only
+// for the rows spotlight and picks of the start page, so one query over at most 40 titles).
+func (q *Queries) ListVisibleTrailerItems(ctx context.Context, arg ListVisibleTrailerItemsParams) ([]string, error) {
+	query := listVisibleTrailerItems
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.ProfileID)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var item_id string
+		if err := rows.Scan(&item_id); err != nil {
+			return nil, err
+		}
+		items = append(items, item_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listVisibleTrailers = `-- name: ListVisibleTrailers :many
 SELECT t.id, t.item_id, t.lang, t.youtube_id, t.title, t.source, t.official, t.created_at FROM trailers AS t
 JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1

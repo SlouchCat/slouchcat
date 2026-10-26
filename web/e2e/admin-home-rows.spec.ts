@@ -131,11 +131,21 @@ test('Trakt section: state and "Jetzt aktualisieren" by keyboard', async ({ page
   await tabTo(page, refresh, 80);
   const queued = page.waitForResponse(
     (response) =>
-      response.request().method() === 'POST' && response.url().endsWith('/admin/trakt/refresh'),
+      response.request().method() === 'POST' && response.url().endsWith('/admin/spotlight/refresh'),
   );
   await page.keyboard.press('Enter');
-  expect((await queued).status()).toBe(202);
-  await expect(section.getByText('Die Trakt-Listen werden abgerufen.')).toBeVisible();
+  // 202 queues the fetch; 429 means another test of the suite refreshed within the last minute
+  // (one manual fetch a minute, the stamp is in the database). Both answers are shown as a notice;
+  // the keyboard path and the request are what this test proves.
+  const answered = (await queued).status();
+  expect([202, 429]).toContain(answered);
+  await expect(
+    section.getByText(
+      answered === 202
+        ? 'Die Trakt-Listen werden abgerufen.'
+        : 'Die Liste wurde vor weniger als einer Minute abgerufen. Warte kurz und versuche es erneut.',
+    ),
+  ).toBeVisible();
   await expectVisibleFocus(page);
   await expectNoFocusTrap(page);
 });

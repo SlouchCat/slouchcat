@@ -259,7 +259,8 @@ export const setCollectionItems = (id: string, itemIds: string[]): Promise<Admin
 export const setHomeRows = (rows: HomeRowSetting[]): Promise<HomeRowSetting[]> =>
   request(api.PUT('/admin/home-rows', { body: rows }));
 
-export const refreshTrakt = () => request(api.POST('/admin/trakt/refresh'));
+// Queues the spotlight fetch (the Trakt section's "Jetzt aktualisieren").
+export const refreshTrakt = () => request(api.POST('/admin/spotlight/refresh'));
 
 // Administration (M8): dashboard, system state, settings and integrations.
 
