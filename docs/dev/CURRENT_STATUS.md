@@ -119,7 +119,9 @@ der Hauptsitzung, die Hälften je Schritt über `executor`-Agenten auf getrennte
 - Der Storybook-Gate hat den dritten Knopf am Band nicht erkannt (dunkler Knopf auf dunklem Backdrop
   unter der Pixelschwelle); die Baselines mussten mit `--update-snapshots=all` neu geschrieben werden.
 - Lighthouse-Methode: seit dem Gerätecookie braucht die `Cookie`-Kopfzeile beide Cookies, und
-  `--browse-roots` muss die Bibliothek umfassen (`docs/perf/M11.md` 3).
+  `--browse-roots` muss die Bibliothek umfassen (`docs/perf/M11.md` 3). Beides steht seit dem
+  27. Oktober 2026 auch als datierter Nachtrag in `docs/perf/M10.md` Abschnitt 8, wo die Messanleitung
+  steht, die man beim nächsten Mal zuerst aufschlägt.
 - Kein Select-Bauteil in `web/src/ui`: die Auswahlfelder der Spotlight-Seite sind `RadioGroup`s.
 
 ### Offen
@@ -131,12 +133,29 @@ der Hauptsitzung, die Hälften je Schritt über `executor`-Agenten auf getrennte
 - Mockup-I-Abnahme am laufenden Container (Image `m11-s8` liegt auf CT 190).
 - Trailer-Knopf an der Bühne offline ausblenden wie auf der Detailseite (Folge-Commit).
 - Ausstiegsklausel D3 → D1 nach der Messung des `EXISTS` auf ruhigem Server.
-- Eingefrorener Stand `testdata/db/M11.sql` nach der Freigabe; Release-Notes für die brechende
-  Vertragsänderung 1.1.0 beim nächsten Tag.
+- Release-Notes für die brechende Vertragsänderung 1.1.0 beim nächsten Tag.
 
 CT 190 stand vor M11 auf `ci-parallel` (`v1.0.0-46-gb87ac59`); Sicherungen `.env.bak-vor-m11-s2` und
 `/config/backups/pre-migration-v1.0.0-49-g1ee7493-20261025T232327.523Z.db`. Migration 00021 ist dort
 gelaufen; ein Rückweg führt über die Datenbanksicherung (nur vorwärts, Regel 5).
+
+### Formell abgeschlossen (27. Oktober 2026)
+
+Die zwei Punkte, die nach dem Merge von #39 und der Freigabe von 1.1.0 offen geblieben sind, sind
+erledigt:
+
+- **`testdata/db/M11.sql` liegt vor** (Regel 5 und `testdata/db/README.md`). Erzeugt wie die früheren
+  Stände mit `slouchcat dump` gegen einen frischen Server: Assistent mit `frozen@example.test` und der
+  Filmbibliothek auf `testdata/media/Movies` ohne TMDB-Schlüssel, dazu die Tabellen der Migration
+  00021 — `spotlight_config` abseits der Vorgaben, fünf `spotlight_entries` aus einem echten Abruf
+  gegen einen lokalen Trakt-Mock (drei davon mit Bibliothekstreffer über die `{tmdb-NNNN}`-Ordner der
+  Testmedien), drei `spotlight_overrides` in allen drei Formen und die acht `home_rows` in geänderter
+  Reihenfolge.
+  `TestFrozenStatesMigrate` nimmt den Stand über seinen Glob auf; `TestFrozenM11StateCoversM11Data`
+  hält die neuen Tabellen abgedeckt.
+- **Die zwei Methodenbefunde zur LCP-Messung stehen jetzt dort, wo man sie sucht**: als datierter
+  Nachtrag in `docs/perf/M10.md` Abschnitt 8 (beide Cookies, `--browse-roots` über der Bibliothek).
+  Die Messwerte von M10 sind unverändert; nachgetragen ist nur die Anleitung.
 
 ## Nach 1.0: die CI läuft in parallelen Jobs (25. Oktober 2026)
 
