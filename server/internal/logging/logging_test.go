@@ -23,6 +23,8 @@ var fakeSecrets = []string{
 	"vapid-FAKE-private", "p256dh-FAKE-key", "authsecret-FAKE", "push.example.test/FAKE-endpoint",
 	// M9: the webhook token travels in the path of the receiver (I-8, plan 3.8 point 8).
 	"WebhookFAKEtoken_01234567890abcdefghij", "WebhookFAKEerrtoken-01234567890abcdef",
+	// The device cookie: the lockout key of AN-11 (ADR 0005); its value was logged on a cancelled write.
+	"device-FAKE-cookie",
 	"WebhookFAKEshouty-01234567890abcdefgh",
 }
 
@@ -85,6 +87,7 @@ func logAll(t *testing.T, format Format) string {
 		"err", fmt.Errorf("telegram: %w", errors.New(`Post "https://api.telegram.org/bot42:BotErrSecret-456/sendMessage": EOF`)),
 		"passphrase", "phrase-FAKE-backup",
 		"vapid_private_key", "vapid-FAKE-private",
+		"device_id", "device-FAKE-cookie",
 		slog.Group("subscription",
 			slog.String("endpoint", "https://push.example.test/FAKE-endpoint"),
 			slog.String("p256dh", "p256dh-FAKE-key"),
@@ -135,7 +138,7 @@ func TestIsSensitiveKey(t *testing.T) {
 	for key, want := range map[string]bool{
 		"password": true, "PIN": true, "offline_pin": true, "access_token": true, "api_key": true, "youtube_api_key": true, "tvdbApiKey": true, "TVDB_PIN": true,
 		"apiKey": true, "X-Api-Key": true, "authorization": true, "secret": true,
-		"pin_hash": true, "profile_pin": true, "pinVerifier": true, "offline_pin_verifier": true, "trakt_client_id": true, "traktClientId": true, "client_id": true, "invitation_token": true, "token_hash": true, "password_hash": true, "device_id": false, "content_hash": false,
+		"pin_hash": true, "profile_pin": true, "pinVerifier": true, "offline_pin_verifier": true, "trakt_client_id": true, "traktClientId": true, "client_id": true, "invitation_token": true, "token_hash": true, "password_hash": true, "device_id": true, "deviceId": true, "content_hash": false,
 		"user": false, "path": false, "max_tokens": false, "mapping": false, "status": false,
 		"smtp_password": true, "smtpPassword": true, "bot_token": true, "botToken": true, "passphrase": true, "backup_passphrase": true,
 		"vapid_private_key": true, "vapidPrivateKey": true, "p256dh": true, "auth_secret": true, "endpoint": true, "push_endpoint": true,
