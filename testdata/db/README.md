@@ -112,3 +112,20 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   90-Tage-Fensters und einen Fortschritt in `progress`. `TestFrozenM10StateCoversM10Data` prüft das;
   `TestFrozenStatesMigrate` spielt ihn zusammen mit allen früheren Ständen ein — das ist der
   Migrationstest M1a → 1.0 aus Schritt 3 von M10 (P-13).
+- `M11.sql`: Stand nach M11 (Bühne und Kuratierung; Migration 00021 `spotlight`). Erzeugt mit
+  `freeze-m11.sh` aus den Sitzungsnotizen gegen einen frischen Server: Assistent mit Hauptkonto
+  `frozen@example.test` und Filmbibliothek auf `testdata/media/Movies` ohne TMDB-Schlüssel, vom echten
+  Scanner gelesen (17 Filme und 5 Extras, 23 Dateien mit 56 Spuren, darunter die absichtlich defekte
+  Datei mit `probe_error`; die fünf Filme mit `{tmdb-NNNN}` im Ordnernamen tragen ihre TMDB-ID, ohne
+  Schlüssel bleibt der Abgleich `skipped`/`no_tmdb_key`). Der Server braucht dafür seit Entscheid E14
+  `--browse-roots testdata/media`, sonst weist der Assistent den Bibliothekspfad mit 422 ab. Dazu die
+  M11-Daten: die Einzelzeile in `spotlight_config` abseits der Vorgaben der Migration (Liste
+  `trending`, Medien `both`, 12 Titel, 2 Treffer Untergrenze, 12 Stunden Takt, `last_manual_refresh`
+  vom Abruf), fünf `spotlight_entries` aus einem echten Lauf von `POST /admin/spotlight/refresh` gegen
+  einen lokalen Mock der Trakt-API (`SLOUCHCAT_TRAKT_BASE_URL`, Client-ID `freeze`, wie schon bei M7 —
+  ein echter Trakt-Schlüssel gehört nicht in den Stand): drei Filme mit Bibliothekstreffer (7001 bis
+  7003), ein Film ohne (7999) und die Serie der nicht eingehängten Serienbibliothek (7101), und drei
+  `spotlight_overrides` in allen drei Formen (angeheftet auf Rang 1 mit Notiz, ausgeblendet, nur
+  Notiz). `home_rows` trägt die acht Schlüssel der Migration in geänderter Reihenfolge, «Genres»
+  ausgeblendet (E-9). `TestFrozenM11StateCoversM11Data` prüft, dass jede dieser Datenarten nach der
+  Migration vorhanden ist.
