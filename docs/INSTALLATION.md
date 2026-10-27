@@ -28,8 +28,8 @@ Fassung nicht geprüft worden, weil im Projekt keine solchen Geräte vorhanden w
 
 ```bash
 mkdir -p ~/slouchcat && cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.0.0/deploy/compose.yaml
-curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.0.0/deploy/.env.example
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.1.0/deploy/compose.yaml
+curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.1.0/deploy/.env.example
 mkdir -p config cache
 ```
 
@@ -47,7 +47,7 @@ Du hast jetzt vier Dinge nebeneinander:
 
 ```bash
 # Die Fassung, die laufen soll.
-SLOUCHCAT_VERSION=1.0.0
+SLOUCHCAT_VERSION=1.1.0
 
 # Der Ordner auf deinem Rechner, in dem die Medien liegen.
 MEDIA_DIR=/srv/media
@@ -102,7 +102,7 @@ Zeit: Der Start eines 4K-HDR-Films dauert dann bis zu zehn Sekunden statt unter 
 ist höchstens 1080p ohne HDR. Mit Grafikchip nimmst du eine zweite Datei dazu:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.0.0/deploy/compose.nvidia.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.1.0/deploy/compose.nvidia.yaml
 echo 'COMPOSE_FILE=compose.yaml:compose.nvidia.yaml' >> .env
 docker compose up -d
 ```
@@ -143,8 +143,8 @@ auf deinen Anschluss zeigt, und im Router die Weiterleitung der Ports 80/tcp, 44
 den Rechner.
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.0.0/deploy/Caddyfile
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.0.0/deploy/compose.https-only.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.1.0/deploy/Caddyfile
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.1.0/deploy/compose.https-only.yaml
 ```
 
 In `.env`:
