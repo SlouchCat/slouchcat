@@ -14,7 +14,7 @@ import (
 var fakeSecrets = []string{
 	"hunter2-FAKE", "tok_FAKE_123", "pin-FAKE-0815", "apikey-FAKE-xyz", "Bearer FAKE.jwt.value",
 	"xapikey-FAKE", "s3cr3t-FAKE", "query-FAKE-key", "st-FAKE-token", "err-FAKE-key", "with-FAKE",
-	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "4711", "pl-FAKE-media", "pl-FAKE-init", "pl-FAKE-seg",
+	"group-FAKE-pw", "url-FAKE-key", "msg-FAKE-key", "90817263", "pl-FAKE-media", "pl-FAKE-init", "pl-FAKE-seg",
 	"yt-FAKE-key", "ytq-FAKE-key", "tvdb-FAKE-key", "tvdbpin-FAKE", "apikeyq-FAKE",
 	"dt-FAKE-token", "dtsub-FAKE-token", "dterr-FAKE-token", "verifier-FAKE-hash",
 	"auth-FAKE-feed", "token-FAKE-feed", "access-FAKE-feed", "secret-FAKE-feed", "sig-FAKE-enc", "signature-FAKE-enc",
@@ -41,7 +41,7 @@ func logAll(t *testing.T, format Format) string {
 		"password", "hunter2-FAKE",
 		"Token", "tok_FAKE_123",
 		"pin", "pin-FAKE-0815",
-		slog.Group("profile", slog.Int("PIN", 4711)), // numeric secret, listed in fakeSecrets
+		slog.Group("profile", slog.Int("PIN", 90817263)), // numeric secret, listed in fakeSecrets; long enough not to occur in a timestamp
 		"apiKey", "apikey-FAKE-xyz",
 		"Authorization", "Bearer FAKE.jwt.value",
 		"X-Api-Key", "xapikey-FAKE",
