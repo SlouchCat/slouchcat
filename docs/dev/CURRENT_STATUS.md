@@ -1,9 +1,24 @@
 # Aktueller Stand
 
-Stand: 26. Oktober 2026. **M0 bis M10 sind in `main`** (`b87ac59`, Version 1.0.0 veröffentlicht), dazu
-nach 1.0 der Ordner-Browser (#34, #35), der Explorer-Entscheid (#37, #38) und die parallele CI (#36).
-**M11 «Spotlight und Kuratierung» ist gebaut und wartet auf dem Zweig `claude/m11-spotlight-7f52c5`
-auf die Abnahme** — der Abschnitt dazu steht gleich unten.
+Stand: 27. Oktober 2026. **M0 bis M11 sind in `main`** (`b91a1d9`), dazu nach 1.0 der Ordner-Browser
+(#34, #35), der Explorer-Entscheid (#37, #38) und die parallele CI (#36). **M11 «Spotlight und
+Kuratierung» ist als #39 gemergt** (Merge-Commit `7c7f472`, 18 Commits), danach zwei Nachbesserungen am
+Protokoll (#40, #41) und fünf Dependabot-Anhebungen der GitHub-Actions (#25, #26, #27, #29, #30). Der
+Abschnitt zu M11 steht gleich unten.
+
+**Version 1.1.0 ist vorbereitet, aber noch nicht getaggt.** Die Versionsstellen zeigen auf 1.1.0
+(`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+`docs/dev/HANDOVER.md`), und die vier Betreibertexte zum Trakt-Schlüssel nennen nicht mehr die zwei
+entfallenen Reihen, sondern Spotlight. Die Release-Notes sind der Text der Tag-Beschriftung; den Tag
+`v1.1.0` setzt die Hauptsession auf Marcos Wort auf den Stand von `main`, erst danach baut und
+veröffentlicht `release.yml` das Image. **Die Anhebung ist brechend**, und genau das gehört in die
+Notes: `HomeRowKey` verliert `trakt_trending` und `trakt_popular` und bekommt `spotlight` und
+`released`; entfernte Enum-Werte werden nie wiederverwendet.
+
+**Falle beim Mergen.** `gh pr merge --auto --merge` merged sofort, wenn auf `main` kein Branch-Schutz
+mit Pflicht-Checks liegt — PR #39 ging so vor dem Ende des CI-Laufs hinein (der Lauf war danach grün).
+«Allow auto-merge» ist eingeschaltet, ein Ruleset mit Required Checks fehlt. Bis es steht, ist
+`--auto` kein Tor, sondern nur ein Knopf.
 
 Älterer Kopf (23. Oktober 2026): **M0 bis M9 sind in `main`** (`https://github.com/SlouchCat/slouchcat`,
 Pull Requests #1 bis #6, #9, #10, #11, #14 bis #23; zuletzt der Merge-Commit `f17351b`). Der CI-Lauf auf

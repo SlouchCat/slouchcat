@@ -117,7 +117,7 @@ docker compose ps             # Status "healthy" nach wenigen Sekunden
 ```
 
 Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist auf
-`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.0.0`); das Image entsteht bei jedem
+`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.1.0`); das Image entsteht bei jedem
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
@@ -168,7 +168,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_TMDB_API_KEY` | leer | TMDB-Lesetoken; übersteuert den im Assistenten gespeicherten Schlüssel |
 | `SLOUCHCAT_TVDB_API_KEY`, `SLOUCHCAT_TVDB_PIN` | leer | TheTVDB (optional), siehe «Metadaten-Anbieter und Trailer» |
 | `SLOUCHCAT_YOUTUBE_API_KEY` | leer | YouTube Data API v3 für Trailer (optional) |
-| `SLOUCHCAT_TRAKT_CLIENT_ID` | leer | Trakt Client ID für die Reihen «Trending bei Trakt» und «Beliebt bei Trakt» (optional, M7); ohne Schlüssel bleiben die Reihen ausgeblendet |
+| `SLOUCHCAT_TRAKT_CLIENT_ID` | leer | Trakt Client ID für die Reihe «Spotlight» (optional, M7); welche öffentliche Liste sie zeigt, steht in der Verwaltung unter «Spotlight». Ohne Schlüssel bleibt die Reihe ausgeblendet |
 | `SLOUCHCAT_TRAILER_AI` | `off` | KI-Schritt der Trailer-Suche; in dieser Version nur `off` |
 | `SLOUCHCAT_SMTP_HOST`, `SLOUCHCAT_SMTP_PORT`, `SLOUCHCAT_SMTP_USER`, `SLOUCHCAT_SMTP_PASSWORD`, `SLOUCHCAT_SMTP_FROM` | leer | E-Mail-Server der Benachrichtigungen (optional, M8); übersteuert den in der Verwaltung hinterlegten Server. Ohne Port gilt 587, 465 oder 25 je nach `SLOUCHCAT_SMTP_TLS` |
 | `SLOUCHCAT_SMTP_TLS` | `starttls` | Verschlüsselung zum E-Mail-Server: `starttls`, `tls` (implizit) oder `none` |
@@ -190,7 +190,7 @@ nie ins Repository; das Log maskiert sie.
 | TMDB | ja | Filme und Serien (Hauptquelle): Texte de/en, Genres, Freigaben, Besetzung, Poster, Hintergründe, Episodenbilder, Trailer-Liste | Lesetoken (v4) im Einrichtungsassistenten oder `SLOUCHCAT_TMDB_API_KEY` |
 | TheTVDB | nein | Serien, die TMDB nicht kennt, und von Hand zugeordnete TVDB-IDs | `SLOUCHCAT_TVDB_API_KEY`, bei einem nutzerfinanzierten Schlüssel («user-supported») zusätzlich die Abonnenten-PIN als `SLOUCHCAT_TVDB_PIN`; die Lizenzbedingungen stehen auf thetvdb.com |
 | YouTube Data API v3 | nein | Trailer für Deutsch und Englisch, wenn TMDB keinen nennt | `SLOUCHCAT_YOUTUBE_API_KEY` (kostenlos) |
-| Trakt | nein | Öffentliche Listen «Trending» und «Beliebt» (Filme und Serien), täglich mit der eigenen Bibliothek verschnitten; kein Login je Profil, nichts wird hochgeladen (I-7) | `SLOUCHCAT_TRAKT_CLIENT_ID` (kostenlos: unter https://trakt.tv/oauth/applications eine App anlegen, Redirect URI `urn:ietf:wg:oauth:2.0:oob`; nur die Client ID zählt) |
+| Trakt | nein | Eine öffentliche Liste nach Wahl für die Reihe «Spotlight» («Trending bei Trakt», «Beliebt bei Trakt», «Meistgesehen», «Meistgesammelt», «Am meisten erwartet», «Kinocharts» oder die Adresse einer öffentlichen Liste), im eingestellten Abstand mit der eigenen Bibliothek verschnitten; kein Login je Profil, nichts wird hochgeladen (I-7) | `SLOUCHCAT_TRAKT_CLIENT_ID` (kostenlos: unter https://trakt.tv/oauth/applications eine App anlegen, Redirect URI `urn:ietf:wg:oauth:2.0:oob`; nur die Client ID zählt) |
 
 YouTube-Schlüssel in drei Schritten: In der Google Cloud Console (`console.cloud.google.com`) ein neues
 Projekt anlegen und unter «APIs & Dienste → Bibliothek» die «YouTube Data API v3» aktivieren. Danach
