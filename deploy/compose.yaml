@@ -37,7 +37,7 @@ services:
       SLOUCHCAT_TVDB_PIN: ${SLOUCHCAT_TVDB_PIN:-}
       SLOUCHCAT_YOUTUBE_API_KEY: ${SLOUCHCAT_YOUTUBE_API_KEY:-}
       SLOUCHCAT_TRAILER_AI: ${SLOUCHCAT_TRAILER_AI:-off}
-      # Trakt client id (M7): the public top lists for the two Trakt rows; empty = rows hidden.
+      # Trakt client id (M7): the public lists the spotlight row draws from; empty = row hidden.
       SLOUCHCAT_TRAKT_CLIENT_ID: ${SLOUCHCAT_TRAKT_CLIENT_ID:-}
       # Notifications (M8, README «Umgebungsvariablen»); empty = set in the administration or off.
       SLOUCHCAT_SMTP_HOST: ${SLOUCHCAT_SMTP_HOST:-}
