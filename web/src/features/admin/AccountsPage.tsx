@@ -1,5 +1,10 @@
-import type { AccountUpdate, AdminAccount, SessionInfo } from '@slouchcat/api-client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type {
+  AccountAccessUpdate,
+  AccountUpdate,
+  AdminAccount,
+  SessionInfo,
+} from '@slouchcat/api-client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,8 +17,27 @@ import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { ButtonLink, Chip, Notice, Page, Skeleton, Text } from '@/ui';
-import { AriaButton, DataTable, Form, FormDialog, TextField, type DataColumn } from '@/ui/aria';
-import { accountsQuery } from './queries';
+import {
+  AriaButton,
+  ConfirmDialog,
+  DataTable,
+  Form,
+  FormDialog,
+  RadioGroup,
+  TextField,
+  type DataColumn,
+} from '@/ui/aria';
+import { ratingOf, ratingOptions } from '../shared/choices';
+import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
+import { LimitFields, limitsOf, limitValues, type LimitValues } from '../shared/LimitFields';
+import {
+  libraryIdsOf,
+  useLibraryOptions,
+  type LibraryOption,
+  type LibraryOptions,
+} from '../shared/useLibraryOptions';
+import { InvitationsSection, InviteDialog } from './Invitations';
+import { accountsQuery, invitationsQuery } from './queries';
 import data from './AdminData.module.css';
 import styles from './AdminTablePage.module.css';
 
@@ -29,8 +53,8 @@ function accountErrors(t: TFunction, error: unknown): FormErrors {
 }
 
 /**
- * "Konto ändern" (A-2): the e-mail and the password of the signed-in main account. Every change
- * needs the current password; the passwords never stay in the query client.
+ * "Konto ändern" (A-2): the e-mail and the password of the signed-in account. Every change needs
+ * the current password; the passwords never stay in the query client.
  */
 function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boolean) => void }) {
   const { t } = useTranslation();
@@ -132,18 +156,128 @@ function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boo
 }
 
 /**
- * Accounts (A-2): the main account and every guest with ceiling, libraries, profiles, last contact
- * and the notification channels they switched on. The main account changes its own e-mail and
- * password here; guests are managed on the access page.
+ * "Zugriff ändern" (K-7): rating ceiling, libraries and the W-8 caps of one account. Only an
+ * account that administers nothing has them; an administrator is fixed at FSK 18 and all
+ * libraries (ADR 0014), so its row offers no such button.
+ */
+function AccessDialog({
+  account,
+  options,
+  onClose,
+}: {
+  account: AdminAccount;
+  options: readonly LibraryOption[];
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [rating, setRating] = useState(String(account.maxRating));
+  const [selection, setSelection] = useState<LibrarySelection>({
+    all: account.allLibraries,
+    ids: account.libraryIds.map(String),
+  });
+  const [limits, setLimits] = useState<LimitValues>(() => limitValues(account.limits));
+  const save = useMutation({
+    mutationFn: (body: AccountAccessUpdate) =>
+      request(api.PATCH('/admin/accounts/{id}', { params: { path: { id: account.id } }, body })),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
+      onClose();
+    },
+  });
+  const errors = save.error ? formErrors(t, save.error) : null;
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    save.mutate({
+      maxRating: ratingOf(rating),
+      allLibraries: selection.all,
+      libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
+      // W-8: bandwidth, quality and streams cap every profile of the account.
+      limits: limitsOf(limits, false),
+    });
+  };
+
+  return (
+    <FormDialog
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={t('admin.accounts.access.title', { email: account.email })}
+    >
+      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
+        <div className={styles.form}>
+          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+          <RadioGroup
+            name="maxRating"
+            label={t('admin.accounts.access.rating')}
+            value={rating}
+            onChange={setRating}
+            options={ratingOptions(t)}
+          />
+          <LibraryChoice
+            label={t('admin.accounts.access.libraries')}
+            value={selection}
+            onChange={setSelection}
+            options={options}
+          />
+          <fieldset>
+            <legend>{t('limits.title')}</legend>
+            <Text tone="secondary" variant="caption">
+              {t('admin.accounts.access.limitsHint')}
+            </Text>
+            <LimitFields value={limits} onChange={setLimits} withWatch={false} />
+          </fieldset>
+          <div className={styles.dialogActions}>
+            <AriaButton variant="ghost" onPress={onClose}>
+              {t('common.cancel')}
+            </AriaButton>
+            <AriaButton type="submit" variant="primary" isPending={save.isPending}>
+              {save.isPending ? t('common.saving') : t('common.save')}
+            </AriaButton>
+          </div>
+        </div>
+      </Form>
+    </FormDialog>
+  );
+}
+
+/**
+ * Accounts (A-2): every account with role, ceiling, libraries, profiles, last contact and the
+ * notification channels it switched on. The signed-in account changes its own e-mail and password
+ * here; the administration changes the access of the others, and the owner alone appoints and
+ * demotes administrators (ADR 0014). The page shows or hides buttons - the server decides.
  */
 export function AccountsPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.accounts.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
+  const isOwner = session.account.isOwner;
   const accounts = useQuery({ ...accountsQuery, enabled: allowed });
+  const libraries: LibraryOptions = useLibraryOptions(allowed);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [access, setAccess] = useState<AdminAccount | null>(null);
+  const [inviting, setInviting] = useState(false);
+  const queryClient = useQueryClient();
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: invitationsQuery.queryKey }),
+    ]);
+  const setRole = useMutation({
+    mutationFn: ({ id, role }: { id: number; role: 'admin' | 'user' }) =>
+      request(api.PUT('/admin/accounts/{id}/role', { params: { path: { id } }, body: { role } })),
+    onSuccess: refresh,
+  });
+  const remove = useMutation({
+    mutationFn: (id: number) =>
+      request(api.DELETE('/admin/accounts/{id}', { params: { path: { id } } })),
+    onSuccess: refresh,
+  });
+  const actionError = setRole.error ?? remove.error;
 
   const columns: DataColumn<AdminAccount>[] = [
     {
@@ -155,7 +289,12 @@ export function AccountsPage() {
     {
       key: 'role',
       header: t('admin.accounts.columns.role'),
-      cell: (account) => t(`admin.accounts.roles.${account.role}`),
+      cell: (account) => (
+        <span className={data.chips}>
+          <span>{t(`admin.accounts.roles.${account.role}`)}</span>
+          {account.isOwner && <Chip tone="info">{t('admin.accounts.ownerBadge')}</Chip>}
+        </span>
+      ),
     },
     {
       key: 'rating',
@@ -235,13 +374,79 @@ export function AccountsPage() {
             </ButtonLink>
           </span>
         ) : (
-          <ButtonLink
-            variant="ghost"
-            href={paths.adminAccess}
-            aria-label={t('admin.accounts.accessLabel', { email: account.email })}
-          >
-            {t('admin.accounts.accessLink')}
-          </ButtonLink>
+          <span className={styles.rowActions}>
+            {account.role === 'user' && (
+              <AriaButton
+                isDisabled={!libraries.isReady}
+                aria-label={t('admin.accounts.access.label', { email: account.email })}
+                onPress={() => setAccess(account)}
+              >
+                {t('admin.accounts.access.action')}
+              </AriaButton>
+            )}
+            {isOwner && !account.isOwner && (
+              <ConfirmDialog
+                trigger={
+                  <AriaButton
+                    variant="ghost"
+                    aria-label={t(
+                      account.role === 'admin'
+                        ? 'admin.accounts.role.demote.label'
+                        : 'admin.accounts.role.promote.label',
+                      { email: account.email },
+                    )}
+                  >
+                    {t(
+                      account.role === 'admin'
+                        ? 'admin.accounts.role.demote.action'
+                        : 'admin.accounts.role.promote.action',
+                    )}
+                  </AriaButton>
+                }
+                title={t(
+                  account.role === 'admin'
+                    ? 'admin.accounts.role.demote.title'
+                    : 'admin.accounts.role.promote.title',
+                  { email: account.email },
+                )}
+                body={t(
+                  account.role === 'admin'
+                    ? 'admin.accounts.role.demote.body'
+                    : 'admin.accounts.role.promote.body',
+                )}
+                confirmLabel={t(
+                  account.role === 'admin'
+                    ? 'admin.accounts.role.demote.confirm'
+                    : 'admin.accounts.role.promote.confirm',
+                )}
+                cancelLabel={t('common.cancel')}
+                onConfirm={() =>
+                  setRole.mutate({
+                    id: account.id,
+                    role: account.role === 'admin' ? 'user' : 'admin',
+                  })
+                }
+              />
+            )}
+            {!account.isOwner && (
+              <ConfirmDialog
+                trigger={
+                  <AriaButton
+                    variant="ghost"
+                    aria-label={t('admin.accounts.remove.label', { email: account.email })}
+                  >
+                    {t('admin.accounts.remove.action')}
+                  </AriaButton>
+                }
+                title={t('admin.accounts.remove.title', { email: account.email })}
+                body={t('admin.accounts.remove.body')}
+                confirmLabel={t('admin.accounts.remove.confirm')}
+                cancelLabel={t('common.cancel')}
+                tone="danger"
+                onConfirm={() => remove.mutate(account.id)}
+              />
+            )}
+          </span>
         ),
     },
   ];
@@ -260,7 +465,31 @@ export function AccountsPage() {
         </Notice>
       ) : (
         <div className={styles.body} aria-busy={accounts.isPending}>
+          <div className={data.toolbar}>
+            <AriaButton
+              variant="primary"
+              icon="plus"
+              isDisabled={!libraries.isReady}
+              onPress={() => setInviting(true)}
+            >
+              {t('admin.accounts.invitations.invite')}
+            </AriaButton>
+          </div>
           {saved && <Notice>{t('admin.accounts.edit.saved')}</Notice>}
+          {libraries.isError && (
+            <Notice
+              tone="danger"
+              title={t('libraries.loadFailed')}
+              actions={
+                <AriaButton icon="refresh" onPress={libraries.retry}>
+                  {t('common.retry')}
+                </AriaButton>
+              }
+            >
+              {problemMessage(t, libraries.error)}
+            </Notice>
+          )}
+          {actionError && <Notice tone="danger">{problemMessage(t, actionError)}</Notice>}
           {accounts.isPending && <Skeleton shape="block" />}
           {accounts.isError && (
             <Notice
@@ -281,6 +510,7 @@ export function AccountsPage() {
               rowKey={(account) => String(account.id)}
             />
           )}
+          <InvitationsSection options={libraries.options} />
         </div>
       )}
       {editing && (
@@ -292,6 +522,14 @@ export function AccountsPage() {
           }}
         />
       )}
+      {access && (
+        <AccessDialog
+          account={access}
+          options={libraries.options}
+          onClose={() => setAccess(null)}
+        />
+      )}
+      {inviting && <InviteDialog options={libraries.options} onClose={() => setInviting(false)} />}
     </Page>
   );
 }

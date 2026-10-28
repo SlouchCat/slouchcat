@@ -308,7 +308,7 @@ export function HomePage() {
               {t('home.empty.title')}
             </Text>
             <Text tone="secondary">{t('home.empty.body')}</Text>
-            {session.account.role === 'owner' && (
+            {session.account.role === 'admin' && (
               <div>
                 <ButtonLink href={paths.adminLibraries} variant="secondary" icon="folder">
                   {t('home.empty.action')}

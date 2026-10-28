@@ -1286,49 +1286,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/admin/guests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Guest accounts with their limits */
-        get: operations["listGuests"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/admin/guests/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Revoke a guest account (K-7)
-         * @description Ends every running stream of the account, revokes all its sessions and stream tokens and deletes the
-         *     account with its profiles and progress. From the next request on, cookies and stream tokens of the
-         *     guest answer 401.
-         */
-        delete: operations["revokeGuest"];
-        options?: never;
-        head?: never;
-        /**
-         * Change the rating ceiling or the library rights of a guest account
-         * @description Takes effect with the guest's next request; profiles above the new ceiling are capped by the visibility layer.
-         */
-        patch: operations["updateGuest"];
-        trace?: never;
-    };
     "/admin/podcasts": {
         parameters: {
             query?: never;
@@ -2601,9 +2558,76 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The main account and the guest accounts with profiles and channels (A-2) */
+        /** Every account with its role, limits, profiles and channels (A-2) */
         get: operations["listAccounts"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an account with its profiles and progress (K-7)
+         * @description Ends every running stream of the account, revokes all its sessions and stream tokens and deletes the
+         *     account with its profiles and progress. From the next request on, cookies and stream tokens of the
+         *     account answer 401.
+         *
+         *     The owner cannot be deleted (`owner_protected`), and the last administrator cannot either
+         *     (`last_admin`): there is no path to a server without an administration (ADR 0014).
+         */
+        delete: operations["deleteAccount"];
+        options?: never;
+        head?: never;
+        /**
+         * Change the rating ceiling, the library rights or the playback caps of an account
+         * @description Takes effect with the account's next request; profiles above the new ceiling are capped by the
+         *     visibility layer.
+         *
+         *     Only an account with `role: user` has access limits. An administrator is fixed at `maxRating` 18
+         *     and all libraries (ADR 0014, decision 12 f), because the administration views read system-wide and
+         *     without a profile check; this answers `409 admin_limits_fixed` for one. Take the role away first if
+         *     the account should be limited again.
+         */
+        patch: operations["updateAccountAccess"];
+        trace?: never;
+    };
+    "/admin/accounts/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Appoint an account as administrator, or take the role away
+         * @description Only the owner may call this (ADR 0014); an administrator that is not the owner gets 403
+         *     `owner_required`.
+         *
+         *     Appointing lifts the account to `maxRating` 18 and all libraries, because the
+         *     administration views read system-wide and without a profile check - a lower ceiling there
+         *     would be a false promise, not a protection. Taking the role away does **not** put the old
+         *     limits back; the administration sets them again on the account if it wants to. The
+         *     account's profiles keep their own levels either way, and `admin` still needs the active
+         *     primary profile.
+         *
+         *     Taking the role away revokes every session of the account, so no browser keeps an
+         *     administration page that the next request would refuse. Appointing revokes nothing: the
+         *     middleware decides per request and nobody loses anything.
+         */
+        put: operations["setAccountRole"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3132,7 +3156,7 @@ export interface components {
             /** @description The active profile; absent until `selectProfile` ran (the client shows the picker). */
             profile?: components["schemas"]["Profile"];
             /**
-             * @description A newer version is published (A-5); only for the main account and only while the update
+             * @description A newer version is published (A-5); only for administrators and only while the update
              *     check is on.
              */
             updateAvailable?: components["schemas"]["UpdateNotice"];
@@ -3142,13 +3166,22 @@ export interface components {
             id: number;
             /** Format: email */
             email: string;
-            /** @enum {string} */
-            role: "owner" | "guest";
-            /** @description Rating ceiling of every profile of the account (18 for the main account). */
+            /**
+             * @description `admin` runs the server and its libraries, `user` manages only its own profiles
+             *     (ADR 0014). The removed values `owner` and `guest` are never reused.
+             * @enum {string}
+             */
+            role: "admin" | "user";
+            /**
+             * @description The one account that cannot be deleted or demoted and that appoints further
+             *     administrators. Always an `admin`.
+             */
+            isOwner: boolean;
+            /** @description Rating ceiling of every profile of the account (18 for an administrator). */
             maxRating: components["schemas"]["Rating"];
-            /** @description True for the main account; guests see only `libraryIds`. */
+            /** @description True for an administrator; other accounts see only `libraryIds`. */
             allLibraries: boolean;
-            /** @description Libraries a guest account may see; empty when `allLibraries` is true. */
+            /** @description Libraries the account may see; empty when `allLibraries` is true. */
             libraryIds: number[];
         };
         /** @description A viewing profile with its settings. Profiles carry no e-mail and no password (K-1); only `name` is required. */
@@ -3344,37 +3377,14 @@ export interface components {
             /** @description UI and metadata language of the primary profile; default de. */
             language?: components["schemas"]["Language"];
         };
-        Guest: {
-            /** Format: int64 */
-            id: number;
-            /** Format: email */
-            email: string;
-            maxRating: components["schemas"]["Rating"];
-            allLibraries: boolean;
-            libraryIds: number[];
-            profileCount: number;
-            /** Format: date-time */
-            createdAt: string;
-            /**
-             * Format: date-time
-             * @description Last request of any session of the account.
-             */
-            lastSeenAt?: string;
-            /**
-             * @description Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
-             *     profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
-             *     the object replaces all three at once: a field left out clears that limit.
-             */
-            limits: components["schemas"]["PlaybackLimits"];
-        };
-        GuestUpdate: {
+        AccountAccessUpdate: {
             maxRating?: components["schemas"]["Rating"];
             allLibraries?: boolean;
             libraryIds?: number[];
             /**
-             * @description Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
-             *     profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
-             *     the object replaces all three at once: a field left out clears that limit.
+             * @description Bandwidth, maximum output height and concurrent streams of the account (W-8); they cap every
+             *     profile of the account. `watchLimitMinutes` is a profile setting and ignored here. The object
+             *     replaces all three at once: a field left out clears that limit.
              */
             limits?: components["schemas"]["PlaybackLimits"];
         };
@@ -5298,7 +5308,9 @@ export interface components {
             /** Format: email */
             email: string;
             /** @enum {string} */
-            role: "owner" | "guest";
+            role: "admin" | "user";
+            /** @description The one account that cannot be deleted or demoted (ADR 0014). */
+            isOwner: boolean;
             maxRating: components["schemas"]["Rating"];
             allLibraries: boolean;
             libraryIds: number[];
@@ -5308,6 +5320,22 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             channels: components["schemas"]["ChannelSummary"][];
+            /**
+             * @description Bandwidth, maximum output height and concurrent streams of the account (W-8); they cap every
+             *     profile of the account. `watchLimitMinutes` is a profile setting and always absent here.
+             */
+            limits: components["schemas"]["PlaybackLimits"];
+        };
+        /**
+         * @description The role an account should have (`setAccountRole`). There is no field for the owner badge:
+         *     the owner is fixed to the first account and cannot be handed over (decision 12 g).
+         */
+        AccountRoleUpdate: {
+            /**
+             * @description `admin` runs the server and its libraries, `user` manages only its own profiles.
+             * @enum {string}
+             */
+            role: "admin" | "user";
         };
         AccountUpdate: {
             /** Format: email */
@@ -5644,8 +5672,20 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Not the main account with its primary profile active (`forbidden`), or CSRF header missing. */
+        /** @description Not an administrator with its primary profile active (`forbidden`), or CSRF header missing. */
         AdminOnly: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description Not the owner with its primary profile active (`owner_required`), or CSRF header missing.
+         *     An administrator that is not the owner gets this too: only the owner appoints (ADR 0014).
+         */
+        OwnerOnly: {
             headers: {
                 [name: string]: unknown;
             };
@@ -8611,105 +8651,6 @@ export interface operations {
             };
         };
     };
-    listGuests: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Guest accounts, newest first. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Guest"][];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-        };
-    };
-    revokeGuest: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Revoked and deleted. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Unknown guest account (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
-    updateGuest: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GuestUpdate"];
-            };
-        };
-        responses: {
-            /** @description Updated. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Guest"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["AdminOnly"];
-            /** @description Unknown guest account (`not_found`). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-            /** @description Validation failed (`validation_failed`; `libraryIds` `unknown_library`). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
-        };
-    };
     listPodcasts: {
         parameters: {
             query?: never;
@@ -11027,7 +10968,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The main account first, then the guests by creation, newest first. */
+            /** @description The owner first, then the other administrators, then the accounts by creation, newest first. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -11038,6 +10979,146 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
+        };
+    };
+    deleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AccountID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The owner (`owner_protected`) or the last administrator (`last_admin`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAccountAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AccountID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountAccessUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated; read the account list again for the new values. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The account is an administrator and has no access limits (`admin_limits_fixed`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `libraryIds` `unknown_library`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setAccountRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AccountID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description The role is set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["OwnerOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The owner cannot be demoted (`owner_protected`), or the change would leave the server
+             *     without an administrator (`last_admin`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getStats: {

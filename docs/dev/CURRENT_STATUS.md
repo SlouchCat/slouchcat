@@ -1,19 +1,88 @@
 # Aktueller Stand
 
+## Benutzerverwaltung: Administrator, Konto, Profil (28. Oktober 2026)
+
+Auf dem Zweig `claude/benutzerverwaltung` umgesetzt, nach dem Konzept
+`docs/planning/06-benutzerverwaltung.md`, den Entscheiden in Frage 12 des Entscheidungsprotokolls
+und **ADR 0014**. Sieben Commits, einer je Planschritt; vor jedem Abschluss war `task ci` grün.
+
+**Was sich ändert.** Es gibt drei Ebenen statt zweier Kontoarten: **Administrator** (verwaltet
+Server, Bibliotheken, Einstellungen, Jobs, Integrationen), **Konto** (verwaltet nur die eigenen
+Profile) und **Profil** (schaut). Der Besitzer ist kein eigener Rang, sondern ein Abzeichen am einen
+Konto: unlöschbar, nicht degradierbar, und als einziger darf er ernennen und entziehen. Das Wort
+«Gast» ist weg — es versprach etwas Kleineres, als es bedeutete.
+
+**Migration 00022** baut `accounts` um: `role` kennt nur noch `'admin'` und `'user'` (Standard
+`'user'`, damit ein vergessenes `role` ein harmloses Konto erzeugt), der Besitzer steht in der neuen
+Spalte `is_owner` mit Teilindex. Zwei CHECKs halten das Modell: ein Administrator trägt immer
+`max_rating = 18` und `all_libraries = 1`, und ein Besitzer ist immer ein Administrator. Die View
+`visible_items` wird **wortgleich aus 00010** wiederhergestellt, nicht aus 00007 wie das Konzept
+schrieb — 00010 hat sie zuletzt neu geschrieben und die Regel für Extras ergänzt.
+`TestFrozenStatesMigrate` fährt die Migration über alle eingefrorenen Stände, `PRAGMA
+foreign_key_check` bleibt leer.
+
+**Die Vertragsfassung steigt auf 1.2.0, und die Anhebung ist brechend.** Das gehört wörtlich in die
+Release-Notes:
+
+- `Account.role` und `AdminAccount.role` verlieren die Werte `owner` und `guest` und tragen
+  `admin` und `user`; entfernte Enum-Werte werden nie wiederverwendet.
+- Beide Schemata bekommen das Pflichtfeld `isOwner`.
+- `GET /admin/guests` **entfällt**; `listAccounts` ist die einzige Kontoliste und trägt jetzt auch
+  die W-8-Grenzen.
+- `updateGuest` heisst **`updateAccountAccess`** (`PATCH /admin/accounts/{id}`, Antwort 204 statt
+  200), `revokeGuest` heisst **`deleteAccount`** (`DELETE /admin/accounts/{id}`).
+- Neu: `setAccountRole` (`PUT /admin/accounts/{id}/role`) mit der **sechsten Sichtbarkeitsstufe
+  `owner`**, und die Fehlercodes `owner_required` (403), `owner_protected` (409), `last_admin`
+  (409) und `admin_limits_fixed` (409).
+
+**Versionsstellen stehen auf 1.2.0** (`deploy/.env.example`, `deploy/compose.yaml`,
+`deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`). **Marco hat am 28. Oktober 2026
+entschieden: 1.2.0 ist richtig.** 1.1.0 war vorbereitet, ist aber nie getaggt worden und wird
+übersprungen. Daraus folgt: **die Release-Notes von 1.2.0 tragen beide Brüche**, den von 1.1.0
+(`HomeRowKey` verliert `trakt_trending` und `trakt_popular`, bekommt `spotlight` und `released`) und
+den dieser Änderung (Rollen-Enum, `GET /admin/guests`, die zwei Umbenennungen). Wird der Bruch von
+1.1.0 vergessen, steht er in keinen Notes, weil es die Fassung 1.1.0 nie gegeben hat.
+
+**Was Marco am Bildschirm sieht.** Die Seite «Verwaltung → Konten» ist die eine Kontoliste: Rolle
+mit Besitzer-Abzeichen, Altersstufe, Bibliotheken, Profile, letzter Kontakt, Kanäle. Je Zeile
+«Zugriff» (nur bei Konten ohne Verwaltung), «Zum Administrator ernennen» bzw. «Rolle entziehen»
+(nur beim Besitzer sichtbar) und «Entfernen». Oben der Knopf **«Konto einladen»**: der Dialog
+fragt Notiz, Altersfreigabe und Bibliotheken, zeigt danach den Einmal-Link ein einziges Mal und
+schliesst mit «Fertig». Unter der Tabelle stehen die Einladungen mit ihrem Zustand und dem
+Widerruf. **Die Seite «Zugriff» gibt es nicht mehr** (Nachtrag in ADR 0014, 28. Oktober 2026);
+`/admin/access` leitet auf `/admin/accounts` um. Der Client setzt nichts durch: er blendet Knöpfe
+aus, der Server entscheidet.
+
+**Eingefrorener Datenbankstand.** `testdata/db/benutzerverwaltung.sql` trägt alle drei Ebenen:
+den Besitzer mit zwei Profilen, ein Konto ohne Verwaltung mit eigener Altersstufe und eigenen
+W-8-Grenzen, und einen zweiten Administrator, der durch Ernennung auf 18 und alle Bibliotheken
+gestiegen ist. `TestFrozenStatesMigrate` nimmt ihn über das Glob mit,
+`TestFrozenUserManagementStateCoversTheThreeLevels` prüft seinen Inhalt. Der Name trägt bewusst
+keine Meilensteinnummer — die Benutzerverwaltung ist keiner.
+
+**Zwei Befunde, die das Konzept korrigieren.**
+
+1. Die View kommt aus 00010, nicht aus 00007 (oben).
+2. Der Riegel `last_admin` ist bei vorhandenem Besitzer **strukturell unerreichbar**: der Besitzer
+   ist Administrator und weder löschbar noch degradierbar, also bleibt immer einer übrig. Der
+   Riegel bleibt trotzdem, als Wächter für eine Datenbank ohne Besitzerabzeichen, und
+   `TestLastAdminGuardWithoutAnOwner` stellt genau diesen Zustand her, damit der Wächter geprüft
+   ist statt bloss behauptet.
+
 Stand: 27. Oktober 2026. **M0 bis M11 sind in `main`** (`b91a1d9`), dazu nach 1.0 der Ordner-Browser
 (#34, #35), der Explorer-Entscheid (#37, #38) und die parallele CI (#36). **M11 «Spotlight und
 Kuratierung» ist als #39 gemergt** (Merge-Commit `7c7f472`, 18 Commits), danach zwei Nachbesserungen am
 Protokoll (#40, #41) und fünf Dependabot-Anhebungen der GitHub-Actions (#25, #26, #27, #29, #30). Der
 Abschnitt zu M11 steht gleich unten.
 
-**Version 1.1.0 ist vorbereitet, aber noch nicht getaggt.** Die Versionsstellen zeigen auf 1.1.0
-(`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
-`docs/dev/HANDOVER.md`), und die vier Betreibertexte zum Trakt-Schlüssel nennen nicht mehr die zwei
-entfallenen Reihen, sondern Spotlight. Die Release-Notes sind der Text der Tag-Beschriftung; den Tag
-`v1.1.0` setzt die Hauptsession auf Marcos Wort auf den Stand von `main`, erst danach baut und
-veröffentlicht `release.yml` das Image. **Die Anhebung ist brechend**, und genau das gehört in die
-Notes: `HomeRowKey` verliert `trakt_trending` und `trakt_popular` und bekommt `spotlight` und
-`released`; entfernte Enum-Werte werden nie wiederverwendet.
+**Version 1.1.0 wurde vorbereitet, nie getaggt und am 28. Oktober 2026 übersprungen** (Abschnitt
+«Benutzerverwaltung» oben): die Versionsstellen zeigen seither auf 1.2.0. Die vier Betreibertexte zum
+Trakt-Schlüssel nennen nicht mehr die zwei entfallenen Reihen, sondern Spotlight. Die Release-Notes
+sind der Text der Tag-Beschriftung; den Tag setzt die Hauptsession auf Marcos Wort auf den Stand von
+`main`, erst danach baut und veröffentlicht `release.yml` das Image. **Die Anhebung ist brechend**,
+und genau das gehört in die Notes von 1.2.0: `HomeRowKey` verliert `trakt_trending` und
+`trakt_popular` und bekommt `spotlight` und `released`; entfernte Enum-Werte werden nie
+wiederverwendet.
 
 **Falle beim Mergen.** `gh pr merge --auto --merge` merged sofort, wenn auf `main` kein Branch-Schutz
 mit Pflicht-Checks liegt — PR #39 ging so vor dem Ende des CI-Laufs hinein (der Lauf war danach grün).

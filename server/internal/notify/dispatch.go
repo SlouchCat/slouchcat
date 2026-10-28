@@ -124,7 +124,7 @@ func (s *Service) targets(ctx context.Context, ev model.Event) ([]target, error)
 	var out []target
 	switch ev.Type {
 	case model.EventErrors:
-		rows, err := s.write.ChannelTargetsOwners(ctx, ev.Type)
+		rows, err := s.write.ChannelTargetsAdmins(ctx, ev.Type)
 		if err != nil {
 			return nil, fmt.Errorf("recipients of %s: %w", ev.Type, err)
 		}

@@ -333,7 +333,7 @@ export function AdminHomePage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.home.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   // The poll waits while a confirmation is open, so its row does not go away underneath it.
   const [confirming, setConfirming] = useState(false);

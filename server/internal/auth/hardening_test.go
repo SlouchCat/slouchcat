@@ -280,7 +280,7 @@ func TestForeignProfilesAreNotFound(t *testing.T) {
 
 // Revoking a guest: sessions are revoked before end runs, the account is deleted after the first
 // call, and end runs again afterwards.
-func TestRevokeAccountOrder(t *testing.T) {
+func TestDeleteAccountOrder(t *testing.T) {
 	t.Parallel()
 	s, _ := newService(t)
 	ownerSess, _ := owner(t, s)
@@ -298,7 +298,7 @@ func TestRevokeAccountOrder(t *testing.T) {
 		states = append(states, fmt.Sprintf("session usable %v, accounts %d", resolveErr == nil, accounts))
 		return nil
 	}
-	if err := s.RevokeAccount(ctx, guest.Account.ID, end); err != nil {
+	if err := s.DeleteAccount(ctx, guest.Account.ID, end); err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"session usable false, accounts 1", "session usable false, accounts 0"}
@@ -376,10 +376,10 @@ func TestRestrictedWithoutLibrariesIsRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{AllLibraries: boolPtr(false)}); !slices.Equal(validationCodes(err), required) {
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{AllLibraries: boolPtr(false)}); !slices.Equal(validationCodes(err), required) {
 		t.Errorf("guest to restricted without libraries: %v", err)
 	}
-	if _, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{AllLibraries: boolPtr(false), LibraryIDs: &[]int64{}}); !slices.Equal(validationCodes(err), required) {
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{AllLibraries: boolPtr(false), LibraryIDs: &[]int64{}}); !slices.Equal(validationCodes(err), required) {
 		t.Errorf("guest with an empty list: %v", err)
 	}
 }
@@ -411,13 +411,13 @@ func TestGuestCeilingClampsProfiles(t *testing.T) {
 		}
 		return out
 	}
-	if _, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{MaxRating: num(12)}); err != nil {
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{MaxRating: num(12)}); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := ratings(), map[string]int{"G": 12, "Zwölf": 12, "Sechs": 6, "Sechzehn": 12}; !mapsEqual(got, want) {
 		t.Errorf("after lowering to 12: %v, want %v", got, want)
 	}
-	if _, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{MaxRating: num(16)}); err != nil {
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{MaxRating: num(16)}); err != nil {
 		t.Fatal(err)
 	}
 	if got := ratings(); got["Sechzehn"] != 12 || got["Sechs"] != 6 {
@@ -456,12 +456,12 @@ func TestListAccountLibraries(t *testing.T) {
 		t.Fatalf("owner libraries = %+v, %v", libs, err)
 	}
 	guest := addGuestAccount(t, s, "g@example.ch", 12, false, []int64{b, a})
-	libs, err = s.ListAccountLibraries(ctx, model.Account{ID: guest.ID, Role: "guest", LibraryIDs: []int64{b, a}})
+	libs, err = s.ListAccountLibraries(ctx, model.Account{ID: guest.ID, Role: model.RoleUser, LibraryIDs: []int64{b, a}})
 	if err != nil || !slices.Equal(names(libs), []string{"alpha", "Zeta"}) {
 		t.Errorf("guest libraries = %+v, %v", libs, err)
 	}
 	_ = c
-	if libs, err := s.ListAccountLibraries(ctx, model.Account{Role: "guest"}); err != nil || len(libs) != 0 {
+	if libs, err := s.ListAccountLibraries(ctx, model.Account{Role: model.RoleUser}); err != nil || len(libs) != 0 {
 		t.Errorf("guest without rights: %+v, %v", libs, err)
 	}
 }

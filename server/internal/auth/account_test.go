@@ -22,7 +22,7 @@ func TestUpdateAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.write.InsertGuestAccount(ctx, appq.InsertGuestAccountParams{
+	if _, err := s.write.InsertInvitedAccount(ctx, appq.InsertInvitedAccountParams{
 		Email: "guest@example.ch", PasswordHash: "x", MaxRating: 12, AllLibraries: 1, InvitedBy: sql.NullInt64{Int64: acc.ID, Valid: true}, Now: 1,
 	}); err != nil {
 		t.Fatal(err)

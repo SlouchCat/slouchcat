@@ -41,7 +41,6 @@ const (
 	maxProfileName   = 60
 	maxUserAgentLen  = 512
 	defaultMaxRating = 18
-	roleOwner        = "owner"
 )
 
 // Service implements api.AuthService and creates the owner account for the setup wizard.
@@ -155,9 +154,11 @@ func validEmail(email string) bool {
 		!strings.HasPrefix(domain, ".") && !strings.HasSuffix(domain, ".") && !strings.Contains(domain, "..")
 }
 
-// CreateOwner creates the main account and its default profile in one transaction. Because M1a
-// has exactly one owner, it returns model.ErrSetupDone when any account exists; the check runs
-// inside the write transaction, so two concurrent wizards cannot both succeed.
+// CreateOwner creates the owner's account and its default profile in one transaction. The setup
+// wizard runs once, so it returns model.ErrSetupDone when any account exists; the check runs
+// inside the write transaction, so two concurrent wizards cannot both succeed. Every further
+// account comes from an invitation, and further administrators only from an appointment by the
+// owner (ADR 0014).
 func (s *Service) CreateOwner(ctx context.Context, email, password, language string) (model.Account, model.Profile, error) {
 	email, verr := ValidateOwner(email, password)
 	if language == "" {
@@ -193,7 +194,9 @@ func (s *Service) CreateOwner(ctx context.Context, email, password, language str
 	if n > 0 {
 		return model.Account{}, model.Profile{}, model.ErrSetupDone
 	}
-	acc, err := q.InsertAccount(ctx, appq.InsertAccountParams{Email: email, PasswordHash: hash, Role: roleOwner, Now: now})
+	acc, err := q.InsertAccount(ctx, appq.InsertAccountParams{
+		Email: email, PasswordHash: hash, Role: model.RoleAdmin, IsOwner: 1, Now: now,
+	})
 	if err != nil {
 		return model.Account{}, model.Profile{}, fmt.Errorf("insert account: %w", err)
 	}
@@ -514,8 +517,8 @@ func toAccount(a appq.Account, libs []int64) model.Account {
 		libs = []int64{}
 	}
 	return model.Account{
-		ID: a.ID, Email: a.Email, Role: a.Role, MaxRating: int(a.MaxRating), AllLibraries: a.AllLibraries == 1, LibraryIDs: libs,
-		Limits: AccountLimits(a),
+		ID: a.ID, Email: a.Email, Role: a.Role, IsOwner: a.IsOwner == 1, MaxRating: int(a.MaxRating),
+		AllLibraries: a.AllLibraries == 1, LibraryIDs: libs, Limits: AccountLimits(a),
 	}
 }
 

@@ -249,8 +249,9 @@ func (s *Service) TestChannel(ctx context.Context, session model.Session, channe
 	}
 }
 
-// SendTestEmail sends a test mail through the configured server to to, or to the main account when
-// empty (admin.EmailTester). model.ErrEmailNotConfigured without a server; *model.SendError with
+// SendTestEmail sends a test mail through the configured server to to, or to the owner when empty
+// (admin.EmailTester). A single recipient has to be a particular one, so it is the owner and not
+// whichever administrator happens to sort first (ADR 0014). model.ErrEmailNotConfigured without a server; *model.SendError with
 // model.ErrEmailSendFailed and a detail without secrets.
 func (s *Service) SendTestEmail(ctx context.Context, to string) error {
 	srv := s.serverState(ctx)
@@ -259,7 +260,7 @@ func (s *Service) SendTestEmail(ctx context.Context, to string) error {
 	}
 	owner, err := s.write.NotifyOwner(ctx)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("main account: %w", err)
+		return fmt.Errorf("owner account: %w", err)
 	}
 	lang := owner.Language
 	if to = strings.TrimSpace(to); to == "" {

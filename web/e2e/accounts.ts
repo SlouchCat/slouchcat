@@ -1,4 +1,9 @@
-import { expect, type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test';
+import {
+  expect,
+  type APIRequestContext,
+  type Page,
+  type PlaywrightWorkerArgs,
+} from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CSRF } from './catalog';
@@ -124,11 +129,41 @@ export async function stopAllStreams(api: APIRequestContext): Promise<void> {
   }
 }
 
-export async function removeGuests(api: APIRequestContext): Promise<void> {
-  const guests = await json<{ id: number }[]>(await api.get('/api/v1/admin/guests'), [200]);
-  for (const guest of guests)
-    await json(await send(api, 'delete', `/admin/guests/${guest.id}`), [204]);
+/**
+ * Removes every account a spec created: the owner stays, everything else goes. A spec that failed
+ * halfway may have left an administrator behind (ADR 0014), so the role comes off first - an
+ * administrator is deletable, but only while another one is left, and the owner always is.
+ */
+export async function removeInvitedAccounts(api: APIRequestContext): Promise<void> {
+  const accounts = await json<{ id: number; role: string; isOwner: boolean }[]>(
+    await api.get('/api/v1/admin/accounts'),
+    [200],
+  );
+  for (const account of accounts) {
+    if (account.isOwner) continue;
+    if (account.role === 'admin') {
+      await json(
+        await send(api, 'put', `/admin/accounts/${account.id}/role`, { role: 'user' }),
+        [204],
+      );
+    }
+    await json(await send(api, 'delete', `/admin/accounts/${account.id}`), [204]);
+  }
 }
+
+/** Opens the account list of the administration and waits for its table. */
+export async function openAccounts(page: Page): Promise<void> {
+  await page.goto('/admin/accounts');
+  await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Konten' })).toBeVisible();
+}
+
+/** One row of the account list, found by the e-mail in its row header. */
+export const accountRow = (page: Page, email: string) =>
+  page
+    .getByRole('table', { name: 'Konten' })
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: email, exact: true }) });
 
 /**
  * Removes the podcast subscriptions a spec created for itself (feeds under `/f/<key>/` of the mock

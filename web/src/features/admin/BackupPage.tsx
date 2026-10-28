@@ -345,7 +345,7 @@ export function BackupPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.backup.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const [restart, setRestart] = useState<Restart | null>(null);
   const backups = useQuery({ ...backupsQuery, enabled: allowed && restart === null });

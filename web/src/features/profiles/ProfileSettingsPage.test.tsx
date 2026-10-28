@@ -95,7 +95,8 @@ describe('profile settings page', () => {
         json({
           account: {
             ...session.account,
-            role: 'guest',
+            role: 'user',
+            isOwner: false,
             maxRating: 12,
             allLibraries: false,
             libraryIds: [3],
@@ -230,7 +231,13 @@ describe('profile settings page', () => {
       ...manage,
       'GET /auth/session': () =>
         json({
-          account: { ...session.account, role: 'guest', maxRating: 12, allLibraries: true },
+          account: {
+            ...session.account,
+            role: 'user',
+            isOwner: false,
+            maxRating: 12,
+            allLibraries: true,
+          },
           profile: session.profile,
         }),
       // The raw value (18) is above the guest ceiling (12): the server caps it in the view.

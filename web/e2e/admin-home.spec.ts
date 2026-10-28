@@ -28,7 +28,6 @@ const NAV_PAGES = [
   ['Podcasts', '/admin/podcasts'],
   ['Pflege', '/admin/maintenance'],
   ['Konten', '/admin/accounts'],
-  ['Zugriff', '/admin/access'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
@@ -84,7 +83,7 @@ test('admin navigation: one Tab stop, arrows move, Enter follows, Back returns',
   await expectFocusOn(page, nav.getByRole('link', { name: 'Streams' }));
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, nav.getByRole('link', { name: 'Zugriff' }));
+  await expectFocusOn(page, nav.getByRole('link', { name: 'Konten' }));
   await page.keyboard.press('End');
   await expectFocusOn(page, nav.getByRole('link', { name: 'Sicherung' }));
   await page.keyboard.press('ArrowRight');
@@ -202,7 +201,8 @@ test('Tab: header, navigation, dashboard, cards; Enter on a card; no focus trap'
 }) => {
   await openOverview(page);
   const cards = page.getByRole('region', { name: 'Alle Verwaltungsseiten' });
-  await expect(cards.getByRole('link')).toHaveCount(17);
+  // One card per admin page; "Zugriff" went into "Konten" with ADR 0014.
+  await expect(cards.getByRole('link')).toHaveCount(16);
   await expect(cards.getByRole('link', { name: 'Benachrichtigungen' })).toHaveAttribute(
     'href',
     '/settings/notifications',

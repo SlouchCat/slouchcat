@@ -70,7 +70,7 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if acc.Email != "marco@example.ch" || acc.Role != "owner" {
+	if acc.Email != "marco@example.ch" || acc.Role != model.RoleAdmin || !acc.IsOwner {
 		t.Fatalf("account = %+v", acc)
 	}
 	want := model.Profile{ID: prof.ID, AccountID: acc.ID, Name: "marco", MaxRating: 18, Language: "en", AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: true}

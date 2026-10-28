@@ -29,6 +29,7 @@ func newCurationFixture(t *testing.T) curationFixture {
 	f := vistest.New(t)
 	f.AddSeries(t)
 	f.AddGuest(t)
+	f.AddSecondAdmin(t)
 	log := vistest.Logger()
 	svc := New(f.DB, auth.New(f.DB, log), &fakeLibraries{}, nil, &fakeTMDB{}, func(string) string { return "" }, log)
 	svc.now = func() time.Time { return time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC) }
@@ -103,6 +104,11 @@ func TestTopPicks(t *testing.T) {
 	wantField(t, "season", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Show.Season.ID})), "itemId", "invalid_value")
 	wantField(t, "extra", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Show.Extra.ID})), "itemId", "invalid_value")
 	wantField(t, "guest profile", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{f.P18.ID, f.PG.ID}})), "profileIds", "invalid_value")
+	// E-2 with ADR 0014: a pick targets the profiles of the owner's household. A second
+	// administrator runs the server, but its children are not the audience of Cat's
+	// recommendations, so their profiles are refused like any other.
+	wantField(t, "second administrator's profile", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{f.PA2.ID}})), "profileIds", "invalid_value")
+	wantField(t, "second administrator's child", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{f.PA2K.ID}})), "profileIds", "invalid_value")
 	wantField(t, "unknown profile", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, ProfileIDs: []int64{999}})), "profileIds", "invalid_value")
 	wantField(t, "window", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, StartsAt: &ends, EndsAt: &starts})), "endsAt", "invalid_value")
 	wantField(t, "empty window", errOf(c.svc.CreateTopPicks(c.ctx, model.PickRequest{ItemID: f.Rated(0).ID, StartsAt: &starts, EndsAt: &starts})), "endsAt", "invalid_value")

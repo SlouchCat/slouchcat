@@ -147,8 +147,13 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/accounts", "p18", "", nil)
 	var accounts []gen.AdminAccount
 	decode(t, rec, &accounts)
-	if rec.Code != http.StatusOK || len(accounts) != 2 || accounts[0].Role != gen.AdminAccountRoleOwner || accounts[1].Role != gen.AdminAccountRoleGuest ||
-		len(accounts[0].Profiles) != 6 || !accounts[0].Profiles[0].IsPrimary || accounts[1].AllLibraries || len(accounts[1].LibraryIds) != 1 {
+	// A-2 with ADR 0014: the owner first, then the second administrator, then the account that
+	// administers nothing. Only the first carries the owner badge.
+	if rec.Code != http.StatusOK || len(accounts) != 3 ||
+		accounts[0].Role != gen.AdminAccountRoleAdmin || !accounts[0].IsOwner ||
+		accounts[1].Role != gen.AdminAccountRoleAdmin || accounts[1].IsOwner ||
+		accounts[2].Role != gen.AdminAccountRoleUser || accounts[2].IsOwner ||
+		len(accounts[0].Profiles) != 6 || !accounts[0].Profiles[0].IsPrimary || accounts[2].AllLibraries || len(accounts[2].LibraryIds) != 1 {
 		t.Errorf("accounts = %d %s", rec.Code, rec.Body.String())
 	}
 

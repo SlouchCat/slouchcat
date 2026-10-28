@@ -47,3 +47,19 @@ Wiedergabesitzungen reicht, damit Stream-Tokens des alten Profils sofort sterben
 - Spätere Meilensteine: Bearer-Tokens für Fremd-Clients (C-5) hängen an derselben Sitzungstabelle und
   erben die Profilwahl; Offline (M5) speichert `allowed_profile_ids` je Download, der Wähler bleibt der
   einzige Ort, an dem ein Profil aktiv wird.
+
+## Nachtrag vom 28. Oktober 2026 (Benutzerverwaltung, ADR 0014)
+
+Zwei Zeilen der Entscheidtabelle oben sind abgelöst, der Rest gilt wörtlich weiter.
+
+- **`admin` verlangt nicht mehr «das Hauptkonto».** Es gibt ab ADR 0014 mehrere Administratoren
+  (`accounts.role = 'admin'`); die Stufe verlangt **ein Administratorkonto** mit seinem aktiven
+  Hauptprofil. Die Hauptprofil-Bedingung selbst bleibt unangetastet — sie ist der Grund, weshalb ein
+  Kinderprofil am Elterngerät nicht an die Bibliotheksverwaltung kommt, und sie gilt jetzt für mehr
+  Haushalte statt für weniger.
+- **Es gibt eine sechste Stufe `owner`.** Sie trägt die Operationen, die nur der Besitzer ausführen
+  darf (`setAccountRole`), und erbt dieselbe Hauptprofil-Bedingung. Der Besitzer steht nicht mehr in
+  `role`, sondern in der neuen Spalte `accounts.is_owner`.
+- **«Gastkonten» heissen nur noch «Konten».** Der Rollenwert `'guest'` entfällt; die Zeile
+  «Gastkonten» oben beschreibt unverändert, was ein Konto ist und wie der Entzug greift (K-7), nur
+  ohne das Wort «Gast».

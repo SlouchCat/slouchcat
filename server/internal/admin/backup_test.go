@@ -78,7 +78,7 @@ func (st *stack) seed(t *testing.T) string {
 	}
 	exec(t, st.db.Write,
 		`INSERT INTO accounts (id, email, password_hash, role, created_at, updated_at) VALUES
-		   (1, 'owner@example.test', '$argon2id$fake', 'owner', 1, 1), (2, 'guest@example.test', '$argon2id$fake', 'guest', 2, 2)`,
+		   (1, 'owner@example.test', '$argon2id$fake', 'admin', 1, 1), (2, 'guest@example.test', '$argon2id$fake', 'user', 2, 2)`,
 		`INSERT INTO profiles (id, account_id, name, max_rating, is_default, created_at, updated_at) VALUES
 		   (1, 1, 'Marco', 18, 1, 1, 1), (2, 1, 'Kind', 6, 0, 1, 1), (3, 2, 'Gast', 12, 1, 2, 2)`,
 		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 1, 1)`,

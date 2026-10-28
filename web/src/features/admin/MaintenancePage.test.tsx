@@ -365,7 +365,7 @@ describe('maintenance page', () => {
         json({ ...session, profile: { ...session.profile, id: 2, isPrimary: false } }),
     });
     renderApp('/admin/maintenance');
-    expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/maintenance'))).toBe(false);
   });
 });

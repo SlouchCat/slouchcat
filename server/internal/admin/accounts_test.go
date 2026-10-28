@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -26,7 +27,7 @@ func TestListAccounts(t *testing.T) {
 	}
 	var guests []int64
 	for i, email := range []string{"older@example.ch", "newer@example.ch"} {
-		g, err := q.InsertGuestAccount(ctx, appq.InsertGuestAccountParams{Email: email, PasswordHash: "x", MaxRating: 12,
+		g, err := q.InsertInvitedAccount(ctx, appq.InsertInvitedAccountParams{Email: email, PasswordHash: "x", MaxRating: 12,
 			AllLibraries: int64(i), InvitedBy: sql.NullInt64{Int64: owner.ID, Valid: true}, Now: time.Now().UnixMilli() + int64(i)*1000})
 		if err != nil {
 			t.Fatal(err)
@@ -59,7 +60,7 @@ func TestListAccounts(t *testing.T) {
 		t.Fatalf("order = %+v, want owner, newer guest, older guest", list)
 	}
 	o := list[0]
-	if o.Role != "owner" || !o.AllLibraries || len(o.LibraryIDs) != 0 || len(o.Profiles) != 2 || !o.Profiles[0].IsPrimary ||
+	if o.Role != model.RoleAdmin || !o.IsOwner || !o.AllLibraries || len(o.LibraryIDs) != 0 || len(o.Profiles) != 2 || !o.Profiles[0].IsPrimary ||
 		o.Profiles[1].Name != "Kind" || o.Profiles[1].MaxRating != 6 || o.LastSeenAt == nil || o.LastSeenAt.UnixMilli() != 1_760_000_000_000 {
 		t.Errorf("owner = %+v", o)
 	}

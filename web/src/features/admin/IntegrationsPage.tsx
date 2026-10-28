@@ -639,7 +639,7 @@ export function IntegrationsPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.integrations.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const settings = useQuery({ ...settingsQuery, enabled: allowed });
 
   return (

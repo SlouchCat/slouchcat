@@ -5,8 +5,10 @@
 SELECT count(*) FROM accounts;
 
 -- name: InsertAccount :one
-INSERT INTO accounts (email, password_hash, role, created_at, updated_at)
-VALUES (@email, @password_hash, @role, @now, @now)
+-- The setup wizard's account is the owner; every other account comes from an invitation and is
+-- inserted by InsertInvitedAccount, which writes its role as a literal (ADR 0014).
+INSERT INTO accounts (email, password_hash, role, is_owner, created_at, updated_at)
+VALUES (@email, @password_hash, @role, @is_owner, @now, @now)
 RETURNING *;
 
 -- name: GetAccountByEmail :one

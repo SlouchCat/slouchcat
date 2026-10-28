@@ -153,7 +153,11 @@
       "backup_newer_than_server": "Die Sicherung stammt von einer neueren Version von Slouchcat. Aktualisiere zuerst den Server.",
       "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.",
       "scan_running": "Ein Scan dieser Bibliothek läuft gerade. Warte, bis er fertig ist, oder brich ihn ab.",
-      "confirm_mismatch": "Der abgetippte Pfad stimmt nicht mit dem Ordner überein. Nichts wurde entfernt."
+      "confirm_mismatch": "Der abgetippte Pfad stimmt nicht mit dem Ordner überein. Nichts wurde entfernt.",
+      "owner_required": "Das darf nur der Besitzer.",
+      "owner_protected": "Das Besitzerkonto lässt sich weder entfernen noch degradieren.",
+      "last_admin": "Das ist der letzte Administrator. Ernenne zuerst einen zweiten.",
+      "admin_limits_fixed": "Ein Administrator sieht immer alle Bibliotheken bis FSK 18. Entziehe zuerst die Rolle."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -180,7 +184,7 @@
     "intro": "Vier kurze Schritte, dann scannt Slouchcat deine erste Bibliothek.",
     "step": "Schritt {{step}}",
     "account": {
-      "title": "Hauptkonto",
+      "title": "Administratorkonto",
       "description": "Mit diesem Konto verwaltest du Slouchcat.",
       "email": "E-Mail-Adresse",
       "password": "Passwort",
@@ -640,78 +644,17 @@
       "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst."
     },
     "access": {
-      "title": "Zugriff",
-      "intro": "Lade Gäste mit einem Einmal-Link ein und lege fest, was sie sehen dürfen.",
       "notAllowed": {
-        "title": "Nur für das Hauptkonto",
-        "body": "Einladungen und Gäste verwaltet das Hauptprofil des Hauptkontos."
-      },
-      "form": {
-        "rating": "Höchste Altersfreigabe",
-        "libraries": "Bibliotheken"
-      },
-      "invitations": {
-        "title": "Einladungen",
-        "intro": "Ein Link gilt einmal und sieben Tage. Wer ihn öffnet, legt ein eigenes Gastkonto an.",
-        "note": "Für wen ist der Link?",
-        "noteHint": "Zum Beispiel ein Name. Die Notiz sieht auch der Gast.",
-        "create": "Einladung erstellen",
-        "creating": "Wird erstellt …",
-        "created": {
-          "title": "Einladungslink erstellt",
-          "once": "Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.",
-          "label": "Einladungslink",
-          "copy": "Link kopieren",
-          "copied": "Link kopiert.",
-          "copyFailed": "Kopieren nicht möglich. Der Link ist markiert, kopiere ihn mit Strg+C.",
-          "dismiss": "Link ausblenden"
-        },
-        "list": "Bestehende Einladungen",
-        "empty": "Noch keine Einladung erstellt.",
-        "noNote": "Ohne Notiz",
-        "state": {
-          "open": "Offen",
-          "used": "Benutzt",
-          "expired": "Abgelaufen",
-          "revoked": "Widerrufen"
-        },
-        "expires": "Gültig bis {{date}}",
-        "usedBy": "Angenommen von {{email}}",
-        "revoke": {
-          "action": "Widerrufen",
-          "title": "Einladung widerrufen?",
-          "body": "Der Link funktioniert danach nicht mehr.",
-          "confirm": "Widerrufen"
-        }
-      },
-      "guests": {
-        "title": "Gäste",
-        "intro": "Gäste haben ein eigenes Konto mit Obergrenze und Bibliotheken. Ihre Profile bleiben darunter.",
-        "list": "Gäste",
-        "empty": "Noch keine Gäste.",
-        "profiles_one": "{{count}} Profil",
-        "profiles_other": "{{count}} Profile",
-        "lastSeen": "Zuletzt gesehen: {{date}}",
-        "neverSeen": "Noch nie angemeldet",
-        "edit": "Bearbeiten",
-        "editTitle": "Gast {{email}} bearbeiten",
-        "save": "Speichern",
-        "saving": "Wird gespeichert …",
-        "remove": {
-          "action": "Entfernen",
-          "title": "Gast {{email}} entfernen?",
-          "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort. Downloads auf den Geräten des Gastes verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.",
-          "confirm": "Gast entfernen"
-        },
-        "limitsHint": "Gilt für alle Profile des Gastkontos."
+        "title": "Nur für Administratoren",
+        "body": "Diesen Bereich verwaltet das Hauptprofil eines Administratorkontos."
       }
     },
     "maintenance": {
       "title": "Pflege",
       "intro": "Titel und Dateien, die Aufmerksamkeit brauchen.",
       "notAllowed": {
-        "title": "Nur für das Hauptkonto",
-        "body": "Die Pflege der Bibliothek ist dem Hauptprofil des Hauptkontos vorbehalten."
+        "title": "Nur für Administratoren",
+        "body": "Die Pflege der Bibliothek ist dem Hauptprofil eines Administratorkontos vorbehalten."
       },
       "tabs": "Problemarten",
       "tab": {
@@ -805,8 +748,8 @@
     "item": {
       "title": "Titel verwalten",
       "notAllowed": {
-        "title": "Nur für das Hauptkonto",
-        "body": "Titel verwaltet das Hauptprofil des Hauptkontos."
+        "title": "Nur für Administratoren",
+        "body": "Titel verwaltet das Hauptprofil eines Administratorkontos."
       },
       "notFound": "Diesen Titel gibt es nicht oder nicht mehr.",
       "view": "Zur Detailseite",
@@ -1336,11 +1279,7 @@
       },
       "accounts": {
         "title": "Konten",
-        "description": "Hauptkonto und Gäste mit Profilen und Kanälen."
-      },
-      "access": {
-        "title": "Zugriff",
-        "description": "Gäste einladen und ihre Grenzen festlegen."
+        "description": "Alle Konten mit Rolle, Grenzen, Profilen und Kanälen."
       },
       "profiles": {
         "title": "Profile",
@@ -1678,7 +1617,7 @@
     },
     "accounts": {
       "title": "Konten",
-      "intro": "Das Hauptkonto und die Gastkonten mit Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen.",
+      "intro": "Alle Konten mit Rolle, Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen. Neue Konten entstehen über eine Einladung.",
       "list": "Konten",
       "columns": {
         "email": "E-Mail",
@@ -1691,8 +1630,8 @@
         "actions": "Aktionen"
       },
       "roles": {
-        "owner": "Hauptkonto",
-        "guest": "Gast"
+        "admin": "Administrator",
+        "user": "Konto"
       },
       "libraries_one": "{{count}} Bibliothek",
       "libraries_other": "{{count}} Bibliotheken",
@@ -1721,6 +1660,77 @@
         "wrongPassword": "Das aktuelle Passwort stimmt nicht.",
         "unchanged": "Ändere die E-Mail-Adresse oder gib ein neues Passwort ein.",
         "saved": "Dein Konto ist gespeichert."
+      },
+      "ownerBadge": "Besitzer",
+      "access": {
+        "action": "Zugriff",
+        "label": "Zugriff von {{email}} ändern",
+        "title": "Zugriff von {{email}}",
+        "rating": "Höchste Altersfreigabe",
+        "libraries": "Bibliotheken",
+        "limitsHint": "Gilt für alle Profile dieses Kontos."
+      },
+      "role": {
+        "promote": {
+          "action": "Zum Administrator ernennen",
+          "label": "{{email}} zum Administrator ernennen",
+          "title": "{{email}} zum Administrator ernennen?",
+          "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf FSK 18 und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen.",
+          "confirm": "Ernennen"
+        },
+        "demote": {
+          "action": "Rolle entziehen",
+          "label": "{{email}} die Administratorrolle entziehen",
+          "title": "{{email}} die Administratorrolle entziehen?",
+          "body": "Das Konto verwaltet danach nur noch seine eigenen Profile und wird überall abgemeldet. Altersstufe und Bibliotheken bleiben, wo sie sind; setze sie danach bewusst neu.",
+          "confirm": "Entziehen"
+        }
+      },
+      "remove": {
+        "action": "Entfernen",
+        "label": "{{email}} entfernen",
+        "title": "Konto {{email}} entfernen?",
+        "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort. Downloads auf den Geräten des Kontos verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.",
+        "confirm": "Konto entfernen"
+      },
+      "invitations": {
+        "title": "Einladungen",
+        "intro": "Ein Link gilt einmal und sieben Tage. Wer ihn öffnet, legt ein eigenes Konto an.",
+        "note": "Für wen ist der Link?",
+        "noteHint": "Zum Beispiel ein Name. Die Notiz sieht auch die eingeladene Person.",
+        "create": "Einladung erstellen",
+        "creating": "Wird erstellt …",
+        "form": {
+          "rating": "Höchste Altersfreigabe",
+          "libraries": "Bibliotheken"
+        },
+        "created": {
+          "title": "Einladungslink erstellt",
+          "once": "Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.",
+          "label": "Einladungslink",
+          "copy": "Link kopieren",
+          "copied": "Link kopiert.",
+          "copyFailed": "Kopieren nicht möglich. Der Link ist markiert, kopiere ihn mit Strg+C.",
+          "dismiss": "Fertig"
+        },
+        "list": "Bestehende Einladungen",
+        "empty": "Noch keine Einladung erstellt.",
+        "noNote": "Ohne Notiz",
+        "state": {
+          "open": "Offen",
+          "used": "Benutzt",
+          "expired": "Abgelaufen",
+          "revoked": "Widerrufen"
+        },
+        "expires": "Gültig bis {{date}}",
+        "usedBy": "Angenommen von {{email}}",
+        "revoke": {
+          "action": "Widerrufen",
+          "title": "Einladung widerrufen?",
+          "body": "Der Link funktioniert danach nicht mehr.",
+          "confirm": "Widerrufen"
+        },
+        "invite": "Konto einladen"
       }
     },
     "backup": {
@@ -2095,7 +2105,7 @@
     "streamsValue_one": "{{count}} Stream",
     "streamsValue_other": "{{count}} Streams",
     "watchValue": "{{count}} min pro Tag",
-    "capped": "Das Gastkonto begrenzt dieses Profil: {{summary}}."
+    "capped": "Das Konto begrenzt dieses Profil: {{summary}}."
   },
   "offline": {
     "unknownTitle": "Unbekannter Titel",

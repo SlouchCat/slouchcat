@@ -428,7 +428,7 @@ export function SpotlightPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.spotlight.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const [pollUntil, setPollUntil] = useState(0);
   const poll = () => (Date.now() < pollUntil ? POLL_MS : false);

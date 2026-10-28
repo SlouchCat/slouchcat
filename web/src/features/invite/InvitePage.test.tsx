@@ -76,7 +76,13 @@ describe('invitation page', () => {
 
   it('checks the password length in the client, then posts and opens the start page', async () => {
     const guest = {
-      account: { ...session.account, id: 5, role: 'guest' as const, maxRating: 12 as const },
+      account: {
+        ...session.account,
+        id: 5,
+        role: 'user' as const,
+        isOwner: false,
+        maxRating: 12 as const,
+      },
       profile: { ...session.profile!, id: 9, name: 'Oma', isPrimary: true, maxRating: 12 as const },
     };
     let accepted = false;

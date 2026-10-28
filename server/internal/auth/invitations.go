@@ -297,7 +297,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return model.Session{}, "", fmt.Errorf("get account: %w", err)
 	}
-	acc, err := q.InsertGuestAccount(ctx, appq.InsertGuestAccountParams{
+	acc, err := q.InsertInvitedAccount(ctx, appq.InsertInvitedAccountParams{
 		Email: email, PasswordHash: hash, MaxRating: inv.MaxRating, AllLibraries: inv.AllLibraries,
 		InvitedBy: inv.CreatedBy, Now: now,
 	})

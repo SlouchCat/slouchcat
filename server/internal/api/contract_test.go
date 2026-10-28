@@ -19,7 +19,7 @@ import (
 //     delivered without the item whose visibility decides it.
 
 var (
-	visibilities = []string{"public", "account", "scoped", "system", "admin"}
+	visibilities = []string{"public", "account", "scoped", "system", "admin", "owner"}
 	httpMethods  = []string{"get", "put", "post", "delete", "options", "head", "patch", "trace"}
 )
 
@@ -203,7 +203,7 @@ components:
 		"GET /images/{kind}: image path without the item path parameter {id}",
 		`GET /leak: responses contain ItemRef, x-visibility must be scoped, is "public"`,
 		"GET /no-marker: missing x-visibility",
-		`POST /typo: x-visibility "private" not in [public account scoped system admin]`,
+		`POST /typo: x-visibility "private" not in [public account scoped system admin owner]`,
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("got %q\nwant %q", got, want)
@@ -259,6 +259,51 @@ func TestContractProfileHasNoCredentials(t *testing.T) {
 	}
 	if !slices.Equal(required, []string{"name"}) {
 		t.Errorf("ProfileRequest.required = %v, want [name] (K-1: image and everything else optional)", required)
+	}
+}
+
+// ADR 0014 lock 4: an invitation can never create an administrator. The role is a literal in
+// queries/app/access.sql, and no schema on the invitation path offers a way to ask for one - this
+// test fails the moment somebody adds a field role or isOwner to one of them. The service-level
+// proof that an accepted invitation really lands as 'user' is
+// auth.TestAcceptedInvitationIsNeverAnAdministrator.
+func TestContractInvitationCarriesNoRole(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile("../../../api/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parseYAML(t, data)
+	// InvitationCreated is an allOf, so the own properties sit one level deeper.
+	own := func(schema map[string]any) []map[string]any {
+		out := []map[string]any{}
+		if props, ok := schema["properties"].(map[string]any); ok {
+			out = append(out, props)
+		}
+		if parts, ok := schema["allOf"].([]any); ok {
+			for _, part := range parts {
+				if m, ok := part.(map[string]any); ok {
+					if props, ok := m["properties"].(map[string]any); ok {
+						out = append(out, props)
+					}
+				}
+			}
+		}
+		return out
+	}
+	for _, name := range []string{"InvitationRequest", "AcceptInvitationRequest", "Invitation", "InvitationCreated", "InvitationPreview"} {
+		schema, _ := resolve(doc, "#/components/schemas/"+name).(map[string]any)
+		groups := own(schema)
+		if len(groups) == 0 {
+			t.Fatalf("schema %s has no properties", name)
+		}
+		for _, props := range groups {
+			for key := range props {
+				if lower := strings.ToLower(key); lower == "role" || lower == "isowner" {
+					t.Errorf("schema %s has the field %q: an invitation must not be able to ask for a role (ADR 0014)", name, key)
+				}
+			}
+		}
 	}
 }
 

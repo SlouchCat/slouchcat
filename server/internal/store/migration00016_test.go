@@ -61,7 +61,7 @@ func TestMigration00016DefaultChannels(t *testing.T) {
 					t.Fatal(err)
 				}
 				wantEnabled, wantEvents := 0, ownerEvents
-				if role == "guest" {
+				if role == "guest" || role == "user" { // 00022 renames the role; this test replays older states too
 					wantEvents = guestEvents
 					if channel == "email" {
 						wantEnabled = 1

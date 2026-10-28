@@ -1,7 +1,7 @@
 import { test as base, expect, type APIRequestContext } from '@playwright/test';
 import {
   ownerApi,
-  removeGuests,
+  removeInvitedAccounts,
   removeTestPodcasts,
   resetProfiles,
   stopAllStreams,
@@ -26,7 +26,7 @@ function clientAddress(key: string): string {
 // pass it on.
 // `owner`: an API client with the shared session of the main account (primary profile, never
 // switched), for setting up and tidying data. It needs no login. It runs for every test (`auto`):
-// before and after each one the account is left with its primary profile only, without guests,
+// before and after each one the account is left with its primary profile only, without the accounts a spec invited,
 // without running streams and without downloads on the shared session's device. Its primary
 // profile has no watchlist entries, no favourites and no unread notifications (M7). The mocks of
 // the channels start empty and the manifest mock without a release (M8).
@@ -43,7 +43,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         await stopAllStreams(api);
         await removeDeviceDownloads(api);
         await resetProfiles(api);
-        await removeGuests(api);
+        await removeInvitedAccounts(api);
         await removeTestPodcasts(api);
         await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
         await resetViewerLists(api);
@@ -55,7 +55,7 @@ export const test = base.extend<{ owner: APIRequestContext }>({
         // Downloads of the shared device would come back into every later spec's browser (M5).
         await removeDeviceDownloads(api);
         await resetProfiles(api);
-        await removeGuests(api);
+        await removeInvitedAccounts(api);
         await removeTestPodcasts(api);
         await resetCuration(api); // M7 curation: baseline pick only, no manual collection, default rows
         await resetViewerLists(api);

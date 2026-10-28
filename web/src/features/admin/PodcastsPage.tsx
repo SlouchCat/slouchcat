@@ -117,7 +117,7 @@ export function PodcastsPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.podcasts.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const [pollUntil, setPollUntil] = useState(0);
   const podcasts = useQuery({

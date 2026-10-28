@@ -59,7 +59,7 @@ export function AppLayout() {
   // Only the account's primary profile manages anything (design 3); the main account's also the
   // libraries and guests.
   const isPrimary = session.profile.isPrimary;
-  const isAdmin = isPrimary && session.account.role === 'owner';
+  const isAdmin = isPrimary && session.account.role === 'admin';
 
   const nav: NavItem[] = [
     { href: paths.home, label: t('nav.home'), current: pathname === '/' },

@@ -343,7 +343,6 @@ describe('admin overview (A-2, A-3)', () => {
     ]);
     expect(cards('Konten')).toEqual([
       ['Konten', '/admin/accounts'],
-      ['Zugriff', '/admin/access'],
       ['Profile', '/settings/profiles'],
       ['Geräte', '/admin/devices'],
       ['Streams', '/admin/streams'],
@@ -383,7 +382,6 @@ describe('admin navigation (A-2)', () => {
       'Podcasts',
       'Pflege',
       'Konten',
-      'Zugriff',
       'Geräte',
       'Streams',
       'Spotlight',
@@ -454,11 +452,11 @@ describe('admin navigation (A-2)', () => {
   it('a profile that is not the main account primary gets the notice without the navigation', async () => {
     const guest = {
       ...session,
-      account: { ...session.account, role: 'guest' as const },
+      account: { ...session.account, role: 'user' as const, isOwner: false },
     };
     const { calls } = mockApi({ 'GET /auth/session': () => json(guest) });
     renderApp('/admin');
-    expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(screen.queryByRole('navigation', { name: 'Verwaltung' })).not.toBeInTheDocument();
     expect(
       within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).queryByRole('link', {

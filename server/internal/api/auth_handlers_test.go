@@ -241,7 +241,7 @@ func TestSetupFlowEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &info); err != nil {
 		t.Fatal(err)
 	}
-	if info.Account.Email != "marco@example.ch" || info.Account.Role != gen.AccountRoleOwner || info.Profile == nil || info.Profile.Name != "marco" ||
+	if info.Account.Email != "marco@example.ch" || info.Account.Role != gen.AccountRoleAdmin || info.Profile == nil || info.Profile.Name != "marco" ||
 		info.Profile.Language != gen.En || info.Profile.MaxRating != 18 {
 		t.Fatalf("session info = %+v", info)
 	}

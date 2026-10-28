@@ -70,6 +70,15 @@ var (
 	ErrInvitationGone         = errors.New("invitation gone")          // 410 invitation_gone
 )
 
+// Role errors (ADR 0014). They are conflicts, not permission questions: the caller has the right,
+// the state forbids the step. Who may call at all is the visibility level owner, enforced in the
+// middleware (403 owner_required).
+var (
+	ErrOwnerProtected   = errors.New("owner protected")    // 409 owner_protected
+	ErrLastAdmin        = errors.New("last administrator") // 409 last_admin
+	ErrAdminLimitsFixed = errors.New("admin limits fixed") // 409 admin_limits_fixed
+)
+
 // PinLockedError is ErrPinLocked with the remaining lock; errors.Is(err, ErrPinLocked) holds.
 type PinLockedError struct {
 	RetryAfter time.Duration
@@ -138,12 +147,20 @@ func (e *ValidationError) Add(field, code string) *ValidationError {
 type Account struct {
 	ID           int64
 	Email        string
-	Role         string // owner, guest
-	MaxRating    int    // ceiling of every profile of the account (18 for the owner)
+	Role         string // admin (server and libraries) or user (its own profiles only), ADR 0014
+	IsOwner      bool   // the one account that cannot be deleted or demoted (accounts.is_owner)
+	MaxRating    int    // ceiling of every profile of the account (18 for an administrator)
 	AllLibraries bool
-	LibraryIDs   []int64        // libraries of a guest; empty when AllLibraries
-	Limits       PlaybackLimits // W-8 caps of a guest account (WatchLimitMinutes unused)
+	LibraryIDs   []int64        // libraries of the account; empty when AllLibraries
+	Limits       PlaybackLimits // W-8 caps of the account (WatchLimitMinutes unused)
 }
+
+// Role values of Account.Role. The owner is not a third value: it is an administrator with
+// IsOwner set, so "is an administrator" is one comparison and cannot be half forgotten.
+const (
+	RoleAdmin = "admin"
+	RoleUser  = "user"
+)
 
 // Profile is a viewing profile; its MaxRating and library rights drive the visibility layer
 // (capped by the account's own limits in the view visible_items).
@@ -203,8 +220,13 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
-// IsOwner reports whether the session belongs to the main account.
-func (s Session) IsOwner() bool { return s.Account.Role == "owner" }
+// IsAdmin reports whether the session's account administers the server (ADR 0014). Together with
+// IsPrimary it is what the middleware checks for x-visibility admin.
+func (s Session) IsAdmin() bool { return s.Account.Role == RoleAdmin }
+
+// IsOwner reports whether the session belongs to the owner, the one account that appoints and
+// demotes administrators (x-visibility owner).
+func (s Session) IsOwner() bool { return s.Account.IsOwner }
 
 // HasProfile reports whether a profile is active (profile ids start at 1).
 func (s Session) HasProfile() bool { return s.Profile.ID != 0 }
@@ -225,21 +247,9 @@ type ProfileInput struct {
 	Limits       *PlaybackLimits // replaces all limits at once; nil keeps them
 }
 
-// Guest is a guest account with its limits.
-type Guest struct {
-	ID           int64
-	Email        string
-	MaxRating    int
-	AllLibraries bool
-	LibraryIDs   []int64
-	ProfileCount int
-	CreatedAt    time.Time
-	LastSeenAt   *time.Time
-	Limits       PlaybackLimits // W-8 caps (WatchLimitMinutes unused)
-}
-
-// GuestUpdate changes the limits of a guest account; nil fields keep their value.
-type GuestUpdate struct {
+// AccountAccessUpdate changes what an account may see and how much it may stream; nil fields keep
+// their value. Only an account with RoleUser has these limits (ADR 0014).
+type AccountAccessUpdate struct {
 	MaxRating    *int
 	AllLibraries *bool
 	LibraryIDs   *[]int64

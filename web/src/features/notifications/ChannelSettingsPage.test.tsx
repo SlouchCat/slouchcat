@@ -49,7 +49,10 @@ const page: Routes = {
 const card = (name: string) => screen.findByRole('article', { name });
 
 const guestSession = () =>
-  json({ ...session, account: { ...session.account, role: 'guest', email: 'gast@example.test' } });
+  json({
+    ...session,
+    account: { ...session.account, role: 'user', isOwner: false, email: 'gast@example.test' },
+  });
 
 /** The account's second profile: it sees the channels but cannot change them. */
 const secondProfileSession = () =>

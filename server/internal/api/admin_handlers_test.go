@@ -82,7 +82,7 @@ func TestLibraryEndpointsRefuseGuests(t *testing.T) {
 	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/setup", setupBody(), nil), http.StatusCreated)
 	ctx := context.Background()
 	res, err := e.db.Write.ExecContext(ctx,
-		`INSERT INTO accounts (email, password_hash, role, created_at, updated_at) VALUES ('guest@example.ch', 'x', 'guest', 0, 0)`)
+		`INSERT INTO accounts (email, password_hash, role, created_at, updated_at) VALUES ('guest@example.ch', 'x', 'user', 0, 0)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestLibraryEndpointsRefuseGuests(t *testing.T) {
 		t.Fatal(err)
 	}
 	profileID, _ := res.LastInsertId()
-	_, token, err := e.auth.StartSession(ctx, model.Account{ID: accountID, Role: "guest"}, model.Profile{ID: profileID}, "")
+	_, token, err := e.auth.StartSession(ctx, model.Account{ID: accountID, Role: model.RoleUser}, model.Profile{ID: profileID}, "")
 	if err != nil {
 		t.Fatal(err)
 	}

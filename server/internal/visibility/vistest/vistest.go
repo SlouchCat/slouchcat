@@ -6,7 +6,7 @@
 // only file is missing and a soft-deleted title. AddSeries adds a series tree (series rated 12,
 // season 1 with an episode without own rating, one rated 16 and a multi-episode file, the specials
 // season with one episode, an extra) to library 1 with the M3 data around the movies (extras,
-// versions, trailers, a person, an ignored file), and AddGuest a guest account limited to FSK 12
+// versions, trailers, a person, an ignored file), and AddGuest an account limited to FSK 12
 // and library 1 with the profiles PG (primary) and PG18. AddDiscover adds the M7 data: collections
 // with mixed ratings, watchlist and favourite rows and picks per profile and with time windows.
 //
@@ -126,9 +126,14 @@ type Fixture struct {
 	Trailers map[string]int
 	// IgnoredRelPath is the ignored_files row of library 1 (AddSeries).
 	IgnoredRelPath string
-	Guest          model.Account // guest account G: max 12, library 1 only (AddGuest)
+	Guest          model.Account // account G without administration: max 12, library 1 only (AddGuest)
 	PG             model.Profile // primary profile of G, max 12, language en
 	PG18           model.Profile // profile of G with max 18, capped to 12 by the account
+	// A second administrator (ADR 0014): same rights as the owner over the server, but without
+	// the owner badge. AddSecondAdmin creates it with its primary profile PA2 and the child PA2K.
+	Admin2 model.Account
+	PA2    model.Profile // primary profile of the second administrator, max 18
+	PA2K   model.Profile // child profile of the second administrator, max 6
 	// Movies are ordered by rating 0, 6, 12, 16, 18, unrated; AddEdgeCases appends the
 	// OtherLibrary, Missing and Deleted titles (all rated 0).
 	Movies []Movie
@@ -322,11 +327,13 @@ func New(t testing.TB) *Fixture {
 func (f *Fixture) seedProfiles(t testing.TB, ctx context.Context) {
 	t.Helper()
 	q := appq.New(f.DB.Write)
-	acc, err := q.InsertAccount(ctx, appq.InsertAccountParams{Email: "owner@example.test", PasswordHash: "x", Role: "owner", Now: 1})
+	acc, err := q.InsertAccount(ctx, appq.InsertAccountParams{
+		Email: "owner@example.test", PasswordHash: "x", Role: model.RoleAdmin, IsOwner: 1, Now: 1,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Account = model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: 18, AllLibraries: true, LibraryIDs: []int64{}}
+	f.Account = model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, IsOwner: true, MaxRating: 18, AllLibraries: true, LibraryIDs: []int64{}}
 	add := func(name string, maxRating int, lang string, isDefault int64) model.Profile {
 		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, Now: 1})
 		if err != nil {
@@ -625,20 +632,46 @@ func (f *Fixture) AddSeries(t testing.TB) {
 	exec(t, f.DB, `INSERT INTO ignored_files (root_id, rel_path, reason, created_at) VALUES (?, ?, 'unplayable', 1)`, f.rootID, f.IgnoredRelPath)
 }
 
-// AddGuest adds the guest account G (FSK ceiling 12, only library 1) with its primary profile PG
+// AddSecondAdmin adds a second administrator account (role admin, is_owner 0) with its primary
+// profile PA2 (max 18) and the child profile PA2K (max 6). It is what proves that x-visibility
+// admin follows the role and no longer the one owner row, and that the primary-profile rule of
+// ADR 0005 keeps a child of an administrator out of the administration.
+func (f *Fixture) AddSecondAdmin(t testing.TB) {
+	t.Helper()
+	ctx := context.Background()
+	q := appq.New(f.DB.Write)
+	acc, err := q.InsertAccount(ctx, appq.InsertAccountParams{
+		Email: "admin2@example.test", PasswordHash: "x", Role: model.RoleAdmin, IsOwner: 0, Now: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Admin2 = model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: 18, AllLibraries: true, LibraryIDs: []int64{}}
+	add := func(name string, maxRating int, isDefault int64) model.Profile {
+		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: "de", AllLibraries: 1, IsDefault: isDefault, Now: 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return model.Profile{ID: p.ID, AccountID: acc.ID, Name: name, MaxRating: maxRating, Language: "de", AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: isDefault == 1}
+	}
+	f.PA2 = add("PA2", 18, 1)
+	f.PA2K = add("PA2K", 6, 0)
+}
+
+// AddGuest adds the account G (FSK ceiling 12, only library 1) with its primary profile PG
 // (max 12, language en) and the profile PG18 (max 18, language de), which the account caps to 12.
 func (f *Fixture) AddGuest(t testing.TB) {
 	t.Helper()
 	ctx := context.Background()
 	q := appq.New(f.DB.Write)
-	acc, err := q.InsertGuestAccount(ctx, appq.InsertGuestAccountParams{Email: "guest@example.test", PasswordHash: "x", MaxRating: 12, AllLibraries: 0, Now: 1})
+	acc, err := q.InsertInvitedAccount(ctx, appq.InsertInvitedAccountParams{Email: "guest@example.test", PasswordHash: "x", MaxRating: 12, AllLibraries: 0, Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := q.InsertAccountLibrary(ctx, appq.InsertAccountLibraryParams{AccountID: acc.ID, LibraryID: f.libraryID}); err != nil {
 		t.Fatal(err)
 	}
-	f.Guest = model.Account{ID: acc.ID, Email: acc.Email, Role: "guest", MaxRating: 12, LibraryIDs: []int64{f.libraryID}}
+	f.Guest = model.Account{ID: acc.ID, Email: acc.Email, Role: model.RoleUser, MaxRating: 12, LibraryIDs: []int64{f.libraryID}}
 	add := func(name string, maxRating int, lang string, isDefault int64) model.Profile {
 		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, Now: 1})
 		if err != nil {

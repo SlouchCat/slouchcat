@@ -324,10 +324,14 @@ const podcastsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
 });
 
+// The "Zugriff" page became part of "Konten" (ADR 0014): the invitations sit below the account
+// list, where the account an invitation creates is managed. Old links and bookmarks go there.
 const accessRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/access',
-  component: lazyRouteComponent(() => import('@/features/admin/AccessPage'), 'AccessPage'),
+  beforeLoad: () => {
+    throw redirect({ to: paths.adminAccounts });
+  },
 });
 
 // admin M7

@@ -34,7 +34,7 @@ export function HomeRowsPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.homeRows.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const stored = useQuery({ ...homeRowsQuery, enabled: allowed });
   const [edited, setEdited] = useState<HomeRowSetting[] | null>(null);

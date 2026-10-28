@@ -92,7 +92,7 @@ describe('profile limits and watch-time report', () => {
     await user.click(within(lena).getByRole('button', { name: 'Bearbeiten' }));
     const dialog = await screen.findByRole('dialog', { name: 'Profil bearbeiten' });
     expect(
-      within(dialog).getByText('Das Gastkonto begrenzt dieses Profil: bis 480p · 1 Stream.'),
+      within(dialog).getByText('Das Konto begrenzt dieses Profil: bis 480p · 1 Stream.'),
     ).toBeVisible();
   });
 

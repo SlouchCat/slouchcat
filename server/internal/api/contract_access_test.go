@@ -151,13 +151,31 @@ var accountRegistry = map[string]accountCall{
 	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotFound)},
 }
 
-// adminCall is one call of the admin registry; ownerStatus is the answer for the owner with the
-// primary profile (harmless bodies against unknown ids or invalid input). header replaces request
-// headers, such as the content type of a multipart body.
+// adminCall is one call of the admin registry; ownerStatus is the answer for an administrator with
+// the primary profile (harmless bodies against unknown ids or invalid input). header replaces
+// request headers, such as the content type of a multipart body.
 type adminCall struct {
 	contract, path, body string
 	header               map[string]string
 	ownerStatus          int
+}
+
+// ownerCall is one call of the owner registry (x-visibility owner, ADR 0014). ownerStatus is the
+// answer for the owner with its primary profile; everybody else gets 403 owner_required, also a
+// second administrator.
+type ownerCall struct {
+	contract, path, body string
+	ownerStatus          int
+}
+
+// ownerRegistry covers every operation with x-visibility owner. It is deliberately in place before
+// the first such operation exists: TestContractCoversEveryOperation reports an owner operation
+// without an entry here, so the level cannot be used without being tested.
+var ownerRegistry = map[string]ownerCall{
+	// An id the fixture does not have: the owner reaches the service and gets 404, everybody else
+	// is stopped by the middleware before the service ever sees the id.
+	"setAccountRole": {contract: "PUT /admin/accounts/{id}/role", path: "/admin/accounts/9999/role",
+		body: `{"role":"admin"}`, ownerStatus: http.StatusNotFound},
 }
 
 // restoreUploadBody is a multipart body of restoreBackupUpload whose file is no backup.
@@ -191,13 +209,12 @@ var adminRegistry = map[string]adminCall{
 		body: `{"path":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
-	"listInvitations":  {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
-	"createInvitation": {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
-	"revokeInvitation": {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},
-	"listGuests":       {contract: "GET /admin/guests", path: "/admin/guests", ownerStatus: http.StatusOK},
-	"updateGuest":      {contract: "PATCH /admin/guests/{id}", path: "/admin/guests/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
-	"revokeGuest":      {contract: "DELETE /admin/guests/{id}", path: "/admin/guests/9999", ownerStatus: http.StatusNotFound},
-	"setItemRating":    {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
+	"listInvitations":     {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
+	"createInvitation":    {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
+	"revokeInvitation":    {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},
+	"updateAccountAccess": {contract: "PATCH /admin/accounts/{id}", path: "/admin/accounts/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
+	"deleteAccount":       {contract: "DELETE /admin/accounts/{id}", path: "/admin/accounts/9999", ownerStatus: http.StatusNotFound},
+	"setItemRating":       {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
 	// M3: requests against fixture titles that leave the fixture unchanged (the fake metadata and
 	// library services of the contract fixture record nothing).
 	"cancelLibraryScan": {contract: "DELETE /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
@@ -361,6 +378,9 @@ func TestContractCoversEveryOperation(t *testing.T) {
 		case "admin":
 			c, ok := adminRegistry[id]
 			check(id, "adminRegistry", c.contract, ok, op)
+		case "owner":
+			c, ok := ownerRegistry[id]
+			check(id, "ownerRegistry", c.contract, ok, op)
 		case "public":
 			c, ok := publicRegistry[id]
 			check(id, "publicRegistry", c.contract, ok, op)
@@ -370,7 +390,8 @@ func TestContractCoversEveryOperation(t *testing.T) {
 	}
 	for name, reg := range map[string][]string{
 		"profileRegistry": keysOf(profileRegistry), "accountRegistry": keysOf(accountRegistry),
-		"adminRegistry": keysOf(adminRegistry), "publicRegistry": keysOf(publicRegistry),
+		"adminRegistry": keysOf(adminRegistry), "ownerRegistry": keysOf(ownerRegistry),
+		"publicRegistry": keysOf(publicRegistry),
 	} {
 		for _, id := range reg {
 			if _, ok := ops[id]; !ok {
@@ -409,6 +430,31 @@ func TestContractAccountOperations(t *testing.T) {
 	f, h := pf.f, pf.h
 	titles := f.All()
 	q := appq.New(f.DB.Write)
+
+	// ADR 0014 lock 5: no account operation writes the account's own ceiling or library switch.
+	// Only updateAccountAccess (x-visibility admin) does, and updateAccount changes nothing but
+	// e-mail and password. The limits are read before the whole run and compared after it.
+	limits := func() map[int64][2]int64 {
+		t.Helper()
+		rows, err := f.DB.Read.Query(`SELECT id, max_rating, all_libraries FROM accounts ORDER BY id`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		out := map[int64][2]int64{}
+		for rows.Next() {
+			var id, rating, all int64
+			if err := rows.Scan(&id, &rating, &all); err != nil {
+				t.Fatal(err)
+			}
+			out[id] = [2]int64{rating, all}
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	before := limits()
 
 	ids := keysOf(accountRegistry)
 	sort.Strings(ids)
@@ -451,10 +497,20 @@ func TestContractAccountOperations(t *testing.T) {
 			})
 		}
 	}
+	for id, want := range before {
+		if got := limits()[id]; got != want {
+			t.Errorf("account %d: limits changed from %v to %v during the account operations (ADR 0014 lock 5)", id, want, got)
+		}
+	}
 }
 
-// Admin operations: the guest, the owner's non-primary profile and an owner without a chosen
-// profile get 403 forbidden; the owner with the primary profile gets through.
+// Admin operations: an account without administration, a non-primary profile of an administrator
+// and an administrator without a chosen profile get 403 forbidden; an administrator with the
+// primary profile gets through. Since ADR 0014 that includes the second administrator: its child
+// profile PA2K is in the refused set of every operation, and its primary profile PA2 is checked
+// against every GET of the registry. The non-GET operations are left to the owner's session on
+// purpose - running them twice would change the fixture twice, and the gate they pass is the same
+// role check for both administrators.
 func TestContractAdminOperations(t *testing.T) {
 	t.Parallel()
 	ops := contractOperations(t)
@@ -470,7 +526,7 @@ func TestContractAdminOperations(t *testing.T) {
 		}
 		method := strings.Fields(call.contract)[0]
 		t.Run(id, func(t *testing.T) {
-			for _, token := range []string{"pg", "pg18", "p6", "p0", "none"} {
+			for _, token := range []string{"pg", "pg18", "p6", "p0", "pa2k", "none"} {
 				rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
 				if rec.Code != http.StatusForbidden || problemCode(t, rec) != "forbidden" {
 					t.Errorf("%s: status %d (%s), want 403 forbidden", token, rec.Code, rec.Body.String())
@@ -478,6 +534,13 @@ func TestContractAdminOperations(t *testing.T) {
 			}
 			if rec := send(t, h, method, BasePath+call.path, "", call.body, call.header); rec.Code != http.StatusUnauthorized {
 				t.Errorf("without a session: status %d, want 401", rec.Code)
+			}
+			if method == http.MethodGet {
+				second := send(t, h, method, BasePath+call.path, "pa2", call.body, call.header)
+				if second.Code != call.ownerStatus {
+					t.Errorf("second administrator with the primary profile: status %d (%s), want %d",
+						second.Code, second.Body.String(), call.ownerStatus)
+				}
 			}
 			rec := send(t, h, method, BasePath+call.path, "p18", call.body, call.header)
 			if rec.Code != call.ownerStatus {
@@ -490,6 +553,45 @@ func TestContractAdminOperations(t *testing.T) {
 			}
 			if strings.Contains(rec.Body.String(), `"`+BasePath+`/items/`) {
 				t.Errorf("response contains scoped URLs: %s", rec.Body.String())
+			}
+			assertNoSecrets(t, id, rec)
+		})
+	}
+}
+
+// Owner operations (ADR 0014): only the owner with its primary profile gets through. A second
+// administrator with its primary profile, a child profile of the owner, an account without
+// administration and a session without a profile all get 403 owner_required, and a request
+// without a session gets 401. The registry is empty until the first owner operation exists; the
+// loop then covers every one of them, because TestContractCoversEveryOperation refuses an owner
+// operation without an entry here.
+func TestContractOwnerOperations(t *testing.T) {
+	t.Parallel()
+	ops := contractOperations(t)
+	pf := newProfileFixture(t)
+	h := pf.h
+
+	ids := keysOf(ownerRegistry)
+	sort.Strings(ids)
+	for _, id := range ids {
+		call := ownerRegistry[id]
+		if ops[id].vis != "owner" {
+			continue // reported by TestContractCoversEveryOperation
+		}
+		method := strings.Fields(call.contract)[0]
+		t.Run(id, func(t *testing.T) {
+			for _, token := range []string{"pa2", "pa2k", "pg", "p6", "none"} {
+				rec := send(t, h, method, BasePath+call.path, token, call.body, nil)
+				if rec.Code != http.StatusForbidden || problemCode(t, rec) != "owner_required" {
+					t.Errorf("%s: status %d (%s), want 403 owner_required", token, rec.Code, rec.Body.String())
+				}
+			}
+			if rec := send(t, h, method, BasePath+call.path, "", call.body, nil); rec.Code != http.StatusUnauthorized {
+				t.Errorf("without a session: status %d, want 401", rec.Code)
+			}
+			rec := send(t, h, method, BasePath+call.path, "p18", call.body, nil)
+			if rec.Code != call.ownerStatus {
+				t.Errorf("the owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}
 			assertNoSecrets(t, id, rec)
 		})
@@ -714,7 +816,7 @@ func TestContractRatingChange(t *testing.T) {
 // and aborts a Range response that is already streaming.
 // Not parallel: K-7 asks for the open Range response to end within one second of the
 // revocation, and that second is measured on the clock.
-func TestContractGuestRevocation(t *testing.T) {
+func TestContractAccountDeletion(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(6)
@@ -761,20 +863,30 @@ func TestContractGuestRevocation(t *testing.T) {
 	}
 	time.Sleep(200 * time.Millisecond) // the server fills the socket buffers and blocks in a write
 
-	// The owner finds the guest in the list and revokes it.
-	var guests []struct {
-		ID           int64  `json:"id"`
-		Email        string `json:"email"`
-		MaxRating    int    `json:"maxRating"`
-		ProfileCount int    `json:"profileCount"`
+	// The administration finds the account in the one list and deletes it.
+	var accounts []struct {
+		ID        int64  `json:"id"`
+		Email     string `json:"email"`
+		Role      string `json:"role"`
+		MaxRating int    `json:"maxRating"`
+		Profiles  []struct {
+			ID int64 `json:"id"`
+		} `json:"profiles"`
 	}
-	decode(t, send(t, h, http.MethodGet, BasePath+"/admin/guests", "p18", "", nil), &guests)
-	if len(guests) != 1 || guests[0].ID != f.Guest.ID || guests[0].MaxRating != 12 || guests[0].ProfileCount != 2 {
-		t.Fatalf("guest list = %+v", guests)
+	decode(t, send(t, h, http.MethodGet, BasePath+"/admin/accounts", "p18", "", nil), &accounts)
+	var target int
+	for i, a := range accounts {
+		if a.ID == f.Guest.ID {
+			target = i
+		}
+	}
+	if accounts[target].ID != f.Guest.ID || accounts[target].Role != "user" ||
+		accounts[target].MaxRating != 12 || len(accounts[target].Profiles) != 2 {
+		t.Fatalf("account list = %+v", accounts)
 	}
 	start := time.Now()
-	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
-		t.Fatalf("revokeGuest: %d %s", rec.Code, rec.Body.String())
+	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("deleteAccount: %d %s", rec.Code, rec.Body.String())
 	}
 	checks := map[string]*httptest.ResponseRecorder{
 		"cookie":   send(t, h, http.MethodGet, BasePath+"/auth/session", "pg", "", nil),
@@ -819,7 +931,7 @@ func TestContractGuestRevocation(t *testing.T) {
 	if got := send(t, h, http.MethodGet, BasePath+"/auth/session", "p18", "", nil).Code; got != http.StatusOK {
 		t.Errorf("owner session after the guest's revocation: %d", got)
 	}
-	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNotFound {
+	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("second revocation: %d, want 404", rec.Code)
 	}
 }
@@ -1142,8 +1254,8 @@ func TestContractLoweredAccessEndsOpenDirectStreams(t *testing.T) {
 	pxClosed, _ := stream("px")
 	p12Closed, _ := stream("p12")
 	// Lower the guest to 6: the 12-rated movie is above it.
-	if rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", `{"maxRating":6}`, nil); rec.Code != http.StatusOK {
-		t.Fatalf("updateGuest: %d %s", rec.Code, rec.Body.String())
+	if rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", `{"maxRating":6}`, nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("updateAccountAccess: %d %s", rec.Code, rec.Body.String())
 	}
 	expectClosed(t, "guest stream after the ceiling dropped to 6", guestClosed)
 	select {
@@ -1185,7 +1297,7 @@ func (p *slipPlayback) EndAccount(ctx context.Context, id int64) error {
 // The order of a guest revocation: the sessions are revoked before the playback ends (so nothing
 // new can be authorised), and a stream that a request already past its checks opens between the
 // steps is still ended by the second call after the account is gone.
-func TestContractGuestRevocationOrder(t *testing.T) {
+func TestContractAccountDeletionOrder(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
@@ -1218,8 +1330,8 @@ func TestContractGuestRevocationOrder(t *testing.T) {
 		slipped = src
 	}
 	h := pf.handlerWithPlayback(wrapper)
-	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
-		t.Fatalf("revokeGuest: %d %s", rec.Code, rec.Body.String())
+	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("deleteAccount: %d %s", rec.Code, rec.Body.String())
 	}
 	if wrapper.calls != 2 {
 		t.Errorf("EndAccount ran %d times, want 2 (before and after the delete)", wrapper.calls)

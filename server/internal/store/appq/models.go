@@ -13,6 +13,7 @@ type Account struct {
 	Email          string
 	PasswordHash   string
 	Role           string
+	IsOwner        int64
 	CreatedAt      int64
 	UpdatedAt      int64
 	MaxRating      int64

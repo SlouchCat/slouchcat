@@ -164,7 +164,7 @@ describe('admin statistics (A-8)', () => {
         json({ ...session, profile: { ...session.profile, isPrimary: false } }),
     });
     renderApp('/admin/stats');
-    expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
 });

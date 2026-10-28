@@ -31,7 +31,7 @@ func seedStats(t *testing.T, db *sql.DB) {
 	t.Helper()
 	exec(t, db,
 		`INSERT INTO accounts (id, email, password_hash, role, created_at, updated_at) VALUES
-		   (1, 'owner@example.test', 'x', 'owner', 1, 1), (2, 'guest@example.test', 'x', 'guest', 1, 1)`,
+		   (1, 'owner@example.test', 'x', 'admin', 1, 1), (2, 'guest@example.test', 'x', 'user', 1, 1)`,
 		`INSERT INTO profiles (id, account_id, name, max_rating, is_default, created_at, updated_at) VALUES
 		   (1, 1, 'Marco', 18, 1, 1, 1), (2, 1, 'Kind', 6, 0, 1, 1), (3, 2, 'Gast', 12, 1, 1, 1)`,
 		`INSERT INTO devices (id, created_at, last_seen_at, type) VALUES

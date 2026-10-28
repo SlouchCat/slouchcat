@@ -1,18 +1,18 @@
-import { acceptInvitation, createInvitation } from './accounts';
+import { acceptInvitation, accountRow, createInvitation, openAccounts } from './accounts';
 import { GUEST_PASSWORD } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 import { createDownload, openOfflineLibrary, storedDownloads, waitForComplete } from './offline';
 import { H264_TITLE, itemIdByTitle } from './playback';
 
-// K-7 and AN-4 for downloads: the owner removes a guest; the guest's device learns it at its next
-// contact with the server (its session is gone, so it asks with the device cookie,
+// K-7 and AN-4 for downloads: the administration removes an account; its device learns that at
+// the next contact with the server (its session is gone, so it asks with the device cookie,
 // checkOfflineRevocations) and deletes the download with its files. The removal dialog says that a
 // device which never comes online again keeps its downloads.
 
 const GUEST = { email: 'gast-offline-e2e@slouchcat.test', password: GUEST_PASSWORD };
 
-test('a removed guest’s download disappears from the device at the next contact', async ({
+test('a removed account’s download disappears from the device at the next contact', async ({
   page,
   browser,
   baseURL,
@@ -40,21 +40,18 @@ test('a removed guest’s download disappears from the device at the next contac
     await createDownload(guest, await itemIdByTitle(owner, H264_TITLE));
     const [download] = await waitForComplete(guest);
 
-    // The owner removes the guest; the dialog names the limit of AN-4.
-    await page.goto('/admin/access');
-    const row = page
-      .getByRole('list', { name: 'Gäste' })
-      .getByRole('listitem')
-      .filter({ hasText: GUEST.email });
-    const remove = row.getByRole('button', { name: 'Entfernen' });
-    await tabTo(page, remove, 60);
+    // The administration removes the account; the dialog names the limit of AN-4.
+    await openAccounts(page);
+    const row = accountRow(page, GUEST.email);
+    const remove = row.getByRole('button', { name: `${GUEST.email} entfernen` });
+    await tabTo(page, remove, 80);
     await page.keyboard.press('Enter');
-    const dialog = page.getByRole('alertdialog', { name: `Gast ${GUEST.email} entfernen?` });
+    const dialog = page.getByRole('alertdialog', { name: `Konto ${GUEST.email} entfernen?` });
     await expect(dialog).toContainText('Laufende Sitzungen und Wiedergaben enden sofort');
     await expect(dialog).toContainText(
-      'Downloads auf den Geräten des Gastes verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.',
+      'Downloads auf den Geräten des Kontos verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.',
     );
-    await expectFocusOn(page, dialog.getByRole('button', { name: 'Gast entfernen' }));
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Konto entfernen' }));
     await page.keyboard.press('Enter');
     await expect(row).toHaveCount(0);
 

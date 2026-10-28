@@ -420,7 +420,7 @@ export function AdminItemPage() {
   const { t } = useTranslation();
   const { itemId } = route.useParams();
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   return (
     <Page>
       {allowed ? (

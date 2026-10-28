@@ -23,7 +23,7 @@ export function DevicesPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.devices.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const devices = useQuery({ ...devicesQuery, enabled: allowed });
   const [forgotten, setForgotten] = useState<string | null>(null);

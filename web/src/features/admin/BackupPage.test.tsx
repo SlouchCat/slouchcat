@@ -386,10 +386,10 @@ describe('admin backup (A-4)', () => {
     const { calls } = mockApi({
       ...signedIn,
       'GET /auth/session': () =>
-        json({ ...session, account: { ...session.account, role: 'guest' } }),
+        json({ ...session, account: { ...session.account, role: 'user', isOwner: false } }),
     });
     renderApp('/admin/backup');
-    expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
 });

@@ -52,7 +52,7 @@ describe('setup wizard', () => {
     ).toBeVisible();
     expect(router.state.location.pathname).toBe('/setup');
     // The four steps of A-1.
-    expect(screen.getByRole('heading', { name: /Hauptkonto/ })).toBeVisible();
+    expect(screen.getByRole('heading', { name: /Administratorkonto/ })).toBeVisible();
     expect(screen.getByRole('heading', { name: /Erste Bibliothek/ })).toBeVisible();
     expect(screen.getByRole('heading', { name: /Metadaten von TMDB/ })).toBeVisible();
     expect(screen.getByRole('heading', { name: /Grafikchip und Dateisystem/ })).toBeVisible();

@@ -6,7 +6,6 @@ export const paths = {
   profiles: '/profiles',
   profileSettings: '/settings/profiles',
   adminLibraries: '/admin/libraries',
-  adminAccess: '/admin/access',
   adminMaintenance: '/admin/maintenance',
   adminDevices: '/admin/devices',
   adminStreams: '/admin/streams',

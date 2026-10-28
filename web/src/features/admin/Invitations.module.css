@@ -1,37 +1,15 @@
-.header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  margin-bottom: var(--sc-space-8);
-}
-
-.sections {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-12);
-}
+/* The invitation dialog and the list of invitations below the account table. */
 
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-5);
   max-width: 56rem;
-}
-
-.sectionHead {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
+  margin-top: var(--sc-space-10);
 }
 
 .sectionTitle {
   font-size: var(--sc-font-size-xl);
-  font-weight: var(--sc-font-weight-semibold);
-  line-height: var(--sc-font-line-height-snug);
-}
-
-.panelTitle {
-  font-size: var(--sc-font-size-lg);
   font-weight: var(--sc-font-weight-semibold);
   line-height: var(--sc-font-line-height-snug);
 }
@@ -42,14 +20,10 @@
   gap: var(--sc-space-5);
 }
 
-.actions,
 .dialogActions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sc-space-2);
-}
-
-.dialogActions {
   justify-content: flex-end;
 }
 
@@ -63,14 +37,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-3);
-}
-
-.listTitle {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-  font-weight: var(--sc-font-weight-semibold);
-  letter-spacing: var(--sc-font-letter-spacing-caps);
-  text-transform: uppercase;
 }
 
 .rows {
@@ -104,12 +70,6 @@
   align-items: center;
 }
 
-.rowActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-}
-
 .strong {
   font-weight: var(--sc-font-weight-semibold);
   overflow-wrap: anywhere;
@@ -118,21 +78,4 @@
 .muted {
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-5);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.legend {
-  margin-bottom: var(--sc-space-1);
-  padding: 0;
-  font-size: var(--sc-font-size-md);
-  font-weight: var(--sc-font-weight-semibold);
 }
