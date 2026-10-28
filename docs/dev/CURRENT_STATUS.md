@@ -46,8 +46,12 @@ den dieser Änderung (Rollen-Enum, `GET /admin/guests`, die zwei Umbenennungen).
 **Was Marco am Bildschirm sieht.** Die Seite «Verwaltung → Konten» ist die eine Kontoliste: Rolle
 mit Besitzer-Abzeichen, Altersstufe, Bibliotheken, Profile, letzter Kontakt, Kanäle. Je Zeile
 «Zugriff» (nur bei Konten ohne Verwaltung), «Zum Administrator ernennen» bzw. «Rolle entziehen»
-(nur beim Besitzer sichtbar) und «Entfernen». Die Seite «Zugriff» behält nur noch die Einladungen.
-Der Client setzt nichts durch: er blendet Knöpfe aus, der Server entscheidet.
+(nur beim Besitzer sichtbar) und «Entfernen». Oben der Knopf **«Konto einladen»**: der Dialog
+fragt Notiz, Altersfreigabe und Bibliotheken, zeigt danach den Einmal-Link ein einziges Mal und
+schliesst mit «Fertig». Unter der Tabelle stehen die Einladungen mit ihrem Zustand und dem
+Widerruf. **Die Seite «Zugriff» gibt es nicht mehr** (Nachtrag in ADR 0014, 28. Oktober 2026);
+`/admin/access` leitet auf `/admin/accounts` um. Der Client setzt nichts durch: er blendet Knöpfe
+aus, der Server entscheidet.
 
 **Eingefrorener Datenbankstand.** `testdata/db/benutzerverwaltung.sql` trägt alle drei Ebenen:
 den Besitzer mit zwei Profilen, ein Konto ohne Verwaltung mit eigener Altersstufe und eigenen

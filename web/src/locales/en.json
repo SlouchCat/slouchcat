@@ -644,49 +644,9 @@
       "noFolder": "No folder: nothing is scanned until you add one under “Folders”."
     },
     "access": {
-      "title": "Access",
-      "intro": "Invite new accounts with a one-time link and decide what they may see.",
       "notAllowed": {
         "title": "Administrators only",
         "body": "This area is managed by the primary profile of an administrator account."
-      },
-      "form": {
-        "rating": "Highest rating",
-        "libraries": "Libraries"
-      },
-      "invitations": {
-        "title": "Invitations",
-        "intro": "A link works once and for seven days. Whoever opens it creates their own account.",
-        "note": "Who is the link for?",
-        "noteHint": "A name, for example. The invited person sees the note too.",
-        "create": "Create invitation",
-        "creating": "Creating …",
-        "created": {
-          "title": "Invitation link created",
-          "once": "Copy the link now: it is shown only this once.",
-          "label": "Invitation link",
-          "copy": "Copy link",
-          "copied": "Link copied.",
-          "copyFailed": "Copying is not possible. The link is selected, copy it with Ctrl+C.",
-          "dismiss": "Hide link"
-        },
-        "list": "Existing invitations",
-        "empty": "No invitation created yet.",
-        "noNote": "No note",
-        "state": {
-          "open": "Open",
-          "used": "Used",
-          "expired": "Expired",
-          "revoked": "Revoked"
-        },
-        "expires": "Valid until {{date}}",
-        "usedBy": "Accepted by {{email}}",
-        "revoke": {
-          "action": "Revoke",
-          "title": "Revoke invitation?",
-          "body": "The link stops working.",
-          "confirm": "Revoke"
-        }
       }
     },
     "maintenance": {
@@ -1321,10 +1281,6 @@
         "title": "Accounts",
         "description": "Every account with its role, limits, profiles and channels."
       },
-      "access": {
-        "title": "Access",
-        "description": "Invite accounts and set their limits."
-      },
       "profiles": {
         "title": "Profiles",
         "description": "The profiles of this account, PINs and watch time."
@@ -1661,7 +1617,7 @@
     },
     "accounts": {
       "title": "Accounts",
-      "intro": "Every account with its role, rating level, libraries, profiles and the channels it receives notifications on.",
+      "intro": "Every account with its role, rating level, libraries, profiles and the channels it receives notifications on. A new account starts with an invitation.",
       "list": "Accounts",
       "columns": {
         "email": "E-mail",
@@ -1736,6 +1692,45 @@
         "title": "Remove the account {{email}}?",
         "body": "The account, its profiles and its progress are deleted. Running sessions and playback end at once. Downloads on the account's devices disappear the next time they reach the server. A device that never comes online again keeps them.",
         "confirm": "Remove account"
+      },
+      "invitations": {
+        "title": "Invitations",
+        "intro": "A link works once and for seven days. Whoever opens it creates their own account.",
+        "note": "Who is the link for?",
+        "noteHint": "A name, for example. The invited person sees the note too.",
+        "create": "Create invitation",
+        "creating": "Creating …",
+        "form": {
+          "rating": "Highest rating",
+          "libraries": "Libraries"
+        },
+        "created": {
+          "title": "Invitation link created",
+          "once": "Copy the link now: it is shown only this once.",
+          "label": "Invitation link",
+          "copy": "Copy link",
+          "copied": "Link copied.",
+          "copyFailed": "Copying is not possible. The link is selected, copy it with Ctrl+C.",
+          "dismiss": "Done"
+        },
+        "list": "Existing invitations",
+        "empty": "No invitation created yet.",
+        "noNote": "No note",
+        "state": {
+          "open": "Open",
+          "used": "Used",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        },
+        "expires": "Valid until {{date}}",
+        "usedBy": "Accepted by {{email}}",
+        "revoke": {
+          "action": "Revoke",
+          "title": "Revoke invitation?",
+          "body": "The link stops working.",
+          "confirm": "Revoke"
+        },
+        "invite": "Invite an account"
       }
     },
     "backup": {

@@ -1,4 +1,4 @@
-import type { AdminAccount } from '@slouchcat/api-client';
+import type { AdminAccount, Invitation } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -46,10 +46,23 @@ const guest: AdminAccount = {
   channels: [{ channel: 'email', enabled: false }],
 };
 
+const invitation = (overrides: Partial<Invitation> = {}): Invitation => ({
+  id: 1,
+  note: 'Oma',
+  state: 'open',
+  maxRating: 12,
+  allLibraries: true,
+  libraryIds: [],
+  createdAt: '2026-10-19T10:00:00Z',
+  expiresAt: '2026-10-26T10:00:00Z',
+  ...overrides,
+});
+
 const routes = (extra: Routes = {}): Routes => ({
   ...signedIn,
   'GET /libraries': () => json(accountLibraries),
   'GET /admin/accounts': () => json([owner, guest]),
+  'GET /admin/invitations': () => json([]),
   ...extra,
 });
 
@@ -326,5 +339,128 @@ describe('admin accounts (A-2)', () => {
     renderApp('/admin/accounts');
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
+  });
+});
+
+// K-6 with ADR 0014: an account comes into being through an invitation and nothing else, so the
+// one button that creates one sits above the account list, and the links it produced below it.
+describe('invitations in the account list (K-6)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('creates an invitation in the dialog and shows the full link once, with a copy button', async () => {
+    const created = {
+      ...invitation({
+        id: 2,
+        note: 'Tante Rosa',
+        maxRating: 16,
+        allLibraries: false,
+        libraryIds: [2],
+      }),
+      url: '/invite/geheimes-token',
+      token: 'geheimes-token',
+    };
+    let listed: Invitation[] = [];
+    const { calls } = mockApi({
+      ...routes(),
+      'GET /admin/invitations': () => json(listed),
+      'POST /admin/invitations': () => {
+        listed = [created];
+        return json(created, 201);
+      },
+    });
+    renderApp('/admin/accounts');
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText');
+
+    await user.click(await screen.findByRole('button', { name: 'Konto einladen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Konto einladen' });
+    await user.type(within(dialog).getByLabelText(/Für wen ist der Link/), 'Tante Rosa');
+    await user.click(within(dialog).getByRole('radio', { name: 'FSK 16' }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Auswahl' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Serien' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Einladung erstellen' }));
+
+    const link = await within(dialog).findByLabelText('Einladungslink');
+    expect(link).toHaveValue(`${window.location.origin}/invite/geheimes-token`);
+    expect(link).toHaveAttribute('readonly');
+    expect(within(dialog).getByText(/nur dieses eine Mal angezeigt/)).toBeVisible();
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+      note: 'Tante Rosa',
+      maxRating: 16,
+      allLibraries: false,
+      libraryIds: [2],
+    });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Link kopieren' }));
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/invite/geheimes-token`);
+    expect(await within(dialog).findByText('Link kopiert.')).toBeVisible();
+
+    // "Fertig" closes the dialog; the new row is in the list, the link itself is not part of it.
+    await user.click(within(dialog).getByRole('button', { name: 'Fertig' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    const list = screen.getByRole('region', { name: 'Einladungen' });
+    expect(await within(list).findByText('Tante Rosa')).toBeVisible();
+    expect(within(list).queryByText(/geheimes-token/)).not.toBeInTheDocument();
+  });
+
+  it('selects the link for Ctrl+C when the clipboard is not available', async () => {
+    mockApi({
+      ...routes(),
+      'POST /admin/invitations': () =>
+        json({ ...invitation(), url: '/invite/abc', token: 'abc' }, 201),
+    });
+    renderApp('/admin/accounts');
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('not allowed'));
+
+    await user.click(await screen.findByRole('button', { name: 'Konto einladen' }));
+    await user.click(await screen.findByRole('button', { name: 'Einladung erstellen' }));
+    await user.click(await screen.findByRole('button', { name: 'Link kopieren' }));
+    expect(await screen.findByText(/Kopieren nicht möglich/)).toBeVisible();
+    expect(screen.getByLabelText('Einladungslink')).toHaveFocus();
+  });
+
+  it('lists invitations with their state and revokes an open one after confirmation', async () => {
+    const { calls } = mockApi({
+      ...routes({
+        'GET /admin/invitations': () =>
+          json([
+            invitation(),
+            invitation({ id: 2, note: 'Max', state: 'used', usedByEmail: 'max@example.test' }),
+            invitation({ id: 3, note: undefined, state: 'expired' }),
+            invitation({ id: 4, note: 'Alt', state: 'revoked' }),
+          ]),
+      }),
+      'DELETE /admin/invitations/1': () => new Response(null, { status: 204 }),
+    });
+    renderApp('/admin/accounts');
+    const user = userEvent.setup();
+
+    const list = await screen.findByRole('region', { name: 'Einladungen' });
+    expect(await within(list).findByText('Offen')).toBeVisible();
+    expect(within(list).getByText('Benutzt')).toBeVisible();
+    expect(within(list).getByText('Abgelaufen')).toBeVisible();
+    expect(within(list).getByText('Widerrufen', { selector: 'span' })).toBeVisible();
+    expect(within(list).getByText('Angenommen von max@example.test')).toBeVisible();
+    expect(within(list).getByText('Ohne Notiz')).toBeVisible();
+    // Only the open invitation can be revoked.
+    expect(within(list).getAllByRole('button', { name: 'Widerrufen' })).toHaveLength(1);
+
+    await user.click(within(list).getByRole('button', { name: 'Widerrufen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Einladung widerrufen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Widerrufen' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
+  });
+
+  it('offers no invitation while the library list is missing, so no right is widened', async () => {
+    const { calls } = mockApi({
+      ...routes({ 'GET /libraries': () => problem(500, 'internal') }),
+      'POST /admin/invitations': () => json({ ...invitation(), url: '/invite/x', token: 'x' }, 201),
+    });
+    renderApp('/admin/accounts');
+
+    expect(await screen.findByText('Die Bibliotheken konnten nicht geladen werden.')).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Konto einladen' })).toBeDisabled();
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
   });
 });

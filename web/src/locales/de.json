@@ -644,49 +644,9 @@
       "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst."
     },
     "access": {
-      "title": "Zugriff",
-      "intro": "Lade neue Konten mit einem Einmal-Link ein und lege fest, was sie sehen dürfen.",
       "notAllowed": {
         "title": "Nur für Administratoren",
         "body": "Diesen Bereich verwaltet das Hauptprofil eines Administratorkontos."
-      },
-      "form": {
-        "rating": "Höchste Altersfreigabe",
-        "libraries": "Bibliotheken"
-      },
-      "invitations": {
-        "title": "Einladungen",
-        "intro": "Ein Link gilt einmal und sieben Tage. Wer ihn öffnet, legt ein eigenes Konto an.",
-        "note": "Für wen ist der Link?",
-        "noteHint": "Zum Beispiel ein Name. Die Notiz sieht auch die eingeladene Person.",
-        "create": "Einladung erstellen",
-        "creating": "Wird erstellt …",
-        "created": {
-          "title": "Einladungslink erstellt",
-          "once": "Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.",
-          "label": "Einladungslink",
-          "copy": "Link kopieren",
-          "copied": "Link kopiert.",
-          "copyFailed": "Kopieren nicht möglich. Der Link ist markiert, kopiere ihn mit Strg+C.",
-          "dismiss": "Link ausblenden"
-        },
-        "list": "Bestehende Einladungen",
-        "empty": "Noch keine Einladung erstellt.",
-        "noNote": "Ohne Notiz",
-        "state": {
-          "open": "Offen",
-          "used": "Benutzt",
-          "expired": "Abgelaufen",
-          "revoked": "Widerrufen"
-        },
-        "expires": "Gültig bis {{date}}",
-        "usedBy": "Angenommen von {{email}}",
-        "revoke": {
-          "action": "Widerrufen",
-          "title": "Einladung widerrufen?",
-          "body": "Der Link funktioniert danach nicht mehr.",
-          "confirm": "Widerrufen"
-        }
       }
     },
     "maintenance": {
@@ -1321,10 +1281,6 @@
         "title": "Konten",
         "description": "Alle Konten mit Rolle, Grenzen, Profilen und Kanälen."
       },
-      "access": {
-        "title": "Zugriff",
-        "description": "Konten einladen und ihre Grenzen festlegen."
-      },
       "profiles": {
         "title": "Profile",
         "description": "Die Profile dieses Kontos, PINs und Schauzeit."
@@ -1661,7 +1617,7 @@
     },
     "accounts": {
       "title": "Konten",
-      "intro": "Alle Konten mit Rolle, Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen.",
+      "intro": "Alle Konten mit Rolle, Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen. Neue Konten entstehen über eine Einladung.",
       "list": "Konten",
       "columns": {
         "email": "E-Mail",
@@ -1736,6 +1692,45 @@
         "title": "Konto {{email}} entfernen?",
         "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort. Downloads auf den Geräten des Kontos verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.",
         "confirm": "Konto entfernen"
+      },
+      "invitations": {
+        "title": "Einladungen",
+        "intro": "Ein Link gilt einmal und sieben Tage. Wer ihn öffnet, legt ein eigenes Konto an.",
+        "note": "Für wen ist der Link?",
+        "noteHint": "Zum Beispiel ein Name. Die Notiz sieht auch die eingeladene Person.",
+        "create": "Einladung erstellen",
+        "creating": "Wird erstellt …",
+        "form": {
+          "rating": "Höchste Altersfreigabe",
+          "libraries": "Bibliotheken"
+        },
+        "created": {
+          "title": "Einladungslink erstellt",
+          "once": "Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.",
+          "label": "Einladungslink",
+          "copy": "Link kopieren",
+          "copied": "Link kopiert.",
+          "copyFailed": "Kopieren nicht möglich. Der Link ist markiert, kopiere ihn mit Strg+C.",
+          "dismiss": "Fertig"
+        },
+        "list": "Bestehende Einladungen",
+        "empty": "Noch keine Einladung erstellt.",
+        "noNote": "Ohne Notiz",
+        "state": {
+          "open": "Offen",
+          "used": "Benutzt",
+          "expired": "Abgelaufen",
+          "revoked": "Widerrufen"
+        },
+        "expires": "Gültig bis {{date}}",
+        "usedBy": "Angenommen von {{email}}",
+        "revoke": {
+          "action": "Widerrufen",
+          "title": "Einladung widerrufen?",
+          "body": "Der Link funktioniert danach nicht mehr.",
+          "confirm": "Widerrufen"
+        },
+        "invite": "Konto einladen"
       }
     },
     "backup": {

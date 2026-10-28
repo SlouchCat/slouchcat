@@ -15,7 +15,6 @@ export interface AdminSection {
     | 'podcasts'
     | 'maintenance'
     | 'accounts'
-    | 'access'
     | 'profiles'
     | 'devices'
     | 'streams'
@@ -46,7 +45,6 @@ export const adminSections: readonly AdminSection[] = [
     also: ['/admin/items'],
   },
   { key: 'accounts', href: paths.adminAccounts, icon: 'users', group: 'accounts' },
-  { key: 'access', href: paths.adminAccess, icon: 'lock', group: 'accounts' },
   { key: 'profiles', href: paths.profileSettings, icon: 'user', group: 'accounts' },
   { key: 'devices', href: paths.adminDevices, icon: 'monitor', group: 'accounts' },
   { key: 'streams', href: paths.adminStreams, icon: 'play', group: 'accounts' },

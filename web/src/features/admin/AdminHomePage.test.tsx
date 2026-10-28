@@ -343,7 +343,6 @@ describe('admin overview (A-2, A-3)', () => {
     ]);
     expect(cards('Konten')).toEqual([
       ['Konten', '/admin/accounts'],
-      ['Zugriff', '/admin/access'],
       ['Profile', '/settings/profiles'],
       ['Geräte', '/admin/devices'],
       ['Streams', '/admin/streams'],
@@ -383,7 +382,6 @@ describe('admin navigation (A-2)', () => {
       'Podcasts',
       'Pflege',
       'Konten',
-      'Zugriff',
       'Geräte',
       'Streams',
       'Spotlight',

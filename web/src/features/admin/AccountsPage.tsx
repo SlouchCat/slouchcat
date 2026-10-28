@@ -36,6 +36,7 @@ import {
   type LibraryOption,
   type LibraryOptions,
 } from '../shared/useLibraryOptions';
+import { InvitationsSection, InviteDialog } from './Invitations';
 import { accountsQuery, invitationsQuery } from './queries';
 import data from './AdminData.module.css';
 import styles from './AdminTablePage.module.css';
@@ -259,6 +260,7 @@ export function AccountsPage() {
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [access, setAccess] = useState<AdminAccount | null>(null);
+  const [inviting, setInviting] = useState(false);
   const queryClient = useQueryClient();
   const refresh = () =>
     Promise.all([
@@ -463,7 +465,30 @@ export function AccountsPage() {
         </Notice>
       ) : (
         <div className={styles.body} aria-busy={accounts.isPending}>
+          <div className={data.toolbar}>
+            <AriaButton
+              variant="primary"
+              icon="plus"
+              isDisabled={!libraries.isReady}
+              onPress={() => setInviting(true)}
+            >
+              {t('admin.accounts.invitations.invite')}
+            </AriaButton>
+          </div>
           {saved && <Notice>{t('admin.accounts.edit.saved')}</Notice>}
+          {libraries.isError && (
+            <Notice
+              tone="danger"
+              title={t('libraries.loadFailed')}
+              actions={
+                <AriaButton icon="refresh" onPress={libraries.retry}>
+                  {t('common.retry')}
+                </AriaButton>
+              }
+            >
+              {problemMessage(t, libraries.error)}
+            </Notice>
+          )}
           {actionError && <Notice tone="danger">{problemMessage(t, actionError)}</Notice>}
           {accounts.isPending && <Skeleton shape="block" />}
           {accounts.isError && (
@@ -485,6 +510,7 @@ export function AccountsPage() {
               rowKey={(account) => String(account.id)}
             />
           )}
+          <InvitationsSection options={libraries.options} />
         </div>
       )}
       {editing && (
@@ -503,6 +529,7 @@ export function AccountsPage() {
           onClose={() => setAccess(null)}
         />
       )}
+      {inviting && <InviteDialog options={libraries.options} onClose={() => setInviting(false)} />}
     </Page>
   );
 }

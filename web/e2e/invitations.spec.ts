@@ -14,20 +14,27 @@ import { GUEST_PASSWORD } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 
-// Invitations (K-6) and the account they create (K-7) in the administration's UI; the invited
-// side runs in a context of its own, as another person in another browser would. The account
-// itself is managed in the account list since ADR 0014, so this spec walks over there for it.
+// Invitations (K-6) and the account they create (K-7). Since ADR 0014 both live on one page: the
+// "Konto einladen" dialog is the only way an account comes into being, the links it produced are
+// listed below the account list, and the account itself is a row of that list. The invited side
+// runs in a context of its own, as another person in another browser would.
 
 const GUEST = { email: 'gast-e2e@slouchcat.test', password: GUEST_PASSWORD };
 
-async function openAccess(page: Page) {
-  await page.goto('/admin/access');
-  await expect(page.getByRole('heading', { level: 1, name: 'Zugriff' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Einladungen' })).toBeVisible();
-}
+/** The invitations below the account list. */
+const invitations = (page: Page) => page.getByRole('region', { name: 'Einladungen' });
 
 const row = (page: Page, text: string) =>
-  page.getByRole('listitem').filter({ hasText: text }).first();
+  invitations(page).getByRole('listitem').filter({ hasText: text }).first();
+
+/** Opens the account list and its invitation dialog, the one door for a new account. */
+async function openInvite(page: Page) {
+  await openAccounts(page);
+  await page.getByRole('button', { name: 'Konto einladen' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Konto einladen' });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
 
 test('K-6: the administration invites, the invited person joins, the used link answers 410', async ({
   page,
@@ -36,21 +43,23 @@ test('K-6: the administration invites, the invited person joins, the used link a
   extraHTTPHeaders,
   owner,
 }) => {
-  await openAccess(page);
-  await page.getByLabel(/Für wen ist der Link/).fill('E2E Gast');
-  await page.getByRole('button', { name: 'Einladung erstellen' }).click();
+  const dialog = await openInvite(page);
+  await dialog.getByLabel(/Für wen ist der Link/).fill('E2E Gast');
+  await dialog.getByRole('button', { name: 'Einladung erstellen' }).click();
 
   // The full link is shown once, with a hint and a copy button.
-  const link = page.getByRole('textbox', { name: 'Einladungslink' });
+  const link = dialog.getByRole('textbox', { name: 'Einladungslink' });
   await expect(link).toHaveValue(new RegExp(`^${baseURL}/invite/[A-Za-z0-9_-]{20,}$`));
   await expect(
-    page.getByText('Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.'),
+    dialog.getByText('Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.'),
   ).toBeVisible();
   const inviteUrl = await link.inputValue();
-  await page.getByRole('button', { name: 'Link kopieren' }).click();
+  await dialog.getByRole('button', { name: 'Link kopieren' }).click();
   await expect(
-    page.getByRole('status').filter({ hasText: /Link kopiert|Kopieren nicht möglich/ }),
+    dialog.getByRole('status').filter({ hasText: /Link kopiert|Kopieren nicht möglich/ }),
   ).toBeVisible();
+  await dialog.getByRole('button', { name: 'Fertig' }).click();
+  await expect(dialog).toBeHidden();
   await expect(row(page, 'E2E Gast')).toContainText('Offen');
 
   // The guest, in a browser of their own.
@@ -75,7 +84,9 @@ test('K-6: the administration invites, the invited person joins, the used link a
     await expect(nav.getByRole('link', { name: 'Verwaltung' })).toHaveCount(0);
     expect((await guestContext.request.get('/api/v1/admin/libraries')).status()).toBe(403);
     expect((await guestContext.request.get('/api/v1/admin/accounts')).status()).toBe(403);
+    // The old address of the "Zugriff" page leads to the account list, which refuses them.
     await guest.goto('/admin/access');
+    await expect(guest).toHaveURL(/\/admin\/accounts$/);
     await expect(guest.getByText('Nur für Administratoren')).toBeVisible();
 
     // The used link answers 410 for anyone.
@@ -91,12 +102,10 @@ test('K-6: the administration invites, the invited person joins, the used link a
       await stranger.close();
     }
 
-    // The owner sees the state and the guest; editing the ceiling works.
-    await openAccess(page);
+    // One page: the invitation shows its state, the account it made is a row above it.
+    await openAccounts(page);
     await expect(row(page, 'E2E Gast')).toContainText('Benutzt');
     await expect(row(page, 'E2E Gast')).toContainText(`Angenommen von ${GUEST.email}`);
-    // The account itself is managed in the account list (ADR 0014).
-    await openAccounts(page);
     const entry = accountRow(page, GUEST.email);
     await expect(entry).toContainText('Konto');
     await expect(entry).toContainText('FSK 18');
@@ -136,12 +145,13 @@ test('K-6: an account limited to one library sees only that library and none of 
   owner,
 }) => {
   await ensureEmptyLibrary(owner);
-  await openAccess(page);
-  await page.getByLabel(/Für wen ist der Link/).fill('Nur leer');
-  await choose(page.getByRole('region', { name: 'Einladung erstellen' }), 'radio', 'Auswahl');
-  await choose(page.getByRole('region', { name: 'Einladung erstellen' }), 'checkbox', 'E2E leer');
-  await page.getByRole('button', { name: 'Einladung erstellen' }).click();
-  const inviteUrl = await page.getByRole('textbox', { name: 'Einladungslink' }).inputValue();
+  const dialog = await openInvite(page);
+  await dialog.getByLabel(/Für wen ist der Link/).fill('Nur leer');
+  await choose(dialog, 'radio', 'Auswahl');
+  await choose(dialog, 'checkbox', 'E2E leer');
+  await dialog.getByRole('button', { name: 'Einladung erstellen' }).click();
+  const inviteUrl = await dialog.getByRole('textbox', { name: 'Einladungslink' }).inputValue();
+  await dialog.getByRole('button', { name: 'Fertig' }).click();
   await expect(row(page, 'Nur leer')).toContainText('E2E leer');
 
   const guestContext = await browser.newContext({ baseURL, locale: 'de-CH', extraHTTPHeaders });
@@ -196,7 +206,7 @@ test('a revoked invitation answers 410', async ({
     allLibraries: true,
     libraryIds: [],
   });
-  await openAccess(page);
+  await openAccounts(page);
   const entry = row(page, 'Widerruf-E2E');
   await expect(entry).toContainText('Offen');
   await expect(entry).toContainText('FSK 6');
@@ -221,7 +231,7 @@ test('a revoked invitation answers 410', async ({
   }
 });
 
-test('keyboard: invitation form, link panel and revoke dialog; no focus trap', async ({
+test('keyboard: invitation dialog, link and revoke dialog; no focus trap', async ({
   page,
   playwright,
   baseURL,
@@ -250,51 +260,55 @@ test('keyboard: invitation form, link panel and revoke dialog; no focus trap', a
       language: 'de',
     });
 
-    await openAccess(page);
+    await openAccounts(page);
 
-    // Tab: header links, the admin navigation (its current page "Zugriff" is its one Tab stop),
-    // then the note field, rating radios, libraries, create.
-    await tabTo(page, page.getByRole('link', { name: 'Zugriff' }));
-    await tabTo(page, page.getByLabel(/Für wen ist der Link/));
+    // Enter on the one button that creates an account opens the dialog on its first field.
+    const invite = page.getByRole('button', { name: 'Konto einladen' });
+    await tabTo(page, invite);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Konto einladen' });
+    await expectFocusOn(page, dialog.getByLabel(/Für wen ist der Link/));
     await page.keyboard.type('Tastatur');
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, page.getByRole('radio', { name: 'FSK 18' }));
+    await expectFocusOn(page, dialog.getByRole('radio', { name: 'FSK 18' }));
     await page.keyboard.press('ArrowLeft');
-    await expect(page.getByRole('radio', { name: 'FSK 16' })).toBeChecked();
+    await expect(dialog.getByRole('radio', { name: 'FSK 16' })).toBeChecked();
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, page.getByRole('radio', { name: 'Alle', exact: true }));
+    await expectFocusOn(page, dialog.getByRole('radio', { name: 'Alle', exact: true }));
     await page.keyboard.press('ArrowRight');
-    await expect(page.getByRole('radio', { name: 'Auswahl' })).toBeChecked();
+    await expect(dialog.getByRole('radio', { name: 'Auswahl' })).toBeChecked();
     await page.keyboard.press('Tab');
     // The first checkbox of the list (the libraries are listed by name).
-    const first = page.getByRole('checkbox').first();
+    const first = dialog.getByRole('checkbox').first();
     await expectFocusOn(page, first);
     await page.keyboard.press('Space');
     await expect(first).toBeChecked();
     // One Tab per further library, then the button.
-    const others = (await page.getByRole('checkbox').count()) - 1;
+    const others = (await dialog.getByRole('checkbox').count()) - 1;
     for (let index = 0; index < others; index += 1) await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, page.getByRole('button', { name: 'Einladung erstellen' }));
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Einladung erstellen' }));
     await page.keyboard.press('Enter');
 
-    // The link takes the focus (selected, ready for Ctrl+C); copy and hide are next.
-    const link = page.getByRole('textbox', { name: 'Einladungslink' });
+    // The link takes the focus (selected, ready for Ctrl+C); copy and done are next, and done
+    // hands the focus back to the button that opened the dialog.
+    const link = dialog.getByRole('textbox', { name: 'Einladungslink' });
     await expect(link).toBeVisible();
     await expectFocusOn(page, link);
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, page.getByRole('button', { name: 'Link kopieren' }));
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Link kopieren' }));
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, page.getByRole('button', { name: 'Link ausblenden' }));
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Fertig' }));
     await page.keyboard.press('Enter');
-    await expect(link).toHaveCount(0);
+    await expect(dialog).toBeHidden();
+    await expectFocusOn(page, invite);
     const tastatur = row(page, 'Tastatur');
     await expect(tastatur).toContainText('Offen');
     await expect(tastatur).toContainText('FSK 16');
 
     // Revoke dialog: Enter opens it, the confirm button has the focus, Escape returns to the row.
     const revoke = row(page, 'Offene Einladung').getByRole('button', { name: 'Widerrufen' });
-    await tabTo(page, revoke, 60);
+    await tabTo(page, revoke, 80);
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: 'Einladung widerrufen?' });
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Widerrufen' }));
@@ -304,7 +318,7 @@ test('keyboard: invitation form, link panel and revoke dialog; no focus trap', a
     await expect(confirm).toBeHidden();
     await expectFocusOn(page, revoke);
 
-    await expectNoFocusTrap(page, 120);
+    await expectNoFocusTrap(page);
   } finally {
     const all = await owner.get('/api/v1/admin/invitations');
     for (const item of (await all.json()) as InvitationData[]) {

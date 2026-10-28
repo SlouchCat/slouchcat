@@ -28,7 +28,6 @@ const NAV_PAGES = [
   ['Podcasts', '/admin/podcasts'],
   ['Pflege', '/admin/maintenance'],
   ['Konten', '/admin/accounts'],
-  ['Zugriff', '/admin/access'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
@@ -84,7 +83,7 @@ test('admin navigation: one Tab stop, arrows move, Enter follows, Back returns',
   await expectFocusOn(page, nav.getByRole('link', { name: 'Streams' }));
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, nav.getByRole('link', { name: 'Zugriff' }));
+  await expectFocusOn(page, nav.getByRole('link', { name: 'Konten' }));
   await page.keyboard.press('End');
   await expectFocusOn(page, nav.getByRole('link', { name: 'Sicherung' }));
   await page.keyboard.press('ArrowRight');

@@ -28,6 +28,14 @@
 > wäre sie ein stiller Rückschritt. Inhaltlich ändert sich an der Aussage nichts: die View liest
 > `accounts`, aber nie `role`.
 
+> **Ein Nachtrag nach der Umsetzung (28. Oktober 2026, auf Marcos Wunsch).** Dieses Papier lässt die
+> Seite «Zugriff» mit den Einladungen bestehen (Abschnitt 7). Nachdem die Kontoliste alle Konten
+> trägt, blieb dieser Seite nur noch die Einladung, also die eine Tür, durch die ein Konto entsteht.
+> Sie ist darum in «Konten» eingezogen: oben der Knopf «Konto einladen», unter der Tabelle die
+> Einladungen. Die Seite «Zugriff» entfällt, `/admin/access` leitet auf `/admin/accounts` um. Am
+> Vertrag und an den Entscheiden aus Abschnitt 11 ändert das nichts; begründet steht es als Folge in
+> ADR 0014.
+
 ---
 
 ## 1. Ausgangslage und Problem

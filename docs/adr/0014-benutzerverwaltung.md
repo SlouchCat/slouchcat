@@ -111,6 +111,14 @@ diese Runde abgelehnt (Frage 12 g).
   (`PATCH /admin/accounts/{id}`), `revokeGuest` heisst `deleteAccount`
   (`DELETE /admin/accounts/{id}`); beide antworten 204, die Oberfläche liest die Liste neu. Das
   Schema `Guest` geht in `AdminAccount` auf.
+- **Eine Seite statt zweier** (Nachtrag vom 28. Oktober 2026, auf Marcos Wunsch). Nachdem die
+  Kontoliste alle Konten trägt, blieb der Seite «Zugriff» nur noch die Einladung – also die eine
+  Tür, durch die ein Konto entsteht. Sie gehört dorthin, wo das Ergebnis steht: «Konten» bekommt
+  oben den Knopf «Konto einladen» (Dialog mit Notiz, Altersfreigabe, Bibliotheken; danach der
+  Einmal-Link, der genau dort einmal zu sehen ist) und unter der Tabelle die Liste der Einladungen
+  mit ihrem Zustand. Die Seite «Zugriff» entfällt samt Eintrag in der Verwaltungs-Navigation;
+  `/admin/access` leitet auf `/admin/accounts` um, damit alte Lesezeichen nicht ins Leere laufen.
+  Am Vertrag ändert das nichts: die Einladungs-Operationen bleiben, wie sie sind.
 - **Oberfläche:** 21 Web-Dateien prüfen heute `session.account.role === 'owner'`; alle einundzwanzig
   meinen «Administrator» und wechseln auf `'admin'`. Die gemeinsame Sitzungsattrappe
   `web/src/test/api.tsx` geht mit ihnen in **einen** Commit, sonst fallen alle Seitentests
