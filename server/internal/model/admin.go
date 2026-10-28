@@ -309,7 +309,8 @@ type RestoreResult struct {
 type AdminAccount struct {
 	ID           int64
 	Email        string
-	Role         string // owner, guest
+	Role         string // admin or user (ADR 0014)
+	IsOwner      bool   // the one account that cannot be deleted or demoted
 	MaxRating    int
 	AllLibraries bool
 	LibraryIDs   []int64

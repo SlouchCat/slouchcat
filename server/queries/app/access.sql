@@ -1,5 +1,5 @@
--- Devices, PIN locks, profile and guest management, invitations (package store/appq). Owner:
--- auth (all of it) and admin (guests, invitations). Never touches title tables. Times are Unix
+-- Devices, PIN locks, profile and account management, invitations (package store/appq). Owner:
+-- auth (all of it) and admin (accounts, invitations). Never touches title tables. Times are Unix
 -- milliseconds.
 
 -- name: UpsertDevice :exec
@@ -84,20 +84,23 @@ DELETE FROM pin_attempts WHERE updated_at < @before;
 -- name: TouchAccount :exec
 UPDATE accounts SET last_seen_at = @now WHERE id = @id;
 
--- name: InsertGuestAccount :one
+-- name: InsertInvitedAccount :one
+-- An invitation never creates an administrator: the role is a literal in this file, not a
+-- parameter, so no request body and no slip in a handler can raise it (ADR 0014, lock 4).
 INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
-VALUES (@email, @password_hash, 'guest', @max_rating, @all_libraries, sqlc.narg('invited_by'), @now, @now)
+VALUES (@email, @password_hash, 'user', @max_rating, @all_libraries, sqlc.narg('invited_by'), @now, @now)
 RETURNING *;
 
 -- name: GetGuestAccount :one
-SELECT * FROM accounts WHERE id = @id AND role = 'guest';
+-- An account that administers nothing; the administration changes its limits and may revoke it.
+SELECT * FROM accounts WHERE id = @id AND role = 'user';
 
 -- name: ListGuestAccounts :many
 SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
        a.max_bitrate_kbps, a.max_height, a.max_streams,
        (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
 FROM accounts AS a
-WHERE a.role = 'guest'
+WHERE a.role = 'user'
 ORDER BY a.created_at DESC, a.id DESC;
 
 -- name: UpdateAccountLimits :exec
@@ -115,7 +118,7 @@ SELECT library_id FROM account_libraries WHERE account_id = @account_id ORDER BY
 -- name: ListGuestLibraries :many
 SELECT al.account_id, al.library_id FROM account_libraries AS al
 JOIN accounts AS a ON a.id = al.account_id
-WHERE a.role = 'guest'
+WHERE a.role = 'user'
 ORDER BY al.account_id, al.library_id;
 
 -- name: DeleteAccountLibraries :exec

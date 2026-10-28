@@ -210,10 +210,10 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 	return gen.GetSession200JSONResponse(info), nil
 }
 
-// updateNotice is SessionInfo.updateAvailable (A-5): a newer published version, only for the main
-// account; nil otherwise and without an admin service.
+// updateNotice is SessionInfo.updateAvailable (A-5): a newer published version, only for
+// administrators; nil otherwise and without an admin service.
 func (s *server) updateNotice(ctx context.Context, session model.Session) *gen.UpdateNotice {
-	if !session.IsOwner() || s.opts.Admin == nil {
+	if !session.IsAdmin() || s.opts.Admin == nil {
 		return nil
 	}
 	n := s.opts.Admin.UpdateAvailable(ctx)

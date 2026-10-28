@@ -480,7 +480,7 @@ func (e *env) addDownload(itemID, mediaFileID string) string {
 		}
 	}
 	exec(`INSERT OR IGNORE INTO accounts (id, email, password_hash, role, created_at, updated_at)
-	      VALUES (1, 'owner@example.test', 'x', 'owner', ?, ?)`, now, now)
+	      VALUES (1, 'owner@example.test', 'x', 'admin', ?, ?)`, now, now)
 	exec(`INSERT OR IGNORE INTO devices (id, user_agent, created_at, last_seen_at)
 	      VALUES (?, 'test', ?, ?)`, deviceID, now, now)
 	exec(`INSERT INTO downloads (id, account_id, device_id, item_id, media_file_id, quality,

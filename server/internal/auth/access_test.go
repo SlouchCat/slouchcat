@@ -256,7 +256,7 @@ func TestSelectProfileWithoutPINAndOtherAccounts(t *testing.T) {
 
 func addGuestAccount(t *testing.T, s *Service, email string, maxRating int64, all bool, libs []int64) appq.Account {
 	t.Helper()
-	acc, err := s.write.InsertGuestAccount(context.Background(), appq.InsertGuestAccountParams{Email: email, PasswordHash: "x", MaxRating: maxRating, AllLibraries: boolInt(all), Now: 1})
+	acc, err := s.write.InsertInvitedAccount(context.Background(), appq.InsertInvitedAccountParams{Email: email, PasswordHash: "x", MaxRating: maxRating, AllLibraries: boolInt(all), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestLoginProfileChoice(t *testing.T) {
 	if err := s.SetProfilePIN(ctx, sess, sess.Profile.ID, "1234"); err != nil {
 		t.Fatal(err)
 	}
-	if got := login(); got.HasProfile() || got.Account.Role != "owner" || got.Account.MaxRating != 18 || !got.Account.AllLibraries {
+	if got := login(); got.HasProfile() || got.Account.Role != model.RoleAdmin || !got.Account.IsOwner || got.Account.MaxRating != 18 || !got.Account.AllLibraries {
 		t.Fatalf("one profile with PIN: %+v", got)
 	}
 	if err := s.RemoveProfilePIN(ctx, sess, sess.Profile.ID); err != nil {
@@ -493,7 +493,7 @@ func TestGuestLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if guest.Account.Role != "guest" || guest.Account.MaxRating != 12 || guest.Account.AllLibraries || !slices.Equal(guest.Account.LibraryIDs, []int64{libA}) ||
+	if guest.Account.Role != model.RoleUser || guest.Account.IsOwner || guest.Account.MaxRating != 12 || guest.Account.AllLibraries || !slices.Equal(guest.Account.LibraryIDs, []int64{libA}) ||
 		!guest.Profile.IsPrimary || guest.Profile.MaxRating != 12 || guest.Profile.Language != "de" {
 		t.Fatalf("guest session = %+v / %+v", guest.Account, guest.Profile)
 	}

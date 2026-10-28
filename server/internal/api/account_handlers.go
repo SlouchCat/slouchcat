@@ -25,7 +25,7 @@ func (s *server) ListAccounts(ctx context.Context, _ gen.ListAccountsRequestObje
 	out := make(gen.ListAccounts200JSONResponse, 0, len(list))
 	for _, a := range list {
 		item := gen.AdminAccount{
-			Id: a.ID, Email: types.Email(a.Email), Role: gen.AdminAccountRole(a.Role), MaxRating: gen.Rating(a.MaxRating),
+			Id: a.ID, Email: types.Email(a.Email), Role: gen.AdminAccountRole(legacyRole(a.Role)), MaxRating: gen.Rating(a.MaxRating),
 			AllLibraries: a.AllLibraries, LibraryIds: nonNil(a.LibraryIDs), LastSeenAt: utc(a.LastSeenAt), CreatedAt: a.CreatedAt.UTC(),
 			Profiles: make([]gen.ProfileRef, 0, len(a.Profiles)), Channels: make([]gen.ChannelSummary, 0, len(a.Channels)),
 		}

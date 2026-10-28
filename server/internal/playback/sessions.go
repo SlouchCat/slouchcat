@@ -589,8 +589,8 @@ func (s *Service) Authorize(ctx context.Context, token string) (model.PlaybackGr
 			s.log.WarnContext(ctx, "touch playback session", "playback_id", row.ID, "err", err)
 		}
 	}
-	account := model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: int(acc.MaxRating), AllLibraries: acc.AllLibraries == 1,
-		Limits: auth.AccountLimits(acc)}
+	account := model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, IsOwner: acc.IsOwner == 1,
+		MaxRating: int(acc.MaxRating), AllLibraries: acc.AllLibraries == 1, Limits: auth.AccountLimits(acc)}
 	limits := auth.ProfileLimits(prof)
 	g := model.PlaybackGrant{
 		ID: row.ID,

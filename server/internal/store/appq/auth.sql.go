@@ -56,7 +56,7 @@ func (q *Queries) DeleteSetting(ctx context.Context, key string) error {
 }
 
 const getAccount = `-- name: GetAccount :one
-SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1
+SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1
 `
 
 func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
@@ -67,6 +67,7 @@ func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
+		&i.IsOwner,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MaxRating,
@@ -81,7 +82,7 @@ func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
 }
 
 const getAccountByEmail = `-- name: GetAccountByEmail :one
-SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE email = ?1
+SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE email = ?1
 `
 
 func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (Account, error) {
@@ -92,6 +93,7 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (Account,
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
+		&i.IsOwner,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MaxRating,
@@ -204,23 +206,27 @@ func (q *Queries) GetSetting(ctx context.Context, key string) (string, error) {
 }
 
 const insertAccount = `-- name: InsertAccount :one
-INSERT INTO accounts (email, password_hash, role, created_at, updated_at)
-VALUES (?1, ?2, ?3, ?4, ?4)
-RETURNING id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
+INSERT INTO accounts (email, password_hash, role, is_owner, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
 `
 
 type InsertAccountParams struct {
 	Email        string
 	PasswordHash string
 	Role         string
+	IsOwner      int64
 	Now          int64
 }
 
+// The setup wizard's account is the owner; every other account comes from an invitation and is
+// inserted by InsertInvitedAccount, which writes its role as a literal (ADR 0014).
 func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (Account, error) {
 	row := q.db.QueryRowContext(ctx, insertAccount,
 		arg.Email,
 		arg.PasswordHash,
 		arg.Role,
+		arg.IsOwner,
 		arg.Now,
 	)
 	var i Account
@@ -229,6 +235,7 @@ func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (A
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
+		&i.IsOwner,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MaxRating,

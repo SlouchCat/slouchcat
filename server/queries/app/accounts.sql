@@ -2,10 +2,11 @@
 -- admin). Times are Unix milliseconds.
 
 -- name: ListAccountsAdmin :many
--- The main account first, then the guests, newest first.
-SELECT id, email, role, max_rating, all_libraries, created_at, last_seen_at
+-- The owner first, then the other administrators, then the accounts, newest first. Sorting by the
+-- role alone would leave the order among several administrators undefined.
+SELECT id, email, role, is_owner, max_rating, all_libraries, created_at, last_seen_at
 FROM accounts
-ORDER BY role = 'guest', created_at DESC, id DESC;
+ORDER BY is_owner DESC, role = 'user', created_at DESC, id DESC;
 
 -- name: ListProfilesAdmin :many
 -- Every profile of every account, the primary profile of an account first.

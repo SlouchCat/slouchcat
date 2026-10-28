@@ -9,7 +9,8 @@ import (
 )
 
 // ListAccounts returns every account with its profiles, library rights, last use and the switch of
-// each notification channel (A-2): the main account first, then the guests, newest first.
+// each notification channel (A-2): the owner first, then the other administrators, then the
+// accounts, newest first.
 func (s *Service) ListAccounts(ctx context.Context) ([]model.AdminAccount, error) {
 	accounts, err := s.read.ListAccountsAdmin(ctx)
 	if err != nil {
@@ -31,7 +32,7 @@ func (s *Service) ListAccounts(ctx context.Context) ([]model.AdminAccount, error
 	out := make([]model.AdminAccount, len(accounts))
 	for i, a := range accounts {
 		out[i] = model.AdminAccount{
-			ID: a.ID, Email: a.Email, Role: a.Role, MaxRating: int(a.MaxRating), AllLibraries: a.AllLibraries == 1,
+			ID: a.ID, Email: a.Email, Role: a.Role, IsOwner: a.IsOwner == 1, MaxRating: int(a.MaxRating), AllLibraries: a.AllLibraries == 1,
 			LibraryIDs: []int64{}, Profiles: []model.ProfileRef{}, Channels: []model.ChannelSummary{},
 			CreatedAt: time.UnixMilli(a.CreatedAt).UTC(),
 		}

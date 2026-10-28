@@ -18,7 +18,8 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// fakeAuth resolves two fixed tokens: "owner" and "guest".
+// fakeAuth resolves two fixed tokens: "owner" (the owner's account) and "guest" (an account
+// that administers nothing).
 type fakeAuth struct{}
 
 func (fakeAuth) SetupRequired(context.Context) (bool, error) { return false, nil }
@@ -29,22 +30,22 @@ func (fakeAuth) Logout(context.Context, int64) error { return nil }
 func (fakeAuth) Resolve(_ context.Context, token string) (model.Session, bool, error) {
 	switch token {
 	case "owner":
-		return model.Session{ID: 1, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true}}, false, nil
+		return model.Session{ID: 1, Account: model.Account{ID: 1, Email: "a@b.c", Role: model.RoleAdmin, IsOwner: true}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true}}, false, nil
 	case "nopro":
 		// Signed in as the owner, profile not chosen yet.
-		return model.Session{ID: 4, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}}, false, nil
+		return model.Session{ID: 4, Account: model.Account{ID: 1, Email: "a@b.c", Role: model.RoleAdmin, IsOwner: true}}, false, nil
 	case "kid":
 		// The owner's account with a non-primary profile.
-		return model.Session{ID: 5, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 3, Name: "Kind", MaxRating: 6, Language: "de"}}, false, nil
+		return model.Session{ID: 5, Account: model.Account{ID: 1, Email: "a@b.c", Role: model.RoleAdmin, IsOwner: true}, Profile: model.Profile{ID: 3, Name: "Kind", MaxRating: 6, Language: "de"}}, false, nil
 	case "guest":
-		return model.Session{ID: 2, Account: model.Account{ID: 2, Email: "g@b.c", Role: "guest"}, Profile: model.Profile{ID: 2, Name: "Gast", MaxRating: 18, Language: "en"}}, false, nil
+		return model.Session{ID: 2, Account: model.Account{ID: 2, Email: "g@b.c", Role: model.RoleUser}, Profile: model.Profile{ID: 2, Name: "Gast", MaxRating: 18, Language: "en"}}, false, nil
 	case "sliding":
 		// Resolve moved the expiry of this session.
-		return model.Session{ID: 3, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true},
+		return model.Session{ID: 3, Account: model.Account{ID: 1, Email: "a@b.c", Role: model.RoleAdmin, IsOwner: true}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true},
 			ExpiresAt: slidingExpiry}, true, nil
 	case "device", "device-sliding":
 		// A session started on sessionDevice; the second one Resolve extended.
-		return model.Session{ID: 6, Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true},
+		return model.Session{ID: 6, Account: model.Account{ID: 1, Email: "a@b.c", Role: model.RoleAdmin, IsOwner: true}, Profile: model.Profile{ID: 1, Name: "Marco", MaxRating: 18, Language: "de", IsPrimary: true},
 			DeviceID: sessionDevice, ExpiresAt: slidingExpiry}, token == "device-sliding", nil
 	}
 	return model.Session{}, false, model.ErrNotFound
@@ -244,7 +245,7 @@ func TestSessionCookie(t *testing.T) {
 	if c := rec.Result().Cookies()[0]; c.MaxAge != -1 {
 		t.Errorf("clear cookie MaxAge = %d", c.MaxAge)
 	}
-	info := toSessionInfo(model.Session{Account: model.Account{ID: 1, Email: "a@b.c", Role: "owner"}, Profile: model.Profile{ID: 2, Name: "M", MaxRating: 18, Language: "de"}})
+	info := toSessionInfo(model.Session{Account: model.Account{ID: 1, Email: "a@b.c", Role: model.RoleAdmin, IsOwner: true}, Profile: model.Profile{ID: 2, Name: "M", MaxRating: 18, Language: "de"}})
 	if info.Profile.MaxRating != 18 || info.Profile.Language != gen.De || string(info.Account.Email) != "a@b.c" {
 		t.Errorf("toSessionInfo = %+v", info)
 	}

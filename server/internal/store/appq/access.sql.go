@@ -174,9 +174,10 @@ func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int
 }
 
 const getGuestAccount = `-- name: GetGuestAccount :one
-SELECT id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1 AND role = 'guest'
+SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1 AND role = 'user'
 `
 
+// An account that administers nothing; the administration changes its limits and may revoke it.
 func (q *Queries) GetGuestAccount(ctx context.Context, id int64) (Account, error) {
 	row := q.db.QueryRowContext(ctx, getGuestAccount, id)
 	var i Account
@@ -185,6 +186,7 @@ func (q *Queries) GetGuestAccount(ctx context.Context, id int64) (Account, error
 		&i.Email,
 		&i.PasswordHash,
 		&i.Role,
+		&i.IsOwner,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MaxRating,
@@ -315,49 +317,6 @@ func (q *Queries) InsertAccountLibrary(ctx context.Context, arg InsertAccountLib
 	return err
 }
 
-const insertGuestAccount = `-- name: InsertGuestAccount :one
-INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
-VALUES (?1, ?2, 'guest', ?3, ?4, ?5, ?6, ?6)
-RETURNING id, email, password_hash, role, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
-`
-
-type InsertGuestAccountParams struct {
-	Email        string
-	PasswordHash string
-	MaxRating    int64
-	AllLibraries int64
-	InvitedBy    sql.NullInt64
-	Now          int64
-}
-
-func (q *Queries) InsertGuestAccount(ctx context.Context, arg InsertGuestAccountParams) (Account, error) {
-	row := q.db.QueryRowContext(ctx, insertGuestAccount,
-		arg.Email,
-		arg.PasswordHash,
-		arg.MaxRating,
-		arg.AllLibraries,
-		arg.InvitedBy,
-		arg.Now,
-	)
-	var i Account
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.PasswordHash,
-		&i.Role,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.MaxRating,
-		&i.AllLibraries,
-		&i.InvitedBy,
-		&i.LastSeenAt,
-		&i.MaxBitrateKbps,
-		&i.MaxHeight,
-		&i.MaxStreams,
-	)
-	return i, err
-}
-
 const insertInvitation = `-- name: InsertInvitation :one
 INSERT INTO invitations (token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
@@ -413,6 +372,52 @@ type InsertInvitationLibraryParams struct {
 func (q *Queries) InsertInvitationLibrary(ctx context.Context, arg InsertInvitationLibraryParams) error {
 	_, err := q.db.ExecContext(ctx, insertInvitationLibrary, arg.InvitationID, arg.LibraryID)
 	return err
+}
+
+const insertInvitedAccount = `-- name: InsertInvitedAccount :one
+INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, invited_by, created_at, updated_at)
+VALUES (?1, ?2, 'user', ?3, ?4, ?5, ?6, ?6)
+RETURNING id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams
+`
+
+type InsertInvitedAccountParams struct {
+	Email        string
+	PasswordHash string
+	MaxRating    int64
+	AllLibraries int64
+	InvitedBy    sql.NullInt64
+	Now          int64
+}
+
+// An invitation never creates an administrator: the role is a literal in this file, not a
+// parameter, so no request body and no slip in a handler can raise it (ADR 0014, lock 4).
+func (q *Queries) InsertInvitedAccount(ctx context.Context, arg InsertInvitedAccountParams) (Account, error) {
+	row := q.db.QueryRowContext(ctx, insertInvitedAccount,
+		arg.Email,
+		arg.PasswordHash,
+		arg.MaxRating,
+		arg.AllLibraries,
+		arg.InvitedBy,
+		arg.Now,
+	)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.IsOwner,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.MaxRating,
+		&i.AllLibraries,
+		&i.InvitedBy,
+		&i.LastSeenAt,
+		&i.MaxBitrateKbps,
+		&i.MaxHeight,
+		&i.MaxStreams,
+	)
+	return i, err
 }
 
 const insertProfileLibrary = `-- name: InsertProfileLibrary :exec
@@ -532,7 +537,7 @@ SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_a
        a.max_bitrate_kbps, a.max_height, a.max_streams,
        (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
 FROM accounts AS a
-WHERE a.role = 'guest'
+WHERE a.role = 'user'
 ORDER BY a.created_at DESC, a.id DESC
 `
 
@@ -586,7 +591,7 @@ func (q *Queries) ListGuestAccounts(ctx context.Context) ([]ListGuestAccountsRow
 const listGuestLibraries = `-- name: ListGuestLibraries :many
 SELECT al.account_id, al.library_id FROM account_libraries AS al
 JOIN accounts AS a ON a.id = al.account_id
-WHERE a.role = 'guest'
+WHERE a.role = 'user'
 ORDER BY al.account_id, al.library_id
 `
 
@@ -1100,8 +1105,8 @@ type UpsertDeviceParams struct {
 	Now       int64
 }
 
-// Devices, PIN locks, profile and guest management, invitations (package store/appq). Owner:
-// auth (all of it) and admin (guests, invitations). Never touches title tables. Times are Unix
+// Devices, PIN locks, profile and account management, invitations (package store/appq). Owner:
+// auth (all of it) and admin (accounts, invitations). Never touches title tables. Times are Unix
 // milliseconds.
 func (q *Queries) UpsertDevice(ctx context.Context, arg UpsertDeviceParams) error {
 	_, err := q.db.ExecContext(ctx, upsertDevice, arg.ID, arg.UserAgent, arg.Now)

@@ -41,6 +41,7 @@ func TestMigration00013SaltsExistingPins(t *testing.T) {
 	if got := queryInt(t, db.Read, `SELECT count(*) FROM pragma_table_info('profiles') WHERE name = 'pin_salt'`); got != val(0) {
 		t.Fatalf("pin_salt exists before 00013 (%v)", got)
 	}
+	// The schema here is the one before 00013, so role still has its old values; 00022 renames them.
 	mustExec(t, db.Write, `INSERT INTO accounts (id, email, password_hash, role, created_at, updated_at) VALUES (1, 'k12@example.test', 'x', 'owner', 1, 1)`)
 	mustExec(t, db.Write, `INSERT INTO profiles (id, account_id, name, pin_hash, created_at, updated_at) VALUES
 	         (1, 1, 'Eins', '$argon2id$one', 1, 1), (2, 1, 'Zwei', '$argon2id$two', 1, 1), (3, 1, 'Ohne', NULL, 1, 1)`)

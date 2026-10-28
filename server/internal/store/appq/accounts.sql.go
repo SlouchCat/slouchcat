@@ -40,15 +40,16 @@ func (q *Queries) ListAccountLibrariesAll(ctx context.Context) ([]AccountLibrary
 
 const listAccountsAdmin = `-- name: ListAccountsAdmin :many
 
-SELECT id, email, role, max_rating, all_libraries, created_at, last_seen_at
+SELECT id, email, role, is_owner, max_rating, all_libraries, created_at, last_seen_at
 FROM accounts
-ORDER BY role = 'guest', created_at DESC, id DESC
+ORDER BY is_owner DESC, role = 'user', created_at DESC, id DESC
 `
 
 type ListAccountsAdminRow struct {
 	ID           int64
 	Email        string
 	Role         string
+	IsOwner      int64
 	MaxRating    int64
 	AllLibraries int64
 	CreatedAt    int64
@@ -57,7 +58,8 @@ type ListAccountsAdminRow struct {
 
 // Accounts as the administration and the account owner see them (M8, A-2; packages auth and
 // admin). Times are Unix milliseconds.
-// The main account first, then the guests, newest first.
+// The owner first, then the other administrators, then the accounts, newest first. Sorting by the
+// role alone would leave the order among several administrators undefined.
 func (q *Queries) ListAccountsAdmin(ctx context.Context) ([]ListAccountsAdminRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAccountsAdmin)
 	if err != nil {
@@ -71,6 +73,7 @@ func (q *Queries) ListAccountsAdmin(ctx context.Context) ([]ListAccountsAdminRow
 			&i.ID,
 			&i.Email,
 			&i.Role,
+			&i.IsOwner,
 			&i.MaxRating,
 			&i.AllLibraries,
 			&i.CreatedAt,

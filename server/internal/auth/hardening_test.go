@@ -456,12 +456,12 @@ func TestListAccountLibraries(t *testing.T) {
 		t.Fatalf("owner libraries = %+v, %v", libs, err)
 	}
 	guest := addGuestAccount(t, s, "g@example.ch", 12, false, []int64{b, a})
-	libs, err = s.ListAccountLibraries(ctx, model.Account{ID: guest.ID, Role: "guest", LibraryIDs: []int64{b, a}})
+	libs, err = s.ListAccountLibraries(ctx, model.Account{ID: guest.ID, Role: model.RoleUser, LibraryIDs: []int64{b, a}})
 	if err != nil || !slices.Equal(names(libs), []string{"alpha", "Zeta"}) {
 		t.Errorf("guest libraries = %+v, %v", libs, err)
 	}
 	_ = c
-	if libs, err := s.ListAccountLibraries(ctx, model.Account{Role: "guest"}); err != nil || len(libs) != 0 {
+	if libs, err := s.ListAccountLibraries(ctx, model.Account{Role: model.RoleUser}); err != nil || len(libs) != 0 {
 		t.Errorf("guest without rights: %+v, %v", libs, err)
 	}
 }

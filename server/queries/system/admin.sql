@@ -352,8 +352,10 @@ SELECT id FROM top_picks ORDER BY id;
 UPDATE top_picks SET position = @position WHERE id = @id;
 
 -- name: AdminOwnerProfileIDs :many
--- Profiles of the main account: the only targets of a pick.
-SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a.role = 'owner' ORDER BY p.id;
+-- Profiles of the owner's account: the only targets of a pick (E-2). The owner badge, not the
+-- role: with a second administrator, role = 'admin' would put picks in front of their children
+-- as well (ADR 0014).
+SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a.is_owner = 1 ORDER BY p.id;
 
 -- Images of the administration (getAdminItemImage, M11 step 5b): system-wide, without a profile.
 -- Like the scoped GetItemImage, a deleted title has no image and the kept original is never served.

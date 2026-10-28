@@ -14,8 +14,8 @@ const channelEnsureDefaults = `-- name: ChannelEnsureDefaults :exec
 
 INSERT OR IGNORE INTO account_channels (account_id, channel, enabled, events, config, updated_at)
 SELECT a.id, c.channel,
-       CASE WHEN c.channel = 'email' AND a.role = 'guest' THEN 1 ELSE 0 END,
-       CASE WHEN a.role = 'guest' THEN '["announcements"]'
+       CASE WHEN c.channel = 'email' AND a.role = 'user' THEN 1 ELSE 0 END,
+       CASE WHEN a.role = 'user' THEN '["announcements"]'
             ELSE '["new_content","errors","invitations","announcements"]' END,
        '{}', ?1
 FROM accounts AS a
@@ -33,8 +33,8 @@ type ChannelEnsureDefaultsParams struct {
 // 00016); an event is matched as its quoted name inside the events array (the names carry no quote
 // or escape). Endpoint, p256dh and auth of a push subscription are capability secrets and never
 // logged.
-// The three channel rows of an account with the defaults of 5.2 (e-mail on for guests with
-// announcements; everything else off); existing rows stay as they are.
+// The three channel rows of an account with the defaults of 5.2 (e-mail on for accounts that
+// administer nothing, with announcements; everything else off); existing rows stay as they are.
 func (q *Queries) ChannelEnsureDefaults(ctx context.Context, arg ChannelEnsureDefaultsParams) error {
 	_, err := q.db.ExecContext(ctx, channelEnsureDefaults, arg.Now, arg.AccountID)
 	return err
@@ -43,8 +43,8 @@ func (q *Queries) ChannelEnsureDefaults(ctx context.Context, arg ChannelEnsureDe
 const channelEnsureDefaultsAll = `-- name: ChannelEnsureDefaultsAll :exec
 INSERT OR IGNORE INTO account_channels (account_id, channel, enabled, events, config, updated_at)
 SELECT a.id, c.channel,
-       CASE WHEN c.channel = 'email' AND a.role = 'guest' THEN 1 ELSE 0 END,
-       CASE WHEN a.role = 'guest' THEN '["announcements"]'
+       CASE WHEN c.channel = 'email' AND a.role = 'user' THEN 1 ELSE 0 END,
+       CASE WHEN a.role = 'user' THEN '["announcements"]'
             ELSE '["new_content","errors","invitations","announcements"]' END,
        '{}', ?1
 FROM accounts AS a
@@ -196,7 +196,7 @@ const channelTargetsOwners = `-- name: ChannelTargetsOwners :many
 SELECT c.account_id, c.channel, c.config, a.email, a.role
 FROM account_channels AS c
 JOIN accounts AS a ON a.id = c.account_id
-WHERE a.role = 'owner' AND c.enabled = 1
+WHERE a.is_owner = 1 AND c.enabled = 1
   AND instr(c.events, '"' || CAST(?1 AS TEXT) || '"') > 0
 ORDER BY c.account_id, c.channel
 `
@@ -209,8 +209,9 @@ type ChannelTargetsOwnersRow struct {
 	Role      string
 }
 
-// Switched-on channels of the main account that chose the event (the event errors goes to the main
-// account only).
+// Switched-on channels of the owner that chose the event. Step 4 of the user management decides
+// whether the event errors reaches every administrator instead (ADR 0014); until then this keeps
+// today's behaviour exactly.
 func (q *Queries) ChannelTargetsOwners(ctx context.Context, event string) ([]ChannelTargetsOwnersRow, error) {
 	rows, err := q.db.QueryContext(ctx, channelTargetsOwners, event)
 	if err != nil {
@@ -504,7 +505,7 @@ SELECT a.id, a.email,
        CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
                       ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
 FROM accounts AS a
-WHERE a.role = 'owner'
+WHERE a.is_owner = 1
 ORDER BY a.id
 LIMIT 1
 `
@@ -515,8 +516,9 @@ type NotifyOwnerRow struct {
 	Language string
 }
 
-// The main account with the language of its primary profile (test mail without recipient, texts of
-// the event errors).
+// The owner with the language of its primary profile (test mail without recipient, texts of the
+// event errors). A single recipient has to be a particular one, so this asks for the owner badge
+// and not for the role (ADR 0014).
 func (q *Queries) NotifyOwner(ctx context.Context) (NotifyOwnerRow, error) {
 	row := q.db.QueryRowContext(ctx, notifyOwner)
 	var i NotifyOwnerRow

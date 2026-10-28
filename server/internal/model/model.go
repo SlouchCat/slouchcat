@@ -138,12 +138,20 @@ func (e *ValidationError) Add(field, code string) *ValidationError {
 type Account struct {
 	ID           int64
 	Email        string
-	Role         string // owner, guest
-	MaxRating    int    // ceiling of every profile of the account (18 for the owner)
+	Role         string // admin (server and libraries) or user (its own profiles only), ADR 0014
+	IsOwner      bool   // the one account that cannot be deleted or demoted (accounts.is_owner)
+	MaxRating    int    // ceiling of every profile of the account (18 for an administrator)
 	AllLibraries bool
-	LibraryIDs   []int64        // libraries of a guest; empty when AllLibraries
-	Limits       PlaybackLimits // W-8 caps of a guest account (WatchLimitMinutes unused)
+	LibraryIDs   []int64        // libraries of the account; empty when AllLibraries
+	Limits       PlaybackLimits // W-8 caps of the account (WatchLimitMinutes unused)
 }
+
+// Role values of Account.Role. The owner is not a third value: it is an administrator with
+// IsOwner set, so "is an administrator" is one comparison and cannot be half forgotten.
+const (
+	RoleAdmin = "admin"
+	RoleUser  = "user"
+)
 
 // Profile is a viewing profile; its MaxRating and library rights drive the visibility layer
 // (capped by the account's own limits in the view visible_items).
@@ -203,8 +211,13 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
-// IsOwner reports whether the session belongs to the main account.
-func (s Session) IsOwner() bool { return s.Account.Role == "owner" }
+// IsAdmin reports whether the session's account administers the server (ADR 0014). Together with
+// IsPrimary it is what the middleware checks for x-visibility admin.
+func (s Session) IsAdmin() bool { return s.Account.Role == RoleAdmin }
+
+// IsOwner reports whether the session belongs to the owner, the one account that appoints and
+// demotes administrators (x-visibility owner).
+func (s Session) IsOwner() bool { return s.Account.IsOwner }
 
 // HasProfile reports whether a profile is active (profile ids start at 1).
 func (s Session) HasProfile() bool { return s.Profile.ID != 0 }

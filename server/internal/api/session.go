@@ -78,8 +78,8 @@ func csrfOK(r *http.Request) bool {
 
 // authorize runs after routing (chi knows the pattern) and enforces the x-visibility of the
 // operation: public passes; account needs a session (profile optional); scoped needs a session with
-// an active profile (403 profile_required without); admin needs the owner with the primary profile
-// active (403 forbidden otherwise). It stores the session in the context for the handlers. The
+// an active profile (403 profile_required without); admin needs an administrator with the primary
+// profile active (403 forbidden otherwise). It stores the session in the context for the handlers. The
 // cookie is read for every operation, so a public operation can still see who is logged in. A
 // request without a valid device cookie gets one (PIN locks count per profile and device); with a
 // session, the cookie follows the session's device and is renewed whenever the session is.
@@ -114,8 +114,8 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 				clearSessionCookie(w, r)
 				p.write(w, r, http.StatusUnauthorized, "unauthenticated", "A valid session is required.")
 				return
-			case vis == "admin" && (!session.IsOwner() || !session.IsPrimary()):
-				p.write(w, r, http.StatusForbidden, "forbidden", "Only the main account with its primary profile may do this.")
+			case vis == "admin" && (!session.IsAdmin() || !session.IsPrimary()):
+				p.write(w, r, http.StatusForbidden, "forbidden", "Only an administrator with the primary profile may do this.")
 				return
 			case vis == "scoped" && !session.HasProfile():
 				p.write(w, r, http.StatusForbidden, "profile_required", "Choose a profile first.")
@@ -263,11 +263,18 @@ func toSessionInfo(s model.Session) gen.SessionInfo {
 	return info
 }
 
-func toAccount(a model.Account) gen.Account {
-	role := gen.AccountRoleOwner
-	if a.Role == "guest" {
-		role = gen.AccountRoleGuest
+// legacyRole bridges the stored roles to the contract enum, which still says owner/guest. Step 2
+// of the user management turns the enum into admin/user, and this function goes away with it
+// (ADR 0014).
+func legacyRole(role string) string {
+	if role == model.RoleUser {
+		return string(gen.AccountRoleGuest)
 	}
+	return string(gen.AccountRoleOwner)
+}
+
+func toAccount(a model.Account) gen.Account {
+	role := gen.AccountRole(legacyRole(a.Role))
 	return gen.Account{
 		Id: a.ID, Email: types.Email(a.Email), Role: role, MaxRating: gen.Rating(a.MaxRating),
 		AllLibraries: a.AllLibraries, LibraryIds: nonNil(a.LibraryIDs),

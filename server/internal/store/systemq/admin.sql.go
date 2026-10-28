@@ -1369,10 +1369,12 @@ func (q *Queries) AdminNextTopPickPosition(ctx context.Context) (int64, error) {
 }
 
 const adminOwnerProfileIDs = `-- name: AdminOwnerProfileIDs :many
-SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a.role = 'owner' ORDER BY p.id
+SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a.is_owner = 1 ORDER BY p.id
 `
 
-// Profiles of the main account: the only targets of a pick.
+// Profiles of the owner's account: the only targets of a pick (E-2). The owner badge, not the
+// role: with a second administrator, role = 'admin' would put picks in front of their children
+// as well (ADR 0014).
 func (q *Queries) AdminOwnerProfileIDs(ctx context.Context) ([]int64, error) {
 	rows, err := q.db.QueryContext(ctx, adminOwnerProfileIDs)
 	if err != nil {

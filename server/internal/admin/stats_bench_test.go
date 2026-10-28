@@ -19,7 +19,7 @@ func BenchmarkStatsMillionEvents(b *testing.B) {
 	span := (400 * day).Milliseconds()
 	start := time.Now()
 	exec(b, st.db.Write,
-		`INSERT INTO accounts (id, email, password_hash, role, created_at, updated_at) VALUES (1, 'owner@example.test', 'x', 'owner', 1, 1)`,
+		`INSERT INTO accounts (id, email, password_hash, role, created_at, updated_at) VALUES (1, 'owner@example.test', 'x', 'admin', 1, 1)`,
 		`INSERT INTO profiles (id, account_id, name, max_rating, is_default, created_at, updated_at) VALUES
 		   (1, 1, 'Eins', 18, 1, 1, 1), (2, 1, 'Zwei', 18, 0, 1, 1), (3, 1, 'Drei', 18, 0, 1, 1)`,
 		`INSERT INTO sessions (id, token_hash, account_id, profile_id, created_at, last_seen_at, expires_at) VALUES (1, 'h', 1, 1, 1, 1, 1)`,

@@ -203,7 +203,7 @@ func (s *Service) UpdateChannel(ctx context.Context, session model.Session, chan
 	if verr != nil {
 		return model.ChannelSetting{}, verr
 	}
-	if slices.Contains(events, model.EventErrors) && !session.IsOwner() {
+	if slices.Contains(events, model.EventErrors) && !session.IsAdmin() {
 		return model.ChannelSetting{}, model.ErrEventNotAllowed
 	}
 	srv := s.serverState(ctx)

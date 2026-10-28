@@ -30,7 +30,7 @@ func TestVisibleItemsAppliesAccountLimits(t *testing.T) {
 
 	// Guest account: ceiling 12, library 1 only. Its profile PG18 allows 18 and every library.
 	mustExec(t, db.Write, `INSERT INTO accounts (id, email, password_hash, role, max_rating, all_libraries, created_at, updated_at)
-	                       VALUES (2, 'g@b.c', 'x', 'guest', 12, 0, 0, 0)`)
+	                       VALUES (2, 'g@b.c', 'x', 'user', 12, 0, 0, 0)`)
 	mustExec(t, db.Write, `INSERT INTO profiles (id, account_id, name, max_rating, all_libraries, is_default, created_at, updated_at)
 	                       VALUES (30, 2, 'PG18', 18, 1, 1, 0, 0)`)
 
@@ -127,7 +127,7 @@ func TestMigration00007KeepsFrozenData(t *testing.T) {
 			}
 			defer db.Close()
 			var maxRating, allLibraries int
-			if err := db.Read.QueryRow(`SELECT max_rating, all_libraries FROM accounts WHERE role = 'owner'`).Scan(&maxRating, &allLibraries); err != nil {
+			if err := db.Read.QueryRow(`SELECT max_rating, all_libraries FROM accounts WHERE role = 'admin'`).Scan(&maxRating, &allLibraries); err != nil {
 				t.Fatal(err)
 			}
 			if maxRating != 18 || allLibraries != 1 {
