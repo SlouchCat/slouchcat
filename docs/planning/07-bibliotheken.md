@@ -1,12 +1,14 @@
-# Konzept: Bibliotheken (Ordner mit eigener Inhaltsart und Metadatenquelle)
+# Konzept: Bibliotheken (Ordner mit eigener Inhaltsart und eigener Scraper-Liste)
 
-- **Status: Entwurf, Interview geführt, Kritiker-Review eingearbeitet (28. Oktober 2026).** Marcos
-  acht Antworten aus zwei Fragerunden stehen in Abschnitt 11 (F-1 bis F-8); zwei Fragen sind noch
-  offen (F-9, F-10). Der OMC-Kritiker hat die erste Fassung am selben Tag geprüft (22 Befunde, davon
-  10 MAJOR, kein BLOCKER); alle sind in dieser Fassung eingearbeitet und in Abschnitt 13 mit Herkunft
-  genannt. Die Entscheide gehen als **Frage 13** ins Entscheidungsprotokoll
-  (`docs/planning/04-entscheidungen.md`) und als **ADR 0015** nach `docs/adr/`, sobald Marco das Papier
-  freigibt. Umgesetzt wird nichts, bevor das geschehen ist.
+- **Status: Entwurf, drei Fragerunden geführt, Kritiker-Review eingearbeitet (28. Oktober 2026).**
+  Marcos zehn Antworten stehen in Abschnitt 11 (F-1 bis F-8, F-11, F-12); eine Frage ist noch offen
+  (F-10). Der OMC-Kritiker hat die erste Fassung geprüft (22 Befunde, Abschnitt 13). **Fassung 3**
+  (dritte Fragerunde): die Metadatenquelle je Ordner ist keine Einzelwahl mehr, sondern eine
+  **geordnete Scraper-Liste wie in Emby** (F-11), und **TVDB ist als Hauptscraper für Serien
+  wählbar** (F-12). Beides kehrt zwei verworfene Alternativen aus ADR 0006 um; ADR 0015 wird darum
+  dessen Teilnachfolger. Die Entscheide gehen als **Frage 13** ins Entscheidungsprotokoll
+  (`docs/planning/04-entscheidungen.md`), sobald Marco das Papier freigibt. Umgesetzt wird nichts,
+  bevor das geschehen ist.
 - **Datum: 28. Oktober 2026**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand `0dd4f19` («Merge pull request #43»), im
   Worktree `claude/konzept-bibliotheken`. Jede Zeilenangabe bezieht sich auf diesen Stand. **Parallel
@@ -29,11 +31,12 @@
 > **Dieses Papier selbst ändert keine Zeile Code.** Die eigentliche Arbeit beginnt mit Schritt 0 aus
 > Abschnitt 10, und auch der ist ein reiner Doku-Commit.
 
-> **Abgrenzung zum Scraper-Konzept.** Was eine Metadatenquelle im Einzelnen holt (Sprachen,
-> Bildarten, Anbieterreihenfolge, Herkunft je Feld, Übersteuerung je Titel) bleibt Sache von Idee 01
-> (`docs/ideas/01-metadaten-einstellungen.md`). Dieses Papier regelt nur, **welcher Ordner mit
-> welcher Inhaltsart und welcher Metadatenquelle gelesen wird** — und bringt die zwei Quellen mit, die
-> Marco dafür verlangt hat und die es heute nicht gibt: Anime (AniList) und lokale Podcast-Ordner.
+> **Abgrenzung zum Scraper-Konzept (Idee 01), neu gezogen in Fassung 3.** Hierher gehören jetzt:
+> die geordnete Scraper-Liste **je Ordner**, das **feldweise Auffüllen** in dieser Reihenfolge, die
+> **Herkunft je Feld** (`item_field_sources`) und TVDB als wählbarer Hauptscraper. Bei Idee 01
+> bleiben: Sprachen je Ordner, Bildarten (Logo, Thumb, Banner, …), Bildsprache, die Anbieter
+> Fanart.tv, OMDb und lokale NFO, die Bildwahl je Titel, das Land für die Altersfreigabe und die
+> Rohzertifikate. Idee 01 wird in Schritt 0 um genau diese Grenze ergänzt.
 
 ---
 
@@ -91,10 +94,21 @@ Pfadpflicht und Altersstufe je Art, `ScanLibrary` (`:352`) leitet Podcast-Biblio
 `RefreshLibrary` um (`:357`), und `AddRoot` verweigert ihnen jeden Ordner
 (`server/internal/library/roots.go:34`).
 
-Die Metadaten wissen von der Bibliothek nichts. `match` (`server/internal/metadata/match.go:78`)
-verzweigt nach der **Titelart**: Filme nur TMDB (`matchMovie`, `:122`), Serien TMDB und bei Leerlauf
-TVDB (`matchSeries`, `:187`). Es gibt genau zwei Anbieter (`provider.go:12` die Schnittstelle, `:25`
-bis `:26` die Konstanten `ProviderTMDB`, `ProviderTVDB`), beide mit serverweiten Schlüsseln.
+**Die Metadaten wissen von der Bibliothek nichts, und die Reihenfolge der Anbieter ist fest im
+Code.** `match` (`server/internal/metadata/match.go:78`) verzweigt nach der **Titelart**: Filme nur
+TMDB (`matchMovie`, `:122`); Serien TMDB, und TVDB nur, wenn TMDB nichts findet oder die manuelle
+Zuordnung `tvdb_id` und ein leeres `tmdb_id` sperrt (`matchSeries`, `:187`, `manualTVDB` `:198`);
+`seriesProvider` (`:315`) wählt danach nach den gespeicherten Ids, TMDB zuerst. Es gibt genau zwei
+Anbieter hinter einer Schnittstelle (`provider.go:12`; `ProviderTMDB`, `ProviderTVDB` `:25` bis `:26`;
+`tvdbProvider` in `tvdb.go:67` ff. mit `SearchSeries` `:271`, `Series` `:357`, ohne Filme `:248`,
+`:253`), beide mit serverweiten Schlüsseln (`admin.go:38`, `tvdb_api_key`, `tvdb_pin`). Texte werden
+je Anbieter **ganz** geschrieben: `UpdateItemMatch` (`server/queries/system/metadata.sql:4` bis `:20`)
+überschreibt `original_title`, `genres`, `own_rating`, `rating_source`; `UpsertItemText` (`:115`)
+überschreibt Titel, Beschreibung und Tagline je Sprache. Eine Herkunft je Feld gibt es nicht; nur
+`rating_source` sagt, woher die Freigabe kam. ADR 0006 hat «TVDB als Hauptquelle für Serien» und
+«beide Anbieter abfragen und zusammenführen» ausdrücklich verworfen
+(`docs/adr/0006-metadaten-anbieter-trailer.md:37` bis `:41`).
+
 Hörbücher haben keinen Anbieter: Autor, Sprecher, Reihe und Cover kommen aus Audiobookshelfs
 `metadata.json`, den Tags der ersten Datei und den Ordnernamen (`server/internal/library/audiobook.go:24`,
 ADR 0007) — **die Tags allerdings erst nach der Sonde**, nicht beim Scan (`audiobook.go:125` bis
@@ -120,18 +134,27 @@ Marco hat am 28. Oktober 2026 diese Zielstruktur vorgegeben:
 | Hörbücher | Hörbücher | /Hörbuch | Hörbuch Scraper |
 | Podcast | Podcast | /Podcast | Podcast Scraper |
 
-Drei Dinge daran kann das heutige Modell nicht:
+Und in der dritten Fragerunde präzisiert: **die Spalte «Scraper» ist keine Vorgabe aus vier Werten,
+sondern je Ordner eine Liste mit Häkchen und Reihenfolge, wie Emby sie je Bibliothek zeigt.**
+«Anime» ist dann kein eigener Scraper, sondern zum Beispiel die Liste «TVDB, TMDB, AniList» an einem
+Serienordner.
+
+Vier Dinge daran kann das heutige Modell nicht:
 
 1. **Eine Bibliothek mit Film- und Serienordnern.** «Dokus», «Kids» und «Anime» bestehen je aus
    einem Filmordner und einem Serienordner. Heute müsste Marco sechs Bibliotheken anlegen («Dokus
    Filme», «Dokus Serien», …), und jedes Profil bekäme in den Bibliotheksrechten sechs Häkchen statt
    drei (`profile_libraries`, `account_libraries`). Die Art muss vom Ordner kommen, nicht von der
    Bibliothek.
-2. **Eine Metadatenquelle je Ordner.** «Anime» soll anders gelesen werden als «Filme». Heute gibt es
-   keine Wahl, und es gibt keine Anime-Quelle. Auf dem NAS liegen 29 Anime-Serien und 82 Anime-Filme
-   (`/mnt/nerdnas/medien/MangaSerien`, `MangaFilme`), benannt nach Sonarr und Radarr, mit
-   `[tvdb-…]`- und `[tmdb-…]`-Marken im Ordnernamen (`names.go:112` liest sie heute schon).
-3. **Ein Podcast-Ordner.** `/Podcast` ist auf dem NAS `Audiobookshelf/Podcast` mit 102 Podcasts,
+2. **Eine Scraper-Liste je Ordner.** Heute ist die Reihenfolge TMDB → TVDB fest im Code, TVDB nur
+   als Rückfall. Marcos Anime-Ordner sind nach Sonarr benannt, also mit **TVDB-Staffelzählung**
+   (`[tvdb-…]`-Marken, `names.go:112` liest sie); bei Anime weichen TMDB und TVDB in der Zählung oft
+   voneinander ab, und dann passen die TMDB-Texte nicht zu den Dateien. Dafür braucht es TVDB zuerst
+   — genau die Alternative, die ADR 0006 für den Haushalt verworfen hat, als es noch keine
+   Anime-Bibliothek gab.
+3. **Einen Anime-Anbieter.** Es gibt keinen. Auf dem NAS liegen 29 Anime-Serien und 82 Anime-Filme
+   (`/mnt/nerdnas/medien/MangaSerien`, `MangaFilme`).
+4. **Ein Podcast-Ordner.** `/Podcast` ist auf dem NAS `Audiobookshelf/Podcast` mit 102 Podcasts,
    25 896 MP3- und 135 M4A-Dateien, je Podcast eine `metadata.json` (95 Stück) mit Titel, Autor,
    Beschreibung, **`feedURL`**, `itunesId`, `language`, `explicit` und ein `cover.jpg`. Die Dateien
    tragen ID3-Tags, die Audiobookshelf beim Herunterladen schreibt (`title`, `date` in RFC-2822-Form,
@@ -144,18 +167,20 @@ bereits; sie braucht nur einen Ordner mit der Inhaltsart «Hörbuch».
 
 ### 1.3 Marcos Entscheide vom 28. Oktober 2026
 
-Zwei Fragerunden, acht Antworten (Abschnitt 11, F-1 bis F-8), in Kurzform:
+Drei Fragerunden, zehn Antworten (Abschnitt 11), in Kurzform:
 
 | Nr. | Entscheid |
 |---|---|
 | F-1 | **Lokale Podcast-Ordner werden gescannt.** Das offene Ende aus ADR 0007 wird gebaut |
 | F-2 | **Anime bekommt jetzt einen eigenen Anbieter**, nicht nur ein Etikett |
 | F-3 | **Nur Video ist mischbar.** Filme und Serien dürfen in eine Bibliothek; Hörbücher und Podcasts bleiben eigene Bibliotheken |
-| F-4 | **Inhaltsart und Quelle eines Ordners sind nachträglich änderbar**, mit Neuerkennung der Titel |
+| F-4 | **Inhaltsart und Scraper-Liste eines Ordners sind nachträglich änderbar**, mit Neuerkennung der Titel |
 | F-5 | **Der Anime-Anbieter ist AniList.** Staffeln und Folgen bleiben bei TMDB/TVDB; AniList liefert Titel, Beschreibungen, Bilder, Genres dazu |
 | F-6 | **Podcast-Ordner und Feeds zusammen:** steht eine `feedURL` in der `metadata.json`, wird der Feed mitabonniert; Abos ohne Ordner bleiben möglich |
 | F-7 | **Der «Hörbuch Scraper» ist der heutige lokale Erkenner.** Ein externer Hörbuch-Anbieter kommt im Scraper-Konzept |
-| F-8 | **Die Wahl am Ordner heisst «Metadatenquelle»**, englisch «metadata source» |
+| F-8 | **Die Wahl am Ordner heisst «Metadatenquelle»**, englisch «metadata source»; in Fassung 3 der Plural «Metadatenquellen» für die Liste |
+| F-11 | **Liste mit Reihenfolge wie in Emby:** je Ordner mehrere Häkchen, sortierbar; der erste erkennt den Titel, die weiteren füllen feldweise auf |
+| F-12 | **TVDB ist als Hauptscraper für Serienordner wählbar.** Bei TVDB zuerst gilt die TVDB-Staffelzählung; TMDB füllt nur auf |
 
 ---
 
@@ -163,7 +188,7 @@ Zwei Fragerunden, acht Antworten (Abschnitt 11, F-1 bis F-8), in Kurzform:
 
 ```
 Bibliothek  (Name, Art: Video | Hörbücher | Podcasts, Standard-Altersstufe bei Audio)
-  └─ Ordner  (Pfad, Inhaltsart, Metadatenquelle, Dateisystem, Überwachung)
+  └─ Ordner  (Pfad, Inhaltsart, Metadatenquellen = geordnete Liste, Dateisystem, Überwachung)
   └─ Ordner
   └─ …
   └─ [nur Podcasts] Feed-Abos ohne Ordner, wie heute
@@ -179,48 +204,53 @@ Der **Ordner** (`library_roots`) trägt neu zwei Werte:
 | Wert | Spalte / Vertrag | Erlaubte Werte | Bedeutung |
 |---|---|---|---|
 | **Inhaltsart** | `content` / `content` | `movie`, `series`, `audiobook`, `podcast` | Welcher Parser und welcher Erkenner den Ordner lesen (heute `libraries.kind`) |
-| **Metadatenquelle** | `metadata_source` / `metadataSource` | `tmdb`, `anime`, `audiobook`, `podcast` | Welche Quelle die Titel beschreibt (Abschnitt 4.3) |
+| **Metadatenquellen** | `providers` (JSON-Liste) / `providers: MetadataProvider[]` | geordnete Teilmenge aus `tmdb`, `tvdb`, `anilist`, `local` | **Der erste Eintrag erkennt** den Titel und bestimmt Ids und Staffelzählung; **jeder weitere füllt auf**, was davor leer blieb (4.4) |
 
-Die zulässigen Paare sind eine feste Matrix, die der Server durchsetzt (422 `content_not_allowed`,
-`source_not_allowed`):
+Zwei Regeln an der Liste, die der Server durchsetzt (422 `content_not_allowed`,
+`providers_not_allowed`):
 
-| Bibliotheksart | Inhaltsart | Metadatenquelle | Entspricht in Marcos Tabelle |
+| Inhaltsart | Erlaubt als **erster** Eintrag (Erkenner) | Erlaubt als weitere Einträge (Auffüller) | Beispiele aus Marcos Tabelle |
 |---|---|---|---|
-| `video` | `movie` | `tmdb` | «Filme» |
-| `video` | `series` | `tmdb` | «Serien» |
-| `video` | `movie` | `anime` | «Anime» (Filme) |
-| `video` | `series` | `anime` | «Anime» (Serien) |
-| `audiobooks` | `audiobook` | `audiobook` | «Hörbuch Scraper» |
-| `podcasts` | `podcast` | `podcast` | «Podcast Scraper» |
+| `movie` | `tmdb` | `anilist` | «Filme»: `[tmdb]` · «Anime Filme»: `[tmdb, anilist]` |
+| `series` | `tmdb` **oder** `tvdb` | `tmdb`, `tvdb`, `anilist` | «Serien»: `[tmdb, tvdb]` · «Anime Serien»: `[tvdb, tmdb, anilist]` |
+| `audiobook` | `local` | — | «Hörbuch Scraper»: `[local]` |
+| `podcast` | `local` | — | «Podcast Scraper»: `[local]` |
 
-Für Hörbücher und Podcasts gibt es heute je genau eine Quelle; die Spalte steht trotzdem von Anfang an
-da, damit Idee 01 (Fanart.tv, OMDb, Audnexus, …) später nur Werte ergänzt und keine Tabelle umbaut.
+Dazu die Familienregel aus F-3: in einer `video`-Bibliothek nur `movie` und `series`, in
+`audiobooks` nur `audiobook`, in `podcasts` nur `podcast`. AniList ist **nie** Erkenner (F-5): es
+liefert keine Staffelstruktur und keine Ids, die der Rest des Servers (Credits, Trailer, Bilder)
+braucht. `tvdb` an einem Filmordner ist ein 422, weil `tvdbProvider.Movie` nichts liefert
+(`tvdb.go:253`). Die Liste darf nicht leer sein. Hörbücher und Podcasts haben heute genau einen
+Eintrag; die Liste steht trotzdem da, damit Idee 01 später nur Werte ergänzt (Audnexus, Fanart.tv,
+OMDb, NFO).
 
-**Benennung** (F-8): In der Oberfläche heissen die zwei Felder **«Inhalt»** (das Wort steht schon
-heute über der Artauswahl, `web/src/locales/de.json:194`) und **«Metadatenquelle»**, englisch
-«Content» und «Metadata source». Die Quellen heissen «TMDB und TVDB», «Anime (TMDB, TVDB und
-AniList)», «Hörbuch (lokale Dateien)», «Podcast (Ordner und Feed)». Die Bibliotheksarten heissen
-«Video», «Hörbücher», «Podcasts». Die Vertragswerte bleiben englisch und klein.
+**Benennung** (F-8, F-11): In der Oberfläche heissen die Felder **«Inhalt»** (das Wort steht schon
+heute über der Artauswahl, `web/src/locales/de.json:194`) und **«Metadatenquellen»**, englisch
+«Content» und «Metadata sources». Die Einträge heissen «TMDB», «TVDB», «AniList», «Lokale Dateien».
+Die Bibliotheksarten heissen «Video», «Hörbücher», «Podcasts». Die Vertragswerte bleiben englisch und
+klein.
 
 **Marcos Tabelle, abgebildet auf das Zielbild** (Pfade so, wie der Stack auf CT 190 das NAS sieht,
-`docs/dev/TESTSERVER.md`, Bind-Mount `/media/nas`):
+`docs/dev/TESTSERVER.md`, Bind-Mount `/media/nas`; die Listen sind Vorschläge, Marco setzt sie
+selbst):
 
-| Bibliothek (Art) | Ordner | Inhalt | Quelle |
+| Bibliothek (Art) | Ordner | Inhalt | Metadatenquellen |
 |---|---|---|---|
-| Filme (video) | `/media/nas/Filme` | movie | tmdb |
-| Serien (video) | `/media/nas/Serien` | series | tmdb |
-| Dokus (video) | `/media/nas/Doku/Filme` | movie | tmdb |
-| Dokus (video) | `/media/nas/Doku/Serien` | series | tmdb |
-| Kids (video) | `/media/nas/KinderFilme` | movie | tmdb |
-| Kids (video) | `/media/nas/KinderSerien` | series | tmdb |
-| Kids (video) | «Kids Filme 2» — auf dem NAS heute ohne Gegenstück | movie | tmdb |
-| Anime (video) | `/media/nas/MangaFilme` | movie | anime |
-| Anime (video) | `/media/nas/MangaSerien` | series | anime |
-| Hörbücher (audiobooks) | `/media/nas/Audiobookshelf/Hörbücher` | audiobook | audiobook |
-| Podcast (podcasts) | `/media/nas/Audiobookshelf/Podcast` | podcast | podcast |
+| Filme (video) | `/media/nas/Filme` | movie | TMDB |
+| Serien (video) | `/media/nas/Serien` | series | TMDB, TVDB |
+| Dokus (video) | `/media/nas/Doku/Filme` | movie | TMDB |
+| Dokus (video) | `/media/nas/Doku/Serien` | series | TMDB, TVDB |
+| Kids (video) | `/media/nas/KinderFilme` | movie | TMDB |
+| Kids (video) | `/media/nas/KinderSerien` | series | TMDB, TVDB |
+| Kids (video) | «Kids Filme 2» — auf dem NAS heute ohne Gegenstück | movie | TMDB |
+| Anime (video) | `/media/nas/MangaFilme` | movie | TMDB, AniList |
+| Anime (video) | `/media/nas/MangaSerien` | series | **TVDB**, TMDB, AniList |
+| Hörbücher (audiobooks) | `/media/nas/Audiobookshelf/Hörbücher` | audiobook | Lokale Dateien |
+| Podcast (podcasts) | `/media/nas/Audiobookshelf/Podcast` | podcast | Lokale Dateien |
 
-Zwei Ordner derselben Inhaltsart in einer Bibliothek («Kids Filme» und «Kids Filme 2») kann das
-heutige Modell schon; neu ist nur, dass es dafür keine zweite Bibliothek braucht.
+Nichts davon ist vorgegeben: Marco legt eine Bibliothek an, fügt Ordner hinzu und setzt je Ordner
+Inhalt und Liste. Zwei Ordner derselben Inhaltsart in einer Bibliothek («Kids Filme» und «Kids
+Filme 2») kann das heutige Modell schon; neu ist nur, dass es dafür keine zweite Bibliothek braucht.
 
 ### 2.1 Was sich für den Zuschauer ändert
 
@@ -244,19 +274,22 @@ ist und nicht zwei.
 | Quelle | Wortlaut heute | Was dieses Konzept daraus macht |
 |---|---|---|
 | **B-1** (`docs/spec/01-anforderungen-v1.md:85`): «Der Admin legt Bibliotheken auf Ordner an (Typ Filme oder Serien)» | Typ an der Bibliothek | Der Typ wandert an den Ordner; eine Bibliothek darf beide tragen. **Die Spec wird nicht umgeschrieben** (`docs/spec/README.md:6`, derselbe Weg wie F-6 der Benutzerverwaltung): der neue Wortlaut geht als Frage 13 ins Entscheidungsprotokoll und in ADR 0015 |
+| **B-3** (`:87`): «Metadaten und Bilder kommen von TMDB und TVDB» | zwei Quellen, Reihenfolge offen | bleibt erfüllt; AniList kommt als dritte dazu, die Reihenfolge wird je Ordner wählbar |
 | **H-1, H-2** (`:96`, `:97`) | Hörbuch-Bibliotheken auf Ordnern; Podcasts per Feed-URL | Beides bleibt erfüllt. H-2 bekommt einen zweiten Weg (Feed aus der `metadata.json` eines Ordners), kein Ersatz |
-| **ADR 0007** (`docs/adr/0007-audio-modell.md:41`): Podcast-Bibliothek «ohne Wurzel»; `:58` nennt lokale Podcast-Ordner als offen | Nicht-Ziel mit Vorbehalt | Wird gebaut (F-1, F-6). ADR 0015 schreibt die Zeile fort; ADR 0007 bekommt einen Ablösungshinweis an genau dieser Stelle. Die Trigger für `podcast_episode` mit Datei sind seit 00014 vorbereitet (`00014_audio.sql:15` bis `:17`; ADR 0007, Abschnitt «Folgen»: «damit eine spätere lokale Episodendatei zählt») |
-| **ADR 0006** (`docs/adr/0006-metadaten-anbieter-trailer.md:24` bis `:33`): TMDB ist Hauptquelle und einzige Quelle für Filme; weitere Anbieter sind weitere Implementierungen der einen Schnittstelle | Ein `Provider` stellt die Identität fest | AniList wird **keine** Identitätsquelle (F-5): Staffeln, Folgen und IDs bleiben bei TMDB/TVDB. AniList ist eine **Anreicherung** nach dem Match (Abschnitt 4.4). Das ergänzt ADR 0006, es widerspricht ihm nicht; ADR 0015 benennt den Unterschied zwischen Identität und Anreicherung ausdrücklich und hält fest, dass dieses Papier weder das Herkunftsmodell je Feld aus Idee 01 noch den dort angekündigten Nachfolge-ADR zu 0006 vorwegnimmt |
-| **Idee 01** (`docs/ideas/01-metadaten-einstellungen.md:105` bis `:110`): Einstellungen je **Bibliothek** in `library_metadata (library_id PK, …)` | Schlüssel ist die Bibliothek | Mit diesem Konzept ist die natürliche Ebene der **Ordner**. Idee 01 bleibt «Ausgearbeitet», bekommt aber im Kopf einen Vermerk (Schlüssel wird `root_id`, Anbieterliste enthält `anilist`), **und Issue #8 bekommt denselben Vermerk** — nach `docs/ideas/README.md` trägt das Issue Status und Diskussion. Mehr ändert dieses Papier dort nicht |
+| **ADR 0006** (`docs/adr/0006-metadaten-anbieter-trailer.md`): TMDB Hauptquelle, TVDB nur Rückfall (`:24` bis `:33`); **verworfen** «TVDB als Hauptquelle für Serien» (`:37` bis `:39`) und «beide Anbieter abfragen und zusammenführen» (`:40` bis `:41`) | feste Reihenfolge im Code | **Beide verworfenen Alternativen werden mit F-11 und F-12 angenommen** — mit den Gründen, die 0006 damals selbst nannte (Folgenzählung bei Anime) und die mit einer Anime-Bibliothek jetzt zutreffen. Die Einwände von 0006 («doppelte Anfragen», «Widersprüche bei Freigaben und Folgennummern») werden in 4.4 einzeln beantwortet: Anfragen nur für angekreuzte Anbieter; Folgennummern kommen **allein vom Erkenner**; Freigaben nie gesenkt (K-3). **ADR 0015 ist der Teilnachfolger von ADR 0006**, den Idee 01 angekündigt hat; die Trailer-Kette und die Schlüsselregel aus 0006 bleiben |
+| **ADR 0007** (`docs/adr/0007-audio-modell.md:41`): Podcast-Bibliothek «ohne Wurzel»; `:58` nennt lokale Podcast-Ordner als offen | Nicht-Ziel mit Vorbehalt | Wird gebaut (F-1, F-6). ADR 0015 schreibt die Zeile fort; ADR 0007 bekommt einen Ablösungshinweis an genau dieser Stelle. Die Trigger für `podcast_episode` mit Datei sind seit 00014 vorbereitet (`00014_audio.sql:15` bis `:17`; ADR 0007, Abschnitt «Folgen») |
+| **Idee 01** (`docs/ideas/01-metadaten-einstellungen.md`): Anbieterlisten je Bibliothek (`:55`, `:105` bis `:110`), feldweise auffüllen mit Herkunft je Feld (`item_field_sources`, `:116` bis `:119`) | «Ausgearbeitet», nicht beauftragt | **Dieser Teil zieht hierher**, auf Ordnerebene statt Bibliotheksebene: Anbieterliste, feldweises Auffüllen, `item_field_sources`. Was bei Idee 01 bleibt, steht im Kopf dieses Papiers; Idee 01 und Issue #8 bekommen in Schritt 0 den Vermerk «Teil A übernommen durch Konzept 07» |
 | **Idee 02** (`docs/ideas/02-ordner-browser.md:3` bis `:6`, Kopf sagt «Schritte 12 bis 14 offen») | veraltet | Nur der Kopf wird in Schritt 0 nachgeführt; E8 bis E18 gelten unverändert |
-| **Entscheid 9 / AN-2** (`04-entscheidungen.md:18`, `:43`): Standard-Altersstufe je Hörbuch- und Podcast-Bibliothek | bleibt | unverändert; die Stufe hängt weiter an der Bibliothek, nie am Ordner. Ordner-Podcasts bekommen sie wie Bücher (`rating_source 'library'`) |
-| **Harte Regel 11** (nichts vorziehen, keine Nicht-Ziele) | — | Anime und lokale Podcast-Ordner stehen in keiner Nicht-Ziel-Liste der Spec (`:55` bis `:68` nennt Musik, Fotos, Live-TV, DVR, Apps, Plugins, …). Beide gelten als Erweiterung von B-3 und H-2 und werden mit Frage 13 bewusst übernommen |
+| **Entscheid 7 / AN-15** (`04-entscheidungen.md:16`, `:36`): «TMDB Hauptquelle, TVDB optional hinter einer Anbieter-Schnittstelle» | TMDB zuerst | wird durch Frage 13 präzisiert: TMDB bleibt Vorgabe und Pflicht als Erkenner für Filme; für Serien ist TVDB als Erkenner wählbar |
+| **Entscheid 9 / AN-2** (`:18`, `:43`): Standard-Altersstufe je Hörbuch- und Podcast-Bibliothek | bleibt | unverändert; die Stufe hängt weiter an der Bibliothek, nie am Ordner. Ordner-Podcasts bekommen sie wie Bücher (`rating_source 'library'`) |
+| **Harte Regel 11** (nichts vorziehen, keine Nicht-Ziele) | — | Anime, Anbieterliste und lokale Podcast-Ordner stehen in keiner Nicht-Ziel-Liste der Spec (`:55` bis `:68`). Sie gelten als Erweiterung von B-3 und H-2 und werden mit Frage 13 bewusst übernommen; der Teil aus Idee 01 wird nach `docs/ideas/README.md` «bewusst in Spec und Plan übernommen», hier über das Entscheidungsprotokoll |
 
-**Was weiterhin nicht gilt:** keine Bibliotheksnavigation für Zuschauer (2.1); keine Einstellungen je
-Quelle und keine Herkunft je Feld (Idee 01); kein AniDB, kein MyAnimeList; kein externer
-Hörbuch-Anbieter (F-7); keine Podcast-Suche (ADR 0007, offen); **kein Löschen einer Bibliothek** — es
-gibt heute keine `DELETE FROM libraries`-Abfrage und keine Operation dafür, und dieses Papier führt
-sie nicht ein, weil Marcos Zielstruktur mit Ordner-Umhängen erreichbar ist (Abschnitt 8.1).
+**Was weiterhin nicht gilt:** keine Bibliotheksnavigation für Zuschauer (2.1); keine Sprachen,
+Bildarten, Bildsprache, Bildwahl je Titel, kein Fanart.tv, OMDb oder NFO (Idee 01, Teil B); kein AniDB,
+kein MyAnimeList; kein externer Hörbuch-Anbieter (F-7); keine Podcast-Suche (ADR 0007, offen);
+**kein Löschen einer Bibliothek** — es gibt heute keine `DELETE FROM libraries`-Abfrage und keine
+Operation dafür, und dieses Papier führt sie nicht ein, weil Marcos Zielstruktur mit Ordner-Umhängen
+erreichbar ist (Abschnitt 8.1).
 
 ---
 
@@ -279,53 +312,73 @@ Warum `video` und nicht `movies` behalten? Weil ein entfernter Enum-Wert nie wie
 vorher. Fremd-Clients, die `kind === 'movies'` prüfen, sollen **brechen**, nicht stillschweigend
 falsch liegen.
 
-### 4.2 `library_roots` bekommt Inhaltsart und Metadatenquelle
+### 4.2 `library_roots` bekommt Inhaltsart und Scraper-Liste
 
 ```sql
 ALTER TABLE library_roots ADD COLUMN content TEXT NOT NULL DEFAULT 'movie'
     CHECK (content IN ('movie', 'series', 'audiobook', 'podcast'));
-ALTER TABLE library_roots ADD COLUMN metadata_source TEXT NOT NULL DEFAULT 'tmdb'
-    CHECK (metadata_source IN ('tmdb', 'anime', 'audiobook', 'podcast'));
+ALTER TABLE library_roots ADD COLUMN providers TEXT NOT NULL DEFAULT '["tmdb"]'
+    CHECK (json_valid(providers) AND json_array_length(providers) >= 1);
 ```
 
-`ADD COLUMN` mit `DEFAULT` genügt hier (kein Neubau), weil die Tabelle nur wächst. Die Vorgaben
-dienen nur dem Befüllen in der Migration (4.6); der Server setzt beide Werte bei jedem `INSERT`
-ausdrücklich (`InsertLibraryRoot`, `server/queries/app/libraries.sql:13`). Die Matrix aus Abschnitt 2
-lässt sich nicht als `CHECK` schreiben, weil sie `libraries.kind` braucht; sie wird in
-`library.Service` geprüft (bei `Create`, `AddRoot`, `UpdateRoot`) und in der Migration als Wächter
-ausgeführt (4.6, Punkt 5).
+`providers` ist eine JSON-Liste in Reihenfolge, zum Beispiel `["tvdb","tmdb","anilist"]`, nach dem
+Muster von `items.genres` und `items.locked_fields` (`00003_libraries_items.sql:58`, `:67`). Eine
+eigene Tabelle `library_root_providers (root_id, position, provider)` wäre normalisierter, aber die
+Liste wird nur als Ganzes gelesen und geschrieben, ist nie länger als vier Einträge, und `sqlc` liefert
+sie als `string`, die `model` einmal parst. `ADD COLUMN` mit `DEFAULT` genügt (kein Neubau); die
+Vorgaben dienen nur dem Befüllen in der Migration (4.6), der Server setzt beide Werte bei jedem
+`INSERT` ausdrücklich (`InsertLibraryRoot`, `server/queries/app/libraries.sql:13`). Die Regeln aus
+Abschnitt 2 (Familie, erlaubter Erkenner, erlaubte Auffüller, keine Doppelten) lassen sich nicht als
+`CHECK` schreiben; sie werden in `library.Service` geprüft (bei `Create`, `AddRoot`, `UpdateRoot`;
+`model.ValidRootProviders(content, providers)`) und in der Migration als Wächter ausgeführt (4.6,
+Punkt 5).
 
-### 4.3 `items` lernt seine Quelle
+### 4.3 `items` lernt seine Liste und seine Herkunft je Feld
 
 `metadata.match` arbeitet je Titel und kennt die Bibliothek nicht (`match.go:78`). Ein Serien-Item hat
 keine `media_files` (nur seine Folgen), kann seine Wurzel also nicht über `media_files.root_id`
 finden, und ein Titel darf theoretisch Dateien in zwei Wurzeln derselben Bibliothek haben. Darum
-bekommt jeder Titel seine Quelle **kopiert**, nicht abgeleitet:
+bekommt jeder Titel seine Liste **kopiert**, nicht abgeleitet:
 
 ```sql
-ALTER TABLE items ADD COLUMN metadata_source TEXT NOT NULL DEFAULT 'tmdb'
-    CHECK (metadata_source IN ('tmdb', 'anime', 'audiobook', 'podcast'));
+ALTER TABLE items ADD COLUMN providers TEXT NOT NULL DEFAULT '["tmdb"]'
+    CHECK (json_valid(providers));
 ALTER TABLE items ADD COLUMN anilist_id INTEGER;
 ALTER TABLE items ADD COLUMN feed_origin TEXT
     CHECK (feed_origin IS NULL OR feed_origin IN ('admin', 'file'));
+
+CREATE TABLE item_field_sources (
+    item_id  TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    field    TEXT NOT NULL,        -- title, overview, tagline, original_title, genres,
+                                   -- runtime_minutes, release_date, own_rating, poster, backdrop
+    lang     TEXT NOT NULL DEFAULT '',  -- '' für sprachlose Felder
+    provider TEXT NOT NULL,
+    PRIMARY KEY (item_id, field, lang)
+) STRICT;
 ```
 
-- Der Scanner schreibt `metadata_source` beim Anlegen aus der Wurzel. Betroffen sind **alle vier
+- Der Scanner schreibt `providers` beim Anlegen aus der Wurzel. Betroffen sind **alle vier
   Einfügewege**, nicht nur `InsertItem` (`server/queries/system/items.sql:4`): `InsertAudiobook`
   (`system/audiobooks.sql:5`), `PodcastInsert` und `PodcastInsertEpisode` (`system/podcasts.sql:12`,
-  `:66`). Ohne diese drei stünde an jedem Buch und jedem Podcast stumm `tmdb`. Kinder (Staffel,
-  Folge, Extra, Episode) erben den Wert des Elternteils.
-- Ändert ein Administrator die Quelle einer Wurzel (F-4), setzt `UpdateRoot` den Wert auf allen
-  Titeln, die eine Datei unter dieser Wurzel haben, samt Eltern und Kindern, und reiht je Titel den
-  passenden Job ein (Abschnitt 6.3).
+  `:66`). Ohne diese drei stünde an jedem Buch und jedem Podcast stumm `["tmdb"]`. Kinder (Staffel,
+  Folge, Extra, Episode) erben die Liste des Elternteils.
+- Ändert ein Administrator die Liste einer Wurzel (F-4), setzt `UpdateRoot` sie auf allen Titeln, die
+  eine Datei unter dieser Wurzel haben, samt Eltern und Kindern, und reiht je Titel den passenden Job
+  ein (Abschnitt 6.3).
+- **`item_field_sources`** ist die Tabelle aus Idee 01 (`01-metadaten-einstellungen.md:116` bis
+  `:119`), hier mit `lang ''` statt `NULL`, weil `NULL` in einem Primärschlüssel in SQLite nicht
+  eindeutig ist. Sie macht das feldweise Auffüllen **wiederholbar**: ohne sie wüsste der zweite Lauf
+  nicht, ob eine Beschreibung von TMDB stammt (dann darf TVDB sie nicht ersetzen) oder von TVDB (dann
+  darf ein neuer TMDB-Wert sie ersetzen, weil TMDB vorne steht). `items.rating_source` bleibt als
+  Kurzform für die Anzeige, wie Idee 01 es vorsieht.
 - `anilist_id` steht neben `tmdb_id`, `imdb_id` (`00003_libraries_items.sql:59`, `:60`) und
-  `tvdb_id` (Spalte seit `00008_library_complete.sql:23`, Index `items_tvdb` `:32`); die
-  Zuordnungsliste (4.4) liest `items.tvdb_id` und `items.tmdb_id`.
+  `tvdb_id` (Spalte seit `00008_library_complete.sql:23`, Index `items_tvdb` `:32`).
 - `feed_origin` sagt bei einem Podcast, **wer den Feed bestimmt hat**: `admin` für ein von Hand
   abonniertes Abo, `file` für eine `feedURL` aus einer `metadata.json`. Davon hängt der Netzwächter
   ab (9.1). `NULL` für Ordner-Podcasts ohne Feed und für alle Nicht-Podcasts.
-- Feed-Podcasts ohne Ordner tragen `metadata_source = 'podcast'`; Hörbücher `audiobook`. Beides wird
-  in der Migration aus der Titelart gesetzt.
+- Feed-Podcasts ohne Ordner und Hörbücher tragen `["local"]`. Beides wird in der Migration aus der
+  Titelart gesetzt; bestehende Video-Titel bekommen `["tmdb"]` (Filme) bzw. `["tmdb","tvdb"]`
+  (Serien), also genau die heutige Reihenfolge.
 
 Warum keine Spalte `items.root_id`? Weil sie für Container falsch wäre (eine Serie gehört zur
 Bibliothek, ihre Folgen zu Wurzeln) und weil `media_files.root_id` mit Index
@@ -333,80 +386,99 @@ Bibliothek, ihre Folgen zu Wurzeln) und weil `media_files.root_id` mit Index
 Titel liegen unter dieser Wurzel» bereits beantwortet — genau die Abfrage, die
 `SoftDeleteItemsOfRootWithoutOtherFiles` (`server/queries/system/library.sql:73`) heute benutzt.
 
-### 4.4 Die Quelle `anime`: Identität bei TMDB/TVDB, Anreicherung durch AniList
+### 4.4 Erkennen und Auffüllen in Reihenfolge
 
-**Identität wie heute.** Ein Ordner mit `metadata_source = 'anime'` läuft durch denselben Parser
-(`ParseMoviePath`, `ParseSeriesPath`) und dasselbe `matchMovie`/`matchSeries`. Marcos Anime-Ordner
-tragen `[tvdb-…]`- und `[tmdb-…]`-Marken, die `names.go:112` schon liest; die Staffelzählung bleibt
-die von TMDB/TVDB, und die manuelle Zuordnung (B-6, `manage.go:103`) funktioniert unverändert.
+Zwei Rollen, strikt getrennt — das ist die Antwort auf den Einwand «Widersprüche bei Folgennummern»
+aus ADR 0006:
 
-**Anreicherung nach jedem Match, nicht nur nach dem ersten.** `UpdateItemMatch`
-(`server/queries/system/metadata.sql:4` bis `:20`) überschreibt `original_title`, `genres`,
-`own_rating` und `rating_source`, und `UpsertItemText` (`:115`) überschreibt Titel und Beschreibung
-ohne Rücksicht. Jeder spätere Match — die Nachrüstung aus der Zeit vor M3, eine manuelle Zuordnung,
-ein Quellenwechsel — würde eine einmalige Anreicherung also wieder auslöschen. Darum reiht `match`
-für einen Titel mit Quelle `anime` **nach jedem erfolgreichen Match** den Job `anime.enrich` ein,
-in derselben Transaktion, mit derselben Priorität wie `image.fetch` und Schlüssel `anime:<item>`.
-`anilist_id` ist nur der Zwischenspeicher der Zuordnung, nicht die Marke «schon erledigt». Der Job:
+**Der Erkenner** ist der erste Eintrag der Liste. Er allein bestimmt Identität, Ids und bei Serien die
+Staffel- und Folgenzählung:
 
-1. **löst die AniList-Id auf** über die Zuordnungsliste von Fribb (`github.com/Fribb/anime-lists`,
-   Datei `anime-list-full.json`; Felder laut README unter anderem `anilist_id`, `tvdb_id`,
-   `themoviedb_id`, `imdb_id`, `mal_id`, `anidb_id`, `season`, `episode_offset`, `type` — **die
-   genauen Feldnamen und ihre Form sind vor Schritt 4 gegen die Datei zu prüfen**, das Papier konnte
-   nur das README lesen). Die Liste wird einmal geladen, mit ETag unter `/cache/anime-lists/`
-   gehalten, wöchentlich erneuert und beim Parsen auf 64 MB begrenzt; sie wird **gestreamt** gelesen
-   und in zwei Karten übersetzt, **je nach Art getrennt**, weil TMDB-Film- und TMDB-Serien-Ids
-   verschiedene Zahlenräume sind: `(movie, tmdb) → anilist` und `(tvdb) → [anilist mit season,
+- `tmdb` zuerst: wie heute (`matchMovie` `:122`, `matchSeries` `:187`, `matchSeasons` `:329` ff.).
+- `tvdb` zuerst (nur `series`): `matchSeries` benutzt `s.tvdb` für Suche und Serie
+  (`SearchSeries` `tvdb.go:271`, `Series` `:357`), `matchSeasons` schreibt Staffeln und Folgen nach
+  TVDB-Zählung. Die `tmdb_id` holt der Erkenner **zusätzlich** über TMDBs Fremdschlüssel-Suche
+  (`tmdb.go:267`, `/find/{tvdb_id}` mit `external_source tvdb_id`), damit Credits, Trailer-Kette und
+  Bildpipeline, die an `tmdb_id` hängen, weiter arbeiten — aber ohne dass TMDB die Zählung bestimmt.
+  `seriesProvider` (`:315`) wählt neu nach dem ersten Listeneintrag, nicht mehr «TMDB, wenn vorhanden».
+  Der heutige Sonderfall `manualTVDB` (`:198`: TVDB-Id gesperrt, TMDB-Id leer) bleibt als manuelle
+  Zuordnung erhalten; er ist jetzt derselbe Weg wie «`tvdb` zuerst», nur je Titel statt je Ordner.
+- `local` zuerst: der heutige Hörbuch- und der neue Podcast-Erkenner (4.5), ohne Netz.
+
+**Die Auffüller** sind alle weiteren Einträge. Nach jedem erfolgreichen Match reiht `match` **in
+derselben Transaktion** den Job `metadata.fill` ein (Schlüssel `fill:<item>`, Priorität wie
+`image.fetch`). Der Job läuft für die Liste von vorne nach hinten, **Erkenner eingeschlossen**, und
+entscheidet je Feld und Sprache:
+
+1. Ein Feld, das in `items.locked_fields` steht (manuelle Sperre, B-6), wird nie angefasst.
+2. Sonst gewinnt der **erste Anbieter in der Liste, der einen nicht-leeren Wert hat**; `item_field_sources`
+   hält fest, wer gewonnen hat. Steht dort schon ein Anbieter, der in der Liste **weiter vorne**
+   liegt oder derselbe ist, bleibt der Wert; steht dort einer, der **weiter hinten** liegt, wird
+   überschrieben. So ist der Job idempotent und darf beliebig oft laufen — nach einem erneuten Match,
+   nach einer Listenänderung, nach einem Ausfall.
+3. Felder: `title`, `overview`, `tagline` je Sprache (`item_texts`), `original_title`, `genres`
+   (Vereinigung aller, Herkunft `union`), `runtime_minutes`, `release_date`, `poster`, `backdrop`.
+   **Freigaben sind die Ausnahme** (K-3, derselbe Grundsatz wie in Idee 01): `own_rating` wird nur
+   **erhöht**, nie gesenkt, gleich wo der Anbieter steht; `rating_source` nennt den strengsten.
+4. Antworten der Anbieter werden je Lauf einmal geholt (TMDB und TVDB über die bestehenden Clients
+   und `ratelimit.Limiter`; AniList unten). Ein Anbieter ohne Schlüssel (`Configured` falsch) wird
+   übersprungen und als Pflegezeile «TVDB angekreuzt, aber kein Schlüssel» gemeldet; die
+   Oberfläche zeigt denselben Hinweis schon beim Ankreuzen (`listMetadataProviders`, 5.2).
+
+Antwort auf den zweiten Einwand aus ADR 0006 («doppelte Anfragen bei jedem Titel»): Anfragen gibt
+es nur für angekreuzte Anbieter, und nur `metadata.fill` stellt sie, einmal je Lauf. Ein Ordner mit
+`[tmdb]` kostet genau so viel wie heute.
+
+**AniList** (F-5) ist ein reiner Auffüller mit zwei Besonderheiten:
+
+1. **Zuordnung** über die Liste von Fribb (`github.com/Fribb/anime-lists`, Datei
+   `anime-list-full.json`; Felder laut README unter anderem `anilist_id`, `tvdb_id`, `themoviedb_id`,
+   `imdb_id`, `mal_id`, `anidb_id`, `season`, `episode_offset`, `type` — **die genauen Feldnamen und
+   ihre Form sind vor Schritt 4 gegen die Datei zu prüfen**). Die Liste wird einmal geladen, mit ETag
+   unter `/cache/anime-lists/` gehalten, wöchentlich erneuert, beim Parsen auf 64 MB begrenzt und
+   **gestreamt** in zwei Karten übersetzt, **je nach Art getrennt** (TMDB-Film- und Serien-Ids sind
+   verschiedene Zahlenräume): `(movie, tmdb) → anilist` und `(tvdb) → [anilist mit season,
    episode_offset]`. Bei Serien zeigt eine TVDB-Id auf mehrere AniList-Einträge (eine je Staffel);
-   der Job nimmt für die Titelebene den Eintrag mit `season = 1`.
-2. **fragt AniList** (`https://graphql.anilist.co`, GraphQL, **ohne Schlüssel**) nach
-   `Media(id)`: `title { romaji english native }`, `description`, `genres`, `coverImage.extraLarge`,
-   `bannerImage`, `averageScore`, `format`, `isAdult`. Rate-Limit laut AniList-Dokumentation **90
-   Anfragen je Minute** mit `X-RateLimit-Remaining` und `Retry-After`; AniList behält sich vor, das
-   Limit bei Störungen zu senken, und Drittbibliotheken berichten zeitweise von 30. Der Client läuft
-   über **`ratelimit.Limiter`** (`server/internal/ratelimit/ratelimit.go:60`, `Do` `:166`, `Backoff`
-   `:149`, `parseRetryAfter` `:219` — derselbe Weg wie TMDB und TVDB, der 429 und `Retry-After`
-   schon kann) mit **1 Anfrage je Sekunde, Burst 5**. Nicht `ratelimit.Quota` (`quota.go:36`): das
-   ist das Tagesbudget der YouTube-Kette, `Take` wartet nie.
-3. **schreibt**, was TMDB nicht hat, und überschreibt nichts, was TMDB hat (feste Reihenfolge TMDB →
-   AniList; die Herkunft je Feld aus Idee 01 wird damit **nicht** eingeführt, der Job ist
-   idempotent und darf beliebig oft laufen): `anilist_id`; `original_title` = `title.native`, wenn
-   leer; `item_texts` (`en`) Titel aus `title.english` (sonst `romaji`) und `overview` aus
-   `description`, jeweils nur wenn der TMDB-Wert leer ist; `genres` als Vereinigung; Poster und
-   Backdrop aus `coverImage`/`bannerImage` nur, wenn `image.fetch` von TMDB **kein** Bild bekommen
-   hat. `isAdult = true` setzt `own_rating` auf 18 mit `rating_source 'anilist'`, sofern keine
-   strengere Quelle vorliegt (K-3: nie senken). Was AniList darüber hinaus übersteuern darf, ist F-9.
-4. **markiert den Zustand**: `anilist_id = 0` heisst «nachgeschlagen, kein Treffer in der Liste»,
-   `NULL` heisst «noch nie». Weil der Job nach jedem Match ohnehin läuft, braucht es keinen
-   weiteren Zustand; ein Titel mit `anilist_id = 0` fragt die Liste beim nächsten Lauf trotzdem
-   wieder, denn die Liste wächst.
+   für die Titelebene gilt `season = 1`. `anilist_id = 0` heisst «nachgeschlagen, kein Treffer»;
+   die Liste wird trotzdem beim nächsten Lauf wieder gefragt, denn sie wächst.
+2. **Abfrage** bei `https://graphql.anilist.co` (GraphQL, **ohne Schlüssel**): `Media(id)` mit
+   `title { romaji english native }`, `description`, `genres`, `coverImage.extraLarge`,
+   `bannerImage`, `isAdult`. Rate-Limit laut AniList-Dokumentation **90 Anfragen je Minute** mit
+   `X-RateLimit-Remaining` und `Retry-After`; AniList senkt das Limit bei Störungen, Drittbibliotheken
+   berichten zeitweise von 30. Der Client läuft über **`ratelimit.Limiter`**
+   (`server/internal/ratelimit/ratelimit.go:60`, `Do` `:166`, `Backoff` `:149`, `parseRetryAfter`
+   `:219` — derselbe Weg wie TMDB und TVDB) mit 1 Anfrage je Sekunde, Burst 5. Nicht
+   `ratelimit.Quota` (`quota.go:36`): das ist das Tagesbudget der YouTube-Kette.
+   AniList liefert `original_title` = `title.native`, englische Texte aus `title.english` (sonst
+   `romaji`) und `description`, Genres, Poster und Backdrop; `isAdult = true` hebt auf 18 mit
+   `rating_source 'anilist'`. Keine deutschen Texte. Wer AniList **vor** TMDB setzt, bekommt darum
+   englische Beschreibungen, wo TMDB deutsche hätte — die Oberfläche sagt das beim Sortieren.
 
 **Konvergenz.** `QueuePendingMetadata(libraryID)` (`match.go:1062`) reiht heute nur
-`metadata_state = 'pending'` und die Nachrüstung ein. Neu reiht es zusätzlich `metadata_source =
-'anime' AND metadata_state = 'matched' AND anilist_id IS NULL` als `anime.enrich` ein. Damit kommt
-ein Titel auch dann zu seinen AniList-Daten, wenn `SLOUCHCAT_ANILIST=off` wieder eingeschaltet
-wurde, ein Job fehlgeschlagen ist oder die Quelle gewechselt hat (6.3).
+`metadata_state = 'pending'` und die Nachrüstung ein. Neu reiht es zusätzlich jeden Titel mit
+`metadata_state = 'matched'` als `metadata.fill` ein, dessen Liste mehr als einen Eintrag hat und
+dessen `item_field_sources` leer sind oder einen Anbieter nennen, der nicht mehr in der Liste steht.
+Damit kommt ein Titel auch nach `SLOUCHCAT_ANILIST=off` → `on`, nach einem Ausfall oder nach einer
+Listenänderung (6.3) zu seinen Feldern.
 
-**Das Fenster.** Zwischen `UpdateItemMatch` und dem Lauf von `anime.enrich` steht ein Titel kurz
-ohne die AniList-18 da. Für einen Titel, den nur AniList als `isAdult` kennt, sieht ein Kinderprofil
-ihn in diesem Fenster. Das Fenster ist so lang wie die Warteschlange vor dem Job; es wird in ADR 0015
-als Restrisiko benannt (12.4) und mit der Konvergenzabfrage klein gehalten, nicht null. Null wäre
-nur mit der Anreicherung **in** der Match-Transaktion zu haben, also mit einem Netzaufruf in einer
-Schreibtransaktion — das tut dieses Projekt nirgends.
+**Das Fenster.** Zwischen `UpdateItemMatch` und dem Lauf von `metadata.fill` trägt ein Titel kurz nur
+die Werte des Erkenners. Für eine Freigabe, die nur ein Auffüller kennt (AniList `isAdult`), sieht ein
+Kinderprofil den Titel in diesem Fenster. Es ist so lang wie die Warteschlange vor dem Job; ADR 0015
+benennt es als Restrisiko (12.6). Null wäre nur mit allen Netzaufrufen **in** der Match-Transaktion
+zu haben — das tut dieses Projekt nirgends.
 
-Was fehlt und bewusst fehlt: eine **Titelsuche bei AniList** für Ordner, die TMDB nicht kennt. Ohne
-TMDB-Identität gäbe es heute weder Credits noch Trailer noch die Bildpipeline; ein solcher Titel bleibt
-`unmatched` und erscheint in den Pflegewerkzeugen (B-9) wie jeder andere. Das gehört in Idee 01, wenn
-AniList dort ein vollwertiger Textanbieter wird.
+Was fehlt und bewusst fehlt: eine **Titelsuche bei AniList** für Ordner, die weder TMDB noch TVDB
+kennen; ein solcher Titel bleibt `unmatched` und erscheint in den Pflegewerkzeugen (B-9). Und die
+**Herkunft in der Zuschauer-API**: `item_field_sources` wird nur auf der Admin-Titelseite gezeigt
+(5.1), nicht in `ItemDetail`.
 
 Vor Schritt 4 **gegen die Quelle zu prüfen**, weil dieses Papier es nicht verifizieren konnte: die
 Rohadresse der Zuordnungsliste (erwartet
 `https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-full.json`), die Feldnamen,
 die Lizenz für die Weiterverwendung in einem AGPL-Projekt, und ob Filme in der Liste zuverlässig
 `themoviedb_id` tragen (die Liste verschmilzt über `anidb_id`; Filme sind dort seltener als Serien).
-Fehlt die TMDB-Zuordnung eines Films, bleibt er ohne AniList-Daten — kein Fehler, ein Pflegefall.
 
-### 4.5 Die Quelle `podcast`: Ordner lesen, Feed mitnehmen
+### 4.5 Die Quelle `local` für Podcasts: Ordner lesen, Feed mitnehmen
 
 Ein Ordner mit `content = 'podcast'` wird so gelesen (alles im Paket `library`, über `paths`, Regel 4;
 `library` darf `store/systemq` sehen, `.golangci.yml:35` bis `:41`):
@@ -519,13 +591,18 @@ TRANSACTION`, `PRAGMA foreign_keys=OFF`, Änderungen zwischen `BEGIN` und `COMMI
 
 1. **`library_roots` erweitern** (4.2) mit `ADD COLUMN` und Vorgaben. Dann befüllen aus der
    Bibliothek: `UPDATE library_roots SET content = CASE l.kind WHEN 'movies' THEN 'movie' WHEN
-   'series' THEN 'series' WHEN 'audiobooks' THEN 'audiobook' END, metadata_source = CASE l.kind WHEN
-   'audiobooks' THEN 'audiobook' ELSE 'tmdb' END FROM libraries l WHERE l.id = library_id`. Das
-   `CASE` hat **kein `ELSE`** für `content`: eine Wurzel an einer Podcast-Bibliothek (die es heute
-   nicht geben kann, `roots.go:34`) ergäbe `NULL` und scheiterte am `NOT NULL` — der erste Wächter.
-2. **`items` erweitern** (4.3): `metadata_source` nach Titelart (`audiobook` → `audiobook`;
-   `podcast`, `podcast_episode` → `podcast`; alles andere `tmdb`), `anilist_id NULL`, `feed_origin =
-   'admin'` für jeden Podcast mit `feed_url`, sonst `NULL`.
+   'series' THEN 'series' WHEN 'audiobooks' THEN 'audiobook' END, providers = CASE l.kind WHEN
+   'movies' THEN '["tmdb"]' WHEN 'series' THEN '["tmdb","tvdb"]' WHEN 'audiobooks' THEN '["local"]'
+   END FROM libraries l WHERE l.id = library_id`. Beide `CASE` haben **kein `ELSE`**: eine Wurzel an
+   einer Podcast-Bibliothek (die es heute nicht geben kann, `roots.go:34`) ergäbe `NULL` und
+   scheiterte am `NOT NULL` — der erste Wächter. `["tmdb","tvdb"]` für Serien ist genau das heutige
+   Verhalten (TMDB zuerst, TVDB als Rückfall und Auffüller).
+2. **`items` erweitern** (4.3): `providers` nach Titelart (`movie`, `extra` → `["tmdb"]`; `series`,
+   `season`, `episode` → `["tmdb","tvdb"]`; `audiobook`, `podcast`, `podcast_episode` → `["local"]`),
+   `anilist_id NULL`, `feed_origin = 'admin'` für jeden Podcast mit `feed_url`, sonst `NULL`.
+   `item_field_sources` anlegen und **leer lassen**: die Herkunft bestehender Titel ist unbekannt,
+   der erste `metadata.fill` je Titel schreibt sie nach (Konvergenz, 4.4) — für bestehende Titel
+   mit `["tmdb"]` ist das ein Lauf ohne Netzaufruf, weil nur der Erkenner in der Liste steht.
 3. **`libraries` neu bauen** mit `kind IN ('video', 'audiobooks', 'podcasts')`; Zeilen kopieren mit
    `CASE kind WHEN 'movies' THEN 'video' WHEN 'series' THEN 'video' ELSE kind END`, `id` erhalten;
    tauschen; Indizes neu anlegen. **Vor dem Schreiben die Spaltenliste gegen `PRAGMA
@@ -544,15 +621,15 @@ TRANSACTION`, `PRAGMA foreign_keys=OFF`, Änderungen zwischen `BEGIN` und `COMMI
    WHERE NOT ((l.kind = 'video' AND r.content IN ('movie', 'series')) OR (l.kind = 'audiobooks' AND
    r.content = 'audiobook') OR (l.kind = 'podcasts' AND r.content = 'podcast'))` — eine Zeile mit
    `n > 0` verletzt die `CHECK`-Bedingung und beendet den Lauf vor `COMMIT`. Dasselbe Muster für
-   «`items.metadata_source` passt zur Titelart».
+   «der erste Eintrag von `providers` passt zur Inhaltsart» (`json_extract(providers, '$[0]')`).
 6. **Kein Datenverlust an Kindtabellen:** `items`, `library_roots`, `account_libraries`,
    `invitation_libraries` zeigen über Fremdschlüssel auf `libraries`; `profile_libraries` hat keinen
    (`00002_accounts_sessions.sql:43`). Die `id` bleibt, die Fremdschlüssel sind während des Laufs
    aus; `foreign_key_check` nach dem Lauf ist der Beleg.
 
 **Was die Migration ausdrücklich nicht tut:** Sie legt keine Ordner an, abonniert keinen Feed, reiht
-keinen Scan ein und fasst keine Downloads an. Marcos Zielstruktur entsteht danach in der Oberfläche
-(8.1).
+keinen Scan ein, stellt keinen Match neu an und fasst keine Downloads an. Marcos Zielstruktur entsteht
+danach in der Oberfläche (8.1).
 
 ---
 
@@ -564,31 +641,33 @@ keinen Scan ein und fasst keine Downloads an. Marcos Zielstruktur entsteht danac
 |---|---|---|
 | `LibraryKind` (`:7759`) | `[movies, series, audiobooks, podcasts]` | `[video, audiobooks, podcasts]` |
 | `LibrarySummary` (`:7766`) | `id, name, kind, defaultRating` | unverändert; `kind` mit neuen Werten |
-| `LibraryRequest` (`:7781`) | `name, kind, path?, defaultRating?` | `name, kind, defaultRating?, root?: LibraryRootRequest` — der erste Ordner bringt Inhaltsart und Quelle mit; Pflicht für `video` und `audiobooks`, bei `podcasts` erlaubt mit `content: podcast`. **Die Validierungsfelder heissen damit `library.root.path` statt `library.path`**; die Fehlerzuordnung des Einrichtungsassistenten hängt an diesen Namen |
-| `LibraryRootRequest` (`:7805`) | `path` | `path, content, metadataSource` (alle Pflicht) |
-| `LibraryRootUpdate` | — | neu: `content?, metadataSource?, confirmPath?` (5.2) |
-| `LibraryRoot` (`:7878`) | `id, path, fsType, watch, itemCount, fileCount, warning?` | zusätzlich `content`, `metadataSource` |
+| `LibraryRequest` (`:7781`) | `name, kind, path?, defaultRating?` | `name, kind, defaultRating?, root?: LibraryRootRequest` — der erste Ordner bringt Inhaltsart und Liste mit; Pflicht für `video` und `audiobooks`, bei `podcasts` erlaubt mit `content: podcast`. **Die Validierungsfelder heissen damit `library.root.path` statt `library.path`**; die Fehlerzuordnung des Einrichtungsassistenten hängt an diesen Namen |
+| `LibraryRootRequest` (`:7805`) | `path` | `path, content, providers` (alle Pflicht; `providers` geordnet, `minItems: 1`, `uniqueItems: true`) |
+| `LibraryRootUpdate` | — | neu: `content?, providers?, confirmPath?` (5.2) |
+| `LibraryRoot` (`:7878`) | `id, path, fsType, watch, itemCount, fileCount, warning?` | zusätzlich `content`, `providers` |
 | `LibraryUpdate` (`:7831`) | `name?, defaultRating?` | unverändert — die Familie ist nach dem Anlegen fest (wie heute `kind`) |
 | `RootContent` | — | neu: `[movie, series, audiobook, podcast]` |
-| `MetadataSource` | — | neu: `[tmdb, anime, audiobook, podcast]` |
-| `MetadataProvider` (`:7494`) | `[tmdb, tvdb]` | unverändert — das ist die Identitätsquelle für `searchMetadata` und die manuelle Zuordnung; AniList gehört nicht hinein (4.4) |
+| `MetadataProvider` (`:7494`) | `[tmdb, tvdb]` — Parameter von `searchMetadata` und der manuellen Zuordnung | **erweitert** um `anilist` und `local`; `searchMetadata` und `assignMatch` nehmen weiter nur `tmdb` und `tvdb` an (422 `provider_not_searchable`), weil nur Erkenner suchbar sind |
+| `MetadataProviderInfo` | — | neu, für `listMetadataProviders`: `id`, `configured` (Schlüssel vorhanden), `roles: [identify, fill]`, `contents: RootContent[]`, `languages` (für den Hinweis «liefert kein Deutsch») |
+| `FieldSource` | — | neu: `field, lang, provider` |
 | `DuplicateGroup.reason` (`:7706`) | `[provider_id, title_year, file_hash]` | zusätzlich `file_and_feed` (4.5) |
-| `ItemRef`, `ItemDetail` | — | **unverändert.** `anilistId` wird nicht ausgeliefert; ein Zuschauer braucht es nicht, Fremd-Clients bekommen es mit der Herkunft je Feld aus Idee 01 |
-| `AdminItem` | `libraryId, …` | zusätzlich `metadataSource` und `anilistId?` |
+| `ItemRef`, `ItemDetail` | — | **unverändert.** Weder `anilistId` noch Herkunft werden an Zuschauer ausgeliefert |
+| `AdminItem` | `libraryId, …` | zusätzlich `providers`, `anilistId?`, `fieldSources: FieldSource[]` |
 | `AdminPodcast` (`:7292`) | Feed-Daten | zusätzlich `feedOrigin?`, `rootId?`, `localEpisodeCount` |
-| `SetupRequest.library` (`:127`, `runSetup`) | `LibraryRequest` | folgt automatisch; der Assistent wählt Inhalt und Quelle des ersten Ordners |
+| `SetupRequest.library` (`:127`, `runSetup`) | `LibraryRequest` | folgt automatisch; der Assistent zeigt die Liste mit der Vorgabe `[tmdb]` bzw. `[tmdb, tvdb]` |
 
 ### 5.2 Operationen
 
 | Operation | Änderung | `x-visibility` |
 |---|---|---|
-| `createLibrary` (`:2157`) | Körper nach 5.1; 422 `content_not_allowed`, `source_not_allowed`, weiterhin `library_path_invalid` | admin |
+| `createLibrary` (`:2157`) | Körper nach 5.1; 422 `content_not_allowed`, `providers_not_allowed`, weiterhin `library_path_invalid` | admin |
 | `addLibraryRoot` (`:2368`) | Körper nach 5.1; dieselben 422; Podcast-Bibliotheken nehmen Ordner mit `content: podcast` an | admin |
-| **`updateLibraryRoot`** — `PATCH /admin/libraries/{id}/roots/{rootId}` | **neu** (F-4). Ein Wechsel der **Quelle** allein löscht nichts und braucht keine Bestätigung (6.3). Ein Wechsel der **Inhaltsart** ist in der Wirkung «Ordner entfernen und neu anlegen» und verlangt `confirmPath` wie `removeLibraryRoot` (422 `confirm_mismatch`), 409 `scan_running` | admin |
+| **`updateLibraryRoot`** — `PATCH /admin/libraries/{id}/roots/{rootId}` | **neu** (F-4). Eine Änderung der **Liste** löscht nichts und braucht keine Bestätigung (6.3). Ein Wechsel der **Inhaltsart** ist in der Wirkung «Ordner entfernen und neu anlegen» und verlangt `confirmPath` wie `removeLibraryRoot` (422 `confirm_mismatch`), 409 `scan_running` | admin |
+| **`listMetadataProviders`** — `GET /admin/metadata/providers` | **neu**: die vier Anbieter mit `configured`, Rollen, erlaubten Inhaltsarten, Sprachen. Die Oberfläche baut daraus die Häkchenliste und die Hinweise («kein TVDB-Schlüssel», «AniList liefert kein Deutsch»). Idee 01 nannte dieselbe Operation (`GET /admin/providers`, `:208`) | admin |
 | `scanLibrary` (`:2268`) | Für `podcasts`: Ordner-Scan **und** Feed-Abruf; heute nur Letzteres (`admin.go:357`) | admin |
 | `removeLibraryRoot` (`:2414`) | Podcast-Ordner: Podcasts mit Feed bleiben als Abo (4.5) | admin |
 | `listAccountLibraries` (`:857`) | nur neue `kind`-Werte | account |
-| `searchMetadata` (`:3142`) | unverändert; `kind: [movie, series]` ist die Titelart | admin |
+| `searchMetadata` (`:3142`), `assignMatch` | `provider` weiter nur `tmdb`/`tvdb`; eine manuelle TVDB-Zuordnung an einem Titel mit `[tmdb, …]` wirkt wie heute (`manualTVDB`) | admin |
 | `listDuplicates` | neue Gruppenart `file_and_feed` | admin |
 
 Jede neue oder geänderte Operation bekommt ihren Eintrag im Vertragstest
@@ -599,8 +678,9 @@ und in `web/src/locales/*.json`.
 ### 5.3 Ist das eine brechende Anhebung?
 
 **Ja.** `LibraryKind` verliert `movies` und `series`, `LibraryRequest.path` verschwindet zugunsten
-von `root`, `LibraryRootRequest` bekommt Pflichtfelder. Für Fremd-Clients (C-5) ist das brechend, wie
-es 1.1.0 (`HomeRowKey`) und 1.2.0 (`AccountRole`) waren. **Die Fassung ist 1.3.0**, dem Präzedenzfall
+von `root`, `LibraryRootRequest` bekommt Pflichtfelder, `MetadataProvider` wächst (für Clients, die
+das Enum erschöpfend behandeln, ebenfalls brechend). Für Fremd-Clients (C-5) ist das brechend, wie es
+1.1.0 (`HomeRowKey`) und 1.2.0 (`AccountRole`) waren. **Die Fassung ist 1.3.0**, dem Präzedenzfall
 folgend, und der Bruch steht wörtlich in den Release-Notes. Entfernte Enum-Werte (`movies`, `series`
 in `LibraryKind`) werden nie wiederverwendet.
 
@@ -614,9 +694,9 @@ einen neuen Server scheitert nur auf der Bibliotheksseite der Verwaltung.
 ### 6.1 Der Scanner liest je Wurzel
 
 Heute ruft `scanLibrary` (`scanner.go:429`) für jede Wurzel `walkRoot(ctx, rs.proot, lib.Kind, …)`
-(`:446`). Neu bekommt `walkRoot` die **Wurzel** (`op.rs.root` mit `Content` und `MetadataSource`)
-statt der Bibliothek; `fileInfo` trägt selbst keine Wurzel, der Wurzelzustand `rs` tut es. Die
-Stellen, die heute `lib.Kind` lesen, lesen den Inhalt der Wurzel:
+(`:446`). Neu bekommt `walkRoot` die **Wurzel** (`op.rs.root` mit `Content` und `Providers`) statt
+der Bibliothek; `fileInfo` trägt selbst keine Wurzel, der Wurzelzustand `rs` tut es. Die Stellen, die
+heute `lib.Kind` lesen, lesen den Inhalt der Wurzel:
 
 | Stelle | heute | neu |
 |---|---|---|
@@ -628,9 +708,9 @@ Stellen, die heute `lib.Kind` lesen, lesen den Inhalt der Wurzel:
 | `QueuePendingSegments` (`:301`) | nur `series`-Bibliotheken | sobald eine Wurzel `series` ist |
 | `batchWriter.item` (`write.go:364`), `describe` (`:52`), `describeBook` (`:221`), `touchBook` (`:299`, `:312`) | `w.lib.Kind` | Wurzelinhalt |
 | **Titelindex** `itemIndex` (`index.go:23` bis `:38`, gefüllt in `loadItemIndex` `:112`, Art in `:125` bis `:131`) | **eine** Karte je Schlüssel (`byTMDB`, `byTVDB`, `byIMDB`, `byTitle`) für die eine Titelart der Bibliothek | **ein `itemIndex` je Titelart**, gewählt nach dem Inhalt der Wurzel. Eine gefilterte Gesamtkarte genügt nicht: TMDB-Film-Ids und TMDB-Serien-Ids sind getrennte Zahlenräume, und ein Film mit `tmdb_id 1399` und eine Serie mit `tmdb_id 1399` in derselben Bibliothek («Dokus») würden in einer gemeinsamen Karte aneinander gebunden. `titleKindOf` (`:86`), `fileFolderKey` (`:99`) und die Wiederanbindung weich gelöschter Titel (`relinkWindow`, `scanner.go:40`, `write.go:415`) arbeiten je Wurzel |
-| `admin.validateLibrary` (`admin.go:240`) | Pfad je Art | Matrix aus Abschnitt 2 |
+| `admin.validateLibrary` (`admin.go:240`) | Pfad je Art | Regeln aus Abschnitt 2 (`ValidRootProviders`) |
 | `admin.ScanLibrary` (`:352`) | Podcasts → nur Feed | Podcasts → Ordner-Scan, dann Feed-Abruf |
-| `library.Create` (`service.go:189`), `AddRoot` (`roots.go:26`) | Art prüfen, Podcasts ohne Wurzel | Matrix prüfen; Podcasts mit `content: podcast` |
+| `library.Create` (`service.go:189`), `AddRoot` (`roots.go:26`) | Art prüfen, Podcasts ohne Wurzel | Regeln prüfen; Podcasts mit `content: podcast` |
 | `maintenance.go:429` (Zusammenführen nur gleiche Art und gleiche Bibliothek) | unverändert | unverändert — Titelart, nicht Wurzel |
 | Webhooks (`integrations/pathmap.go:66`) | Pfad → irgendeine Wurzel | unverändert; Radarr trifft Filmwurzeln, Sonarr Serienwurzeln, weil Marco die Umsetzungstabelle so pflegt. Eine Prüfung «Radarr darf nur auf `movie`-Wurzeln» wäre eine Sicherheitsgewinn-Illusion und bleibt aus |
 | Go-Fixtures mit `Kind: "movies"` | 13 `*_test.go` im Server, `vistest/vistest.go:347`, `:389`, `vistest/audio.go:75`, `:79`, `cmd/apicheck/fixtures.go:228`, `:270`, `cmd/slouchcat/scanbench.go:73` bis `:92` | gehen **im selben Commit** wie das Schema um (10, Schritt 1) |
@@ -640,31 +720,47 @@ Stellen, die heute `lib.Kind` lesen, lesen den Inhalt der Wurzel:
 
 ### 6.2 Metadaten
 
-- `match` (`match.go:78`) liest `items.metadata_source`. Für `tmdb` und `anime` läuft derselbe
-  Weg; bei `anime` reiht jeder erfolgreiche Match `anime.enrich` ein (4.4). `audiobook` und `podcast`
-  werden wie heute übersprungen (`:101`, `default`).
-- Neues Paket? **Nein.** Der AniList-Client wird `server/internal/metadata/anilist.go` neben
-  `tmdb.go` und `tvdb.go`; die Zuordnungsliste `anime_lists.go` im selben Paket, Cache unter
-  `/cache/anime-lists/`. Beide sprechen nur mit festen Hosts (`graphql.anilist.co`,
-  `raw.githubusercontent.com`); ein Schalter `SLOUCHCAT_ANILIST=off` schaltet die Anreicherung
-  serverweit ab, ohne dass die Quelle `anime` am Ordner verschwindet (die Titel bleiben dann
-  TMDB-Titel). Die Zahl der Anreicherungen steht im Dashboard neben Trailern.
+- `match` (`match.go:78`) liest `items.providers` und wählt den Erkenner nach dem ersten Eintrag
+  (4.4); `seriesProvider` (`:315`) ebenso. Nach jedem erfolgreichen Match: `metadata.fill`.
+  `audiobook` und `podcast` (`["local"]`) werden wie heute übersprungen (`:101`, `default`).
+- Neuer Job **`metadata.fill`** in `server/internal/metadata/fill.go`: holt je Anbieter der Liste
+  einmal den Datensatz (TMDB/TVDB über `Provider.Movie`/`Series`, AniList über `anilist.go`),
+  wendet die Regel aus 4.4 an, schreibt `item_field_sources`, reiht bei geändertem Poster oder
+  Backdrop `image.fetch` ein. Für Staffeln und Folgen läuft derselbe Job je Staffel (eine Anfrage je
+  Anbieter und Staffel, wie `matchSeasons` es heute für den Erkenner tut), **nur** wenn mehr als
+  ein Anbieter Staffeltexte liefern kann (TMDB, TVDB); AniList füllt nur die Titelebene.
+- Neues Paket? **Nein.** `anilist.go` und `anime_lists.go` liegen neben `tmdb.go` und `tvdb.go`,
+  Cache unter `/cache/anime-lists/`. Feste Hosts (`graphql.anilist.co`,
+  `raw.githubusercontent.com`); `SLOUCHCAT_ANILIST=off` schaltet den Anbieter serverweit ab
+  (`configured: false` in `listMetadataProviders`, die Häkchen bleiben erhalten). Die Zahl der
+  `fill`-Läufe steht im Dashboard neben Trailern.
 - `podcast.Subscribe` (`podcast.go:214`) prüft weiter die Art `podcasts` und setzt `feed_origin =
   'admin'`; `PodcastInsert` (`system/podcasts.sql:12`) nimmt neu `feed_url NULL` an (reiner
   Ordner-Podcast; die Spalte ist schon `NULL`-fähig, `00014_audio.sql:71`). Die zwei Abfragen des
   Abrufs bekommen `feed_url IS NOT NULL` (4.5).
 
-### 6.3 `UpdateRoot`: Quelle wechseln ist billig, Inhalt wechseln ist ein Umzug
+### 6.3 `UpdateRoot`: Liste ändern ist billig, Erkenner wechseln ist ein Re-Match, Inhalt wechseln ist ein Umzug
 
-**Quelle wechseln** (`tmdb` ↔ `anime`): `UPDATE items SET metadata_source = ?` für alle Titel mit
-einer Datei unter der Wurzel (Join über `media_files.root_id`), dazu deren Eltern und Kinder; dann
-**je Titel** den passenden Job: bei `tmdb → anime` `anime.enrich` (der Match steht ja schon), bei
-`anime → tmdb` `metadata.match` mit `anilist_id = NULL`, damit TMDB die Felder zurückschreibt.
+**Liste ändern, Erkenner gleich** (zum Beispiel `[tmdb]` → `[tmdb, anilist]` oder Reihenfolge der
+Auffüller): `UPDATE items SET providers = ?` für alle Titel mit einer Datei unter der Wurzel (Join
+über `media_files.root_id`), dazu deren Eltern und Kinder; dann **je Titel** `metadata.fill`.
 `QueuePendingMetadata(libraryID)` taugt dafür nicht, es nimmt keine Titel-Ids und reiht nur
-`pending`. Keine Löschung, kein Scan, keine Bestätigung. Hörbuch- und Podcast-Wurzeln haben nur eine
-Quelle; dort ist der Aufruf ein 422 `source_not_allowed`.
+`pending`. Keine Löschung, kein Scan, keine Bestätigung. Felder eines abgewählten Anbieters werden
+beim nächsten Lauf vom nächsten in der Liste ersetzt; gibt es keinen, bleibt der Wert stehen und
+`item_field_sources` nennt weiter den alten Anbieter (sichtbar auf der Admin-Titelseite, kein stilles
+Löschen).
 
-**Inhalt wechseln** (`movie` ↔ `series`; andere Wechsel verbietet die Matrix): unter der Scan-Sperre
+**Erkenner wechseln** (`[tmdb, tvdb]` → `[tvdb, tmdb]` an einem Serienordner): wie oben, plus
+`metadata.match` je Serie. Die Serie behält `tmdb_id` **und** `tvdb_id`; Staffeln und Folgen werden
+nach der Zählung des neuen Erkenners neu beschrieben. Die **Folgen-Items selbst bleiben**: ihre
+Identität ist `(Serie, Staffelnummer, Folgennummer)` aus dem Dateinamen, nicht die Anbieter-Id —
+Fortschritt und Merkliste hängen also weiter an derselben Datei. Was sich ändert, sind Titel,
+Beschreibung und Bild einer Folge, wenn die beiden Anbieter dieselbe Nummer verschieden besetzen.
+Genau das ist der Grund für den Wechsel bei Anime, und genau das steht im Hinweis des Dialogs
+(«Staffel- und Folgentexte werden nach TVDB neu zugeordnet»). Keine Bestätigung nötig, weil nichts
+gelöscht wird.
+
+**Inhalt wechseln** (`movie` ↔ `series`; andere Wechsel verbieten die Regeln): unter der Scan-Sperre
 der Bibliothek, in **einer** Transaktion, in dieser Reihenfolge — der Löschweg aus Idee 02
 (`roots.go:80`, `RemoveRoot`) **ohne** das Löschen der Wurzelzeile und ohne das Beenden des Watchers:
 
@@ -676,7 +772,7 @@ der Bibliothek, in **einer** Transaktion, in dieser Reihenfolge — der Löschwe
    ab, die Trigger setzen `items.available`.
 4. `DELETE FROM ignored_files WHERE root_id = ?` (`00008_library_complete.sql:36` bis `:42`): die
    Einträge beziehen sich auf die alte Lesart des Ordners; heute fallen sie nur mit der Wurzelzeile.
-5. `UPDATE library_roots SET content = ?, metadata_source = ?`.
+5. `UPDATE library_roots SET content = ?, providers = ?`.
 6. Nach `COMMIT`: den Wurzelzustand des Scanners leeren, wie `forgetRoot` (`roots.go:172` bis
    `:193`) es tut — `pathPending` und `orphans` dieser Wurzel halten `ParsedName`-Werte des **alten**
    Parsers — und wartende Aufträge wie `settleScans` (`:207`) abgleichen, **ohne** den Watcher zu
@@ -693,29 +789,40 @@ dieser. Der Dialog nennt die Zahl der betroffenen Titel (Obergrenze wie bei E17)
 ## 7. Oberfläche
 
 Grundsatz wie in jedem Konzept dieses Projekts: **der Client prüft keine Regel** (`CLAUDE.md`
-Regel 12). Die Matrix aus Abschnitt 2 steht auch im Client, aber nur, um Unmögliches gar nicht erst
+Regel 12). Die Regeln aus Abschnitt 2 stehen auch im Client, aber nur, um Unmögliches gar nicht erst
 anzubieten (Entscheid vom 25. Oktober 2026 zu Spotlight: «Unmögliche Kombinationen werden gar nicht
-erst angeboten», `04-entscheidungen.md`); der 422 bleibt der Riegel.
+erst angeboten», `04-entscheidungen.md`); der 422 bleibt der Riegel. Was angeboten wird, kommt aus
+`listMetadataProviders`, nicht aus einer Liste im Client.
+
+**Das Bauteil «Metadatenquellen»** (neu in `web/src/ui`, wiederverwendet in drei Formularen): eine
+Liste der für die Inhaltsart erlaubten Anbieter, je Zeile ein Häkchen, der Name, ein Hinweis
+(«kein Schlüssel hinterlegt», «liefert kein Deutsch», «erkennt Titel» beim ersten angekreuzten) und
+zwei Knöpfe «nach oben» / «nach unten». **Keine Drag-and-drop-Pflicht** — Regel 8 verlangt
+Tastaturbedienung, und Sortieren per Pfeiltasten auf fokussiertem Knopf ist der Weg, den
+`HomeRowsPage` für die Reihenfolge der Startseiten-Reihen schon geht. Der erste angekreuzte Eintrag
+ist der Erkenner; ein Eintrag, der nicht Erkenner sein darf (AniList), lässt sich nicht an die erste
+Stelle schieben, und ist er der einzige angekreuzte, zeigt die Liste den Fehler, bevor der Server ihn
+mit 422 bestätigt.
 
 | Seite / Datei | Stelle | Was geschieht |
 |---|---|---|
-| **Bibliothek anlegen**, `web/src/features/admin/LibrariesPage.tsx` | `AddLibraryForm` `:24` bis `:86`, `kind` `:27` | Die Artauswahl wird zu **«Video / Hörbücher / Podcasts»**. Darunter der erste Ordner: Pfad mit «Durchsuchen …» (`PathBrowserButton`, `:74`), **«Inhalt»** (bei Video: Filme / Serien; bei Hörbüchern und Podcasts fest und ausgeblendet) und **«Metadatenquelle»** (bei Video: «TMDB und TVDB» / «Anime»; sonst fest). Standard-Altersstufe wie heute nur bei Audio. Der Podcast-Hinweis `library.podcastsHint` («braucht keinen Ordner») wird zu «Ordner optional; Feeds lassen sich auch ohne Ordner abonnieren» |
+| **Bibliothek anlegen**, `web/src/features/admin/LibrariesPage.tsx` | `AddLibraryForm` `:24` bis `:86`, `kind` `:27` | Die Artauswahl wird zu **«Video / Hörbücher / Podcasts»**. Darunter der erste Ordner: Pfad mit «Durchsuchen …» (`PathBrowserButton`, `:74`), **«Inhalt»** (bei Video: Filme / Serien; bei Hörbüchern und Podcasts fest und ausgeblendet) und **«Metadatenquellen»** (das Bauteil; bei Hörbüchern und Podcasts nur «Lokale Dateien», fest). Vorgabe bei Filmen `[TMDB]`, bei Serien `[TMDB, TVDB]`. Standard-Altersstufe wie heute nur bei Audio. Der Podcast-Hinweis `library.podcastsHint` («braucht keinen Ordner») wird zu «Ordner optional; Feeds lassen sich auch ohne Ordner abonnieren» |
 | **Drei Stellen, die «Podcast hat keinen Ordner» annehmen** | `LibrariesPage.tsx:283` (versteckt `FoldersAction`), `LibraryCard.tsx:138` (Text «keine Ordner» für Podcasts), `features/admin/queries.ts:52` (`canScan`) | alle drei fallen: Podcast-Bibliotheken haben Ordner **oder** Feeds, der Scan-Knopf gilt, sobald eines davon da ist |
-| **Geteiltes Formular**, `web/src/features/shared/LibraryFields.tsx` | `KINDS` `:10`, `RadioGroup` `:76` bis `:82`, Pfad `:89` bis `:105`, `libraryRequest` `:23` bis `:36` | Trägt die neuen Felder und baut `LibraryRequest.root`. Das Formular ist mit dem **Einrichtungsassistenten** geteilt (`web/src/features/setup/SetupPage.tsx:127`, `:210`, `:277`); der Assistent bekommt damit dieselben zwei Felder, ohne eigenen Code, und seine Fehlerzuordnung folgt den neuen Feldnamen `library.root.path`. Vorgabe bleibt Video / Filme / TMDB; der Vorgabename `t('library.kind.movies')` (`:277`) wird «Filme» aus einem neuen Schlüssel, weil `library.kind.movies` verschwindet |
-| **Bibliothekskarte**, `web/src/features/admin/LibraryCard.tsx` | Chip `:57`, `Folders` `:128` bis `:171` | Der Art-Chip zeigt die Familie; bei mehreren Ordnern steht statt «2 Ordner» eine Zusammenfassung «1 Filme, 1 Serien». Bei genau einem Ordner wie heute Pfad, Dateisystem, Überwachung, neu plus Inhalt und Quelle |
-| **Ordner von X**, `web/src/features/admin/LibraryFoldersDialog.tsx` | Hinzufügen `:64`, Formular `:174` bis `:198`, Entfernen `:86` | Jede Zeile zeigt zwei Chips (Inhalt, Quelle) und bekommt neben «Entfernen» ein **«Ändern»**. Das Hinzufügen-Formular bekommt die zwei Felder. «Ändern» öffnet einen Dialog mit denselben zwei Feldern; wechselt der Inhalt, erscheint darunter die abgetippte Bestätigung (die `TypedConfirmation`-Variante von `ConfirmDialog` aus Schritt 13 der Idee 02) mit dem Text aus 6.3 |
+| **Geteiltes Formular**, `web/src/features/shared/LibraryFields.tsx` | `KINDS` `:10`, `RadioGroup` `:76` bis `:82`, Pfad `:89` bis `:105`, `libraryRequest` `:23` bis `:36` | Trägt Inhalt und das Bauteil und baut `LibraryRequest.root`. Das Formular ist mit dem **Einrichtungsassistenten** geteilt (`web/src/features/setup/SetupPage.tsx:127`, `:210`, `:277`); der Assistent bekommt damit dieselben Felder, ohne eigenen Code, und seine Fehlerzuordnung folgt den neuen Feldnamen `library.root.path`. Der Vorgabename `t('library.kind.movies')` (`:277`) wird «Filme» aus einem neuen Schlüssel, weil `library.kind.movies` verschwindet. Im Assistenten ist `listMetadataProviders` nicht erreichbar (keine Sitzung); er zeigt die Vorgabeliste fest und ohne Hinweise |
+| **Bibliothekskarte**, `web/src/features/admin/LibraryCard.tsx` | Chip `:57`, `Folders` `:128` bis `:171` | Der Art-Chip zeigt die Familie; bei mehreren Ordnern steht statt «2 Ordner» eine Zusammenfassung «1 Filme, 1 Serien». Bei genau einem Ordner wie heute Pfad, Dateisystem, Überwachung, neu plus Inhalt und die Liste als Kurzform «TVDB › TMDB › AniList» |
+| **Ordner von X**, `web/src/features/admin/LibraryFoldersDialog.tsx` | Hinzufügen `:64`, Formular `:174` bis `:198`, Entfernen `:86` | Jede Zeile zeigt den Inhalt-Chip und die Liste als Kurzform und bekommt neben «Entfernen» ein **«Ändern»**. Das Hinzufügen-Formular bekommt Inhalt und das Bauteil. «Ändern» öffnet einen Dialog mit denselben Feldern; wechselt der Erkenner, erscheint der Hinweis aus 6.3; wechselt der Inhalt, erscheint die abgetippte Bestätigung (die `TypedConfirmation`-Variante von `ConfirmDialog` aus Schritt 13 der Idee 02) |
 | **Podcasts**, `web/src/features/admin/PodcastsPage.tsx` | `:129` filtert `kind === 'podcasts'` | Bleibt die Seite für Feed-Abos. Podcasts aus Ordnern erscheinen in derselben Liste mit dem Chip «aus Ordner» und der Zahl lokaler Episoden; «Feed entfernen» ist bei `feedOrigin: file` ausgeblendet, denn der Ordner bestimmt den Feed |
-| **Titelpflege**, `web/src/features/admin/AdminItemPage.tsx` | Match-Bereich `:357`, `:409` | Zeigt die Quelle des Titels und bei `anime` die AniList-Id als Link; die manuelle Zuordnung bleibt TMDB/TVDB |
+| **Titelpflege**, `web/src/features/admin/AdminItemPage.tsx` | Match-Bereich `:357`, `:409` | Zeigt die Liste des Titels, je Textfeld die Herkunft («Beschreibung (de): TMDB», aus `fieldSources`, so wie Idee 01 es beschreibt, `:85`) und bei AniList die Id als Link; die manuelle Zuordnung bleibt TMDB/TVDB |
 | **Bibliothekswahl in Profilen und Zugang**, `useLibraryOptions.ts:35` | liest nur `id`, `name` | **keine Änderung** |
 | **Zuschauer** | — | **keine Änderung** (2.1) |
 
-**Regel 8 — Tastaturtests.** Es entsteht keine neue Route, aber zwei Formulare wachsen um je zwei
-Felder und ein Dialog kommt dazu; in der Wirkung ist «Ändern» eine neue Seite. Darum:
-`web/e2e/admin-libraries.spec.ts` (Tab-Reihenfolge `:27`, Audio-Arten `:48`) wird auf die neue
-Artauswahl und die zwei Felder erweitert; `web/e2e/admin-library-folders.spec.ts` bekommt einen
-Test für «Ändern» (Pfeiltasten in beiden Radiogruppen, Tab in die Bestätigung, Enter, Escape, Zurück,
-sichtbarer Fokus, keine Fokusfalle); `web/e2e/setup.spec.ts:115` («arrow keys switch the library
-kind») folgt der neuen Auswahl.
+**Regel 8 — Tastaturtests.** Es entsteht keine neue Route, aber ein neues Bauteil mit Häkchen und
+Sortierknöpfen, zwei Formulare wachsen darum, und ein Dialog kommt dazu; in der Wirkung ist «Ändern»
+eine neue Seite. Darum: `web/e2e/admin-libraries.spec.ts` (Tab-Reihenfolge `:27`, Audio-Arten `:48`)
+wird auf die neue Artauswahl, den Inhalt und das Bauteil erweitert (Häkchen per Leertaste, Reihenfolge
+per Pfeiltaste auf dem Sortierknopf, sichtbarer Fokus); `web/e2e/admin-library-folders.spec.ts`
+bekommt einen Test für «Ändern» (Tab in die Bestätigung, Enter, Escape, Zurück, keine Fokusfalle);
+`web/e2e/setup.spec.ts:115` («arrow keys switch the library kind») folgt der neuen Auswahl.
 
 **Fixtures, vollständig gezählt**, weil sie den Schrittschnitt bestimmen (10): `web/e2e/global-setup.ts:55`,
 `:61`, `:68`, `:125`, `:128`, `:139`, `:176` bis `:177`; `web/e2e/accounts.ts:197`;
@@ -727,9 +834,10 @@ sind vergeben), und sie verschiebt Zählungen in anderen Specs.
 **Regel 9 — Texte und Farben.** Neue Schlüssel in `web/src/locales/de.json` und `en.json`:
 `library.kind.{video,audiobooks,podcasts}` (die vier alten `library.kind.*`-Schlüssel `:242` bis
 `:247` verschwinden mit den Werten), `library.content.{movie,series,audiobook,podcast}`,
-`library.source.{tmdb,anime,audiobook,podcast}` mit Kurzbeschreibungen,
-`admin.libraries.folders.change.*` (Dialog und Bestätigungstext), `admin.podcasts.fromFolder`,
-`setup.library.content`, `setup.library.source`, die neuen Fehlercodes und die Gruppenart
+`library.providers.{title,identifies,moveUp,moveDown,noKey,noGerman,fillOnly}`,
+`library.provider.{tmdb,tvdb,anilist,local}`, `admin.libraries.folders.change.*` (Dialog,
+Erkenner-Hinweis, Bestätigungstext), `admin.podcasts.fromFolder`, `admin.item.fieldSource`,
+`setup.library.content`, `setup.library.providers`, die neuen Fehlercodes und die Gruppenart
 `file_and_feed`. `pnpm -C web test locales` prüft die Symmetrie. Chips kommen aus `web/src/ui`.
 
 ---
@@ -739,8 +847,9 @@ sind vergeben), und sie verschiebt Zählungen in anderen Specs.
 ### 8.1 Was mit dem Bestand geschieht
 
 Nach Migration 00023 ist jede bestehende Bibliothek, was sie vorher war: eine Filmbibliothek ist eine
-Video-Bibliothek mit einem Filmordner (Quelle TMDB), eine Serienbibliothek eine Video-Bibliothek mit
-einem Serienordner. Kein Scan wird nötig, kein Titel ändert sich.
+Video-Bibliothek mit einem Filmordner (`[tmdb]`), eine Serienbibliothek eine Video-Bibliothek mit
+einem Serienordner (`[tmdb, tvdb]`, die heutige Reihenfolge). Kein Scan wird nötig, kein Match wird
+neu angestossen; der erste `metadata.fill` je Titel schreibt nur die Herkunft nach.
 
 Auf **CT 190** (Stand 28. Oktober 2026, gelesen aus `/opt/slouchcat/deploy/config/slouchcat.db`):
 Bibliothek 1 «Filme» (`movies`, Wurzel `/media/nas/Filme`, 1786 Dateien) und Bibliothek 2 «Serien»
@@ -750,10 +859,11 @@ Ordner.
 
 Marcos Zielstruktur baut er danach **von Hand in der Oberfläche**, ohne Datenverlust an den
 bestehenden Titeln: «Dokus» neu anlegen mit `/media/nas/Doku/Filme` (Filme) und `/media/nas/Doku/Serien`
-(Serien) hinzufügen; «Kids» ebenso; «Anime» mit Quelle Anime; «Hörbücher» und «Podcast» als neue
-Bibliotheken. «Serien» bekommt `/media/nas/Serien` dazu und verliert `/media/nas/TestSerien` über den
-bestehenden Löschweg. Für die Hörbücher und Podcasts gilt die Lastrechnung aus 4.5; der erste Scan
-dieser zwei Bibliotheken ist ein Messlauf (Schritt 6), kein Nebenbei.
+(Serien) hinzufügen; «Kids» ebenso; «Anime» mit `[TMDB, AniList]` für Filme und `[TVDB, TMDB, AniList]`
+für Serien; «Hörbücher» und «Podcast» als neue Bibliotheken. «Serien» bekommt `/media/nas/Serien`
+dazu und verliert `/media/nas/TestSerien` über den bestehenden Löschweg. Für die Hörbücher und
+Podcasts gilt die Lastrechnung aus 4.5; der erste Scan dieser zwei Bibliotheken ist ein Messlauf
+(Schritt 6), kein Nebenbei.
 
 ### 8.2 Wo alte Clients scheitern
 
@@ -769,9 +879,10 @@ Migration 00023 muss über **jeden** laufen; M6 und M7 sind die wichtigen, weil 
 Arten enthalten, darunter eine Podcast-Bibliothek ohne Wurzel (die vier Bibliotheken in
 `testdata/db/M6.sql:737` bis `:740`, ihre Wurzeln `:215` bis `:217`). `PRAGMA foreign_key_check` muss
 nach jedem Stand leer sein. Nach der Umsetzung kommt ein neuer Stand dazu (`test(store): freeze the …
-database state`, Vorbild `5bc6ce7`) mit einer gemischten Video-Bibliothek, einem Anime-Titel mit
-`anilist_id` und einem Ordner-Podcast mit Feed und Datei. Liegt die Benutzerverwaltung bis dahin in
-`main`, ist ihr eingefrorener Stand (mit 00022) Teil der Reihe und 00023 läuft auch über ihn.
+database state`, Vorbild `5bc6ce7`) mit einer gemischten Video-Bibliothek, einem Serienordner mit
+TVDB als Erkenner, einem Titel mit `anilist_id` und gefüllten `item_field_sources`, und einem
+Ordner-Podcast mit Feed und Datei. Liegt die Benutzerverwaltung bis dahin in `main`, ist ihr
+eingefrorener Stand (mit 00022) Teil der Reihe und 00023 läuft auch über ihn.
 
 ---
 
@@ -780,14 +891,14 @@ database state`, Vorbild `5bc6ce7`) mit einer gemischten Video-Bibliothek, einem
 ### 9.1 Eine Feed-Adresse aus einer Datei bekommt nie den ungeschützten Client
 
 Die `feedURL` in einer `metadata.json` ist Inhalt einer Datei auf dem NAS — nicht die Eingabe eines
-Administrators. Der Server ruft sie trotzdem ab (F-6). **Der Netzwächter allein reicht dafür nicht**,
-und das ist der Punkt, den die erste Fassung dieses Papiers falsch hatte: `netguard` lässt einen Feed
-auf einem lokalen Host absichtlich durch — «ein Feed, den der Haushalt mit Absicht im LAN betreibt;
-seine Enclosures und Cover dürfen dann auch lokal sein» (`server/internal/netguard/netguard.go:1` bis
-`:6`), und `Clients.For` gibt für einen solchen Feed den **ungeschützten** Client heraus (`:96`,
-`LocalHost` `:38`). Diese Ausnahme ist für den Administrator gedacht, der die Adresse selbst tippt.
-Für eine Adresse aus einer Datei darf sie nicht gelten, sonst entschiede eine Datei auf dem NAS, dass
-der Server Adressen im Heimnetz abruft, durchreicht und herunterlädt.
+Administrators. Der Server ruft sie trotzdem ab (F-6). **Der Netzwächter allein reicht dafür nicht**:
+`netguard` lässt einen Feed auf einem lokalen Host absichtlich durch — «ein Feed, den der Haushalt
+mit Absicht im LAN betreibt; seine Enclosures und Cover dürfen dann auch lokal sein»
+(`server/internal/netguard/netguard.go:1` bis `:6`), und `Clients.For` gibt für einen solchen Feed den
+**ungeschützten** Client heraus (`:96`, `LocalHost` `:38`). Diese Ausnahme ist für den Administrator
+gedacht, der die Adresse selbst tippt. Für eine Adresse aus einer Datei darf sie nicht gelten, sonst
+entschiede eine Datei auf dem NAS, dass der Server Adressen im Heimnetz abruft, durchreicht und
+herunterlädt.
 
 Darum `items.feed_origin` (4.3), und drei Regeln daran:
 
@@ -814,13 +925,17 @@ mit 100 000 Dateien ist kein Sicherheits-, sondern ein Lastfall (4.5).
 AniList braucht keinen Schlüssel, die Zuordnungsliste auch nicht; es gibt nichts zu redigieren. Beide
 Hosts sind fest im Code, nicht konfigurierbar, damit kein Setting eine Adresse im Heimnetz nennen
 kann. Antworten werden mit Grössenbremse gelesen (GraphQL 1 MB, Liste 64 MB); 429 und `Retry-After`
-behandelt `ratelimit.Limiter` wie bei TMDB. Fällt AniList aus, bleiben die Titel TMDB-Titel; der Job
-meldet den Fehler in den Fehlerring, nicht an den Zuschauer.
+behandelt `ratelimit.Limiter` wie bei TMDB. Fällt ein Auffüller aus, bleiben die Werte des Erkenners;
+der Job meldet den Fehler in den Fehlerring, nicht an den Zuschauer. Der TVDB-Schlüssel bleibt, wo er
+ist (verschlüsselte `settings`, Redaktionsliste, Regel 10).
 
 ### 9.4 Keine Sichtbarkeitsregel ändert sich
 
-`visible_items` liest weder `libraries.kind` noch `library_roots`; die Rechte hängen an
-`library_id`, das Alter an der Titelart. Ein Profil, das «Dokus» nicht sehen darf, sieht weder die
+`visible_items` liest weder `libraries.kind` noch `library_roots` noch `item_field_sources`; die
+Rechte hängen an `library_id`, das Alter an der Titelart und an `effective_rating`, das nur Trigger
+schreiben. Die Freigabe-Regel aus 4.4 (nie senken, strengster Anbieter gewinnt) wird im
+Kinderprofil-Vertragstest als Negativtest festgehalten: «Anbieterreihenfolge senkt die Freigabe
+nicht» (die Pflicht, die Idee 01 vorsah). Ein Profil, das «Dokus» nicht sehen darf, sieht weder die
 Filme noch die Serien darin — eine Bibliothek, ein Recht (Regel 2; Nicht sichtbar heisst 404).
 
 ### 9.5 Der Inhaltswechsel ist so schwer wie das Entfernen
@@ -834,93 +949,104 @@ Nichts daran ist leichter zu erreichen als `removeLibraryRoot`.
 ## 10. Schnitt in Schritte
 
 Reihenfolge nach Baubarkeit, und **so geschnitten, dass `task ci` nach jedem Commit grün sein kann**:
-die erste Fassung dieses Papiers trennte Schema, Vertrag und Scanner, aber die alten Werte `movies`
-und `series` stecken in `ValidLibraryKind` (`model.go:982`), im Scanner, in 13 Server-Testdateien,
-in den `vistest`-Fixtures und in den e2e-Fixtures, und `task ci` fährt die e2e-Suite mit
-(`Taskfile.yml:68` bis `:74`). Ein Schema ohne Scanner liesse eine migrierte Serienbibliothek als
-Filmbibliothek lesen; ein neuer Client ohne angepasste Fixtures liesse `LibraryFields.tsx:8` bis
-`:10` (`satisfies LibraryKind[]`) nicht mehr kompilieren. Darum sieben Schritte statt acht. **Beginn
-erst, wenn die Benutzerverwaltung in `main` ist** (F-10).
+die alten Werte `movies` und `series` stecken in `ValidLibraryKind` (`model.go:982`), im Scanner, in
+13 Server-Testdateien, in den `vistest`-Fixtures und in den e2e-Fixtures, und `task ci` fährt die
+e2e-Suite mit (`Taskfile.yml:68` bis `:74`). Ein Schema ohne Scanner liesse eine migrierte
+Serienbibliothek als Filmbibliothek lesen; ein neuer Client ohne angepasste Fixtures liesse
+`LibraryFields.tsx:8` bis `:10` (`satisfies LibraryKind[]`) nicht mehr kompilieren. Darum sieben
+Schritte, Schema und Scanner zusammen. **Beginn erst, wenn die Benutzerverwaltung in `main` ist**
+(F-10).
 
 ### Schritt 0 — Entscheide und Papiere
 `docs(planning,adr): record the library decisions and ADR 0015`
 
-**Ziel:** Marcos Antworten F-1 bis F-10 stehen verbindlich im Entscheidungsprotokoll, der neue
-Wortlaut zu B-1 und ADR 0007 ebenso.
+**Ziel:** Marcos Antworten F-1 bis F-12 stehen verbindlich im Entscheidungsprotokoll, der neue
+Wortlaut zu B-1, die Umkehr der zwei verworfenen Alternativen aus ADR 0006 und die neue Grenze zu
+Idee 01 ebenso.
 
 **Berührte Dateien:** `docs/planning/04-entscheidungen.md` (neue **Frage 13** nach dem Muster von
-Frage 12, dazu eine Zeile in «Weitere Entscheide»), `docs/adr/0015-bibliotheken-ordner.md` (neu:
-Familie, Ordnerwerte, Matrix, Identität versus Anreicherung samt Fenster, Podcast-Ordner und
-`feed_origin`, Inhaltswechsel; mit dem Satz, dass Herkunft je Feld und der Nachfolger von ADR 0006
-Idee 01 bleiben), Ablösungshinweise in `docs/adr/0007-audio-modell.md` (Zeile «ohne Wurzel», offener
-Punkt) und `docs/adr/0006-metadaten-anbieter-trailer.md` (Anreicherung), Kopfvermerk in
-`docs/ideas/01-metadaten-einstellungen.md` (Schlüssel `root_id`, Anbieter `anilist`) **und derselbe
-Vermerk als Kommentar in Issue #8**, Kopf von `docs/ideas/02-ordner-browser.md` (Schritte 12 bis 14
-sind gebaut), dieses Papier.
+Frage 12, dazu eine Zeile in «Weitere Entscheide», und ein Nachtrag zu Entscheid 7 / AN-15),
+`docs/adr/0015-bibliotheken-ordner-scraper.md` (neu: Familie, Ordnerwerte, Regeln an der Liste,
+Erkenner versus Auffüller, feldweises Auffüllen mit `item_field_sources`, Freigabe-Ausnahme, Fenster,
+Podcast-Ordner und `feed_origin`, Inhaltswechsel; **Status «ersetzt teilweise ADR 0006»**, mit dem
+Satz, was dort stehen bleibt), Ablösungshinweise in `docs/adr/0006-metadaten-anbieter-trailer.md`
+(Kopf und die zwei Zeilen unter «Verworfene Alternativen») und `docs/adr/0007-audio-modell.md`
+(Zeile «ohne Wurzel», offener Punkt), Kopfvermerk in `docs/ideas/01-metadaten-einstellungen.md`
+(«Teil A — Anbieterliste, feldweises Auffüllen, Herkunft je Feld — übernommen durch Konzept 07 auf
+Ordnerebene; Teil B bleibt») **und derselbe Vermerk als Kommentar in Issue #8**, Statuszeile in
+`docs/ideas/README.md`, Kopf von `docs/ideas/02-ordner-browser.md` (Schritte 12 bis 14 sind gebaut),
+dieses Papier.
 
-**DoD:** `git diff --stat docs/spec/` ist leer. Frage 13 trägt alle zehn Antworten mit Datum. ADR 0015
-nennt B-1, B-3, H-1, H-2, AN-2, C-5, K-3. Der Kommentar in Issue #8 ist gesetzt (`gh issue comment
-8`). `task ci` grün.
+**DoD:** `git diff --stat docs/spec/` ist leer. Frage 13 trägt alle Antworten mit Datum. ADR 0015
+nennt B-1, B-3, H-1, H-2, AN-2, AN-15, C-5, K-3 und die zwei umgekehrten Alternativen wörtlich. Der
+Kommentar in Issue #8 ist gesetzt (`gh issue comment 8`). `task ci` grün.
 
 ### Schritt 1 — Schema, Modell, Scanner und Fixtures
-`feat(store,library): content and metadata source per root, scanned per root`
+`feat(store,library): content and provider list per root, scanned per root`
 
-**Ziel:** Die Datenbank kennt Familie, Inhaltsart und Quelle, **und der Server liest sie schon**:
-eine Video-Bibliothek mit Film- und Serienordner scannt richtig. Der Vertrag ändert sich noch nicht;
-die Handler übersetzen die alten Vertragswerte (`movies` → `video` + Wurzel `movie`, `series` →
-`video` + Wurzel `series`) für genau einen Schritt, damit die Web-App und die e2e-Suite unverändert
-laufen.
+**Ziel:** Die Datenbank kennt Familie, Inhaltsart, Liste und Herkunftstabelle, **und der Server liest
+sie schon**: eine Video-Bibliothek mit Film- und Serienordner scannt richtig. Der Vertrag ändert sich
+noch nicht; die Handler übersetzen die alten Vertragswerte (`movies` → `video` + Wurzel
+`movie`/`[tmdb]`, `series` → `video` + Wurzel `series`/`[tmdb, tvdb]`) für genau einen Schritt, damit
+die Web-App und die e2e-Suite unverändert laufen. `metadata.match` liest den Erkenner schon aus der
+Liste, verhält sich mit den Vorgabelisten aber wie heute; `metadata.fill` kommt in Schritt 4.
 
-**Berührte Dateien:** `server/migrations/00023_library_roots_content.sql` (neu, Plan 4.6),
+**Berührte Dateien:** `server/migrations/00023_library_roots_providers.sql` (neu, Plan 4.6),
 `server/queries/app/libraries.sql` (`InsertLibrary`, `InsertLibraryRoot`, `ListLibraryRoots`, neue
-`UpdateLibraryRoot`, `UpdateItemsMetadataSourceByRoot`), `server/queries/system/items.sql`
+`UpdateLibraryRoot`, `UpdateItemsProvidersByRoot`), `server/queries/system/items.sql`
 (`InsertItem`), `system/audiobooks.sql` (`InsertAudiobook`), `system/podcasts.sql` (`PodcastInsert`,
 `PodcastInsertEpisode`, `PodcastListDue`, `PodcastListIDsByLibrary`), `system/library.sql`
-(`DeleteMediaFilesOfRoot`, `DeleteIgnoredFilesOfRoot`), `server/internal/model/model.go` (`:975` bis
-`:991`: `LibraryVideo`, `RootContent*`, `MetadataSource*`, `ValidRootPair`; `LibraryRequest` `:994`
-bekommt `Root`; `LibraryRoot` `:1017` die zwei Felder), der Scanner nach 6.1 (`scanner.go`,
-`write.go`, `index.go` mit einem Index je Titelart, `pathscan.go`), `library/service.go` (`Create`),
-`roots.go` (`AddRoot`, neu `UpdateRoot` mit beiden Wegen aus 6.3), `admin/admin.go`
-(`validateLibrary`, `ScanLibrary`), `metadata/match.go` (`:78` liest `metadata_source`), die
-Go-Fixtures aus 6.1 (13 Testdateien, `vistest`, `cmd/apicheck/fixtures.go`, `scanbench.go`), danach
-`task gen`.
+(`DeleteMediaFilesOfRoot`, `DeleteIgnoredFilesOfRoot`), `system/metadata.sql` (`item_field_sources`
+lesen und schreiben), `server/internal/model/model.go` (`:975` bis `:991`: `LibraryVideo`,
+`RootContent*`, `Provider*`, `ValidRootProviders`; `LibraryRequest` `:994` bekommt `Root`;
+`LibraryRoot` `:1017` die zwei Felder), der Scanner nach 6.1 (`scanner.go`, `write.go`, `index.go`
+mit einem Index je Titelart, `pathscan.go`), `library/service.go` (`Create`), `roots.go` (`AddRoot`,
+neu `UpdateRoot` mit den drei Wegen aus 6.3), `admin/admin.go` (`validateLibrary`, `ScanLibrary`),
+`metadata/match.go` (`:78`, `:187`, `:315`: Erkenner aus der Liste, TVDB zuerst mit
+`/find/{tvdb_id}` für die `tmdb_id`), die Go-Fixtures aus 6.1 (13 Testdateien, `vistest`,
+`cmd/apicheck/fixtures.go`, `scanbench.go`), danach `task gen`.
 
 **DoD:** `task ci` grün. `go test ./internal/store -run TestFrozenStatesMigrate` grün über alle
 Stände, `foreign_key_check` leer; der Wächter aus 4.6 Punkt 5 bricht einen präparierten Stand mit
 falschem Paar ab (Test). M6-Stand nach Migration: vier Bibliotheken `video`, `video`, `audiobooks`,
-`podcasts`, Wurzeln `movie/tmdb`, `series/tmdb`, `audiobook/audiobook`, `items` der Hörbuchbibliothek
-tragen `audiobook`, der Feed-Podcast `podcast` und `feed_origin = 'admin'`. `go test
-./internal/library/`: eine gemischte Bibliothek mit einem Film und einer Serie, die **dieselbe
-numerische `tmdb_id`** tragen, ergibt zwei Titel verschiedener Art; ein Serienordner verwirft Dateien
-ohne Folgenmarke, der Filmordner derselben Bibliothek nicht; nach Inhaltswechsel `movie → series` gibt
-es keinen Titel mit `deleted_at IS NULL` und null Dateien, der Download des gegangenen Films trägt
-einen Tombstone, `ignored_files` der Wurzel sind leer, `pathPending` und `orphans` der Wurzel sind
-leer, der Watcher läuft weiter, der Scan legt Folgen neu an; Quellenwechsel reiht je Titel der Wurzel
-genau einen Job ein und löscht nichts. `slouchcat scanbench` ohne Regression gegen
-`docs/perf/M3.md`. `SELECT sql FROM sqlite_master WHERE sql LIKE '%libraries%'` auf dem M11-Stand
-nennt keine Sicht und keinen Trigger (Beleg für 4.6 Punkt 4).
+`podcasts`, Wurzeln `movie/["tmdb"]`, `series/["tmdb","tvdb"]`, `audiobook/["local"]`, `items` der
+Hörbuchbibliothek tragen `["local"]`, der Feed-Podcast `["local"]` und `feed_origin = 'admin'`.
+`go test ./internal/library/`: eine gemischte Bibliothek mit einem Film und einer Serie, die
+**dieselbe numerische `tmdb_id`** tragen, ergibt zwei Titel verschiedener Art; ein Serienordner
+verwirft Dateien ohne Folgenmarke, der Filmordner derselben Bibliothek nicht; nach Inhaltswechsel
+`movie → series` gibt es keinen Titel mit `deleted_at IS NULL` und null Dateien, der Download des
+gegangenen Films trägt einen Tombstone, `ignored_files` der Wurzel sind leer, `pathPending` und
+`orphans` der Wurzel sind leer, der Watcher läuft weiter, der Scan legt Folgen neu an; Listenänderung
+reiht je Titel der Wurzel genau einen Job ein und löscht nichts. `go test ./internal/metadata/`: eine
+Serie mit `["tvdb","tmdb"]` wird über TVDB erkannt, trägt danach `tvdb_id` **und** `tmdb_id` (aus
+`/find`), und ihre Staffeln folgen der TVDB-Zählung; dieselbe Serie mit `["tmdb","tvdb"]` verhält
+sich wie heute. `slouchcat scanbench` ohne Regression gegen `docs/perf/M3.md`. `SELECT sql FROM
+sqlite_master WHERE sql LIKE '%libraries%'` auf dem M11-Stand nennt keine Sicht und keinen Trigger
+(Beleg für 4.6 Punkt 4).
 
 ### Schritt 2 — Vertrag 1.3.0 und die Fixtures beider Seiten
-`feat(api): library families, root content and metadata source, updateLibraryRoot`
+`feat(api): library families, root content and provider list, updateLibraryRoot, listMetadataProviders`
 
 **Ziel:** Der Vertrag beschreibt das Zielbild, die Übersetzung aus Schritt 1 fällt, und Client-Typen
 wie Fixtures folgen **im selben Commit**, sonst ist `task ci` rot.
 
 **Berührte Dateien:** `api/openapi.yaml` (5.1, 5.2, `info.version: 1.3.0`),
-`server/internal/api/admin_handlers.go` (`:146` und die Wurzel-Handler), `contract_access_test.go`
-(Einträge), `cmd/apicheck/fixtures.go`, `packages/api-client` über `task gen`; auf der Web-Seite das
-**Minimum**, damit Typen und e2e-Suite wieder stimmen: `web/src/features/shared/LibraryFields.tsx`
-(`KINDS`, `libraryRequest` baut `root`), die Fixtures aus Abschnitt 7 (`global-setup.ts`,
-`accounts.ts`, `audio.ts`, `web/src/test/fixtures.ts`), `setup.spec.ts:115`. Die Oberfläche selbst
-(Felder, Chips, Dialoge) kommt in Schritt 5; bis dahin sendet das Formular feste Werte (Video / Filme /
-TMDB bzw. die Audio-Paare).
+`server/internal/api/admin_handlers.go` (`:146`, die Wurzel-Handler, `listMetadataProviders`),
+`contract_access_test.go` (Einträge), `cmd/apicheck/fixtures.go`, `packages/api-client` über
+`task gen`; auf der Web-Seite das **Minimum**, damit Typen und e2e-Suite wieder stimmen:
+`web/src/features/shared/LibraryFields.tsx` (`KINDS`, `libraryRequest` baut `root` mit der
+Vorgabeliste), die Fixtures aus Abschnitt 7 (`global-setup.ts`, `accounts.ts`, `audio.ts`,
+`web/src/test/fixtures.ts`), `setup.spec.ts:115`. Die Oberfläche selbst (Bauteil, Chips, Dialoge)
+kommt in Schritt 5; bis dahin sendet das Formular feste Vorgabelisten.
 
 **DoD:** `task ci` grün (`gen:check` ohne Drift). Vertragstests: 422 `content_not_allowed` für
-`audiobook` in einer Video-Bibliothek, `source_not_allowed` für `anime` an einem Hörbuchordner,
-`confirm_mismatch` und 409 `scan_running` beim Inhaltswechsel, 200 beim Quellenwechsel ohne
-Bestätigung; eine Podcast-Bibliothek nimmt einen Ordner mit `content: podcast` an und lehnt `movie`
-ab. Der Schema-Test findet an jeder neuen Operation `x-visibility`. Release-Notes-Entwurf mit dem
-Bruch (`LibraryKind`, `LibraryRequest.root`, `DuplicateGroup.reason`).
+`audiobook` in einer Video-Bibliothek; `providers_not_allowed` für `["anilist"]` allein, für
+`["tvdb"]` an einem Filmordner, für eine Liste mit Doppelten und für eine leere Liste; 200 für
+`["tvdb","tmdb","anilist"]` an einem Serienordner; `confirm_mismatch` und 409 `scan_running` beim
+Inhaltswechsel; 200 beim Listenwechsel ohne Bestätigung; `searchMetadata` mit `provider: anilist`
+ergibt 422 `provider_not_searchable`; `listMetadataProviders` nennt TVDB als `configured: false`
+ohne Schlüssel. Der Schema-Test findet an jeder neuen Operation `x-visibility`. Release-Notes-Entwurf
+mit dem Bruch (`LibraryKind`, `LibraryRequest.root`, `MetadataProvider`, `DuplicateGroup.reason`).
 
 ### Schritt 3 — Podcast-Ordner
 `feat(library,metadata,playback): scan podcast folders and adopt their feeds`
@@ -956,58 +1082,67 @@ Neue-Folgen-Hook, ein späterer Scan mit neuer Datei schon; `explicit: true` erg
 `tags`; keine `probe.keyframes`-Zeile für `podcast_episode` und `audiobook`.
 Kinderprofil-Vertragstest: eine explizite Datei-Episode fehlt in `listPodcastEpisodes` unter 18.
 
-### Schritt 4 — AniList
-`feat(metadata): enrich anime titles from AniList after every TMDB match`
+### Schritt 4 — Auffüllen in Reihenfolge und AniList
+`feat(metadata): fill fields provider by provider, with provenance and AniList`
 
-**Ziel:** Ein Titel aus einem Anime-Ordner trägt `anilist_id`, den japanischen Originaltitel und
-Texte, wo TMDB leer war — und behält sie über jeden späteren Match.
+**Ziel:** Ein Titel mit mehr als einem Anbieter in der Liste trägt je Feld den Wert des ersten, der
+einen hat, die Herkunft steht in `item_field_sources`, und AniList ist der dritte Anbieter.
 
-**Berührte Dateien:** `server/internal/metadata/anilist.go` (Client über `ratelimit.Limiter`),
-`anime_lists.go` (Zuordnungsliste, Cache, Streaming-Parser, 64 MB, Karten je Art), `anime_enrich.go`
-(Job `anime.enrich`), `match.go` (Einreihen nach jedem Match, Konvergenzabfrage in
-`QueuePendingMetadata`), Tests mit `httptest`-Servern für beide Hosts, `config.go`
-(`SLOUCHCAT_ANILIST`), Dashboard-Zähler, `cmd/apicheck`.
+**Berührte Dateien:** `server/internal/metadata/fill.go` (Job `metadata.fill`, Regel aus 4.4,
+Staffel-Läufe), `anilist.go` (Client über `ratelimit.Limiter`), `anime_lists.go` (Zuordnungsliste,
+Cache, Streaming-Parser, 64 MB, Karten je Art), `match.go` (Einreihen nach jedem Match,
+Konvergenzabfrage in `QueuePendingMetadata`), `images.go` (Poster und Backdrop aus der Herkunft),
+`queries/system/metadata.sql` (`item_field_sources`), Tests mit `httptest`-Servern für alle drei
+Hosts, `config.go` (`SLOUCHCAT_ANILIST`), Dashboard-Zähler, `cmd/apicheck`.
 
 **DoD:** **Vorher** die Prüfpunkte aus 4.4 (Rohadresse, Feldnamen, Lizenz der Liste; TMDB-Ids bei
-Filmen) mit Beleg in der Rückmeldung. `go test ./internal/metadata/`: TVDB-Id → AniList-Id über die
-Liste (Staffel 1), TMDB-Film-Id ebenso, und ein Film und eine Serie mit derselben Zahl landen bei
-verschiedenen AniList-Einträgen; leere TMDB-Beschreibung wird gefüllt, vorhandene nicht angefasst;
-`isAdult` hebt auf 18 und senkt nie; **nach einem erneuten Match steht die Anreicherung wieder**
-(Test: Match, Enrich, manuelle Zuordnung, Enrich → Felder gleich); Quellenwechsel `tmdb → anime`
-reiht `anime.enrich`, `anime → tmdb` reiht `metadata.match` und löscht `anilist_id`; 429 mit
-`Retry-After` pausiert den Limiter; Liste grösser als 64 MB wird abgebrochen; kein Treffer schreibt
-`anilist_id = 0`. Messung: 111 Anime-Titel vom NAS angereichert, Dauer und Anfragen je Host.
+Filmen) mit Beleg in der Rückmeldung. `go test ./internal/metadata/`: `["tmdb","tvdb"]` füllt eine
+leere TMDB-Beschreibung aus TVDB und lässt eine vorhandene stehen, Herkunft je Feld stimmt;
+`["tvdb","tmdb"]` ersetzt eine TVDB-Beschreibung **nicht** durch TMDB; ein Wechsel der Liste von
+`["tvdb","tmdb"]` auf `["tmdb","tvdb"]` ersetzt sie beim nächsten Lauf (Idempotenz-Test: zweimal
+laufen lassen, gleiches Ergebnis); ein gesperrtes Feld bleibt; `own_rating` wird nie gesenkt
+(Negativtest, auch im Kinderprofil-Vertragstest); TVDB-Id → AniList-Id über die Liste (Staffel 1),
+TMDB-Film-Id ebenso, und ein Film und eine Serie mit derselben Zahl landen bei verschiedenen
+AniList-Einträgen; `isAdult` hebt auf 18; **nach einem erneuten Match steht das Auffüllen wieder**
+(Test: Match, Fill, manuelle Zuordnung, Fill → Felder gleich); 429 mit `Retry-After` pausiert den
+Limiter; Liste grösser als 64 MB wird abgebrochen; kein Treffer schreibt `anilist_id = 0`; ein
+Anbieter ohne Schlüssel wird übersprungen und gemeldet. Messung: 111 Anime-Titel vom NAS mit
+`[TVDB, TMDB, AniList]` bzw. `[TMDB, AniList]`, Dauer und Anfragen je Host.
 
 ### Schritt 5 — Oberfläche
-`feat(web): library families, content and metadata source per folder`
+`feat(web): library families, content and ordered metadata sources per folder`
 
-**Ziel:** Marco kann seine Tabelle in der Verwaltung anlegen, ohne eine Zeile Konfiguration.
+**Ziel:** Marco kann seine Tabelle in der Verwaltung anlegen und je Ordner die Scraper-Liste
+ankreuzen und sortieren, ohne eine Zeile Konfiguration.
 
-**Berührte Dateien:** Abschnitt 7 vollständig: `LibrariesPage.tsx` (samt `:283`),
-`LibraryFields.tsx`, `LibraryCard.tsx` (samt `:138`), `queries.ts:52`, `LibraryFoldersDialog.tsx`
-(+ Dialog «Ordner ändern»), `PodcastsPage.tsx`, `AdminItemPage.tsx`, `SetupPage.tsx`, Locales,
-Storybook-Stories, Unit-Tests, `web/e2e/admin-libraries.spec.ts`, `admin-library-folders.spec.ts`
-(neuer Test «Ändern»), die gemischte e2e-Bibliothek «Dokus» mit eigenen Testordnern.
+**Berührte Dateien:** Abschnitt 7 vollständig: das Bauteil «Metadatenquellen» in `web/src/ui` (+
+Story + Unit-Test), `LibrariesPage.tsx` (samt `:283`), `LibraryFields.tsx`, `LibraryCard.tsx` (samt
+`:138`), `queries.ts:52` (+ Abfrage `listMetadataProviders`), `LibraryFoldersDialog.tsx` (+ Dialog
+«Ordner ändern»), `PodcastsPage.tsx`, `AdminItemPage.tsx` (Herkunft je Feld), `SetupPage.tsx`,
+Locales, Storybook-Stories, Unit-Tests, `web/e2e/admin-libraries.spec.ts`,
+`admin-library-folders.spec.ts` (neuer Test «Ändern»), die gemischte e2e-Bibliothek «Dokus» mit
+eigenen Testordnern.
 
-**DoD:** `task web:lint`, `task web:test`, `task web:storybook:test`, `task web:e2e` grün; der neue
-Tastaturtest für «Ändern» nach Regel 8; `pnpm -C web test locales` grün; `grep -rn "'movies'"
-web/src --include=*.tsx` ist leer und `grep -rn "'series'"` nennt nur Titelarten und Suchfilter
-(`searchParams.ts:7`).
+**DoD:** `task web:lint`, `task web:test`, `task web:storybook:test`, `task web:e2e` grün; die
+Tastaturtests für das Bauteil und für «Ändern» nach Regel 8; `pnpm -C web test locales` grün;
+`grep -rn "'movies'" web/src --include=*.tsx` ist leer und `grep -rn "'series'"` nennt nur Titelarten
+und Suchfilter (`searchParams.ts:7`).
 
 ### Schritt 6 — Abnahme, Messung, Doku
-`docs(dev,perf): library folders with content and source, acceptance on CT 190`
+`docs(dev,perf): library folders with content and provider lists, acceptance on CT 190`
 
 **Ziel:** Der Stand ist belegt, gemessen und beschrieben.
 
 **Berührte Dateien:** `docs/dev/CURRENT_STATUS.md` (neuer Abschnitt), `docs/perf/bibliotheken.md`
 (Erst-Scan Hörbücher und Podcast-Ordner auf CT 190: Dauer, ffprobe-Starts, Jobs, NFS-Latenz,
-Speicher; AniList-Lauf), `docs/INSTALLATION.md:124` und `:65` bis `:73` (Assistent, Ordner),
-`deploy/README.md`, `testdata/db/` (neuer eingefrorener Stand, 8.3), `docs/ideas/README.md` (Idee 01
-Vermerk).
+Speicher; Anime-Lauf mit drei Anbietern), `docs/INSTALLATION.md:124` und `:65` bis `:73` (Assistent,
+Ordner), `deploy/README.md`, `testdata/db/` (neuer eingefrorener Stand, 8.3), `docs/ideas/README.md`.
 
 **DoD:** `task ci` grün. Abnahme durch Marco auf CT 190 nach 10.8: Zielstruktur angelegt, «Dokus»
-zeigt Filme und Serien, Anime-Titel zeigen Originaltitel, Podcast-Ordner zeigt Episoden mit Datei und
-neue aus dem Feed, ein Inhaltswechsel verlangt den getippten Pfad. Messwerte in `docs/perf/`.
+zeigt Filme und Serien, «Anime Serien» mit TVDB zuerst zeigt die Staffeln nach TVDB und japanische
+Originaltitel, Podcast-Ordner zeigt Episoden mit Datei und neue aus dem Feed, ein Inhaltswechsel
+verlangt den getippten Pfad, die Admin-Titelseite zeigt je Feld die Herkunft. Messwerte in
+`docs/perf/`.
 
 ### 10.8 Der Weg jedes Schritts: Zweig, Commit, Test, Push, Pull Request
 
@@ -1056,8 +1191,9 @@ vorher nach `/config/backups/` (letzte fünf); der Dateiname gehört in die Rüc
 steht `SLOUCHCAT_BROWSE_ROOTS=/` (Marcos Entscheid vom 25. Oktober 2026); der Ordner-Browser zeigt
 dort den ganzen Container, das ist bekannt und gewollt. Prüfen heisst `/healthz`.
 
-Marco nimmt ab: Zielstruktur anlegen, Mischbibliothek, Anime-Titel, Podcast-Ordner, Inhaltswechsel
-mit Bestätigung, Bibliotheksrechte eines Kinderprofils auf «Kids».
+Marco nimmt ab: Zielstruktur anlegen, Mischbibliothek, Scraper-Liste sortieren, Anime-Serien mit TVDB
+zuerst, Podcast-Ordner, Inhaltswechsel mit Bestätigung, Bibliotheksrechte eines Kinderprofils auf
+«Kids».
 
 **7. Pull Request, CI, Merge.** PR gegen `main`, benennt den Bruch auf 1.3.0. `bind_pr`, CI nicht
 pollen, `--auto` ist kein Tor. Merge erst mit grüner CI **und** Marcos Wort. Danach `main`
@@ -1067,8 +1203,8 @@ nachziehen, Image aus `main` bauen, CT 190 umstellen, `docs/dev/CURRENT_STATUS.m
 
 ## 11. Fragen an Marco
 
-Format wie `docs/planning/04-entscheidungen.md`. F-1 bis F-8 sind im Interview vom 28. Oktober 2026
-beantwortet; F-9 und F-10 sind offen.
+Format wie `docs/planning/04-entscheidungen.md`. Beantwortet am 28. Oktober 2026 in drei Runden;
+offen ist nur F-10. F-9 ist durch F-11 erledigt.
 
 | Nr. | Frist | Thema | Empfehlung | Antwort | Datum |
 |-----|-------|-------|------------|---------|-------|
@@ -1080,8 +1216,10 @@ beantwortet; F-9 und F-10 sind offen.
 | **F-6** | vor Schritt 3 | **Podcast-Ordner und Feeds:** `metadata.json` trägt `feedURL` | Zusammen: Ordner scannen, Feed mitabonnieren; Abos ohne Ordner bleiben | **Ordner und Feeds zusammen** | 2026-10-28 |
 | **F-7** | vor Schritt 0 | **Was ist der «Hörbuch Scraper»?** Es gibt keinen externen Hörbuch-Anbieter | Der heutige lokale Erkenner; Audnexus im Scraper-Konzept | **Der heutige lokale Erkenner** | 2026-10-28 |
 | **F-8** | vor Schritt 5 | **Wortwahl** für die Wahl am Ordner | «Scraper» / «scraper» | **«Metadatenquelle» / «metadata source»** | 2026-10-28 |
-| **F-9** | vor Schritt 4 | **Was darf AniList übersteuern?** Abschnitt 4.4 lässt AniList nur **füllen**, was TMDB leer lässt, plus Originaltitel und `anilist_id`. Für Anime wären die AniList-Beschreibungen oft die besseren, TMDB-Deutsch ist bei Anime häufig maschinell oder leer | **Füllen, nicht ersetzen** — bis Idee 01 die Anbieterreihenfolge je Ordner einstellbar macht. Dann wird «AniList vor TMDB» eine Einstellung statt einer Ausnahme im Code | | |
+| **F-9** | — | Was darf AniList übersteuern? | Füllen, nicht ersetzen | **Erledigt durch F-11:** die Reihenfolge je Ordner entscheidet; wer AniList vorne setzt, bekommt AniList-Texte | 2026-10-28 |
 | **F-10** | vor Schritt 0 | **Reihenfolge:** erst die Benutzerverwaltung in `main`, dann dieser Zweig? Beide bauen Tabellen um (00022 `accounts`, 00023 `libraries`), beide heben den Vertrag brechend an | **Ja, Benutzerverwaltung zuerst.** Zwei parallele Tabellenumbauten auf derselben Datenbank von CT 190 sind ein Risiko ohne Nutzen; und die Nummern in diesem Papier (00023, 0015, 1.3.0) setzen es voraus | | |
+| **F-11** | vor Schritt 1 | **Wie sieht die Scraper-Wahl je Ordner aus?** Hauptscraper plus Ergänzer (ein Erkenner, Häkchen für Auffüller) / genau einer / Liste mit Reihenfolge wie in Emby | Hauptscraper plus Ergänzer — kleiner, Idee 01 bleibt ganz | **Liste mit Reihenfolge wie in Emby.** Der erste erkennt, die weiteren füllen feldweise auf; Herkunft je Feld und Anbieterliste ziehen aus Idee 01 hierher | 2026-10-28 |
+| **F-12** | vor Schritt 1 | **TVDB als Hauptscraper für Serienordner wählbar?** Heute nur Rückfall (ADR 0006); TVDB braucht den kostenpflichtigen Schlüssel | Ja, wählbar; bei TVDB zuerst gilt die TVDB-Staffelzählung, TMDB füllt auf; ändert ADR 0006 | **Ja, wählbar** | 2026-10-28 |
 
 ---
 
@@ -1093,23 +1231,39 @@ Der Scanner bindet Dateien an bestehende Titel über einen bibliotheksweiten Ind
 je Schlüssel (`itemIndex`, `index.go:23` bis `:38`). Morgen stehen Filme und Serien in derselben
 Bibliothek, und TMDB vergibt Film- und Serien-Ids aus getrennten Zahlenräumen; dieselbe Zahl kann
 beides sein. Ein Index je Titelart (6.1) ist darum keine Verfeinerung, sondern die Bedingung dafür,
-dass «Dokus» überhaupt funktioniert. Der Test in Schritt 1 nagelt genau den Kollisionsfall fest
-(Film und Serie mit derselben `tmdb_id`). Eine echte Titel-Kollision zwischen `Doku/Filme` und
-`Doku/Serien` gibt es auf dem NAS heute übrigens nicht; die erste Fassung dieses Papiers hatte eine
-erfunden.
+dass «Dokus» überhaupt funktioniert. Der Test in Schritt 1 nagelt genau den Kollisionsfall fest.
 
-### 12.2 Ordner- und Feed-Episoden finden nicht zusammen
+### 12.2 Der Umfang ist mit Fassung 3 gewachsen
+
+Die erste Fassung hatte vier feste Quellen und eine Anreicherung; Fassung 3 hat eine Liste je Ordner,
+feldweises Auffüllen, eine Herkunftstabelle, TVDB als Erkenner und AniList. Idee 01 schätzte den Teil
+«feldweise Zusammenführung, Herkunft, Freigabe-Ausnahme» allein auf 3 bis 4 Tage und «TVDB frei
+platzierbar» auf 3 bis 4 Tage (`01-metadaten-einstellungen.md:250`, `:248`); beides kommt zu diesem
+Vorhaben dazu. Was nicht dazukommt und den Umfang begrenzt: keine Sprachen, keine neuen Bildarten,
+keine Bildwahl je Titel, keine Rohzertifikate — die Freigabe-Ausnahme ist hier nur «nie senken», nicht
+das Ländermodell aus Idee 01. Schritt 4 ist der grösste Schritt; läuft er aus dem Ruder, lässt er
+sich an der Grenze «Auffüllen mit TMDB/TVDB» (zuerst) und «AniList» (danach) in zwei Commits teilen,
+ohne dass `task ci` dazwischen rot würde.
+
+### 12.3 TVDB zuerst ist eine andere Zählung, kein anderer Titel
+
+Wer an einem bestehenden Serienordner den Erkenner von TMDB auf TVDB stellt, bekommt neue Staffel-
+und Folgentexte, aber **dieselben** Folgen-Items (6.3). Bei Serien, in denen beide Anbieter gleich
+zählen, ändert sich nichts Sichtbares; bei Anime mit abweichender Zählung ändert sich genau das, was
+Marco will. Das Risiko liegt woanders: TVDB liefert deutsche Texte nur, wo die Gemeinschaft sie
+pflegt (ADR 0006 nannte das als Grund gegen TVDB zuerst). Mit `[TVDB, TMDB]` füllt TMDB die
+deutschen Lücken — aber nur dort, wo TVDB **leer** ist, nicht dort, wo TVDB einen schlechteren Text
+hat. Das ist die Regel «der erste gewinnt», und sie ist Marcos Entscheid.
+
+### 12.4 Ordner- und Feed-Episoden finden nicht zusammen
 
 Audiobookshelf benennt Dateien nach dem Episodentitel, der Feed liefert GUIDs und andere Dateinamen,
 und 11 von 239 Dateien eines Podcasts tragen als Tag-Titel den Podcast-Namen. Die Regel aus 4.5
 (Datum auf die Minute, sonst Titel; nur bei eindeutigem Paar; nie der Podcast-Titel) nimmt dafür in
 Kauf, dass ein Teil der Episoden **doppelt** bleibt — sichtbar in `listDuplicates` als
-`file_and_feed`, nie falsch verheiratet. Besser würde es mit Episoden-Metadaten je Datei, die
-Audiobookshelf in dieser Sammlung nicht schreibt (keine GUID im Tag, keine Episodenliste in der
-`metadata.json`). Die Quote ist in Schritt 3 am echten Ordner zu messen und in `docs/perf/` zu
-nennen.
+`file_and_feed`, nie falsch verheiratet. Die Quote ist in Schritt 3 am echten Ordner zu messen.
 
-### 12.3 Last durch die Audio-Ordner
+### 12.5 Last durch die Audio-Ordner
 
 26 031 Dateien im Podcast-Ordner und 62 Autorenordner mit M4B über NFS mit hoher Latenz. Der Preis
 ist nicht das Lesen der Dateien (die Sonde liest keine Pakete, die Keyframe-Sonde überspringt Audio),
@@ -1117,24 +1271,23 @@ sondern rund 26 000 ffprobe-Starts über das Netz. Das sind auf CT 190 Stunden, 
 hat keinen Pause-Schalter; `SLOUCHCAT_WORKERS` bleibt der einzige Hebel. Der Erst-Scan ist darum ein
 Messlauf mit eigener Datei in `docs/perf/`.
 
-### 12.4 AniList, die Zuordnungsliste und das Fenster
+### 12.6 AniList, die Zuordnungsliste und das Fenster
 
 Unsicherheiten, in 4.4 benannt: das Rate-Limit (90 laut Dokumentation, zeitweise weniger), die
 Rohadresse, die Feldnamen und die Lizenz der Liste, die TMDB-Abdeckung bei Filmen. Dazu: die Liste
 verschmilzt über `anidb_id`, und eine TVDB-Serie mit fünf Staffeln hat fünf AniList-Einträge — die
-Wahl «Staffel 1» ist für Titel und Originaltitel richtig und für die Beschreibung der fünften Staffel
-falsch; Staffeltexte sind Idee 01. Und das Fenster zwischen Match und Anreicherung (4.4): ein Titel,
-den nur AniList als `isAdult` kennt, ist in diesem Fenster für ein Kinderprofil sichtbar. ADR 0015
-benennt das als Restrisiko.
+Wahl «Staffel 1» ist für Titel und Originaltitel richtig; Staffeltexte von AniList gibt es nicht. Und
+das Fenster zwischen Match und Auffüllen (4.4): eine Freigabe, die nur ein Auffüller kennt, fehlt in
+diesem Fenster. ADR 0015 benennt das als Restrisiko.
 
-### 12.5 Was dieses Papier nicht zählen konnte
+### 12.7 Was dieses Papier nicht zählen konnte
 
 Die Stellen in `web/src`, die `'movies'` oder `'series'` als **Bibliotheksart** lesen, sind in
 Abschnitt 7 vollständig genannt; aber `'series'` ist auch eine **Titelart** und ein **Suchfilter**
 (`searchParams.ts:7`); ein mechanisches Ersetzen wäre falsch. Je Stelle ist zu entscheiden, wie in
 der Benutzerverwaltung bei `owner`.
 
-### 12.6 Ein alter Vorbehalt bleibt
+### 12.8 Ein alter Vorbehalt bleibt
 
 `SLOUCHCAT_BROWSE_ROOTS=/` auf CT 190 hebt E14 auf: ein Podcast-Ordner liesse sich dort auf
 `/config` anlegen, und der Scanner läse `slouchcat.db` als übergangene Datei. Das ist seit dem
@@ -1145,7 +1298,8 @@ der Benutzerverwaltung bei `owner`.
 ## 13. Review-Protokoll (28. Oktober 2026)
 
 Der OMC-Kritiker hat die erste Fassung (`d4eeee2`) am Code geprüft, über 60 Zeilenangaben
-nachgeschlagen und 22 Befunde geliefert. Alle sind eingearbeitet:
+nachgeschlagen und 22 Befunde geliefert. Alle sind eingearbeitet (Fassung 2, `6fcc113`) und in
+Fassung 3 erhalten geblieben:
 
 | Befund | Schwere | Eingearbeitet in |
 |---|---|---|
@@ -1153,27 +1307,32 @@ nachgeschlagen und 22 Befunde geliefert. Alle sind eingearbeitet:
 | `netguard` lässt LAN-Feeds durch; «wird nicht gespeichert» hatte keinen Mechanismus | MAJOR | 4.3 `feed_origin`, 9.1 |
 | `items_podcast_feed` kollidiert bei gleicher Feed-Adresse | MAJOR | 4.5 Übernahme über `PodcastFindByFeed` |
 | Ordner-Podcasts ohne Feed würden abgefragt; Vorrang Feed/`metadata.json` offen | MAJOR | 4.5 |
-| Zusammenführen über Titel allein trifft falsch (Tag-Titel = Podcast-Titel) | MAJOR | 4.5, 12.2 |
+| Zusammenführen über Titel allein trifft falsch (Tag-Titel = Podcast-Titel) | MAJOR | 4.5, 12.4 |
 | Tags erst nach der Sonde bekannt | MAJOR | 4.5 `finishPodcastEpisode` |
 | Kein Sweep für `podcast_episode`, kein Löschweg für Ordner-Podcasts | MAJOR | 4.5 «Verschwinden und Aufräumen» |
-| Anreicherung wird vom nächsten Match gelöscht | MAJOR | 4.4 «nach jedem Match» |
+| Anreicherung wird vom nächsten Match gelöscht | MAJOR | 4.4 «nach jedem Match», `item_field_sources` |
 | Quellenwechsel reiht nichts ein; keine Konvergenz | MAJOR | 4.4 Konvergenz, 6.3 |
 | Titelindex unterbestimmt, Testfall erfunden | MAJOR | 6.1, 12.1 |
 | TVDB-Id ist eine Spalte (`00008:23`) | MINOR | 4.3 |
 | `Quota` statt `Limiter`; Karten je Art; Feldnamen prüfen | MINOR | 4.4 |
-| Keyframe-Risiko überzeichnet | MINOR | 4.5, 12.3 |
+| Keyframe-Risiko überzeichnet | MINOR | 4.5, 12.5 |
 | Offline bevorzugt die Datei schon; Abfrage heisst `GetVisibleEnclosure` | MINOR | 4.5 |
 | Inhaltswechsel ohne `forgetRoot`, `settleScans`, `ignored_files` | MINOR | 6.3 |
 | Gegenprobe in der Migration kann nicht abbrechen | MINOR | 4.6 Punkt 5 |
-| Vorgabe `'tmdb'` sickert in drei weitere Einfügewege | MINOR | 4.3 |
+| Vorgabe sickert in drei weitere Einfügewege | MINOR | 4.3 |
 | `DuplicateGroup.reason` braucht einen Wert | MINOR | 5.1 |
 | Web: drei Podcast-Annahmen, Fixture-Liste, `library.root.path` | MINOR | 7 |
 | Verweise (Provider-Konstanten, M6-Zeilen, `SearchRequest`, `fileInfo`, Wurzeldateien, DoD-grep) | MINOR | 1.1, 2.1, 4.5, 6.1, 8.3, 10 |
 | Neue-Folgen-Hook und AN-2 für Ordner-Episoden undefiniert | MINOR | 4.5 |
-| Idee 01 / Issue #8 / Herkunft je Feld | MINOR | 3, Schritt 0 |
+| Idee 01 / Issue #8 / Herkunft je Feld | MINOR | 3, Schritt 0; mit F-11 kommt die Herkunft je Feld jetzt hierher |
 
 Bestätigt und darum ohne Befund: `visible_items` und kein Trigger lesen `libraries`; nur
 `library_roots`, `items`, `account_libraries`, `invitation_libraries` tragen Fremdschlüssel auf
 `libraries`; Regel 2 (`depguard`) erlaubt `library` und `metadata` den Zugriff auf `systemq`, und
 `library` importiert `metadata` nicht; Regel 10 (nur Schema und Host im Log) deckt sich mit
 `netguard.Clean`.
+
+**Fassung 3 ist noch nicht vom Kritiker geprüft.** Neu gegenüber Fassung 2 und darum prüfwürdig:
+4.2 (`providers` als JSON), 4.3 (`item_field_sources`), 4.4 (Erkenner/Auffüller, TVDB zuerst mit
+`/find`, `metadata.fill`), 5.1/5.2 (`MetadataProvider` erweitert, `listMetadataProviders`), 6.2, 6.3
+(Erkennerwechsel), 7 (Bauteil), Schritt 1 und 4.
