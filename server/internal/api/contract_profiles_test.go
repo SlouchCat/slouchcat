@@ -954,6 +954,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	f.AddEdgeCases(t)
 	f.AddSeries(t)
 	f.AddGuest(t)
+	f.AddSecondAdmin(t)
 	tracks := f.AddTracks(t)
 	f.AddSegments(t, f.Show.E1.ID)
 	f.AddAudio(t)
@@ -973,6 +974,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	sessions := map[string]model.Session{}
 	tokens := map[string]model.Profile{
 		"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX, "pg": f.PG, "pg18": f.PG18,
+		"pa2": f.PA2, "pa2k": f.PA2K,
 	}
 	pf := profileFixture{f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm, tracks: tracks}
 	for name, p := range tokens {
@@ -1015,13 +1017,17 @@ func (pf profileFixture) handlerWithPlayback(pb PlaybackService) http.Handler {
 	return NewHandler(o)
 }
 
-// newSession starts a browser session for the account of profile p (owner or guest account; a
-// zero profile starts it without an active profile) and registers it under the logical name.
+// newSession starts a browser session for the account of profile p (the owner, the second
+// administrator or the account without administration; a zero profile starts it without an active
+// profile) and registers it under the logical name.
 func (pf profileFixture) newSession(t *testing.T, name string, p model.Profile) model.Session {
 	t.Helper()
 	account := pf.f.Account
-	if pf.f.Guest.ID != 0 && p.AccountID == pf.f.Guest.ID {
+	switch {
+	case pf.f.Guest.ID != 0 && p.AccountID == pf.f.Guest.ID:
 		account = pf.f.Guest
+	case pf.f.Admin2.ID != 0 && p.AccountID == pf.f.Admin2.ID:
+		account = pf.f.Admin2
 	}
 	session, token, err := pf.a.StartSession(context.Background(), account, p, "contract-test")
 	if err != nil {

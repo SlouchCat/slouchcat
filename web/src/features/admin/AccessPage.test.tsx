@@ -43,7 +43,7 @@ describe('access page', () => {
     const { calls } = mockApi({
       ...signedIn,
       'GET /auth/session': () =>
-        json({ ...session, account: { ...session.account, role: 'guest' } }),
+        json({ ...session, account: { ...session.account, role: 'user', isOwner: false } }),
     });
     renderApp('/admin/access');
     expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();

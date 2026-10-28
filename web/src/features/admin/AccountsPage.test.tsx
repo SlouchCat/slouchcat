@@ -10,7 +10,8 @@ import { json, mockApi, problem, renderApp, session, signedIn, type Routes } fro
 const owner: AdminAccount = {
   id: 1,
   email: 'owner@example.test',
-  role: 'owner',
+  role: 'admin',
+  isOwner: true,
   maxRating: 18,
   allLibraries: true,
   libraryIds: [],
@@ -30,7 +31,8 @@ const owner: AdminAccount = {
 const guest: AdminAccount = {
   id: 7,
   email: 'gast@example.test',
-  role: 'guest',
+  role: 'user',
+  isOwner: false,
   maxRating: 12,
   allLibraries: false,
   libraryIds: [3],
@@ -82,7 +84,7 @@ describe('admin accounts (A-2)', () => {
         .getAllByRole('cell')
         .map((cell) => cell.textContent);
     expect(cells('owner@example.test').slice(0, 6)).toEqual([
-      'Hauptkonto',
+      'Administrator',
       'FSK 18',
       'Alle Bibliotheken',
       'Marco (Hauptprofil), Kinder',
@@ -90,7 +92,7 @@ describe('admin accounts (A-2)', () => {
       'E-MailWeb-Push',
     ]);
     expect(cells('gast@example.test').slice(0, 6)).toEqual([
-      'Gast',
+      'Konto',
       'FSK 12',
       '1 Bibliothek',
       'Lena (Hauptprofil)',
@@ -215,7 +217,7 @@ describe('admin accounts (A-2)', () => {
     const { calls } = mockApi({
       ...signedIn,
       'GET /auth/session': () =>
-        json({ ...session, account: { ...session.account, role: 'guest' } }),
+        json({ ...session, account: { ...session.account, role: 'user', isOwner: false } }),
     });
     renderApp('/admin/accounts');
     expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();

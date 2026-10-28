@@ -140,7 +140,7 @@ export function AccountsPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.accounts.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const accounts = useQuery({ ...accountsQuery, enabled: allowed });
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);

@@ -19,8 +19,8 @@ import {
 } from './keyboard';
 import { arrowBetweenRows } from './playback';
 
-// /admin/accounts (A-2) by keyboard (rule 8): the main account and a guest in one table with
-// rating, libraries, profiles and channels; the guest row leads to the access page, the own row
+// /admin/accounts (A-2) by keyboard (rule 8): the administrator and an account in one table with
+// rating, libraries, profiles and channels; the account's row leads to the access page, the own row
 // changes the e-mail (and back) with the current password. The password itself is never changed:
 // that would sign out the shared session of every other spec.
 
@@ -73,7 +73,7 @@ const accountRow = (page: Page, email: string) =>
     .getByRole('row')
     .filter({ has: page.getByRole('rowheader', { name: email, exact: true }) });
 
-test('A-2: the main account and a guest in one table; the guest row leads to access', async ({
+test('A-2: the administrator and an account in one table; the account row leads to access', async ({
   page,
   owner,
   playwright,
@@ -86,7 +86,7 @@ test('A-2: the main account and a guest in one table; the guest row leads to acc
     await openAccounts(page);
 
     const own = accountRow(page, OWNER.email);
-    await expect(own).toContainText('Hauptkonto');
+    await expect(own).toContainText('Administrator');
     await expect(own).toContainText('FSK 18');
     await expect(own).toContainText('Alle Bibliotheken');
     await expect(own).toContainText(`${OWNER_PROFILE} (Hauptprofil)`);
@@ -95,7 +95,7 @@ test('A-2: the main account and a guest in one table; the guest row leads to acc
       '/settings/profiles',
     );
     const guest = accountRow(page, GUEST.email);
-    await expect(guest).toContainText('Gast');
+    await expect(guest).toContainText('Konto');
     await expect(guest).toContainText('FSK 12');
     await expect(guest).toContainText('Gast (Hauptprofil)');
     // Plan 5.2: a guest gets announcements by e-mail unless they switch it off.
@@ -180,7 +180,7 @@ test('A-2: change the own e-mail and back by keyboard; a wrong password stays at
     await expect(dialog).toBeHidden();
     await expect(page.getByText('Dein Konto ist gespeichert.')).toBeVisible();
     const changed = accountRow(page, CHANGED_EMAIL);
-    await expect(changed).toContainText('Hauptkonto');
+    await expect(changed).toContainText('Administrator');
     const session = (await (await owner.get('/api/v1/auth/session')).json()) as SessionData;
     expect(session.account.email).toBe(CHANGED_EMAIL);
     const again = changed.getByRole('button', { name: 'Konto ändern' });
@@ -198,7 +198,7 @@ test('A-2: change the own e-mail and back by keyboard; a wrong password stays at
     await page.keyboard.type(OWNER.password);
     await page.keyboard.press('Enter');
     await expect(dialog).toBeHidden();
-    await expect(accountRow(page, OWNER.email)).toContainText('Hauptkonto');
+    await expect(accountRow(page, OWNER.email)).toContainText('Administrator');
     await expectNoFocusTrap(page);
   } finally {
     await restoreOwnerEmail(owner);

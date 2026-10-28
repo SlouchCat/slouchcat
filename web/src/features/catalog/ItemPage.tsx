@@ -164,7 +164,7 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
   const playHref = paths.play(item.id, version);
   // A shortcut for the one who manages the library, not a visibility rule: the server answers the
   // administration page only for that account and profile anyway.
-  const canManage = session.account.role === 'owner' && session.profile.isPrimary;
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
   // Every kind but seasons and extras goes on the watchlist (E-5); series and podcasts can be
   // favourites, which notify about new episodes (E-8).
   const listable = item.kind !== 'season' && item.kind !== 'extra';

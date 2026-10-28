@@ -151,14 +151,27 @@ var accountRegistry = map[string]accountCall{
 	"deletePushSubscription": {contract: "DELETE /me/push-subscriptions/{id}", path: "/me/push-subscriptions/9999", want: allWant(http.StatusNotFound)},
 }
 
-// adminCall is one call of the admin registry; ownerStatus is the answer for the owner with the
-// primary profile (harmless bodies against unknown ids or invalid input). header replaces request
-// headers, such as the content type of a multipart body.
+// adminCall is one call of the admin registry; ownerStatus is the answer for an administrator with
+// the primary profile (harmless bodies against unknown ids or invalid input). header replaces
+// request headers, such as the content type of a multipart body.
 type adminCall struct {
 	contract, path, body string
 	header               map[string]string
 	ownerStatus          int
 }
+
+// ownerCall is one call of the owner registry (x-visibility owner, ADR 0014). ownerStatus is the
+// answer for the owner with its primary profile; everybody else gets 403 owner_required, also a
+// second administrator.
+type ownerCall struct {
+	contract, path, body string
+	ownerStatus          int
+}
+
+// ownerRegistry covers every operation with x-visibility owner. It is deliberately in place before
+// the first such operation exists: TestContractCoversEveryOperation reports an owner operation
+// without an entry here, so the level cannot be used without being tested.
+var ownerRegistry = map[string]ownerCall{}
 
 // restoreUploadBody is a multipart body of restoreBackupUpload whose file is no backup.
 const restoreUploadBody = "--registry\r\nContent-Disposition: form-data; name=\"file\"; filename=\"backup.tar.gz\"\r\n" +
@@ -361,6 +374,9 @@ func TestContractCoversEveryOperation(t *testing.T) {
 		case "admin":
 			c, ok := adminRegistry[id]
 			check(id, "adminRegistry", c.contract, ok, op)
+		case "owner":
+			c, ok := ownerRegistry[id]
+			check(id, "ownerRegistry", c.contract, ok, op)
 		case "public":
 			c, ok := publicRegistry[id]
 			check(id, "publicRegistry", c.contract, ok, op)
@@ -370,7 +386,8 @@ func TestContractCoversEveryOperation(t *testing.T) {
 	}
 	for name, reg := range map[string][]string{
 		"profileRegistry": keysOf(profileRegistry), "accountRegistry": keysOf(accountRegistry),
-		"adminRegistry": keysOf(adminRegistry), "publicRegistry": keysOf(publicRegistry),
+		"adminRegistry": keysOf(adminRegistry), "ownerRegistry": keysOf(ownerRegistry),
+		"publicRegistry": keysOf(publicRegistry),
 	} {
 		for _, id := range reg {
 			if _, ok := ops[id]; !ok {
@@ -453,8 +470,13 @@ func TestContractAccountOperations(t *testing.T) {
 	}
 }
 
-// Admin operations: the guest, the owner's non-primary profile and an owner without a chosen
-// profile get 403 forbidden; the owner with the primary profile gets through.
+// Admin operations: an account without administration, a non-primary profile of an administrator
+// and an administrator without a chosen profile get 403 forbidden; an administrator with the
+// primary profile gets through. Since ADR 0014 that includes the second administrator: its child
+// profile PA2K is in the refused set of every operation, and its primary profile PA2 is checked
+// against every GET of the registry. The non-GET operations are left to the owner's session on
+// purpose - running them twice would change the fixture twice, and the gate they pass is the same
+// role check for both administrators.
 func TestContractAdminOperations(t *testing.T) {
 	t.Parallel()
 	ops := contractOperations(t)
@@ -470,7 +492,7 @@ func TestContractAdminOperations(t *testing.T) {
 		}
 		method := strings.Fields(call.contract)[0]
 		t.Run(id, func(t *testing.T) {
-			for _, token := range []string{"pg", "pg18", "p6", "p0", "none"} {
+			for _, token := range []string{"pg", "pg18", "p6", "p0", "pa2k", "none"} {
 				rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
 				if rec.Code != http.StatusForbidden || problemCode(t, rec) != "forbidden" {
 					t.Errorf("%s: status %d (%s), want 403 forbidden", token, rec.Code, rec.Body.String())
@@ -478,6 +500,13 @@ func TestContractAdminOperations(t *testing.T) {
 			}
 			if rec := send(t, h, method, BasePath+call.path, "", call.body, call.header); rec.Code != http.StatusUnauthorized {
 				t.Errorf("without a session: status %d, want 401", rec.Code)
+			}
+			if method == http.MethodGet {
+				second := send(t, h, method, BasePath+call.path, "pa2", call.body, call.header)
+				if second.Code != call.ownerStatus {
+					t.Errorf("second administrator with the primary profile: status %d (%s), want %d",
+						second.Code, second.Body.String(), call.ownerStatus)
+				}
 			}
 			rec := send(t, h, method, BasePath+call.path, "p18", call.body, call.header)
 			if rec.Code != call.ownerStatus {
@@ -490,6 +519,45 @@ func TestContractAdminOperations(t *testing.T) {
 			}
 			if strings.Contains(rec.Body.String(), `"`+BasePath+`/items/`) {
 				t.Errorf("response contains scoped URLs: %s", rec.Body.String())
+			}
+			assertNoSecrets(t, id, rec)
+		})
+	}
+}
+
+// Owner operations (ADR 0014): only the owner with its primary profile gets through. A second
+// administrator with its primary profile, a child profile of the owner, an account without
+// administration and a session without a profile all get 403 owner_required, and a request
+// without a session gets 401. The registry is empty until the first owner operation exists; the
+// loop then covers every one of them, because TestContractCoversEveryOperation refuses an owner
+// operation without an entry here.
+func TestContractOwnerOperations(t *testing.T) {
+	t.Parallel()
+	ops := contractOperations(t)
+	pf := newProfileFixture(t)
+	h := pf.h
+
+	ids := keysOf(ownerRegistry)
+	sort.Strings(ids)
+	for _, id := range ids {
+		call := ownerRegistry[id]
+		if ops[id].vis != "owner" {
+			continue // reported by TestContractCoversEveryOperation
+		}
+		method := strings.Fields(call.contract)[0]
+		t.Run(id, func(t *testing.T) {
+			for _, token := range []string{"pa2", "pa2k", "pg", "p6", "none"} {
+				rec := send(t, h, method, BasePath+call.path, token, call.body, nil)
+				if rec.Code != http.StatusForbidden || problemCode(t, rec) != "owner_required" {
+					t.Errorf("%s: status %d (%s), want 403 owner_required", token, rec.Code, rec.Body.String())
+				}
+			}
+			if rec := send(t, h, method, BasePath+call.path, "", call.body, nil); rec.Code != http.StatusUnauthorized {
+				t.Errorf("without a session: status %d, want 401", rec.Code)
+			}
+			rec := send(t, h, method, BasePath+call.path, "p18", call.body, nil)
+			if rec.Code != call.ownerStatus {
+				t.Errorf("the owner with the primary profile: status %d (%s), want %d", rec.Code, rec.Body.String(), call.ownerStatus)
 			}
 			assertNoSecrets(t, id, rec)
 		})

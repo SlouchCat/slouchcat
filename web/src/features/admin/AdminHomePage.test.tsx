@@ -454,7 +454,7 @@ describe('admin navigation (A-2)', () => {
   it('a profile that is not the main account primary gets the notice without the navigation', async () => {
     const guest = {
       ...session,
-      account: { ...session.account, role: 'guest' as const },
+      account: { ...session.account, role: 'user' as const, isOwner: false },
     };
     const { calls } = mockApi({ 'GET /auth/session': () => json(guest) });
     renderApp('/admin');

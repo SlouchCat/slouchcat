@@ -411,7 +411,10 @@ describe('integrations (A-2)', () => {
   });
 
   it('a guest gets the notice and no request', async () => {
-    const guest = { ...session, account: { ...session.account, role: 'guest' as const } };
+    const guest = {
+      ...session,
+      account: { ...session.account, role: 'user' as const, isOwner: false },
+    };
     const { calls } = mockApi({ 'GET /auth/session': () => json(guest) });
     renderApp('/admin/integrations');
     expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();

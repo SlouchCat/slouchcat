@@ -38,7 +38,8 @@ export const session: SessionInfo = {
   account: {
     id: 1,
     email: 'owner@example.test',
-    role: 'owner',
+    role: 'admin',
+    isOwner: true,
     maxRating: 18,
     allLibraries: true,
     libraryIds: [],

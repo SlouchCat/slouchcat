@@ -275,7 +275,7 @@ export function CollectionsPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.collections.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const collections = useQuery({ ...collectionsQuery, enabled: allowed });
   const [dialog, setDialog] = useState<Dialog | null>(null);

@@ -1691,8 +1691,8 @@
         "actions": "Aktionen"
       },
       "roles": {
-        "owner": "Hauptkonto",
-        "guest": "Gast"
+        "admin": "Administrator",
+        "user": "Konto"
       },
       "libraries_one": "{{count}} Bibliothek",
       "libraries_other": "{{count}} Bibliotheken",

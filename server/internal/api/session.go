@@ -79,7 +79,8 @@ func csrfOK(r *http.Request) bool {
 // authorize runs after routing (chi knows the pattern) and enforces the x-visibility of the
 // operation: public passes; account needs a session (profile optional); scoped needs a session with
 // an active profile (403 profile_required without); admin needs an administrator with the primary
-// profile active (403 forbidden otherwise). It stores the session in the context for the handlers. The
+// profile active (403 forbidden otherwise); owner needs the owner with the primary profile active
+// (403 owner_required otherwise, ADR 0014). It stores the session in the context for the handlers. The
 // cookie is read for every operation, so a public operation can still see who is logged in. A
 // request without a valid device cookie gets one (PIN locks count per profile and device); with a
 // session, the cookie follows the session's device and is renewed whenever the session is.
@@ -117,6 +118,10 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 			case vis == "admin" && (!session.IsAdmin() || !session.IsPrimary()):
 				p.write(w, r, http.StatusForbidden, "forbidden", "Only an administrator with the primary profile may do this.")
 				return
+			case vis == "owner" && (!session.IsOwner() || !session.IsPrimary()):
+				// An administrator that is not the owner lands here: only the owner appoints.
+				p.write(w, r, http.StatusForbidden, "owner_required", "Only the owner with the primary profile may do this.")
+				return
 			case vis == "scoped" && !session.HasProfile():
 				p.write(w, r, http.StatusForbidden, "profile_required", "Choose a profile first.")
 				return
@@ -128,7 +133,7 @@ func (p problems) authorize(auth AuthService, visibility map[string]string) func
 
 // validVisibility lists the x-visibility values the middleware enforces; any other value fails
 // closed.
-var validVisibility = map[string]bool{"public": true, "account": true, "scoped": true, "admin": true}
+var validVisibility = map[string]bool{"public": true, "account": true, "scoped": true, "admin": true, "owner": true}
 
 // ensureDeviceCookie returns the device id of the request and keeps the device cookie in step with
 // it. The device of the request's session (sessionDevice, empty without a session) wins over the
@@ -263,20 +268,13 @@ func toSessionInfo(s model.Session) gen.SessionInfo {
 	return info
 }
 
-// legacyRole bridges the stored roles to the contract enum, which still says owner/guest. Step 2
-// of the user management turns the enum into admin/user, and this function goes away with it
-// (ADR 0014).
-func legacyRole(role string) string {
-	if role == model.RoleUser {
-		return string(gen.AccountRoleGuest)
-	}
-	return string(gen.AccountRoleOwner)
-}
-
 func toAccount(a model.Account) gen.Account {
-	role := gen.AccountRole(legacyRole(a.Role))
+	role := gen.AccountRoleUser
+	if a.Role == model.RoleAdmin {
+		role = gen.AccountRoleAdmin
+	}
 	return gen.Account{
-		Id: a.ID, Email: types.Email(a.Email), Role: role, MaxRating: gen.Rating(a.MaxRating),
+		Id: a.ID, Email: types.Email(a.Email), Role: role, IsOwner: a.IsOwner, MaxRating: gen.Rating(a.MaxRating),
 		AllLibraries: a.AllLibraries, LibraryIds: nonNil(a.LibraryIDs),
 	}
 }

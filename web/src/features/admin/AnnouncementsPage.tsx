@@ -136,7 +136,7 @@ export function AnnouncementsPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.announcements.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const announcements = useQuery({ ...adminAnnouncementsQuery, enabled: allowed });
   // `null`: a new one; an announcement: change that draft.

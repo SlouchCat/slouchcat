@@ -234,7 +234,7 @@ export function StatsPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.stats.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const { days = DEFAULT_STATS_DAYS } = route.useSearch();
   const navigate = route.useNavigate();
   // The previous period stays on screen while the next one loads.

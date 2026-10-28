@@ -272,7 +272,7 @@ function PushDevices({ setting }: { setting: ChannelSetting }) {
 
 interface ChannelCardProps {
   setting: ChannelSetting;
-  isOwner: boolean;
+  isAdmin: boolean;
   accountEmail: string;
 }
 
@@ -281,7 +281,7 @@ interface ChannelCardProps {
  * (PUT /me/channels/{channel}) and "Testnachricht". A channel the server lacks is shown disabled
  * with the hint where the main user sets it up.
  */
-function ChannelCard({ setting, isOwner, accountEmail }: ChannelCardProps) {
+function ChannelCard({ setting, isAdmin, accountEmail }: ChannelCardProps) {
   const { t } = useTranslation();
   const store = useStoreChannel();
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -324,7 +324,7 @@ function ChannelCard({ setting, isOwner, accountEmail }: ChannelCardProps) {
   };
 
   const headingId = `channel-${channel}`;
-  const events = EVENTS.filter((event) => isOwner || event !== 'errors');
+  const events = EVENTS.filter((event) => isAdmin || event !== 'errors');
   const state = !available ? 'unavailable' : setting.enabled ? 'on' : 'off';
 
   return (
@@ -340,7 +340,7 @@ function ChannelCard({ setting, isOwner, accountEmail }: ChannelCardProps) {
       {!available && (
         <Notice
           actions={
-            isOwner && (
+            isAdmin && (
               <ButtonLink href={paths.adminIntegrations} variant="secondary">
                 {t('settings.notifications.unavailable.action')}
               </ButtonLink>
@@ -477,7 +477,7 @@ export function ChannelSettingsPage() {
     ...channelsQuery,
     refetchInterval: (query) => (linkOpen(query.state.data) ? LINK_POLL_MS : false),
   });
-  const isOwner = session.account.role === 'owner';
+  const isAdmin = session.account.role === 'admin';
   const isPrimary = session.profile.isPrimary;
 
   return (
@@ -521,7 +521,7 @@ export function ChannelSettingsPage() {
               {isPrimary ? (
                 <ChannelCard
                   setting={setting}
-                  isOwner={isOwner}
+                  isAdmin={isAdmin}
                   accountEmail={session.account.email}
                 />
               ) : (

@@ -12,7 +12,7 @@ export function AccessPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.access.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const libraries = useLibraryOptions(allowed);
 
   return (

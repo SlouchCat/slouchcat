@@ -318,7 +318,7 @@ export function PicksPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.picks.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const { add } = route.useSearch();
   const navigate = route.useNavigate();
   const queryClient = useQueryClient();

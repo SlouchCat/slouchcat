@@ -3132,7 +3132,7 @@ export interface components {
             /** @description The active profile; absent until `selectProfile` ran (the client shows the picker). */
             profile?: components["schemas"]["Profile"];
             /**
-             * @description A newer version is published (A-5); only for the main account and only while the update
+             * @description A newer version is published (A-5); only for administrators and only while the update
              *     check is on.
              */
             updateAvailable?: components["schemas"]["UpdateNotice"];
@@ -3142,13 +3142,22 @@ export interface components {
             id: number;
             /** Format: email */
             email: string;
-            /** @enum {string} */
-            role: "owner" | "guest";
-            /** @description Rating ceiling of every profile of the account (18 for the main account). */
+            /**
+             * @description `admin` runs the server and its libraries, `user` manages only its own profiles
+             *     (ADR 0014). The removed values `owner` and `guest` are never reused.
+             * @enum {string}
+             */
+            role: "admin" | "user";
+            /**
+             * @description The one account that cannot be deleted or demoted and that appoints further
+             *     administrators. Always an `admin`.
+             */
+            isOwner: boolean;
+            /** @description Rating ceiling of every profile of the account (18 for an administrator). */
             maxRating: components["schemas"]["Rating"];
-            /** @description True for the main account; guests see only `libraryIds`. */
+            /** @description True for an administrator; other accounts see only `libraryIds`. */
             allLibraries: boolean;
-            /** @description Libraries a guest account may see; empty when `allLibraries` is true. */
+            /** @description Libraries the account may see; empty when `allLibraries` is true. */
             libraryIds: number[];
         };
         /** @description A viewing profile with its settings. Profiles carry no e-mail and no password (K-1); only `name` is required. */
@@ -5298,7 +5307,9 @@ export interface components {
             /** Format: email */
             email: string;
             /** @enum {string} */
-            role: "owner" | "guest";
+            role: "admin" | "user";
+            /** @description The one account that cannot be deleted or demoted (ADR 0014). */
+            isOwner: boolean;
             maxRating: components["schemas"]["Rating"];
             allLibraries: boolean;
             libraryIds: number[];
@@ -5644,8 +5655,20 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Not the main account with its primary profile active (`forbidden`), or CSRF header missing. */
+        /** @description Not an administrator with its primary profile active (`forbidden`), or CSRF header missing. */
         AdminOnly: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description Not the owner with its primary profile active (`owner_required`), or CSRF header missing.
+         *     An administrator that is not the owner gets this too: only the owner appoints (ADR 0014).
+         */
+        OwnerOnly: {
             headers: {
                 [name: string]: unknown;
             };

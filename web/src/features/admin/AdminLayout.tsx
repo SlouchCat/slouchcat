@@ -8,9 +8,9 @@ import { AdminNav, type AdminNavGroup } from '@/ui/aria';
 import { adminGroups, adminSections, isSectionPath } from './sections';
 
 /**
- * Parent of every /admin page (A-2): the admin navigation at the top of each page, for the main
- * account's primary profile. Anyone else gets the pages' own "only for the main account" notice
- * without it.
+ * Parent of every /admin page (A-2): the admin navigation at the top of each page, for an
+ * administrator's primary profile. Anyone else gets the pages' own "only for administrators"
+ * notice without it.
  */
 export function AdminLayout() {
   const { t } = useTranslation();
@@ -18,7 +18,7 @@ export function AdminLayout() {
   const { pathname } = useLocation();
   // The focused link of the navigation, carried from one admin page to the next.
   const focusCarry = useRef<number | null>(null);
-  if (session.account.role !== 'owner' || !session.profile.isPrimary) return <Outlet />;
+  if (session.account.role !== 'admin' || !session.profile.isPrimary) return <Outlet />;
 
   const groups: AdminNavGroup[] = [
     {

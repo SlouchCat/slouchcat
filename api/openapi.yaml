@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.1.0
+  version: 1.2.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -9,8 +9,15 @@ info:
     Every operation carries the vendor extension `x-visibility` with one of the values
     `public` (no session needed), `account` (a valid session, no profile needed: profile picker,
     profile management of the own account), `scoped` (filtered through the visibility layer of the
-    active profile), `system` (unfiltered, internal callers only) or `admin` (main account with its
-    primary profile active). A schema test fails when an operation has no marker.
+    active profile), `system` (unfiltered, internal callers only), `admin` (an administrator
+    account with its primary profile active) or `owner` (the one owner account with its primary
+    profile active: appointing and demoting administrators). A schema test fails when an operation
+    has no marker.
+
+    Levels (ADR 0014): an administrator (`role: admin`) runs the server and its libraries, an
+    account (`role: user`) manages only its own profiles, a profile watches. The owner
+    (`isOwner`) is an administrator that cannot be deleted or demoted and is the only one that
+    appoints further administrators.
 
     Profiles (M2): a login starts a session without an active profile unless the account has exactly
     one profile without PIN. `selectProfile` activates a profile (with its PIN, K-4) in place; `scoped`
@@ -5643,7 +5650,15 @@ components:
           schema:
             $ref: "#/components/schemas/Problem"
     AdminOnly:
-      description: Not the main account with its primary profile active (`forbidden`), or CSRF header missing.
+      description: Not an administrator with its primary profile active (`forbidden`), or CSRF header missing.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    OwnerOnly:
+      description: |
+        Not the owner with its primary profile active (`owner_required`), or CSRF header missing.
+        An administrator that is not the owner gets this too: only the owner appoints (ADR 0014).
       content:
         application/problem+json:
           schema:
@@ -6020,12 +6035,12 @@ components:
         updateAvailable:
           $ref: "#/components/schemas/UpdateNotice"
           description: |
-            A newer version is published (A-5); only for the main account and only while the update
+            A newer version is published (A-5); only for administrators and only while the update
             check is on.
 
     Account:
       type: object
-      required: [id, email, role, maxRating, allLibraries, libraryIds]
+      required: [id, email, role, isOwner, maxRating, allLibraries, libraryIds]
       properties:
         id:
           type: integer
@@ -6035,19 +6050,27 @@ components:
           format: email
         role:
           type: string
-          enum: [owner, guest]
+          enum: [admin, user]
+          description: |
+            `admin` runs the server and its libraries, `user` manages only its own profiles
+            (ADR 0014). The removed values `owner` and `guest` are never reused.
+        isOwner:
+          type: boolean
+          description: |
+            The one account that cannot be deleted or demoted and that appoints further
+            administrators. Always an `admin`.
         maxRating:
           $ref: "#/components/schemas/Rating"
-          description: Rating ceiling of every profile of the account (18 for the main account).
+          description: Rating ceiling of every profile of the account (18 for an administrator).
         allLibraries:
           type: boolean
-          description: True for the main account; guests see only `libraryIds`.
+          description: True for an administrator; other accounts see only `libraryIds`.
         libraryIds:
           type: array
           items:
             type: integer
             format: int64
-          description: Libraries a guest account may see; empty when `allLibraries` is true.
+          description: Libraries the account may see; empty when `allLibraries` is true.
 
     Profile:
       type: object
@@ -9827,7 +9850,7 @@ components:
     AdminAccount:
       type: object
       description: An account as the administration sees it (A-2).
-      required: [id, email, role, maxRating, allLibraries, libraryIds, profiles, createdAt, channels]
+      required: [id, email, role, isOwner, maxRating, allLibraries, libraryIds, profiles, createdAt, channels]
       properties:
         id:
           type: integer
@@ -9837,7 +9860,10 @@ components:
           format: email
         role:
           type: string
-          enum: [owner, guest]
+          enum: [admin, user]
+        isOwner:
+          type: boolean
+          description: The one account that cannot be deleted or demoted (ADR 0014).
         maxRating:
           $ref: "#/components/schemas/Rating"
         allLibraries:

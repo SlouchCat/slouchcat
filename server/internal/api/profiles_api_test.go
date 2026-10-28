@@ -139,7 +139,7 @@ func TestProfilePickerFlow(t *testing.T) {
 	}
 	rec = owner.do(http.MethodPost, "/api/v1/auth/login", map[string]any{"email": "marco@example.ch", "password": authTestPassword})
 	wantStatus(t, rec, http.StatusOK)
-	if info := sessionOf(t, rec); info.Profile != nil || info.Account.Role != gen.AccountRoleOwner {
+	if info := sessionOf(t, rec); info.Profile != nil || info.Account.Role != gen.AccountRoleAdmin {
 		t.Fatalf("login with two profiles = %+v, want no active profile", info)
 	}
 	if strings.Contains(rec.Body.String(), `"profile"`) {
@@ -351,7 +351,7 @@ func TestInvitationFlow(t *testing.T) {
 	rec = guest.do(http.MethodPost, "/api/v1/invitations/"+inv.Token+"/accept", accept)
 	wantStatus(t, rec, http.StatusCreated)
 	info := sessionOf(t, rec)
-	if info.Account.Role != gen.AccountRoleGuest || info.Account.MaxRating != 12 || info.Profile == nil || info.Profile.Name != "Oma" || !info.Profile.IsPrimary {
+	if info.Account.Role != gen.AccountRoleUser || info.Account.MaxRating != 12 || info.Profile == nil || info.Profile.Name != "Oma" || !info.Profile.IsPrimary {
 		t.Fatalf("guest session = %s", rec.Body.String())
 	}
 	if guest.cookies[SessionCookie] == nil || guest.cookies[DeviceCookie] == nil {

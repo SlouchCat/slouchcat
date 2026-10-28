@@ -46,7 +46,7 @@ export function StreamsPage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.streams.title'));
   const session = useActiveSession();
-  const allowed = session.account.role === 'owner' && session.profile.isPrimary;
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   // A confirmation lives in its row: the poll waits while one is open, so the row (and the
   // dialog with it) does not go away in the middle of the decision.

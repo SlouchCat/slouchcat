@@ -150,7 +150,7 @@ func TestEveryRouteHasVisibility(t *testing.T) {
 		t.Fatalf("only %d routes with x-visibility", len(vis))
 	}
 	for route, v := range vis {
-		if v != "public" && v != "account" && v != "scoped" && v != "admin" {
+		if v != "public" && v != "account" && v != "scoped" && v != "admin" && v != "owner" {
 			t.Errorf("%s: unusable x-visibility %q", route, v)
 		}
 	}
