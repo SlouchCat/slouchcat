@@ -103,6 +103,23 @@ FROM accounts AS a
 WHERE a.role = 'user'
 ORDER BY a.created_at DESC, a.id DESC;
 
+-- name: CountOtherAdmins :one
+-- How many administrators would be left without this account. Read inside the write transaction
+-- of SetAccountRole and DeleteAccount, so two concurrent demotions cannot both win (ADR 0014).
+SELECT count(*) FROM accounts WHERE role = 'admin' AND id <> @id;
+
+-- name: SetAccountRole :execrows
+-- The appointment lifts the account to 18 and all libraries (the table CHECK demands it, and the
+-- administration views read system-wide anyway); taking the role away leaves both as they are
+-- (decision 12 f). The owner is never touched here: the service answers owner_protected first,
+-- and `is_owner = 0` is the second lock in case it ever does not.
+UPDATE accounts
+SET role = @role,
+    max_rating = CASE WHEN @role = 'admin' THEN 18 ELSE max_rating END,
+    all_libraries = CASE WHEN @role = 'admin' THEN 1 ELSE all_libraries END,
+    updated_at = @now
+WHERE id = @id AND is_owner = 0;
+
 -- name: UpdateAccountLimits :exec
 UPDATE accounts
 SET max_rating = @max_rating, all_libraries = @all_libraries, max_bitrate_kbps = sqlc.narg('max_bitrate_kbps'),

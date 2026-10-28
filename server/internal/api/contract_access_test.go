@@ -171,7 +171,12 @@ type ownerCall struct {
 // ownerRegistry covers every operation with x-visibility owner. It is deliberately in place before
 // the first such operation exists: TestContractCoversEveryOperation reports an owner operation
 // without an entry here, so the level cannot be used without being tested.
-var ownerRegistry = map[string]ownerCall{}
+var ownerRegistry = map[string]ownerCall{
+	// An id the fixture does not have: the owner reaches the service and gets 404, everybody else
+	// is stopped by the middleware before the service ever sees the id.
+	"setAccountRole": {contract: "PUT /admin/accounts/{id}/role", path: "/admin/accounts/9999/role",
+		body: `{"role":"admin"}`, ownerStatus: http.StatusNotFound},
+}
 
 // restoreUploadBody is a multipart body of restoreBackupUpload whose file is no backup.
 const restoreUploadBody = "--registry\r\nContent-Disposition: form-data; name=\"file\"; filename=\"backup.tar.gz\"\r\n" +
@@ -427,6 +432,31 @@ func TestContractAccountOperations(t *testing.T) {
 	titles := f.All()
 	q := appq.New(f.DB.Write)
 
+	// ADR 0014 lock 5: no account operation writes the account's own ceiling or library switch.
+	// Only updateAccountAccess (x-visibility admin) does, and updateAccount changes nothing but
+	// e-mail and password. The limits are read before the whole run and compared after it.
+	limits := func() map[int64][2]int64 {
+		t.Helper()
+		rows, err := f.DB.Read.Query(`SELECT id, max_rating, all_libraries FROM accounts ORDER BY id`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		out := map[int64][2]int64{}
+		for rows.Next() {
+			var id, rating, all int64
+			if err := rows.Scan(&id, &rating, &all); err != nil {
+				t.Fatal(err)
+			}
+			out[id] = [2]int64{rating, all}
+		}
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	before := limits()
+
 	ids := keysOf(accountRegistry)
 	sort.Strings(ids)
 	for _, id := range ids {
@@ -466,6 +496,11 @@ func TestContractAccountOperations(t *testing.T) {
 				}
 				assertNoSecrets(t, id, rec)
 			})
+		}
+	}
+	for id, want := range before {
+		if got := limits()[id]; got != want {
+			t.Errorf("account %d: limits changed from %v to %v during the account operations (ADR 0014 lock 5)", id, want, got)
 		}
 	}
 }

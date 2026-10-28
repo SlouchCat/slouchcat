@@ -4923,6 +4923,56 @@ paths:
         "403":
           $ref: "#/components/responses/AdminOnly"
 
+  /admin/accounts/{id}/role:
+    put:
+      operationId: setAccountRole
+      summary: Appoint an account as administrator, or take the role away
+      description: |
+        Only the owner may call this (ADR 0014); an administrator that is not the owner gets 403
+        `owner_required`.
+
+        Appointing lifts the account to `maxRating` 18 and all libraries, because the
+        administration views read system-wide and without a profile check - a lower ceiling there
+        would be a false promise, not a protection. Taking the role away does **not** put the old
+        limits back; the administration sets them again on the account if it wants to. The
+        account's profiles keep their own levels either way, and `admin` still needs the active
+        primary profile.
+
+        Taking the role away revokes every session of the account, so no browser keeps an
+        administration page that the next request would refuse. Appointing revokes nothing: the
+        middleware decides per request and nobody loses anything.
+      tags: [admin]
+      x-visibility: owner
+      parameters:
+        - $ref: "#/components/parameters/AccountID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountRoleUpdate"
+      responses:
+        "204":
+          description: The role is set.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/OwnerOnly"
+        "404":
+          description: Unknown account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: |
+            The owner cannot be demoted (`owner_protected`), or the change would leave the server
+            without an administrator (`last_admin`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/stats:
     get:
       operationId: getStats
@@ -9887,6 +9937,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ChannelSummary"
+
+    AccountRoleUpdate:
+      type: object
+      description: |
+        The role an account should have (`setAccountRole`). There is no field for the owner badge:
+        the owner is fixed to the first account and cannot be handed over (decision 12 g).
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [admin, user]
+          description: "`admin` runs the server and its libraries, `user` manages only its own profiles."
 
     AccountUpdate:
       type: object

@@ -66,6 +66,22 @@ func (s *server) RevokeGuest(ctx context.Context, req gen.RevokeGuestRequestObje
 	return gen.RevokeGuest204Response{}, nil
 }
 
+func (e serviceProblem) VisitSetAccountRoleResponse(w http.ResponseWriter) error { return e.visit(w) }
+
+// SetAccountRole appoints an account as administrator or takes the role away. The middleware has
+// already turned away everybody but the owner (x-visibility owner, 403 owner_required); what is
+// left to decide here is the state, and the service does that in one write transaction.
+func (s *server) SetAccountRole(ctx context.Context, req gen.SetAccountRoleRequestObject) (gen.SetAccountRoleResponseObject, error) {
+	svc, err := s.access()
+	if err != nil {
+		return nil, err
+	}
+	if err := svc.SetAccountRole(ctx, req.Id, string(deref(req.Body).Role)); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetAccountRole204Response{}, nil
+}
+
 func toGuest(g model.Guest) gen.Guest {
 	return gen.Guest{
 		Id: g.ID, Email: openapi_types.Email(g.Email), MaxRating: gen.Rating(g.MaxRating), AllLibraries: g.AllLibraries,

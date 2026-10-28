@@ -55,6 +55,19 @@ func (q *Queries) ClearSessionsProfile(ctx context.Context, profileID sql.NullIn
 	return result.RowsAffected()
 }
 
+const countOtherAdmins = `-- name: CountOtherAdmins :one
+SELECT count(*) FROM accounts WHERE role = 'admin' AND id <> ?1
+`
+
+// How many administrators would be left without this account. Read inside the write transaction
+// of SetAccountRole and DeleteAccount, so two concurrent demotions cannot both win (ADR 0014).
+func (q *Queries) CountOtherAdmins(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countOtherAdmins, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countProfilesByAccount = `-- name: CountProfilesByAccount :one
 SELECT count(*) FROM profiles WHERE account_id = ?1
 `
@@ -971,6 +984,33 @@ func (q *Queries) RevokePlaybackSessionsByProfile(ctx context.Context, arg Revok
 		return nil, err
 	}
 	return items, nil
+}
+
+const setAccountRole = `-- name: SetAccountRole :execrows
+UPDATE accounts
+SET role = ?1,
+    max_rating = CASE WHEN ?1 = 'admin' THEN 18 ELSE max_rating END,
+    all_libraries = CASE WHEN ?1 = 'admin' THEN 1 ELSE all_libraries END,
+    updated_at = ?2
+WHERE id = ?3 AND is_owner = 0
+`
+
+type SetAccountRoleParams struct {
+	Role string
+	Now  int64
+	ID   int64
+}
+
+// The appointment lifts the account to 18 and all libraries (the table CHECK demands it, and the
+// administration views read system-wide anyway); taking the role away leaves both as they are
+// (decision 12 f). The owner is never touched here: the service answers owner_protected first,
+// and `is_owner = 0` is the second lock in case it ever does not.
+func (q *Queries) SetAccountRole(ctx context.Context, arg SetAccountRoleParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setAccountRole, arg.Role, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setProfilePin = `-- name: SetProfilePin :exec

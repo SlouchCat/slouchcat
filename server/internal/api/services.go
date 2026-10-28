@@ -75,6 +75,10 @@ type AccessService interface {
 	UpdateGuest(ctx context.Context, id int64, in model.GuestUpdate) (model.Guest, error)
 	// RevokeAccount revokes and deletes a guest account; end runs after the checks, before the delete.
 	RevokeAccount(ctx context.Context, accountID int64, end func(ctx context.Context, accountID int64) error) error
+	// SetAccountRole appoints an administrator or takes the role away (ADR 0014). Errors:
+	// model.ErrNotFound, model.ErrOwnerProtected, model.ErrLastAdmin, *model.ValidationError.
+	// Who may call it is the visibility level owner, decided in the middleware.
+	SetAccountRole(ctx context.Context, id int64, role string) error
 }
 
 // AdminService implements the wizard and library administration (package admin).

@@ -2611,6 +2611,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/accounts/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Appoint an account as administrator, or take the role away
+         * @description Only the owner may call this (ADR 0014); an administrator that is not the owner gets 403
+         *     `owner_required`.
+         *
+         *     Appointing lifts the account to `maxRating` 18 and all libraries, because the
+         *     administration views read system-wide and without a profile check - a lower ceiling there
+         *     would be a false promise, not a protection. Taking the role away does **not** put the old
+         *     limits back; the administration sets them again on the account if it wants to. The
+         *     account's profiles keep their own levels either way, and `admin` still needs the active
+         *     primary profile.
+         *
+         *     Taking the role away revokes every session of the account, so no browser keeps an
+         *     administration page that the next request would refuse. Appointing revokes nothing: the
+         *     middleware decides per request and nobody loses anything.
+         */
+        put: operations["setAccountRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/stats": {
         parameters: {
             query?: never;
@@ -5319,6 +5351,17 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             channels: components["schemas"]["ChannelSummary"][];
+        };
+        /**
+         * @description The role an account should have (`setAccountRole`). There is no field for the owner badge:
+         *     the owner is fixed to the first account and cannot be handed over (decision 12 g).
+         */
+        AccountRoleUpdate: {
+            /**
+             * @description `admin` runs the server and its libraries, `user` manages only its own profiles.
+             * @enum {string}
+             */
+            role: "admin" | "user";
         };
         AccountUpdate: {
             /** Format: email */
@@ -11061,6 +11104,53 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
+        };
+    };
+    setAccountRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["AccountID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountRoleUpdate"];
+            };
+        };
+        responses: {
+            /** @description The role is set. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["OwnerOnly"];
+            /** @description Unknown account (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The owner cannot be demoted (`owner_protected`), or the change would leave the server
+             *     without an administrator (`last_admin`).
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     getStats: {

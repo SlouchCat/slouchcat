@@ -70,6 +70,14 @@ var (
 	ErrInvitationGone         = errors.New("invitation gone")          // 410 invitation_gone
 )
 
+// Role errors (ADR 0014). They are conflicts, not permission questions: the caller has the right,
+// the state forbids the step. Who may call at all is the visibility level owner, enforced in the
+// middleware (403 owner_required).
+var (
+	ErrOwnerProtected = errors.New("owner protected") // 409 owner_protected
+	ErrLastAdmin      = errors.New("last administrator")
+)
+
 // PinLockedError is ErrPinLocked with the remaining lock; errors.Is(err, ErrPinLocked) holds.
 type PinLockedError struct {
 	RetryAfter time.Duration
