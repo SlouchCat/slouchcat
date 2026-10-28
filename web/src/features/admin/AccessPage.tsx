@@ -3,11 +3,13 @@ import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Text } from '@/ui';
 import { useLibraryOptions } from '../shared/useLibraryOptions';
-import { GuestsSection } from './GuestsSection';
 import { InvitationsSection } from './InvitationsSection';
 import styles from './AccessPage.module.css';
 
-/** Access (K-6, K-7): invitation links and guest accounts, for the main account's primary profile. */
+/**
+ * Access (K-6): the invitation links, for an administrator's primary profile. The accounts an
+ * invitation creates are managed in the account list (ADR 0014); this page is only the door.
+ */
 export function AccessPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.access.title'));
@@ -26,7 +28,6 @@ export function AccessPage() {
       {allowed ? (
         <div className={styles.sections}>
           <InvitationsSection libraries={libraries} />
-          <GuestsSection libraries={libraries} />
         </div>
       ) : (
         <Notice title={t('admin.access.notAllowed.title')}>

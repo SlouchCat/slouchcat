@@ -458,7 +458,7 @@ describe('admin navigation (A-2)', () => {
     };
     const { calls } = mockApi({ 'GET /auth/session': () => json(guest) });
     renderApp('/admin');
-    expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(screen.queryByRole('navigation', { name: 'Verwaltung' })).not.toBeInTheDocument();
     expect(
       within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).queryByRole('link', {

@@ -42,6 +42,11 @@ const problemKeys = {
   profile_required: 'errors.code.profile_required',
   primary_profile_required: 'errors.code.primary_profile_required',
   primary_profile: 'errors.code.primary_profile',
+  // User management (ADR 0014): the owner level and the two conflicts of the role change.
+  owner_required: 'errors.code.owner_required',
+  owner_protected: 'errors.code.owner_protected',
+  last_admin: 'errors.code.last_admin',
+  admin_limits_fixed: 'errors.code.admin_limits_fixed',
   invitation_gone: 'errors.code.invitation_gone',
   too_many_attempts: 'errors.code.too_many_attempts',
   too_many_requests: 'errors.code.too_many_requests',

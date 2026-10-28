@@ -336,7 +336,7 @@ func TestOfflineDownloadFlow(t *testing.T) {
 
 // K-7, AN-4: revoking a guest deletes its downloads through the cascade; its sync answers 401 and
 // checkOfflineRevocations, by the device cookie alone, lists the ids the device must delete.
-func TestOfflineGuestRevocation(t *testing.T) {
+func TestOfflineAccountDeletion(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
@@ -364,8 +364,8 @@ func TestOfflineGuestRevocation(t *testing.T) {
 	if code, got := revocations(device); code != http.StatusOK || len(got) != 0 {
 		t.Fatalf("before the revocation: %d %v", code, got)
 	}
-	if rec := send(t, h, http.MethodDelete, fmt.Sprintf("%s/admin/guests/%d", BasePath, f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
-		t.Fatalf("revoke guest: %d %s", rec.Code, rec.Body.String())
+	if rec := send(t, h, http.MethodDelete, fmt.Sprintf("%s/admin/accounts/%d", BasePath, f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete account: %d %s", rec.Code, rec.Body.String())
 	}
 	if _, rec := syncDevice(t, h, "pg", `{"held":[{"id":"`+id+`","complete":true}]}`); rec.Code != http.StatusUnauthorized {
 		t.Errorf("guest sync after the revocation: %d", rec.Code)

@@ -349,6 +349,9 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "owner_protected", "The owner cannot be demoted or deleted.")
 	case errors.Is(err, model.ErrLastAdmin):
 		p.write(w, r, http.StatusConflict, "last_admin", "The server would be left without an administrator.")
+	case errors.Is(err, model.ErrAdminLimitsFixed):
+		p.write(w, r, http.StatusConflict, "admin_limits_fixed",
+			"An administrator always sees every library up to FSK 18; take the role away first.")
 	case errors.Is(err, model.ErrInvitationGone):
 		p.write(w, r, http.StatusGone, "invitation_gone", "The invitation link was used, has expired or was revoked.")
 	case errors.Is(err, model.ErrSetupDone):

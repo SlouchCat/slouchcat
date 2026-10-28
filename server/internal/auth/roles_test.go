@@ -9,8 +9,8 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
-// roleOf reads role, is_owner, max_rating and all_libraries straight from the table, so the test
-// judges the stored state and not what the service claims it did.
+// roleOf reads the account row straight from the table, so the test judges the stored state and
+// not what the service claims it did.
 func roleOf(t *testing.T, s *Service, id int64) appq.Account {
 	t.Helper()
 	acc, err := s.read.GetAccount(context.Background(), id)
@@ -71,6 +71,52 @@ func TestSetAccountRoleLastAdmin(t *testing.T) {
 	}
 	if admins != 1 {
 		t.Errorf("administrators = %d, want 1", admins)
+	}
+}
+
+// The last-administrator lock is unreachable while an owner exists: the owner is an administrator
+// and can be neither demoted nor deleted, so one is always left. The guard exists for a database
+// that has lost its owner badge, and this test puts the server in exactly that state to prove the
+// guard is more than a comment.
+func TestLastAdminGuardWithoutAnOwner(t *testing.T) {
+	t.Parallel()
+	s, _ := newService(t)
+	sess, _ := owner(t, s)
+	ctx := context.Background()
+	if _, err := s.db.ExecContext(ctx, `UPDATE accounts SET is_owner = 0`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SetAccountRole(ctx, sess.Account.ID, model.RoleUser); !errors.Is(err, model.ErrLastAdmin) {
+		t.Errorf("demoting the only administrator = %v, want ErrLastAdmin", err)
+	}
+	if err := s.DeleteAccount(ctx, sess.Account.ID, nil); !errors.Is(err, model.ErrLastAdmin) {
+		t.Errorf("deleting the only administrator = %v, want ErrLastAdmin", err)
+	}
+	if acc := roleOf(t, s, sess.Account.ID); acc.Role != model.RoleAdmin {
+		t.Errorf("the administrator survived as %q", acc.Role)
+	}
+}
+
+// An administrator has no access limits: it is fixed at FSK 18 and all libraries, so the table
+// CHECK of migration 00022 can never be reached from the API (ADR 0014, decision 12 f).
+func TestUpdateAccountAccessRefusesAnAdministrator(t *testing.T) {
+	t.Parallel()
+	s, _ := newService(t)
+	sess, _ := owner(t, s)
+	ctx := context.Background()
+	second := addGuestAccount(t, s, "zugriff@example.ch", 12, true, nil)
+	if err := s.SetAccountRole(ctx, second.ID, model.RoleAdmin); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range []int64{sess.Account.ID, second.ID} {
+		if err := s.UpdateAccountAccess(ctx, id, model.AccountAccessUpdate{MaxRating: num(12)}); !errors.Is(err, model.ErrAdminLimitsFixed) {
+			t.Errorf("account %d = %v, want ErrAdminLimitsFixed", id, err)
+		}
+		if acc := roleOf(t, s, id); acc.MaxRating != 18 || acc.AllLibraries != 1 {
+			t.Errorf("account %d = FSK %d, all_libraries %d; want 18 and 1", id, acc.MaxRating, acc.AllLibraries)
+		}
 	}
 }
 
@@ -197,4 +243,14 @@ func TestSetAccountRoleRefusesUnknownIDAndRole(t *testing.T) {
 	if err := s.SetAccountRole(ctx, sess.Account.ID, "owner"); !errors.As(err, &verr) {
 		t.Errorf("the burnt value owner = %v, want a validation error", err)
 	}
+}
+
+// accountLibs reads the library rights of an account straight from the table.
+func accountLibs(t *testing.T, s *Service, id int64) []int64 {
+	t.Helper()
+	libs, err := s.read.ListAccountLibraries(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return libs
 }

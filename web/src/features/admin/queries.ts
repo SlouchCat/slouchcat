@@ -14,7 +14,6 @@ import type {
   CollectionRequest,
   Dashboard,
   DuplicateGroup,
-  Guest,
   HomeRowSetting,
   Integration,
   IntegrationCreated,
@@ -61,11 +60,6 @@ export const invitationsQuery = queryOptions({
   queryKey: ['admin', 'invitations'],
   queryFn: ({ signal }): Promise<Invitation[]> =>
     request(api.GET('/admin/invitations', { signal })),
-});
-
-export const guestsQuery = queryOptions({
-  queryKey: ['admin', 'guests'],
-  queryFn: ({ signal }): Promise<Guest[]> => request(api.GET('/admin/guests', { signal })),
 });
 
 /** Issue kinds of the maintenance page (B-9), in the order of its tabs. */

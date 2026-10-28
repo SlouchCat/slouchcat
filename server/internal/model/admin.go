@@ -318,6 +318,7 @@ type AdminAccount struct {
 	LastSeenAt   *time.Time
 	CreatedAt    time.Time
 	Channels     []ChannelSummary
+	Limits       PlaybackLimits // W-8 caps of the account (WatchLimitMinutes unused)
 }
 
 // ProfileRef is a profile in the account overview.

@@ -4,7 +4,8 @@
 -- name: ListAccountsAdmin :many
 -- The owner first, then the other administrators, then the accounts, newest first. Sorting by the
 -- role alone would leave the order among several administrators undefined.
-SELECT id, email, role, is_owner, max_rating, all_libraries, created_at, last_seen_at
+SELECT id, email, role, is_owner, max_rating, all_libraries, created_at, last_seen_at,
+       max_bitrate_kbps, max_height, max_streams
 FROM accounts
 ORDER BY is_owner DESC, role = 'user', created_at DESC, id DESC;
 

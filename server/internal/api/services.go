@@ -60,21 +60,23 @@ type ProfileService interface {
 	UpdateAccount(ctx context.Context, session model.Session, upd model.AccountUpdate) (model.Session, error)
 }
 
-// AccessService is the invitation and guest management of the main account plus the public
+// AccessService is the invitation and account management of the administration plus the public
 // invitation links (package auth).
 type AccessService interface {
 	// GetInvitation is the preview of an open link (model.ErrNotFound, model.ErrInvitationGone,
 	// model.ErrTooManyAttempts for model.ClientIP of ctx).
 	GetInvitation(ctx context.Context, token string) (model.InvitationPreview, error)
-	// AcceptInvitation creates the guest account and starts its session (plain token returned once).
+	// AcceptInvitation creates the account and starts its session (plain token returned once).
 	AcceptInvitation(ctx context.Context, in model.AcceptInvitation, userAgent string) (model.Session, string, error)
 	CreateInvitation(ctx context.Context, creator model.Account, req model.InvitationRequest) (model.Invitation, error)
 	ListInvitations(ctx context.Context) ([]model.Invitation, error)
 	RevokeInvitation(ctx context.Context, id int64) error
-	ListGuests(ctx context.Context) ([]model.Guest, error)
-	UpdateGuest(ctx context.Context, id int64, in model.GuestUpdate) (model.Guest, error)
-	// RevokeAccount revokes and deletes a guest account; end runs after the checks, before the delete.
-	RevokeAccount(ctx context.Context, accountID int64, end func(ctx context.Context, accountID int64) error) error
+	// UpdateAccountAccess changes ceiling, libraries and W-8 caps of an account that administers
+	// nothing. Errors: model.ErrNotFound, model.ErrAdminLimitsFixed, *model.ValidationError.
+	UpdateAccountAccess(ctx context.Context, id int64, in model.AccountAccessUpdate) error
+	// DeleteAccount revokes and deletes an account; end runs after the checks, before the delete.
+	// Errors: model.ErrNotFound, model.ErrOwnerProtected, model.ErrLastAdmin.
+	DeleteAccount(ctx context.Context, accountID int64, end func(ctx context.Context, accountID int64) error) error
 	// SetAccountRole appoints an administrator or takes the role away (ADR 0014). Errors:
 	// model.ErrNotFound, model.ErrOwnerProtected, model.ErrLastAdmin, *model.ValidationError.
 	// Who may call it is the visibility level owner, decided in the middleware.

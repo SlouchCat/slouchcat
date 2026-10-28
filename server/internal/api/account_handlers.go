@@ -28,6 +28,7 @@ func (s *server) ListAccounts(ctx context.Context, _ gen.ListAccountsRequestObje
 			Id: a.ID, Email: types.Email(a.Email), Role: gen.AdminAccountRole(a.Role), IsOwner: a.IsOwner, MaxRating: gen.Rating(a.MaxRating),
 			AllLibraries: a.AllLibraries, LibraryIds: nonNil(a.LibraryIDs), LastSeenAt: utc(a.LastSeenAt), CreatedAt: a.CreatedAt.UTC(),
 			Profiles: make([]gen.ProfileRef, 0, len(a.Profiles)), Channels: make([]gen.ChannelSummary, 0, len(a.Channels)),
+			Limits: toPlaybackLimits(a.Limits),
 		}
 		for _, p := range a.Profiles {
 			item.Profiles = append(item.Profiles, gen.ProfileRef{Id: p.ID, Name: p.Name, MaxRating: gen.Rating(p.MaxRating), IsPrimary: p.IsPrimary})

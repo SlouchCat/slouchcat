@@ -65,25 +65,21 @@ func TestPlaybackLimits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	updated, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{Limits: &model.PlaybackLimits{MaxBitrateKbps: 8000, MaxHeight: 1080, MaxStreams: 2, WatchLimitMinutes: 60}})
-	if err != nil {
+	wantCaps := model.PlaybackLimits{MaxBitrateKbps: 8000, MaxHeight: 1080, MaxStreams: 2}
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{Limits: &model.PlaybackLimits{MaxBitrateKbps: 8000, MaxHeight: 1080, MaxStreams: 2, WatchLimitMinutes: 60}}); err != nil {
 		t.Fatal(err)
 	}
-	if updated.Limits != (model.PlaybackLimits{MaxBitrateKbps: 8000, MaxHeight: 1080, MaxStreams: 2}) {
-		t.Fatalf("guest caps = %+v (the watch-time limit is a profile setting)", updated.Limits)
+	if caps := AccountLimits(roleOf(t, s, guest.Account.ID)); caps != wantCaps {
+		t.Fatalf("account caps = %+v (the watch-time limit is a profile setting)", caps)
 	}
-	if _, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{Limits: &model.PlaybackLimits{MaxHeight: 999}}); !slices.Equal(validationCodes(err), []string{"limits.maxHeight:invalid_value"}) {
-		t.Errorf("invalid guest cap: %v", err)
-	}
-	guests, err := s.ListGuests(ctx)
-	if err != nil || len(guests) != 1 || guests[0].Limits != updated.Limits {
-		t.Fatalf("list guests = %+v, %v", guests, err)
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{Limits: &model.PlaybackLimits{MaxHeight: 999}}); !slices.Equal(validationCodes(err), []string{"limits.maxHeight:invalid_value"}) {
+		t.Errorf("invalid account cap: %v", err)
 	}
 	resolved, _, err := s.Resolve(ctx, token)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resolved.Account.Limits != updated.Limits {
+	if resolved.Account.Limits != wantCaps {
 		t.Errorf("resolved account caps = %+v", resolved.Account.Limits)
 	}
 	// The guest's primary profile sets limits above and below the caps; the effective limits take

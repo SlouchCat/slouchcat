@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
 // ListAccounts returns every account with its profiles, library rights, last use and the switch of
@@ -35,6 +37,9 @@ func (s *Service) ListAccounts(ctx context.Context) ([]model.AdminAccount, error
 			ID: a.ID, Email: a.Email, Role: a.Role, IsOwner: a.IsOwner == 1, MaxRating: int(a.MaxRating), AllLibraries: a.AllLibraries == 1,
 			LibraryIDs: []int64{}, Profiles: []model.ProfileRef{}, Channels: []model.ChannelSummary{},
 			CreatedAt: time.UnixMilli(a.CreatedAt).UTC(),
+			Limits: auth.AccountLimits(appq.Account{
+				MaxBitrateKbps: a.MaxBitrateKbps, MaxHeight: a.MaxHeight, MaxStreams: a.MaxStreams,
+			}),
 		}
 		if a.LastSeenAt.Valid {
 			t := time.UnixMilli(a.LastSeenAt.Int64).UTC()

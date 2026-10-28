@@ -186,33 +186,6 @@ func (q *Queries) DeleteStalePinAttempts(ctx context.Context, before int64) (int
 	return result.RowsAffected()
 }
 
-const getGuestAccount = `-- name: GetGuestAccount :one
-SELECT id, email, password_hash, role, is_owner, created_at, updated_at, max_rating, all_libraries, invited_by, last_seen_at, max_bitrate_kbps, max_height, max_streams FROM accounts WHERE id = ?1 AND role = 'user'
-`
-
-// An account that administers nothing; the administration changes its limits and may revoke it.
-func (q *Queries) GetGuestAccount(ctx context.Context, id int64) (Account, error) {
-	row := q.db.QueryRowContext(ctx, getGuestAccount, id)
-	var i Account
-	err := row.Scan(
-		&i.ID,
-		&i.Email,
-		&i.PasswordHash,
-		&i.Role,
-		&i.IsOwner,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.MaxRating,
-		&i.AllLibraries,
-		&i.InvitedBy,
-		&i.LastSeenAt,
-		&i.MaxBitrateKbps,
-		&i.MaxHeight,
-		&i.MaxStreams,
-	)
-	return i, err
-}
-
 const getInvitation = `-- name: GetInvitation :one
 SELECT id, token_hash, note, max_rating, all_libraries, created_by, created_at, expires_at, used_at, used_by, revoked_at FROM invitations WHERE id = ?1
 `
@@ -532,92 +505,6 @@ func (q *Queries) ListDevicesAdmin(ctx context.Context, arg ListDevicesAdminPara
 			&i.OwnerProfile,
 			&i.ActiveStreams,
 		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listGuestAccounts = `-- name: ListGuestAccounts :many
-SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
-       a.max_bitrate_kbps, a.max_height, a.max_streams,
-       (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
-FROM accounts AS a
-WHERE a.role = 'user'
-ORDER BY a.created_at DESC, a.id DESC
-`
-
-type ListGuestAccountsRow struct {
-	ID             int64
-	Email          string
-	MaxRating      int64
-	AllLibraries   int64
-	CreatedAt      int64
-	LastSeenAt     sql.NullInt64
-	MaxBitrateKbps sql.NullInt64
-	MaxHeight      sql.NullInt64
-	MaxStreams     sql.NullInt64
-	ProfileCount   int64
-}
-
-func (q *Queries) ListGuestAccounts(ctx context.Context) ([]ListGuestAccountsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listGuestAccounts)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListGuestAccountsRow{}
-	for rows.Next() {
-		var i ListGuestAccountsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.MaxRating,
-			&i.AllLibraries,
-			&i.CreatedAt,
-			&i.LastSeenAt,
-			&i.MaxBitrateKbps,
-			&i.MaxHeight,
-			&i.MaxStreams,
-			&i.ProfileCount,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listGuestLibraries = `-- name: ListGuestLibraries :many
-SELECT al.account_id, al.library_id FROM account_libraries AS al
-JOIN accounts AS a ON a.id = al.account_id
-WHERE a.role = 'user'
-ORDER BY al.account_id, al.library_id
-`
-
-func (q *Queries) ListGuestLibraries(ctx context.Context) ([]AccountLibrary, error) {
-	rows, err := q.db.QueryContext(ctx, listGuestLibraries)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []AccountLibrary{}
-	for rows.Next() {
-		var i AccountLibrary
-		if err := rows.Scan(&i.AccountID, &i.LibraryID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

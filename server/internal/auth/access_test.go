@@ -519,38 +519,42 @@ func TestGuestLimits(t *testing.T) {
 		t.Errorf("guest profile within limits: %+v, %v", ok, err)
 	}
 
-	// The owner changes the limits.
-	updated, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{MaxRating: num(6), LibraryIDs: &[]int64{libA, libB}})
-	if err != nil {
+	// The administration changes the limits.
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{MaxRating: num(6), LibraryIDs: &[]int64{libA, libB}}); err != nil {
 		t.Fatal(err)
 	}
-	if updated.MaxRating != 6 || updated.AllLibraries || !slices.Equal(updated.LibraryIDs, []int64{libA, libB}) || updated.ProfileCount != 3 || updated.Email != "oma@example.ch" {
-		t.Fatalf("updated guest = %+v", updated)
+	if acc := roleOf(t, s, guest.Account.ID); acc.MaxRating != 6 || acc.AllLibraries != 0 || acc.Email != "oma@example.ch" {
+		t.Fatalf("updated account = %+v", acc)
 	}
-	if _, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{MaxRating: num(5)}); !slices.Equal(validationCodes(err), []string{"maxRating:invalid_value"}) {
+	if libs := accountLibs(t, s, guest.Account.ID); !slices.Equal(libs, []int64{libA, libB}) {
+		t.Fatalf("updated libraries = %v", libs)
+	}
+	if n, err := s.read.CountProfilesByAccount(ctx, guest.Account.ID); err != nil || n != 3 {
+		t.Fatalf("profiles = %d, %v", n, err)
+	}
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{MaxRating: num(5)}); !slices.Equal(validationCodes(err), []string{"maxRating:invalid_value"}) {
 		t.Errorf("invalid ceiling: %v", err)
 	}
-	if _, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{LibraryIDs: &[]int64{999}}); !slices.Equal(validationCodes(err), []string{"libraryIds:unknown_library"}) {
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{LibraryIDs: &[]int64{999}}); !slices.Equal(validationCodes(err), []string{"libraryIds:unknown_library"}) {
 		t.Errorf("unknown library: %v", err)
 	}
-	if g, err := s.UpdateGuest(ctx, guest.Account.ID, model.GuestUpdate{AllLibraries: boolPtr(true)}); err != nil || !g.AllLibraries || len(g.LibraryIDs) != 0 {
-		t.Errorf("all libraries: %+v, %v", g, err)
+	if err := s.UpdateAccountAccess(ctx, guest.Account.ID, model.AccountAccessUpdate{AllLibraries: boolPtr(true)}); err != nil {
+		t.Errorf("all libraries: %v", err)
 	}
-	// The owner is no guest.
-	if _, err := s.UpdateGuest(ctx, ownerSess.Account.ID, model.GuestUpdate{MaxRating: num(0)}); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("update of the owner: %v", err)
+	if acc, libs := roleOf(t, s, guest.Account.ID), accountLibs(t, s, guest.Account.ID); acc.AllLibraries != 1 || len(libs) != 0 {
+		t.Errorf("all libraries = %+v, %v", acc, libs)
 	}
-	if err := s.RevokeAccount(ctx, ownerSess.Account.ID, nil); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("revoke of the owner: %v", err)
+	// An administrator has no access limits (ADR 0014), and the owner is never deleted.
+	if err := s.UpdateAccountAccess(ctx, ownerSess.Account.ID, model.AccountAccessUpdate{MaxRating: num(0)}); !errors.Is(err, model.ErrAdminLimitsFixed) {
+		t.Errorf("update of an administrator: %v", err)
 	}
-	list, err := s.ListGuests(ctx)
-	if err != nil || len(list) != 1 || list[0].ProfileCount != 3 || list[0].LastSeenAt != nil {
-		t.Fatalf("guest list = %+v, %v", list, err)
+	if err := s.DeleteAccount(ctx, ownerSess.Account.ID, nil); !errors.Is(err, model.ErrOwnerProtected) {
+		t.Errorf("delete of the owner: %v", err)
 	}
 
-	// Revocation: end runs first, then sessions and account are gone in one step.
+	// Deletion: end runs first, then sessions and account are gone in one step.
 	var endedFor int64
-	if err := s.RevokeAccount(ctx, guest.Account.ID, func(_ context.Context, id int64) error { endedFor = id; return nil }); err != nil {
+	if err := s.DeleteAccount(ctx, guest.Account.ID, func(_ context.Context, id int64) error { endedFor = id; return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if endedFor != guest.Account.ID {
@@ -562,8 +566,8 @@ func TestGuestLimits(t *testing.T) {
 	if _, _, err := s.Login(fresh(), "oma@example.ch", "oma-password-1", "ua"); !errors.Is(err, model.ErrInvalidCredentials) {
 		t.Errorf("login after revocation: %v", err)
 	}
-	if err := s.RevokeAccount(ctx, guest.Account.ID, nil); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("second revocation: %v", err)
+	if err := s.DeleteAccount(ctx, guest.Account.ID, nil); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("second deletion: %v", err)
 	}
 	// A failing end aborts the revocation.
 	inv2, _ := s.CreateInvitation(ctx, ownerSess.Account, model.InvitationRequest{MaxRating: 6, AllLibraries: true})
@@ -572,7 +576,7 @@ func TestGuestLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	boom := errors.New("boom")
-	if err := s.RevokeAccount(ctx, g2.Account.ID, func(context.Context, int64) error { return boom }); !errors.Is(err, boom) {
+	if err := s.DeleteAccount(ctx, g2.Account.ID, func(context.Context, int64) error { return boom }); !errors.Is(err, boom) {
 		t.Errorf("failing end: %v", err)
 	}
 	if _, _, err := s.Login(fresh(), "g2@example.ch", "oma-password-2", "ua"); err != nil {
@@ -762,9 +766,12 @@ func TestInvitationAcceptedOnce(t *testing.T) {
 	if ok != 1 || gone != 3 {
 		t.Errorf("%d accepted, %d gone; want 1 and 3", ok, gone)
 	}
-	guests, _ := s.ListGuests(ctx)
-	if len(guests) != 1 {
-		t.Errorf("%d guest accounts", len(guests))
+	var created int
+	if err := s.db.QueryRow(`SELECT count(*) FROM accounts WHERE role = 'user'`).Scan(&created); err != nil {
+		t.Fatal(err)
+	}
+	if created != 1 {
+		t.Errorf("%d accounts created", created)
 	}
 }
 

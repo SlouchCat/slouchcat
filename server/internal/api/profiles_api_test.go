@@ -358,9 +358,9 @@ func TestInvitationFlow(t *testing.T) {
 		t.Errorf("accept must set the session cookie and keep the device cookie: %v", guest.cookies)
 	}
 
-	// The guest is a guest: no administration, but its own profile management.
-	if rec := guest.do(http.MethodGet, "/api/v1/admin/guests", nil); rec.Code != http.StatusForbidden {
-		t.Errorf("guest on admin: %d", rec.Code)
+	// The invited account administers nothing, but manages its own profiles.
+	if rec := guest.do(http.MethodGet, "/api/v1/admin/accounts", nil); rec.Code != http.StatusForbidden {
+		t.Errorf("account without administration on admin: %d", rec.Code)
 	}
 	if rec := guest.do(http.MethodPost, "/api/v1/profiles", map[string]any{"name": "Opa", "maxRating": 16}); rec.Code != http.StatusUnprocessableEntity ||
 		!strings.Contains(rec.Body.String(), "above_account_limit") {
@@ -387,10 +387,12 @@ func TestInvitationFlow(t *testing.T) {
 	if len(list) != 1 || list[0].State != gen.Used || list[0].UsedByEmail == nil || string(*list[0].UsedByEmail) != "oma@example.ch" {
 		t.Errorf("invitation list = %+v", list)
 	}
-	var guests []gen.Guest
-	decode(t, owner.do(http.MethodGet, "/api/v1/admin/guests", nil), &guests)
-	if len(guests) != 1 || guests[0].ProfileCount != 2 || guests[0].MaxRating != 12 || !guests[0].AllLibraries {
-		t.Errorf("guests = %+v", guests)
+	var accounts []gen.AdminAccount
+	decode(t, owner.do(http.MethodGet, "/api/v1/admin/accounts", nil), &accounts)
+	invited := accounts[len(accounts)-1]
+	if len(accounts) != 2 || invited.Role != gen.AdminAccountRoleUser || invited.IsOwner ||
+		len(invited.Profiles) != 2 || invited.MaxRating != 12 || !invited.AllLibraries {
+		t.Errorf("accounts = %+v", accounts)
 	}
 
 	// A revoked link answers 410; an unknown one 404; the owner's e-mail cannot be taken.
@@ -417,13 +419,13 @@ func TestInvitationFlow(t *testing.T) {
 		t.Errorf("a failed accept must not use the link up: %d", rec.Code)
 	}
 
-	// Revoking the guest: its cookie answers 401 at once.
-	wantStatus(t, owner.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/guests/%d", guests[0].Id), nil), http.StatusNoContent)
+	// Deleting the account: its cookie answers 401 at once.
+	wantStatus(t, owner.do(http.MethodDelete, fmt.Sprintf("/api/v1/admin/accounts/%d", invited.Id), nil), http.StatusNoContent)
 	if rec := guest.do(http.MethodGet, "/api/v1/auth/session", nil); rec.Code != http.StatusUnauthorized {
-		t.Errorf("revoked guest session: %d", rec.Code)
+		t.Errorf("deleted account session: %d", rec.Code)
 	}
 	if rec := newBrowser(t, e.h).do(http.MethodPost, "/api/v1/auth/login", map[string]any{"email": "oma@example.ch", "password": "oma-password-4711"}); rec.Code != http.StatusUnauthorized {
-		t.Errorf("login of the revoked guest: %d", rec.Code)
+		t.Errorf("login of the deleted account: %d", rec.Code)
 	}
 }
 

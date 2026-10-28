@@ -1,8 +1,10 @@
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
 import {
   acceptInvitation,
+  accountRow,
   anonymousApi,
   createInvitation,
+  openAccounts,
   revokeInvitation,
   type InvitationData,
   type SessionData,
@@ -61,19 +63,7 @@ async function restoreOwnerEmail(owner: APIRequestContext) {
   expect(response.status(), await response.text()).toBe(200);
 }
 
-async function openAccounts(page: Page) {
-  await page.goto('/admin/accounts');
-  await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
-  await expect(page.getByRole('table', { name: 'Konten' })).toBeVisible();
-}
-
-const accountRow = (page: Page, email: string) =>
-  page
-    .getByRole('table', { name: 'Konten' })
-    .getByRole('row')
-    .filter({ has: page.getByRole('rowheader', { name: email, exact: true }) });
-
-test('A-2: the administrator and an account in one table; the account row leads to access', async ({
+test('A-2: the administrator and an account in one table, with the owner badge', async ({
   page,
   owner,
   playwright,
@@ -94,24 +84,16 @@ test('A-2: the administrator and an account in one table; the account row leads 
       'href',
       '/settings/profiles',
     );
+    await expect(own).toContainText('Besitzer');
     const guest = accountRow(page, GUEST.email);
     await expect(guest).toContainText('Konto');
     await expect(guest).toContainText('FSK 12');
     await expect(guest).toContainText('Gast (Hauptprofil)');
-    // Plan 5.2: a guest gets announcements by e-mail unless they switch it off.
+    // Plan 5.2: an invited account gets announcements by e-mail unless it switches them off.
     await expect(guest.getByRole('cell').nth(5)).toHaveText('E-Mail');
 
-    // Enter on the guest's link opens the access page; Back returns.
-    const access = guest.getByRole('link', { name: `Zugriff von ${GUEST.email} verwalten` });
-    await expect(access).toHaveAttribute('href', '/admin/access');
-    await resetFocus(page);
-    await tabTo(page, access, 60);
-    await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\/admin\/access$/);
-    await expect(page.getByRole('heading', { level: 1, name: 'Zugriff' })).toBeVisible();
-    await page.goBack();
-    await expect(page).toHaveURL(/\/admin\/accounts$/);
-    await expect(accountRow(page, GUEST.email)).toBeVisible();
+    // The owner's own row carries neither a role action nor a removal: it is protected (ADR 0014).
+    await expect(own.getByRole('button', { name: /ernennen|entziehen|entfernen/ })).toHaveCount(0);
   } finally {
     await revokeInvitations(owner);
     await anonymous.dispose();
@@ -133,12 +115,12 @@ test('A-2: change the own e-mail and back by keyboard; a wrong password stays at
     const change = accountRow(page, OWNER.email).getByRole('button', { name: 'Konto ändern' });
     await tabTo(page, change, 60);
 
-    // ↓ moves to the guest's link in the same column, ↑ comes back.
-    const guestLink = accountRow(page, GUEST.email).getByRole('link', {
-      name: `Zugriff von ${GUEST.email} verwalten`,
+    // ↓ moves to the first action of the next row in the same column, ↑ comes back.
+    const guestAccess = accountRow(page, GUEST.email).getByRole('button', {
+      name: `Zugriff von ${GUEST.email} ändern`,
     });
-    await arrowBetweenRows(page, guestLink);
-    await expectFocusOn(page, guestLink);
+    await arrowBetweenRows(page, guestAccess);
+    await expectFocusOn(page, guestAccess);
     await page.keyboard.press('ArrowUp');
     await expectFocusOn(page, change);
 
@@ -206,3 +188,106 @@ test('A-2: change the own e-mail and back by keyboard; a wrong password stays at
     await anonymous.dispose();
   }
 });
+
+/**
+ * Rule 8 for the account table that grew in ADR 0014: the access dialog, the role dialog and the
+ * removal are reachable and leaveable by keyboard, the focus stays visible and returns to the
+ * button it came from, and a refusal from the server is readable instead of silent.
+ *
+ * The test appoints the invited account and takes the role away again. Both directions run against
+ * the real server; the `owner` fixture removes the account afterwards, and its cleanup takes a
+ * leftover administrator role off first.
+ */
+test('ADR 0014: appoint and demote by keyboard, with the dialogs and no focus trap', async ({
+  page,
+  owner,
+  playwright,
+  baseURL,
+  extraHTTPHeaders,
+}) => {
+  const anonymous = await anonymousApi(playwright, baseURL!, extraHTTPHeaders);
+  try {
+    await inviteGuest(owner, anonymous);
+    await openAccounts(page);
+    const row = accountRow(page, GUEST.email);
+
+    // The access dialog: Enter opens it, Escape closes it and gives the focus back.
+    const access = row.getByRole('button', { name: `Zugriff von ${GUEST.email} ändern` });
+    await resetFocus(page);
+    await tabTo(page, access, 80);
+    await page.keyboard.press('Enter');
+    const accessDialog = page.getByRole('dialog', { name: `Zugriff von ${GUEST.email}` });
+    await expect(accessDialog).toBeVisible();
+    await expectFocusOn(page, accessDialog.getByRole('radio', { name: 'FSK 12' }));
+    await page.keyboard.press('Escape');
+    await expect(accessDialog).toBeHidden();
+    await expectFocusOn(page, access);
+
+    // The role dialog: Tab reaches it, Escape leaves it, Enter appoints.
+    const promote = row.getByRole('button', { name: `${GUEST.email} zum Administrator ernennen` });
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, promote);
+    await page.keyboard.press('Enter');
+    const confirm = page.getByRole('alertdialog', {
+      name: `${GUEST.email} zum Administrator ernennen?`,
+    });
+    await expect(confirm).toContainText('FSK 18');
+    await expectFocusOn(page, confirm.getByRole('button', { name: 'Ernennen' }));
+    await page.keyboard.press('Escape');
+    await expect(confirm).toBeHidden();
+    await expectFocusOn(page, promote);
+
+    await page.keyboard.press('Enter');
+    const appointed = page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && r.url().includes('/role'),
+    );
+    await page.keyboard.press('Enter');
+    expect((await appointed).status()).toBe(204);
+    await expect(row).toContainText('Administrator');
+    await expect(row).toContainText('FSK 18');
+    // An administrator has no access limits any more, so the button is gone (ADR 0014).
+    await expect(row.getByRole('button', { name: /Zugriff von/ })).toHaveCount(0);
+
+    // And back: the demotion signs the account out everywhere. The dialog gave the focus back to
+    // the button it came from, and that button now carries the other label - no second Tab walk.
+    const demote = row.getByRole('button', {
+      name: `${GUEST.email} die Administratorrolle entziehen`,
+    });
+    await expectFocusOn(page, demote);
+    await page.keyboard.press('Enter');
+    const back = page.getByRole('alertdialog', {
+      name: `${GUEST.email} die Administratorrolle entziehen?`,
+    });
+    await expect(back).toContainText('abgemeldet');
+    const demoted = page.waitForResponse(
+      (r) => r.request().method() === 'PUT' && r.url().includes('/role'),
+    );
+    await page.keyboard.press('Enter');
+    expect((await demoted).status()).toBe(204);
+    await expect(row).toContainText('Konto');
+
+    // The owner is refused by the server, and the page says so instead of swallowing it.
+    const ownRow = accountRow(page, OWNER.email);
+    await expect(ownRow.getByRole('button', { name: /ernennen|entziehen|entfernen/ })).toHaveCount(
+      0,
+    );
+    const refused = await page.request.put(
+      `/api/v1/admin/accounts/${await ownerAccountId(owner)}/role`,
+      { headers: CSRF, data: { role: 'user' } },
+    );
+    expect(refused.status()).toBe(409);
+    expect(await refused.text()).toContain('owner_protected');
+
+    await expectVisibleFocus(page);
+    await expectNoFocusTrap(page);
+  } finally {
+    await revokeInvitations(owner);
+    await anonymous.dispose();
+  }
+});
+
+/** The id of the signed-in owner account. */
+async function ownerAccountId(owner: APIRequestContext): Promise<number> {
+  const session = (await (await owner.get('/api/v1/auth/session')).json()) as SessionData;
+  return session.account.id;
+}

@@ -91,18 +91,6 @@ INSERT INTO accounts (email, password_hash, role, max_rating, all_libraries, inv
 VALUES (@email, @password_hash, 'user', @max_rating, @all_libraries, sqlc.narg('invited_by'), @now, @now)
 RETURNING *;
 
--- name: GetGuestAccount :one
--- An account that administers nothing; the administration changes its limits and may revoke it.
-SELECT * FROM accounts WHERE id = @id AND role = 'user';
-
--- name: ListGuestAccounts :many
-SELECT a.id, a.email, a.max_rating, a.all_libraries, a.created_at, a.last_seen_at,
-       a.max_bitrate_kbps, a.max_height, a.max_streams,
-       (SELECT count(*) FROM profiles AS p WHERE p.account_id = a.id) AS profile_count
-FROM accounts AS a
-WHERE a.role = 'user'
-ORDER BY a.created_at DESC, a.id DESC;
-
 -- name: CountOtherAdmins :one
 -- How many administrators would be left without this account. Read inside the write transaction
 -- of SetAccountRole and DeleteAccount, so two concurrent demotions cannot both win (ADR 0014).
@@ -131,12 +119,6 @@ DELETE FROM accounts WHERE id = @id;
 
 -- name: ListAccountLibraries :many
 SELECT library_id FROM account_libraries WHERE account_id = @account_id ORDER BY library_id;
-
--- name: ListGuestLibraries :many
-SELECT al.account_id, al.library_id FROM account_libraries AS al
-JOIN accounts AS a ON a.id = al.account_id
-WHERE a.role = 'user'
-ORDER BY al.account_id, al.library_id;
 
 -- name: DeleteAccountLibraries :exec
 DELETE FROM account_libraries WHERE account_id = @account_id;

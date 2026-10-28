@@ -2637,89 +2637,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
-  /admin/guests:
-    get:
-      operationId: listGuests
-      summary: Guest accounts with their limits
-      tags: [admin]
-      x-visibility: admin
-      responses:
-        "200":
-          description: Guest accounts, newest first.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Guest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-
-  /admin/guests/{id}:
-    patch:
-      operationId: updateGuest
-      summary: Change the rating ceiling or the library rights of a guest account
-      description: Takes effect with the guest's next request; profiles above the new ceiling are capped by the visibility layer.
-      tags: [admin]
-      x-visibility: admin
-      parameters:
-        - $ref: "#/components/parameters/AccountID"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/GuestUpdate"
-      responses:
-        "200":
-          description: Updated.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Guest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: Unknown guest account (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-        "422":
-          description: Validation failed (`validation_failed`; `libraryIds` `unknown_library`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-    delete:
-      operationId: revokeGuest
-      summary: Revoke a guest account (K-7)
-      description: |
-        Ends every running stream of the account, revokes all its sessions and stream tokens and deletes the
-        account with its profiles and progress. From the next request on, cookies and stream tokens of the
-        guest answer 401.
-      tags: [admin]
-      x-visibility: admin
-      parameters:
-        - $ref: "#/components/parameters/AccountID"
-      responses:
-        "204":
-          description: Revoked and deleted.
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/AdminOnly"
-        "404":
-          description: Unknown guest account (`not_found`).
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
-
   /admin/podcasts:
     get:
       operationId: listPodcasts
@@ -4906,12 +4823,12 @@ paths:
   /admin/accounts:
     get:
       operationId: listAccounts
-      summary: The main account and the guest accounts with profiles and channels (A-2)
+      summary: Every account with its role, limits, profiles and channels (A-2)
       tags: [admin]
       x-visibility: admin
       responses:
         "200":
-          description: The main account first, then the guests by creation, newest first.
+          description: The owner first, then the other administrators, then the accounts by creation, newest first.
           content:
             application/json:
               schema:
@@ -4922,6 +4839,87 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/AdminOnly"
+
+  /admin/accounts/{id}:
+    patch:
+      operationId: updateAccountAccess
+      summary: Change the rating ceiling, the library rights or the playback caps of an account
+      description: |
+        Takes effect with the account's next request; profiles above the new ceiling are capped by the
+        visibility layer.
+
+        Only an account with `role: user` has access limits. An administrator is fixed at `maxRating` 18
+        and all libraries (ADR 0014, decision 12 f), because the administration views read system-wide and
+        without a profile check; this answers `409 admin_limits_fixed` for one. Take the role away first if
+        the account should be limited again.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AccountID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountAccessUpdate"
+      responses:
+        "204":
+          description: Updated; read the account list again for the new values.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The account is an administrator and has no access limits (`admin_limits_fixed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `libraryIds` `unknown_library`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: deleteAccount
+      summary: Delete an account with its profiles and progress (K-7)
+      description: |
+        Ends every running stream of the account, revokes all its sessions and stream tokens and deletes the
+        account with its profiles and progress. From the next request on, cookies and stream tokens of the
+        account answer 401.
+
+        The owner cannot be deleted (`owner_protected`), and the last administrator cannot either
+        (`last_admin`): there is no path to a server without an administration (ADR 0014).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/AccountID"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown account (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The owner (`owner_protected`) or the last administrator (`last_admin`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
 
   /admin/accounts/{id}/role:
     put:
@@ -6484,43 +6482,7 @@ components:
           $ref: "#/components/schemas/Language"
           description: UI and metadata language of the primary profile; default de.
 
-    Guest:
-      type: object
-      required: [id, email, maxRating, allLibraries, libraryIds, profileCount, createdAt, limits]
-      properties:
-        id:
-          type: integer
-          format: int64
-        email:
-          type: string
-          format: email
-        maxRating:
-          $ref: "#/components/schemas/Rating"
-        allLibraries:
-          type: boolean
-        libraryIds:
-          type: array
-          items:
-            type: integer
-            format: int64
-        profileCount:
-          type: integer
-          minimum: 1
-        createdAt:
-          type: string
-          format: date-time
-        lastSeenAt:
-          type: string
-          format: date-time
-          description: Last request of any session of the account.
-        limits:
-          $ref: "#/components/schemas/PlaybackLimits"
-          description: |
-            Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
-            profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
-            the object replaces all three at once: a field left out clears that limit.
-
-    GuestUpdate:
+    AccountAccessUpdate:
       type: object
       properties:
         maxRating:
@@ -6536,9 +6498,9 @@ components:
         limits:
           $ref: "#/components/schemas/PlaybackLimits"
           description: |
-            Bandwidth, maximum output height and concurrent streams of the guest account (W-8); they cap every
-            profile of the account. `watchLimitMinutes` is a profile setting and ignored here. In a request
-            the object replaces all three at once: a field left out clears that limit.
+            Bandwidth, maximum output height and concurrent streams of the account (W-8); they cap every
+            profile of the account. `watchLimitMinutes` is a profile setting and ignored here. The object
+            replaces all three at once: a field left out clears that limit.
 
     ItemRatingRequest:
       type: object
@@ -9900,7 +9862,7 @@ components:
     AdminAccount:
       type: object
       description: An account as the administration sees it (A-2).
-      required: [id, email, role, isOwner, maxRating, allLibraries, libraryIds, profiles, createdAt, channels]
+      required: [id, email, role, isOwner, maxRating, allLibraries, libraryIds, profiles, createdAt, channels, limits]
       properties:
         id:
           type: integer
@@ -9937,6 +9899,11 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ChannelSummary"
+        limits:
+          $ref: "#/components/schemas/PlaybackLimits"
+          description: |
+            Bandwidth, maximum output height and concurrent streams of the account (W-8); they cap every
+            profile of the account. `watchLimitMinutes` is a profile setting and always absent here.
 
     AccountRoleUpdate:
       type: object

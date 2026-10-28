@@ -1,4 +1,4 @@
-import type { Guest, Invitation } from '@slouchcat/api-client';
+import type { Invitation } from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -17,36 +17,23 @@ const invitation = (overrides: Partial<Invitation> = {}): Invitation => ({
   ...overrides,
 });
 
-const guest: Guest = {
-  id: 5,
-  email: 'oma@example.test',
-  maxRating: 12,
-  allLibraries: false,
-  libraryIds: [1],
-  profileCount: 2,
-  createdAt: '2026-10-19T10:00:00Z',
-  lastSeenAt: '2026-10-19T11:00:00Z',
-  limits: { maxHeight: 720 },
-};
-
-const access = (invitations: Invitation[] = [], guests: Guest[] = []): Routes => ({
+const access = (invitations: Invitation[] = []): Routes => ({
   ...signedIn,
   'GET /libraries': () => json(accountLibraries),
   'GET /admin/invitations': () => json(invitations),
-  'GET /admin/guests': () => json(guests),
 });
 
 describe('access page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('is for the main account only', async () => {
+  it('is for administrators only', async () => {
     const { calls } = mockApi({
       ...signedIn,
       'GET /auth/session': () =>
         json({ ...session, account: { ...session.account, role: 'user', isOwner: false } }),
     });
     renderApp('/admin/access');
-    expect(await screen.findByText('Nur für das Hauptkonto')).toBeVisible();
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
 
@@ -147,66 +134,6 @@ describe('access page', () => {
     const dialog = await screen.findByRole('alertdialog', { name: 'Einladung widerrufen?' });
     await user.click(within(dialog).getByRole('button', { name: 'Widerrufen' }));
     await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
-  });
-
-  it('edits a guest and warns that removing ends the sessions at once', async () => {
-    const { calls } = mockApi({
-      ...access([], [guest]),
-      'PATCH /admin/guests/5': () => json({ ...guest, maxRating: 6 }),
-      'DELETE /admin/guests/5': () => new Response(null, { status: 204 }),
-    });
-    renderApp('/admin/access');
-    const user = userEvent.setup();
-
-    const row = (await screen.findByText('oma@example.test')).closest('li')!;
-    expect(within(row).getByText('FSK 12')).toBeVisible();
-    expect(within(row).getByText('2 Profile')).toBeVisible();
-
-    await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
-    const edit = await screen.findByRole('dialog', { name: 'Gast oma@example.test bearbeiten' });
-    expect(within(edit).getByRole('radio', { name: 'FSK 12' })).toBeChecked();
-    await user.click(within(edit).getByRole('radio', { name: 'FSK 6' }));
-    await user.click(within(edit).getByRole('button', { name: 'Speichern' }));
-    await waitFor(() => expect(edit).not.toBeInTheDocument());
-    expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
-      maxRating: 6,
-      allLibraries: false,
-      libraryIds: [1],
-      // The stored limits go along unchanged (the object replaces all three).
-      limits: { maxHeight: 720 },
-    });
-
-    await user.click(screen.getByRole('button', { name: 'Entfernen' }));
-    const dialog = await screen.findByRole('alertdialog', {
-      name: 'Gast oma@example.test entfernen?',
-    });
-    expect(dialog).toHaveTextContent('enden sofort');
-    await user.click(within(dialog).getByRole('button', { name: 'Gast entfernen' }));
-    await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
-  });
-
-  it('sets the three playback limits of a guest account (W-8), without a watch time', async () => {
-    const { calls } = mockApi({
-      ...access([], [guest]),
-      'PATCH /admin/guests/5': () => json(guest),
-    });
-    renderApp('/admin/access');
-    const user = userEvent.setup();
-
-    const row = (await screen.findByText('oma@example.test')).closest('li')!;
-    expect(within(row).getByText('bis 720p')).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Bearbeiten' }));
-    const edit = await screen.findByRole('dialog', { name: 'Gast oma@example.test bearbeiten' });
-    expect(within(edit).getByText('Gilt für alle Profile des Gastkontos.')).toBeVisible();
-    expect(within(edit).queryByLabelText('Schauzeit pro Tag (Minuten)')).not.toBeInTheDocument();
-    await user.click(within(edit).getByRole('radio', { name: '480p' }));
-    await user.type(within(edit).getByLabelText('Bandbreite (kbit/s)'), '4000');
-    await user.type(within(edit).getByLabelText('Gleichzeitige Streams'), '1');
-    await user.click(within(edit).getByRole('button', { name: 'Speichern' }));
-    await waitFor(() => expect(edit).not.toBeInTheDocument());
-    expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
-      limits: { maxHeight: 480, maxBitrateKbps: 4000, maxStreams: 1 },
-    });
   });
 
   it('offers no invitation form while the library list is missing, so no right is widened', async () => {

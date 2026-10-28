@@ -71,7 +71,7 @@ diese Runde abgelehnt (Frage 12 g).
 | Grenzen eines Administratorkontos | `CHECK (role <> 'admin' OR (max_rating = 18 AND all_libraries = 1))`. Die Verwaltungsseiten lesen systemweit und ohne Profilprüfung (`getAdminItem`, `searchAdminItems`, `getAdminItemImage`); eine Kontogrenze wäre dort ein falsches Versprechen statt eines Schutzes |
 | Sechste Sichtbarkeitsstufe | Der Vertrag kennt `public`, `account`, `scoped`, `system`, `admin` und neu **`owner`**. Die Middleware setzt sie an einer Stelle durch und fällt geschlossen aus; der Vertragstest erzwingt für jede `owner`-Operation einen Eintrag in `ownerRegistry` und fährt sie gegen jeden Akteur |
 | Hauptprofil-Regel | **Unverändert aus ADR 0005**: `admin` verlangt das aktive Hauptprofil, und `owner` erbt dieselbe Bedingung. Ein Kinderprofil im Konto eines Administrators kommt nirgends hin. Das ist die wichtigste Nicht-Änderung dieses Entscheids |
-| Fehlercodes | Neu `403 owner_required` (eine `owner`-Operation von einem Administrator, der nicht der Besitzer ist), `409 last_admin` (der letzte Administrator soll degradiert oder gelöscht werden) und `409 owner_protected` (der Besitzer soll degradiert oder gelöscht werden). `profile_required` und `primary_profile_required` bleiben unverändert; der Text von `forbidden` wechselt von «Only the main account …» auf «Only an administrator …» |
+| Fehlercodes | Neu `403 owner_required` (eine `owner`-Operation von einem Administrator, der nicht der Besitzer ist), `409 last_admin` (der letzte Administrator soll degradiert oder gelöscht werden), `409 owner_protected` (der Besitzer soll degradiert oder gelöscht werden) und `409 admin_limits_fixed` (an einem Administratorkonto sollen Altersstufe oder Bibliotheken geändert werden; es ist auf 18 und alle festgelegt, siehe die Zeile «Grenzen eines Administratorkontos»). `profile_required` und `primary_profile_required` bleiben unverändert; der Text von `forbidden` wechselt von «Only the main account …» auf «Only an administrator …» |
 | Vertragsfassung | **1.2.0.** Der Bruch – Enum ohne `owner` und `guest`, Wegfall von `GET /admin/guests`, die Umbenennungen `updateGuest` → `updateAccountAccess` und `revokeGuest` → `deleteAccount` – steht wörtlich in den Release-Notes (C-5) |
 | Oberfläche | Die Ebenen heissen **«Administrator»**, **«Konto»** und **«Profil»** (englisch `administrator`, `account`, `profile`); «Besitzer» ist nur ein Abzeichen am einen Konto. Die Vertragswerte bleiben `admin` und `user`. Der Client setzt kein Recht durch (Regel 12): er blendet Bedienelemente aus, der Server entscheidet |
 | Nicht-Ziel Mandantenfähigkeit | `docs/spec/01-anforderungen-v1.md:68` wird **nicht umgeschrieben**, sondern hier abgelöst. Nicht-Ziel bleiben getrennte Medienbestände, getrennte Bibliotheken und getrennte Daten je Konto: es gibt genau **einen** Bestand, und die Administration entscheidet je Konto über Altersstufe und Bibliotheksrechte. Mehrere Konten mit eigenen Profilen und mehrere Administratoren sind ausdrücklich **kein** Nicht-Ziel |
@@ -106,6 +106,11 @@ diese Runde abgelehnt (Frage 12 g).
   von Cat's Empfehlungen, E-2) und `NotifyOwner` (der eine Empfänger ohne Adresse) meinen den
   **Besitzer** und fragen `is_owner = 1`; `ChannelTargetsOwners` (Ereignis `errors`, ADR 0009) meint
   **alle Administratoren** und fragt `role = 'admin'` – wer verwaltet, muss von Fehlern erfahren.
+- **Eine Kontoliste statt zweier.** `GET /admin/guests` entfällt; `listAccounts` trägt Rolle,
+  Abzeichen, Grenzen, Profile und Kanäle jedes Kontos. `updateGuest` heisst `updateAccountAccess`
+  (`PATCH /admin/accounts/{id}`), `revokeGuest` heisst `deleteAccount`
+  (`DELETE /admin/accounts/{id}`); beide antworten 204, die Oberfläche liest die Liste neu. Das
+  Schema `Guest` geht in `AdminAccount` auf.
 - **Oberfläche:** 21 Web-Dateien prüfen heute `session.account.role === 'owner'`; alle einundzwanzig
   meinen «Administrator» und wechseln auf `'admin'`. Die gemeinsame Sitzungsattrappe
   `web/src/test/api.tsx` geht mit ihnen in **einen** Commit, sonst fallen alle Seitentests

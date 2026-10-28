@@ -209,13 +209,12 @@ var adminRegistry = map[string]adminCall{
 		body: `{"path":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
-	"listInvitations":  {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
-	"createInvitation": {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
-	"revokeInvitation": {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},
-	"listGuests":       {contract: "GET /admin/guests", path: "/admin/guests", ownerStatus: http.StatusOK},
-	"updateGuest":      {contract: "PATCH /admin/guests/{id}", path: "/admin/guests/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
-	"revokeGuest":      {contract: "DELETE /admin/guests/{id}", path: "/admin/guests/9999", ownerStatus: http.StatusNotFound},
-	"setItemRating":    {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
+	"listInvitations":     {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
+	"createInvitation":    {contract: "POST /admin/invitations", path: "/admin/invitations", body: `{"maxRating":6,"allLibraries":true}`, ownerStatus: http.StatusCreated},
+	"revokeInvitation":    {contract: "DELETE /admin/invitations/{id}", path: "/admin/invitations/9999", ownerStatus: http.StatusNotFound},
+	"updateAccountAccess": {contract: "PATCH /admin/accounts/{id}", path: "/admin/accounts/9999", body: `{"maxRating":6}`, ownerStatus: http.StatusNotFound},
+	"deleteAccount":       {contract: "DELETE /admin/accounts/{id}", path: "/admin/accounts/9999", ownerStatus: http.StatusNotFound},
+	"setItemRating":       {contract: "PUT /admin/items/{id}/rating", path: "/admin/items/" + unknownItemID + "/rating", body: `{"rating":12}`, ownerStatus: http.StatusNotFound},
 	// M3: requests against fixture titles that leave the fixture unchanged (the fake metadata and
 	// library services of the contract fixture record nothing).
 	"cancelLibraryScan": {contract: "DELETE /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
@@ -817,7 +816,7 @@ func TestContractRatingChange(t *testing.T) {
 // and aborts a Range response that is already streaming.
 // Not parallel: K-7 asks for the open Range response to end within one second of the
 // revocation, and that second is measured on the clock.
-func TestContractGuestRevocation(t *testing.T) {
+func TestContractAccountDeletion(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	m := f.Rated(6)
@@ -864,20 +863,30 @@ func TestContractGuestRevocation(t *testing.T) {
 	}
 	time.Sleep(200 * time.Millisecond) // the server fills the socket buffers and blocks in a write
 
-	// The owner finds the guest in the list and revokes it.
-	var guests []struct {
-		ID           int64  `json:"id"`
-		Email        string `json:"email"`
-		MaxRating    int    `json:"maxRating"`
-		ProfileCount int    `json:"profileCount"`
+	// The administration finds the account in the one list and deletes it.
+	var accounts []struct {
+		ID        int64  `json:"id"`
+		Email     string `json:"email"`
+		Role      string `json:"role"`
+		MaxRating int    `json:"maxRating"`
+		Profiles  []struct {
+			ID int64 `json:"id"`
+		} `json:"profiles"`
 	}
-	decode(t, send(t, h, http.MethodGet, BasePath+"/admin/guests", "p18", "", nil), &guests)
-	if len(guests) != 1 || guests[0].ID != f.Guest.ID || guests[0].MaxRating != 12 || guests[0].ProfileCount != 2 {
-		t.Fatalf("guest list = %+v", guests)
+	decode(t, send(t, h, http.MethodGet, BasePath+"/admin/accounts", "p18", "", nil), &accounts)
+	var target int
+	for i, a := range accounts {
+		if a.ID == f.Guest.ID {
+			target = i
+		}
+	}
+	if accounts[target].ID != f.Guest.ID || accounts[target].Role != "user" ||
+		accounts[target].MaxRating != 12 || len(accounts[target].Profiles) != 2 {
+		t.Fatalf("account list = %+v", accounts)
 	}
 	start := time.Now()
-	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
-		t.Fatalf("revokeGuest: %d %s", rec.Code, rec.Body.String())
+	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("deleteAccount: %d %s", rec.Code, rec.Body.String())
 	}
 	checks := map[string]*httptest.ResponseRecorder{
 		"cookie":   send(t, h, http.MethodGet, BasePath+"/auth/session", "pg", "", nil),
@@ -922,7 +931,7 @@ func TestContractGuestRevocation(t *testing.T) {
 	if got := send(t, h, http.MethodGet, BasePath+"/auth/session", "p18", "", nil).Code; got != http.StatusOK {
 		t.Errorf("owner session after the guest's revocation: %d", got)
 	}
-	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNotFound {
+	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNotFound {
 		t.Errorf("second revocation: %d, want 404", rec.Code)
 	}
 }
@@ -1245,8 +1254,8 @@ func TestContractLoweredAccessEndsOpenDirectStreams(t *testing.T) {
 	pxClosed, _ := stream("px")
 	p12Closed, _ := stream("p12")
 	// Lower the guest to 6: the 12-rated movie is above it.
-	if rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", `{"maxRating":6}`, nil); rec.Code != http.StatusOK {
-		t.Fatalf("updateGuest: %d %s", rec.Code, rec.Body.String())
+	if rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", `{"maxRating":6}`, nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("updateAccountAccess: %d %s", rec.Code, rec.Body.String())
 	}
 	expectClosed(t, "guest stream after the ceiling dropped to 6", guestClosed)
 	select {
@@ -1288,7 +1297,7 @@ func (p *slipPlayback) EndAccount(ctx context.Context, id int64) error {
 // The order of a guest revocation: the sessions are revoked before the playback ends (so nothing
 // new can be authorised), and a stream that a request already past its checks opens between the
 // steps is still ended by the second call after the account is gone.
-func TestContractGuestRevocationOrder(t *testing.T) {
+func TestContractAccountDeletionOrder(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
 	f := pf.f
@@ -1321,8 +1330,8 @@ func TestContractGuestRevocationOrder(t *testing.T) {
 		slipped = src
 	}
 	h := pf.handlerWithPlayback(wrapper)
-	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/guests/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
-		t.Fatalf("revokeGuest: %d %s", rec.Code, rec.Body.String())
+	if rec := send(t, h, http.MethodDelete, BasePath+fmt.Sprintf("/admin/accounts/%d", f.Guest.ID), "p18", "", nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("deleteAccount: %d %s", rec.Code, rec.Body.String())
 	}
 	if wrapper.calls != 2 {
 		t.Errorf("EndAccount ran %d times, want 2 (before and after the delete)", wrapper.calls)
