@@ -36,9 +36,12 @@ Release-Notes:
   (409) und `admin_limits_fixed` (409).
 
 **Versionsstellen stehen auf 1.2.0** (`deploy/.env.example`, `deploy/compose.yaml`,
-`deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`). **Offen für Marco:** 1.1.0 ist
-vorbereitet, aber nie getaggt worden. Wer will, kann die Benutzerverwaltung stattdessen in 1.1.0
-hineinnehmen — das ist eine Zeile je Stelle und eine Produktentscheidung, keine technische.
+`deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`). **Marco hat am 28. Oktober 2026
+entschieden: 1.2.0 ist richtig.** 1.1.0 war vorbereitet, ist aber nie getaggt worden und wird
+übersprungen. Daraus folgt: **die Release-Notes von 1.2.0 tragen beide Brüche**, den von 1.1.0
+(`HomeRowKey` verliert `trakt_trending` und `trakt_popular`, bekommt `spotlight` und `released`) und
+den dieser Änderung (Rollen-Enum, `GET /admin/guests`, die zwei Umbenennungen). Wird der Bruch von
+1.1.0 vergessen, steht er in keinen Notes, weil es die Fassung 1.1.0 nie gegeben hat.
 
 **Was Marco am Bildschirm sieht.** Die Seite «Verwaltung → Konten» ist die eine Kontoliste: Rolle
 mit Besitzer-Abzeichen, Altersstufe, Bibliotheken, Profile, letzter Kontakt, Kanäle. Je Zeile
@@ -68,14 +71,14 @@ Kuratierung» ist als #39 gemergt** (Merge-Commit `7c7f472`, 18 Commits), danach
 Protokoll (#40, #41) und fünf Dependabot-Anhebungen der GitHub-Actions (#25, #26, #27, #29, #30). Der
 Abschnitt zu M11 steht gleich unten.
 
-**Version 1.1.0 ist vorbereitet, aber noch nicht getaggt.** Die Versionsstellen zeigen auf 1.1.0
-(`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
-`docs/dev/HANDOVER.md`), und die vier Betreibertexte zum Trakt-Schlüssel nennen nicht mehr die zwei
-entfallenen Reihen, sondern Spotlight. Die Release-Notes sind der Text der Tag-Beschriftung; den Tag
-`v1.1.0` setzt die Hauptsession auf Marcos Wort auf den Stand von `main`, erst danach baut und
-veröffentlicht `release.yml` das Image. **Die Anhebung ist brechend**, und genau das gehört in die
-Notes: `HomeRowKey` verliert `trakt_trending` und `trakt_popular` und bekommt `spotlight` und
-`released`; entfernte Enum-Werte werden nie wiederverwendet.
+**Version 1.1.0 wurde vorbereitet, nie getaggt und am 28. Oktober 2026 übersprungen** (Abschnitt
+«Benutzerverwaltung» oben): die Versionsstellen zeigen seither auf 1.2.0. Die vier Betreibertexte zum
+Trakt-Schlüssel nennen nicht mehr die zwei entfallenen Reihen, sondern Spotlight. Die Release-Notes
+sind der Text der Tag-Beschriftung; den Tag setzt die Hauptsession auf Marcos Wort auf den Stand von
+`main`, erst danach baut und veröffentlicht `release.yml` das Image. **Die Anhebung ist brechend**,
+und genau das gehört in die Notes von 1.2.0: `HomeRowKey` verliert `trakt_trending` und
+`trakt_popular` und bekommt `spotlight` und `released`; entfernte Enum-Werte werden nie
+wiederverwendet.
 
 **Falle beim Mergen.** `gh pr merge --auto --merge` merged sofort, wenn auf `main` kein Branch-Schutz
 mit Pflicht-Checks liegt — PR #39 ging so vor dem Ende des CI-Laufs hinein (der Lauf war danach grün).
