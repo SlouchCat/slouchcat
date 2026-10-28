@@ -74,7 +74,9 @@ func (s *Service) RootRemoved(ctx context.Context, libraryName, path string, ite
 	})
 }
 
-// ownerLanguage is the language of the main account's primary profile (German without one).
+// ownerLanguage is the language of the owner's primary profile (German without one). The texts of
+// the event errors are written in one language, and with several administrators that language has
+// to be a particular one, so it follows the owner (ADR 0014).
 func (s *Service) ownerLanguage(ctx context.Context) string {
 	owner, err := s.write.NotifyOwner(ctx)
 	if err != nil {

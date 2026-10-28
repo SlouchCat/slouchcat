@@ -38,9 +38,10 @@ FROM accounts AS a
 WHERE a.id = @id;
 
 -- name: NotifyOwner :one
--- The owner with the language of its primary profile (test mail without recipient, texts of the
--- event errors). A single recipient has to be a particular one, so this asks for the owner badge
--- and not for the role (ADR 0014).
+-- The owner with the language of its primary profile: the recipient of a test mail without an
+-- address, and the language the texts of the event errors are written in. A single recipient has
+-- to be a particular one - with role = 'admin' and LIMIT 1 it would be whichever administrator
+-- happens to sort first - so this asks for the owner badge (ADR 0014).
 SELECT a.id, a.email,
        CAST(COALESCE((SELECT p.language FROM profiles AS p WHERE p.account_id = a.id
                       ORDER BY p.is_default DESC, p.id LIMIT 1), 'de') AS TEXT) AS language
@@ -87,14 +88,15 @@ WHERE c.account_id = @account_id AND c.enabled = 1
   AND instr(c.events, '"' || CAST(@event AS TEXT) || '"') > 0
 ORDER BY c.channel;
 
--- name: ChannelTargetsOwners :many
--- Switched-on channels of the owner that chose the event. Step 4 of the user management decides
--- whether the event errors reaches every administrator instead (ADR 0014); until then this keeps
--- today's behaviour exactly.
+-- name: ChannelTargetsAdmins :many
+-- Switched-on channels of every administrator that chose the event. The event errors is the one
+-- that goes to the administration and not to the whole house (ADR 0009); since ADR 0014 the
+-- administration is a role, so this asks for the role and not for the owner badge - whoever runs
+-- the server has to hear about its failures.
 SELECT c.account_id, c.channel, c.config, a.email, a.role
 FROM account_channels AS c
 JOIN accounts AS a ON a.id = c.account_id
-WHERE a.is_owner = 1 AND c.enabled = 1
+WHERE a.role = 'admin' AND c.enabled = 1
   AND instr(c.events, '"' || CAST(@event AS TEXT) || '"') > 0
 ORDER BY c.account_id, c.channel;
 

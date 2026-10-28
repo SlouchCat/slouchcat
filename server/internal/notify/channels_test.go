@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -279,7 +280,7 @@ func TestAnnouncementsSendAndAcknowledge(t *testing.T) {
 		t.Errorf("PG18 after PG's ack = %+v", list)
 	}
 	all, err := e.svc.ListAnnouncements(ctx)
-	if err != nil || len(all) != 1 || all[0].AcknowledgedCount != 1 || all[0].ProfileCount != 7 {
+	if err != nil || len(all) != 1 || all[0].AcknowledgedCount != 1 || all[0].ProfileCount != 9 {
 		t.Errorf("admin list = %+v %v", all, err)
 	}
 	// Publish on create; unknown ids.
@@ -308,18 +309,25 @@ func TestAnnouncementsSendAndAcknowledge(t *testing.T) {
 	}
 }
 
-// The event errors goes to the main account only, once per source and hour; a failed delivery
-// job raises none.
-func TestErrorsOwnerOnlyWithDedupe(t *testing.T) {
+// The event errors goes to the administration, once per source and hour; a failed delivery job
+// raises none. Since ADR 0014 "the administration" is the role and no longer the one owner row:
+// the second administrator gets the same errors, because whoever runs the server has to hear
+// about its failures. An account that administers nothing cannot even choose the event.
+func TestErrorsReachEveryAdministratorWithDedupe(t *testing.T) {
 	t.Parallel()
 	e := newChanEnv(t)
 	ctx := context.Background()
 	e.cfg.set(func(c *fakeConfig) { c.token = testBotToken })
 	e.enable(t, e.owner(), model.ChannelEmail, model.EventErrors)
 	e.enable(t, e.owner(), model.ChannelTelegram, model.EventErrors)
+	e.enable(t, e.admin2(), model.ChannelEmail, model.EventErrors)
 	e.linkChat(t, e.f.Account.ID, 4242)
 	// The guest switches everything on that it may; errors is not among it.
 	e.enable(t, e.guest(), model.ChannelEmail, model.EventAnnouncements, model.EventNewContent)
+	if _, err := e.svc.UpdateChannel(ctx, e.guest(), model.ChannelEmail,
+		model.ChannelSettingUpdate{Enabled: true, Events: []string{model.EventErrors}}); !errors.Is(err, model.ErrEventNotAllowed) {
+		t.Errorf("an account without administration chose errors: %v", err)
+	}
 
 	job := func(typ string) jobs.Job { return jobs.Job{ID: 7, Type: typ, Attempts: 5, MaxAttempts: 5} }
 	e.svc.JobFailed(ctx, job("metadata.match"), errFake)
@@ -333,29 +341,55 @@ func TestErrorsOwnerOnlyWithDedupe(t *testing.T) {
 	}
 	e.drain(t)
 	mails, msgs := e.mailer.sent(), e.tg.sent()
-	if len(mails) != 2 || len(msgs) != 2 {
+	// Two events (the repeat inside the hour and the delivery job raise none), each to both
+	// administrators by e-mail and to the owner by Telegram.
+	if len(mails) != 4 || len(msgs) != 2 {
 		t.Fatalf("mails %+v, telegram %+v", mails, msgs)
 	}
-	if mails[0].to != e.f.Account.Email || mails[0].subject != "Fehler: Job metadata.match" || !strings.Contains(mails[0].text, "fake failure") {
-		t.Errorf("job mail = %+v", mails[0])
+	bySubject := map[string][]string{}
+	for _, m := range mails {
+		bySubject[m.subject] = append(bySubject[m.subject], m.to)
 	}
-	if mails[1].subject != "Scan abgebrochen: Filme" || !strings.Contains(mails[1].text, "20 %") {
-		t.Errorf("scan mail = %+v", mails[1])
+	for _, subject := range []string{"Fehler: Job metadata.match", "Scan abgebrochen: Filme"} {
+		got := bySubject[subject]
+		sort.Strings(got)
+		want := []string{e.f.Account.Email, e.f.Admin2.Email}
+		sort.Strings(want)
+		if !slices.Equal(got, want) {
+			t.Errorf("%q went to %v, want both administrators %v", subject, got, want)
+		}
+	}
+	if !strings.Contains(mails[0].text, "fake failure") && !strings.Contains(mails[1].text, "fake failure") {
+		t.Errorf("no job mail carries the reason: %+v", mails)
 	}
 	if msgs[0].chat != 4242 || msgs[0].token != testBotToken || !strings.HasPrefix(msgs[0].text, "Fehler: Job metadata.match\n\n") {
 		t.Errorf("telegram = %+v", msgs[0])
 	}
 	for _, d := range e.deliveries(t) {
-		if d.account != e.f.Account.ID || d.event != model.EventErrors {
+		if (d.account != e.f.Account.ID && d.account != e.f.Admin2.ID) || d.event != model.EventErrors {
 			t.Errorf("delivery %+v", d)
 		}
 	}
-	// Another hour: the same source goes out again.
+	// Another hour: the same source goes out again, to both administrators.
 	e.now = e.now.Add(61 * time.Minute)
 	e.svc.JobFailed(ctx, job("metadata.match"), errFake)
 	e.drain(t)
-	if n := len(e.mailer.sent()); n != 3 {
-		t.Errorf("mails after an hour = %d", n)
+	if n := len(e.mailer.sent()); n != 6 {
+		t.Errorf("mails after an hour = %d, want 6", n)
+	}
+}
+
+// ADR 0014: a single recipient has to be a particular one. The test mail without an address goes
+// to the owner, not to whichever administrator happens to sort first.
+func TestTestEmailWithoutRecipientGoesToTheOwner(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	if err := e.svc.SendTestEmail(context.Background(), ""); err != nil {
+		t.Fatal(err)
+	}
+	mails := e.mailer.sent()
+	if len(mails) != 1 || mails[0].to != e.f.Account.Email {
+		t.Fatalf("test mail = %+v, want one to the owner %s", mails, e.f.Account.Email)
 	}
 }
 

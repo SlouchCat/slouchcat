@@ -201,6 +201,7 @@ func newChanEnv(t *testing.T) *chanEnv {
 	f.AddSeries(t)
 	f.AddAudio(t)
 	f.AddGuest(t)
+	f.AddSecondAdmin(t)
 	e := &chanEnv{
 		env: &env{f: f, now: time.Date(2026, 10, 21, 8, 0, 0, 0, time.UTC)},
 		cfg: &fakeConfig{
@@ -214,7 +215,7 @@ func newChanEnv(t *testing.T) *chanEnv {
 	e.svc = New(f.DB, visibility.New(f.DB, vistest.Logger()), vistest.Logger(), WithClock(clock), WithQueue(e.queue),
 		WithSenders(Senders{Email: e.mailer, Push: e.pusher, Telegram: e.tg}))
 	e.svc.SetConfig(e.cfg)
-	for _, acc := range []model.Account{f.Account, f.Guest} {
+	for _, acc := range []model.Account{f.Account, f.Guest, f.Admin2} {
 		if err := e.svc.EnsureDefaults(context.Background(), acc.ID); err != nil {
 			t.Fatal(err)
 		}
@@ -226,8 +227,9 @@ func session(acc model.Account, p model.Profile) model.Session {
 	return model.Session{Account: acc, Profile: p}
 }
 
-func (e *chanEnv) owner() model.Session { return session(e.f.Account, e.f.P18) }
-func (e *chanEnv) guest() model.Session { return session(e.f.Guest, e.f.PG) }
+func (e *chanEnv) owner() model.Session  { return session(e.f.Account, e.f.P18) }
+func (e *chanEnv) guest() model.Session  { return session(e.f.Guest, e.f.PG) }
+func (e *chanEnv) admin2() model.Session { return session(e.f.Admin2, e.f.PA2) }
 
 // enable switches a channel of the session's account on with the events.
 func (e *chanEnv) enable(t *testing.T, s model.Session, channel string, events ...string) {

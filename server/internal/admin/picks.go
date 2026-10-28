@@ -54,6 +54,8 @@ func (s *Service) CreateTopPicks(ctx context.Context, req model.PickRequest) ([]
 	slices.Sort(profiles)
 	profiles = slices.Compact(profiles)
 	if len(profiles) > 0 {
+		// E-2: a pick is shown to the profiles of the owner's household. Not role = 'admin': with
+		// a second administrator that would put picks in front of their children too (ADR 0014).
 		owner, err := q.AdminOwnerProfileIDs(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("list owner profiles: %w", err)

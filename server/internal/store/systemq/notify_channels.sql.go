@@ -94,6 +94,56 @@ func (q *Queries) ChannelSummaries(ctx context.Context) ([]ChannelSummariesRow, 
 	return items, nil
 }
 
+const channelTargetsAdmins = `-- name: ChannelTargetsAdmins :many
+SELECT c.account_id, c.channel, c.config, a.email, a.role
+FROM account_channels AS c
+JOIN accounts AS a ON a.id = c.account_id
+WHERE a.role = 'admin' AND c.enabled = 1
+  AND instr(c.events, '"' || CAST(?1 AS TEXT) || '"') > 0
+ORDER BY c.account_id, c.channel
+`
+
+type ChannelTargetsAdminsRow struct {
+	AccountID int64
+	Channel   string
+	Config    string
+	Email     string
+	Role      string
+}
+
+// Switched-on channels of every administrator that chose the event. The event errors is the one
+// that goes to the administration and not to the whole house (ADR 0009); since ADR 0014 the
+// administration is a role, so this asks for the role and not for the owner badge - whoever runs
+// the server has to hear about its failures.
+func (q *Queries) ChannelTargetsAdmins(ctx context.Context, event string) ([]ChannelTargetsAdminsRow, error) {
+	rows, err := q.db.QueryContext(ctx, channelTargetsAdmins, event)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ChannelTargetsAdminsRow{}
+	for rows.Next() {
+		var i ChannelTargetsAdminsRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.Channel,
+			&i.Config,
+			&i.Email,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const channelTargetsByAccountEvent = `-- name: ChannelTargetsByAccountEvent :many
 SELECT c.account_id, c.channel, c.config, a.email, a.role
 FROM account_channels AS c
@@ -172,55 +222,6 @@ func (q *Queries) ChannelTargetsByEvent(ctx context.Context, event string) ([]Ch
 	items := []ChannelTargetsByEventRow{}
 	for rows.Next() {
 		var i ChannelTargetsByEventRow
-		if err := rows.Scan(
-			&i.AccountID,
-			&i.Channel,
-			&i.Config,
-			&i.Email,
-			&i.Role,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const channelTargetsOwners = `-- name: ChannelTargetsOwners :many
-SELECT c.account_id, c.channel, c.config, a.email, a.role
-FROM account_channels AS c
-JOIN accounts AS a ON a.id = c.account_id
-WHERE a.is_owner = 1 AND c.enabled = 1
-  AND instr(c.events, '"' || CAST(?1 AS TEXT) || '"') > 0
-ORDER BY c.account_id, c.channel
-`
-
-type ChannelTargetsOwnersRow struct {
-	AccountID int64
-	Channel   string
-	Config    string
-	Email     string
-	Role      string
-}
-
-// Switched-on channels of the owner that chose the event. Step 4 of the user management decides
-// whether the event errors reaches every administrator instead (ADR 0014); until then this keeps
-// today's behaviour exactly.
-func (q *Queries) ChannelTargetsOwners(ctx context.Context, event string) ([]ChannelTargetsOwnersRow, error) {
-	rows, err := q.db.QueryContext(ctx, channelTargetsOwners, event)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ChannelTargetsOwnersRow{}
-	for rows.Next() {
-		var i ChannelTargetsOwnersRow
 		if err := rows.Scan(
 			&i.AccountID,
 			&i.Channel,
@@ -516,9 +517,10 @@ type NotifyOwnerRow struct {
 	Language string
 }
 
-// The owner with the language of its primary profile (test mail without recipient, texts of the
-// event errors). A single recipient has to be a particular one, so this asks for the owner badge
-// and not for the role (ADR 0014).
+// The owner with the language of its primary profile: the recipient of a test mail without an
+// address, and the language the texts of the event errors are written in. A single recipient has
+// to be a particular one - with role = 'admin' and LIMIT 1 it would be whichever administrator
+// happens to sort first - so this asks for the owner badge (ADR 0014).
 func (q *Queries) NotifyOwner(ctx context.Context) (NotifyOwnerRow, error) {
 	row := q.db.QueryRowContext(ctx, notifyOwner)
 	var i NotifyOwnerRow
