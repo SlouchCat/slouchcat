@@ -129,3 +129,21 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Notiz). `home_rows` trägt die acht Schlüssel der Migration in geänderter Reihenfolge, «Genres»
   ausgeblendet (E-9). `TestFrozenM11StateCoversM11Data` prüft, dass jede dieser Datenarten nach der
   Migration vorhanden ist.
+- `benutzerverwaltung.sql`: Stand nach der Benutzerverwaltung (ADR 0014, Migration 00022
+  `account_roles`). Der Name trägt keine Meilensteinnummer, weil die Benutzerverwaltung keiner ist;
+  `TestFrozenStatesMigrate` liest den Ordner über ein Glob und nimmt ihn darum mit auf. Erzeugt
+  gegen einen frischen Server (Port 8198, `--browse-roots testdata/media`) mit dem Assistenten und
+  derselben Filmbibliothek wie die früheren Stände, danach über die echte API: ein zweites Profil
+  «Kind» (FSK 6) im Besitzerkonto, zwei angenommene Einladungen und eine Ernennung. Der Stand trägt
+  damit alle drei Ebenen:
+  - **Besitzer** `frozen@example.test` (`role = 'admin'`, `is_owner = 1`) mit Hauptprofil und
+    Kinderprofil;
+  - **Konto** `konto@example.test` (`role = 'user'`, `is_owner = 0`, FSK 12, eigene W-8-Grenzen
+    720p und 2 Streams, `invited_by` gesetzt);
+  - **zweiter Administrator** `admin2@example.test` (`role = 'admin'`, `is_owner = 0`), der durch
+    `setAccountRole` ernannt wurde und darum auf FSK 18 und allen Bibliotheken steht (Entscheid
+    12 f).
+
+  `TestFrozenUserManagementStateCoversTheThreeLevels` prüft, dass jede dieser Datenarten nach der
+  Migration da ist und dass es genau einen Besitzer gibt. Das ist der Stand, an dem jede spätere
+  Migration an `accounts` gemessen wird.
