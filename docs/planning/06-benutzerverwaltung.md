@@ -118,6 +118,13 @@ Der **Besitzer** ist keine vierte Ebene, sondern ein Administrator mit zwei zus�
 Administratorkonto ist gleichzeitig ein Konto mit eigenen Profilen — die Ebenen schliessen sich nicht
 aus, sie stapeln sich.
 
+**Benennung** (Marco, 2026-10-28, Frage F-5): In der Oberfläche heissen die drei Ebenen
+**«Administrator»**, **«Konto»** und **«Profil»**, englisch `administrator`, `account` und `profile`.
+Wo dieses Papier «Hauptbenutzer» schreibt, ist die Ebene «Konto» gemeint; das Wort steht hier nur
+dort, wo «Konto» mit der Datenbanktabelle `accounts` oder der Sichtbarkeitsstufe `account`
+verwechselt würde. «Besitzer» ist ein Abzeichen am einen Konto, keine eigene Ebene. Die Werte im
+Vertrag bleiben `admin` und `user`.
+
 ### 2.1 Administrator
 
 | Darf | Operationen aus `api/openapi.yaml` |
@@ -489,7 +496,7 @@ Rechtefragen — der Aufrufer hat das Recht, aber der Zustand verbietet den Schr
 | `updateGuest` | `PATCH /admin/guests/{id}` (`:2655`) | `admin` | `admin` | **umbenannt** zu `updateAccountAccess`, Pfad `PATCH /admin/accounts/{id}` |
 | `revokeGuest` | `DELETE /admin/guests/{id}` (`:2692`) | `admin` | `admin` | **umbenannt** zu `deleteAccount`, Pfad `DELETE /admin/accounts/{id}`; neue Konflikte `last_admin`, `owner_protected` |
 | `setAccountRole` | `PUT /admin/accounts/{id}/role` | — | **`owner`** | **neu**: ernennen und entziehen |
-| `transferOwnership` | `POST /admin/accounts/{id}/ownership` | — | **`owner`** | **neu, nur falls F-3 mit Ja beantwortet wird** |
+| `transferOwnership` | `POST /admin/accounts/{id}/ownership` | — | **`owner`** | **entfällt** — F-3 ist mit Nein beantwortet (2026-10-28); der Besitzer bleibt am ersten Konto |
 | `listInvitations` | `GET /admin/invitations` (`:2564`) | `admin` | `admin` | nur Texte |
 | `createInvitation` | `POST /admin/invitations` (`:2582`) | `admin` | `admin` | nur Texte; die Stufe bleibt `admin`, weil ein Hauptbenutzer nicht einladen darf (Entscheid 1.3) |
 | `revokeInvitation` | `DELETE /admin/invitations/{id}` (`:2613`) | `admin` | `admin` | nur Texte |
@@ -509,11 +516,11 @@ und der Umbenennungen.
 verbrannt; insbesondere darf ein künftiger dritter Rollenwert nicht `owner` heissen — der Besitzer
 steht in `is_owner`, nicht in `role` (4.2).
 
-**Welche Fassung daraus folgt**, ist Frage F-4 in Abschnitt 11. Der Präzedenzfall spricht für
-**1.2.0**: M11 hat zwei `HomeRowKey`-Werte entfernt, es ausdrücklich als brechend in die
-Release-Notes geschrieben und trotzdem die Nebenstelle angehoben
-(`docs/dev/CURRENT_STATUS.md:9` bis `:14`). Weil Slouchcat ab jetzt öffentlich angeboten wird, ist
-**2.0.0** die ehrlichere Zahl, und das ist eine Produktentscheidung, keine technische.
+**Die Fassung ist 1.2.0** (Marco, 2026-10-28, Frage F-4 in Abschnitt 11), dem Präzedenzfall M11
+folgend: M11 hat zwei `HomeRowKey`-Werte entfernt, es ausdrücklich als brechend in die Release-Notes
+geschrieben und trotzdem die Nebenstelle angehoben (`docs/dev/CURRENT_STATUS.md:9` bis `:14`). Die
+Pflicht aus diesem Präzedenzfall wird mitentschieden: Der Bruch — Enum ohne `owner` und `guest`,
+Wegfall von `GET /admin/guests`, zwei Umbenennungen — steht wörtlich in den Release-Notes zu 1.2.0.
 
 ---
 
@@ -853,12 +860,12 @@ alles andere ist in diesem Papier entschieden und begründet.
 
 | Nr. | Frist | Thema | Empfehlung | Antwort | Datum |
 |-----|-------|-------|------------|---------|-------|
-| **F-1** | vor Schritt 1 | **Hebt die Ernennung die Grenzen des Kontos?** Ein Hauptbenutzer mit FSK 12 und zwei Bibliotheken wird Administrator. Steigen `accounts.max_rating` auf 18 und `all_libraries` auf 1? | **Ja.** Die Verwaltungsseiten lesen systemweit und ohne Profilprüfung (4.4); eine Kontogrenze wäre dort ein falsches Versprechen statt eines Schutzes. Die **Profile** behalten ihre eigenen Stufen — ein Kinderprofil im Administratorkonto bleibt FSK 6 | offen | — |
-| **F-2** | vor Schritt 3 | **Was gilt beim Entzug der Administratorrolle?** Fallen die Grenzen wieder auf den Stand vor der Ernennung, oder bleiben sie bei 18/alle? | **Bleiben bei 18/alle.** Ein automatisches Zurücksetzen müsste den alten Stand aufbewahren (eine neue Spalte, eine neue Fehlerquelle), und ein stilles Verschwinden von Titeln wäre für den Betroffenen unerklärlich. Die Administration setzt die Grenzen danach bewusst auf der Kontoseite | offen | — |
-| **F-3** | vor Schritt 2 | **Soll der Besitzer die Besitzrolle übergeben können** (`transferOwnership`)? Heute wäre der Besitzer für immer festgelegt | **Ja, aber klein:** eine Operation der Stufe `owner`, nur auf ein bestehendes Administratorkonto, mit Eingabe des eigenen Passworts, in einer Transaktion und mit Widerruf der Sitzungen beider Konten. Ohne sie gibt es bei einem Besitzerwechsel nur den Weg über die Datenbank von Hand — für ein öffentlich angebotenes Produkt zu wenig | offen | — |
-| **F-4** | vor Schritt 2 | **Welche Vertragsfassung?** Das Enum verliert `owner` und `guest`, `GET /admin/guests` verschwindet; das ist für Fremd-Clients brechend (C-5) | **1.2.0**, dem Präzedenzfall M11 folgend (`docs/dev/CURRENT_STATUS.md:9` bis `:14`: brechender Enum-Wechsel bei einer Nebenstellen-Anhebung, ausdrücklich in den Release-Notes genannt). **2.0.0** wäre die ehrlichere Zahl, sobald Slouchcat öffentlich angeboten wird — das ist eine Produktentscheidung | offen | — |
-| **F-5** | vor Schritt 5 | **Wie heissen die drei Ebenen in der Oberfläche**, deutsch und englisch? Die API-Werte stehen fest (`admin`, `user`) | «Administrator» / «Hauptbenutzer» / «Profil»; englisch «administrator» / «main user» / «profile». «Besitzer» erscheint nur als Abzeichen am einen Konto, nicht als eigene Ebene | offen | — |
-| **F-6** | vor Schritt 0 | **Darf `docs/spec/01-anforderungen-v1.md:68` ausnahmsweise umgeschrieben werden?** `docs/spec/README.md:6` verbietet es | **Nein.** Der Text aus 3.3 geht als Frage 12 ins Entscheidungsprotokoll und in ADR 0014; die Rangfolge Entscheidungsprotokoll > Plan > Spec trägt ihn (3.4). Eine Ausnahme hier macht die Spec-Regel für alle späteren Fälle wertlos | offen | — |
+| **F-1** | vor Schritt 1 | **Hebt die Ernennung die Grenzen des Kontos?** Ein Hauptbenutzer mit FSK 12 und zwei Bibliotheken wird Administrator. Steigen `accounts.max_rating` auf 18 und `all_libraries` auf 1? | **Ja.** Die Verwaltungsseiten lesen systemweit und ohne Profilprüfung (4.4); eine Kontogrenze wäre dort ein falsches Versprechen statt eines Schutzes. Die **Profile** behalten ihre eigenen Stufen — ein Kinderprofil im Administratorkonto bleibt FSK 6 | **Ja, wie empfohlen** (Marco, 2026-10-28): die Ernennung setzt `max_rating = 18` und `all_libraries = 1`; die Profile behalten ihre eigenen Stufen | 2026-10-28 |
+| **F-2** | vor Schritt 3 | **Was gilt beim Entzug der Administratorrolle?** Fallen die Grenzen wieder auf den Stand vor der Ernennung, oder bleiben sie bei 18/alle? | **Bleiben bei 18/alle.** Ein automatisches Zurücksetzen müsste den alten Stand aufbewahren (eine neue Spalte, eine neue Fehlerquelle), und ein stilles Verschwinden von Titeln wäre für den Betroffenen unerklärlich. Die Administration setzt die Grenzen danach bewusst auf der Kontoseite | **Bleiben bei 18/alle**, wie empfohlen (2026-10-28). Die Administration setzt die Grenzen danach bewusst auf der Kontoseite | 2026-10-28 |
+| **F-3** | vor Schritt 2 | **Soll der Besitzer die Besitzrolle übergeben können** (`transferOwnership`)? Heute wäre der Besitzer für immer festgelegt | **Ja, aber klein:** eine Operation der Stufe `owner`, nur auf ein bestehendes Administratorkonto, mit Eingabe des eigenen Passworts, in einer Transaktion und mit Widerruf der Sitzungen beider Konten. Ohne sie gibt es bei einem Besitzerwechsel nur den Weg über die Datenbank von Hand — für ein öffentlich angebotenes Produkt zu wenig | **Nein, vorerst nicht** (Marco, 2026-10-28): der Besitzer bleibt am ersten Konto. `transferOwnership` entfällt aus Schritt 2; ein Besitzerwechsel braucht bis auf Weiteres einen Eingriff in die Datenbank | 2026-10-28 |
+| **F-4** | vor Schritt 2 | **Welche Vertragsfassung?** Das Enum verliert `owner` und `guest`, `GET /admin/guests` verschwindet; das ist für Fremd-Clients brechend (C-5) | **1.2.0**, dem Präzedenzfall M11 folgend (`docs/dev/CURRENT_STATUS.md:9` bis `:14`: brechender Enum-Wechsel bei einer Nebenstellen-Anhebung, ausdrücklich in den Release-Notes genannt). **2.0.0** wäre die ehrlichere Zahl, sobald Slouchcat öffentlich angeboten wird — das ist eine Produktentscheidung | **1.2.0** (Marco, 2026-10-28), dem Präzedenzfall M11 folgend. Der Bruch (Enum ohne `owner` und `guest`, Wegfall von `GET /admin/guests`) steht wörtlich in den Release-Notes | 2026-10-28 |
+| **F-5** | vor Schritt 5 | **Wie heissen die drei Ebenen in der Oberfläche**, deutsch und englisch? Die API-Werte stehen fest (`admin`, `user`) | «Administrator» / «Hauptbenutzer» / «Profil»; englisch «administrator» / «main user» / «profile». «Besitzer» erscheint nur als Abzeichen am einen Konto, nicht als eigene Ebene | **«Administrator» / «Konto» / «Profil»** (Marco, 2026-10-28), englisch `administrator` / `account` / `profile`. Wo dieses Papier «Hauptbenutzer» schreibt, ist die Ebene «Konto» gemeint. «Besitzer» bleibt ein Abzeichen am einen Konto | 2026-10-28 |
+| **F-6** | vor Schritt 0 | **Darf `docs/spec/01-anforderungen-v1.md:68` ausnahmsweise umgeschrieben werden?** `docs/spec/README.md:6` verbietet es | **Nein.** Der Text aus 3.3 geht als Frage 12 ins Entscheidungsprotokoll und in ADR 0014; die Rangfolge Entscheidungsprotokoll > Plan > Spec trägt ihn (3.4). Eine Ausnahme hier macht die Spec-Regel für alle späteren Fälle wertlos | **Nein, wie empfohlen** (2026-10-28): die Spec bleibt unangetastet, der Text aus 3.3 geht als Frage 12 ins Entscheidungsprotokoll und in ADR 0014 | 2026-10-28 |
 
 ---
 
@@ -879,7 +886,7 @@ Gezählt am Stand `0dd4f19`: `grep -c 'x-visibility: admin' api/openapi.yaml` �
 | Geräte und Streams | 4 | **unverändert** `admin` |
 | **Zugang: Einladungen** (`listInvitations`, `createInvitation`, `revokeInvitation`) | 3 | Stufe bleibt `admin`; nur Beschreibungen ändern sich |
 | **Zugang: Konten** (`listGuests`, `updateGuest`, `revokeGuest`, `listAccounts`) | 4 | **berührt**: eine entfällt, zwei werden umbenannt, eine wächst |
-| **Neu** (`setAccountRole`, ggf. `transferOwnership`) | 1–2 | neue Stufe `owner` |
+| **Neu** (`setAccountRole`) | 1 | neue Stufe `owner` (`transferOwnership` entfällt, F-3) |
 
 **Schätzung: 7 der 87 Operationen werden angefasst, 80 bleiben wörtlich.** Keine einzige wandert von
 `admin` nach `account` — die Trennlinie zwischen Serververwaltung und Kontoverwaltung liegt schon
