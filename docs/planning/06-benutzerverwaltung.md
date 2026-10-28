@@ -1,8 +1,9 @@
 # Konzept: Benutzerverwaltung (Administrator, Hauptbenutzer, Profil)
 
-- **Status: Entwurf.** Marcos vier Entscheide vom 27. Oktober 2026 (Abschnitt 1.3) sind die Grundlage;
-  das Konzept als Ganzes wartet auf seine Freigabe. Es wird nichts gebaut, bevor die Fragen in
-  Abschnitt 11 beantwortet sind.
+- **Status: freigegeben (28. Oktober 2026).** Alle sechs Fragen aus Abschnitt 11 sind beantwortet und
+  stehen als **Frage 12** im Entscheidungsprotokoll (`docs/planning/04-entscheidungen.md`); begründet
+  ist der Entscheid in **ADR 0014** (`docs/adr/0014-benutzerverwaltung.md`). Die Umsetzung läuft nach
+  Abschnitt 10 auf dem Zweig `claude/benutzerverwaltung`.
 - **Datum: 27. Oktober 2026**
 - **Wogegen dieses Konzept verankert ist:** Zweig `claude/konzept-benutzerverwaltung`, Stand `0dd4f19`
   («Merge pull request #43»). Jede Zeilenangabe in diesem Papier bezieht sich auf diesen Stand. Wer
@@ -16,8 +17,16 @@
 - **Jeder Schritt ist ein eigener Commit, und vor dem Abschluss jedes Schritts ist `task ci` grün**
   (`CLAUDE.md`, Abschnitt «Arbeitsweise»). DoD-Belege sind Befehl **und** Ausgabe.
 
-> **Dieses Papier ändert keine Zeile Code.** Es ist ein Konzept, kein Auftrag. Die eigentliche Arbeit
-> beginnt mit Schritt 0 aus Abschnitt 10, und auch der ist ein reiner Doku-Commit.
+> **Dieses Papier selbst ändert keine Zeile Code.** Die eigentliche Arbeit beginnt mit Schritt 0 aus
+> Abschnitt 10, und auch der ist ein reiner Doku-Commit.
+
+> **Eine Korrektur am Papier (28. Oktober 2026, Schritt 0).** Abschnitt 4.6 Punkt 5 und Abschnitt 12.3
+> nennen Migration **00007** als Vorlage für die wiederherzustellende View `visible_items`. Das ist
+> falsch: **00010** (`00010_container_visibility.sql:148` bis `:167`) hat die View zuletzt neu
+> geschrieben und dabei die Regel für Extras ergänzt («ein Extra nur unterhalb eines sichtbaren
+> Elternteils»). Migration 00022 stellt die View darum **wortgleich aus 00010** wieder her; aus 00007
+> wäre sie ein stiller Rückschritt. Inhaltlich ändert sich an der Aussage nichts: die View liest
+> `accounts`, aber nie `role`.
 
 ---
 
