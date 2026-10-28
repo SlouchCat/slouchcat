@@ -851,6 +851,81 @@ neuen Stand. `docs/dev/CURRENT_STATUS.md` nennt die Migration 00022, die neue Ve
 den brechenden Enum-Wechsel in Worten, die in die Release-Notes passen. Kein TODO, kein
 `test.skip`, kein Stub-Test im Diff (`CLAUDE.md`, Abschnitt «Arbeitsweise»).
 
+### 10.8 Der Weg jedes Schritts: Zweig, Commit, Test, Push, Pull Request
+
+Dieser Abschnitt hält den Arbeitsweg fest, den Marco am 28. Oktober 2026 vorgegeben hat. Er gilt für
+alle sieben Schritte und kennt **zwei Umgebungen**:
+
+| Umgebung | Wo | Was dort läuft | Wofür |
+|---|---|---|---|
+| **Entwicklung** | dieser Rechner (Linux Mint, Repo `/mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat`) | `task dev`, `task ci`, das selbst gebaute Image `slouchcat:dev`, Marcos ständige Instanz auf Port 8096 | Code schreiben, Tests, erster Blick in der Oberfläche |
+| **Test** | Proxmox-CT 190 im lokalen Netz, `192.168.1.43`, Port 8096 (`docs/dev/TESTSERVER.md`) | der Stack aus `/opt/slouchcat/deploy`, bewusst knappe Hardware (2 vCPU, 4 GB), echte Medien vom NAS | Marcos Abnahme am echten Bestand, am Handy und am Fernseher |
+
+Der Weg von der Idee bis in `main`, in genau dieser Reihenfolge. **Die Nummern sind Stationen des
+Weges, nicht die Planschritte 0 bis 6 aus Abschnitt 10:** jeder Planschritt durchläuft die
+Stationen 2 bis 4, und die Stationen 5 bis 7 kommen einmal am Ende.
+
+**1. Zweig erstellen.** Ein Zweig für die ganze Umsetzung, von `main` abgezweigt:
+`git switch -c claude/benutzerverwaltung main`. Der Arbeitsbaum ist **geteilt** — andere Sitzungen
+wechseln den Zweig im selben Ordner. Darum vor jeder Git-Aktion `git branch --show-current` und
+`git status --short --branch`, und nie etwas verwerfen, das nicht aus dieser Arbeit stammt.
+
+**2. Entwickeln.** Auf diesem Rechner. Quelle ändern, nie den generierten Code: nach jeder Änderung an
+`api/openapi.yaml`, `server/queries/` oder `server/migrations/` läuft `task gen`
+(`CLAUDE.md` Regel 1). Für den schnellen Blick in die Oberfläche `task dev` (Go-Server plus Vite,
+`/api` geht auf `:8096`).
+
+**3. Commit erstellen.** Ein Commit je Planschritt aus Abschnitt 10, Titel Englisch mit Bereich
+(`feat(server): …`). Der Commit-Body erklärt das Warum; die Erläuterung für Marco ist Deutsch in
+Schweizer Schreibweise. Noch kein Push.
+
+**4. Auf diesem Rechner testen.** `task ci` muss grün sein, bevor ein Schritt als fertig gilt; Befehl
+und Ausgabe gehören als DoD-Beleg in die Rückmeldung. Dazu drei Fallen dieses Rechners:
+
+- **Marcos ständige Instanz auf Port 8096 wird nie angefasst.** Sie läuft aus
+  `deploy/` mit `COMPOSE_FILE=compose.yaml:compose.nvidia.yaml` und dem Tag aus `SLOUCHCAT_VERSION`.
+  Kein `docker compose down`, kein `kill` auf diesen Stapel.
+- **Die Ports der e2e-Suite sind rechnerweit** (`web/e2e/start-server.mjs`: 8097 und 8089 bis 8095).
+  Zwei Arbeitsbäume können `task ci` nicht gleichzeitig laufen lassen. Vorher `ss -ltn | grep :809`,
+  sonst `SLOUCHCAT_E2E_PORT=8197` setzen.
+- **Docker braucht `sg docker -c '…'`** in den Shells dieser Sitzungen, solange Marco sich nicht neu
+  angemeldet hat.
+
+Bei einem Fehler wird korrigiert und ein weiterer Commit gesetzt; der fehlerhafte Stand wird nicht
+umgeschrieben, solange er schon gepusht ist.
+
+**5. Push.** `git push -u origin claude/benutzerverwaltung`. **Nie direkt nach `main`.**
+
+**6. Abnahme auf CT 190.** Vor dem Merge, weil diese Änderung die Anmeldung und die Rollen betrifft und
+sich am Bildschirm zeigen muss. Weg (Stand 27. Oktober 2026):
+
+```bash
+sg docker -c 'task deploy:build'                       # baut immer slouchcat:dev
+docker tag slouchcat:dev ghcr.io/slouchcat/slouchcat:benutzerverwaltung
+docker save ghcr.io/slouchcat/slouchcat:benutzerverwaltung | ssh root@192.168.1.43 'docker load'
+ssh root@192.168.1.43 "sed -i 's/^SLOUCHCAT_VERSION=.*/SLOUCHCAT_VERSION=benutzerverwaltung/' /opt/slouchcat/deploy/.env"
+ssh root@192.168.1.43 'cd /opt/slouchcat/deploy && docker compose up -d --wait --wait-timeout 240'
+ssh root@192.168.1.43 'curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8096/healthz'
+```
+
+Die alte `.env` wird vorher als `.env.bak-vor-benutzerverwaltung` gesichert, damit der Stand mit einem
+Zeilenwechsel zurückgedreht werden kann. **Die Datenbank dreht sich nicht zurück:** Migration 00022
+baut `accounts` um, und Migrationen laufen nur vorwärts (`CLAUDE.md` Regel 5). Der Server sichert vor
+jedem Lauf selbst mit `VACUUM INTO` nach `/config/backups/` (letzte fünf) — diese Datei ist der
+einzige Rückweg, und ihr Name gehört in die Rückmeldung an Marco. `docker compose pull` findet den
+Tag nicht: das Image existiert nur lokal im CT. Prüfen heisst `/healthz`, **nicht**
+`/api/v1/health` (den Pfad gibt es nicht).
+
+Marco nimmt auf diesem Stand ab: Anmeldung, Kontoliste, Ernennen und Entziehen, die Sperren aus
+Abschnitt 9, und dass ein Konto die Verwaltung nirgends sieht.
+
+**7. Pull Request, CI, Merge.** Der Pull Request gegen `main` benennt den brechenden Vertragswechsel
+auf 1.2.0 im Text. Er wird mit `bind_pr` gebunden, die CI wird **nicht** gepollt. `gh pr merge --auto`
+ist kein Tor, solange auf `main` kein Ruleset mit Pflicht-Checks liegt — es merged sofort
+(`docs/dev/CURRENT_STATUS.md`, Abschnitt «Falle beim Mergen»). Darum wird erst gemerged, wenn der
+CI-Lauf grün ist **und** Marco sein Wort gegeben hat. Danach: `main` nachziehen, Image aus `main` neu
+bauen und auf CT 190 setzen, `docs/dev/CURRENT_STATUS.md` nachführen.
+
 ---
 
 ## 11. Offene Fragen an Marco
