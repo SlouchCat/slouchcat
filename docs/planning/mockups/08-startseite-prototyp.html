@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slouchcat Startseite</title>
+</head>
+<body>
+<style>
+/* Prototype of the viewer app after concept 08: sidebar with the libraries, the start page with the
+   Spotlight band and a normal poster row under it, and the library pages (grid, sort, filter, A–Z).
+   One dark theme on purpose: the values are Slouchcat's tokens (packages/design-tokens/tokens). */
+:root {
+  --bg: #0b0c10; --elevated: #13151b; --overlay: #0b0c10d9;
+  --s1: #16181f; --s2: #1d2029; --s3: #262a35;
+  --fg: #f3f3f5; --fg2: #b6b9c4; --muted: #9095a3;
+  --border: #ffffff14; --border-strong: #ffffff38; --ring: #f3f3f5;
+  --danger: #f2777a; --success: #5fcf8f; --warning: #e8b65a;
+  --accent: #45c2b1; --on-accent: #04191a;
+  --ember: #e8794a; --coral: #f0857a; --amber: #e3b24f; --lime: #a3d465; --teal: #45c2b1; --sky: #62aef0; --violet: #a993f5; --rose: #ec77a3;
+  --sans: system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-xl: 20px; --r-full: 9999px;
+  --poster: 8.5rem; --header: 4rem; --ctl: 2.75rem; --sidebar: 15rem; --gutter: 1rem;
+  --interval: 5s; --bar: 32px;
+  color-scheme: dark;
+}
+@media (width >= 768px) { :root { --poster: 10.5rem; --gutter: 2.5rem; } }
+@media (width >= 1440px) { :root { --poster: 12.5rem; --gutter: 4rem; } }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--sans); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* prototype bar */
+.proto { position: sticky; top: 0; z-index: 50; height: var(--bar); background: var(--s2); border-bottom: 1px solid var(--border); font-size: 0.75rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; display: flex; gap: 10px; align-items: center; padding: 0 12px; overflow: hidden; white-space: nowrap; }
+.proto button { background: none; border: 1px solid var(--border); color: var(--fg2); border-radius: var(--r-full); padding: 2px 10px; font-size: 0.75rem; letter-spacing: 0; text-transform: none; }
+.proto button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+/* shell: sidebar + main; the phone frame emulates a 400px viewport for the drawer */
+.shell { display: grid; grid-template-columns: var(--sidebar) 1fr; min-height: calc(100vh - var(--bar)); }
+.shell.narrow { grid-template-columns: 1fr; }
+body.phone .shell { max-width: 400px; margin: 16px auto; border: 1px solid var(--border-strong); border-radius: 24px; overflow: hidden; min-height: 820px; max-height: 820px; overflow-y: auto; position: relative; }
+body.phone { --poster: 8.5rem; --gutter: 1rem; }
+
+/* sidebar */
+.side { background: var(--elevated); border-right: 1px solid var(--border); padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: var(--bar); height: calc(100vh - var(--bar)); overflow-y: auto; overflow-x: hidden; }
+.shell.narrow .side { display: none; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 8px 10px 14px; font-weight: 700; letter-spacing: -0.02em; font-size: 1.15rem; white-space: nowrap; }
+.brand .cat { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); display: inline-grid; place-items: center; color: var(--on-accent); font-size: 13px; font-weight: 800; flex: none; }
+.nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.nav a, .nav button.item { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-radius: var(--r-md); color: var(--fg2); font-weight: 500; width: 100%; background: none; border: 0; text-align: left; white-space: nowrap; }
+.nav a:hover, .nav button.item:hover { background: var(--s2); color: var(--fg); }
+.nav a[aria-current="page"] { background: var(--s3); color: var(--fg); }
+.nav .group { display: flex; align-items: center; justify-content: space-between; padding: 14px 12px 4px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.nav .group button { background: none; border: 0; color: var(--muted); padding: 2px 6px; border-radius: var(--r-sm); }
+.nav .libs { display: flex; flex-direction: column; gap: 2px; }
+.nav .libs[hidden] { display: none; }
+.nav .count { margin-left: auto; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nav .spacer { flex: 1; }
+.nav .foot { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+.collapse { margin-top: 4px; color: var(--muted); }
+
+/* drawer (phone): a real dialog, so focus stays inside and the page behind does not scroll */
+dialog.drawer { border: 0; padding: 0; margin: 0; background: none; max-width: none; max-height: none; width: 100%; height: 100%; inset: 0; }
+dialog.drawer::backdrop { background: var(--overlay); }
+dialog.drawer .panel { position: absolute; inset: 0 auto 0 0; width: min(82vw, 20rem); background: var(--elevated); padding: 12px 10px; display: flex; flex-direction: column; overflow-y: auto; box-shadow: 0 0 40px #0008; }
+dialog.drawer .close { align-self: flex-end; }
+body.phone dialog.drawer { inset: auto; top: 48px; left: 50%; transform: translateX(-50%); width: 400px; height: 820px; border-radius: 24px; overflow: hidden; }
+
+/* header inside main */
+.main { min-width: 0; position: relative; }
+.hdr { position: sticky; top: var(--bar); z-index: 20; height: var(--header); display: flex; align-items: center; gap: 10px; padding: 0 var(--gutter); background: linear-gradient(var(--bg) 60%, transparent); }
+.hdr.solid { background: var(--elevated); border-bottom: 1px solid var(--border); }
+body.phone .hdr { top: 0; background: var(--elevated); border-bottom: 1px solid var(--border); }
+.iconbtn { width: 40px; height: 40px; border-radius: var(--r-full); background: none; border: 0; color: var(--fg); display: inline-grid; place-items: center; font-size: 18px; position: relative; }
+.iconbtn:hover { background: var(--s2); }
+.hdr .burger { display: none; }
+.shell.narrow .hdr .burger { display: inline-grid; }
+.hdr .search { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; background: var(--s2); border-radius: var(--r-full); color: var(--muted); border: 0; }
+.hdr .right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.hdr .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--violet); color: #1a1430; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; border-radius: var(--r-full); background: var(--accent); color: var(--on-accent); font-size: 10px; font-weight: 700; display: grid; place-items: center; padding: 0 4px; }
+
+/* page */
+.page { padding: 8px 0 64px; display: flex; flex-direction: column; gap: 28px; }
+h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.02em; }
+h2 { font-size: 1.1rem; margin: 0; font-weight: 600; }
+.row { display: flex; flex-direction: column; gap: 10px; }
+.row .head { display: flex; align-items: baseline; gap: 10px; padding: 0 var(--gutter); }
+.row .head .more { color: var(--muted); font-size: 0.875rem; margin-left: auto; }
+/* rows snap hard to the left edge: the leftmost cover is always whole (N-4); three covers per row on the phone (N-3) */
+.strip { display: flex; gap: 14px; padding: 6px var(--gutter) 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline-start: var(--gutter); scrollbar-width: none; list-style: none; margin: 0; }
+.shell.narrow .strip > li, body.phone .strip > li { width: calc((100% - 28px) / 3); }
+/* trailing space in the Spotlight row, so the last posters can sit at the left edge too */
+.strip.spot > li.tail { width: calc(100% - var(--poster) - 14px); scroll-snap-align: none; }
+.shell.narrow .strip.spot > li.tail, body.phone .strip.spot > li.tail { width: calc((100% - 28px) / 3 * 2 + 28px); }
+.shell.narrow .grid, body.phone .grid { grid-template-columns: repeat(3, 1fr); }
+.strip::-webkit-scrollbar { display: none; }
+.strip > li { flex: none; width: var(--poster); scroll-snap-align: start; }
+.strip > li.wide { width: calc(var(--poster) * 1.8); }
+
+/* poster card = web/src/ui/PosterCard */
+.card { display: flex; flex-direction: column; gap: 6px; background: none; border: 0; padding: 0; width: 100%; text-align: left; color: inherit; border-radius: var(--r-lg); }
+.card .art { position: relative; aspect-ratio: 2 / 3; border-radius: var(--r-lg); overflow: hidden; background: var(--s1); display: grid; place-items: end start; padding: 10px; font-weight: 700; font-size: 0.95rem; line-height: 1.15; letter-spacing: -0.01em; text-shadow: 0 1px 2px #0009; transition: transform 180ms cubic-bezier(0.2,0,0,1), box-shadow 180ms; }
+.card.square .art { aspect-ratio: 1; }
+.card.wide .art { aspect-ratio: 16 / 9; }
+.card:hover .art, .card:focus-visible .art { transform: scale(1.06); box-shadow: 0 0 0 2px var(--c, var(--fg)), 0 12px 30px #0008; }
+.card:focus-visible { outline: none; }
+.card .t { font-size: 0.9rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .c { font-size: 0.78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .c.note { color: var(--fg2); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-style: italic; }
+.card .prog { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: #0008; }
+.card .prog i { display: block; height: 100%; background: var(--accent); }
+.card .done { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: var(--success); color: var(--bg); display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.card .age { position: absolute; top: 8px; left: 8px; font-size: 0.65rem; font-weight: 700; padding: 1px 5px; border-radius: var(--r-sm); background: #000a; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 var(--gutter); }
+.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: var(--r-full); background: var(--s2); color: var(--fg); border: 1px solid transparent; font-weight: 500; font-size: 0.9rem; }
+.chip:hover { background: var(--s3); }
+.chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+.chip.sm { min-height: 30px; padding: 0 10px; font-size: 0.8rem; }
+.chip:disabled { opacity: 0.35; cursor: default; }
+
+/* Spotlight: the stage keeps its frame; the strip under it is a normal poster row */
+.hero { display: flex; flex-direction: column; gap: 10px; }
+.stage { position: relative; height: clamp(22rem, 52vh, 36rem); margin: 0 var(--gutter); border-radius: var(--r-xl); overflow: hidden; isolation: isolate; display: flex; align-items: flex-end; border: 1px solid var(--border); background: var(--elevated); }
+body.phone .stage { height: 22rem; }
+.stage .bg { position: absolute; inset: 0; z-index: -1; transition: opacity 700ms cubic-bezier(0.2,0,0,1); }
+.stage .bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #0b0c10e6 0%, #0b0c1080 55%, transparent 100%), linear-gradient(0deg, #0b0c10 0%, transparent 60%); }
+.stage .bg .big { position: absolute; right: 6%; top: 50%; transform: translateY(-50%); font-size: clamp(3rem, 12vw, 9rem); font-weight: 800; letter-spacing: -0.04em; opacity: 0.18; white-space: nowrap; }
+.stage .txt { position: relative; padding: 24px; max-width: 46rem; display: flex; flex-direction: column; gap: 10px; }
+@media (width >= 768px) { .stage .txt { padding: 40px; } }
+.stage .kicker { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg2); display: flex; gap: 10px; align-items: center; }
+.stage .kicker .n { color: var(--muted); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.stage h2.title { font-size: clamp(1.6rem, 4vw, 3rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.stage .meta { display: flex; gap: 12px; flex-wrap: wrap; color: var(--fg2); font-size: 0.9rem; }
+.stage .meta .age { font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: var(--r-sm); background: #ffffff22; }
+.stage .desc { color: var(--fg2); max-width: 36rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
+body.phone .stage .desc { display: none; }
+.stage .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--ctl); padding: 0 20px; border: 0; border-radius: var(--r-full); font-weight: 600; white-space: nowrap; background: var(--s3); color: var(--fg); transition: transform 120ms; }
+.btn:active { transform: scale(0.97); }
+.btn.primary { background: var(--fg); color: var(--bg); }
+.btn.primary:focus-visible { background: var(--accent); color: var(--on-accent); }
+.btn.sm { min-height: 36px; padding: 0 14px; font-size: 0.9rem; }
+.stage .arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 44px; height: 44px; border-radius: 50%; background: #0b0c10b3; border: 1px solid var(--border); color: var(--fg); display: none; place-items: center; font-size: 20px; }
+@media (width >= 768px) { .stage .arrow { display: grid; } }
+body.phone .stage .arrow { display: none; }
+.stage .arrow.prev { left: 12px; } .stage .arrow.next { right: 12px; }
+.stage .corner { position: absolute; top: 12px; right: 14px; z-index: 2; display: flex; align-items: center; gap: 6px; }
+.stage .pos { font-size: 0.75rem; color: var(--fg2); background: #0b0c10b3; padding: 4px 10px; border-radius: var(--r-full); font-variant-numeric: tabular-nums; }
+.stage .pp { width: 32px; height: 32px; border-radius: 50%; background: #0b0c10b3; border: 1px solid var(--border); color: var(--fg); display: grid; place-items: center; font-size: 12px; }
+.stage .pp[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+/* the active poster of the Spotlight row carries the ring and the timer */
+.strip.spot > li .card .art { opacity: 0.7; transition: opacity 300ms, transform 180ms, box-shadow 180ms; }
+.strip.spot > li[aria-current="true"] .card .art { opacity: 1; box-shadow: 0 0 0 2px var(--c, var(--fg)); }
+.strip.spot > li .card .art .timer { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: #0008; display: none; }
+.strip.spot > li[aria-current="true"] .card .art .timer { display: block; }
+.strip.spot > li[aria-current="true"] .card .art .timer i { display: block; height: 100%; width: 0; background: var(--fg); animation: timer var(--interval) linear forwards; }
+.hero.paused .strip.spot .timer i { animation-play-state: paused; }
+@keyframes timer { to { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .strip.spot .timer { display: none !important; } .card .art { transition: none; } }
+
+/* library page */
+.lib { display: flex; flex-direction: column; gap: 16px; }
+.lib .top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 0 var(--gutter); }
+.lib .top .count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 0 var(--gutter); }
+.tools .grow { flex: 1; }
+.sel { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px 0 14px; border-radius: var(--r-full); background: var(--s2); border: 1px solid transparent; }
+.sel select { background: none; border: 0; padding: 0; appearance: none; font-weight: 500; }
+.sel .lbl { color: var(--muted); font-size: 0.85rem; }
+.lib .body { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 0 var(--gutter); align-items: start; }
+.shell.narrow .lib .body, body.phone .lib .body { grid-template-columns: 1fr; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--poster), 1fr)); gap: 24px 16px; padding: 8px 0; margin: 0; list-style: none; }
+.az { display: flex; flex-direction: column; gap: 1px; position: sticky; top: calc(var(--bar) + var(--header) + 8px); max-height: calc(100vh - var(--bar) - var(--header) - 40px); overflow-y: auto; scrollbar-width: none; }
+.az button { background: none; border: 0; color: var(--fg2); font-size: 0.72rem; font-weight: 600; width: 26px; height: 20px; border-radius: var(--r-sm); padding: 0; font-variant-numeric: tabular-nums; }
+.az button:hover { background: var(--s2); color: var(--fg); }
+.az button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.az button:disabled { opacity: 0.3; cursor: default; }
+.shell.narrow .az, body.phone .az { flex-direction: row; position: static; max-height: none; overflow-x: auto; order: -1; padding-bottom: 4px; }
+.shell.narrow .az button, body.phone .az button { width: 30px; height: 30px; flex: none; }
+.filters { display: none; flex-direction: column; gap: 14px; margin: 0 var(--gutter); padding: 16px; background: var(--s1); border-radius: var(--r-lg); }
+.filters[open] { display: flex; }
+.filters .f { display: flex; flex-direction: column; gap: 8px; }
+.filters .f > span { font-weight: 600; font-size: 0.9rem; }
+.filters .f .chips { padding: 0; }
+.filters .yr { display: flex; gap: 8px; align-items: center; }
+.filters input[type=number] { width: 6rem; min-height: 36px; background: var(--s3); border: 1px solid transparent; border-radius: var(--r-sm); padding: 0 10px; }
+.filters .foot { display: flex; gap: 8px; justify-content: flex-end; }
+.more { display: flex; justify-content: center; padding: 8px 0 0; }
+.empty { padding: 48px var(--gutter); text-align: center; color: var(--muted); }
+
+/* toast */
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 70; background: var(--s3); color: var(--fg); padding: 10px 16px; border-radius: var(--r-md); box-shadow: 0 10px 30px #0008; opacity: 0; transition: opacity 180ms; pointer-events: none; max-width: 90vw; font-size: 0.9rem; }
+.toast.show { opacity: 1; }
+</style>
+
+<div class="proto" role="toolbar" aria-label="Prototyp">
+  <span>Prototyp · Konzept 08</span>
+  <button id="phone" aria-pressed="false">Handy-Ansicht</button>
+  <button id="reset">Zurücksetzen</button>
+  <span id="where" style="margin-left:auto; text-transform:none; letter-spacing:0"></span>
+</div>
+
+<div class="shell" id="shell">
+  <aside class="side" id="side" aria-label="Seitenleiste"></aside>
+  <div class="main">
+    <header class="hdr" id="hdr">
+      <button class="iconbtn burger" id="burger" aria-label="Menü öffnen">☰</button>
+      <button class="search" id="searchbtn" aria-label="Suche öffnen"><span>⌕</span><span>Suche · Taste /</span></button>
+      <div class="right">
+        <button class="iconbtn" aria-label="Benachrichtigungen, 2 ungelesen">🔔<span class="badge">2</span></button>
+        <button class="iconbtn" aria-label="Profil wechseln, aktuell Marco"><span class="avatar">M</span></button>
+      </div>
+    </header>
+    <main class="page" id="main" tabindex="-1"></main>
+  </div>
+</div>
+
+<dialog class="drawer" id="drawer" aria-label="Hauptnavigation">
+  <nav class="panel" id="drawerpanel"></nav>
+</dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ---------- seed data (titles are placeholders, the posters are gradients) ----------
+const ACC = ['ember','coral','amber','lime','teal','sky','violet','rose'];
+const GENRES = ['Action','Abenteuer','Animation','Drama','Komödie','Krimi','Dokumentation','Familie','Fantasy','Horror','Science-Fiction','Thriller'];
+const MOVIES = ['Dune: Part Two','Oppenheimer','The Fall Guy','Civil War','Furiosa','Inside Out 2','Gladiator II','Wicked','The Wild Robot','Conclave','Anora','The Brutalist','Nosferatu','A Real Pain','Flow','Alien: Romulus','Twisters','Deadpool & Wolverine','Beetlejuice Beetlejuice','Godzilla x Kong','Kingdom of the Planet of the Apes','Challengers','Hit Man','Love Lies Bleeding','Monkey Man','Problemista','Thelma','The Substance','Longlegs','Smile 2','Heretic','Juror #2','Blitz','Emilia Pérez','Nickel Boys','Queer','Sing Sing','Hundreds of Beavers','Kneecap','Zone of Interest','Past Lives','1917','Paddington 2','Arrival','Interstellar','Mad Max: Fury Road','Whiplash','Her','Ex Machina','Parasite','Jojo Rabbit','Knives Out','Moonlight','Uncut Gems','Vice','Yesterday','Nope','Us','Get Out','Barbie','Elvis','Tár','RRR','Okja','Roma','Dunkirk','Belfast','Coda','Minari','Nomadland','Soul','Luca','Encanto','Up','Wall-E','Ratatouille','Coco','Brave','Cars','Bolt','Frozen','Moana','Zootopia','Tangled','Vaiana','Klaus','Wolfwalkers','Robot Dreams','Hugo','Ghostbusters','Jaws','Alien','Heat','Seven','Fargo','Rocky','Jackie Brown','Logan','Dredd','Looper','Sicario','Prisoners','Enemy','Gravity','Oblivion','Edge of Tomorrow','Annihilation','Sunshine','Moon','Quiet Place','X','Pearl','Ida','Amour','Youth','Nebraska','Boyhood','Birdman'];
+const SERIES = ['Severance','Shōgun','Fallout','The Bear','Slow Horses','Silo','For All Mankind','Foundation','Dark','Babylon Berlin','Andor','The Last of Us','Succession','Ted Lasso','Paradise','Modern Family','Two and a Half Men','Scrubs','Lupin','The Expanse','Chernobyl','Mindhunter','Fleabag','Barry','Atlanta','Reservation Dogs','Station Eleven','Mr Robot','Halt and Catch Fire','The Americans','Deadwood','Justified','Bosch','Lioness','Yellowstone','Loki','Pluribus','Arcane','Blue Eye Samurai','Pantheon','Invincible','Bluey','Hilda','Gravity Falls','Avatar','Kipo'];
+const DOCS = ['Our Planet','Turning Point','Arnold','Testament','Border Control: Türkei','Formula 1: Drive to Survive','Free Solo','Cosmos','Planet Earth III','Blue Planet','Life on Our Planet','Chef\'s Table','The Last Dance','Beckham','Senna','Apollo 11','Fire of Love','Navalny','Summer of Soul','Honeyland','My Octopus Teacher','Jiro Dreams of Sushi','Icarus','Wild Wild Country','Making a Murderer','Tiger King','The Vietnam War','The Civil War','Ken Burns: Jazz','Welt der Wunder','Terra X','Universum'];
+const KIDS = ['Super Mario Bros.','Barbie: Prinzessin','Anastasia','Paddington','Peter Hase','Ich – Einfach unverbesserlich','Minions','Sing','Pets','Trolls','Die Eiskönigin','Rapunzel','Vaiana','Encanto','Luca','Elio','Findet Nemo','Die Unglaublichen','Monster AG','Toy Story','Shaun das Schaf','Wallace & Gromit','Bluey','Peppa Wutz','Paw Patrol','Feuerwehrmann Sam','Die Sendung mit der Maus','Benjamin Blümchen','Bibi Blocksberg','Heidi'];
+const ANIME = ['One Piece','Pacific Rim: The Black','Godzilla Singular Point','Akira','Your Name','Spirited Away','Princess Mononoke','Howl\'s Moving Castle','Ghost in the Shell','Perfect Blue','Paprika','Demon Slayer','Jujutsu Kaisen','Attack on Titan','Frieren','Vinland Saga','Mob Psycho 100','Cowboy Bebop','Trigun','Chainsaw Man','Dandadan','Delicious in Dungeon','Spy x Family','Fullmetal Alchemist','Steins;Gate','Made in Abyss','Violet Evergarden','Suzume','The Boy and the Heron','Belle'];
+const BOOKS = [['Der Herr der Ringe','J. R. R. Tolkien'],['Dune','Frank Herbert'],['Der Marsianer','Andy Weir'],['Projekt Hail Mary','Andy Weir'],['Die drei Sonnen','Liu Cixin'],['Sapiens','Yuval Noah Harari'],['Atomic Habits','James Clear'],['Mistborn','Brandon Sanderson'],['Der Name des Windes','Patrick Rothfuss'],['Harry Potter','J. K. Rowling'],['Eragon','Christopher Paolini'],['Die Känguru-Chroniken','Marc-Uwe Kling'],['QualityLand','Marc-Uwe Kling'],['Der Schwarm','Frank Schätzing'],['Tyll','Daniel Kehlmann'],['Blackout','Marc Elsberg'],['Shining','Stephen King'],['Es','Stephen King'],['1984','George Orwell'],['Momo','Michael Ende']];
+const PODS = [['Lage der Nation','Ulf & Philip'],['Fest & Flauschig','Böhmermann & Schulz'],['Gemischtes Hack','Felix & Tommi'],['Darknet Diaries','Jack Rhysider'],['Hard Fork','NYT'],['The Vergecast','The Verge'],['Alles gesagt?','ZEIT'],['Geschichten aus der Geschichte','Richard & Daniel'],['Baywatch Berlin','Klaas & Co.'],['Hotel Matze','Matze Hielscher'],['Logbuch:Netzpolitik','Linus & Tim'],['Freakshow','Tim Pritlove']];
+
+let seed = 7;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+const AGES = ['0','6','12','16','18'];
+const PROFILE_AGE = 18; // the active profile's limit; the server clamps anyway
+
+function mk(title, kind, extra) {
+  const year = kind === 'audiobook' || kind === 'podcast' ? 2015 + Math.floor(rnd() * 11) : 1990 + Math.floor(rnd() * 36);
+  const r = rnd();
+  return Object.assign({
+    id: title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    title, kind, year,
+    vote: Math.round((5.2 + rnd() * 3.9) * 10) / 10,
+    age: kind === 'podcast' || kind === 'audiobook' ? '12' : pick(AGES),
+    runtime: kind === 'movie' ? 85 + Math.floor(rnd() * 80) : kind === 'series' ? 40 + Math.floor(rnd() * 20) : 300 + Math.floor(rnd() * 900),
+    accent: pick(ACC), hue: Math.floor(rnd() * 360),
+    added: Date.now() - Math.floor(rnd() * 400) * 864e5,
+    genres: [pick(GENRES), pick(GENRES)],
+    progress: r < 0.12 ? 1 : r < 0.3 ? Math.round(rnd() * 90 + 5) / 100 : 0,
+    played: r < 0.3 ? Date.now() - Math.floor(rnd() * 60) * 864e5 : 0,
+  }, extra || {});
+}
+
+const LIBS = [
+  { id: 'filme', name: 'Filme', ico: '🎬', family: 'video', contents: ['movie'], items: MOVIES.map(t => mk(t, 'movie')) },
+  { id: 'serien', name: 'Serien', ico: '📺', family: 'video', contents: ['series'], items: SERIES.map(t => mk(t, 'series')) },
+  { id: 'dokus', name: 'Dokus', ico: '🌍', family: 'video', contents: ['movie', 'series'], items: DOCS.map((t, i) => mk(t, i % 3 === 0 ? 'series' : 'movie', { genres: ['Dokumentation', pick(GENRES)] })) },
+  { id: 'kids', name: 'Kids', ico: '🧸', family: 'video', contents: ['movie', 'series'], items: KIDS.map((t, i) => mk(t, i > 21 ? 'series' : 'movie', { age: pick(['0', '6']) })) },
+  { id: 'anime', name: 'Anime', ico: '⛩️', family: 'video', contents: ['movie', 'series'], items: ANIME.map((t, i) => mk(t, i > 10 && i < 24 ? 'series' : 'movie')) },
+  { id: 'hoerbuecher', name: 'Hörbücher', ico: '🎧', family: 'audiobooks', contents: ['audiobook'], items: BOOKS.map(([t, a]) => mk(t, 'audiobook', { author: a })) },
+  { id: 'podcasts', name: 'Podcasts', ico: '🎙️', family: 'podcasts', contents: ['podcast'], items: PODS.map(([t, a]) => mk(t, 'podcast', { author: a })) },
+];
+const ALL = LIBS.flatMap(l => l.items.map(i => Object.assign(i, { lib: l.id })));
+const byId = Object.fromEntries(ALL.map(i => [i.id, i]));
+const KIND = { movie: 'Film', series: 'Serie', audiobook: 'Hörbuch', podcast: 'Podcast' };
+
+// ---------- helpers ----------
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtRuntime = (m) => m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
+const noop = (what) => toast(`${what} – im Prototyp ohne Wirkung`);
+// sort key as the server would build it: article stripped, folded to A–Z, anything else under #
+const sortKey = (t) => t.replace(/^(der|die|das|the|a|an|ein|eine) /i, '').toLowerCase()
+  .replace(/[äá]/g, 'a').replace(/[öó]/g, 'o').replace(/[üú]/g, 'u').replace(/ß/g, 'ss').replace(/[éè]/g, 'e');
+const letterOf = (t) => { const c = sortKey(t).charAt(0).toUpperCase(); return /[A-Z]/.test(c) ? c : '#'; };
+
+function posterStyle(it) {
+  const c = `var(--${it.accent})`;
+  return `--c:${c};background:linear-gradient(160deg, hsl(${it.hue} 40% 28%), hsl(${(it.hue + 60) % 360} 45% 12%) 70%, #0b0c10)`;
+}
+function card(it, opt = {}) {
+  const shape = it.kind === 'audiobook' || it.kind === 'podcast' ? ' square' : '';
+  const prog = opt.progress && it.progress > 0 && it.progress < 1 ? `<span class="prog"><i style="width:${it.progress * 100}%"></i></span>` : '';
+  const done = opt.progress && it.progress === 1 ? `<span class="done" aria-label="Gesehen">✓</span>` : '';
+  const age = opt.age ? `<span class="age">${it.age}</span>` : '';
+  const cap = opt.caption !== undefined ? opt.caption : (it.author || it.year);
+  const timer = opt.timer ? '<span class="timer"><i></i></span>' : '';
+  const note = it.note ? `<span class="c note">${esc(it.note)}</span>` : '';
+  return `<button class="card${shape}" data-item="${it.id}" aria-label="${esc(it.title)}, ${KIND[it.kind]}, ${it.year}">
+    <span class="art" style="${posterStyle(it)}">${esc(it.title)}${prog}${done}${age}${timer}</span>
+    <span class="t">${esc(it.title)}</span>${cap ? `<span class="c">${esc(cap)}</span>` : ''}${note}
+  </button>`;
+}
+function row(key, title, items, opt = {}) {
+  if (!items.length) return '';
+  return `<section class="row" aria-labelledby="r-${key}">
+    <div class="head"><h2 id="r-${key}">${title}</h2>${opt.more ? `<a class="more" href="#${opt.more}">Alle anzeigen ›</a>` : ''}</div>
+    <ul class="strip" aria-label="${title}">${items.map(it => `<li${opt.wide ? ' class="wide"' : ''}>${card(it, opt)}</li>`).join('')}</ul>
+  </section>`;
+}
+
+// ---------- state ----------
+const state = { view: 'home', lib: null, content: 'all', sort: 'title', desc: false, letter: '', filters: { genre: [], status: [], from: '', to: '', age: '' }, filtersOpen: false, page: 1, spot: 0, paused: false, userPaused: false, libsOpen: true, hidden: false };
+const PAGE = 50;
+
+// ---------- sidebar ----------
+function navHtml(current, inDrawer) {
+  const lib = (l) => `<a href="#lib/${l.id}" ${current === 'lib/' + l.id ? 'aria-current="page"' : ''} title="${esc(l.name)}"><span class="lbl">${l.name}</span><span class="count">${l.items.length}</span></a>`;
+  return `${inDrawer ? '<button class="iconbtn close" data-close aria-label="Menü schliessen">✕</button>' : ''}
+  <div class="brand"><span class="cat">S</span><span class="name">Slouchcat</span></div>
+  <nav class="nav" aria-label="Hauptnavigation">
+    <a href="#home" ${current === 'home' ? 'aria-current="page"' : ''} title="Start"><span class="lbl">Start</span></a>
+    <a href="#search" title="Suche"><span class="lbl">Suche</span></a>
+    <a href="#watchlist" title="Merkliste"><span class="lbl">Merkliste</span></a>
+    <a href="#downloads" title="Downloads"><span class="lbl">Downloads</span></a>
+    <div class="group"><span>Meine Medien</span><button data-grp aria-expanded="${state.libsOpen}" aria-controls="libs-${inDrawer ? 'd' : 's'}" aria-label="Meine Medien ein- oder ausklappen">${state.libsOpen ? '▾' : '▸'}</button></div>
+    <div class="libs" id="libs-${inDrawer ? 'd' : 's'}" ${state.libsOpen ? '' : 'hidden'}>${LIBS.map(lib).join('')}<a href="#picks" ${current === 'picks' ? 'aria-current="page"' : ''}><span class="lbl">Cat's Empfehlungen</span><span class="count">${PICKS().length}</span></a></div>
+    <div class="spacer"></div>
+    <div class="foot">
+      <a href="#admin" title="Verwaltung"><span class="lbl">Verwaltung</span><span class="count" aria-label="Update verfügbar">●</span></a>
+      <a href="#profiles" title="Profile"><span class="lbl">Profile</span></a>
+      <a href="#logout" title="Abmelden"><span class="lbl">Abmelden</span></a>
+      ${inDrawer ? (state.hidden && !document.body.classList.contains('phone') ? '<button class="item collapse" data-collapse><span class="lbl">Seitenleiste einblenden</span></button>' : '') : '<button class="item collapse" data-collapse><span class="lbl">Seitenleiste ausblenden</span></button>'}
+    </div>
+  </nav>`;
+}
+function renderNav() {
+  const cur = state.view === 'lib' ? 'lib/' + state.lib : state.view;
+  $('#side').innerHTML = navHtml(cur, false);
+  $('#drawerpanel').innerHTML = navHtml(cur, true);
+}
+
+// ---------- home ----------
+const SPOT_LIST = () => [...LIBS[0].items.slice(0, 7), LIBS[1].items[0], LIBS[1].items[1], LIBS[0].items[8], LIBS[1].items[3], LIBS[0].items[9]];
+let spotTimer;
+const PICK_NOTES = ['Für den Sonntagabend – gross und laut.', 'Besser als jede Doku über Vulkane. Ehrlich.', 'Endlich alle Staffeln da.', 'Für die Anime-Skeptiker im Haus.', 'Cats Tipp der Woche.', 'Weil Mama es sich gewünscht hat.', 'Lauter als nötig, genau richtig.', 'Für Regentage.'];
+const PICKS = () => [LIBS[0].items[4], LIBS[2].items[2], LIBS[1].items[5], LIBS[4].items[3], LIBS[0].items[11], LIBS[3].items[1], LIBS[0].items[20], LIBS[5].items[2]].map((p, i) => Object.assign({}, p, { note: PICK_NOTES[i] }));
+function picksHtml() {
+  const picks = PICKS();
+  return `<div class="lib">
+    <div class="top"><h1>Cat's Empfehlungen</h1><span class="count">${picks.length} Titel</span></div>
+    <p style="padding:0 var(--gutter);margin:0;color:var(--fg2);max-width:65ch">Von Hand ausgesucht, mit Notiz. Die Reihenfolge ist Cats Reihenfolge.</p>
+    <div class="body"><ul class="grid" id="grid">${picks.map(it => `<li>${card(it, { caption: '' })}</li>`).join('')}</ul></div>
+  </div>`;
+}
+function homeHtml() {
+  const spot = SPOT_LIST();
+  const cont = ALL.filter(i => i.progress > 0 && i.progress < 1).slice(0, 12);
+  const recent = [...ALL].sort((a, b) => b.added - a.added).slice(0, 16);
+  const released = [...ALL].filter(i => i.kind === 'movie' || i.kind === 'series').sort((a, b) => b.year - a.year).slice(0, 16);
+  const picks = PICKS().slice(0, 5);
+  const watch = ALL.filter(i => i.progress === 0).slice(20, 30);
+  const coll = [{ title: 'Studio Ghibli', n: 12 }, { title: 'Marvel', n: 31 }, { title: 'Pixar', n: 24 }, { title: 'Bond', n: 25 }, { title: 'Weihnachten', n: 9 }];
+  return `
+  <section class="hero" id="hero" aria-roledescription="Karussell" aria-label="Spotlight">
+    <div class="stage" id="stage">
+      <button class="arrow prev" id="prev" tabindex="-1" aria-label="Vorheriger Titel">‹</button>
+      <button class="arrow next" id="next" tabindex="-1" aria-label="Nächster Titel">›</button>
+      <div class="corner"><span class="pos" id="pos"></span><button class="pp" id="pp" aria-pressed="false" aria-label="Automatischen Wechsel anhalten">❚❚</button></div>
+      <div class="bg" id="bg"></div>
+      <div class="txt" id="txt">
+        <div class="kicker"><span>Spotlight</span><span class="n">Trending bei Trakt</span></div>
+        <h2 class="title" id="st-title"></h2>
+        <div class="meta" id="st-meta"></div>
+        <p class="desc">Platzhaltertext für die Kurzbeschreibung aus TMDB. Zwei Zeilen, dann abgeschnitten, damit das Band ruhig bleibt.</p>
+        <div class="btns">
+          <button class="btn primary" id="play" data-stage="Abspielen">▶ Abspielen</button>
+          <button class="btn" data-stage="Details">Details</button>
+          <button class="btn" data-stage="Trailer">Trailer</button>
+        </div>
+      </div>
+    </div>
+    <ul class="strip spot" id="spotstrip" aria-label="Spotlight-Titel">${spot.map((it, i) => `<li data-i="${i}">${card(it, { timer: true })}</li>`).join('')}<li class="tail" aria-hidden="true"></li></ul>
+  </section>
+  ${row('continue', 'Weiterschauen', cont, { progress: true, caption: undefined })}
+  ${row('recent', 'Neu hinzugefügt', recent)}
+  ${row('released', 'Kürzlich veröffentlicht', released)}
+  ${row('picks', "Cat's Empfehlungen", picks, { caption: '', more: 'picks' })}
+  ${row('watchlist', 'Merkliste', watch, { more: 'watchlist' })}
+  <section class="row" aria-labelledby="r-coll"><div class="head"><h2 id="r-coll">Sammlungen</h2></div>
+    <ul class="strip">${coll.map(c => `<li class="wide"><button class="card wide" data-noop="Sammlung ${esc(c.title)}"><span class="art" style="--c:var(--amber);background:linear-gradient(135deg,#2a2330,#13151b)">${esc(c.title)}</span><span class="t">${esc(c.title)}</span><span class="c">${c.n} Titel</span></button></li>`).join('')}</ul></section>
+  <section class="row" aria-labelledby="r-gen"><div class="head"><h2 id="r-gen">Genres</h2></div>
+    <div class="chips">${GENRES.map(g => `<button class="chip" data-noop="Suche nach Genre ${esc(g)}">${esc(g)}</button>`).join('')}</div></section>`;
+}
+// updates only text and attributes, so a focused button in the band survives a page turn
+function renderSpot(animate) {
+  const spot = SPOT_LIST();
+  const it = spot[state.spot];
+  const bg = $('#bg');
+  bg.style.opacity = 0;
+  const paint = () => {
+    bg.innerHTML = `<span class="big">${esc(it.title.split(/[: ]/)[0])}</span>`;
+    bg.style.background = `linear-gradient(110deg, hsl(${it.hue} 35% 22%), hsl(${(it.hue + 50) % 360} 45% 10%))`;
+    bg.style.opacity = 1;
+  };
+  animate ? setTimeout(paint, 60) : paint();
+  $('#st-title').textContent = it.title;
+  $('#st-meta').innerHTML = `<span>${KIND[it.kind]}</span><span>${it.year}</span><span>${it.kind === 'movie' ? fmtRuntime(it.runtime) : `${2 + (it.hue % 5)} Staffeln`}</span><span>★ ${it.vote}</span><span class="age">FSK ${it.age}</span><span>${it.genres.join(' · ')}</span>`;
+  $('#pos').textContent = `${state.spot + 1} / ${spot.length}`;
+  $('#stage').dataset.item = it.id;
+  const strip = $('#spotstrip');
+  strip.querySelectorAll('li').forEach((li, i) => {
+    if (i === state.spot) li.setAttribute('aria-current', 'true'); else li.removeAttribute('aria-current');
+  });
+  // horizontal only: the active poster always sits at the left edge (N-4); the page must not jump
+  const li = strip.children[state.spot];
+  const left = li.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft - (parseFloat(getComputedStyle(strip).paddingLeft) || 0);
+  if (Math.abs(left - strip.scrollLeft) > 1) strip.scrollTo({ left: Math.max(0, left), behavior: animate ? 'smooth' : 'auto' });
+  armTimer();
+}
+function armTimer() {
+  clearTimeout(spotTimer);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const paused = state.paused || state.userPaused;
+  $('#hero')?.classList.toggle('paused', paused);
+  if (reduce || paused || state.view !== 'home' || document.hidden) return;
+  const bar = $('#spotstrip li[aria-current="true"] .timer i');
+  if (bar) { bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = ''; }
+  spotTimer = setTimeout(() => step(1), 5000);
+}
+function step(d) {
+  const n = SPOT_LIST().length;
+  state.spot = (state.spot + d + n) % n;
+  renderSpot(true);
+}
+function setPaused(p) { if (state.paused !== p) { state.paused = p; armTimer(); } }
+
+// ---------- library page ----------
+const SORTS = [['title', 'Titel'], ['added', 'Zuletzt hinzugefügt'], ['released', 'Erscheinungsjahr'], ['vote', 'Bewertung'], ['runtime', 'Laufzeit'], ['age', 'Altersfreigabe'], ['played', 'Zuletzt gesehen'], ['author', 'Autor']];
+const DEFAULT_DESC = { title: false, added: true, released: true, vote: true, runtime: true, age: false, played: true, author: false };
+const cmp = (a, b) => {
+  const k = state.sort;
+  let r = 0;
+  if (k === 'title') r = sortKey(a.title).localeCompare(sortKey(b.title), 'de');
+  else if (k === 'added') r = a.added - b.added;
+  else if (k === 'released') r = a.year - b.year || sortKey(a.title).localeCompare(sortKey(b.title), 'de');
+  else if (k === 'vote') r = a.vote - b.vote;
+  else if (k === 'runtime') r = a.runtime - b.runtime;
+  else if (k === 'age') r = Number(a.age) - Number(b.age) || sortKey(a.title).localeCompare(sortKey(b.title), 'de');
+  else if (k === 'played') r = a.played - b.played;
+  else if (k === 'author') r = (a.author || '').localeCompare(b.author || '', 'de') || sortKey(a.title).localeCompare(sortKey(b.title), 'de');
+  return state.desc ? -r : r;
+};
+const statusOf = (i) => i.progress === 1 ? 'watched' : i.progress > 0 ? 'started' : 'unwatched';
+function libItems(lib) {
+  const f = state.filters;
+  return lib.items.filter(i =>
+    (state.content === 'all' || i.kind === state.content) &&
+    (!f.genre.length || f.genre.some(g => i.genres.includes(g))) &&
+    (!f.status.length || f.status.includes(statusOf(i))) &&
+    (!f.from || i.year >= Number(f.from)) && (!f.to || i.year <= Number(f.to)) &&
+    (!f.age || Number(i.age) <= Number(f.age))
+  ).sort(cmp);
+}
+function libHtml(lib) {
+  const items = libItems(lib);
+  const f = state.filters;
+  const nf = f.genre.length + f.status.length + (f.from ? 1 : 0) + (f.to ? 1 : 0) + (f.age ? 1 : 0);
+  // facets come from the server with the page: which letters, genres and ratings exist in this set
+  const letters = new Set(items.map(i => letterOf(i.title)));
+  const genres = GENRES.filter(g => lib.items.some(i => i.genres.includes(g)));
+  const ratings = AGES.filter(a => Number(a) < PROFILE_AGE && lib.items.some(i => i.age === a));
+  const shown = state.letter ? items.filter(i => letterOf(i.title) === state.letter) : items;
+  const pageItems = shown.slice(0, state.page * PAGE);
+  const mixed = lib.contents.length > 1;
+  const audio = lib.family !== 'video';
+  const contentChips = mixed ? `<div class="chips" style="padding:0" role="group" aria-label="Inhalt">
+      ${[['all', 'Alle'], ['movie', 'Filme'], ['series', 'Serien']].map(([k, l]) => `<button class="chip" data-content="${k}" aria-pressed="${state.content === k}">${l}</button>`).join('')}</div>` : '';
+  const sorts = SORTS.filter(([k]) => audio ? !['age'].includes(k) && (k !== 'author' || lib.family === 'audiobooks') : k !== 'author');
+  const az = state.sort === 'title' && lib.family !== 'podcasts' ? `<div class="az" role="group" aria-label="Anfangsbuchstabe"><button data-letter="" aria-pressed="${state.letter === ''}" aria-label="Alle Buchstaben">•</button>${'#ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l => `<button data-letter="${l}" aria-pressed="${state.letter === l}" ${letters.has(l) ? '' : 'disabled'} ${l === '#' ? 'aria-label="Ziffer oder Zeichen"' : ''}>${l}</button>`).join('')}</div>` : '';
+  const noun = lib.family === 'podcasts' ? 'Podcasts' : lib.family === 'audiobooks' ? 'Hörbücher' : 'Titel';
+  return `<div class="lib">
+    <div class="top"><h1>${esc(lib.name)}</h1><span class="count">${shown.length} ${noun}${state.letter ? ` mit ${state.letter}` : ''}${nf ? ' · gefiltert' : ''}</span></div>
+    <div class="tools">
+      ${contentChips}
+      <span class="grow"></span>
+      <label class="sel"><span class="lbl">Sortieren</span><select id="sort" aria-label="Sortieren nach">${sorts.map(([k, l]) => `<option value="${k}" ${state.sort === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <button class="chip" id="dir" aria-label="Reihenfolge umkehren, zurzeit ${state.desc ? 'absteigend' : 'aufsteigend'}" aria-pressed="${state.desc}">${state.desc ? '↓ absteigend' : '↑ aufsteigend'}</button>
+      <button class="chip" id="filterbtn" aria-expanded="${state.filtersOpen}" aria-controls="filters">Filter${nf ? ` · ${nf}` : ''}</button>
+    </div>
+    <div class="filters" id="filters" ${state.filtersOpen ? 'open' : ''}>
+      ${genres.length ? `<div class="f"><span>Genre</span><div class="chips">${genres.map(g => `<button class="chip sm" data-genre="${esc(g)}" aria-pressed="${f.genre.includes(g)}">${esc(g)}</button>`).join('')}</div></div>` : ''}
+      <div class="f"><span>Status</span><div class="chips">${[['unwatched', audio ? 'Ungehört' : 'Ungesehen'], ['started', 'Angefangen'], ['watched', audio ? 'Gehört' : 'Gesehen']].map(([k, l]) => `<button class="chip sm" data-status="${k}" aria-pressed="${f.status.includes(k)}">${l}</button>`).join('')}</div></div>
+      <div class="f"><span>Jahr</span><div class="yr"><input type="number" id="from" placeholder="von" value="${f.from}" aria-label="Jahr von"><span>–</span><input type="number" id="to" placeholder="bis" value="${f.to}" aria-label="Jahr bis"></div></div>
+      ${ratings.length ? `<div class="f"><span>Altersfreigabe</span><div class="chips"><button class="chip sm" data-age="" aria-pressed="${f.age === ''}">Profilgrenze (${PROFILE_AGE})</button>${ratings.map(a => `<button class="chip sm" data-age="${a}" aria-pressed="${f.age === a}">bis ${a}</button>`).join('')}</div></div>` : ''}
+      <div class="foot"><button class="btn sm" id="clear">Zurücksetzen</button><button class="btn sm primary" id="apply">Anwenden</button></div>
+    </div>
+    <div class="body">
+      ${shown.length ? `<ul class="grid" id="grid">${pageItems.map(it => `<li>${card(it, { progress: true, age: !audio, caption: it.author || (it.kind === 'series' ? `Serie · ${it.year}` : it.year) })}</li>`).join('')}</ul>` : `<p class="empty">Nichts passt zu diesen Filtern.</p>`}
+      ${az}
+    </div>
+    ${shown.length > pageItems.length ? `<div class="more"><button class="btn" id="more">Mehr laden (${shown.length - pageItems.length} weitere)</button></div>` : ''}
+  </div>`;
+}
+
+// ---------- render ----------
+// opt.focus: selector to focus after the render; opt.keep: keep the scroll position (in-page change)
+function render(opt = {}) {
+  clearTimeout(spotTimer);
+  const main = $('#main');
+  const y = window.scrollY;
+  if (state.view === 'home') {
+    main.innerHTML = homeHtml();
+    renderSpot(false);
+    $('#where').textContent = 'Startseite';
+    document.title = 'Slouchcat · Start';
+  } else if (state.view === 'picks') {
+    main.innerHTML = picksHtml();
+    $('#where').textContent = "Cat's Empfehlungen";
+    document.title = "Slouchcat · Cat's Empfehlungen";
+  } else if (state.view === 'lib') {
+    const lib = LIBS.find(l => l.id === state.lib);
+    main.innerHTML = libHtml(lib);
+    $('#where').textContent = `Bibliothek «${lib.name}»`;
+    document.title = `Slouchcat · ${lib.name}`;
+  }
+  renderNav();
+  if (opt.keep) window.scrollTo({ top: y }); else window.scrollTo({ top: 0 });
+  if (opt.focus) $(opt.focus)?.focus({ preventScroll: !!opt.keep });
+}
+function go(hash) {
+  const [v, id] = hash.replace(/^#/, '').split('/');
+  if (v === 'lib' && LIBS.some(l => l.id === id)) {
+    if (state.lib !== id) { Object.assign(state, { content: 'all', letter: '', page: 1, filtersOpen: false, filters: { genre: [], status: [], from: '', to: '', age: '' } }); }
+    state.view = 'lib'; state.lib = id;
+  } else if (v === 'picks') {
+    state.view = 'picks';
+  } else if (v === 'home' || v === '') {
+    state.view = 'home'; state.userPaused = false;
+    state.spot = Math.floor(Math.random() * SPOT_LIST().length); // random start per visit (the server's draw later)
+  } else {
+    noop({ search: 'Suche', watchlist: 'Merkliste', downloads: 'Downloads', admin: 'Verwaltung', profiles: 'Profile', logout: 'Abmelden' }[v] || v);
+    return;
+  }
+  if ($('#drawer').open) $('#drawer').close();
+  render();
+}
+
+// ---------- events ----------
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  if (a) { e.preventDefault(); const h = a.getAttribute('href'); if (h !== location.hash) history.pushState(null, '', h); go(h); return; }
+  const b = e.target.closest('button');
+  if (!b) return;
+  const d = b.dataset;
+  if (d.noop) return noop(d.noop);
+  if (d.stage) return noop(`${d.stage} «${byId[$('#stage').dataset.item].title}»`);
+  if (d.item && b.closest('#spotstrip')) { state.spot = Number(b.closest('li').dataset.i); renderSpot(true); return; }
+  if (d.item) return toast(`Detailseite «${byId[d.item].title}» – im Prototyp ohne Wirkung`);
+  if (b.id === 'prev') return step(-1);
+  if (b.id === 'next') return step(1);
+  if (b.id === 'pp') { state.userPaused = !state.userPaused; b.setAttribute('aria-pressed', state.userPaused); b.setAttribute('aria-label', state.userPaused ? 'Automatischen Wechsel fortsetzen' : 'Automatischen Wechsel anhalten'); b.textContent = state.userPaused ? '▶' : '❚❚'; armTimer(); return; }
+  if (b.id === 'burger') { $('#drawer').showModal(); $('#drawerpanel a').focus(); return; }
+  if (d.close !== undefined) { $('#drawer').close(); $('#burger').focus(); return; }
+  if (d.grp !== undefined) { state.libsOpen = !state.libsOpen; renderNav(); $(`[data-grp]`, b.closest('nav') === $('#drawerpanel nav') ? $('#drawerpanel') : $('#side')).focus(); return; }
+  if (d.collapse !== undefined) { state.hidden = !state.hidden; if ($('#drawer').open) $('#drawer').close(); layout(); renderNav(); (state.hidden ? $('#burger') : $('#side [data-collapse]')).focus(); return; }
+  if (b.id === 'searchbtn') return noop('Suche');
+  if (d.content !== undefined) { state.content = d.content; state.page = 1; state.letter = ''; render({ keep: true, focus: `[data-content="${d.content}"]` }); return; }
+  if (d.letter !== undefined) { state.letter = d.letter; state.page = 1; render({ keep: true, focus: `[data-letter="${d.letter}"]` }); return; }
+  if (b.id === 'dir') { state.desc = !state.desc; render({ keep: true, focus: '#dir' }); return; }
+  if (b.id === 'filterbtn') { state.filtersOpen = !state.filtersOpen; render({ keep: true, focus: state.filtersOpen ? '#filters button, #filters input' : '#filterbtn' }); return; }
+  if (d.genre !== undefined) { toggleIn(state.filters.genre, d.genre); b.setAttribute('aria-pressed', state.filters.genre.includes(d.genre)); return; }
+  if (d.status !== undefined) { toggleIn(state.filters.status, d.status); b.setAttribute('aria-pressed', state.filters.status.includes(d.status)); return; }
+  if (d.age !== undefined) { state.filters.age = d.age; document.querySelectorAll('[data-age]').forEach(x => x.setAttribute('aria-pressed', x.dataset.age === state.filters.age)); return; }
+  if (b.id === 'apply') { state.filters.from = $('#from').value; state.filters.to = $('#to').value; state.page = 1; state.filtersOpen = false; render({ keep: true, focus: '#filterbtn' }); return; }
+  if (b.id === 'clear') { state.filters = { genre: [], status: [], from: '', to: '', age: '' }; state.page = 1; render({ keep: true, focus: '#filterbtn' }); return; }
+  if (b.id === 'more') { const first = state.page * PAGE; state.page++; render({ keep: true, focus: `#grid > li:nth-child(${first + 1}) .card` }); return; }
+  if (b.id === 'phone') { document.body.classList.toggle('phone'); b.setAttribute('aria-pressed', document.body.classList.contains('phone')); layout(); return; }
+  if (b.id === 'reset') { history.pushState(null, '', '#home'); Object.assign(state, { sort: 'title', desc: false, hidden: false, libsOpen: true }); go('#home'); return; }
+});
+document.addEventListener('change', (e) => { if (e.target.id === 'sort') { state.sort = e.target.value; state.desc = DEFAULT_DESC[state.sort]; state.letter = ''; state.page = 1; render({ keep: true, focus: '#sort' }); } });
+$('#drawer').addEventListener('click', (e) => { if (e.target === e.currentTarget) { e.currentTarget.close(); $('#burger').focus(); } });
+$('#drawer').addEventListener('close', () => $('#burger').focus());
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && state.filtersOpen) { state.filtersOpen = false; render({ keep: true, focus: '#filterbtn' }); }
+  if (e.key === '/' && !e.target.matches('input, select')) { e.preventDefault(); noop('Suche'); }
+  if (state.view === 'home' && e.target.closest('#stage')) {
+    if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+  }
+});
+// the band pauses on keyboard focus inside it (:focus-visible), not on a mouse click and not on hover
+document.addEventListener('focusin', (e) => setPaused(!!e.target.closest('#hero') && e.target.matches(':focus-visible')));
+document.addEventListener('focusout', (e) => { if (!e.relatedTarget || !e.relatedTarget.closest('#hero')) setPaused(false); });
+document.addEventListener('visibilitychange', () => armTimer());
+window.addEventListener('scroll', () => $('#hdr').classList.toggle('solid', window.scrollY > 24), { passive: true });
+function toggleIn(arr, v) { const i = arr.indexOf(v); i >= 0 ? arr.splice(i, 1) : arr.push(v); }
+function layout() {
+  // sidebar from the tablet breakpoint (768 px); the viewer can hide it, then the menu button opens the drawer
+  const phone = document.body.classList.contains('phone');
+  const narrow = phone || window.innerWidth < 768 || state.hidden;
+  $('#shell').classList.toggle('narrow', narrow);
+}
+window.addEventListener('resize', layout);
+window.addEventListener('popstate', () => go(location.hash || '#home'));
+layout();
+go(location.hash || '#home');
+</script>
+</body>
+</html>
