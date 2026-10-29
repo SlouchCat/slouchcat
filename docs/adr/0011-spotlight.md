@@ -1,6 +1,10 @@
 # ADR 0011: Spotlight als wählbare Trakt-Liste auf der Startseite
 
-- Status: vorgeschlagen (25. Oktober 2026); auf «angenommen» mit Marcos Freigabe
+- Status: angenommen (M11 abgenommen, 27. Oktober 2026); **teilweise ersetzt durch ADR 0016** (29. Oktober
+  2026): Beginn des Bands (zufällig je Seitenaufruf statt Platz 1), Takt (einstellbar 3 bis 15 s statt
+  8 s), Pausenregel (Tastaturfokus, Trailer, Knopf, verborgener Tab; nicht mehr Mauszeiger) und die
+  Posterleiste (Normalgrösse statt zwei Drittel). Cache, Kuratierung, Ordnungsregel, `min_hits`,
+  `heroRow`, Stelle der Bühne und Admin-Operationen gelten weiter
 - Quelle: Plan `docs/planning/05-plan-spotlight.md` (Meilenstein M11), Frage 11 vom 25. Oktober 2026
   in `docs/planning/04-entscheidungen.md` (Antworten S-1 bis S-11 und die fünf Folgeentscheide);
   Mockups F/J (Startseite), H (Admin Spotlight), I (Admin Cat's Empfehlungen), K (Admin Startseite)

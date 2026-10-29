@@ -1,23 +1,24 @@
 # Konzept: Startseite, Seitenleiste und Bibliotheksansichten
 
-- **Status: Konzept freigegeben (29. Oktober 2026), Umsetzung bewusst nicht gestartet.** Marco hat
+- **Status: freigegeben, in Umsetzung (seit 29. Oktober 2026, Zweig `claude/startseite`).** Marco hat
   zwölf Fragen in drei Runden beantwortet (Abschnitt 11, F-1 bis F-12), vier Wünsche nachgereicht
   (N-1 bis N-4) und die offenen Punkte O-1, O-3, O-4, O-5 wie vorgeschlagen entschieden. Der
   OMC-Kritiker hat die erste Fassung geprüft (1 Blocker, 18 Major, 14 Minor; Abschnitt 13);
   Fassung 2 arbeitet alle ein. Ein klickbarer Prototyp liegt unter
-  `docs/planning/mockups/08-startseite-prototyp.html` (Abschnitt 7.5). **Schritt 0 (Frage 14 im
-  Entscheidungsprotokoll, ADR 0016) und alles Weitere beginnen erst auf Marcos ausdrückliches
-  Wort**, und erst nach dem Merge von Konzept 07 (PR #45).
-- **Datum: 29. Oktober 2026, Fassung 2 vom selben Tag**
-- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`9923807`** («Merge pull request #44»,
-  Benutzerverwaltung), Vertragsfassung **1.2.0**, letzte Migration **00022**, letzte ADR **0014**.
-  Es setzt das Konzept **07 Bibliotheken** (`docs/planning/07-bibliotheken.md`, Zweig
-  `claude/bibliotheken`, PR #45, in Umsetzung) **voraus**: Familie je Bibliothek
-  (`LibraryKind` = `video` / `audiobooks` / `podcasts`), Inhaltsart je Ordner (`RootContent`),
-  Vertrag 1.3.0, Migrationen 00023/00024, ADR 0015. Die nächsten freien Nummern sind darum
-  **Migration 00025, ADR 0016, Vertrag 1.4.0**; sie verschieben sich, falls 07 weitere Nummern
-  belegt. `:Zeile`-Angaben beziehen sich auf `9923807`; nach dem Merge von 07 nach Namen suchen,
-  nicht nach Zeile.
+  `docs/planning/mockups/08-startseite-prototyp.html` (Abschnitt 7.5). Marco hat die Umsetzung am
+  29. Oktober 2026 nach dem Merge von Konzept 07 (PR #45) beauftragt («Beginne mit der
+  Entwicklung»); Schritt 0 trägt Frage 14 und ADR 0016 nach.
+- **Datum: 29. Oktober 2026, Fassung 2 vom selben Tag; Fassung 3 (Nummern nach dem Merge von 07)
+  vom selben Tag**
+- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`4049724`** («Merge pull request #45»,
+  Bibliotheken), Vertragsfassung **1.3.0**, letzte Migration **00025** (`items.filled_providers`,
+  aus dem Review von 07), letzte ADR **0015**. Es setzt das Konzept **07 Bibliotheken**
+  (`docs/planning/07-bibliotheken.md`, gemergt am 29. Oktober 2026) **voraus**: Familie je
+  Bibliothek (`LibraryKind` = `video` / `audiobooks` / `podcasts`), Inhaltsart je Ordner
+  (`RootContent`), Vertrag 1.3.0, Migrationen 00023 bis 00025, ADR 0015. Die Nummern dieses
+  Papiers sind darum **Migration 00026, ADR 0016, Vertrag 1.4.0** (Fassung 2 nannte 00025; 07 hat
+  diese Nummer im Review belegt). `:Zeile`-Angaben beziehen sich auf `9923807` (Fassung 1 und 2);
+  nach Namen suchen, nicht nach Zeile.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
   `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 - **Jeder Schritt ist ein eigener Commit, und vor dem Abschluss jedes Schritts ist `task ci` grün**
@@ -173,7 +174,7 @@ Zwölf Fragen in drei Runden plus zwei Nachträge, Wortlaut in Abschnitt 11:
 
 ## 4. Datenmodell
 
-**Migration 00025** (nach Vorlage, nur vorwärts) enthält alles aus 4.1 bis 4.3.
+**Migration 00026** (nach Vorlage, nur vorwärts) enthält alles aus 4.1 bis 4.3.
 
 ### 4.1 `spotlight_config` bekommt den Takt (F-10)
 
@@ -482,11 +483,12 @@ Band, das Vormalen und Client zugleich umstellt.
 Frage 14 ins Entscheidungsprotokoll (F-1 bis F-12, N-1 bis N-4 und die Antworten auf O-1 bis O-5),
 **ADR 0016** «Seitenleiste, Bibliotheksseite und Spotlight-Takt» (Teilnachfolger von ADR 0011;
 benennt die Pause bei `visibilitychange` und die Ableitung «sichtbare Bibliothek» aus
-`visible_items`), Status dieses Papiers auf «freigegeben, in Umsetzung». Reiner Doku-Commit.
+`visible_items`), Status dieses Papiers auf «freigegeben, in Umsetzung», Nummern nach dem Merge von
+07 (Migration 00026). Reiner Doku-Commit.
 
-### Schritt 1 — Vertrag 1.4.0, Migration 00025 und Server
+### Schritt 1 — Vertrag 1.4.0, Migration 00026 und Server
 `api/openapi.yaml` (drei Operationen, `start`, drei Felder, vier Schemata), `task gen`, Migration
-00025 (`rotation_seconds`, `item_texts.sort_key` mit Backfill, `items.vote_average`, Indizes),
+00026 (`rotation_seconds`, `item_texts.sort_key` mit Backfill, `items.vote_average`, Indizes),
 Abfragen in `server/queries/scoped/` mit `visible_items`, `visibility.VisibleLibraries`,
 `LibraryItems` mit Facetten, `Picks`, `discover.WithRand` und `heroStart` **nur in der
 Antwort** (das Vormalen bleibt bei Platz 1 bis Schritt 4), `metadata` mit `vote_average` in der
@@ -589,7 +591,7 @@ die Ausstiegsklauseln stehen in 8.
 
 ### 12.4 Abhängigkeit von 07
 Ohne Familie, `contents` und Auffüllreihenfolge gibt es weder die gemischte Bibliothek noch die
-Wertung. Die Nummern (00025, 0016, 1.4.0) stehen erst nach dem Merge von PR #45 fest.
+Wertung. Die Nummern stehen seit dem Merge von PR #45 fest: 00026, 0016, 1.4.0.
 
 ### 12.5 Fernseher-Browser
 Eine Seitenleiste nimmt auf einem 1080p-Fernseher Platz, den die Bühne gut brauchte. Sie ist
