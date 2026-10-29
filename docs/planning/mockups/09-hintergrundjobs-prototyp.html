@@ -32,6 +32,7 @@ button, input { font: inherit; }
 button { cursor: pointer; }
 code, .mono { font-family: var(--mono); font-size: 0.875em; }
 .num { font-variant-numeric: tabular-nums; }
+.dim { color: var(--fg2); }
 :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 [hidden] { display: none !important; }
 
@@ -169,7 +170,7 @@ body.phone .grid { grid-template-columns: 1fr; }
     <button class="tab" role="tab" aria-selected="false" data-view="home" type="button">Übersicht</button>
     <button class="tab" role="tab" aria-selected="true" data-view="jobs" type="button">Hintergrundjobs</button>
   </nav>
-  <div class="proto">Klickbarer Prototyp zum Konzept 09 (Fassung 1) · kein Server, Beispieldaten
+  <div class="proto">Klickbarer Prototyp zum Konzept 09 (Fassung 2) · kein Server, Beispieldaten
     <button id="phone" type="button" aria-pressed="false">Handy-Ansicht</button>
     <button id="reset" type="button">Zurücksetzen</button></div>
 </div></div>
@@ -189,23 +190,25 @@ const H = 3600, M = 60;
 
 function makeTypes() {
   return [
-    { type: 'scan.library',     name: 'Bibliotheksscan',        group: 'library',  pool: 'general', trigger: 'schedule', every: 6*H,  next: 4*H+12*M, trig: 'Zeitplan alle 6 h, Start des Servers, «Scannen» je Bibliothek, Webhook', median: 48*M, last: { ago: 6*H+2*M, dur: 51*M, ok: true } },
-    { type: 'scan.path',        name: 'Ordner nachlesen',       group: 'library',  pool: 'general', trigger: 'event', trig: 'Dateiwächter (gleiche Ordner innert 2 s zusammengefasst), Webhook', median: 3, last: { ago: 9*M, dur: 2, ok: true } },
-    { type: 'probe.file',       name: 'Datei prüfen',           group: 'library',  pool: 'general', trigger: 'event', trig: 'vom Scan, je neue Datei', median: 4, queued: 20, last: { ago: 40, dur: 3, ok: true } },
-    { type: 'probe.keyframes',  name: 'Keyframes lesen',        group: 'library',  pool: 'general', trigger: 'event', trig: 'vor der Wiedergabe, vom Scan', median: 25, last: { ago: 2*H, dur: 19, ok: true } },
-    { type: 'library.sweep',    name: 'Bibliothek aufräumen',   group: 'library',  pool: 'general', trigger: 'schedule', every: H, next: 23*M, trig: 'Zeitplan stündlich, Start des Servers', median: 8, last: { ago: 37*M, dur: 7, ok: true } },
-    { type: 'segments.detect',  name: 'Intro und Abspann',      group: 'library',  pool: 'general', trigger: 'event', trig: 'vom Scan, je Folge einer Serie', median: 3*M, queued: 201, last: { ago: 20, dur: 2*M+50, ok: true } },
-    { type: 'metadata.match',   name: 'Titel zuordnen',         group: 'metadata', pool: 'general', trigger: 'event', trig: 'vom Scan, Zuordnung von Hand, Ordner ändern', median: 2, queued: 5, last: { ago: 55, dur: 2, ok: true } },
-    { type: 'metadata.fill',    name: 'Metadaten auffüllen',    group: 'metadata', pool: 'general', trigger: 'event', trig: 'nach der Zuordnung, Listenänderung am Ordner', median: 3, last: { ago: 58, dur: 3, ok: true } },
-    { type: 'image.fetch',      name: 'Bilder laden',           group: 'metadata', pool: 'general', trigger: 'event', trig: 'nach der Zuordnung, Nachholen beim Start', median: 2, queued: 10, last: { ago: 61, dur: 1, ok: true } },
-    { type: 'trailer.find',     name: 'Trailer suchen',         group: 'metadata', pool: 'general', trigger: 'event', trig: 'nach der Zuordnung', median: 4, last: { ago: 70, dur: 4, ok: true } },
-    { type: 'podcast.fetch',    name: 'Podcast-Feeds abrufen',  group: 'metadata', pool: 'general', trigger: 'schedule', every: 5*M, next: 3*M+10, trig: 'Zeitplan alle 5 min: holt Feeds, deren letzter Abruf 55 min alt ist; «Aktualisieren»', median: 6, last: { ago: 110, dur: 5, ok: true } },
-    { type: 'trakt.refresh',    name: 'Spotlight von Trakt',    group: 'metadata', pool: 'general', trigger: 'schedule', every: 24*H, next: 13*H+40*M, trig: 'Zeitplan nach dem Spotlight-Takt (24 h), Start des Servers, «Jetzt abrufen»', median: 40, last: { ago: 10*H+20*M, dur: 38, ok: true } },
-    { type: 'notify.deliver',   name: 'Mitteilung zustellen',   group: 'delivery', pool: 'notify',  trigger: 'event', trig: 'jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)', median: 2, last: { ago: 15*M, dur: 1, ok: true } },
-    { type: 'download.prepare', name: 'Download vorbereiten',   group: 'delivery', pool: 'download', trigger: 'event', trig: 'Download eines Profils, Abgleich alle 10 min', median: 9*M, last: { ago: 3*H, dur: 11*M, ok: true } },
-    { type: 'update.check',     name: 'Update-Prüfung',         group: 'system',   pool: 'general', trigger: 'schedule', every: 24*H, next: 21*H+5*M, trig: 'Zeitplan täglich, 60 s nach dem Start; «Jetzt prüfen»', median: 1, last: { ago: 2*H+55*M, dur: 1, ok: true } },
-    { type: 'jobs.prune',       name: 'Verlauf aufräumen',      group: 'system',   pool: 'general', trigger: 'schedule', every: 24*H, next: 8*H+30*M, trig: 'Zeitplan täglich: erledigte Läufe älter als 7 Tage, mindestens 50 je Job bleiben', median: 2, last: { ago: 15*H+30*M, dur: 2, ok: true } },
-  ].map(t => ({ queued: 0, failed: 0, paused: false, ...t }));
+    { type: 'scan.library',     name: 'Bibliotheksscan',        group: 'library',  pool: 'general', prio: 5, trigger: 'schedule', every: 6*H,  next: 4*H+12*M, trig: 'Zeitplan alle 6 h, Start des Servers, «Scannen» je Bibliothek, Webhook, Dateiwächter', median: 48*M, last: { ago: 6*H+2*M, dur: 51*M, ok: true } },
+    { type: 'scan.path',        name: 'Ordner nachlesen',       group: 'library',  pool: 'general', prio: 6, trigger: 'event', trig: 'Dateiwächter (gleiche Ordner innert 2 s zusammengefasst), Webhook', median: 3, last: { ago: 9*M, dur: 2, ok: true } },
+    { type: 'probe.file',       name: 'Datei prüfen',           group: 'library',  pool: 'general', prio: 3, trigger: 'event', trig: 'vom Scan je neue Datei, von der Pflege', median: 4, queued: 20, last: { ago: 40, dur: 3, ok: true } },
+    { type: 'probe.keyframes',  name: 'Keyframes lesen',        group: 'library',  pool: 'general', prio: 1, trigger: 'event', trig: 'vom Scan (Priorität 1), vor der Wiedergabe (Priorität 9)', median: 25, planned: 2, last: { ago: 2*H, dur: 19, ok: true } },
+    { type: 'library.sweep',    name: 'Bibliothek aufräumen',   group: 'library',  pool: 'general', prio: 2, trigger: 'schedule', every: H, next: 23*M, trig: 'Zeitplan stündlich, Start des Servers', median: 8, last: { ago: 37*M, dur: 7, ok: true } },
+    { type: 'segments.detect',  name: 'Intro und Abspann',      group: 'library',  pool: 'general', prio: 2, trigger: 'event', trig: 'vom Scan, je Folge einer Serie', median: 3*M, queued: 201, last: { ago: 20, dur: 2*M+50, ok: true } },
+    { type: 'metadata.match',   name: 'Titel zuordnen',         group: 'metadata', pool: 'general', prio: 4, trigger: 'event', trig: 'vom Scan, Zuordnung von Hand, Ordner ändern', median: 2, queued: 5, planned: 1, last: { ago: 55, dur: 2, ok: true } },
+    { type: 'metadata.fill',    name: 'Metadaten auffüllen',    group: 'metadata', pool: 'general', prio: 2, trigger: 'event', trig: 'nach der Zuordnung, Listenänderung am Ordner', median: 3, last: { ago: 58, dur: 3, ok: true } },
+    { type: 'image.fetch',      name: 'Bilder laden',           group: 'metadata', pool: 'general', prio: 2, trigger: 'event', trig: 'nach der Zuordnung, Nachholen beim Start', median: 2, queued: 10, last: { ago: 61, dur: 1, ok: true } },
+    { type: 'trailer.find',     name: 'Trailer suchen',         group: 'metadata', pool: 'general', prio: 1, trigger: 'event', trig: 'nach der Zuordnung', median: 4, last: { ago: 70, dur: 4, ok: true } },
+    { type: 'podcast.poll',     name: 'Podcast-Feeds prüfen',   group: 'metadata', pool: 'general', prio: 4, trigger: 'schedule', every: 5*M, next: 3*M+10, trig: 'Zeitplan alle 5 min: reiht Feeds ein, deren letzter Abruf 55 min alt ist; «Jetzt ausführen» nimmt alle', median: 1, last: { ago: 110, dur: 1, ok: true } },
+    { type: 'podcast.fetch',    name: 'Podcast-Feed abrufen',   group: 'metadata', pool: 'general', prio: 4, trigger: 'event', trig: 'von «Podcast-Feeds prüfen», «Aktualisieren» je Podcast, neues Abo', median: 6, last: { ago: 108, dur: 5, ok: true } },
+    { type: 'trakt.refresh',    name: 'Spotlight von Trakt',    group: 'metadata', pool: 'general', prio: 2, trigger: 'schedule', every: 24*H, next: 13*H+40*M, trig: 'Zeitplan nach dem Spotlight-Takt (24 h); «Jetzt abrufen»', median: 40, last: { ago: 10*H+20*M, dur: 38, ok: true } },
+    { type: 'metadata.vote_backfill', name: 'TMDB-Wertungen nachholen', group: 'metadata', pool: 'general', prio: 1, trigger: 'manual', trig: 'von Hand (Konzept 08): holt die Wertung für den ganzen Bestand', median: 14*M, last: { ago: 3*86400, dur: 13*M, ok: true } },
+    { type: 'notify.deliver',   name: 'Mitteilung zustellen',   group: 'delivery', pool: 'notify',  prio: 3, trigger: 'event', trig: 'jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)', median: 2, last: { ago: 15*M, dur: 1, ok: true } },
+    { type: 'download.prepare', name: 'Download vorbereiten',   group: 'delivery', pool: 'download', prio: 5, trigger: 'event', trig: 'Download eines Profils; Abgleich alle 10 min reiht Unfertiges nach', median: 9*M, planned: 1, last: { ago: 3*H, dur: 11*M, ok: true } },
+    { type: 'update.check',     name: 'Update-Prüfung',         group: 'system',   pool: 'general', prio: 1, trigger: 'schedule', every: 24*H, next: 21*H+5*M, trig: 'Zeitplan täglich, 60 s nach dem Start; «Jetzt prüfen»', median: 1, last: { ago: 2*H+55*M, dur: 1, ok: true } },
+    { type: 'jobs.prune',       name: 'Verlauf aufräumen',      group: 'system',   pool: 'general', prio: 1, trigger: 'schedule', every: 24*H, next: 8*H+30*M, trig: 'Zeitplan täglich: erledigte Läufe älter als 7 Tage, mindestens 50 je Job bleiben', median: 2, last: { ago: 15*H+30*M, dur: 2, ok: true } },
+  ].map(t => ({ queued: 0, planned: 0, failed: 0, paused: false, stopping: false, ...t }));
 }
 
 let nextId = 48211;
@@ -246,8 +249,18 @@ function estimate(r) {
   if (t.median) return { kind: 'median', left: Math.max(0, t.median - r.elapsed) };
   return { kind: 'none' };
 }
-function queuedEstimate(t) { if (!t.queued || !t.median) return null; return t.queued * t.median / WORKERS[t.pool]; }
+// Wartezeit nach Konzept 6.2: kumuliert über alle Jobs des Pools mit gleicher oder höherer Priorität.
+function queuedEstimate(t) {
+  if (!t.queued) return null;
+  const sum = S.types.filter(o => o.pool === t.pool && o.prio >= t.prio && o.median).reduce((n, o) => n + o.queued * o.median, 0);
+  return sum / WORKERS[t.pool];
+}
+function backlog(pool) {
+  const sum = S.types.filter(o => o.pool === pool && o.median).reduce((n, o) => n + o.queued * o.median, 0);
+  return sum / WORKERS[pool];
+}
 function stateOf(t) {
+  if (t.stopping) return ['paused', 'Wird angehalten'];
   if (t.paused) return ['paused', 'Pausiert'];
   if (S.runs.some(r => r.type === t.type)) return ['running', 'Läuft'];
   if (t.failed) return ['failed', 'Fehler'];
@@ -281,9 +294,10 @@ function renderHome() {
 }
 
 function renderJobs() {
-  const queued = S.types.reduce((n, t) => n + t.queued, 0);
+  const queued = S.types.reduce((n, t) => n + t.queued, 0), planned = S.types.reduce((n, t) => n + t.planned, 0);
   const pausedTypes = S.types.filter(t => t.paused);
   const runs = S.runs.map(renderRun).join('');
+  const pools = Object.entries(POOLS).map(([p, label]) => { const b = backlog(p); return `${label}: ${WORKERS[p]} ${WORKERS[p] === 1 ? 'Arbeiter' : 'Arbeiter'} · ${b ? 'Stau ' + fmtAbout(b) : 'frei'}`; }).join(' &nbsp;·&nbsp; ');
   const groups = Object.entries(GROUPS).map(([g, label]) => `
     <section class="sec" aria-labelledby="g-${g}">
       <h3 id="g-${g}">${label}</h3>
@@ -294,9 +308,10 @@ function renderJobs() {
   <div class="sum" role="group" aria-label="Zusammenfassung">
     <span class="stat ${S.runs.length ? 'on' : ''}"><b class="num">${S.runs.length}</b><span>laufend</span></span>
     <span class="stat"><b class="num">${queued}</b><span>wartend</span></span>
+    <span class="stat"><b class="num">${planned}</b><span>geplant</span></span>
     <span class="stat ${pausedTypes.length ? 'warn' : ''}"><b class="num">${pausedTypes.length}</b><span>pausiert</span></span>
     <span class="stat"><b class="num">0</b><span>fehlgeschlagen</span></span>
-    <span class="workers">Arbeiter: ${WORKERS.general} allgemein · ${WORKERS.download} Downloads · ${WORKERS.notify} Benachrichtigungen</span>
+    <span class="workers">${pools} &nbsp;·&nbsp; <span class="dim">Arbeiter: <code>SLOUCHCAT_WORKERS</code> in deploy/.env</span></span>
   </div>
   ${pausedTypes.length ? `<div class="banner" role="status"><span>⏸</span><span><b>${pausedTypes.length === 1 ? 'Ein Job ist pausiert' : pausedTypes.length + ' Jobs sind pausiert'}:</b> ${pausedTypes.map(t => t.name).join(', ')}. ${pausedTypes.some(t => t.type === 'scan.library') ? 'Neue Dateien werden nicht erfasst, bis du fortsetzt.' : 'Wartende Läufe bleiben liegen, bis du fortsetzt.'}</span>
     <button class="btn sm" type="button" data-resume-all>Alle fortsetzen</button></div>` : ''}
@@ -312,7 +327,7 @@ function renderRun(r) {
   const pct = r.total ? Math.round(r.done / r.total * 100) : null;
   const left = e.kind === 'measured' ? `noch ${fmtAbout(e.left)}` : e.kind === 'median' ? `noch ${fmtAbout(e.left)} <span class="dim">(üblich)</span>` : e.kind === 'longer' ? `<span style="color:var(--warning)">länger als üblich</span>` : 'wird berechnet';
   return `<li class="run" id="run-${r.id}">
-    <div class="who"><b>${esc(t.name)}</b><code>${t.type}</code>${t.paused ? '<span class="chip warning">hält an</span>' : ''}</div>
+    <div class="who"><b>${esc(t.name)}</b><code>${t.type}</code>${t.stopping ? '<span class="chip warning">wird angehalten</span>' : ''}</div>
     <button class="btn sm act" type="button" data-cancel-run="${r.id}" aria-label="Lauf ${r.id} (${esc(t.name)}) abbrechen">Abbrechen</button>
     <div class="note">${esc(r.note)}${pct != null ? ` · <span class="num">${r.done.toLocaleString('de-CH')} von ${r.total.toLocaleString('de-CH')}</span>` : ''}</div>
     <div class="bar">
@@ -326,20 +341,22 @@ function renderCard(t) {
   const [cls, label] = stateOf(t);
   const q = queuedEstimate(t);
   const last = t.last ? `${fmtAgo(t.last.ago)} · ${fmtDur(t.last.dur)} · ${t.last.ok ? '<span class="dim">OK</span>' : '<span class="err">Fehler</span>'}` : '—';
-  const next = t.paused ? '<span style="color:var(--warning)">pausiert</span>' : t.trigger === 'schedule' ? `${fmtIn(t.next)} <span class="dim">(alle ${fmtDur(t.every).replace(' 00 min', '').replace(' 00 s', '')})</span>` : '<span class="dim">bei Bedarf</span>';
+  const next = t.paused ? '<span style="color:var(--warning)">pausiert</span>' : t.trigger === 'schedule' ? `${fmtIn(t.next)} <span class="dim">(alle ${fmtDur(t.every).replace(' 00 min', '').replace(' 00 s', '')})</span>` : t.trigger === 'manual' ? '<span class="dim">von Hand</span>' : '<span class="dim">bei Bedarf</span>';
+  const runningHere = S.runs.filter(r => r.type === t.type).length;
   return `<article class="card ${cls === 'running' ? 'active' : cls === 'paused' ? 'paused' : ''}" aria-labelledby="c-${t.type}">
     <div class="head"><h2 id="c-${t.type}">${esc(t.name)}</h2><span class="state"><span class="dot ${cls}"></span>${label}</span></div>
     <div class="code mono">${t.type}</div>
     <dl class="kv">
-      <dt>Wartend</dt><dd><span class="num">${t.queued}</span>${q ? ` <span class="dim">· ${fmtAbout(q)}</span>` : ''}</dd>
+      <dt>Wartend</dt><dd><span class="num">${t.queued}</span>${q ? ` <span class="dim">· dran in ${fmtAbout(q)}</span>` : ''}${t.planned ? ` <span class="dim">· geplant ${t.planned}</span>` : ''}</dd>
       <dt>Letzter Lauf</dt><dd>${last}</dd>
       <dt>Nächster Lauf</dt><dd>${next}</dd>
       <dt>Ausgelöst durch</dt><dd class="dim">${esc(t.trig)}</dd>
     </dl>
     <div class="actions">
-      ${t.trigger === 'schedule' ? `<button class="btn sm primary" type="button" data-run="${t.type}" ${t.paused ? 'disabled' : ''}>Jetzt ausführen</button>` : ''}
-      <button class="btn sm" type="button" data-pause="${t.type}">${t.paused ? 'Fortsetzen' : 'Pausieren'}</button>
+      ${t.trigger !== 'event' ? `<button class="btn sm primary" type="button" data-run="${t.type}" ${t.paused ? 'disabled' : ''}>Jetzt ausführen</button>` : ''}
+      <button class="btn sm" type="button" data-pause="${t.type}" ${t.stopping ? 'disabled' : ''}>${t.paused ? 'Fortsetzen' : 'Pausieren'}</button>
       ${t.queued ? `<button class="btn sm ghost" type="button" data-cancel-queued="${t.type}">Wartende abbrechen (${t.queued})</button>` : ''}
+      ${runningHere && t.queued ? `<button class="btn sm ghost" type="button" data-cancel-all="${t.type}">Alle Läufe abbrechen (${t.queued + runningHere})</button>` : ''}
       <button class="btn sm ghost" type="button" data-runs="${t.type}">Läufe …</button>
     </div>
   </article>`;
@@ -350,16 +367,19 @@ const dlgRuns = document.getElementById('dlgRuns');
 function openRuns(type, tab = 'running') {
   const t = typeOf(type);
   const running = S.runs.filter(r => r.type === type);
-  const counts = { running: running.length, queued: t.queued, failed: t.failed, done: S.history[type].length };
-  const tabs = [['running', 'Laufend'], ['queued', 'Wartend'], ['failed', 'Fehlgeschlagen'], ['done', 'Erledigt']];
+  const counts = { running: running.length, queued: t.queued, planned: t.planned, failed: t.failed, done: S.history[type].length };
+  const tabs = [['running', 'Laufend'], ['queued', 'Wartend'], ['planned', 'Geplant'], ['failed', 'Fehlgeschlagen'], ['done', 'Erledigt']];
+  const subjects = { 'segments.detect': i => `The Expanse · S03E${String(10 + i).padStart(2, '0')}`, 'probe.file': i => `Filme/2024/… (Datei ${i + 1})`, 'metadata.match': i => `Titel ${4712 + i}`, 'image.fetch': i => `Titel ${4712 + i} · Poster` };
+  const subj = (i) => (subjects[type] || (() => '—'))(i);
   let rows = '';
-  if (tab === 'running') rows = running.map(r => `<tr><td class="num">${r.id}</td><td>${esc(r.note)}</td><td class="r num">seit ${fmtDur(r.elapsed)}</td><td class="r">1 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-run="${r.id}">Abbrechen</button></td></tr>`).join('');
-  if (tab === 'queued') rows = Array.from({ length: Math.min(t.queued, 8) }, (_, i) => `<tr><td class="num">${48300 + i}</td><td class="dim">wartet seit ${fmtDur(120 + i * 37)}</td><td class="r">—</td><td class="r">0 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-queued-one="${type}">Abbrechen</button></td></tr>`).join('') + (t.queued > 8 ? `<tr><td colspan="5" class="dim">… und ${t.queued - 8} weitere</td></tr>` : '');
-  if (tab === 'done') rows = S.history[type].map(r => `<tr><td class="num">${r.id}</td><td class="dim">${fmtAgo(r.ago)}</td><td class="r num">${fmtDur(r.dur)}</td><td class="r">${r.attempts} von 5</td><td class="r"><span class="chip info">erledigt</span></td></tr>`).join('');
+  if (tab === 'running') rows = running.map(r => `<tr><td class="num">${r.id}</td><td>${esc(r.note)}</td><td class="r num">${t.prio}</td><td class="r num">seit ${fmtDur(r.elapsed)}</td><td class="r">1 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-run="${r.id}">Abbrechen</button></td></tr>`).join('');
+  if (tab === 'queued') rows = Array.from({ length: Math.min(t.queued, 8) }, (_, i) => `<tr><td class="num">${48300 + i}</td><td>${esc(subj(i))} <span class="dim">· wartet seit ${fmtDur(120 + i * 37)}</span></td><td class="r num">${t.prio}</td><td class="r">—</td><td class="r">0 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-queued-one="${type}">Abbrechen</button></td></tr>`).join('') + (t.queued > 8 ? `<tr><td colspan="6" class="dim">… und ${t.queued - 8} weitere, in der Reihenfolge, in der sie drankommen</td></tr>` : '');
+  if (tab === 'planned') rows = Array.from({ length: t.planned }, (_, i) => `<tr><td class="num">${48400 + i}</td><td>${esc(subj(i))} <span class="dim">· ${type === 'download.prepare' ? 'wartet auf Budget' : 'Versuch 2, Backoff'}</span></td><td class="r num">${t.prio}</td><td class="r">${fmtIn(20 + i * 20)}</td><td class="r">1 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-queued-one="${type}">Abbrechen</button></td></tr>`).join('');
+  if (tab === 'done') rows = S.history[type].map(r => `<tr><td class="num">${r.id}</td><td class="dim">${fmtAgo(r.ago)}</td><td class="r num">${t.prio}</td><td class="r num">${fmtDur(r.dur)}</td><td class="r">${r.attempts} von 5</td><td class="r"><span class="chip info">erledigt</span></td></tr>`).join('');
   dlgRuns.innerHTML = `<form method="dialog" class="dlg">
     <header><h2 id="dlgRunsTitle">Läufe von ${esc(t.name)}</h2><p><code>${t.type}</code> · ${esc(t.trig)}${t.median ? ` · üblich ${fmtDur(t.median)} je Lauf` : ''}</p></header>
     <div class="rtabs" role="tablist" aria-label="Zustand">${tabs.map(([k, l]) => `<button class="rtab" role="tab" type="button" aria-selected="${k === tab}" data-tab="${k}">${l} <span class="num dim">${counts[k]}</span></button>`).join('')}</div>
-    <div class="scroll">${rows ? `<table class="tbl"><thead><tr><th>Lauf</th><th>Was</th><th class="r">Dauer</th><th class="r">Versuche</th><th class="r"></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">Nichts in diesem Zustand.</div>`}</div>
+    <div class="scroll">${rows ? `<table class="tbl"><thead><tr><th>Lauf</th><th>Gegenstand</th><th class="r">Prio</th><th class="r">${tab === 'planned' ? 'Frühestens' : 'Dauer'}</th><th class="r">Versuche</th><th class="r"></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">Nichts in diesem Zustand.</div>`}</div>
     <footer><button class="btn" type="submit">Schliessen</button></footer>
   </form>`;
   dlgRuns.dataset.type = type;
@@ -369,7 +389,7 @@ function openRuns(type, tab = 'running') {
 dlgRuns.addEventListener('click', e => {
   const tab = e.target.closest('[data-tab]'); if (tab) return openRuns(dlgRuns.dataset.type, tab.dataset.tab);
   const c = e.target.closest('[data-cancel-run]'); if (c) { dlgRuns.close(); return askCancelRun(+c.dataset.cancelRun); }
-  const q = e.target.closest('[data-cancel-queued-one]'); if (q) { const t = typeOf(q.dataset.cancelQueuedOne); t.queued--; toast('Lauf abgebrochen.'); render(); openRuns(t.type, 'queued'); }
+  const q = e.target.closest('[data-cancel-queued-one]'); if (q) { const t = typeOf(q.dataset.cancelQueuedOne); const tab = dlgRuns.querySelector('.rtab[aria-selected="true"]').dataset.tab; if (tab === 'planned') t.planned--; else t.queued--; toast('Lauf abgebrochen.'); render(); openRuns(t.type, tab); }
 });
 dlgRuns.addEventListener('keydown', e => {
   if (e.target.matches('.rtab') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
@@ -409,19 +429,20 @@ main.addEventListener('click', e => {
   const run = e.target.closest('[data-run]'); if (run) return runNow(run.dataset.run);
   const p = e.target.closest('[data-pause]'); if (p) return togglePause(p.dataset.pause);
   const ra = e.target.closest('[data-resume-all]'); if (ra) { for (const t of S.types) t.paused = false; toast('Alle Jobs fortgesetzt.'); return render(); }
-  const cq = e.target.closest('[data-cancel-queued]'); if (cq) return askCancelQueued(cq.dataset.cancelQueued);
+  const cq = e.target.closest('[data-cancel-queued]'); if (cq) return askCancelQueued(cq.dataset.cancelQueued, false);
+  const ca = e.target.closest('[data-cancel-all]'); if (ca) return askCancelQueued(ca.dataset.cancelAll, true);
   const cr = e.target.closest('[data-cancel-run]'); if (cr) return askCancelRun(+cr.dataset.cancelRun);
   const rs = e.target.closest('[data-runs]'); if (rs) return openRuns(rs.dataset.runs);
 });
 
 function runNow(type) {
   const t = typeOf(type);
-  const notes = { 'scan.library': ['Filme · Ordner Filme/2025', 'Serien · Ordner Serien', 'Hörbücher · Ordner Audiobooks'], 'library.sweep': ['alle Bibliotheken'], 'podcast.fetch': ['Lage der Nation', 'Geschichten aus der Geschichte'], 'trakt.refresh': ['Trending'], 'update.check': ['ghcr.io, Manifest'], 'jobs.prune': ['erledigte Läufe älter als 7 Tage'] };
+  const notes = { 'scan.library': ['Filme · Ordner Filme/2025', 'Serien · Ordner Serien', 'Hörbücher · Ordner Audiobooks'], 'library.sweep': ['alle Bibliotheken'], 'podcast.poll': ['alle 2 Abos eingereiht'], 'trakt.refresh': ['Trending'], 'metadata.vote_backfill': ['Bestand · 1 312 Titel'], 'update.check': ['ghcr.io, Manifest'], 'jobs.prune': ['erledigte Läufe älter als 7 Tage'] };
   const list = notes[type] || ['von Hand'];
   const busy = S.runs.filter(r => typeOf(r.type).pool === t.pool).length;
   let started = 0;
   list.forEach((note, i) => {
-    if (busy + i < WORKERS[t.pool]) { S.runs.push({ id: nextId++, type, note, elapsed: 0, ...(type === 'scan.library' ? { done: 0, total: 1200 + i * 900 } : {}) }); started++; }
+    if (busy + i < WORKERS[t.pool]) { S.runs.push({ id: nextId++, type, note, elapsed: 0, ...(type === 'scan.library' || type === 'metadata.vote_backfill' ? { done: 0, total: 1200 + i * 900 } : {}) }); started++; }
     else t.queued++;
   });
   toast(list.length === 1 ? `${t.name}: Lauf eingereiht (Priorität 7).` : `${t.name}: ${list.length} Läufe eingereiht, ${started} laufen, ${list.length - started} warten.`);
@@ -432,16 +453,21 @@ function togglePause(type) {
   t.paused = !t.paused;
   if (t.paused) {
     const stopping = S.runs.filter(r => r.type === type);
-    toast(stopping.length ? `${t.name} pausiert; ${stopping.length === 1 ? 'der laufende Lauf hält' : stopping.length + ' laufende Läufe halten'} beim nächsten Heartbeat an (≤ 60 s).` : `${t.name} pausiert.`);
-    // the prototype lets the running runs stop after a few seconds and return to the queue
-    setTimeout(() => { const n = S.runs.filter(r => r.type === type).length; if (!typeOf(type).paused) return; S.runs = S.runs.filter(r => r.type !== type); t.queued += n; render(); }, 4000);
+    toast(stopping.length ? `${t.name} pausiert; ${stopping.length === 1 ? 'der laufende Lauf hält' : stopping.length + ' laufende Läufe halten'} an und gehen ohne verbrauchten Versuch in die Warteschlange zurück.` : `${t.name} pausiert.`);
+    // the running runs stop at once (the server cancels their context); the handler returns within a second
+    if (stopping.length) { t.stopping = true; setTimeout(() => { const n = S.runs.filter(r => r.type === type).length; t.stopping = false; if (!typeOf(type).paused) return render(); S.runs = S.runs.filter(r => r.type !== type); t.queued += n; render(); }, 1200); }
   } else toast(`${t.name} fortgesetzt.`);
   render();
 }
-function askCancelQueued(type) {
+function askCancelQueued(type, all) {
   const t = typeOf(type);
-  confirm_(`${t.queued} wartende Läufe von ${esc(t.name)} abbrechen?`, `<p style="margin:0;color:var(--fg2)">Laufende Läufe bleiben. ${t.trigger === 'event' ? 'Was der nächste Scan wieder braucht, reiht er neu ein.' : ''}</p>`, 'Wartende abbrechen', true, () => {
-    const n = t.queued; t.queued = 0; toast(`${n} Läufe abgebrochen.`); render();
+  const running = S.runs.filter(r => r.type === type).length;
+  const n = t.queued + (all ? running : 0);
+  const extra = type === 'scan.library' ? ' Die Bibliotheken enden als «abgebrochen».' : type === 'download.prepare' ? ' Die Downloads enden als «fehlgeschlagen» und werden nicht nachgeholt.' : t.trigger === 'event' ? ' Was der nächste Scan wieder braucht, reiht er neu ein.' : '';
+  confirm_(all ? `Alle ${n} Läufe von ${esc(t.name)} abbrechen?` : `${n} wartende Läufe von ${esc(t.name)} abbrechen?`,
+    `<p style="margin:0;color:var(--fg2)">${all ? `Davon <b>${running} laufende</b>, deren Arbeit bis hierher verfällt, und ${t.queued} wartende.` : 'Laufende Läufe bleiben.'}${extra}</p>`,
+    all ? 'Alle Läufe abbrechen' : 'Wartende abbrechen', true, () => {
+    t.queued = 0; if (all) S.runs = S.runs.filter(r => r.type !== type); toast(`${n} Läufe abgebrochen.`); render();
   });
 }
 
