@@ -1,13 +1,13 @@
 # Konzept: Startseite, Seitenleiste und Bibliotheksansichten
 
-- **Status: Entwurf zur Freigabe, Fassung 2 (29. Oktober 2026).** Marco hat zwölf Fragen in drei
-  Runden beantwortet (Abschnitt 11, F-1 bis F-12) und zwei Wünsche nachgereicht (Cat's Empfehlungen
-  als Eintrag unter «Meine Medien», keine Symbole in der Navigation). Der OMC-Kritiker hat die
-  erste Fassung geprüft (1 Blocker, 18 Major, 14 Minor; Abschnitt 13); Fassung 2 arbeitet alle
-  ein und nimmt vier Nachträge von Marco auf (N-1 bis N-4: Cat's Empfehlungen in «Meine Medien»,
-  keine Symbole, drei Cover je Reihe auf dem Handy, Reihen rasten links ein). Ein klickbarer Prototyp liegt unter `docs/planning/mockups/08-startseite-prototyp.html`
-  (Abschnitt 7.5). Umgesetzt wird nichts, bevor Marco das Papier freigibt; die Entscheide gehen
-  dann als **Frage 14** ins Entscheidungsprotokoll (`docs/planning/04-entscheidungen.md`).
+- **Status: Konzept freigegeben (29. Oktober 2026), Umsetzung bewusst nicht gestartet.** Marco hat
+  zwölf Fragen in drei Runden beantwortet (Abschnitt 11, F-1 bis F-12), vier Wünsche nachgereicht
+  (N-1 bis N-4) und die offenen Punkte O-1, O-3, O-4, O-5 wie vorgeschlagen entschieden. Der
+  OMC-Kritiker hat die erste Fassung geprüft (1 Blocker, 18 Major, 14 Minor; Abschnitt 13);
+  Fassung 2 arbeitet alle ein. Ein klickbarer Prototyp liegt unter
+  `docs/planning/mockups/08-startseite-prototyp.html` (Abschnitt 7.5). **Schritt 0 (Frage 14 im
+  Entscheidungsprotokoll, ADR 0016) und alles Weitere beginnen erst auf Marcos ausdrückliches
+  Wort**, und erst nach dem Merge von Konzept 07 (PR #45).
 - **Datum: 29. Oktober 2026, Fassung 2 vom selben Tag**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`9923807`** («Merge pull request #44»,
   Benutzerverwaltung), Vertragsfassung **1.2.0**, letzte Migration **00022**, letzte ADR **0014**.
@@ -556,9 +556,9 @@ Request, Merge auf Marcos Wort.
 | N-3 | Nachtrag | **Drei Cover je Reihe auf dem Handy** |
 | N-4 | Nachtrag | **Reihen rasten links ein**, kein angeschnittenes Cover am linken Rand |
 
-### 11.2 Offen (vor Schritt 0)
+### 11.2 Ehemals offen, mit der Freigabe entschieden (29. Oktober 2026)
 
-| Nr. | Frage | Vorschlag |
+| Nr. | Frage | Entscheid («wie vorgeschlagen») |
 |---|---|---|
 | O-1 | Soll die Seitenleiste je Bibliothek die **Titelzahl** zeigen (wie im Prototyp)? | Ja, mit der Ausstiegsklausel aus Abschnitt 8 |
 | O-3 | «Alle anzeigen ›» an weiteren Reihen («Neu hinzugefügt», «Kürzlich veröffentlicht») mit je einer bibliotheksübergreifenden Seite? | Nein; nur Cat's Empfehlungen und Merkliste haben eine Seite |
