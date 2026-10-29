@@ -95,6 +95,9 @@ h2 { font-size: 1.1rem; margin: 0; font-weight: 600; }
 /* rows snap hard to the left edge: the leftmost cover is always whole (N-4); three covers per row on the phone (N-3) */
 .strip { display: flex; gap: 14px; padding: 6px var(--gutter) 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline-start: var(--gutter); scrollbar-width: none; list-style: none; margin: 0; }
 .shell.narrow .strip > li, body.phone .strip > li { width: calc((100% - 28px) / 3); }
+/* trailing space in the Spotlight row, so the last posters can sit at the left edge too */
+.strip.spot > li.tail { width: calc(100% - var(--poster) - 14px); scroll-snap-align: none; }
+.shell.narrow .strip.spot > li.tail, body.phone .strip.spot > li.tail { width: calc((100% - 28px) / 3 * 2 + 28px); }
 .shell.narrow .grid, body.phone .grid { grid-template-columns: repeat(3, 1fr); }
 .strip::-webkit-scrollbar { display: none; }
 .strip > li { flex: none; width: var(--poster); scroll-snap-align: start; }
@@ -379,7 +382,7 @@ function homeHtml() {
         </div>
       </div>
     </div>
-    <ul class="strip spot" id="spotstrip" aria-label="Spotlight-Titel">${spot.map((it, i) => `<li data-i="${i}">${card(it, { timer: true })}</li>`).join('')}</ul>
+    <ul class="strip spot" id="spotstrip" aria-label="Spotlight-Titel">${spot.map((it, i) => `<li data-i="${i}">${card(it, { timer: true })}</li>`).join('')}<li class="tail" aria-hidden="true"></li></ul>
   </section>
   ${row('continue', 'Weiterschauen', cont, { progress: true, caption: undefined })}
   ${row('recent', 'Neu hinzugefügt', recent)}
