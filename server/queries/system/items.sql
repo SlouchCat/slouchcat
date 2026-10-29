@@ -2,12 +2,14 @@
 -- Times are Unix milliseconds.
 
 -- name: InsertItem :one
+-- providers is the ordered metadata source list of the root the file lies in (ADR 0015); a child
+-- (season, episode, extra) carries the list of its parent.
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date,
                    tmdb_id, tvdb_id, imdb_id, season_number, episode_number, episode_end, extra_kind,
-                   own_rating, rating_source, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, added_at, created_at, updated_at)
 VALUES (@id, @kind, @parent_id, @library_id, @title, @sort_title, @original_title, @year, @release_date,
         @tmdb_id, @tvdb_id, @imdb_id, @season_number, @episode_number, @episode_end, @extra_kind,
-        @own_rating, @rating_source, @now, @now, @now)
+        @own_rating, @rating_source, @providers, @now, @now, @now)
 RETURNING *;
 
 -- name: GetItemSystem :one

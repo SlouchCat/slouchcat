@@ -59,6 +59,9 @@ type Service struct {
 	// E12): the project keeps no audit table, so the notification and the Warn line are the
 	// only trace of it.
 	rootRemoved func(ctx context.Context, libraryName, path string, items, files int64) error
+	// rootContentChanged is told when an administrator changed the content of a folder, which
+	// empties it like a removal does (optional, ADR 0015).
+	rootContentChanged func(ctx context.Context, libraryName, path, from, to string, items, files int64) error
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
@@ -130,6 +133,13 @@ func WithRootRemoved(fn func(ctx context.Context, libraryName, path string, item
 	return func(s *Service) { s.rootRemoved = fn }
 }
 
+// WithRootContentChanged sets the function UpdateRoot calls after the content of a folder changed
+// and its titles left the library (ADR 0015, concept 6.3). An error is logged; the change stands
+// either way.
+func WithRootContentChanged(fn func(ctx context.Context, libraryName, path, from, to string, items, files int64) error) Option {
+	return func(s *Service) { s.rootContentChanged = fn }
+}
+
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
@@ -183,9 +193,10 @@ func ValidateDir(path string) error {
 	return nil
 }
 
-// Create validates the request, detects the file system of the path, inserts the library with
-// its root, queues the first scan and starts the watcher when Start runs. A podcast library has
-// no root and no watcher; its titles come from feed subscriptions (M6).
+// Create validates the request, applies the folder rules to every root (prepareRoots), inserts
+// the library with all its folders in one transaction (F-13: all of them or none), queues the first
+// scan and starts the watchers. A video or audiobook library needs at least one folder (422
+// roots_required); a podcast library may start without, its titles come from feeds as well.
 func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.Library, error) {
 	var verr *model.ValidationError
 	name := strings.TrimSpace(req.Name)
@@ -201,6 +212,13 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	if verr != nil {
 		return model.Library{}, verr
 	}
+	if req.Kind != model.LibraryPodcasts && len(req.Roots) == 0 {
+		return model.Library{}, verr.Add("roots", model.CodeRootsRequired)
+	}
+	roots, err := s.prepareRoots(ctx, req.Kind, req.Roots, "roots")
+	if err != nil {
+		return model.Library{}, err
+	}
 	var defaultRating sql.NullInt64
 	if model.AudioLibraryKind(req.Kind) {
 		defaultRating = sql.NullInt64{Int64: 0, Valid: true}
@@ -208,27 +226,6 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 			defaultRating.Int64 = int64(*req.DefaultRating)
 		}
 	}
-	if req.Kind == model.LibraryPodcasts {
-		now := s.now().UnixMilli()
-		lib, err := appq.New(s.db.Write).InsertLibrary(ctx, appq.InsertLibraryParams{Name: name, Kind: req.Kind, DefaultRating: defaultRating, Now: now})
-		if err != nil {
-			return model.Library{}, fmt.Errorf("insert library: %w", err)
-		}
-		s.log.InfoContext(ctx, "library created", "library_id", lib.ID, "kind", lib.Kind)
-		return s.toModel(ctx, lib)
-	}
-	if err := s.ValidateNewRoot(ctx, req.Path); err != nil {
-		return model.Library{}, err
-	}
-	path := filepath.Clean(req.Path)
-	if err := s.refuseOverlap(ctx, path); err != nil {
-		return model.Library{}, err
-	}
-	fsType, err := paths.DetectFS(path)
-	if err != nil {
-		return model.Library{}, fmt.Errorf("%w: %w", model.ErrLibraryPathInvalid, err)
-	}
-	watch, _ := WatchMode(string(fsType))
 
 	now := s.now().UnixMilli()
 	tx, err := s.db.Write.BeginTx(ctx, nil)
@@ -241,15 +238,26 @@ func (s *Service) Create(ctx context.Context, req model.LibraryRequest) (model.L
 	if err != nil {
 		return model.Library{}, fmt.Errorf("insert library: %w", err)
 	}
-	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: path, FsType: string(fsType), Watch: watch, Now: now})
-	if err != nil {
-		return model.Library{}, fmt.Errorf("insert library root: %w", err)
+	rows := make([]appq.LibraryRoot, 0, len(roots))
+	for _, r := range roots {
+		row, err := insertRoot(ctx, q, lib.ID, r, now)
+		if err != nil {
+			return model.Library{}, fmt.Errorf("insert library root: %w", err)
+		}
+		rows = append(rows, row)
 	}
 	if err := tx.Commit(); err != nil {
 		return model.Library{}, fmt.Errorf("create library: %w", err)
 	}
-	s.log.InfoContext(ctx, "library created", "library_id", lib.ID, "kind", lib.Kind, "root", path, "fs_type", string(fsType), "watch", watch)
-	s.startWatcher(root)
+	s.log.InfoContext(ctx, "library created", "library_id", lib.ID, "kind", lib.Kind, "roots", len(rows))
+	for _, row := range rows {
+		s.log.InfoContext(ctx, "library root added", "library_id", lib.ID, "root_id", row.ID, "root", row.Path,
+			"content", row.Content, "providers", row.Providers, "fs_type", row.FsType, "watch", row.Watch)
+		s.startWatcher(row)
+	}
+	if len(rows) == 0 {
+		return s.toModel(ctx, lib)
+	}
 	return s.QueueScan(ctx, lib.ID)
 }
 
@@ -284,7 +292,7 @@ func (s *Service) refuseOverlap(ctx context.Context, path string) error {
 		old := filepath.Clean(r.Path)
 		oldReal := resolved(old)
 		if nested(path, old) || nested(old, path) || nested(real, oldReal) || nested(oldReal, real) {
-			return fmt.Errorf("%w: overlaps the root of library %d", model.ErrLibraryPathInvalid, r.LibraryID)
+			return fmt.Errorf("%w: the root of library %d", errRootOverlap, r.LibraryID)
 		}
 	}
 	return nil
@@ -723,6 +731,7 @@ func (s *Service) toModel(ctx context.Context, l appq.Library) (model.Library, e
 		}
 		m.Roots = append(m.Roots, model.LibraryRoot{
 			ID: r.ID, Path: r.Path, FSType: r.FsType, Watch: r.Watch, Warning: warning,
+			Content: r.Content, Providers: model.ParseProviders(r.Providers),
 			ItemCount: int(content.Items), FileCount: int(content.Files),
 		})
 	}

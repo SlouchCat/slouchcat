@@ -3,6 +3,7 @@ package library
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -72,10 +73,10 @@ func ffprobePath() string {
 	return ""
 }
 
-// create adds a movies library on dir.
+// create adds a video library with one movie folder on dir.
 func (e *env) create(dir string) model.Library {
 	e.t.Helper()
-	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Filme", Kind: "movies", Path: dir})
+	lib, err := e.svc.Create(e.ctx, testRequest("Filme", dir))
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -153,5 +154,24 @@ func rename(t *testing.T, dir, from, to string) {
 }
 
 func testRequest(name, dir string) model.LibraryRequest {
-	return model.LibraryRequest{Name: name, Kind: "movies", Path: dir}
+	return model.LibraryRequest{Name: name, Kind: model.LibraryVideo, Roots: rootReq(dir, model.RootMovie)}
+}
+
+// rootReq is the request for one folder of this content with its default providers.
+func rootReq(dir, content string) []model.LibraryRootRequest {
+	return []model.LibraryRootRequest{{Path: dir, Content: content, Providers: model.DefaultProviders(content)}}
+}
+
+// hasFieldError reports whether err is a *model.ValidationError that carries field with code.
+func hasFieldError(err error, field, code string) bool {
+	var verr *model.ValidationError
+	if !errors.As(err, &verr) {
+		return false
+	}
+	for _, f := range verr.Fields {
+		if f.Field == field && f.Code == code {
+			return true
+		}
+	}
+	return false
 }

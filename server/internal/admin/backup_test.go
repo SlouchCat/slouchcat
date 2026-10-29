@@ -81,7 +81,7 @@ func (st *stack) seed(t *testing.T) string {
 		   (1, 'owner@example.test', '$argon2id$fake', 'admin', 1, 1), (2, 'guest@example.test', '$argon2id$fake', 'user', 2, 2)`,
 		`INSERT INTO profiles (id, account_id, name, max_rating, is_default, created_at, updated_at) VALUES
 		   (1, 1, 'Marco', 18, 1, 1, 1), (2, 1, 'Kind', 6, 0, 1, 1), (3, 2, 'Gast', 12, 1, 2, 2)`,
-		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 1, 1)`,
+		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 1, 1)`,
 		`INSERT INTO items (id, kind, library_id, title, sort_title, year, added_at, created_at, updated_at) VALUES
 		   ('01J9000000000000000000BK01', 'movie', 1, 'Film', 'film', 2001, 1, 1, 1)`,
 		`INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES

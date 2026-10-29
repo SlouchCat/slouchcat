@@ -105,7 +105,9 @@ func (s *state) prepare(ctx context.Context) error {
 			Email:    ownerEmail,
 			Password: ownerPassword,
 			Language: "de",
-			Library:  libraryRequest{Name: "Filme", Kind: "movies", Path: filepath.Join(s.mediaDir(), "Movies")},
+			Library: libraryRequest{Name: "Filme", Kind: "video", Roots: []libraryRootRequest{
+				{Path: filepath.Join(s.mediaDir(), "Movies"), Content: "movie", Providers: []string{"tmdb"}},
+			}},
 		}
 		if err := s.c.call(ctx, http.MethodPost, "/setup", nil, body, nil, http.StatusCreated); err != nil {
 			return err
@@ -190,7 +192,7 @@ func (s *state) ensureLibraries(ctx context.Context) error {
 	if !has("Hörbücher") {
 		body := libraryRequest{
 			Name: "Hörbücher", Kind: "audiobooks",
-			Path:          filepath.Join(s.mediaDir(), "Audiobooks"),
+			Roots:         []libraryRootRequest{{Path: filepath.Join(s.mediaDir(), "Audiobooks"), Content: "audiobook", Providers: []string{"local"}}},
 			DefaultRating: &rating,
 		}
 		if err := s.c.call(ctx, http.MethodPost, "/admin/libraries", nil, body, nil, http.StatusCreated, http.StatusAccepted); err != nil {
@@ -198,7 +200,7 @@ func (s *state) ensureLibraries(ctx context.Context) error {
 		}
 	}
 	if !has("Podcasts") {
-		body := libraryRequest{Name: "Podcasts", Kind: "podcasts", DefaultRating: &rating}
+		body := libraryRequest{Name: "Podcasts", Kind: "podcasts", Roots: []libraryRootRequest{}, DefaultRating: &rating}
 		if err := s.c.call(ctx, http.MethodPost, "/admin/libraries", nil, body, nil, http.StatusCreated, http.StatusAccepted); err != nil {
 			return err
 		}

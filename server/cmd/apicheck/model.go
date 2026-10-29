@@ -38,10 +38,16 @@ type library struct {
 }
 
 type libraryRequest struct {
-	Name          string `json:"name"`
-	Kind          string `json:"kind"`
-	Path          string `json:"path,omitempty"`
-	DefaultRating *int   `json:"defaultRating,omitempty"`
+	Name          string               `json:"name"`
+	Kind          string               `json:"kind"`
+	Roots         []libraryRootRequest `json:"roots"`
+	DefaultRating *int                 `json:"defaultRating,omitempty"`
+}
+
+type libraryRootRequest struct {
+	Path      string   `json:"path"`
+	Content   string   `json:"content"`
+	Providers []string `json:"providers"`
 }
 
 type itemRef struct {

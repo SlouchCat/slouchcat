@@ -214,7 +214,7 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 		switch {
 		case src == "imdb_id" && ext == "tt0000550":
 			movies = append(movies, map[string]any{"id": 550})
-		case (src == "imdb_id" && ext == "tt0000900") || (src == "tvdb_id" && ext == "81189"):
+		case (src == "imdb_id" && ext == "tt0000900") || (src == "tvdb_id" && ext == "81189") || (src == "tvdb_id" && ext == "424242"):
 			tv = append(tv, map[string]any{"id": 900, "name": "Test Show", "first_air_date": "2010-04-01"})
 		case src != "imdb_id" && src != "tvdb_id":
 			t.Errorf("find without external_source: %s", r.URL)
@@ -336,8 +336,8 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 		WithTVDBBaseURL(tv.srv.URL+"/v4", tv.srv.URL+"/art"),
 		WithYouTubeBaseURL(yt.srv.URL+"/youtube/v3"), WithYouTubeQuota(quota),
 		WithClock(func() time.Time { return testNow }))
-	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 0, 0)`)
-	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (2, 'Serien', 'series', 0, 0)`)
+	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 0, 0)`)
+	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (2, 'Serien', 'video', 0, 0)`)
 	t.Cleanup(func() {
 		for _, secret := range []string{goodToken, rateToken, tvdbKey, tvdbPin, tvdbToken, ytKey, ytQuotaKey} {
 			if strings.Contains(logs.String(), secret) {

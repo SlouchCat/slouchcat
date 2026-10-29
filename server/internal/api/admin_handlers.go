@@ -17,6 +17,12 @@ func (e serviceProblem) VisitCreateLibraryResponse(w http.ResponseWriter) error 
 func (e serviceProblem) VisitGetLibraryResponse(w http.ResponseWriter) error     { return e.visit(w) }
 func (e serviceProblem) VisitScanLibraryResponse(w http.ResponseWriter) error    { return e.visit(w) }
 func (e serviceProblem) VisitAddLibraryRootResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitUpdateLibraryRootResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitListMetadataProvidersResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitRemoveLibraryRootResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -63,13 +69,56 @@ func (s *server) ScanLibrary(ctx context.Context, req gen.ScanLibraryRequestObje
 	return gen.ScanLibrary202JSONResponse(toLibrary(lib)), nil
 }
 
-// AddLibraryRoot adds a further folder to a library (idea 02, E8).
+// AddLibraryRoot adds folders to a library in one go (idea 02, E8; F-13).
 func (s *server) AddLibraryRoot(ctx context.Context, req gen.AddLibraryRootRequestObject) (gen.AddLibraryRootResponseObject, error) {
-	lib, err := s.opts.Admin.AddLibraryRoot(ctx, req.Id, deref(req.Body).Path)
+	lib, err := s.opts.Admin.AddLibraryRoots(ctx, req.Id, rootRequests(deref(req.Body).Roots))
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.AddLibraryRoot201JSONResponse(toLibrary(lib)), nil
+}
+
+// UpdateLibraryRoot changes the content or the metadata sources of a folder (ADR 0015).
+func (s *server) UpdateLibraryRoot(ctx context.Context, req gen.UpdateLibraryRootRequestObject) (gen.UpdateLibraryRootResponseObject, error) {
+	body := deref(req.Body)
+	upd := model.LibraryRootUpdate{ConfirmPath: deref(body.ConfirmPath)}
+	if body.Content != nil {
+		c := string(*body.Content)
+		upd.Content = &c
+	}
+	if body.Providers != nil {
+		upd.Providers = providerNames(*body.Providers)
+	}
+	lib, err := s.opts.Admin.UpdateLibraryRoot(ctx, req.Id, req.RootId, upd)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.UpdateLibraryRoot200JSONResponse(toLibrary(lib)), nil
+}
+
+// ListMetadataProviders describes the providers to the folder form (ADR 0015).
+func (s *server) ListMetadataProviders(ctx context.Context, _ gen.ListMetadataProvidersRequestObject) (gen.ListMetadataProvidersResponseObject, error) {
+	infos, err := s.opts.Admin.ListMetadataProviders(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := make([]gen.MetadataProviderInfo, 0, len(infos))
+	for _, p := range infos {
+		info := gen.MetadataProviderInfo{
+			Id: gen.MetadataProvider(p.ID), Configured: p.Configured,
+			Roles:     make([]gen.MetadataProviderInfoRoles, 0, len(p.Roles)),
+			Contents:  make([]gen.RootContent, 0, len(p.Contents)),
+			Languages: append([]string{}, p.Languages...),
+		}
+		for _, r := range p.Roles {
+			info.Roles = append(info.Roles, gen.MetadataProviderInfoRoles(r))
+		}
+		for _, c := range p.Contents {
+			info.Contents = append(info.Contents, gen.RootContent(c))
+		}
+		out = append(out, info)
+	}
+	return gen.ListMetadataProviders200JSONResponse(out), nil
 }
 
 // RemoveLibraryRoot removes a folder from a library; the typed confirmation travels in the body
@@ -121,6 +170,7 @@ func toLibrary(l model.Library) gen.Library {
 	roots := make([]gen.LibraryRoot, 0, len(l.Roots))
 	for _, r := range l.Roots {
 		root := gen.LibraryRoot{Id: r.ID, Path: r.Path, FsType: r.FSType, Watch: gen.LibraryRootWatch(r.Watch),
+			Content: gen.RootContent(r.Content), Providers: providerEnums(r.Providers),
 			ItemCount: r.ItemCount, FileCount: r.FileCount}
 		if r.Warning != "" {
 			root.Warning = &r.Warning
@@ -148,14 +198,39 @@ func toLibrary(l model.Library) gen.Library {
 	}
 }
 
-// libraryRequest maps the contract request; the path is optional (none for podcasts).
+// libraryRequest maps the contract request with its folders.
 func libraryRequest(body gen.LibraryRequest) model.LibraryRequest {
-	req := model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Path: deref(body.Path)}
+	req := model.LibraryRequest{Name: body.Name, Kind: string(body.Kind), Roots: rootRequests(body.Roots)}
 	if body.DefaultRating != nil {
 		r := int(*body.DefaultRating)
 		req.DefaultRating = &r
 	}
 	return req
+}
+
+// rootRequests maps the folders of a request; a nil list stays an empty list.
+func rootRequests(roots []gen.LibraryRootRequest) []model.LibraryRootRequest {
+	out := make([]model.LibraryRootRequest, 0, len(roots))
+	for _, r := range roots {
+		out = append(out, model.LibraryRootRequest{Path: r.Path, Content: string(r.Content), Providers: providerNames(r.Providers)})
+	}
+	return out
+}
+
+func providerNames(ps []gen.MetadataProvider) []string {
+	out := make([]string, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, string(p))
+	}
+	return out
+}
+
+func providerEnums(ps []string) []gen.MetadataProvider {
+	out := make([]gen.MetadataProvider, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, gen.MetadataProvider(p))
+	}
+	return out
 }
 
 // toRating maps an optional FSK rating.

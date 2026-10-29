@@ -21,7 +21,7 @@ func TestListAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	q := appq.New(f.db.Write)
-	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme", Kind: "movies", Now: 1})
+	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme", Kind: model.LibraryVideo, Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

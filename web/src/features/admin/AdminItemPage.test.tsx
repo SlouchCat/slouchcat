@@ -13,6 +13,8 @@ const item: AdminItem = {
   libraryId: 1,
   metadataState: 'unmatched',
   metadataError: 'no_match',
+  providers: ['tmdb'],
+  fieldSources: [],
   lockedFields: ['rating'],
   ownRating: 16,
   effectiveRating: 16,

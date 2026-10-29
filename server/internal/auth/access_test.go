@@ -49,7 +49,7 @@ func owner(t *testing.T, s *Service) (model.Session, string) {
 
 func addLibrary(t *testing.T, s *Service, name string) int64 {
 	t.Helper()
-	lib, err := s.write.InsertLibrary(context.Background(), appq.InsertLibraryParams{Name: name, Kind: "movies", Now: 1})
+	lib, err := s.write.InsertLibrary(context.Background(), appq.InsertLibraryParams{Name: name, Kind: model.LibraryVideo, Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -30,7 +30,7 @@ func TestSearch(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := e.svc.Search(ctx, "imdb", "episode", "  ", intp(1700))
-	if got := fieldCodes(t, err); !slices.Equal(got, []string{"provider:invalid_value", "kind:invalid_value", "query:required", "year:invalid_value"}) {
+	if got := fieldCodes(t, err); !slices.Equal(got, []string{"provider:provider_not_searchable", "kind:invalid_value", "query:required", "year:invalid_value"}) {
 		t.Fatalf("validation %q", got)
 	}
 	long := make([]byte, 201)
@@ -154,7 +154,7 @@ func TestAssignMatchAndRefresh(t *testing.T) {
 	if err := e.svc.AssignMatch(ctx, idByTMDB, "tvdb", "1"); !slices.Equal(fieldCodes(t, err), []string{"provider:invalid_value"}) {
 		t.Fatalf("tvdb for a movie: %v", err)
 	}
-	if err := e.svc.AssignMatch(ctx, idByTMDB, "omdb", "abc"); !slices.Equal(fieldCodes(t, err), []string{"provider:invalid_value", "providerId:invalid_value"}) {
+	if err := e.svc.AssignMatch(ctx, idByTMDB, "omdb", "abc"); !slices.Equal(fieldCodes(t, err), []string{"provider:provider_not_searchable", "providerId:invalid_value"}) {
 		t.Fatalf("bad input: %v", err)
 	}
 	if err := e.svc.AssignMatch(ctx, idNoMatch, "tmdb", "1"); !errors.Is(err, model.ErrNotFound) {

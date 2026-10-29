@@ -47,7 +47,7 @@ const episodeNFOFixture = `<episodedetails><title>Zwei</title><season>1</season>
 // createSeries adds a series library on dir.
 func (e *env) createSeries(dir string) model.Library {
 	e.t.Helper()
-	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Serien", Kind: "series", Path: dir})
+	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Serien", Kind: model.LibraryVideo, Roots: rootReq(dir, model.RootSeries)})
 	if err != nil {
 		e.t.Fatal(err)
 	}

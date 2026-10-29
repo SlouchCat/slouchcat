@@ -196,16 +196,26 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	locked := lockedFields(item.LockedFields)
 	// A manual TVDB match locks tvdb_id and an empty tmdb_id: TVDB is the administrator's choice.
 	manualTVDB := locked["tvdb_id"] && locked["tmdb_id"] && item.TvdbID.Valid && !item.TmdbID.Valid
+	// The identifier of the title is the first entry of its provider list (ADR 0015): with TVDB
+	// first, TVDB finds the series and numbers its seasons, and the tmdb_id is fetched on the side
+	// through TMDB's external-id lookup so credits, trailers and images keep working.
+	tvdbFirst := identifierOf(item) == model.ProviderTVDB
 
 	var prov Provider
 	var rec SeriesRecord
 	found := false
 	switch {
-	case manualTVDB && tvdbKey == "":
+	case (manualTVDB || tvdbFirst) && tvdbKey == "":
 		return s.setState(ctx, item, stateSkipped, errNoTVDBKey)
 	case manualTVDB:
 		prov = s.tvdb
 		rec, found, err = s.resolveSeriesTVDB(ctx, item)
+	case tvdbFirst:
+		prov = s.tvdb
+		rec, found, err = s.resolveSeriesTVDB(ctx, item)
+		if err == nil && found && tmdbKey != "" && rec.TMDBID == 0 {
+			rec.TMDBID, err = s.tmdbIDOfTVDB(ctx, rec.TVDBID)
+		}
 	case tmdbKey != "":
 		prov = s.tmdb
 		rec, found, err = s.resolveSeriesTMDB(ctx, item)
@@ -310,13 +320,44 @@ func (s *Service) resolveSeriesTVDB(ctx context.Context, item systemq.Item) (Ser
 	return rec, err == nil, err
 }
 
-// seriesProvider returns the provider and ID a matched series was matched with: TMDB when it has a
-// tmdb_id, else TVDB with its tvdb_id.
+// identifierOf is the first entry of the provider list of an item, the one that identifies it
+// (ADR 0015); tmdb for an item without list.
+func identifierOf(item systemq.Item) string {
+	if ps := model.ParseProviders(item.Providers); len(ps) > 0 {
+		return ps[0]
+	}
+	return model.ProviderTMDB
+}
+
+// tmdbIDOfTVDB looks the TMDB id of a series up by its TVDB id (TMDB's /find); 0 when TMDB does
+// not know the series.
+func (s *Service) tmdbIDOfTVDB(ctx context.Context, tvdbID int64) (int64, error) {
+	if tvdbID == 0 {
+		return 0, nil
+	}
+	cs, err := s.tmdb.SearchSeries(ctx, SeriesQuery{TVDBID: tvdbID})
+	if err != nil || len(cs) == 0 {
+		return 0, err
+	}
+	id, err := strconv.ParseInt(cs[0].ID, 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+	return id, nil
+}
+
+// seriesProvider returns the provider and ID a matched series is described by: the identifier of
+// its list when the series carries that provider's id (TVDB first means TVDB numbering, ADR 0015),
+// else TMDB when it has a tmdb_id, else TVDB with its tvdb_id.
 func (s *Service) seriesProvider(series systemq.Item) (Provider, string, bool) {
+	tmdb := series.TmdbID.Valid && series.TmdbID.Int64 > 0
+	tvdb := series.TvdbID.Valid && series.TvdbID.Int64 > 0
 	switch {
-	case series.TmdbID.Valid && series.TmdbID.Int64 > 0:
+	case identifierOf(series) == model.ProviderTVDB && tvdb:
+		return s.tvdb, strconv.FormatInt(series.TvdbID.Int64, 10), true
+	case tmdb:
 		return s.tmdb, strconv.FormatInt(series.TmdbID.Int64, 10), true
-	case series.TvdbID.Valid && series.TvdbID.Int64 > 0:
+	case tvdb:
 		return s.tvdb, strconv.FormatInt(series.TvdbID.Int64, 10), true
 	}
 	return nil, "", false

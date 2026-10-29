@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
@@ -72,18 +73,19 @@ func (f *Fixture) AddAudio(t testing.TB) {
 	ctx := context.Background()
 	q := appq.New(f.DB.Write)
 	zero := ptr(0)
-	books, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Hörbücher", Kind: "audiobooks", DefaultRating: nullInt(zero), Now: 1})
+	books, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Hörbücher", Kind: model.LibraryAudiobooks, DefaultRating: nullInt(zero), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	pods, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Podcasts", Kind: "podcasts", DefaultRating: nullInt(zero), Now: 1})
+	pods, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Podcasts", Kind: model.LibraryPodcasts, DefaultRating: nullInt(zero), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := Audio{AudiobookLibraryID: books.ID, PodcastLibraryID: pods.ID, Dir: t.TempDir()}
 	// Podcast libraries have no root (H-2); the episode files of the fixture stand for the local
 	// episode files of a later milestone and need one, so both libraries share the fixture's root.
-	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: books.ID, Path: a.Dir, FsType: "ext4", Watch: "inotify", Now: 1})
+	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: books.ID, Path: a.Dir, FsType: "ext4", Watch: "inotify",
+		Content: model.RootAudiobook, Providers: model.ProvidersJSON(model.DefaultProviders(model.RootAudiobook)), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

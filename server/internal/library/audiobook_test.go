@@ -34,7 +34,7 @@ func audiobookMedia(t *testing.T) string {
 func (e *env) createAudiobooks(dir string) model.Library {
 	e.t.Helper()
 	six := 6
-	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Hörbücher", Kind: model.LibraryAudiobooks, Path: dir, DefaultRating: &six})
+	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Hörbücher", Kind: model.LibraryAudiobooks, Roots: rootReq(dir, model.RootAudiobook), DefaultRating: &six})
 	if err != nil {
 		e.t.Fatal(err)
 	}

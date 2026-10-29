@@ -610,15 +610,15 @@ func TestLibraryAdministration(t *testing.T) {
 	}
 
 	var verr *model.ValidationError
-	if _, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: " ", Kind: "music", Path: dir}); !errors.As(err, &verr) || len(verr.Fields) != 2 {
+	if _, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: " ", Kind: "music", Roots: rootReq(dir, model.RootMovie)}); !errors.As(err, &verr) || len(verr.Fields) != 2 {
 		t.Errorf("Create with bad name and kind = %v", err)
 	}
 	lib := e.create(dir)
-	if _, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Again", Kind: "movies", Path: dir}); !errors.Is(err, model.ErrLibraryPathInvalid) {
-		t.Errorf("second library on the same root = %v, want ErrLibraryPathInvalid", err)
+	if _, err := e.svc.Create(e.ctx, testRequest("Again", dir)); !hasFieldError(err, "roots[0].path", model.CodeRootOverlap) {
+		t.Errorf("second library on the same root = %v, want roots[0].path root_overlap", err)
 	}
-	if _, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Nested", Kind: "movies", Path: filepath.Join(dir, "Alien (1979)")}); !errors.Is(err, model.ErrLibraryPathInvalid) {
-		t.Errorf("nested root = %v, want ErrLibraryPathInvalid", err)
+	if _, err := e.svc.Create(e.ctx, testRequest("Nested", filepath.Join(dir, "Alien (1979)"))); !hasFieldError(err, "roots[0].path", model.CodeRootOverlap) {
+		t.Errorf("nested root = %v, want roots[0].path root_overlap", err)
 	}
 	if _, err := e.svc.Get(e.ctx, 999); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("Get(999) = %v, want ErrNotFound", err)

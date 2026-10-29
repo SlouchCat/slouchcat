@@ -23,7 +23,7 @@ func BenchmarkStatsMillionEvents(b *testing.B) {
 		`INSERT INTO profiles (id, account_id, name, max_rating, is_default, created_at, updated_at) VALUES
 		   (1, 1, 'Eins', 18, 1, 1, 1), (2, 1, 'Zwei', 18, 0, 1, 1), (3, 1, 'Drei', 18, 0, 1, 1)`,
 		`INSERT INTO sessions (id, token_hash, account_id, profile_id, created_at, last_seen_at, expires_at) VALUES (1, 'h', 1, 1, 1, 1, 1)`,
-		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 1, 1)`,
+		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 1, 1)`,
 		`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 5000)
 		 INSERT INTO items (id, kind, library_id, title, sort_title, year, added_at, created_at, updated_at)
 		 SELECT printf('01J9BENCH%017d', i), 'movie', 1, 'Film ' || i, 'film ' || i, 1950 + i % 75, 1, 1, 1 FROM n`,

@@ -38,12 +38,12 @@ func (q *Queries) GetItemCoverRoot(ctx context.Context, itemID string) (string, 
 const insertAudiobook = `-- name: InsertAudiobook :one
 
 INSERT INTO items (id, kind, library_id, title, sort_title, year, genres, author, narrator, series_name,
-                   series_index, explicit, cover_path, own_rating, rating_source, metadata_state, matched_at,
-                   added_at, created_at, updated_at)
+                   series_index, explicit, cover_path, own_rating, rating_source, providers, metadata_state,
+                   matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'audiobook', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-        ?10, ?11, ?12, ?13, ?14, 'matched', ?15,
+        ?10, ?11, ?12, ?13, ?14, '["local"]', 'matched', ?15,
         ?15, ?15, ?15)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin
 `
 
 type InsertAudiobookParams struct {
@@ -145,6 +145,9 @@ func (q *Queries) InsertAudiobook(ctx context.Context, arg InsertAudiobookParams
 		&i.PublishedAt,
 		&i.EnclosureType,
 		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
 	)
 	return i, err
 }

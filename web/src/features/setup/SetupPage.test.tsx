@@ -36,7 +36,7 @@ async function fillWizard(user: UserEvent, { tmdb = '' } = {}) {
   await user.type(await screen.findByLabelText(/E-Mail-Adresse/), 'owner@example.test');
   await user.type(screen.getByLabelText('Passwort'), 'correct horse battery');
   await user.type(screen.getByLabelText('Passwort wiederholen'), 'correct horse battery');
-  await user.click(screen.getByRole('radio', { name: 'Filme' }));
+  await user.click(screen.getByRole('radio', { name: 'Video' }));
   await user.type(screen.getByLabelText('Ordner'), '/media/Filme');
   if (tmdb) await user.type(screen.getByLabelText('API-Lesezugriffs-Token'), tmdb);
 }
@@ -94,14 +94,24 @@ describe('setup wizard', () => {
     expect(post?.body).toEqual({
       email: 'owner@example.test',
       password: 'correct horse battery',
-      library: { name: 'Filme', kind: 'movies', path: '/media/Filme' },
+      library: {
+        name: 'Filme',
+        kind: 'video',
+        roots: [{ path: '/media/Filme', content: 'movie', providers: ['tmdb'] }],
+      },
       tmdbApiKey: 'tmdb-token',
       language: 'de',
     });
   });
 
-  it('maps library_path_invalid to the path field', async () => {
-    mockApi({ ...setupRequired, 'POST /setup': () => problem(422, 'library_path_invalid') });
+  it('maps library_path_invalid of the first folder to the path field', async () => {
+    mockApi({
+      ...setupRequired,
+      'POST /setup': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'library.roots[0].path', code: 'library_path_invalid' }],
+        }),
+    });
     renderApp('/setup');
     const user = userEvent.setup();
     await fillWizard(user);

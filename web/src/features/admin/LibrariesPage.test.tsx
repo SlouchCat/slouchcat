@@ -19,11 +19,13 @@ describe('admin libraries page', () => {
           library({
             id: 2,
             name: 'Serien',
-            kind: 'series',
+            kind: 'video',
             roots: [
               {
                 id: 2,
                 path: '/media/Serien',
+                content: 'series',
+                providers: ['tmdb', 'tvdb'],
                 fsType: 'nfs',
                 watch: 'poll',
                 warning: 'network_share',
@@ -106,14 +108,17 @@ describe('admin libraries page', () => {
     const { calls } = mockApi({
       ...signedIn,
       'GET /admin/libraries': () => json([]),
-      'POST /admin/libraries': () => problem(422, 'library_path_invalid'),
+      'POST /admin/libraries': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'roots[0].path', code: 'library_path_invalid' }],
+        }),
     });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
     expect(await screen.findByText('Noch keine Bibliothek angelegt.')).toBeVisible();
 
     await user.type(screen.getByLabelText('Name'), 'Dokus');
-    await user.click(screen.getByRole('radio', { name: 'Serien' }));
+    await user.click(screen.getByRole('radio', { name: 'Video' }));
     await user.type(screen.getByLabelText('Ordner'), '/media/Dokus');
     await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
 
@@ -124,8 +129,8 @@ describe('admin libraries page', () => {
     );
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
       name: 'Dokus',
-      kind: 'series',
-      path: '/media/Dokus',
+      kind: 'video',
+      roots: [{ path: '/media/Dokus', content: 'movie', providers: ['tmdb'] }],
     });
   });
   it('cancels a running scan; a cancelled scan has its own text and no loss button', async () => {
@@ -176,6 +181,8 @@ describe('admin libraries page', () => {
         {
           id: 3,
           path: '/media/Hoerbuecher',
+          content: 'audiobook',
+          providers: ['local'],
           fsType: 'ext4',
           watch: 'inotify',
           itemCount: 0,
@@ -232,12 +239,12 @@ describe('admin libraries page', () => {
     const user = userEvent.setup();
     await screen.findByText('Noch keine Bibliothek angelegt.');
 
-    // Films: no default rating to choose.
+    // Video: no default rating to choose.
     expect(screen.queryByRole('radiogroup', { name: 'Standard-Altersstufe' })).toBeNull();
     await user.type(screen.getByLabelText('Name'), 'Podcasts');
     await user.click(screen.getByRole('radio', { name: 'Podcasts' }));
     expect(screen.queryByLabelText('Ordner')).not.toBeInTheDocument();
-    expect(screen.getByText(/Podcasts brauchen keinen Ordner/)).toBeVisible();
+    expect(screen.getByText(/Ordner optional/)).toBeVisible();
     const rating = screen.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
     expect(within(rating).getByRole('radio', { name: 'FSK 0' })).toBeChecked();
     await user.click(within(rating).getByText('FSK 6'));
@@ -246,6 +253,7 @@ describe('admin libraries page', () => {
       expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
         name: 'Podcasts',
         kind: 'podcasts',
+        roots: [],
         defaultRating: 6,
       }),
     );
@@ -258,7 +266,7 @@ describe('admin libraries page', () => {
       expect(calls.filter((call) => call.method === 'POST').at(-1)?.body).toEqual({
         name: 'Hörbücher',
         kind: 'audiobooks',
-        path: '/media/Hoerbuecher',
+        roots: [{ path: '/media/Hoerbuecher', content: 'audiobook', providers: ['local'] }],
         defaultRating: 0,
       }),
     );

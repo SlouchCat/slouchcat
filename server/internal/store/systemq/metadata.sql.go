@@ -54,8 +54,17 @@ func (q *Queries) DeleteImage(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteItemFieldSources = `-- name: DeleteItemFieldSources :exec
+DELETE FROM item_field_sources WHERE item_id = ?1
+`
+
+func (q *Queries) DeleteItemFieldSources(ctx context.Context, itemID string) error {
+	_, err := q.db.ExecContext(ctx, deleteItemFieldSources, itemID)
+	return err
+}
+
 const listChildItems = `-- name: ListChildItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin FROM items
 WHERE parent_id = ?1 AND deleted_at IS NULL
 ORDER BY season_number, episode_number, id
 `
@@ -126,6 +135,9 @@ func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) (
 			&i.PublishedAt,
 			&i.EnclosureType,
 			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
 		); err != nil {
 			return nil, err
 		}
@@ -205,6 +217,41 @@ func (q *Queries) ListImagesByItem(ctx context.Context, itemID string) ([]Image,
 			&i.Accent,
 			&i.CreatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listItemFieldSources = `-- name: ListItemFieldSources :many
+
+SELECT field, lang, provider FROM item_field_sources WHERE item_id = ?1 ORDER BY field, lang
+`
+
+type ListItemFieldSourcesRow struct {
+	Field    string
+	Lang     string
+	Provider string
+}
+
+// Provenance per field (item_field_sources, ADR 0015): which provider of the list won a field.
+func (q *Queries) ListItemFieldSources(ctx context.Context, itemID string) ([]ListItemFieldSourcesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listItemFieldSources, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListItemFieldSourcesRow{}
+	for rows.Next() {
+		var i ListItemFieldSourcesRow
+		if err := rows.Scan(&i.Field, &i.Lang, &i.Provider); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -547,6 +594,21 @@ func (q *Queries) UpdateChildMatch(ctx context.Context, arg UpdateChildMatchPara
 	return err
 }
 
+const updateItemAniListID = `-- name: UpdateItemAniListID :exec
+UPDATE items SET anilist_id = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type UpdateItemAniListIDParams struct {
+	AnilistID sql.NullInt64
+	Now       int64
+	ID        string
+}
+
+func (q *Queries) UpdateItemAniListID(ctx context.Context, arg UpdateItemAniListIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateItemAniListID, arg.AnilistID, arg.Now, arg.ID)
+	return err
+}
+
 const updateItemMatch = `-- name: UpdateItemMatch :exec
 
 UPDATE items
@@ -661,6 +723,28 @@ func (q *Queries) UpsertImage(ctx context.Context, arg UpsertImageParams) error 
 		arg.Bytes,
 		arg.Accent,
 		arg.Now,
+	)
+	return err
+}
+
+const upsertItemFieldSource = `-- name: UpsertItemFieldSource :exec
+INSERT INTO item_field_sources (item_id, field, lang, provider) VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT (item_id, field, lang) DO UPDATE SET provider = excluded.provider
+`
+
+type UpsertItemFieldSourceParams struct {
+	ItemID   string
+	Field    string
+	Lang     string
+	Provider string
+}
+
+func (q *Queries) UpsertItemFieldSource(ctx context.Context, arg UpsertItemFieldSourceParams) error {
+	_, err := q.db.ExecContext(ctx, upsertItemFieldSource,
+		arg.ItemID,
+		arg.Field,
+		arg.Lang,
+		arg.Provider,
 	)
 	return err
 }

@@ -176,3 +176,18 @@ WHERE i.library_id = @library_id
     OR (i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop')))
 ORDER BY i.id;
+
+-- Provenance per field (item_field_sources, ADR 0015): which provider of the list won a field.
+
+-- name: ListItemFieldSources :many
+SELECT field, lang, provider FROM item_field_sources WHERE item_id = @item_id ORDER BY field, lang;
+
+-- name: UpsertItemFieldSource :exec
+INSERT INTO item_field_sources (item_id, field, lang, provider) VALUES (@item_id, @field, @lang, @provider)
+ON CONFLICT (item_id, field, lang) DO UPDATE SET provider = excluded.provider;
+
+-- name: DeleteItemFieldSources :exec
+DELETE FROM item_field_sources WHERE item_id = @item_id;
+
+-- name: UpdateItemAniListID :exec
+UPDATE items SET anilist_id = @anilist_id, updated_at = @now WHERE id = @id;

@@ -152,7 +152,7 @@ func newWebhookFixtureAt(t *testing.T, clock *stepClock) webhookFixture {
 	o.Integrations = svc
 	// The recordings are mapped onto one root, so every reported directory resolves.
 	if _, err := pf.f.DB.Write.ExecContext(context.Background(),
-		`INSERT INTO libraries (name, kind, default_rating, created_at, updated_at) VALUES ('Recorded', 'movies', 0, 0, 0)`); err != nil {
+		`INSERT INTO libraries (name, kind, default_rating, created_at, updated_at) VALUES ('Recorded', 'video', 0, 0, 0)`); err != nil {
 		t.Fatal(err)
 	}
 	var libraryID int64

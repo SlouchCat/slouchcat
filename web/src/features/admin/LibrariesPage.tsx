@@ -24,7 +24,7 @@ import styles from './LibrariesPage.module.css';
 function AddLibraryForm() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [kind, setKind] = useState<LibraryKind>('movies');
+  const [kind, setKind] = useState<LibraryKind>('video');
   const [rating, setRating] = useState('0');
   // The folder is a controlled value, so the browse dialog can write the chosen path into it.
   const [path, setPath] = useState('');
@@ -40,8 +40,11 @@ function AddLibraryForm() {
       await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
     },
   });
-  // The contract reports the path of the setup wizard as `library.path`; here it is `path`.
-  const errors = create.error ? formErrors(t, create.error, { 'library.path': 'path' }) : null;
+  // The contract names the folder by its index (`roots[0].path`, in the setup wizard
+  // `library.path`); the only folder of this form is the input `path`.
+  const errors = create.error
+    ? formErrors(t, create.error, { 'library.path': 'path', 'roots[0].path': 'path' })
+    : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -162,7 +165,7 @@ function DefaultRatingAction({
 
 /**
  * "Folders" of one library: the card names how many there are, this opens the dialog that lists
- * them and adds or removes one (idea 02, E16). A podcast library has none, so it has no button.
+ * them and adds or removes one (idea 02, E16). A podcast library may have folders as well.
  */
 function FoldersAction({
   library,
@@ -280,12 +283,7 @@ export function LibrariesPage() {
                       {t('admin.libraries.cancel')}
                     </AriaButton>
                   )}
-                  {library.kind !== 'podcasts' && (
-                    <FoldersAction
-                      library={library}
-                      onChanged={(updated) => void refresh(updated)}
-                    />
-                  )}
+                  <FoldersAction library={library} onChanged={(updated) => void refresh(updated)} />
                   {isAudioLibrary(library.kind) && (
                     <DefaultRatingAction
                       library={library}

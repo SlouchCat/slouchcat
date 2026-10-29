@@ -124,7 +124,7 @@ export function SetupPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
-  const [kind, setKind] = useState<LibraryKind>('movies');
+  const [kind, setKind] = useState<LibraryKind>('video');
   const [rating, setRating] = useState('0');
   const [path, setPath] = useState('');
   const [tmdbKey, setTmdbKey] = useState('');
@@ -161,7 +161,10 @@ export function SetupPage() {
       }
     },
   });
-  const errors = setup.error ? formErrors(t, setup.error) : null;
+  // The contract names the folder of the wizard's library by its index; its input is `library.path`.
+  const errors = setup.error
+    ? formErrors(t, setup.error, { 'library.roots[0].path': 'library.path' })
+    : null;
 
   // A check answers for the value it was asked about; a changed value hides its answer.
   const checkedPath = pathCheck.variables === path.trim() ? pathCheck.data : undefined;
@@ -274,7 +277,7 @@ export function SetupPage() {
             <TextField
               name="library.name"
               label={t('setup.library.name')}
-              defaultValue={t('library.kind.movies')}
+              defaultValue={t('setup.library.defaultName')}
               isRequired
               validate={required}
             />

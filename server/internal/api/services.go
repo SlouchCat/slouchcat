@@ -98,9 +98,14 @@ type AdminService interface {
 	ScanLibrary(ctx context.Context, id int64) (model.Library, error)
 	// AcceptLibraryLoss lifts the loss protection for the next scan and queues it.
 	AcceptLibraryLoss(ctx context.Context, id int64) (model.Library, error)
-	// AddLibraryRoot adds a further folder to a library (idea 02, E8). Errors:
-	// model.ErrNotFound, *model.ValidationError, model.ErrLibraryPathInvalid.
-	AddLibraryRoot(ctx context.Context, libraryID int64, path string) (model.Library, error)
+	// AddLibraryRoots adds folders to a library in one transaction (idea 02, E8; F-13). Errors:
+	// model.ErrNotFound, *model.ValidationError with the index of the folder that broke a rule.
+	AddLibraryRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error)
+	// UpdateLibraryRoot changes the content or the provider list of a folder (ADR 0015). Errors:
+	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, model.ErrScanRunning.
+	UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
+	// ListMetadataProviders describes the four providers (ADR 0015).
+	ListMetadataProviders(ctx context.Context) ([]model.MetadataProviderInfo, error)
 	// RemoveLibraryRoot removes a folder and soft-deletes the titles that live only there
 	// (E12). Errors: model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch,
 	// model.ErrScanRunning.

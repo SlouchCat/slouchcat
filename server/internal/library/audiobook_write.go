@@ -75,7 +75,7 @@ func nullYear(y int) sql.NullInt64 { return sql.NullInt64{Int64: int64(y), Valid
 // soft-deleted one comes back), else a new one from the folder metadata. Books need no provider
 // match; the probe job completes them (Service.finishAudiobook).
 func (w *batchWriter) audiobookItem(ctx context.Context, info fileInfo) (string, error) {
-	if id := w.idx.byFolder[info.folder]; id != "" && w.idx.kinds[id] == "audiobook" {
+	if id := w.ix().byFolder[info.folder]; id != "" && w.ix().kinds[id] == "audiobook" {
 		return id, w.restore(ctx, id, false)
 	}
 	m := info.book
@@ -107,8 +107,8 @@ func (w *batchWriter) audiobookItem(ctx context.Context, info fileInfo) (string,
 			return "", fmt.Errorf("insert audiobook text: %w", err)
 		}
 	}
-	w.idx.kinds[id] = "audiobook"
-	w.idx.addFolder(id, info.folder)
+	w.ix().kinds[id] = "audiobook"
+	w.ix().addFolder(id, info.folder)
 	w.stats.items++
 	return id, nil
 }

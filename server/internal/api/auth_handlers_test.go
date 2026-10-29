@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -52,8 +53,12 @@ func (f *authTestLibraries) Create(_ context.Context, req model.LibraryRequest) 
 	started := time.Date(2026, 10, 18, 14, 0, 0, 0, time.FixedZone("CEST", 2*3600))
 	lib := model.Library{
 		ID: int64(len(f.libs) + 1), Name: req.Name, Kind: req.Kind, CreatedAt: started,
-		Roots: []model.LibraryRoot{{ID: int64(len(f.libs) + 1), Path: req.Path, FSType: "nfs", Watch: "poll", Warning: "network_share"}},
+		Roots: []model.LibraryRoot{},
 		Scan:  model.LibraryScan{State: "queued", StartedAt: &started},
+	}
+	for _, r := range req.Roots {
+		lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(f.libs) + len(lib.Roots) + 1), Path: r.Path,
+			FSType: "nfs", Watch: "poll", Warning: "network_share", Content: r.Content, Providers: r.Providers})
 	}
 	f.libs = append(f.libs, lib)
 	return lib, nil
@@ -76,18 +81,63 @@ func (f *authTestLibraries) AcceptLoss(ctx context.Context, id int64) (model.Lib
 	return f.Get(ctx, id)
 }
 
-// AddRoot and RemoveRoot answer like package library does (idea 02, E8 and E12), so the handler
-// tests see the real statuses: 422 for a confirmation that does not repeat the folder, 409 while
-// a scan runs.
-func (f *authTestLibraries) AddRoot(ctx context.Context, id int64, path string) (model.Library, error) {
+// ValidateRoots reports a path ValidatePath refuses as the field error <field>[i].path, like
+// package library does.
+func (f *authTestLibraries) ValidateRoots(ctx context.Context, _ string, roots []model.LibraryRootRequest, field string) error {
+	var verr *model.ValidationError
+	for i, r := range roots {
+		if err := f.ValidatePath(ctx, r.Path); err != nil {
+			verr = verr.Add(fmt.Sprintf("%s[%d].path", field, i), "library_path_invalid")
+		}
+	}
+	if verr != nil {
+		return verr
+	}
+	return nil
+}
+
+// AddRoots, UpdateRoot and RemoveRoot answer like package library does (idea 02, E8 and E12),
+// so the handler tests see the real statuses: 422 for a confirmation that does not repeat the
+// folder, 409 while a scan runs.
+func (f *authTestLibraries) AddRoots(ctx context.Context, id int64, roots []model.LibraryRootRequest) (model.Library, error) {
 	lib, err := f.Get(ctx, id)
 	if err != nil {
 		return model.Library{}, err
 	}
-	if err := f.ValidatePath(ctx, path); err != nil {
+	if err := f.ValidateRoots(ctx, lib.Kind, roots, "roots"); err != nil {
 		return model.Library{}, err
 	}
-	lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(lib.Roots) + 1), Path: path, FSType: "ext4", Watch: "inotify"})
+	for _, r := range roots {
+		lib.Roots = append(lib.Roots, model.LibraryRoot{ID: int64(len(lib.Roots) + 1), Path: r.Path, FSType: "ext4", Watch: "inotify",
+			Content: r.Content, Providers: r.Providers})
+	}
+	f.libs[id-1] = lib
+	return lib, nil
+}
+
+func (f *authTestLibraries) UpdateRoot(ctx context.Context, id, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
+	lib, err := f.Get(ctx, id)
+	if err != nil {
+		return model.Library{}, err
+	}
+	idx := slices.IndexFunc(lib.Roots, func(r model.LibraryRoot) bool { return r.ID == rootID })
+	if idx < 0 {
+		return model.Library{}, model.ErrNotFound
+	}
+	// A content change is a removal and a re-read: it needs the typed path and no running scan,
+	// exactly like RemoveRoot (ADR 0015).
+	if upd.Content != nil && *upd.Content != lib.Roots[idx].Content {
+		if strings.TrimSpace(upd.ConfirmPath) != lib.Roots[idx].Path {
+			return model.Library{}, model.ErrConfirmMismatch
+		}
+		if f.scanRunning {
+			return model.Library{}, model.ErrScanRunning
+		}
+		lib.Roots[idx].Content = *upd.Content
+	}
+	if upd.Providers != nil {
+		lib.Roots[idx].Providers = upd.Providers
+	}
 	f.libs[id-1] = lib
 	return lib, nil
 }
@@ -191,8 +241,13 @@ func (e *authEnv) call(t *testing.T, method, path string, body any, cookie *http
 func setupBody() map[string]any {
 	return map[string]any{
 		"email": "marco@example.ch", "password": authTestPassword, "language": "en", "tmdbApiKey": authTestKey,
-		"library": map[string]any{"name": "Filme", "kind": "movies", "path": "/media/Filme"},
+		"library": map[string]any{"name": "Filme", "kind": "video", "roots": []any{movieRoot("/media/Filme")}},
 	}
+}
+
+// movieRoot is the request body of one movie folder with the default provider.
+func movieRoot(path string) map[string]any {
+	return map[string]any{"path": path, "content": "movie", "providers": []string{"tmdb"}}
 }
 
 func sessionCookie(t *testing.T, rec *httptest.ResponseRecorder) *http.Cookie {
@@ -290,7 +345,7 @@ func TestSetupConflictsAndValidation(t *testing.T) {
 
 	bad := setupBody()
 	bad["password"] = "abc"
-	bad["library"] = map[string]any{"name": "", "kind": "movies", "path": ""}
+	bad["library"] = map[string]any{"name": "", "kind": "video", "roots": []any{}}
 	rec := e.call(t, http.MethodPost, "/api/v1/setup", bad, nil)
 	wantStatus(t, rec, http.StatusUnprocessableEntity)
 	var p gen.Problem
@@ -300,17 +355,16 @@ func TestSetupConflictsAndValidation(t *testing.T) {
 	if p.Code != "validation_failed" || p.Errors == nil {
 		t.Fatalf("problem = %+v", p)
 	}
-	want := []gen.FieldError{{Field: "password", Code: "too_short"}, {Field: "library.name", Code: "required"}, {Field: "library.path", Code: "required"}}
+	want := []gen.FieldError{{Field: "password", Code: "too_short"}, {Field: "library.name", Code: "required"}, {Field: "library.roots", Code: "roots_required"}}
 	if !slices.Equal(*p.Errors, want) {
 		t.Fatalf("field errors = %v, want %v", *p.Errors, want)
 	}
 
 	bad = setupBody()
-	bad["library"] = map[string]any{"name": "Filme", "kind": "movies", "path": authTestBadPath}
+	bad["library"] = map[string]any{"name": "Filme", "kind": "video", "roots": []any{movieRoot(authTestBadPath)}}
 	rec = e.call(t, http.MethodPost, "/api/v1/setup", bad, nil)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if code := problemCode(t, rec); code != "library_path_invalid" {
-		t.Fatalf("code = %s", code)
+	if got := fieldProblem(t, rec); got != "library.roots[0].path library_path_invalid" {
+		t.Fatalf("bad path: %s", got)
 	}
 
 	e.tmdb.err = model.ErrTMDBKeyInvalid

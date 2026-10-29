@@ -87,10 +87,10 @@ func scanbench(args []string) int {
 	o := scanbenchOptions{root: *root, workers: *workers, interrupt: *interrupt, timeout: *timeout,
 		runner: transcode.Runner{FFprobePath: *ffprobe}, log: log}
 	if *kind != "series" {
-		o.libs = append(o.libs, benchLibrary{name: "Filme", kind: "movies", dir: filepath.Join(*root, "Movies")})
+		o.libs = append(o.libs, benchLibrary{name: "Filme", kind: model.LibraryVideo, content: model.RootMovie, dir: filepath.Join(*root, "Movies")})
 	}
 	if *kind != "movies" {
-		o.libs = append(o.libs, benchLibrary{name: "Serien", kind: "series", dir: filepath.Join(*root, "TV")})
+		o.libs = append(o.libs, benchLibrary{name: "Serien", kind: model.LibraryVideo, content: model.RootSeries, dir: filepath.Join(*root, "TV")})
 	}
 	rep, err := runScanbench(context.Background(), o)
 	if err != nil {
@@ -111,7 +111,7 @@ func scanbench(args []string) int {
 }
 
 type benchLibrary struct {
-	name, kind, dir string
+	name, kind, content, dir string // kind is the library family, content that of its one folder
 }
 
 type scanbenchOptions struct {
@@ -451,7 +451,8 @@ func (e *benchEnv) waitDrain(ctx context.Context, since time.Time, timeout time.
 func (e *benchEnv) create(ctx context.Context, libs []benchLibrary) ([]int64, error) {
 	ids := make([]int64, 0, len(libs))
 	for _, b := range libs {
-		l, err := e.lib.Create(ctx, model.LibraryRequest{Name: b.name, Kind: b.kind, Path: b.dir})
+		l, err := e.lib.Create(ctx, model.LibraryRequest{Name: b.name, Kind: b.kind,
+			Roots: []model.LibraryRootRequest{{Path: b.dir, Content: b.content, Providers: model.DefaultProviders(b.content)}}})
 		if err != nil {
 			return nil, fmt.Errorf("create library %s on %s: %w", b.name, b.dir, err)
 		}

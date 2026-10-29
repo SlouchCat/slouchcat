@@ -53,12 +53,12 @@ async function ensureAudioLibraries(api: APIRequestContext): Promise<void> {
     await createLibrary(api, {
       name: 'Hörbücher',
       kind: 'audiobooks',
-      path: AUDIOBOOKS_DIR,
+      roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: ['local'] }],
       defaultRating: 0,
     });
   }
   if (!libraries.some((library) => library.name === 'Podcasts')) {
-    await createLibrary(api, { name: 'Podcasts', kind: 'podcasts', defaultRating: 0 });
+    await createLibrary(api, { name: 'Podcasts', kind: 'podcasts', roots: [], defaultRating: 0 });
   }
 }
 
@@ -122,10 +122,18 @@ async function storeAudioIds(api: APIRequestContext): Promise<void> {
 async function ensureVideoLibraries(api: APIRequestContext): Promise<void> {
   const libraries = await listLibraries(api);
   if (!libraries.some((library) => library.name === 'Filme')) {
-    await createLibrary(api, { name: 'Filme', kind: 'movies', path: MOVIES_DIR });
+    await createLibrary(api, {
+      name: 'Filme',
+      kind: 'video',
+      roots: [{ path: MOVIES_DIR, content: 'movie', providers: ['tmdb'] }],
+    });
   }
   if (existsSync(TV_DIR) && !libraries.some((library) => library.name === 'Serien')) {
-    await createLibrary(api, { name: 'Serien', kind: 'series', path: TV_DIR });
+    await createLibrary(api, {
+      name: 'Serien',
+      kind: 'video',
+      roots: [{ path: TV_DIR, content: 'series', providers: ['tmdb', 'tvdb'] }],
+    });
   }
 }
 
@@ -174,7 +182,7 @@ export default async function globalSetup(): Promise<void> {
           library: {
             name: 'Hörbücher',
             kind: 'audiobooks',
-            path: AUDIOBOOKS_DIR,
+            roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: ['local'] }],
             defaultRating: 0,
           },
         },

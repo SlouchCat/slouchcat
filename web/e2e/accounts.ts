@@ -229,7 +229,11 @@ export async function ensureEmptyLibrary(api: APIRequestContext): Promise<number
   mkdirSync(root, { recursive: true });
   writeFileSync(join(root, 'readme.txt'), 'no media here');
   const created = await json<{ id: number }>(
-    await send(api, 'post', '/admin/libraries', { name, kind: 'movies', path: root }),
+    await send(api, 'post', '/admin/libraries', {
+      name,
+      kind: 'video',
+      roots: [{ path: root, content: 'movie', providers: ['tmdb'] }],
+    }),
     [201, 202],
   );
   return created.id;

@@ -176,7 +176,12 @@
       "not_burnable": "This subtitle track cannot be burned in.",
       "invalid_url": "Enter an address starting with http:// or https://.",
       "library_kind": "Choose a podcast library.",
-      "unknown_item": "This title does not exist."
+      "unknown_item": "This title does not exist.",
+      "root_overlap": "This folder overlaps another folder.",
+      "content_not_allowed": "This content does not fit the kind of the library.",
+      "providers_not_allowed": "This list of metadata sources is not allowed for this content.",
+      "roots_required": "At least one folder is required.",
+      "provider_not_searchable": "Only TMDB and TVDB can be searched."
     }
   },
   "setup": {
@@ -195,6 +200,7 @@
       "title": "First library",
       "description": "You can add more libraries later.",
       "name": "Name",
+      "defaultName": "Films",
       "kind": "Content",
       "path": "Folder",
       "pathHint": "Absolute path inside the container, for example /media/Movies.",
@@ -244,14 +250,13 @@
   },
   "library": {
     "kind": {
-      "movies": "Movies",
-      "series": "Series",
+      "video": "Video",
       "audiobooks": "Audiobooks",
       "podcasts": "Podcasts"
     },
     "defaultRating": "Default age rating",
     "defaultRatingHint": "Applies to every title of this library. Single titles can only be rated stricter afterwards.",
-    "podcastsHint": "Podcasts need no folder: you subscribe to their feeds under Podcasts.",
+    "podcastsHint": "Folder optional: you can also subscribe to feeds without a folder under Podcasts.",
     "browse": {
       "title": "Choose a folder",
       "open": "Browse …",
@@ -733,7 +738,8 @@
         "reason": {
           "provider_id": "Same provider id",
           "title_year": "Same title and year",
-          "file_hash": "Same file content"
+          "file_hash": "Same file content",
+          "file_and_feed": "File and feed of the same episode"
         },
         "group": "Group {{index}}",
         "target": "Keep",

@@ -8,6 +8,8 @@ import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
 const second = {
   id: 2,
   path: '/media/Filme-2',
+  content: 'movie' as const,
+  providers: ['tmdb' as const],
   fsType: 'nfs' as const,
   watch: 'poll' as const,
   warning: 'network_share',
@@ -61,7 +63,7 @@ describe('library folders dialog', () => {
     mockApi({
       ...signedIn,
       'GET /admin/libraries': () =>
-        json([library(), library({ id: 2, name: 'Leer', kind: 'series', roots: [] })]),
+        json([library(), library({ id: 2, name: 'Leer', kind: 'video', roots: [] })]),
     });
     renderApp('/admin/libraries');
 
@@ -93,7 +95,7 @@ describe('library folders dialog', () => {
         expect.objectContaining({
           method: 'POST',
           path: '/admin/libraries/1/roots',
-          body: { path: '/media/Filme-2' },
+          body: { roots: [{ path: '/media/Filme-2', content: 'movie', providers: ['tmdb'] }] },
         }),
       );
     });
@@ -107,7 +109,10 @@ describe('library folders dialog', () => {
     mockApi({
       ...signedIn,
       'GET /admin/libraries': () => json([library()]),
-      'POST /admin/libraries/1/roots': () => problem(422, 'library_path_invalid'),
+      'POST /admin/libraries/1/roots': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'roots[0].path', code: 'library_path_invalid' }],
+        }),
     });
     renderApp('/admin/libraries');
     const user = userEvent.setup();
@@ -232,7 +237,10 @@ describe('library folders dialog', () => {
     mockApi({
       ...signedIn,
       'GET /admin/libraries': () => json([library()]),
-      'POST /admin/libraries/1/roots': () => problem(422, 'library_path_invalid'),
+      'POST /admin/libraries/1/roots': () =>
+        problem(422, 'validation_failed', {
+          errors: [{ field: 'roots[0].path', code: 'library_path_invalid' }],
+        }),
     });
     renderApp('/admin/libraries');
     const user = userEvent.setup();

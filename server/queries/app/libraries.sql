@@ -11,8 +11,15 @@ UPDATE libraries SET name = @name, default_rating = @default_rating, updated_at 
 RETURNING *;
 
 -- name: InsertLibraryRoot :one
-INSERT INTO library_roots (library_id, path, fs_type, watch, created_at)
-VALUES (@library_id, @path, @fs_type, @watch, @now)
+-- content and providers come from the request; the column defaults only serve migration 00023.
+INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, created_at)
+VALUES (@library_id, @path, @fs_type, @watch, @content, @providers, @now)
+RETURNING *;
+
+-- name: UpdateLibraryRoot :one
+-- Content and provider list of a folder (updateLibraryRoot, ADR 0015); the titles follow through
+-- the library package (UpdateItemsProvidersByRoot), never through this statement alone.
+UPDATE library_roots SET content = @content, providers = @providers WHERE id = @id AND library_id = @library_id
 RETURNING *;
 
 -- name: ListLibraries :many

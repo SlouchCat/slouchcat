@@ -255,7 +255,7 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		files, subs, isGone, err := listDirFiles(ctx, r, dir, lib.Kind, rs.ignored, s.log)
+		files, subs, isGone, err := listDirFiles(ctx, r, dir, rs.root.Content, rs.ignored, s.log)
 		if err != nil {
 			return nil, fmt.Errorf("list %s in root %d: %w", dir, rs.root.ID, err)
 		}
@@ -274,7 +274,7 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 // and the names of its subtitle files (sidecars, I-5); subdirectories are not entered (a path scan
 // names every directory it reads). isGone reports a directory that does not exist any more. A
 // symlinked directory is not read, like in the walk of a full scan.
-func listDirFiles(ctx context.Context, r *os.Root, dir, kind string, ignored map[string]bool, log *slog.Logger) (files []diskFile, subs []string, isGone bool, err error) {
+func listDirFiles(ctx context.Context, r *os.Root, dir, content string, ignored map[string]bool, log *slog.Logger) (files []diskFile, subs []string, isGone bool, err error) {
 	fi, err := r.Lstat(dir)
 	switch {
 	case gone(err):
@@ -307,7 +307,7 @@ func listDirFiles(ctx context.Context, r *os.Root, dir, kind string, ignored map
 			subs = append(subs, e.Name())
 			continue
 		}
-		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, kind, ignored, noMarker, log)
+		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, content, ignored, noMarker, log)
 		if err != nil {
 			return nil, nil, false, err
 		}

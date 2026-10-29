@@ -452,7 +452,7 @@ func TestListAccountLibraries(t *testing.T) {
 		return out
 	}
 	libs, err := s.ListAccountLibraries(ctx, sess.Account)
-	if err != nil || !slices.Equal(names(libs), []string{"alpha", "Mitte", "Zeta"}) || libs[0].Kind != "movies" {
+	if err != nil || !slices.Equal(names(libs), []string{"alpha", "Mitte", "Zeta"}) || libs[0].Kind != model.LibraryVideo {
 		t.Fatalf("owner libraries = %+v, %v", libs, err)
 	}
 	guest := addGuestAccount(t, s, "g@example.ch", 12, false, []int64{b, a})

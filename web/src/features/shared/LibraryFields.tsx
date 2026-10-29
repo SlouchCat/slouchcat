@@ -6,19 +6,31 @@ import { RadioGroup, TextField } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from './choices';
 
 export type LibraryKind = LibraryRequest['kind'];
+type LibraryRootRequest = LibraryRequest['roots'][number];
 
-const KINDS = ['movies', 'series', 'audiobooks', 'podcasts'] as const satisfies LibraryKind[];
+const KINDS = ['video', 'audiobooks', 'podcasts'] as const satisfies LibraryKind[];
 
-/** The kind from a radio value; unknown values fall back to films. */
+/** The kind from a radio value; unknown values fall back to video. */
 export const libraryKindOf = (value: string): LibraryKind =>
-  KINDS.find((kind) => kind === value) ?? 'movies';
+  KINDS.find((kind) => kind === value) ?? 'video';
 
 /** Audiobooks and podcasts have a default age rating of their own (AN-2). */
 export const isAudioLibrary = (kind: LibraryKind) => kind === 'audiobooks' || kind === 'podcasts';
 
 /**
- * Body of createLibrary (and the library of the setup wizard): a podcast library has no folder,
- * only an audio library sends its default age rating.
+ * A folder with the fixed content and provider list of its library kind (ADR 0015). The forms do
+ * not offer a choice yet: video folders hold films described by TMDB, audio folders describe
+ * themselves.
+ */
+export function defaultRoot(kind: LibraryKind, path: string): LibraryRootRequest {
+  if (kind === 'audiobooks') return { path, content: 'audiobook', providers: ['local'] };
+  if (kind === 'podcasts') return { path, content: 'podcast', providers: ['local'] };
+  return { path, content: 'movie', providers: ['tmdb'] };
+}
+
+/**
+ * Body of createLibrary (and the library of the setup wizard): a podcast library starts without a
+ * folder, only an audio library sends its default age rating.
  */
 export function libraryRequest(
   name: string,
@@ -30,7 +42,7 @@ export function libraryRequest(
   return {
     name,
     kind,
-    ...(kind === 'podcasts' ? {} : { path }),
+    roots: kind === 'podcasts' ? [] : [defaultRoot(kind, path)],
     ...(defaultRating !== undefined ? { defaultRating } : {}),
   };
 }
@@ -54,7 +66,7 @@ interface LibraryFieldsProps {
 }
 
 /**
- * Kind, folder and default age rating of a new library (admin page and setup wizard): four kinds,
+ * Kind, folder and default age rating of a new library (admin page and setup wizard): three kinds,
  * the folder for every kind but podcasts (their titles come from feeds), the default rating
  * (FSK 0 … 18) for audiobooks and podcasts only.
  */

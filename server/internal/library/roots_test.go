@@ -21,7 +21,7 @@ var (
 // addRoot adds dir to the library and scans it; it returns the id of the new root.
 func (e *env) addRoot(libraryID int64, dir string) int64 {
 	e.t.Helper()
-	lib, err := e.svc.AddRoot(e.ctx, libraryID, dir)
+	lib, err := e.svc.AddRoots(e.ctx, libraryID, rootReq(dir, model.RootMovie))
 	if err != nil {
 		e.t.Fatalf("add root %s: %v", dir, err)
 	}
@@ -64,13 +64,13 @@ func TestAddRootRefusesOverlapAndUnknownLibrary(t *testing.T) {
 	dir := tree(t, firstFolder)
 	lib := e.create(dir)
 
-	if _, err := e.svc.AddRoot(e.ctx, lib.ID, dir); !errors.Is(err, model.ErrLibraryPathInvalid) {
-		t.Fatalf("adding the same folder again: err = %v, want ErrLibraryPathInvalid", err)
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID, rootReq(dir, model.RootMovie)); !hasFieldError(err, "roots[0].path", model.CodeRootOverlap) {
+		t.Fatalf("adding the same folder again: err = %v, want roots[0].path root_overlap", err)
 	}
-	if _, err := e.svc.AddRoot(e.ctx, lib.ID, filepath.Join(dir, "Alien (1979)")); !errors.Is(err, model.ErrLibraryPathInvalid) {
-		t.Fatalf("adding a folder below an existing root: err = %v, want ErrLibraryPathInvalid", err)
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID, rootReq(filepath.Join(dir, "Alien (1979)"), model.RootMovie)); !hasFieldError(err, "roots[0].path", model.CodeRootOverlap) {
+		t.Fatalf("adding a folder below an existing root: err = %v, want roots[0].path root_overlap", err)
 	}
-	if _, err := e.svc.AddRoot(e.ctx, lib.ID+99, t.TempDir()); !errors.Is(err, model.ErrNotFound) {
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID+99, rootReq(t.TempDir(), model.RootMovie)); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("adding to an unknown library: err = %v, want ErrNotFound", err)
 	}
 }
@@ -88,8 +88,8 @@ func TestAddRootKeepsTheBrowsableRootRule(t *testing.T) {
 
 	lib := e.create(inside)
 	outside := tree(t, secondFolder)
-	if _, err := e.svc.AddRoot(e.ctx, lib.ID, outside); !errors.Is(err, ErrNotBrowsable) {
-		t.Fatalf("adding a folder outside the browsable roots: err = %v, want ErrNotBrowsable", err)
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID, rootReq(outside, model.RootMovie)); !hasFieldError(err, "roots[0].path", "library_path_invalid") {
+		t.Fatalf("adding a folder outside the browsable roots: err = %v, want roots[0].path library_path_invalid", err)
 	}
 }
 
@@ -107,16 +107,16 @@ func TestAddRootRefusesAnOverlapThroughASymlink(t *testing.T) {
 	if err := os.Symlink(first, link); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.AddRoot(e.ctx, lib.ID, link); !errors.Is(err, model.ErrLibraryPathInvalid) {
-		t.Fatalf("adding a symlink onto an existing root: err = %v, want ErrLibraryPathInvalid", err)
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID, rootReq(link, model.RootMovie)); !hasFieldError(err, "roots[0].path", model.CodeRootOverlap) {
+		t.Fatalf("adding a symlink onto an existing root: err = %v, want roots[0].path root_overlap", err)
 	}
 	// The other direction too: a link that resolves to a folder holding the root.
 	above := filepath.Join(t.TempDir(), "darueber")
 	if err := os.Symlink(filepath.Dir(first), above); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.svc.AddRoot(e.ctx, lib.ID, above); !errors.Is(err, model.ErrLibraryPathInvalid) {
-		t.Fatalf("adding a symlink above an existing root: err = %v, want ErrLibraryPathInvalid", err)
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID, rootReq(above, model.RootMovie)); !hasFieldError(err, "roots[0].path", model.CodeRootOverlap) {
+		t.Fatalf("adding a symlink above an existing root: err = %v, want roots[0].path root_overlap", err)
 	}
 	if got := e.count(`SELECT count(*) FROM library_roots WHERE library_id = ?`, lib.ID); got != 1 {
 		t.Fatalf("roots = %d, want 1", got)
@@ -240,7 +240,7 @@ func TestRemoveRootTakesAudiobooksWithIt(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "Der Schwarm/01 Kapitel.mp3", "audio one")
 	writeFile(t, dir, "Der Schwarm/02 Kapitel.mp3", "audio two")
-	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Hörbücher", Kind: "audiobooks", Path: dir})
+	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Hörbücher", Kind: model.LibraryAudiobooks, Roots: rootReq(dir, model.RootAudiobook)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestRemoveRootRefusesAnUnknownRootOrLibrary(t *testing.T) {
 	e := newEnv(t)
 	first, second := tree(t, firstFolder), tree(t, secondFolder)
 	one := e.create(first)
-	two, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Serien", Kind: "series", Path: second})
+	two, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Serien", Kind: model.LibraryVideo, Roots: rootReq(second, model.RootSeries)})
 	if err != nil {
 		t.Fatal(err)
 	}

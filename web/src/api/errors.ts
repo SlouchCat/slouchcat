@@ -90,6 +90,12 @@ const fieldKeys = {
   not_burnable: 'errors.field.not_burnable',
   not_absolute: 'errors.field.not_absolute',
   library_path_invalid: 'errors.code.library_path_invalid',
+  // The folders of a library (ADR 0015): `roots[n].path`, `.content`, `.providers` and `roots`.
+  root_overlap: 'errors.field.root_overlap',
+  content_not_allowed: 'errors.field.content_not_allowed',
+  providers_not_allowed: 'errors.field.providers_not_allowed',
+  roots_required: 'errors.field.roots_required',
+  provider_not_searchable: 'errors.field.provider_not_searchable',
   // The folder browser of the library form (idea 02).
   path_not_browsable: 'errors.code.path_not_browsable',
   path_unreachable: 'errors.code.path_unreachable',

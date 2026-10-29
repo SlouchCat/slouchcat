@@ -6,6 +6,7 @@ import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { Chip, Notice, Text } from '@/ui';
 import { AriaButton, ConfirmInputDialog, Form, FormDialog, TextField } from '@/ui/aria';
+import { defaultRoot } from '../shared/LibraryFields';
 import { browseKey } from '../shared/pathBrowser';
 import { PathBrowserButton } from '../shared/PathBrowserButton';
 import { librariesQuery } from './queries';
@@ -63,7 +64,7 @@ export function LibraryFoldersDialog({
       request(
         api.POST('/admin/libraries/{id}/roots', {
           params: { path: { id: library.id } },
-          body: { path: folder },
+          body: { roots: [defaultRoot(library.kind, folder)] },
         }),
       ),
     onSuccess: async (updated) => {
@@ -94,8 +95,10 @@ export function LibraryFoldersDialog({
     },
   });
 
-  // The contract reports the folder as `library.path`; the field of this dialog is `path`.
-  const addErrors = add.error ? formErrors(t, add.error, { 'library.path': 'path' }) : null;
+  // The contract names the folder by its index (`roots[0].path`); the field of this dialog is `path`.
+  const addErrors = add.error
+    ? formErrors(t, add.error, { 'library.path': 'path', 'roots[0].path': 'path' })
+    : null;
 
   // Every way out of the dialog clears it, the "Schliessen" button included: closing on an error
   // and opening again must not show the message of a request that is long over.

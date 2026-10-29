@@ -1,5 +1,111 @@
 # Aktueller Stand
 
+## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, in Arbeit)
+
+Auf dem Zweig `claude/bibliotheken` (Pull Request #45, Entwurf) nach dem Konzept
+`docs/planning/07-bibliotheken.md` (Fassung 4), den Entscheiden in **Frage 13** des
+Entscheidungsprotokolls und **ADR 0015** (Teilnachfolger von ADR 0006). Ein Commit je Planschritt;
+vor jedem Abschluss war `task ci` grün.
+
+**Was sich ändert.** Eine Bibliothek ist nur noch eine **Familie** (`video`, `audiobooks`,
+`podcasts`); die alten Arten `movies` und `series` sind verbrannt. Jeder Ordner (`library_roots`)
+trägt eine **Inhaltsart** (`movie`, `series`, `audiobook`, `podcast`) und eine **geordnete Liste
+von Metadatenquellen** (`tmdb`, `tvdb`, `anilist`, `local`): der erste Eintrag erkennt den Titel
+und bestimmt bei Serien die Staffelzählung, jeder weitere füllt auf. Eine Video-Bibliothek darf
+Film- und Serienordner zugleich tragen («Dokus», «Kids», «Anime»); eine Bibliothek nimmt mehrere
+Ordner in einem Zug an, der Server legt alle oder keinen an (F-13).
+
+### Schritt 0 — Entscheide und Papiere (`01b9b70`)
+
+Frage 13 mit F-1 bis F-13 im Entscheidungsprotokoll (F-10 durch den Merge von PR #44 geschlossen),
+ADR 0015, Ablösungshinweise in ADR 0006 und 0007, Idee 01 in Teil A (hierher) und Teil B (bleibt)
+geteilt, `docs/ideas/README.md` und der Kopf von Idee 02 nachgeführt, das Papier auf `main 9923807`
+verankert. `git diff --stat docs/spec/` ist leer. Der Kommentar zu Issue #8 liegt in den
+Sitzungsnotizen zum Posten durch Marco bereit.
+
+### Schritte 1 und 2 — Schema, Scanner je Wurzel, Vertrag 1.3.0 (ein Commit)
+
+Die zwei Schritte sind **ein Commit**, wie Abschnitt 10 des Papiers es für den Fall vorsieht, dass
+`task ci` dazwischen nicht grün sein kann: der Vertrag ohne das Schema liesse die Web-App nicht
+kompilieren, das Schema ohne den Vertrag bräuchte eine Übersetzungsschicht für genau einen Commit.
+
+**Migration 00023** (`server/migrations/00023_library_roots_providers.sql`): `library_roots` bekommt
+`content` und `providers` (JSON-Liste), `items` bekommt `providers` (kopiert aus der Wurzel),
+`anilist_id` und `feed_origin`, die Tabelle `item_field_sources` entsteht leer, `libraries` wird mit
+`kind IN ('video', 'audiobooks', 'podcasts')` neu gebaut (`id` bleibt). Bestehende Wurzeln und Titel
+bekommen die heutige Reihenfolge: Filme `["tmdb"]`, Serien `["tmdb","tvdb"]`, Hörbücher und
+Podcasts `["local"]`; ein Feed-Abo trägt `feed_origin = 'admin'`. Zwei Wächter mit `CHECK`-Tabelle
+brechen den Lauf vor `COMMIT` ab, wenn ein Paar nicht passt; der `CASE` ohne `ELSE` ist der erste
+Wächter davor.
+
+**Scanner je Wurzel.** `walkRoot`, `parsePath`, `scannedExt`, `wanted`, `videoFile`, `listDirFiles`,
+`describe` und der Batch-Writer lesen den Inhalt der Wurzel statt der Bibliotheksart; der Titelindex
+ist **einer je Titelart** (`libraryIndex`), damit ein Film und eine Serie mit derselben `tmdb_id` in
+einer Bibliothek zwei Titel bleiben (Konzept 12.1). Die Batchgrösse schrumpft, sobald eine Wurzel
+Serien hält; `QueuePendingSegments` läuft, sobald eine Wurzel Serien hält. Podcast-Ordner werden
+angenommen, aber erst in Schritt 3 gelesen.
+
+**`library.Service`:** `Create` legt Bibliothek und alle Ordner in einer Transaktion an;
+`AddRoots` nimmt eine Liste (Überlappung auch innerhalb der Liste, ein Scan am Ende);
+`UpdateRoot` mit den drei Wirkungen aus 6.3 (Liste ändern: `UpdateItemsProvidersByRoot` und ein
+`metadata.match` je Titel; Erkenner wechseln: dasselbe; Inhalt wechseln: Löschweg aus Idea 02 ohne
+Wurzelzeile, `confirmPath`, Scan-Sperre, Wurzelzustand des Scanners leeren, Watcher bleibt, Scan
+neu). Die Regeln aus Abschnitt 2 stehen in `model.ValidRootProviders`, `ContentAllowed`; jede
+Verletzung ist ein Feldfehler mit Index (`roots[1].path root_overlap`, `roots[0].content
+content_not_allowed`, `roots[0].providers providers_not_allowed`, `roots roots_required`).
+
+**Metadaten:** `match` wählt den Erkenner nach dem ersten Listeneintrag; bei `tvdb` zuerst erkennt
+TVDB, die Staffeln folgen der TVDB-Zählung und die `tmdb_id` wird über TMDBs `/find` zusätzlich
+geholt; `seriesProvider` folgt der Liste. `searchMetadata` und `assignMatch` nehmen weiter nur
+`tmdb` und `tvdb` (`provider_not_searchable`). Das Auffüllen (`metadata.fill`) kommt in Schritt 4.
+
+**Vertrag 1.3.0, brechend** (gehört wörtlich in die Release-Notes, C-5):
+
+- `LibraryKind` verliert `movies` und `series` und bekommt `video`; entfernte Enum-Werte werden nie
+  wiederverwendet.
+- `LibraryRequest.path` entfällt; neu `LibraryRequest.roots[]` (`LibraryRootRequest` mit den
+  Pflichtfeldern `path`, `content`, `providers`), Pflicht bei `video` und `audiobooks`.
+- `addLibraryRoot` nimmt `LibraryRootsRequest` (`roots[]`) statt eines Ordners.
+- `LibraryRoot` trägt `content` und `providers`; `MetadataProvider` wächst um `anilist` und `local`;
+  `DuplicateGroup.reason` bekommt `file_and_feed`; `AdminItem` bekommt `providers`, `fieldSources`,
+  `anilistId?`; `AdminPodcast` bekommt `feedOrigin?`, `rootId?`, `localEpisodeCount`, `feedUrl` wird
+  optional.
+- Neu: `updateLibraryRoot` (`PATCH /admin/libraries/{id}/roots/{rootId}`), `listMetadataProviders`
+  (`GET /admin/metadata/providers`), die Schemata `RootContent`, `LibraryRootsRequest`,
+  `LibraryRootUpdate`, `MetadataProviderInfo`, `FieldSource`.
+- Ein ungültiger Ordner ist bei `createLibrary`, `runSetup` und `addLibraryRoot` kein Problemcode
+  `library_path_invalid` mehr, sondern ein Feldfehler `roots[i].path` (`library_path_invalid`,
+  `root_overlap`) in `validation_failed`.
+
+**Web-Minimum** (die Oberfläche kommt in Schritt 5): drei Arten «Video», «Hörbücher», «Podcasts»;
+die Formulare senden feste Vorgabelisten (`movie/["tmdb"]`, `audiobook/["local"]`,
+`podcast/["local"]`); Fehler an `roots[0].path` landen am Ordnerfeld; Fixtures und e2e-Specs
+folgen.
+
+**Belege (DoD Schritt 1 und 2):**
+
+| Kriterium | Beleg |
+|---|---|
+| `task ci` grün | `task ci` (29. Oktober 2026): `ci:server` alle Pakete `ok` (Go mit `-race`, `golangci-lint` 0 Befunde, `gen:check` ohne Drift), `ci:web` Vitest 632 Tests in 77 Dateien, api-client 4, design-tokens 2, Storybook-Vergleichsbilder über `sg docker`, `task build`, `task ci:e2e` **442 passed (23.7m)**, A-9-Logscan 0 Befunde |
+| Eingefrorene Stände migrieren, `foreign_key_check` leer | `go test ./internal/store/ -run 'TestFrozenStatesMigrate\|TestMigration00023' -count=1`: `ok` (13 Stände, M1a bis `benutzerverwaltung`) |
+| M6-Stand nach 00023: `video, video, audiobooks, podcasts`; Wurzeln `movie/["tmdb"]`, `series/["tmdb","tvdb"]`, `audiobook/["local"]`; Hörbuchtitel `["local"]`; Feed-Podcast `["local"]` und `feed_origin = 'admin'`; `item_field_sources` leer | `TestMigration00023OverM6` (`server/internal/store/frozen_libraries_test.go`) |
+| Kein View, kein Trigger liest `libraries` (4.6 Punkt 4) | dieselbe Prüfung auf dem M6-Stand vor der Migration: `SELECT count(*) FROM sqlite_master WHERE type IN ('view','trigger') AND (sql LIKE '%FROM libraries%' …)` = 0 |
+| Wächter bricht einen präparierten Stand ab | `TestMigration00023GuardAbortsAWrongPair`: Wurzel in die Podcast-Bibliothek verschoben → `partial migration error (type:sql,version:23): … NOT NULL constraint failed: library_roots.content`, die alten Arten stehen danach noch |
+| Gemischte Bibliothek: Film und Serie mit derselben `tmdb_id` ergeben zwei Titel | `TestMixedLibraryKeepsFilmAndSeriesWithTheSameTMDBIDApart` (`server/internal/library/mixed_test.go`) |
+| Serienordner verwirft Dateien ohne Folgenmarke, Filmordner derselben Bibliothek nicht | `TestSeriesRootRejectsFilesWithoutMarkerTheMovieRootDoesNot` |
+| Inhaltswechsel `movie → series`: kein Titel ohne Datei, Tombstone des Downloads, `ignored_files` leer, `pathPending` und `orphans` leer, Watcher läuft, Scan legt Folgen neu an; `confirm_mismatch`, `scan_running` | `TestUpdateRootContentChangeRereadsTheFolder` |
+| Listenänderung: ein Job je Titel, nichts gelöscht, kein Scan | `TestUpdateRootProvidersQueuesOneJobPerTitleAndDeletesNothing` |
+| Regeln: `content_not_allowed`, `providers_not_allowed` (AniList allein, TVDB am Filmordner, Doppelte, leere Liste), `roots_required`, `root_overlap` innerhalb der Anfrage; `["tvdb","tmdb","anilist"]` am Serienordner 200; Podcasts ohne Ordner 201; alles oder nichts | `TestCreateAppliesTheFolderRules`, `TestAddRootsIsAllOrNothing`, `TestPodcastLibraryTakesPodcastFolders` |
+| Serie mit `["tvdb","tmdb"]` über TVDB erkannt, `tvdb_id` und `tmdb_id` (aus `/find`), Staffeln nach TVDB; `["tmdb","tvdb"]` wie heute; TVDB zuerst ohne Schlüssel `skipped` | `TestMatchSeriesTVDBFirst`, `TestMatchSeriesDefaultListIsTMDBFirst`, `TestMatchSeriesTVDBFirstWithoutKeyIsSkipped` (`server/internal/metadata/providers_test.go`) |
+| Vertrag über HTTP: zwei Ordner in einem `createLibrary`, `roots: []` bei `video` 422 `roots_required`, bei `podcasts` 201; `updateLibraryRoot` 200 beim Listenwechsel, `confirm_mismatch` und 409 `scan_running` beim Inhaltswechsel; `listMetadataProviders` mit TVDB `configured: false` | `TestCreateLibraryWithSeveralFolders`, `TestUpdateLibraryRootEndpoint`, `TestListMetadataProvidersEndpoint` (`server/internal/api/library_roots_handlers_test.go`) |
+| Schema-Test findet `x-visibility`, Vertragstest deckt jede Operation | `TestContractCoversEveryOperation` mit den Einträgen `updateLibraryRoot`, `listMetadataProviders` |
+| `searchMetadata` mit `anilist` → 422 `provider_not_searchable` | `TestSearch`, `TestAssignMatchAndRefresh` (`manage_test.go`) |
+| `scanbench` ohne Regression gegen `docs/perf/M3.md` | `docs/perf/bibliotheken.md` Abschnitt 1: `main` und neue Fassung abwechselnd auf demselben Baum, Serien 40.7/41.7 s gegen 42.7/42.2 s, Erst-Lauf 64.1/65.1 s gegen 66.3/65.2 s, 713 Transaktionen in allen Läufen, 0 Wiederholungen; innerhalb der Streuung |
+
+**Offen nach Schritt 2:** Podcast-Ordner lesen (Schritt 3), `metadata.fill` und AniList (Schritt 4),
+die Bauteile «Metadatenquellen» und «Ordnerliste» mit Tastaturtests (Schritt 5), Abnahme auf CT 190,
+neuer eingefrorener Stand und Versionsstellen auf 1.3.0 (Schritt 6).
+
 ## Benutzerverwaltung: Administrator, Konto, Profil (28. Oktober 2026)
 
 Auf dem Zweig `claude/benutzerverwaltung` umgesetzt, nach dem Konzept

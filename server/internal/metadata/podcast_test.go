@@ -122,7 +122,7 @@ func newPodcastEnv(t *testing.T, episodes int) *podcastEnv {
 	// (package netguard) allows for a feed whose own host is local.
 	svc := New(db, q, staticKey(""), t.TempDir(), transcode.Runner{}, log,
 		WithFeedClock(clock.now), WithFeedUserAgent("Slouchcat/test"))
-	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (1, 'Filme', 'movies', NULL, 0, 0)`)
+	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (1, 'Filme', 'video', NULL, 0, 0)`)
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (3, 'Podcasts', 'podcasts', 6, 0, 0)`)
 	return &podcastEnv{db: db, svc: svc, queue: q, feed: f, clock: clock}
 }

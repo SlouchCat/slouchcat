@@ -64,13 +64,14 @@ func (e *env) addLibrary(t *testing.T, name, rootPath string) (libraryID, rootID
 	t.Helper()
 	ctx := context.Background()
 	lib, err := e.app.InsertLibrary(ctx, appq.InsertLibraryParams{
-		Name: name, Kind: "movies", DefaultRating: sql.NullInt64{Int64: 0, Valid: true}, Now: e.now.UnixMilli(),
+		Name: name, Kind: model.LibraryVideo, DefaultRating: sql.NullInt64{Int64: 0, Valid: true}, Now: e.now.UnixMilli(),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	root, err := e.app.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{
-		LibraryID: lib.ID, Path: rootPath, FsType: "ext4", Watch: "inotify", Now: e.now.UnixMilli(),
+		LibraryID: lib.ID, Path: rootPath, FsType: "ext4", Watch: "inotify",
+		Content: model.RootMovie, Providers: model.ProvidersJSON(model.DefaultProviders(model.RootMovie)), Now: e.now.UnixMilli(),
 	})
 	if err != nil {
 		t.Fatal(err)

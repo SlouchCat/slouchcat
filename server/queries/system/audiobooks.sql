@@ -7,10 +7,10 @@
 -- with the probe), the age rating of the library (rating_source 'library', or 18 from 'tags' for
 -- an explicit book). Audiobooks need no provider match: metadata_state is 'matched' at once.
 INSERT INTO items (id, kind, library_id, title, sort_title, year, genres, author, narrator, series_name,
-                   series_index, explicit, cover_path, own_rating, rating_source, metadata_state, matched_at,
-                   added_at, created_at, updated_at)
+                   series_index, explicit, cover_path, own_rating, rating_source, providers, metadata_state,
+                   matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'audiobook', @library_id, @title, @sort_title, @year, @genres, @author, @narrator, @series_name,
-        @series_index, @explicit, @cover_path, @own_rating, @rating_source, 'matched', @now,
+        @series_index, @explicit, @cover_path, @own_rating, @rating_source, '["local"]', 'matched', @now,
         @now, @now, @now)
 RETURNING *;
 

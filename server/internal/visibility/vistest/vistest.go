@@ -351,11 +351,12 @@ func (f *Fixture) seedProfiles(t testing.TB, ctx context.Context) {
 func (f *Fixture) seedMovies(t testing.TB, ctx context.Context) {
 	t.Helper()
 	q := appq.New(f.DB.Write)
-	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme", Kind: "movies", Now: 1})
+	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme", Kind: model.LibraryVideo, Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.MediaDir, FsType: "ext4", Watch: "inotify", Now: 1})
+	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.MediaDir, FsType: "ext4", Watch: "inotify",
+		Content: model.RootMovie, Providers: model.ProvidersJSON(model.DefaultProviders(model.RootMovie)), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,11 +394,12 @@ func (f *Fixture) AddEdgeCases(t testing.TB) {
 	exec(t, f.DB, `INSERT INTO profile_libraries (profile_id, library_id) VALUES (?, ?)`, f.PX.ID, f.libraryID)
 
 	f.OtherMediaDir = t.TempDir()
-	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme X", Kind: "movies", Now: 1})
+	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme X", Kind: model.LibraryVideo, Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.OtherMediaDir, FsType: "ext4", Watch: "inotify", Now: 1})
+	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.OtherMediaDir, FsType: "ext4", Watch: "inotify",
+		Content: model.RootMovie, Providers: model.ProvidersJSON(model.DefaultProviders(model.RootMovie)), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

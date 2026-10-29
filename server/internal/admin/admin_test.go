@@ -5,7 +5,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -71,8 +73,12 @@ func (f *fakeLibraries) Create(_ context.Context, req model.LibraryRequest) (mod
 
 func (f *fakeLibraries) lib(id int64) model.Library {
 	req := f.created[id-1]
+	var root model.LibraryRootRequest
+	if len(req.Roots) > 0 {
+		root = req.Roots[0]
+	}
 	return model.Library{ID: id, Name: req.Name, Kind: req.Kind,
-		Roots: []model.LibraryRoot{{ID: id, Path: req.Path, FSType: "ext4", Watch: "inotify"}},
+		Roots: []model.LibraryRoot{{ID: id, Path: root.Path, FSType: "ext4", Watch: "inotify", Content: root.Content, Providers: root.Providers}},
 		Scan:  model.LibraryScan{State: "queued"}}
 }
 
@@ -112,14 +118,39 @@ type removedRoot struct {
 	confirmPath       string
 }
 
-func (f *fakeLibraries) AddRoot(ctx context.Context, libraryID int64, path string) (model.Library, error) {
-	if err := f.ValidateNewRoot(ctx, path); err != nil {
+// ValidateRoots runs the fake's path rules on every folder the way package library reports
+// them: a path ValidateNewRoot refuses becomes the field error <field>[i].path.
+func (f *fakeLibraries) ValidateRoots(ctx context.Context, _ string, roots []model.LibraryRootRequest, field string) error {
+	var verr *model.ValidationError
+	for i, r := range roots {
+		err := f.ValidateNewRoot(ctx, strings.TrimSpace(r.Path))
+		switch {
+		case errors.Is(err, model.ErrLibraryPathInvalid):
+			verr = verr.Add(fmt.Sprintf("%s[%d].path", field, i), "library_path_invalid")
+		case err != nil:
+			return err
+		}
+	}
+	if verr != nil {
+		return verr
+	}
+	return nil
+}
+
+func (f *fakeLibraries) AddRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error) {
+	if err := f.ValidateRoots(ctx, "", roots, "roots"); err != nil {
 		return model.Library{}, err
 	}
 	if _, err := f.Get(ctx, libraryID); err != nil {
 		return model.Library{}, err
 	}
-	f.addedRoots = append(f.addedRoots, addedRoot{libraryID, path})
+	for _, r := range roots {
+		f.addedRoots = append(f.addedRoots, addedRoot{libraryID, r.Path})
+	}
+	return f.Get(ctx, libraryID)
+}
+
+func (f *fakeLibraries) UpdateRoot(ctx context.Context, libraryID, _ int64, _ model.LibraryRootUpdate) (model.Library, error) {
 	return f.Get(ctx, libraryID)
 }
 
@@ -186,8 +217,13 @@ func newFixture(t *testing.T) *fixture {
 func setupRequest() model.SetupRequest {
 	return model.SetupRequest{
 		Email: "marco@example.ch", Password: fakePassword, Language: "de", TMDBKey: " " + fakeKey + " ",
-		Library: model.LibraryRequest{Name: "Filme", Kind: "movies", Path: "/media/Filme"},
+		Library: model.LibraryRequest{Name: "Filme", Kind: model.LibraryVideo, Roots: movieRoots("/media/Filme")},
 	}
+}
+
+// movieRoots is the request for one movie folder with its default providers.
+func movieRoots(path string) []model.LibraryRootRequest {
+	return []model.LibraryRootRequest{{Path: path, Content: model.RootMovie, Providers: model.DefaultProviders(model.RootMovie)}}
 }
 
 func (f *fixture) accounts(t *testing.T) int {
@@ -225,7 +261,7 @@ func TestRunSetupHappyPath(t *testing.T) {
 	if err != nil || resolved.ID != sess.ID {
 		t.Fatalf("resolve setup token: %+v, %v", resolved, err)
 	}
-	if len(f.libs.created) != 1 || f.libs.created[0] != setupRequest().Library {
+	if len(f.libs.created) != 1 || !reflect.DeepEqual(f.libs.created[0], setupRequest().Library) {
 		t.Fatalf("libraries created = %+v", f.libs.created)
 	}
 	if !slices.Equal(f.tmdb.checks, []string{fakeKey}) {
@@ -279,10 +315,12 @@ func TestRunSetupFailuresCreateNothing(t *testing.T) {
 		tmdbErr error
 		mutate  func(*model.SetupRequest)
 		want    error
+		// wantField is the field that carries library_path_invalid when want is nil.
+		wantField string
 	}{
 		{name: "invalid key", tmdbErr: model.ErrTMDBKeyInvalid, want: model.ErrTMDBKeyInvalid},
 		{name: "tmdb unreachable", tmdbErr: model.ErrTMDBUnreachable, want: model.ErrTMDBUnreachable},
-		{name: "bad path", mutate: func(r *model.SetupRequest) { r.Library.Path = badPath }, want: model.ErrLibraryPathInvalid},
+		{name: "bad path", mutate: func(r *model.SetupRequest) { r.Library.Roots[0].Path = badPath }, wantField: "library.roots[0].path"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -293,7 +331,13 @@ func TestRunSetupFailuresCreateNothing(t *testing.T) {
 				tc.mutate(&req)
 			}
 			_, token, err := f.svc.RunSetup(context.Background(), req, "")
-			if !errors.Is(err, tc.want) || token != "" {
+			if tc.wantField != "" {
+				var verr *model.ValidationError
+				if !errors.As(err, &verr) || token != "" ||
+					!slices.Equal(verr.Fields, []model.FieldError{{Field: tc.wantField, Code: "library_path_invalid"}}) {
+					t.Fatalf("err = %v, want %s library_path_invalid", err, tc.wantField)
+				}
+			} else if !errors.Is(err, tc.want) || token != "" {
 				t.Fatalf("err = %v, want %v", err, tc.want)
 			}
 			if strings.Contains(err.Error(), fakeKey) || strings.Contains(err.Error(), fakePassword) {
@@ -310,7 +354,7 @@ func TestRunSetupValidationListsEveryField(t *testing.T) {
 	f := newFixture(t)
 	req := model.SetupRequest{
 		Email: "not-an-email", Password: "short", Language: "fr", TMDBKey: strings.Repeat("k", 2000),
-		Library: model.LibraryRequest{Name: " ", Kind: "music", Path: ""},
+		Library: model.LibraryRequest{Name: " ", Kind: "music"},
 	}
 	_, _, err := f.svc.RunSetup(context.Background(), req, "")
 	var verr *model.ValidationError
@@ -320,7 +364,7 @@ func TestRunSetupValidationListsEveryField(t *testing.T) {
 	want := []model.FieldError{
 		{Field: "email", Code: "invalid_email"}, {Field: "password", Code: "too_short"},
 		{Field: "language", Code: "invalid_value"}, {Field: "library.name", Code: "required"},
-		{Field: "library.kind", Code: "invalid_value"}, {Field: "library.path", Code: "required"},
+		{Field: "library.kind", Code: "invalid_value"}, {Field: "library.roots", Code: model.CodeRootsRequired},
 		{Field: "tmdbApiKey", Code: "too_long"},
 	}
 	if !slices.Equal(verr.Fields, want) {
@@ -399,12 +443,13 @@ func TestLibraryDelegation(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
 	var verr *model.ValidationError
-	if _, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Kind: "series"}); !errors.As(err, &verr) ||
-		!slices.Equal(verr.Fields, []model.FieldError{{Field: "name", Code: "required"}, {Field: "path", Code: "required"}}) {
+	if _, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Kind: model.LibraryVideo}); !errors.As(err, &verr) ||
+		!slices.Equal(verr.Fields, []model.FieldError{{Field: "name", Code: "required"}, {Field: "roots", Code: model.CodeRootsRequired}}) {
 		t.Fatalf("CreateLibrary validation: %v", err)
 	}
-	lib, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Name: "Serien", Kind: "series", Path: "/media/Serien"})
-	if err != nil || lib.ID != 1 || lib.Kind != "series" {
+	series := []model.LibraryRootRequest{{Path: "/media/Serien", Content: model.RootSeries, Providers: model.DefaultProviders(model.RootSeries)}}
+	lib, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Name: "Serien", Kind: model.LibraryVideo, Roots: series})
+	if err != nil || lib.ID != 1 || lib.Kind != model.LibraryVideo {
 		t.Fatalf("CreateLibrary = %+v, %v", lib, err)
 	}
 	if libs, err := f.svc.ListLibraries(ctx); err != nil || len(libs) != 1 {
@@ -425,7 +470,7 @@ func (f *fixture) seedItem(t *testing.T, id string, ownRating *int, source, lock
 	t.Helper()
 	ctx := context.Background()
 	for _, q := range []string{
-		`INSERT OR IGNORE INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 0, 0)`,
+		`INSERT OR IGNORE INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 0, 0)`,
 	} {
 		if _, err := f.db.Write.ExecContext(ctx, q); err != nil {
 			t.Fatal(err)
@@ -545,21 +590,21 @@ func TestSetItemRating(t *testing.T) {
 func TestLibraryRootDelegation(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
-	if _, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Name: "Filme", Kind: "movies", Path: "/media/Filme"}); err != nil {
+	if _, err := f.svc.CreateLibrary(ctx, model.LibraryRequest{Name: "Filme", Kind: model.LibraryVideo, Roots: movieRoots("/media/Filme")}); err != nil {
 		t.Fatal(err)
 	}
 	var verr *model.ValidationError
-	if _, err := f.svc.AddLibraryRoot(ctx, 1, "   "); !errors.As(err, &verr) ||
-		!slices.Equal(verr.Fields, []model.FieldError{{Field: "path", Code: "required"}}) {
-		t.Fatalf("AddLibraryRoot without a path: %v", err)
+	if _, err := f.svc.AddLibraryRoots(ctx, 1, movieRoots("   ")); !errors.As(err, &verr) ||
+		!slices.Equal(verr.Fields, []model.FieldError{{Field: "roots[0].path", Code: "required"}}) {
+		t.Fatalf("AddLibraryRoots without a path: %v", err)
 	}
-	if _, err := f.svc.AddLibraryRoot(ctx, 1, "/"+strings.Repeat("x", 4096)); !errors.As(err, &verr) ||
-		!slices.Equal(verr.Fields, []model.FieldError{{Field: "path", Code: "too_long"}}) {
-		t.Fatalf("AddLibraryRoot with an over-long path: %v", err)
+	if _, err := f.svc.AddLibraryRoots(ctx, 1, movieRoots("/"+strings.Repeat("x", 4096))); !errors.As(err, &verr) ||
+		!slices.Equal(verr.Fields, []model.FieldError{{Field: "roots[0].path", Code: "too_long"}}) {
+		t.Fatalf("AddLibraryRoots with an over-long path: %v", err)
 	}
-	// The path arrives trimmed, and the browsable-root rule of E14 runs on it.
-	if _, err := f.svc.AddLibraryRoot(ctx, 1, " /media/Filme-2 "); err != nil {
-		t.Fatalf("AddLibraryRoot: %v", err)
+	// The folder reaches package library, where the browsable-root rule of E14 runs on it.
+	if _, err := f.svc.AddLibraryRoots(ctx, 1, movieRoots("/media/Filme-2")); err != nil {
+		t.Fatalf("AddLibraryRoots: %v", err)
 	}
 	if !slices.Equal(f.libs.addedRoots, []addedRoot{{1, "/media/Filme-2"}}) {
 		t.Fatalf("addedRoots = %+v", f.libs.addedRoots)

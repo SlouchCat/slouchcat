@@ -176,7 +176,12 @@
       "not_burnable": "Diese Untertitelspur kann nicht eingebrannt werden.",
       "invalid_url": "Gib eine Adresse mit http:// oder https:// an.",
       "library_kind": "Wähle eine Podcast-Bibliothek.",
-      "unknown_item": "Diesen Titel gibt es nicht."
+      "unknown_item": "Diesen Titel gibt es nicht.",
+      "root_overlap": "Dieser Ordner überschneidet sich mit einem anderen Ordner.",
+      "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
+      "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
+      "roots_required": "Mindestens ein Ordner ist nötig.",
+      "provider_not_searchable": "Nur TMDB und TVDB lassen sich durchsuchen."
     }
   },
   "setup": {
@@ -195,6 +200,7 @@
       "title": "Erste Bibliothek",
       "description": "Weitere Bibliotheken kannst du später hinzufügen.",
       "name": "Name",
+      "defaultName": "Filme",
       "kind": "Inhalt",
       "path": "Ordner",
       "pathHint": "Absoluter Pfad im Container, zum Beispiel /media/Filme.",
@@ -244,14 +250,13 @@
   },
   "library": {
     "kind": {
-      "movies": "Filme",
-      "series": "Serien",
+      "video": "Video",
       "audiobooks": "Hörbücher",
       "podcasts": "Podcasts"
     },
     "defaultRating": "Standard-Altersstufe",
     "defaultRatingHint": "Gilt für jeden Titel dieser Bibliothek. Einzelne Titel lassen sich danach nur strenger einstufen.",
-    "podcastsHint": "Podcasts brauchen keinen Ordner: Du abonnierst ihre Feeds unter Podcasts.",
+    "podcastsHint": "Ordner optional: Du kannst Feeds auch ohne Ordner unter Podcasts abonnieren.",
     "browse": {
       "title": "Ordner auswählen",
       "open": "Durchsuchen …",
@@ -733,7 +738,8 @@
         "reason": {
           "provider_id": "Gleiche Anbieter-ID",
           "title_year": "Gleicher Titel und gleiches Jahr",
-          "file_hash": "Gleicher Dateiinhalt"
+          "file_hash": "Gleicher Dateiinhalt",
+          "file_and_feed": "Datei und Feed derselben Folge"
         },
         "group": "Gruppe {{index}}",
         "target": "Behalten",

@@ -32,14 +32,22 @@ test('Tab reaches header, rescan and the add form in order; no focus trap', asyn
   // as many as there are libraries: no fixed budget.
   await tabTo(page, page.getByLabel('Name', { exact: true }));
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('radio', { name: 'Filme' }));
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Video' }));
   await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, page.getByRole('radio', { name: 'Serien' }));
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Hörbücher' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByLabel('Ordner', { exact: true }));
   // The folder browser of idea 02 sits right after the field, as the wizard's check does.
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Durchsuchen …' }));
+  // Audiobooks bring the default age rating, one Tab stop after the folder.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    page.getByRole('radiogroup', { name: 'Standard-Altersstufe' }).getByRole('radio', {
+      name: 'FSK 0',
+    }),
+  );
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Hinzufügen' }));
   await expectNoFocusTrap(page);
@@ -53,10 +61,9 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await tabTo(page, page.getByLabel('Name', { exact: true }));
   await page.keyboard.type('E2E Hörbücher');
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('radio', { name: 'Filme' }));
-  // Movies and series have no default rating; the third kind is audiobooks.
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Video' }));
+  // A video library has no default rating; the second kind is audiobooks.
   await expect(rating).toHaveCount(0);
-  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Hörbücher' }));
   await expect(page.getByRole('radio', { name: 'Hörbücher' })).toBeChecked();
@@ -86,7 +93,7 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Podcasts' }));
   await expect(folder).toHaveCount(0);
-  await expect(page.getByText(/Podcasts brauchen keinen Ordner/)).toBeVisible();
+  await expect(page.getByText(/Ordner optional/)).toBeVisible();
   // Without a folder field there is nothing to browse either; the next stop is the rating.
   await expect(page.getByRole('button', { name: 'Durchsuchen …' })).toHaveCount(0);
   await page.keyboard.press('Tab');

@@ -686,6 +686,11 @@ func toAdminPodcast(r systemq.PodcastListRow) model.AdminPodcast {
 		t := time.UnixMilli(r.FeedCheckedAt.Int64).UTC()
 		out.LastCheckedAt = &t
 	}
+	out.FeedOrigin, out.LocalEpisodeCount = r.FeedOrigin.String, int(r.LocalEpisodeCount)
+	if r.RootID != 0 {
+		id := r.RootID
+		out.RootID = &id
+	}
 	return out
 }
 

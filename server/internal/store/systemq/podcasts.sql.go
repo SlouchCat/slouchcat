@@ -35,7 +35,7 @@ func (q *Queries) PodcastFindByFeed(ctx context.Context, arg PodcastFindByFeedPa
 }
 
 const podcastGet = `-- name: PodcastGet :one
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, l.default_rating AS library_default_rating
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, l.default_rating AS library_default_rating
 FROM items AS i JOIN libraries AS l ON l.id = i.library_id
 WHERE i.id = ?1 AND i.kind = 'podcast'
 `
@@ -96,6 +96,9 @@ type PodcastGetRow struct {
 	PublishedAt          sql.NullInt64
 	EnclosureType        sql.NullString
 	EnclosureLength      sql.NullInt64
+	Providers            string
+	AnilistID            sql.NullInt64
+	FeedOrigin           sql.NullString
 	LibraryDefaultRating sql.NullInt64
 }
 
@@ -159,6 +162,9 @@ func (q *Queries) PodcastGet(ctx context.Context, id string) (PodcastGetRow, err
 		&i.PublishedAt,
 		&i.EnclosureType,
 		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
 		&i.LibraryDefaultRating,
 	)
 	return i, err
@@ -166,11 +172,11 @@ func (q *Queries) PodcastGet(ctx context.Context, id string) (PodcastGetRow, err
 
 const podcastInsert = `-- name: PodcastInsert :one
 INSERT INTO items (id, kind, library_id, title, sort_title, author, explicit, cover_url, feed_url, feed_etag,
-                   feed_modified, feed_checked_at, own_rating, rating_source, metadata_state, matched_at, added_at,
-                   created_at, updated_at)
+                   feed_modified, feed_checked_at, feed_origin, own_rating, rating_source, providers, metadata_state,
+                   matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-        ?10, ?11, ?12, ?13, 'matched', ?11, ?11, ?11, ?11)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length
+        ?10, ?11, ?12, ?13, ?14, '["local"]', 'matched', ?11, ?11, ?11, ?11)
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin
 `
 
 type PodcastInsertParams struct {
@@ -185,11 +191,14 @@ type PodcastInsertParams struct {
 	FeedEtag     sql.NullString
 	FeedModified sql.NullString
 	Now          sql.NullInt64
+	FeedOrigin   sql.NullString
 	OwnRating    sql.NullInt64
 	RatingSource sql.NullString
 }
 
 // A new subscription after its first successful fetch; the episodes follow in the same transaction.
+// feed_origin names who chose the feed: 'admin' for a subscription made by hand, 'file' for a feed
+// read from the metadata.json of a podcast folder (ADR 0015).
 func (q *Queries) PodcastInsert(ctx context.Context, arg PodcastInsertParams) (Item, error) {
 	row := q.db.QueryRowContext(ctx, podcastInsert,
 		arg.ID,
@@ -203,6 +212,7 @@ func (q *Queries) PodcastInsert(ctx context.Context, arg PodcastInsertParams) (I
 		arg.FeedEtag,
 		arg.FeedModified,
 		arg.Now,
+		arg.FeedOrigin,
 		arg.OwnRating,
 		arg.RatingSource,
 	)
@@ -263,6 +273,9 @@ func (q *Queries) PodcastInsert(ctx context.Context, arg PodcastInsertParams) (I
 		&i.PublishedAt,
 		&i.EnclosureType,
 		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
 	)
 	return i, err
 }
@@ -270,10 +283,10 @@ func (q *Queries) PodcastInsert(ctx context.Context, arg PodcastInsertParams) (I
 const podcastInsertEpisode = `-- name: PodcastInsertEpisode :exec
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, guid, published_at, duration_ms,
                    enclosure_url, enclosure_type, enclosure_length, explicit, cover_url, season_number, episode_number,
-                   own_rating, rating_source, metadata_state, matched_at, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (?1, 'podcast_episode', ?2, ?3, ?4, ?5, ?6, ?7, ?8,
         ?9, ?10, ?11, ?12, ?13, ?14, ?15,
-        ?16, ?17, 'matched', ?18, ?18, ?18, ?18)
+        ?16, ?17, '["local"]', 'matched', ?18, ?18, ?18, ?18)
 `
 
 type PodcastInsertEpisodeParams struct {
@@ -322,25 +335,32 @@ func (q *Queries) PodcastInsertEpisode(ctx context.Context, arg PodcastInsertEpi
 }
 
 const podcastList = `-- name: PodcastList :many
-SELECT i.id, i.library_id, i.title, i.author, i.feed_url, i.explicit, i.feed_checked_at, i.feed_error, i.created_at,
+SELECT i.id, i.library_id, i.title, i.author, i.feed_url, i.feed_origin, i.explicit, i.feed_checked_at, i.feed_error, i.created_at,
        (SELECT count(*) FROM items AS e
-        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS episode_count
+        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS episode_count,
+       (SELECT count(*) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS local_episode_count,
+       CAST(COALESCE((SELECT m.root_id FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+                      WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' ORDER BY m.id LIMIT 1), 0) AS INTEGER) AS root_id
 FROM items AS i
 WHERE i.kind = 'podcast' AND i.deleted_at IS NULL AND (?1 IS NULL OR i.id = ?1)
 ORDER BY i.created_at DESC, i.id DESC
 `
 
 type PodcastListRow struct {
-	ID            string
-	LibraryID     int64
-	Title         string
-	Author        sql.NullString
-	FeedUrl       sql.NullString
-	Explicit      int64
-	FeedCheckedAt sql.NullInt64
-	FeedError     sql.NullString
-	CreatedAt     int64
-	EpisodeCount  int64
+	ID                string
+	LibraryID         int64
+	Title             string
+	Author            sql.NullString
+	FeedUrl           sql.NullString
+	FeedOrigin        sql.NullString
+	Explicit          int64
+	FeedCheckedAt     sql.NullInt64
+	FeedError         sql.NullString
+	CreatedAt         int64
+	EpisodeCount      int64
+	LocalEpisodeCount int64
+	RootID            int64
 }
 
 // Every live subscription with the number of its live episodes, newest first (listPodcasts).
@@ -359,11 +379,14 @@ func (q *Queries) PodcastList(ctx context.Context, onlyID interface{}) ([]Podcas
 			&i.Title,
 			&i.Author,
 			&i.FeedUrl,
+			&i.FeedOrigin,
 			&i.Explicit,
 			&i.FeedCheckedAt,
 			&i.FeedError,
 			&i.CreatedAt,
 			&i.EpisodeCount,
+			&i.LocalEpisodeCount,
+			&i.RootID,
 		); err != nil {
 			return nil, err
 		}

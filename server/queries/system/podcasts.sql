@@ -11,11 +11,13 @@ LIMIT 1;
 
 -- name: PodcastInsert :one
 -- A new subscription after its first successful fetch; the episodes follow in the same transaction.
+-- feed_origin names who chose the feed: 'admin' for a subscription made by hand, 'file' for a feed
+-- read from the metadata.json of a podcast folder (ADR 0015).
 INSERT INTO items (id, kind, library_id, title, sort_title, author, explicit, cover_url, feed_url, feed_etag,
-                   feed_modified, feed_checked_at, own_rating, rating_source, metadata_state, matched_at, added_at,
-                   created_at, updated_at)
+                   feed_modified, feed_checked_at, feed_origin, own_rating, rating_source, providers, metadata_state,
+                   matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'podcast', @library_id, @title, @sort_title, @author, @explicit, @cover_url, @feed_url, @feed_etag,
-        @feed_modified, @now, @own_rating, @rating_source, 'matched', @now, @now, @now, @now)
+        @feed_modified, @now, @feed_origin, @own_rating, @rating_source, '["local"]', 'matched', @now, @now, @now, @now)
 RETURNING *;
 
 -- name: PodcastUpdateChannel :exec
@@ -39,9 +41,13 @@ WHERE i.id = @id AND i.kind = 'podcast';
 
 -- name: PodcastList :many
 -- Every live subscription with the number of its live episodes, newest first (listPodcasts).
-SELECT i.id, i.library_id, i.title, i.author, i.feed_url, i.explicit, i.feed_checked_at, i.feed_error, i.created_at,
+SELECT i.id, i.library_id, i.title, i.author, i.feed_url, i.feed_origin, i.explicit, i.feed_checked_at, i.feed_error, i.created_at,
        (SELECT count(*) FROM items AS e
-        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS episode_count
+        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS episode_count,
+       (SELECT count(*) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+        WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' AND e.deleted_at IS NULL) AS local_episode_count,
+       CAST(COALESCE((SELECT m.root_id FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+                      WHERE e.parent_id = i.id AND e.kind = 'podcast_episode' ORDER BY m.id LIMIT 1), 0) AS INTEGER) AS root_id
 FROM items AS i
 WHERE i.kind = 'podcast' AND i.deleted_at IS NULL AND (sqlc.narg('only_id') IS NULL OR i.id = sqlc.narg('only_id'))
 ORDER BY i.created_at DESC, i.id DESC;
@@ -66,10 +72,10 @@ WHERE parent_id = @podcast_id AND kind = 'podcast_episode' AND guid IS NOT NULL;
 -- name: PodcastInsertEpisode :exec
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, guid, published_at, duration_ms,
                    enclosure_url, enclosure_type, enclosure_length, explicit, cover_url, season_number, episode_number,
-                   own_rating, rating_source, metadata_state, matched_at, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
 VALUES (@id, 'podcast_episode', @parent_id, @library_id, @title, @sort_title, @guid, @published_at, @duration_ms,
         @enclosure_url, @enclosure_type, @enclosure_length, @explicit, @cover_url, @season_number, @episode_number,
-        @own_rating, @rating_source, 'matched', @now, @now, @now, @now);
+        @own_rating, @rating_source, '["local"]', 'matched', @now, @now, @now, @now);
 
 -- name: PodcastUpdateEpisode :exec
 -- An episode the feed still lists (a soft-deleted one stays deleted).

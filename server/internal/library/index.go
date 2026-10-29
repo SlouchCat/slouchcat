@@ -13,7 +13,7 @@ import (
 
 // itemIndex finds the items of a library during a scan.
 //
-// Titles (movies in a movie library, series in a series library): undeleted ones by provider id
+// Titles of one kind (movies, series, audiobooks or podcasts; see libraryIndex): undeleted ones by provider id
 // (TVDB, TMDB, IMDb) or by (sort_title, year), titles soft-deleted within relinkWindow by
 // provider id only. Seasons by (series, season number), episodes by (season, episode number),
 // both including those soft-deleted within relinkWindow, so a series that comes back keeps its
@@ -25,7 +25,7 @@ type itemIndex struct {
 	byIMDB   map[string]string
 	byTitle  map[string][]itemRef
 	refs     map[string]itemRef         // undeleted title id → its provider ids
-	series   bool                       // the titles are series (a series library)
+	series   bool                       // the titles are series
 	deleted  map[string]bool            // soft-deleted items that a new file may restore
 	parent   map[string]string          // item id → parent id (seasons, episodes, extras)
 	kinds    map[string]string          // item id → kind
@@ -82,34 +82,66 @@ func seriesFolderKey(rootID int64, ep *ParsedEpisode) string {
 	return strconv.FormatInt(rootID, 10) + "/\x00" + SortTitle(ep.SeriesTitle)
 }
 
-// titleKindOf is the kind of the titles of a library kind: movie, series or audiobook.
-func titleKindOf(libKind string) string {
-	switch libKind {
-	case model.LibrarySeries:
-		return "series"
-	case model.LibraryAudiobooks:
-		return "audiobook"
-	}
-	return "movie"
-}
-
-// fileFolderKey returns the title folder of a media file of the library kind: the movie folder,
+// fileFolderKey returns the title folder of a media file of a root content: the movie folder,
 // the series folder, or the book (audioFolderKey); "" when there is none or the name does not
 // parse.
-func fileFolderKey(kind string, rootID int64, rel string, p ParsedName) string {
-	if kind == model.LibraryAudiobooks {
+func fileFolderKey(content string, rootID int64, rel string, p ParsedName) string {
+	switch content {
+	case model.RootAudiobook, model.RootPodcast:
 		return audioFolderKey(rootID, rel)
+	case model.RootSeries:
+		if p.Series == nil {
+			return ""
+		}
+		return seriesFolderKey(rootID, p.Series)
 	}
-	if kind != "series" {
-		return titleFolderKey(rootID, movieFolder(rel))
-	}
-	if p.Series == nil {
-		return ""
-	}
-	return seriesFolderKey(rootID, p.Series)
+	return titleFolderKey(rootID, movieFolder(rel))
 }
 
-func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*rootScan) (*itemIndex, error) {
+// libraryIndex holds one itemIndex per title kind of a library (ADR 0015, concept 6.1 and 12.1).
+// A video library may hold film and series folders, and TMDB numbers films and series from two
+// separate id spaces: a film with tmdb_id 1399 and a series with tmdb_id 1399 in one library are
+// two titles, and one shared map would bind them to each other. The indexes share the maps that
+// describe the tree (kinds, parent, deleted), so a restore through one of them is seen by all.
+type libraryIndex struct {
+	byKind map[string]*itemIndex
+}
+
+// titleKinds are the title kinds a library can hold, one index each.
+var titleKinds = []string{"movie", "series", "audiobook", "podcast"}
+
+func newLibraryIndex() *libraryIndex {
+	li := &libraryIndex{byKind: map[string]*itemIndex{}}
+	shared := newItemIndex()
+	for _, kind := range titleKinds {
+		idx := newItemIndex()
+		idx.kinds, idx.parent, idx.deleted = shared.kinds, shared.parent, shared.deleted
+		idx.series = kind == "series"
+		li.byKind[kind] = idx
+	}
+	return li
+}
+
+// forContent returns the index of the titles a root content produces.
+func (li *libraryIndex) forContent(content string) *itemIndex {
+	return li.byKind[model.TitleKindOfContent(content)]
+}
+
+// titleKindOfItem is the title kind an item of this kind belongs to: a season or episode to the
+// series, a podcast episode to the podcast; "" for an extra, whose title is found by its folder.
+func titleKindOfItem(kind string) string {
+	switch kind {
+	case "movie", "series", "audiobook", "podcast":
+		return kind
+	case "season", "episode":
+		return "series"
+	case "podcast_episode":
+		return "podcast"
+	}
+	return ""
+}
+
+func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*rootScan) (*libraryIndex, error) {
 	q := systemq.New(s.db.Read)
 	items, err := q.ListItemsByLibrary(ctx, lib.ID)
 	if err != nil {
@@ -121,16 +153,20 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 	if err != nil {
 		return nil, fmt.Errorf("list deleted items: %w", err)
 	}
-	titleKind := titleKindOf(lib.Kind)
-	idx := newItemIndex()
-	idx.series = titleKind == "series"
+	li := newLibraryIndex()
 	add := func(it systemq.Item, isDeleted bool) {
-		idx.kinds[it.ID] = it.Kind
+		// The tree maps are shared, so any index may record them.
+		any := li.byKind["movie"]
+		any.kinds[it.ID] = it.Kind
 		if it.ParentID.Valid {
-			idx.parent[it.ID] = it.ParentID.String
+			any.parent[it.ID] = it.ParentID.String
+		}
+		idx := li.byKind[titleKindOfItem(it.Kind)]
+		if idx == nil {
+			return // an extra: reachable through its folder only
 		}
 		switch it.Kind {
-		case titleKind:
+		case "movie", "series", "audiobook", "podcast":
 			if isDeleted {
 				idx.addDeleted(it.ID, it.TmdbID.Int64, it.TvdbID.Int64, it.ImdbID.String)
 				return
@@ -157,6 +193,9 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 		add(it, true)
 	}
 	for _, rs := range scans {
+		content := rs.root.Content
+		idx := li.forContent(content)
+		titleKind := model.TitleKindOfContent(content)
 		parsed := make(map[string]*ParsedName, len(rs.disk))
 		for i := range rs.disk {
 			parsed[rs.disk[i].rel] = &rs.disk[i].parsed
@@ -168,13 +207,13 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 			}
 			p := parsed[k.RelPath]
 			if p == nil {
-				pp := parsePath(lib.Kind, k.RelPath)
+				pp := parsePath(content, k.RelPath)
 				p = &pp
 			}
-			idx.addFolder(title, fileFolderKey(lib.Kind, rs.root.ID, k.RelPath, *p))
+			idx.addFolder(title, fileFolderKey(content, rs.root.ID, k.RelPath, *p))
 		}
 	}
-	return idx, nil
+	return li, nil
 }
 
 // title returns the title (movie or series) that item id belongs to: itself or an ancestor of

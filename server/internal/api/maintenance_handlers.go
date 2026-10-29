@@ -204,6 +204,12 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 		TrailerState: gen.AdminItemTrailerState(it.TrailerState),
 		Trailers:     make([]gen.Trailer, 0, len(it.Trailers)),
 		MediaFiles:   make([]gen.AdminMediaFile, 0, len(it.MediaFiles)),
+		AnilistId:    it.AniListID,
+		Providers:    providerEnums(it.Providers),
+		FieldSources: make([]gen.FieldSource, 0, len(it.FieldSources)),
+	}
+	for _, f := range it.FieldSources {
+		out.FieldSources = append(out.FieldSources, gen.FieldSource{Field: f.Field, Lang: f.Lang, Provider: f.Provider})
 	}
 	if it.ParentID != "" {
 		out.ParentId = &it.ParentID
