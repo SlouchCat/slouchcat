@@ -63,6 +63,56 @@ describe('admin podcasts page (M6, H-2)', () => {
     ).toHaveTextContent('Podcasts');
   });
 
+  it('marks podcasts from folders and keeps their feed, which the folder decides', async () => {
+    mockApi({
+      ...routes,
+      'GET /admin/podcasts': () =>
+        json([
+          { ...adminPodcast, feedOrigin: 'admin' },
+          {
+            ...adminPodcast,
+            id: audioIds.ep1,
+            title: 'Ordner-Podcast',
+            feedOrigin: 'file',
+            rootId: 7,
+            localEpisodeCount: 3,
+          },
+          {
+            ...adminPodcast,
+            id: audioIds.ep2,
+            title: 'Ohne Feed',
+            feedUrl: undefined,
+            localEpisodeCount: 1,
+          },
+        ]),
+    });
+    renderApp('/admin/podcasts');
+
+    const table = await screen.findByRole('table', { name: 'Abonnierte Podcasts' });
+    const rows = within(table).getAllByRole('row');
+    expect(rows).toHaveLength(4);
+    expect(within(rows[1]!).queryByText('aus Ordner')).not.toBeInTheDocument();
+    expect(within(rows[1]!).queryByText(/lokal$/)).not.toBeInTheDocument();
+    expect(
+      within(rows[1]!).getByRole('button', { name: 'Abo Slouchcat Test Podcast löschen' }),
+    ).toBeVisible();
+
+    expect(within(rows[2]!).getByText('aus Ordner')).toBeVisible();
+    expect(within(rows[2]!).getByText('3 lokal')).toBeVisible();
+    expect(within(rows[2]!).getByText('http://127.0.0.1:8095/feed.xml')).toBeVisible();
+    expect(
+      within(rows[2]!).getByRole('button', { name: 'Ordner-Podcast jetzt abrufen' }),
+    ).toBeVisible();
+    expect(within(rows[2]!).queryByRole('button', { name: /löschen/ })).not.toBeInTheDocument();
+
+    // Without a feed there is no address line and nothing to fetch; without a folder that owns
+    // the podcast (no rootId) it may be removed.
+    expect(within(rows[3]!).getByText('1 lokal')).toBeVisible();
+    expect(within(rows[3]!).queryByText(/^http/)).not.toBeInTheDocument();
+    expect(within(rows[3]!).queryByRole('button', { name: /abrufen/ })).not.toBeInTheDocument();
+    expect(within(rows[3]!).getByRole('button', { name: 'Abo Ohne Feed löschen' })).toBeVisible();
+  });
+
   it('subscribes a feed: a feed problem shows at the URL field, a good one adds the podcast', async () => {
     let fail = true;
     const { calls } = mockApi({

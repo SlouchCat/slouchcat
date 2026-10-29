@@ -110,8 +110,9 @@ function SubscribeDialog({
 }
 
 /**
- * Podcasts (M6, H-2): the subscribed feeds with library, episodes, last fetch and error;
- * "Feed abonnieren", "Jetzt abrufen" and "Abo löschen". The server fetches every feed hourly.
+ * Podcasts (M6, H-2): the subscribed feeds and the podcasts read from folders (ADR 0015) with
+ * library, episodes, last fetch and error; "Feed abonnieren", "Jetzt abrufen" and "Abo löschen".
+ * The server fetches every feed hourly.
  */
 export function PodcastsPage() {
   const { t, i18n } = useTranslation();
@@ -165,7 +166,16 @@ export function PodcastsPage() {
         <span className={styles.stack}>
           <span>{podcast.title}</span>
           {podcast.author && <span className={styles.muted}>{podcast.author}</span>}
-          <span className={`${styles.muted} ${styles.url}`}>{podcast.feedUrl}</span>
+          {podcast.feedUrl && (
+            <span className={`${styles.muted} ${styles.url}`}>{podcast.feedUrl}</span>
+          )}
+          {podcast.feedOrigin === 'file' && (
+            <span>
+              <Chip tone="outline" icon="folder">
+                {t('admin.podcasts.fromFolder')}
+              </Chip>
+            </span>
+          )}
           {podcast.explicit && (
             <span>
               <Chip tone="warning">{t('admin.podcasts.explicit')}</Chip>
@@ -183,7 +193,16 @@ export function PodcastsPage() {
       key: 'episodes',
       header: t('admin.podcasts.columns.episodes'),
       align: 'end',
-      cell: (podcast) => <span className={styles.numbers}>{podcast.episodeCount}</span>,
+      cell: (podcast) => (
+        <span className={styles.stack}>
+          <span className={styles.numbers}>{podcast.episodeCount}</span>
+          {podcast.localEpisodeCount > 0 && (
+            <span className={`${styles.muted} ${styles.numbers}`}>
+              {t('admin.podcasts.localEpisodes', { count: podcast.localEpisodeCount })}
+            </span>
+          )}
+        </span>
+      ),
     },
     {
       key: 'lastFetch',
@@ -222,32 +241,40 @@ export function PodcastsPage() {
       align: 'end',
       cell: (podcast) => (
         <span className={styles.rowActions}>
-          <AriaButton
-            variant="ghost"
-            icon="refresh"
-            aria-label={t('admin.podcasts.refresh.label', { title: podcast.title })}
-            isPending={refresh.isPending && refresh.variables.id === podcast.id}
-            onPress={() => refresh.mutate(podcast)}
-          >
-            {t('admin.podcasts.refresh.action')}
-          </AriaButton>
-          <ConfirmDialog
-            trigger={
-              <AriaButton
-                variant="ghost"
-                icon="trash"
-                aria-label={t('admin.podcasts.remove.label', { title: podcast.title })}
-              >
-                {t('admin.podcasts.remove.action')}
-              </AriaButton>
-            }
-            title={t('admin.podcasts.remove.title', { title: podcast.title })}
-            body={t('admin.podcasts.remove.body')}
-            confirmLabel={t('admin.podcasts.remove.confirm')}
-            cancelLabel={t('common.cancel')}
-            tone="danger"
-            onConfirm={() => remove.mutate(podcast)}
-          />
+          {/* A folder podcast without feed has nothing to fetch. */}
+          {podcast.feedUrl && (
+            <AriaButton
+              variant="ghost"
+              icon="refresh"
+              aria-label={t('admin.podcasts.refresh.label', { title: podcast.title })}
+              isPending={refresh.isPending && refresh.variables.id === podcast.id}
+              onPress={() => refresh.mutate(podcast)}
+            >
+              {t('admin.podcasts.refresh.action')}
+            </AriaButton>
+          )}
+          {/* A podcast a folder still owns comes back with the next scan: the folder decides, so
+              there is nothing to remove here. Once the folder is gone (rootId absent), the
+              subscription it left behind may go. */}
+          {podcast.rootId === undefined && (
+            <ConfirmDialog
+              trigger={
+                <AriaButton
+                  variant="ghost"
+                  icon="trash"
+                  aria-label={t('admin.podcasts.remove.label', { title: podcast.title })}
+                >
+                  {t('admin.podcasts.remove.action')}
+                </AriaButton>
+              }
+              title={t('admin.podcasts.remove.title', { title: podcast.title })}
+              body={t('admin.podcasts.remove.body')}
+              confirmLabel={t('admin.podcasts.remove.confirm')}
+              cancelLabel={t('common.cancel')}
+              tone="danger"
+              onConfirm={() => remove.mutate(podcast)}
+            />
+          )}
         </span>
       ),
     },

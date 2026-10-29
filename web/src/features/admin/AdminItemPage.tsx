@@ -1,8 +1,8 @@
-import type { AdminItem, Trailer, TrailerRequest } from '@slouchcat/api-client';
+import type { AdminItem, MetadataProvider, Trailer, TrailerRequest } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -11,8 +11,16 @@ import { useActiveSession } from '@/app/session';
 import { formText } from '@/lib/form';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { ButtonLink, Chip, FactList, Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
+import { ButtonLink, Chip, FactList, Notice, Page, Panel, Skeleton, Text, TextLink } from '@/ui';
+import {
+  AriaButton,
+  ConfirmDialog,
+  Form,
+  FormDialog,
+  RadioGroup,
+  TextField,
+  providerChain,
+} from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../shared/choices';
 import { MatchDialog } from './MatchDialog';
 import { adminItemQuery, maintenanceKey } from './queries';
@@ -24,10 +32,54 @@ const route = getRouteApi('/_authed/_active/_chrome/admin/items/$itemId');
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{8,16}$/;
 const LANG_CODE = /^[a-z]{2,3}$/;
 const FROM_METADATA = 'metadata';
+/** The fields of "Herkunft je Feld" in display order; the server may send more later. */
+const SOURCE_FIELDS = [
+  'title',
+  'overview',
+  'tagline',
+  'original_title',
+  'genres',
+  'runtime_minutes',
+  'release_date',
+  'own_rating',
+  'poster',
+  'backdrop',
+] as const;
+type SourceField = (typeof SOURCE_FIELDS)[number];
+const PROVIDERS: readonly MetadataProvider[] = ['tmdb', 'tvdb', 'anilist', 'local'];
 
-function itemFacts(t: TFunction, item: AdminItem, language: string): [string, string][] {
+const isSourceField = (field: string): field is SourceField =>
+  (SOURCE_FIELDS as readonly string[]).includes(field);
+const isProvider = (provider: string): provider is MetadataProvider =>
+  (PROVIDERS as readonly string[]).includes(provider);
+const anilistUrl = (id: number) => `https://anilist.co/anime/${id}`;
+
+/** A provider's name; `union` stands for the genres merged from every provider. */
+function providerName(t: TFunction, provider: string): string {
+  if (provider === 'union') return t('admin.item.sources.union');
+  return isProvider(provider) ? t(`library.provider.${provider}`) : provider;
+}
+
+function sourceFacts(t: TFunction, sources: AdminItem['fieldSources']): [string, string][] {
+  // Unknown fields go last, under their own name, instead of vanishing.
+  const rank = (field: string) =>
+    isSourceField(field) ? SOURCE_FIELDS.indexOf(field) : SOURCE_FIELDS.length;
+  return [...sources]
+    .sort((a, b) => rank(a.field) - rank(b.field) || a.lang.localeCompare(b.lang))
+    .map((source): [string, string] => {
+      const field = isSourceField(source.field)
+        ? t(`admin.item.sources.field.${source.field}`)
+        : source.field;
+      return [
+        source.lang ? t('admin.item.sources.fieldLang', { field, lang: source.lang }) : field,
+        providerName(t, source.provider),
+      ];
+    });
+}
+
+function itemFacts(t: TFunction, item: AdminItem, language: string): [string, ReactNode][] {
   const none = t('admin.item.facts.none');
-  const rows: [string, string][] = [
+  const rows: [string, ReactNode][] = [
     [t('admin.item.facts.kind'), t(`kind.${item.kind}`)],
     [t('admin.item.facts.id'), item.id],
     [t('admin.item.facts.library'), String(item.libraryId)],
@@ -53,6 +105,21 @@ function itemFacts(t: TFunction, item: AdminItem, language: string): [string, st
     [t('admin.item.facts.tmdb'), item.tmdbId !== undefined ? String(item.tmdbId) : none],
     [t('admin.item.facts.tvdb'), item.tvdbId !== undefined ? String(item.tvdbId) : none],
     [t('admin.item.facts.imdb'), item.imdbId ?? none],
+    [
+      t('admin.item.facts.providers'),
+      item.providers.length > 0 ? providerChain(t, item.providers) : none,
+    ],
+    // 0 means "looked up, no entry"; a found id links to the entry.
+    [
+      t('library.provider.anilist'),
+      item.anilistId ? (
+        <TextLink href={anilistUrl(item.anilistId)} external>
+          {String(item.anilistId)}
+        </TextLink>
+      ) : (
+        none
+      ),
+    ],
     [
       t('admin.item.facts.locked'),
       item.lockedFields.length > 0 ? item.lockedFields.join(', ') : none,
@@ -388,6 +455,14 @@ function AdminItemView({ itemId }: { itemId: string }) {
         </h2>
         <FactList facts={itemFacts(t, data, i18n.language)} />
       </Panel>
+      {data.fieldSources.length > 0 && (
+        <Panel as="section" aria-labelledby="admin-item-sources">
+          <h2 id="admin-item-sources" className={styles.panelTitle}>
+            {t('admin.item.sources.title')}
+          </h2>
+          <FactList facts={sourceFacts(t, data.fieldSources)} />
+        </Panel>
+      )}
       {/* Remount on a new rating so the choice starts from the stored value; the confirmation
           lives here, so it survives that remount. */}
       <RatingPanel

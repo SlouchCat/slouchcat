@@ -23,15 +23,18 @@ const NAME = 'E2E Ordner';
 const base = join(MEDIA_DIR, '.e2e', NAME);
 const first = join(base, 'eins');
 const second = join(base, 'zwei');
+const third = join(base, 'drei');
+const fourth = join(base, 'vier');
 
 const card = (page: Page) => page.getByRole('article', { name: NAME });
 const dialog = (page: Page) => page.getByRole('dialog', { name: `Ordner von ${NAME}` });
 const confirm = (page: Page) =>
   page.getByRole('alertdialog', { name: 'Ordner wirklich entfernen?' });
+const change = (page: Page) => page.getByRole('dialog', { name: 'Ordner ändern' });
 
-/** Creates the two folders on disk; a library folder has to exist before the server takes it. */
+/** Creates the folders on disk; a library folder has to exist before the server takes it. */
 test.beforeAll(() => {
-  for (const dir of [first, second]) {
+  for (const dir of [first, second, third, fourth]) {
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'readme.txt'), 'no media here');
   }
@@ -45,7 +48,7 @@ test.beforeEach(async ({ page }) => {
   if ((await card(page).count()) === 0) {
     await page.getByLabel('Name', { exact: true }).fill(NAME);
     await page.getByLabel('Ordner', { exact: true }).fill(first);
-    await page.getByRole('button', { name: 'Hinzufügen' }).click();
+    await page.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }).click();
     await expect(card(page)).toBeVisible();
   }
   await resetFocus(page);
@@ -85,13 +88,35 @@ test('the folders dialog opens from the keyboard and lists the folder', async ({
   await expectNoFocusTrap(page);
 });
 
+/** Adds the paths as cards of «Neue Ordner» and submits them in one go (F-13). */
+const addFolders = async (page: Page, paths: string[]) => {
+  for (const [index, path] of paths.entries()) {
+    await dialog(page)
+      .getByRole('button', {
+        name: index === 0 ? 'Ordner hinzufügen' : 'Weiteren Ordner hinzufügen',
+        exact: true,
+      })
+      .click();
+    const cardOf = dialog(page).getByRole('listitem', { name: `Ordner ${index + 1}` });
+    await expectFocusOn(page, cardOf.getByLabel('Ordner', { exact: true }));
+    await page.keyboard.type(path);
+  }
+  const submit = dialog(page).getByRole('button', {
+    name: `${paths.length} Ordner hinzufügen`,
+    exact: true,
+  });
+  await submit.click();
+  for (const path of paths) await expect(dialog(page).getByText(path)).toBeVisible();
+};
+
 test('a second folder goes in, and comes out only after its path is typed', async ({ page }) => {
   await openDialog(page);
 
-  // Add: the field takes the path, Enter in it submits the form.
-  const field = dialog(page).getByLabel('Ordner hinzufügen');
-  await field.fill(second);
-  await tabTo(page, field);
+  // Add: «Ordner hinzufügen» opens a card, its path field takes the path, Enter in it submits.
+  await dialog(page).getByRole('button', { name: 'Ordner hinzufügen', exact: true }).click();
+  const field = dialog(page).getByLabel('Ordner', { exact: true });
+  await expectFocusOn(page, field);
+  await page.keyboard.type(second);
   await page.keyboard.press('Enter');
   await expect(dialog(page).getByText(second)).toBeVisible();
 
@@ -156,8 +181,88 @@ test('a library without a folder says so and offers no scan (E13)', async ({ pag
 
   // Put it back, so the spec can run again on the same server.
   await openDialog(page);
-  await dialog(page).getByLabel('Ordner hinzufügen').fill(first);
-  await dialog(page).getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(dialog(page).getByText(first)).toBeVisible();
+  await addFolders(page, [first]);
   await closeDialog(page);
+});
+
+test('two folders go in with one submit, each with its own content (F-13)', async ({ page }) => {
+  await openDialog(page);
+  await addFolders(page, [third, fourth]);
+  await closeDialog(page);
+  // The second new card proposed the other content of a video library: a series folder.
+  await expect(card(page).getByText('3 Ordner')).toBeVisible();
+  await expect(card(page).getByText('2 Filme, 1 Serien')).toBeVisible();
+  // Out again, so the other tests find the one folder they expect.
+  await openDialog(page);
+  for (const path of [third, fourth]) {
+    await dialog(page)
+      .getByRole('button', { name: `Ordner ${path} entfernen` })
+      .click();
+    await confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen').fill(path);
+    await confirm(page).getByRole('button', { name: 'Ordner entfernen' }).click();
+    await expect(confirm(page)).toHaveCount(0);
+  }
+  await closeDialog(page);
+  await expect(card(page).getByText(first)).toBeVisible();
+});
+
+test('«Ändern» edits content and sources by keyboard; a content change needs the typed path', async ({
+  page,
+}) => {
+  await openDialog(page);
+  const open = dialog(page).getByRole('button', { name: `Ordner ${first} ändern` });
+  await tabTo(page, open, 20);
+  await page.keyboard.press('Enter');
+  await expect(change(page)).toBeVisible();
+
+  // The fillers only: ticking AniList needs no confirmation, the dialog says what happens.
+  const sources = change(page).getByRole('group', { name: 'Metadatenquellen' });
+  await expect(change(page).getByRole('radio', { name: 'Filme' })).toBeChecked();
+  await tabTo(page, sources.getByRole('checkbox', { name: 'AniList' }), 12);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Space');
+  await expect(change(page).getByText(/Nur die Auffüller ändern sich/)).toBeVisible();
+  const saved = page.waitForResponse(
+    (response) => response.request().method() === 'PATCH' && /\/roots\/\d+$/.test(response.url()),
+  );
+  await change(page).getByRole('button', { name: 'Speichern' }).click();
+  expect((await saved).status()).toBe(200);
+  await expect(change(page)).toHaveCount(0);
+  await expect(dialog(page).getByText(`Der Ordner ${first} ist geändert.`)).toBeVisible();
+  const row = dialog(page).getByRole('listitem').filter({ hasText: first });
+  await expect(row.getByText('TMDB › AniList')).toBeVisible();
+
+  // The content: Escape leaves the confirmation, the typed path confirms it.
+  await open.click();
+  await change(page).getByRole('radio', { name: 'Filme' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(change(page).getByRole('radio', { name: 'Serien' })).toBeChecked();
+  await expect(change(page).getByText(/wirkt wie Ordner entfernen und neu anlegen/)).toBeVisible();
+  await change(page).getByRole('button', { name: 'Speichern' }).click();
+  const typed = page.getByRole('alertdialog', { name: 'Inhalt wirklich wechseln?' });
+  await expect(typed).toBeVisible();
+  await expectFocusOn(page, typed.getByLabel('Tippe den Pfad, um zu bestätigen'));
+  await expect(typed.getByRole('button', { name: 'Inhalt wechseln' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(typed).toHaveCount(0);
+  await expect(change(page)).toBeVisible();
+  await change(page).getByRole('button', { name: 'Speichern' }).click();
+  await typed.getByLabel('Tippe den Pfad, um zu bestätigen').fill(first);
+  await typed.getByRole('button', { name: 'Inhalt wechseln' }).click();
+  await expect(typed).toHaveCount(0);
+  await expect(change(page)).toHaveCount(0);
+  await expect(row.getByText('TMDB › TVDB')).toBeVisible();
+
+  // Back to films, so the spec can run again on the same server.
+  await open.click();
+  // The radio inputs are visually hidden (react-aria segments): the keyboard switches them.
+  await change(page).getByRole('radio', { name: 'Serien' }).focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(change(page).getByRole('radio', { name: 'Filme' })).toBeChecked();
+  await change(page).getByRole('button', { name: 'Speichern' }).click();
+  await typed.getByLabel('Tippe den Pfad, um zu bestätigen').fill(first);
+  await typed.getByRole('button', { name: 'Inhalt wechseln' }).click();
+  await expect(change(page)).toHaveCount(0);
+  await closeDialog(page);
+  await expectNoFocusTrap(page);
 });

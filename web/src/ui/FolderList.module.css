@@ -1,0 +1,91 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.empty {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Marco's note on the first prototype: two cards were hard to tell apart. An accent bar, a
+   stronger border and the gap do it. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+  padding: var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-left: var(--sc-space-1) solid var(--sc-accent);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.head {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.number {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-7);
+  height: var(--sc-space-7);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.summary {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.chain {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.hint {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

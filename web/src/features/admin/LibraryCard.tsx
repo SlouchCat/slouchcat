@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '@/lib/format';
 import { Chip, Notice, Panel, ProgressBar, StatusDot, type StatusDotState } from '@/ui';
+import { providerChain } from '@/ui/aria';
 import styles from './LibrariesPage.module.css';
 
 const dotOf: Record<Library['scan']['state'], StatusDotState> = {
@@ -120,10 +121,25 @@ export function LibraryCard({ library, actions }: LibraryCardProps) {
   );
 }
 
+/** «1 Filme, 1 Serien»: how many folders of each content a library has (ADR 0015). */
+export function rootSummary(t: TFunction, library: Library): string {
+  const counts = new Map<string, number>();
+  for (const root of library.roots) counts.set(root.content, (counts.get(root.content) ?? 0) + 1);
+  return [...counts]
+    .map(([content, count]) =>
+      t('admin.libraries.rootSummary', {
+        count,
+        content: t(`library.content.${content}` as 'library.content.movie'),
+      }),
+    )
+    .join(t('format.listSeparator'));
+}
+
 /**
- * The folders of a library in one line: the path when there is one, their number when there are
- * more (idea 02, E16). The list itself and the way in and out live in the folders dialog, so a
- * library with five folders does not push everything else off the card.
+ * The folders of a library in one line: the path with its content and provider list when there
+ * is one, a summary per content («1 Filme, 1 Serien») when there are more (idea 02, E16; ADR
+ * 0015). The list itself and the way in and out live in the folders dialog, so a library with
+ * five folders does not push everything else off the card.
  */
 function Folders({ library }: { library: Library }) {
   const { t } = useTranslation();
@@ -146,6 +162,11 @@ function Folders({ library }: { library: Library }) {
         <div className={styles.root}>
           <code className={styles.path}>{first.path}</code>
           <span className={styles.rootMeta}>
+            {/* Audio libraries have one content, named by the kind chip above already. */}
+            {library.kind === 'video' && (
+              <Chip tone="outline">{t(`library.content.${first.content}`)}</Chip>
+            )}
+            <span className={styles.muted}>{providerChain(t, first.providers)}</span>
             <Chip tone="info">{t('admin.libraries.fsType', { type: first.fsType })}</Chip>
             {first.warning === 'network_share' && (
               <Chip tone="warning" icon="warning">
@@ -157,7 +178,10 @@ function Folders({ library }: { library: Library }) {
         </div>
       ) : (
         <div className={styles.root}>
-          <span>{t('admin.libraries.rootCount', { count: library.roots.length })}</span>
+          <span>
+            {t('admin.libraries.rootCount', { count: library.roots.length })}
+            <span className={styles.muted}>{t('format.separator') + rootSummary(t, library)}</span>
+          </span>
           <span className={styles.rootMeta}>
             {library.roots.some((root) => root.warning === 'network_share') && (
               <Chip tone="warning" icon="warning">

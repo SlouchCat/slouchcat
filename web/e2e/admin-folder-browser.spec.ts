@@ -106,7 +106,7 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
   await page.keyboard.press('ArrowRight');
   const chosen = await dialogFolder(page).inputValue();
   expect(chosen).toMatch(/testdata\/media\/Movies$/);
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(folder(page)).toHaveValue(String(chosen));
   // The focus is in the folder field, so the path can be corrected without tabbing back.
@@ -117,7 +117,7 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
 test('a folder already in the field opens the dialog in that folder', async ({ page }) => {
   await openDialog(page);
   await movies(page).click();
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const chosen = await folder(page).inputValue();
   expect(chosen).toMatch(/testdata\/media\/Movies$/);
@@ -176,7 +176,7 @@ test('the path field takes a typed folder and Backspace there edits instead of g
   await dialogFolder(page).fill(`${inside}/Movies`);
   await page.getByRole('button', { name: 'Gehe zu' }).click();
   await expect(movies(page)).toHaveCount(0);
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(folder(page)).toHaveValue(`${inside}/Movies`);
   await folder(page).fill('');

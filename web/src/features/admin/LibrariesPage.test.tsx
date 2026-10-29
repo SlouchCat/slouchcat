@@ -120,7 +120,8 @@ describe('admin libraries page', () => {
     await user.type(screen.getByLabelText('Name'), 'Dokus');
     await user.click(screen.getByRole('radio', { name: 'Video' }));
     await user.type(screen.getByLabelText('Ordner'), '/media/Dokus');
-    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    // The submit counts the cards of the folder list (F-13).
+    await user.click(screen.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }));
 
     await waitFor(() =>
       expect(screen.getByLabelText('Ordner')).toHaveAccessibleDescription(
@@ -248,7 +249,7 @@ describe('admin libraries page', () => {
     const rating = screen.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
     expect(within(rating).getByRole('radio', { name: 'FSK 0' })).toBeChecked();
     await user.click(within(rating).getByText('FSK 6'));
-    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    await user.click(screen.getByRole('button', { name: 'Bibliothek ohne Ordner hinzufügen' }));
     await waitFor(() =>
       expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
         name: 'Podcasts',
@@ -261,7 +262,7 @@ describe('admin libraries page', () => {
     await user.type(await screen.findByLabelText('Name'), 'Hörbücher');
     await user.click(screen.getByRole('radio', { name: 'Hörbücher' }));
     await user.type(screen.getByLabelText('Ordner'), '/media/Hoerbuecher');
-    await user.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+    await user.click(screen.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }));
     await waitFor(() =>
       expect(calls.filter((call) => call.method === 'POST').at(-1)?.body).toEqual({
         name: 'Hörbücher',

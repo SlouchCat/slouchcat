@@ -40,7 +40,10 @@ test('Tab reaches header, rescan and the add form in order; no focus trap', asyn
   // The folder browser of idea 02 sits right after the field, as the wizard's check does.
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Durchsuchen …' }));
-  // Audiobooks bring the default age rating, one Tab stop after the folder.
+  // An audiobook folder has one content and one source: nothing to choose, the next stop is the
+  // button for another card (F-13), then the default age rating.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,
@@ -49,7 +52,73 @@ test('Tab reaches header, rescan and the add form in order; no focus trap', asyn
     }),
   );
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Hinzufügen' }));
+  await expectFocusOn(
+    page,
+    page.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }),
+  );
+  await expectNoFocusTrap(page);
+});
+
+test('content and metadata sources by keyboard: Space ticks, arrows sort, cards come and go (ADR 0015)', async ({
+  page,
+}) => {
+  const form = page.getByRole('region', { name: 'Bibliothek hinzufügen' });
+  await tabTo(page, page.getByLabel('Name', { exact: true }));
+  await page.keyboard.type('E2E Anime');
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('radio', { name: 'Video' }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByLabel('Ordner', { exact: true }));
+  await page.keyboard.type('/does/not/exist/slouchcat-e2e-anime');
+  await page.keyboard.press('Tab'); // Durchsuchen …
+  // «Inhalt»: films are chosen; the arrow switches to series, whose default list is TMDB › TVDB.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, form.getByRole('radio', { name: 'Filme' }));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, form.getByRole('radio', { name: 'Serien' }));
+  await expect(form.getByRole('radio', { name: 'Serien' })).toBeChecked();
+  const sources = form.getByRole('group', { name: 'Metadatenquellen' });
+  await expect(sources.getByRole('checkbox', { name: 'TMDB' })).toBeChecked();
+  await expect(sources.getByRole('checkbox', { name: 'TVDB' })).toBeChecked();
+  await expect(sources.getByRole('checkbox', { name: 'AniList' })).not.toBeChecked();
+  // Tab walks the rows: checkbox, up, down; Space ticks AniList.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, sources.getByRole('checkbox', { name: 'TMDB' }));
+  await expectVisibleFocus(page);
+  await tabTo(page, sources.getByRole('checkbox', { name: 'AniList' }), 8);
+  await page.keyboard.press('Space');
+  await expect(sources.getByRole('checkbox', { name: 'AniList' })).toBeChecked();
+  await expect(sources.getByText('füllt auf')).toHaveCount(2);
+  // ArrowUp on the focused sort button moves the row; the focus stays on the button.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, sources.getByRole('button', { name: 'AniList nach oben' }));
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, sources.getByRole('button', { name: 'AniList nach oben' }));
+  await expect(sources.getByRole('checkbox').nth(1)).toHaveAccessibleName('AniList');
+  // In front it may not stand: the list says so before the server does.
+  await page.keyboard.press('ArrowUp');
+  await expect(sources.getByRole('alert')).toHaveText(/AniList kann keinen Titel erkennen/);
+  await expect(
+    page.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }),
+  ).toBeDisabled();
+  await page.keyboard.press('ArrowDown');
+  await expect(sources.getByRole('alert')).toHaveCount(0);
+  // «+ Weiteren Ordner hinzufügen» by Enter: the new card takes the focus in its path field and
+  // proposes the other content; «Entfernen» hands the focus back to the button.
+  await tabTo(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }), 20);
+  await page.keyboard.press('Enter');
+  const second = form.getByRole('listitem', { name: 'Ordner 2' });
+  await expectFocusOn(page, second.getByLabel('Ordner', { exact: true }));
+  await expect(second.getByRole('radio', { name: 'Filme' })).toBeChecked();
+  await expect(
+    page.getByRole('button', { name: 'Bibliothek mit 2 Ordnern hinzufügen' }),
+  ).toBeVisible();
+  // «Entfernen» stands in the card's head, right before the path field.
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, second.getByRole('button', { name: 'Ordner 2 entfernen' }));
+  await page.keyboard.press('Enter');
+  await expect(second).toHaveCount(0);
+  await expectFocusOn(page, form.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
   await expectNoFocusTrap(page);
 });
 
@@ -75,6 +144,8 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Durchsuchen …' }));
   await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }));
+  await page.keyboard.press('Tab');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 0' }));
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
@@ -88,16 +159,21 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
   await page.keyboard.press('Enter');
   expect((await sent).postDataJSON()).toMatchObject({ kind: 'audiobooks', defaultRating: 6 });
   await expect(folder).toHaveAttribute('aria-invalid', 'true');
-  // Podcasts: the folder field goes, the hint says why; the rating stays.
+  // Podcasts: the card goes, the hint says why; the add button and the rating stay (F-13).
   await page.getByRole('radio', { name: 'Hörbücher' }).focus();
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Podcasts' }));
   await expect(folder).toHaveCount(0);
   await expect(page.getByText(/Ordner optional/)).toBeVisible();
-  // Without a folder field there is nothing to browse either; the next stop is the rating.
+  // Without a folder field there is nothing to browse either; the next stop is the add button.
   await expect(page.getByRole('button', { name: 'Durchsuchen …' })).toHaveCount(0);
   await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Ordner hinzufügen', exact: true }));
+  await page.keyboard.press('Tab');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 6' }));
+  await expect(
+    page.getByRole('button', { name: 'Bibliothek ohne Ordner hinzufügen' }),
+  ).toBeVisible();
   await expectNoFocusTrap(page);
 });
 

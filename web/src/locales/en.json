@@ -216,7 +216,9 @@
           "title": "Unknown file system",
           "body": "A FUSE file system (for example mergerfs or Unraid) does not report every change. Slouchcat watches the folder and also syncs it regularly."
         }
-      }
+      },
+      "content": "Content",
+      "providers": "Metadata sources"
     },
     "tmdb": {
       "title": "Metadata from TMDB (optional)",
@@ -276,7 +278,59 @@
       "folder": "Folder",
       "goTo": "Go to",
       "notUnderRoot": "This path lies below none of the browsable folders, so the list stays where it is. “OK” hands it on anyway; the server decides about it when the form is submitted. {{name}} sets which folders are browsable."
-    }
+    },
+    "provider": {
+      "tmdb": "TMDB",
+      "tvdb": "TVDB",
+      "anilist": "AniList",
+      "local": "Local files"
+    },
+    "content": {
+      "title": "Content",
+      "hint": "Which parser reads the folder: films as single files or series in seasons.",
+      "movie": "Films",
+      "series": "Series",
+      "audiobook": "Audiobooks",
+      "podcast": "Podcasts"
+    },
+    "providers": {
+      "title": "Metadata sources",
+      "chain": " › ",
+      "identifies": "identifies titles",
+      "fills": "fills in",
+      "cannotIdentifyChip": "cannot identify",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "moveUpLabel": "Move {{provider}} up",
+      "moveDownLabel": "Move {{provider}} down",
+      "noKey": "no key configured",
+      "noGerman": "no German texts",
+      "fillOnly": "fills in only",
+      "hint": "The first ticked entry identifies the title and decides ids and season numbering. Every further one only fills in what was left empty. Change the order with the buttons or with the arrow keys on a focused button.",
+      "required": "Tick at least one source.",
+      "cannotIdentify": "{{provider}} cannot identify a title. Put {{identifiers}} first.",
+      "fixedHint": "This content has only this source today.",
+      "defaultHint": "The default; the list can be changed under Libraries after the setup."
+    },
+    "roots": {
+      "title": "Folders",
+      "number": "Folder {{number}}",
+      "addFirst": "Add folder",
+      "addMore": "Add another folder",
+      "remove": "Remove",
+      "removeLabel": "Remove folder {{number}}",
+      "empty": "No folder yet.",
+      "emptyPodcasts": "No folder yet. A podcast library may stay without folders; its titles then come from the feed subscriptions.",
+      "hint": "Every folder brings its content and its metadata sources. All folders are created with one click.",
+      "overlap": "Folder {{number}} overlaps a folder above.",
+      "providers": "Folder {{number}}: {{message}}",
+      "submit_one": "Add library with {{count}} folder",
+      "submit_other": "Add library with {{count}} folders",
+      "submitNone": "Add library without folders",
+      "addSubmit_one": "Add 1 folder",
+      "addSubmit_other": "Add {{count}} folders"
+    },
+    "videoHint": "The folders of this library may hold films or series, mixed as well."
   },
   "home": {
     "title": "Home",
@@ -402,7 +456,9 @@
     "sd": "SD",
     "height": "{{height}}p",
     "separator": " · ",
-    "seconds": "{{seconds}} s"
+    "seconds": "{{seconds}} s",
+    "or": " or ",
+    "listSeparator": ", "
   },
   "player": {
     "region": "Video player",
@@ -640,13 +696,29 @@
           "relink": "Add the same folder again within 30 days and titles with a TMDB, TVDB or IMDb id come back with their user data. Titles without such an id are created anew.",
           "oneWay": "If the folder lies outside the browsable folders (SLOUCHCAT_BROWSE_ROOTS), it cannot be added again without a change to the configuration.",
           "last": "It is the last folder: {{name}} stays, but holds no folder afterwards and scans nothing."
+        },
+        "new": "New folders",
+        "change": {
+          "action": "Change",
+          "label": "Change folder {{path}}",
+          "title": "Change folder",
+          "description": "Content and metadata sources of {{path}}.",
+          "submit": "Save",
+          "identifier": "The identifier changes: season and episode texts are assigned anew after {{provider}}. The episodes themselves stay, progress and watchlist stay attached to them.",
+          "fillers": "Only the fillers change: the titles are filled in again, nothing is deleted.",
+          "content": "The content changes: that works like removing the folder and adding it again. The titles of this folder are soft-deleted and created anew, offline packages are gone, progress and watchlist stay with the old titles.",
+          "confirmTitle": "Really change the content?",
+          "confirm": "Change content",
+          "saved": "The folder {{path}} is changed."
         }
       },
       "openFolders": "Folders",
       "openFoldersLabel": "Edit the folders of {{name}}",
       "rootCount_one": "{{count}} folder",
       "rootCount_other": "{{count}} folders",
-      "noFolder": "No folder: nothing is scanned until you add one under “Folders”."
+      "noFolder": "No folder: nothing is scanned until you add one under “Folders”.",
+      "rootSummary_one": "{{count}} {{content}}",
+      "rootSummary_other": "{{count}} {{content}}"
     },
     "access": {
       "notAllowed": {
@@ -771,10 +843,28 @@
         "tmdb": "TMDB",
         "tvdb": "TVDB",
         "imdb": "IMDb",
+        "providers": "Metadata sources",
         "locked": "Locked fields",
         "children": "Content",
         "childCounts": "Seasons: {{seasons}} · Episodes: {{episodes}} · Extras: {{extras}}",
         "none": "–"
+      },
+      "sources": {
+        "title": "Source per field",
+        "union": "Union of every source",
+        "field": {
+          "title": "Title",
+          "overview": "Overview",
+          "tagline": "Tagline",
+          "original_title": "Original title",
+          "genres": "Genres",
+          "runtime_minutes": "Runtime",
+          "release_date": "Release date",
+          "own_rating": "Rating",
+          "poster": "Poster",
+          "backdrop": "Backdrop"
+        },
+        "fieldLang": "{{field}} ({{lang}})"
       },
       "state": {
         "pending": "Pending",
@@ -926,7 +1016,7 @@
     },
     "podcasts": {
       "title": "Podcasts",
-      "intro": "Subscribed feeds. Slouchcat fetches every feed hourly and adds new episodes.",
+      "intro": "Subscribed feeds and podcasts from folders. Slouchcat fetches every feed hourly and adds new episodes.",
       "empty": "No podcast subscribed yet.",
       "list": "Subscribed podcasts",
       "noLibrary": "Add a library of the kind Podcasts first.",
@@ -934,6 +1024,9 @@
       "never": "Never",
       "noError": "–",
       "explicit": "Explicit",
+      "fromFolder": "from folder",
+      "localEpisodes_one": "{{count}} local",
+      "localEpisodes_other": "{{count}} local",
       "columns": {
         "title": "Title",
         "library": "Library",

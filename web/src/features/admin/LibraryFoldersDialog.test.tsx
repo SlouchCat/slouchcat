@@ -36,7 +36,9 @@ describe('library folders dialog', () => {
     const user = userEvent.setup();
 
     const card = await screen.findByRole('article', { name: 'Filme' });
+    // The count and the summary per content (ADR 0015): both folders hold films.
     expect(within(card).getByText('2 Ordner')).toBeVisible();
+    expect(within(card).getByText(/2 Filme/)).toBeVisible();
     // The paths themselves are in the dialog now, not on the card.
     expect(within(card).queryByText('/media/Filme-2')).toBeNull();
 
@@ -87,8 +89,10 @@ describe('library folders dialog', () => {
     const user = userEvent.setup();
 
     const dialog = await openFolders(user);
-    await user.type(within(dialog).getByLabelText('Ordner hinzufügen'), '/media/Filme-2');
-    await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
+    // «Neue Ordner» (F-13): a card per folder, one submit for all of them.
+    await user.click(within(dialog).getByRole('button', { name: 'Ordner hinzufügen' }));
+    await user.type(within(dialog).getByLabelText('Ordner'), '/media/Filme-2');
+    await user.click(within(dialog).getByRole('button', { name: '1 Ordner hinzufügen' }));
 
     await waitFor(() => {
       expect(calls).toContainEqual(
@@ -118,8 +122,9 @@ describe('library folders dialog', () => {
     const user = userEvent.setup();
 
     const dialog = await openFolders(user);
-    await user.type(within(dialog).getByLabelText('Ordner hinzufügen'), '/etc');
-    await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Ordner hinzufügen' }));
+    await user.type(within(dialog).getByLabelText('Ordner'), '/etc');
+    await user.click(within(dialog).getByRole('button', { name: '1 Ordner hinzufügen' }));
 
     expect(
       await within(dialog).findByText(/Diesen Ordner gibt es auf dem Server nicht/),
@@ -246,8 +251,9 @@ describe('library folders dialog', () => {
     const user = userEvent.setup();
 
     let dialog = await openFolders(user);
-    await user.type(within(dialog).getByLabelText('Ordner hinzufügen'), '/etc');
-    await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Ordner hinzufügen' }));
+    await user.type(within(dialog).getByLabelText('Ordner'), '/etc');
+    await user.click(within(dialog).getByRole('button', { name: '1 Ordner hinzufügen' }));
     expect(
       await within(dialog).findByText(/Diesen Ordner gibt es auf dem Server nicht/),
     ).toBeVisible();
@@ -257,7 +263,8 @@ describe('library folders dialog', () => {
 
     dialog = await openFolders(user);
     expect(within(dialog).queryByText(/Diesen Ordner gibt es auf dem Server nicht/)).toBeNull();
-    expect(within(dialog).getByLabelText('Ordner hinzufügen')).toHaveValue('');
+    // The cards of «Neue Ordner» are gone with the dialog.
+    expect(within(dialog).queryByLabelText('Ordner')).toBeNull();
   });
 
   it('warns that it is the last folder and reports a running scan', async () => {
