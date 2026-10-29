@@ -136,7 +136,8 @@ Datei spielt als Datei (`direct` oder Audio-HLS), der Enclosure-Proxy ist nur no
 Offline bevorzugte die Datei schon. **Aufräumen:** `SoftDeleteItemsMissingSince` und
 `SoftDeleteItemsOfRootWithoutOtherFiles` nehmen `podcast_episode` ohne Enclosure mit; der Sweep und
 `removeLibraryRoot` löschen Ordner-Podcasts ohne Feed und ohne lebende Episode weich; ein Podcast
-**mit** Feed bleibt beim Entfernen des Ordners als Abo (`feed_origin` wird `admin`). `PodcastListDue`
+**mit** Feed bleibt beim Entfernen des Ordners als Abo (seit dem Review mit `feed_origin = 'file'`,
+siehe unten). `PodcastListDue`
 und `PodcastListIDsByLibrary` fragen nur Podcasts mit `feed_url`. `scanLibrary` einer
 Podcast-Bibliothek ruft die Feeds ab **und** scannt die Ordner. `listDuplicates` zeigt nicht
 zusammengeführte Paare als `file_and_feed`.
@@ -163,13 +164,13 @@ beim Herunterladen tut.
 | Feed aus Datei nur über den geschützten Client (Loopback-Feed von Hand abrufbar, aus Datei verweigert) | `TestFetchOfAFeedFromAFileIsGuarded`; `TestClientsFor` in `netguard_test.go` (`For` mit `FeedOriginFile`) |
 | Datei-Episode spielt `direct` aus der Datei; explizite Datei-Episode für P12 nicht gefunden | `TestPodcastEpisodeWithFilePlaysFromTheFile` (`server/internal/playback/file_episode_test.go`) |
 | Gelöschte Datei-Episode ohne Enclosure wird vom Sweep weich gelöscht, eine mit Enclosure bleibt; Ordner-Podcast ohne Feed geht mit der letzten Episode | `TestSweepTakesFileEpisodesWithoutEnclosure` |
-| `removeLibraryRoot` lässt den Feed-Podcast als Abo mit `feed_origin = 'admin'` stehen, der ohne Feed geht mit seinen Episoden | `TestPodcastFolderRemovalKeepsFeedPodcastsAsSubscriptions` |
+| `removeLibraryRoot` lässt den Feed-Podcast als Abo stehen (seit dem Review mit `feed_origin = 'file'`), der ohne Feed geht mit seinen Episoden | `TestPodcastFolderRemovalKeepsFeedPodcastsAsSubscriptions` |
 | Kinderprofil-Vertragstest: explizite Datei-Episode (`QF`, Datei ohne Enclosure, `rating_source tags`) fehlt in `listPodcastEpisodes` unter 18 und spielt für P18 aus der Datei | `vistest.Audio.FileOnlyExplicit` in `TestContractAudio`, `TestContractChildProfiles` |
 | `listDuplicates` zeigt nicht zusammengeführte Paare als `file_and_feed` | `TestAdminMaintenanceFileAndFeedDuplicates` |
 | Migration 00024 über alle eingefrorenen Stände | `TestFrozenStatesMigrate` |
 | `task ci` grün | `task ci` (29. Oktober 2026): `ci:server` alle Pakete `ok` (Go mit `-race`, `golangci-lint` 0 Befunde, `itemsaccess`, `gen:check` ohne Drift), `ci:web` Vitest 632 Tests in 77 Dateien, api-client 4, design-tokens 2, Storybook-Build ok, `task build`, `task ci:e2e` **442 passed (23.4m)** auf `SLOUCHCAT_E2E_PORT=8197` (8097 hielt ein verwaister e2e-Server der abgebrochenen Session), A-9-Logscan 66 902 Zeilen, 0 Befunde. **Nicht gelaufen:** der Storybook-Screenshot-Vergleich (`storybook:test`), weil Docker in dieser Session nicht erreichbar war (`sg docker` scheitert an `NoNewPrivs`); Schritt 3 ändert keine Datei unter `web/src`, die Vergleichsbilder sind davon nicht berührt |
 
-**Korrektur in Schritt 6** (`fix(library)`, gefunden beim Einfrieren des Standes): der Scanner
+**Korrektur nach dem Review** (`af313cc fix(metadata,library)`, gefunden beim Einfrieren des Standes): der Scanner
 prüfte die `feedURL` aus der Datei **vor** dem Nachschlagen und verweigerte darum auch die
 Übernahme eines **von Hand** abonnierten Feeds auf einem lokalen Host (der Mock-Feed der Tests, ein
 Feed im LAN). Konzept 4.5 sagt: zuerst `PodcastFindByFeed`, erst für einen **neuen** Podcast die
@@ -292,7 +293,10 @@ Titel genau einmal ein. (f) Gibt der Erkenner keinen Datensatz (kein Schlüssel,
 schreibt der Fill nichts, statt die Auffüller über die Werte des Matches zu lassen. (g) Die
 Zuordnungsliste: eine unlesbare Cache-Datei wird gelöscht und neu geholt; nach einem gescheiterten
 Abruf ohne Cache gilt fünf Minuten Pause; ein neuer Körper ohne ETag entfernt den alten. (h) Die
-AniList-Antwort über 1 MB ist ein klarer Fehler, kein «unreachable». **Nicht umgesetzt** (als
+AniList-Antwort über 1 MB ist ein klarer Fehler, kein «unreachable». (i) Beim Entfernen eines
+Podcast-Ordners behält das zurückbleibende Abo `feed_origin = 'file'` (9.1: die Adresse kam aus
+einer Datei; die LAN-Ausnahme gilt ihr nie), die Podcast-Seite erlaubt das Löschen, sobald kein
+Ordner mehr dazu gehört (`rootId` fehlt). **Nicht umgesetzt** (als
 Restpunkte für später notiert): der Server verweigert das Löschen eines Podcasts, den ein Ordner
 noch besitzt, nicht selbst (die Oberfläche blendet den Knopf aus; ein gelöschter Ordner-Podcast
 käme beim nächsten Scan wieder, Befund 13); eine Listenänderung am Ordner läuft nicht unter der
