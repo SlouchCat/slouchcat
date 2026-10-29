@@ -397,7 +397,7 @@ e2e-Helfer für P-15 liest weiterhin die berechnete `outline`. Die Storybook-Bas
 | Kriterium | Beleg |
 |---|---|
 | `task web:lint`, `task web:test` grün | `task ci` (29. Oktober 2026, Stand nach dem Review): `ci:web` ESLint, stylelint, `tsc` (beide Projekte), Prettier ohne Befund; Vitest **642 Tests in 79 Dateien** (api-client 4, design-tokens 2), `pnpm -C web test locales` grün |
-| `task web:storybook:test` | **nicht gelaufen:** Storybook-Build ok, der Screenshot-Vergleich braucht Docker (`sg docker`), das in dieser Session an `NoNewPrivs` scheitert; die Stories `ProviderList.stories.tsx` (6) und `FolderList.stories.tsx` (4) haben darum **noch keine Baselines** in `web/e2e-storybook/__screenshots__/` — `task storybook:update` nach einem neuen Login, dann die PNG prüfen und committen |
+| `task web:storybook:test` | Baselines der Stories `ProviderList.stories.tsx` (6) und `FolderList.stories.tsx` (4) nachgeholt, im Playwright-Image auf CT 190 (siehe «Nachbesserung des Layouts» oben): 171 passed, 159 bestehende Baselines byteidentisch |
 | `task web:e2e` grün, Tastaturtests für beide Bauteile und «Ändern», «Dokus» mit zwei Ordnern in einem Absenden | `task build` und `task ci:e2e` auf `SLOUCHCAT_E2E_PORT=8197`: **448 passed (23.8m)**, A-9-Logscan 65 336 Zeilen, 0 Befunde; die Teilläufe der fünf betroffenen Specs auf 8297 (Chromium und Firefox) gingen voraus |
 | Unit-Tests der Bauteile | `src/ui/ProviderList.test.tsx` (4), `src/ui/FolderList.test.tsx` (4), `LibrariesPage.test.tsx`, `LibraryFoldersDialog.test.tsx`, `SetupPage.test.tsx`, `AdminItemPage.test.tsx`, `PodcastsPage.test.tsx` angepasst oder neu |
 | `pnpm -C web test locales` grün | 2 Tests grün |
@@ -460,10 +460,17 @@ dauert Stunden.
 
 **Abgenommen von Marco am 29. Oktober 2026** am laufenden CT 190 (Image `bibliotheken-4c6e89e`),
 nach zwei Nachbesserungen am Layout (`8c913bf`: Formular und Dialog aufgeräumt; `4c6e89e`:
-Fokusring im Ordner-Browser nach innen). Offen bleiben die Storybook-Baselines (`ProviderList`,
-`FolderList`, `PathList`) über `task storybook:update` mit Docker, ohne die `storybook:test` in CI
-rot ist, und die Werte des Erst-Scans der Audio-Ordner für `docs/perf/bibliotheken.md` 3. Merge
-auf Marcos Wort durch die Hauptsession.
+Fokusring im Ordner-Browser nach innen). **Storybook-Baselines nachgeholt** (Commit
+`test(web): add the storybook baselines of the folder and provider lists`): weil Docker auf dem
+Entwicklungsrechner in keiner Sitzung dieses Tages erreichbar war (die Gruppe `docker` ist seit dem
+18. Oktober eingetragen, die Desktop-Sitzung aber älter), lief der Vergleich auf CT 190 im selben
+Image `mcr.microsoft.com/playwright:v1.64.1-noble`: statischer Storybook-Build, Spec, Baselines und
+`src/ui/*.tsx` hinüberkopiert, `webServer` auf `http-server` statt `vite preview` (die statischen
+Dateien sind dieselben), `playwright test --update-snapshots`: **171 passed (45.8 s)**. Ergebnis:
+10 neue PNG (`ui-providerlist--*` 6, `ui-folderlist--*` 4), `ui-pathlist--focused.png` geändert
+(Ring innen), die übrigen 159 Baselines **byteidentisch**; das Image auf dem CT rendert also wie
+die CI. Offen bleiben die Werte des Erst-Scans der Audio-Ordner für `docs/perf/bibliotheken.md` 3.
+Merge auf Marcos Wort durch die Hauptsession.
 
 **Belege (DoD Schritt 6):**
 
