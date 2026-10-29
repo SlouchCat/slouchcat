@@ -18,12 +18,13 @@ import (
 //
 //   - A change of the list that keeps the identifier (["tmdb"] → ["tmdb","anilist"], or the
 //     order of the fillers) writes the new list on every title with a file in the folder, its
-//     ancestors and their descendants, and queues one metadata job per title. Nothing is deleted,
-//     no scan runs, no confirmation is needed.
+//     ancestors and their descendants, and queues one metadata.fill per title. Nothing is
+//     deleted, no scan runs, no confirmation is needed.
 //   - A change of the identifier (["tmdb","tvdb"] → ["tvdb","tmdb"] on a series folder) does the
-//     same; the queued job identifies the title with the new first provider and describes its
-//     seasons and episodes by that provider's numbering. The episode items stay -- their identity
-//     is the file name -- so progress and watchlist stay attached. No confirmation either.
+//     same, but queues metadata.match: the job identifies the title with the new first provider
+//     and describes its seasons and episodes by that provider's numbering, and its fill follows.
+//     The episode items stay -- their identity is the file name -- so progress and watchlist stay
+//     attached. No confirmation either.
 //   - A change of the content (movie ↔ series) is, in effect, "remove the folder and add it
 //     again": the folder is read with another parser, and a film that becomes an episode is a
 //     new title. It runs the removal steps of RemoveRoot in one transaction under the scan lock
@@ -85,11 +86,16 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 	return s.Get(ctx, libraryID)
 }
 
-// changeRootProviders writes the new list on the root and its titles and queues one metadata
-// job per title (the identifier runs again when it changed; the fillers follow it either way).
+// changeRootProviders writes the new list on the root and its titles and queues one job per
+// title: metadata.match when the identifier changed (the fill follows it), else metadata.fill.
 func (s *Service) changeRootProviders(ctx context.Context, root appq.LibraryRoot, old, providers []string) error {
 	if model.ProvidersJSON(old) == model.ProvidersJSON(providers) {
 		return nil
+	}
+	identifierChanged := len(old) == 0 || old[0] != providers[0]
+	job := fillJob
+	if identifierChanged {
+		job = matchJob
 	}
 	now := s.now()
 	tx, err := s.db.Write.BeginTx(ctx, nil)
@@ -114,7 +120,7 @@ func (s *Service) changeRootProviders(ctx context.Context, root appq.LibraryRoot
 		return fmt.Errorf("list titles of root %d: %w", root.ID, err)
 	}
 	for _, id := range ids {
-		if err := enqueueTx(ctx, q, now, matchJob(id)); err != nil {
+		if err := enqueueTx(ctx, q, now, job(id)); err != nil {
 			return err
 		}
 	}
@@ -123,7 +129,7 @@ func (s *Service) changeRootProviders(ctx context.Context, root appq.LibraryRoot
 	}
 	s.log.InfoContext(ctx, "library root providers changed", "library_id", root.LibraryID, "root_id", root.ID,
 		"root", root.Path, "from", model.ProvidersJSON(old), "to", model.ProvidersJSON(providers),
-		"items", titles, "titles_queued", len(ids), "identifier_changed", len(old) == 0 || old[0] != providers[0])
+		"items", titles, "titles_queued", len(ids), "identifier_changed", identifierChanged)
 	return nil
 }
 

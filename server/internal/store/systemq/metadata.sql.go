@@ -186,6 +186,48 @@ func (q *Queries) ListEpisodesToMatch(ctx context.Context, seriesID sql.NullStri
 	return items, nil
 }
 
+const listFillItems = `-- name: ListFillItems :many
+SELECT i.id FROM items AS i
+WHERE i.library_id = ?1 AND i.deleted_at IS NULL
+  AND i.kind IN ('movie', 'series') AND i.metadata_state = 'matched'
+  AND instr(i.providers, ',') > 0
+  AND (NOT EXISTS (SELECT 1 FROM item_field_sources AS f WHERE f.item_id = i.id)
+       OR EXISTS (SELECT 1 FROM item_field_sources AS f
+                  WHERE f.item_id = i.id AND f.provider <> 'union'
+                    AND instr(i.providers, '"' || f.provider || '"') = 0))
+  AND NOT EXISTS (SELECT 1 FROM jobs AS j
+                  WHERE j.idempotency_key = 'fill:' || i.id AND j.state IN ('queued', 'running'))
+ORDER BY i.id
+`
+
+// Matched movies and series of a library with more than one provider in their list (a JSON list
+// with a comma; provider names carry none) whose provenance is missing or names a provider that
+// left the list, without an active fill job: the convergence of QueuePendingMetadata (ADR 0015).
+// After a failed run, a list change or SLOUCHCAT_ANILIST off and on again the title comes to its
+// fields. "union" is the genre merge, not a provider.
+func (q *Queries) ListFillItems(ctx context.Context, libraryID int64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listFillItems, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listImagesByItem = `-- name: ListImagesByItem :many
 SELECT id, item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, accent, created_at FROM images WHERE item_id = ?1 ORDER BY kind, size, format
 `
@@ -558,6 +600,38 @@ func (q *Queries) SetItemMetadataState(ctx context.Context, arg SetItemMetadataS
 	return err
 }
 
+const updateChildFill = `-- name: UpdateChildFill :exec
+UPDATE items
+SET release_date       = ?1,
+    runtime_minutes    = ?2,
+    tmdb_poster_path   = ?3,
+    tmdb_backdrop_path = ?4,
+    updated_at         = ?5
+WHERE id = ?6 AND deleted_at IS NULL
+`
+
+type UpdateChildFillParams struct {
+	ReleaseDate      sql.NullString
+	RuntimeMinutes   sql.NullInt64
+	TmdbPosterPath   sql.NullString
+	TmdbBackdropPath sql.NullString
+	Now              int64
+	ID               string
+}
+
+// Writes the fields the fill job decided for a season or episode; the match state stays.
+func (q *Queries) UpdateChildFill(ctx context.Context, arg UpdateChildFillParams) error {
+	_, err := q.db.ExecContext(ctx, updateChildFill,
+		arg.ReleaseDate,
+		arg.RuntimeMinutes,
+		arg.TmdbPosterPath,
+		arg.TmdbBackdropPath,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
 const updateChildMatch = `-- name: UpdateChildMatch :exec
 UPDATE items
 SET release_date       = ?1,
@@ -606,6 +680,57 @@ type UpdateItemAniListIDParams struct {
 
 func (q *Queries) UpdateItemAniListID(ctx context.Context, arg UpdateItemAniListIDParams) error {
 	_, err := q.db.ExecContext(ctx, updateItemAniListID, arg.AnilistID, arg.Now, arg.ID)
+	return err
+}
+
+const updateItemFill = `-- name: UpdateItemFill :exec
+UPDATE items
+SET original_title     = ?1,
+    year               = ?2,
+    release_date       = ?3,
+    runtime_minutes    = ?4,
+    genres             = ?5,
+    own_rating         = ?6,
+    rating_source      = ?7,
+    tmdb_poster_path   = ?8,
+    tmdb_backdrop_path = ?9,
+    anilist_id         = ?10,
+    updated_at         = ?11
+WHERE id = ?12 AND deleted_at IS NULL
+`
+
+type UpdateItemFillParams struct {
+	OriginalTitle    sql.NullString
+	Year             sql.NullInt64
+	ReleaseDate      sql.NullString
+	RuntimeMinutes   sql.NullInt64
+	Genres           string
+	OwnRating        sql.NullInt64
+	RatingSource     sql.NullString
+	TmdbPosterPath   sql.NullString
+	TmdbBackdropPath sql.NullString
+	AnilistID        sql.NullInt64
+	Now              int64
+	ID               string
+}
+
+// Writes the fields the fill job decided for a movie or series (metadata.fill, ADR 0015); the
+// caller keeps the current value of every field it does not fill. The match state stays.
+func (q *Queries) UpdateItemFill(ctx context.Context, arg UpdateItemFillParams) error {
+	_, err := q.db.ExecContext(ctx, updateItemFill,
+		arg.OriginalTitle,
+		arg.Year,
+		arg.ReleaseDate,
+		arg.RuntimeMinutes,
+		arg.Genres,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.TmdbPosterPath,
+		arg.TmdbBackdropPath,
+		arg.AnilistID,
+		arg.Now,
+		arg.ID,
+	)
 	return err
 }
 

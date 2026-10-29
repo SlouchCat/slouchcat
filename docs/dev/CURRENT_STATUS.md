@@ -174,9 +174,97 @@ beim Herunterladen tut.
 Abnahme in Schritt 6 nach `docs/perf/bibliotheken.md`; die Seite Podcasts zeigt den Chip «aus Ordner»
 erst in Schritt 5.
 
-**Offen nach Schritt 3:** `metadata.fill` und AniList (Schritt 4), die Bauteile «Metadatenquellen»
-und «Ordnerliste» mit Tastaturtests (Schritt 5), Abnahme auf CT 190, neuer eingefrorener Stand und
-Versionsstellen auf 1.3.0 (Schritt 6).
+### Schritt 4 — Auffüllen in Reihenfolge und AniList (`feat(metadata): fill fields provider by provider, with provenance and AniList`)
+
+**Vorher die Prüfpunkte aus 4.4** (Beleg im Papier, Abschnitt 4.4 «Geprüft am 29. Oktober 2026»,
+und in Frage 13): Rohadresse stimmt (7.5 MB, `ETag`), Feldnamen erhoben (`themoviedb_id` als
+Objekt, `imdb_id` als Liste, `season` je Anbieter), **keine Lizenzdatei** im Repository, nur 15 %
+der Filme mit TMDB-Film-Id. Marcos Antworten **F-14** (nur zur Laufzeit abrufen, nie ins
+Repository) und **F-15** (Filme auch über die IMDb-Id) stehen in Abschnitt 11, in Frage 13 und in
+ADR 0015 (`d9fff9d`).
+
+**Der Job `metadata.fill`** (`server/internal/metadata/fill.go`, Schlüssel `fill:<item>`, Priorität
+wie `image.fetch`) läuft die Liste eines gematchten Films oder einer Serie von vorne nach hinten,
+Erkenner eingeschlossen, holt je Anbieter einmal den Datensatz (TMDB, TVDB; AniList über die
+Zuordnungsliste) und entscheidet je Feld und Sprache nach 4.4: gesperrte Felder nie; sonst
+gewinnt der erste Anbieter mit Wert, `item_field_sources` hält fest, wer; steht dort ein Anbieter
+weiter vorne, bleibt der Wert, einer weiter hinten (oder nicht mehr in der Liste) wird ersetzt.
+Felder: `title`, `overview`, `tagline` je Sprache, `original_title`, `release_date` (mit Jahr),
+`runtime_minutes`, `poster`, `backdrop`; `genres` ist die Vereinigung aller Anbieter mit Herkunft
+`union`; `own_rating` wird **nur erhöht** (K-3), `rating_source` nennt den strengsten; bei gleicher
+Stufe nennt sie den vordersten Anbieter, damit ein Lauf nach einem erneuten Match dieselbe Zeile
+ergibt. Eine Liste mit **einem** Eintrag macht keine Anfrage und schreibt nur die Herkunft des
+Erkenners für alle Felder, die der Titel trägt. Für Staffeln und Folgen läuft derselbe Entscheid
+je Staffel, nur wenn zwei Anbieter sie beschreiben (TMDB und TVDB), eine Transaktion je Staffel;
+Mehrfolgen-Dateien behalten den zusammengesetzten Titel des Matches; AniList füllt nur die
+Titelebene. Ein Anbieter ohne Schlüssel wird übersprungen und als `WARN` «metadata provider in the
+list of a title but not configured, skipped» gemeldet. Geändertes Poster oder Backdrop reiht
+`image.fetch` ein; eine erhöhte Freigabe löst den Sichtbarkeits-Recheck der offenen Streams aus.
+
+**Einreihen und Konvergenz:** `applyTitle` reiht den Job **in der Transaktion des Matches** ein
+(`enqueueFillTx`). Findet der Job das Match seiner Serie noch aktiv (`match:<id>` in der Queue),
+endet er mit `errFillWaitsForMatch`, die Queue wiederholt ihn mit Backoff — sonst überschrieben
+die Staffel-Transaktionen des Matches, was der Job entschied. `QueuePendingMetadata` reiht
+zusätzlich jeden gematchten Titel mit mehr als einem Eintrag ein, dessen Herkunft fehlt oder
+einen Anbieter nennt, der nicht mehr in der Liste steht (`ListFillItems`; «mehr als ein Eintrag»
+ist `instr(providers, ',') > 0`, weil sqlc `json_array_length` nicht kennt). `updateLibraryRoot`
+reiht bei einer Listenänderung mit gleichem Erkenner je Titel `metadata.fill` ein, bei einem
+Erkennerwechsel wie bisher `metadata.match` (dessen Fill folgt).
+
+**AniList** (`anilist.go`): GraphQL `Media(id, type: ANIME)` mit `title {romaji english native}`,
+`description`, `genres`, `coverImage.extraLarge`, `bannerImage`, `isAdult`, ohne Schlüssel,
+`ratelimit.Limiter` 1/s Burst 5 (429 und `Retry-After` wie bei TMDB), 1 MB Lesegrenze, HTML der
+Beschreibung entfernt. Liefert englischen Titel (sonst Romaji), `original_title` = `title.native`,
+englische Beschreibung und Genres, Cover und Banner (nur vom Host `s4.anilist.co`; `image.fetch`
+lädt sie über den Anbieter-Client wie TVDB-Artworks), `isAdult` → 18 mit `rating_source
+'anilist'`. `SLOUCHCAT_ANILIST=off` (`config.AniList`, `metadata.WithAniList`,
+`admin.WithAniList`) schaltet den Anbieter ab; `listMetadataProviders` meldet dann `configured:
+false`, die Häkchen bleiben. **Zuordnungsliste** (`anime_lists.go`): fester Pfad bei
+`raw.githubusercontent.com`, Cache unter `<cache>/anime-lists/` mit ETag, wöchentlich erneuert
+(304 setzt die Dateizeit), 64-MB-Bremse beim Laden und beim Lesen, gestreamt in drei Karten:
+TMDB-Film-Id → AniList, IMDb-Id → AniList (nur `MOVIE`, F-15), TVDB-Id → Einträge je Staffel
+(Titelebene nimmt `season.tvdb = 1`, sonst die kleinste Staffel). `anilist_id = 0` heisst
+«nachgeschlagen, kein Eintrag» und wird beim nächsten Lauf wieder gefragt. Bricht der Abruf bei
+vorhandenem Cache ab, bleibt die alte Liste mit einer Warnung; Einträge anderer Form werden mit
+einer Warnung übersprungen (die Datei führt `themoviedb_id.movie` als Liste); Worker, die nach
+einem Scan zugleich fragen, teilen sich einen Ladevorgang (`loadMu`).
+
+**Messbarkeit:** jede Anbieter-Anfrage steht bei `--log-level debug` als `metadata request` mit
+`provider`, `host` und `path` im Log (ohne Query und Header, Regel 10); die Messung in
+`docs/perf/bibliotheken.md` Abschnitt 2 zählt damit. `deploy/.env.example` und `deploy/README.md`
+nennen `SLOUCHCAT_ANILIST`.
+
+**Belege (DoD Schritt 4):**
+
+| Kriterium | Beleg |
+|---|---|
+| Prüfpunkte aus 4.4 mit Beleg in der Rückmeldung | Papier 4.4 «Geprüft am 29. Oktober 2026», F-14 und F-15 (`d9fff9d`) |
+| `["tmdb","tvdb"]` füllt eine leere TMDB-Beschreibung aus TVDB und lässt eine vorhandene stehen, Herkunft je Feld stimmt; Idempotenz (zweimal laufen, gleiches Ergebnis); Staffeln und Folgen folgen, Mehrfolgen-Titel bleibt; der Match reiht den Fill in seiner Transaktion ein | `TestFillSeriesTMDBThenTVDB` (`server/internal/metadata/fill_test.go`) |
+| `["tvdb","tmdb"]` ersetzt eine TVDB-Beschreibung nicht durch TMDB; Wechsel auf `["tmdb","tvdb"]` ersetzt sie beim nächsten Lauf (zweimal gleich); nach einem erneuten Match steht das Auffüllen wieder (Match, Fill, Match, Fill → gleiche Felder) | `TestFillTVDBFirstKeepsTVDBTextsUntilTheListChanges` |
+| Gesperrtes Feld bleibt; `isAdult` hebt auf 18 mit Quelle `anilist`; `own_rating` wird nie gesenkt (AniList später nicht mehr adult, TMDB 12 → 18 bleibt; `manual` unberührt); Genres als Vereinigung | `TestFillKeepsLockedFieldsAndNeverLowersTheRating` |
+| Kinderprofil-Vertragstest: ein Film, dessen 18 vom Auffüller AniList hinter TMDB stammt, fehlt für P16 in jeder Antwort und steht für P18 in «Zuletzt» («Anbieterreihenfolge senkt die Freigabe nicht») | `vistest.Movie.FillerRated` in `AddEdgeCases`, Prüfung in `TestContractChildProfiles` (`home`) plus der Negativtest der Registry |
+| TVDB-Id → AniList-Id über die Liste (Staffel 1 vor Staffel 2), TMDB-Film-Id ebenso, Film und Serie mit derselben Zahl 550 bei verschiedenen Einträgen, Film über IMDb-Id (F-15); kein Treffer schreibt `anilist_id = 0`; AniList-Cover wird Poster, `image.fetch` folgt und lädt vom AniList-Host; Liste einmal geladen, nach der Woche mit ETag erneuert (304) | `TestFillAniListThroughTheMappingList`, `TestParseAnimeListAndStripHTML` |
+| Liste mit einem Eintrag: keine Anfrage, Herkunft des Erkenners für jedes Feld; `QueuePendingMetadata` lässt sie in Ruhe | `TestFillSingleProviderRecordsTheIdentifier` |
+| Konvergenz: fehlende oder veraltete Herkunft wird nach dem Scan eingereiht, passende nicht, aktive Jobs behalten den Schlüssel | `TestQueuePendingMetadataQueuesStaleFills` |
+| Anbieter ohne Schlüssel übersprungen und gemeldet, keine TVDB-Anfrage; Fill wartet auf das aktive Match | `TestFillSkipsAProviderWithoutKeyAndWaitsForTheMatch` |
+| 429 mit `Retry-After` pausiert den Limiter (zweite Anfrage nach der Sekunde); Liste grösser als 64 MB bricht ab, keine AniList-Anfrage | `TestFillAniListRateLimitAndListSize` |
+| Listenänderung am Ordner reiht `metadata.fill` je Titel ein, kein Match, kein Scan | `TestUpdateRootProvidersQueuesOneJobPerTitleAndDeletesNothing` (`library/mixed_test.go`) |
+| `SLOUCHCAT_ANILIST` gelesen (`on` Vorgabe, `off`), Vorgabe im Config-Test | `TestDefaults`, `TestPrecedenceFlagsOverEnv` (`config_test.go`) |
+| Messung: 111 Anime-Titel vom NAS mit `[tmdb, anilist]` (82 Filme) und `[tmdb, tvdb, anilist]` (29 Serien, ohne TVDB-Schlüssel), Dauer und Anfragen je Host | `docs/perf/bibliotheken.md` Abschnitt 2: 330.6 s vom ersten Abruf bis zum letzten Fill (Matches nach 33 s, die Fills warteten hinter 1 961 Folgen-Matches), TMDB 2 477 Anfragen, AniList 91 (Spitze 34/min, kein 429), Liste 1× (7.5 MB, ETag), AniList-Treffer 62/82 Filme und 29/29 Serien, 0 fehlgeschlagene Jobs; der erste Lauf deckte `themoviedb_id.movie` als Liste auf (Parser korrigiert) |
+| `task ci` grün | `task ci` (29. Oktober 2026, Stand vor Schritt 5): `task ci:server` **EXIT 0** (Go `-race` alle 32 Pakete `ok`, `golangci-lint` 0 Befunde, `itemsaccess`, `vet`, `gen:check` ohne Drift), der Web-Teil ist seit Schritt 3 unverändert (Vitest 632, api-client 4, design-tokens 2, Storybook-Build), `task build` und `task ci:e2e` auf dem Binary dieses Standes **442 passed (23.5m)** auf `SLOUCHCAT_E2E_PORT=8197`, A-9-Logscan 64 715 Zeilen, 0 Befunde; der Storybook-Screenshot-Vergleich lief auch hier nicht (kein Docker in dieser Session, keine Web-Änderung) |
+
+**Bewusste Abweichungen vom Papier:** (1) Die Folgen-Texte eines Auffüllers kommen über dieselbe
+Staffel- und Folgennummer wie beim Erkenner (4.4, 6.2); zählen TMDB und TVDB bei einem Anime
+verschieden, füllt der zweite Anbieter nur die Lücken des ersten, kann dort aber die Nummer
+anders besetzen — das ist die Regel «der erste gewinnt» (12.3), kein Abgleich der Zählungen.
+(2) Es gibt keinen eigenen Dashboard-Zähler für Fill-Läufe: das Dashboard zählt Jobs nur nach
+Zustand (`JobCounts`), auch Trailer haben keinen; Fill-Jobs erscheinen dort wie jeder andere Job
+und im Log als `item filled`. (3) Bei gleicher Freigabe aus zwei Anbietern nennt `rating_source`
+den vordersten (nicht «den strengsten», die sind gleich), damit Match und Fill idempotent sind.
+
+**Offen nach Schritt 4:** die Bauteile «Metadatenquellen» und «Ordnerliste» mit Tastaturtests,
+die Herkunft je Feld auf der Admin-Titelseite (Schritt 5), Abnahme auf CT 190, neuer eingefrorener
+Stand und Versionsstellen auf 1.3.0 (Schritt 6).
 
 ## Benutzerverwaltung: Administrator, Konto, Profil (28. Oktober 2026)
 

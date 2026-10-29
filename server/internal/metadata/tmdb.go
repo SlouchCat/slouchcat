@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -42,6 +43,7 @@ type Client struct {
 	http      *http.Client
 	limiter   *ratelimit.Limiter
 	key       string
+	log       *slog.Logger // set by New; nil logs nothing
 }
 
 // NewClient returns a client for the given API and image base URLs (without trailing slash).
@@ -370,6 +372,7 @@ func (c *Client) getJSON(ctx context.Context, path string, q url.Values, out any
 // send runs req through the shared limiter. Network errors and timeouts become
 // model.ErrTMDBUnreachable; a cancelled ctx stays a context error.
 func (c *Client) send(ctx context.Context, req *http.Request) (*http.Response, error) {
+	logRequest(c.log, ProviderTMDB, req)
 	resp, err := c.limiter.Do(ctx, c.http, req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {

@@ -144,6 +144,7 @@ type Service struct {
 	getenv    func(string) string
 	log       *slog.Logger
 	now       func() time.Time
+	anilist   bool // AniList switched on (SLOUCHCAT_ANILIST, WithAniList); true until set
 
 	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)
@@ -157,8 +158,15 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 	return &Service{
 		db: db.Write, write: appq.New(db.Write), read: appq.New(db.Read), sys: systemq.New(db.Read), auth: auth, vis: visibility.New(db, log),
 		libraries: libraries,
-		keyring:   keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now,
+		keyring:   keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now, anilist: true,
 	}
+}
+
+// WithAniList tells the service whether the AniList filler is switched on (config.AniList), for
+// listMetadataProviders, and returns the receiver.
+func (s *Service) WithAniList(on bool) *Service {
+	s.anilist = on
+	return s
 }
 
 // WithQueue sets the job queue used to refresh the metadata of a title whose rating override was
@@ -449,11 +457,10 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 	if err != nil {
 		return nil, err
 	}
-	anilist := s.getenv("SLOUCHCAT_ANILIST") != "off"
 	infos := []model.MetadataProviderInfo{
 		{ID: model.ProviderTMDB, Configured: tmdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
 		{ID: model.ProviderTVDB, Configured: tvdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
-		{ID: model.ProviderAniList, Configured: anilist, Roles: []string{"fill"}, Languages: []string{"en"}},
+		{ID: model.ProviderAniList, Configured: s.anilist, Roles: []string{"fill"}, Languages: []string{"en"}},
 		{ID: model.ProviderLocal, Configured: true, Roles: []string{"identify"}, Languages: []string{}},
 	}
 	for i := range infos {

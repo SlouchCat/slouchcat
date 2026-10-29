@@ -57,6 +57,8 @@ type fakeTMDB struct {
 	hits      map[string]int
 	rateCalls int
 	authSeen  []string
+	// tvNoGermanOverview empties the German overview of the series 900 (fill tests).
+	tvNoGermanOverview bool
 }
 
 // jpegBytes returns a w×h JPEG: a strong red block in the upper half (the poster's accent) over a
@@ -303,6 +305,7 @@ type env struct {
 	tmdb  *fakeTMDB
 	tvdb  *fakeTVDB
 	yt    *fakeYouTube
+	al    *fakeAniList
 	quota *ratelimit.Quota
 	clock *testClock
 	cache string
@@ -327,6 +330,7 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 	f := newFakeTMDB(t)
 	tv := newFakeTVDB(t)
 	yt := newFakeYouTube(t)
+	al := newFakeAniList(t)
 	clock := &testClock{t: testNow}
 	quota := ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific, ratelimit.WithQuotaClock(clock.now))
 	cache := t.TempDir()
@@ -335,6 +339,8 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 		WithBaseURL(f.srv.URL+"/3", f.srv.URL+"/t/p"), WithHTTPClient(f.srv.Client()),
 		WithTVDBBaseURL(tv.srv.URL+"/v4", tv.srv.URL+"/art"),
 		WithYouTubeBaseURL(yt.srv.URL+"/youtube/v3"), WithYouTubeQuota(quota),
+		WithAniListBaseURL(al.srv.URL+"/graphql", al.srv.URL+"/img"),
+		WithAnimeListsURL(al.srv.URL+"/lists/anime-list-full.json", al.srv.Client()),
 		WithClock(func() time.Time { return testNow }))
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 0, 0)`)
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (2, 'Serien', 'video', 0, 0)`)
@@ -345,7 +351,7 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 			}
 		}
 	})
-	return &env{db: db, queue: q, svc: svc, tmdb: f, tvdb: tv, yt: yt, quota: quota, clock: clock, cache: cache, logs: logs}
+	return &env{db: db, queue: q, svc: svc, tmdb: f, tvdb: tv, yt: yt, al: al, quota: quota, clock: clock, cache: cache, logs: logs}
 }
 
 type lockedWriter struct {
@@ -1398,7 +1404,8 @@ func TestJobChainWithWorker(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 		_ = e.db.Read.QueryRow(`SELECT group_concat(type || '=' || state, ',') FROM (SELECT type, state FROM jobs ORDER BY id)`).Scan(&states)
 	}
-	if states != "metadata.match=done,image.fetch=done,trailer.find=done" {
+	// The match queues its fill in its transaction (ADR 0015), before the images and trailers.
+	if states != "metadata.match=done,metadata.fill=done,image.fetch=done,trailer.find=done" {
 		t.Fatalf("job states %s", states)
 	}
 	if r := e.item(t, idByIMDB); r.State != "matched" || r.Source.String != "tmdb:DE" {

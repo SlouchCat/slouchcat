@@ -1266,6 +1266,16 @@ func TestContractChildProfiles(t *testing.T) {
 				t.Errorf("P18 recent = %v lacks movie %s", rows["recent"], m.Label)
 			}
 		}
+		// K-3, ADR 0015: a rating a filler behind TMDB raised to 18 counts like any 18 — the
+		// order of the providers never lowers it. P18 sees the film, P16 nowhere (checked below
+		// for every row by the negative leak check of the registry).
+		filler := edgeCase(f, func(m vistest.Movie) bool { return m.FillerRated })
+		if !slices.Contains(rows["recent"], filler.ID) {
+			t.Errorf("P18 recent = %v lacks the film rated 18 by a filler", rows["recent"])
+		}
+		if _, rows16 := homeRows(t, send(t, h, http.MethodGet, BasePath+"/home", "p16", "", nil)); slices.Contains(rows16["recent"], filler.ID) {
+			t.Errorf("P16 recent = %v shows the film rated 18 by a filler: the provider order lowered the rating", rows16["recent"])
+		}
 		if len(rows["picks"]) == 0 || rows["picks"][0] != f.Rated(18).ID {
 			t.Errorf("P18 picks = %v, want the 18-rated movie first", rows["picks"])
 		}

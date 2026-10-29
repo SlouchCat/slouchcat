@@ -803,6 +803,11 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 			return snap, false, err
 		}
 	}
+	// The fill follows every match, in the same transaction (ADR 0015): the title carries the
+	// identifier's values now, the fillers of its list come with the job.
+	if err := enqueueFillTx(ctx, q, itemID, now); err != nil {
+		return snap, false, fmt.Errorf("metadata.match: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: commit %s: %w", itemID, err)
 	}
@@ -1096,7 +1101,9 @@ const maxUpgradeMatches = 200
 // still pending without an active match job: movies and series (priority 4) and episodes of
 // matched series (priority 3). It also queues one match (priority 4, at most maxUpgradeMatches per
 // run) for matched titles from before M3, which lack image paths, credits and trailers
-// (ListUpgradeMatchItems), and trailer.find for matched titles whose trailers are still pending
+// (ListUpgradeMatchItems), metadata.fill for matched titles with more than one provider whose
+// provenance is missing or stale (QueuePendingFills, ADR 0015), and trailer.find for matched
+// titles whose trailers are still pending
 // (QueuePendingTrailers, for example after the YouTube quota ran out). The library scan calls it
 // after every complete run, so enrichment converges after aborted scans, failed jobs and the
 // upgrade. It returns the number of jobs queued.
@@ -1126,6 +1133,11 @@ func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (in
 			return n, err
 		}
 		n++
+	}
+	f, err := s.QueuePendingFills(ctx, libraryID)
+	n += f
+	if err != nil {
+		return n, err
 	}
 	t, err := s.QueuePendingTrailers(ctx, libraryID)
 	return n + t, err

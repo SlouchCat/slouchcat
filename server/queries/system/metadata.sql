@@ -191,3 +191,48 @@ DELETE FROM item_field_sources WHERE item_id = @item_id;
 
 -- name: UpdateItemAniListID :exec
 UPDATE items SET anilist_id = @anilist_id, updated_at = @now WHERE id = @id;
+
+-- name: UpdateItemFill :exec
+-- Writes the fields the fill job decided for a movie or series (metadata.fill, ADR 0015); the
+-- caller keeps the current value of every field it does not fill. The match state stays.
+UPDATE items
+SET original_title     = @original_title,
+    year               = @year,
+    release_date       = @release_date,
+    runtime_minutes    = @runtime_minutes,
+    genres             = @genres,
+    own_rating         = @own_rating,
+    rating_source      = @rating_source,
+    tmdb_poster_path   = @tmdb_poster_path,
+    tmdb_backdrop_path = @tmdb_backdrop_path,
+    anilist_id         = @anilist_id,
+    updated_at         = @now
+WHERE id = @id AND deleted_at IS NULL;
+
+-- name: UpdateChildFill :exec
+-- Writes the fields the fill job decided for a season or episode; the match state stays.
+UPDATE items
+SET release_date       = @release_date,
+    runtime_minutes    = @runtime_minutes,
+    tmdb_poster_path   = @tmdb_poster_path,
+    tmdb_backdrop_path = @tmdb_backdrop_path,
+    updated_at         = @now
+WHERE id = @id AND deleted_at IS NULL;
+
+-- name: ListFillItems :many
+-- Matched movies and series of a library with more than one provider in their list (a JSON list
+-- with a comma; provider names carry none) whose provenance is missing or names a provider that
+-- left the list, without an active fill job: the convergence of QueuePendingMetadata (ADR 0015).
+-- After a failed run, a list change or SLOUCHCAT_ANILIST off and on again the title comes to its
+-- fields. "union" is the genre merge, not a provider.
+SELECT i.id FROM items AS i
+WHERE i.library_id = @library_id AND i.deleted_at IS NULL
+  AND i.kind IN ('movie', 'series') AND i.metadata_state = 'matched'
+  AND instr(i.providers, ',') > 0
+  AND (NOT EXISTS (SELECT 1 FROM item_field_sources AS f WHERE f.item_id = i.id)
+       OR EXISTS (SELECT 1 FROM item_field_sources AS f
+                  WHERE f.item_id = i.id AND f.provider <> 'union'
+                    AND instr(i.providers, '"' || f.provider || '"') = 0))
+  AND NOT EXISTS (SELECT 1 FROM jobs AS j
+                  WHERE j.idempotency_key = 'fill:' || i.id AND j.state IN ('queued', 'running'))
+ORDER BY i.id;

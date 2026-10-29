@@ -488,7 +488,8 @@ die Lizenz für die Weiterverwendung in einem AGPL-Projekt, und ob Filme in der 
 **Geprüft am 29. Oktober 2026** (vor Schritt 4): Die Rohadresse stimmt (HTTP 200, `ETag`, **7.5 MB**;
 die 64-MB-Bremse bleibt als Obergrenze). Die Datei ist eine JSON-Liste von Objekten mit `type` (`TV`,
 `MOVIE`, `OVA`, `ONA`, `SPECIAL`, `UNKNOWN`, bei 1 327 Einträgen fehlend), `anilist_id`, `tvdb_id`,
-`themoviedb_id` als **Objekt** `{"tv": N}` oder `{"movie": N}`, `imdb_id` als **Liste** von
+`themoviedb_id` als **Objekt** `{"tv": N}` oder `{"movie": [N, …]}` (bei Filmen eine Liste, 1 393
+Einträge), `imdb_id` als **Liste** von
 Zeichenketten, `season` als `{"tvdb": n, "tmdb": n}`, dazu `mal_id`, `anidb_id`, `episode_offset` und
 weitere Ids; 39 597 Einträge, `anilist_id` bei 20 892, `tvdb_id` bei 7 515. 1 273 TVDB-Ids haben
 mehrere AniList-Einträge, 4 215 davon einen mit `season.tvdb = 1`: die Regel «Titelebene = Staffel 1»

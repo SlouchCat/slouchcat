@@ -21,6 +21,7 @@ const (
 	JobProbeKeyframes = "probe.keyframes" // payload {"mediaFileId": "<ULID>"}, key keyframes:<id>
 	JobSweep          = "library.sweep"   // key sweep
 	JobMetadataMatch  = "metadata.match"  // handled by package metadata; payload {"itemId": "<ULID>"}
+	JobMetadataFill   = "metadata.fill"   // handled by package metadata; payload {"itemId": "<ULID>"}
 	JobImageFetch     = "image.fetch"     // handled by package metadata; payload {"itemId": "<ULID>"}, key image:<id>
 )
 
@@ -126,6 +127,11 @@ func StoreKeyframes(ctx context.Context, db *sql.DB, mediaFileID string, kf []ti
 
 func matchJob(itemID string) newJob {
 	return newJob{JobMetadataMatch, prioMatch, "match:" + itemID, itemPayload{itemID}}
+}
+
+// fillJob queues metadata.fill at the priority of image.fetch, like the match does.
+func fillJob(itemID string) newJob {
+	return newJob{JobMetadataFill, prioImage, "fill:" + itemID, itemPayload{itemID}}
 }
 
 func imageJob(itemID string) newJob {

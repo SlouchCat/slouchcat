@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"sort"
@@ -52,6 +53,7 @@ type tvdbProvider struct {
 	http    *http.Client
 	limiter *ratelimit.Limiter
 	keys    KeySource
+	log     *slog.Logger // set by New; nil logs nothing
 
 	mu       sync.Mutex
 	token    string
@@ -194,6 +196,7 @@ func (p *tvdbProvider) bearer(ctx context.Context, key, pin string, renew bool) 
 // send runs req through the TVDB limiter; network errors become model.ErrTMDBUnreachable (the
 // contract has one code per failure kind for every provider).
 func (p *tvdbProvider) send(ctx context.Context, req *http.Request) (*http.Response, error) {
+	logRequest(p.log, ProviderTVDB, req)
 	resp, err := p.limiter.Do(ctx, p.http, req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {

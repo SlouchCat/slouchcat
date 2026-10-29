@@ -176,8 +176,11 @@ func TestUpdateRootProvidersQueuesOneJobPerTitleAndDeletesNothing(t *testing.T) 
 	if n := e.count(`SELECT count(*) FROM items WHERE library_id = ? AND providers = '["tmdb","anilist"]'`, lib.ID); n != 3 {
 		t.Fatalf("items with the new list = %d, want 3 (two films and the extra)", n)
 	}
-	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key LIKE 'match:%'`, JobMetadataMatch); n != 2 {
-		t.Fatalf("match jobs = %d, want one per film", n)
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key LIKE 'fill:%'`, JobMetadataFill); n != 2 {
+		t.Fatalf("fill jobs = %d, want one per film", n)
+	}
+	if n := e.jobCount(JobMetadataMatch); n != 0 {
+		t.Fatalf("match jobs = %d, want none: the identifier did not change", n)
 	}
 	if n := e.jobCount(JobScanLibrary); n != 0 {
 		t.Fatalf("scan jobs = %d, want none", n)
@@ -193,8 +196,8 @@ func TestUpdateRootProvidersQueuesOneJobPerTitleAndDeletesNothing(t *testing.T) 
 	if _, err := e.svc.UpdateRoot(e.ctx, lib.ID, rootID, model.LibraryRootUpdate{Providers: []string{"tmdb", "anilist"}}); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.jobCount(JobMetadataMatch); n != 0 {
-		t.Fatalf("match jobs after an unchanged list = %d", n)
+	if n := e.jobCount(JobMetadataMatch) + e.jobCount(JobMetadataFill); n != 0 {
+		t.Fatalf("jobs after an unchanged list = %d", n)
 	}
 	// A list the rules refuse.
 	if _, err := e.svc.UpdateRoot(e.ctx, lib.ID, rootID, model.LibraryRootUpdate{Providers: []string{"tvdb"}}); !hasFieldError(err, "providers", model.CodeProvidersNotAllowed) {

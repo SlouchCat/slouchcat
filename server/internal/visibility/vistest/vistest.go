@@ -58,6 +58,7 @@ type Movie struct {
 
 	LibraryID    int64 // the library the title is in (set when it is seeded)
 	OtherLibrary bool  // in library X, which PX may not see
+	FillerRated  bool  // rated 18 by AniList, a filler behind TMDB in its provider list (AddEdgeCases)
 	Missing      bool  // its only file has missing_since set
 	Unavailable  bool  // a container without available content children (AddLoneExtraSeries)
 	Deleted      bool  // soft-deleted
@@ -404,6 +405,14 @@ func (f *Fixture) AddEdgeCases(t testing.TB) {
 		t.Fatal(err)
 	}
 	f.otherLibraryID = lib.ID
+	// A film whose 18 comes from AniList, the filler behind TMDB in its list (ADR 0015, K-3): the
+	// order of the providers never lowers a rating, so the film is hidden below 18 like any
+	// other, and its provenance names the filler. The negative test of the child profiles.
+	filler := f.addMovie(t, Movie{Rating: ptr(18), Label: "A8", FillerRated: true}, f.libraryID, f.rootID, f.MediaDir, 9)
+	exec(t, f.DB, `UPDATE items SET rating_source = 'anilist', providers = '["tmdb","anilist"]', anilist_id = 1001 WHERE id = ?`, filler.ID)
+	exec(t, f.DB, `INSERT INTO item_field_sources (item_id, field, lang, provider) VALUES (?, 'own_rating', '', 'anilist'), (?, 'title', 'de', 'tmdb'), (?, 'genres', '', 'union')`,
+		filler.ID, filler.ID, filler.ID)
+	f.Movies = append(f.Movies, filler)
 	other := f.addMovie(t, Movie{Rating: ptr(0), Label: "X0", OtherLibrary: true}, lib.ID, root.ID, f.OtherMediaDir, 6)
 	missing := f.addMovie(t, Movie{Rating: ptr(0), Label: "M0", Missing: true}, f.libraryID, f.rootID, f.MediaDir, 7)
 	deleted := f.addMovie(t, Movie{Rating: ptr(0), Label: "D0", Deleted: true}, f.libraryID, f.rootID, f.MediaDir, 8)

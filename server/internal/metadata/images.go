@@ -154,8 +154,9 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 }
 
 // imageSource returns the URL of the original of kind: the TMDB original of the stored path
-// (/abc.jpg), a stored TVDB artwork URL, or for titles matched before M3 (no stored path) the
-// source of the stored original. "" means there is nothing to fetch.
+// (/abc.jpg), a stored TVDB artwork or AniList image URL (the fill job stores those, ADR 0015),
+// or for titles matched before M3 (no stored path) the source of the stored original. "" means
+// there is nothing to fetch.
 func (s *Service) imageSource(item systemq.Item, kind string, prev []systemq.Image) string {
 	path := item.TmdbPosterPath
 	if kind == "backdrop" {
@@ -165,7 +166,7 @@ func (s *Service) imageSource(item systemq.Item, kind string, prev []systemq.Ima
 		switch {
 		case strings.HasPrefix(path.String, "/"):
 			return s.client.imageURL(originalSize, path.String)
-		case strings.HasPrefix(path.String, s.tvdb.artBase+"/"):
+		case strings.HasPrefix(path.String, s.tvdb.artBase+"/"), s.anilist.imageURL(path.String):
 			return path.String
 		}
 		s.log.Warn("image path of an unknown host ignored", "item_id", item.ID, "kind", kind)
@@ -856,9 +857,11 @@ func (s *Service) feedOf(ctx context.Context, itemID string) (feedURL, origin st
 	return item.FeedUrl.String, item.FeedOrigin.String
 }
 
-// providerImage reports whether a source is a TMDB or TVDB image (fetched through their client).
+// providerImage reports whether a source is a TMDB, TVDB or AniList image (fetched through the
+// provider client, not the guarded cover client: the hosts are constants).
 func (s *Service) providerImage(source string) bool {
-	return strings.HasPrefix(source, s.client.imageURL(originalSize, "")) || strings.HasPrefix(source, s.tvdb.artBase+"/")
+	return strings.HasPrefix(source, s.client.imageURL(originalSize, "")) || strings.HasPrefix(source, s.tvdb.artBase+"/") ||
+		s.anilist.imageURL(source)
 }
 
 // mediaFilePath resolves the absolute path of a media file through package paths.
