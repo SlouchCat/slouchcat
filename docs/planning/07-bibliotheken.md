@@ -16,7 +16,8 @@
   Verwaltungsseiten liegt unter `docs/planning/mockups/07-bibliotheken-prototyp.html` (7.1), und aus
   Marcos Rückmeldung dazu folgt **F-13**: eine Bibliothek bekommt **mehrere Ordner in einem Zug**
   (`LibraryRequest.roots` als Liste, `addLibraryRoot` nimmt eine Liste, alles oder nichts).
-- **Datum: 28. Oktober 2026, Fassung 4 vom 29. Oktober 2026**
+- **Datum: 28. Oktober 2026, Fassung 4 vom 29. Oktober 2026; Nachtrag F-14 und F-15 vom 29. Oktober 2026
+  (Prüfpunkte aus 4.4, vor Schritt 4 beantwortet)**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`9923807`** («Merge pull request #44»,
   Benutzerverwaltung), im Worktree `claude/bibliotheken`. Geschrieben wurde es gegen `0dd4f19`
   («Merge pull request #43»); **jede `:Zeile`-Angabe bezieht sich auf diesen älteren Stand** und kann
@@ -483,6 +484,18 @@ Rohadresse der Zuordnungsliste (erwartet
 `https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-full.json`), die Feldnamen,
 die Lizenz für die Weiterverwendung in einem AGPL-Projekt, und ob Filme in der Liste zuverlässig
 `themoviedb_id` tragen (die Liste verschmilzt über `anidb_id`; Filme sind dort seltener als Serien).
+
+**Geprüft am 29. Oktober 2026** (vor Schritt 4): Die Rohadresse stimmt (HTTP 200, `ETag`, **7.5 MB**;
+die 64-MB-Bremse bleibt als Obergrenze). Die Datei ist eine JSON-Liste von Objekten mit `type` (`TV`,
+`MOVIE`, `OVA`, `ONA`, `SPECIAL`, `UNKNOWN`, bei 1 327 Einträgen fehlend), `anilist_id`, `tvdb_id`,
+`themoviedb_id` als **Objekt** `{"tv": N}` oder `{"movie": N}`, `imdb_id` als **Liste** von
+Zeichenketten, `season` als `{"tvdb": n, "tmdb": n}`, dazu `mal_id`, `anidb_id`, `episode_offset` und
+weitere Ids; 39 597 Einträge, `anilist_id` bei 20 892, `tvdb_id` bei 7 515. 1 273 TVDB-Ids haben
+mehrere AniList-Einträge, 4 215 davon einen mit `season.tvdb = 1`: die Regel «Titelebene = Staffel 1»
+trägt. **Das Repository hat keine Lizenzdatei** (`license: null`); **F-14** antwortet darauf. **Nur 968
+von 6 469 Filmen (15 %) tragen `themoviedb_id.movie`**, `imdb_id` steht bei 8 261 Einträgen; **F-15**
+antwortet darauf: Filme werden zuerst über die TMDB-Film-Id, sonst über die IMDb-Id (nur Einträge vom
+Typ `MOVIE`) zugeordnet; TMDB liefert die IMDb-Id mit dem Datensatz.
 
 ### 4.5 Die Quelle `local` für Podcasts: Ordner lesen, Feed mitnehmen
 
@@ -1257,8 +1270,9 @@ nachziehen, Image aus `main` bauen, CT 190 umstellen, `docs/dev/CURRENT_STATUS.m
 ## 11. Fragen an Marco
 
 Format wie `docs/planning/04-entscheidungen.md`. Beantwortet am 28. Oktober 2026 in drei Runden,
-F-13 am 29. Oktober 2026 am Prototyp, F-10 durch den Merge der Benutzerverwaltung am 28. Oktober 2026.
-F-9 ist durch F-11 erledigt. Alle Antworten stehen als Frage 13 im Entscheidungsprotokoll.
+F-13 am 29. Oktober 2026 am Prototyp, F-10 durch den Merge der Benutzerverwaltung am 28. Oktober 2026,
+F-14 und F-15 am 29. Oktober 2026 nach den Prüfpunkten aus 4.4 (vor Schritt 4). F-9 ist durch F-11
+erledigt. Alle Antworten stehen als Frage 13 im Entscheidungsprotokoll.
 
 | Nr. | Frist | Thema | Empfehlung | Antwort | Datum |
 |-----|-------|-------|------------|---------|-------|
@@ -1275,6 +1289,8 @@ F-9 ist durch F-11 erledigt. Alle Antworten stehen als Frage 13 im Entscheidungs
 | **F-11** | vor Schritt 1 | **Wie sieht die Scraper-Wahl je Ordner aus?** Hauptscraper plus Ergänzer (ein Erkenner, Häkchen für Auffüller) / genau einer / Liste mit Reihenfolge wie in Emby | Hauptscraper plus Ergänzer — kleiner, Idee 01 bleibt ganz | **Liste mit Reihenfolge wie in Emby.** Der erste erkennt, die weiteren füllen feldweise auf; Herkunft je Feld und Anbieterliste ziehen aus Idee 01 hierher | 2026-10-28 |
 | **F-12** | vor Schritt 1 | **TVDB als Hauptscraper für Serienordner wählbar?** Heute nur Rückfall (ADR 0006); TVDB braucht den kostenpflichtigen Schlüssel | Ja, wählbar; bei TVDB zuerst gilt die TVDB-Staffelzählung, TMDB füllt auf; ändert ADR 0006 | **Ja, wählbar** | 2026-10-28 |
 | **F-13** | vor Schritt 1 | **Mehrere Ordner in einem Zug?** Der erste Prototyp (7.1) legte beim Anlegen genau einen Ordner an, weitere erst über «Ordner von X»; Marco: «nicht intuitiv gelöst» | Ordnerliste im Formular, ein Absenden für alle; `LibraryRequest.roots[]`, `addLibraryRoot` mit Liste, Server alles oder nichts | **Ja, so aufnehmen** (zweite Prototyp-Fassung mit nummerierten Ordnerkarten) | 2026-10-29 |
+| **F-14** | vor Schritt 4 | **Lizenz der Zuordnungsliste.** `github.com/Fribb/anime-lists` hat keine Lizenzdatei; die Weiterverwendung in einem AGPL-Projekt ist formal ungeklärt | Nur zur Laufzeit abrufen und unter `/cache/anime-lists/` cachen, nie ins Repository kopieren; Quelle und fehlende Lizenz im ADR nennen | **Ja, nur zur Laufzeit** | 2026-10-29 |
+| **F-15** | vor Schritt 4 | **Zuordnung der Filme.** Nur 15 % der Anime-Filme in der Liste tragen eine TMDB-Film-Id (968 von 6 469); `imdb_id` steht bei 8 261 Einträgen, TMDB liefert sie mit dem Datensatz | Zusätzlich über die IMDb-Id zuordnen (nur Einträge vom Typ `MOVIE`), kleiner Zusatz | **Ja, auch über die IMDb-Id** | 2026-10-29 |
 
 ---
 
