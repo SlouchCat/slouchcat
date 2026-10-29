@@ -385,6 +385,12 @@ und Knöpfe «Ändern» / «Entfernen» in einer Zeile stehen. Belege: `pnpm -C 
 Befund, Vitest **642 Tests in 79 Dateien**, `task ci:e2e -- admin-libraries admin-library-folders
 setup admin-folder-browser podcasts` auf `SLOUCHCAT_E2E_PORT=8297` **66 passed (1.7m)**, A-9-Logscan
 0 Befunde; die Storybook-Baselines der beiden Bauteile fehlen weiterhin (kein Docker, siehe unten).
+Zweiter Befund von Marco im Ordner-Browser: über der obersten Zeile stand eine weisse Linie. Das war
+der Fokusring der Zeile darüber: er liegt mit `outline-offset: 2px` ausserhalb der Zeile, die Liste
+scrollt (`overflow-y: auto`) und schneidet ihn ab, sichtbar blieb nur das Stück in der Lücke
+zwischen zwei Zeilen. `PathList` zeichnet den Ring jetzt nach innen (`outline-offset: -3px`); der
+e2e-Helfer für P-15 liest weiterhin die berechnete `outline`. Die Storybook-Baseline von `PathList`
+(fokussierte Zeile) ändert sich damit und braucht denselben `task storybook:update`.
 
 **Belege (DoD Schritt 5):**
 
