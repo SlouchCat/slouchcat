@@ -376,6 +376,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/libraries/visible": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Libraries with at least one visible title, for the side navigation (concept 08, ADR 0016)
+         * @description The libraries the active profile may browse, in the order of the administration: a library is
+         *     listed when the profile sees at least one of its titles (derived from the visibility layer,
+         *     not from a second copy of the library rights, ADR 0016). A library the profile may not see
+         *     and a library without a visible title are absent alike. `itemCount` counts top-level titles
+         *     only (films, series, audiobooks, podcasts), never episodes. `contents` names the content
+         *     kinds of the library's folders (ADR 0015), so the client knows whether to offer the chips
+         *     "all / films / series". Unlike `listAccountLibraries` (`account`, for the profile settings)
+         *     this is `scoped`: it describes what the profile sees.
+         */
+        get: operations["listVisibleLibraries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One page of the titles of a library, sorted and filtered (concept 08)
+         * @description The top-level titles of one library (films and series of a video library, audiobooks,
+         *     podcasts) that the active profile may see, as the library page shows them: one grid with
+         *     the content kind as a chip (`content`), a sort order with direction, the filters genre,
+         *     status, year and age rating, and a letter bar when sorted by title. `sort` `title` orders
+         *     by the sort key of the title in the profile language (article stripped, case and diacritics
+         *     folded; `item_texts.sort_key`, ADR 0016), `added` by `addedAt`, `released` by the release
+         *     date, `vote` by the TMDB vote average (unknown last), `runtime` by the runtime, `age` by
+         *     the age rating, `played` by the time of the profile's last progress (never played last),
+         *     `author` by the author (audiobook libraries only, 422 elsewhere). The default direction is
+         *     ascending for `title`, `age` and `author`, descending for the rest. `maxRating` can only
+         *     lower the ceiling: the server takes the minimum of the profile's ceiling and the parameter
+         *     (K-3). `status` is per profile: `unwatched`, `started`, `watched`; a series or podcast is
+         *     `watched` when every visible episode is completed, `started` when at least one episode
+         *     has progress and not all are completed, else `unwatched` (exclusive). `letter` is one
+         *     character of `[A-Z#]` (`#` = digits and other characters) and is allowed only with
+         *     `sort=title` (422 `letter_requires_title_sort`). The answer carries `facets`: the letters
+         *     of the filtered set (without the letter filter), the genres with hits in the library and
+         *     the age ratings present below the profile's ceiling; the client offers only what the
+         *     facets name (rule 12). `progress.completed` is set for series and podcasts by the status
+         *     rule above. A library the profile may not see and a library without a visible title answer
+         *     404 (never 403).
+         */
+        get: operations["listLibraryItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invitations/{token}": {
         parameters: {
             query?: never;
@@ -438,8 +505,39 @@ export interface paths {
          *     are omitted; never more than eight (E-9). `heroRow` names the row the client draws as the
          *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
          *     a poster row. Every item passed the visibility layer of the active profile.
+         *
+         *     `heroStart` names the title the stage begins with (concept 08, F-2, ADR 0016): an index into
+         *     the `items` of the `heroRow`, drawn at random by the server once per page view. The app
+         *     shell `GET /` draws it and writes it as `data-start` on `#hero-prepaint` and into its
+         *     `Link` preload `</home?start=K>`; a client that reads the shell passes `start` so the
+         *     preloaded answer repeats that draw instead of drawing again. Without `start` the server
+         *     draws. The client keeps the first `heroStart` it mounted the stage with and ignores later
+         *     values from refetches.
          */
         get: operations["getHome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/picks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All of Cat's recommendations for the active profile (E-2, concept 08)
+         * @description The same recommendations as the row `picks` of `getHome` (recipient, time window and
+         *     visibility applied, in Cat's order, with the `note` of the main user on every title), without
+         *     the row's cut to 20 titles, paged. The page "Cat's recommendations" behind the entry in the
+         *     side navigation and behind "show all" at the row.
+         */
+        get: operations["listPicks"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3726,6 +3824,17 @@ export interface components {
              *     row is a poster row. A row named here is always present in `rows`.
              */
             heroRow?: components["schemas"]["HomeRowKey"];
+            /**
+             * @description Index into the `items` of the `heroRow` the stage begins with, drawn once per page view
+             *     by the server (concept 08, F-2; after deduplication, pinning and the cut of ADR 0011,
+             *     so the order of pinned entries is untouched). Absent when `heroRow` is absent.
+             */
+            heroStart?: number;
+            /**
+             * @description Seconds the stage shows one title before it moves on (`rotationSeconds` of the
+             *     spotlight configuration, F-10). Present only with `heroRow`.
+             */
+            heroIntervalSeconds?: number;
         };
         PlaybackRequest: {
             /** @description Which file to play; defaults to the primary file. */
@@ -4737,6 +4846,58 @@ export interface components {
             offset: number;
             limit: number;
         };
+        /** @description One library of the side navigation (concept 08): what the active profile sees of it. */
+        LibraryNav: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            kind: components["schemas"]["LibraryKind"];
+            /** @description The content kinds of the library's folders, each once, in enum order; more than one offers the chips. */
+            contents: components["schemas"]["RootContent"][];
+            /** @description Visible top-level titles (films, series, audiobooks, podcasts; never episodes). */
+            itemCount: number;
+        };
+        /**
+         * @description Sort orders of the library page (F-6, F-12). `vote` is the TMDB vote average (`items.vote_average`,
+         *     never the age rating, which is `age`); `author` only in audiobook libraries.
+         * @enum {string}
+         */
+        LibrarySort: "title" | "added" | "released" | "vote" | "runtime" | "age" | "played" | "author";
+        /**
+         * @description Watch status of a title for the active profile (F-8); exclusive per title.
+         * @enum {string}
+         */
+        LibraryItemStatus: "unwatched" | "started" | "watched";
+        /**
+         * @description What the library page may offer as filter values (rule 12: the client shows only what the
+         *     server names). Computed in the same transaction as the page.
+         */
+        LibraryFacets: {
+            /**
+             * @description Initial letters present in the filtered set, without the letter filter itself; `#` for
+             *     digits and other characters. Sorted A to Z, `#` last.
+             */
+            letters: string[];
+            /** @description Genres with at least one visible title in the library (profile language), with their counts, most frequent first. */
+            genres: components["schemas"]["GenreRef"][];
+            /** @description Age ratings present among the visible titles of the library, all at or below the profile's ceiling, ascending. */
+            ratings: components["schemas"]["Rating"][];
+        };
+        LibraryItemsPage: {
+            items: components["schemas"]["ItemRef"][];
+            /** @description Titles matching the filters (content, genre, status, years, rating, letter). */
+            total: number;
+            offset: number;
+            limit: number;
+            facets: components["schemas"]["LibraryFacets"];
+        };
+        PicksPage: {
+            /** @description Cat's recommendations in Cat's order, each with `note` when the main user wrote one. */
+            items: components["schemas"]["ItemRef"][];
+            total: number;
+            offset: number;
+            limit: number;
+        };
         ItemPage: {
             items: components["schemas"]["ItemRef"][];
             total: number;
@@ -4893,6 +5054,8 @@ export interface components {
         SpotlightConfig: {
             /** @description `false` keeps the row off the start page; the fetch keeps running. */
             enabled: boolean;
+            /** @description Seconds the stage shows one title before it moves on (concept 08, F-10; default 5). */
+            rotationSeconds: number;
             listKey: components["schemas"]["SpotlightListKey"];
             /** @description The address of the public user list; only with `listKey` `url`. */
             listUrl?: string;
@@ -4916,6 +5079,11 @@ export interface components {
             itemCount: number;
             minHits: number;
             intervalHours: number;
+            /**
+             * @description Optional, absent = unchanged (contract 1.4.0): an older administration client that
+             *     does not know the field must not reset the stored value silently.
+             */
+            rotationSeconds?: number;
         };
         SpotlightEntries: {
             listKey: components["schemas"]["SpotlightListKey"];
@@ -6890,6 +7058,91 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
+    listVisibleLibraries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The visible libraries, administration order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryNav"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    listLibraryItems: {
+        parameters: {
+            query?: {
+                /** @description One content kind of the library's folders (the chips "films / series"); absent = all. */
+                content?: components["schemas"]["RootContent"];
+                sort?: components["schemas"]["LibrarySort"];
+                /** @description Absent = the default of `sort`. */
+                order?: "asc" | "desc";
+                /** @description A genre name in the profile language, as `facets.genres` lists it. */
+                genre?: string;
+                yearFrom?: number;
+                yearTo?: number;
+                /** @description Lowers the ceiling for this page; the server takes `min(profile ceiling, maxRating)`. */
+                maxRating?: components["schemas"]["Rating"];
+                /** @description Several values are combined with OR. */
+                status?: components["schemas"]["LibraryItemStatus"][];
+                /** @description Only with `sort=title`. */
+                letter?: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the library with its facets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryItemsPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown library, not visible for the active profile or without a visible title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`; `letter` `letter_requires_title_sort` without
+             *     `sort=title` or `invalid_value` outside `[A-Z#]`; `sort` `invalid_value` for `author` outside
+             *     an audiobook library; `content` `invalid_value` for a kind the library's folders do not hold;
+             *     `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80 characters).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getInvitation: {
         parameters: {
             query?: never;
@@ -7016,7 +7269,13 @@ export interface operations {
     };
     getHome: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Repeat an earlier draw of `heroStart` (from `data-start` of the app shell). Clamped to
+                 *     the stage row; a value outside it or without a stage is ignored and the server draws.
+                 */
+                start?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -7041,6 +7300,30 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listPicks: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the recommendations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PicksPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
         };
     };
     getItem: {

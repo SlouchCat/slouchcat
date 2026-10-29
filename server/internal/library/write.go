@@ -557,4 +557,10 @@ func (w *batchWriter) extraItem(ctx context.Context, info fileInfo) (string, err
 
 func nullString(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }
 
+// sortKey is item_texts.sort_key of a text row: the shown title in its language, article
+// stripped, folded (model.SortKey, concept 08, ADR 0016). Every writer of a text row sets it.
+func sortKey(lang, title string) sql.NullString {
+	return sql.NullString{String: model.SortKey(lang, title), Valid: true}
+}
+
 func nullInt(n int64) sql.NullInt64 { return sql.NullInt64{Int64: n, Valid: n != 0} }

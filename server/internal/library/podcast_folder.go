@@ -255,7 +255,9 @@ func (w *batchWriter) findOrCreatePodcast(ctx context.Context, folder string, m 
 			lang = "en"
 		}
 		for _, l := range []string{lang, "en"} {
-			if err := w.q.UpsertItemText(ctx, systemq.UpsertItemTextParams{ItemID: id, Lang: l, Title: m.title, Overview: nullString(m.description)}); err != nil {
+			if err := w.q.UpsertItemText(ctx, systemq.UpsertItemTextParams{
+				ItemID: id, Lang: l, Title: m.title, Overview: nullString(m.description), SortKey: sortKey(l, m.title),
+			}); err != nil {
 				return "", fmt.Errorf("insert podcast text: %w", err)
 			}
 		}

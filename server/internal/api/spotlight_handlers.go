@@ -42,7 +42,7 @@ func (s *server) SetSpotlightConfig(ctx context.Context, req gen.SetSpotlightCon
 	b := deref(req.Body)
 	cfg, err := s.opts.Admin.SetSpotlightConfig(ctx, model.SpotlightConfigUpdate{
 		Enabled: b.Enabled, ListKey: string(b.ListKey), ListURL: deref(b.ListUrl), Media: string(b.Media),
-		ItemCount: b.ItemCount, MinHits: b.MinHits, IntervalHours: b.IntervalHours,
+		ItemCount: b.ItemCount, MinHits: b.MinHits, IntervalHours: b.IntervalHours, RotationSeconds: b.RotationSeconds,
 	})
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -108,7 +108,7 @@ func toSpotlightConfig(c model.SpotlightConfig) gen.SpotlightConfig {
 	return gen.SpotlightConfig{
 		Enabled: c.Enabled, ListKey: gen.SpotlightListKey(c.ListKey), ListUrl: optString(c.ListURL),
 		Media: gen.SpotlightMedia(c.Media), ItemCount: c.ItemCount, MinHits: c.MinHits,
-		IntervalHours: c.IntervalHours, ListKinds: kinds,
+		IntervalHours: c.IntervalHours, RotationSeconds: c.RotationSeconds, ListKinds: kinds,
 	}
 }
 

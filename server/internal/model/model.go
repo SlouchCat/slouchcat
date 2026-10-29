@@ -666,6 +666,11 @@ type ItemDetail struct {
 type HomePage struct {
 	Rows    []HomeRow
 	HeroRow string
+	// HeroStart is the index into the stage row's Items the stage begins with, drawn once per
+	// page view by the server (concept 08, F-2, ADR 0016); nil without a stage.
+	// HeroIntervalSeconds is spotlight_config.rotation_seconds (F-10); 0 without a stage.
+	HeroStart           *int
+	HeroIntervalSeconds int
 }
 
 type HomeRow struct {
@@ -855,7 +860,9 @@ type SpotlightConfig struct {
 	ItemCount     int    // 5..20
 	MinHits       int    // 0..10
 	IntervalHours int    // 6..48
-	ListKinds     []SpotlightListKind
+	// RotationSeconds is how long the stage shows one title (concept 08, F-10): 3..15, default 5.
+	RotationSeconds int
+	ListKinds       []SpotlightListKind
 }
 
 // SpotlightListKind is one kind of public Trakt list (trakt.Kind) for the administration.
@@ -875,6 +882,9 @@ type SpotlightConfigUpdate struct {
 	ItemCount     int
 	MinHits       int
 	IntervalHours int
+	// RotationSeconds is optional: nil keeps the stored value (contract 1.4.0, an older
+	// administration client must not reset it silently).
+	RotationSeconds *int
 }
 
 // SpotlightEntries is the answer of getSpotlightEntries.
@@ -1430,4 +1440,76 @@ type HLSStream interface {
 	MediaPlaylist(initURL string, segmentURL func(i int) string) []byte
 	OpenInit(ctx context.Context) (io.ReadSeekCloser, error)
 	OpenSegment(ctx context.Context, i int) (io.ReadSeekCloser, error)
+}
+
+// Library views (concept 08, ADR 0016). -----------------------------------------------------
+
+// LibraryNav is one library of the side navigation (contract LibraryNav): what the active profile
+// sees of it. Contents are the content kinds of the library's folders (RootContent values), each
+// once, in enum order; ItemCount counts visible top-level titles only.
+type LibraryNav struct {
+	ID        int64
+	Name      string
+	Kind      string // LibraryKind
+	Contents  []string
+	ItemCount int
+}
+
+// Sort orders of the library page (contract LibrarySort, F-6, F-12).
+const (
+	LibrarySortTitle    = "title"
+	LibrarySortAdded    = "added"
+	LibrarySortReleased = "released"
+	LibrarySortVote     = "vote"
+	LibrarySortRuntime  = "runtime"
+	LibrarySortAge      = "age"
+	LibrarySortPlayed   = "played"
+	LibrarySortAuthor   = "author" // audiobook libraries only
+)
+
+// LibrarySorts lists every sort order in contract order.
+var LibrarySorts = []string{LibrarySortTitle, LibrarySortAdded, LibrarySortReleased, LibrarySortVote,
+	LibrarySortRuntime, LibrarySortAge, LibrarySortPlayed, LibrarySortAuthor}
+
+// LibrarySortAscending reports whether sort is ascending by default (title, age, author); every
+// other order is descending by default.
+func LibrarySortAscending(sort string) bool {
+	return sort == LibrarySortTitle || sort == LibrarySortAge || sort == LibrarySortAuthor
+}
+
+// Watch status of a title for a profile (contract LibraryItemStatus, F-8); exclusive per title.
+const (
+	LibraryStatusUnwatched = "unwatched"
+	LibraryStatusStarted   = "started"
+	LibraryStatusWatched   = "watched"
+)
+
+// LibraryQuery is one page request of the library page (listLibraryItems). Zero values mean
+// "no filter"; MaxRating -1 means none (0 is a valid ceiling). Order "" is the default of Sort.
+type LibraryQuery struct {
+	Content   string // a RootContent value, "" = all
+	Sort      string // a LibrarySort* value, "" = title
+	Order     string // asc, desc, "" = default of Sort
+	Genre     string
+	YearFrom  int
+	YearTo    int
+	MaxRating int // -1 = none; the reader takes min(profile ceiling, MaxRating)
+	Status    []string
+	Letter    string // one of A..Z or #, "" = none; only with Sort title
+	Offset    int
+	Limit     int
+}
+
+// LibraryFacets are the filter values the library page may offer (contract LibraryFacets).
+type LibraryFacets struct {
+	Letters []string   // present initial letters of the filtered set, A..Z then #
+	Genres  []GenreRef // genres with visible titles in the library, most frequent first
+	Ratings []int      // present ratings at or below the profile ceiling, ascending
+}
+
+// LibraryPage is one page of a library with its facets (contract LibraryItemsPage).
+type LibraryPage struct {
+	Items  []ItemSummary
+	Total  int
+	Facets LibraryFacets
 }

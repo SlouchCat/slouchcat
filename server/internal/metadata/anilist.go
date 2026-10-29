@@ -34,7 +34,7 @@ const (
 
 // anilistQuery asks for the fields the fill job maps onto a title.
 const anilistQuery = `query ($id: Int) { Media(id: $id, type: ANIME) { id title { romaji english native } ` +
-	`description(asHtml: false) genres coverImage { extraLarge } bannerImage isAdult } }`
+	`description(asHtml: false) genres coverImage { extraLarge } bannerImage isAdult averageScore } }`
 
 // aniListProvider talks to the AniList GraphQL API.
 type aniListProvider struct {
@@ -72,6 +72,8 @@ type AniListRecord struct {
 	CoverURL    string
 	BannerURL   string
 	IsAdult     bool
+	// AverageScore is the weighted average score of AniList's users, 0 to 100; 0 when unknown.
+	AverageScore int
 }
 
 type anilistResponse struct {
@@ -88,8 +90,9 @@ type anilistResponse struct {
 			CoverImage  struct {
 				ExtraLarge string `json:"extraLarge"`
 			} `json:"coverImage"`
-			BannerImage string `json:"bannerImage"`
-			IsAdult     bool   `json:"isAdult"`
+			BannerImage  string `json:"bannerImage"`
+			IsAdult      bool   `json:"isAdult"`
+			AverageScore *int   `json:"averageScore"`
 		} `json:"Media"`
 	} `json:"data"`
 	Errors []struct {
@@ -160,6 +163,9 @@ func (p *aniListProvider) Media(ctx context.Context, id int64) (AniListRecord, e
 		ID: m.ID, Romaji: m.Title.Romaji, English: m.Title.English, Native: m.Title.Native,
 		Description: stripHTML(m.Description), Genres: m.Genres, IsAdult: m.IsAdult,
 	}
+	if m.AverageScore != nil && *m.AverageScore > 0 {
+		rec.AverageScore = *m.AverageScore
+	}
 	if p.imageURL(m.CoverImage.ExtraLarge) {
 		rec.CoverURL = m.CoverImage.ExtraLarge
 	}
@@ -177,8 +183,9 @@ func (p *aniListProvider) imageURL(u string) bool {
 
 // fields maps the record onto the fields the fill job decides (fillFields): English texts
 // (title.english, else romaji; the description), the native title as original title, the
-// English genres, cover and banner as poster and backdrop, isAdult as FSK 18 (K-3: raised, never
-// lowered). AniList has no German texts (concept 4.4).
+// English genres, cover and banner as poster and backdrop, averageScore ÷ 10 as vote average
+// (concept 08 4.2), isAdult as FSK 18 (K-3: raised, never lowered). AniList has no German texts
+// (concept 4.4).
 func (r AniListRecord) fields() providerFields {
 	pf := providerFields{provider: model.ProviderAniList, values: fieldValues{}, genres: map[string][]string{}}
 	pf.set("title", "en", firstNonEmpty(r.English, r.Romaji))
@@ -188,6 +195,9 @@ func (r AniListRecord) fields() providerFields {
 	pf.set("backdrop", "", r.BannerURL)
 	if len(r.Genres) > 0 {
 		pf.genres["en"] = r.Genres
+	}
+	if r.AverageScore > 0 {
+		pf.set(fieldVoteAverage, "", formatVote(float64(r.AverageScore)/10))
 	}
 	if r.IsAdult {
 		adult := 18

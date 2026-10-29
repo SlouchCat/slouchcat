@@ -12,7 +12,7 @@ import (
 
 const getSpotlightConfig = `-- name: GetSpotlightConfig :one
 
-SELECT id, enabled, list_key, list_url, media, item_count, min_hits, interval_hours, last_manual_refresh, updated_at FROM spotlight_config WHERE id = 1
+SELECT id, enabled, list_key, list_url, media, item_count, min_hits, interval_hours, last_manual_refresh, updated_at, rotation_seconds FROM spotlight_config WHERE id = 1
 `
 
 // Spotlight configuration (M11, E-7, AN-3, ADR 0011): one row, id 1. Package admin writes it;
@@ -33,6 +33,7 @@ func (q *Queries) GetSpotlightConfig(ctx context.Context) (SpotlightConfig, erro
 		&i.IntervalHours,
 		&i.LastManualRefresh,
 		&i.UpdatedAt,
+		&i.RotationSeconds,
 	)
 	return i, err
 }
@@ -40,19 +41,21 @@ func (q *Queries) GetSpotlightConfig(ctx context.Context) (SpotlightConfig, erro
 const setSpotlightConfig = `-- name: SetSpotlightConfig :exec
 UPDATE spotlight_config
 SET enabled = ?1, list_key = ?2, list_url = ?3, media = ?4,
-    item_count = ?5, min_hits = ?6, interval_hours = ?7, updated_at = ?8
+    item_count = ?5, min_hits = ?6, interval_hours = ?7,
+    rotation_seconds = ?8, updated_at = ?9
 WHERE id = 1
 `
 
 type SetSpotlightConfigParams struct {
-	Enabled       int64
-	ListKey       string
-	ListUrl       sql.NullString
-	Media         string
-	ItemCount     int64
-	MinHits       int64
-	IntervalHours int64
-	Now           int64
+	Enabled         int64
+	ListKey         string
+	ListUrl         sql.NullString
+	Media           string
+	ItemCount       int64
+	MinHits         int64
+	IntervalHours   int64
+	RotationSeconds int64
+	Now             int64
 }
 
 func (q *Queries) SetSpotlightConfig(ctx context.Context, arg SetSpotlightConfigParams) error {
@@ -64,6 +67,7 @@ func (q *Queries) SetSpotlightConfig(ctx context.Context, arg SetSpotlightConfig
 		arg.ItemCount,
 		arg.MinHits,
 		arg.IntervalHours,
+		arg.RotationSeconds,
 		arg.Now,
 	)
 	return err

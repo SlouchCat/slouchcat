@@ -30,6 +30,7 @@ const config: SpotlightConfig = {
   itemCount: 20,
   minHits: 5,
   intervalHours: 24,
+  rotationSeconds: 5,
   listKinds: [
     { key: 'trending', media: [...all], mediaFilters: false, needsUrl: false },
     { key: 'popular', media: [...all], mediaFilters: false, needsUrl: false },

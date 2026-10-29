@@ -112,6 +112,8 @@ const server = spawn(
       SLOUCHCAT_TELEGRAM_BOT_TOKEN: TELEGRAM_BOT_TOKEN,
       SLOUCHCAT_TELEGRAM_BASE_URL: `http://127.0.0.1:${telegram.port}`,
       SLOUCHCAT_UPDATE_MANIFEST_URL: `http://127.0.0.1:${update.port}/manifest.json`,
+      // The spotlight stage starts at slide 0 in the suite instead of a random one (concept 08).
+      SLOUCHCAT_HERO_START: '0',
     },
   },
 );

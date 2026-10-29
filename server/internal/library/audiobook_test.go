@@ -189,6 +189,9 @@ func TestScanAudiobookFixtures(t *testing.T) {
 		{`SELECT overview FROM item_texts WHERE item_id = ? AND lang = 'de'`, "Ein Testhoerbuch mit zwoelf Kapiteln aus Sinustoenen."},
 		// M6 review n-9: the English row is every other language's fallback.
 		{`SELECT overview FROM item_texts WHERE item_id = ? AND lang = 'en'`, "Ein Testhoerbuch mit zwoelf Kapiteln aus Sinustoenen."},
+		// The sort key of the library page (concept 08, ADR 0016): the shown title, folded.
+		{`SELECT group_concat(lang || ':' || sort_key, ',') FROM (SELECT lang, sort_key FROM item_texts WHERE item_id = ? ORDER BY lang)`,
+			"de:slouchcat test audiobook m4b,en:slouchcat test audiobook m4b"},
 		{`SELECT count(*) || '|' || coalesce(max(part_index), 'null') FROM media_files WHERE item_id = ?`, "1|null"},
 		{`SELECT duration_ms FROM items WHERE id = ?`, "60000"},
 	}
@@ -357,6 +360,7 @@ func TestAudiobookMetadataPrecedence(t *testing.T) {
 		{`SELECT own_rating || '|' || rating_source || '|' || explicit || '|' || genres FROM items WHERE id = ?`, `18|tags|1|{"de":["Krimi"],"en":["Krimi"]}`},
 		{`SELECT cover_path FROM items WHERE id = ?`, "Ordner Verfasser/Ordner Reihe/03 - Ordner Titel/folder.png"},
 		{`SELECT lang || '|' || title || '|' || overview || '|' || tagline FROM item_texts WHERE item_id = ?`, "en|JSON Titel|JSON Text|Untertitel"},
+		{`SELECT sort_key FROM item_texts WHERE item_id = ?`, "json titel"},
 	}
 	for _, c := range checks {
 		if got := e.str(c.q, book); got != c.want {

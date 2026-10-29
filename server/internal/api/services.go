@@ -283,7 +283,9 @@ type AdminService interface {
 // CatalogService answers the start page and the detail page through the visibility layer
 // (package discover).
 type CatalogService interface {
-	Home(ctx context.Context, profile model.Profile) (model.HomePage, error)
+	// Home returns the start page; start repeats an earlier draw of the stage's first title when it
+	// lies in the stage row (concept 08, F-2), nil or outside draws again.
+	Home(ctx context.Context, profile model.Profile, start *int) (model.HomePage, error)
 	// Item returns the detail or model.ErrNotFound when the item is unknown or not visible.
 	Item(ctx context.Context, profile model.Profile, itemID string) (model.ItemDetail, error)
 	// Image opens a stored image of a visible item (WebP when preferWebP and stored, else JPEG) or
@@ -312,6 +314,14 @@ type CatalogService interface {
 	Favorites(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
 	AddFavorite(ctx context.Context, profile model.Profile, itemID string) error
 	RemoveFavorite(ctx context.Context, profile model.Profile, itemID string) error
+
+	// Library views (concept 08, ADR 0016). VisibleLibraries lists the libraries with a visible
+	// top-level title; LibraryItems answers one page of a library with its facets
+	// (model.ErrNotFound for a library without a visible title, *model.ValidationError for an
+	// invalid query); PicksPage pages all of Cat's recommendations with their total.
+	VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error)
+	LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error)
+	PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error)
 }
 
 // NotifyService is the in-app inbox of a profile (package notify, M7 E-8, plan 5.5), the

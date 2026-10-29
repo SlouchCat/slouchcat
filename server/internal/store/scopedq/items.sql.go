@@ -78,7 +78,7 @@ func (q *Queries) GetItemImage(ctx context.Context, arg GetItemImageParams) (Ima
 }
 
 const getNextVisibleEpisode = `-- name: GetNextVisibleEpisode :one
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN items AS s ON s.id = i.parent_id AND s.kind = 'season'
 WHERE s.parent_id = ?2 AND i.kind = 'episode' AND i.id <> ?3
@@ -168,13 +168,14 @@ func (q *Queries) GetNextVisibleEpisode(ctx context.Context, arg GetNextVisibleE
 		&i.AnilistID,
 		&i.FeedOrigin,
 		&i.FilledProviders,
+		&i.VoteAverage,
 	)
 	return i, err
 }
 
 const getVisibleItem = `-- name: GetVisibleItem :one
 
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.id = ?2
 `
@@ -250,12 +251,13 @@ func (q *Queries) GetVisibleItem(ctx context.Context, arg GetVisibleItemParams) 
 		&i.AnilistID,
 		&i.FeedOrigin,
 		&i.FilledProviders,
+		&i.VoteAverage,
 	)
 	return i, err
 }
 
 const listContinueWatching = `-- name: ListContinueWatching :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN progress AS p ON p.item_id = i.id AND p.profile_id = ?1
 WHERE p.completed = 0 AND p.position_ms > 0 AND i.kind <> 'extra'
@@ -338,6 +340,7 @@ func (q *Queries) ListContinueWatching(ctx context.Context, arg ListContinueWatc
 			&i.AnilistID,
 			&i.FeedOrigin,
 			&i.FilledProviders,
+			&i.VoteAverage,
 		); err != nil {
 			return nil, err
 		}
@@ -469,7 +472,7 @@ func (q *Queries) ListItemProgress(ctx context.Context, arg ListItemProgressPara
 }
 
 const listItemTexts = `-- name: ListItemTexts :many
-SELECT t.item_id, t.lang, t.title, t.overview, t.tagline FROM item_texts AS t
+SELECT t.item_id, t.lang, t.title, t.overview, t.tagline, t.sort_key FROM item_texts AS t
 JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
 WHERE t.item_id IN (/*SLICE:item_ids*/?)
 `
@@ -505,6 +508,7 @@ func (q *Queries) ListItemTexts(ctx context.Context, arg ListItemTextsParams) ([
 			&i.Title,
 			&i.Overview,
 			&i.Tagline,
+			&i.SortKey,
 		); err != nil {
 			return nil, err
 		}
@@ -595,7 +599,7 @@ func (q *Queries) ListMediaFilesForItem(ctx context.Context, arg ListMediaFilesF
 }
 
 const listRecentlyAdded = `-- name: ListRecentlyAdded :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 ORDER BY i.added_at DESC, i.id DESC
@@ -676,6 +680,7 @@ func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedPa
 			&i.AnilistID,
 			&i.FeedOrigin,
 			&i.FilledProviders,
+			&i.VoteAverage,
 		); err != nil {
 			return nil, err
 		}
@@ -691,7 +696,7 @@ func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedPa
 }
 
 const listRecentlyReleased = `-- name: ListRecentlyReleased :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, r.released FROM (
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, r.released FROM (
     SELECT t.id AS item_id, t.release_date AS released
     FROM items AS t
     JOIN visible_items AS v ON v.item_id = t.id AND v.profile_id = ?1
@@ -806,6 +811,7 @@ func (q *Queries) ListRecentlyReleased(ctx context.Context, arg ListRecentlyRele
 			&i.Item.AnilistID,
 			&i.Item.FeedOrigin,
 			&i.Item.FilledProviders,
+			&i.Item.VoteAverage,
 			&i.Released,
 		); err != nil {
 			return nil, err
@@ -822,7 +828,7 @@ func (q *Queries) ListRecentlyReleased(ctx context.Context, arg ListRecentlyRele
 }
 
 const listTopPicks = `-- name: ListTopPicks :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, t.note, t.profile_id AS pick_profile_id
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, t.note, t.profile_id AS pick_profile_id
 FROM top_picks AS t
 JOIN items AS i ON i.id = t.item_id
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
@@ -916,6 +922,7 @@ func (q *Queries) ListTopPicks(ctx context.Context, arg ListTopPicksParams) ([]L
 			&i.Item.AnilistID,
 			&i.Item.FeedOrigin,
 			&i.Item.FilledProviders,
+			&i.Item.VoteAverage,
 			&i.Note,
 			&i.PickProfileID,
 		); err != nil {
@@ -1041,7 +1048,7 @@ func (q *Queries) ListVisibleCredits(ctx context.Context, arg ListVisibleCredits
 }
 
 const listVisibleEpisodes = `-- name: ListVisibleEpisodes :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'episode'
 ORDER BY i.episode_number IS NULL, i.episode_number, i.sort_title, i.id
@@ -1122,6 +1129,7 @@ func (q *Queries) ListVisibleEpisodes(ctx context.Context, arg ListVisibleEpisod
 			&i.AnilistID,
 			&i.FeedOrigin,
 			&i.FilledProviders,
+			&i.VoteAverage,
 		); err != nil {
 			return nil, err
 		}
@@ -1137,7 +1145,7 @@ func (q *Queries) ListVisibleEpisodes(ctx context.Context, arg ListVisibleEpisod
 }
 
 const listVisibleExtras = `-- name: ListVisibleExtras :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'extra'
 ORDER BY i.extra_kind, i.sort_title, i.id
@@ -1218,6 +1226,7 @@ func (q *Queries) ListVisibleExtras(ctx context.Context, arg ListVisibleExtrasPa
 			&i.AnilistID,
 			&i.FeedOrigin,
 			&i.FilledProviders,
+			&i.VoteAverage,
 		); err != nil {
 			return nil, err
 		}
@@ -1234,7 +1243,7 @@ func (q *Queries) ListVisibleExtras(ctx context.Context, arg ListVisibleExtrasPa
 
 const listVisibleItems = `-- name: ListVisibleItems :many
 
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.id IN (/*SLICE:item_ids*/?)
 `
@@ -1326,6 +1335,7 @@ func (q *Queries) ListVisibleItems(ctx context.Context, arg ListVisibleItemsPara
 			&i.AnilistID,
 			&i.FeedOrigin,
 			&i.FilledProviders,
+			&i.VoteAverage,
 		); err != nil {
 			return nil, err
 		}
@@ -1396,7 +1406,7 @@ func (q *Queries) ListVisibleParents(ctx context.Context, arg ListVisibleParents
 }
 
 const listVisiblePersonCredits = `-- name: ListVisiblePersonCredits :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, p.name AS person_name, c.role, c.character
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, p.name AS person_name, c.role, c.character
 FROM credits AS c
 JOIN people AS p ON p.id = c.person_id
 JOIN items AS i ON i.id = c.item_id
@@ -1487,6 +1497,7 @@ func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisibleP
 			&i.Item.AnilistID,
 			&i.Item.FeedOrigin,
 			&i.Item.FilledProviders,
+			&i.Item.VoteAverage,
 			&i.PersonName,
 			&i.Role,
 			&i.Character,
@@ -1505,7 +1516,7 @@ func (q *Queries) ListVisiblePersonCredits(ctx context.Context, arg ListVisibleP
 }
 
 const listVisibleSeasons = `-- name: ListVisibleSeasons :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'season'
 ORDER BY COALESCE(i.season_number, 0) = 0, i.season_number, i.sort_title, i.id
@@ -1586,6 +1597,7 @@ func (q *Queries) ListVisibleSeasons(ctx context.Context, arg ListVisibleSeasons
 			&i.AnilistID,
 			&i.FeedOrigin,
 			&i.FilledProviders,
+			&i.VoteAverage,
 		); err != nil {
 			return nil, err
 		}

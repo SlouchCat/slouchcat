@@ -247,9 +247,44 @@ func (r *Reader) Picks(ctx context.Context, s Scope, limit int) ([]model.ItemSum
 	if err != nil {
 		return nil, err
 	}
+	items, notes, err := r.picks(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	// Cut after the deduplication: a cut before it could keep a global row the profile's own pick
+	// replaces further down, or drop the own pick (k1).
+	if n := int(clamp(limit)); len(items) > n {
+		items = items[:n]
+	}
+	return r.noted(ctx, s, pid, items, notes)
+}
+
+// PicksPage returns one page of the same list as Picks without its cut to MaxRowItems (the page
+// "Cat's recommendations", concept 08, listPicks) and the number of recommendations after the
+// deduplication. offset is clamped to 0 and above, limit to 1..MaxSearchPage (0 or less =
+// DefaultSearchPage).
+func (r *Reader) PicksPage(ctx context.Context, s Scope, offset, limit int) ([]model.ItemSummary, int, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, 0, err
+	}
+	items, notes, err := r.picks(ctx, pid)
+	if err != nil {
+		return nil, 0, err
+	}
+	offset, limit = libraryPage(offset, limit)
+	total := len(items)
+	items = items[min(offset, total):min(offset+limit, total)]
+	out, err := r.noted(ctx, s, pid, items, notes)
+	return out, total, err
+}
+
+// picks returns the visible recommendations of the profile in Cat's order, deduplicated (see
+// Picks), and their notes by title id.
+func (r *Reader) picks(ctx context.Context, pid int64) ([]scopedq.Item, map[string]string, error) {
 	rows, err := r.q.ListTopPicks(ctx, scopedq.ListTopPicksParams{ProfileID: pid, Now: sql.NullInt64{Int64: r.now().UnixMilli(), Valid: true}})
 	if err != nil {
-		return nil, fmt.Errorf("list top picks: %w", err)
+		return nil, nil, fmt.Errorf("list top picks: %w", err)
 	}
 	own := make(map[string]bool, len(rows))
 	for _, row := range rows {
@@ -269,11 +304,11 @@ func (r *Reader) Picks(ctx context.Context, s Scope, limit int) ([]model.ItemSum
 		notes[row.Item.ID] = row.Note.String
 		items = append(items, row.Item)
 	}
-	// Cut after the deduplication: a cut before it could keep a global row the profile's own pick
-	// replaces further down, or drop the own pick (k1).
-	if n := int(clamp(limit)); len(items) > n {
-		items = items[:n]
-	}
+	return items, notes, nil
+}
+
+// noted returns the summaries of items with the notes of their picks.
+func (r *Reader) noted(ctx context.Context, s Scope, pid int64, items []scopedq.Item, notes map[string]string) ([]model.ItemSummary, error) {
 	out, err := r.summaries(ctx, s, pid, items)
 	if err != nil {
 		return nil, err

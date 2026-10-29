@@ -26,6 +26,8 @@ const (
 	maxSpotlightHits     = 10
 	minSpotlightInterval = 6
 	maxSpotlightInterval = 48
+	minSpotlightRotation = 3 // seconds per title on the stage (concept 08, F-10, migration 00026)
+	maxSpotlightRotation = 15
 	maxSpotlightListURL  = 500 // contract SpotlightConfigUpdate.listUrl
 	maxSpotlightNote     = 280 // like a pick's note (spotlight_overrides.note)
 
@@ -42,11 +44,12 @@ func (s *Service) SpotlightConfig(ctx context.Context) (model.SpotlightConfig, e
 	return toSpotlightConfig(row), nil
 }
 
-// SetSpotlightConfig validates and stores the writable values: itemCount 5..20, minHits 0..10 and
-// intervalHours 6..48 (invalid_value), a listKey of the catalogue, a media the kind offers, and for
-// the kind url a public user list address (a watchlist address is refused, plan 5.7, rule 11). For
-// the other kinds listUrl is stored as NULL. The address may name a Trakt user and never reaches
-// the log (rule 10).
+// SetSpotlightConfig validates and stores the writable values: itemCount 5..20, minHits 0..10,
+// intervalHours 6..48 and rotationSeconds 3..15 (invalid_value), a listKey of the catalogue, a
+// media the kind offers, and for the kind url a public user list address (a watchlist address is
+// refused, plan 5.7, rule 11). For the other kinds listUrl is stored as NULL. A missing
+// rotationSeconds keeps the stored value (concept 08 5.2: an older administration client must not
+// reset it). The address may name a Trakt user and never reaches the log (rule 10).
 func (s *Service) SetSpotlightConfig(ctx context.Context, in model.SpotlightConfigUpdate) (model.SpotlightConfig, error) {
 	var verr *model.ValidationError
 	if in.ItemCount < minSpotlightItems || in.ItemCount > maxSpotlightItems {
@@ -57,6 +60,9 @@ func (s *Service) SetSpotlightConfig(ctx context.Context, in model.SpotlightConf
 	}
 	if in.IntervalHours < minSpotlightInterval || in.IntervalHours > maxSpotlightInterval {
 		verr = verr.Add("intervalHours", "invalid_value")
+	}
+	if r := in.RotationSeconds; r != nil && (*r < minSpotlightRotation || *r > maxSpotlightRotation) {
+		verr = verr.Add("rotationSeconds", "invalid_value")
 	}
 	listURL := sql.NullString{}
 	kind, ok := trakt.KindOf(in.ListKey)
@@ -87,10 +93,20 @@ func (s *Service) SetSpotlightConfig(ctx context.Context, in model.SpotlightConf
 	if verr != nil {
 		return model.SpotlightConfig{}, verr
 	}
+	var rotation int64
+	if in.RotationSeconds != nil {
+		rotation = int64(*in.RotationSeconds)
+	} else {
+		stored, err := s.write.GetSpotlightConfig(ctx)
+		if err != nil {
+			return model.SpotlightConfig{}, fmt.Errorf("get spotlight config: %w", err)
+		}
+		rotation = stored.RotationSeconds
+	}
 	if err := s.write.SetSpotlightConfig(ctx, appq.SetSpotlightConfigParams{
 		Enabled: int64(boolInt(in.Enabled)), ListKey: in.ListKey, ListUrl: listURL, Media: in.Media,
 		ItemCount: int64(in.ItemCount), MinHits: int64(in.MinHits), IntervalHours: int64(in.IntervalHours),
-		Now: s.now().UnixMilli(),
+		RotationSeconds: rotation, Now: s.now().UnixMilli(),
 	}); err != nil {
 		return model.SpotlightConfig{}, fmt.Errorf("set spotlight config: %w", err)
 	}
@@ -289,7 +305,7 @@ func toSpotlightConfig(row appq.SpotlightConfig) model.SpotlightConfig {
 	out := model.SpotlightConfig{
 		Enabled: row.Enabled != 0, ListKey: row.ListKey, ListURL: row.ListUrl.String, Media: row.Media,
 		ItemCount: int(row.ItemCount), MinHits: int(row.MinHits), IntervalHours: int(row.IntervalHours),
-		ListKinds: make([]model.SpotlightListKind, 0, len(kinds)),
+		RotationSeconds: int(row.RotationSeconds), ListKinds: make([]model.SpotlightListKind, 0, len(kinds)),
 	}
 	for _, k := range kinds {
 		out.ListKinds = append(out.ListKinds, model.SpotlightListKind{

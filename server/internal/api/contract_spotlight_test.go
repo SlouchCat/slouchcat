@@ -56,7 +56,8 @@ func spotlightBody(listKey, media, listURL string, itemCount, minHits, intervalH
 
 // getSpotlightConfig carries the seven list kinds in plan order; setSpotlightConfig refuses every
 // value outside its range with 422 and the field name (DoD "Grenzen"), a medium the kind does not
-// offer (5.6) and a watchlist address (5.7, rule 11).
+// offer (5.6) and a watchlist address (5.7, rule 11). rotationSeconds (concept 08 5.2, contract
+// 1.4.0) is 3..15 and stays as stored when an update leaves it out.
 func TestContractSpotlightConfig(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -74,8 +75,36 @@ func TestContractSpotlightConfig(t *testing.T) {
 	adminCurationAnswer(t, rec, http.StatusOK)
 	var cfg gen.SpotlightConfig
 	decode(t, rec, &cfg)
-	if !cfg.Enabled || cfg.ListKey != "trending" || cfg.Media != "both" || cfg.ItemCount != 20 || cfg.MinHits != 5 || cfg.IntervalHours != 24 || cfg.ListUrl != nil {
+	if !cfg.Enabled || cfg.ListKey != "trending" || cfg.Media != "both" || cfg.ItemCount != 20 || cfg.MinHits != 5 || cfg.IntervalHours != 24 ||
+		cfg.RotationSeconds != 5 || cfg.ListUrl != nil {
 		t.Errorf("seeded config %+v", cfg)
+	}
+
+	// rotationSeconds: stored when sent, kept when left out, 3..15.
+	withRotation := func(seconds int) string {
+		b := spotlightBody("trending", "both", "", 20, 5, 24)
+		return strings.TrimSuffix(b, "}") + fmt.Sprintf(`,"rotationSeconds":%d}`, seconds)
+	}
+	if got := put(withRotation(7)); got.RotationSeconds != 7 {
+		t.Errorf("rotationSeconds 7 stored as %d", got.RotationSeconds)
+	}
+	if got := put(spotlightBody("trending", "both", "", 20, 5, 24)); got.RotationSeconds != 7 {
+		t.Errorf("an update without rotationSeconds left %d, want 7", got.RotationSeconds)
+	}
+	for _, seconds := range []int{2, 16} {
+		body := withRotation(seconds)
+		if got := fieldProblem(t, send(t, h, http.MethodPut, BasePath+"/admin/spotlight", "p18", body, nil)); got != "rotationSeconds invalid_value" {
+			t.Errorf("PUT %s: %s, want rotationSeconds invalid_value", body, got)
+		}
+	}
+	for _, seconds := range []int{3, 15} {
+		if got := put(withRotation(seconds)); got.RotationSeconds != seconds {
+			t.Errorf("rotationSeconds %d stored as %d", seconds, got.RotationSeconds)
+		}
+	}
+	var rotation int
+	if err := pf.f.DB.Read.QueryRow(`SELECT rotation_seconds FROM spotlight_config WHERE id = 1`).Scan(&rotation); err != nil || rotation != 15 {
+		t.Errorf("rotation_seconds %d, %v", rotation, err)
 	}
 	var keys []string
 	for _, k := range cfg.ListKinds {

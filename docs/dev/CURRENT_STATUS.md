@@ -1,5 +1,89 @@
 # Aktueller Stand
 
+## Startseite, Seitenleiste und Bibliotheksansichten (Konzept 08, 30. Oktober 2026, in Umsetzung)
+
+Auf dem Zweig `claude/startseite` (ab `main 4049724`, Konzept 07 gemergt) nach dem Konzept
+`docs/planning/08-startseite.md` (Fassung 3), den Entscheiden in **Frage 14** des
+Entscheidungsprotokolls und **ADR 0016** (Teilnachfolger von ADR 0011). Ein Commit je Planschritt;
+vor jedem Abschluss war `task ci` grün (ohne `storybook:test`: auf dem Entwicklungsrechner ist
+kein Docker erreichbar, Baselines holt Marco auf CT 190 nach, wie bei Konzept 07).
+
+**Was sich ändert.** Die Zuschauerseite bekommt eine Seitenleiste («Meine Medien» mit einem
+Eintrag je sichtbarer Bibliothek und «Cat's Empfehlungen»), eine Bibliotheksseite je Bibliothek
+(ein Raster mit Chips, acht Sortierungen, Filtern, Buchstabenleiste) und eine Seite «Cat's
+Empfehlungen»; das Spotlight-Band beginnt je Seitenaufruf mit einem zufälligen Titel, läuft im
+einstellbaren Takt und zeigt darunter eine Posterreihe in Normalgrösse.
+
+### Schritt 0 — Entscheide und Papiere (`dca8efc`)
+
+Frage 14 mit F-1 bis F-12, N-1 bis N-4 und O-1 bis O-5 im Entscheidungsprotokoll, ADR 0016,
+Ablösungshinweis in ADR 0011, Papier auf «freigegeben, in Umsetzung», Nummern nach dem Merge von
+07: **Migration 00026** (00025 hat `items.filled_providers` aus dem Review von 07 belegt), ADR 0016,
+Vertrag 1.4.0. Reiner Doku-Commit; Code identisch mit `main`.
+
+### Schritt 1 — Vertrag 1.4.0, Migration 00026 und Server
+
+**Vertrag 1.4.0, additiv:** `listVisibleLibraries` (`GET /libraries/visible`), `listLibraryItems`
+(`GET /libraries/{id}/items` mit `content`, `sort`, `order`, `genre`, `yearFrom`, `yearTo`,
+`maxRating`, `status`, `letter`, `offset`, `limit`), `listPicks` (`GET /picks`), alle `scoped`;
+`getHome` mit `start`; `HomePage.heroStart` und `heroIntervalSeconds`;
+`SpotlightConfig.rotationSeconds` (Pflicht) und `SpotlightConfigUpdate.rotationSeconds`
+(optional, fehlt = unverändert); Schemata `LibraryNav`, `LibrarySort`, `LibraryItemStatus`,
+`LibraryFacets`, `LibraryItemsPage`, `PicksPage`. Alle drei Operationen stehen im
+`profileRegistry` (`TestContractCoversEveryOperation`).
+
+**Migration 00026** (`server/migrations/00026_library_views.sql`): `spotlight_config.rotation_seconds`
+(3–15, Vorgabe 5), `items.vote_average REAL` (0–10), `item_texts.sort_key` mit Backfill in zwei
+`UPDATE`s (sqlc kennt kein `UPDATE … FROM`; `lower()` faltet nur ASCII, darum die üblichen
+Latin-1-Buchstaben per `replace`), Indizes `items_library_kind_added`, `_released`, `_vote` und
+`item_texts_sort_key`. Der genaue Schlüssel ist `model.SortKey` (NFD, Markierungen weg, ß→ss,
+Artikel je Sprache); jeder Schreiber einer `item_texts`-Zeile setzt ihn (`UpsertItemText` mit
+`@sort_key`: Scanner, Hörbuch- und Podcast-Ordner, Feeds, Match, Fill).
+
+**Server.** `visibility.VisibleLibraries` / `LibraryItems` / `PicksPage` (`server/internal/visibility/library.go`,
+feste Abfragen in `server/queries/scoped/library.sql`, die dynamische Seite als Statement-Builder
+wie die Suche; Seite, `total`, Buchstaben, Genres, Freigaben in **einer** Lesetransaktion;
+Serienstatus über die sichtbaren Folgen, exklusiv). `discover.Home(ctx, profile, start)` würfelt
+`heroStart` über die Bühnenreihe (`WithRand`, `WithHeroStart`; `SLOUCHCAT_HERO_START` /
+`--hero-start`, -1 = Zufall; die e2e-Umgebung setzt 0) und trägt `rotation_seconds` als
+`HeroIntervalSeconds`. Das Vormalen (`preload.go`) bleibt bis Schritt 4 bei Platz 1.
+`metadata`: `vote_average` als Feld in der Auffüllreihenfolge (TMDB `vote_average`, AniList
+`averageScore` ÷ 10; **TVDB v4 liefert keine 0–10-Wertung**, nur einen Beliebtheits-`score` –
+Abweichung vom Papier 4.2, dort und in ADR 0016 nachgetragen), auch beim Match des Erkenners; Job
+`metadata.vote_backfill` in Batches zu 200 mit Cursor, Markierung «gefragt, keine Wertung» als
+`item_field_sources`-Zeile ohne Wert, einmal beim Serverstart und nach jedem vollständigen Scan
+(`QueueVoteBackfill`, idempotent). `admin`: `rotationSeconds` 3–15, nil = unverändert.
+
+**Belege (DoD).**
+
+- `task ci:server` (gen, gen:check, lint, Tests mit `-race`): `0 issues.`, alle Pakete `ok`,
+  darunter `internal/visibility 174.7s`, `internal/api 402.0s`, `internal/store 525.2s`
+  (`TestFrozenStatesMigrate` über alle eingefrorenen Stände bis `bibliotheken.sql`,
+  `TestScopedQueriesJoinVisibleItems` mit `library.sql`), `exit=0`.
+- `task web:gen:check && task web:lint && task web:test`: grün (`exit=0`; die Vertragsänderung
+  brauchte nur `rotationSeconds` in `SpotlightPage.test.tsx`).
+- Negativtest K-3 (`server/internal/api/contract_library_test.go`): P0/P6/P12 sehen in Bibliothek 1
+  keinen Titel über ihrer Stufe, `maxRating=18` ergibt dieselbe Seite wie ohne, `facets.ratings`
+  bleibt unter der Grenze; `px` bekommt für Bibliothek X 404, eine leere und eine unbekannte
+  Bibliothek 404; `letter` ohne `sort=title` 422 `letter_requires_title_sort`, `sort=author`
+  ausserhalb von Hörbüchern 422; `getHome?start=K` wiederholt K, ausserhalb wird gewürfelt;
+  `listPicks` entspricht der Reihe ohne Klemme. Das `curl`-Gegenstück mit einem Kinderprofil am
+  laufenden Server folgt in Schritt 5 auf dem M3-Baum (dort steht ohnehin ein gefüllter Server).
+- `EXPLAIN QUERY PLAN` der Sortierungen (Fixture `vistest`, temporärer Test): `title`, `added`,
+  `released`, `vote` nehmen `SEARCH i USING INDEX items_library_kind_vote (library_id=? AND kind=?)`
+  (der Planer wählt den ersten passenden `(library_id, kind, …)`-Index; die DESC-Spalte nutzt er
+  wegen des `visible_items`-Joins nicht, die Sortierung läuft über `USE TEMP B-TREE FOR ORDER BY`),
+  `played` mit Status materialisiert `ep` einmal (`MATERIALIZE ep`, `GROUP BY` über die sichtbaren
+  Folgen). Ob das auf dem M3-Baum unter 300 ms p95 bleibt, misst Schritt 5 (Ausstiegsklausel 8).
+- `TestSortKey`/`TestSortLetter` (`server/internal/model/sortkey_test.go`): «Der Herr der Ringe» →
+  `herr der ringe`, «Die Ärzte» → `arzte`, «Straße der Besten» → `strasse der besten`, «The Matrix»
+  → `matrix`, «2001» → `#`.
+- Entscheide beim Bauen: eine Podcast-Bibliothek führt `podcast` immer in `contents` (Feed-Abos haben
+  keinen Ordner, H-2); eine angefangene Serie trägt `progress.completed = false` bei Position 0
+  (die Karte zeigt dann keinen Balken); Gleichstand bricht der Sortierschlüssel, dann die Id;
+  Unbekanntes (`NULL`, leerer Autor) steht in beiden Richtungen am Ende; `WithHeroStart(k)` jenseits
+  der Reihe nimmt den letzten Titel, ein gültiges `start` aus der Anfrage gewinnt immer.
+
 ## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, abgenommen)
 
 Auf dem Zweig `claude/bibliotheken` (Pull Request #45, bereit) nach dem Konzept

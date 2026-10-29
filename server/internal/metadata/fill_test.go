@@ -30,6 +30,7 @@ type fakeAniList struct {
 	rateOnce bool    // answer the next Media request with 429 and Retry-After: 1
 	tooLarge bool    // serve a list larger than maxAnimeListBytes
 	adult    map[int64]bool
+	scores   map[int64]int // averageScore per id (0 to 100); absent ids answer null
 	list     []map[string]any
 }
 
@@ -52,7 +53,7 @@ func animeList() []map[string]any {
 
 func newFakeAniList(t *testing.T) *fakeAniList {
 	t.Helper()
-	f := &fakeAniList{hits: map[string]int{}, adult: map[int64]bool{2001: true}, list: animeList()}
+	f := &fakeAniList{hits: map[string]int{}, adult: map[int64]bool{2001: true}, scores: map[int64]int{}, list: animeList()}
 	mux := http.NewServeMux()
 	writeJSON := func(w http.ResponseWriter, status int, v any) {
 		w.Header().Set("Content-Type", "application/json")
@@ -76,6 +77,7 @@ func newFakeAniList(t *testing.T) *fakeAniList {
 		rate := f.rateOnce
 		f.rateOnce = false
 		adult := f.adult[id]
+		score, scored := f.scores[id]
 		f.mu.Unlock()
 		if rate {
 			w.Header().Set("Retry-After", "1")
@@ -100,6 +102,10 @@ func newFakeAniList(t *testing.T) *fakeAniList {
 			return
 		}
 		m["isAdult"] = adult
+		m["averageScore"] = nil
+		if scored {
+			m["averageScore"] = score
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"Media": m}})
 	})
 	mux.HandleFunc("GET /lists/anime-list-full.json", func(w http.ResponseWriter, r *http.Request) {

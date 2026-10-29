@@ -17,6 +17,7 @@ SET original_title     = @original_title,
     rating_source      = @rating_source,
     tmdb_poster_path   = @tmdb_poster_path,
     tmdb_backdrop_path = @tmdb_backdrop_path,
+    vote_average       = @vote_average,
     metadata_state     = 'matched',
     metadata_error     = NULL,
     matched_at         = @now,
@@ -117,10 +118,11 @@ WHERE id = @id;
 SELECT * FROM item_texts WHERE item_id = @item_id ORDER BY lang;
 
 -- name: UpsertItemText :exec
-INSERT INTO item_texts (item_id, lang, title, overview, tagline)
-VALUES (@item_id, @lang, @title, @overview, @tagline)
+-- sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016).
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key)
+VALUES (@item_id, @lang, @title, @overview, @tagline, @sort_key)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline;
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key;
 
 -- name: ListImagesByItem :many
 -- Every stored image row of a title, originals included (image.fetch compares them with TMDB).
@@ -209,6 +211,7 @@ SET original_title     = @original_title,
     rating_source      = @rating_source,
     tmdb_poster_path   = @tmdb_poster_path,
     tmdb_backdrop_path = @tmdb_backdrop_path,
+    vote_average       = @vote_average,
     anilist_id         = @anilist_id,
     filled_providers   = @filled_providers,
     updated_at         = @now
@@ -243,3 +246,23 @@ WHERE i.library_id = @library_id AND i.deleted_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM jobs AS j
                   WHERE j.idempotency_key = 'fill:' || i.id AND j.state IN ('queued', 'running'))
 ORDER BY i.id;
+
+-- name: ListVoteBackfillItems :many
+-- One batch of metadata.vote_backfill (concept 08 4.2, ADR 0016): matched movies and series
+-- without a vote average whose list names a provider that delivers one (tmdb, anilist), whose
+-- vote_average is not locked and that carry no provenance row for vote_average (a title whose
+-- providers gave no vote gets one naming its identifier, so it is not asked again), in id order
+-- after @after_id. Provider names and field names carry no quote, so instr on the JSON lists is
+-- exact (like ListFillItems).
+SELECT * FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND vote_average IS NULL AND id > @after_id
+  AND (instr(providers, '"tmdb"') > 0 OR instr(providers, '"anilist"') > 0)
+  AND instr(locked_fields, '"vote_average"') = 0
+  AND NOT EXISTS (SELECT 1 FROM item_field_sources AS s WHERE s.item_id = items.id AND s.field = 'vote_average')
+ORDER BY id
+LIMIT @limit_count;
+
+-- name: SetItemVoteAverage :exec
+-- Writes the vote average metadata.vote_backfill decided (NULL keeps it unknown).
+UPDATE items SET vote_average = @vote_average, updated_at = @now WHERE id = @id AND deleted_at IS NULL;
