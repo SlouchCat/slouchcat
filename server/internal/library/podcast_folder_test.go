@@ -175,6 +175,10 @@ func TestPodcastFolderAdoptsAndRefusesFeeds(t *testing.T) {
 		map[string]string{"a2.mp3": filepath.Join(media, "episode-2.mp3")})
 	podcastDir(t, root, "Lokal", map[string]any{"title": "Lokal", "feedURL": "http://127.0.0.1:9/feed.xml"},
 		map[string]string{"l1.mp3": filepath.Join(media, "episode-3.mp3")})
+	// A folder naming a local feed the administrator subscribed to by hand: adopted, not refused
+	// (the lookup comes first, concept 4.5; the LAN exception belongs to the subscription).
+	podcastDir(t, root, "Lokal Abo", map[string]any{"title": "Lokal Abo", "feedURL": "http://127.0.0.1:9/abo.xml"},
+		map[string]string{"la1.mp3": filepath.Join(media, "episode-2.mp3")})
 	podcastDir(t, root, "Neu", map[string]any{"title": "Neu", "feedURL": "https://feeds.example.test/neu.xml", "explicit": true},
 		map[string]string{"n1.mp3": filepath.Join(media, "episode-1.mp3")})
 	lib := e.createPodcasts(root)
@@ -183,12 +187,24 @@ func TestPodcastFolderAdoptsAndRefusesFeeds(t *testing.T) {
 	    'https://feeds.example.test/a.xml', 'admin', '["local"]', 'matched', 0, 0, 0)`, lib.ID); err != nil {
 		t.Fatal(err)
 	}
-	if got := e.scan(lib.ID); got.Scan.State != "done" || got.Scan.FileCount != 4 {
+	if _, err := e.db.Write.ExecContext(e.ctx, `INSERT INTO items (id, kind, library_id, title, sort_title, feed_url, feed_origin, providers,
+	    metadata_state, added_at, created_at, updated_at) VALUES ('01ABONNIERT00000000000000L', 'podcast', ?, 'Lokales Abo', 'lokales abo',
+	    'http://127.0.0.1:9/abo.xml', 'admin', '["local"]', 'matched', 0, 0, 0)`, lib.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.scan(lib.ID); got.Scan.State != "done" || got.Scan.FileCount != 5 {
 		t.Fatalf("scan = %+v", got.Scan)
 	}
-	// Three podcasts: the subscription took both "Abonniert" folders, "Lokal" and "Neu" are new.
-	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast' AND deleted_at IS NULL`); n != 3 {
-		t.Fatalf("podcasts = %d, want 3", n)
+	// Four podcasts: the subscriptions took both "Abonniert" folders and "Lokal Abo", "Lokal" and
+	// "Neu" are new.
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast' AND deleted_at IS NULL`); n != 4 {
+		t.Fatalf("podcasts = %d, want 4", n)
+	}
+	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND parent_id = '01ABONNIERT00000000000000L'`); n != 1 {
+		t.Errorf("episodes of the local subscription = %d, want the file of its folder", n)
+	}
+	if v := e.str(`SELECT feed_origin FROM items WHERE id = '01ABONNIERT00000000000000L'`); v != "admin" {
+		t.Errorf("feed_origin of the adopted local subscription = %q, want admin", v)
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'podcast_episode' AND parent_id = '01ABONNIERT00000000000000A'`); n != 2 {
 		t.Fatalf("episodes of the subscription = %d, want the files of both folders", n)
@@ -227,7 +243,7 @@ func TestPodcastFolderRemovalKeepsFeedPodcastsAsSubscriptions(t *testing.T) {
 	if _, err := e.svc.RemoveRoot(e.ctx, lib.ID, rootID, root); err != nil {
 		t.Fatalf("remove root: %v", err)
 	}
-	if v := e.str(`SELECT coalesce(deleted_at, 0) || '/' || feed_origin FROM items WHERE title = 'Mit Feed'`); v != "0/admin" {
+	if v := e.str(`SELECT coalesce(deleted_at, 0) || '/' || feed_origin FROM items WHERE title = 'Mit Feed'`); v != "0/file" {
 		t.Errorf("podcast with feed after the removal = %q, want kept as a subscription by hand", v)
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE title = 'Ohne Feed' AND deleted_at IS NOT NULL`); n != 1 {

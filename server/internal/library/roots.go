@@ -162,11 +162,10 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 		return 0, 0, fmt.Errorf("move downloads off root %d: %w", rootID, err)
 	}
 	// A podcast folder (ADR 0015): a podcast whose feed came from the folder stays as a
-	// subscription made by hand, one without feed goes with its episodes (its file episodes were
-	// soft-deleted above). Before the row goes, because the link runs through media_files.root_id.
-	if _, err := q.PodcastPromoteFolderFeedsOfRoot(ctx, systemq.PodcastPromoteFolderFeedsOfRootParams{Now: now, RootID: rootID}); err != nil {
-		return 0, 0, fmt.Errorf("promote folder feeds of root %d: %w", rootID, err)
-	}
+	// subscription, one without feed goes with its episodes (its file episodes were soft-deleted
+	// above). The feed keeps feed_origin 'file': the address came from a file on the NAS and never
+	// gets the LAN exception of netguard (concept 9.1), whoever removed the folder. The
+	// administration may delete the subscription once no folder owns it (AdminPodcast.rootId).
 	if _, err := q.PodcastSoftDeleteEmptyFolderPodcasts(ctx, ms); err != nil {
 		return 0, 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
 	}

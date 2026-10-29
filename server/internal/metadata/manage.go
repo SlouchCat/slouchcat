@@ -143,6 +143,9 @@ func (s *Service) AssignMatch(ctx context.Context, itemID, provider, providerID 
 	if err := q.AssignItemMatch(ctx, p); err != nil {
 		return fmt.Errorf("assign match %s: %w", item.ID, err)
 	}
+	if err := q.DeleteItemFieldSources(ctx, item.ID); err != nil {
+		return fmt.Errorf("assign match %s: delete sources: %w", item.ID, err)
+	}
 	if err := q.DeleteAutoTrailers(ctx, item.ID); err != nil {
 		return fmt.Errorf("assign match %s: delete trailers: %w", item.ID, err)
 	}

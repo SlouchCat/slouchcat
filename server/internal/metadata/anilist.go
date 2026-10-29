@@ -128,9 +128,12 @@ func (p *aniListProvider) Media(ctx context.Context, id int64) (AniListRecord, e
 		return AniListRecord{}, fmt.Errorf("%w: anilist: %w", model.ErrTMDBUnreachable, err)
 	}
 	defer resp.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxAniListBytes))
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxAniListBytes+1))
 	if err != nil {
 		return AniListRecord{}, fmt.Errorf("%w: anilist read: %w", model.ErrTMDBUnreachable, err)
+	}
+	if len(raw) > maxAniListBytes {
+		return AniListRecord{}, fmt.Errorf("anilist: answer larger than %d bytes", maxAniListBytes)
 	}
 	switch {
 	case resp.StatusCode == http.StatusNotFound:

@@ -289,6 +289,7 @@ type Item struct {
 	Providers         string
 	AnilistID         sql.NullInt64
 	FeedOrigin        sql.NullString
+	FilledProviders   sql.NullString
 }
 
 type ItemFieldSource struct {

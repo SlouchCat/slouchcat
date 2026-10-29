@@ -84,12 +84,16 @@ ORDER BY i.id
 LIMIT @limit_count;
 
 -- name: AssignItemMatch :exec
--- Manual match (B-6): the chosen provider ID, the other provider ID and imdb_id cleared, the IDs
--- locked, metadata and trailers pending until the queued match has run.
+-- Manual match (B-6): the chosen provider ID, the other provider ID, imdb_id and the AniList id
+-- cleared (another title at the provider is another anime, the fill looks it up again), the IDs
+-- locked, metadata and trailers pending until the queued match has run; the provenance rows of
+-- the old identity go with it (the caller deletes them in the same transaction).
 UPDATE items
 SET tmdb_id        = @tmdb_id,
     tvdb_id        = @tvdb_id,
     imdb_id        = NULL,
+    anilist_id     = NULL,
+    filled_providers = NULL,
     locked_fields  = @locked_fields,
     metadata_state = 'pending',
     metadata_error = NULL,
@@ -206,8 +210,13 @@ SET original_title     = @original_title,
     tmdb_poster_path   = @tmdb_poster_path,
     tmdb_backdrop_path = @tmdb_backdrop_path,
     anilist_id         = @anilist_id,
+    filled_providers   = @filled_providers,
     updated_at         = @now
 WHERE id = @id AND deleted_at IS NULL;
+
+-- name: SetItemFilledProviders :exec
+-- Records the list a fill ran with (a run with one provider writes provenance only).
+UPDATE items SET filled_providers = @filled_providers, updated_at = @now WHERE id = @id AND deleted_at IS NULL;
 
 -- name: UpdateChildFill :exec
 -- Writes the fields the fill job decided for a season or episode; the match state stays.
@@ -221,18 +230,16 @@ WHERE id = @id AND deleted_at IS NULL;
 
 -- name: ListFillItems :many
 -- Matched movies and series of a library with more than one provider in their list (a JSON list
--- with a comma; provider names carry none) whose provenance is missing or names a provider that
--- left the list, without an active fill job: the convergence of QueuePendingMetadata (ADR 0015).
--- After a failed run, a list change or SLOUCHCAT_ANILIST off and on again the title comes to its
--- fields. "union" is the genre merge, not a provider.
-SELECT i.id FROM items AS i
+-- with a comma; provider names carry none) whose last fill ran with another list or never ran
+-- (items.filled_providers), without an active fill job: the convergence of QueuePendingMetadata
+-- (ADR 0015). The caller drops the titles whose only difference is a provider that is not
+-- configured right now (QueuePendingFills), so a switched-off AniList queues nothing and a
+-- switched-on one queues every title once.
+SELECT i.id, i.providers, i.filled_providers FROM items AS i
 WHERE i.library_id = @library_id AND i.deleted_at IS NULL
   AND i.kind IN ('movie', 'series') AND i.metadata_state = 'matched'
   AND instr(i.providers, ',') > 0
-  AND (NOT EXISTS (SELECT 1 FROM item_field_sources AS f WHERE f.item_id = i.id)
-       OR EXISTS (SELECT 1 FROM item_field_sources AS f
-                  WHERE f.item_id = i.id AND f.provider <> 'union'
-                    AND instr(i.providers, '"' || f.provider || '"') = 0))
+  AND (i.filled_providers IS NULL OR i.filled_providers <> i.providers)
   AND NOT EXISTS (SELECT 1 FROM jobs AS j
                   WHERE j.idempotency_key = 'fill:' || i.id AND j.state IN ('queued', 'running'))
 ORDER BY i.id;

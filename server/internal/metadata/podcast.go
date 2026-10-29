@@ -62,12 +62,12 @@ var (
 	errFeedRedirect = errors.New("feed redirects too often or to another scheme")
 )
 
-// errFeedStatus is an HTTP status other than 200 and 304.
 // Values of items.feed_origin (ADR 0015): who chose the feed of a podcast. A subscription made
 // by hand keeps the LAN exception of package netguard; a feed read from the metadata.json of a
 // podcast folder (netguard.FeedOriginFile) never gets it.
 const feedOriginAdmin = "admin"
 
+// errFeedStatus is an HTTP status other than 200 and 304.
 type errFeedStatus int
 
 func (e errFeedStatus) Error() string { return fmt.Sprintf("feed answered HTTP %d", int(e)) }
@@ -572,7 +572,7 @@ type episodeChange struct {
 
 // store inserts or updates one episode inside the caller's transaction; locked fields (title,
 // poster, overview, own_rating) keep their stored values.
-func (w episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Episode) (episodeChange, error) {
+func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Episode) (episodeChange, error) {
 	enclosure := httpURL(e.Enclosure.URL)
 	if enclosure == "" {
 		return episodeChange{}, nil // only http and https enclosures are played and downloaded

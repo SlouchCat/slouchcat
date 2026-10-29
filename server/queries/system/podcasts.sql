@@ -166,14 +166,6 @@ SET title = @title, sort_title = @sort_title, guid = @guid, published_at = @publ
     own_rating = @own_rating, rating_source = @rating_source, updated_at = @now
 WHERE id = @id AND kind = 'podcast_episode' AND deleted_at IS NULL AND guid IS NULL;
 
--- name: PodcastPromoteFolderFeedsOfRoot :execrows
--- Removing a podcast folder (removeLibraryRoot): a podcast whose feed came from the folder stays
--- as a subscription made by hand, so the administration sees and can delete it.
-UPDATE items SET feed_origin = 'admin', updated_at = @now
-WHERE kind = 'podcast' AND deleted_at IS NULL AND feed_url IS NOT NULL AND feed_origin = 'file'
-  AND id IN (SELECT e.parent_id FROM items AS e JOIN media_files AS m ON m.item_id = e.id
-             WHERE m.root_id = @root_id AND e.kind = 'podcast_episode');
-
 -- name: PodcastSoftDeleteEmptyFolderPodcasts :execrows
 -- Folder podcasts without feed whose episodes are all gone leave as well (sweep, removal).
 UPDATE items SET deleted_at = @now, updated_at = @now

@@ -57,8 +57,10 @@ type fakeTMDB struct {
 	hits      map[string]int
 	rateCalls int
 	authSeen  []string
-	// tvNoGermanOverview empties the German overview of the series 900 (fill tests).
+	// tvNoGermanOverview empties the German overview of the series 900 (fill tests);
+	// tvNoImages drops its poster and backdrop.
 	tvNoGermanOverview bool
+	tvNoImages         bool
 }
 
 // jpegBytes returns a w×h JPEG: a strong red block in the upper half (the poster's accent) over a

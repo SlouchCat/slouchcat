@@ -153,19 +153,21 @@ func describePodcastFile(r *os.Root, rootID int64, d diskFile, cache podcastCach
 // feedFromFile validates a feedURL read from a file (concept 9.1): http or https, no credentials,
 // and never a host in the local network -- the LAN exception of package netguard is for the
 // administrator, not for a file on the NAS. It returns the cleaned URL, or the reason it was
-// refused ("" when it is usable).
-func feedFromFile(ctx context.Context, raw string) (feedURL, refused string) {
+// refused ("" when it is usable). A URL that is only refused for its local host comes back in
+// local: a subscription the administrator made by hand on that address may still be adopted
+// (concept 4.5: the lookup comes first), only a new podcast must not be created from it.
+func feedFromFile(ctx context.Context, raw string) (feedURL, local, refused string) {
 	if raw == "" {
-		return "", ""
+		return "", "", ""
 	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
-		return "", "feed_url_not_allowed"
+		return "", "", "feed_url_not_allowed"
 	}
 	if netguard.LocalHost(ctx, u.String()) {
-		return "", "feed_url_not_allowed: " + netguard.Site(u.String())
+		return "", u.String(), "feed_url_not_allowed: " + netguard.Site(u.String())
 	}
-	return u.String(), ""
+	return u.String(), "", ""
 }
 
 // podcastItem returns the podcast of a new audio file of a podcast folder: the podcast that owns
@@ -199,9 +201,13 @@ func (w *batchWriter) podcastItem(ctx context.Context, op scanOp, info fileInfo)
 // findOrCreatePodcast adopts the library's subscription with the feed of the folder or creates
 // the podcast from the folder's metadata.
 func (w *batchWriter) findOrCreatePodcast(ctx context.Context, folder string, m *podcastMeta) (string, error) {
-	feedURL, refused := feedFromFile(ctx, m.feedURL)
-	if feedURL != "" {
-		id, err := w.q.PodcastFindByFeed(ctx, systemq.PodcastFindByFeedParams{LibraryID: w.lib.ID, FeedUrl: nullString(feedURL)})
+	feedURL, local, refused := feedFromFile(ctx, m.feedURL)
+	lookup := feedURL
+	if lookup == "" {
+		lookup = local
+	}
+	if lookup != "" {
+		id, err := w.q.PodcastFindByFeed(ctx, systemq.PodcastFindByFeedParams{LibraryID: w.lib.ID, FeedUrl: nullString(lookup)})
 		switch {
 		case err == nil:
 			// Adopted (F-6): the subscription made by hand or the podcast of another folder with

@@ -281,11 +281,13 @@ func TestFillTVDBFirstKeepsTVDBTextsUntilTheListChanges(t *testing.T) {
 	if src["overview/de"] != "tvdb" || src["title/de"] != "tvdb" || src["genres/"] != "union" {
 		t.Fatalf("sources %v", src)
 	}
-	// TVDB has no overview for episode 2: TMDB fills it, the title stays TVDB's.
-	if ep := e.texts(t, idE0102); ep["en"].Title != "Episode two" || ep["en"].Overview.String != "Overview en-US" {
+	// TVDB has no overview for episode 2, and TMDB's episode 2 aired on another day (2010, not
+	// 2015): it is another episode under the same number, so TMDB fills nothing here (numbers
+	// come from the identifier alone, concept 4.4).
+	if ep := e.texts(t, idE0102); ep["en"].Title != "Episode two" || ep["en"].Overview.Valid {
 		t.Fatalf("episode 2 texts %+v", ep)
 	}
-	if s := e.sources(t, idE0102); s["title/en"] != "tvdb" || s["overview/en"] != "tmdb" {
+	if s := e.sources(t, idE0102); s["title/en"] != "tvdb" || s["overview/en"] != "" {
 		t.Fatalf("episode 2 sources %v", s)
 	}
 	// A list change: TMDB moves to the front, its texts replace TVDB's on the next run, twice.
@@ -449,9 +451,12 @@ func TestFillAniListThroughTheMappingList(t *testing.T) {
 		t.Fatalf("locked poster filled: %+v", r)
 	}
 	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '[]' WHERE id = ?`, idSeries)
-	// Without TMDB's poster the fill would take TMDB's again (it stands first); make the series
-	// one TMDB does not know an image for by pointing it at the film's AniList entry instead.
-	mustExec(t, e.db.Write, `UPDATE items SET anilist_id = 1001, tmdb_id = 602 WHERE id = ?`, idSeries)
+	// TMDB stands first and has images: without them AniList's cover and banner are the first
+	// values (the series points at the film's AniList entry, which has both).
+	e.tmdb.mu.Lock()
+	e.tmdb.tvNoImages = true
+	e.tmdb.mu.Unlock()
+	mustExec(t, e.db.Write, `UPDATE items SET anilist_id = 1001 WHERE id = ?`, idSeries)
 	if err := e.svc.fill(ctx, idSeries); err != nil {
 		t.Fatal(err)
 	}
@@ -550,30 +555,62 @@ func TestFillSingleProviderRecordsTheIdentifier(t *testing.T) {
 }
 
 // TestQueuePendingMetadataQueuesStaleFills: after a scan, matched titles with more than one
-// provider and no provenance, or with a provenance naming a provider that left the list, get a
-// fill; titles whose provenance fits do not; an active fill job keeps the key.
+// provider whose last fill never ran or ran with another list get a fill; a title whose last
+// fill ran with the list as it stands does not; a provider that is switched off counts on
+// neither side (AniList off queues nothing, AniList on again queues the title once); an active
+// fill job keeps the key.
 func TestQueuePendingMetadataQueuesStaleFills(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, goodToken)
 	ctx := context.Background()
-	for _, id := range []string{idByTMDB, idByIMDB, idNoMatch} {
+	for _, id := range []string{idByTMDB, idByIMDB, idNoMatch, idNoRating} {
 		e.addItem(t, itemSeed{id: id, title: "First", tmdbID: 550})
 		mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched', providers = '["tmdb","anilist"]' WHERE id = ?`, id)
 	}
-	mustExec(t, e.db.Write, `INSERT INTO item_field_sources (item_id, field, lang, provider) VALUES (?, 'title', 'de', 'tmdb'), (?, 'genres', '', 'union')`, idByIMDB, idByIMDB)
-	mustExec(t, e.db.Write, `INSERT INTO item_field_sources (item_id, field, lang, provider) VALUES (?, 'overview', 'de', 'tvdb')`, idNoMatch)
+	// B ran with the list as it stands; C ran while AniList was off; D with another list.
+	mustExec(t, e.db.Write, `UPDATE items SET filled_providers = '["tmdb","anilist"]' WHERE id = ?`, idByIMDB)
+	mustExec(t, e.db.Write, `UPDATE items SET filled_providers = '["tmdb"]' WHERE id = ?`, idNoMatch)
+	mustExec(t, e.db.Write, `UPDATE items SET filled_providers = '["tmdb","tvdb"]' WHERE id = ?`, idNoRating)
 	n, err := e.svc.QueuePendingMetadata(ctx, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := e.fillJobs(t); !slices.Equal(got, []string{"fill:" + idByTMDB + " p2", "fill:" + idNoMatch + " p2"}) {
-		t.Fatalf("fill jobs %v (queued %d)", got, n)
+	want := []string{"fill:" + idByTMDB + " p2", "fill:" + idNoMatch + " p2", "fill:" + idNoRating + " p2"}
+	if got := e.fillJobs(t); !slices.Equal(got, want) {
+		t.Fatalf("fill jobs %v (queued %d), want %v", got, n, want)
 	}
 	if n2, err := e.svc.QueuePendingMetadata(ctx, 1); err != nil || n2 != 0 {
 		t.Fatalf("second run queued %d (%v), want 0: the active jobs keep their key", n2, err)
 	}
-	if got := e.fillJobs(t); len(got) != 2 {
-		t.Fatalf("fill jobs after the second run %v", got)
+	// AniList off: C's last fill matches what a fill would run with now.
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	e.svc.anilist.enabled = false
+	if _, err := e.svc.QueuePendingMetadata(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.fillJobs(t); !slices.Equal(got, []string{"fill:" + idByTMDB + " p2", "fill:" + idNoRating + " p2"}) {
+		t.Fatalf("fill jobs with AniList off %v", got)
+	}
+}
+
+// TestSameAirDate: a filler describes an episode only when the identifier's season knows the
+// number and both air on the same day (or one names no day).
+func TestSameAirDate(t *testing.T) {
+	t.Parallel()
+	base := &SeasonRecord{Episodes: []EpisodeRecord{{Number: 1, AirDate: "2015-02-03"}, {Number: 2}}}
+	for _, tc := range []struct {
+		e    EpisodeRecord
+		want bool
+	}{
+		{EpisodeRecord{Number: 1, AirDate: "2015-02-03"}, true},
+		{EpisodeRecord{Number: 1, AirDate: "2010-04-01"}, false},
+		{EpisodeRecord{Number: 1}, true},
+		{EpisodeRecord{Number: 2, AirDate: "2010-04-02"}, true},
+		{EpisodeRecord{Number: 3, AirDate: "2015-02-03"}, false},
+	} {
+		if got := sameAirDate(base, tc.e); got != tc.want {
+			t.Errorf("sameAirDate(%+v) = %v, want %v", tc.e, got, tc.want)
+		}
 	}
 }
 

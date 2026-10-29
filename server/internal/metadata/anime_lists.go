@@ -38,6 +38,8 @@ const (
 	animeListsETagFile   = "anime-list-full.etag"
 	maxAnimeListBytes    = 64 << 20
 	animeListsTTL        = 7 * 24 * time.Hour
+	// animeListsRetryAfter is the pause after a failed download without a cached list.
+	animeListsRetryAfter = 5 * time.Minute
 )
 
 // errAnimeListTooLarge ends a download that exceeds maxAnimeListBytes.
@@ -60,6 +62,8 @@ type animeLists struct {
 	loadMu       sync.Mutex // one load at a time: workers that arrive together share it
 	mu           sync.Mutex
 	loadedAt     time.Time
+	failedAt     time.Time // last download that failed without a cached list (cooldown)
+	failure      error
 	movieByTMDB  map[int64]int64
 	movieByIMDB  map[string]int64
 	seriesByTVDB map[int64][]animeSeason
@@ -187,6 +191,11 @@ func (a *animeLists) ensure(ctx context.Context) error {
 	if a.fresh() {
 		return nil
 	}
+	// A failed download without a cached list is not tried again at once by every waiting
+	// job: the fill jobs behind it get the same answer for a while and the host some rest.
+	if a.failure != nil && a.now().Sub(a.failedAt) < animeListsRetryAfter {
+		return a.failure
+	}
 	root, err := paths.Open(a.cache)
 	if err != nil {
 		return fmt.Errorf("anime lists: %w", err)
@@ -199,7 +208,16 @@ func (a *animeLists) ensure(ctx context.Context) error {
 	info, statErr := root.Stat(rel)
 	cached := statErr == nil
 	if cached && a.now().Sub(info.ModTime()) < animeListsTTL {
-		return a.parseFile(root, rel)
+		if err := a.parseFile(root, rel); err == nil {
+			return nil
+		} else if !errors.Is(err, errAnimeListTooLarge) {
+			// A cached file that does not parse (cut short, an HTML answer) would block
+			// AniList for a week: it goes, the list is fetched again.
+			a.log.Warn("cached anime list unreadable, fetching it again", "err", err)
+		}
+		_ = root.Remove(rel)
+		_ = root.Remove(animeListsDir + "/" + animeListsETagFile)
+		cached = false
 	}
 	etag := ""
 	if cached {
@@ -213,9 +231,17 @@ func (a *animeLists) ensure(ctx context.Context) error {
 	case cached && !errors.Is(err, context.Canceled):
 		a.log.Warn("anime list not renewed, using the cached one", "err", err)
 	default:
+		if !errors.Is(err, context.Canceled) {
+			a.failedAt, a.failure = a.now(), err
+		}
 		return err
 	}
-	return a.parseFile(root, rel)
+	if err := a.parseFile(root, rel); err != nil {
+		a.failedAt, a.failure = a.now(), err
+		return err
+	}
+	a.failure = nil
+	return nil
 }
 
 // fresh reports whether the maps were loaded within animeListsTTL.
@@ -282,10 +308,14 @@ func (a *animeLists) download(ctx context.Context, root *os.Root, rel, etag stri
 		_ = root.Remove(tmp)
 		return fmt.Errorf("anime lists: %w", err)
 	}
+	etagRel := animeListsDir + "/" + animeListsETagFile
 	if tag := resp.Header.Get("ETag"); tag != "" {
-		if err := root.WriteFile(animeListsDir+"/"+animeListsETagFile, []byte(tag), 0o644); err != nil {
+		if err := root.WriteFile(etagRel, []byte(tag), 0o644); err != nil {
 			return fmt.Errorf("anime lists: %w", err)
 		}
+	} else if err := root.Remove(etagRel); err != nil && !errors.Is(err, os.ErrNotExist) {
+		// An old tag beside a new body would ask the host about the wrong version.
+		return fmt.Errorf("anime lists: %w", err)
 	}
 	return nil
 }

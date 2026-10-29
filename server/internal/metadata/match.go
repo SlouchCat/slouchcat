@@ -47,11 +47,12 @@ const (
 // this error, so the queue retries it and the next run resolves with the new ids.
 var errItemChanged = errors.New("provider ids or locked fields changed during the match")
 
-// sameIdentity reports whether cur still has the provider ids and locked fields of the snapshot a
-// match started from.
+// sameIdentity reports whether cur still has the provider ids, locked fields and provider list of
+// the snapshot a match started from (a changed list means another identifier or other fillers:
+// the job resolved with the old one, ADR 0015).
 func sameIdentity(cur, snap systemq.Item) bool {
 	return cur.TmdbID == snap.TmdbID && cur.TvdbID == snap.TvdbID && cur.ImdbID == snap.ImdbID &&
-		cur.LockedFields == snap.LockedFields
+		cur.LockedFields == snap.LockedFields && cur.Providers == snap.Providers
 }
 
 // maxEpisodesPerTx bounds a season transaction: every episode writes two texts and one row, so a
@@ -241,6 +242,9 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	}
 	if err := s.matchSeasons(ctx, series, prov, rec); err != nil {
 		return err
+	}
+	if err := s.enqueueFill(ctx, item.ID); err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
 	}
 	return s.enqueueTrailerAfterMatch(ctx, item.ID)
 }
@@ -803,10 +807,27 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 			return snap, false, err
 		}
 	}
-	// The fill follows every match, in the same transaction (ADR 0015): the title carries the
-	// identifier's values now, the fillers of its list come with the job.
-	if err := enqueueFillTx(ctx, q, itemID, now); err != nil {
-		return snap, false, fmt.Errorf("metadata.match: %w", err)
+	if p.TmdbID != cur.TmdbID || p.TvdbID != cur.TvdbID {
+		// Another title at the provider: the provenance and the AniList entry of the old one
+		// are worthless; the fill records both anew (review of 29 October 2026).
+		if err := q.DeleteItemFieldSources(ctx, itemID); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: delete sources of %s: %w", itemID, err)
+		}
+		if err := q.UpdateItemAniListID(ctx, systemq.UpdateItemAniListIDParams{ID: itemID, Now: now}); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: clear anilist id of %s: %w", itemID, err)
+		}
+		if err := q.SetItemFilledProviders(ctx, systemq.SetItemFilledProvidersParams{ID: itemID, Now: now}); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: clear filled list of %s: %w", itemID, err)
+		}
+	}
+	// The fill follows every match (ADR 0015): the title carries the identifier's values now,
+	// the fillers of its list come with the job. A film's fill is queued in this transaction; a
+	// series queues it after its seasons (matchSeries), because the fill would otherwise run
+	// beside the season transactions and wait its attempts away.
+	if cur.Kind == "movie" {
+		if err := enqueueFillTx(ctx, q, itemID, now); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: commit %s: %w", itemID, err)
@@ -950,10 +971,18 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord) (sys
 	src := cur.RatingSource.String
 	if !locked["own_rating"] && src != "nfo" && src != "manual" {
 		rating, country := FSKFromCertifications(rec.Certifications)
-		p.OwnRating, p.RatingSource = sql.NullInt64{}, sql.NullString{}
-		if rating != nil {
-			p.OwnRating = sql.NullInt64{Int64: int64(*rating), Valid: true}
-			p.RatingSource = nullString(rec.Provider + ":" + country)
+		// A rating another provider gave (a filler's isAdult, the other provider's
+		// certification) is never lowered by a match of the same title (K-3): only the provider
+		// that gave it may revise it, and another title at the provider starts afresh.
+		sameTitle := p.TmdbID == cur.TmdbID && p.TvdbID == cur.TvdbID
+		ownRating := strings.HasPrefix(src, rec.Provider+":")
+		keep := cur.OwnRating.Valid && sameTitle && !ownRating && (rating == nil || int64(*rating) <= cur.OwnRating.Int64)
+		if !keep {
+			p.OwnRating, p.RatingSource = sql.NullInt64{}, sql.NullString{}
+			if rating != nil {
+				p.OwnRating = sql.NullInt64{Int64: int64(*rating), Valid: true}
+				p.RatingSource = nullString(rec.Provider + ":" + country)
+			}
 		}
 	}
 	if rec.PosterPath != "" {

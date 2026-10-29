@@ -235,7 +235,21 @@ func (s *Service) fill(ctx context.Context, itemID string) error {
 	if err != nil {
 		return err
 	}
-	changedImages, err := s.applyFill(ctx, item, order, candidates, anilistID)
+	if len(candidates) == 0 || candidates[0].provider != order[0] {
+		// Without the identifier's record the fillers would replace what the match wrote (the
+		// title has no provenance to defend it): nothing to decide, the next match brings it.
+		s.log.Warn("fill skipped: the identifier gave no record", "item_id", item.ID, "identifier", order[0])
+		return nil
+	}
+	// The list this run stands for: the providers that were configured (a switched-off AniList
+	// is left out, so switching it on queues the title again, QueuePendingFills).
+	filled := make([]string, 0, len(order))
+	for _, p := range order {
+		if !slices.Contains(skipped, p) {
+			filled = append(filled, p)
+		}
+	}
+	changedImages, err := s.applyFill(ctx, item, order, candidates, anilistID, filled)
 	if err != nil {
 		return err
 	}
@@ -381,25 +395,28 @@ func (s *Service) anilistIDOf(ctx context.Context, item systemq.Item) (int64, er
 
 // applyFill decides and writes the title-level fields in one transaction. It reports whether
 // poster or backdrop changed (image.fetch follows after the commit).
-func (s *Service) applyFill(ctx context.Context, snap systemq.Item, order []string, recs []fetchedRecord, anilistID int64) (bool, error) {
+func (s *Service) applyFill(ctx context.Context, snap systemq.Item, order []string, recs []fetchedRecord, anilistID int64, filled []string) (bool, error) {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("metadata.fill: begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.write.WithTx(tx)
+	if err := waitForMatch(ctx, q, snap.ID); err != nil {
+		return false, err
+	}
 	cur, ok, err := reloadItem(ctx, q, snap.ID)
 	if err != nil || !ok {
 		return false, err
 	}
-	if !sameIdentity(cur, snap) || cur.Providers != snap.Providers {
+	if !sameIdentity(cur, snap) {
 		return false, fmt.Errorf("metadata.fill %s: %w", snap.ID, errItemChanged)
 	}
 	candidates := make([]providerFields, 0, len(recs))
 	for _, r := range recs {
 		candidates = append(candidates, r.fields)
 	}
-	changedImages, err := s.writeFill(ctx, q, cur, order, candidates, true, anilistID)
+	changedImages, err := s.writeFill(ctx, q, cur, order, candidates, true, anilistID, filled)
 	if err != nil {
 		return false, err
 	}
@@ -424,7 +441,7 @@ type fillOutcome struct {
 // says whether the item is a movie or series (the other columns and the rating); anilistID is
 // stored on a title when it is not -1. Multi-episode files keep the composite title the match
 // wrote.
-func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq.Item, order []string, candidates []providerFields, title bool, anilistID int64) (fillOutcome, error) {
+func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq.Item, order []string, candidates []providerFields, title bool, anilistID int64, filled []string) (fillOutcome, error) {
 	var out fillOutcome
 	storedTexts, err := q.ListItemTextsByItem(ctx, cur.ID)
 	if err != nil {
@@ -539,7 +556,8 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 			OriginalTitle: originalTitle, Year: year, ReleaseDate: releaseDate, RuntimeMinutes: runtime,
 			Genres: genresJSON, OwnRating: ownRating, RatingSource: ratingSource,
 			TmdbPosterPath: poster, TmdbBackdropPath: backdrop, AnilistID: anilist,
-			Now: now, ID: cur.ID,
+			FilledProviders: nullString(model.ProvidersJSON(filled)),
+			Now:             now, ID: cur.ID,
 		}); err != nil {
 			return out, fmt.Errorf("metadata.fill: update %s: %w", cur.ID, err)
 		}
@@ -624,6 +642,11 @@ func (s *Service) recordIdentifier(ctx context.Context, item systemq.Item, ident
 			return fmt.Errorf("metadata.fill: write source of %s: %w", cur.ID, err)
 		}
 	}
+	if err := q.SetItemFilledProviders(ctx, systemq.SetItemFilledProvidersParams{
+		FilledProviders: nullString(model.ProvidersJSON([]string{identifier})), Now: s.now().UnixMilli(), ID: cur.ID,
+	}); err != nil {
+		return fmt.Errorf("metadata.fill: record list of %s: %w", cur.ID, err)
+	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("metadata.fill: commit %s: %w", cur.ID, err)
 	}
@@ -692,16 +715,31 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 	for _, n := range numbers {
 		var seasonCands []providerFields
 		episodeCands := map[int][]providerFields{}
+		// The identifier's record of the season: a filler describes an episode only when it
+		// airs the same day there (numbers come from the identifier alone, concept 4.4; where
+		// the providers count differently, the filler's episode 3 is another episode).
+		var base *SeasonRecord
 		for _, sp := range provs {
 			srec, err := sp.prov.Season(ctx, sp.id, n, textLangs)
 			if errors.Is(err, ErrNotFound) || errors.Is(err, errNotConfigured) {
+				if base == nil {
+					break // the identifier does not know the season: nothing to fill
+				}
 				continue
 			}
 			if err != nil {
 				return fmt.Errorf("metadata.fill: season %d of %s: %w", n, series.ID, err)
 			}
+			if base == nil {
+				base = &srec
+			} else if base.AirDate != "" && srec.AirDate != "" && base.AirDate != srec.AirDate {
+				continue // another season under this number
+			}
 			seasonCands = append(seasonCands, seasonFields(sp.prov.Name(), srec))
 			for _, e := range srec.Episodes {
+				if base != &srec && !sameAirDate(base, e) {
+					continue
+				}
 				episodeCands[e.Number] = append(episodeCands[e.Number], episodeFields(sp.prov.Name(), e))
 			}
 		}
@@ -736,6 +774,32 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 	return nil
 }
 
+// sameAirDate reports whether the identifier's season knows an episode of this number that
+// aired the same day as e (or neither names a day).
+func sameAirDate(base *SeasonRecord, e EpisodeRecord) bool {
+	for _, b := range base.Episodes {
+		if b.Number == e.Number {
+			return b.AirDate == "" || e.AirDate == "" || b.AirDate == e.AirDate
+		}
+	}
+	return false
+}
+
+// waitForMatch ends a fill transaction with errFillWaitsForMatch when a match of the title is
+// queued or running: its writes would cross the fill's, and the fill of that match would be
+// dropped (one active job per key). The queue retries the fill after the match.
+func waitForMatch(ctx context.Context, q *systemq.Queries, itemID string) error {
+	_, err := q.GetActiveJobIDByKey(ctx, sql.NullString{String: "match:" + itemID, Valid: true})
+	switch {
+	case err == nil:
+		return fmt.Errorf("metadata.fill %s: %w", itemID, errFillWaitsForMatch)
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	default:
+		return fmt.Errorf("metadata.fill: check match job of %s: %w", itemID, err)
+	}
+}
+
 // fillSeasonBatch writes one season item and a batch of its episodes in one transaction. Only
 // children the match wrote (state matched) are filled; the others wait for their match.
 func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, order []string, season *systemq.Item,
@@ -747,6 +811,9 @@ func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, orde
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := s.write.WithTx(tx)
+	if err := waitForMatch(ctx, q, series.ID); err != nil {
+		return nil, err
+	}
 	if err := checkSeries(ctx, q, series); err != nil {
 		return nil, err
 	}
@@ -757,7 +824,7 @@ func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, orde
 			return nil, err
 		}
 		if ok && cur.MetadataState == stateMatched {
-			o, err := s.writeFill(ctx, q, cur, order, seasonCands, false, -1)
+			o, err := s.writeFill(ctx, q, cur, order, seasonCands, false, -1, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -781,7 +848,7 @@ func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, orde
 		if !ok || cur.MetadataState != stateMatched {
 			continue
 		}
-		o, err := s.writeFill(ctx, q, cur, order, cands, false, -1)
+		o, err := s.writeFill(ctx, q, cur, order, cands, false, -1, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -824,14 +891,31 @@ func (s *Service) enqueueFill(ctx context.Context, itemID string) error {
 // (ListFillItems); QueuePendingMetadata calls it after every scan. It returns the number of
 // jobs queued.
 func (s *Service) QueuePendingFills(ctx context.Context, libraryID int64) (int, error) {
-	ids, err := s.read.ListFillItems(ctx, libraryID)
+	rows, err := s.read.ListFillItems(ctx, libraryID)
 	if err != nil {
 		return 0, fmt.Errorf("list titles to fill: %w", err)
 	}
-	for i, id := range ids {
-		if err := s.enqueueFill(ctx, id); err != nil {
-			return i, err
-		}
+	configured := map[string]bool{
+		model.ProviderTMDB: s.tmdb.Configured(ctx), model.ProviderTVDB: s.tvdb.Configured(ctx),
+		model.ProviderAniList: s.anilist.Configured(ctx), model.ProviderLocal: true,
 	}
-	return len(ids), nil
+	n := 0
+	for _, r := range rows {
+		// The list a fill would run with now; a title whose last fill ran with it has nothing
+		// to gain (a provider without key is left out on both sides).
+		var effective []string
+		for _, p := range model.ParseProviders(r.Providers) {
+			if configured[p] {
+				effective = append(effective, p)
+			}
+		}
+		if r.FilledProviders.Valid && r.FilledProviders.String == model.ProvidersJSON(effective) {
+			continue
+		}
+		if err := s.enqueueFill(ctx, r.ID); err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
 }
