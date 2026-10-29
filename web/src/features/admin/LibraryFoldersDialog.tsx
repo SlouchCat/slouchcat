@@ -151,6 +151,7 @@ export function LibraryFoldersDialog({
         }}
         title={t('admin.libraries.folders.title', { name: library.name })}
         description={t('admin.libraries.folders.description')}
+        size="wide"
       >
         <div className={styles.body}>
           {saved && <Notice>{saved}</Notice>}
@@ -232,7 +233,7 @@ export function LibraryFoldersDialog({
               min={0}
               namePrefix="roots"
               fieldErrors={addErrors?.fields}
-              pathAddon={(folder, inputRef) => (
+              pathButton={(folder, inputRef) => (
                 <PathBrowserButton
                   path={folder.path}
                   onPathChange={(path) =>

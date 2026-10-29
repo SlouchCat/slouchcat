@@ -130,7 +130,8 @@
 
 @media (width >= 1024px) {
   .layout {
-    grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+    /* The add form carries the folder cards with their source lists: it needs the room. */
+    grid-template-columns: minmax(0, 3fr) minmax(24rem, 2fr);
   }
 
   .aside {

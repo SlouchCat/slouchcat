@@ -79,5 +79,5 @@ export const WithoutServerAnswer: Story = {
   args: { content: 'series', initial: ['tmdb', 'tvdb'], infos: undefined },
 };
 
-/** Tab to the first checkbox, Tab twice more to «Nach oben» of the second row. */
+/** Tab to the first checkbox, Tab twice more to «… nach oben» of the second row. */
 export const Focused: Story = { tags: ['press:Tab+Tab+Tab+Tab'] };

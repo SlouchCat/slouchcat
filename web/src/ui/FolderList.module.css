@@ -78,14 +78,22 @@
   gap: var(--sc-space-4);
 }
 
+/* The path field and «Durchsuchen …» on one line; the button sits level with the input, below
+   the label (label line plus the field's gap). */
+.pathRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sc-space-3);
+  align-items: start;
+}
+
+.pathButton {
+  padding-top: calc(var(--sc-font-size-sm) * var(--sc-font-line-height-normal) + var(--sc-space-2));
+}
+
 .add {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sc-space-3);
   align-items: center;
-}
-
-.hint {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
 }

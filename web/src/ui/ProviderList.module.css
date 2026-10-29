@@ -15,11 +15,12 @@
 }
 
 .row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--sc-space-3);
   align-items: center;
   min-height: var(--sc-size-control-height);
-  padding: var(--sc-space-1) var(--sc-space-3);
+  padding: var(--sc-space-1) var(--sc-space-2) var(--sc-space-1) var(--sc-space-3);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
 }
@@ -58,10 +59,17 @@
 
 .text {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: var(--sc-space-1);
+  gap: 0;
   min-width: 0;
+}
+
+.hint {
+  overflow: hidden;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .name {
@@ -80,7 +88,7 @@
 .sort {
   display: flex;
   flex: none;
-  gap: var(--sc-space-1);
+  gap: 0;
 }
 
 .fixed {

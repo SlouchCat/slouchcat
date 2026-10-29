@@ -91,9 +91,10 @@ interface ProviderListProps {
  * «Metadatenquellen» of a folder (ADR 0015, concept 7): one row per provider the content allows,
  * with a checkbox, the name, what the entry does («erkennt Titel» for the first ticked one,
  * «füllt auf» for the others), a hint («kein Schlüssel hinterlegt», «liefert kein Deutsch», «nur
- * Auffüller») and «Nach oben» / «Nach unten». The order is changed with those buttons or with the
- * arrow keys on a focused one, like the rows of the start page: rule 8 asks for the keyboard,
- * not for drag and drop. The focus stays on the pressed button after the rows swapped.
+ * Auffüller») and two arrow buttons («TMDB nach oben» / «TMDB nach unten», icon only). The order
+ * is changed with those buttons or with the arrow keys on a focused one, like the rows of the
+ * start page: rule 8 asks for the keyboard, not for drag and drop. The focus stays on the pressed
+ * button after the rows swapped.
  *
  * A content with one provider (audiobooks, podcasts) shows it as text, nothing to tick. Without
  * `infos` the list is text as well: the setup wizard has no session to ask the server with.
@@ -211,32 +212,30 @@ export function ProviderList({
                   )}
                 </span>
                 {hints.length > 0 && (
-                  <span className={fieldStyles.description}>
-                    {hints.join(t('format.separator'))}
-                  </span>
+                  <span className={styles.hint}>{hints.join(t('format.separator'))}</span>
                 )}
               </span>
               <span className={styles.sort}>
                 <AriaButton
                   ref={buttonRef(id, -1)}
                   variant="ghost"
+                  icon="chevronUp"
+                  iconOnly
                   aria-label={t('library.providers.moveUpLabel', { provider: providerName })}
                   isDisabled={position <= 0}
                   onPress={() => move(id, -1)}
                   onKeyDown={arrows(id)}
-                >
-                  {t('library.providers.moveUp')}
-                </AriaButton>
+                />
                 <AriaButton
                   ref={buttonRef(id, 1)}
                   variant="ghost"
+                  icon="chevronDown"
+                  iconOnly
                   aria-label={t('library.providers.moveDownLabel', { provider: providerName })}
                   isDisabled={position < 0 || position === tickedOrder.length - 1}
                   onPress={() => move(id, 1)}
                   onKeyDown={arrows(id)}
-                >
-                  {t('library.providers.moveDown')}
-                </AriaButton>
+                />
               </span>
             </li>
           );

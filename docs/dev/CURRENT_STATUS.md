@@ -371,6 +371,21 @@ Zählungen der anderen Specs stehen bleiben. Zwei Fallen aus dem ersten Lauf: Pl
 «Ordner hinzufügen»; die Specs nennen diese Knöpfe mit `exact: true`, der zählende Knopf des
 Dialogs heisst «1 Ordner hinzufügen».
 
+**Nachbesserung des Layouts (29. Oktober 2026, abends):** Marco fand das Formular «Bibliothek
+hinzufügen» mit der ersten Fassung nicht übersichtlich (Zeilen der Quellenliste brachen um, die
+Textknöpfe «Nach oben» / «Nach unten» frassen die Breite, drei Hilfstexte je Karte). Geändert:
+die Quellenliste zeigt je Zeile Häkchen, Name mit Chip, eine Zeile Hinweis mit Auslassung und
+zwei Pfeilknöpfe (nur Symbol, `aria-label` «TMDB nach oben»); «Durchsuchen …» steht neben dem
+Pfadfeld (`FolderList` trennt `pathButton` rechts vom Feld und `pathAddon` darunter, das der
+Einrichtungsassistent für seine Prüfung braucht); der Pfad bekommt den Platzhalter `/media/Filme`
+statt eines Hilfstexts; die Hinweise zu Inhalt und Quellen sind je ein Satz; der Satz unter
+«Weiteren Ordner hinzufügen» entfällt (der zählende Knopf sagt es); die Spalte des Formulars ab
+1024 px breiter (`minmax(24rem, 2fr)`); der Dialog «Ordner von …» ist `size="wide"`, damit Pfad
+und Knöpfe «Ändern» / «Entfernen» in einer Zeile stehen. Belege: `pnpm -C web run lint` ohne
+Befund, Vitest **642 Tests in 79 Dateien**, `task ci:e2e -- admin-libraries admin-library-folders
+setup admin-folder-browser podcasts` auf `SLOUCHCAT_E2E_PORT=8297` **66 passed (1.7m)**, A-9-Logscan
+0 Befunde; die Storybook-Baselines der beiden Bauteile fehlen weiterhin (kein Docker, siehe unten).
+
 **Belege (DoD Schritt 5):**
 
 | Kriterium | Beleg |

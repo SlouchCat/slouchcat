@@ -33,6 +33,12 @@
   min-width: 0;
 }
 
+.rowActions {
+  display: flex;
+  flex: none;
+  gap: var(--sc-space-1);
+}
+
 .path {
   overflow-wrap: anywhere;
   font-family: var(--sc-font-family-mono);

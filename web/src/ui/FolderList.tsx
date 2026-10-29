@@ -95,7 +95,9 @@ interface FolderListProps {
   min: number;
   /** Prefix of the input names: `roots` on the admin page, `library.roots` in the wizard. */
   namePrefix: string;
-  /** Rendered after the path field of a card: the browse button, the wizard's check. */
+  /** Rendered right of the path field of a card: the browse button. */
+  pathButton?: (entry: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
+  /** Rendered below the path field of a card: the wizard's check. */
   pathAddon?: (entry: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
   /** The path field of a card lost the focus (the wizard checks the folder then). */
   onPathBlur?: (entry: FolderEntry) => void;
@@ -118,6 +120,7 @@ export function FolderList({
   infos,
   min,
   namePrefix,
+  pathButton,
   pathAddon,
   onPathBlur,
   fieldErrors,
@@ -195,23 +198,28 @@ export function FolderList({
                 )}
               </div>
               <div className={styles.fields}>
-                <TextField
-                  name={`${name}.path`}
-                  label={t('setup.library.path')}
-                  description={t('setup.library.pathHint')}
-                  autoComplete="off"
-                  spellCheck="false"
-                  mono
-                  isRequired
-                  inputRef={inputRef}
-                  value={entry.path}
-                  onChange={(path) => update(entry.key, { path })}
-                  onBlur={onPathBlur ? () => onPathBlur(entry) : undefined}
-                  validate={(value) => {
-                    if (!value.trim()) return t('errors.field.required');
-                    return value.trim().startsWith('/') ? null : t('errors.field.not_absolute');
-                  }}
-                />
+                <div className={styles.pathRow}>
+                  <TextField
+                    name={`${name}.path`}
+                    label={t('setup.library.path')}
+                    placeholder={t('setup.library.pathPlaceholder')}
+                    autoComplete="off"
+                    spellCheck="false"
+                    mono
+                    isRequired
+                    inputRef={inputRef}
+                    value={entry.path}
+                    onChange={(path) => update(entry.key, { path })}
+                    onBlur={onPathBlur ? () => onPathBlur(entry) : undefined}
+                    validate={(value) => {
+                      if (!value.trim()) return t('errors.field.required');
+                      return value.trim().startsWith('/') ? null : t('errors.field.not_absolute');
+                    }}
+                  />
+                  {pathButton && (
+                    <div className={styles.pathButton}>{pathButton(entry, inputRef)}</div>
+                  )}
+                </div>
                 {pathAddon?.(entry, inputRef)}
                 {contents.length > 1 && (
                   <RadioGroup
@@ -248,7 +256,6 @@ export function FolderList({
         <AriaButton ref={addButton} icon="plus" onPress={add}>
           {entries.length === 0 ? t('library.roots.addFirst') : t('library.roots.addMore')}
         </AriaButton>
-        <span className={styles.hint}>{t('library.roots.hint')}</span>
       </div>
     </div>
   );

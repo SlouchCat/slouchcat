@@ -98,7 +98,7 @@ function AddLibraryForm() {
           }}
           providerInfos={providers.data}
           fieldErrors={errors?.fields}
-          pathAddon={(folder, inputRef) => (
+          pathButton={(folder, inputRef) => (
             <PathBrowserButton
               path={folder.path}
               onPathChange={(path) =>

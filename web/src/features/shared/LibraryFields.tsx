@@ -59,7 +59,9 @@ interface LibraryFieldsProps {
   onFoldersChange: (folders: FolderEntry[]) => void;
   /** What `listMetadataProviders` said; the wizard has no session and shows the defaults fixed. */
   providerInfos?: readonly MetadataProviderInfo[];
-  /** Rendered right after the path field of a card (the browse button, the wizard's check). */
+  /** Rendered right of the path field of a card (the browse button). */
+  pathButton?: (folder: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
+  /** Rendered below the path field of a card (the wizard's check). */
   pathAddon?: (folder: FolderEntry, inputRef: RefObject<HTMLInputElement | null>) => ReactNode;
   onPathBlur?: (folder: FolderEntry) => void;
   /** The server's field messages by input name, for the parts of a card without an input. */
@@ -81,6 +83,7 @@ export function LibraryFields({
   folders,
   onFoldersChange,
   providerInfos,
+  pathButton,
   pathAddon,
   onPathBlur,
   fieldErrors,
@@ -105,6 +108,7 @@ export function LibraryFields({
         infos={providerInfos}
         min={minFolders(kind)}
         namePrefix={`${prefix}roots`}
+        pathButton={pathButton}
         pathAddon={pathAddon}
         onPathBlur={onPathBlur}
         fieldErrors={fieldErrors}
