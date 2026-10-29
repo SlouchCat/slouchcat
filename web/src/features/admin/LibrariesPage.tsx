@@ -1,15 +1,25 @@
 import type { Library, LibraryRequest, Rating } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formText } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
+import {
+  AriaButton,
+  ConfirmDialog,
+  Form,
+  FormDialog,
+  RadioGroup,
+  TextField,
+  folderListError,
+  type FolderEntry,
+} from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../shared/choices';
 import {
+  initialFolders,
   isAudioLibrary,
   LibraryFields,
   libraryRequest,
@@ -18,37 +28,49 @@ import {
 import { PathBrowserButton } from '../shared/PathBrowserButton';
 import { LibraryCard } from './LibraryCard';
 import { LibraryFoldersDialog } from './LibraryFoldersDialog';
-import { canScan, isScanning, librariesQuery } from './queries';
+import { canScan, isScanning, librariesQuery, metadataProvidersQuery } from './queries';
 import styles from './LibrariesPage.module.css';
 
 function AddLibraryForm() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [kind, setKind] = useState<LibraryKind>('movies');
+  const [kind, setKind] = useState<LibraryKind>('video');
   const [rating, setRating] = useState('0');
-  // The folder is a controlled value, so the browse dialog can write the chosen path into it.
-  const [path, setPath] = useState('');
+  // The folders are controlled values: the browse dialog writes the chosen path into a card.
+  const [folders, setFolders] = useState<FolderEntry[]>(() => initialFolders('video'));
   const [formKey, setFormKey] = useState(0);
-  const pathInput = useRef<HTMLInputElement>(null);
+  const providers = useQuery(metadataProvidersQuery);
   const create = useMutation({
     mutationFn: (body: LibraryRequest): Promise<Library> =>
       request(api.POST('/admin/libraries', { body })),
     onSuccess: async () => {
       setFormKey((key) => key + 1);
       setRating('0');
-      setPath('');
+      setFolders(initialFolders(kind));
       await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
     },
   });
-  // The contract reports the path of the setup wizard as `library.path`; here it is `path`.
-  const errors = create.error ? formErrors(t, create.error, { 'library.path': 'path' }) : null;
+  // The contract names a folder by its index (`roots[1].path`), and so do the inputs of the
+  // cards; a message for the content or the list of a card is shown by the card itself.
+  const errors = create.error ? formErrors(t, create.error) : null;
+  const listError = folderListError(t, folders, providers.data);
 
+  const changeKind = (next: LibraryKind) => {
+    if (next === kind) return;
+    setKind(next);
+    setFolders(initialFolders(next));
+  };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    create.mutate(libraryRequest(formText(data, 'name'), kind, formText(data, 'path'), rating));
+    create.mutate(libraryRequest(formText(data, 'name'), kind, folders, rating));
   };
   const required = (value: string) => (value.trim() ? null : t('errors.field.required'));
+  const submitText = create.isPending
+    ? t('admin.libraries.add.submitting')
+    : folders.length === 0
+      ? t('library.roots.submitNone')
+      : t('library.roots.submit', { count: folders.length });
 
   return (
     <Panel as="section" aria-labelledby="add-library-heading">
@@ -65,19 +87,43 @@ function AddLibraryForm() {
         <TextField name="name" label={t('setup.library.name')} isRequired validate={required} />
         <LibraryFields
           kind={kind}
-          onKindChange={setKind}
+          onKindChange={changeKind}
           rating={rating}
           onRatingChange={setRating}
-          path={path}
-          onPathChange={setPath}
-          pathInputRef={pathInput}
-          pathAddon={<PathBrowserButton path={path} onPathChange={setPath} fieldRef={pathInput} />}
+          folders={folders}
+          onFoldersChange={(next) => {
+            // The server names a card by its index: a message must not move to another card.
+            if (create.error) create.reset();
+            setFolders(next);
+          }}
+          providerInfos={providers.data}
+          fieldErrors={errors?.fields}
+          pathButton={(folder, inputRef) => (
+            <PathBrowserButton
+              path={folder.path}
+              onPathChange={(path) =>
+                setFolders((list) =>
+                  list.map((entry) => (entry.key === folder.key ? { ...entry, path } : entry)),
+                )
+              }
+              fieldRef={inputRef}
+            />
+          )}
         />
+        {listError && folders.some((folder) => folder.path.trim()) && (
+          <Notice tone="warning" live={false}>
+            {listError}
+          </Notice>
+        )}
         <div>
-          <AriaButton type="submit" variant="primary" icon="plus" isPending={create.isPending}>
-            {create.isPending
-              ? t('admin.libraries.add.submitting')
-              : t('admin.libraries.add.submit')}
+          <AriaButton
+            type="submit"
+            variant="primary"
+            icon="plus"
+            isPending={create.isPending}
+            isDisabled={listError !== null && folders.length > 0}
+          >
+            {submitText}
           </AriaButton>
         </div>
       </Form>
@@ -162,7 +208,7 @@ function DefaultRatingAction({
 
 /**
  * "Folders" of one library: the card names how many there are, this opens the dialog that lists
- * them and adds or removes one (idea 02, E16). A podcast library has none, so it has no button.
+ * them and adds or removes one (idea 02, E16). A podcast library may have folders as well.
  */
 function FoldersAction({
   library,
@@ -280,12 +326,7 @@ export function LibrariesPage() {
                       {t('admin.libraries.cancel')}
                     </AriaButton>
                   )}
-                  {library.kind !== 'podcasts' && (
-                    <FoldersAction
-                      library={library}
-                      onChanged={(updated) => void refresh(updated)}
-                    />
-                  )}
+                  <FoldersAction library={library} onChanged={(updated) => void refresh(updated)} />
                   {isAudioLibrary(library.kind) && (
                     <DefaultRatingAction
                       library={library}

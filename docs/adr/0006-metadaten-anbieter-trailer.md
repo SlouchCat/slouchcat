@@ -1,6 +1,9 @@
 # ADR 0006: Metadaten-Anbieter-Schnittstelle, TVDB optional, Trailer-Kette mit Tageskontingent
 
-- Status: angenommen (19. Oktober 2026)
+- Status: angenommen (19. Oktober 2026); **teilweise ersetzt durch ADR 0015** (29. Oktober 2026): die
+  Reihenfolge der Anbieter ist nicht mehr fest im Code, sondern je Ordner eine geordnete Liste; TVDB ist
+  als Erkenner für Serienordner wählbar; die zwei ersten «Verworfenen Alternativen» unten sind damit
+  angenommen. Schnittstelle, Serien-Job, Trailer-Kette, Tageskontingent und Schlüsselregel gelten weiter
 - Quelle: `docs/planning/03-plan-v1.md`, Abschnitte 3.1, 3.2, 5.3 und M3; Entscheid 7 in
   `docs/planning/04-entscheidungen.md` (Antwort auf Frage 7); M3-Entwurf, Abschnitte 3.1 und 3.2
 - Betroffene Spec-IDs: B-3, B-6, B-8, W-10, AN-8, AN-15
@@ -37,8 +40,12 @@ mit Staffeln, Folgen und Specials, Besetzung, Trailer und die manuelle Zuordnung
 - **TVDB als Hauptquelle für Serien** (wie Sonarr): bessere Folgenzählung bei Anime und Tages-Shows,
   aber ein zweiter Pflichtschlüssel mit Lizenzkosten und deutsche Texte nur, wo die Community sie
   pflegt. TMDB deckt den Haushalt ab und liefert dieselben Bilder und Freigaben wie für Filme.
+  **Abgelöst durch ADR 0015 (29. Oktober 2026):** mit einer Anime-Bibliothek trifft der Grund zu;
+  TVDB ist je Serienordner als Erkenner wählbar, TMDB bleibt die Vorgabe.
 - **Beide Anbieter abfragen und zusammenführen**: doppelte Anfragen bei jedem Titel, Widersprüche bei
-  Freigaben und Folgennummern, ohne klaren Gewinn.
+  Freigaben und Folgennummern, ohne klaren Gewinn. **Abgelöst durch ADR 0015 (29. Oktober 2026):**
+  je Ordner eine geordnete Liste; Anfragen nur für angekreuzte Anbieter, Folgennummern allein vom
+  Erkenner, Freigaben nie gesenkt, Herkunft je Feld in `item_field_sources`.
 - **Ein Job je Folge**: bei 60'000 Dateien zehntausende Jobs und doppelt so viele Anfragen; die
   Staffelabfrage liefert alle Folgen in einer Antwort.
 - **YouTube ohne Kontingentzähler**, nur auf `quotaExceeded` reagieren: der Server würde jeden Tag in

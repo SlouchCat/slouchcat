@@ -50,7 +50,7 @@ func (q *Queries) GetLibrary(ctx context.Context, id int64) (Library, error) {
 }
 
 const getLibraryRoot = `-- name: GetLibraryRoot :one
-SELECT id, library_id, path, fs_type, watch, created_at FROM library_roots WHERE id = ?1
+SELECT id, library_id, path, fs_type, watch, created_at, content, providers FROM library_roots WHERE id = ?1
 `
 
 func (q *Queries) GetLibraryRoot(ctx context.Context, id int64) (LibraryRoot, error) {
@@ -63,6 +63,8 @@ func (q *Queries) GetLibraryRoot(ctx context.Context, id int64) (LibraryRoot, er
 		&i.FsType,
 		&i.Watch,
 		&i.CreatedAt,
+		&i.Content,
+		&i.Providers,
 	)
 	return i, err
 }
@@ -110,9 +112,9 @@ func (q *Queries) InsertLibrary(ctx context.Context, arg InsertLibraryParams) (L
 }
 
 const insertLibraryRoot = `-- name: InsertLibraryRoot :one
-INSERT INTO library_roots (library_id, path, fs_type, watch, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5)
-RETURNING id, library_id, path, fs_type, watch, created_at
+INSERT INTO library_roots (library_id, path, fs_type, watch, content, providers, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+RETURNING id, library_id, path, fs_type, watch, created_at, content, providers
 `
 
 type InsertLibraryRootParams struct {
@@ -120,15 +122,20 @@ type InsertLibraryRootParams struct {
 	Path      string
 	FsType    string
 	Watch     string
+	Content   string
+	Providers string
 	Now       int64
 }
 
+// content and providers come from the request; the column defaults only serve migration 00023.
 func (q *Queries) InsertLibraryRoot(ctx context.Context, arg InsertLibraryRootParams) (LibraryRoot, error) {
 	row := q.db.QueryRowContext(ctx, insertLibraryRoot,
 		arg.LibraryID,
 		arg.Path,
 		arg.FsType,
 		arg.Watch,
+		arg.Content,
+		arg.Providers,
 		arg.Now,
 	)
 	var i LibraryRoot
@@ -139,12 +146,14 @@ func (q *Queries) InsertLibraryRoot(ctx context.Context, arg InsertLibraryRootPa
 		&i.FsType,
 		&i.Watch,
 		&i.CreatedAt,
+		&i.Content,
+		&i.Providers,
 	)
 	return i, err
 }
 
 const listAllLibraryRoots = `-- name: ListAllLibraryRoots :many
-SELECT id, library_id, path, fs_type, watch, created_at FROM library_roots ORDER BY library_id, id
+SELECT id, library_id, path, fs_type, watch, created_at, content, providers FROM library_roots ORDER BY library_id, id
 `
 
 func (q *Queries) ListAllLibraryRoots(ctx context.Context) ([]LibraryRoot, error) {
@@ -163,6 +172,8 @@ func (q *Queries) ListAllLibraryRoots(ctx context.Context) ([]LibraryRoot, error
 			&i.FsType,
 			&i.Watch,
 			&i.CreatedAt,
+			&i.Content,
+			&i.Providers,
 		); err != nil {
 			return nil, err
 		}
@@ -219,7 +230,7 @@ func (q *Queries) ListLibraries(ctx context.Context) ([]Library, error) {
 }
 
 const listLibraryRoots = `-- name: ListLibraryRoots :many
-SELECT id, library_id, path, fs_type, watch, created_at FROM library_roots WHERE library_id = ?1 ORDER BY id
+SELECT id, library_id, path, fs_type, watch, created_at, content, providers FROM library_roots WHERE library_id = ?1 ORDER BY id
 `
 
 func (q *Queries) ListLibraryRoots(ctx context.Context, libraryID int64) ([]LibraryRoot, error) {
@@ -238,6 +249,8 @@ func (q *Queries) ListLibraryRoots(ctx context.Context, libraryID int64) ([]Libr
 			&i.FsType,
 			&i.Watch,
 			&i.CreatedAt,
+			&i.Content,
+			&i.Providers,
 		); err != nil {
 			return nil, err
 		}
@@ -271,6 +284,41 @@ func (q *Queries) SetLibraryScanProgress(ctx context.Context, arg SetLibraryScan
 		arg.ID,
 	)
 	return err
+}
+
+const updateLibraryRoot = `-- name: UpdateLibraryRoot :one
+UPDATE library_roots SET content = ?1, providers = ?2 WHERE id = ?3 AND library_id = ?4
+RETURNING id, library_id, path, fs_type, watch, created_at, content, providers
+`
+
+type UpdateLibraryRootParams struct {
+	Content   string
+	Providers string
+	ID        int64
+	LibraryID int64
+}
+
+// Content and provider list of a folder (updateLibraryRoot, ADR 0015); the titles follow through
+// the library package (UpdateItemsProvidersByRoot), never through this statement alone.
+func (q *Queries) UpdateLibraryRoot(ctx context.Context, arg UpdateLibraryRootParams) (LibraryRoot, error) {
+	row := q.db.QueryRowContext(ctx, updateLibraryRoot,
+		arg.Content,
+		arg.Providers,
+		arg.ID,
+		arg.LibraryID,
+	)
+	var i LibraryRoot
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.FsType,
+		&i.Watch,
+		&i.CreatedAt,
+		&i.Content,
+		&i.Providers,
+	)
+	return i, err
 }
 
 const updateLibrarySettings = `-- name: UpdateLibrarySettings :one

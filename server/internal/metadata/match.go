@@ -47,11 +47,12 @@ const (
 // this error, so the queue retries it and the next run resolves with the new ids.
 var errItemChanged = errors.New("provider ids or locked fields changed during the match")
 
-// sameIdentity reports whether cur still has the provider ids and locked fields of the snapshot a
-// match started from.
+// sameIdentity reports whether cur still has the provider ids, locked fields and provider list of
+// the snapshot a match started from (a changed list means another identifier or other fillers:
+// the job resolved with the old one, ADR 0015).
 func sameIdentity(cur, snap systemq.Item) bool {
 	return cur.TmdbID == snap.TmdbID && cur.TvdbID == snap.TvdbID && cur.ImdbID == snap.ImdbID &&
-		cur.LockedFields == snap.LockedFields
+		cur.LockedFields == snap.LockedFields && cur.Providers == snap.Providers
 }
 
 // maxEpisodesPerTx bounds a season transaction: every episode writes two texts and one row, so a
@@ -196,16 +197,26 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	locked := lockedFields(item.LockedFields)
 	// A manual TVDB match locks tvdb_id and an empty tmdb_id: TVDB is the administrator's choice.
 	manualTVDB := locked["tvdb_id"] && locked["tmdb_id"] && item.TvdbID.Valid && !item.TmdbID.Valid
+	// The identifier of the title is the first entry of its provider list (ADR 0015): with TVDB
+	// first, TVDB finds the series and numbers its seasons, and the tmdb_id is fetched on the side
+	// through TMDB's external-id lookup so credits, trailers and images keep working.
+	tvdbFirst := identifierOf(item) == model.ProviderTVDB
 
 	var prov Provider
 	var rec SeriesRecord
 	found := false
 	switch {
-	case manualTVDB && tvdbKey == "":
+	case (manualTVDB || tvdbFirst) && tvdbKey == "":
 		return s.setState(ctx, item, stateSkipped, errNoTVDBKey)
 	case manualTVDB:
 		prov = s.tvdb
 		rec, found, err = s.resolveSeriesTVDB(ctx, item)
+	case tvdbFirst:
+		prov = s.tvdb
+		rec, found, err = s.resolveSeriesTVDB(ctx, item)
+		if err == nil && found && tmdbKey != "" && rec.TMDBID == 0 {
+			rec.TMDBID, err = s.tmdbIDOfTVDB(ctx, rec.TVDBID)
+		}
 	case tmdbKey != "":
 		prov = s.tmdb
 		rec, found, err = s.resolveSeriesTMDB(ctx, item)
@@ -231,6 +242,9 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	}
 	if err := s.matchSeasons(ctx, series, prov, rec); err != nil {
 		return err
+	}
+	if err := s.enqueueFill(ctx, item.ID); err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
 	}
 	return s.enqueueTrailerAfterMatch(ctx, item.ID)
 }
@@ -310,13 +324,44 @@ func (s *Service) resolveSeriesTVDB(ctx context.Context, item systemq.Item) (Ser
 	return rec, err == nil, err
 }
 
-// seriesProvider returns the provider and ID a matched series was matched with: TMDB when it has a
-// tmdb_id, else TVDB with its tvdb_id.
+// identifierOf is the first entry of the provider list of an item, the one that identifies it
+// (ADR 0015); tmdb for an item without list.
+func identifierOf(item systemq.Item) string {
+	if ps := model.ParseProviders(item.Providers); len(ps) > 0 {
+		return ps[0]
+	}
+	return model.ProviderTMDB
+}
+
+// tmdbIDOfTVDB looks the TMDB id of a series up by its TVDB id (TMDB's /find); 0 when TMDB does
+// not know the series.
+func (s *Service) tmdbIDOfTVDB(ctx context.Context, tvdbID int64) (int64, error) {
+	if tvdbID == 0 {
+		return 0, nil
+	}
+	cs, err := s.tmdb.SearchSeries(ctx, SeriesQuery{TVDBID: tvdbID})
+	if err != nil || len(cs) == 0 {
+		return 0, err
+	}
+	id, err := strconv.ParseInt(cs[0].ID, 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+	return id, nil
+}
+
+// seriesProvider returns the provider and ID a matched series is described by: the identifier of
+// its list when the series carries that provider's id (TVDB first means TVDB numbering, ADR 0015),
+// else TMDB when it has a tmdb_id, else TVDB with its tvdb_id.
 func (s *Service) seriesProvider(series systemq.Item) (Provider, string, bool) {
+	tmdb := series.TmdbID.Valid && series.TmdbID.Int64 > 0
+	tvdb := series.TvdbID.Valid && series.TvdbID.Int64 > 0
 	switch {
-	case series.TmdbID.Valid && series.TmdbID.Int64 > 0:
+	case identifierOf(series) == model.ProviderTVDB && tvdb:
+		return s.tvdb, strconv.FormatInt(series.TvdbID.Int64, 10), true
+	case tmdb:
 		return s.tmdb, strconv.FormatInt(series.TmdbID.Int64, 10), true
-	case series.TvdbID.Valid && series.TvdbID.Int64 > 0:
+	case tvdb:
 		return s.tvdb, strconv.FormatInt(series.TvdbID.Int64, 10), true
 	}
 	return nil, "", false
@@ -762,6 +807,28 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 			return snap, false, err
 		}
 	}
+	if p.TmdbID != cur.TmdbID || p.TvdbID != cur.TvdbID {
+		// Another title at the provider: the provenance and the AniList entry of the old one
+		// are worthless; the fill records both anew (review of 29 October 2026).
+		if err := q.DeleteItemFieldSources(ctx, itemID); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: delete sources of %s: %w", itemID, err)
+		}
+		if err := q.UpdateItemAniListID(ctx, systemq.UpdateItemAniListIDParams{ID: itemID, Now: now}); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: clear anilist id of %s: %w", itemID, err)
+		}
+		if err := q.SetItemFilledProviders(ctx, systemq.SetItemFilledProvidersParams{ID: itemID, Now: now}); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: clear filled list of %s: %w", itemID, err)
+		}
+	}
+	// The fill follows every match (ADR 0015): the title carries the identifier's values now,
+	// the fillers of its list come with the job. A film's fill is queued in this transaction; a
+	// series queues it after its seasons (matchSeries), because the fill would otherwise run
+	// beside the season transactions and wait its attempts away.
+	if cur.Kind == "movie" {
+		if err := enqueueFillTx(ctx, q, itemID, now); err != nil {
+			return snap, false, fmt.Errorf("metadata.match: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: commit %s: %w", itemID, err)
 	}
@@ -904,10 +971,18 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord) (sys
 	src := cur.RatingSource.String
 	if !locked["own_rating"] && src != "nfo" && src != "manual" {
 		rating, country := FSKFromCertifications(rec.Certifications)
-		p.OwnRating, p.RatingSource = sql.NullInt64{}, sql.NullString{}
-		if rating != nil {
-			p.OwnRating = sql.NullInt64{Int64: int64(*rating), Valid: true}
-			p.RatingSource = nullString(rec.Provider + ":" + country)
+		// A rating another provider gave (a filler's isAdult, the other provider's
+		// certification) is never lowered by a match of the same title (K-3): only the provider
+		// that gave it may revise it, and another title at the provider starts afresh.
+		sameTitle := p.TmdbID == cur.TmdbID && p.TvdbID == cur.TvdbID
+		ownRating := strings.HasPrefix(src, rec.Provider+":")
+		keep := cur.OwnRating.Valid && sameTitle && !ownRating && (rating == nil || int64(*rating) <= cur.OwnRating.Int64)
+		if !keep {
+			p.OwnRating, p.RatingSource = sql.NullInt64{}, sql.NullString{}
+			if rating != nil {
+				p.OwnRating = sql.NullInt64{Int64: int64(*rating), Valid: true}
+				p.RatingSource = nullString(rec.Provider + ":" + country)
+			}
 		}
 	}
 	if rec.PosterPath != "" {
@@ -1055,7 +1130,9 @@ const maxUpgradeMatches = 200
 // still pending without an active match job: movies and series (priority 4) and episodes of
 // matched series (priority 3). It also queues one match (priority 4, at most maxUpgradeMatches per
 // run) for matched titles from before M3, which lack image paths, credits and trailers
-// (ListUpgradeMatchItems), and trailer.find for matched titles whose trailers are still pending
+// (ListUpgradeMatchItems), metadata.fill for matched titles with more than one provider whose
+// provenance is missing or stale (QueuePendingFills, ADR 0015), and trailer.find for matched
+// titles whose trailers are still pending
 // (QueuePendingTrailers, for example after the YouTube quota ran out). The library scan calls it
 // after every complete run, so enrichment converges after aborted scans, failed jobs and the
 // upgrade. It returns the number of jobs queued.
@@ -1085,6 +1162,11 @@ func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (in
 			return n, err
 		}
 		n++
+	}
+	f, err := s.QueuePendingFills(ctx, libraryID)
+	n += f
+	if err != nil {
+		return n, err
 	}
 	t, err := s.QueuePendingTrailers(ctx, libraryID)
 	return n + t, err

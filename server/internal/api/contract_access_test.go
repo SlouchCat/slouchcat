@@ -195,7 +195,7 @@ var adminRegistry = map[string]adminCall{
 	"setIntegrationPathMap": {contract: "PUT /admin/integrations/{id}/path-map", path: "/admin/integrations/9999/path-map",
 		body: `{"pathMap":[]}`, ownerStatus: http.StatusNotFound},
 	"listIntegrationEvents": {contract: "GET /admin/integrations/{id}/events", path: "/admin/integrations/9999/events", ownerStatus: http.StatusNotFound},
-	"createLibrary":         {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"movies","path":""}`, ownerStatus: http.StatusUnprocessableEntity},
+	"createLibrary":         {contract: "POST /admin/libraries", path: "/admin/libraries", body: `{"name":"","kind":"video","roots":[]}`, ownerStatus: http.StatusUnprocessableEntity},
 	// Idea 02, the folder browser: the fixture has no browsable root, so the list is empty and
 	// every id is unknown -- the same 404 a path outside the roots gets.
 	"listBrowseRoots": {contract: "GET /admin/fs/roots", path: "/admin/fs/roots", ownerStatus: http.StatusOK},
@@ -204,9 +204,13 @@ var adminRegistry = map[string]adminCall{
 	"getLibrary":        {contract: "GET /admin/libraries/{id}", path: "/admin/libraries/777", ownerStatus: http.StatusNotFound},
 	"scanLibrary":       {contract: "POST /admin/libraries/{id}/scan", path: "/admin/libraries/777/scan", ownerStatus: http.StatusNotFound},
 	"acceptLibraryLoss": {contract: "POST /admin/libraries/{id}/accept-loss", path: "/admin/libraries/777/accept-loss", ownerStatus: http.StatusNotFound},
-	// Idea 02, E8 and E12: the fixture has no library 777, so both answer 404 for the owner.
+	// Idea 02, E8 and E12, ADR 0015: the fixture has no library 777 or 9999, so all three answer
+	// 404 for the owner.
 	"addLibraryRoot": {contract: "POST /admin/libraries/{id}/roots", path: "/admin/libraries/777/roots",
-		body: `{"path":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
+		body: `{"roots":[{"path":"/media/does-not-exist","content":"movie","providers":["tmdb"]}]}`, ownerStatus: http.StatusNotFound},
+	"updateLibraryRoot": {contract: "PATCH /admin/libraries/{id}/roots/{rootId}", path: "/admin/libraries/9999/roots/9999",
+		body: `{"providers":["tmdb"]}`, ownerStatus: http.StatusNotFound},
+	"listMetadataProviders": {contract: "GET /admin/metadata/providers", path: "/admin/metadata/providers", ownerStatus: http.StatusOK},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
 	"listInvitations":     {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
@@ -330,7 +334,7 @@ var publicRegistry = map[string]publicCall{
 	"getHealth":      {contract: "GET /healthz", path: "/healthz", status: http.StatusOK},
 	"getSetupStatus": {contract: "GET /setup", path: "/setup", status: http.StatusOK},
 	"runSetup": {contract: "POST /setup", path: "/setup", status: http.StatusConflict,
-		body: `{"email":"setup@example.ch","password":"long-enough-password","library":{"name":"A","kind":"movies","path":"/x"}}`},
+		body: `{"email":"setup@example.ch","password":"long-enough-password","library":{"name":"A","kind":"video","roots":[{"path":"/x","content":"movie","providers":["tmdb"]}]}}`},
 	"login":         {contract: "POST /auth/login", path: "/auth/login", body: `{"email":"nobody@example.ch","password":"wrong-password"}`, status: http.StatusUnauthorized},
 	"getInvitation": {contract: "GET /invitations/{token}", path: "/invitations/" + unknownInvitationToken, status: http.StatusNotFound},
 	"acceptInvitation": {contract: "POST /invitations/{token}/accept", path: "/invitations/" + unknownInvitationToken + "/accept", status: http.StatusNotFound,
@@ -1083,7 +1087,7 @@ func TestListAccountLibraries(t *testing.T) {
 		return out
 	}
 	zero := 0
-	want := []lib{{ID: f.LibraryID(), Name: "Filme", Kind: "movies"}, {ID: f.OtherLibraryID(), Name: "Filme X", Kind: "movies"},
+	want := []lib{{ID: f.LibraryID(), Name: "Filme", Kind: "video"}, {ID: f.OtherLibraryID(), Name: "Filme X", Kind: "video"},
 		{ID: f.Audio.AudiobookLibraryID, Name: "Hörbücher", Kind: "audiobooks", DefaultRating: &zero},
 		{ID: f.Audio.PodcastLibraryID, Name: "Podcasts", Kind: "podcasts", DefaultRating: &zero}}
 	same := func(a, b lib) bool {

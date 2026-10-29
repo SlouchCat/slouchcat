@@ -13,7 +13,7 @@ services:
     # Published with every release (ADR 0001, .github/workflows/release.yml). The tag is pinned:
     # an update is a conscious step (SLOUCHCAT_VERSION in .env, then `docker compose pull`), the
     # update check only says that there is one. `docker compose up --build` builds locally instead.
-    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.2.0}
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.3.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile

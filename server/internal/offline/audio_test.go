@@ -218,7 +218,7 @@ func TestFetchSourceResumes(t *testing.T) {
 		t.Fatal(err)
 	}
 	feedURL := e.f.Audio.EnclosureServer.URL + "/feed.xml"
-	name, err := e.svc.fetchSource(context.Background(), id, feedURL, ep.Enclosure)
+	name, err := e.svc.fetchSource(context.Background(), id, feedURL, "", ep.Enclosure)
 	if err != nil || name != "source.mp3" {
 		t.Fatalf("fetch = %q %v", name, err)
 	}
@@ -227,10 +227,10 @@ func TestFetchSourceResumes(t *testing.T) {
 	}
 	// A complete file is reused without a request.
 	e.f.SetEnclosure(t, ep.ID, "http://127.0.0.1:9/unused.mp3")
-	if name, err := e.svc.fetchSource(context.Background(), id, feedURL, ep.Enclosure); err != nil || name != "source.mp3" {
+	if name, err := e.svc.fetchSource(context.Background(), id, feedURL, "", ep.Enclosure); err != nil || name != "source.mp3" {
 		t.Errorf("second fetch = %q %v", name, err)
 	}
-	if _, err := e.svc.fetchSource(context.Background(), id, feedURL, "ftp://example.test/x.mp3"); !errors.Is(err, errSourceUnavailable) {
+	if _, err := e.svc.fetchSource(context.Background(), id, feedURL, "", "ftp://example.test/x.mp3"); !errors.Is(err, errSourceUnavailable) {
 		t.Errorf("ftp enclosure: %v", err)
 	}
 }
@@ -256,8 +256,8 @@ func TestPodcastAutoDownloads(t *testing.T) {
 			p.ID, itemID, e.clock.Now().UnixMilli())
 	}
 	// Slouchcat learned of the episodes in the order of publication, one day apart.
-	for i, ep := range []vistest.Movie{a.Episodes[0], a.Episodes[1], a.Episodes[2], a.Episodes[3], a.Explicit, a.EnclosureOnly} {
-		e.exec(`UPDATE items SET added_at = ? WHERE id = ?`, time.Date(2026, 10, 2+i, 7, 0, 0, 0, time.UTC).UnixMilli(), ep.ID)
+	for i, ep := range []vistest.Movie{a.FileOnlyExplicit, a.Episodes[0], a.Episodes[1], a.Episodes[2], a.Episodes[3], a.Explicit, a.EnclosureOnly} {
+		e.exec(`UPDATE items SET added_at = ? WHERE id = ?`, time.Date(2026, 10, 1+i, 7, 0, 0, 0, time.UTC).UnixMilli(), ep.ID)
 	}
 	favorite := func(p model.Profile, at time.Time) {
 		e.exec(`INSERT INTO favorites (profile_id, item_id, created_at) VALUES (?, ?, ?)`, p.ID, a.Podcast.ID, at.UnixMilli())
@@ -342,7 +342,7 @@ func TestFetchSourceResumeChecks(t *testing.T) {
 	write("source.mp3.part", content[:1000])
 	write("source.mp3.part.validator", []byte(`"v1"`))
 	answerRange = fmt.Sprintf("bytes 0-99/%d", len(content)) // the host ignores the start
-	if _, err := e.svc.fetchSource(ctx, id, feedURL, srv.URL+"/ep.mp3"); !errors.Is(err, errSourceUnavailable) {
+	if _, err := e.svc.fetchSource(ctx, id, feedURL, "", srv.URL+"/ep.mp3"); !errors.Is(err, errSourceUnavailable) {
 		t.Errorf("resume at the wrong byte: %v", err)
 	}
 	if ifRange != `"v1"` || encoding != "identity" {
@@ -353,7 +353,7 @@ func TestFetchSourceResumeChecks(t *testing.T) {
 	}
 	// The next attempt starts over and stores the new validator until the file is complete.
 	answerRange = ""
-	if name, err := e.svc.fetchSource(ctx, id, feedURL, srv.URL+"/ep.mp3"); err != nil || !bytes.Equal(e.file(id, name), content) {
+	if name, err := e.svc.fetchSource(ctx, id, feedURL, "", srv.URL+"/ep.mp3"); err != nil || !bytes.Equal(e.file(id, name), content) {
 		t.Fatalf("fresh fetch: %q %v", name, err)
 	}
 	if _, err := os.Stat(filepath.Join(e.dir, id, "source.mp3.part.validator")); !errors.Is(err, os.ErrNotExist) {
@@ -372,7 +372,7 @@ func TestFetchSourceResumeChecks(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(e.dir, id2, "source.mp3.part"), content[:tc.have], 0o600); err != nil {
 			t.Fatal(err)
 		}
-		name, err := e.svc.fetchSource(ctx, id2, feedURL, srv.URL+"/ep.mp3")
+		name, err := e.svc.fetchSource(ctx, id2, feedURL, "", srv.URL+"/ep.mp3")
 		if tc.ok != (err == nil) || (tc.ok && !bytes.Equal(e.file(id2, name), content)) {
 			t.Errorf("416 after %d bytes: %q %v", tc.have, name, err)
 		}
@@ -394,7 +394,7 @@ func TestFetchSourceResumeChecks(t *testing.T) {
 
 	// A public feed whose enclosure lies in the local network: refused; the private query of the
 	// enclosure stays out of the error.
-	_, err := e.svc.fetchSource(ctx, id2, "https://203.0.113.5/feed.xml", srv.URL+"/ep.mp3?auth=s3cr3t")
+	_, err := e.svc.fetchSource(ctx, id2, "https://203.0.113.5/feed.xml", "", srv.URL+"/ep.mp3?auth=s3cr3t")
 	if !errors.Is(err, errSourceUnavailable) || !errors.Is(err, netguard.ErrRefused) || strings.Contains(err.Error(), "s3cr3t") {
 		t.Errorf("local enclosure of a public feed: %v", err)
 	}

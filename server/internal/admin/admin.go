@@ -67,9 +67,17 @@ type Libraries interface {
 	Get(ctx context.Context, id int64) (model.Library, error) // model.ErrNotFound
 	QueueScan(ctx context.Context, id int64) (model.Library, error)
 	AcceptLoss(ctx context.Context, id int64) (model.Library, error)
-	// AddRoot adds a further folder to a library (idea 02, E8); model.ErrNotFound,
-	// *model.ValidationError for a podcast library, model.ErrLibraryPathInvalid.
-	AddRoot(ctx context.Context, libraryID int64, path string) (model.Library, error)
+	// ValidateRoots applies the folder rules of a request without writing anything (the wizard
+	// checks the first library before it creates the account); *model.ValidationError with the
+	// index of the folder that broke a rule, field names prefixed with field.
+	ValidateRoots(ctx context.Context, kind string, roots []model.LibraryRootRequest, field string) error
+	// AddRoots adds further folders to a library in one transaction (idea 02, E8; F-13);
+	// model.ErrNotFound, *model.ValidationError with the index of the folder that broke a rule.
+	AddRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error)
+	// UpdateRoot changes the content or the provider list of a folder (ADR 0015); a content
+	// change repeats the path like a removal. model.ErrNotFound, *model.ValidationError,
+	// model.ErrConfirmMismatch, model.ErrScanRunning.
+	UpdateRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
 	// RemoveRoot removes a folder and soft-deletes the titles that live only there (E12).
 	// confirmPath must repeat the stored path; model.ErrNotFound, model.ErrConfirmMismatch,
 	// model.ErrScanRunning.
@@ -136,6 +144,7 @@ type Service struct {
 	getenv    func(string) string
 	log       *slog.Logger
 	now       func() time.Time
+	anilist   bool // AniList switched on (SLOUCHCAT_ANILIST, WithAniList); true until set
 
 	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)
@@ -149,8 +158,15 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 	return &Service{
 		db: db.Write, write: appq.New(db.Write), read: appq.New(db.Read), sys: systemq.New(db.Read), auth: auth, vis: visibility.New(db, log),
 		libraries: libraries,
-		keyring:   keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now,
+		keyring:   keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now, anilist: true,
 	}
+}
+
+// WithAniList tells the service whether the AniList filler is switched on (config.AniList), for
+// listMetadataProviders, and returns the receiver.
+func (s *Service) WithAniList(on bool) *Service {
+	s.anilist = on
+	return s
 }
 
 // WithQueue sets the job queue used to refresh the metadata of a title whose rating override was
@@ -204,7 +220,7 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	if verr != nil {
 		return model.Session{}, "", verr
 	}
-	if err := s.libraries.ValidateNewRoot(ctx, req.Library.Path); err != nil {
+	if err := s.libraries.ValidateRoots(ctx, req.Library.Kind, req.Library.Roots, "library.roots"); err != nil {
 		return model.Session{}, "", err
 	}
 	if key != "" {
@@ -236,7 +252,9 @@ func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgen
 	return session, token, nil
 }
 
-// validateLibrary checks name, kind and path presence; prefix names the fields ("library.").
+// validateLibrary checks name, kind and the shape of the folder list; prefix names the fields
+// ("library."). The folder rules themselves (family, provider list, path, overlap) are applied
+// by package library, which answers with the index of the folder that broke one.
 func validateLibrary(verr *model.ValidationError, prefix string, req model.LibraryRequest) *model.ValidationError {
 	name := strings.TrimSpace(req.Name)
 	switch {
@@ -251,20 +269,40 @@ func validateLibrary(verr *model.ValidationError, prefix string, req model.Libra
 	case !model.ValidLibraryKind(req.Kind):
 		verr = verr.Add(prefix+"kind", "invalid_value")
 	}
-	switch {
-	case req.Kind == model.LibraryPodcasts && strings.TrimSpace(req.Path) != "":
-		verr = verr.Add(prefix+"path", "not_allowed")
-	case req.Kind != model.LibraryPodcasts && strings.TrimSpace(req.Path) == "":
-		verr = verr.Add(prefix+"path", "required")
-	case len(req.Path) > maxLibraryPath:
-		verr = verr.Add(prefix+"path", "too_long")
+	if req.Kind != "" && req.Kind != model.LibraryPodcasts && len(req.Roots) == 0 {
+		verr = verr.Add(prefix+"roots", model.CodeRootsRequired)
 	}
+	verr = validateRootShapes(verr, prefix+"roots", req.Roots)
 	if req.DefaultRating != nil {
 		switch {
 		case req.Kind != "" && !model.AudioLibraryKind(req.Kind):
 			verr = verr.Add(prefix+"defaultRating", "not_allowed")
 		case !validRating(req.DefaultRating):
 			verr = verr.Add(prefix+"defaultRating", "invalid_value")
+		}
+	}
+	return verr
+}
+
+// validateRootShapes checks what a folder request must carry before the rules run: a path of
+// sane length, a content and a provider list. field names the list ("roots", "library.roots").
+func validateRootShapes(verr *model.ValidationError, field string, roots []model.LibraryRootRequest) *model.ValidationError {
+	for i, r := range roots {
+		name := fmt.Sprintf("%s[%d].", field, i)
+		switch {
+		case strings.TrimSpace(r.Path) == "":
+			verr = verr.Add(name+"path", "required")
+		case len(r.Path) > maxLibraryPath:
+			verr = verr.Add(name+"path", "too_long")
+		}
+		switch {
+		case r.Content == "":
+			verr = verr.Add(name+"content", "required")
+		case !model.ValidRootContent(r.Content):
+			verr = verr.Add(name+"content", "invalid_value")
+		}
+		if len(r.Providers) == 0 {
+			verr = verr.Add(name+"providers", "required")
 		}
 	}
 	return verr
@@ -347,8 +385,8 @@ func (s *Service) CreateLibrary(ctx context.Context, req model.LibraryRequest) (
 	return s.libraries.Create(ctx, req)
 }
 
-// ScanLibrary queues a full scan; for a podcast library, which has no directory, it queues the
-// fetch of every subscription of the library instead (M6).
+// ScanLibrary queues a full scan. A podcast library fetches every subscription of the library
+// (M6) and, when it has folders, scans them as well (ADR 0015).
 func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, error) {
 	if lib, err := s.read.GetLibrary(ctx, id); err == nil && lib.Kind == model.LibraryPodcasts {
 		if s.podcasts == nil {
@@ -356,6 +394,9 @@ func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, err
 		}
 		if _, err := s.podcasts.RefreshLibrary(ctx, id); err != nil {
 			return model.Library{}, err
+		}
+		if roots, err := s.read.ListLibraryRoots(ctx, id); err == nil && len(roots) > 0 {
+			return s.libraries.QueueScan(ctx, id)
 		}
 		return s.libraries.Get(ctx, id)
 	}
@@ -367,22 +408,70 @@ func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Librar
 	return s.libraries.AcceptLoss(ctx, id)
 }
 
-// AddLibraryRoot adds a further folder to a library (idea 02, E8). The path rules, the overlap
-// check and the browsable-root rule live in package library; this only refuses what is not a
-// path at all.
-func (s *Service) AddLibraryRoot(ctx context.Context, libraryID int64, path string) (model.Library, error) {
-	trimmed := strings.TrimSpace(path)
+// AddLibraryRoots adds further folders to a library in one go (idea 02, E8; F-13). The folder
+// rules, the overlap check and the browsable-root rule live in package library; this only refuses
+// what is not a folder request at all.
+func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error) {
 	var verr *model.ValidationError
-	switch {
-	case trimmed == "":
-		verr = verr.Add("path", "required")
-	case len(trimmed) > maxLibraryPath:
-		verr = verr.Add("path", "too_long")
+	if len(roots) == 0 {
+		verr = verr.Add("roots", "required")
+	}
+	if verr = validateRootShapes(verr, "roots", roots); verr != nil {
+		return model.Library{}, verr
+	}
+	return s.libraries.AddRoots(ctx, libraryID, roots)
+}
+
+// UpdateLibraryRoot changes the content or the provider list of a folder (ADR 0015). The rules
+// and the typed confirmation of a content change live in package library.
+func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
+	var verr *model.ValidationError
+	if upd.Content == nil && upd.Providers == nil {
+		verr = verr.Add("body", "required")
+	}
+	if upd.Content != nil && !model.ValidRootContent(*upd.Content) {
+		verr = verr.Add("content", "invalid_value")
+	}
+	if upd.Providers != nil && len(upd.Providers) == 0 {
+		verr = verr.Add("providers", "required")
+	}
+	if len(upd.ConfirmPath) > maxLibraryPath {
+		verr = verr.Add("confirmPath", "too_long")
 	}
 	if verr != nil {
 		return model.Library{}, verr
 	}
-	return s.libraries.AddRoot(ctx, libraryID, trimmed)
+	return s.libraries.UpdateRoot(ctx, libraryID, rootID, upd)
+}
+
+// ListMetadataProviders describes the four providers to the administration
+// (listMetadataProviders, ADR 0015): whether each one is configured, which roles it plays and in
+// the lists of which root contents it may stand. The interface builds its checkbox list from
+// this and shows "no key" and "no German" from it, instead of a table of its own.
+func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataProviderInfo, error) {
+	tmdbKey, err := s.TMDBKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tvdbKey, _, err := s.TVDBKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	infos := []model.MetadataProviderInfo{
+		{ID: model.ProviderTMDB, Configured: tmdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
+		{ID: model.ProviderTVDB, Configured: tvdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
+		{ID: model.ProviderAniList, Configured: s.anilist, Roles: []string{"fill"}, Languages: []string{"en"}},
+		{ID: model.ProviderLocal, Configured: true, Roles: []string{"identify"}, Languages: []string{}},
+	}
+	for i := range infos {
+		infos[i].Contents = []string{}
+		for _, content := range []string{model.RootMovie, model.RootSeries, model.RootAudiobook, model.RootPodcast} {
+			if slices.Contains(model.ProvidersForContent(content), infos[i].ID) {
+				infos[i].Contents = append(infos[i].Contents, content)
+			}
+		}
+	}
+	return infos, nil
 }
 
 // RemoveLibraryRoot removes a folder from a library and lets the titles that live only there

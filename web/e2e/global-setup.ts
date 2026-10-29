@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { request, type APIRequestContext } from '@playwright/test';
 import { M4B_TITLE, MP3_TITLE } from './audio';
 import { ensureBaselinePick } from './curation';
@@ -11,6 +11,7 @@ import {
   EXTERNAL_BASE_URL,
   FEED_BASE,
   FEED_URL,
+  MEDIA_DIR,
   MOVIES_DIR,
   OWNER,
   STORAGE_STATE,
@@ -53,12 +54,12 @@ async function ensureAudioLibraries(api: APIRequestContext): Promise<void> {
     await createLibrary(api, {
       name: 'Hörbücher',
       kind: 'audiobooks',
-      path: AUDIOBOOKS_DIR,
+      roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: ['local'] }],
       defaultRating: 0,
     });
   }
   if (!libraries.some((library) => library.name === 'Podcasts')) {
-    await createLibrary(api, { name: 'Podcasts', kind: 'podcasts', defaultRating: 0 });
+    await createLibrary(api, { name: 'Podcasts', kind: 'podcasts', roots: [], defaultRating: 0 });
   }
 }
 
@@ -116,16 +117,41 @@ async function storeAudioIds(api: APIRequestContext): Promise<void> {
 }
 
 /**
- * The video libraries, once per run: "Filme" on testdata/media/Movies and the series library of M3
- * on testdata/media/TV.
+ * The video libraries, once per run: "Filme" on testdata/media/Movies, the series library of M3
+ * on testdata/media/TV, and the mixed library "Dokus" (ADR 0015, F-13) with a film folder and a
+ * series folder created in one request. Its folders are hidden below the media root and hold no
+ * media, so the scanner and the folder browser skip them and the counts of the other specs stay.
  */
 async function ensureVideoLibraries(api: APIRequestContext): Promise<void> {
   const libraries = await listLibraries(api);
+  if (!libraries.some((library) => library.name === 'Dokus')) {
+    const roots = [
+      { path: join(MEDIA_DIR, '.e2e', 'Dokus', 'Filme'), content: 'movie', providers: ['tmdb'] },
+      {
+        path: join(MEDIA_DIR, '.e2e', 'Dokus', 'Serien'),
+        content: 'series',
+        providers: ['tmdb', 'tvdb'],
+      },
+    ];
+    for (const root of roots) {
+      mkdirSync(root.path, { recursive: true });
+      writeFileSync(join(root.path, 'readme.txt'), 'no media here');
+    }
+    await createLibrary(api, { name: 'Dokus', kind: 'video', roots });
+  }
   if (!libraries.some((library) => library.name === 'Filme')) {
-    await createLibrary(api, { name: 'Filme', kind: 'movies', path: MOVIES_DIR });
+    await createLibrary(api, {
+      name: 'Filme',
+      kind: 'video',
+      roots: [{ path: MOVIES_DIR, content: 'movie', providers: ['tmdb'] }],
+    });
   }
   if (existsSync(TV_DIR) && !libraries.some((library) => library.name === 'Serien')) {
-    await createLibrary(api, { name: 'Serien', kind: 'series', path: TV_DIR });
+    await createLibrary(api, {
+      name: 'Serien',
+      kind: 'video',
+      roots: [{ path: TV_DIR, content: 'series', providers: ['tmdb', 'tvdb'] }],
+    });
   }
 }
 
@@ -174,7 +200,7 @@ export default async function globalSetup(): Promise<void> {
           library: {
             name: 'Hörbücher',
             kind: 'audiobooks',
-            path: AUDIOBOOKS_DIR,
+            roots: [{ path: AUDIOBOOKS_DIR, content: 'audiobook', providers: ['local'] }],
             defaultRating: 0,
           },
         },

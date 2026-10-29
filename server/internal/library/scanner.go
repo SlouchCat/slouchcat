@@ -59,7 +59,7 @@ type diskFile struct {
 	size   int64
 	mtime  int64 // Unix milliseconds
 	id     fileID
-	parsed ParsedName // ParseMoviePath or ParseSeriesPath, by library kind
+	parsed ParsedName // ParseMoviePath or ParseSeriesPath, by root content
 }
 
 // rootScan is the state of one root during a scan.
@@ -164,22 +164,22 @@ type scanAbort struct{ code string }
 
 func (a scanAbort) Error() string { return "scan aborted: " + a.code }
 
-// parsePath parses rel with the name parser of the library kind. Audio files have no name parser
-// (bookFiles reads their folders).
-func parsePath(kind, rel string) ParsedName {
-	switch kind {
-	case "series":
+// parsePath parses rel with the name parser of the root content (ADR 0015: the folder, not the
+// library, says what it holds). Audio files have no name parser (bookFiles reads their folders).
+func parsePath(content, rel string) ParsedName {
+	switch content {
+	case model.RootSeries:
 		return ParseSeriesPath(rel)
-	case model.LibraryAudiobooks:
+	case model.RootAudiobook, model.RootPodcast:
 		return ParsedName{}
 	}
 	return ParseMoviePath(rel)
 }
 
-// scannedExt reports whether a file name has an extension the scanner picks up in a library of
-// the kind: audio in an audiobook library, video otherwise.
-func scannedExt(kind, name string) bool {
-	if kind == model.LibraryAudiobooks {
+// scannedExt reports whether a file name has an extension the scanner picks up in a root of the
+// content: audio in an audiobook or podcast folder, video otherwise.
+func scannedExt(content, name string) bool {
+	if content == model.RootAudiobook || content == model.RootPodcast {
 		return IsAudio(name)
 	}
 	return IsVideo(name)
@@ -298,7 +298,7 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 			s.log.InfoContext(ctx, "titles queued for metadata.match or trailer.find", "library_id", lib.ID, "titles", n)
 		}
 	}
-	if lib.Kind == "series" {
+	if s.hasSeriesRoot(ctx, lib.ID) {
 		if n, err := s.QueuePendingSegments(ctx, lib.ID); err != nil {
 			s.log.WarnContext(ctx, "segments check after scan failed", "library_id", lib.ID, "err", err)
 		} else if n > 0 {
@@ -443,7 +443,7 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 		if err != nil {
 			return stats, scanAbort{abortRootMissing}
 		}
-		if rs.disk, rs.subs, err = walkRoot(ctx, rs.proot, lib.Kind, rs.ignored, s.log); err != nil {
+		if rs.disk, rs.subs, err = walkRoot(ctx, rs.proot, root.Content, rs.ignored, s.log); err != nil {
 			if errors.Is(err, errRootMissing) {
 				return stats, scanAbort{abortRootMissing}
 			}
@@ -505,10 +505,10 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 
 // applyOps writes ops in batches of at most batchRows rows, checking ctx between batches. With
 // progress (full scan) each batch records seen and total; it returns seen after the last batch.
-func (s *Service) applyOps(ctx context.Context, lib appq.Library, idx *itemIndex, ops []scanOp, seen, total int, progress bool, stats *scanStats) (int, error) {
+func (s *Service) applyOps(ctx context.Context, lib appq.Library, idx *libraryIndex, ops []scanOp, seen, total int, progress bool, stats *scanStats) (int, error) {
 	orderOps(ops)
 	per := batchRows / maxRowsPerOp
-	if lib.Kind == "series" {
+	if slices.ContainsFunc(ops, func(op scanOp) bool { return op.rs.root.Content == model.RootSeries }) {
 		per = batchRows / maxRowsPerSeriesOp
 	}
 	for i := 0; i < len(ops); {
@@ -544,14 +544,14 @@ func orderOps(ops []scanOp) {
 
 var errRootMissing = errors.New("library root missing")
 
-// walkRoot collects the video files of a root that become titles or extras of the library kind
+// walkRoot collects the media files of a root that become titles or extras of its content
 // (see wanted) and the subtitle files by directory (sidecars, I-5); samples, ignored entries and
 // ignored files are skipped. A root that cannot be
 // opened is errRootMissing; any other walk error fails the scan, because a partial walk would
 // look like lost files. Symlinked directories are not followed; a symlinked file whose target
 // cannot be read inside the root (it leaves the root, dangles, or is not readable) is logged and
 // skipped.
-func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[string]bool, log *slog.Logger) ([]diskFile, map[string][]string, error) {
+func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[string]bool, log *slog.Logger) ([]diskFile, map[string][]string, error) {
 	r, err := paths.Open(root)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", errRootMissing, err)
@@ -586,7 +586,7 @@ func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[str
 			subs[path.Dir(p)] = append(subs[path.Dir(p)], d.Name())
 			return nil
 		}
-		f, ok, err := videoFile(ctx, r, p, d, kind, ignored, noMarker, log)
+		f, ok, err := videoFile(ctx, r, p, d, content, ignored, noMarker, log)
 		if ok {
 			files = append(files, f)
 		}
@@ -599,15 +599,18 @@ func walkRoot(ctx context.Context, root paths.Root, kind string, ignored map[str
 	return files, subs, nil
 }
 
-// wanted reports whether a parsed video file is scanned: never a sample; in a movie library a
-// movie or an extra inside a movie folder; in a series library an episode or an extra below a
-// series folder. A file of a series library without an episode marker is counted per directory
+// wanted reports whether a parsed video file is scanned: never a sample; in a movie folder a
+// movie or an extra inside a movie folder; in a series folder an episode or an extra below a
+// series folder. A file of a series folder without an episode marker is counted per directory
 // in noMarker (logged once per directory, see logNoMarker).
-func wanted(kind, rel string, p ParsedName, noMarker map[string]int) bool {
+func wanted(content, rel string, p ParsedName, noMarker map[string]int) bool {
 	switch {
 	case p.Sample:
 		return false
-	case kind == "series":
+	case content == model.RootPodcast:
+		// A podcast is always a folder (concept 4.5): audio directly in the root is passed over.
+		return path.Dir(rel) != "."
+	case content == model.RootSeries:
 		if p.Series == nil && !p.Extra {
 			noMarker[path.Dir(rel)]++
 		}
@@ -629,12 +632,12 @@ func logNoMarker(ctx context.Context, log *slog.Logger, noMarker map[string]int)
 // entries a scan skips: no video, an ignored file, a file wanted rejects (files without an episode
 // marker are counted in noMarker), a vanished entry, anything but a regular file, and a symlink
 // whose target cannot be read inside the root (logged).
-func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, kind string, ignored map[string]bool, noMarker map[string]int, log *slog.Logger) (diskFile, bool, error) {
-	if !scannedExt(kind, d.Name()) || ignored[p] {
+func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, content string, ignored map[string]bool, noMarker map[string]int, log *slog.Logger) (diskFile, bool, error) {
+	if !scannedExt(content, d.Name()) || ignored[p] {
 		return diskFile{}, false, nil
 	}
-	parsed := parsePath(kind, p)
-	if !wanted(kind, p, parsed, noMarker) {
+	parsed := parsePath(content, p)
+	if !wanted(content, p, parsed, noMarker) {
 		return diskFile{}, false, nil
 	}
 	var fi fs.FileInfo
@@ -776,4 +779,14 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 		}
 	}
 	return ops, unchanged, lost, nil
+}
+
+// hasSeriesRoot reports whether a folder of the library holds series; a failed lookup counts as
+// no, and is logged by the caller's next step.
+func (s *Service) hasSeriesRoot(ctx context.Context, libraryID int64) bool {
+	roots, err := appq.New(s.db.Read).ListLibraryRoots(ctx, libraryID)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(roots, func(r appq.LibraryRoot) bool { return r.Content == model.RootSeries })
 }

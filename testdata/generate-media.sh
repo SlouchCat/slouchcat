@@ -545,16 +545,65 @@ for ch in $(seq 1 10); do
 done
 
 # Podcast episodes for the mock feed (testdata/podcasts/feed.xml.tmpl has {{BASE}} placeholders).
+# The tags are what Audiobookshelf writes when it downloads an episode (ADR 0015, concept 4.5):
+# title, album = podcast, date = the feed's pubDate in RFC 2822, comment = the description. The
+# dates repeat the template, so a file and its feed episode pair by the publication minute.
 podcast_dir="$OUT_DIR/Podcasts"
+podcast_dates=("" "Mon, 06 Oct 2025 06:00:00 +0000" "Mon, 13 Oct 2025 06:00:00 +0000" "Mon, 20 Oct 2025 06:00:00 +0000")
 for ep in 1 2 3; do
   f="$podcast_dir/episode-$ep.mp3"
   if want "$f"; then
     if [[ ! -f "$podcast_dir/cover.jpg" ]]; then cover "$podcast_dir/cover.jpg" green; fi
     "${ff[@]}" -f lavfi -i "sine=frequency=$((500 + 100 * ep)):sample_rate=44100:duration=$((6 + 2 * ep))" \
       -c:a libmp3lame -b:a 64k -ac 1 -id3v2_version 3 \
-      -metadata title="Slouchcat Test Episode $ep" -metadata artist="Slouchcat Test Podcast" "$f"
+      -metadata title="Slouchcat Test Episode $ep" -metadata artist="Slouchcat Test Podcast" \
+      -metadata album="Slouchcat Test Podcast" -metadata date="${podcast_dates[$ep]}" \
+      -metadata comment="Episode $ep aus dem Ordner." "$f"
   fi
 done
+
+# A podcast folder as Audiobookshelf lays it out (ADR 0015): metadata.json without feedURL (the
+# Go tests write a feedURL of their own when they need one), cover.jpg, two episodes with tags,
+# one of them with the podcast's title as its title tag (Audiobookshelf does that for some
+# episodes; the name of the file counts then), and one audio file directly in the root, which a
+# scan passes over.
+folder_dir="$OUT_DIR/PodcastFolder"
+show_dir="$folder_dir/Slouchcat Test Folder Podcast"
+f="$show_dir/metadata.json"
+if [[ ! -f "$f" || "$FORCE" == "1" ]]; then
+  mkdir -p "$show_dir"
+  cover "$show_dir/cover.jpg" yellow
+  cat >"$f" <<'JSON'
+{
+  "tags": [],
+  "title": "Slouchcat Test Folder Podcast",
+  "author": "Slouchcat Test Author",
+  "description": "Ein Podcast aus einem Ordner, wie Audiobookshelf ihn ablegt.",
+  "releaseDate": "2025-10-20T06:00:00Z",
+  "genres": ["Education", "Podcasts"],
+  "language": "de",
+  "explicit": false,
+  "podcastType": "episodic"
+}
+JSON
+fi
+folder_dates=("" "Mon, 03 Nov 2025 06:00:00 +0000" "Mon, 10 Nov 2025 06:00:00 +0000")
+folder_titles=("" "Ordnerfolge Eins" "Slouchcat Test Folder Podcast")
+folder_names=("" "Ordnerfolge Eins.mp3" "Slouchcat Test Folder Podcast (3f5a2c1e-0000-4000-8000-000000000002).mp3")
+for ep in 1 2; do
+  f="$show_dir/${folder_names[$ep]}"
+  if want "$f"; then
+    "${ff[@]}" -f lavfi -i "sine=frequency=$((900 + 100 * ep)):sample_rate=44100:duration=$((5 + ep))" \
+      -c:a libmp3lame -b:a 64k -ac 1 -id3v2_version 3 \
+      -metadata title="${folder_titles[$ep]}" -metadata artist="Slouchcat Test Author" \
+      -metadata album="Slouchcat Test Folder Podcast" -metadata date="${folder_dates[$ep]}" \
+      -metadata comment="Ordnerfolge $ep." "$f"
+  fi
+done
+f="$folder_dir/loose.mp3"
+if want "$f"; then
+  "${ff[@]}" -f lavfi -i "sine=frequency=1200:sample_rate=44100:duration=3" -c:a libmp3lame -b:a 64k -ac 1 "$f"
+fi
 
 # Summary.
 echo

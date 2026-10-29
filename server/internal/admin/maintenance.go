@@ -291,6 +291,9 @@ const (
 	DuplicateProviderID = "provider_id"
 	DuplicateTitleYear  = "title_year"
 	DuplicateFileHash   = "file_hash"
+	// DuplicateFileAndFeed: a podcast episode read from a folder and one from the feed the
+	// scanner could not pair unambiguously (ADR 0015, concept 4.5).
+	DuplicateFileAndFeed = "file_and_feed"
 )
 
 // ListDuplicates returns the duplicate groups (B-9): films and series of one library with the same
@@ -360,6 +363,25 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 			seen[sig] = true
 			out = append(out, group)
 		}
+	}
+
+	pairs, err := s.sys.AdminListFileAndFeedEpisodes(ctx, lib)
+	if err != nil {
+		return nil, fmt.Errorf("list file and feed episodes: %w", err)
+	}
+	for _, r := range pairs {
+		group := model.DuplicateGroup{Reason: DuplicateFileAndFeed, Items: []model.DuplicateItem{
+			{ItemID: r.FileID, Kind: "podcast_episode", Title: r.FileTitle, Year: nullInt(r.FileYear), LibraryID: r.LibraryID, Files: []model.AdminMediaFile{}},
+			{ItemID: r.FeedID, Kind: "podcast_episode", Title: r.FeedTitle, Year: nullInt(r.FeedYear), LibraryID: r.LibraryID, Files: []model.AdminMediaFile{}},
+		}}
+		pairFiles, err := s.mediaFiles(ctx, []string{r.FileID})
+		if err != nil {
+			return nil, err
+		}
+		if pairFiles[r.FileID] != nil {
+			group.Items[0].Files = pairFiles[r.FileID]
+		}
+		out = append(out, group)
 	}
 
 	hashes, err := s.sys.AdminListHashDuplicates(ctx, lib)

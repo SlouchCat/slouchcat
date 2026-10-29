@@ -6,9 +6,11 @@ package model
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 )
 
@@ -354,7 +356,10 @@ type AdminItem struct {
 	TrailerState    string
 	Trailers        []Trailer
 	MediaFiles      []AdminMediaFile
-	Seasons         int // child counts
+	Providers       []string      // the ordered metadata sources of the title (ADR 0015)
+	AniListID       *int64        // the AniList id, when the fill job found one
+	FieldSources    []FieldSource // which provider won which field
+	Seasons         int           // child counts
 	Episodes        int
 	Extras          int
 }
@@ -979,19 +984,20 @@ type StreamSource struct {
 	ETag      string // strong validator (quoted) for If-Range; empty = none
 }
 
-// Kinds of libraries (plan 3.2, M6): video libraries scan a directory for films or series, audio
-// libraries hold audiobooks (a directory) or podcast subscriptions (no directory, H-2).
+// Families of libraries (ADR 0015): a library only says which contents its folders may hold.
+// video libraries scan folders of films and series; audiobooks libraries hold books (a folder);
+// podcasts libraries hold feed subscriptions and, since ADR 0015, podcast folders. The former kinds
+// movies and series are burnt and never reused.
 const (
-	LibraryMovies     = "movies"
-	LibrarySeries     = "series"
+	LibraryVideo      = "video"
 	LibraryAudiobooks = "audiobooks"
 	LibraryPodcasts   = "podcasts"
 )
 
-// ValidLibraryKind reports whether kind names a library kind.
+// ValidLibraryKind reports whether kind names a library family.
 func ValidLibraryKind(kind string) bool {
 	switch kind {
-	case LibraryMovies, LibrarySeries, LibraryAudiobooks, LibraryPodcasts:
+	case LibraryVideo, LibraryAudiobooks, LibraryPodcasts:
 		return true
 	}
 	return false
@@ -1000,12 +1006,195 @@ func ValidLibraryKind(kind string) bool {
 // AudioLibraryKind reports whether a library of this kind carries a default age rating (AN-2).
 func AudioLibraryKind(kind string) bool { return kind == LibraryAudiobooks || kind == LibraryPodcasts }
 
-// LibraryRequest creates a library with one root (none for podcasts).
+// Contents of a library root (library_roots.content, ADR 0015): which name parser and which
+// identifier read the folder.
+const (
+	RootMovie     = "movie"
+	RootSeries    = "series"
+	RootAudiobook = "audiobook"
+	RootPodcast   = "podcast"
+)
+
+// ValidRootContent reports whether content names a root content.
+func ValidRootContent(content string) bool {
+	switch content {
+	case RootMovie, RootSeries, RootAudiobook, RootPodcast:
+		return true
+	}
+	return false
+}
+
+// ContentAllowed reports whether a root of this content may live in a library of this family
+// (F-3: only video mixes).
+func ContentAllowed(kind, content string) bool {
+	switch kind {
+	case LibraryVideo:
+		return content == RootMovie || content == RootSeries
+	case LibraryAudiobooks:
+		return content == RootAudiobook
+	case LibraryPodcasts:
+		return content == RootPodcast
+	}
+	return false
+}
+
+// TitleKindOfContent is the item kind of the titles a root content produces.
+func TitleKindOfContent(content string) string {
+	switch content {
+	case RootSeries:
+		return "series"
+	case RootAudiobook:
+		return "audiobook"
+	case RootPodcast:
+		return "podcast"
+	}
+	return "movie"
+}
+
+// Metadata providers (ADR 0015). tmdb and tvdb identify titles and fill fields, anilist only
+// fills, local is the file-based identifier of audiobooks and podcast folders.
+const (
+	ProviderTMDB    = "tmdb"
+	ProviderTVDB    = "tvdb"
+	ProviderAniList = "anilist"
+	ProviderLocal   = "local"
+)
+
+// Providers lists every provider in the order the interface shows them.
+var Providers = []string{ProviderTMDB, ProviderTVDB, ProviderAniList, ProviderLocal}
+
+// Error codes of ValidRootProviders (field errors of a 422 validation_failed).
+const (
+	CodeProvidersNotAllowed = "providers_not_allowed"
+	CodeContentNotAllowed   = "content_not_allowed"
+	CodeRootsRequired       = "roots_required"
+	CodeRootOverlap         = "root_overlap"
+)
+
+// identifiers lists the providers that may stand first in the list of a root content, fillers
+// those that may follow (concept section 2).
+var (
+	identifiers = map[string][]string{
+		RootMovie:     {ProviderTMDB},
+		RootSeries:    {ProviderTMDB, ProviderTVDB},
+		RootAudiobook: {ProviderLocal},
+		RootPodcast:   {ProviderLocal},
+	}
+	fillers = map[string][]string{
+		RootMovie:     {ProviderAniList},
+		RootSeries:    {ProviderTMDB, ProviderTVDB, ProviderAniList},
+		RootAudiobook: {},
+		RootPodcast:   {},
+	}
+)
+
+// ProvidersForContent returns the providers a root of this content may carry, identifiers first.
+func ProvidersForContent(content string) []string {
+	out := append([]string{}, identifiers[content]...)
+	for _, f := range fillers[content] {
+		if !slices.Contains(out, f) {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// CanIdentify reports whether provider may stand first in the list of a root of this content.
+func CanIdentify(content, provider string) bool {
+	return slices.Contains(identifiers[content], provider)
+}
+
+// ValidRootProviders reports whether providers is a valid ordered list for a root of this
+// content: not empty, no duplicates, the first entry an allowed identifier, every further entry
+// an allowed filler.
+func ValidRootProviders(content string, providers []string) bool {
+	if len(providers) == 0 || !ValidRootContent(content) {
+		return false
+	}
+	if !CanIdentify(content, providers[0]) {
+		return false
+	}
+	seen := map[string]bool{providers[0]: true}
+	for _, p := range providers[1:] {
+		if seen[p] || !slices.Contains(fillers[content], p) {
+			return false
+		}
+		seen[p] = true
+	}
+	return true
+}
+
+// DefaultProviders is the list a new root of this content starts with: the order the code used
+// before ADR 0015 (TMDB first, TVDB as the fallback of series).
+func DefaultProviders(content string) []string {
+	switch content {
+	case RootSeries:
+		return []string{ProviderTMDB, ProviderTVDB}
+	case RootAudiobook, RootPodcast:
+		return []string{ProviderLocal}
+	}
+	return []string{ProviderTMDB}
+}
+
+// ParseProviders reads a stored provider list (library_roots.providers, items.providers). An
+// unreadable value is the empty list; callers treat it like a list without filler.
+func ParseProviders(raw string) []string {
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil || out == nil {
+		return []string{}
+	}
+	return out
+}
+
+// ProvidersJSON renders a provider list for storage.
+func ProvidersJSON(providers []string) string {
+	if providers == nil {
+		providers = []string{}
+	}
+	raw, _ := json.Marshal(providers) // a []string always marshals
+	return string(raw)
+}
+
+// MetadataProviderInfo describes one provider to the administration (listMetadataProviders).
+type MetadataProviderInfo struct {
+	ID         string
+	Configured bool     // a key is present, or none is needed
+	Roles      []string // identify, fill
+	Contents   []string // root contents the provider may stand in the list of
+	Languages  []string // text languages it delivers (de, en, …)
+}
+
+// FieldSource names the provider that won one field of a title (item_field_sources).
+type FieldSource struct {
+	Field    string
+	Lang     string // empty for fields without a language
+	Provider string
+}
+
+// LibraryRequest creates a library with its folders (F-13): every folder brings its content and
+// its provider list; video and audiobook libraries need at least one, a podcast library may start
+// without (its titles come from feeds as well).
 type LibraryRequest struct {
 	Name          string
-	Kind          string // movies, series, audiobooks, podcasts
-	Path          string // empty for podcasts
-	DefaultRating *int   // audiobooks and podcasts only (AN-2); nil = 0 for those kinds
+	Kind          string // video, audiobooks, podcasts
+	Roots         []LibraryRootRequest
+	DefaultRating *int // audiobooks and podcasts only (AN-2); nil = 0 for those kinds
+}
+
+// LibraryRootRequest is one folder of a library with what it holds and who describes it.
+type LibraryRootRequest struct {
+	Path      string
+	Content   string   // movie, series, audiobook, podcast
+	Providers []string // ordered; the first identifies, the others fill
+}
+
+// LibraryRootUpdate changes the content or the provider list of a folder (updateLibraryRoot).
+// A content change empties the folder's titles like a removal would and therefore repeats the
+// path (ConfirmPath); a list change needs no confirmation.
+type LibraryRootUpdate struct {
+	Content     *string
+	Providers   []string // nil = unchanged
+	ConfirmPath string
 }
 
 // LibraryUpdate changes the name or the default rating of a library (updateLibrary).
@@ -1025,11 +1214,13 @@ type SetupRequest struct {
 
 // LibraryRoot is one directory of a library.
 type LibraryRoot struct {
-	ID      int64
-	Path    string
-	FSType  string
-	Watch   string // inotify, poll, inotify_poll
-	Warning string // network_share, fuse_unknown or empty
+	ID        int64
+	Path      string
+	FSType    string
+	Watch     string   // inotify, poll, inotify_poll
+	Warning   string   // network_share, fuse_unknown or empty
+	Content   string   // movie, series, audiobook, podcast
+	Providers []string // ordered metadata sources
 	// ItemCount is the number of titles with a file in this folder, the upper bound of what
 	// removing it takes out of the library; FileCount is the files in it, which all go with it
 	// (idea 02, E12).
@@ -1073,6 +1264,11 @@ type AdminPodcast struct {
 	LastCheckedAt *time.Time
 	LastError     string
 	CreatedAt     time.Time
+	// FeedOrigin names who chose the feed (admin, file); empty for a folder podcast without feed.
+	// RootID is the folder the podcast was read from, LocalEpisodeCount its episodes with a file.
+	FeedOrigin        string
+	RootID            *int64
+	LocalEpisodeCount int
 }
 
 // PodcastCreate subscribes a podcast library to a feed.

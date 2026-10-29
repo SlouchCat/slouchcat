@@ -45,9 +45,17 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 		TMDBID: nullInt64(it.TmdbID), TVDBID: nullInt64(it.TvdbID), IMDBID: it.ImdbID.String,
 		OwnRating: nullInt(it.OwnRating), EffectiveRating: nullInt(it.EffectiveRating), RatingSource: it.RatingSource.String,
 		TrailerState: it.TrailerState, LockedFields: []string{},
+		Providers: model.ParseProviders(it.Providers), AniListID: nullInt64(it.AnilistID), FieldSources: []model.FieldSource{},
 	}
 	if err := json.Unmarshal([]byte(it.LockedFields), &out.LockedFields); err != nil || out.LockedFields == nil {
 		out.LockedFields = []string{}
+	}
+	sources, err := s.sys.ListItemFieldSources(ctx, it.ID)
+	if err != nil {
+		return model.AdminItem{}, fmt.Errorf("list field sources: %w", err)
+	}
+	for _, src := range sources {
+		out.FieldSources = append(out.FieldSources, model.FieldSource{Field: src.Field, Lang: src.Lang, Provider: src.Provider})
 	}
 	files, err := s.mediaFiles(ctx, []string{it.ID})
 	if err != nil {

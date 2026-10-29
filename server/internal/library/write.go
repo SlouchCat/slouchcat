@@ -40,7 +40,8 @@ type fileInfo struct {
 	episodeTitle, released string
 	episodeRating          *int
 
-	book *bookMeta // folder metadata of an audio file (audiobook library)
+	book    *bookMeta    // folder metadata of an audio file (audiobook folder)
+	podcast *podcastMeta // folder metadata of an audio file (podcast folder)
 }
 
 // nfoCache holds the tvshow.nfo files read in one batch, by root and series folder.
@@ -48,13 +49,14 @@ type nfoCache map[string]NFO
 
 // describe reads the title data of a new file from its parsed name and its NFO files: movie.nfo
 // or <stem>.nfo next to a movie; tvshow.nfo in the series folder and <stem>.nfo
-// (episodedetails) next to an episode. Ids in the names win over the NFO.
-func describe(r *os.Root, rootID int64, kind string, d diskFile, cache nfoCache) fileInfo {
+// (episodedetails) next to an episode. Ids in the names win over the NFO. content is the content
+// of the root the file lies in (movie or series).
+func describe(r *os.Root, rootID int64, content string, d diskFile, cache nfoCache) fileInfo {
 	p := d.parsed
 	var f fileInfo
 	f.versionLabel = p.VersionLabel
 	f.extra, f.extraKind, f.extraTitle = p.Extra, p.ExtraKind, p.ExtraTitle
-	if kind != "series" {
+	if content != model.RootSeries {
 		f.folder = titleFolderKey(rootID, movieFolder(d.rel))
 		if p.Extra {
 			return f
@@ -195,7 +197,7 @@ func (s *Service) recordBatch(ops int, d time.Duration) {
 // applyBatch writes one batch of operations in one transaction, together with the follow-up jobs
 // and the scan progress (prog; nil for a path scan, which leaves the counts of the last full scan).
 // It returns the number of operations applied.
-func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemIndex, ops []scanOp, prog *scanProgress, stats *scanStats) (int, error) {
+func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *libraryIndex, ops []scanOp, prog *scanProgress, stats *scanStats) (int, error) {
 	// File reads (NFO) happen before the transaction starts.
 	infos := make([]fileInfo, len(ops))
 	roots := map[int64]*os.Root{}
@@ -206,6 +208,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 	}()
 	cache := nfoCache{}
 	books := bookCache{}
+	podcasts := podcastCache{}
 	for i, op := range ops {
 		if op.kind != opNew {
 			continue
@@ -218,11 +221,15 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 			}
 			roots[op.rs.root.ID] = r
 		}
-		if lib.Kind == model.LibraryAudiobooks {
+		switch op.rs.root.Content {
+		case model.RootAudiobook:
 			infos[i] = describeBook(r, op.rs.root.ID, op.disk, books)
 			continue
+		case model.RootPodcast:
+			infos[i] = describePodcastFile(r, op.rs.root.ID, op.disk, podcasts)
+			continue
 		}
-		infos[i] = describe(r, op.rs.root.ID, lib.Kind, op.disk, cache)
+		infos[i] = describe(r, op.rs.root.ID, op.rs.root.Content, op.disk, cache)
 	}
 
 	now := s.now()
@@ -232,7 +239,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 		return 0, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	w := &batchWriter{q: systemq.New(tx), lib: lib, idx: idx, newID: s.newID, now: now, ms: now.UnixMilli()}
+	w := &batchWriter{q: systemq.New(tx), lib: lib, index: idx, newID: s.newID, now: now, ms: now.UnixMilli()}
 	for i, op := range ops {
 		if err := w.apply(ctx, op, infos[i]); err != nil {
 			return 0, err
@@ -249,6 +256,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *itemInd
 	s.recordBatch(len(ops), time.Since(began))
 	s.rememberOrphans(w.orphans)
 	s.finishAudiobooks(ctx, w.books)
+	s.noteAdoptedPodcasts(ctx, lib.ID, w.adopted)
 	s.announceEpisodes(ctx, lib.ID, w.episodes)
 	if w.skipped > 0 {
 		s.log.InfoContext(ctx, "extras without a parent title skipped", "library_id", lib.ID, "files", w.skipped)
@@ -279,11 +287,14 @@ func (s *Service) announceEpisodes(ctx context.Context, libraryID int64, ids []s
 
 // batchWriter writes the operations of one batch in its transaction. The item index learns every
 // item it creates, so later files of the same title attach to it; a failed transaction fails the
-// whole scan, so the index never outlives a rollback.
+// whole scan, so the index never outlives a rollback. root is the folder of the operation being
+// written: its content picks the parser's reading and the index, its provider list goes on every
+// title the operation creates (ADR 0015).
 type batchWriter struct {
 	q        *systemq.Queries
 	lib      appq.Library
-	idx      *itemIndex
+	index    *libraryIndex
+	root     appq.LibraryRoot
 	newID    func() string
 	now      time.Time
 	ms       int64
@@ -292,24 +303,33 @@ type batchWriter struct {
 	orphans  []scanOp        // new extras skipped for want of a parent (Service.rememberOrphans)
 	books    map[string]bool // audiobooks with new, moved or missing parts (Service.finishAudiobooks)
 	episodes []string        // episode items created in this batch (Service.newEpisodes)
+	adopted  []string        // podcasts a second folder brought the feed of (Service.noteAdoptedPodcasts)
 }
+
+// ix is the item index of the titles the current root produces.
+func (w *batchWriter) ix() *itemIndex { return w.index.forContent(w.root.Content) }
 
 func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error {
 	q := w.q
-	if op.known != nil && w.lib.Kind == model.LibraryAudiobooks {
+	w.root = op.rs.root
+	if op.known != nil && w.root.Content == model.RootAudiobook {
 		w.touchBook(op.known.ItemID)
 	}
 	switch op.kind {
 	case opNew:
-		itemID, err := w.item(ctx, info)
+		itemID, err := w.item(ctx, op, info)
 		if err != nil {
 			return err
 		}
 		if itemID == "" {
+			if w.root.Content == model.RootPodcast {
+				w.skipped++ // an audio file directly in the root of a podcast folder
+				return nil
+			}
 			w.orphans = append(w.orphans, op) // an extra without a parent title
 			return nil
 		}
-		if w.lib.Kind == model.LibraryAudiobooks {
+		if w.root.Content == model.RootAudiobook {
 			w.touchBook(itemID)
 		}
 		fileID := w.newID()
@@ -336,8 +356,8 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		}); err != nil {
 			return fmt.Errorf("update media file: %w", err)
 		}
-		if title := w.idx.title(op.known.ItemID, titleKindOf(w.lib.Kind)); title != "" {
-			w.idx.addFolder(title, fileFolderKey(w.lib.Kind, op.rs.root.ID, op.disk.rel, op.disk.parsed))
+		if title := w.ix().title(op.known.ItemID, model.TitleKindOfContent(w.root.Content)); title != "" {
+			w.ix().addFolder(title, fileFolderKey(w.root.Content, op.rs.root.ID, op.disk.rel, op.disk.parsed))
 		}
 		if op.known.MissingSince.Valid {
 			if err := w.restore(ctx, op.known.ItemID, true); err != nil {
@@ -360,14 +380,17 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 }
 
 // item returns the item a new file belongs to, creating it (and its series and season) when
-// needed; "" for an extra without a parent title, which is skipped.
-func (w *batchWriter) item(ctx context.Context, info fileInfo) (string, error) {
+// needed; "" for an extra without a parent title, which is skipped. The content of the root
+// decides (ADR 0015), not the library.
+func (w *batchWriter) item(ctx context.Context, op scanOp, info fileInfo) (string, error) {
 	switch {
-	case w.lib.Kind == model.LibraryAudiobooks:
+	case w.root.Content == model.RootAudiobook:
 		return w.audiobookItem(ctx, info)
+	case w.root.Content == model.RootPodcast:
+		return w.podcastItem(ctx, op, info)
 	case info.extra:
 		return w.extraItem(ctx, info)
-	case w.lib.Kind == "series":
+	case w.root.Content == model.RootSeries:
 		return w.episodeItem(ctx, info)
 	default:
 		return w.titleItem(ctx, info, "movie")
@@ -385,24 +408,24 @@ func (w *batchWriter) touchBook(itemID string) {
 // restore brings back a soft-deleted item with its soft-deleted ancestors. force restores even
 // when the index does not know the item as deleted (a missing file reappeared).
 func (w *batchWriter) restore(ctx context.Context, id string, force bool) error {
-	if !force && !w.idx.deleted[id] {
+	if !force && !w.ix().deleted[id] {
 		return nil
 	}
 	if err := w.q.RestoreItem(ctx, systemq.RestoreItemParams{Now: w.ms, ID: id}); err != nil {
 		return fmt.Errorf("restore item: %w", err)
 	}
-	w.idx.undelete(id)
+	w.ix().undelete(id)
 	return nil
 }
 
 func (w *batchWriter) insert(ctx context.Context, p systemq.InsertItemParams) error {
-	p.LibraryID, p.Now = w.lib.ID, w.ms
+	p.LibraryID, p.Now, p.Providers = w.lib.ID, w.ms, w.root.Providers
 	if _, err := w.q.InsertItem(ctx, p); err != nil {
 		return fmt.Errorf("insert %s item: %w", p.Kind, err)
 	}
-	w.idx.kinds[p.ID] = p.Kind
+	w.ix().kinds[p.ID] = p.Kind
 	if p.ParentID.Valid {
-		w.idx.parent[p.ID] = p.ParentID.String
+		w.ix().parent[p.ID] = p.ParentID.String
 	}
 	w.stats.items++
 	return nil
@@ -410,7 +433,7 @@ func (w *batchWriter) insert(ctx context.Context, p systemq.InsertItemParams) er
 
 // titleItem finds or creates the movie or series of a file. A new title queues metadata.match.
 func (w *batchWriter) titleItem(ctx context.Context, info fileInfo, kind string) (string, error) {
-	id := w.idx.find(info.titleInfo, info.folder)
+	id := w.ix().find(info.titleInfo, info.folder)
 	if id != "" {
 		// Re-downloaded within relinkWindow: the title returns with its user data.
 		if err := w.restore(ctx, id, false); err != nil {
@@ -433,9 +456,9 @@ func (w *batchWriter) titleItem(ctx context.Context, info fileInfo, kind string)
 		if err := enqueueTx(ctx, w.q, w.now, matchJob(id)); err != nil {
 			return "", err
 		}
-		w.idx.add(id, info.sortTitle, info.year, info.tmdb, info.tvdb, info.imdb)
+		w.ix().add(id, info.sortTitle, info.year, info.tmdb, info.tvdb, info.imdb)
 	}
-	w.idx.addFolder(id, info.folder)
+	w.ix().addFolder(id, info.folder)
 	return id, nil
 }
 
@@ -456,7 +479,7 @@ func (w *batchWriter) episodeItem(ctx context.Context, info fileInfo) (string, e
 		return "", err
 	}
 	seasonKey := seriesKey(seriesID, info.season)
-	seasonID := w.idx.seasons[seasonKey]
+	seasonID := w.ix().seasons[seasonKey]
 	if seasonID != "" {
 		if err := w.restore(ctx, seasonID, false); err != nil {
 			return "", err
@@ -470,11 +493,11 @@ func (w *batchWriter) episodeItem(ctx context.Context, info fileInfo) (string, e
 		}); err != nil {
 			return "", err
 		}
-		w.idx.seasons[seasonKey] = seasonID
+		w.ix().seasons[seasonKey] = seasonID
 	}
 
 	episodeKey := seriesKey(seasonID, info.episode)
-	if id := w.idx.episodes[episodeKey]; id != "" {
+	if id := w.ix().episodes[episodeKey]; id != "" {
 		return id, w.restore(ctx, id, false)
 	}
 	id := w.newID()
@@ -495,9 +518,9 @@ func (w *batchWriter) episodeItem(ctx context.Context, info fileInfo) (string, e
 	if err := w.insert(ctx, p); err != nil {
 		return "", err
 	}
-	w.idx.episodes[episodeKey] = id
+	w.ix().episodes[episodeKey] = id
 	w.episodes = append(w.episodes, id)
-	if w.idx.matched[seriesID] {
+	if w.ix().matched[seriesID] {
 		if err := enqueueTx(ctx, w.q, w.now, episodeMatchJob(id)); err != nil {
 			return "", err
 		}
@@ -508,13 +531,13 @@ func (w *batchWriter) episodeItem(ctx context.Context, info fileInfo) (string, e
 // extraItem creates the extra item of a new extras file below its movie, series or season (the
 // season of a season folder when the scan knows it, else the series). Extras get no metadata job.
 func (w *batchWriter) extraItem(ctx context.Context, info fileInfo) (string, error) {
-	parent := w.idx.folderTitle(info.folder)
+	parent := w.ix().folderTitle(info.folder)
 	if parent == "" {
 		w.skipped++
 		return "", nil
 	}
 	if info.seasonDir {
-		if season := w.idx.seasons[seriesKey(parent, info.season)]; season != "" && !w.idx.deleted[season] {
+		if season := w.ix().seasons[seriesKey(parent, info.season)]; season != "" && !w.ix().deleted[season] {
 			parent = season
 		}
 	}

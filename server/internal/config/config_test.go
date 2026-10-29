@@ -21,7 +21,7 @@ func TestDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
-		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off",
+		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off", AniList: true,
 		DownloadBudgetGB: DefaultDownloadBudgetGB, SMTPTLS: "starttls", UpdateManifestURL: DefaultUpdateManifestURL,
 		BrowseRoots: []string{DefaultBrowseRoots}}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
@@ -51,6 +51,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_TRAKT_CLIENT_ID":     "trakt-id",
 		"SLOUCHCAT_TRAKT_BASE_URL":      "http://127.0.0.1:9/trakt",
 		"SLOUCHCAT_TRAILER_AI":          "off",
+		"SLOUCHCAT_ANILIST":             "off",
 		"SLOUCHCAT_SMTP_HOST":           " smtp.example.test ",
 		"SLOUCHCAT_SMTP_USER":           "mailer",
 		"SLOUCHCAT_SMTP_PASSWORD":       "smtp-FAKE-password",

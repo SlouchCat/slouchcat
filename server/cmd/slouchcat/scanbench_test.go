@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -37,8 +38,8 @@ func TestScanbenchSmallTree(t *testing.T) {
 		root: root, workers: 2, interrupt: time.Millisecond, timeout: time.Minute,
 		runner: transcode.Runner{FFprobePath: "ffprobe"}, log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		libs: []benchLibrary{
-			{name: "Filme", kind: "movies", dir: filepath.Join(root, "Movies")},
-			{name: "Serien", kind: "series", dir: filepath.Join(root, "TV")},
+			{name: "Filme", kind: model.LibraryVideo, content: model.RootMovie, dir: filepath.Join(root, "Movies")},
+			{name: "Serien", kind: model.LibraryVideo, content: model.RootSeries, dir: filepath.Join(root, "TV")},
 		},
 	}
 	rep, err := runScanbench(context.Background(), o)

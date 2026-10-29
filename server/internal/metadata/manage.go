@@ -38,10 +38,18 @@ var trailerLangPattern = regexp.MustCompile(`^[a-z]{2,3}$`)
 // kind, query, year), model.ErrTMDBKeyInvalid (TMDB without key or with a rejected key; TVDB with
 // a rejected key), model.ErrProviderNotConfigured (TVDB without key), model.ErrTMDBUnreachable
 // (the provider did not answer). TVDB has no movies: a movie search there returns no candidates.
+// codeProviderNotSearchable is the field code for a provider that cannot identify titles
+// (ADR 0015): only identifiers are searched and assigned by hand.
+const codeProviderNotSearchable = "provider_not_searchable"
+
+// searchable reports whether a provider identifies titles and can be searched: TMDB and TVDB.
+// AniList only fills, the local reader needs no search.
+func searchable(provider string) bool { return provider == ProviderTMDB || provider == ProviderTVDB }
+
 func (s *Service) Search(ctx context.Context, provider, kind, query string, year *int) ([]model.MetadataCandidate, error) {
 	var v *model.ValidationError
-	if provider != ProviderTMDB && provider != ProviderTVDB {
-		v = v.Add("provider", "invalid_value")
+	if !searchable(provider) {
+		v = v.Add("provider", codeProviderNotSearchable)
 	}
 	if kind != "movie" && kind != "series" {
 		v = v.Add("kind", "invalid_value")
@@ -101,8 +109,8 @@ func (s *Service) Search(ctx context.Context, provider, kind, query string, year
 // providerId invalid_value).
 func (s *Service) AssignMatch(ctx context.Context, itemID, provider, providerID string) error {
 	var v *model.ValidationError
-	if provider != ProviderTMDB && provider != ProviderTVDB {
-		v = v.Add("provider", "invalid_value")
+	if !searchable(provider) {
+		v = v.Add("provider", codeProviderNotSearchable)
 	}
 	id, err := strconv.ParseInt(strings.TrimSpace(providerID), 10, 64)
 	if err != nil || id <= 0 {
@@ -134,6 +142,9 @@ func (s *Service) AssignMatch(ctx context.Context, itemID, provider, providerID 
 	q := s.write.WithTx(tx)
 	if err := q.AssignItemMatch(ctx, p); err != nil {
 		return fmt.Errorf("assign match %s: %w", item.ID, err)
+	}
+	if err := q.DeleteItemFieldSources(ctx, item.ID); err != nil {
+		return fmt.Errorf("assign match %s: delete sources: %w", item.ID, err)
 	}
 	if err := q.DeleteAutoTrailers(ctx, item.ID); err != nil {
 		return fmt.Errorf("assign match %s: delete trailers: %w", item.ID, err)

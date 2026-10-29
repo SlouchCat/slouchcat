@@ -13,6 +13,17 @@ const item: AdminItem = {
   libraryId: 1,
   metadataState: 'unmatched',
   metadataError: 'no_match',
+  anilistId: 1234,
+  providers: ['tmdb', 'tvdb', 'anilist'],
+  // Out of order on purpose: the page sorts by field, then language.
+  fieldSources: [
+    { field: 'poster', lang: '', provider: 'tmdb' },
+    { field: 'overview', lang: 'en', provider: 'anilist' },
+    { field: 'title', lang: 'en', provider: 'tmdb' },
+    { field: 'genres', lang: '', provider: 'union' },
+    { field: 'overview', lang: 'de', provider: 'tvdb' },
+    { field: 'title', lang: 'de', provider: 'tmdb' },
+  ],
   lockedFields: ['rating'],
   ownRating: 16,
   effectiveRating: 16,
@@ -72,6 +83,43 @@ describe('admin item page', () => {
       'href',
       `/items/${ids.alien}`,
     );
+  });
+
+  it('shows the metadata sources, the AniList entry and which provider won each field', async () => {
+    mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });
+    const { unmount } = renderApp(base);
+
+    const facts = await screen.findByRole('region', { name: 'Metadaten' });
+    expect(within(facts).getByText('TMDB › TVDB › AniList')).toBeVisible();
+    // The id is the link to the AniList entry.
+    const anilist = within(facts).getByRole('link', { name: '1234' });
+    expect(anilist).toHaveAttribute('href', 'https://anilist.co/anime/1234');
+    expect(anilist).toHaveAttribute('target', '_blank');
+
+    const sources = screen.getByRole('region', { name: 'Herkunft je Feld' });
+    const rows = [...sources.querySelectorAll('dt')].map((term) => [
+      term.textContent,
+      term.nextElementSibling?.textContent,
+    ]);
+    expect(rows).toEqual([
+      ['Titel (de)', 'TMDB'],
+      ['Titel (en)', 'TMDB'],
+      ['Beschreibung (de)', 'TVDB'],
+      ['Beschreibung (en)', 'AniList'],
+      ['Genres', 'Vereinigung aller Quellen'],
+      ['Poster', 'TMDB'],
+    ]);
+    unmount();
+
+    // No fill job ran yet, and AniList had no entry: no sources panel, no link.
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () => json({ ...item, anilistId: 0, fieldSources: [] }),
+    });
+    renderApp(base);
+    await screen.findByRole('heading', { level: 1, name: 'Alien' });
+    expect(screen.queryByRole('region', { name: 'Herkunft je Feld' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /AniList/ })).not.toBeInTheDocument();
   });
 
   it('refreshes the title', async () => {

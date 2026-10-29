@@ -1103,7 +1103,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Queue a full scan of the library */
+        /**
+         * Queue a full scan of the library
+         * @description A podcast library fetches every subscription and, when it has folders, scans them as well
+         *     (ADR 0015); every other library scans its folders.
+         */
         post: operations["scanLibrary"];
         /**
          * Cancel the queued or running scan of a library
@@ -1148,17 +1152,54 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Add a folder to a library (B-1)
-         * @description Adds a second or further directory to a library; the scan and the watcher pick it up at
-         *     once. The path must lie below a browsable root (idea 02, E14), must not overlap a root of
-         *     this or another library, and a podcast library takes no root at all. The answer is the
-         *     library with its new folder; its first scan is queued like the one of a new library.
+         * Add folders to a library (B-1, F-13)
+         * @description Adds one or more directories to a library in one request; the scan and the watchers pick
+         *     them up at once. Every folder brings its content and its ordered provider list (ADR 0015).
+         *     Each path must lie below a browsable root (idea 02, E14) and must overlap neither a root of
+         *     this or another library nor another folder of the request; the content must fit the family
+         *     of the library (a podcast library takes `podcast` folders, a video library `movie` and
+         *     `series`). All folders are inserted in one transaction: a request whose third folder fails
+         *     leaves none behind, and the answer names the folder by its index. The answer is the library
+         *     with its new folders; one scan is queued for it.
          */
         post: operations["addLibraryRoot"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries/{id}/roots/{rootId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the content or the metadata sources of a folder (F-4)
+         * @description Changes what a folder holds or who describes it (ADR 0015). The three effects differ in
+         *     weight, and the weight decides what the request has to carry:
+         *
+         *     - A new provider list with the same first entry writes the list on every title of the
+         *       folder and queues one metadata job per title. Nothing is deleted, no confirmation.
+         *     - A new first entry (`["tmdb","tvdb"]` → `["tvdb","tmdb"]` on a series folder) does the
+         *       same; the job identifies the titles anew and describes seasons and episodes by the new
+         *       provider's numbering. The episode items stay, so progress and watchlist stay attached.
+         *       No confirmation either.
+         *     - A new content (`movie` ↔ `series`) is, in effect, "remove the folder and add it again":
+         *       the titles that live only there are soft-deleted, their offline downloads dropped, the
+         *       folder's files forgotten and read afresh by a queued scan. It therefore needs the typed
+         *       path in `confirmPath`, exactly like `removeLibraryRoot` (`confirm_mismatch`), and a
+         *       running scan refuses it (`scan_running`).
+         */
+        patch: operations["updateLibraryRoot"];
         trace?: never;
     };
     "/admin/libraries/{id}/roots/{rootId}/removal": {
@@ -1178,7 +1219,9 @@ export interface paths {
          *     attached to the soft-deleted title, as they do for a detached disk; a title that carries a
          *     provider id comes back with all of it when the same folder is added again within 30 days,
          *     a title without one comes back as a new title. A title with a file under another folder of
-         *     the library stays, and keeps its download. `confirmPath` must repeat the folder's path
+         *     the library stays, and keeps its download. A podcast with a feed that was read from the
+         *     folder stays as a subscription made by hand (`feedOrigin` `admin`); a podcast without feed
+         *     goes with its episodes. `confirmPath` must repeat the folder's path
          *     exactly, so a mis-aimed click cannot do it (`confirm_mismatch`); it is compared against the
          *     stored row, never against anything else the request carries. It guards against a slip and
          *     against a stale list, not against a caller that means it: whatever can send this request
@@ -1518,6 +1561,31 @@ export interface paths {
          *     Unknown ids are skipped and not counted. `null` clears the overrides.
          */
         post: operations["setItemsRating"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/metadata/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The metadata providers, for the source list of a folder (ADR 0015)
+         * @description The four providers with what the interface needs to build the checkbox list of a folder:
+         *     whether a key is present (`configured`; TVDB needs one, AniList and the local reader none,
+         *     `SLOUCHCAT_ANILIST=off` switches AniList off), the roles (`identify`: may stand first in a
+         *     list, `fill`: may follow), the root contents the provider may stand in the list of, and the
+         *     text languages it delivers (the hint "delivers no German" for AniList). The interface offers
+         *     nothing this list does not allow; the server checks the same rules again on every write.
+         */
+        get: operations["listMetadataProviders"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3894,10 +3962,26 @@ export interface components {
             libraryId: number;
             title: string;
             author?: string;
-            /** Format: uri */
-            feedUrl: string;
+            /**
+             * Format: uri
+             * @description Absent for a podcast read from a folder whose `metadata.json` names no feed.
+             */
+            feedUrl?: string;
+            /**
+             * @description Who chose the feed: `admin` for a subscription made by hand, `file` for a `feedURL`
+             *     read from the folder's `metadata.json` (ADR 0015); absent without feed.
+             * @enum {string}
+             */
+            feedOrigin?: "admin" | "file";
+            /**
+             * Format: int64
+             * @description The folder the podcast was read from; absent for a subscription without folder.
+             */
+            rootId?: number;
             /** @description Stored episodes (all, unfiltered). */
             episodeCount: number;
+            /** @description Episodes with a file in the folder. */
+            localEpisodeCount: number;
             /** @description The channel is flagged `itunes:explicit`; the podcast counts as FSK 18 (AN-2). */
             explicit: boolean;
             /**
@@ -4012,9 +4096,44 @@ export interface components {
             /** @description Playback speed in use; stored per profile and title (H-3) when present. */
             playbackRate?: number;
         };
-        /** @enum {string} */
-        MetadataProvider: "tmdb" | "tvdb";
+        /**
+         * @description A metadata source (ADR 0015). `tmdb` and `tvdb` identify titles and fill fields; `anilist`
+         *     only fills (titles, descriptions, images, genres of anime; no German texts); `local` is the
+         *     file-based reader of audiobook and podcast folders. Only `tmdb` and `tvdb` can be searched
+         *     or assigned by hand.
+         * @enum {string}
+         */
+        MetadataProvider: "tmdb" | "tvdb" | "anilist" | "local";
+        /** @description One provider as `listMetadataProviders` describes it. */
+        MetadataProviderInfo: {
+            id: components["schemas"]["MetadataProvider"];
+            /** @description A key is present, or none is needed; an unconfigured provider is skipped by the jobs. */
+            configured: boolean;
+            roles: ("identify" | "fill")[];
+            /** @description The root contents the provider may stand in the list of. */
+            contents: components["schemas"]["RootContent"][];
+            /** @description Text languages the provider delivers (`de`, `en`); empty for the local reader. */
+            languages: string[];
+        };
+        /** @description Which provider of the list won one field of a title (ADR 0015). */
+        FieldSource: {
+            /**
+             * @description `title`, `overview`, `tagline` (per language), `original_title`, `genres`,
+             *     `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`.
+             */
+            field: string;
+            /** @description The text language, empty for fields without one. */
+            lang: string;
+            /** @description A `MetadataProvider`, or `union` for genres, which merge every provider's list. */
+            provider: string;
+        };
+        /**
+         * @description What a folder holds (ADR 0015): which name parser and which identifier read it.
+         * @enum {string}
+         */
+        RootContent: "movie" | "series" | "audiobook" | "podcast";
         ItemMatchRequest: {
+            /** @description Only `tmdb` and `tvdb` (`provider_not_searchable` otherwise). */
             provider: components["schemas"]["MetadataProvider"];
             /** @description Id at the provider (TMDB and TVDB ids are numeric). */
             providerId: string;
@@ -4080,6 +4199,15 @@ export interface components {
             /** Format: int64 */
             tvdbId?: number;
             imdbId?: string;
+            /**
+             * Format: int64
+             * @description The AniList id the fill job found; `0` for "looked up, no entry".
+             */
+            anilistId?: number;
+            /** @description The ordered metadata sources of the title, copied from its folder (ADR 0015). */
+            providers: components["schemas"]["MetadataProvider"][];
+            /** @description Which provider won which field; empty until the first fill job ran. */
+            fieldSources: components["schemas"]["FieldSource"][];
             lockedFields: string[];
             ownRating?: components["schemas"]["Rating"];
             effectiveRating?: components["schemas"]["Rating"];
@@ -4115,8 +4243,12 @@ export interface components {
             items: components["schemas"]["Issue"][];
         };
         DuplicateGroup: {
-            /** @enum {string} */
-            reason: "provider_id" | "title_year" | "file_hash";
+            /**
+             * @description `file_and_feed`: a podcast episode read from a folder and one from the feed that the
+             *     scanner could not pair unambiguously (ADR 0015).
+             * @enum {string}
+             */
+            reason: "provider_id" | "title_year" | "file_hash" | "file_and_feed";
             items: {
                 itemId: components["schemas"]["ItemID"];
                 kind: components["schemas"]["ItemKind"];
@@ -4136,11 +4268,14 @@ export interface components {
             mediaFileIds?: string[];
         };
         /**
-         * @description `audiobooks` scans M4B files and folders of audio files as books (H-1); `podcasts` holds feed
-         *     subscriptions and has no directory (H-2). Both carry a default age rating (AN-2).
+         * @description The family of a library (ADR 0015): what its folders may hold, nothing else. `video` takes
+         *     `movie` and `series` folders (one library may hold both); `audiobooks` takes `audiobook`
+         *     folders (M4B files and folders of audio files as books, H-1); `podcasts` holds feed
+         *     subscriptions and `podcast` folders (H-2). Both audio families carry a default age rating
+         *     (AN-2). The former values `movies` and `series` are retired and never reused.
          * @enum {string}
          */
-        LibraryKind: "movies" | "series" | "audiobooks" | "podcasts";
+        LibraryKind: "video" | "audiobooks" | "podcasts";
         LibrarySummary: {
             /** Format: int64 */
             id: number;
@@ -4153,10 +4288,13 @@ export interface components {
             name: string;
             kind: components["schemas"]["LibraryKind"];
             /**
-             * @description Absolute directory on the server (inside the container, for example `/media/Filme`). Required for
-             *     every kind except `podcasts`, which has no directory (`path` `required` / `not_allowed`).
+             * @description The folders of the library, each with its content and its provider list (F-13). At least
+             *     one for `video` and `audiobooks` (`roots` `roots_required`); a `podcasts` library may
+             *     start with none, its titles come from feeds as well. Library and folders are created in
+             *     one transaction, all of them or none; a field error names the folder by its index
+             *     (`roots[1].path`).
              */
-            path?: string;
+            roots: components["schemas"]["LibraryRootRequest"][];
             /**
              * @description Default age rating of every title in an audio library (AN-2, decision 9); only for `audiobooks`
              *     and `podcasts` (`not_allowed` otherwise), default 0. Single titles may be set stricter, never
@@ -4164,13 +4302,37 @@ export interface components {
              */
             defaultRating?: components["schemas"]["Rating"];
         };
-        /** @description A further folder of a library (idea 02, E8). */
+        /** @description One folder of a library with what it holds and who describes it (ADR 0015). */
         LibraryRootRequest: {
             /**
              * @description Absolute directory on the server, below a browsable root (idea 02, E14), for example
              *     `/media/Filme-2`.
              */
             path: string;
+            content: components["schemas"]["RootContent"];
+            /**
+             * @description The ordered metadata sources: the first entry identifies the title (ids and, for
+             *     series, the season numbering), every further one fills what is still empty. Allowed
+             *     first entries: `tmdb` for `movie`, `tmdb` or `tvdb` for `series`, `local` for
+             *     `audiobook` and `podcast`. Allowed further entries: `anilist` for `movie`; `tmdb`,
+             *     `tvdb`, `anilist` for `series`; none for the audio contents. No duplicates
+             *     (`providers_not_allowed` otherwise).
+             */
+            providers: components["schemas"]["MetadataProvider"][];
+        };
+        /** @description The folders `addLibraryRoot` adds in one go (F-13). */
+        LibraryRootsRequest: {
+            roots: components["schemas"]["LibraryRootRequest"][];
+        };
+        /**
+         * @description A change to a folder (`updateLibraryRoot`); at least one of `content` and `providers`. A
+         *     content change empties the folder's titles like a removal and therefore repeats the path.
+         */
+        LibraryRootUpdate: {
+            content?: components["schemas"]["RootContent"];
+            providers?: components["schemas"]["MetadataProvider"][];
+            /** @description The folder's path, repeated by the administrator; required for a content change. */
+            confirmPath?: string;
         };
         /**
          * @description The confirmation of a folder removal (idea 02, E12). It is typed by the administrator and
@@ -4213,6 +4375,9 @@ export interface components {
             /** Format: int64 */
             id: number;
             path: string;
+            content: components["schemas"]["RootContent"];
+            /** @description The ordered metadata sources of the folder (see `LibraryRootRequest`). */
+            providers: components["schemas"]["MetadataProvider"][];
             /** @description Detected file system class (`ext4`, `xfs`, `btrfs`, `zfs`, `fuse`, `nfs`, `smb`, `unknown`). */
             fsType: string;
             /**
@@ -8131,7 +8296,16 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation failed (`validation_failed`, `library_path_invalid`). */
+            /**
+             * @description Validation failed (`validation_failed`). Field errors name the folder by its index:
+             *     `roots[1].path` with `library_path_invalid` (not absolute, not readable, below no
+             *     browsable root) or `root_overlap` (overlaps another folder of the request or a stored
+             *     root), `roots[1].content` with `content_not_allowed` (only video mixes films and series,
+             *     F-3), `roots[1].providers` with `providers_not_allowed` (empty, duplicates, a first entry
+             *     that cannot identify the content, or a filler the content does not take), `roots` with
+             *     `roots_required` (a video or audiobook library without folder). Nothing is created when
+             *     any folder fails: library and folders are one transaction.
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -8379,11 +8553,11 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LibraryRootRequest"];
+                "application/json": components["schemas"]["LibraryRootsRequest"];
             };
         };
         responses: {
-            /** @description The library with its new folder. */
+            /** @description The library with its new folders. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -8404,9 +8578,71 @@ export interface operations {
                 };
             };
             /**
-             * @description `library_path_invalid`: not absolute, not readable, below no browsable root, or
-             *     overlapping a root of this or another library. `validation_failed` for a missing or
-             *     over-long path, and for a podcast library, which takes no folder.
+             * @description `validation_failed` with the index of the folder that broke a rule: `roots[2].path`
+             *     with `library_path_invalid` or `root_overlap`, `roots[2].content` with
+             *     `content_not_allowed`, `roots[2].providers` with `providers_not_allowed`; or an empty
+             *     list.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateLibraryRoot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["LibraryID"];
+                /** @description The id of the folder inside the library (`Library.roots[].id`). */
+                rootId: components["parameters"]["LibraryRootID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryRootUpdate"];
+            };
+        };
+        responses: {
+            /** @description The library with the changed folder. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Library"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description No such library, or the folder is not one of its roots (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A scan of this library is running (`scan_running`); only a content change is refused by it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description `validation_failed` (`content` `content_not_allowed`, `providers`
+             *     `providers_not_allowed`, or neither field given), or a content change whose
+             *     `confirmPath` does not repeat the folder's path (`confirm_mismatch`).
              */
             422: {
                 headers: {
@@ -9105,6 +9341,28 @@ export interface operations {
             };
         };
     };
+    listMetadataProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The providers in the order the interface shows them. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataProviderInfo"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
     searchMetadata: {
         parameters: {
             query: {
@@ -9130,7 +9388,12 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description Provider not configured or key rejected (`tmdb_key_invalid`, `tmdb_unreachable`, `provider_not_configured`), or validation failed. */
+            /**
+             * @description Provider not configured or key rejected (`tmdb_key_invalid`, `tmdb_unreachable`,
+             *     `provider_not_configured`), or validation failed; only `tmdb` and `tvdb` identify
+             *     titles and can be searched (`provider` `provider_not_searchable` for `anilist` and
+             *     `local`).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;

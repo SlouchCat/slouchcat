@@ -74,6 +74,18 @@ func (s *Service) RootRemoved(ctx context.Context, libraryName, path string, ite
 	})
 }
 
+// RootContentChanged tells the main account that an administrator changed the content of a
+// folder (ADR 0015): the folder is read afresh with another parser, and its titles left the
+// library exactly as with a removal (event errors; library.WithRootContentChanged).
+func (s *Service) RootContentChanged(ctx context.Context, libraryName, path, from, to string, items, files int64) error {
+	lang := s.ownerLanguage(ctx)
+	return s.Emit(ctx, model.Event{
+		Type: model.EventErrors, Source: "library:" + libraryName, Subject: text(lang, "root_content_changed_subject", libraryName),
+		Body: text(lang, "root_content_changed_body", path, libraryName, text(lang, "content_"+from), text(lang, "content_"+to), items, files),
+		Link: "/admin/libraries",
+	})
+}
+
 // ownerLanguage is the language of the owner's primary profile (German without one). The texts of
 // the event errors are written in one language, and with several administrators that language has
 // to be a particular one, so it follows the owner (ADR 0014).

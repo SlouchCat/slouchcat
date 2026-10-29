@@ -20,7 +20,7 @@ func TestVisibleItemsAppliesAccountLimits(t *testing.T) {
 	addFile(t, db.Write, "01FILE0000000000000000000C", idEp2, "Show/Season 01/E2.mkv")
 	addFile(t, db.Write, "01FILE0000000000000000000B", idMovie, "Film/Film.mkv")
 	// Library 2 holds a movie rated 0 that the guest account has no right to.
-	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (2, 'X', 'movies', 0, 0)`)
+	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (2, 'X', 'video', 0, 0)`)
 	mustExec(t, db.Write, `INSERT INTO library_roots (id, library_id, path, created_at) VALUES (2, 2, '/media/x', 0)`)
 	const idOther = "01MOVIE000000000000000000B"
 	mustExec(t, db.Write, `INSERT INTO items (id, kind, library_id, title, sort_title, own_rating, added_at, created_at, updated_at)

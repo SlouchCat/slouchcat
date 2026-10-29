@@ -186,7 +186,7 @@ func (s *Service) ProxyEnclosure(ctx context.Context, g model.PlaybackGrant, w h
 	req.Header.Set("User-Agent", "Slouchcat")
 	// The client's byte ranges count the stored representation: no transparent gzip.
 	req.Header.Set("Accept-Encoding", "identity")
-	resp, err := enclosureClients.For(ctx, enc.FeedURL).Do(req)
+	resp, err := enclosureClients.For(ctx, enc.FeedURL, enc.FeedOrigin).Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()

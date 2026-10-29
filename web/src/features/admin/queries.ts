@@ -24,6 +24,7 @@ import type {
   IssuePage,
   JobSummary,
   Library,
+  MetadataProviderInfo,
   PathMapping,
   PickRequest,
   PickUpdate,
@@ -54,6 +55,18 @@ export const librariesQuery = queryOptions({
   queryKey: ['admin', 'libraries'],
   queryFn: ({ signal }): Promise<Library[]> => request(api.GET('/admin/libraries', { signal })),
   refetchInterval: (query) => (query.state.data?.some(isScanning) ? SCAN_POLL_MS : false),
+});
+
+/**
+ * The four metadata providers as the server describes them (ADR 0015): whether a key is present,
+ * what each one may do and for which folder contents. The folder forms build their checkbox
+ * lists from this, never from a table of their own.
+ */
+export const metadataProvidersQuery = queryOptions({
+  queryKey: ['admin', 'metadata', 'providers'],
+  queryFn: ({ signal }): Promise<MetadataProviderInfo[]> =>
+    request(api.GET('/admin/metadata/providers', { signal })),
+  staleTime: 60_000,
 });
 
 export const invitationsQuery = queryOptions({

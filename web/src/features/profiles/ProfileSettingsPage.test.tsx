@@ -103,7 +103,7 @@ describe('profile settings page', () => {
           },
           profile: session.profile,
         }),
-      'GET /libraries': () => json([{ id: 3, name: 'Kinder', kind: 'movies' }]),
+      'GET /libraries': () => json([{ id: 3, name: 'Kinder', kind: 'video' }]),
     });
     renderApp('/settings/profiles');
     const user = userEvent.setup();

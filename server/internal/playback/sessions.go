@@ -113,11 +113,12 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
-	if item.Kind == "podcast_episode" {
-		// An episode has no library file; it streams through the server from its enclosure (M6).
+	in, err := s.loadInput(ctx, scope, item, req.MediaFileID)
+	if item.Kind == "podcast_episode" && errors.Is(err, model.ErrNotFound) {
+		// An episode without a file of its own (a podcast folder, ADR 0015) streams through the
+		// server from its enclosure (M6).
 		return s.startEnclosure(ctx, session, item, req)
 	}
-	in, err := s.loadInput(ctx, scope, item, req.MediaFileID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
@@ -236,7 +237,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
 	mediaKind := model.MediaKindVideo
-	if d.Audio || item.Kind == "audiobook" {
+	if d.Audio || item.Kind == "audiobook" || item.Kind == "podcast_episode" {
 		mediaKind = model.MediaKindAudio
 	}
 	if bookChapters == nil {

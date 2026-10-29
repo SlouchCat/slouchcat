@@ -105,9 +105,15 @@ func (s *server) ListPodcastEpisodes(ctx context.Context, req gen.ListPodcastEpi
 
 // toAdminPodcast maps a subscription; times are UTC.
 func toAdminPodcast(p model.AdminPodcast) gen.AdminPodcast {
-	return gen.AdminPodcast{
-		Id: p.ID, LibraryId: p.LibraryID, Title: p.Title, Author: optString(p.Author), FeedUrl: p.FeedURL,
-		EpisodeCount: p.EpisodeCount, Explicit: p.Explicit, LastCheckedAt: utc(p.LastCheckedAt),
-		LastError: optString(p.LastError), CreatedAt: p.CreatedAt.UTC(),
+	out := gen.AdminPodcast{
+		Id: p.ID, LibraryId: p.LibraryID, Title: p.Title, Author: optString(p.Author), FeedUrl: optString(p.FeedURL),
+		EpisodeCount: p.EpisodeCount, LocalEpisodeCount: p.LocalEpisodeCount, Explicit: p.Explicit,
+		LastCheckedAt: utc(p.LastCheckedAt), LastError: optString(p.LastError), CreatedAt: p.CreatedAt.UTC(),
+		RootId: p.RootID,
 	}
+	if p.FeedOrigin != "" {
+		origin := gen.AdminPodcastFeedOrigin(p.FeedOrigin)
+		out.FeedOrigin = &origin
+	}
+	return out
 }

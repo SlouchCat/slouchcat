@@ -112,8 +112,9 @@ type Enclosure struct {
 	Length     int64  // bytes the feed names; 0 when unknown
 	DurationMs int64  // itunes:duration; 0 when unknown
 	// FeedURL is the feed of the podcast: when its host is local, the enclosure may be too
-	// (package netguard).
-	FeedURL string
+	// (package netguard), unless the feed came from a file (FeedOrigin "file", ADR 0015).
+	FeedURL    string
+	FeedOrigin string
 }
 
 // Enclosure returns the enclosure of a visible podcast episode; model.ErrNotFound for an unknown or
@@ -128,7 +129,7 @@ func (r *Reader) Enclosure(ctx context.Context, s Scope, itemID string) (Enclosu
 		return Enclosure{}, notFound(err)
 	}
 	return Enclosure{ItemID: row.ID, URL: row.EnclosureUrl.String, Type: row.EnclosureType.String,
-		Length: row.EnclosureLength.Int64, DurationMs: row.DurationMs.Int64, FeedURL: row.FeedUrl.String}, nil
+		Length: row.EnclosureLength.Int64, DurationMs: row.DurationMs.Int64, FeedURL: row.FeedUrl.String, FeedOrigin: row.FeedOrigin.String}, nil
 }
 
 // podcastImages gives the visible episodes among ids that have no image of their own the images of

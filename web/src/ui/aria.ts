@@ -11,12 +11,27 @@ export { CheckboxGroup } from './CheckboxGroup';
 export { CodeBlock } from './CodeBlock';
 export { DataTable, type DataColumn } from './DataTable';
 export { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
+export {
+  FolderList,
+  contentsOf,
+  defaultProviders,
+  folderListError,
+  newFolderEntry,
+  type FolderEntry,
+} from './FolderList';
 export { Form } from './Form';
 export { LinkCard } from './LinkCard';
 export { MenuButton } from './Menu';
 export { MessageDialog } from './MessageDialog';
 export { PathList, type PathItem } from './PathList';
 export { PinField } from './PinField';
+export {
+  ProviderList,
+  allowedProviders,
+  canIdentify,
+  providerChain,
+  providerListError,
+} from './ProviderList';
 export { RadioGroup } from './RadioGroup';
 export { SelectableList, type SelectableItem } from './SelectableList';
 export { StatTile } from './StatTile';

@@ -199,8 +199,17 @@ func (f *fakeTMDB) addTV(t *testing.T, mux *http.ServeMux, auth func(http.Handle
 				map[string]any{"id": 8100, "name": "Episode Director", "job": "Director", "department": "Directing"},
 			}},
 		}
+		f.mu.Lock()
+		noGerman, noImages := f.tvNoGermanOverview, f.tvNoImages
+		f.mu.Unlock()
+		if noImages {
+			tv["poster_path"], tv["backdrop_path"] = "", ""
+		}
 		if lang(r) == langDE {
 			tv["name"], tv["overview"], tv["genres"] = "Testserie", "Deutsche Serienbeschreibung", []any{map[string]any{"id": 18, "name": "Drama"}}
+			if noGerman {
+				tv["overview"] = ""
+			}
 		} else {
 			tv["name"], tv["overview"], tv["genres"] = "Test Show", "English series overview", []any{map[string]any{"id": 18, "name": "Drama"}}
 		}

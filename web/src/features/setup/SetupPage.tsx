@@ -12,8 +12,13 @@ import { formText, MIN_PASSWORD } from '@/lib/form';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Logo, Notice, Page, Panel, Stack, Text, TextLink } from '@/ui';
-import { AriaButton, Form, TextField } from '@/ui/aria';
-import { LibraryFields, libraryRequest, type LibraryKind } from '../shared/LibraryFields';
+import { AriaButton, Form, TextField, folderListError, type FolderEntry } from '@/ui/aria';
+import {
+  initialFolders,
+  LibraryFields,
+  libraryRequest,
+  type LibraryKind,
+} from '../shared/LibraryFields';
 import { setupRootsQuery } from '../shared/pathBrowser';
 import { SystemState } from '../shared/SystemState';
 import styles from './SetupPage.module.css';
@@ -124,19 +129,23 @@ export function SetupPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
-  const [kind, setKind] = useState<LibraryKind>('movies');
+  const [kind, setKind] = useState<LibraryKind>('video');
   const [rating, setRating] = useState('0');
-  const [path, setPath] = useState('');
+  const [folders, setFolders] = useState<FolderEntry[]>(() => initialFolders('video'));
   const [tmdbKey, setTmdbKey] = useState('');
-  // A check button pressed with an empty field (the field then asks for a value).
-  const [blank, setBlank] = useState<{ path?: boolean; tmdb?: boolean }>({});
+  // A check button pressed with an empty field (the field then asks for a value); the path check
+  // belongs to the card whose button was pressed.
+  const [blank, setBlank] = useState<{ path?: string; tmdb?: boolean }>({});
   // The values the last submit sent: its field errors belong to them only.
-  const [submitted, setSubmitted] = useState({ path: '', tmdb: '' });
+  const [submitted, setSubmitted] = useState<{ paths: string[]; tmdb: string }>({
+    paths: [],
+    tmdb: '',
+  });
   // The guard asked for the setup state already; `system` comes with it.
   const system = useQuery(setupStatusQuery).data?.system;
 
   const pathCheck = useMutation({
-    mutationFn: (value: string): Promise<PathCheck> =>
+    mutationFn: ({ value }: { key: string; value: string }): Promise<PathCheck> =>
       request(api.POST('/setup/path-check', { body: { path: value } })),
   });
   // The key is a secret: it never stays in the query client, the answer keeps it in this state.
@@ -161,31 +170,56 @@ export function SetupPage() {
       }
     },
   });
+  // The contract names the folders of the wizard's library by their index, and so do the inputs
+  // of the cards (`library.roots[0].path`).
   const errors = setup.error ? formErrors(t, setup.error) : null;
+  const listError = folderListError(t, folders, undefined);
 
-  // A check answers for the value it was asked about; a changed value hides its answer.
-  const checkedPath = pathCheck.variables === path.trim() ? pathCheck.data : undefined;
+  // A check answers for the card and value it was asked about; a changed value hides its answer.
+  const checkedFolder = folders.find((folder) => folder.key === pathCheck.variables?.key);
+  const checkedPath =
+    checkedFolder && pathCheck.variables?.value === checkedFolder.path.trim()
+      ? pathCheck.data
+      : undefined;
+  const checkedIndex = checkedFolder ? folders.indexOf(checkedFolder) : -1;
   const checkedKey = keyCheck?.key === tmdbKey.trim() ? keyCheck.result : undefined;
   const fields: Record<string, string> = {};
-  if (blank.path) fields['library.path'] = t('errors.field.required');
-  if (checkedPath?.problem) fields['library.path'] = t(pathProblemKey(checkedPath.problem));
+  const blankIndex = folders.findIndex((folder) => folder.key === blank.path);
+  if (blankIndex >= 0) fields[`library.roots[${blankIndex}].path`] = t('errors.field.required');
+  if (checkedPath?.problem && checkedIndex >= 0) {
+    fields[`library.roots[${checkedIndex}].path`] = t(pathProblemKey(checkedPath.problem));
+  }
   if (blank.tmdb) fields.tmdbApiKey = t('errors.field.required');
   if (checkedKey?.problem) fields.tmdbApiKey = t(`setup.tmdb.result.${checkedKey.problem}`);
   for (const [name, message] of Object.entries(errors?.fields ?? {})) {
-    if (name === 'library.path' && path.trim() !== submitted.path) continue;
+    const root = /^library\.roots\[(\d+)\]\.path$/.exec(name);
+    if (root) {
+      const index = Number(root[1]);
+      if (folders[index]?.path.trim() !== submitted.paths[index]) continue;
+    }
     if (name === 'tmdbApiKey' && tmdbKey.trim() !== submitted.tmdb) continue;
     fields[name] = message;
   }
 
-  /** Asks the server about the folder once per value (blur and the button share the answer). */
-  const checkPath = (fromButton: boolean) => {
-    const value = path.trim();
+  /** Asks the server about a card's folder once per value (blur and the button share it). */
+  const checkPath = (folder: FolderEntry, fromButton: boolean) => {
+    const value = folder.path.trim();
     if (!value) {
-      if (fromButton) setBlank((state) => ({ ...state, path: true }));
+      if (fromButton) setBlank((state) => ({ ...state, path: folder.key }));
       return;
     }
-    if (pathCheck.variables === value && !pathCheck.isError) return;
-    pathCheck.mutate(value);
+    if (
+      pathCheck.variables?.key === folder.key &&
+      pathCheck.variables.value === value &&
+      !pathCheck.isError
+    ) {
+      return;
+    }
+    pathCheck.mutate({ key: folder.key, value });
+  };
+  const setFolderPath = (key: string, path: string) => {
+    setFolders((list) => list.map((entry) => (entry.key === key ? { ...entry, path } : entry)));
+    setBlank((state) => (state.path === key ? { ...state, path: undefined } : state));
   };
 
   const checkKey = () => {
@@ -203,11 +237,11 @@ export function SetupPage() {
     const data = new FormData(event.currentTarget);
     const field = (name: string) => formText(data, name);
     const tmdbApiKey = field('tmdbApiKey');
-    setSubmitted({ path: field('library.path'), tmdb: tmdbApiKey });
+    setSubmitted({ paths: folders.map((folder) => folder.path.trim()), tmdb: tmdbApiKey });
     setup.mutate({
       email: field('email'),
       password: formText(data, 'password', false),
-      library: libraryRequest(field('library.name'), kind, field('library.path'), rating),
+      library: libraryRequest(field('library.name'), kind, folders, rating),
       ...(tmdbApiKey ? { tmdbApiKey } : {}),
       language: currentLanguage(),
     });
@@ -274,53 +308,58 @@ export function SetupPage() {
             <TextField
               name="library.name"
               label={t('setup.library.name')}
-              defaultValue={t('library.kind.movies')}
+              defaultValue={t('setup.library.defaultName')}
               isRequired
               validate={required}
             />
             <LibraryFields
               prefix="library."
               kind={kind}
-              onKindChange={setKind}
+              onKindChange={(next) => {
+                if (next === kind) return;
+                setKind(next);
+                setFolders(initialFolders(next));
+              }}
               rating={rating}
               onRatingChange={setRating}
-              path={path}
-              onPathChange={(value) => {
-                setPath(value);
-                setBlank((state) => ({ ...state, path: false }));
-              }}
-              onPathBlur={() => checkPath(false)}
-              pathAddon={
-                <div className={styles.check}>
-                  <RootSuggestions
-                    onPick={(picked) => {
-                      setPath(picked);
-                      setBlank((state) => ({ ...state, path: false }));
-                    }}
-                  />
-                  <div>
-                    <AriaButton
-                      icon="folder"
-                      isPending={pathCheck.isPending}
-                      onPress={() => checkPath(true)}
-                    >
-                      {t('setup.library.check')}
-                    </AriaButton>
-                  </div>
-                  <div role="status" className={styles.result}>
-                    {pathCheck.isPending && (
-                      <Text tone="secondary" variant="caption">
-                        {t('setup.library.checking')}
-                      </Text>
+              folders={folders}
+              onFoldersChange={setFolders}
+              onPathBlur={(folder) => checkPath(folder, false)}
+              fieldErrors={fields}
+              pathAddon={(folder) => {
+                const mine = pathCheck.variables?.key === folder.key;
+                return (
+                  <div className={styles.check}>
+                    <RootSuggestions onPick={(picked) => setFolderPath(folder.key, picked)} />
+                    <div>
+                      <AriaButton
+                        icon="folder"
+                        isPending={mine && pathCheck.isPending}
+                        onPress={() => checkPath(folder, true)}
+                      >
+                        {t('setup.library.check')}
+                      </AriaButton>
+                    </div>
+                    <div role="status" className={styles.result}>
+                      {mine && pathCheck.isPending && (
+                        <Text tone="secondary" variant="caption">
+                          {t('setup.library.checking')}
+                        </Text>
+                      )}
+                      {mine && checkedPath && <PathResult check={checkedPath} />}
+                    </div>
+                    {mine && pathCheck.isError && (
+                      <Notice tone="danger">{problemMessage(t, pathCheck.error)}</Notice>
                     )}
-                    {checkedPath && <PathResult check={checkedPath} />}
                   </div>
-                  {pathCheck.isError && (
-                    <Notice tone="danger">{problemMessage(t, pathCheck.error)}</Notice>
-                  )}
-                </div>
-              }
+                );
+              }}
             />
+            {listError && folders.some((folder) => folder.path.trim()) && (
+              <Notice tone="warning" live={false}>
+                {listError}
+              </Notice>
+            )}
           </Step>
 
           <Step

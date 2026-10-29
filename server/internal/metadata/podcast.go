@@ -62,6 +62,11 @@ var (
 	errFeedRedirect = errors.New("feed redirects too often or to another scheme")
 )
 
+// Values of items.feed_origin (ADR 0015): who chose the feed of a podcast. A subscription made
+// by hand keeps the LAN exception of package netguard; a feed read from the metadata.json of a
+// podcast folder (netguard.FeedOriginFile) never gets it.
+const feedOriginAdmin = "admin"
+
 // errFeedStatus is an HTTP status other than 200 and 304.
 type errFeedStatus int
 
@@ -100,12 +105,13 @@ func newFeedFetcher(c *http.Client, now func() time.Time, agent string) feedFetc
 	return f
 }
 
-// client is the HTTP client of a fetch of feedURL.
-func (f feedFetcher) client(ctx context.Context, feedURL string) *http.Client {
+// client is the HTTP client of a fetch of feedURL; a feed read from a file (origin "file") is
+// always fetched guarded (package netguard, ADR 0015).
+func (f feedFetcher) client(ctx context.Context, feedURL, origin string) *http.Client {
 	if f.test != nil {
 		return f.test
 	}
-	return f.clients.For(ctx, feedURL)
+	return f.clients.For(ctx, feedURL, origin)
 }
 
 // WithFeedHTTPClient replaces the HTTP client of the feed fetches (tests): the address guard of
@@ -135,7 +141,7 @@ type fetched struct {
 // fetch gets and parses a feed; etag and modified make it conditional (304 → notModified). Errors
 // name the scheme and host of the feed only (netguard.Clean): a private feed carries its
 // credentials in the path or query.
-func (f feedFetcher) fetch(ctx context.Context, feedURL, etag, modified string) (fetched, error) {
+func (f feedFetcher) fetch(ctx context.Context, feedURL, origin, etag, modified string) (fetched, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
 		return fetched{}, netguard.Clean(err)
@@ -148,7 +154,7 @@ func (f feedFetcher) fetch(ctx context.Context, feedURL, etag, modified string) 
 	if modified != "" {
 		req.Header.Set("If-Modified-Since", modified)
 	}
-	resp, err := f.limiter.Do(ctx, f.client(ctx, feedURL), req)
+	resp, err := f.limiter.Do(ctx, f.client(ctx, feedURL, origin), req)
 	if err != nil {
 		return fetched{}, netguard.Clean(err)
 	}
@@ -235,7 +241,7 @@ func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string
 		return model.AdminPodcast{}, fmt.Errorf("find podcast: %w", err)
 	}
 	fctx, cancel := context.WithTimeout(ctx, subscribeTimeout)
-	res, err := s.feeds.fetch(fctx, clean, "", "")
+	res, err := s.feeds.fetch(fctx, clean, feedOriginAdmin, "", "")
 	cancel()
 	switch {
 	case err != nil && feedInvalid(err):
@@ -253,7 +259,7 @@ func (s *Service) Subscribe(ctx context.Context, libraryID int64, feedURL string
 	p, err := s.write.PodcastInsert(ctx, systemq.PodcastInsertParams{
 		ID: ulid.Make().String(), LibraryID: libraryID, Title: title, SortTitle: sortTitle(title),
 		Author: nullStr(res.feed.Author), Explicit: boolInt(res.feed.Explicit), CoverUrl: nullStr(httpURL(res.feed.ImageURL)),
-		FeedUrl: nullStr(clean), FeedEtag: nullStr(res.etag), FeedModified: nullStr(res.modified),
+		FeedUrl: nullStr(clean), FeedEtag: nullStr(res.etag), FeedModified: nullStr(res.modified), FeedOrigin: nullStr(feedOriginAdmin),
 		Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, OwnRating: rating, RatingSource: source,
 	})
 	if err != nil {
@@ -410,7 +416,7 @@ func (s *Service) FetchPodcast(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("get podcast %s: %w", id, err)
 	}
-	res, err := s.feeds.fetch(ctx, p.FeedUrl.String, p.FeedEtag.String, p.FeedModified.String)
+	res, err := s.feeds.fetch(ctx, p.FeedUrl.String, p.FeedOrigin.String, p.FeedEtag.String, p.FeedModified.String)
 	now := s.feeds.now()
 	checked := sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
 	if err != nil {
@@ -496,8 +502,14 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 	if err := upsertTexts(ctx, s.write, podcastID, title, f.Description, locked); err != nil {
 		return false, err
 	}
+	// File episodes of a podcast folder (ADR 0015): a new feed episode that matches exactly one
+	// of them takes it over instead of becoming a second row.
+	fileEpisodes, err := s.write.PodcastListFileEpisodesWithoutGUID(ctx, parent)
+	if err != nil {
+		return false, fmt.Errorf("list file episodes of %s: %w", podcastID, err)
+	}
 	w := episodeWrite{parent: parent, libraryID: libraryID, channelImage: httpURL(f.ImageURL), byGUID: byGUID,
-		ms: now.UnixMilli(), now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}
+		files: fileEpisodes, ms: now.UnixMilli(), now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}
 	var covers, added []string
 	defer func() { s.announceEpisodes(ctx, added) }()
 	for chunk := range slices.Chunk(eps, feedBatch) {
@@ -544,6 +556,7 @@ type episodeWrite struct {
 	libraryID    int64
 	channelImage string // the channel's image URL; an episode with the same image has none of its own
 	byGUID       map[string]systemq.PodcastListEpisodesRow
+	files        []systemq.PodcastListFileEpisodesWithoutGUIDRow // file episodes without guid, pairing candidates
 	ms           int64
 	now          sql.NullInt64
 }
@@ -559,7 +572,7 @@ type episodeChange struct {
 
 // store inserts or updates one episode inside the caller's transaction; locked fields (title,
 // poster, overview, own_rating) keep their stored values.
-func (w episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Episode) (episodeChange, error) {
+func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Episode) (episodeChange, error) {
 	enclosure := httpURL(e.Enclosure.URL)
 	if enclosure == "" {
 		return episodeChange{}, nil // only http and https enclosures are played and downloaded
@@ -601,6 +614,20 @@ func (w episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epis
 		}
 		return episodeChange{rerated: rating != known.OwnRating}, upsertTexts(ctx, q, known.ID, title, e.Description, locked)
 	}
+	if adopted, ok := w.adopt(e, published); ok {
+		if err := q.PodcastAdoptFileEpisode(ctx, systemq.PodcastAdoptFileEpisodeParams{
+			Title: title, SortTitle: sort, Guid: nullStr(e.GUID), PublishedAt: published, DurationMs: positive(e.Duration.Milliseconds()),
+			EnclosureUrl: nullStr(enclosure), EnclosureType: nullStr(e.Enclosure.Type), EnclosureLength: positive(e.Enclosure.Length),
+			Explicit: boolInt(explicit), CoverUrl: cover, SeasonNumber: positive(int64(e.Season)), EpisodeNumber: positive(int64(e.Number)),
+			OwnRating: rating, RatingSource: source, Now: w.ms, ID: adopted.ID,
+		}); err != nil {
+			return episodeChange{}, fmt.Errorf("adopt file episode: %w", err)
+		}
+		w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: adopted.ID, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]",
+			PublishedAt: published}
+		// Not a new episode: the household has the file already, so no announcement and no cover job.
+		return episodeChange{}, upsertTexts(ctx, q, adopted.ID, title, e.Description, nil)
+	}
 	id := ulid.Make().String()
 	if err := q.PodcastInsertEpisode(ctx, systemq.PodcastInsertEpisodeParams{
 		ID: id, ParentID: w.parent, LibraryID: w.libraryID, Title: title, SortTitle: sort,
@@ -618,6 +645,49 @@ func (w episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epis
 		c.newCover = id
 	}
 	return c, upsertTexts(ctx, q, id, title, e.Description, nil)
+}
+
+// adopt finds the one file episode a new feed episode stands for (concept 4.5): the same
+// publication minute, else the same sort title; the duration within two percent when both are
+// known. Exactly one candidate, or none: two files that fit stay apart rather than one of them
+// being married to the wrong feed episode. A taken candidate is removed from the list.
+func (w *episodeWrite) adopt(e feed.Episode, published sql.NullInt64) (systemq.PodcastListFileEpisodesWithoutGUIDRow, bool) {
+	var hits []int
+	for i, f := range w.files {
+		if !PairsEpisode(published, sortTitle(e.Title), e.Duration.Milliseconds(), f.PublishedAt, f.SortTitle, f.DurationMs) {
+			continue
+		}
+		hits = append(hits, i)
+	}
+	if len(hits) != 1 {
+		return systemq.PodcastListFileEpisodesWithoutGUIDRow{}, false
+	}
+	row := w.files[hits[0]]
+	w.files = slices.Delete(w.files, hits[0], hits[0]+1)
+	return row, true
+}
+
+// PairsEpisode reports whether a feed episode and a file episode are the same episode: the
+// publication minute equal, else the sort titles equal; a known duration on both sides must agree
+// within two percent. The scanner's probe step uses the same rule the other way round.
+func PairsEpisode(feedPublished sql.NullInt64, feedSortTitle string, feedDurationMs int64,
+	filePublished sql.NullInt64, fileSortTitle string, fileDurationMs sql.NullInt64,
+) bool {
+	sameMinute := feedPublished.Valid && filePublished.Valid && feedPublished.Int64/60000 == filePublished.Int64/60000
+	sameTitle := feedSortTitle != "" && feedSortTitle == fileSortTitle
+	if !sameMinute && !sameTitle {
+		return false
+	}
+	if feedDurationMs > 0 && fileDurationMs.Valid && fileDurationMs.Int64 > 0 {
+		diff := feedDurationMs - fileDurationMs.Int64
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff*50 > feedDurationMs {
+			return false
+		}
+	}
+	return true
 }
 
 // upsertTexts writes title and description for both languages (a feed has one language; the
@@ -685,6 +755,11 @@ func toAdminPodcast(r systemq.PodcastListRow) model.AdminPodcast {
 	if r.FeedCheckedAt.Valid {
 		t := time.UnixMilli(r.FeedCheckedAt.Int64).UTC()
 		out.LastCheckedAt = &t
+	}
+	out.FeedOrigin, out.LocalEpisodeCount = r.FeedOrigin.String, int(r.LocalEpisodeCount)
+	if r.RootID != 0 {
+		id := r.RootID
+		out.RootID = &id
 	}
 	return out
 }

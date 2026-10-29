@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import styles from './FactList.module.css';
 
 interface FactListProps {
-  /** Term and value per fact, in display order; terms are unique. */
-  facts: readonly (readonly [string, string])[];
+  /** Term and value per fact, in display order; terms are unique. A value may be a link. */
+  facts: readonly (readonly [string, ReactNode])[];
   /**
    * `grid`: the facts side by side, the term small above its value (detail and administration
    * pages); `rows`: term and value on one line, the value in monospace (the player's stream info).

@@ -45,6 +45,8 @@ const alienAdmin: AdminItem = {
   year: 1979,
   libraryId: 1,
   metadataState: 'matched',
+  providers: ['tmdb'],
+  fieldSources: [],
   lockedFields: [],
   trailerState: 'none',
   trailers: [],

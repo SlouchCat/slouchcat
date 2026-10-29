@@ -36,7 +36,7 @@ func seedStats(t *testing.T, db *sql.DB) {
 		   (1, 1, 'Marco', 18, 1, 1, 1), (2, 1, 'Kind', 6, 0, 1, 1), (3, 2, 'Gast', 12, 1, 1, 1)`,
 		`INSERT INTO devices (id, created_at, last_seen_at, type) VALUES
 		   ('tv000000000000000000000000000000', 1, 1, 'tv'), ('phone000000000000000000000000000', 1, 1, 'phone')`,
-		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'movies', 1, 1)`,
+		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Filme', 'video', 1, 1)`,
 		`INSERT INTO items (id, kind, library_id, title, sort_title, year, added_at, created_at, updated_at) VALUES
 		   ('01J9000000000000000000ST01', 'movie', 1, 'parsed one', 'a', 2001, 1, 1, 1),
 		   ('01J9000000000000000000ST02', 'movie', 1, 'parsed two', 'b', NULL, 1, 1, 1),

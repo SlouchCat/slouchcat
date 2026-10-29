@@ -176,7 +176,12 @@
       "not_burnable": "Diese Untertitelspur kann nicht eingebrannt werden.",
       "invalid_url": "Gib eine Adresse mit http:// oder https:// an.",
       "library_kind": "Wähle eine Podcast-Bibliothek.",
-      "unknown_item": "Diesen Titel gibt es nicht."
+      "unknown_item": "Diesen Titel gibt es nicht.",
+      "root_overlap": "Dieser Ordner überschneidet sich mit einem anderen Ordner.",
+      "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
+      "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
+      "roots_required": "Mindestens ein Ordner ist nötig.",
+      "provider_not_searchable": "Nur TMDB und TVDB lassen sich durchsuchen."
     }
   },
   "setup": {
@@ -195,9 +200,10 @@
       "title": "Erste Bibliothek",
       "description": "Weitere Bibliotheken kannst du später hinzufügen.",
       "name": "Name",
+      "defaultName": "Filme",
       "kind": "Inhalt",
       "path": "Ordner",
-      "pathHint": "Absoluter Pfad im Container, zum Beispiel /media/Filme.",
+      "pathPlaceholder": "/media/Filme",
       "roots": "Freigegebene Ordner:",
       "check": "Ordner prüfen",
       "checking": "Wird geprüft …",
@@ -210,7 +216,9 @@
           "title": "Unbekanntes Dateisystem",
           "body": "Ein FUSE-Dateisystem (zum Beispiel mergerfs oder Unraid) meldet nicht jede Änderung. Slouchcat beobachtet den Ordner und gleicht ihn zusätzlich regelmässig ab."
         }
-      }
+      },
+      "content": "Inhalt",
+      "providers": "Metadatenquellen"
     },
     "tmdb": {
       "title": "Metadaten von TMDB (optional)",
@@ -244,14 +252,13 @@
   },
   "library": {
     "kind": {
-      "movies": "Filme",
-      "series": "Serien",
+      "video": "Video",
       "audiobooks": "Hörbücher",
       "podcasts": "Podcasts"
     },
     "defaultRating": "Standard-Altersstufe",
     "defaultRatingHint": "Gilt für jeden Titel dieser Bibliothek. Einzelne Titel lassen sich danach nur strenger einstufen.",
-    "podcastsHint": "Podcasts brauchen keinen Ordner: Du abonnierst ihre Feeds unter Podcasts.",
+    "podcastsHint": "Ordner optional: Du kannst Feeds auch ohne Ordner unter Podcasts abonnieren.",
     "browse": {
       "title": "Ordner auswählen",
       "open": "Durchsuchen …",
@@ -271,7 +278,56 @@
       "folder": "Ordner",
       "goTo": "Gehe zu",
       "notUnderRoot": "Dieser Pfad liegt unter keinem freigegebenen Ordner, die Liste bleibt also stehen. «OK» übernimmt ihn trotzdem; ob er taugt, entscheidet der Server beim Abschicken. Freigegeben wird mit {{name}}."
-    }
+    },
+    "provider": {
+      "tmdb": "TMDB",
+      "tvdb": "TVDB",
+      "anilist": "AniList",
+      "local": "Lokale Dateien"
+    },
+    "content": {
+      "title": "Inhalt",
+      "hint": "Filme als Einzeldateien, Serien in Staffelordnern.",
+      "movie": "Filme",
+      "series": "Serien",
+      "audiobook": "Hörbücher",
+      "podcast": "Podcasts"
+    },
+    "providers": {
+      "title": "Metadatenquellen",
+      "chain": " › ",
+      "identifies": "erkennt Titel",
+      "fills": "füllt auf",
+      "cannotIdentifyChip": "kann nicht erkennen",
+      "moveUpLabel": "{{provider}} nach oben",
+      "moveDownLabel": "{{provider}} nach unten",
+      "noKey": "kein Schlüssel hinterlegt",
+      "noGerman": "liefert kein Deutsch",
+      "fillOnly": "nur Auffüller",
+      "hint": "Der erste Eintrag erkennt den Titel, die weiteren füllen nur auf. Reihenfolge mit den Pfeilen oder den Pfeiltasten.",
+      "required": "Wähle mindestens eine Quelle.",
+      "cannotIdentify": "{{provider}} kann keinen Titel erkennen. Setze {{identifiers}} an die erste Stelle.",
+      "fixedHint": "Für diesen Inhalt gibt es heute nur diese Quelle.",
+      "defaultHint": "Die Vorgabe; die Liste lässt sich nach der Einrichtung unter Bibliotheken ändern."
+    },
+    "roots": {
+      "title": "Ordner",
+      "number": "Ordner {{number}}",
+      "addFirst": "Ordner hinzufügen",
+      "addMore": "Weiteren Ordner hinzufügen",
+      "remove": "Entfernen",
+      "removeLabel": "Ordner {{number}} entfernen",
+      "empty": "Noch kein Ordner.",
+      "emptyPodcasts": "Noch kein Ordner. Eine Podcast-Bibliothek darf auch ohne Ordner bleiben; die Titel kommen dann aus den Feed-Abos.",
+      "overlap": "Ordner {{number}} überschneidet sich mit einem Ordner weiter oben.",
+      "providers": "Ordner {{number}}: {{message}}",
+      "submit_one": "Bibliothek mit {{count}} Ordner hinzufügen",
+      "submit_other": "Bibliothek mit {{count}} Ordnern hinzufügen",
+      "submitNone": "Bibliothek ohne Ordner hinzufügen",
+      "addSubmit_one": "1 Ordner hinzufügen",
+      "addSubmit_other": "{{count}} Ordner hinzufügen"
+    },
+    "videoHint": "Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt."
   },
   "home": {
     "title": "Startseite",
@@ -397,7 +453,9 @@
     "sd": "SD",
     "height": "{{height}}p",
     "separator": " · ",
-    "seconds": "{{seconds}} s"
+    "seconds": "{{seconds}} s",
+    "or": " oder ",
+    "listSeparator": ", "
   },
   "player": {
     "region": "Videoplayer",
@@ -635,13 +693,29 @@
           "relink": "Legst du denselben Ordner binnen 30 Tagen wieder an, kommen Titel mit TMDB-, TVDB- oder IMDb-Id samt ihren Benutzerdaten zurück. Titel ohne solche Id werden neu angelegt.",
           "oneWay": "Liegt der Ordner ausserhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen.",
           "last": "Es ist der letzte Ordner: {{name}} bleibt bestehen, hat danach aber keinen Ordner mehr und scannt nichts."
+        },
+        "new": "Neue Ordner",
+        "change": {
+          "action": "Ändern",
+          "label": "Ordner {{path}} ändern",
+          "title": "Ordner ändern",
+          "description": "Inhalt und Metadatenquellen von {{path}}.",
+          "submit": "Speichern",
+          "identifier": "Der Erkenner wechselt: Staffel- und Folgentexte werden nach {{provider}} neu zugeordnet. Die Folgen selbst bleiben, Fortschritt und Merkliste hängen weiter an ihnen.",
+          "fillers": "Nur die Auffüller ändern sich: die Titel werden neu aufgefüllt, nichts wird gelöscht.",
+          "content": "Der Inhalt wechselt: das wirkt wie Ordner entfernen und neu anlegen. Die Titel dieses Ordners werden weich gelöscht und neu angelegt, Offline-Pakete sind weg, Fortschritt und Merkliste hängen an den alten Titeln.",
+          "confirmTitle": "Inhalt wirklich wechseln?",
+          "confirm": "Inhalt wechseln",
+          "saved": "Der Ordner {{path}} ist geändert."
         }
       },
       "openFolders": "Ordner",
       "openFoldersLabel": "Ordner von {{name}} bearbeiten",
       "rootCount_one": "{{count}} Ordner",
       "rootCount_other": "{{count}} Ordner",
-      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst."
+      "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst.",
+      "rootSummary_one": "{{count}} {{content}}",
+      "rootSummary_other": "{{count}} {{content}}"
     },
     "access": {
       "notAllowed": {
@@ -733,7 +807,8 @@
         "reason": {
           "provider_id": "Gleiche Anbieter-ID",
           "title_year": "Gleicher Titel und gleiches Jahr",
-          "file_hash": "Gleicher Dateiinhalt"
+          "file_hash": "Gleicher Dateiinhalt",
+          "file_and_feed": "Datei und Feed derselben Folge"
         },
         "group": "Gruppe {{index}}",
         "target": "Behalten",
@@ -765,10 +840,28 @@
         "tmdb": "TMDB",
         "tvdb": "TVDB",
         "imdb": "IMDb",
+        "providers": "Metadatenquellen",
         "locked": "Gesperrte Felder",
         "children": "Inhalt",
         "childCounts": "Staffeln: {{seasons}} · Folgen: {{episodes}} · Extras: {{extras}}",
         "none": "–"
+      },
+      "sources": {
+        "title": "Herkunft je Feld",
+        "union": "Vereinigung aller Quellen",
+        "field": {
+          "title": "Titel",
+          "overview": "Beschreibung",
+          "tagline": "Tagline",
+          "original_title": "Originaltitel",
+          "genres": "Genres",
+          "runtime_minutes": "Laufzeit",
+          "release_date": "Erscheinungsdatum",
+          "own_rating": "Freigabe",
+          "poster": "Poster",
+          "backdrop": "Hintergrundbild"
+        },
+        "fieldLang": "{{field}} ({{lang}})"
       },
       "state": {
         "pending": "Ausstehend",
@@ -920,7 +1013,7 @@
     },
     "podcasts": {
       "title": "Podcasts",
-      "intro": "Abonnierte Feeds. Slouchcat ruft jeden Feed stündlich ab und legt neue Episoden an.",
+      "intro": "Abonnierte Feeds und Podcasts aus Ordnern. Slouchcat ruft jeden Feed stündlich ab und legt neue Episoden an.",
       "empty": "Noch kein Podcast abonniert.",
       "list": "Abonnierte Podcasts",
       "noLibrary": "Lege zuerst eine Bibliothek der Art Podcasts an.",
@@ -928,6 +1021,9 @@
       "never": "Noch nie",
       "noError": "–",
       "explicit": "Explizit",
+      "fromFolder": "aus Ordner",
+      "localEpisodes_one": "{{count}} lokal",
+      "localEpisodes_other": "{{count}} lokal",
       "columns": {
         "title": "Titel",
         "library": "Bibliothek",

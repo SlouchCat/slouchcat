@@ -111,6 +111,19 @@ func (q *Queries) CountMediaFilesOfRoot(ctx context.Context, rootID int64) (int6
 	return count, err
 }
 
+const deleteIgnoredFilesOfRoot = `-- name: DeleteIgnoredFilesOfRoot :execrows
+DELETE FROM ignored_files WHERE root_id = ?1
+`
+
+// The ignored files of a folder refer to its old reading; with another content they start over.
+func (q *Queries) DeleteIgnoredFilesOfRoot(ctx context.Context, rootID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteIgnoredFilesOfRoot, rootID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteLibraryRoot = `-- name: DeleteLibraryRoot :execrows
 DELETE FROM library_roots WHERE id = ?1 AND library_id = ?2
 `
@@ -136,6 +149,20 @@ DELETE FROM media_files WHERE id = ?1
 func (q *Queries) DeleteMediaFile(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteMediaFile, id)
 	return err
+}
+
+const deleteMediaFilesOfRoot = `-- name: DeleteMediaFilesOfRoot :execrows
+DELETE FROM media_files WHERE root_id = ?1
+`
+
+// A content change reads the folder afresh (concept 6.3): the cascade takes the downloads of the
+// soft-deleted titles with it and the triggers set items.available.
+func (q *Queries) DeleteMediaFilesOfRoot(ctx context.Context, rootID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMediaFilesOfRoot, rootID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const insertIgnoredFile = `-- name: InsertIgnoredFile :exec
@@ -215,6 +242,47 @@ func (q *Queries) ListIgnoredFilesByRoot(ctx context.Context, rootID int64) ([]s
 			return nil, err
 		}
 		items = append(items, rel_path)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTitleIDsOfRoot = `-- name: ListTitleIDsOfRoot :many
+
+SELECT DISTINCT COALESCE(
+        CASE WHEN g.kind = 'series' THEN g.id END,
+        CASE WHEN p.kind IN ('series', 'movie', 'podcast') THEN p.id END,
+        i.id) AS id
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+LEFT JOIN items AS p ON p.id = i.parent_id
+LEFT JOIN items AS g ON g.id = p.parent_id
+WHERE m.root_id = ?1 AND i.deleted_at IS NULL
+ORDER BY id
+`
+
+// Content and provider list of a folder (updateLibraryRoot, ADR 0015, concept 6.3).
+// The titles with a file in the folder, as the fill and match jobs need them: a movie, audiobook
+// or podcast is its own title, an episode stands for its series (the parent of its season, or its
+// direct parent for an episode without season folder), an extra for the title above it.
+func (q *Queries) ListTitleIDsOfRoot(ctx context.Context, rootID int64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listTitleIDsOfRoot, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -305,7 +373,7 @@ const softDeleteItemsOfRootWithoutOtherFiles = `-- name: SoftDeleteItemsOfRootWi
 
 UPDATE items SET deleted_at = ?1, updated_at = ?1
 WHERE items.deleted_at IS NULL
-  AND items.kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND (items.kind IN ('movie', 'episode', 'extra', 'audiobook') OR (items.kind = 'podcast_episode' AND items.enclosure_url IS NULL))
   AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id = ?2)
   AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id <> ?2)
 `
@@ -327,6 +395,39 @@ type SoftDeleteItemsOfRootWithoutOtherFilesParams struct {
 // the safe reading -- it still has a file to play.
 func (q *Queries) SoftDeleteItemsOfRootWithoutOtherFiles(ctx context.Context, arg SoftDeleteItemsOfRootWithoutOtherFilesParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, softDeleteItemsOfRootWithoutOtherFiles, arg.Now, arg.RootID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateItemsProvidersByRoot = `-- name: UpdateItemsProvidersByRoot :execrows
+UPDATE items SET providers = ?1, updated_at = ?2
+WHERE deleted_at IS NULL AND (
+    id IN (SELECT m.item_id FROM media_files AS m WHERE m.root_id = ?3)
+    OR id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = ?3)
+    OR id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+              JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = ?3)
+    OR parent_id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = ?3)
+    OR parent_id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+                     JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = ?3)
+    OR parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id IN (
+                         SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+                         JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = ?3)))
+`
+
+type UpdateItemsProvidersByRootParams struct {
+	Providers string
+	Now       int64
+	RootID    int64
+}
+
+// The new list of a folder on every title with a file in it, its ancestors and the descendants of
+// those ancestors: a series with all its seasons and episodes, a movie with its extras. The tree
+// is three levels deep at most (series, season, episode), so the ancestors are the parent and the
+// grandparent, the descendants the children and the grandchildren of what those name.
+func (q *Queries) UpdateItemsProvidersByRoot(ctx context.Context, arg UpdateItemsProvidersByRootParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateItemsProvidersByRoot, arg.Providers, arg.Now, arg.RootID)
 	if err != nil {
 		return 0, err
 	}

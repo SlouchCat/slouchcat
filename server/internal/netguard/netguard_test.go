@@ -61,10 +61,15 @@ func TestClientsFor(t *testing.T) {
 		}
 		return resp.Body.Close()
 	}
-	if err := get(c.For(ctx, srv.URL+"/feed.xml"), srv.URL+"/redirect"); err != nil {
+	if err := get(c.For(ctx, srv.URL+"/feed.xml", "admin"), srv.URL+"/redirect"); err != nil {
 		t.Errorf("loopback feed: %v", err)
 	}
-	public := c.For(ctx, "https://203.0.113.5/feed.xml?token=abc")
+	// The same loopback feed read from a file on the media share (ADR 0015) gets no LAN
+	// exception: a metadata.json must not make the server reach into the household's network.
+	if err := get(c.For(ctx, srv.URL+"/feed.xml", FeedOriginFile), srv.URL+"/redirect"); !errors.Is(err, ErrRefused) {
+		t.Errorf("loopback feed from a file: %v, want refused", err)
+	}
+	public := c.For(ctx, "https://203.0.113.5/feed.xml?token=abc", "admin")
 	for _, path := range []string{"/episode.mp3", "/redirect"} {
 		if err := get(public, srv.URL+path); !errors.Is(err, ErrRefused) {
 			t.Errorf("public feed, local enclosure %s: %v", path, err)

@@ -215,10 +215,19 @@ export const hlsPlayback: PlaybackInfo = {
 export const library = (overrides: Partial<Library> = {}): Library => ({
   id: 1,
   name: 'Filme',
-  kind: 'movies',
+  kind: 'video',
   createdAt: '2026-10-18T18:00:00Z',
   roots: [
-    { id: 1, path: '/media/Filme', fsType: 'ext4', watch: 'inotify', itemCount: 12, fileCount: 14 },
+    {
+      id: 1,
+      path: '/media/Filme',
+      content: 'movie',
+      providers: ['tmdb'],
+      fsType: 'ext4',
+      watch: 'inotify',
+      itemCount: 12,
+      fileCount: 14,
+    },
   ],
   scan: { state: 'done', itemCount: 12, fileCount: 14, finishedAt: '2026-10-18T18:05:00Z' },
   ...overrides,
@@ -265,8 +274,8 @@ export const profiles: Profile[] = [
 
 /** `GET /libraries`: what the account may hand out (all of them for the main account). */
 export const accountLibraries: LibrarySummary[] = [
-  { id: 1, name: 'Filme', kind: 'movies' },
-  { id: 2, name: 'Serien', kind: 'series' },
+  { id: 1, name: 'Filme', kind: 'video' },
+  { id: 2, name: 'Serien', kind: 'video' },
 ];
 
 // M3: a series with two seasons, an episode with its neighbours, a film with versions and extras.
@@ -616,6 +625,7 @@ export const adminPodcast: AdminPodcast = {
   author: 'Slouchcat Test Author',
   feedUrl: 'http://127.0.0.1:8095/feed.xml',
   episodeCount: 2,
+  localEpisodeCount: 0,
   explicit: false,
   lastCheckedAt: '2026-10-20T18:00:00Z',
   createdAt: '2026-10-20T17:00:00Z',

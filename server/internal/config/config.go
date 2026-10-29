@@ -61,6 +61,9 @@ type Config struct {
 	YouTubeAPIKey string
 	// TrailerAI selects the AI step of the trailer chain; "off" (default) is the only provider in M3.
 	TrailerAI string
+	// AniList switches the AniList filler of the metadata lists on (default) or off server-wide
+	// (SLOUCHCAT_ANILIST=off, ADR 0015); the ticks on the folders stay.
+	AniList bool
 	// TraktClientID enables the daily Trakt list (M7, M11, AN-3, I-7); empty = off, the spotlight row
 	// stays hidden. TraktBaseURL overrides the API base for mocks (development and tests only).
 	TraktClientID string
@@ -221,6 +224,14 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	if cfg.TrailerAI == "" {
 		cfg.TrailerAI = "off"
 	}
+	switch strings.ToLower(strings.TrimSpace(env("ANILIST", "on"))) {
+	case "on", "true", "1", "yes":
+		cfg.AniList = true
+	case "off", "false", "0", "no":
+		cfg.AniList = false
+	default:
+		return Config{}, fmt.Errorf("%sANILIST: want on or off", EnvPrefix)
+	}
 	if !hwBackends[cfg.HW] {
 		return Config{}, fmt.Errorf("hw %q: want auto, nvenc, qsv, vaapi or software", cfg.HW)
 	}
@@ -279,6 +290,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("youtube_configured", c.YouTubeAPIKey != ""),
 		slog.Bool("trakt_configured", c.TraktClientID != ""),
 		slog.String("trailer_ai", c.TrailerAI),
+		slog.Bool("anilist", c.AniList),
 		slog.Bool("smtp_configured", c.SMTPHost != ""),
 		slog.String("smtp_tls", c.SMTPTLS),
 		slog.Bool("telegram_configured", c.TelegramBotToken != ""),

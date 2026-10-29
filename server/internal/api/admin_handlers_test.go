@@ -25,7 +25,7 @@ func TestLibraryEndpoints(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0].Name != "Filme" || list[0].Kind != gen.LibraryKindMovies || len(list[0].Roots) != 1 {
+	if len(list) != 1 || list[0].Name != "Filme" || list[0].Kind != gen.LibraryKindVideo || len(list[0].Roots) != 1 {
 		t.Fatalf("libraries = %+v", list)
 	}
 	root := list[0].Roots[0]
@@ -40,17 +40,18 @@ func TestLibraryEndpoints(t *testing.T) {
 		t.Fatalf("startedAt = %v", scan.StartedAt)
 	}
 
-	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries", map[string]any{"name": "Serien", "kind": "series", "path": "/media/Serien"}, owner)
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries", map[string]any{"name": "Serien", "kind": "video",
+		"roots": []any{map[string]any{"path": "/media/Serien", "content": "series", "providers": []string{"tmdb", "tvdb"}}}}, owner)
 	wantStatus(t, rec, http.StatusCreated)
 	var created gen.Library
 	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Id != 2 || created.Kind != gen.LibraryKindSeries {
+	if created.Id != 2 || created.Kind != gen.LibraryKindVideo {
 		t.Fatalf("created = %+v", created)
 	}
 
-	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries", map[string]any{"name": " ", "kind": "series", "path": "/x"}, owner)
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries", map[string]any{"name": " ", "kind": "video", "roots": []any{movieRoot("/x")}}, owner)
 	wantStatus(t, rec, http.StatusUnprocessableEntity)
 	if code := problemCode(t, rec); code != "validation_failed" {
 		t.Fatalf("code = %s", code)
@@ -116,7 +117,7 @@ func TestLibraryRootEndpoints(t *testing.T) {
 	wantStatus(t, rec, http.StatusCreated)
 	owner := sessionCookie(t, rec)
 
-	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries/1/roots", map[string]any{"path": "/media/Filme-2"}, owner)
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries/1/roots", map[string]any{"roots": []any{movieRoot("/media/Filme-2")}}, owner)
 	wantStatus(t, rec, http.StatusCreated)
 	var lib gen.Library
 	if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
@@ -127,18 +128,16 @@ func TestLibraryRootEndpoints(t *testing.T) {
 	}
 	second := lib.Roots[1].Id
 
-	// A missing path is a validation error, a path the rules refuse is library_path_invalid.
-	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries/1/roots", map[string]any{"path": "  "}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if code := problemCode(t, rec); code != "validation_failed" {
-		t.Fatalf("code = %s", code)
+	// A missing path is required, a path the rules refuse is library_path_invalid.
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries/1/roots", map[string]any{"roots": []any{movieRoot("  ")}}, owner)
+	if got := fieldProblem(t, rec); got != "roots[0].path required" {
+		t.Fatalf("missing path: %s", got)
 	}
-	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries/1/roots", map[string]any{"path": authTestBadPath}, owner)
-	wantStatus(t, rec, http.StatusUnprocessableEntity)
-	if code := problemCode(t, rec); code != "library_path_invalid" {
-		t.Fatalf("code = %s", code)
+	rec = e.call(t, http.MethodPost, "/api/v1/admin/libraries/1/roots", map[string]any{"roots": []any{movieRoot(authTestBadPath)}}, owner)
+	if got := fieldProblem(t, rec); got != "roots[0].path library_path_invalid" {
+		t.Fatalf("bad path: %s", got)
 	}
-	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/admin/libraries/99/roots", map[string]any{"path": "/media/x"}, owner), http.StatusNotFound)
+	wantStatus(t, e.call(t, http.MethodPost, "/api/v1/admin/libraries/99/roots", map[string]any{"roots": []any{movieRoot("/media/x")}}, owner), http.StatusNotFound)
 
 	// The confirmation is compared against the stored folder, so a near miss changes nothing.
 	path := func(id int64) string {

@@ -81,7 +81,7 @@ func (q *Queries) GetPodcastFallbackImage(ctx context.Context, arg GetPodcastFal
 }
 
 const getVisibleEnclosure = `-- name: GetVisibleEnclosure :one
-SELECT i.id, i.enclosure_url, i.enclosure_type, i.enclosure_length, i.duration_ms, p.feed_url FROM items AS i
+SELECT i.id, i.enclosure_url, i.enclosure_type, i.enclosure_length, i.duration_ms, p.feed_url, p.feed_origin FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 LEFT JOIN items AS p ON p.id = i.parent_id
 WHERE i.id = ?2 AND i.kind = 'podcast_episode' AND i.enclosure_url IS NOT NULL
@@ -99,10 +99,12 @@ type GetVisibleEnclosureRow struct {
 	EnclosureLength sql.NullInt64
 	DurationMs      sql.NullInt64
 	FeedUrl         sql.NullString
+	FeedOrigin      sql.NullString
 }
 
-// The enclosure of a visible episode (stream proxy and download source) with the feed URL of its
-// podcast, which decides whether the enclosure may live in the local network (package netguard).
+// The enclosure of a visible episode (stream proxy and download source) with the feed URL and
+// origin of its podcast, which decide whether the enclosure may live in the local network (package
+// netguard: never for a feed read from a file, ADR 0015).
 func (q *Queries) GetVisibleEnclosure(ctx context.Context, arg GetVisibleEnclosureParams) (GetVisibleEnclosureRow, error) {
 	row := q.db.QueryRowContext(ctx, getVisibleEnclosure, arg.ProfileID, arg.ItemID)
 	var i GetVisibleEnclosureRow
@@ -113,12 +115,13 @@ func (q *Queries) GetVisibleEnclosure(ctx context.Context, arg GetVisibleEnclosu
 		&i.EnclosureLength,
 		&i.DurationMs,
 		&i.FeedUrl,
+		&i.FeedOrigin,
 	)
 	return i, err
 }
 
 const listNextVisiblePodcastEpisodes = `-- name: ListNextVisiblePodcastEpisodes :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'podcast_episode' AND i.published_at > ?3
 ORDER BY i.published_at DESC, i.id DESC
@@ -203,6 +206,10 @@ func (q *Queries) ListNextVisiblePodcastEpisodes(ctx context.Context, arg ListNe
 			&i.PublishedAt,
 			&i.EnclosureType,
 			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
 		); err != nil {
 			return nil, err
 		}
@@ -292,7 +299,7 @@ func (q *Queries) ListPodcastFallbackImages(ctx context.Context, arg ListPodcast
 
 const listVisiblePodcastEpisodes = `-- name: ListVisiblePodcastEpisodes :many
 
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length FROM items AS i
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.parent_id = ?2 AND i.kind = 'podcast_episode'
 ORDER BY i.published_at IS NULL, i.published_at DESC, i.created_at DESC, i.id DESC
@@ -379,6 +386,10 @@ func (q *Queries) ListVisiblePodcastEpisodes(ctx context.Context, arg ListVisibl
 			&i.PublishedAt,
 			&i.EnclosureType,
 			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
 		); err != nil {
 			return nil, err
 		}

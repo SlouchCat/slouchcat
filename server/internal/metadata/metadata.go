@@ -25,6 +25,14 @@
 //     ids or locked fields on the title (or its series) than the job resolved with, because a
 //     manual match or refresh came in meanwhile, writes nothing and fails the attempt, so the queue
 //     retries with the new ids. A manual match or refresh raises a queued match job to priority 7.
+//   - metadata.fill, payload {"itemId": "<ULID>"}, key fill:<itemId>, priority 2 (fill.go, ADR 0015):
+//     walks the provider list of a matched movie or series (items.providers) front to back,
+//     fetches each provider's record once (TMDB, TVDB; AniList through the mapping list of
+//     Fribb, anilist.go and anime_lists.go) and decides field by field: the first provider with
+//     a value wins, item_field_sources records who, a locked field is never touched, a rating is
+//     only raised. Seasons and episodes follow when two providers describe them. Queued in the
+//     transaction of every match, by a list change of a folder and by QueuePendingMetadata for
+//     titles whose provenance is missing or stale.
 //   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2 (episode stills 1):
 //     downloads the original of the stored image paths (items.tmdb_poster_path for movies, series
 //     and seasons; items.tmdb_backdrop_path for movies, series and episode stills) once, scales it
@@ -112,6 +120,9 @@ type Service struct {
 	tvdb   *tvdbProvider
 	now    func() time.Time
 
+	anilist    *aniListProvider // AniList, a filler (ADR 0015; anilist.go)
+	animeLists *animeLists      // the mapping list of Fribb (anime_lists.go)
+
 	trailersTMDB    TrailerProvider
 	trailersYouTube TrailerProvider
 	trailersAI      AITrailerProvider
@@ -134,6 +145,11 @@ type options struct {
 	imageBase   string
 	tvdbBase    string
 	tvdbArtBase string
+	anilistBase string
+	anilistImgs string
+	anilistOn   bool
+	animeLists  string
+	animeHTTP   *http.Client
 	youtubeBase string
 	quota       *ratelimit.Quota
 	trailerAI   string
@@ -159,6 +175,24 @@ func WithBaseURL(api, images string) Option {
 // WithTVDBBaseURL replaces the TVDB API and artwork base URLs (tests use an httptest.Server).
 func WithTVDBBaseURL(api, artworks string) Option {
 	return func(o *options) { o.tvdbBase, o.tvdbArtBase = api, artworks }
+}
+
+// WithAniList switches the AniList filler on or off server-wide (SLOUCHCAT_ANILIST; off keeps
+// the ticks on the folders, listMetadataProviders reports configured false).
+func WithAniList(enabled bool) Option {
+	return func(o *options) { o.anilistOn = enabled }
+}
+
+// WithAniListBaseURL replaces the AniList GraphQL endpoint and image host (tests use an
+// httptest.Server).
+func WithAniListBaseURL(api, images string) Option {
+	return func(o *options) { o.anilistBase, o.anilistImgs = api, images }
+}
+
+// WithAnimeListsURL replaces the URL of the mapping list and the client that fetches it (tests
+// use an httptest.Server).
+func WithAnimeListsURL(url string, hc *http.Client) Option {
+	return func(o *options) { o.animeLists, o.animeHTTP = url, hc }
 }
 
 // WithYouTubeBaseURL replaces the YouTube Data API base URL (tests use an httptest.Server).
@@ -206,7 +240,8 @@ func WithClock(now func() time.Time) Option {
 // <cacheDir>/images. runner scales the images (ffmpeg).
 func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	o := options{apiBase: DefaultAPIBase, imageBase: DefaultImageBase, tvdbBase: DefaultTVDBBase,
-		tvdbArtBase: DefaultTVDBArtworkBase, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now}
+		tvdbArtBase: DefaultTVDBArtworkBase, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now,
+		anilistBase: DefaultAniListBase, anilistImgs: DefaultAniListImageBase, anilistOn: true, animeLists: DefaultAnimeListsURL}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -215,9 +250,12 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		err = fmt.Errorf("metadata cache dir: %w", err)
 	}
 	client := NewClient(o.apiBase, o.imageBase, o.http)
+	client.log = log
 	if o.quota == nil {
 		o.quota = ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific)
 	}
+	tvdb := newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys)
+	tvdb.log = log
 	return &Service{
 		db:     db,
 		write:  systemq.New(db.Write),
@@ -230,8 +268,11 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		log:    log,
 		client: client,
 		tmdb:   &tmdbProvider{client: client, keys: keys},
-		tvdb:   newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys),
+		tvdb:   tvdb,
 		now:    o.now,
+
+		anilist:    newAniListProvider(o.anilistBase, o.anilistImgs, o.http, o.anilistOn, log),
+		animeLists: newAnimeLists(o.animeLists, o.animeHTTP, root, o.now, log),
 
 		trailersTMDB:    &tmdbTrailers{client: client, keys: keys},
 		trailersYouTube: newYouTubeTrailers(o.youtubeBase, o.http, o.quota, keys),
@@ -245,10 +286,11 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 	}
 }
 
-// RegisterJobs registers the handlers of metadata.match, image.fetch, trailer.find, podcast.fetch
-// and trakt.refresh on w.
+// RegisterJobs registers the handlers of metadata.match, metadata.fill, image.fetch,
+// trailer.find, podcast.fetch and trakt.refresh on w.
 func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobMatch, s.handleMatch)
+	w.Handle(JobFill, s.handleFill)
 	w.Handle(JobImageFetch, s.handleImageFetch)
 	w.Handle(JobTrailerFind, s.handleTrailerFind)
 	w.Handle(JobPodcastFetch, s.handlePodcastFetch)
@@ -275,6 +317,15 @@ func parsePayload(j *jobs.Job) (string, error) {
 		return "", fmt.Errorf("%s payload: invalid itemId %q", j.Type, p.ItemID)
 	}
 	return p.ItemID, nil
+}
+
+// logRequest records an outbound provider request at debug level: provider, host and path, never
+// the query (the YouTube key travels there) or a header. Operators count requests per host with
+// it (docs/perf/bibliotheken.md).
+func logRequest(log *slog.Logger, provider string, req *http.Request) {
+	if log != nil {
+		log.Debug("metadata request", "provider", provider, "host", req.URL.Host, "path", req.URL.Path)
+	}
 }
 
 // isULID accepts the 26 Crockford base32 characters of an item ID, which also makes the ID safe

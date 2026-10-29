@@ -146,7 +146,7 @@ func TestValidateNewRootGrandfathersExistingRoots(t *testing.T) {
 		t.Errorf("a folder below an existing root = %v, want ErrNotBrowsable", err)
 	}
 	// And Create refuses a library on a path below a configured root rule it does not satisfy.
-	if _, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Neu", Kind: "movies", Path: sub}); !errors.Is(err, ErrNotBrowsable) {
-		t.Errorf("Create below no browsable root = %v, want ErrNotBrowsable", err)
+	if _, err := e.svc.Create(e.ctx, testRequest("Neu", sub)); !hasFieldError(err, "roots[0].path", "library_path_invalid") {
+		t.Errorf("Create below no browsable root = %v, want roots[0].path library_path_invalid", err)
 	}
 }

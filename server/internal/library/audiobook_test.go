@@ -1,7 +1,6 @@
 package library
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,7 +33,7 @@ func audiobookMedia(t *testing.T) string {
 func (e *env) createAudiobooks(dir string) model.Library {
 	e.t.Helper()
 	six := 6
-	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Hörbücher", Kind: model.LibraryAudiobooks, Path: dir, DefaultRating: &six})
+	lib, err := e.svc.Create(e.ctx, model.LibraryRequest{Name: "Hörbücher", Kind: model.LibraryAudiobooks, Roots: rootReq(dir, model.RootAudiobook), DefaultRating: &six})
 	if err != nil {
 		e.t.Fatal(err)
 	}
@@ -233,18 +232,10 @@ func TestScanAudiobookFixtures(t *testing.T) {
 		t.Errorf("%d image.fetch jobs for the covers, want 2", n)
 	}
 	// Audio files have no keyframe index to compute.
-	for _, id := range e.queuedJobs(JobProbeKeyframes) {
-		payload := e.str(`SELECT payload FROM jobs WHERE id = ?`, id)
-		var p mediaFilePayload
-		if err := json.Unmarshal([]byte(payload), &p); err != nil {
-			t.Fatal(err)
-		}
-		if err := e.svc.handleKeyframes(e.ctx, mediaJob(t, JobProbeKeyframes, p.MediaFileID)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if n := e.count(`SELECT count(*) FROM media_files WHERE keyframes_at IS NULL`); n != 0 {
-		t.Errorf("%d files without keyframe run", n)
+	// Audio has no video keyframes: the probe of an audiobook part queues no probe.keyframes job
+	// (ADR 0015, concept 4.5), so a large audio folder costs one job per file, not two.
+	if n := len(e.queuedJobs(JobProbeKeyframes)); n != 0 {
+		t.Errorf("%d keyframe jobs for audiobook parts, want 0", n)
 	}
 	// A second scan changes nothing.
 	before := e.count(`SELECT count(*) FROM items`)

@@ -286,6 +286,17 @@ type Item struct {
 	PublishedAt       sql.NullInt64
 	EnclosureType     sql.NullString
 	EnclosureLength   sql.NullInt64
+	Providers         string
+	AnilistID         sql.NullInt64
+	FeedOrigin        sql.NullString
+	FilledProviders   sql.NullString
+}
+
+type ItemFieldSource struct {
+	ItemID   string
+	Field    string
+	Lang     string
+	Provider string
 }
 
 type ItemGenre struct {
@@ -348,6 +359,8 @@ type LibraryRoot struct {
 	FsType    string
 	Watch     string
 	CreatedAt int64
+	Content   string
+	Providers string
 }
 
 type MediaFile struct {

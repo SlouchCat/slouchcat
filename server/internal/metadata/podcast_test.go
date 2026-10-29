@@ -122,7 +122,7 @@ func newPodcastEnv(t *testing.T, episodes int) *podcastEnv {
 	// (package netguard) allows for a feed whose own host is local.
 	svc := New(db, q, staticKey(""), t.TempDir(), transcode.Runner{}, log,
 		WithFeedClock(clock.now), WithFeedUserAgent("Slouchcat/test"))
-	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (1, 'Filme', 'movies', NULL, 0, 0)`)
+	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (1, 'Filme', 'video', NULL, 0, 0)`)
 	mustExec(t, db.Write, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (3, 'Podcasts', 'podcasts', 6, 0, 0)`)
 	return &podcastEnv{db: db, svc: svc, queue: q, feed: f, clock: clock}
 }
@@ -136,7 +136,7 @@ type episodeRow struct {
 
 func (e *podcastEnv) episodes(t *testing.T, podcastID string) map[string]episodeRow {
 	t.Helper()
-	rows, err := e.db.Read.Query(`SELECT id, title, guid, COALESCE(rating_source, ''), COALESCE(enclosure_url, ''), own_rating,
+	rows, err := e.db.Read.Query(`SELECT id, title, COALESCE(guid, ''), COALESCE(rating_source, ''), COALESCE(enclosure_url, ''), own_rating,
 	       published_at, duration_ms, effective_rating, explicit, available FROM items WHERE parent_id = ? AND kind = 'podcast_episode'`, podcastID)
 	if err != nil {
 		t.Fatal(err)

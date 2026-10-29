@@ -33,11 +33,13 @@
 }
 
 /* P-15: every row shows a ring of its own. The e2e helper reads the computed outline of the
-   focused element, so a background alone would not count as visible focus. */
+   focused element, so a background alone would not count as visible focus. The ring lies inside
+   the row: the list scrolls, and a ring outside the row is cut off by its overflow, leaving a
+   stray line in the gap between two rows. */
 .item[data-focused],
 .item[data-focus-visible] {
   outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
-  outline-offset: var(--sc-focus-ring-offset);
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
 }
 
 .item[data-hovered] {

@@ -53,8 +53,8 @@ const (
 
 func seedTree(t *testing.T, db *sql.DB) {
 	t.Helper()
-	mustExec(t, db, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'TV', 'series', 0, 0)`)
-	mustExec(t, db, `INSERT INTO library_roots (id, library_id, path, created_at) VALUES (1, 1, '/media/tv', 0)`)
+	mustExec(t, db, `INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'TV', 'video', 0, 0)`)
+	mustExec(t, db, `INSERT INTO library_roots (id, library_id, path, content, providers, created_at) VALUES (1, 1, '/media/tv', 'series', '["tmdb","tvdb"]', 0)`)
 	mustExec(t, db, `INSERT INTO accounts (id, email, password_hash, created_at, updated_at) VALUES (1, 'a@b.c', 'x', 0, 0)`)
 	mustExec(t, db, `INSERT INTO profiles (id, account_id, name, max_rating, created_at, updated_at) VALUES (18, 1, 'P18', 18, 0, 0)`)
 	mustExec(t, db, `INSERT INTO profiles (id, account_id, name, max_rating, created_at, updated_at) VALUES (6, 1, 'P6', 6, 0, 0)`)

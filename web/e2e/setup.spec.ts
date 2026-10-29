@@ -74,7 +74,13 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({
       status: 422,
       contentType: 'application/problem+json',
-      json: { type: 'about:blank', title: 'invalid', status: 422, code: 'library_path_invalid' },
+      json: {
+        type: 'about:blank',
+        title: 'invalid',
+        status: 422,
+        code: 'validation_failed',
+        errors: [{ field: 'library.roots[0].path', code: 'library_path_invalid' }],
+      },
     });
   });
   await page.goto('/setup');
@@ -91,12 +97,16 @@ test('Tab walks through the four steps in order with a visible focus ring', asyn
     page.getByLabel('Passwort', { exact: true }),
     page.getByLabel('Passwort wiederholen'),
     page.getByLabel('Name', { exact: true }),
-    page.getByRole('radio', { name: 'Filme' }),
+    page.getByRole('radio', { name: 'Video' }),
+    // The folder list (F-13): the one card of a new video library with its path, the configured
+    // roots between the field and the check button (idea 02, E5), «Inhalt» (films are chosen),
+    // the fixed default list as text, then the button for another card.
     page.getByLabel('Ordner', { exact: true }),
-    // The configured roots stand between the field and the check button (idea 02, E5).
     page.getByRole('button', { name: '/media', exact: true }),
     page.getByRole('button', { name: '/mnt/nas', exact: true }),
     page.getByRole('button', { name: 'Ordner prüfen' }),
+    page.getByRole('radio', { name: 'Filme' }),
+    page.getByRole('button', { name: 'Weiteren Ordner hinzufügen' }),
     page.getByRole('link', { name: /Token auf themoviedb.org erstellen/ }),
     page.getByLabel('API-Lesezugriffs-Token'),
     page.getByRole('button', { name: 'Schlüssel prüfen' }),
@@ -114,20 +124,22 @@ test('Tab walks through the four steps in order with a visible focus ring', asyn
 
 test('arrow keys switch the library kind', async ({ page }) => {
   await resetFocus(page);
-  await tabTo(page, page.getByRole('radio', { name: 'Filme' }));
-  await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, page.getByRole('radio', { name: 'Serien' }));
-  await expect(page.getByRole('radio', { name: 'Serien' })).toBeChecked();
+  await tabTo(page, page.getByRole('radio', { name: 'Video' }));
+  await expect(page.getByRole('radio', { name: 'Video' })).toBeChecked();
   // M6: audiobooks bring the default age rating; podcasts drop the folder.
   const rating = page.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
   await expect(rating).toHaveCount(0);
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Hörbücher' }));
+  await expect(page.getByRole('radio', { name: 'Hörbücher' })).toBeChecked();
   await expect(rating).toBeVisible();
   await expect(page.getByLabel('Ordner', { exact: true })).toBeVisible();
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Podcasts' }));
+  // Podcasts start without a card (F-13); the add button stays, the rating follows it.
   await expect(page.getByLabel('Ordner', { exact: true })).toHaveCount(0);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: 'Ordner hinzufügen', exact: true }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, rating.getByRole('radio', { name: 'FSK 0' }));
   await page.keyboard.press('ArrowRight');

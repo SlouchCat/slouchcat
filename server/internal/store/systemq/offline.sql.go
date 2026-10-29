@@ -171,7 +171,7 @@ func (q *Queries) GetDownload(ctx context.Context, id string) (Download, error) 
 }
 
 const getDownloadItem = `-- name: GetDownloadItem :one
-SELECT i.kind, i.duration_ms, i.enclosure_type, i.enclosure_url, p.feed_url
+SELECT i.kind, i.duration_ms, i.enclosure_type, i.enclosure_url, p.feed_url, p.feed_origin
 FROM items AS i LEFT JOIN items AS p ON p.id = i.parent_id
 WHERE i.id = ?1
 `
@@ -182,6 +182,7 @@ type GetDownloadItemRow struct {
 	EnclosureType sql.NullString
 	EnclosureUrl  sql.NullString
 	FeedUrl       sql.NullString
+	FeedOrigin    sql.NullString
 }
 
 // The kind, the feed duration and type, the current enclosure and the feed URL of the podcast of the
@@ -195,6 +196,7 @@ func (q *Queries) GetDownloadItem(ctx context.Context, id string) (GetDownloadIt
 		&i.EnclosureType,
 		&i.EnclosureUrl,
 		&i.FeedUrl,
+		&i.FeedOrigin,
 	)
 	return i, err
 }

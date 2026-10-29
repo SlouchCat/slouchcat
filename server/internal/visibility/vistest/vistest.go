@@ -58,6 +58,7 @@ type Movie struct {
 
 	LibraryID    int64 // the library the title is in (set when it is seeded)
 	OtherLibrary bool  // in library X, which PX may not see
+	FillerRated  bool  // rated 18 by AniList, a filler behind TMDB in its provider list (AddEdgeCases)
 	Missing      bool  // its only file has missing_since set
 	Unavailable  bool  // a container without available content children (AddLoneExtraSeries)
 	Deleted      bool  // soft-deleted
@@ -351,11 +352,12 @@ func (f *Fixture) seedProfiles(t testing.TB, ctx context.Context) {
 func (f *Fixture) seedMovies(t testing.TB, ctx context.Context) {
 	t.Helper()
 	q := appq.New(f.DB.Write)
-	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme", Kind: "movies", Now: 1})
+	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme", Kind: model.LibraryVideo, Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.MediaDir, FsType: "ext4", Watch: "inotify", Now: 1})
+	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.MediaDir, FsType: "ext4", Watch: "inotify",
+		Content: model.RootMovie, Providers: model.ProvidersJSON(model.DefaultProviders(model.RootMovie)), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,15 +395,24 @@ func (f *Fixture) AddEdgeCases(t testing.TB) {
 	exec(t, f.DB, `INSERT INTO profile_libraries (profile_id, library_id) VALUES (?, ?)`, f.PX.ID, f.libraryID)
 
 	f.OtherMediaDir = t.TempDir()
-	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme X", Kind: "movies", Now: 1})
+	lib, err := q.InsertLibrary(ctx, appq.InsertLibraryParams{Name: "Filme X", Kind: model.LibraryVideo, Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.OtherMediaDir, FsType: "ext4", Watch: "inotify", Now: 1})
+	root, err := q.InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{LibraryID: lib.ID, Path: f.OtherMediaDir, FsType: "ext4", Watch: "inotify",
+		Content: model.RootMovie, Providers: model.ProvidersJSON(model.DefaultProviders(model.RootMovie)), Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.otherLibraryID = lib.ID
+	// A film whose 18 comes from AniList, the filler behind TMDB in its list (ADR 0015, K-3): the
+	// order of the providers never lowers a rating, so the film is hidden below 18 like any
+	// other, and its provenance names the filler. The negative test of the child profiles.
+	filler := f.addMovie(t, Movie{Rating: ptr(18), Label: "A8", FillerRated: true}, f.libraryID, f.rootID, f.MediaDir, 9)
+	exec(t, f.DB, `UPDATE items SET rating_source = 'anilist', providers = '["tmdb","anilist"]', anilist_id = 1001 WHERE id = ?`, filler.ID)
+	exec(t, f.DB, `INSERT INTO item_field_sources (item_id, field, lang, provider) VALUES (?, 'own_rating', '', 'anilist'), (?, 'title', 'de', 'tmdb'), (?, 'genres', '', 'union')`,
+		filler.ID, filler.ID, filler.ID)
+	f.Movies = append(f.Movies, filler)
 	other := f.addMovie(t, Movie{Rating: ptr(0), Label: "X0", OtherLibrary: true}, lib.ID, root.ID, f.OtherMediaDir, 6)
 	missing := f.addMovie(t, Movie{Rating: ptr(0), Label: "M0", Missing: true}, f.libraryID, f.rootID, f.MediaDir, 7)
 	deleted := f.addMovie(t, Movie{Rating: ptr(0), Label: "D0", Deleted: true}, f.libraryID, f.rootID, f.MediaDir, 8)

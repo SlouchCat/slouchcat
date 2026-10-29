@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slouchcat Bibliotheken</title>
+</head>
+<body>
+<style>
+/* Layout: Slouchcat admin — sticky header with tab nav, one centred column of cards, native dialogs.
+   Single dark theme on purpose: the tokens are Slouchcat's own (packages/design-tokens/tokens). */
+:root {
+  --bg: #0b0c10; --elevated: #13151b; --overlay: #0b0c10d9;
+  --s1: #16181f; --s2: #1d2029; --s3: #262a35;
+  --fg: #f3f3f5; --fg2: #b6b9c4; --muted: #9095a3;
+  --border: #ffffff14; --border-strong: #ffffff38; --ring: #f3f3f5;
+  --danger: #f2777a; --success: #5fcf8f; --warning: #e8b65a;
+  --accent: #45c2b1; --on-accent: #04191a;
+  --sans: system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r-sm: 6px; --r-md: 12px; --r-full: 999px;
+  --ctl: 40px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--sans); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--elevated); }
+button, input { font: inherit; }
+button { cursor: pointer; }
+code, .mono { font-family: var(--mono); font-size: 0.875em; }
+:focus-visible, [data-focus] { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* header */
+.hdr { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--elevated); border-bottom: 1px solid var(--border); }
+.hdr .in { max-width: 960px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.brand { font-weight: 700; letter-spacing: -0.02em; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.brand .cat { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); display: inline-grid; place-items: center; color: var(--on-accent); font-size: 12px; font-weight: 800; }
+.tabs { display: flex; gap: 2px; margin-left: auto; }
+.tab { background: none; border: 0; color: var(--fg2); padding: 10px 12px; border-bottom: 2px solid transparent; font-weight: 500; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--fg); }
+.proto { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; flex-basis: 100%; padding-bottom: 6px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.proto button { background: none; border: 1px solid var(--border); color: var(--fg2); border-radius: var(--r-full); padding: 2px 10px; font-size: 0.75rem; letter-spacing: 0; text-transform: none; }
+
+/* page */
+main { max-width: 960px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; }
+h1 { font-size: 1.75rem; margin: 0 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: 1.1rem; margin: 0; }
+.intro { color: var(--fg2); margin: 0 0 20px; max-width: 65ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+.card { background: var(--s1); border-radius: var(--r-md); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card .top h2 { margin-right: auto; }
+.kv { color: var(--fg2); font-size: 0.875rem; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.kv code { color: var(--fg); overflow-wrap: anywhere; }
+.chain { color: var(--fg); }
+.chain .sep { color: var(--muted); padding: 0 3px; }
+.state { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--fg2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex: none; }
+.dot.never { background: var(--muted); } .dot.running { background: var(--accent); animation: pulse 1.2s infinite; } .dot.queued { background: var(--warning); }
+@keyframes pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .dot.running { animation: none; } }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+
+/* chips, buttons */
+.chip { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 8px; border-radius: var(--r-sm); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; white-space: nowrap; background: var(--s3); color: var(--fg); }
+.chip.info { background: var(--s2); color: var(--fg2); }
+.chip.outline { background: none; border: 1px solid var(--fg2); }
+.chip.warning { background: var(--warning); color: var(--bg); }
+.chip.accent { background: var(--accent); color: var(--on-accent); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--ctl); padding: 0 18px; border: 0; border-radius: var(--r-full); font-weight: 600; line-height: 1; white-space: nowrap; transition: transform 120ms, background-color 180ms; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { background: var(--fg); color: var(--bg); }
+.btn.primary:focus-visible { background: var(--accent); color: var(--on-accent); }
+.btn.secondary { background: var(--s3); color: var(--fg); }
+.btn.ghost { background: none; color: var(--fg2); padding: 0 12px; }
+.btn.ghost:hover { color: var(--fg); background: var(--s2); }
+.btn.danger { background: var(--danger); color: var(--bg); }
+.btn.sm { min-height: 32px; padding: 0 12px; font-size: 0.875rem; }
+.iconbtn { width: 32px; height: 32px; min-height: 0; padding: 0; border-radius: var(--r-sm); background: var(--s3); color: var(--fg); border: 0; display: inline-grid; place-items: center; font-size: 14px; }
+.iconbtn:disabled { opacity: 0.3; cursor: default; }
+
+/* forms */
+.form { display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field > label, .legend { font-weight: 600; font-size: 0.9rem; }
+.hint { color: var(--muted); font-size: 0.8rem; }
+.input { min-height: var(--ctl); background: var(--s3); border: 1px solid transparent; border-radius: var(--r-sm); color: var(--fg); padding: 0 12px; width: 100%; }
+.input:focus { border-color: var(--fg2); outline: none; }
+.input.mono { font-family: var(--mono); }
+.row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.row .field { flex: 1 1 220px; }
+.radios { display: flex; gap: 8px; flex-wrap: wrap; }
+.radio { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: var(--r-full); background: var(--s3); color: var(--fg); border: 1px solid transparent; }
+.radio input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.radio:has(input:checked) { background: var(--fg); color: var(--bg); }
+.radio:has(input:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+.radio:has(input:disabled) { opacity: 0.4; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.notice { border-radius: var(--r-sm); padding: 10px 12px; font-size: 0.9rem; background: var(--s2); color: var(--fg2); border-left: 3px solid var(--fg2); }
+.notice.info { border-left-color: var(--accent); }
+.notice.warning { border-left-color: var(--warning); color: var(--fg); }
+.notice.danger { border-left-color: var(--danger); color: var(--fg); }
+.notice.success { border-left-color: var(--success); }
+
+/* provider list */
+.plist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.prow { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; background: var(--s2); border-radius: var(--r-sm); padding: 8px 10px; }
+.prow.first { background: var(--s3); box-shadow: inset 3px 0 0 var(--accent); }
+.prow.off { opacity: 0.7; }
+.prow .cb { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.prow .name { font-weight: 600; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.prow .phint { color: var(--muted); font-size: 0.8rem; }
+.prow .sort { display: flex; gap: 4px; }
+.pfixed { background: var(--s2); border-radius: var(--r-sm); padding: 8px 10px; color: var(--fg2); font-size: 0.9rem; }
+
+/* folder list editor: several folders in one go */
+.flist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; counter-reset: folder; }
+.fcard { background: var(--bg); border: 1px solid var(--border-strong); border-left: 4px solid var(--accent); border-radius: var(--r-md); padding: 0 14px 16px; display: flex; flex-direction: column; gap: 14px; counter-increment: folder; }
+.fcard .fhead { display: flex; align-items: center; gap: 12px; margin: 0 -14px; padding: 10px 14px; background: var(--s2); border-bottom: 1px solid var(--border-strong); border-radius: 0 var(--r-md) 0 0; }
+.fcard .fhead .num { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1rem; }
+.fcard .fhead .num::before { content: counter(folder); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 0.85rem; font-weight: 800; }
+.fcard .fhead .num::after { content: "Ordner " counter(folder); }
+.fcard .fhead .fsum { color: var(--fg2); font-size: 0.85rem; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-width: 0; padding-left: 8px; border-left: 1px solid var(--border-strong); }
+.fcard .fhead .fremove { margin-left: auto; }
+.fcard .prow { background: var(--s1); }
+.fcard .prow.first { background: var(--s2); }
+.fadd { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fadd .hint { flex-basis: 100%; }
+.empty { border: 1px dashed var(--border); border-radius: var(--r-md); padding: 14px; color: var(--fg2); font-size: 0.9rem; }
+
+/* dialogs */
+dialog { background: var(--elevated); color: var(--fg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 0; width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+dialog::backdrop { background: var(--overlay); }
+.dlg { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.dlg header h2 { font-size: 1.25rem; margin: 0 0 4px; }
+.dlg header p { margin: 0; color: var(--fg2); font-size: 0.9rem; }
+.dlg footer { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.folders { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.frow { display: grid; grid-template-columns: 1fr auto; gap: 10px; background: var(--s1); border-radius: var(--r-sm); padding: 10px 12px; }
+.frow .main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.frow .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 0.8rem; color: var(--fg2); }
+.frow .btns { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.sep { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+
+/* podcasts / item */
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lrow { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; background: var(--s1); border-radius: var(--r-sm); padding: 10px 12px; }
+.cover { width: 44px; height: 44px; border-radius: var(--r-sm); background: linear-gradient(135deg, var(--s3), var(--s2)); display: grid; place-items: center; color: var(--muted); font-size: 18px; }
+.lrow .t { font-weight: 600; }
+.lrow .sub { color: var(--fg2); font-size: 0.85rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.item { display: grid; grid-template-columns: 120px 1fr; gap: 18px; }
+.poster { aspect-ratio: 2/3; max-width: 100%; border-radius: var(--r-sm); background: linear-gradient(160deg, #2b3a5c, #141a2a); display: grid; place-items: end start; padding: 8px; color: var(--fg2); font-size: 0.75rem; }
+.fields { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fld { display: grid; grid-template-columns: 150px 1fr auto; gap: 10px; align-items: baseline; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.fld .k { color: var(--fg2); } .fld .v { min-width: 0; overflow-wrap: anywhere; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: var(--r-full); font-weight: 600; box-shadow: 0 8px 30px #0008; z-index: 20; max-width: calc(100vw - 32px); }
+.toast[hidden] { display: none; }
+@media (max-width: 520px) { .item { grid-template-columns: 1fr; } .poster { width: 120px; } .fld { grid-template-columns: 1fr; gap: 2px; } .frow { grid-template-columns: 1fr; } .frow .btns { flex-direction: row; } }
+</style>
+
+<div class="hdr"><div class="in">
+  <div class="brand"><span class="cat">S</span> Slouchcat · Verwaltung</div>
+  <nav class="tabs" role="tablist" aria-label="Verwaltung">
+    <button class="tab" role="tab" aria-selected="true" data-view="libraries">Bibliotheken</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="podcasts">Podcasts</button>
+    <button class="tab" role="tab" aria-selected="false" data-view="item">Titelpflege</button>
+  </nav>
+  <div class="proto">Klickbarer Prototyp zum Konzept 07 (Fassung 3) · kein Server, Beispieldaten
+    <button id="reset" type="button">Zurücksetzen</button></div>
+</div></div>
+
+<main id="main"></main>
+
+<dialog id="dlgFolders" aria-labelledby="dlgFoldersTitle"></dialog>
+<dialog id="dlgChange" aria-labelledby="dlgChangeTitle"></dialog>
+<dialog id="dlgConfirm" aria-labelledby="dlgConfirmTitle"></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+// ---------- rules (the client mirrors them only to hide the impossible; the server's 422 is the gate)
+const PROVIDERS = {
+  tmdb:    { name: 'TMDB',          hint: 'Filme und Serien, Texte auf Deutsch' },
+  tvdb:    { name: 'TVDB',          hint: 'Serien, eigene Staffelzählung' },
+  anilist: { name: 'AniList',       hint: 'Anime: Bewertung, Genres, Studio · liefert kein Deutsch' },
+  local:   { name: 'Lokale Dateien', hint: 'Tags, Dateinamen, metadata.json' },
+};
+const RULES = {
+  movie:     { allowed: ['tmdb', 'anilist'],         identifiers: ['tmdb'],         def: ['tmdb'] },
+  series:    { allowed: ['tmdb', 'tvdb', 'anilist'], identifiers: ['tmdb', 'tvdb'], def: ['tmdb', 'tvdb'] },
+  audiobook: { allowed: ['local'], identifiers: ['local'], def: ['local'] },
+  podcast:   { allowed: ['local'], identifiers: ['local'], def: ['local'] },
+};
+const FAMILY = {
+  video:      { name: 'Video',     contents: ['movie', 'series'] },
+  audiobooks: { name: 'Hörbücher', contents: ['audiobook'] },
+  podcasts:   { name: 'Podcasts',  contents: ['podcast'] },
+};
+const CONTENT = { movie: 'Filme', series: 'Serien', audiobook: 'Hörbücher', podcast: 'Podcasts' };
+const STATE = { done: 'Aktuell', never: 'Noch nie gescannt', queued: 'Wartet auf Scan', running: 'Scan läuft' };
+
+// ---------- seed: Marco's table, paths as CT 190 sees the NAS
+let nextId = 100;
+const seed = () => ({
+  libs: [
+    lib('Filme', 'video', [root('/media/nas/Filme', 'movie', ['tmdb'], 1412, 1420)]),
+    lib('Serien', 'video', [root('/media/nas/Serien', 'series', ['tmdb', 'tvdb'], 188, 9120)]),
+    lib('Dokus', 'video', [root('/media/nas/Doku/Filme', 'movie', ['tmdb'], 231, 231), root('/media/nas/Doku/Serien', 'series', ['tmdb', 'tvdb'], 41, 622)]),
+    lib('Kids', 'video', [root('/media/nas/KinderFilme', 'movie', ['tmdb'], 96, 96), root('/media/nas/KinderSerien', 'series', ['tmdb', 'tvdb'], 37, 1480), root('/media/nas/KinderFilme2', 'movie', ['tmdb'], 0, 0, 'never')]),
+    lib('Anime', 'video', [root('/media/nas/MangaFilme', 'movie', ['tmdb', 'anilist'], 58, 58), root('/media/nas/MangaSerien', 'series', ['tvdb', 'tmdb', 'anilist'], 64, 2210)]),
+    lib('Hörbücher', 'audiobooks', [root('/media/nas/Audiobookshelf/Hörbücher', 'audiobook', ['local'], 212, 3890)], 'FSK 12'),
+    lib('Podcast', 'podcasts', [root('/media/nas/Audiobookshelf/Podcast', 'podcast', ['local'], 19, 26031)], 'FSK 0', 3),
+  ],
+});
+function lib(name, family, roots, rating, feeds) { return { id: nextId++, name, family, roots, rating, feeds: feeds || 0, state: roots.every(r => r.state === 'never') ? 'never' : 'done' }; }
+function root(path, content, providers, items, files, state) { return { id: nextId++, path, content, providers, fs: 'cifs', items, files, state: state || 'done' }; }
+let db = seed();
+
+// ---------- helpers
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const chain = ps => ps.map(p => `<span>${esc(PROVIDERS[p].name)}</span>`).join('<span class="sep">›</span>');
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+function summary(l) {
+  const n = {}; l.roots.forEach(r => { n[r.content] = (n[r.content] || 0) + 1; });
+  return Object.entries(n).map(([c, k]) => `${k} ${CONTENT[c]}`).join(', ');
+}
+
+// ---------- the «Metadatenquellen» component
+// state: { content, order: [{id, on}] } — the first checked entry identifies, the rest fill in.
+function providerState(content, selected) {
+  const r = RULES[content];
+  const order = [...(selected || r.def)].filter(p => r.allowed.includes(p));
+  r.allowed.forEach(p => { if (!order.includes(p)) order.push(p); });
+  const on = new Set(selected || r.def);
+  return { content, order: order.map(id => ({ id, on: on.has(id) })) };
+}
+function selectedOf(st) { return st.order.filter(e => e.on).map(e => e.id); }
+function providerError(st) {
+  const sel = selectedOf(st);
+  if (sel.length === 0) return 'Wähle mindestens eine Quelle.';
+  if (!RULES[st.content].identifiers.includes(sel[0])) return `${PROVIDERS[sel[0]].name} kann keinen Titel erkennen. Setze ${RULES[st.content].identifiers.map(p => PROVIDERS[p].name).join(' oder ')} an die erste Stelle.`;
+  return null;
+}
+function renderProviders(host, st, onChange, idp) {
+  const fixed = RULES[st.content].allowed.length === 1;
+  const err = providerError(st);
+  let first = st.order.find(e => e.on)?.id;
+  const rows = st.order.map((e, i) => {
+    const p = PROVIDERS[e.id]; const isFirst = e.id === first; const canId = RULES[st.content].identifiers.includes(e.id);
+    const tag = e.on ? (isFirst ? (canId ? '<span class="chip accent">erkennt Titel</span>' : '<span class="chip warning">kann nicht erkennen</span>') : '<span class="chip info">füllt auf</span>') : '';
+    return `<li class="prow ${isFirst && e.on ? 'first' : ''} ${e.on ? '' : 'off'}">
+      <input class="cb" type="checkbox" id="${idp}-cb-${e.id}" data-i="${i}" ${e.on ? 'checked' : ''} aria-label="${esc(p.name)}">
+      <label for="${idp}-cb-${e.id}"><span class="name">${esc(p.name)} ${tag}</span><span class="phint">${esc(p.hint)}${!canId ? ' · nur Auffüller' : ''}</span></label>
+      <span class="sort">
+        <button type="button" class="iconbtn" data-move="-1" data-i="${i}" ${i === 0 ? 'disabled' : ''} aria-label="${esc(p.name)} nach oben">▲</button>
+        <button type="button" class="iconbtn" data-move="1" data-i="${i}" ${i === st.order.length - 1 ? 'disabled' : ''} aria-label="${esc(p.name)} nach unten">▼</button>
+      </span></li>`;
+  }).join('');
+  host.innerHTML = fixed
+    ? `<div class="pfixed"><strong>${esc(PROVIDERS[st.order[0].id].name)}</strong> · ${esc(PROVIDERS[st.order[0].id].hint)}<br><span class="hint">Bei ${esc(CONTENT[st.content])} gibt es heute nur diese Quelle. Weitere folgen mit dem Scraper-Konzept (Idee 01).</span></div>`
+    : `<ul class="plist">${rows}</ul>
+       <p class="hint">Der erste angekreuzte Eintrag erkennt den Titel und bestimmt Ids und Staffelzählung. Jeder weitere füllt nur auf, was davor leer blieb. Reihenfolge mit ▲ ▼ oder mit den Pfeiltasten auf einem fokussierten Knopf.</p>
+       ${err ? `<div class="notice danger" role="alert">${esc(err)}</div>` : ''}`;
+  host.querySelectorAll('.cb').forEach(cb => cb.addEventListener('change', () => { st.order[+cb.dataset.i].on = cb.checked; onChange(); renderProviders(host, st, onChange, idp); }));
+  const move = (i, d, focusDir) => {
+    const j = i + d; if (j < 0 || j >= st.order.length) return;
+    [st.order[i], st.order[j]] = [st.order[j], st.order[i]];
+    onChange(); renderProviders(host, st, onChange, idp);
+    const b = host.querySelector(`[data-move="${focusDir}"][data-i="${j}"]`) || host.querySelector(`[data-move="${-focusDir}"][data-i="${j}"]`);
+    b?.focus();
+  };
+  host.querySelectorAll('[data-move]').forEach(b => {
+    b.addEventListener('click', () => move(+b.dataset.i, +b.dataset.move, +b.dataset.move));
+    b.addEventListener('keydown', ev => {
+      if (ev.key === 'ArrowUp') { ev.preventDefault(); move(+b.dataset.i, -1, +b.dataset.move); }
+      if (ev.key === 'ArrowDown') { ev.preventDefault(); move(+b.dataset.i, 1, +b.dataset.move); }
+    });
+  });
+}
+
+// ---------- folder fields (path, content, providers) shared by three forms
+function folderFields(host, { family, path, content, providers, idp, pathLocked }) {
+  const contents = FAMILY[family].contents;
+  const st = { path: path || '', content: content || contents[0] };
+  st.prov = providerState(st.content, providers);
+  const radios = contents.map(c => `<label class="radio"><input type="radio" name="${idp}-content" value="${c}" ${c === st.content ? 'checked' : ''}>${CONTENT[c]}</label>`).join('');
+  host.innerHTML = `
+    <div class="field"><label for="${idp}-path">Ordner</label>
+      <div class="row"><input class="input mono" id="${idp}-path" value="${esc(st.path)}" ${pathLocked ? 'readonly' : ''} autocomplete="off" spellcheck="false" placeholder="/media/nas/…">
+      ${pathLocked ? '' : `<button type="button" class="btn secondary" data-browse>Durchsuchen …</button>`}</div>
+      <span class="hint">So, wie der Server den Pfad sieht. Auf dem Testserver liegt das NAS unter /media/nas.</span></div>
+    ${contents.length > 1 ? `<fieldset class="field"><legend class="legend">Inhalt</legend><div class="radios">${radios}</div><span class="hint">Welcher Parser den Ordner liest: Filme in Einzeldateien oder Serien in Staffeln.</span></fieldset>` : ''}
+    <fieldset class="field"><legend class="legend">Metadatenquellen</legend><div data-providers></div></fieldset>`;
+  const provHost = $('[data-providers]', host);
+  renderProviders(provHost, st.prov, () => host.dispatchEvent(new Event('fieldchange')), idp);
+  $(`#${idp}-path`, host).addEventListener('input', ev => { st.path = ev.target.value; host.dispatchEvent(new Event('fieldchange')); });
+  host.querySelectorAll(`input[name="${idp}-content"]`).forEach(r => r.addEventListener('change', () => {
+    st.content = r.value; st.prov = providerState(st.content);
+    renderProviders(provHost, st.prov, () => host.dispatchEvent(new Event('fieldchange')), idp);
+    host.dispatchEvent(new Event('fieldchange'));
+  }));
+  $('[data-browse]', host)?.addEventListener('click', () => {
+    const pick = ['/media/nas/Filme', '/media/nas/Serien', '/media/nas/Doku/Filme', '/media/nas/Doku/Serien', '/media/nas/KinderFilme', '/media/nas/KinderSerien', '/media/nas/MangaFilme', '/media/nas/MangaSerien', '/media/nas/Audiobookshelf/Hörbücher', '/media/nas/Audiobookshelf/Podcast', '/media/nas/Neu'];
+    const used = new Set([...db.libs.flatMap(l => l.roots.map(r => r.path)), ...[...document.querySelectorAll('input.mono')].map(i => i.value.trim())]);
+    const free = pick.filter(p => !used.has(p));
+    const v = free[0] || '/media/nas/Neu'; $(`#${idp}-path`, host).value = v; st.path = v; host.dispatchEvent(new Event('fieldchange'));
+    toast('Durchsuchen: im Prototyp wird ein freier Pfad eingesetzt');
+  });
+  return { get() { return { path: st.path.trim(), content: st.content, providers: selectedOf(st.prov) }; }, error() { return providerError(st.prov) || (st.path.trim() ? null : 'Pfad fehlt'); } };
+}
+
+// ---------- folder list editor: n folders in one go, each its own card, one submit for all
+// min: how many folders the list must keep (1 for video and audiobooks, 0 for podcasts and the dialog).
+function folderListEditor(host, { family, min, idp, start }) {
+  const entries = []; let seq = 0;
+  host.innerHTML = `<ul class="flist" data-list></ul>
+    <div class="fadd"><button type="button" class="btn secondary" data-addfolder>+ Weiteren Ordner hinzufügen</button>
+    <span class="hint">Jeder Ordner bringt seinen Inhalt und seine Metadatenquellen mit. Alle Ordner werden mit einem Klick angelegt.</span></div>`;
+  const list = $('[data-list]', host);
+  const changed = () => host.dispatchEvent(new Event('fieldchange'));
+  const presetFor = (n) => {
+    // second folder in a video library: offer the other content, so Filme + Serien is two clicks
+    if (family !== 'video') return undefined;
+    const used = entries.map(e => e.api.get().content);
+    return used.includes('movie') && !used.includes('series') ? 'series' : used.includes('series') && !used.includes('movie') ? 'movie' : undefined;
+  };
+  const renderEmpty = () => {
+    $('[data-empty]', host)?.remove();
+    if (entries.length === 0) list.insertAdjacentHTML('afterend', `<div class="empty" data-empty>${family === 'podcasts' ? 'Noch kein Ordner. Eine Podcast-Bibliothek darf auch ohne Ordner bleiben; die Titel kommen dann aus den Feed-Abos.' : 'Noch kein Ordner.'}</div>`);
+    $('[data-addfolder]', host).textContent = entries.length === 0 ? '+ Ordner hinzufügen' : '+ Weiteren Ordner hinzufügen';
+  };
+  const add = (focus) => {
+    const key = ++seq; const li = document.createElement('li'); li.className = 'fcard';
+    li.innerHTML = `<div class="fhead"><span class="num"></span><span class="fsum" data-sum></span><button type="button" class="btn ghost sm fremove" data-remove aria-label="Ordner ${key} entfernen">Entfernen</button></div><div data-fields></div>`;
+    list.appendChild(li);
+    const api = folderFields($('[data-fields]', li), { family, idp: `${idp}-${key}`, content: presetFor() });
+    const entry = { key, li, api };
+    entries.push(entry);
+    const sum = () => { const v = api.get(); $('[data-sum]', li).innerHTML = `<span class="chip">${CONTENT[v.content]}</span><span class="chain">${v.providers.length ? chain(v.providers) : '<span class="hint">keine Quelle</span>'}</span>`; };
+    $('[data-fields]', li).addEventListener('fieldchange', () => { sum(); changed(); });
+    $('[data-remove]', li).addEventListener('click', () => { entries.splice(entries.indexOf(entry), 1); li.remove(); renderEmpty(); updateRemove(); changed(); $('[data-addfolder]', host).focus(); });
+    sum(); renderEmpty(); updateRemove(); changed();
+    if (focus) { $(`#${idp}-${key}-path`, li).focus(); li.scrollIntoView({ block: 'nearest' }); }
+  };
+  const updateRemove = () => entries.forEach(e => { $('[data-remove]', e.li).disabled = entries.length <= min; });
+  $('[data-addfolder]', host).addEventListener('click', () => add(true));
+  for (let i = 0; i < (start ?? min); i++) add(false);
+  return {
+    get() { return entries.map(e => e.api.get()); },
+    count() { return entries.length; },
+    error() {
+      if (entries.length < min) return 'Mindestens ein Ordner.';
+      for (const e of entries) { const err = e.api.error(); if (err) return err; }
+      const paths = entries.map(e => e.api.get().path);
+      for (let i = 0; i < paths.length; i++) for (let j = 0; j < paths.length; j++) if (i !== j && (paths[i] === paths[j] || paths[i].startsWith(paths[j] + '/'))) return `Die Ordner überschneiden sich: ${paths[i]} und ${paths[j]}.`;
+      return null;
+    },
+  };
+}
+function overlapsExisting(paths) {
+  const all = db.libs.flatMap(l => l.roots.map(r => r.path));
+  return paths.find(p => all.some(r => r === p || p.startsWith(r + '/') || r.startsWith(p + '/')));
+}
+
+// ---------- view: libraries
+function viewLibraries() {
+  const cards = db.libs.map(l => {
+    const one = l.roots.length === 1 ? l.roots[0] : null;
+    const body = l.roots.length === 0
+      ? `<div class="notice warning">${l.family === 'podcasts' ? 'Kein Ordner: Die Titel kommen aus abonnierten Feeds.' : 'Kein Ordner. Es wird nichts gescannt, bis du einen hinzufügst.'}</div>`
+      : one
+        ? `<div class="kv"><code>${esc(one.path)}</code><span><span class="chip">${CONTENT[one.content]}</span> <span class="chain">${chain(one.providers)}</span></span><span>Dateisystem cifs · Änderungen werden regelmässig abgefragt</span><span>Titel: ${one.items} · Dateien: ${one.files.toLocaleString('de-CH')}</span></div>`
+        : `<div class="kv"><span>${l.roots.length} Ordner: ${esc(summary(l))}</span><span>Titel: ${l.roots.reduce((a, r) => a + r.items, 0)} · Dateien: ${l.roots.reduce((a, r) => a + r.files, 0).toLocaleString('de-CH')}</span></div>`;
+    return `<article class="card" aria-labelledby="lib-${l.id}">
+      <div class="top"><h2 id="lib-${l.id}">${esc(l.name)}</h2><span class="chip outline">${FAMILY[l.family].name}</span>${l.rating ? `<span class="chip info">Standard: ${esc(l.rating)}</span>` : ''}</div>
+      ${body}
+      ${l.feeds ? `<div class="kv"><span>${l.feeds} Feed-Abos ohne Ordner</span></div>` : ''}
+      <div class="state"><span class="dot ${l.state}"></span>${STATE[l.state]}</div>
+      <div class="actions">
+        <button class="btn secondary sm" data-folders="${l.id}">Ordner (${l.roots.length})</button>
+        <button class="btn ghost sm" data-scan="${l.id}" ${l.roots.length === 0 && !l.feeds ? 'disabled' : ''}>Erneut scannen</button>
+      </div></article>`;
+  }).join('');
+  $('#main').innerHTML = `<h1>Bibliotheken</h1><p class="intro">Ordner, die Slouchcat beobachtet, und der Stand ihrer Scans. Eine Bibliothek bündelt Rechte und Altersstufe; jeder Ordner bringt seinen Inhalt und seine Metadatenquellen mit.</p>
+    <div class="grid">${cards}</div>
+    <section class="card" style="margin-top:24px" aria-labelledby="addTitle"><h2 id="addTitle">Bibliothek hinzufügen</h2><form class="form" id="addForm" novalidate>
+      <div class="row"><div class="field"><label for="addName">Name</label><input class="input" id="addName" required placeholder="z. B. Dokus"></div></div>
+      <fieldset class="field"><legend class="legend">Art</legend><div class="radios">
+        ${Object.entries(FAMILY).map(([k, f], i) => `<label class="radio"><input type="radio" name="family" value="${k}" ${i === 0 ? 'checked' : ''}>${f.name}</label>`).join('')}</div>
+        <span class="hint" id="famHint"></span></fieldset>
+      <fieldset class="field"><legend class="legend">Ordner</legend><div id="addFolder"></div></fieldset>
+      <div class="field" id="ratingField" hidden><label for="addRating">Standard-Altersstufe</label><div class="radios">${['FSK 0', 'FSK 6', 'FSK 12', 'FSK 16', 'FSK 18'].map((r, i) => `<label class="radio"><input type="radio" name="rating" value="${r}" ${i === 0 ? 'checked' : ''}>${r}</label>`).join('')}</div><span class="hint">Nur bei Hörbüchern und Podcasts: Audio trägt keine eigene Stufe.</span></div>
+      <div id="addErr"></div>
+      <div class="row"><button class="btn primary" type="submit" id="addSubmit">Hinzufügen</button></div>
+    </form></section>`;
+
+  $('#main').querySelectorAll('[data-folders]').forEach(b => b.addEventListener('click', () => openFolders(+b.dataset.folders)));
+  $('#main').querySelectorAll('[data-scan]').forEach(b => b.addEventListener('click', () => scan(+b.dataset.scan)));
+
+  const fam = () => $('input[name="family"]:checked').value;
+  let ff;
+  const mountFolder = () => {
+    const f = fam();
+    $('#famHint').textContent = f === 'video' ? 'Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt.' : f === 'audiobooks' ? 'Nur Hörbuch-Ordner.' : 'Ordner optional; Feeds lassen sich auch ohne Ordner abonnieren.';
+    $('#ratingField').hidden = f === 'video';
+    ff = folderListEditor($('#addFolder'), { family: f, min: f === 'podcasts' ? 0 : 1, idp: 'add', start: 1 });
+    validate();
+  };
+  const validate = () => {
+    const e = ff.error(); const name = $('#addName').value.trim(); const n = ff.count();
+    $('#addSubmit').disabled = !name || !!e;
+    $('#addSubmit').textContent = n === 0 ? 'Bibliothek ohne Ordner hinzufügen' : n === 1 ? 'Bibliothek mit 1 Ordner hinzufügen' : `Bibliothek mit ${n} Ordnern hinzufügen`;
+    $('#addErr').innerHTML = e && e !== 'Pfad fehlt' && e !== 'Mindestens ein Ordner.' ? `<div class="notice danger" role="alert">${esc(e)}</div>` : '';
+  };
+  document.querySelectorAll('input[name="family"]').forEach(r => r.addEventListener('change', mountFolder));
+  $('#addFolder').addEventListener('fieldchange', validate);
+  $('#addName').addEventListener('input', validate);
+  mountFolder();
+  $('#addForm').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const name = $('#addName').value.trim(); const f = fam(); const vs = ff.get();
+    const clash = overlapsExisting(vs.map(v => v.path));
+    if (clash) { $('#addErr').innerHTML = `<div class="notice danger" role="alert">${esc(clash)} gehört schon zu einer Bibliothek oder überschneidet sich (422 root_overlap). Es wurde nichts angelegt.</div>`; return; }
+    const roots = vs.map(v => root(v.path, v.content, v.providers, 0, 0, 'never'));
+    const l = lib(name, f, roots, f === 'video' ? undefined : $('input[name="rating"]:checked').value);
+    if (roots.length) l.state = 'queued';
+    db.libs.push(l); viewLibraries(); toast(`${name} mit ${roots.length} Ordner${roots.length === 1 ? '' : 'n'} hinzugefügt${roots.length ? ', Scan eingereiht' : ''}`);
+    document.getElementById(`lib-${l.id}`)?.scrollIntoView({ block: 'center' });
+  });
+}
+function scan(id) { const l = db.libs.find(x => x.id === id); l.state = 'running'; viewLibraries(); toast(`Scan von ${l.name} gestartet`); setTimeout(() => { if (l.state === 'running') { l.state = 'done'; l.roots.forEach(r => { r.state = 'done'; }); if (currentView === 'libraries') viewLibraries(); } }, 2500); }
+
+// ---------- dialog: folders of X
+function openFolders(id) {
+  const l = db.libs.find(x => x.id === id); const d = $('#dlgFolders');
+  const rows = l.roots.map(r => `<li class="frow"><div class="main"><code>${esc(r.path)}</code>
+      <div class="meta"><span class="chip">${CONTENT[r.content]}</span><span class="chain">${chain(r.providers)}</span><span class="chip info">cifs</span><span>${r.state === 'never' ? 'Noch nie gescannt' : `Titel: ${r.items} · Dateien: ${r.files.toLocaleString('de-CH')}`}</span></div></div>
+      <div class="btns"><button class="btn ghost sm" data-change="${r.id}">Ändern</button><button class="btn ghost sm" data-remove="${r.id}">Entfernen</button></div></li>`).join('');
+  d.innerHTML = `<div class="dlg"><header><h2 id="dlgFoldersTitle">Ordner von ${esc(l.name)}</h2><p>Eine Bibliothek kann mehrere Ordner haben${l.family === 'video' ? ', auch Filme und Serien gemischt' : ''}. Scan und Überwachung nehmen einen neuen Ordner sofort auf.</p></header>
+    ${l.roots.length ? `<ul class="folders">${rows}</ul>` : `<div class="notice warning">${l.family === 'podcasts' ? 'Kein Ordner. Die Titel kommen aus den Feed-Abos.' : 'Diese Bibliothek hat keinen Ordner. Es wird nichts gescannt, bis du einen hinzufügst.'}</div>`}
+    <hr class="sep"><form class="form" id="fAdd" novalidate><h2 style="font-size:1rem">Neue Ordner</h2><div id="fAddFields"></div><div id="fAddErr"></div>
+    <footer><button type="button" class="btn ghost" data-close>Schliessen</button><button type="submit" class="btn primary" id="fAddSubmit">Ordner hinzufügen</button></footer></form></div>`;
+  const ff = folderListEditor($('#fAddFields', d), { family: l.family, min: 0, idp: 'f' + l.id, start: 0 });
+  const validate = () => {
+    const n = ff.count(); const e = ff.error();
+    $('#fAddSubmit', d).disabled = n === 0 || !!e;
+    $('#fAddSubmit', d).textContent = n <= 1 ? 'Ordner hinzufügen' : `${n} Ordner hinzufügen`;
+    $('#fAddErr', d).innerHTML = e && e !== 'Pfad fehlt' ? `<div class="notice danger" role="alert">${esc(e)}</div>` : '';
+  };
+  $('#fAddFields', d).addEventListener('fieldchange', validate); validate();
+  $('[data-close]', d).addEventListener('click', () => d.close());
+  $('#fAdd', d).addEventListener('submit', ev => {
+    ev.preventDefault(); const vs = ff.get();
+    const clash = overlapsExisting(vs.map(v => v.path));
+    if (clash) { $('#fAddErr', d).innerHTML = `<div class="notice danger" role="alert">${esc(clash)} überschneidet sich mit einem bestehenden Ordner (422 root_overlap). Es wurde nichts angelegt.</div>`; return; }
+    vs.forEach(v => l.roots.push(root(v.path, v.content, v.providers, 0, 0, 'never'))); l.state = 'queued';
+    toast(`${vs.length} Ordner hinzugefügt, Scan eingereiht`); openFolders(id); viewLibraries();
+  });
+  d.querySelectorAll('[data-change]').forEach(b => b.addEventListener('click', () => openChange(l, l.roots.find(r => r.id === +b.dataset.change))));
+  d.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => {
+    const r = l.roots.find(x => x.id === +b.dataset.remove);
+    confirmTyped({
+      title: `Ordner ${r.path} entfernen?`,
+      body: `Die ${r.items} Titel dieses Ordners verschwinden aus der Bibliothek. Fortschritte bleiben 30 Tage erhalten, Offline-Pakete werden gelöscht. Die Dateien auf dem Laufwerk bleiben unberührt.`,
+      expect: r.path, action: 'Ordner entfernen', danger: true,
+      onConfirm() { l.roots = l.roots.filter(x => x.id !== r.id); toast('Ordner entfernt'); openFolders(id); viewLibraries(); },
+    });
+  }));
+  if (!d.open) d.showModal();
+}
+
+// ---------- dialog: change a folder (list = cheap, identifier = re-match, content = move)
+function openChange(l, r) {
+  const d = $('#dlgChange');
+  d.innerHTML = `<div class="dlg"><header><h2 id="dlgChangeTitle">Ordner ändern</h2><p>Inhalt und Metadatenquellen von <code>${esc(r.path)}</code>. Der Pfad selbst bleibt; ein anderer Pfad ist ein neuer Ordner.</p></header>
+    <form class="form" id="cForm" novalidate><div id="cFields"></div><div id="cEffect"></div>
+    <footer><button type="button" class="btn ghost" data-close>Abbrechen</button><button type="submit" class="btn primary" id="cSubmit">Speichern</button></footer></form></div>`;
+  const ff = folderFields($('#cFields', d), { family: l.family, path: r.path, content: r.content, providers: r.providers, idp: 'c' + r.id, pathLocked: true });
+  const effect = () => {
+    const v = ff.get(); const e = ff.error(); const host = $('#cEffect', d);
+    $('#cSubmit', d).disabled = !!e;
+    if (e) { host.innerHTML = ''; return; }
+    if (v.content !== r.content) host.innerHTML = `<div class="notice warning"><strong>Inhalt wechselt von ${CONTENT[r.content]} zu ${CONTENT[v.content]}.</strong> Der Ordner wird wie ein neuer gelesen: die ${r.items} heutigen Titel verschwinden, der Scan legt sie neu an. Fortschritte zu den alten Titeln gehen verloren. Zum Speichern musst du den Pfad abtippen.</div>`;
+    else if (v.providers[0] !== r.providers[0]) host.innerHTML = `<div class="notice info"><strong>Der Erkenner wechselt von ${PROVIDERS[r.providers[0]].name} zu ${PROVIDERS[v.providers[0]].name}.</strong> Alle ${r.items} Titel dieses Ordners werden neu erkannt; Ids und Staffelzählung können sich ändern. Fortschritte und gesperrte Felder bleiben.</div>`;
+    else if (v.providers.join() !== r.providers.join()) host.innerHTML = `<div class="notice success">Nur die Auffüller ändern sich. Die Titel bleiben; fehlende Felder werden beim nächsten Lauf nachgefüllt.</div>`;
+    else host.innerHTML = `<div class="notice">Keine Änderung.</div>`;
+  };
+  $('#cFields', d).addEventListener('fieldchange', effect); effect();
+  $('[data-close]', d).addEventListener('click', () => d.close());
+  $('#cForm', d).addEventListener('submit', ev => {
+    ev.preventDefault(); const v = ff.get();
+    const apply = (msg) => { Object.assign(r, { content: v.content, providers: v.providers }); if (msg) { l.state = 'queued'; } d.close(); toast(msg || 'Gespeichert, Auffüllen eingereiht'); openFolders(l.id); viewLibraries(); };
+    if (v.content !== r.content) confirmTyped({ title: `Inhalt von ${r.path} wechseln?`, body: `Von ${CONTENT[r.content]} zu ${CONTENT[v.content]}. Die ${r.items} Titel werden entfernt und neu angelegt.`, expect: r.path, action: 'Inhalt wechseln', danger: true, onConfirm() { r.items = 0; r.files = 0; r.state = 'never'; apply('Inhalt gewechselt, Scan eingereiht'); } });
+    else if (v.providers[0] !== r.providers[0]) apply('Gespeichert, Neuerkennung eingereiht');
+    else apply();
+  });
+  d.showModal();
+}
+
+// ---------- typed confirmation (ConfirmInputDialog)
+function confirmTyped({ title, body, expect, action, danger, onConfirm }) {
+  const d = $('#dlgConfirm');
+  d.innerHTML = `<div class="dlg"><header><h2 id="dlgConfirmTitle">${esc(title)}</h2><p>${esc(body)}</p></header>
+    <form class="form" id="confForm" novalidate><div class="field"><label for="confInput">Tippe zur Bestätigung: <code>${esc(expect)}</code></label><input class="input mono" id="confInput" autocomplete="off" spellcheck="false"></div>
+    <footer><button type="button" class="btn ghost" data-close>Abbrechen</button><button type="submit" class="btn ${danger ? 'danger' : 'primary'}" id="confSubmit" disabled>${esc(action)}</button></footer></form></div>`;
+  $('#confInput', d).addEventListener('input', ev => { $('#confSubmit', d).disabled = ev.target.value !== expect; });
+  $('[data-close]', d).addEventListener('click', () => d.close());
+  $('#confForm', d).addEventListener('submit', ev => { ev.preventDefault(); if ($('#confInput', d).value !== expect) return; d.close(); onConfirm(); });
+  d.showModal(); $('#confInput', d).focus();
+}
+
+// ---------- view: podcasts (feeds and folders in one list)
+function viewPodcasts() {
+  const rows = [
+    { t: 'Echo der Zeit', sub: 'SRF · Feed', eps: 1203, origin: 'admin' },
+    { t: 'Sternstunde Philosophie', sub: 'SRF · Feed', eps: 412, origin: 'admin' },
+    { t: 'Lage der Nation', sub: 'Feed', eps: 460, origin: 'admin' },
+    { t: 'Geschichten aus der Geschichte', sub: 'aus /media/nas/Audiobookshelf/Podcast · Feed aus metadata.json', eps: 538, local: 538, origin: 'file' },
+    { t: 'Methodisch inkorrekt', sub: 'aus /media/nas/Audiobookshelf/Podcast · Feed aus metadata.json', eps: 310, local: 296, origin: 'file' },
+    { t: 'Alte Folgen 2015', sub: 'aus /media/nas/Audiobookshelf/Podcast · kein Feed, nur Dateien', eps: 88, local: 88, origin: 'file', nofeed: true },
+  ];
+  $('#main').innerHTML = `<h1>Podcasts</h1><p class="intro">Abonnierte Feeds und Podcasts aus Ordnern in einer Liste. Bei einem Podcast aus einem Ordner bestimmt der Ordner den Feed; darum fehlt dort «Feed entfernen».</p>
+    <ul class="list">${rows.map(r => `<li class="lrow"><div class="cover">♪</div><div><div class="t">${esc(r.t)}</div><div class="sub">${r.origin === 'file' ? '<span class="chip">aus Ordner</span>' : '<span class="chip info">Feed</span>'}<span>${esc(r.sub)}</span><span>· ${r.eps} Folgen${r.local ? `, ${r.local} lokal` : ''}</span></div></div>
+      <div>${r.origin === 'admin' ? '<button class="btn ghost sm" data-noop>Feed entfernen</button>' : (r.nofeed ? '<button class="btn ghost sm" data-noop>Feed hinzufügen</button>' : '<span class="hint">Feed aus dem Ordner</span>')}</div></li>`).join('')}</ul>
+    <div class="row" style="margin-top:16px"><div class="field" style="flex:1"><label for="feedUrl">Neuen Feed abonnieren</label><input class="input mono" id="feedUrl" placeholder="https://…/feed.xml"></div><button class="btn primary" data-noop>Abonnieren</button></div>`;
+  $('#main').querySelectorAll('[data-noop]').forEach(b => b.addEventListener('click', () => toast('Im Prototyp ohne Wirkung')));
+}
+
+// ---------- view: item (provenance per field after TVDB › TMDB › AniList)
+function viewItem() {
+  const f = [
+    ['Titel', 'Frieren: Nach dem Ende der Reise', 'TVDB'], ['Originaltitel', '葬送のフリーレン', 'TVDB'], ['Staffelzählung', '2 Staffeln, 28 Folgen (TVDB-Zählung)', 'TVDB'],
+    ['Beschreibung (de)', 'Die Elfenmagierin Frieren überlebt ihre Gefährten um Jahrzehnte und bricht noch einmal auf …', 'TMDB'], ['Beschreibung (en)', 'The elf mage Frieren outlives her companions by decades and sets out once more …', 'TVDB'],
+    ['Genres', 'Abenteuer, Drama, Fantasy', 'TVDB'], ['Bewertung', '9.1 / 10 (AniList 91 %)', 'AniList'], ['Studio', 'Madhouse', 'AniList'], ['Altersstufe', 'FSK 12 (aus TMDB DE)', 'TMDB'],
+  ];
+  $('#main').innerHTML = `<h1>Titelpflege</h1><p class="intro">Beispiel aus der Bibliothek Anime, Ordner <code>/media/nas/MangaSerien</code> mit der Liste TVDB › TMDB › AniList. Jedes Feld zeigt, welche Quelle es gefüllt hat; ein Feld lässt sich sperren wie heute.</p>
+    <div class="item"><div class="poster">tvdb 424536 · tmdb 209867 · anilist 154587</div><div class="fields">
+      <div class="kv"><span><span class="chip">Serien</span> <span class="chain">${chain(['tvdb', 'tmdb', 'anilist'])}</span></span><span>Erkannt über TVDB am 28.10.2026 · Auffüllen zuletzt 29.10.2026</span></div>
+      ${f.map(([k, v, s]) => `<div class="fld"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span><span class="chip info" title="Quelle dieses Felds">${esc(s)}</span></div>`).join('')}
+      <div class="actions"><button class="btn secondary sm" data-noop>Zuordnung ändern (TMDB/TVDB)</button><button class="btn ghost sm" data-noop>Neu auffüllen</button></div></div></div>`;
+  $('#main').querySelectorAll('[data-noop]').forEach(b => b.addEventListener('click', () => toast('Im Prototyp ohne Wirkung')));
+}
+
+// ---------- shell
+let currentView = 'libraries';
+const views = { libraries: viewLibraries, podcasts: viewPodcasts, item: viewItem };
+function show(v) { currentView = v; document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.view === v))); views[v](); }
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => show(t.dataset.view)));
+$('#reset').addEventListener('click', () => { nextId = 100; db = seed(); show('libraries'); toast('Beispieldaten zurückgesetzt'); });
+document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', ev => { if (ev.target === d) d.close(); }));
+const h = (location.hash || '').slice(1);
+show(views[h] ? h : 'libraries');
+</script>
+
+</body>
+</html>

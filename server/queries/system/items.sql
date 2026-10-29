@@ -2,12 +2,14 @@
 -- Times are Unix milliseconds.
 
 -- name: InsertItem :one
+-- providers is the ordered metadata source list of the root the file lies in (ADR 0015); a child
+-- (season, episode, extra) carries the list of its parent.
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date,
                    tmdb_id, tvdb_id, imdb_id, season_number, episode_number, episode_end, extra_kind,
-                   own_rating, rating_source, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, added_at, created_at, updated_at)
 VALUES (@id, @kind, @parent_id, @library_id, @title, @sort_title, @original_title, @year, @release_date,
         @tmdb_id, @tvdb_id, @imdb_id, @season_number, @episode_number, @episode_end, @extra_kind,
-        @own_rating, @rating_source, @now, @now, @now)
+        @own_rating, @rating_source, @providers, @now, @now, @now)
 RETURNING *;
 
 -- name: GetItemSystem :one
@@ -47,9 +49,11 @@ UPDATE media_files SET rel_path = @rel_path, mtime = @mtime, missing_since = NUL
 UPDATE media_files SET missing_since = COALESCE(missing_since, @now), updated_at = @now WHERE id = @id;
 
 -- name: SoftDeleteItemsMissingSince :execrows
+-- A podcast episode counts only without enclosure: one with an enclosure stays as a feed episode
+-- when its file goes (ADR 0015).
 UPDATE items SET deleted_at = @now, updated_at = @now
 WHERE deleted_at IS NULL
-  AND kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND (kind IN ('movie', 'episode', 'extra', 'audiobook') OR (kind = 'podcast_episode' AND enclosure_url IS NULL))
   AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id)
   AND NOT EXISTS (SELECT 1 FROM media_files AS m
                   WHERE m.item_id = items.id AND (m.missing_since IS NULL OR m.missing_since >= @before));

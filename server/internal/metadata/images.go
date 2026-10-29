@@ -154,8 +154,9 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 }
 
 // imageSource returns the URL of the original of kind: the TMDB original of the stored path
-// (/abc.jpg), a stored TVDB artwork URL, or for titles matched before M3 (no stored path) the
-// source of the stored original. "" means there is nothing to fetch.
+// (/abc.jpg), a stored TVDB artwork or AniList image URL (the fill job stores those, ADR 0015),
+// or for titles matched before M3 (no stored path) the source of the stored original. "" means
+// there is nothing to fetch.
 func (s *Service) imageSource(item systemq.Item, kind string, prev []systemq.Image) string {
 	path := item.TmdbPosterPath
 	if kind == "backdrop" {
@@ -165,7 +166,7 @@ func (s *Service) imageSource(item systemq.Item, kind string, prev []systemq.Ima
 		switch {
 		case strings.HasPrefix(path.String, "/"):
 			return s.client.imageURL(originalSize, path.String)
-		case strings.HasPrefix(path.String, s.tvdb.artBase+"/"):
+		case strings.HasPrefix(path.String, s.tvdb.artBase+"/"), s.anilist.imageURL(path.String):
 			return path.String
 		}
 		s.log.Warn("image path of an unknown host ignored", "item_id", item.ID, "kind", kind)
@@ -827,7 +828,8 @@ func (s *Service) fetchOriginal(ctx context.Context, itemID, source string) ([]b
 	case s.providerImage(source):
 		return download(ctx, s.client, source)
 	default:
-		return s.downloadCover(ctx, s.feedOf(ctx, itemID), source)
+		feedURL, origin := s.feedOf(ctx, itemID)
+		return s.downloadCover(ctx, feedURL, origin, source)
 	}
 }
 
@@ -841,23 +843,25 @@ func unversioned(source string) string {
 
 // feedOf returns the feed URL of the podcast of an item (a podcast's own, an episode's parent's);
 // "" for any other item.
-func (s *Service) feedOf(ctx context.Context, itemID string) string {
+func (s *Service) feedOf(ctx context.Context, itemID string) (feedURL, origin string) {
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	if item.Kind == "podcast_episode" && item.ParentID.Valid {
 		if p, err := s.read.PodcastGet(ctx, item.ParentID.String); err == nil {
-			return p.FeedUrl.String
+			return p.FeedUrl.String, p.FeedOrigin.String
 		}
-		return ""
+		return "", ""
 	}
-	return item.FeedUrl.String
+	return item.FeedUrl.String, item.FeedOrigin.String
 }
 
-// providerImage reports whether a source is a TMDB or TVDB image (fetched through their client).
+// providerImage reports whether a source is a TMDB, TVDB or AniList image (fetched through the
+// provider client, not the guarded cover client: the hosts are constants).
 func (s *Service) providerImage(source string) bool {
-	return strings.HasPrefix(source, s.client.imageURL(originalSize, "")) || strings.HasPrefix(source, s.tvdb.artBase+"/")
+	return strings.HasPrefix(source, s.client.imageURL(originalSize, "")) || strings.HasPrefix(source, s.tvdb.artBase+"/") ||
+		s.anilist.imageURL(source)
 }
 
 // mediaFilePath resolves the absolute path of a media file through package paths.
@@ -881,7 +885,7 @@ func (s *Service) mediaFilePath(ctx context.Context, id string) (string, error) 
 // outside the local network unless the feed is local, package netguard): at most maxCoverBytes
 // within coverTimeout, JPEG, PNG or WebP only (by content: feed hosts often send image/jpg or no
 // type at all). No credentials or provider keys are sent; errors name the host only.
-func (s *Service) downloadCover(ctx context.Context, feedURL, rawURL string) ([]byte, string, error) {
+func (s *Service) downloadCover(ctx context.Context, feedURL, feedOrigin, rawURL string) ([]byte, string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
 		return nil, "", fmt.Errorf("cover url not usable")
@@ -893,7 +897,7 @@ func (s *Service) downloadCover(ctx context.Context, feedURL, rawURL string) ([]
 		return nil, "", fmt.Errorf("cover request: %w", netguard.Clean(err))
 	}
 	req.Header.Set("Accept", "image/jpeg, image/png, image/webp")
-	resp, err := coverClients.For(ctx, feedURL).Do(req)
+	resp, err := coverClients.For(ctx, feedURL, feedOrigin).Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("fetch cover from %s: %w", u.Host, netguard.Clean(err))
 	}

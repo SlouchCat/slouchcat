@@ -1,6 +1,7 @@
 package library
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/binary"
@@ -161,14 +162,26 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			return fmt.Errorf("insert sidecar track: %w", err)
 		}
 	}
-	if err := enqueueTx(ctx, q, now, keyframesJob(t.file.ID)); err != nil {
-		return err
+	// An audio title has no video keyframes (concept 4.5): no probe.keyframes job for audiobooks
+	// and podcast episodes, which spares one queue entry per file of a large podcast folder.
+	item, err := q.GetItemSystem(ctx, t.file.ItemID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("load item of the probed file: %w", err)
+	}
+	audioTitle := item.Kind == "audiobook" || item.Kind == "podcast_episode"
+	if !audioTitle {
+		if err := enqueueTx(ctx, q, now, keyframesJob(t.file.ID)); err != nil {
+			return err
+		}
 	}
 	if err := markSeasonPending(ctx, q, t.file.ID, now); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return err
+	}
+	if item.Kind == "podcast_episode" {
+		return s.finishPodcastEpisode(ctx, item, t.file, &pr)
 	}
 	return s.finishAudiobook(ctx, t.file.ItemID)
 }
@@ -422,4 +435,125 @@ func parseSidecar(stem, name string) (sidecar, bool) {
 		}
 	}
 	return sc, true
+}
+
+// finishPodcastEpisode brings a file episode of a podcast folder up to date after its probe
+// (concept 4.5): the tags give the title (unless it only repeats the podcast's title, as
+// Audiobookshelf writes it for some episodes), the publication date (RFC 2822 in date or
+// releasedate) and the description (comment, else subtitle); the probe gives the duration. Then
+// the file is paired with a feed episode of the same podcast when exactly one fits (the same
+// publication minute, else the same title, duration within two percent): the feed episode takes
+// the file and keeps its guid, enclosure and texts, the file episode leaves. No pair, or two
+// candidates: nothing happens, both stay, the maintenance page lists them as file_and_feed.
+func (s *Service) finishPodcastEpisode(ctx context.Context, item systemq.Item, file systemq.MediaFile, pr *transcode.Probe) error {
+	if item.DeletedAt.Valid || !item.ParentID.Valid || item.EnclosureUrl.Valid {
+		return nil // a feed episode that already holds its file needs no tags
+	}
+	podcast, err := systemq.New(s.db.Read).GetItemSystem(ctx, item.ParentID.String)
+	if err != nil {
+		return fmt.Errorf("load podcast of the episode: %w", err)
+	}
+	tags := map[string]string{}
+	for k, v := range pr.Format.Tags {
+		tags[strings.ToLower(k)] = strings.TrimSpace(v)
+	}
+	title := item.Title
+	if t := tags["title"]; t != "" && !strings.EqualFold(t, podcast.Title) {
+		title = t
+	}
+	published := item.PublishedAt
+	for _, key := range []string{"date", "releasedate", "tdrl", "tdat"} {
+		if ts, ok := parseTagDate(tags[key]); ok {
+			published = sql.NullInt64{Int64: ts.UnixMilli(), Valid: true}
+			break
+		}
+	}
+	duration := sql.NullInt64{Int64: pr.Format.Duration.Milliseconds(), Valid: pr.Format.Duration > 0}
+	description := cmp.Or(tags["comment"], tags["subtitle"])
+
+	candidates, err := systemq.New(s.db.Read).PodcastListFeedEpisodesWithoutFile(ctx, item.ParentID)
+	if err != nil {
+		return fmt.Errorf("list feed episodes: %w", err)
+	}
+	var hits []systemq.PodcastListFeedEpisodesWithoutFileRow
+	for _, c := range candidates {
+		if metadataPairs(c.PublishedAt, c.SortTitle, c.DurationMs, published, SortTitle(title), duration) {
+			hits = append(hits, c)
+		}
+	}
+
+	now := s.now().UnixMilli()
+	tx, err := s.db.Write.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	q := systemq.New(tx)
+	if len(hits) == 1 {
+		// The feed episode takes the file and keeps everything the feed said; the file episode
+		// leaves. Its texts stay with it -- the feed's description is the better one.
+		feedEpisode := hits[0]
+		if err := q.PodcastMoveMediaFiles(ctx, systemq.PodcastMoveMediaFilesParams{TargetID: feedEpisode.ID, Now: now, SourceID: item.ID}); err != nil {
+			return fmt.Errorf("move file to feed episode: %w", err)
+		}
+		if err := q.PodcastSoftDeleteEpisode(ctx, systemq.PodcastSoftDeleteEpisodeParams{Now: sql.NullInt64{Int64: now, Valid: true}, ID: item.ID}); err != nil {
+			return fmt.Errorf("retire file episode: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		s.log.InfoContext(ctx, "podcast file paired with its feed episode", "item_id", feedEpisode.ID, "media_file_id", file.ID)
+		return nil
+	}
+	if err := q.PodcastUpdateEpisodeFromTags(ctx, systemq.PodcastUpdateEpisodeFromTagsParams{
+		Title: title, SortTitle: SortTitle(title), PublishedAt: published, DurationMs: duration, Now: now, ID: item.ID,
+	}); err != nil {
+		return fmt.Errorf("update episode from tags: %w", err)
+	}
+	if description != "" {
+		for _, lang := range []string{"de", "en"} {
+			if err := q.UpsertItemText(ctx, systemq.UpsertItemTextParams{ItemID: item.ID, Lang: lang, Title: title, Overview: nullString(description)}); err != nil {
+				return fmt.Errorf("store episode text: %w", err)
+			}
+		}
+	}
+	return tx.Commit()
+}
+
+// metadataPairs applies the pairing rule of concept 4.5 between a feed episode and a file
+// episode: the same publication minute, else the same sort title; a duration known on both sides
+// must agree within two percent of the feed's.
+func metadataPairs(feedPublished sql.NullInt64, feedSortTitle string, feedDuration sql.NullInt64,
+	filePublished sql.NullInt64, fileSortTitle string, fileDuration sql.NullInt64,
+) bool {
+	sameMinute := feedPublished.Valid && filePublished.Valid && feedPublished.Int64/60000 == filePublished.Int64/60000
+	sameTitle := feedSortTitle != "" && feedSortTitle == fileSortTitle
+	if !sameMinute && !sameTitle {
+		return false
+	}
+	if feedDuration.Valid && feedDuration.Int64 > 0 && fileDuration.Valid && fileDuration.Int64 > 0 {
+		diff := feedDuration.Int64 - fileDuration.Int64
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff*50 > feedDuration.Int64 {
+			return false
+		}
+	}
+	return true
+}
+
+// parseTagDate reads the date of an episode tag: RFC 2822 as Audiobookshelf writes it ("Fri, 13
+// Feb 2026 06:54:00 +0100"), else RFC 3339, else a plain date.
+func parseTagDate(s string) (time.Time, bool) {
+	if s == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{time.RFC1123Z, time.RFC1123, "Mon, 2 Jan 2006 15:04:05 -0700", "2 Jan 2006 15:04:05 -0700",
+		time.RFC3339, "2006-01-02T15:04:05Z07:00", "2006-01-02"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }

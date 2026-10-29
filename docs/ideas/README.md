@@ -30,5 +30,5 @@ werden kann. Nichts hier ist beauftragt.
 
 | Nr. | Idee | Status | Konzept | Issue |
 |---|---|---|---|---|
-| 01 | Metadaten- und Scraper-Einstellungen je Bibliothek (Sprachen, Bildarten, Anbieter) | Ausgearbeitet | [01-metadaten-einstellungen.md](01-metadaten-einstellungen.md) | [#8](https://github.com/SlouchCat/slouchcat/issues/8) |
+| 01 | Metadaten- und Scraper-Einstellungen je Bibliothek (Sprachen, Bildarten, Anbieter) | Teil A gebaut (Anbieterliste je Ordner, feldweises Auffüllen mit `metadata.fill`, Herkunft je Feld, AniList; Konzept 07 / ADR 0015, Zweig `claude/bibliotheken`, Vertrag 1.3.0, 29. Oktober 2026); Teil B ausgearbeitet | [01-metadaten-einstellungen.md](01-metadaten-einstellungen.md) | [#8](https://github.com/SlouchCat/slouchcat/issues/8) |
 | 02 | Ordner-Browser im Bibliotheksformular (Dialog mit Liste statt getipptem Pfad) | Übernommen | [02-ordner-browser.md](02-ordner-browser.md) | [#33](https://github.com/SlouchCat/slouchcat/issues/33) |

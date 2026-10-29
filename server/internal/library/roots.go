@@ -6,24 +6,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
-	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
-// AddRoot adds a further directory to a library (idea 02, E8): the path goes through the same
-// rules as the first one -- absolute, readable, below a browsable root (E14) and overlapping no
-// root of this or another library -- and the library's watcher and scan pick it up at once.
+// AddRoots adds further folders to a library in one go (idea 02, E8; F-13): every path goes
+// through the same rules as the first one -- absolute, readable, below a browsable root (E14),
+// content allowed in the family, a valid provider list, overlapping no root of this or another
+// library and no other folder of the request -- and all of them are inserted in one transaction,
+// so a request with three folders whose third one fails leaves none behind. One scan follows for
+// the library, and the watchers pick the folders up at once.
 //
-// Errors: model.ErrNotFound for an unknown library, *model.ValidationError for a podcast library
-// (which has no directory) and model.ErrLibraryPathInvalid for a path the rules refuse.
-func (s *Service) AddRoot(ctx context.Context, libraryID int64, path string) (model.Library, error) {
+// Errors: model.ErrNotFound for an unknown library, *model.ValidationError with the index of the
+// folder that broke a rule (roots[2].path root_overlap).
+func (s *Service) AddRoots(ctx context.Context, libraryID int64, reqs []model.LibraryRootRequest) (model.Library, error) {
 	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.Library{}, model.ErrNotFound
@@ -31,31 +32,37 @@ func (s *Service) AddRoot(ctx context.Context, libraryID int64, path string) (mo
 	if err != nil {
 		return model.Library{}, fmt.Errorf("get library %d: %w", libraryID, err)
 	}
-	if lib.Kind == model.LibraryPodcasts {
+	if len(reqs) == 0 {
 		var verr *model.ValidationError
-		return model.Library{}, verr.Add("path", "not_allowed")
+		return model.Library{}, verr.Add("roots", "required")
 	}
-	if err := s.ValidateNewRoot(ctx, path); err != nil {
+	roots, err := s.prepareRoots(ctx, lib.Kind, reqs, "roots")
+	if err != nil {
 		return model.Library{}, err
 	}
-	clean := filepath.Clean(path)
-	if err := s.refuseOverlap(ctx, clean); err != nil {
+	now := s.now().UnixMilli()
+	tx, err := s.db.Write.BeginTx(ctx, nil)
+	if err != nil {
 		return model.Library{}, err
 	}
-	fsType, err := paths.DetectFS(clean)
-	if err != nil {
-		return model.Library{}, fmt.Errorf("%w: %w", model.ErrLibraryPathInvalid, err)
+	defer func() { _ = tx.Rollback() }()
+	q := appq.New(tx)
+	rows := make([]appq.LibraryRoot, 0, len(roots))
+	for _, r := range roots {
+		row, err := insertRoot(ctx, q, libraryID, r, now)
+		if err != nil {
+			return model.Library{}, fmt.Errorf("insert library root: %w", err)
+		}
+		rows = append(rows, row)
 	}
-	watch, _ := WatchMode(string(fsType))
-	root, err := appq.New(s.db.Write).InsertLibraryRoot(ctx, appq.InsertLibraryRootParams{
-		LibraryID: libraryID, Path: clean, FsType: string(fsType), Watch: watch, Now: s.now().UnixMilli(),
-	})
-	if err != nil {
-		return model.Library{}, fmt.Errorf("insert library root: %w", err)
+	if err := tx.Commit(); err != nil {
+		return model.Library{}, fmt.Errorf("add library roots: %w", err)
 	}
-	s.log.InfoContext(ctx, "library root added", "library_id", libraryID, "root_id", root.ID,
-		"root", clean, "fs_type", string(fsType), "watch", watch)
-	s.startWatcher(root)
+	for _, row := range rows {
+		s.log.InfoContext(ctx, "library root added", "library_id", libraryID, "root_id", row.ID, "root", row.Path,
+			"content", row.Content, "providers", row.Providers, "fs_type", row.FsType, "watch", row.Watch)
+		s.startWatcher(row)
+	}
 	return s.QueueScan(ctx, libraryID)
 }
 
@@ -153,6 +160,14 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	}
 	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: rootID, Now: now}); err != nil {
 		return 0, 0, fmt.Errorf("move downloads off root %d: %w", rootID, err)
+	}
+	// A podcast folder (ADR 0015): a podcast whose feed came from the folder stays as a
+	// subscription, one without feed goes with its episodes (its file episodes were soft-deleted
+	// above). The feed keeps feed_origin 'file': the address came from a file on the NAS and never
+	// gets the LAN exception of netguard (concept 9.1), whoever removed the folder. The
+	// administration may delete the subscription once no folder owns it (AdminPodcast.rootId).
+	if _, err := q.PodcastSoftDeleteEmptyFolderPodcasts(ctx, ms); err != nil {
+		return 0, 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
 	}
 	n, err := q.DeleteLibraryRoot(ctx, systemq.DeleteLibraryRootParams{ID: rootID, LibraryID: libraryID})
 	if err != nil {

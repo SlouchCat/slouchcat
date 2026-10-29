@@ -90,10 +90,18 @@ func NewClients(base http.Client, headerTimeout time.Duration) Clients {
 	return Clients{public: client(true), local: client(false)}
 }
 
+// FeedOriginFile is the feed origin of a podcast whose feed URL was read from a file on the
+// media share (a metadata.json of an Audiobookshelf folder, ADR 0015) rather than typed by the
+// administrator; such a feed never gets the unguarded client, whatever host it names.
+const FeedOriginFile = "file"
+
 // For returns the client of a fetch on behalf of the feed at feedURL: the unguarded one when the
-// feed's own host is local, else the guarded one.
-func (c Clients) For(ctx context.Context, feedURL string) *http.Client {
-	if LocalHost(ctx, feedURL) {
+// feed's own host is local, else the guarded one. The LAN exception exists for a feed the
+// administrator subscribed to on purpose; a feed read from a file (origin FeedOriginFile) is
+// always fetched guarded, so a file on the NAS cannot make the server reach into the household's
+// network.
+func (c Clients) For(ctx context.Context, feedURL, origin string) *http.Client {
+	if origin != FeedOriginFile && LocalHost(ctx, feedURL) {
 		return c.local
 	}
 	return c.public

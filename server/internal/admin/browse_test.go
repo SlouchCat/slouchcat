@@ -94,7 +94,7 @@ func TestBrowseRoots(t *testing.T) {
 	outside := t.TempDir()
 	f.svc.WithBrowse([]string{media}, browse.ClassifyRoots([]string{media}, quiet), browse.New(quiet))
 	for _, path := range []string{inside, outside, media} {
-		if _, err := f.libs.Create(ctx, model.LibraryRequest{Name: filepath.Base(path), Kind: "movies", Path: path}); err != nil {
+		if _, err := f.libs.Create(ctx, model.LibraryRequest{Name: filepath.Base(path), Kind: model.LibraryVideo, Roots: movieRoots(path)}); err != nil {
 			t.Fatal(err)
 		}
 	}

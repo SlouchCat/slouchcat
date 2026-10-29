@@ -22,9 +22,10 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 }
 
 // Sweep runs the soft delete once, in one transaction, and returns the number of items deleted:
-// movies, episodes and extras whose files are all missing for longer than the grace period, then
-// seasons without undeleted children (episodes, extras), then series without undeleted children
-// (seasons, extras).
+// movies, episodes, extras, audiobooks and file-only podcast episodes whose files are all missing
+// for longer than the grace period, then seasons without undeleted children (episodes, extras),
+// then series without undeleted children (seasons, extras), then folder podcasts without feed and
+// without undeleted episodes.
 func (s *Service) Sweep(ctx context.Context) (int64, error) {
 	now := s.now()
 	ms := sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
@@ -48,8 +49,14 @@ func (s *Service) Sweep(ctx context.Context) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("soft delete empty series: %w", err)
 	}
+	// A podcast read from a folder without feed goes with its last episode (ADR 0015); one with a
+	// feed stays as a subscription.
+	podcasts, err := q.PodcastSoftDeleteEmptyFolderPodcasts(ctx, ms)
+	if err != nil {
+		return 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("sweep: %w", err)
 	}
-	return n + seasons + series, nil
+	return n + seasons + series + podcasts, nil
 }

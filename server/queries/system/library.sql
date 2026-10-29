@@ -79,7 +79,7 @@ WHERE r.library_id = @library_id AND m.probe_error IS NOT NULL;
 -- the safe reading -- it still has a file to play.
 UPDATE items SET deleted_at = @now, updated_at = @now
 WHERE items.deleted_at IS NULL
-  AND items.kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND (items.kind IN ('movie', 'episode', 'extra', 'audiobook') OR (items.kind = 'podcast_episode' AND items.enclosure_url IS NULL))
   AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id = @root_id)
   AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id <> @root_id);
 
@@ -109,3 +109,47 @@ DELETE FROM library_roots WHERE id = @id AND library_id = @library_id;
 -- removal takes out -- a title with a file in another folder of the library stays -- and one pass
 -- over the root_id index answers both.
 SELECT count(*) AS files, count(DISTINCT item_id) AS items FROM media_files WHERE root_id = @root_id;
+
+-- Content and provider list of a folder (updateLibraryRoot, ADR 0015, concept 6.3).
+
+-- name: ListTitleIDsOfRoot :many
+-- The titles with a file in the folder, as the fill and match jobs need them: a movie, audiobook
+-- or podcast is its own title, an episode stands for its series (the parent of its season, or its
+-- direct parent for an episode without season folder), an extra for the title above it.
+SELECT DISTINCT COALESCE(
+        CASE WHEN g.kind = 'series' THEN g.id END,
+        CASE WHEN p.kind IN ('series', 'movie', 'podcast') THEN p.id END,
+        i.id) AS id
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+LEFT JOIN items AS p ON p.id = i.parent_id
+LEFT JOIN items AS g ON g.id = p.parent_id
+WHERE m.root_id = @root_id AND i.deleted_at IS NULL
+ORDER BY id;
+
+-- name: UpdateItemsProvidersByRoot :execrows
+-- The new list of a folder on every title with a file in it, its ancestors and the descendants of
+-- those ancestors: a series with all its seasons and episodes, a movie with its extras. The tree
+-- is three levels deep at most (series, season, episode), so the ancestors are the parent and the
+-- grandparent, the descendants the children and the grandchildren of what those name.
+UPDATE items SET providers = @providers, updated_at = @now
+WHERE deleted_at IS NULL AND (
+    id IN (SELECT m.item_id FROM media_files AS m WHERE m.root_id = @root_id)
+    OR id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = @root_id)
+    OR id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+              JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = @root_id)
+    OR parent_id IN (SELECT i.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id WHERE m.root_id = @root_id)
+    OR parent_id IN (SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+                     JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = @root_id)
+    OR parent_id IN (SELECT c.id FROM items AS c WHERE c.parent_id IN (
+                         SELECT p.parent_id FROM media_files AS m JOIN items AS i ON i.id = m.item_id
+                         JOIN items AS p ON p.id = i.parent_id WHERE m.root_id = @root_id)));
+
+-- name: DeleteMediaFilesOfRoot :execrows
+-- A content change reads the folder afresh (concept 6.3): the cascade takes the downloads of the
+-- soft-deleted titles with it and the triggers set items.available.
+DELETE FROM media_files WHERE root_id = @root_id;
+
+-- name: DeleteIgnoredFilesOfRoot :execrows
+-- The ignored files of a folder refer to its old reading; with another content they start over.
+DELETE FROM ignored_files WHERE root_id = @root_id;

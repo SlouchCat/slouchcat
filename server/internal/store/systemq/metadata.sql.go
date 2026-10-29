@@ -15,6 +15,8 @@ UPDATE items
 SET tmdb_id        = ?1,
     tvdb_id        = ?2,
     imdb_id        = NULL,
+    anilist_id     = NULL,
+    filled_providers = NULL,
     locked_fields  = ?3,
     metadata_state = 'pending',
     metadata_error = NULL,
@@ -31,8 +33,10 @@ type AssignItemMatchParams struct {
 	ID           string
 }
 
-// Manual match (B-6): the chosen provider ID, the other provider ID and imdb_id cleared, the IDs
-// locked, metadata and trailers pending until the queued match has run.
+// Manual match (B-6): the chosen provider ID, the other provider ID, imdb_id and the AniList id
+// cleared (another title at the provider is another anime, the fill looks it up again), the IDs
+// locked, metadata and trailers pending until the queued match has run; the provenance rows of
+// the old identity go with it (the caller deletes them in the same transaction).
 func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams) error {
 	_, err := q.db.ExecContext(ctx, assignItemMatch,
 		arg.TmdbID,
@@ -54,8 +58,17 @@ func (q *Queries) DeleteImage(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteItemFieldSources = `-- name: DeleteItemFieldSources :exec
+DELETE FROM item_field_sources WHERE item_id = ?1
+`
+
+func (q *Queries) DeleteItemFieldSources(ctx context.Context, itemID string) error {
+	_, err := q.db.ExecContext(ctx, deleteItemFieldSources, itemID)
+	return err
+}
+
 const listChildItems = `-- name: ListChildItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers FROM items
 WHERE parent_id = ?1 AND deleted_at IS NULL
 ORDER BY season_number, episode_number, id
 `
@@ -126,6 +139,10 @@ func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) (
 			&i.PublishedAt,
 			&i.EnclosureType,
 			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
 		); err != nil {
 			return nil, err
 		}
@@ -174,6 +191,52 @@ func (q *Queries) ListEpisodesToMatch(ctx context.Context, seriesID sql.NullStri
 	return items, nil
 }
 
+const listFillItems = `-- name: ListFillItems :many
+SELECT i.id, i.providers, i.filled_providers FROM items AS i
+WHERE i.library_id = ?1 AND i.deleted_at IS NULL
+  AND i.kind IN ('movie', 'series') AND i.metadata_state = 'matched'
+  AND instr(i.providers, ',') > 0
+  AND (i.filled_providers IS NULL OR i.filled_providers <> i.providers)
+  AND NOT EXISTS (SELECT 1 FROM jobs AS j
+                  WHERE j.idempotency_key = 'fill:' || i.id AND j.state IN ('queued', 'running'))
+ORDER BY i.id
+`
+
+type ListFillItemsRow struct {
+	ID              string
+	Providers       string
+	FilledProviders sql.NullString
+}
+
+// Matched movies and series of a library with more than one provider in their list (a JSON list
+// with a comma; provider names carry none) whose last fill ran with another list or never ran
+// (items.filled_providers), without an active fill job: the convergence of QueuePendingMetadata
+// (ADR 0015). The caller drops the titles whose only difference is a provider that is not
+// configured right now (QueuePendingFills), so a switched-off AniList queues nothing and a
+// switched-on one queues every title once.
+func (q *Queries) ListFillItems(ctx context.Context, libraryID int64) ([]ListFillItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFillItems, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFillItemsRow{}
+	for rows.Next() {
+		var i ListFillItemsRow
+		if err := rows.Scan(&i.ID, &i.Providers, &i.FilledProviders); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listImagesByItem = `-- name: ListImagesByItem :many
 SELECT id, item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, accent, created_at FROM images WHERE item_id = ?1 ORDER BY kind, size, format
 `
@@ -205,6 +268,41 @@ func (q *Queries) ListImagesByItem(ctx context.Context, itemID string) ([]Image,
 			&i.Accent,
 			&i.CreatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listItemFieldSources = `-- name: ListItemFieldSources :many
+
+SELECT field, lang, provider FROM item_field_sources WHERE item_id = ?1 ORDER BY field, lang
+`
+
+type ListItemFieldSourcesRow struct {
+	Field    string
+	Lang     string
+	Provider string
+}
+
+// Provenance per field (item_field_sources, ADR 0015): which provider of the list won a field.
+func (q *Queries) ListItemFieldSources(ctx context.Context, itemID string) ([]ListItemFieldSourcesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listItemFieldSources, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListItemFieldSourcesRow{}
+	for rows.Next() {
+		var i ListItemFieldSourcesRow
+		if err := rows.Scan(&i.Field, &i.Lang, &i.Provider); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -483,6 +581,22 @@ func (q *Queries) ListUpgradeMatchItems(ctx context.Context, arg ListUpgradeMatc
 	return items, nil
 }
 
+const setItemFilledProviders = `-- name: SetItemFilledProviders :exec
+UPDATE items SET filled_providers = ?1, updated_at = ?2 WHERE id = ?3 AND deleted_at IS NULL
+`
+
+type SetItemFilledProvidersParams struct {
+	FilledProviders sql.NullString
+	Now             int64
+	ID              string
+}
+
+// Records the list a fill ran with (a run with one provider writes provenance only).
+func (q *Queries) SetItemFilledProviders(ctx context.Context, arg SetItemFilledProvidersParams) error {
+	_, err := q.db.ExecContext(ctx, setItemFilledProviders, arg.FilledProviders, arg.Now, arg.ID)
+	return err
+}
+
 const setItemMetadataState = `-- name: SetItemMetadataState :exec
 UPDATE items
 SET metadata_state = ?1,
@@ -505,6 +619,38 @@ func (q *Queries) SetItemMetadataState(ctx context.Context, arg SetItemMetadataS
 		arg.MetadataState,
 		arg.MetadataError,
 		arg.MatchedAt,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const updateChildFill = `-- name: UpdateChildFill :exec
+UPDATE items
+SET release_date       = ?1,
+    runtime_minutes    = ?2,
+    tmdb_poster_path   = ?3,
+    tmdb_backdrop_path = ?4,
+    updated_at         = ?5
+WHERE id = ?6 AND deleted_at IS NULL
+`
+
+type UpdateChildFillParams struct {
+	ReleaseDate      sql.NullString
+	RuntimeMinutes   sql.NullInt64
+	TmdbPosterPath   sql.NullString
+	TmdbBackdropPath sql.NullString
+	Now              int64
+	ID               string
+}
+
+// Writes the fields the fill job decided for a season or episode; the match state stays.
+func (q *Queries) UpdateChildFill(ctx context.Context, arg UpdateChildFillParams) error {
+	_, err := q.db.ExecContext(ctx, updateChildFill,
+		arg.ReleaseDate,
+		arg.RuntimeMinutes,
+		arg.TmdbPosterPath,
+		arg.TmdbBackdropPath,
 		arg.Now,
 		arg.ID,
 	)
@@ -541,6 +687,75 @@ func (q *Queries) UpdateChildMatch(ctx context.Context, arg UpdateChildMatchPara
 		arg.RuntimeMinutes,
 		arg.TmdbPosterPath,
 		arg.TmdbBackdropPath,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const updateItemAniListID = `-- name: UpdateItemAniListID :exec
+UPDATE items SET anilist_id = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type UpdateItemAniListIDParams struct {
+	AnilistID sql.NullInt64
+	Now       int64
+	ID        string
+}
+
+func (q *Queries) UpdateItemAniListID(ctx context.Context, arg UpdateItemAniListIDParams) error {
+	_, err := q.db.ExecContext(ctx, updateItemAniListID, arg.AnilistID, arg.Now, arg.ID)
+	return err
+}
+
+const updateItemFill = `-- name: UpdateItemFill :exec
+UPDATE items
+SET original_title     = ?1,
+    year               = ?2,
+    release_date       = ?3,
+    runtime_minutes    = ?4,
+    genres             = ?5,
+    own_rating         = ?6,
+    rating_source      = ?7,
+    tmdb_poster_path   = ?8,
+    tmdb_backdrop_path = ?9,
+    anilist_id         = ?10,
+    filled_providers   = ?11,
+    updated_at         = ?12
+WHERE id = ?13 AND deleted_at IS NULL
+`
+
+type UpdateItemFillParams struct {
+	OriginalTitle    sql.NullString
+	Year             sql.NullInt64
+	ReleaseDate      sql.NullString
+	RuntimeMinutes   sql.NullInt64
+	Genres           string
+	OwnRating        sql.NullInt64
+	RatingSource     sql.NullString
+	TmdbPosterPath   sql.NullString
+	TmdbBackdropPath sql.NullString
+	AnilistID        sql.NullInt64
+	FilledProviders  sql.NullString
+	Now              int64
+	ID               string
+}
+
+// Writes the fields the fill job decided for a movie or series (metadata.fill, ADR 0015); the
+// caller keeps the current value of every field it does not fill. The match state stays.
+func (q *Queries) UpdateItemFill(ctx context.Context, arg UpdateItemFillParams) error {
+	_, err := q.db.ExecContext(ctx, updateItemFill,
+		arg.OriginalTitle,
+		arg.Year,
+		arg.ReleaseDate,
+		arg.RuntimeMinutes,
+		arg.Genres,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.TmdbPosterPath,
+		arg.TmdbBackdropPath,
+		arg.AnilistID,
+		arg.FilledProviders,
 		arg.Now,
 		arg.ID,
 	)
@@ -661,6 +876,28 @@ func (q *Queries) UpsertImage(ctx context.Context, arg UpsertImageParams) error 
 		arg.Bytes,
 		arg.Accent,
 		arg.Now,
+	)
+	return err
+}
+
+const upsertItemFieldSource = `-- name: UpsertItemFieldSource :exec
+INSERT INTO item_field_sources (item_id, field, lang, provider) VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT (item_id, field, lang) DO UPDATE SET provider = excluded.provider
+`
+
+type UpsertItemFieldSourceParams struct {
+	ItemID   string
+	Field    string
+	Lang     string
+	Provider string
+}
+
+func (q *Queries) UpsertItemFieldSource(ctx context.Context, arg UpsertItemFieldSourceParams) error {
+	_, err := q.db.ExecContext(ctx, upsertItemFieldSource,
+		arg.ItemID,
+		arg.Field,
+		arg.Lang,
+		arg.Provider,
 	)
 	return err
 }

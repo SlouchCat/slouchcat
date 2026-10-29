@@ -53,7 +53,7 @@ func (q *Queries) DeleteTrack(ctx context.Context, id int64) error {
 }
 
 const getItemSystem = `-- name: GetItemSystem :one
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items WHERE id = ?1
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers FROM items WHERE id = ?1
 `
 
 func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
@@ -115,6 +115,10 @@ func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
 		&i.PublishedAt,
 		&i.EnclosureType,
 		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
+		&i.FilledProviders,
 	)
 	return i, err
 }
@@ -160,11 +164,11 @@ const insertItem = `-- name: InsertItem :one
 
 INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date,
                    tmdb_id, tvdb_id, imdb_id, season_number, episode_number, episode_end, extra_kind,
-                   own_rating, rating_source, added_at, created_at, updated_at)
+                   own_rating, rating_source, providers, added_at, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, ?15, ?16,
-        ?17, ?18, ?19, ?19, ?19)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length
+        ?17, ?18, ?19, ?20, ?20, ?20)
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers
 `
 
 type InsertItemParams struct {
@@ -186,11 +190,14 @@ type InsertItemParams struct {
 	ExtraKind     sql.NullString
 	OwnRating     sql.NullInt64
 	RatingSource  sql.NullString
+	Providers     string
 	Now           int64
 }
 
 // Unfiltered title queries for the scanner (package store/systemq). Owner: library package.
 // Times are Unix milliseconds.
+// providers is the ordered metadata source list of the root the file lies in (ADR 0015); a child
+// (season, episode, extra) carries the list of its parent.
 func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, error) {
 	row := q.db.QueryRowContext(ctx, insertItem,
 		arg.ID,
@@ -211,6 +218,7 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		arg.ExtraKind,
 		arg.OwnRating,
 		arg.RatingSource,
+		arg.Providers,
 		arg.Now,
 	)
 	var i Item
@@ -270,6 +278,10 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		&i.PublishedAt,
 		&i.EnclosureType,
 		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
+		&i.FilledProviders,
 	)
 	return i, err
 }
@@ -406,7 +418,7 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 }
 
 const listItemsByLibrary = `-- name: ListItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]Item, error) {
@@ -474,6 +486,10 @@ func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]It
 			&i.PublishedAt,
 			&i.EnclosureType,
 			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
 		); err != nil {
 			return nil, err
 		}
@@ -613,7 +629,7 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 }
 
 const listRecentlyDeletedItemsByLibrary = `-- name: ListRecentlyDeletedItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers FROM items
 WHERE library_id = ?1 AND deleted_at IS NOT NULL AND deleted_at >= ?2
 ORDER BY deleted_at DESC, id
 `
@@ -689,6 +705,10 @@ func (q *Queries) ListRecentlyDeletedItemsByLibrary(ctx context.Context, arg Lis
 			&i.PublishedAt,
 			&i.EnclosureType,
 			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
 		); err != nil {
 			return nil, err
 		}
@@ -804,7 +824,7 @@ func (q *Queries) SetMediaFilePath(ctx context.Context, arg SetMediaFilePathPara
 const softDeleteItemsMissingSince = `-- name: SoftDeleteItemsMissingSince :execrows
 UPDATE items SET deleted_at = ?1, updated_at = ?1
 WHERE deleted_at IS NULL
-  AND kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND (kind IN ('movie', 'episode', 'extra', 'audiobook') OR (kind = 'podcast_episode' AND enclosure_url IS NULL))
   AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id)
   AND NOT EXISTS (SELECT 1 FROM media_files AS m
                   WHERE m.item_id = items.id AND (m.missing_since IS NULL OR m.missing_since >= ?2))
@@ -815,6 +835,8 @@ type SoftDeleteItemsMissingSinceParams struct {
 	Before sql.NullInt64
 }
 
+// A podcast episode counts only without enclosure: one with an enclosure stays as a feed episode
+// when its file goes (ADR 0015).
 func (q *Queries) SoftDeleteItemsMissingSince(ctx context.Context, arg SoftDeleteItemsMissingSinceParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, softDeleteItemsMissingSince, arg.Now, arg.Before)
 	if err != nil {
