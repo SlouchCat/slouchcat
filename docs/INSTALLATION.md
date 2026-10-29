@@ -28,8 +28,8 @@ Fassung nicht geprüft worden, weil im Projekt keine solchen Geräte vorhanden w
 
 ```bash
 mkdir -p ~/slouchcat && cd ~/slouchcat
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.2.0/deploy/compose.yaml
-curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.2.0/deploy/.env.example
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.3.0/deploy/compose.yaml
+curl -fsSL -o .env https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.3.0/deploy/.env.example
 mkdir -p config cache
 ```
 
@@ -47,7 +47,7 @@ Du hast jetzt vier Dinge nebeneinander:
 
 ```bash
 # Die Fassung, die laufen soll.
-SLOUCHCAT_VERSION=1.2.0
+SLOUCHCAT_VERSION=1.3.0
 
 # Der Ordner auf deinem Rechner, in dem die Medien liegen.
 MEDIA_DIR=/srv/media
@@ -70,9 +70,12 @@ Die Ordner `config` und `cache` müssen dem Benutzer aus `PUID`/`PGID` gehören:
 sudo chown -R "$(id -u):$(id -g)" config cache
 ```
 
-Im Formular «Bibliothek hinzufügen» steht neben dem Ordnerfeld der Knopf «Durchsuchen …». Er zeigt die
+Im Formular «Bibliothek hinzufügen» steht neben jedem Ordnerfeld der Knopf «Durchsuchen …». Er zeigt die
 Unterordner von `/media`, du klickst dich zum richtigen Ordner und musst den Pfad im Container nicht
-auswendig wissen. Aus demselben Grund darf eine neue Bibliothek nur unter `/media` liegen. Hast du in
+auswendig wissen. Aus demselben Grund darf eine neue Bibliothek nur unter `/media` liegen. Ein
+Podcast-Ordner im Layout von Audiobookshelf (ein Unterordner je Podcast mit `metadata.json`) wird
+gelesen wie ein Hörbuch-Ordner; steht in der `metadata.json` eine Feed-Adresse, abonniert Slouchcat
+den Feed gleich mit. Hast du in
 `compose.yaml` eine zweite Einhängung ergänzt, trägst du sie komma-getrennt in
 `SLOUCHCAT_BROWSE_ROOTS` ein (zum Beispiel `SLOUCHCAT_BROWSE_ROOTS=/media,/media2`). Bibliotheken, die
 es schon gibt, bleiben in jedem Fall bestehen.
@@ -102,7 +105,7 @@ Zeit: Der Start eines 4K-HDR-Films dauert dann bis zu zehn Sekunden statt unter 
 ist höchstens 1080p ohne HDR. Mit Grafikchip nimmst du eine zweite Datei dazu:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.2.0/deploy/compose.nvidia.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.3.0/deploy/compose.nvidia.yaml
 echo 'COMPOSE_FILE=compose.yaml:compose.nvidia.yaml' >> .env
 docker compose up -d
 ```
@@ -121,8 +124,12 @@ Ob der Chip erkannt wurde, siehst du in der Verwaltung unter «Übersicht» und 
 Beim ersten Aufruf führt dich ein Assistent durch vier Schritte:
 
 1. **Konto** — deine E-Mail-Adresse und ein Passwort. Dieses Konto ist der Hauptbenutzer und darf alles.
-2. **Bibliothek** — ein Ordner und sein Typ (Filme, Serien, Hörbücher, Podcasts). Der Pfad ist der
-   Pfad **im Container**, also `/media/Filme`, nicht `/mnt/nas/medien/Filme`.
+2. **Bibliothek** — die Art (Video, Hörbücher, Podcasts) und ihre Ordner. Jeder Ordner trägt seinen
+   **Inhalt** (Filme oder Serien; eine Video-Bibliothek darf beide mischen) und seine
+   **Metadatenquellen** (TMDB, bei Serien auch TVDB, dazu AniList für Anime; die erste Quelle
+   erkennt den Titel, die weiteren füllen auf). Mit «Weiteren Ordner hinzufügen» legst du mehrere
+   Ordner in einem Zug an. Der Pfad ist der Pfad **im Container**, also `/media/Filme`, nicht
+   `/mnt/nas/medien/Filme`.
 3. **Metadaten von TMDB** — der Lesetoken. Der Assistent prüft ihn sofort. Du darfst ihn weglassen,
    solltest es aber nicht: ohne bekannte Altersfreigabe ist jeder Titel für Profile unter 18 gesperrt.
 4. **Grafikchip und Dateisystem** — nur eine Anzeige dessen, was der Server vorgefunden hat.
@@ -143,8 +150,8 @@ auf deinen Anschluss zeigt, und im Router die Weiterleitung der Ports 80/tcp, 44
 den Rechner.
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.2.0/deploy/Caddyfile
-curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.2.0/deploy/compose.https-only.yaml
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.3.0/deploy/Caddyfile
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.3.0/deploy/compose.https-only.yaml
 ```
 
 In `.env`:

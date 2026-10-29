@@ -147,3 +147,17 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `TestFrozenUserManagementStateCoversTheThreeLevels` prüft, dass jede dieser Datenarten nach der
   Migration da ist und dass es genau einen Besitzer gibt. Das ist der Stand, an dem jede spätere
   Migration an `accounts` gemessen wird.
+- `bibliotheken.sql`: Stand nach dem Konzept «Bibliotheken» (ADR 0015; Migrationen 00023 und 00024). Erzeugt mit
+  `server/bin/slouchcat dump` nach einem Lauf gegen einen frischen Server (Skript in den Sitzungsnotizen
+  `freeze-bibliotheken.sh`): Assistent mit Hauptkonto `frozen@example.test` und der Video-Bibliothek «Dokus» mit **zwei
+  Ordnern in einem Zug** (`testdata/media/Movies` als Filme `["tmdb","anilist"]`, `testdata/media/TV` als Serien
+  `["tmdb","tvdb","anilist"]`, Marcos TMDB-Schlüssel, Scan, Sonde, Keyframes, Match und `metadata.fill` durch die echten
+  Dienste; die Testfilme kennt TMDB nicht, sie bleiben `unmatched`, die zwei Testserien sind gematcht und tragen
+  `item_field_sources` von TMDB, `anilist_id = 0` nach dem Nachschlagen in der Liste von Fribb), die Video-Bibliothek
+  «Anime» mit einem leeren Serienordner mit **TVDB als Erkenner** (`["tvdb","tmdb","anilist"]`), und die Bibliothek
+  «Podcasts» mit einem von Hand abonnierten lokalen Test-Feed (`feed_origin 'admin'`) und einem Podcast-Ordner, dessen
+  `metadata.json` denselben Feed nennt: der Ordner wurde **übernommen** (F-6), eine Datei des Ordners ist mit der
+  Feed-Episode 1 verheiratet (Datei und Enclosure), zwei weitere sind reine Datei-Episoden. Per SQL ergänzt, weil die
+  Testmedien keine Anime sind: eine gematchte Serie trägt `anilist_id 290` und Herkunftszeilen `overview/en → anilist`
+  und `genres → union`. `TestFrozenBibliothekenStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
+  der Name trägt bewusst keine Meilensteinnummer, wie `benutzerverwaltung.sql`.

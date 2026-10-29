@@ -77,3 +77,31 @@ mit Marcos Schlüssel geprüft (Schritt 6).
 1 393 Einträge), nicht als Zahl; der erste Parser brach beim ersten solchen Eintrag ab, alle 82
 Film-Fills endeten nach fünf Versuchen `failed`. Der Parser liest Zahl oder Liste und überspringt
 Einträge anderer Form mit einer Warnung, statt die ganze Liste zu verwerfen.
+
+## 3. CT 190: Umstellung auf das Image `bibliotheken` (Schritt 6)
+
+29. Oktober 2026, 18:56 Uhr, CT 190 (`192.168.1.43`, Stack aus `/opt/slouchcat/deploy`, vorher
+`main-9923807`). Weil Docker in dieser Entwicklungs-Session nicht erreichbar war, wurde das Binary
+hier gebaut (`CGO_ENABLED=0`, Version `bibliotheken-af313cc`) und auf dem CT nur die Laufzeitstufe
+von `deploy/Dockerfile` gebaut (jellyfin-ffmpeg aus dem Jellyfin-Repository, Lizenzdateien aus dem
+Kontext); Skript `deploy-ct190.sh` in den Sitzungsnotizen.
+
+| Messung | Wert |
+|---|---|
+| Image `ghcr.io/slouchcat/slouchcat:bibliotheken` | 212 MB |
+| Sicherung vor der Migration (`VACUUM INTO`) | `/config/backups/pre-migration-bibliotheken-af313cc-20261029T175647.352Z.db`; Datenbank 88 MB |
+| Migration 00023 (`libraries` neu, `library_roots` und `items` erweitert, Wächter) | **1 773 ms** bei 1 786 Filmen, 1 Serie |
+| Migration 00024 (Trigger `items_enclosure_update`) | 177 ms |
+| Migration 00025 (`items.filled_providers`) | 590 ms |
+| `docker compose up -d --wait` bis `healthy`, `/healthz` 200 | ohne Befund |
+| Bestand nach 8.1 | «Filme» → `video` mit `/media/nas/Filme` als `movie` `["tmdb"]`; «Serien» → `video` mit `/media/nas/TestSerien` als `series` `["tmdb","tvdb"]`; 1 786 Filme `["tmdb"]`, Serie, Staffel und Folge `["tmdb","tvdb"]` |
+| Konvergenz nach dem ersten Scan | die eine Serie (zwei Anbieter in der Liste) bekam ihren ersten `metadata.fill`: `filled_providers` gesetzt, 11 Herkunftszeilen; die 1 786 Filme mit `["tmdb"]` bleiben ohne Anfrage |
+| Freier Platz auf dem CT nach dem Bau | 4.6 GB |
+
+**Noch offen (Abnahme durch Marco, 10.8):** die Zielstruktur aus Abschnitt 2 des Konzepts anlegen
+(«Dokus», «Kids», «Anime» mit `[TVDB, TMDB, AniList]` — braucht den TVDB-Schlüssel in `deploy/.env`
+des CT —, «Hörbücher», «Podcast» auf `/media/nas/Audiobookshelf/…`). Der Erst-Scan der zwei
+Audio-Ordner (26 031 Podcast-Dateien, 62 Autorenordner über NFS) ist der Messlauf aus Konzept 12.5:
+Dauer, ffprobe-Starts, Jobs, NFS-Latenz, Speicher gehören danach in diese Tabelle; ebenso die Quote
+der nicht zusammengeführten Episoden (`listDuplicates`, `file_and_feed`) und der Anime-Lauf mit
+drei Anbietern auf dem CT.
