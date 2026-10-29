@@ -411,12 +411,10 @@ function renderSpot(animate) {
   strip.querySelectorAll('li').forEach((li, i) => {
     if (i === state.spot) li.setAttribute('aria-current', 'true'); else li.removeAttribute('aria-current');
   });
-  // horizontal only, and only when the active poster is out of view: the page must not jump
+  // horizontal only: the active poster always sits at the left edge (N-4); the page must not jump
   const li = strip.children[state.spot];
-  const l = li.offsetLeft - strip.scrollLeft, r = l + li.clientWidth;
-  // align the active poster with the left edge (N-4), never leave a cut cover on the left
-  const gutter = parseFloat(getComputedStyle(strip).paddingLeft) || 0;
-  if (l < 0 || r > strip.clientWidth) strip.scrollTo({ left: Math.max(0, li.offsetLeft - gutter), behavior: animate ? 'smooth' : 'auto' });
+  const left = li.getBoundingClientRect().left - strip.getBoundingClientRect().left + strip.scrollLeft - (parseFloat(getComputedStyle(strip).paddingLeft) || 0);
+  if (Math.abs(left - strip.scrollLeft) > 1) strip.scrollTo({ left: Math.max(0, left), behavior: animate ? 'smooth' : 'auto' });
   armTimer();
 }
 function armTimer() {
