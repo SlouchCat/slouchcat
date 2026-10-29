@@ -1,8 +1,8 @@
 # Aktueller Stand
 
-## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, in Arbeit)
+## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, abgenommen)
 
-Auf dem Zweig `claude/bibliotheken` (Pull Request #45, Entwurf) nach dem Konzept
+Auf dem Zweig `claude/bibliotheken` (Pull Request #45, bereit) nach dem Konzept
 `docs/planning/07-bibliotheken.md` (Fassung 4), den Entscheiden in **Frage 13** des
 Entscheidungsprotokolls und **ADR 0015** (Teilnachfolger von ADR 0006). Ein Commit je Planschritt;
 vor jedem Abschluss war `task ci` grün.
@@ -457,6 +457,13 @@ Abnahme selbst** (Zielstruktur anlegen, Mischbibliothek, Scraper-Liste sortieren
 mit TVDB zuerst, Podcast-Ordner, Inhaltswechsel mit Bestätigung, Bibliotheksrechte eines
 Kinderprofils) **macht Marco**; der Erst-Scan der Audio-Ordner ist der Messlauf aus 12.5 und
 dauert Stunden.
+
+**Abgenommen von Marco am 29. Oktober 2026** am laufenden CT 190 (Image `bibliotheken-4c6e89e`),
+nach zwei Nachbesserungen am Layout (`8c913bf`: Formular und Dialog aufgeräumt; `4c6e89e`:
+Fokusring im Ordner-Browser nach innen). Offen bleiben die Storybook-Baselines (`ProviderList`,
+`FolderList`, `PathList`) über `task storybook:update` mit Docker, ohne die `storybook:test` in CI
+rot ist, und die Werte des Erst-Scans der Audio-Ordner für `docs/perf/bibliotheken.md` 3. Merge
+auf Marcos Wort durch die Hauptsession.
 
 **Belege (DoD Schritt 6):**
 
