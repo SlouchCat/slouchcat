@@ -373,7 +373,7 @@ const softDeleteItemsOfRootWithoutOtherFiles = `-- name: SoftDeleteItemsOfRootWi
 
 UPDATE items SET deleted_at = ?1, updated_at = ?1
 WHERE items.deleted_at IS NULL
-  AND items.kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND (items.kind IN ('movie', 'episode', 'extra', 'audiobook') OR (items.kind = 'podcast_episode' AND items.enclosure_url IS NULL))
   AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id = ?2)
   AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id <> ?2)
 `

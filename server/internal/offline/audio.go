@@ -211,7 +211,7 @@ func (s *Service) planAudio(ctx context.Context, row systemq.Download, item syst
 	multi, cleanup := false, ""
 	switch {
 	case row.SourceUrl.Valid && !row.MediaFileID.Valid:
-		name, err := s.fetchSource(ctx, row.ID, item.FeedUrl.String, cmp.Or(item.EnclosureUrl.String, row.SourceUrl.String))
+		name, err := s.fetchSource(ctx, row.ID, item.FeedUrl.String, item.FeedOrigin.String, cmp.Or(item.EnclosureUrl.String, row.SourceUrl.String))
 		if err != nil {
 			return planned{}, err
 		}
@@ -281,8 +281,9 @@ func (s *Service) planAudio(ctx context.Context, row systemq.Download, item syst
 // request guarded by If-Range with the validator (strong ETag, else Last-Modified) stored next to
 // it, and only when the answer resumes at the byte the partial file ends with; anything else
 // starts over. Failures are errSourceUnavailable; they name the enclosure's host only. feedURL is
-// the podcast's feed: an enclosure in the local network is fetched only when the feed is there too.
-func (s *Service) fetchSource(ctx context.Context, id, feedURL, rawURL string) (string, error) {
+// the podcast's feed: an enclosure in the local network is fetched only when the feed is there too
+// and was subscribed by hand (feedOrigin, package netguard).
+func (s *Service) fetchSource(ctx context.Context, id, feedURL, feedOrigin, rawURL string) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", fmt.Errorf("%w: invalid enclosure URL", errSourceUnavailable)
@@ -323,7 +324,7 @@ func (s *Service) fetchSource(ctx context.Context, id, feedURL, rawURL string) (
 			req.Header.Set("If-Range", string(v))
 		}
 	}
-	resp, err := sourceClients.For(ctx, feedURL).Do(req)
+	resp, err := sourceClients.For(ctx, feedURL, feedOrigin).Do(req)
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", errSourceUnavailable, netguard.Clean(err))
 	}

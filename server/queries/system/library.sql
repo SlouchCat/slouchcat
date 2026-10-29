@@ -79,7 +79,7 @@ WHERE r.library_id = @library_id AND m.probe_error IS NOT NULL;
 -- the safe reading -- it still has a file to play.
 UPDATE items SET deleted_at = @now, updated_at = @now
 WHERE items.deleted_at IS NULL
-  AND items.kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND (items.kind IN ('movie', 'episode', 'extra', 'audiobook') OR (items.kind = 'podcast_episode' AND items.enclosure_url IS NULL))
   AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id = @root_id)
   AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id AND m.root_id <> @root_id);
 

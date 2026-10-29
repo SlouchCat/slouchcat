@@ -41,7 +41,7 @@ func TestPodcastsAndAudioVisibility(t *testing.T) {
 			t.Fatalf("%s: %v", p.Name, err)
 		}
 		var want []string
-		for _, m := range slices.Concat(a.Episodes, []vistest.Movie{a.Explicit, a.EnclosureOnly}) {
+		for _, m := range slices.Concat([]vistest.Movie{a.FileOnlyExplicit}, a.Episodes, []vistest.Movie{a.Explicit, a.EnclosureOnly}) {
 			if f.VisibleTo(p, m) {
 				want = append(want, m.ID)
 			}
@@ -63,10 +63,10 @@ func TestPodcastsAndAudioVisibility(t *testing.T) {
 	s := Profile(f.P18)
 	// Paging and the clamps.
 	page, total, err := r.PodcastEpisodes(ctx, s, a.Podcast.ID, 1, 2)
-	if err != nil || total != 6 || len(page) != 2 || page[0].ID != a.Explicit.ID {
+	if err != nil || total != 7 || len(page) != 2 || page[0].ID != a.Explicit.ID {
 		t.Errorf("page 1..2 = %v total %d err %v", page, total, err)
 	}
-	if page, _, _ := r.PodcastEpisodes(ctx, s, a.Podcast.ID, -5, 1000); len(page) != 6 {
+	if page, _, _ := r.PodcastEpisodes(ctx, s, a.Podcast.ID, -5, 1000); len(page) != 7 {
 		t.Errorf("clamped page = %d episodes", len(page))
 	}
 	for _, id := range []string{a.Books[0].ID, a.Explicit.ID, a.Empty.ID, "01J0000000000000000000NONE"} {

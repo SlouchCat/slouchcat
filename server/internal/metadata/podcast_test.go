@@ -136,7 +136,7 @@ type episodeRow struct {
 
 func (e *podcastEnv) episodes(t *testing.T, podcastID string) map[string]episodeRow {
 	t.Helper()
-	rows, err := e.db.Read.Query(`SELECT id, title, guid, COALESCE(rating_source, ''), COALESCE(enclosure_url, ''), own_rating,
+	rows, err := e.db.Read.Query(`SELECT id, title, COALESCE(guid, ''), COALESCE(rating_source, ''), COALESCE(enclosure_url, ''), own_rating,
 	       published_at, duration_ms, effective_rating, explicit, available FROM items WHERE parent_id = ? AND kind = 'podcast_episode'`, podcastID)
 	if err != nil {
 		t.Fatal(err)

@@ -37,6 +37,9 @@ type Audio struct {
 	// EnclosureOnly is an episode without file and without images of its own (it shows the podcast's
 	// cover); its rating comes from the podcast (0).
 	EnclosureOnly Movie
+	// FileOnlyExplicit is an episode read from a podcast folder (ADR 0015): a file, no guid and
+	// no enclosure, explicit by its tags (FSK 18, rating_source tags).
+	FileOnlyExplicit Movie
 	// Empty is a podcast without episodes: no content, so it is unavailable and invisible.
 	Empty Movie
 	// ExplicitPodcast is a podcast whose channel is itunes:explicit (FSK 18, rating_source feed,
@@ -56,7 +59,7 @@ func (a Audio) Titles() []Movie {
 	out := append([]Movie{}, a.Books...)
 	out = append(out, a.Parts, a.Podcast)
 	out = append(out, a.Episodes...)
-	return append(out, a.Explicit, a.EnclosureOnly, a.Empty, a.ExplicitPodcast, a.ExplicitPodcastEpisode)
+	return append(out, a.Explicit, a.EnclosureOnly, a.FileOnlyExplicit, a.Empty, a.ExplicitPodcast, a.ExplicitPodcastEpisode)
 }
 
 // EnclosureType is the MIME type of every fixture enclosure.
@@ -197,6 +200,11 @@ func (f *Fixture) AddAudio(t testing.TB) {
 	}
 	a.Explicit = episode("QX", ptr(18), ptr(18), true, true)
 	a.EnclosureOnly = episode("QE", nil, zero, false, false)
+	// Published before every other episode, so the lists ordered by date keep their shape.
+	a.FileOnlyExplicit = episode("QF", ptr(18), ptr(18), true, false)
+	exec(t, f.DB, `UPDATE items SET guid = NULL, enclosure_url = NULL, enclosure_type = NULL, explicit = 1, rating_source = 'tags',
+	               published_at = ? WHERE id = ?`, time.Date(2026, 10, 1, 6, 0, 0, 0, time.UTC).UnixMilli(), a.FileOnlyExplicit.ID)
+	a.FileOnlyExplicit.Enclosure = ""
 	// The enclosure-only episode has no images of its own: it shows the podcast's.
 	exec(t, f.DB, `DELETE FROM images WHERE item_id = ?`, a.EnclosureOnly.ID)
 	a.EnclosureOnly.PosterRel, a.EnclosureOnly.PosterWebPRel = a.Podcast.PosterRel, a.Podcast.PosterWebPRel

@@ -40,7 +40,8 @@ type fileInfo struct {
 	episodeTitle, released string
 	episodeRating          *int
 
-	book *bookMeta // folder metadata of an audio file (audiobook library)
+	book    *bookMeta    // folder metadata of an audio file (audiobook folder)
+	podcast *podcastMeta // folder metadata of an audio file (podcast folder)
 }
 
 // nfoCache holds the tvshow.nfo files read in one batch, by root and series folder.
@@ -207,6 +208,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *library
 	}()
 	cache := nfoCache{}
 	books := bookCache{}
+	podcasts := podcastCache{}
 	for i, op := range ops {
 		if op.kind != opNew {
 			continue
@@ -219,8 +221,12 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *library
 			}
 			roots[op.rs.root.ID] = r
 		}
-		if op.rs.root.Content == model.RootAudiobook {
+		switch op.rs.root.Content {
+		case model.RootAudiobook:
 			infos[i] = describeBook(r, op.rs.root.ID, op.disk, books)
+			continue
+		case model.RootPodcast:
+			infos[i] = describePodcastFile(r, op.rs.root.ID, op.disk, podcasts)
 			continue
 		}
 		infos[i] = describe(r, op.rs.root.ID, op.rs.root.Content, op.disk, cache)
@@ -250,6 +256,7 @@ func (s *Service) applyBatch(ctx context.Context, lib appq.Library, idx *library
 	s.recordBatch(len(ops), time.Since(began))
 	s.rememberOrphans(w.orphans)
 	s.finishAudiobooks(ctx, w.books)
+	s.noteAdoptedPodcasts(ctx, lib.ID, w.adopted)
 	s.announceEpisodes(ctx, lib.ID, w.episodes)
 	if w.skipped > 0 {
 		s.log.InfoContext(ctx, "extras without a parent title skipped", "library_id", lib.ID, "files", w.skipped)
@@ -296,6 +303,7 @@ type batchWriter struct {
 	orphans  []scanOp        // new extras skipped for want of a parent (Service.rememberOrphans)
 	books    map[string]bool // audiobooks with new, moved or missing parts (Service.finishAudiobooks)
 	episodes []string        // episode items created in this batch (Service.newEpisodes)
+	adopted  []string        // podcasts a second folder brought the feed of (Service.noteAdoptedPodcasts)
 }
 
 // ix is the item index of the titles the current root produces.
@@ -309,11 +317,15 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 	}
 	switch op.kind {
 	case opNew:
-		itemID, err := w.item(ctx, info)
+		itemID, err := w.item(ctx, op, info)
 		if err != nil {
 			return err
 		}
 		if itemID == "" {
+			if w.root.Content == model.RootPodcast {
+				w.skipped++ // an audio file directly in the root of a podcast folder
+				return nil
+			}
 			w.orphans = append(w.orphans, op) // an extra without a parent title
 			return nil
 		}
@@ -370,10 +382,12 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 // item returns the item a new file belongs to, creating it (and its series and season) when
 // needed; "" for an extra without a parent title, which is skipped. The content of the root
 // decides (ADR 0015), not the library.
-func (w *batchWriter) item(ctx context.Context, info fileInfo) (string, error) {
+func (w *batchWriter) item(ctx context.Context, op scanOp, info fileInfo) (string, error) {
 	switch {
 	case w.root.Content == model.RootAudiobook:
 		return w.audiobookItem(ctx, info)
+	case w.root.Content == model.RootPodcast:
+		return w.podcastItem(ctx, op, info)
 	case info.extra:
 		return w.extraItem(ctx, info)
 	case w.root.Content == model.RootSeries:

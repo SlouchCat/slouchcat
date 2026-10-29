@@ -325,6 +325,65 @@ func (q *Queries) AdminInsertTopPick(ctx context.Context, arg AdminInsertTopPick
 	return id, err
 }
 
+const adminListFileAndFeedEpisodes = `-- name: AdminListFileAndFeedEpisodes :many
+SELECT fe.id AS file_id, fe.title AS file_title, fe.year AS file_year,
+       ne.id AS feed_id, ne.title AS feed_title, ne.year AS feed_year, fe.library_id, fe.parent_id
+FROM items AS fe
+JOIN items AS ne ON ne.parent_id = fe.parent_id AND ne.kind = 'podcast_episode' AND ne.deleted_at IS NULL
+     AND ne.enclosure_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = ne.id)
+WHERE fe.kind = 'podcast_episode' AND fe.deleted_at IS NULL AND fe.enclosure_url IS NULL
+  AND (?1 IS NULL OR fe.library_id = ?1)
+  AND ((fe.published_at IS NOT NULL AND ne.published_at IS NOT NULL AND fe.published_at / 60000 = ne.published_at / 60000)
+       OR fe.sort_title = ne.sort_title)
+ORDER BY fe.parent_id, fe.id, ne.id
+`
+
+type AdminListFileAndFeedEpisodesRow struct {
+	FileID    string
+	FileTitle string
+	FileYear  sql.NullInt64
+	FeedID    string
+	FeedTitle string
+	FeedYear  sql.NullInt64
+	LibraryID int64
+	ParentID  sql.NullString
+}
+
+// Podcast episodes of one podcast that may be the same episode twice (ADR 0015, concept 4.5): a
+// file episode (no enclosure) and a feed episode (no file) with the same publication minute or
+// the same sort title. The scanner pairs only unambiguous cases; the rest is listed here.
+func (q *Queries) AdminListFileAndFeedEpisodes(ctx context.Context, libraryID interface{}) ([]AdminListFileAndFeedEpisodesRow, error) {
+	rows, err := q.db.QueryContext(ctx, adminListFileAndFeedEpisodes, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminListFileAndFeedEpisodesRow{}
+	for rows.Next() {
+		var i AdminListFileAndFeedEpisodesRow
+		if err := rows.Scan(
+			&i.FileID,
+			&i.FileTitle,
+			&i.FileYear,
+			&i.FeedID,
+			&i.FeedTitle,
+			&i.FeedYear,
+			&i.LibraryID,
+			&i.ParentID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminListHashDuplicates = `-- name: AdminListHashDuplicates :many
 SELECT m.partial_hash, m.id AS media_file_id, m.root_id, m.rel_path, m.size, m.version_label, m.missing_since,
        i.id, i.kind, i.title, i.year, i.library_id

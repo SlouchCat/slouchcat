@@ -42,9 +42,10 @@ INSERT INTO chapters (item_id, idx, title, start_ms, end_ms, media_file_id, file
 VALUES (@item_id, @idx, @title, @start_ms, @end_ms, @media_file_id, @file_start_ms);
 
 -- name: GetItemCoverRoot :one
--- The library root of a book's first present part: cover_path (a folder image) is relative to it.
+-- The library root of a book's first present part, or of the first file of a podcast's episodes:
+-- cover_path (a folder image) is relative to it.
 SELECT r.path FROM media_files AS m
 JOIN library_roots AS r ON r.id = m.root_id
-WHERE m.item_id = @item_id
+WHERE m.item_id = @item_id OR m.item_id IN (SELECT c.id FROM items AS c WHERE c.parent_id = @item_id AND c.kind = 'podcast_episode')
 ORDER BY m.missing_since IS NOT NULL, COALESCE(m.part_index, 0), m.rel_path, m.id
 LIMIT 1;

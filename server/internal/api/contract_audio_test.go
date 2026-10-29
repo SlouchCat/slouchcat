@@ -29,7 +29,7 @@ func TestContractAudio(t *testing.T) {
 	f, h := pf.f, pf.h
 	a := f.Audio
 	titles := f.All()
-	episodes := slices.Concat(a.Episodes, []vistest.Movie{a.Explicit, a.EnclosureOnly})
+	episodes := slices.Concat([]vistest.Movie{a.FileOnlyExplicit}, a.Episodes, []vistest.Movie{a.Explicit, a.EnclosureOnly})
 	for _, token := range []string{"p0", "p6", "p12", "p16", "p18", "px", "pg", "pg18"} {
 		profile := pf.tokens[token]
 		for _, m := range a.Titles() {
@@ -232,7 +232,7 @@ func TestContractAudioAdmin(t *testing.T) {
 	for _, p := range list {
 		counts[p.ID] = p.EpisodeCount
 	}
-	if len(list) != 3 || counts[a.Podcast.ID] != 6 || counts[a.Empty.ID] != 0 || counts[a.ExplicitPodcast.ID] != 1 {
+	if len(list) != 3 || counts[a.Podcast.ID] != 7 || counts[a.Empty.ID] != 0 || counts[a.ExplicitPodcast.ID] != 1 {
 		t.Errorf("listPodcasts = %+v", list)
 	}
 	if rec := send(t, h, http.MethodPost, BasePath+"/admin/podcasts/"+a.Podcast.ID+"/refresh", "p18", "", nil); rec.Code != http.StatusAccepted {

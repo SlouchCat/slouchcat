@@ -161,6 +161,15 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: rootID, Now: now}); err != nil {
 		return 0, 0, fmt.Errorf("move downloads off root %d: %w", rootID, err)
 	}
+	// A podcast folder (ADR 0015): a podcast whose feed came from the folder stays as a
+	// subscription made by hand, one without feed goes with its episodes (its file episodes were
+	// soft-deleted above). Before the row goes, because the link runs through media_files.root_id.
+	if _, err := q.PodcastPromoteFolderFeedsOfRoot(ctx, systemq.PodcastPromoteFolderFeedsOfRootParams{Now: now, RootID: rootID}); err != nil {
+		return 0, 0, fmt.Errorf("promote folder feeds of root %d: %w", rootID, err)
+	}
+	if _, err := q.PodcastSoftDeleteEmptyFolderPodcasts(ctx, ms); err != nil {
+		return 0, 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
+	}
 	n, err := q.DeleteLibraryRoot(ctx, systemq.DeleteLibraryRootParams{ID: rootID, LibraryID: libraryID})
 	if err != nil {
 		return 0, 0, fmt.Errorf("delete library root %d: %w", rootID, err)

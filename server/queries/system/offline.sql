@@ -202,7 +202,7 @@ ORDER BY m.part_index, m.id;
 -- name: GetDownloadItem :one
 -- The kind, the feed duration and type, the current enclosure and the feed URL of the podcast of the
 -- title of a download (audio branch of the preparation).
-SELECT i.kind, i.duration_ms, i.enclosure_type, i.enclosure_url, p.feed_url
+SELECT i.kind, i.duration_ms, i.enclosure_type, i.enclosure_url, p.feed_url, p.feed_origin
 FROM items AS i LEFT JOIN items AS p ON p.id = i.parent_id
 WHERE i.id = @id;
 

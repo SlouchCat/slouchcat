@@ -820,7 +820,7 @@ func (q *Queries) SetMediaFilePath(ctx context.Context, arg SetMediaFilePathPara
 const softDeleteItemsMissingSince = `-- name: SoftDeleteItemsMissingSince :execrows
 UPDATE items SET deleted_at = ?1, updated_at = ?1
 WHERE deleted_at IS NULL
-  AND kind IN ('movie', 'episode', 'extra', 'audiobook')
+  AND (kind IN ('movie', 'episode', 'extra', 'audiobook') OR (kind = 'podcast_episode' AND enclosure_url IS NULL))
   AND EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id)
   AND NOT EXISTS (SELECT 1 FROM media_files AS m
                   WHERE m.item_id = items.id AND (m.missing_since IS NULL OR m.missing_since >= ?2))
@@ -831,6 +831,8 @@ type SoftDeleteItemsMissingSinceParams struct {
 	Before sql.NullInt64
 }
 
+// A podcast episode counts only without enclosure: one with an enclosure stays as a feed episode
+// when its file goes (ADR 0015).
 func (q *Queries) SoftDeleteItemsMissingSince(ctx context.Context, arg SoftDeleteItemsMissingSinceParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, softDeleteItemsMissingSince, arg.Now, arg.Before)
 	if err != nil {

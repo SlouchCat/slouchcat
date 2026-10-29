@@ -87,8 +87,10 @@ func seriesFolderKey(rootID int64, ep *ParsedEpisode) string {
 // parse.
 func fileFolderKey(content string, rootID int64, rel string, p ParsedName) string {
 	switch content {
-	case model.RootAudiobook, model.RootPodcast:
+	case model.RootAudiobook:
 		return audioFolderKey(rootID, rel)
+	case model.RootPodcast:
+		return podcastFolderKey(rootID, rel)
 	case model.RootSeries:
 		if p.Series == nil {
 			return ""
@@ -105,13 +107,16 @@ func fileFolderKey(content string, rootID int64, rel string, p ParsedName) strin
 // describe the tree (kinds, parent, deleted), so a restore through one of them is seen by all.
 type libraryIndex struct {
 	byKind map[string]*itemIndex
+	// created holds the podcasts this scan created, across its batches: their episodes are no
+	// news (podcastEpisode), and a second folder with their feed is no shared feed yet.
+	created map[string]bool
 }
 
 // titleKinds are the title kinds a library can hold, one index each.
 var titleKinds = []string{"movie", "series", "audiobook", "podcast"}
 
 func newLibraryIndex() *libraryIndex {
-	li := &libraryIndex{byKind: map[string]*itemIndex{}}
+	li := &libraryIndex{byKind: map[string]*itemIndex{}, created: map[string]bool{}}
 	shared := newItemIndex()
 	for _, kind := range titleKinds {
 		idx := newItemIndex()

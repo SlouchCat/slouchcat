@@ -22,10 +22,11 @@ WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.published_a
 ORDER BY i.published_at DESC, i.id DESC
 LIMIT @limit_count;
 
--- The enclosure of a visible episode (stream proxy and download source) with the feed URL of its
--- podcast, which decides whether the enclosure may live in the local network (package netguard).
+-- The enclosure of a visible episode (stream proxy and download source) with the feed URL and
+-- origin of its podcast, which decide whether the enclosure may live in the local network (package
+-- netguard: never for a feed read from a file, ADR 0015).
 -- name: GetVisibleEnclosure :one
-SELECT i.id, i.enclosure_url, i.enclosure_type, i.enclosure_length, i.duration_ms, p.feed_url FROM items AS i
+SELECT i.id, i.enclosure_url, i.enclosure_type, i.enclosure_length, i.duration_ms, p.feed_url, p.feed_origin FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 LEFT JOIN items AS p ON p.id = i.parent_id
 WHERE i.id = @item_id AND i.kind = 'podcast_episode' AND i.enclosure_url IS NOT NULL;

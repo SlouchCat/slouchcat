@@ -10,6 +10,71 @@ import (
 	"database/sql"
 )
 
+const podcastAdoptFileEpisode = `-- name: PodcastAdoptFileEpisode :exec
+UPDATE items
+SET title = ?1, sort_title = ?2, guid = ?3, published_at = ?4, duration_ms = ?5,
+    enclosure_url = ?6, enclosure_type = ?7, enclosure_length = ?8,
+    explicit = ?9, cover_url = ?10, season_number = ?11, episode_number = ?12,
+    own_rating = ?13, rating_source = ?14, updated_at = ?15
+WHERE id = ?16 AND kind = 'podcast_episode' AND deleted_at IS NULL AND guid IS NULL
+`
+
+type PodcastAdoptFileEpisodeParams struct {
+	Title           string
+	SortTitle       string
+	Guid            sql.NullString
+	PublishedAt     sql.NullInt64
+	DurationMs      sql.NullInt64
+	EnclosureUrl    sql.NullString
+	EnclosureType   sql.NullString
+	EnclosureLength sql.NullInt64
+	Explicit        int64
+	CoverUrl        sql.NullString
+	SeasonNumber    sql.NullInt64
+	EpisodeNumber   sql.NullInt64
+	OwnRating       sql.NullInt64
+	RatingSource    sql.NullString
+	Now             int64
+	ID              string
+}
+
+// A new feed episode takes over a file episode instead of being inserted: guid, enclosure, date,
+// duration, explicit and cover of the feed on the row that already holds the file.
+func (q *Queries) PodcastAdoptFileEpisode(ctx context.Context, arg PodcastAdoptFileEpisodeParams) error {
+	_, err := q.db.ExecContext(ctx, podcastAdoptFileEpisode,
+		arg.Title,
+		arg.SortTitle,
+		arg.Guid,
+		arg.PublishedAt,
+		arg.DurationMs,
+		arg.EnclosureUrl,
+		arg.EnclosureType,
+		arg.EnclosureLength,
+		arg.Explicit,
+		arg.CoverUrl,
+		arg.SeasonNumber,
+		arg.EpisodeNumber,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const podcastCountRootsOfPodcast = `-- name: PodcastCountRootsOfPodcast :one
+SELECT count(DISTINCT m.root_id) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+WHERE e.parent_id = ?1 AND e.kind = 'podcast_episode'
+`
+
+// How many folders hold files of a podcast's episodes (two folders, one feed: a note).
+func (q *Queries) PodcastCountRootsOfPodcast(ctx context.Context, podcastID sql.NullString) (int64, error) {
+	row := q.db.QueryRowContext(ctx, podcastCountRootsOfPodcast, podcastID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const podcastFindByFeed = `-- name: PodcastFindByFeed :one
 
 SELECT id FROM items
@@ -334,6 +399,154 @@ func (q *Queries) PodcastInsertEpisode(ctx context.Context, arg PodcastInsertEpi
 	return err
 }
 
+const podcastInsertFolderEpisode = `-- name: PodcastInsertFolderEpisode :exec
+INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, published_at, own_rating, rating_source,
+                   providers, metadata_state, matched_at, added_at, created_at, updated_at)
+VALUES (?1, 'podcast_episode', ?2, ?3, ?4, ?5, ?6, ?7, ?8,
+        '["local"]', 'matched', ?9, ?9, ?9, ?9)
+`
+
+type PodcastInsertFolderEpisodeParams struct {
+	ID           string
+	ParentID     sql.NullString
+	LibraryID    int64
+	Title        string
+	SortTitle    string
+	PublishedAt  sql.NullInt64
+	OwnRating    sql.NullInt64
+	RatingSource sql.NullString
+	Now          sql.NullInt64
+}
+
+// An episode read from a file: named after the file until its probe reads the tags, dated by the
+// file's mtime, without guid and enclosure. Its identity is root_id + rel_path of its media file.
+func (q *Queries) PodcastInsertFolderEpisode(ctx context.Context, arg PodcastInsertFolderEpisodeParams) error {
+	_, err := q.db.ExecContext(ctx, podcastInsertFolderEpisode,
+		arg.ID,
+		arg.ParentID,
+		arg.LibraryID,
+		arg.Title,
+		arg.SortTitle,
+		arg.PublishedAt,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.Now,
+	)
+	return err
+}
+
+const podcastInsertFromFolder = `-- name: PodcastInsertFromFolder :one
+
+INSERT INTO items (id, kind, library_id, title, sort_title, author, genres, explicit, cover_path, feed_url, feed_origin,
+                   feed_error, own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
+VALUES (?1, 'podcast', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
+        ?11, ?12, ?13, '["local"]', 'matched', ?14, ?14, ?14, ?14)
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin
+`
+
+type PodcastInsertFromFolderParams struct {
+	ID           string
+	LibraryID    int64
+	Title        string
+	SortTitle    string
+	Author       sql.NullString
+	Genres       string
+	Explicit     int64
+	CoverPath    sql.NullString
+	FeedUrl      sql.NullString
+	FeedOrigin   sql.NullString
+	FeedError    sql.NullString
+	OwnRating    sql.NullInt64
+	RatingSource sql.NullString
+	Now          sql.NullInt64
+}
+
+// Podcast folders (ADR 0015, concept 4.5): podcasts and episodes read from an Audiobookshelf
+// folder by the library package, and the pairing of file episodes with feed episodes.
+// A podcast read from a folder: metadata.json (title, author, description, genres, explicit,
+// feedURL) and the folder image. feed_url is NULL without feedURL; with one, feed_origin is 'file'
+// and the fetch runs like for any subscription. A feed_error names a feedURL the scanner refused.
+func (q *Queries) PodcastInsertFromFolder(ctx context.Context, arg PodcastInsertFromFolderParams) (Item, error) {
+	row := q.db.QueryRowContext(ctx, podcastInsertFromFolder,
+		arg.ID,
+		arg.LibraryID,
+		arg.Title,
+		arg.SortTitle,
+		arg.Author,
+		arg.Genres,
+		arg.Explicit,
+		arg.CoverPath,
+		arg.FeedUrl,
+		arg.FeedOrigin,
+		arg.FeedError,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.Now,
+	)
+	var i Item
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.ParentID,
+		&i.LibraryID,
+		&i.Title,
+		&i.SortTitle,
+		&i.OriginalTitle,
+		&i.Year,
+		&i.ReleaseDate,
+		&i.RuntimeMinutes,
+		&i.Genres,
+		&i.TmdbID,
+		&i.ImdbID,
+		&i.OwnRating,
+		&i.EffectiveRating,
+		&i.MinChildRating,
+		&i.Available,
+		&i.RatingSource,
+		&i.EnclosureUrl,
+		&i.LockedFields,
+		&i.MetadataState,
+		&i.MetadataError,
+		&i.MatchedAt,
+		&i.AddedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.SeasonNumber,
+		&i.EpisodeNumber,
+		&i.EpisodeEnd,
+		&i.TvdbID,
+		&i.ExtraKind,
+		&i.TmdbPosterPath,
+		&i.TmdbBackdropPath,
+		&i.TrailerState,
+		&i.TrailerCheckedAt,
+		&i.SegmentsState,
+		&i.SegmentsCheckedAt,
+		&i.Author,
+		&i.Narrator,
+		&i.SeriesName,
+		&i.SeriesIndex,
+		&i.Explicit,
+		&i.DurationMs,
+		&i.CoverUrl,
+		&i.CoverPath,
+		&i.FeedUrl,
+		&i.FeedEtag,
+		&i.FeedModified,
+		&i.FeedCheckedAt,
+		&i.FeedError,
+		&i.Guid,
+		&i.PublishedAt,
+		&i.EnclosureType,
+		&i.EnclosureLength,
+		&i.Providers,
+		&i.AnilistID,
+		&i.FeedOrigin,
+	)
+	return i, err
+}
+
 const podcastList = `-- name: PodcastList :many
 SELECT i.id, i.library_id, i.title, i.author, i.feed_url, i.feed_origin, i.explicit, i.feed_checked_at, i.feed_error, i.created_at,
        (SELECT count(*) FROM items AS e
@@ -403,12 +616,14 @@ func (q *Queries) PodcastList(ctx context.Context, onlyID interface{}) ([]Podcas
 
 const podcastListDue = `-- name: PodcastListDue :many
 SELECT id FROM items
-WHERE kind = 'podcast' AND deleted_at IS NULL AND (feed_checked_at IS NULL OR feed_checked_at <= ?1)
+WHERE kind = 'podcast' AND deleted_at IS NULL AND feed_url IS NOT NULL
+  AND (feed_checked_at IS NULL OR feed_checked_at <= ?1)
 ORDER BY feed_checked_at IS NOT NULL, feed_checked_at, id
 LIMIT 500
 `
 
-// Live subscriptions whose last fetch is older than the moment (the poller, H-2); never fetched first.
+// Live subscriptions with a feed whose last fetch is older than the moment (the poller, H-2);
+// never fetched first. A folder podcast without feed is never due.
 func (q *Queries) PodcastListDue(ctx context.Context, checkedBefore sql.NullInt64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, podcastListDue, checkedBefore)
 	if err != nil {
@@ -486,11 +701,100 @@ func (q *Queries) PodcastListEpisodes(ctx context.Context, podcastID sql.NullStr
 	return items, nil
 }
 
-const podcastListIDsByLibrary = `-- name: PodcastListIDsByLibrary :many
-SELECT id FROM items WHERE kind = 'podcast' AND library_id = ?1 AND deleted_at IS NULL ORDER BY id
+const podcastListFeedEpisodesWithoutFile = `-- name: PodcastListFeedEpisodesWithoutFile :many
+SELECT i.id, i.title, i.sort_title, i.published_at, i.duration_ms FROM items AS i
+WHERE i.parent_id = ?1 AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.enclosure_url IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id)
 `
 
-// Live subscriptions of a library (scanLibrary of a podcast library refreshes all).
+type PodcastListFeedEpisodesWithoutFileRow struct {
+	ID          string
+	Title       string
+	SortTitle   string
+	PublishedAt sql.NullInt64
+	DurationMs  sql.NullInt64
+}
+
+// The feed episodes of a podcast that have no file yet: the candidates a file episode may be
+// paired with after its probe (concept 4.5).
+func (q *Queries) PodcastListFeedEpisodesWithoutFile(ctx context.Context, podcastID sql.NullString) ([]PodcastListFeedEpisodesWithoutFileRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastListFeedEpisodesWithoutFile, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastListFeedEpisodesWithoutFileRow{}
+	for rows.Next() {
+		var i PodcastListFeedEpisodesWithoutFileRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.SortTitle,
+			&i.PublishedAt,
+			&i.DurationMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastListFileEpisodesWithoutGUID = `-- name: PodcastListFileEpisodesWithoutGUID :many
+SELECT i.id, i.title, i.sort_title, i.published_at, i.duration_ms FROM items AS i
+WHERE i.parent_id = ?1 AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.guid IS NULL
+`
+
+type PodcastListFileEpisodesWithoutGUIDRow struct {
+	ID          string
+	Title       string
+	SortTitle   string
+	PublishedAt sql.NullInt64
+	DurationMs  sql.NullInt64
+}
+
+// The file episodes of a podcast (no guid): the candidates a new feed episode may be paired with.
+func (q *Queries) PodcastListFileEpisodesWithoutGUID(ctx context.Context, podcastID sql.NullString) ([]PodcastListFileEpisodesWithoutGUIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, podcastListFileEpisodesWithoutGUID, podcastID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PodcastListFileEpisodesWithoutGUIDRow{}
+	for rows.Next() {
+		var i PodcastListFileEpisodesWithoutGUIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.SortTitle,
+			&i.PublishedAt,
+			&i.DurationMs,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const podcastListIDsByLibrary = `-- name: PodcastListIDsByLibrary :many
+SELECT id FROM items WHERE kind = 'podcast' AND library_id = ?1 AND deleted_at IS NULL AND feed_url IS NOT NULL ORDER BY id
+`
+
+// Live subscriptions of a library with a feed (scanLibrary of a podcast library refreshes all);
+// a folder podcast without feed has nothing to fetch (ADR 0015).
 func (q *Queries) PodcastListIDsByLibrary(ctx context.Context, libraryID int64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, podcastListIDsByLibrary, libraryID)
 	if err != nil {
@@ -514,6 +818,45 @@ func (q *Queries) PodcastListIDsByLibrary(ctx context.Context, libraryID int64) 
 	return items, nil
 }
 
+const podcastMoveMediaFiles = `-- name: PodcastMoveMediaFiles :exec
+UPDATE media_files SET item_id = ?1, updated_at = ?2 WHERE item_id = ?3
+`
+
+type PodcastMoveMediaFilesParams struct {
+	TargetID string
+	Now      int64
+	SourceID string
+}
+
+// The file of a file episode goes to the feed episode it was paired with; the triggers set
+// items.available of both.
+func (q *Queries) PodcastMoveMediaFiles(ctx context.Context, arg PodcastMoveMediaFilesParams) error {
+	_, err := q.db.ExecContext(ctx, podcastMoveMediaFiles, arg.TargetID, arg.Now, arg.SourceID)
+	return err
+}
+
+const podcastPromoteFolderFeedsOfRoot = `-- name: PodcastPromoteFolderFeedsOfRoot :execrows
+UPDATE items SET feed_origin = 'admin', updated_at = ?1
+WHERE kind = 'podcast' AND deleted_at IS NULL AND feed_url IS NOT NULL AND feed_origin = 'file'
+  AND id IN (SELECT e.parent_id FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+             WHERE m.root_id = ?2 AND e.kind = 'podcast_episode')
+`
+
+type PodcastPromoteFolderFeedsOfRootParams struct {
+	Now    int64
+	RootID int64
+}
+
+// Removing a podcast folder (removeLibraryRoot): a podcast whose feed came from the folder stays
+// as a subscription made by hand, so the administration sees and can delete it.
+func (q *Queries) PodcastPromoteFolderFeedsOfRoot(ctx context.Context, arg PodcastPromoteFolderFeedsOfRootParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, podcastPromoteFolderFeedsOfRoot, arg.Now, arg.RootID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const podcastSetChecked = `-- name: PodcastSetChecked :exec
 UPDATE items SET feed_checked_at = ?1, feed_error = ?2, updated_at = ?1
 WHERE id = ?3 AND kind = 'podcast'
@@ -528,6 +871,75 @@ type PodcastSetCheckedParams struct {
 // A fetch without new content (304) or a failed one (feed_error set, NULL after a success).
 func (q *Queries) PodcastSetChecked(ctx context.Context, arg PodcastSetCheckedParams) error {
 	_, err := q.db.ExecContext(ctx, podcastSetChecked, arg.Now, arg.FeedError, arg.ID)
+	return err
+}
+
+const podcastSetCoverPath = `-- name: PodcastSetCoverPath :exec
+UPDATE items SET cover_path = ?1, updated_at = ?2 WHERE id = ?3 AND kind = 'podcast' AND cover_path IS NULL
+`
+
+type PodcastSetCoverPathParams struct {
+	CoverPath sql.NullString
+	Now       int64
+	ID        string
+}
+
+// The folder image of a podcast that was adopted by a folder (a subscription whose feed matched).
+func (q *Queries) PodcastSetCoverPath(ctx context.Context, arg PodcastSetCoverPathParams) error {
+	_, err := q.db.ExecContext(ctx, podcastSetCoverPath, arg.CoverPath, arg.Now, arg.ID)
+	return err
+}
+
+const podcastSetFeedError = `-- name: PodcastSetFeedError :exec
+UPDATE items SET feed_error = ?1, updated_at = ?2 WHERE id = ?3 AND kind = 'podcast'
+`
+
+type PodcastSetFeedErrorParams struct {
+	FeedError sql.NullString
+	Now       int64
+	ID        string
+}
+
+// A note for the administration on a folder podcast (the Podcasts page shows feed_error).
+func (q *Queries) PodcastSetFeedError(ctx context.Context, arg PodcastSetFeedErrorParams) error {
+	_, err := q.db.ExecContext(ctx, podcastSetFeedError, arg.FeedError, arg.Now, arg.ID)
+	return err
+}
+
+const podcastSetFolderMeta = `-- name: PodcastSetFolderMeta :exec
+UPDATE items
+SET title = ?1, sort_title = ?2, author = ?3, genres = ?4, explicit = ?5, cover_path = ?6,
+    own_rating = ?7, rating_source = ?8, updated_at = ?9
+WHERE id = ?10 AND kind = 'podcast' AND feed_url IS NULL
+`
+
+type PodcastSetFolderMetaParams struct {
+	Title        string
+	SortTitle    string
+	Author       sql.NullString
+	Genres       string
+	Explicit     int64
+	CoverPath    sql.NullString
+	OwnRating    sql.NullInt64
+	RatingSource sql.NullString
+	Now          int64
+	ID           string
+}
+
+// The metadata.json of a folder podcast that has no feed (with a feed the fetch writes the channel).
+func (q *Queries) PodcastSetFolderMeta(ctx context.Context, arg PodcastSetFolderMetaParams) error {
+	_, err := q.db.ExecContext(ctx, podcastSetFolderMeta,
+		arg.Title,
+		arg.SortTitle,
+		arg.Author,
+		arg.Genres,
+		arg.Explicit,
+		arg.CoverPath,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.Now,
+		arg.ID,
+	)
 	return err
 }
 
@@ -548,6 +960,36 @@ func (q *Queries) PodcastSoftDelete(ctx context.Context, arg PodcastSoftDeletePa
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const podcastSoftDeleteEmptyFolderPodcasts = `-- name: PodcastSoftDeleteEmptyFolderPodcasts :execrows
+UPDATE items SET deleted_at = ?1, updated_at = ?1
+WHERE kind = 'podcast' AND deleted_at IS NULL AND feed_url IS NULL
+  AND NOT EXISTS (SELECT 1 FROM items AS c WHERE c.parent_id = items.id AND c.deleted_at IS NULL)
+`
+
+// Folder podcasts without feed whose episodes are all gone leave as well (sweep, removal).
+func (q *Queries) PodcastSoftDeleteEmptyFolderPodcasts(ctx context.Context, now sql.NullInt64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, podcastSoftDeleteEmptyFolderPodcasts, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const podcastSoftDeleteEpisode = `-- name: PodcastSoftDeleteEpisode :exec
+UPDATE items SET deleted_at = ?1, updated_at = ?1 WHERE id = ?2 AND kind = 'podcast_episode'
+`
+
+type PodcastSoftDeleteEpisodeParams struct {
+	Now sql.NullInt64
+	ID  string
+}
+
+// The file episode that gave its file to a feed episode leaves (it never had user data of its own).
+func (q *Queries) PodcastSoftDeleteEpisode(ctx context.Context, arg PodcastSoftDeleteEpisodeParams) error {
+	_, err := q.db.ExecContext(ctx, podcastSoftDeleteEpisode, arg.Now, arg.ID)
+	return err
 }
 
 const podcastUpdateChannel = `-- name: PodcastUpdateChannel :exec
@@ -633,6 +1075,33 @@ func (q *Queries) PodcastUpdateEpisode(ctx context.Context, arg PodcastUpdateEpi
 		arg.EpisodeNumber,
 		arg.OwnRating,
 		arg.RatingSource,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const podcastUpdateEpisodeFromTags = `-- name: PodcastUpdateEpisodeFromTags :exec
+UPDATE items SET title = ?1, sort_title = ?2, published_at = ?3, duration_ms = ?4, updated_at = ?5
+WHERE id = ?6 AND kind = 'podcast_episode' AND deleted_at IS NULL
+`
+
+type PodcastUpdateEpisodeFromTagsParams struct {
+	Title       string
+	SortTitle   string
+	PublishedAt sql.NullInt64
+	DurationMs  sql.NullInt64
+	Now         int64
+	ID          string
+}
+
+// What the probe of a file episode read from its tags: title, publication date, duration.
+func (q *Queries) PodcastUpdateEpisodeFromTags(ctx context.Context, arg PodcastUpdateEpisodeFromTagsParams) error {
+	_, err := q.db.ExecContext(ctx, podcastUpdateEpisodeFromTags,
+		arg.Title,
+		arg.SortTitle,
+		arg.PublishedAt,
+		arg.DurationMs,
 		arg.Now,
 		arg.ID,
 	)

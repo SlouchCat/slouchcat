@@ -435,10 +435,6 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 	scans := make([]*rootScan, 0, len(roots))
 	knownActive := 0
 	for _, root := range roots {
-		if root.Content == model.RootPodcast {
-			s.log.InfoContext(ctx, "podcast folder not read by this scan", "library_id", lib.ID, "root_id", root.ID)
-			continue
-		}
 		rs, err := s.openRoot(ctx, root)
 		if err != nil {
 			return stats, err
@@ -611,6 +607,9 @@ func wanted(content, rel string, p ParsedName, noMarker map[string]int) bool {
 	switch {
 	case p.Sample:
 		return false
+	case content == model.RootPodcast:
+		// A podcast is always a folder (concept 4.5): audio directly in the root is passed over.
+		return path.Dir(rel) != "."
 	case content == model.RootSeries:
 		if p.Series == nil && !p.Extra {
 			noMarker[path.Dir(rel)]++

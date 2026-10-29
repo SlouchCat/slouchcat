@@ -102,9 +102,81 @@ folgen.
 | `searchMetadata` mit `anilist` → 422 `provider_not_searchable` | `TestSearch`, `TestAssignMatchAndRefresh` (`manage_test.go`) |
 | `scanbench` ohne Regression gegen `docs/perf/M3.md` | `docs/perf/bibliotheken.md` Abschnitt 1: `main` und neue Fassung abwechselnd auf demselben Baum, Serien 40.7/41.7 s gegen 42.7/42.2 s, Erst-Lauf 64.1/65.1 s gegen 66.3/65.2 s, 713 Transaktionen in allen Läufen, 0 Wiederholungen; innerhalb der Streuung |
 
-**Offen nach Schritt 2:** Podcast-Ordner lesen (Schritt 3), `metadata.fill` und AniList (Schritt 4),
-die Bauteile «Metadatenquellen» und «Ordnerliste» mit Tastaturtests (Schritt 5), Abnahme auf CT 190,
-neuer eingefrorener Stand und Versionsstellen auf 1.3.0 (Schritt 6).
+### Schritt 3 — Podcast-Ordner (`feat(library,metadata,playback): scan podcast folders and adopt their feeds`)
+
+**Was der Scanner tut** (`server/internal/library/podcast_folder.go`, Konzept 4.5): in einem Ordner
+mit `content: podcast` ist jeder Unterordner der ersten Ebene ein Podcast, jede Audiodatei darin
+eine Episode mit `media_files`-Zeile (Identität `root_id + rel_path`, keine GUID); Audiodateien
+direkt in der Wurzel werden übergangen. `metadata.json` (Audiobookshelf-Schema) füllt Titel,
+Autor, Beschreibung, Genres, `explicit` (→ 18, `rating_source 'tags'`) und `feed_url`; der Ordner
+heisst sonst wie der Titel; `cover.jpg` wird `cover_path` mit `image.fetch`. **Feed übernehmen
+(F-6):** steht in der Bibliothek schon ein Podcast mit derselben Adresse (Abo von Hand oder zweiter
+Ordner), hängen sich die Episoden an ihn, der Ordner bekommt keinen eigenen Podcast; ein zweiter
+Ordner mit demselben Feed schreibt `feed_error = two_folders_one_feed` (sichtbar auf der Seite
+Podcasts, bis der nächste Abruf es löscht) und eine Warn-Zeile. Gibt es ihn nicht, entsteht der
+Podcast mit `feed_origin = 'file'`. Eine `feedURL` mit lokalem Host oder ohne `http`/`https` wird
+**nicht** gespeichert; der Podcast trägt `feed_error = feed_url_not_allowed: <Schema://Host>`
+(Regel 10: kein Pfad). Der Erst-Scan eines Ordners feuert keinen Neue-Folgen-Hook; ein späterer
+Scan mit neuer Datei an einem bestehenden Podcast schon.
+
+**Nach der Sonde** (`finishPodcastEpisode` in `probe.go`): Titel aus dem Tag, ausser er ist gleich
+dem Podcast-Titel (dann bleibt der Dateiname); Datum aus `date`/`releasedate` (RFC 2822); Beschreibung
+aus `comment`, sonst `subtitle`; Dauer aus der Sonde. Dann das **Zusammenführen** mit einer
+Feed-Episode desselben Podcasts ohne Datei: gleiche Minute, sonst gleicher normalisierter Titel,
+Dauer ±2 %, **nur bei genau einem Treffer** — die Feed-Episode bekommt die Datei und behält GUID,
+Enclosure und Feed-Text, die Datei-Episode wird weich gelöscht. Umgekehrt nimmt der Feed-Abruf
+(`metadata/podcast.go`, `episodeWrite.adopt`) eine neue Feed-Episode auf einer passenden
+Datei-Episode auf statt sie doppelt anzulegen. Audio-Dateien reihen **kein** `probe.keyframes`
+mehr ein (auch Hörbuchteile nicht).
+
+**Netzwächter (9.1):** `netguard.Clients.For(ctx, feedURL, origin)` gibt für `feed_origin = 'file'`
+immer den geschützten Client, in allen vier Abrufen (Feed, Enclosure-Proxy, Download, Cover);
+`GetVisibleEnclosure` und `GetDownloadItem` tragen `feed_origin`. **Wiedergabe:** eine Episode mit
+Datei spielt als Datei (`direct` oder Audio-HLS), der Enclosure-Proxy ist nur noch der Rückfall;
+Offline bevorzugte die Datei schon. **Aufräumen:** `SoftDeleteItemsMissingSince` und
+`SoftDeleteItemsOfRootWithoutOtherFiles` nehmen `podcast_episode` ohne Enclosure mit; der Sweep und
+`removeLibraryRoot` löschen Ordner-Podcasts ohne Feed und ohne lebende Episode weich; ein Podcast
+**mit** Feed bleibt beim Entfernen des Ordners als Abo (`feed_origin` wird `admin`). `PodcastListDue`
+und `PodcastListIDsByLibrary` fragen nur Podcasts mit `feed_url`. `scanLibrary` einer
+Podcast-Bibliothek ruft die Feeds ab **und** scannt die Ordner. `listDuplicates` zeigt nicht
+zusammengeführte Paare als `file_and_feed`.
+
+**Migration 00024** (`00024_podcast_episode_availability.sql`): der Trigger
+`items_enclosure_update` aus 00003 setzte die Verfügbarkeit einer Episode allein aus der Enclosure;
+eine Datei-Episode ohne Enclosure wäre damit unsichtbar geworden. Der Trigger wird ersetzt
+(Enclosure **oder** vorhandene Datei), Trigger werden nie bearbeitet (Regel 5).
+
+**Testdaten:** `testdata/generate-media.sh` legt `testdata/media/PodcastFolder/` an (ein Podcast
+mit `metadata.json`, `cover.jpg`, zwei getaggten Episoden — eine davon mit dem Podcast-Titel als
+Tag-Titel — und einer losen Datei in der Wurzel) und taggt die drei Episoden des Mock-Feeds mit
+`date` (RFC 2822, gleich dem `pubDate` der Vorlage), `album` und `comment`, wie Audiobookshelf es
+beim Herunterladen tut.
+
+**Belege (DoD Schritt 3):**
+
+| Kriterium | Beleg |
+|---|---|
+| Ordner → Podcast mit `feed_url` und `feed_origin = 'file'`; zweiter Ordner mit demselben Feed legt keinen zweiten Podcast an und scheitert nicht; `feedURL` auf lokalem Host wird nicht gespeichert und ergibt die Pflegezeile; `explicit: true` ergibt 18 mit Quelle `tags`; Ordner-Podcast ohne Feed nicht in der Abruf-Liste | `TestPodcastFolderAdoptsAndRefusesFeeds` (`server/internal/library/podcast_folder_test.go`) |
+| Ordner-Scan: Podcast und Episoden aus `metadata.json` und Dateien, lose Datei übergangen, Titel/Datum/Beschreibung aus den Tags nach der Sonde, Tag-Titel gleich Podcast-Titel wird nicht Episodentitel, kein `probe.keyframes` für Audio, zweiter Scan schreibt nichts | `TestPodcastFolderScanReadsPodcastsAndEpisodes`; `TestScanAudiobookFixtures` (keine Keyframe-Jobs für Hörbuchteile) |
+| Sonde hängt die bekannte Feed-Episode an die Datei (Minute gleich, eindeutig); zwei Dateien mit derselben Minute werden nicht zusammengeführt | `TestPodcastFolderPairsFileWithFeedEpisodeAfterProbe` |
+| Feed-Abruf nimmt eine neue Feed-Episode auf der passenden Datei-Episode auf; die unbekannte Feed-Episode entsteht als Enclosure-Episode; zwei Kandidaten bleiben getrennt | `TestFetchAdoptsAFileEpisode` (`server/internal/metadata/podcast_folder_test.go`) |
+| Feed aus Datei nur über den geschützten Client (Loopback-Feed von Hand abrufbar, aus Datei verweigert) | `TestFetchOfAFeedFromAFileIsGuarded`; `TestClientsFor` in `netguard_test.go` (`For` mit `FeedOriginFile`) |
+| Datei-Episode spielt `direct` aus der Datei; explizite Datei-Episode für P12 nicht gefunden | `TestPodcastEpisodeWithFilePlaysFromTheFile` (`server/internal/playback/file_episode_test.go`) |
+| Gelöschte Datei-Episode ohne Enclosure wird vom Sweep weich gelöscht, eine mit Enclosure bleibt; Ordner-Podcast ohne Feed geht mit der letzten Episode | `TestSweepTakesFileEpisodesWithoutEnclosure` |
+| `removeLibraryRoot` lässt den Feed-Podcast als Abo mit `feed_origin = 'admin'` stehen, der ohne Feed geht mit seinen Episoden | `TestPodcastFolderRemovalKeepsFeedPodcastsAsSubscriptions` |
+| Kinderprofil-Vertragstest: explizite Datei-Episode (`QF`, Datei ohne Enclosure, `rating_source tags`) fehlt in `listPodcastEpisodes` unter 18 und spielt für P18 aus der Datei | `vistest.Audio.FileOnlyExplicit` in `TestContractAudio`, `TestContractChildProfiles` |
+| `listDuplicates` zeigt nicht zusammengeführte Paare als `file_and_feed` | `TestAdminMaintenanceFileAndFeedDuplicates` |
+| Migration 00024 über alle eingefrorenen Stände | `TestFrozenStatesMigrate` |
+| `task ci` grün | `task ci` (29. Oktober 2026): `ci:server` alle Pakete `ok` (Go mit `-race`, `golangci-lint` 0 Befunde, `itemsaccess`, `gen:check` ohne Drift), `ci:web` Vitest 632 Tests in 77 Dateien, api-client 4, design-tokens 2, Storybook-Build ok, `task build`, `task ci:e2e` **442 passed (23.4m)** auf `SLOUCHCAT_E2E_PORT=8197` (8097 hielt ein verwaister e2e-Server der abgebrochenen Session), A-9-Logscan 66 902 Zeilen, 0 Befunde. **Nicht gelaufen:** der Storybook-Screenshot-Vergleich (`storybook:test`), weil Docker in dieser Session nicht erreichbar war (`sg docker` scheitert an `NoNewPrivs`); Schritt 3 ändert keine Datei unter `web/src`, die Vergleichsbilder sind davon nicht berührt |
+
+**Nicht in Schritt 3:** die Messung des Erst-Scans von `/media/nas/Audiobookshelf/Podcast` auf CT 190
+(26 031 Dateien) und die Quote der nicht zusammengeführten Episoden am echten Ordner kommen mit der
+Abnahme in Schritt 6 nach `docs/perf/bibliotheken.md`; die Seite Podcasts zeigt den Chip «aus Ordner»
+erst in Schritt 5.
+
+**Offen nach Schritt 3:** `metadata.fill` und AniList (Schritt 4), die Bauteile «Metadatenquellen»
+und «Ordnerliste» mit Tastaturtests (Schritt 5), Abnahme auf CT 190, neuer eingefrorener Stand und
+Versionsstellen auf 1.3.0 (Schritt 6).
 
 ## Benutzerverwaltung: Administrator, Konto, Profil (28. Oktober 2026)
 

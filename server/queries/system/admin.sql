@@ -378,3 +378,18 @@ SELECT im.item_id, im.content_hash
 FROM images AS im
 JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
 WHERE im.size = @size AND im.kind = 'poster' AND im.format = 'jpeg' AND im.item_id IN (sqlc.slice('item_ids'));
+
+-- name: AdminListFileAndFeedEpisodes :many
+-- Podcast episodes of one podcast that may be the same episode twice (ADR 0015, concept 4.5): a
+-- file episode (no enclosure) and a feed episode (no file) with the same publication minute or
+-- the same sort title. The scanner pairs only unambiguous cases; the rest is listed here.
+SELECT fe.id AS file_id, fe.title AS file_title, fe.year AS file_year,
+       ne.id AS feed_id, ne.title AS feed_title, ne.year AS feed_year, fe.library_id, fe.parent_id
+FROM items AS fe
+JOIN items AS ne ON ne.parent_id = fe.parent_id AND ne.kind = 'podcast_episode' AND ne.deleted_at IS NULL
+     AND ne.enclosure_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = ne.id)
+WHERE fe.kind = 'podcast_episode' AND fe.deleted_at IS NULL AND fe.enclosure_url IS NULL
+  AND (sqlc.narg('library_id') IS NULL OR fe.library_id = sqlc.narg('library_id'))
+  AND ((fe.published_at IS NOT NULL AND ne.published_at IS NOT NULL AND fe.published_at / 60000 = ne.published_at / 60000)
+       OR fe.sort_title = ne.sort_title)
+ORDER BY fe.parent_id, fe.id, ne.id;

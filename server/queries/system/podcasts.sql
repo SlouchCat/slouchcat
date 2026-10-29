@@ -53,13 +53,16 @@ WHERE i.kind = 'podcast' AND i.deleted_at IS NULL AND (sqlc.narg('only_id') IS N
 ORDER BY i.created_at DESC, i.id DESC;
 
 -- name: PodcastListIDsByLibrary :many
--- Live subscriptions of a library (scanLibrary of a podcast library refreshes all).
-SELECT id FROM items WHERE kind = 'podcast' AND library_id = @library_id AND deleted_at IS NULL ORDER BY id;
+-- Live subscriptions of a library with a feed (scanLibrary of a podcast library refreshes all);
+-- a folder podcast without feed has nothing to fetch (ADR 0015).
+SELECT id FROM items WHERE kind = 'podcast' AND library_id = @library_id AND deleted_at IS NULL AND feed_url IS NOT NULL ORDER BY id;
 
 -- name: PodcastListDue :many
--- Live subscriptions whose last fetch is older than the moment (the poller, H-2); never fetched first.
+-- Live subscriptions with a feed whose last fetch is older than the moment (the poller, H-2);
+-- never fetched first. A folder podcast without feed is never due.
 SELECT id FROM items
-WHERE kind = 'podcast' AND deleted_at IS NULL AND (feed_checked_at IS NULL OR feed_checked_at <= @checked_before)
+WHERE kind = 'podcast' AND deleted_at IS NULL AND feed_url IS NOT NULL
+  AND (feed_checked_at IS NULL OR feed_checked_at <= @checked_before)
 ORDER BY feed_checked_at IS NOT NULL, feed_checked_at, id
 LIMIT 500;
 
@@ -90,3 +93,94 @@ WHERE id = @id AND kind = 'podcast_episode' AND deleted_at IS NULL;
 -- Unsubscribe: the podcast and its episodes (deletePodcast).
 UPDATE items SET deleted_at = @now, updated_at = @now
 WHERE deleted_at IS NULL AND ((id = @id AND kind = 'podcast') OR (parent_id = @id AND kind = 'podcast_episode'));
+
+-- Podcast folders (ADR 0015, concept 4.5): podcasts and episodes read from an Audiobookshelf
+-- folder by the library package, and the pairing of file episodes with feed episodes.
+
+-- name: PodcastInsertFromFolder :one
+-- A podcast read from a folder: metadata.json (title, author, description, genres, explicit,
+-- feedURL) and the folder image. feed_url is NULL without feedURL; with one, feed_origin is 'file'
+-- and the fetch runs like for any subscription. A feed_error names a feedURL the scanner refused.
+INSERT INTO items (id, kind, library_id, title, sort_title, author, genres, explicit, cover_path, feed_url, feed_origin,
+                   feed_error, own_rating, rating_source, providers, metadata_state, matched_at, added_at, created_at, updated_at)
+VALUES (@id, 'podcast', @library_id, @title, @sort_title, @author, @genres, @explicit, @cover_path, @feed_url, @feed_origin,
+        @feed_error, @own_rating, @rating_source, '["local"]', 'matched', @now, @now, @now, @now)
+RETURNING *;
+
+-- name: PodcastInsertFolderEpisode :exec
+-- An episode read from a file: named after the file until its probe reads the tags, dated by the
+-- file's mtime, without guid and enclosure. Its identity is root_id + rel_path of its media file.
+INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, published_at, own_rating, rating_source,
+                   providers, metadata_state, matched_at, added_at, created_at, updated_at)
+VALUES (@id, 'podcast_episode', @parent_id, @library_id, @title, @sort_title, @published_at, @own_rating, @rating_source,
+        '["local"]', 'matched', @now, @now, @now, @now);
+
+-- name: PodcastSetFolderMeta :exec
+-- The metadata.json of a folder podcast that has no feed (with a feed the fetch writes the channel).
+UPDATE items
+SET title = @title, sort_title = @sort_title, author = @author, genres = @genres, explicit = @explicit, cover_path = @cover_path,
+    own_rating = @own_rating, rating_source = @rating_source, updated_at = @now
+WHERE id = @id AND kind = 'podcast' AND feed_url IS NULL;
+
+-- name: PodcastSetCoverPath :exec
+-- The folder image of a podcast that was adopted by a folder (a subscription whose feed matched).
+UPDATE items SET cover_path = @cover_path, updated_at = @now WHERE id = @id AND kind = 'podcast' AND cover_path IS NULL;
+
+-- name: PodcastSetFeedError :exec
+-- A note for the administration on a folder podcast (the Podcasts page shows feed_error).
+UPDATE items SET feed_error = @feed_error, updated_at = @now WHERE id = @id AND kind = 'podcast';
+
+-- name: PodcastUpdateEpisodeFromTags :exec
+-- What the probe of a file episode read from its tags: title, publication date, duration.
+UPDATE items SET title = @title, sort_title = @sort_title, published_at = @published_at, duration_ms = @duration_ms, updated_at = @now
+WHERE id = @id AND kind = 'podcast_episode' AND deleted_at IS NULL;
+
+-- name: PodcastListFeedEpisodesWithoutFile :many
+-- The feed episodes of a podcast that have no file yet: the candidates a file episode may be
+-- paired with after its probe (concept 4.5).
+SELECT i.id, i.title, i.sort_title, i.published_at, i.duration_ms FROM items AS i
+WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.enclosure_url IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = i.id);
+
+-- name: PodcastListFileEpisodesWithoutGUID :many
+-- The file episodes of a podcast (no guid): the candidates a new feed episode may be paired with.
+SELECT i.id, i.title, i.sort_title, i.published_at, i.duration_ms FROM items AS i
+WHERE i.parent_id = @podcast_id AND i.kind = 'podcast_episode' AND i.deleted_at IS NULL AND i.guid IS NULL;
+
+-- name: PodcastMoveMediaFiles :exec
+-- The file of a file episode goes to the feed episode it was paired with; the triggers set
+-- items.available of both.
+UPDATE media_files SET item_id = @target_id, updated_at = @now WHERE item_id = @source_id;
+
+-- name: PodcastSoftDeleteEpisode :exec
+-- The file episode that gave its file to a feed episode leaves (it never had user data of its own).
+UPDATE items SET deleted_at = @now, updated_at = @now WHERE id = @id AND kind = 'podcast_episode';
+
+-- name: PodcastAdoptFileEpisode :exec
+-- A new feed episode takes over a file episode instead of being inserted: guid, enclosure, date,
+-- duration, explicit and cover of the feed on the row that already holds the file.
+UPDATE items
+SET title = @title, sort_title = @sort_title, guid = @guid, published_at = @published_at, duration_ms = @duration_ms,
+    enclosure_url = @enclosure_url, enclosure_type = @enclosure_type, enclosure_length = @enclosure_length,
+    explicit = @explicit, cover_url = @cover_url, season_number = @season_number, episode_number = @episode_number,
+    own_rating = @own_rating, rating_source = @rating_source, updated_at = @now
+WHERE id = @id AND kind = 'podcast_episode' AND deleted_at IS NULL AND guid IS NULL;
+
+-- name: PodcastPromoteFolderFeedsOfRoot :execrows
+-- Removing a podcast folder (removeLibraryRoot): a podcast whose feed came from the folder stays
+-- as a subscription made by hand, so the administration sees and can delete it.
+UPDATE items SET feed_origin = 'admin', updated_at = @now
+WHERE kind = 'podcast' AND deleted_at IS NULL AND feed_url IS NOT NULL AND feed_origin = 'file'
+  AND id IN (SELECT e.parent_id FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+             WHERE m.root_id = @root_id AND e.kind = 'podcast_episode');
+
+-- name: PodcastSoftDeleteEmptyFolderPodcasts :execrows
+-- Folder podcasts without feed whose episodes are all gone leave as well (sweep, removal).
+UPDATE items SET deleted_at = @now, updated_at = @now
+WHERE kind = 'podcast' AND deleted_at IS NULL AND feed_url IS NULL
+  AND NOT EXISTS (SELECT 1 FROM items AS c WHERE c.parent_id = items.id AND c.deleted_at IS NULL);
+
+-- name: PodcastCountRootsOfPodcast :one
+-- How many folders hold files of a podcast's episodes (two folders, one feed: a note).
+SELECT count(DISTINCT m.root_id) FROM items AS e JOIN media_files AS m ON m.item_id = e.id
+WHERE e.parent_id = @podcast_id AND e.kind = 'podcast_episode';
