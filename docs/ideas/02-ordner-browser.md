@@ -3,7 +3,8 @@
 - Status: Übernommen (Marco hat die Umsetzung am 25. Oktober 2026 beauftragt; Eintrag im
   Entscheidungsprotokoll `docs/planning/04-entscheidungen.md`). Alle Fragen aus Abschnitt 9 sind
   beantwortet. **Schritte 1 bis 11 gebaut** (25. Oktober 2026, Zweig `claude/ordner-browser`, ADR
-  `docs/adr/0012-browsbare-wurzeln.md`); die Schritte 12 bis 14 bleiben offen
+  `docs/adr/0012-browsbare-wurzeln.md`); **Schritte 12 bis 14 gebaut** (25. Oktober 2026, Zweig
+  `claude/bibliothek-wurzeln`, Pull Request #35, Merge-Commit `e5f4aa3`, Entscheide E16 bis E18)
 - Frühestens: nach Version 1.0
 - Grundlage: Mockup-Entwurf A vom 23. Oktober 2026 (Dialog mit Liste), geprüft am 25. Oktober 2026
   durch eine Code-Bestandsaufnahme, einen Architekturentwurf, ein Bedrohungsmodell und eine

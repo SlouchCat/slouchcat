@@ -1,8 +1,12 @@
 # Konzept: Bibliotheken (Ordner mit eigener Inhaltsart und eigener Scraper-Liste)
 
-- **Status: Entwurf, drei Fragerunden geführt, Kritiker-Review eingearbeitet (28. Oktober 2026).**
-  Marcos zehn Antworten stehen in Abschnitt 11 (F-1 bis F-8, F-11, F-12); eine Frage ist noch offen
-  (F-10). Der OMC-Kritiker hat die erste Fassung geprüft (22 Befunde, Abschnitt 13). **Fassung 3**
+- **Status: freigegeben, in Umsetzung (29. Oktober 2026).** Marco hat das Papier nach drei
+  Fragerunden, dem Kritiker-Review und dem klickbaren Prototyp freigegeben; alle dreizehn Antworten
+  stehen in Abschnitt 11 und als **Frage 13** im Entscheidungsprotokoll, ADR 0015 liegt vor
+  (Schritt 0). Die Umsetzung läuft auf dem Zweig `claude/bibliotheken` nach Abschnitt 10.
+  Marcos zehn Antworten der ersten drei Runden stehen in Abschnitt 11 (F-1 bis F-8, F-11, F-12);
+  F-10 ist durch den Merge der Benutzerverwaltung beantwortet. Der OMC-Kritiker hat die erste Fassung
+  geprüft (22 Befunde, Abschnitt 13). **Fassung 3**
   (dritte Fragerunde): die Metadatenquelle je Ordner ist keine Einzelwahl mehr, sondern eine
   **geordnete Scraper-Liste wie in Emby** (F-11), und **TVDB ist als Hauptscraper für Serien
   wählbar** (F-12). Beides kehrt zwei verworfene Alternativen aus ADR 0006 um; ADR 0015 wird darum
@@ -13,19 +17,17 @@
   Marcos Rückmeldung dazu folgt **F-13**: eine Bibliothek bekommt **mehrere Ordner in einem Zug**
   (`LibraryRequest.roots` als Liste, `addLibraryRoot` nimmt eine Liste, alles oder nichts).
 - **Datum: 28. Oktober 2026, Fassung 4 vom 29. Oktober 2026**
-- **Wogegen dieses Konzept verankert ist:** `main`, Stand `0dd4f19` («Merge pull request #43»), im
-  Worktree `claude/konzept-bibliotheken`. Jede Zeilenangabe bezieht sich auf diesen Stand. **Parallel
-  läuft die Benutzerverwaltung** auf `claude/benutzerverwaltung` (Stand `5ece34d` oder neuer, Konzept
-  `06-benutzerverwaltung.md`): sie bringt Migration **00022**, ADR **0014** und Vertragsfassung
-  **1.2.0**. Dieses Papier rechnet damit, dass sie **zuerst** in `main` geht (F-10), und nennt darum
-  als nächste freie Nummern **Migration 00023, ADR 0015, Vertrag 1.3.0**. Geht sie später, rücken die
-  drei Nummern um eins zurück; inhaltlich ändert sich nichts, denn die Benutzerverwaltung fasst weder
-  `libraries` noch `library_roots` noch den Scanner an (`git diff --stat main 5ece34d --
-  server/internal/library api/openapi.yaml` nennt den Vertrag, dort nur Konten und Rollen, und
-  `roots_test.go` mit einer Testanpassung).
-- **Letzte Migration auf `main` ist `00021_spotlight.sql`**, auf dem Zweig `00022_account_roles.sql`.
-  **Letzte ADR auf `main` ist `0013-ci-parallele-jobs.md`**, auf dem Zweig `0014-benutzerverwaltung.md`.
-  **Vertragsfassung auf `main` ist `1.1.0`** (`api/openapi.yaml:4`), auf dem Zweig `1.2.0`.
+- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`9923807`** («Merge pull request #44»,
+  Benutzerverwaltung), im Worktree `claude/bibliotheken`. Geschrieben wurde es gegen `0dd4f19`
+  («Merge pull request #43»); **jede `:Zeile`-Angabe bezieht sich auf diesen älteren Stand** und kann
+  durch die Benutzerverwaltung (44 Dateien in `server/internal/library`, `server/internal/metadata`,
+  `server/queries`, `web/src/features/admin`, `web/src/features/shared`, `web/e2e`) verschoben sein:
+  Stellen nach Namen suchen (Funktion, Schlüssel, Operation), nicht nach Zeile. Die Benutzerverwaltung
+  ist mit PR #44 **zuerst** in `main` gegangen (F-10); sie bringt Migration **00022**, ADR **0014** und
+  Vertragsfassung **1.2.0**, fasst aber weder `libraries` noch `library_roots` noch den Scanner an.
+  Die nächsten freien Nummern sind darum wie geplant **Migration 00023, ADR 0015, Vertrag 1.3.0**.
+- **Letzte Migration auf `main` ist `00022_account_roles.sql`.** **Letzte ADR auf `main` ist
+  `0014-benutzerverwaltung.md`.** **Vertragsfassung auf `main` ist `1.2.0`** (`api/openapi.yaml:4`).
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
   `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 - **Jeder Schritt ist ein eigener Commit, und vor dem Abschluss jedes Schritts ist `task ci` grün**
@@ -1003,7 +1005,7 @@ Schritte, Schema und Scanner zusammen. **Beginn erst, wenn die Benutzerverwaltun
 ### Schritt 0 — Entscheide und Papiere
 `docs(planning,adr): record the library decisions and ADR 0015`
 
-**Ziel:** Marcos Antworten F-1 bis F-12 stehen verbindlich im Entscheidungsprotokoll, der neue
+**Ziel:** Marcos Antworten F-1 bis F-13 stehen verbindlich im Entscheidungsprotokoll, der neue
 Wortlaut zu B-1, die Umkehr der zwei verworfenen Alternativen aus ADR 0006 und die neue Grenze zu
 Idee 01 ebenso.
 
@@ -1255,7 +1257,8 @@ nachziehen, Image aus `main` bauen, CT 190 umstellen, `docs/dev/CURRENT_STATUS.m
 ## 11. Fragen an Marco
 
 Format wie `docs/planning/04-entscheidungen.md`. Beantwortet am 28. Oktober 2026 in drei Runden,
-F-13 am 29. Oktober 2026 am Prototyp; offen ist nur F-10. F-9 ist durch F-11 erledigt.
+F-13 am 29. Oktober 2026 am Prototyp, F-10 durch den Merge der Benutzerverwaltung am 28. Oktober 2026.
+F-9 ist durch F-11 erledigt. Alle Antworten stehen als Frage 13 im Entscheidungsprotokoll.
 
 | Nr. | Frist | Thema | Empfehlung | Antwort | Datum |
 |-----|-------|-------|------------|---------|-------|
@@ -1268,7 +1271,7 @@ F-13 am 29. Oktober 2026 am Prototyp; offen ist nur F-10. F-9 ist durch F-11 erl
 | **F-7** | vor Schritt 0 | **Was ist der «Hörbuch Scraper»?** Es gibt keinen externen Hörbuch-Anbieter | Der heutige lokale Erkenner; Audnexus im Scraper-Konzept | **Der heutige lokale Erkenner** | 2026-10-28 |
 | **F-8** | vor Schritt 5 | **Wortwahl** für die Wahl am Ordner | «Scraper» / «scraper» | **«Metadatenquelle» / «metadata source»** | 2026-10-28 |
 | **F-9** | — | Was darf AniList übersteuern? | Füllen, nicht ersetzen | **Erledigt durch F-11:** die Reihenfolge je Ordner entscheidet; wer AniList vorne setzt, bekommt AniList-Texte | 2026-10-28 |
-| **F-10** | vor Schritt 0 | **Reihenfolge:** erst die Benutzerverwaltung in `main`, dann dieser Zweig? Beide bauen Tabellen um (00022 `accounts`, 00023 `libraries`), beide heben den Vertrag brechend an | **Ja, Benutzerverwaltung zuerst.** Zwei parallele Tabellenumbauten auf derselben Datenbank von CT 190 sind ein Risiko ohne Nutzen; und die Nummern in diesem Papier (00023, 0015, 1.3.0) setzen es voraus | | |
+| **F-10** | vor Schritt 0 | **Reihenfolge:** erst die Benutzerverwaltung in `main`, dann dieser Zweig? Beide bauen Tabellen um (00022 `accounts`, 00023 `libraries`), beide heben den Vertrag brechend an | **Ja, Benutzerverwaltung zuerst.** Zwei parallele Tabellenumbauten auf derselben Datenbank von CT 190 sind ein Risiko ohne Nutzen; und die Nummern in diesem Papier (00023, 0015, 1.3.0) setzen es voraus | **Ja, Benutzerverwaltung zuerst.** Beantwortet durch den Merge von PR #44 (`9923807`) am 28. Oktober 2026; dieser Zweig ist davon geschnitten, die Nummern 00023, 0015 und 1.3.0 gelten | 2026-10-29 |
 | **F-11** | vor Schritt 1 | **Wie sieht die Scraper-Wahl je Ordner aus?** Hauptscraper plus Ergänzer (ein Erkenner, Häkchen für Auffüller) / genau einer / Liste mit Reihenfolge wie in Emby | Hauptscraper plus Ergänzer — kleiner, Idee 01 bleibt ganz | **Liste mit Reihenfolge wie in Emby.** Der erste erkennt, die weiteren füllen feldweise auf; Herkunft je Feld und Anbieterliste ziehen aus Idee 01 hierher | 2026-10-28 |
 | **F-12** | vor Schritt 1 | **TVDB als Hauptscraper für Serienordner wählbar?** Heute nur Rückfall (ADR 0006); TVDB braucht den kostenpflichtigen Schlüssel | Ja, wählbar; bei TVDB zuerst gilt die TVDB-Staffelzählung, TMDB füllt auf; ändert ADR 0006 | **Ja, wählbar** | 2026-10-28 |
 | **F-13** | vor Schritt 1 | **Mehrere Ordner in einem Zug?** Der erste Prototyp (7.1) legte beim Anlegen genau einen Ordner an, weitere erst über «Ordner von X»; Marco: «nicht intuitiv gelöst» | Ordnerliste im Formular, ein Absenden für alle; `LibraryRequest.roots[]`, `addLibraryRoot` mit Liste, Server alles oder nichts | **Ja, so aufnehmen** (zweite Prototyp-Fassung mit nummerierten Ordnerkarten) | 2026-10-29 |
