@@ -8,8 +8,11 @@
   wählbar** (F-12). Beides kehrt zwei verworfene Alternativen aus ADR 0006 um; ADR 0015 wird darum
   dessen Teilnachfolger. Die Entscheide gehen als **Frage 13** ins Entscheidungsprotokoll
   (`docs/planning/04-entscheidungen.md`), sobald Marco das Papier freigibt. Umgesetzt wird nichts,
-  bevor das geschehen ist.
-- **Datum: 28. Oktober 2026**
+  bevor das geschehen ist. **Fassung 4** (29. Oktober 2026): ein **klickbarer Prototyp** der
+  Verwaltungsseiten liegt unter `docs/planning/mockups/07-bibliotheken-prototyp.html` (7.1), und aus
+  Marcos Rückmeldung dazu folgt **F-13**: eine Bibliothek bekommt **mehrere Ordner in einem Zug**
+  (`LibraryRequest.roots` als Liste, `addLibraryRoot` nimmt eine Liste, alles oder nichts).
+- **Datum: 28. Oktober 2026, Fassung 4 vom 29. Oktober 2026**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand `0dd4f19` («Merge pull request #43»), im
   Worktree `claude/konzept-bibliotheken`. Jede Zeilenangabe bezieht sich auf diesen Stand. **Parallel
   läuft die Benutzerverwaltung** auf `claude/benutzerverwaltung` (Stand `5ece34d` oder neuer, Konzept
@@ -165,9 +168,9 @@ Dazu ein kleinerer Punkt: **die Hörbuchbibliothek** liegt unter `Audiobookshelf
 Autorenordner, M4B mit `metadata.json`, `cover.jpg`, teils `.opf`). Das kann der heutige Erkenner
 bereits; sie braucht nur einen Ordner mit der Inhaltsart «Hörbuch».
 
-### 1.3 Marcos Entscheide vom 28. Oktober 2026
+### 1.3 Marcos Entscheide vom 28. und 29. Oktober 2026
 
-Drei Fragerunden, zehn Antworten (Abschnitt 11), in Kurzform:
+Drei Fragerunden, zehn Antworten, dazu ein Entscheid am Prototyp (Abschnitt 11), in Kurzform:
 
 | Nr. | Entscheid |
 |---|---|
@@ -181,6 +184,7 @@ Drei Fragerunden, zehn Antworten (Abschnitt 11), in Kurzform:
 | F-8 | **Die Wahl am Ordner heisst «Metadatenquelle»**, englisch «metadata source»; in Fassung 3 der Plural «Metadatenquellen» für die Liste |
 | F-11 | **Liste mit Reihenfolge wie in Emby:** je Ordner mehrere Häkchen, sortierbar; der erste erkennt den Titel, die weiteren füllen feldweise auf |
 | F-12 | **TVDB ist als Hauptscraper für Serienordner wählbar.** Bei TVDB zuerst gilt die TVDB-Staffelzählung; TMDB füllt nur auf |
+| F-13 | **Mehrere Ordner in einem Zug.** Beim Anlegen einer Bibliothek und im Dialog «Ordner von X» ist der Ordner eine Liste nummerierter Karten («+ Weiteren Ordner hinzufügen»); ein Absenden legt alle an, der Server alle oder keinen |
 
 ---
 
@@ -641,8 +645,9 @@ danach in der Oberfläche (8.1).
 |---|---|---|
 | `LibraryKind` (`:7759`) | `[movies, series, audiobooks, podcasts]` | `[video, audiobooks, podcasts]` |
 | `LibrarySummary` (`:7766`) | `id, name, kind, defaultRating` | unverändert; `kind` mit neuen Werten |
-| `LibraryRequest` (`:7781`) | `name, kind, path?, defaultRating?` | `name, kind, defaultRating?, root?: LibraryRootRequest` — der erste Ordner bringt Inhaltsart und Liste mit; Pflicht für `video` und `audiobooks`, bei `podcasts` erlaubt mit `content: podcast`. **Die Validierungsfelder heissen damit `library.root.path` statt `library.path`**; die Fehlerzuordnung des Einrichtungsassistenten hängt an diesen Namen |
+| `LibraryRequest` (`:7781`) | `name, kind, path?, defaultRating?` | `name, kind, defaultRating?, roots: LibraryRootRequest[]` (F-13) — jeder Ordner bringt Inhaltsart und Liste mit; `minItems: 1` für `video` und `audiobooks` (422 `roots_required`), bei `podcasts` darf die Liste leer sein. Der Server legt **alle Ordner oder keinen** an (eine Transaktion); überschneiden sich zwei Ordner der Anfrage oder einer mit dem Bestand, kommt 422 `root_overlap` mit dem Feld des Verursachers. **Die Validierungsfelder heissen damit `library.roots[1].path` statt `library.path`**; die Fehlerzuordnung des Einrichtungsassistenten hängt an diesen Namen |
 | `LibraryRootRequest` (`:7805`) | `path` | `path, content, providers` (alle Pflicht; `providers` geordnet, `minItems: 1`, `uniqueItems: true`) |
+| `LibraryRootsRequest` | — | neu (F-13): `roots: LibraryRootRequest[]`, `minItems: 1`; Körper von `addLibraryRoot`, damit der Dialog «Ordner von X» mehrere Ordner mit einem Klick anlegt |
 | `LibraryRootUpdate` | — | neu: `content?, providers?, confirmPath?` (5.2) |
 | `LibraryRoot` (`:7878`) | `id, path, fsType, watch, itemCount, fileCount, warning?` | zusätzlich `content`, `providers` |
 | `LibraryUpdate` (`:7831`) | `name?, defaultRating?` | unverändert — die Familie ist nach dem Anlegen fest (wie heute `kind`) |
@@ -660,8 +665,8 @@ danach in der Oberfläche (8.1).
 
 | Operation | Änderung | `x-visibility` |
 |---|---|---|
-| `createLibrary` (`:2157`) | Körper nach 5.1; 422 `content_not_allowed`, `providers_not_allowed`, weiterhin `library_path_invalid` | admin |
-| `addLibraryRoot` (`:2368`) | Körper nach 5.1; dieselben 422; Podcast-Bibliotheken nehmen Ordner mit `content: podcast` an | admin |
+| `createLibrary` (`:2157`) | Körper nach 5.1 mit `roots[]`; 422 `content_not_allowed`, `providers_not_allowed`, `roots_required`, `root_overlap`, weiterhin `library_path_invalid`; jeder 422 nennt das Feld mit Index (`library.roots[1].providers`). Bibliothek und alle Ordner entstehen in **einer** Transaktion; ein Fehler an Ordner 2 lässt keine Bibliothek zurück | admin |
+| `addLibraryRoot` (`:2368`) | Körper wird `LibraryRootsRequest` (Liste, F-13); dieselben 422 mit Index; alle Ordner der Anfrage oder keiner (eine Transaktion, danach **ein** Scan für die Bibliothek); Podcast-Bibliotheken nehmen Ordner mit `content: podcast` an. Der Operationsname bleibt, der Pfad auch | admin |
 | **`updateLibraryRoot`** — `PATCH /admin/libraries/{id}/roots/{rootId}` | **neu** (F-4). Eine Änderung der **Liste** löscht nichts und braucht keine Bestätigung (6.3). Ein Wechsel der **Inhaltsart** ist in der Wirkung «Ordner entfernen und neu anlegen» und verlangt `confirmPath` wie `removeLibraryRoot` (422 `confirm_mismatch`), 409 `scan_running` | admin |
 | **`listMetadataProviders`** — `GET /admin/metadata/providers` | **neu**: die vier Anbieter mit `configured`, Rollen, erlaubten Inhaltsarten, Sprachen. Die Oberfläche baut daraus die Häkchenliste und die Hinweise («kein TVDB-Schlüssel», «AniList liefert kein Deutsch»). Idee 01 nannte dieselbe Operation (`GET /admin/providers`, `:208`) | admin |
 | `scanLibrary` (`:2268`) | Für `podcasts`: Ordner-Scan **und** Feed-Abruf; heute nur Letzteres (`admin.go:357`) | admin |
@@ -678,7 +683,8 @@ und in `web/src/locales/*.json`.
 ### 5.3 Ist das eine brechende Anhebung?
 
 **Ja.** `LibraryKind` verliert `movies` und `series`, `LibraryRequest.path` verschwindet zugunsten
-von `root`, `LibraryRootRequest` bekommt Pflichtfelder, `MetadataProvider` wächst (für Clients, die
+von `roots[]`, `addLibraryRoot` nimmt eine Liste statt eines Ordners, `LibraryRootRequest` bekommt
+Pflichtfelder, `MetadataProvider` wächst (für Clients, die
 das Enum erschöpfend behandeln, ebenfalls brechend). Für Fremd-Clients (C-5) ist das brechend, wie es
 1.1.0 (`HomeRowKey`) und 1.2.0 (`AccountRole`) waren. **Die Fassung ist 1.3.0**, dem Präzedenzfall
 folgend, und der Bruch steht wörtlich in den Release-Notes. Entfernte Enum-Werte (`movies`, `series`
@@ -804,13 +810,30 @@ ist der Erkenner; ein Eintrag, der nicht Erkenner sein darf (AniList), lässt si
 Stelle schieben, und ist er der einzige angekreuzte, zeigt die Liste den Fehler, bevor der Server ihn
 mit 422 bestätigt.
 
+**Das Bauteil «Ordnerliste»** (neu in `web/src/ui`, F-13, wiederverwendet im Formular «Bibliothek
+hinzufügen», im Einrichtungsassistenten und im Dialog «Ordner von X»): eine Liste **nummerierter
+Karten**, je Karte ein Ordner mit Pfad und «Durchsuchen …», «Inhalt» und dem Bauteil
+«Metadatenquellen». Jede Karte hat eine Kopfleiste mit Nummer («1», «2» in einer farbigen Kugel),
+einer Kurzfassung («Serien · TMDB › TVDB») und «Entfernen»; die Karten sind durch einen Akzentbalken
+links, einen kräftigeren Rand und grösseren Abstand klar getrennt (Marcos Rückmeldung an der ersten
+Prototyp-Fassung: «Ordner 1 und Ordner 2 nur schwer erkennbar»). Unter der Liste steht
+«+ Weiteren Ordner hinzufügen»; die neue Karte bekommt den Fokus im Pfadfeld. In einer
+Video-Bibliothek schlägt die zweite Karte die **andere** Inhaltsart vor (erster Ordner Filme, also
+Serien vorgewählt), damit «Dokus» mit Film- und Serienordner zwei Klicks sind. Die Liste hält ein
+Minimum: eine Karte bei `video` und `audiobooks`, keine bei `podcasts` und im Dialog (dort beginnt sie
+leer mit «+ Ordner hinzufügen»). Der Absendeknopf zählt mit («Bibliothek mit 2 Ordnern hinzufügen»,
+«3 Ordner hinzufügen», «Bibliothek ohne Ordner hinzufügen» bei Podcasts). Überschneiden sich zwei
+Pfade der Liste, zeigt das Bauteil den Fehler vor dem Absenden; der Server prüft dasselbe noch einmal
+und antwortet mit `root_overlap` und dem Index des Verursachers (5.2). Entfernen einer Karte löscht
+nur im Formular; angelegt wird erst beim Absenden, alles oder nichts.
+
 | Seite / Datei | Stelle | Was geschieht |
 |---|---|---|
-| **Bibliothek anlegen**, `web/src/features/admin/LibrariesPage.tsx` | `AddLibraryForm` `:24` bis `:86`, `kind` `:27` | Die Artauswahl wird zu **«Video / Hörbücher / Podcasts»**. Darunter der erste Ordner: Pfad mit «Durchsuchen …» (`PathBrowserButton`, `:74`), **«Inhalt»** (bei Video: Filme / Serien; bei Hörbüchern und Podcasts fest und ausgeblendet) und **«Metadatenquellen»** (das Bauteil; bei Hörbüchern und Podcasts nur «Lokale Dateien», fest). Vorgabe bei Filmen `[TMDB]`, bei Serien `[TMDB, TVDB]`. Standard-Altersstufe wie heute nur bei Audio. Der Podcast-Hinweis `library.podcastsHint` («braucht keinen Ordner») wird zu «Ordner optional; Feeds lassen sich auch ohne Ordner abonnieren» |
+| **Bibliothek anlegen**, `web/src/features/admin/LibrariesPage.tsx` | `AddLibraryForm` `:24` bis `:86`, `kind` `:27` | Die Artauswahl wird zu **«Video / Hörbücher / Podcasts»**. Darunter die **«Ordnerliste»** (F-13), die mit einer Karte beginnt: Pfad mit «Durchsuchen …» (`PathBrowserButton`, `:74`), **«Inhalt»** (bei Video: Filme / Serien; bei Hörbüchern und Podcasts fest und ausgeblendet) und **«Metadatenquellen»** (das Bauteil; bei Hörbüchern und Podcasts nur «Lokale Dateien», fest). Vorgabe bei Filmen `[TMDB]`, bei Serien `[TMDB, TVDB]`. Ein Absenden legt Bibliothek und alle Karten an. Standard-Altersstufe wie heute nur bei Audio. Der Podcast-Hinweis `library.podcastsHint` («braucht keinen Ordner») wird zu «Ordner optional; Feeds lassen sich auch ohne Ordner abonnieren» |
 | **Drei Stellen, die «Podcast hat keinen Ordner» annehmen** | `LibrariesPage.tsx:283` (versteckt `FoldersAction`), `LibraryCard.tsx:138` (Text «keine Ordner» für Podcasts), `features/admin/queries.ts:52` (`canScan`) | alle drei fallen: Podcast-Bibliotheken haben Ordner **oder** Feeds, der Scan-Knopf gilt, sobald eines davon da ist |
-| **Geteiltes Formular**, `web/src/features/shared/LibraryFields.tsx` | `KINDS` `:10`, `RadioGroup` `:76` bis `:82`, Pfad `:89` bis `:105`, `libraryRequest` `:23` bis `:36` | Trägt Inhalt und das Bauteil und baut `LibraryRequest.root`. Das Formular ist mit dem **Einrichtungsassistenten** geteilt (`web/src/features/setup/SetupPage.tsx:127`, `:210`, `:277`); der Assistent bekommt damit dieselben Felder, ohne eigenen Code, und seine Fehlerzuordnung folgt den neuen Feldnamen `library.root.path`. Der Vorgabename `t('library.kind.movies')` (`:277`) wird «Filme» aus einem neuen Schlüssel, weil `library.kind.movies` verschwindet. Im Assistenten ist `listMetadataProviders` nicht erreichbar (keine Sitzung); er zeigt die Vorgabeliste fest und ohne Hinweise |
+| **Geteiltes Formular**, `web/src/features/shared/LibraryFields.tsx` | `KINDS` `:10`, `RadioGroup` `:76` bis `:82`, Pfad `:89` bis `:105`, `libraryRequest` `:23` bis `:36` | Trägt die Ordnerliste und baut `LibraryRequest.roots`. Das Formular ist mit dem **Einrichtungsassistenten** geteilt (`web/src/features/setup/SetupPage.tsx:127`, `:210`, `:277`); der Assistent bekommt damit dieselben Felder samt «+ Weiteren Ordner hinzufügen», ohne eigenen Code, und seine Fehlerzuordnung folgt den neuen Feldnamen `library.roots[0].path`. Der Vorgabename `t('library.kind.movies')` (`:277`) wird «Filme» aus einem neuen Schlüssel, weil `library.kind.movies` verschwindet. Im Assistenten ist `listMetadataProviders` nicht erreichbar (keine Sitzung); er zeigt die Vorgabeliste fest und ohne Hinweise |
 | **Bibliothekskarte**, `web/src/features/admin/LibraryCard.tsx` | Chip `:57`, `Folders` `:128` bis `:171` | Der Art-Chip zeigt die Familie; bei mehreren Ordnern steht statt «2 Ordner» eine Zusammenfassung «1 Filme, 1 Serien». Bei genau einem Ordner wie heute Pfad, Dateisystem, Überwachung, neu plus Inhalt und die Liste als Kurzform «TVDB › TMDB › AniList» |
-| **Ordner von X**, `web/src/features/admin/LibraryFoldersDialog.tsx` | Hinzufügen `:64`, Formular `:174` bis `:198`, Entfernen `:86` | Jede Zeile zeigt den Inhalt-Chip und die Liste als Kurzform und bekommt neben «Entfernen» ein **«Ändern»**. Das Hinzufügen-Formular bekommt Inhalt und das Bauteil. «Ändern» öffnet einen Dialog mit denselben Feldern; wechselt der Erkenner, erscheint der Hinweis aus 6.3; wechselt der Inhalt, erscheint die abgetippte Bestätigung (die `TypedConfirmation`-Variante von `ConfirmDialog` aus Schritt 13 der Idee 02) |
+| **Ordner von X**, `web/src/features/admin/LibraryFoldersDialog.tsx` | Hinzufügen `:64`, Formular `:174` bis `:198`, Entfernen `:86` | Jede Zeile zeigt den Inhalt-Chip und die Liste als Kurzform und bekommt neben «Entfernen» ein **«Ändern»**. Das Hinzufügen-Formular heisst «Neue Ordner» und ist die **Ordnerliste** (F-13): leer bis zum ersten «+ Ordner hinzufügen», dann beliebig viele Karten, ein Knopf «3 Ordner hinzufügen» sendet `LibraryRootsRequest`. «Ändern» öffnet einen Dialog mit denselben Feldern; wechselt der Erkenner, erscheint der Hinweis aus 6.3; wechselt der Inhalt, erscheint die abgetippte Bestätigung (die `TypedConfirmation`-Variante von `ConfirmDialog` aus Schritt 13 der Idee 02) |
 | **Podcasts**, `web/src/features/admin/PodcastsPage.tsx` | `:129` filtert `kind === 'podcasts'` | Bleibt die Seite für Feed-Abos. Podcasts aus Ordnern erscheinen in derselben Liste mit dem Chip «aus Ordner» und der Zahl lokaler Episoden; «Feed entfernen» ist bei `feedOrigin: file` ausgeblendet, denn der Ordner bestimmt den Feed |
 | **Titelpflege**, `web/src/features/admin/AdminItemPage.tsx` | Match-Bereich `:357`, `:409` | Zeigt die Liste des Titels, je Textfeld die Herkunft («Beschreibung (de): TMDB», aus `fieldSources`, so wie Idee 01 es beschreibt, `:85`) und bei AniList die Id als Link; die manuelle Zuordnung bleibt TMDB/TVDB |
 | **Bibliothekswahl in Profilen und Zugang**, `useLibraryOptions.ts:35` | liest nur `id`, `name` | **keine Änderung** |
@@ -819,9 +842,11 @@ mit 422 bestätigt.
 **Regel 8 — Tastaturtests.** Es entsteht keine neue Route, aber ein neues Bauteil mit Häkchen und
 Sortierknöpfen, zwei Formulare wachsen darum, und ein Dialog kommt dazu; in der Wirkung ist «Ändern»
 eine neue Seite. Darum: `web/e2e/admin-libraries.spec.ts` (Tab-Reihenfolge `:27`, Audio-Arten `:48`)
-wird auf die neue Artauswahl, den Inhalt und das Bauteil erweitert (Häkchen per Leertaste, Reihenfolge
-per Pfeiltaste auf dem Sortierknopf, sichtbarer Fokus); `web/e2e/admin-library-folders.spec.ts`
-bekommt einen Test für «Ändern» (Tab in die Bestätigung, Enter, Escape, Zurück, keine Fokusfalle);
+wird auf die neue Artauswahl, den Inhalt und beide Bauteile erweitert (Häkchen per Leertaste,
+Reihenfolge per Pfeiltaste auf dem Sortierknopf, «+ Weiteren Ordner hinzufügen» per Enter mit Fokus
+im neuen Pfadfeld, «Entfernen» einer Karte mit Fokus zurück auf dem Hinzufügen-Knopf, sichtbarer
+Fokus); `web/e2e/admin-library-folders.spec.ts` bekommt einen Test für «Ändern» (Tab in die
+Bestätigung, Enter, Escape, Zurück, keine Fokusfalle) und einen für zwei Ordner in einem Absenden;
 `web/e2e/setup.spec.ts:115` («arrow keys switch the library kind») folgt der neuen Auswahl.
 
 **Fixtures, vollständig gezählt**, weil sie den Schrittschnitt bestimmen (10): `web/e2e/global-setup.ts:55`,
@@ -835,10 +860,28 @@ sind vergeben), und sie verschiebt Zählungen in anderen Specs.
 `library.kind.{video,audiobooks,podcasts}` (die vier alten `library.kind.*`-Schlüssel `:242` bis
 `:247` verschwinden mit den Werten), `library.content.{movie,series,audiobook,podcast}`,
 `library.providers.{title,identifies,moveUp,moveDown,noKey,noGerman,fillOnly}`,
-`library.provider.{tmdb,tvdb,anilist,local}`, `admin.libraries.folders.change.*` (Dialog,
-Erkenner-Hinweis, Bestätigungstext), `admin.podcasts.fromFolder`, `admin.item.fieldSource`,
-`setup.library.content`, `setup.library.providers`, die neuen Fehlercodes und die Gruppenart
-`file_and_feed`. `pnpm -C web test locales` prüft die Symmetrie. Chips kommen aus `web/src/ui`.
+`library.provider.{tmdb,tvdb,anilist,local}`,
+`library.roots.{title,number,addFirst,addMore,remove,empty,emptyPodcasts,overlap,submit_one,submit_other,submitNone}`
+(Ordnerliste, mit Pluralformen für den zählenden Knopf), `admin.libraries.folders.change.*` (Dialog,
+Erkenner-Hinweis, Bestätigungstext), `admin.libraries.folders.new` («Neue Ordner»),
+`admin.podcasts.fromFolder`, `admin.item.fieldSource`, `setup.library.content`,
+`setup.library.providers`, die neuen Fehlercodes (`roots_required`, `root_overlap` mit Index) und die
+Gruppenart `file_and_feed`. `pnpm -C web test locales` prüft die Symmetrie. Chips kommen aus
+`web/src/ui`.
+
+### 7.1 Klickbarer Prototyp
+
+`docs/planning/mockups/07-bibliotheken-prototyp.html` ist eine einzelne HTML-Datei ohne Abhängigkeiten
+(Doppelklick genügt): die Seite «Bibliotheken» mit Marcos sieben Bibliotheken aus Abschnitt 2, das
+Formular «Bibliothek hinzufügen» mit Ordnerliste, der Dialog «Ordner von X» mit «Neue Ordner», der
+Dialog «Ordner ändern» mit den drei Wirkungen aus 6.3 (nur Auffüller, Erkennerwechsel,
+Inhaltswechsel mit abgetippter Bestätigung), das Bauteil «Metadatenquellen» mit Tastaturbedienung,
+die Seite «Podcasts» mit dem Chip «aus Ordner» und eine «Titelpflege» mit Herkunft je Feld. Farben
+und Abstände sind die Tokens aus `packages/design-tokens/tokens/`. Der Prototyp prüft die Regeln aus
+Abschnitt 2 nur zur Anzeige, wie es der Client später auch tut; er ist **kein** Code für
+`web/src` und wird nicht gebaut oder getestet. Stand: zweite Fassung vom 29. Oktober 2026 (F-13
+eingearbeitet, Ordnerkarten getrennt). Dieselbe Fassung ist als privates Artefakt unter
+`https://claude.ai/artifact/5ESS4fvgNMyoUqC35kyS4P` erreichbar.
 
 ---
 
@@ -868,7 +911,7 @@ Podcasts gilt die Lastrechnung aus 4.5; der erste Scan dieser zwei Bibliotheken 
 ### 8.2 Wo alte Clients scheitern
 
 Die Web-App des Standes 1.2.0 sendet `LibraryRequest.path` und erwartet `kind: movies`; gegen einen
-1.3.0-Server scheitert nur die Bibliotheksseite der Verwaltung mit 422 (fehlender `root`), nichts auf
+1.3.0-Server scheitert nur die Bibliotheksseite der Verwaltung mit 422 (fehlendes `roots`), nichts auf
 der Zuschauerseite. Weil Web-App und Server aus demselben Image kommen, ist das nur für den Moment
 zwischen Image-Wechsel und Neuladen relevant; der Service Worker lädt bei Versionswechsel neu.
 
@@ -998,10 +1041,12 @@ Liste, verhält sich mit den Vorgabelisten aber wie heute; `metadata.fill` kommt
 `PodcastInsertEpisode`, `PodcastListDue`, `PodcastListIDsByLibrary`), `system/library.sql`
 (`DeleteMediaFilesOfRoot`, `DeleteIgnoredFilesOfRoot`), `system/metadata.sql` (`item_field_sources`
 lesen und schreiben), `server/internal/model/model.go` (`:975` bis `:991`: `LibraryVideo`,
-`RootContent*`, `Provider*`, `ValidRootProviders`; `LibraryRequest` `:994` bekommt `Root`;
+`RootContent*`, `Provider*`, `ValidRootProviders`; `LibraryRequest` `:994` bekommt `Roots []LibraryRootRequest`;
 `LibraryRoot` `:1017` die zwei Felder), der Scanner nach 6.1 (`scanner.go`, `write.go`, `index.go`
-mit einem Index je Titelart, `pathscan.go`), `library/service.go` (`Create`), `roots.go` (`AddRoot`,
-neu `UpdateRoot` mit den drei Wegen aus 6.3), `admin/admin.go` (`validateLibrary`, `ScanLibrary`),
+mit einem Index je Titelart, `pathscan.go`), `library/service.go` (`Create` legt alle Wurzeln in
+einer Transaktion an, F-13), `roots.go` (`AddRoot` wird `AddRoots` mit Liste, Überlappungsprüfung
+auch innerhalb der Liste, ein Scan am Ende; neu `UpdateRoot` mit den drei Wegen aus 6.3),
+`admin/admin.go` (`validateLibrary`, `ScanLibrary`),
 `metadata/match.go` (`:78`, `:187`, `:315`: Erkenner aus der Liste, TVDB zuerst mit
 `/find/{tvdb_id}` für die `tmdb_id`), die Go-Fixtures aus 6.1 (13 Testdateien, `vistest`,
 `cmd/apicheck/fixtures.go`, `scanbench.go`), danach `task gen`.
@@ -1034,8 +1079,8 @@ wie Fixtures folgen **im selben Commit**, sonst ist `task ci` rot.
 `server/internal/api/admin_handlers.go` (`:146`, die Wurzel-Handler, `listMetadataProviders`),
 `contract_access_test.go` (Einträge), `cmd/apicheck/fixtures.go`, `packages/api-client` über
 `task gen`; auf der Web-Seite das **Minimum**, damit Typen und e2e-Suite wieder stimmen:
-`web/src/features/shared/LibraryFields.tsx` (`KINDS`, `libraryRequest` baut `root` mit der
-Vorgabeliste), die Fixtures aus Abschnitt 7 (`global-setup.ts`, `accounts.ts`, `audio.ts`,
+`web/src/features/shared/LibraryFields.tsx` (`KINDS`, `libraryRequest` baut `roots` mit einem
+Ordner und der Vorgabeliste), die Fixtures aus Abschnitt 7 (`global-setup.ts`, `accounts.ts`, `audio.ts`,
 `web/src/test/fixtures.ts`), `setup.spec.ts:115`. Die Oberfläche selbst (Bauteil, Chips, Dialoge)
 kommt in Schritt 5; bis dahin sendet das Formular feste Vorgabelisten.
 
@@ -1045,8 +1090,13 @@ kommt in Schritt 5; bis dahin sendet das Formular feste Vorgabelisten.
 `["tvdb","tmdb","anilist"]` an einem Serienordner; `confirm_mismatch` und 409 `scan_running` beim
 Inhaltswechsel; 200 beim Listenwechsel ohne Bestätigung; `searchMetadata` mit `provider: anilist`
 ergibt 422 `provider_not_searchable`; `listMetadataProviders` nennt TVDB als `configured: false`
-ohne Schlüssel. Der Schema-Test findet an jeder neuen Operation `x-visibility`. Release-Notes-Entwurf
-mit dem Bruch (`LibraryKind`, `LibraryRequest.root`, `MetadataProvider`, `DuplicateGroup.reason`).
+ohne Schlüssel. **F-13:** `createLibrary` mit zwei Ordnern (Film und Serie) legt beide an;
+`createLibrary` mit `roots: []` bei `video` ergibt 422 `roots_required`, bei `podcasts` 201;
+überschneiden sich `roots[0]` und `roots[1]`, kommt 422 `root_overlap` mit Feld
+`library.roots[1].path` und **keine** Zeile in `libraries` oder `library_roots`; `addLibraryRoot`
+mit drei Ordnern, deren dritter überlappt, lässt die ersten zwei **nicht** zurück. Der Schema-Test
+findet an jeder neuen Operation `x-visibility`. Release-Notes-Entwurf mit dem Bruch (`LibraryKind`,
+`LibraryRequest.roots`, `addLibraryRoot` mit Liste, `MetadataProvider`, `DuplicateGroup.reason`).
 
 ### Schritt 3 — Podcast-Ordner
 `feat(library,metadata,playback): scan podcast folders and adopt their feeds`
@@ -1115,8 +1165,8 @@ Anbieter ohne Schlüssel wird übersprungen und gemeldet. Messung: 111 Anime-Tit
 **Ziel:** Marco kann seine Tabelle in der Verwaltung anlegen und je Ordner die Scraper-Liste
 ankreuzen und sortieren, ohne eine Zeile Konfiguration.
 
-**Berührte Dateien:** Abschnitt 7 vollständig: das Bauteil «Metadatenquellen» in `web/src/ui` (+
-Story + Unit-Test), `LibrariesPage.tsx` (samt `:283`), `LibraryFields.tsx`, `LibraryCard.tsx` (samt
+**Berührte Dateien:** Abschnitt 7 vollständig: die Bauteile «Metadatenquellen» und «Ordnerliste»
+in `web/src/ui` (je + Story + Unit-Test), `LibrariesPage.tsx` (samt `:283`), `LibraryFields.tsx`, `LibraryCard.tsx` (samt
 `:138`), `queries.ts:52` (+ Abfrage `listMetadataProviders`), `LibraryFoldersDialog.tsx` (+ Dialog
 «Ordner ändern»), `PodcastsPage.tsx`, `AdminItemPage.tsx` (Herkunft je Feld), `SetupPage.tsx`,
 Locales, Storybook-Stories, Unit-Tests, `web/e2e/admin-libraries.spec.ts`,
@@ -1124,7 +1174,8 @@ Locales, Storybook-Stories, Unit-Tests, `web/e2e/admin-libraries.spec.ts`,
 eigenen Testordnern.
 
 **DoD:** `task web:lint`, `task web:test`, `task web:storybook:test`, `task web:e2e` grün; die
-Tastaturtests für das Bauteil und für «Ändern» nach Regel 8; `pnpm -C web test locales` grün;
+Tastaturtests für beide Bauteile und für «Ändern» nach Regel 8; der e2e-Lauf legt die gemischte
+Bibliothek «Dokus» mit **zwei Ordnern in einem Absenden** an (F-13); `pnpm -C web test locales` grün;
 `grep -rn "'movies'" web/src --include=*.tsx` ist leer und `grep -rn "'series'"` nennt nur Titelarten
 und Suchfilter (`searchParams.ts:7`).
 
@@ -1203,8 +1254,8 @@ nachziehen, Image aus `main` bauen, CT 190 umstellen, `docs/dev/CURRENT_STATUS.m
 
 ## 11. Fragen an Marco
 
-Format wie `docs/planning/04-entscheidungen.md`. Beantwortet am 28. Oktober 2026 in drei Runden;
-offen ist nur F-10. F-9 ist durch F-11 erledigt.
+Format wie `docs/planning/04-entscheidungen.md`. Beantwortet am 28. Oktober 2026 in drei Runden,
+F-13 am 29. Oktober 2026 am Prototyp; offen ist nur F-10. F-9 ist durch F-11 erledigt.
 
 | Nr. | Frist | Thema | Empfehlung | Antwort | Datum |
 |-----|-------|-------|------------|---------|-------|
@@ -1220,6 +1271,7 @@ offen ist nur F-10. F-9 ist durch F-11 erledigt.
 | **F-10** | vor Schritt 0 | **Reihenfolge:** erst die Benutzerverwaltung in `main`, dann dieser Zweig? Beide bauen Tabellen um (00022 `accounts`, 00023 `libraries`), beide heben den Vertrag brechend an | **Ja, Benutzerverwaltung zuerst.** Zwei parallele Tabellenumbauten auf derselben Datenbank von CT 190 sind ein Risiko ohne Nutzen; und die Nummern in diesem Papier (00023, 0015, 1.3.0) setzen es voraus | | |
 | **F-11** | vor Schritt 1 | **Wie sieht die Scraper-Wahl je Ordner aus?** Hauptscraper plus Ergänzer (ein Erkenner, Häkchen für Auffüller) / genau einer / Liste mit Reihenfolge wie in Emby | Hauptscraper plus Ergänzer — kleiner, Idee 01 bleibt ganz | **Liste mit Reihenfolge wie in Emby.** Der erste erkennt, die weiteren füllen feldweise auf; Herkunft je Feld und Anbieterliste ziehen aus Idee 01 hierher | 2026-10-28 |
 | **F-12** | vor Schritt 1 | **TVDB als Hauptscraper für Serienordner wählbar?** Heute nur Rückfall (ADR 0006); TVDB braucht den kostenpflichtigen Schlüssel | Ja, wählbar; bei TVDB zuerst gilt die TVDB-Staffelzählung, TMDB füllt auf; ändert ADR 0006 | **Ja, wählbar** | 2026-10-28 |
+| **F-13** | vor Schritt 1 | **Mehrere Ordner in einem Zug?** Der erste Prototyp (7.1) legte beim Anlegen genau einen Ordner an, weitere erst über «Ordner von X»; Marco: «nicht intuitiv gelöst» | Ordnerliste im Formular, ein Absenden für alle; `LibraryRequest.roots[]`, `addLibraryRoot` mit Liste, Server alles oder nichts | **Ja, so aufnehmen** (zweite Prototyp-Fassung mit nummerierten Ordnerkarten) | 2026-10-29 |
 
 ---
 
@@ -1332,7 +1384,9 @@ Bestätigt und darum ohne Befund: `visible_items` und kein Trigger lesen `librar
 `library` importiert `metadata` nicht; Regel 10 (nur Schema und Host im Log) deckt sich mit
 `netguard.Clean`.
 
-**Fassung 3 ist noch nicht vom Kritiker geprüft.** Neu gegenüber Fassung 2 und darum prüfwürdig:
-4.2 (`providers` als JSON), 4.3 (`item_field_sources`), 4.4 (Erkenner/Auffüller, TVDB zuerst mit
-`/find`, `metadata.fill`), 5.1/5.2 (`MetadataProvider` erweitert, `listMetadataProviders`), 6.2, 6.3
-(Erkennerwechsel), 7 (Bauteil), Schritt 1 und 4.
+**Fassung 3 und 4 sind noch nicht vom Kritiker geprüft.** Neu gegenüber Fassung 2 und darum
+prüfwürdig: 4.2 (`providers` als JSON), 4.3 (`item_field_sources`), 4.4 (Erkenner/Auffüller, TVDB
+zuerst mit `/find`, `metadata.fill`), 5.1/5.2 (`MetadataProvider` erweitert, `listMetadataProviders`),
+6.2, 6.3 (Erkennerwechsel), 7 (Bauteil), Schritt 1 und 4. Neu in Fassung 4 (F-13): 5.1/5.2
+(`LibraryRequest.roots[]`, `LibraryRootsRequest`, `roots_required`, Transaktion über alle Ordner),
+7 (Bauteil «Ordnerliste», 7.1 Prototyp), Schritt 1 (`AddRoots`), 2 und 5.
