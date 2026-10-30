@@ -192,8 +192,10 @@ Der Scroller hat `tabIndex={-1}` (Firefox macht Scrollboxen sonst zu Tab-Station
 **Band.** `HeroCarousel` neu: unter der Bühne eine `PosterCard`-Reihe in Normalgrösse in der neuen
 Variante ohne `href` (`onPress`, `active` mit Ring in `--sc-item-accent`, `dimmed` 70 %,
 `aria-current`, Zeitbalken als Kind im Rahmen); Enter oder Klick stellt den Titel ins Band und
-navigiert nicht (F-5). Bei jedem Wechsel rückt das aktive Poster nur horizontal an die linke Kante,
-der Leerraum am Ende trägt auch das letzte Poster dorthin (N-4). Start bei `heroStart`, einmal je
+navigiert nicht (F-5). Die Reihe steht, solange das aktive Poster ganz sichtbar ist (die Markierung
+wandert, nicht die Poster; Marcos Nachtrag vom 30. Oktober 2026, zuvor rückte sie bei jedem Wechsel
+nach); liegt es ausserhalb, rückt es nur horizontal an die linke Kante, der Leerraum am Ende trägt
+auch das letzte Poster dorthin (N-4). Start bei `heroStart`, einmal je
 Einhängen eingerastet (ein Refetch mit anderem Wert bewegt das Band nicht); Takt aus
 `heroIntervalSeconds`. Pausenregel: Trailer, Pause-Knopf (`aria-pressed`, Symbol wechselt, Label
 bleibt «Pause» nach der WAI-ARIA-Regel für Umschalter, «Weiter» als `title`), **Tastaturfokus im
@@ -317,8 +319,9 @@ Herkunft, Indizes, Notiz); `TestFrozenStatesMigrate` nimmt ihn über das Glob mi
    «Seitenleiste einblenden»; der Zustand bleibt nach dem Neuladen.
 2. Band: bei jedem Öffnen ein anderer Titel zuerst, alle 5 s der nächste (Takt in Verwaltung →
    Spotlight → «Takt der Bühne» auf 3 bis 15 s stellen); Tippen auf ein Poster unter dem Band
-   stellt den Titel ins Band, öffnet nichts; Pause-Knopf oben rechts hält an; das aktive Poster
-   steht links; Band bleibt stehen, wenn du mit Pfeiltasten (Tastatur am Tablet) hineingehst.
+   stellt den Titel ins Band, öffnet nichts; Pause-Knopf oben rechts hält an; die Poster bleiben
+   stehen, die Markierung wandert, die Reihe rückt erst nach, wenn das aktive Poster aus dem Bild
+   wäre; Band bleibt stehen, wenn du mit Pfeiltasten (Tastatur am Tablet) hineingehst.
 3. Reihen: auf dem Handy drei ganze Cover je Reihe, nach dem Wischen steht links immer ein ganzes
    Cover; «Alle anzeigen ›» an Cat's Empfehlungen und Merkliste.
 4. Bibliothek («Filme», «Dokus», …): Zähler oben, bei gemischten Bibliotheken Chips «Alle · Filme ·
