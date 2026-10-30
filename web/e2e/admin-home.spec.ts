@@ -203,7 +203,7 @@ test('Tab: header, navigation, dashboard, cards; Enter on a card; no focus trap'
   await openOverview(page);
   const cards = page.getByRole('region', { name: 'Alle Verwaltungsseiten' });
   // One card per admin page; "Zugriff" went into "Konten" with ADR 0014.
-  await expect(cards.getByRole('link')).toHaveCount(16);
+  await expect(cards.getByRole('link')).toHaveCount(17);
   await expect(cards.getByRole('link', { name: 'Benachrichtigungen' })).toHaveAttribute(
     'href',
     '/settings/notifications',

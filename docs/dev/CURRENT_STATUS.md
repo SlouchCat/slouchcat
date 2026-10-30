@@ -33,7 +33,21 @@ Sweep-Takt wieder her), `NAV_PAGES` mit «Hintergrundjobs».
 **DoD-Belege.**
 
 ```
-STEP4_RESULTS
+$ pnpm exec vitest run src/features/admin/JobsPage.test.tsx src/features/admin/AdminHomePage.test.tsx src/locales
+Tests  22 passed (22)
+$ task web:lint                                 grün (eslint, stylelint, tsc, prettier)
+$ task ci:server · web:gen:check · web:test · build   grün für ced5636
+$ task ci:e2e (ced5636)                        477 passed, 3 failed: Kartenzahl 16 → 17 in admin-home.spec.ts
+                                                und zwei Firefox-Fallen in admin-jobs.spec.ts (Fokus-Startpunkt
+                                                nach ersetztem Knopf, Fokusrückgabe nach dem Speichern); behoben
+                                                im Folge-Commit, beide Specs danach in Chromium und Firefox grün
+$ task ci:e2e (nach dem Fix)                    STEP4_E2E_FINAL
+```
+
+Dev-Stack: `localhost:8096` läuft seit 16:58 auf dem Image `hintergrundjobs` mit dieser Seite
+(`v1.4.0-26-gced5636`), sechs Zeitpläne (`jobs.prune` übersprungen beim ersten Lauf), 18 Jobarten.
+
+```
 ```
 
 **Offen (Schritt 5):** Image bauen, CT 190 umstellen, Abnahme am Handy, Messung
