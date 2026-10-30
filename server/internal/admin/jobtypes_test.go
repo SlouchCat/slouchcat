@@ -225,6 +225,22 @@ func TestJobRunMeasuredEstimate(t *testing.T) {
 	if run.Progress == nil || run.Progress.Done != 25 || run.Progress.Note != "Filme · Movies" {
 		t.Errorf("progress = %+v", run.Progress)
 	}
+
+	// With a progress series on the worker the rate counts only the work since the series
+	// began (B-3): 20 of 100 in 20 s leaves 80 s for the remaining 75, not 180 s. A series
+	// shorter than measuredMinSeries gives no measured estimate (and no median: event type).
+	jf.svc.jobctl.series = func(id int64) (time.Time, int64, bool) {
+		return jf.now.Add(-20 * time.Second), 5, id == j.ID
+	}
+	run = jf.typeInfo(t, fakeEvent).RunningRuns[0]
+	if run.Estimate != model.JobEstimateMeasured || run.EstimatedSecondsLeft == nil || *run.EstimatedSecondsLeft != 75 {
+		t.Errorf("estimate with a series = %s %v, want measured 75 s (20 s for 20 of 100, 75 left)", run.Estimate, run.EstimatedSecondsLeft)
+	}
+	jf.svc.jobctl.series = func(int64) (time.Time, int64, bool) { return jf.now.Add(-5 * time.Second), 20, true }
+	run = jf.typeInfo(t, fakeEvent).RunningRuns[0]
+	if run.Estimate != model.JobEstimateNone || run.EstimatedSecondsLeft != nil {
+		t.Errorf("estimate with a 5 s series = %s %v, want none", run.Estimate, run.EstimatedSecondsLeft)
+	}
 }
 
 // runJobType: event types and unknown rows are not runnable, a paused type refuses, a schedule

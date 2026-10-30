@@ -131,14 +131,26 @@ type runList struct {
 type runEntry struct {
 	typ    string
 	cancel context.CancelCauseFunc
+	rep    *reporter // nil in tests that add a run without one
 }
 
 func newRunList() *runList { return &runList{runs: map[int64]runEntry{}} }
 
-func (l *runList) add(id int64, typ string, cancel context.CancelCauseFunc) {
+func (l *runList) add(id int64, typ string, cancel context.CancelCauseFunc, rep *reporter) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.runs[id] = runEntry{typ: typ, cancel: cancel}
+	l.runs[id] = runEntry{typ: typ, cancel: cancel, rep: rep}
+}
+
+// series returns the progress series of the running job id (see reporter.series).
+func (l *runList) series(id int64) (time.Time, int64, bool) {
+	l.mu.Lock()
+	e, ok := l.runs[id]
+	l.mu.Unlock()
+	if !ok || e.rep == nil {
+		return time.Time{}, 0, false
+	}
+	return e.rep.series()
 }
 
 func (l *runList) remove(id int64) {
@@ -188,6 +200,14 @@ func (l *runList) count(typ string) int {
 // Running returns how many jobs of typ the attached workers run right now (after a pause: the
 // runs that are still stopping).
 func (r *Registry) Running(typ string) int { return r.runs.count(typ) }
+
+// ProgressSince returns when the current progress series of the running job id began on an
+// attached worker and the done count it began with (concept 09, 6.2; the measured estimate rates
+// the work since then instead of since the start of the run, which may hold phases without
+// progress). ok is false for a job that does not run here or has reported no extent yet.
+func (r *Registry) ProgressSince(id int64) (since time.Time, done int64, ok bool) {
+	return r.runs.series(id)
+}
 
 // Pause pauses the job type typ (F-1, F-6): no worker claims its jobs any more, and every running
 // job of the type is stopped at once and goes back to the queue without a used attempt. The pause

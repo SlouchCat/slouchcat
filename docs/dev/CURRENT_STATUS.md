@@ -22,7 +22,17 @@ erwarten, Messung auf CT 190 offen. NAS-Scan «Filme» (1'791 Dateien): 186 s; S
 «gemessen» 2'036 s bei wirklich 34 s, Median nach sechs leeren Rescans 0 s. **Vier Befunde mit
 Hebeln** (B-1 Reporter lässt Meldungen bis zum Heartbeat liegen, B-2 Hash-Phase ohne Fortschritt,
 B-3 Rate ab `started_at` statt ab der ersten Meldung, B-4 leere Rescans zählen für den Median) in
-`docs/perf/hintergrundjobs.md` 2; nicht gebaut, Entscheid bei Marco.
+`docs/perf/hintergrundjobs.md` 2. **Auf Marcos Wort am 31. Oktober behoben** (`jobs/progress.go`
+Timer und Fortschrittsreihe, `Registry.ProgressSince`, `admin/jobtypes.go` Rate ab der Reihe mit
+`measuredMinSeries` 10 s, `library/scanner.go` Fortschritt in `planRoot` und `Skip` bei leerem
+Schreibplan; Testhilfe `jobs.Recorder`). Nachmessung in 2a: Scan «KinderSerien» (3'749 Folgen,
+126 s) mit Schätzfehler unter Faktor 2 statt 60; leere Rescans `skipped`.
+
+```
+$ go test ./internal/jobs ./internal/admin ./internal/library     ok (TestProgressTimerAndSeries,
+                                                                  TestJobRunMeasuredEstimate, TestScanReportsHashPhaseAndSkipsUnchangedRescan)
+$ task ci:server                                                  grün (lint, gen-check, go test -race, 31.10. 00:30)
+```
 
 **Versionsstellen auf 1.5.0:** `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
 `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`. Tag `v1.5.0` setzt Marco auf den Merge-Commit
@@ -60,8 +70,8 @@ B-3 Rate ab `started_at` statt ab der ersten Meldung, B-4 leere Rescans zählen 
 
 **Offen (Marco):** Image des Zweigs bauen und CT 190 umstellen (normales Terminal nach
 `newgrp docker`, Weg aus HANDOVER mit Tag `hintergrundjobs`), Abnahme am Handy nach Schritt 5,
-ein Tag Beobachtung der Zeitpläne, Messung auf CT 190 (Abschnitt 3 der Messung), Entscheid zu
-B-1 bis B-4, Merge von PR #55, Tag `v1.5.0`.
+ein Tag Beobachtung der Zeitpläne, Messung auf CT 190 (Abschnitt 3 der Messung), Merge von
+PR #55, Tag `v1.5.0`.
 
 ## Hintergrundjobs (Konzept 09): Schritt 4 (30. Oktober 2026)
 

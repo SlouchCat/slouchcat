@@ -90,11 +90,11 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 	// cancel (ErrCancelled) end it at once through the run list; the heartbeat is the fallback.
 	jobCtx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
+	rep := newReporter(w.queue, w.id, job.ID, log)
 	if w.runs != nil {
-		w.runs.add(job.ID, job.Type, cancel)
+		w.runs.add(job.ID, job.Type, cancel, rep)
 		defer w.runs.remove(job.ID)
 	}
-	rep := newReporter(w.queue, w.id, job.ID, log)
 	handlerCtx := context.WithValue(jobCtx, reporterKey{}, rep)
 
 	var leaseLost atomic.Bool
@@ -136,6 +136,7 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 	fctx, fcancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer fcancel()
 	rep.flush(fctx)
+	rep.stop()
 	var ferr error
 	switch {
 	case leaseLost.Load():

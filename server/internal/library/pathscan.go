@@ -135,6 +135,7 @@ func (s *Service) scanLibraryPaths(ctx context.Context, lib appq.Library, req []
 		if err != nil {
 			return stats, 0, false, err
 		}
+		rs.lib = lib.Name
 		rootActive := 0
 		for _, k := range rs.known {
 			switch {

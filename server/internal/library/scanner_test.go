@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
@@ -1083,5 +1084,52 @@ func TestCleanDirs(t *testing.T) {
 	got := cleanDirs([]string{"b/", "a", ".", "a", "../x", "/abs", "@eaDir/x", "a/.hidden", "c/./d"})
 	if want := []string{".", "a", "b", "c/d"}; !slices.Equal(got, want) {
 		t.Errorf("cleanDirs = %q, want %q", got, want)
+	}
+}
+
+// The hash phase of a scan reports files of files with the folder (B-2), and a rescan that finds
+// nothing new, changed or missing is skipped for the median of its type (B-4); a change makes the
+// next scan count again.
+func TestScanReportsHashPhaseAndSkipsUnchangedRescan(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, twentyMovies)
+	lib := e.create(dir)
+	row, err := appq.New(e.db.Read).GetLibrary(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scan := func() *jobs.Recorder {
+		rec := &jobs.Recorder{}
+		if err := e.svc.Scan(jobs.WithRecorder(e.ctx, rec), row); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		return rec
+	}
+	first := scan()
+	if first.Skipped {
+		t.Error("the first scan was skipped")
+	}
+	want := jobs.RunProgress{Done: 2, Total: 20, Note: "Filme · " + path.Base(dir) + "/Alien (1979)"} // sorted walk: 13 Minutes first
+	if !slices.Contains(first.Reports, want) {
+		t.Errorf("hash phase report %+v missing in %+v", want, first.Reports)
+	}
+	if last, ok := first.Last(); !ok || last.Done != 20 || last.Total != 20 {
+		t.Errorf("last report of the first scan = %+v, want 20 of 20", last)
+	}
+
+	e.clock.Advance(time.Hour)
+	if second := scan(); !second.Skipped {
+		t.Error("the rescan without a change was not skipped")
+	}
+
+	e.clock.Advance(time.Hour)
+	writeFile(t, dir, "Arrival (2016)/Arrival (2016).mkv", "video arrival")
+	third := scan()
+	if third.Skipped {
+		t.Error("the scan with a new file was skipped")
+	}
+	if !slices.Contains(third.Reports, jobs.RunProgress{Done: 1, Total: 1, Note: "Filme · " + path.Base(dir) + "/Arrival (2016)"}) {
+		t.Errorf("hash phase of the third scan = %+v, want 1 of 1 for Arrival", third.Reports)
 	}
 }

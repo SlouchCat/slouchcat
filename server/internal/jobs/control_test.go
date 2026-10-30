@@ -384,3 +384,88 @@ func waitFor(t *testing.T, cond func() bool) {
 		time.Sleep(5 * time.Millisecond)
 	}
 }
+
+// A report that comes before the interval is written by the timer when the interval is over
+// (B-1), stop drops that timer, and the reporter marks where the progress series began: the first
+// report with an extent, again when the extent changes or done falls (B-3). The registry serves
+// it for the runs on its list.
+func TestProgressTimerAndSeries(t *testing.T) {
+	ctx := context.Background()
+	q, c := newTestQueue(t)
+	r := NewRegistry(q, discard)
+	id := mustEnqueue(t, q, NewJob{Type: "p"})
+	if j, err := q.Claim(ctx, "w1", []string{"p"}); err != nil || j == nil {
+		t.Fatalf("claim: %+v %v", j, err)
+	}
+	rep := newReporter(q, "w1", id, discard)
+	rep.interval = 50 * time.Millisecond
+	hctx := context.WithValue(ctx, reporterKey{}, rep)
+	r.runs.add(id, "p", func(error) {}, rep)
+	defer r.runs.remove(id)
+
+	Progress(hctx, 1, 0, "walk") // written at once
+	Progress(hctx, 7, 0, "walk") // too early: the timer writes it
+	if got, _ := q.Get(ctx, id); got.Progress.Done != 1 {
+		t.Fatalf("progress right after the early report = %+v, want 1", got.Progress)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if got, _ := q.Get(ctx, id); got.Progress.Done == 7 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the early report was not written by the timer")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if _, _, ok := rep.series(); ok {
+		t.Error("a report without an extent opened a series")
+	}
+
+	// The series: first extent at t1 with done 125; same extent keeps it; done falling and a
+	// new extent reset it.
+	c.Advance(time.Minute)
+	t1 := c.Now()
+	Progress(hctx, 125, 1791, "write")
+	c.Advance(10 * time.Second)
+	Progress(hctx, 250, 1791, "write")
+	if since, done, ok := r.ProgressSince(id); !ok || !since.Equal(t1) || done != 125 {
+		t.Errorf("series after two reports = %v %d %v, want %v 125 true", since, done, ok, t1)
+	}
+	c.Advance(10 * time.Second)
+	t2 := c.Now()
+	Progress(hctx, 3, 1791, "next phase")
+	if since, done, ok := r.ProgressSince(id); !ok || !since.Equal(t2) || done != 3 {
+		t.Errorf("series after done fell = %v %d %v, want %v 3 true", since, done, ok, t2)
+	}
+	c.Advance(10 * time.Second)
+	t3 := c.Now()
+	Progress(hctx, 4, 2000, "new extent")
+	if since, done, ok := r.ProgressSince(id); !ok || !since.Equal(t3) || done != 4 {
+		t.Errorf("series after the extent changed = %v %d %v, want %v 4 true", since, done, ok, t3)
+	}
+	if _, _, ok := r.ProgressSince(id + 1000); ok {
+		t.Error("a job that does not run here has a series")
+	}
+
+	// stop drops a waiting timer: the pending report stays unwritten.
+	Progress(hctx, 5, 2000, "pending") // right after the write of "new extent": too early
+	rep.stop()
+	time.Sleep(120 * time.Millisecond)
+	if got, _ := q.Get(ctx, id); got.Progress.Done != 4 {
+		t.Errorf("progress after stop = %+v, want the report before the stop (4)", got.Progress)
+	}
+	rep.flush(ctx) // the worker's final flush still writes it
+	if got, _ := q.Get(ctx, id); got.Progress.Done != 5 {
+		t.Errorf("progress after the final flush = %+v, want 5", got.Progress)
+	}
+
+	// The Recorder of the handler tests collects the same calls.
+	rec := &Recorder{}
+	rctx := WithRecorder(ctx, rec)
+	Progress(rctx, 1, 2, "a")
+	Skip(rctx)
+	if last, ok := rec.Last(); !ok || last.Done != 1 || last.Note != "a" || !rec.Skipped {
+		t.Errorf("recorder = %+v skipped %v", rec.Reports, rec.Skipped)
+	}
+}

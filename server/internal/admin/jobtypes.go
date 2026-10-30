@@ -30,6 +30,7 @@ const (
 	jobRunsLimitMax       = 200
 	measuredMinElapsed    = 30 * time.Second // a measured estimate needs this much elapsed time
 	measuredMinFraction   = 20               // and done >= total / 20 (5 %)
+	measuredMinSeries     = 10 * time.Second // and this much of the current progress series (B-3)
 	jobPodcastPoll        = "podcast.poll"
 	jobTypeUnknownGroup   = string(jobs.GroupSystem)
 	jobTypeUnknownPool    = string(jobs.PoolGeneral)
@@ -41,12 +42,13 @@ type jobControl struct {
 	reg     *jobs.Registry
 	sched   *jobs.Scheduler
 	workers map[jobs.Pool]int
+	series  func(id int64) (since time.Time, done int64, ok bool) // reg.ProgressSince; a seam for tests
 }
 
 // WithJobControl sets the registry, the scheduler and the workers per pool (main.go) and returns
 // the receiver; the scheduler also serves as Schedules for the settings pages.
 func (s *Service) WithJobControl(reg *jobs.Registry, sched *jobs.Scheduler, workers map[jobs.Pool]int) *Service {
-	s.jobctl = &jobControl{reg: reg, sched: sched, workers: workers}
+	s.jobctl = &jobControl{reg: reg, sched: sched, workers: workers, series: reg.ProgressSince}
 	s.schedules = sched
 	return s
 }
@@ -270,9 +272,19 @@ func (s *Service) jobRun(ctx context.Context, j jobs.Job, st *typeStats, now tim
 	}
 	elapsed := now.Sub(j.StartedAt)
 	p := j.Progress
+	// The measured rate counts the work since the current progress series began, not since the
+	// start of the run: a scan hashes for minutes before its first "x of y" (B-3). Without a
+	// series (the run is not on a worker here) the start of the run is the base.
+	work, done := elapsed, p.Done
+	if s.jobctl != nil && s.jobctl.series != nil {
+		if since, base, ok := s.jobctl.series(j.ID); ok && since.After(j.StartedAt) {
+			work, done = now.Sub(since), p.Done-base
+		}
+	}
 	switch {
-	case p.Total > 0 && p.Done > 0 && p.Done*measuredMinFraction >= p.Total && elapsed >= measuredMinElapsed:
-		left := int((elapsed * time.Duration(p.Total-p.Done) / time.Duration(p.Done)).Seconds())
+	case p.Total > 0 && p.Done > 0 && p.Done*measuredMinFraction >= p.Total && elapsed >= measuredMinElapsed &&
+		done > 0 && work >= measuredMinSeries:
+		left := int((work * time.Duration(p.Total-p.Done) / time.Duration(done)).Seconds())
 		run.EstimatedSecondsLeft, run.Estimate = &left, model.JobEstimateMeasured
 	case st != nil && st.medianOK:
 		run.Estimate = model.JobEstimateMedian

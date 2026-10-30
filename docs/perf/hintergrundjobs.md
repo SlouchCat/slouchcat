@@ -92,7 +92,7 @@ Danach sechs Läufe «Jetzt ausführen» auf der unveränderten Bibliothek (Läu
 zwei Bibliotheken): **jeder 0 s** (Durchsuchen aus dem Cache, nichts zu hashen, nichts zu
 schreiben), `skipped = 0`; der Median von `scan.library` stand nach acht Läufen bei **0 s**.
 
-**Befunde** (nicht gebaut in Schritt 5; Entscheid bei Marco, Papier 13.8):
+**Befunde** (am 31. Oktober 2026 behoben, Abschnitt 2a; Papier 13.8):
 
 - **B-1 Meldung bleibt liegen.** Der Reporter (`jobs/progress.go`) schreibt eine Meldung nur,
   wenn seit der letzten 2 s vergangen sind; sonst bleibt sie «pending» bis zur nächsten Meldung
@@ -117,6 +117,37 @@ schreiben), `skipped = 0`; der Median von `scan.library` stand nach acht Läufen
 - **B-5, in Ordnung:** Pause und Fortsetzen über die API wirkten sofort (vier laufende
   `probe.keyframes` zurück in die Warteschlange), `jobs.prune` räumte 32'760 Zeilen in einem Lauf
   von 525 ms, die Zähler der Seite blieben während des Scans unter 11 ms p95.
+
+### 2a. Nachmessung mit den vier Hebeln (31. Oktober 2026, 00:18 bis 00:23 Uhr)
+
+Gebaut auf Marcos Wort: B-1 ein Timer im Reporter schreibt eine zu frühe Meldung nach
+`ProgressInterval`; B-2 `planRoot` meldet die Hash-Phase als Dateien von Dateien mit dem Ordner;
+B-3 die Rate zählt die Arbeit seit Beginn der Fortschrittsreihe (erste Meldung mit Umfang, neu bei
+anderem Umfang oder fallendem `done`; aus dem Speicher der Laufliste, `Registry.ProgressSince`),
+dazu mindestens 10 s Reihe; B-4 ein Scan ohne neue, geänderte oder fehlende Datei ruft `Skip`.
+Gleicher Aufbau wie oben, frische Datenbank, `go build` des Standes mit den Hebeln.
+
+Erster Scan «Filme» (1'791 Dateien, Cache des NAS warm): **9 s**, die Hash-Phase meldete 386 und
+1'141 von 1'791 nach 2 und 4 s, die Schreibphase 375 und 1'000 von 1'791; kein 60-s-Loch mehr
+(B-1, B-2). Sechs Läufe «Jetzt ausführen» danach: 0 s und **`skipped = true`**, der Median bleibt
+«unbekannt» statt 0 s (B-4). Erster Scan «KinderSerien» (3'749 Folgen, 304 Serienordner, Cache
+kalt): **126 s**, Hash-Phase bis 119 s, Schreibphase 7 s (zu kurz für eine Schätzung, «wird
+berechnet»). Schätzung «gemessen» gegen die wirkliche Restzeit bis zum Ende des Laufs (B-3):
+
+| t | Fortschritt | Schätzung | wirklich (Lauf) | Fehler | wirklich (Phase) |
+|---|---|---|---|---|---|
+| 30 s | 950 von 3'749 | 90 s | 96 s | −6 % | 89 s |
+| 45 s | 1'219 von 3'749 | 93 s | 81 s | +15 % | 74 s |
+| 59 s | 2'442 von 3'749 | 31 s | 67 s | −54 % | 60 s |
+| 75 s | 2'766 von 3'749 | 26 s | 51 s | −49 % | 44 s |
+| 89 s | 3'025 von 3'749 | 21 s | 37 s | −43 % | 30 s |
+| 103 s | 3'164 von 3'749 | 18 s | 23 s | −22 % | 16 s |
+| 113 s | 3'421 von 3'749 | 10 s | 13 s | −23 % | 6 s |
+
+**Lesart.** Statt Faktor 60 liegt die Schätzung innerhalb von Faktor 2, meist unter 25 %; die
+Abweichung in der Mitte kommt vom NAS (ein Schub von 1'497 auf 2'442 Dateien in 6 s, danach
+wieder langsam), nicht von der Rechnung. Die Schreibphase einer grossen Bibliothek bekommt ihre
+eigene Reihe und nach 10 s ihre eigene Schätzung. Offen bleibt die Messung auf CT 190.
 
 ## 3. CT 190
 
