@@ -180,9 +180,32 @@ func TestQueueDueUpdateCheck(t *testing.T) {
 	queue := jobs.NewQueue(f.db.Write, func() time.Time { return now })
 	f.svc.WithQueue(queue).WithSystem(SystemSource{Version: "0.9.0"}).WithUpdateCheck(srv.URL+"/manifest.json", srv.Client())
 
+	// An older bulk job of a library import (a scan's keyframe index, priority 1) is waiting.
+	bulk := "probe.keyframes"
+	if _, err := queue.Enqueue(ctx, jobs.NewJob{Type: bulk, Priority: 1, IdempotencyKey: "keyframes:01J"}); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(time.Second)
+
 	queued, err := f.svc.QueueDueUpdateCheck(ctx)
 	if err != nil || !queued {
 		t.Fatalf("first tick: %v, %v; want queued", queued, err)
+	}
+	// The check carries a priority above every bulk job (the ladder in package jobs), so a worker
+	// claims it before the older index job: at priority 1 it waited behind the backlog of an
+	// import for days and the administration showed a stale release.
+	if updatePriority <= 6 {
+		t.Fatalf("updatePriority = %d, want above the bulk rungs (6 and below)", updatePriority)
+	}
+	first, err := queue.Claim(ctx, "w0", []string{bulk, JobUpdateCheck})
+	if err != nil || first == nil {
+		t.Fatalf("claim: %v, %v", first, err)
+	}
+	if first.Type != JobUpdateCheck || first.Priority != updatePriority {
+		t.Fatalf("first claimed job = %s at priority %d, want %s at %d before the older %s", first.Type, first.Priority, JobUpdateCheck, updatePriority, bulk)
+	}
+	if err := queue.Release(ctx, "w0", first.ID); err != nil {
+		t.Fatal(err)
 	}
 	// A worker with the admin jobs runs it.
 	w := jobs.NewWorker(queue, "w1", f.svc.log)

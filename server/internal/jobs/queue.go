@@ -8,7 +8,22 @@
 //
 // Semantics:
 //
-//   - Priority 0 to 9, higher runs first; within a priority the oldest job runs first.
+//   - Priority 0 to 9, higher runs first; within a priority the oldest job runs first. The
+//     ladder of every job type (the constants live next to the enqueuing code; keep this list
+//     current when one moves):
+//     9 probe.keyframes of a playback that fell back to transcoding (library.QueueKeyframesForPlayback)
+//     8 update.check, the daily release check (admin): seconds of work, before every bulk job
+//     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen")
+//     6 scan.path
+//     5 scan.library, download.prepare
+//     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override
+//     3 probe.file, metadata.match of episodes, notify.deliver
+//     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
+//     library.sweep, nightly trakt.refresh
+//     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find
+//     A job that runs once a day and finishes in seconds belongs above the bulk rungs (6 and
+//     below): a library import queues tens of thousands of jobs at 1 and 2, and a daily job at
+//     the same rung waits behind all of them.
 //   - Idempotency: an IdempotencyKey is unique among queued and running jobs. Enqueueing the same
 //     key again returns the ID of the active job instead of adding a duplicate. After the job has
 //     finished, the key can be used again.

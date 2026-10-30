@@ -1,5 +1,30 @@
 # Aktueller Stand
 
+## Update-Prüfung: Warteschlangenplatz des täglichen Jobs (30. Oktober 2026)
+
+Auf dem Zweig `claude/interesting-kalam-9fb6ca` (ab `main c6741b4`, Release 1.4.0). Befund: der
+Job `update.check` stand mit Priorität 1 in der Warteschlange, auf derselben Stufe wie
+`probe.keyframes` eines Scans, die Episodenbilder von `image.fetch` und `trailer.find`; eine Stufe
+darunter liegen `segments.detect`, `metadata.fill` und die Poster (2). Der Worker nimmt Jobs nach
+`priority DESC, created_at, id` (`server/queries/system/jobs.sql`), also läuft bei gleicher
+Priorität der älteste zuerst. Nach einem Bibliotheksimport wie auf CT 190 (Zehntausende Jobs auf
+den Stufen 1 und 2, tagelang) wartete die zehnsekündige Manifest-Abfrage hinter dem ganzen Rückstau,
+und die Verwaltung zeigte tagelang ein veraltetes Release; derselbe Befund wie bei «Jetzt abrufen»
+der Trakt-Liste in M11.
+
+**Fix, ein Commit `fix(admin): …`:** `updatePriority` in `server/internal/admin/update.go` ist neu
+**8**, über jedem Massen-Job (Scans 5/6, Matches 3/4, Proben 3, Bilder/Segmente/Fill 2, Keyframes 1)
+und über den manuellen Aktionen (7); nur der Keyframe-Index einer Wiedergabe (9) geht vor. Die
+Leiter aller Job-Typen steht neu an einer Stelle, in der Paketdokumentation von
+`server/internal/jobs/queue.go`; die Konstanten bleiben beim jeweiligen Paket. Test:
+`TestQueueDueUpdateCheck` reiht zuerst einen älteren `probe.keyframes` (1) ein und prüft, dass
+`Claim` den `update.check` mit Priorität `updatePriority` zuerst nimmt (bei Priorität 1 rot,
+geprüft). `task ci:server` grün.
+
+**Nicht gebaut:** der nächtliche `trakt.refresh` (Priorität 2, `metadata/trakt.go`) hat denselben
+Platz hinter dem Rückstau; nur der manuelle Abruf läuft auf 7. Offen als Folgepunkt, nicht Teil
+dieses Fixes.
+
 ## Update-Prüfung: Entwicklungsstand statt Update-Hinweis, Release 1.4.0 (30. Oktober 2026)
 
 Auf dem Zweig `claude/update-check` (ab `main 1bb1c7e`, Startseite und Posterreihe gemergt). Auslöser:
