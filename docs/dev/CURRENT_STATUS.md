@@ -1,5 +1,68 @@
 # Aktueller Stand
 
+## Hintergrundjobs (Konzept 09): Schritt 5, Teil der Session (30. Oktober 2026)
+
+Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 5:
+Messung, Release-Notes, Versionsstellen; Befunde in **13.8**. Was nur Marco kann (Image auf
+CT 190, Abnahme am Handy, ein Tag Beobachtung, Merge), steht aus.
+
+**Messung** `docs/perf/hintergrundjobs.md` (Entwicklungsrechner, eigener Server auf 8099, NAS per
+NFS, schwere Folgejobs pausiert; `docs/perf/seed-jobs.py` für 50'000 erledigte Läufe):
+
+```
+$ bash docs/perf/measure-home.sh /api/v1/admin/job-types     (55'423 Zeilen, vor dem ersten prune)
+/api/v1/admin/job-types: n=60 p50=14.9 ms p95=23.6 ms max=33.8 ms not-200=0
+$ POST /admin/job-types/jobs.prune/run                        32'760 Zeilen in 525 ms, 22'663 bleiben
+$ bash docs/perf/measure-home.sh /api/v1/admin/job-types     (nach dem prune)
+/api/v1/admin/job-types: n=60 p50=9.0 ms p95=23.6 ms max=26.2 ms not-200=0
+```
+
+Latte < 50 ms p95 gilt für CT 190; mit Faktor 2 bis 3 (M3 1c) sind dort 47 bis 71 ms zu
+erwarten, Messung auf CT 190 offen. NAS-Scan «Filme» (1'791 Dateien): 186 s; Schätzung
+«gemessen» 2'036 s bei wirklich 34 s, Median nach sechs leeren Rescans 0 s. **Vier Befunde mit
+Hebeln** (B-1 Reporter lässt Meldungen bis zum Heartbeat liegen, B-2 Hash-Phase ohne Fortschritt,
+B-3 Rate ab `started_at` statt ab der ersten Meldung, B-4 leere Rescans zählen für den Median) in
+`docs/perf/hintergrundjobs.md` 2; nicht gebaut, Entscheid bei Marco.
+
+**Versionsstellen auf 1.5.0:** `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+`docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`. Tag `v1.5.0` setzt Marco auf den Merge-Commit
+(HANDOVER, Beschriftung = Release-Notes).
+
+**Release-Notes-Entwurf 1.5.0** (C-5, nicht brechend; erste Zeile nach 5.4):
+
+- Neue Verwaltungsseite Hintergrundjobs; Vertrag 1.5.0 fügt `/admin/job-types` hinzu, nichts
+  entfällt.
+- Verwaltung: Seite «Hintergrundjobs» (System → Hintergrundjobs, Kachel auf dem Dashboard) mit
+  den Zahlen Laufend, Wartend, Geplant, Pausiert, Fehlgeschlagen, den Arbeitern und dem Stau je
+  Pool, «Läuft gerade» mit Fortschritt und Restzeit («noch ca.», «wird berechnet», «länger als
+  üblich») und einer Karte je Jobart: Jetzt ausführen, Pausieren und Fortsetzen (hält laufende
+  Läufe sofort an, überlebt einen Neustart), Wartende abbrechen, Alle Läufe abbrechen, Zeitplan
+  (Takt 5 Minuten bis 7 Tage, Zeitfenster in der Serverzeit), Läufe (Verlauf nach Zustand, Erneut,
+  Abbrechen).
+- Zeitpläne: Bibliotheksscan, Aufräumen fehlender Titel, Podcast-Abruf (`podcast.poll`),
+  Spotlight-Liste (`trakt.refresh`), Update-Prüfung (`update.check`) und Verlauf aufräumen
+  (`jobs.prune`) laufen über einen Scheduler statt über fünf eigene Schleifen; Takt und Fenster
+  sind in der Verwaltung einstellbar. Der Spotlight-Takt (ganze Stunden, 6 bis 48) und der
+  Schalter der Update-Prüfung bleiben mit ihren Einstellungen verbunden; die Update-Prüfung läuft
+  60 Sekunden nach jedem Start.
+- Verlauf: erledigte und abgebrochene Läufe älter als 30 Tage werden täglich gelöscht, die
+  neuesten 50 je Jobart bleiben; fehlgeschlagene Läufe bleiben, bis die Verwaltung sie erneut
+  startet oder abbricht.
+- Vertrag 1.5.0, additiv: `listJobTypes`, `runJobType`, `pauseJobType`, `resumeJobType`,
+  `updateJobSchedule`, `cancelJobRuns`, `listJobRuns` (alle `admin`), `JobCounts.paused`,
+  Schemata `JobRun`, `JobProgress`, `JobWindow`, `JobSchedule`, `JobScheduleUpdate` (mit
+  `clearWindow`), `JobTypeInfo`, `JobPool`, `JobOverview`, `JobRunPage`, `JobCancelResult`,
+  `JobTypeName`; Fehlercodes `job_type_not_runnable`, `job_type_paused`,
+  `job_type_not_scheduled`; `DownloadState.error` kennt `cancelled_by_admin`.
+- Migration 00027: `jobs` mit Start, Ende, Fortschritt und `skipped`, Index `jobs_history`,
+  Tabelle `job_types`, `job_schedules` neu gebaut und aus den bisherigen Einstellungen gefüllt;
+  der Server sichert die Datenbank vorher nach `/config/backups/`.
+
+**Offen (Marco):** Image des Zweigs bauen und CT 190 umstellen (normales Terminal nach
+`newgrp docker`, Weg aus HANDOVER mit Tag `hintergrundjobs`), Abnahme am Handy nach Schritt 5,
+ein Tag Beobachtung der Zeitpläne, Messung auf CT 190 (Abschnitt 3 der Messung), Entscheid zu
+B-1 bis B-4, Merge von PR #55, Tag `v1.5.0`.
+
 ## Hintergrundjobs (Konzept 09): Schritt 4 (30. Oktober 2026)
 
 Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 4:

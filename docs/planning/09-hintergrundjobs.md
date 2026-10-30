@@ -1135,3 +1135,22 @@ Abweichungen:
 
 Nicht gebaut (Abgrenzung): kein Pausieren je Lauf, keine Arbeiterzahl, keine Diagramme.
 
+
+### 13.8 Befunde aus Schritt 5 (30. Oktober 2026)
+
+Schritt 5 ist, soweit er ohne CT 190 geht, nach Abschnitt 10 gemacht: Messung in
+`docs/perf/hintergrundjobs.md` (mit `docs/perf/seed-jobs.py`), Release-Notes-Entwurf 1.5.0 in
+`docs/dev/CURRENT_STATUS.md`, Versionsstellen auf 1.5.0. Abweichungen und Befunde:
+
+| Stelle | Papier | Gemacht | Grund |
+|---|---|---|---|
+| 10, Schritt 5, Ort der Messung | «Ziel < 50 ms p95 auf CT 190» | Auf dem Entwicklungsrechner mit 55'423 Zeilen: `listJobTypes` **23.6 ms p95** vor und nach dem ersten `prune` (p50 14.9 → 9.0 ms); mit dem Faktor 2 bis 3 aus `docs/perf/M3.md` 1c sind auf CT 190 47 bis 71 ms zu erwarten | CT 190 läuft noch auf 1.4.0; Marco stellt um, danach dieselben Aufrufe dort (Abschnitt 3 der Messung) |
+| 12.4, «vor dem ersten `prune`» | auf CT 190 messbar | Nur mit eingespielten Zeilen (`seed-jobs.py`): `jobs.prune` feuert beim ersten Start, auf CT 190 ist der Zustand nur Sekunden zu sehen | Startregel des Schedulers (13.4) |
+| 12.3, Vergleich Schätzung gegen Wirklichkeit | «liegt der Median-Fall um mehr als Faktor 2 daneben, verschwindet er» | Der **gemessene** Fall lag beim NAS-Scan um Faktor 60 daneben (2'036 s statt 34 s), weil die Rate mit der Zeit seit `started_at` rechnet und der Scan zwei Phasen ohne Fortschritt hat (Hash der neuen Dateien 150 von 186 s); der **Median-Fall** kippt auf 0 s, weil Rescans ohne Änderung als Arbeit zählen. Befunde B-1 bis B-4 in `docs/perf/hintergrundjobs.md` 2 mit Hebeln (Timer im Reporter, Fortschritt in `planRoot`, Rate ab der ersten Meldung mit `total > 0`, `Skip` bei leerem Schreibplan) | **Nicht in Schritt 5 gebaut:** Schritt 5 misst; ob die vier Hebel vor dem Merge in diesen Zweig kommen oder als Nachtrag, entscheidet Marco |
+| 5.4, Release-Notes-Zeile | ein Satz | Der Satz steht als erste Zeile; dazu der volle Entwurf (Seite, Scheduler, Vertrag 1.5.0 additiv mit allen Operationen und Schemata, Migration 00027, Verlauf 30 Tage / 50) in `docs/dev/CURRENT_STATUS.md` | Marco taggt mit der Beschriftung (HANDOVER, Regel «jede Anhebung von `info.version` wird beim Merge getaggt») |
+| 10.1, Versionsstellen | nicht genannt | `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md` auf **1.5.0**, im PR wie bei 1.4.0 (PR #49) | HANDOVER verlangt es vor dem Tag; bis zum Tag zeigen die Adressen auf einen Stand, den es noch nicht gibt |
+| 6.3, Pause | «hält die laufenden an» | Bestätigt: vier laufende `probe.keyframes` sofort zurück in die Warteschlange | — |
+
+Offen bleibt, was nur Marco kann: Image auf CT 190, Abnahme am Handy (Scan starten, pausieren,
+fortsetzen, Wartende abbrechen, Restzeit, Zeitplan «täglich 03:00–05:00», Lauf im Verlauf am
+Morgen), ein Tag Beobachtung der Zeitpläne; dann der Merge.
