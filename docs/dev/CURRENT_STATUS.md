@@ -41,7 +41,8 @@ $ task ci:e2e (ced5636)                        477 passed, 3 failed: Kartenzahl 
                                                 und zwei Firefox-Fallen in admin-jobs.spec.ts (Fokus-Startpunkt
                                                 nach ersetztem Knopf, Fokusrückgabe nach dem Speichern); behoben
                                                 im Folge-Commit, beide Specs danach in Chromium und Firefox grün
-$ task ci:e2e (nach dem Fix)                    STEP4_E2E_FINAL
+$ task ci:e2e (nach dem Fix, 9ee3b72)           480 passed (25.2m); GitHub-CI für 9ee3b72 grün (Lauf 41088318618,
+                                                inkl. Job «web» mit storybook:test, der hier nicht laufen kann)
 ```
 
 Dev-Stack: `localhost:8096` läuft seit 16:58 auf dem Image `hintergrundjobs` mit dieser Seite
