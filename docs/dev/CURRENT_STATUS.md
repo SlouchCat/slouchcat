@@ -1,5 +1,108 @@
 # Aktueller Stand
 
+## Hintergrundjobs (Konzept 09): Schritt 0 und 1 (30. Oktober 2026)
+
+Auf dem Zweig `claude/vigorous-raman-651439` (Worktree, ab `main 05df9c5`, der Freigabe des Papiers).
+Konzept `docs/planning/09-hintergrundjobs.md`, Abschnitt 10; Vertrag bleibt **1.4.0** (1.5.0 kommt
+mit Schritt 3), keine Oberfläche.
+
+**Schritt 0 (`065889e`, nur Doku).** Entscheid 15 (F-1 bis F-10, O-1, O-2) in
+`04-entscheidungen.md` in beiden Tabellen; ADR 0017 «Scheduler, Fortschritt, Pause und
+Abbruch-Haken in der Job-Queue» als Teilnachfolger von ADR 0002, dort der Hinweis; das Papier auf
+`05df9c5` neu verankert (Kopf: Vertrag 1.4.0, Migration 00026, ADR 0016; alle Zeilenangaben
+geprüft). Wo Papier und Code sich widersprachen, gilt der Code, festgehalten in **13.3**:
+`update.check` läuft mit Priorität 8 (PR #52), `metadata.vote_backfill` ist eine Ereignis-Jobart
+(08 stösst ihn nach jedem Scan und beim Start selbst an), der Trakt-Zeitplan hängt nicht an
+`spotlight_config.enabled` (der Poller hat es nie gelesen; `enabled = 0` blendet nur das Band aus).
+`git diff --stat docs/spec/` leer.
+
+**Schritt 1 (`8e95e3e`).** Migration `00027_jobs_scheduler.sql` nach Vorlage: sechs Spalten und
+Index `jobs_history` an `jobs`, Tabelle `job_types`, `job_schedules` mit Wächter wie 00023
+gelöscht und neu gebaut (`every_ms` 5 min bis 7 d, `start_delay_ms`, `enabled`, `window_start`,
+`window_end`, `next_run_at`, `last_fired_at`). Paket `jobs`: `Type` (Gruppe, Pool, Auslöser,
+Priorität, Handler, `Run`, `Cancel`, `Every`, `StartDelay`, `Seed`), `Registry`
+(`Register`, `Lookup`, `Types`, `Attach` je Pool), `Scheduler` (`Start` legt `job_types` und
+fehlende Zeitplanzeilen an, aus Einstellung und Historie der alten Poller, und wendet die
+Startregel an; `Run` tickt sofort und dann alle 60 s; pausierte Jobart feuert nicht, rückt aber
+vor; unbekannte Zeile wird übersprungen; verpasste Läufe holen nicht nach; `UpdateSchedule`
+richtet `next_run_at` an `last_fired_at + every`, Untergrenze jetzt, und am Fenster aus, über
+Mitternacht erlaubt). `RegisterJobs(w)` → `RegisterTypes(r)` in `library`, `metadata`, `admin`,
+`offline`, `notify`; Handler unverändert. Die fünf Ticker-Schleifen sind weg (`library.Start`
+nur noch Wächter; `RunPodcasts`, `RunTrakt`, `RunUpdateCheck` gelöscht); neue Zeitplan-Jobart
+`podcast.poll` mit `QueueDuePodcasts` als `Run`; der Trakt-Sonderfall «kein Client-Schlüssel
+leert die Einträge» liegt im `Run`. `enqueueScan`, `enqueuePodcast`, `runUpdateCheck` nehmen die
+Priorität als Parameter und heben über `RaiseQueuedPriority`. Spotlight-Seite schreibt den Takt,
+Update-Seite den Schalter über `admin.Schedules` in die Zeile. Abweichungen vom Papier in
+**13.4** (u. a. `update.check` prüft 60 s nach jedem Start; `Type` hat zusätzlich `Priority` und
+`Seed`; Run-Fehler lässt `next_run_at` stehen; `podcast.poll` von Hand bleibt für Schritt 3 offen).
+
+**Tests.** `scheduler_test.go` mit injizierter Uhr und fester Zone UTC+2: Startverzögerung
+(0, 90 s, keine; Neustart), Takt, `enabled = 0`, Fenster über Mitternacht (22:00–02:00, vier
+Läufe), Fensteränderung verschiebt `next_run_at`, Takt kürzer als Fenster (1 h in 02:00–05:00:
+dreimal je Nacht, 6 h einmal), pausiert feuert nicht, unbekannte Zeile, fehlgeschlagener `Run`,
+Seed und bestehende Zeile, Prüfung der Grenzen, Registry. Je Jobart mit `Run` ein Test, dass ein
+wartender Lauf angehoben wird: `TestRunScansRaisesWaitingScan`, `TestRunSweepRaisesWaitingSweep`
+(`library`), `TestQueueDuePodcasts`, `TestTraktSchedule` mit Sonderfall in
+`TestTraktRowsGoWithoutClientID` (`metadata`), `TestQueueDueUpdateCheck` (`admin`, mit
+`fakeSchedules`), `TestSpotlightConfigSyncsSchedule`.
+
+**DoD-Belege.**
+
+```
+$ go test ./internal/jobs/ -run Scheduler
+ok  	github.com/slouchcat/slouchcat/server/internal/jobs	1.641s
+
+$ go test ./internal/jobs/ ./internal/library/ ./internal/metadata/ ./internal/admin/ ./internal/offline/ ./internal/notify/ ./internal/api/ ./cmd/...
+ok  	…/internal/jobs	5.072s   ok  …/internal/library	35.126s   ok  …/internal/metadata	26.635s
+ok  	…/internal/admin	24.101s  ok  …/internal/offline	15.205s  ok  …/internal/notify	7.609s
+ok  	…/internal/api	32.729s  ok  …/cmd/slouchcat	4.197s
+
+$ go test ./internal/store/ -run 'TestFrozenStatesMigrate|Migration'   (alle 15 Stände durch 00027)
+ok  	github.com/slouchcat/slouchcat/server/internal/store	195.335s
+
+$ go tool golangci-lint run ./...
+0 issues.
+
+$ task ci
+ci:server grün (gen, gen:check, lint, test); ci:web grün bis storybook:test, das in der Sandbox
+nicht läuft (`sg docker`: setgroups: Vorgang nicht zulässig; kein web/src-Anteil in diesem PR,
+die GitHub-CI schiesst die Baselines); danach von Hand:
+$ task build        → server/bin/slouchcat v1.4.0-22-g8e95e3e-dirty
+$ task ci:e2e       → 478 passed (25.1m); A-9 log scan: 75548 lines, 17 secrets of the run, 0 findings
+```
+
+Dev-Server (`sqlite3` ist auf dem Rechner nicht installiert, darum `python3 -I` mit dem
+eingebauten `sqlite3`-Modul; Port 8096 ist vom laufenden Stack belegt, darum `--listen
+127.0.0.1:18097` gegen `.dev/config/slouchcat.db`, frische Datenbank):
+
+```
+level=INFO msg="migration applied" version=27 file=00027_jobs_scheduler.sql duration_ms=17
+level=INFO msg="schedule created" component=scheduler job_type=scan.library every=6h0m0s enabled=true next_run_at=2026-10-30T13:06:19.160Z
+level=INFO msg="schedule created" component=scheduler job_type=library.sweep every=1h0m0s enabled=true …
+level=INFO msg="schedule created" component=scheduler job_type=podcast.poll every=5m0s enabled=true …
+level=INFO msg="schedule created" component=scheduler job_type=trakt.refresh every=24h0m0s enabled=true …
+level=INFO msg="schedule created" component=scheduler job_type=update.check every=24h0m0s enabled=true …
+level=INFO msg="scheduled run queued" component=scheduler job_type=library.sweep jobs=1
+level=INFO msg="scheduled run queued" component=scheduler job_type=podcast.poll jobs=0
+level=INFO msg="scheduled run queued" component=scheduler job_type=scan.library jobs=0
+level=INFO msg="scheduled run queued" component=scheduler job_type=trakt.refresh jobs=0
+level=INFO msg="job done" worker=worker-1 job_id=1 job_type=library.sweep attempt=1 duration=1.546532ms
+
+SELECT type, next_run_at FROM job_schedules            (fünf Zeilen; jobs.prune kommt mit Schritt 2)
+('library.sweep', 1793369179163)    = 15:06:19 lokal, in 1 h
+('podcast.poll',  1793365879163)    = 14:11:19, in 5 min
+('scan.library',  1793387179163)    = 20:06:19, in 6 h
+('trakt.refresh', 1793451979163)    = 31.10. 14:06:19, in 24 h
+('update.check',  1793365639160)    = 14:07:19, 60 s nach dem Start (start_delay_ms)
+SELECT count(*) FROM job_types                          17 (die 16 Jobarten von heute plus podcast.poll), paused_at überall NULL
+```
+
+**Offen (Schritt 2 bis 5):** `Type.Cancel` setzen (`CancelScan`, `offline.CancelPreparation`),
+Pause in `ClaimJob` und im Arbeiter, `started_at`/`finished_at`/Fortschritt schreiben (`jobs.Job`
+trägt die Felder noch nicht), `jobs.prune`, eingefrorener Stand `testdata/db/` nach 00027 (8.3);
+Vertrag 1.5.0 und `admin.Schedules`-Rückschreiben (Schritt 3); Seite (Schritt 4); CT 190 und
+Messung (Schritt 5). Ein Tag Beobachtung der fünf Zeitpläne auf CT 190 vor dem Merge (12.1).
+
 ## Update-Prüfung: Warteschlangenplatz des täglichen Jobs (30. Oktober 2026)
 
 Auf dem Zweig `claude/interesting-kalam-9fb6ca` (ab `main c6741b4`, Release 1.4.0). Befund: der
