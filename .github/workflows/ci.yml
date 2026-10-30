@@ -147,6 +147,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # `task build` stamps `git describe --tags` into the binary the e2e suite runs. With a
+          # shallow clone that is a bare commit id, which the server reports as a development
+          # build and never offers an update for, and the update-badge test (A-5) fails.
+          fetch-depth: 0
 
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
