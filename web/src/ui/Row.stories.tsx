@@ -38,3 +38,8 @@ export const Default: Story = {};
 
 /** First card focused by Tab (the paging buttons are pointer-only). */
 export const Focused: Story = { tags: ['press:Tab'] };
+
+/** A row with a page of all its entries: "Alle anzeigen ›" right of the title (concept 08). */
+export const WithMoreLink: Story = {
+  args: { title: "Cat's Empfehlungen", moreHref: '#', moreLabel: 'Alle anzeigen ›' },
+};

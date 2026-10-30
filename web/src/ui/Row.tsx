@@ -1,8 +1,9 @@
 import { Children, useId, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AppLink } from './AppLink';
 import { Button } from './Button';
 import styles from './Row.module.css';
-import { SpatialGroup } from './spatial';
+import { SpatialGroup, useSpatialItem } from './spatial';
 
 interface RowProps {
   title: string;
@@ -10,13 +11,33 @@ interface RowProps {
   focusKey?: string;
   /** `chips`: items as wide as their content (genre chips) instead of one poster wide. */
   variant?: 'cards' | 'chips';
+  /** A page with all of the row's entries ("Alle anzeigen ›"), linked right of the title. */
+  moreHref?: string;
+  moreLabel?: string;
+}
+
+/** The row's link to its full page; arrow keys reach it like a card. */
+function MoreLink({ href, label }: { href: string; label: string }) {
+  const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
+  return (
+    <AppLink ref={ref} href={href} className={styles.more} onFocus={onFocus}>
+      {label}
+    </AppLink>
+  );
 }
 
 /**
  * Titled horizontal row of cards. Arrow keys move inside the row (spatial navigation); pointer
  * users scroll with the paging buttons, touch users swipe.
  */
-export function Row({ title, children, focusKey, variant = 'cards' }: RowProps) {
+export function Row({
+  title,
+  children,
+  focusKey,
+  variant = 'cards',
+  moreHref,
+  moreLabel,
+}: RowProps) {
   const { t } = useTranslation();
   const headingId = useId();
   const scroller = useRef<HTMLDivElement>(null);
@@ -33,6 +54,7 @@ export function Row({ title, children, focusKey, variant = 'cards' }: RowProps) 
         <h2 id={headingId} className={styles.title}>
           {title}
         </h2>
+        {moreHref && moreLabel && <MoreLink href={moreHref} label={moreLabel} />}
         <div className={styles.paging}>
           <Button
             variant="ghost"

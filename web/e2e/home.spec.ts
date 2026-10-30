@@ -457,7 +457,13 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
     expect(await shell?.text()).not.toContain('id="hero-prepaint"');
     await expect(page.locator('#hero-prepaint')).toHaveCount(0);
     // The card fetches the preloaded title's poster with high priority as well.
-    const firstCard = sections(page).first().getByRole('link').first().locator('img');
+    // The first card (the picks row's header links its page as well, concept 08).
+    const firstCard = sections(page)
+      .first()
+      .getByRole('list')
+      .getByRole('link')
+      .first()
+      .locator('img');
     await expect(firstCard).toHaveAttribute('fetchpriority', 'high');
     await expect(firstCard).toHaveAttribute(
       'src',
@@ -477,7 +483,7 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
     // image. The markup goes in where the shell has it, in front of #root; the card is measured at
     // rest, without the focus scale.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-    const firstLink = sections(page).first().getByRole('link').first();
+    const firstLink = sections(page).first().getByRole('list').getByRole('link').first();
     await expect
       .poll(() => firstLink.evaluate((link) => getComputedStyle(link).transform))
       .toBe('none');

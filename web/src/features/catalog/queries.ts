@@ -1,6 +1,18 @@
-import type { HomePage, ItemDetail, Person, PodcastEpisodes, Trailer } from '@slouchcat/api-client';
+import type {
+  components,
+  HomePage,
+  ItemDetail,
+  Person,
+  PodcastEpisodes,
+  Trailer,
+} from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
+import type { LibraryRequest } from './libraryParams';
+
+type LibraryNav = components['schemas']['LibraryNav'];
+type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
+type PicksPage = components['schemas']['PicksPage'];
 
 export const homeQuery = queryOptions({
   queryKey: ['home'],
@@ -53,3 +65,50 @@ export const podcastEpisodesQuery = (id: string, offset: number) =>
       return next < last.total && last.episodes.length > 0 ? next : undefined;
     },
   });
+
+/** Page size of "Mehr laden" on the library page and the page of Cat's recommendations. */
+export const LIBRARY_PAGE = 50;
+
+const nextOffset = (last: { offset: number; total: number; items: unknown[] }) => {
+  const next = last.offset + last.items.length;
+  return next < last.total && last.items.length > 0 ? next : undefined;
+};
+
+/** The libraries with at least one title the active profile may see (concept 08). */
+export const visibleLibrariesQuery = queryOptions({
+  queryKey: ['libraries', 'visible'],
+  queryFn: ({ signal }): Promise<LibraryNav[]> =>
+    request(api.GET('/libraries/visible', { signal })),
+  staleTime: 60_000,
+});
+
+/** One library's titles with the facets of its filters, paged; 404 when it shows nothing. */
+export const libraryItemsQuery = (id: number, query: LibraryRequest) =>
+  infiniteQueryOptions({
+    queryKey: ['library', id, query],
+    queryFn: ({ pageParam, signal }): Promise<LibraryItemsPage> =>
+      request(
+        api.GET('/libraries/{id}/items', {
+          params: { path: { id }, query: { ...query, offset: pageParam, limit: LIBRARY_PAGE } },
+          signal,
+        }),
+      ),
+    initialPageParam: 0,
+    getNextPageParam: nextOffset,
+    // A changed sort or filter keeps the previous grid until the new one arrives (no jump).
+    placeholderData: (previous) => previous,
+  });
+
+/** All of Cat's recommendations for the active profile, in Cat's order (E-2). */
+export const picksPageQuery = infiniteQueryOptions({
+  queryKey: ['picks', 'page'],
+  queryFn: ({ pageParam, signal }): Promise<PicksPage> =>
+    request(
+      api.GET('/picks', {
+        params: { query: { offset: pageParam, limit: LIBRARY_PAGE } },
+        signal,
+      }),
+    ),
+  initialPageParam: 0,
+  getNextPageParam: nextOffset,
+});

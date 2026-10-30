@@ -75,6 +75,18 @@
   left: var(--sc-space-2);
 }
 
+/* A finished title: a check mark in a disc at the top right (the badge sits at the top left). */
+.watched {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+  display: inline-flex;
+  padding: var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-text-primary);
+  color: var(--sc-color-bg-base);
+}
+
 .progress {
   position: absolute;
   right: var(--sc-space-3);

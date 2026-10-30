@@ -84,6 +84,49 @@ Abweichung vom Papier 4.2, dort und in ADR 0016 nachgetragen), auch beim Match d
   Unbekanntes (`NULL`, leerer Autor) steht in beiden Richtungen am Ende; `WithHeroStart(k)` jenseits
   der Reihe nimmt den letzten Titel, ein gültiges `start` aus der Anfrage gewinnt immer.
 
+### Schritt 2 — Bibliotheksseite und Seite «Cat's Empfehlungen»
+
+Routen `/libraries/$libraryId` (`web/src/features/catalog/LibraryPage.tsx`, Adresszustand in
+`libraryParams.ts`: `content`, `sort`, `order`, `letter`, `genre`, `status`, `from`, `to`,
+`rating`; ungültige Werte fallen weg, `letter` nur mit Sortierung nach Titel) und `/picks`
+(`PicksPage.tsx`), beide lazy unter `_chrome`. Aufbau nach Papier 7.3: Kopf mit Zähler
+(«312 Titel», «41 Titel mit B», «… · gefiltert»; Hörbücher und Podcasts mit eigenem Nomen),
+Werkzeugzeile mit Chips «Alle · Filme · Serien» nur bei mehr als einer Inhaltsart, Sortierung als
+`<select>` (neues `web/src/ui/SelectField.tsx`; «Autor» nur bei Hörbüchern, «Altersfreigabe» nur
+bei Video), Richtungsknopf mit Text, «Filter» mit Zähler und ausklappbarem Feld (Genre und Freigabe
+nur, wenn `facets` Werte nennen – Regel 12; Status mit «Ungehört / Gehört» bei Audio; Escape
+schliesst und gibt den Fokus an «Filter» zurück, gefangen vor der Zurück-Taste der Seite),
+Buchstabenleiste (neues `web/src/ui/LetterBar.tsx`, nur bei Sortierung nach Titel und nicht bei
+Podcasts; ab 768 px als klebende Spalte rechts, darunter als Lauf über dem Raster; Buchstaben ohne
+Treffer `disabled` und für die Pfeiltasten nicht registriert), Raster mit drei Spalten unter 768 px,
+«Mehr laden (N weitere)». `PosterCard` bekommt den Haken (`watchedLabel`, «Gesehen» / «Gehört»)
+und nutzt das vorhandene `badge` für die Freigabe («FSK 12», nur bei Video); `ItemGrid` bekommt
+`showWatched`, `showRating`, `className`. `Row` bekommt `moreHref`/`moreLabel` («Alle anzeigen ›»
+nur an Cat's Empfehlungen und Merkliste, O-3). Neu ausserdem `useBackFocus`: die Zurück-Taste des
+Browsers landet wieder auf der verlassenen Karte (Regel 8), je Verlaufseintrag gemerkt.
+`YearField` aus der Suche nach `web/src/features/discover/YearField.tsx` ausgelagert.
+
+**Belege (DoD).**
+
+- `task web:lint && task web:test`: grün (82 Dateien, 661 Tests im Web-Paket, dazu api-client und
+  design-tokens).
+- `task build`, dann `SLOUCHCAT_E2E_PORT=8197 task web:e2e` (ganze Suite, Chromium und Firefox):
+  `456 passed, 2 failed (24.1m)` – die zwei Fehler waren Firefox-Eigenheiten in den neuen Specs
+  (kein `:focus-visible`-Ring nach einem Skript-Fokus, wenn die letzte Eingabe ein Mausklick war);
+  nach der Korrektur der zwei Specs: `library.spec.ts` und `picks-page.spec.ts` in beiden Browsern
+  `9 passed` / `2 passed`. Tastatur-Belege: Tab-Reihenfolge Kopf → Chips → Sortieren → Richtung →
+  Filter → Leiste → Raster, Pfeiltasten ins Raster und hinüber zur Buchstabenleiste, Enter öffnet
+  die Detailseite, Zurück landet auf derselben Karte mit derselben Adresse, Escape im Filterfeld,
+  kein Fokusfalle (`expectNoFocusTrap`); auf 390 px drei Spalten und die Leiste als Lauf.
+- «Mehr laden» mit Fokus auf der ersten neuen Karte: die Suite hat unter 50 Titel je Bibliothek,
+  darum belegt es der Vitest-Test der Seite «Cat's Empfehlungen» (zweite Seite) und die
+  bestehende `MoreButton`-Logik; am laufenden Server prüft es Schritt 5 auf dem M3-Baum.
+- Drei bestehende Specs brauchten nur neue Locatoren, weil «Alle anzeigen ›» der erste Link der
+  Reihe ist (`admin-picks.spec.ts`, `home.spec.ts`).
+- Storybook-Vergleichsbilder (`PosterCard` Watched/StartedWithRating/SquareHeard, `Row`
+  WithMoreLink, `SelectField`, `LetterBar`) fehlen: kein Docker auf dem Entwicklungsrechner;
+  Marco holt sie wie bei Konzept 07 auf CT 190 nach (`task storybook:update`).
+
 ## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, abgenommen)
 
 Auf dem Zweig `claude/bibliotheken` (Pull Request #45, bereit) nach dem Konzept

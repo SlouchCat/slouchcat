@@ -8,6 +8,7 @@
 .header {
   display: flex;
   align-items: center;
+  gap: var(--sc-space-3);
   justify-content: space-between;
   min-height: var(--row-header-height);
   padding: 0 var(--page-gutter);
@@ -17,6 +18,28 @@
   font-size: var(--sc-font-size-lg);
   font-weight: var(--sc-font-weight-semibold);
   line-height: var(--sc-font-line-height-snug);
+}
+
+/* "Alle anzeigen ›": right of the title, before the paging buttons. */
+.more {
+  margin-left: auto;
+  padding: 0 var(--sc-space-1);
+  border-radius: var(--sc-radius-sm);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .more:hover {
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.more:focus-visible {
+  color: var(--sc-color-text-primary);
 }
 
 .paging {

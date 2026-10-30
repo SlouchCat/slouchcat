@@ -440,6 +440,21 @@ describe('start page', () => {
     expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(
       'Unbedingt im Kino-Modus schauen.',
     );
+    // Picks and watchlist link their full page (concept 08, O-3); the other rows do not.
+    expect(within(picks).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
+      'href',
+      '/picks',
+    );
+    expect(
+      within(screen.getByRole('region', { name: 'Merkliste' })).getByRole('link', {
+        name: 'Alle anzeigen ›',
+      }),
+    ).toHaveAttribute('href', '/watchlist');
+    expect(
+      within(screen.getByRole('region', { name: 'Weiterschauen' })).queryByRole('link', {
+        name: 'Alle anzeigen ›',
+      }),
+    ).not.toBeInTheDocument();
 
     const headings = screen
       .getAllByRole('heading', { level: 2 })

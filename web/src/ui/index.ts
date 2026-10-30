@@ -19,6 +19,7 @@ export { GenreChip } from './GenreChip';
 export { dismissHeroPrepaint, HeroCarousel, HERO_PLAY_KEY, type HeroSlide } from './HeroCarousel';
 export { Icon, type IconName } from './Icon';
 export { InboxEntry } from './InboxEntry';
+export { LetterBar } from './LetterBar';
 export { Logo } from './Logo';
 export { Notice } from './Notice';
 export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
@@ -30,6 +31,7 @@ export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';
 export { Row } from './Row';
 export { SearchField } from './SearchField';
+export { SelectField } from './SelectField';
 export { Skeleton } from './Skeleton';
 export {
   loadSpatialNavigation,

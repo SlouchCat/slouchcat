@@ -50,6 +50,12 @@ const rowTitleKey = {
   genres: 'home.rows.genres',
 } as const;
 
+// Rows with a page of all their titles ("Alle anzeigen ›", concept 08 O-3: only these two).
+const rowPages: Partial<Record<HomeRow['key'], string>> = {
+  picks: paths.picks,
+  watchlist: paths.watchlist,
+};
+
 // Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.
 // The server paints as many ahead on a page without a stage (posterPrepaintCards, api/preload.go).
 const EAGER_POSTERS = 6;
@@ -239,8 +245,15 @@ export function HomePage() {
         </Row>
       );
     }
+    const moreHref = rowPages[row.key];
     return (
-      <Row key={row.key} title={title} focusKey={focusKey}>
+      <Row
+        key={row.key}
+        title={title}
+        focusKey={focusKey}
+        moreHref={moreHref}
+        moreLabel={moreHref ? t('home.rows.all') : undefined}
+      >
         {row.items.map((item, itemIndex) => (
           <PosterCard
             key={item.id}

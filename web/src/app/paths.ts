@@ -30,6 +30,10 @@ export const paths = {
   /** Discover and curation (M7). */
   search: '/search',
   watchlist: '/watchlist',
+  /** A library with every title the active profile may see (concept 08). */
+  library: (id: number) => `/libraries/${id}`,
+  /** All of Cat's recommendations for the active profile (concept 08). */
+  picks: '/picks',
   notifications: '/notifications',
   collection: (id: string) => `/collections/${encodeURIComponent(id)}`,
   adminPicks: '/admin/picks',

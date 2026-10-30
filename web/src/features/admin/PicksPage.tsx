@@ -331,11 +331,12 @@ export function PicksPage() {
   const addButton = useRef<HTMLButtonElement>(null);
   const listId = useId();
 
-  // The start page shows the picks: it is asked again after every change.
+  // The start page and the viewer's page of picks show them: asked again after every change.
   const invalidate = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: picksQuery.queryKey }),
       queryClient.invalidateQueries({ queryKey: ['home'] }),
+      queryClient.invalidateQueries({ queryKey: ['picks'] }),
     ]);
 
   // Quick presses queue their PUTs in order (scope); each shows its order at once, and only the
