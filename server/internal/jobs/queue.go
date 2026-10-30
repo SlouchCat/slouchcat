@@ -365,6 +365,9 @@ func leaseResult(op string, rows int64, err error) error {
 	return nil
 }
 
+// FromRow maps a row of the table jobs (package admin reads the page's lists itself).
+func FromRow(r systemq.Job) Job { return fromRow(r) }
+
 func fromRow(r systemq.Job) Job {
 	return Job{
 		ID:             r.ID,

@@ -25,6 +25,9 @@ var (
 	ErrTelegramUnreachable   = errors.New("telegram unreachable")         // 422 telegram_unreachable
 	ErrEmailTaken            = errors.New("email taken")                  // 409 email_taken
 	ErrJobNotFailed          = errors.New("job not failed")               // 409 job_not_failed
+	ErrJobTypeNotRunnable    = errors.New("job type not runnable")        // 409 job_type_not_runnable (concept 09: event types)
+	ErrJobTypePaused         = errors.New("job type paused")              // 409 job_type_paused
+	ErrJobTypeNotScheduled   = errors.New("job type not scheduled")       // 409 job_type_not_scheduled
 	ErrUpdateCheckDisabled   = errors.New("update check disabled")        // 422 update_check_disabled
 	ErrRankTaken             = errors.New("spotlight rank taken")         // 409 rank_taken (M11)
 	ErrRefreshTooSoon        = errors.New("refresh too soon")             // 429 too_many_requests (M11: one manual spotlight refresh a minute)
@@ -104,7 +107,114 @@ type JobCounts struct {
 	Queued       int
 	Running      int
 	Failed       int
+	Paused       int          // paused job types (concept 09)
 	RecentFailed []JobSummary // newest first, at most 10
+}
+
+// Background jobs of concept 09 (ADR 0017): a job type and its runs as the page "Hintergrundjobs"
+// sees them. Every estimate is the server's; the client counts seconds up and decides nothing.
+
+// Job run states beyond the queue's own: planned is queued with a start in the future.
+const JobRunPlanned = "planned"
+
+// Sources of a remaining-time estimate (JobRun.Estimate).
+const (
+	JobEstimateMeasured = "measured"
+	JobEstimateMedian   = "median"
+	JobEstimateNone     = "none"
+)
+
+// JobRun is a run of a job type: JobSummary plus priority, subject, times, progress and estimate.
+type JobRun struct {
+	JobSummary
+	Priority             int
+	RunAfter             time.Time // zero when not waiting
+	Subject              string    // derived from the payload, redacted; "" when unknown
+	StartedAt            time.Time
+	FinishedAt           time.Time
+	Duration             time.Duration // of the last attempt; while running, since its start
+	HasDuration          bool
+	Skipped              bool
+	Progress             *JobProgress
+	EstimatedSecondsLeft *int
+	Estimate             string // JobEstimateMeasured, JobEstimateMedian, JobEstimateNone
+}
+
+// JobProgress is the reported progress of a run.
+type JobProgress struct {
+	Done  int64
+	Total int64 // 0: extent unknown
+	Note  string
+}
+
+// JobWindow is a time window in minutes of the server's day; EndMinute is exclusive and may lie
+// before StartMinute (across midnight).
+type JobWindow struct {
+	StartMinute int
+	EndMinute   int
+}
+
+// JobSchedule is the schedule of a schedule type.
+type JobSchedule struct {
+	EverySeconds    int
+	NextRunAt       time.Time
+	LastFiredAt     time.Time // zero: never fired
+	Enabled         bool
+	Window          *JobWindow
+	TimeZone        string
+	MinEverySeconds int
+	MaxEverySeconds int
+}
+
+// JobScheduleUpdate names the fields updateJobSchedule changes; nil means unchanged, ClearWindow
+// removes the window.
+type JobScheduleUpdate struct {
+	EverySeconds *int
+	Window       *JobWindow
+	ClearWindow  bool
+	Enabled      *bool
+}
+
+// JobTypeInfo is one job type on the page.
+type JobTypeInfo struct {
+	Type                  string
+	Group                 string // library, metadata, delivery, system
+	Trigger               string // schedule, event, manual
+	Pool                  string // general, download, notify
+	Paused                bool
+	PausedAt              time.Time
+	Stopping              bool // paused and a run still coming to a halt
+	Runnable              bool
+	Schedule              *JobSchedule
+	Queued                int
+	Planned               int
+	Running               int
+	Failed                int
+	RunningRuns           []JobRun // at most 10
+	LastRun               *JobRun
+	MedianSeconds         *int
+	QueuedEstimateSeconds *int
+	Known                 bool // false for a row in job_types without a registered type
+}
+
+// JobPool is a worker pool with its backlog.
+type JobPool struct {
+	Pool           string
+	Workers        int
+	BacklogSeconds *int
+}
+
+// JobOverview is the answer of listJobTypes.
+type JobOverview struct {
+	Pools  []JobPool
+	Paused int
+	Types  []JobTypeInfo
+}
+
+// JobRunPage is the answer of listJobRuns.
+type JobRunPage struct {
+	Total int
+	Runs  []JobRun
 }
 
 // JobSummary is a job as the administration sees it.

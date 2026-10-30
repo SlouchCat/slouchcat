@@ -141,7 +141,8 @@ type Service struct {
 	auth      *auth.Service
 	vis       *visibility.Reader // system-scope read of the rating override
 	queue     Enqueuer           // metadata refresh after a cleared override; nil = none
-	schedules Schedules          // nil until WithSchedules
+	schedules Schedules          // nil until WithSchedules or WithJobControl
+	jobctl    *jobControl        // nil until WithJobControl (concept 09, step 3)
 	libraries Libraries
 	maint     LibraryMaintenance // nil until WithLibraryMaintenance
 	meta      Metadata           // nil until WithMetadata

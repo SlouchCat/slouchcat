@@ -196,3 +196,55 @@ UPDATE job_schedules
 SET every_ms = @every_ms, enabled = @enabled, window_start = @window_start, window_end = @window_end,
     next_run_at = @next_run_at, updated_at = @now
 WHERE type = @type;
+
+-- ---------------------------------------------------------------------------------------------
+-- The page "Hintergrundjobs" (concept 09, step 3): counts per type, running and last runs, the
+-- runs of a type by state. Times are Unix milliseconds.
+-- ---------------------------------------------------------------------------------------------
+
+-- name: JobCountsByType :many
+-- Per type: waiting runs (due), planned runs (start in the future), running and failed runs, and
+-- the lowest priority among the waiting ones (the waiting time cumulates over the pool from it).
+SELECT type,
+       CAST(COALESCE(SUM(state = 'queued' AND run_after <= @now), 0) AS INTEGER) AS queued,
+       CAST(COALESCE(SUM(state = 'queued' AND run_after > @now), 0) AS INTEGER)  AS planned,
+       CAST(COALESCE(SUM(state = 'running'), 0) AS INTEGER)                      AS running,
+       CAST(COALESCE(SUM(state = 'failed'), 0) AS INTEGER)                       AS failed,
+       CAST(COALESCE(MIN(CASE WHEN state = 'queued' THEN priority END), 0) AS INTEGER) AS min_queued_priority
+FROM jobs
+WHERE state IN ('queued', 'running', 'failed')
+GROUP BY type;
+
+-- name: ListRunningJobsByType :many
+SELECT * FROM jobs WHERE type = @type AND state = 'running' ORDER BY started_at, id LIMIT @limit_count;
+
+-- name: GetLastFinishedJobByType :one
+-- The newest run of a type in a final state (done, failed, cancelled), over the index jobs_history.
+SELECT * FROM jobs
+WHERE type = @type AND state IN ('done', 'failed', 'cancelled')
+ORDER BY COALESCE(finished_at, updated_at) DESC, id DESC
+LIMIT 1;
+
+-- name: ListQueuedJobRuns :many
+-- The waiting runs of a type in claim order (priority, then age); @planned 1 lists those whose
+-- start lies in the future, 0 those that are due.
+SELECT * FROM jobs
+WHERE type = @type AND state = 'queued' AND (run_after > @now) = @planned
+ORDER BY priority DESC, created_at, id
+LIMIT @limit_count;
+
+-- name: CountQueuedJobRuns :one
+SELECT count(*) FROM jobs WHERE type = @type AND state = 'queued' AND (run_after > @now) = @planned;
+
+-- name: ListJobRunsByState :many
+-- The runs of a type in one state (running, done, failed, cancelled), newest first.
+SELECT * FROM jobs
+WHERE type = @type AND state = @state
+ORDER BY COALESCE(finished_at, started_at, updated_at) DESC, id DESC
+LIMIT @limit_count;
+
+-- name: CountJobRunsByState :one
+SELECT count(*) FROM jobs WHERE type = @type AND state = @state;
+
+-- name: CountPausedJobTypes :one
+SELECT count(*) FROM job_types WHERE paused_at IS NOT NULL;

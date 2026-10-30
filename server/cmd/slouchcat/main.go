@@ -328,7 +328,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	if err := scheduler.Start(ctx); err != nil {
 		return fmt.Errorf("start job scheduler: %w", err)
 	}
-	adminSvc.WithSchedules(scheduler)
+	adminSvc.WithJobControl(registry, scheduler, map[jobs.Pool]int{jobs.PoolGeneral: cfg.Workers, jobs.PoolDownload: 1, jobs.PoolNotify: 1})
 
 	var workers sync.WaitGroup
 	for i := range cfg.Workers {

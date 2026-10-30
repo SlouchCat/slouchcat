@@ -2494,6 +2494,169 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/job-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every job type with its running runs, last run, next run and estimates
+         * @description One request for the page, polled every few seconds like `getDashboard`: the worker pools with
+         *     their backlog, the number of paused types and one `JobTypeInfo` per type (group, trigger, pool,
+         *     pause, schedule with its next run, counts, the running runs with progress and remaining time,
+         *     the last run, the median duration and the waiting time). Estimates come from the server and are
+         *     estimates: the client counts seconds up between two polls and decides nothing.
+         */
+        get: operations["listJobTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The runs of a job type in one state
+         * @description At most `limit` runs of the type in the state (`planned` is `queued` with a start in the future:
+         *     backoff, debounce, a waiting download). `queued` and `planned` come in claim order (priority, then
+         *     age), so the first row is the next to run; every other state newest first. `total` counts all runs
+         *     of that state.
+         */
+        get: operations["listJobRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/job-types/{type}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a job type now
+         * @description Queues what one run of the type means (a scan of every library, every podcast subscription, the
+         *     spotlight list, the update check) with the manual priority 7 and returns the queued runs; a run of
+         *     the same key that already waits is raised, never lowered. The next scheduled run does not move.
+         *     Only schedule and manual types can be run (`runnable`); event types answer 409
+         *     `job_type_not_runnable`, a paused type 409 `job_type_paused`. The services' own checks apply as
+         *     on their pages: 422 `provider_not_configured` (the spotlight list without a client id), 422
+         *     `update_check_disabled`, 429 `too_many_requests` (one manual fetch of the spotlight list a minute).
+         */
+        post: operations["runJobType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/job-types/{type}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a job type
+         * @description No worker claims runs of the type any more, and every running run stops at once and goes back
+         *     to the queue without a used attempt; the pause survives a restart and ends only with
+         *     `resumeJobType`. While a run is still stopping the type reports `stopping`. Idempotent.
+         */
+        post: operations["pauseJobType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/job-types/{type}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume a paused job type
+         * @description The pause ends; waiting runs are claimed again. Idempotent.
+         */
+        post: operations["resumeJobType"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/job-types/{type}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change interval, time window or switch of a scheduled job type
+         * @description Only the fields sent change. The interval must lie within `schedule.limits` of the type (the
+         *     spotlight list 6 to 48 whole hours, every other type 5 minutes to 7 days); a window names minutes of the server's
+         *     day (`schedule.timeZone`), may span midnight and must not be empty; `clearWindow` removes it. The next
+         *     run is realigned: last firing plus interval, at least now, then moved into the window. One value,
+         *     two doors: the interval of the spotlight list's schedule is `SpotlightConfig.intervalHours`, the
+         *     switch of `update.check` is `AdminSettings.updateCheckEnabled`; this operation writes those
+         *     settings as well.
+         */
+        patch: operations["updateJobSchedule"];
+        trace?: never;
+    };
+    "/admin/job-types/{type}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel the waiting runs of a job type, or all of them
+         * @description `scope=queued` (default) cancels the waiting runs, `scope=all` the running ones as well. Every
+         *     cancel runs through the type's own logic: a scan ends its library `aborted/cancelled`, a download
+         *     ends `failed` with `cancelled_by_admin` and is not prepared again by itself. Cancelling is final.
+         */
+        delete: operations["cancelJobRuns"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/settings": {
         parameters: {
             query?: never;
@@ -5381,6 +5544,8 @@ export interface components {
             queued: number;
             running: number;
             failed: number;
+            /** @description Paused job types (concept 09); the dashboard shows the tile when it is above 0. */
+            paused?: number;
             /** @description The last failed jobs, newest first. */
             recentFailed: components["schemas"]["JobSummary"][];
         };
@@ -5402,6 +5567,142 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /**
+         * @description Name of a job type, `<package>.<name>` (`scan.library`, `metadata.vote_backfill`, `jobs.prune`). No enum, so a new type breaks no client.
+         * @example scan.library
+         */
+        JobTypeName: string;
+        /**
+         * @description A run of a job type (one row of the queue): the fields of `JobSummary`, plus its priority, the
+         *     subject the server derives from the payload (a library, a title with its episode marker, a
+         *     channel; redacted, never an absolute path), start and end, duration of the last attempt,
+         *     progress and remaining time. `estimate` says where `estimatedSecondsLeft` comes from: `measured`
+         *     from the reported progress, `median` from the median duration of the type (with no number when
+         *     the run already takes twice the median: "longer than usual"), `none` when nothing is known.
+         */
+        JobRun: {
+            /** Format: int64 */
+            id: number;
+            type: components["schemas"]["JobTypeName"];
+            /** @enum {string} */
+            state: "queued" | "running" | "done" | "failed" | "cancelled";
+            priority: number;
+            attempts: number;
+            maxAttempts: number;
+            /** @description Error of the last attempt, redacted. */
+            lastError?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /**
+             * Format: date-time
+             * @description Earliest start of a waiting run; in the future for a planned one.
+             */
+            runAfter?: string;
+            /** @description What the run is about, as text; absent when the server cannot derive it (the client shows the id then). */
+            subject?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            /** @description Duration of the last attempt; while the run is running, the time since its start. */
+            durationSeconds?: number;
+            /** @description The run had nothing to do and does not count for the median. */
+            skipped: boolean;
+            progress?: components["schemas"]["JobProgress"];
+            estimatedSecondsLeft?: number;
+            /** @enum {string} */
+            estimate: "measured" | "median" | "none";
+        };
+        JobProgress: {
+            done: number;
+            /** @description 0 means the extent is unknown (the bar runs indeterminate). */
+            total: number;
+            /** @description What the run is at, for example a library and folder relative to its root. */
+            note?: string;
+        };
+        /** @description A time window in minutes of the server's day; `endMinute` is exclusive and may lie before `startMinute` (across midnight). */
+        JobWindow: {
+            startMinute: number;
+            endMinute: number;
+        };
+        JobSchedule: {
+            everySeconds: number;
+            /** Format: date-time */
+            nextRunAt: string;
+            /** Format: date-time */
+            lastFiredAt?: string;
+            enabled: boolean;
+            window?: components["schemas"]["JobWindow"];
+            /**
+             * @description The server's time zone of the window, for example `Europe/Zurich`.
+             * @example Europe/Zurich
+             */
+            timeZone: string;
+            limits: {
+                minEverySeconds: number;
+                maxEverySeconds: number;
+            };
+        };
+        /** @description Only the fields sent change; `clearWindow` removes the window (a JSON null would be indistinguishable from an absent field for the generated clients). */
+        JobScheduleUpdate: {
+            everySeconds?: number;
+            window?: components["schemas"]["JobWindow"];
+            clearWindow?: boolean;
+            enabled?: boolean;
+        };
+        JobTypeInfo: {
+            type: components["schemas"]["JobTypeName"];
+            /** @enum {string} */
+            group: "library" | "metadata" | "delivery" | "system";
+            /** @enum {string} */
+            trigger: "schedule" | "event" | "manual";
+            /** @enum {string} */
+            pool: "general" | "download" | "notify";
+            paused: boolean;
+            /** Format: date-time */
+            pausedAt?: string;
+            /** @description Paused, and a run of the type is still coming to a halt. */
+            stopping: boolean;
+            /** @description Whether `runJobType` is offered (schedule and manual types). */
+            runnable: boolean;
+            schedule?: components["schemas"]["JobSchedule"];
+            counts: {
+                queued: number;
+                /** @description Waiting runs whose start lies in the future (backoff, debounce, a waiting download). */
+                planned: number;
+                running: number;
+                failed: number;
+            };
+            running: components["schemas"]["JobRun"][];
+            lastRun?: components["schemas"]["JobRun"];
+            /** @description Median of the newest 50 finished runs that did work; absent below five runs. */
+            medianDurationSeconds?: number;
+            /** @description Estimated wait until the next waiting run of the type starts, cumulated by priority over the pool. */
+            queuedEstimateSeconds?: number;
+            /** @description False for a type in the database that no worker of this server knows (after a downgrade). */
+            known: boolean;
+        };
+        JobPool: {
+            /** @enum {string} */
+            pool: "general" | "download" | "notify";
+            workers: number;
+            /** @description Estimated work waiting in the pool, divided by its workers; absent without any median. */
+            backlogSeconds?: number;
+        };
+        JobOverview: {
+            pools: components["schemas"]["JobPool"][];
+            paused: number;
+            types: components["schemas"]["JobTypeInfo"][];
+        };
+        JobRunPage: {
+            total: number;
+            runs: components["schemas"]["JobRun"][];
+        };
+        JobCancelResult: {
+            cancelled: number;
         };
         StorageInfo: {
             /** @example /config */
@@ -6141,6 +6442,8 @@ export interface components {
         LibraryRootID: number;
         /** @description Job id from the dashboard. */
         JobID: number;
+        /** @description Job type, for example `scan.library`. */
+        JobType: components["schemas"]["JobTypeName"];
         /** @description File name of a backup from `listBackups` (no path part). */
         BackupName: string;
         AnnouncementID: number;
@@ -11104,6 +11407,293 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Unknown job, or a job that is done or cancelled already (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listJobTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The overview. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOverview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    listJobRuns: {
+        parameters: {
+            query: {
+                type: components["schemas"]["JobTypeName"];
+                state: "queued" | "planned" | "running" | "failed" | "done" | "cancelled";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The runs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRunPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A parameter is outside its range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runJobType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job type, for example `scan.library`. */
+                type: components["parameters"]["JobType"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The queued runs (possibly none: nothing was due). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRun"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The type has no manual run (`job_type_not_runnable`) or is paused (`job_type_paused`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The service refuses (`provider_not_configured` for the spotlight list, `update_check_disabled`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A manual fetch of the spotlight list ran less than a minute ago (`too_many_requests`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    pauseJobType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job type, for example `scan.library`. */
+                type: components["parameters"]["JobType"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The job type. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTypeInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    resumeJobType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job type, for example `scan.library`. */
+                type: components["parameters"]["JobType"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The job type. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTypeInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateJobSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job type, for example `scan.library`. */
+                type: components["parameters"]["JobType"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description The job type with its new schedule. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTypeInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The type has no schedule (`job_type_not_scheduled`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A value is outside its range (`validation_failed`, fields `everySeconds`, `window`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancelJobRuns: {
+        parameters: {
+            query?: {
+                scope?: "queued" | "all";
+            };
+            header?: never;
+            path: {
+                /** @description Job type, for example `scan.library`. */
+                type: components["parameters"]["JobType"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description How many runs were cancelled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobCancelResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;

@@ -348,6 +348,28 @@ func (s *Service) RefreshLibrary(ctx context.Context, libraryID int64) (int, err
 	return len(ids), nil
 }
 
+// QueueAllPodcasts enqueues podcast.fetch for every live subscription with a feed, due or not,
+// with prio (the manual run of podcast.poll, concept 09 4.3: a button that only fetched the due
+// feeds would mostly do nothing), and returns the job ids; a waiting fetch is raised to prio.
+func (s *Service) QueueAllPodcasts(ctx context.Context, prio int) ([]int64, error) {
+	rows, err := s.read.PodcastList(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("list podcasts: %w", err)
+	}
+	ids := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		if !r.FeedUrl.Valid || r.FeedUrl.String == "" {
+			continue
+		}
+		id, err := s.enqueuePodcast(ctx, r.ID, prio)
+		if err != nil {
+			return ids, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 // QueueDuePodcasts enqueues podcast.fetch for every subscription not fetched for FeedInterval and
 // returns how many it queued (one tick of the schedule podcast.poll).
 func (s *Service) QueueDuePodcasts(ctx context.Context) (int, error) {

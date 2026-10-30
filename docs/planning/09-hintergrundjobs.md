@@ -2,8 +2,9 @@
 
 - **Status: Fassung 4 (30. Oktober 2026), freigegeben mit dem Merge von PR #54 (`05df9c5`); in
   Umsetzung.** Schritt 0 (Entscheid 15, ADR 0017, Neuverankerung; Abschnitt 13.3), Schritt 1
-  (Schema, Registry, Scheduler; 13.4) und Schritt 2 (Fortschritt, Pause, Abbruch-Haken, Verlauf;
-  13.5) liegen auf einem Zweig ab `main` `05df9c5` (PR #55). Der
+  (Schema, Registry, Scheduler; 13.4), Schritt 2 (Fortschritt, Pause, Abbruch-Haken, Verlauf;
+  13.5) und Schritt 3 (Vertrag 1.5.0, Server-Handler; 13.6) liegen auf einem Zweig ab `main`
+  `05df9c5` (PR #55). Der
   OMC-Kritiker hat Fassung 1 geprüft (0 Blocker,
   8 Major, 16 Minor; Abschnitt 13); Fassung 2 arbeitet alle ein. Marco hat am 30. Oktober 2026
   alle Fragen beantwortet (Abschnitt 11, 13.2); zwei Antworten weichen von der Empfehlung ab und
@@ -1081,4 +1082,31 @@ Lauf, `jobs.prune`, Median, eingefrorener Stand `testdata/db/hintergrundjobs.sql
 
 Offen für Schritt 3: `JobCounts.paused` im Dashboard, `stopping` je Jobart (`Registry.Running(typ) > 0` bei
 gesetzter Pause), die Schätzungen aus 6.2 und die Durchreichung von `ErrPaused`/`ErrCancelled` als 409.
+
+### 13.6 Befunde aus Schritt 3 (30. Oktober 2026)
+
+Schritt 3 ist nach Abschnitt 5 und 6.2 bis 6.4 gebaut: Vertrag **1.5.0** mit den sieben Operationen
+unter `/admin/job-types/{type}` und `GET /admin/jobs`, `JobCounts.paused`, die Schemata `JobRun`,
+`JobProgress`, `JobWindow`, `JobSchedule`, `JobScheduleUpdate`, `JobTypeInfo`, `JobPool`,
+`JobOverview`, `JobRunPage`, `JobCancelResult`, `JobTypeName`; `task gen` für Go und TypeScript;
+Paket `admin` (`jobtypes.go`: `ListJobTypes`, `ListJobRuns`, `RunJobType`, `PauseJobType`,
+`ResumeJobType`, `UpdateJobSchedule`, `CancelJobRuns`, Gegenstand je Jobart, Schätzungen),
+Handler in `api/jobtype_handlers.go`, drei neue Problemcodes, Vertragstest. Abweichungen:
+
+| Stelle | Papier | Gebaut | Grund |
+|---|---|---|---|
+| 5.2, `JobScheduleUpdate.window` | `window?: {…} \| null` | `window?` plus **`clearWindow?: boolean`** | Die generierten Clients (oapi-codegen, openapi-typescript) unterscheiden `null` nicht von «fehlt»; ein Schalter ist eindeutig |
+| 5.2, `listJobRuns` | `?type=&state=&limit=` | `type` und `state` **Pflicht**, `limit` 1 bis 200 (Vorgabe 50); `state` ist ein Enum mit `planned` | Ohne Jobart gäbe es keine Seite, die die Liste braucht |
+| 5.3, `JobRun` «erweitert `JobSummary`» | `allOf` | Eigenes Schema mit denselben Feldern plus den neuen (`priority`, `estimate` und `skipped` Pflicht) | `allOf` erzeugt in oapi-codegen eingebettete Strukturen mit Fallstricken; die Felder sind dieselben |
+| 5.2, `runJobType` für `trakt.refresh` und `podcast.poll` | «ruft dieselben Dienstmethoden» | Trakt über `RefreshSpotlight` (Client-Schlüssel, eine Minute Abstand, Priorität 7), zurückgegeben wird der aktive Lauf; `podcast.poll` über neues `metadata.QueueAllPodcasts(ctx, prio)` (**alle** Abos, 4.3); `update.check` prüft den Schalter und ruft sonst `Run` mit 7 (kein synchroner `CheckForUpdate`: die Operation antwortet mit Läufen) | wie 6.3, ohne die 13.4 offene Frage |
+| 5.3, Grenzen von `trakt.refresh` | 6 bis 48 h | 6 bis 48 **ganze** Stunden (`interval_hours` ist ganzzahlig); `everySeconds` sonst 422 `everySeconds` | Spalte der Spotlight-Einstellung |
+| 5.3, `JobTypeInfo` einer unbekannten Zeile | `known = false` | dazu `group = system`, `trigger = event`, `pool = general` als Platzhalter (die Felder sind Pflicht) | Schema bleibt einfach; der Client zeigt «unbekannt» |
+| 6.2, Wartezeit | kumuliert nach Priorität über den Pool | wie beschrieben; Jobarten **ohne Median zählen 0** und eine Jobart ohne jeden Median im Pool bekommt **kein** `queuedEstimateSeconds` (der Client schreibt «ohne Schätzung») | wie 6.2 |
+| 6.2, Restzeit «länger als üblich» | `estimate = median` ohne Zahl ab `elapsed > 2 · median` | so gebaut; der gemessene Fall verlangt `done ≥ total / 20` **und** `done > 0` | Division |
+| 5.3, Gegenstand | je Jobart eine Funktion | ein Ableiter über die Payload-Schlüssel `libraryId`, `itemId`, `podcastId`, `seasonId`, `mediaFileId`, `deliveryId`, `downloadId`: Bibliotheksname; Titel, Staffel «Serie · S01», Folge «Serie · S01E02»; Kanal einer Zustellung (kein Kontoname, Regel 10); Titel eines Downloads; durch `RedactString` | ein Ort statt sieben |
+| 10, Schritt 3, Fixtures | `web/src/test/fixtures.ts`, `web/e2e/fixtures.ts` | unverändert: die neuen Felder sind optional, die Seite kommt in Schritt 4 mit ihren Fixtures | kein Bedarf vor der Seite |
+| 5.3, `DownloadState.error` | — | Beschreibung nennt jetzt `cancelled_by_admin` nicht; folgt mit der Seite (Schritt 4), wenn der Client den Code zeigt | kein Vertragsbruch (freier Text) |
+
+Vertragstest: `TestContractCoversEveryOperation` kennt die sieben Operationen (Fixture mit
+Registry und Scheduler); `JobCounts.paused` kommt aus `job_types`.
 

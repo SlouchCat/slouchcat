@@ -117,6 +117,50 @@ func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64
 	return result.RowsAffected()
 }
 
+const countJobRunsByState = `-- name: CountJobRunsByState :one
+SELECT count(*) FROM jobs WHERE type = ?1 AND state = ?2
+`
+
+type CountJobRunsByStateParams struct {
+	Type  string
+	State string
+}
+
+func (q *Queries) CountJobRunsByState(ctx context.Context, arg CountJobRunsByStateParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countJobRunsByState, arg.Type, arg.State)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countPausedJobTypes = `-- name: CountPausedJobTypes :one
+SELECT count(*) FROM job_types WHERE paused_at IS NOT NULL
+`
+
+func (q *Queries) CountPausedJobTypes(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPausedJobTypes)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countQueuedJobRuns = `-- name: CountQueuedJobRuns :one
+SELECT count(*) FROM jobs WHERE type = ?1 AND state = 'queued' AND (run_after > ?2) = ?3
+`
+
+type CountQueuedJobRunsParams struct {
+	Type    string
+	Now     int64
+	Planned int64
+}
+
+func (q *Queries) CountQueuedJobRuns(ctx context.Context, arg CountQueuedJobRunsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countQueuedJobRuns, arg.Type, arg.Now, arg.Planned)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const ensureJobType = `-- name: EnsureJobType :exec
 
 INSERT INTO job_types (type, updated_at) VALUES (?1, ?2)
@@ -306,6 +350,42 @@ func (q *Queries) GetJobType(ctx context.Context, type_ string) (JobType, error)
 	return i, err
 }
 
+const getLastFinishedJobByType = `-- name: GetLastFinishedJobByType :one
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs
+WHERE type = ?1 AND state IN ('done', 'failed', 'cancelled')
+ORDER BY COALESCE(finished_at, updated_at) DESC, id DESC
+LIMIT 1
+`
+
+// The newest run of a type in a final state (done, failed, cancelled), over the index jobs_history.
+func (q *Queries) GetLastFinishedJobByType(ctx context.Context, type_ string) (Job, error) {
+	row := q.db.QueryRowContext(ctx, getLastFinishedJobByType, type_)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Priority,
+		&i.IdempotencyKey,
+		&i.Payload,
+		&i.State,
+		&i.RunAfter,
+		&i.LeaseOwner,
+		&i.LeaseUntil,
+		&i.Attempts,
+		&i.MaxAttempts,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.ProgressDone,
+		&i.ProgressTotal,
+		&i.ProgressNote,
+		&i.Skipped,
+	)
+	return i, err
+}
+
 const insertJob = `-- name: InsertJob :one
 
 INSERT INTO jobs (type, priority, idempotency_key, payload, run_after, max_attempts, created_at, updated_at)
@@ -374,6 +454,64 @@ func (q *Queries) InsertJobSchedule(ctx context.Context, arg InsertJobSchedulePa
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const jobCountsByType = `-- name: JobCountsByType :many
+
+SELECT type,
+       CAST(COALESCE(SUM(state = 'queued' AND run_after <= ?1), 0) AS INTEGER) AS queued,
+       CAST(COALESCE(SUM(state = 'queued' AND run_after > ?1), 0) AS INTEGER)  AS planned,
+       CAST(COALESCE(SUM(state = 'running'), 0) AS INTEGER)                      AS running,
+       CAST(COALESCE(SUM(state = 'failed'), 0) AS INTEGER)                       AS failed,
+       CAST(COALESCE(MIN(CASE WHEN state = 'queued' THEN priority END), 0) AS INTEGER) AS min_queued_priority
+FROM jobs
+WHERE state IN ('queued', 'running', 'failed')
+GROUP BY type
+`
+
+type JobCountsByTypeRow struct {
+	Type              string
+	Queued            int64
+	Planned           int64
+	Running           int64
+	Failed            int64
+	MinQueuedPriority int64
+}
+
+// ---------------------------------------------------------------------------------------------
+// The page "Hintergrundjobs" (concept 09, step 3): counts per type, running and last runs, the
+// runs of a type by state. Times are Unix milliseconds.
+// ---------------------------------------------------------------------------------------------
+// Per type: waiting runs (due), planned runs (start in the future), running and failed runs, and
+// the lowest priority among the waiting ones (the waiting time cumulates over the pool from it).
+func (q *Queries) JobCountsByType(ctx context.Context, now int64) ([]JobCountsByTypeRow, error) {
+	rows, err := q.db.QueryContext(ctx, jobCountsByType, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []JobCountsByTypeRow{}
+	for rows.Next() {
+		var i JobCountsByTypeRow
+		if err := rows.Scan(
+			&i.Type,
+			&i.Queued,
+			&i.Planned,
+			&i.Running,
+			&i.Failed,
+			&i.MinQueuedPriority,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listActiveJobsByType = `-- name: ListActiveJobsByType :many
@@ -548,6 +686,64 @@ func (q *Queries) ListJobDurations(ctx context.Context, arg ListJobDurationsPara
 	return items, nil
 }
 
+const listJobRunsByState = `-- name: ListJobRunsByState :many
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs
+WHERE type = ?1 AND state = ?2
+ORDER BY COALESCE(finished_at, started_at, updated_at) DESC, id DESC
+LIMIT ?3
+`
+
+type ListJobRunsByStateParams struct {
+	Type       string
+	State      string
+	LimitCount int64
+}
+
+// The runs of a type in one state (running, done, failed, cancelled), newest first.
+func (q *Queries) ListJobRunsByState(ctx context.Context, arg ListJobRunsByStateParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listJobRunsByState, arg.Type, arg.State, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Job{}
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Priority,
+			&i.IdempotencyKey,
+			&i.Payload,
+			&i.State,
+			&i.RunAfter,
+			&i.LeaseOwner,
+			&i.LeaseUntil,
+			&i.Attempts,
+			&i.MaxAttempts,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+			&i.ProgressNote,
+			&i.Skipped,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listJobSchedules = `-- name: ListJobSchedules :many
 SELECT type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, last_fired_at, updated_at FROM job_schedules ORDER BY type
 `
@@ -629,6 +825,124 @@ func (q *Queries) ListPausedJobTypes(ctx context.Context) ([]string, error) {
 			return nil, err
 		}
 		items = append(items, type_)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listQueuedJobRuns = `-- name: ListQueuedJobRuns :many
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs
+WHERE type = ?1 AND state = 'queued' AND (run_after > ?2) = ?3
+ORDER BY priority DESC, created_at, id
+LIMIT ?4
+`
+
+type ListQueuedJobRunsParams struct {
+	Type       string
+	Now        int64
+	Planned    int64
+	LimitCount int64
+}
+
+// The waiting runs of a type in claim order (priority, then age); @planned 1 lists those whose
+// start lies in the future, 0 those that are due.
+func (q *Queries) ListQueuedJobRuns(ctx context.Context, arg ListQueuedJobRunsParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listQueuedJobRuns,
+		arg.Type,
+		arg.Now,
+		arg.Planned,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Job{}
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Priority,
+			&i.IdempotencyKey,
+			&i.Payload,
+			&i.State,
+			&i.RunAfter,
+			&i.LeaseOwner,
+			&i.LeaseUntil,
+			&i.Attempts,
+			&i.MaxAttempts,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+			&i.ProgressNote,
+			&i.Skipped,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRunningJobsByType = `-- name: ListRunningJobsByType :many
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs WHERE type = ?1 AND state = 'running' ORDER BY started_at, id LIMIT ?2
+`
+
+type ListRunningJobsByTypeParams struct {
+	Type       string
+	LimitCount int64
+}
+
+func (q *Queries) ListRunningJobsByType(ctx context.Context, arg ListRunningJobsByTypeParams) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listRunningJobsByType, arg.Type, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Job{}
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Priority,
+			&i.IdempotencyKey,
+			&i.Payload,
+			&i.State,
+			&i.RunAfter,
+			&i.LeaseOwner,
+			&i.LeaseUntil,
+			&i.Attempts,
+			&i.MaxAttempts,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+			&i.ProgressNote,
+			&i.Skipped,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

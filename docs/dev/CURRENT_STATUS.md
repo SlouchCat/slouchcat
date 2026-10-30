@@ -1,5 +1,54 @@
 # Aktueller Stand
 
+## Hintergrundjobs (Konzept 09): Schritt 3 (30. Oktober 2026)
+
+Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 3:
+**Vertrag 1.5.0, additiv**, Server-Handler, keine Seite (Schritt 4).
+
+**Vertrag.** `api/openapi.yaml` 1.5.0: `listJobTypes` (`GET /admin/job-types`), `listJobRuns`
+(`GET /admin/jobs?type=&state=&limit=`, `state` mit `planned`), `runJobType`, `pauseJobType`,
+`resumeJobType`, `updateJobSchedule` (PATCH, `JobScheduleUpdate` mit `everySeconds`, `window`,
+`clearWindow`, `enabled`), `cancelJobRuns` (`?scope=queued|all`), alle `x-visibility: admin`, kein
+`ItemRef`; Schemata `JobRun`, `JobProgress`, `JobWindow`, `JobSchedule`, `JobTypeInfo`, `JobPool`,
+`JobOverview`, `JobRunPage`, `JobCancelResult`, `JobTypeName`; `JobCounts.paused` optional;
+Problemcodes `job_type_not_runnable`, `job_type_paused`, `job_type_not_scheduled`. `task gen` für
+Go (`internal/api/gen`) und TypeScript (`packages/api-client`); die Web-App kompiliert unverändert
+(`tsc --noEmit`).
+
+**Server.** `admin/jobtypes.go`: `WithJobControl(registry, scheduler, Arbeiter je Pool)`;
+`ListJobTypes` baut je Jobart Gruppe, Auslöser, Pool, Pause (`stopping` = pausiert und noch
+laufend), `runnable`, Zeitplan mit `limits` und `timeZone`, Zähler (wartend, geplant, laufend,
+fehlgeschlagen), bis zehn laufende Läufe mit Fortschritt und Restzeit (gemessen ab 5 % und 30 s,
+sonst Median, «länger als üblich» ab 2 × Median), letzter Lauf, Median (ab 5 Läufen), Wartezeit
+kumuliert nach Priorität über den Pool, Stau je Pool, unbekannte `job_types`-Zeilen mit
+`known = false`; Gegenstand je Lauf aus dem Payload (Bibliothek, Titel mit Staffel-/Folgenmarke,
+Kanal, Download), redigiert. `RunJobType` mit Priorität 7 (Trakt über `RefreshSpotlight`, Update
+mit Schalterprüfung, `podcast.poll` über neues `metadata.QueueAllPodcasts` = alle Abos), der
+Zeitplan rückt nicht (F-5). `UpdateJobSchedule` prüft Grenzen (Trakt 6 bis 48 ganze Stunden) und
+schreibt «ein Wert, zwei Türen»: `spotlight_config.interval_hours` (`SetSpotlightInterval`) und
+`update_check_enabled`. `CancelJob` des Dashboards läuft neu über den Abbruch-Haken.
+Abweichungen in **13.6** (u. a. `clearWindow` statt `null`, `JobRun` als eigenes Schema).
+
+**Tests.** `admin/jobtypes_test.go` (Übersicht mit Median, Wartezeit, Stau, laufender Lauf,
+unbekannte Zeile, Dashboard `paused`; gemessene Schätzung; `runJobType` mit 409/404/422 und
+unverändertem `next_run_at`; Pause/Fortsetzen; Zeitplan mit Grenzen, Fenster, Trakt- und
+Update-Durchschreiben; Läufe listen und abbrechen). Vertragstest mit Registry und Scheduler in der
+Fixture (`TestContractCoversEveryOperation`, Schema-Test `x-visibility`).
+
+**DoD-Belege.**
+
+```
+$ go test ./internal/admin/ ./internal/api/ ./internal/metadata/ ./internal/jobs/
+ok  …/admin 0.852s (Jobtypen) · ok …/api 17.933s (Vertrag, Schema) · ok …/metadata 26.090s · ok …/jobs 5.690s
+$ go tool golangci-lint run ./...               0 issues.
+$ pnpm -C web exec tsc --noEmit                 keine Fehler (Web-App kompiliert gegen den Client 1.5.0)
+STEP3_CI_RESULT
+```
+
+**Offen (Schritt 4 und 5):** Seite `/admin/jobs` mit Dialogen, Navigation, Dashboard-Link und
+-Kachel, Sprachdateien, `admin-jobs.spec.ts`, Fixtures; `DownloadState.error` um
+`cancelled_by_admin` in der Beschreibung ergänzen; CT 190, Messung, Release-Notes.
+
 ## Hintergrundjobs (Konzept 09): Schritt 2 (30. Oktober 2026)
 
 Gleicher Zweig und PR wie Schritt 0 und 1 (`claude/vigorous-raman-651439`, PR #55), auf Marcos

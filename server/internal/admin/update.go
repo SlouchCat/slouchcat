@@ -110,6 +110,22 @@ func (s *Service) runUpdateCheck(ctx context.Context, q *jobs.Queue, prio int) (
 	return []int64{id}, nil
 }
 
+// setUpdateCheckEnabled writes the switch of the update check from the jobs page (one value, two
+// doors, concept 09 4.3), like UpdateSettings does: off deletes the stored state and the notice.
+func (s *Service) setUpdateCheckEnabled(ctx context.Context, on bool) error {
+	now := s.now().UnixMilli()
+	if err := s.write.UpsertSetting(ctx, appq.UpsertSettingParams{Key: SettingUpdateCheckEnabled, Value: map[bool]string{true: "1", false: "0"}[on], Now: now}); err != nil {
+		return fmt.Errorf("set update check: %w", err)
+	}
+	if !on {
+		if err := s.write.DeleteSetting(ctx, SettingUpdateState); err != nil {
+			return fmt.Errorf("clear update state: %w", err)
+		}
+	}
+	s.forgetUpdateNotice()
+	return nil
+}
+
 // updateSeed is the Seed of the schedule update.check: the switch of the setting and the time of
 // the last check, so the first row after migration 00027 continues the daily rhythm.
 func (s *Service) updateSeed(ctx context.Context) (jobs.ScheduleSeed, error) {

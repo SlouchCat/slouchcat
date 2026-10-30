@@ -27,6 +27,9 @@ type Podcasts interface {
 	// ListPodcasts returns every live subscription, newest first.
 	ListPodcasts(ctx context.Context) ([]model.AdminPodcast, error)
 	// RefreshPodcast queues the fetch of a subscription (model.ErrNotFound).
+	// QueueAllPodcasts queues the fetch of every subscription with prio and returns the job ids
+	// (the manual run of podcast.poll, concept 09).
+	QueueAllPodcasts(ctx context.Context, prio int) ([]int64, error)
 	RefreshPodcast(ctx context.Context, id string) (model.AdminPodcast, error)
 	// RefreshLibrary queues the fetch of every subscription of a library.
 	RefreshLibrary(ctx context.Context, libraryID int64) (int, error)

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.4.0
+  version: 1.5.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -4784,6 +4784,292 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  # ---------------------------------------------------------------------------------------------
+  # Background jobs (concept 09, ADR 0017): the page "Hintergrundjobs". A job type is what the
+  # administrator starts, pauses and whose runs are cancelled; a run is one row of the queue.
+  # Job types live under /admin/job-types/{type}, runs under /admin/jobs/{id}, so a number and a
+  # name never share a path. Every answer is admin-only and carries no ItemRef: a run names a
+  # title as text in its subject only.
+  # ---------------------------------------------------------------------------------------------
+  /admin/job-types:
+    get:
+      operationId: listJobTypes
+      summary: Every job type with its running runs, last run, next run and estimates
+      description: |
+        One request for the page, polled every few seconds like `getDashboard`: the worker pools with
+        their backlog, the number of paused types and one `JobTypeInfo` per type (group, trigger, pool,
+        pause, schedule with its next run, counts, the running runs with progress and remaining time,
+        the last run, the median duration and the waiting time). Estimates come from the server and are
+        estimates: the client counts seconds up between two polls and decides nothing.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The overview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobOverview"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
+  /admin/jobs:
+    get:
+      operationId: listJobRuns
+      summary: The runs of a job type in one state
+      description: |
+        At most `limit` runs of the type in the state (`planned` is `queued` with a start in the future:
+        backoff, debounce, a waiting download). `queued` and `planned` come in claim order (priority, then
+        age), so the first row is the next to run; every other state newest first. `total` counts all runs
+        of that state.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/JobTypeName"
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [queued, planned, running, failed, done, cancelled]
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: The runs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRunPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: A parameter is outside its range (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/job-types/{type}/run:
+    post:
+      operationId: runJobType
+      summary: Run a job type now
+      description: |
+        Queues what one run of the type means (a scan of every library, every podcast subscription, the
+        spotlight list, the update check) with the manual priority 7 and returns the queued runs; a run of
+        the same key that already waits is raised, never lowered. The next scheduled run does not move.
+        Only schedule and manual types can be run (`runnable`); event types answer 409
+        `job_type_not_runnable`, a paused type 409 `job_type_paused`. The services' own checks apply as
+        on their pages: 422 `provider_not_configured` (the spotlight list without a client id), 422
+        `update_check_disabled`, 429 `too_many_requests` (one manual fetch of the spotlight list a minute).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/JobType"
+      responses:
+        "202":
+          description: "The queued runs (possibly none: nothing was due)."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobRun"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The type has no manual run (`job_type_not_runnable`) or is paused (`job_type_paused`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The service refuses (`provider_not_configured` for the spotlight list, `update_check_disabled`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: A manual fetch of the spotlight list ran less than a minute ago (`too_many_requests`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/job-types/{type}/pause:
+    post:
+      operationId: pauseJobType
+      summary: Pause a job type
+      description: |
+        No worker claims runs of the type any more, and every running run stops at once and goes back
+        to the queue without a used attempt; the pause survives a restart and ends only with
+        `resumeJobType`. While a run is still stopping the type reports `stopping`. Idempotent.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/JobType"
+      responses:
+        "200":
+          description: The job type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobTypeInfo"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/job-types/{type}/resume:
+    post:
+      operationId: resumeJobType
+      summary: Resume a paused job type
+      description: The pause ends; waiting runs are claimed again. Idempotent.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/JobType"
+      responses:
+        "200":
+          description: The job type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobTypeInfo"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/job-types/{type}/schedule:
+    patch:
+      operationId: updateJobSchedule
+      summary: Change interval, time window or switch of a scheduled job type
+      description: |
+        Only the fields sent change. The interval must lie within `schedule.limits` of the type (the
+        spotlight list 6 to 48 whole hours, every other type 5 minutes to 7 days); a window names minutes of the server's
+        day (`schedule.timeZone`), may span midnight and must not be empty; `clearWindow` removes it. The next
+        run is realigned: last firing plus interval, at least now, then moved into the window. One value,
+        two doors: the interval of the spotlight list's schedule is `SpotlightConfig.intervalHours`, the
+        switch of `update.check` is `AdminSettings.updateCheckEnabled`; this operation writes those
+        settings as well.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/JobType"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JobScheduleUpdate"
+      responses:
+        "200":
+          description: The job type with its new schedule.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobTypeInfo"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: The type has no schedule (`job_type_not_scheduled`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: A value is outside its range (`validation_failed`, fields `everySeconds`, `window`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/job-types/{type}/runs:
+    delete:
+      operationId: cancelJobRuns
+      summary: Cancel the waiting runs of a job type, or all of them
+      description: |
+        `scope=queued` (default) cancels the waiting runs, `scope=all` the running ones as well. Every
+        cancel runs through the type's own logic: a scan ends its library `aborted/cancelled`, a download
+        ends `failed` with `cancelled_by_admin` and is not prepared again by itself. Cancelling is final.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/JobType"
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [queued, all]
+            default: queued
+      responses:
+        "200":
+          description: How many runs were cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobCancelResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown job type (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/settings:
     get:
       operationId: getAdminSettings
@@ -6240,6 +6526,13 @@ components:
       schema:
         type: integer
         format: int64
+    JobType:
+      name: type
+      in: path
+      required: true
+      description: Job type, for example `scan.library`.
+      schema:
+        $ref: "#/components/schemas/JobTypeName"
     BackupName:
       name: name
       in: path
@@ -10019,6 +10312,10 @@ components:
         failed:
           type: integer
           minimum: 0
+        paused:
+          type: integer
+          minimum: 0
+          description: Paused job types (concept 09); the dashboard shows the tile when it is above 0.
         recentFailed:
           type: array
           maxItems: 10
@@ -10055,6 +10352,270 @@ components:
         updatedAt:
           type: string
           format: date-time
+
+    JobTypeName:
+      type: string
+      description: Name of a job type, `<package>.<name>` (`scan.library`, `metadata.vote_backfill`, `jobs.prune`). No enum, so a new type breaks no client.
+      pattern: "^[a-z]+\\.[a-z_]+$"
+      examples: ["scan.library"]
+
+    JobRun:
+      type: object
+      description: |
+        A run of a job type (one row of the queue): the fields of `JobSummary`, plus its priority, the
+        subject the server derives from the payload (a library, a title with its episode marker, a
+        channel; redacted, never an absolute path), start and end, duration of the last attempt,
+        progress and remaining time. `estimate` says where `estimatedSecondsLeft` comes from: `measured`
+        from the reported progress, `median` from the median duration of the type (with no number when
+        the run already takes twice the median: "longer than usual"), `none` when nothing is known.
+      required: [id, type, state, priority, attempts, maxAttempts, updatedAt, skipped, estimate]
+      properties:
+        id:
+          type: integer
+          format: int64
+        type:
+          $ref: "#/components/schemas/JobTypeName"
+        state:
+          type: string
+          enum: [queued, running, done, failed, cancelled]
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 9
+        attempts:
+          type: integer
+          minimum: 0
+        maxAttempts:
+          type: integer
+          minimum: 1
+        lastError:
+          type: string
+          description: Error of the last attempt, redacted.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        runAfter:
+          type: string
+          format: date-time
+          description: Earliest start of a waiting run; in the future for a planned one.
+        subject:
+          type: string
+          description: What the run is about, as text; absent when the server cannot derive it (the client shows the id then).
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        durationSeconds:
+          type: integer
+          minimum: 0
+          description: Duration of the last attempt; while the run is running, the time since its start.
+        skipped:
+          type: boolean
+          description: The run had nothing to do and does not count for the median.
+        progress:
+          $ref: "#/components/schemas/JobProgress"
+        estimatedSecondsLeft:
+          type: integer
+          minimum: 0
+        estimate:
+          type: string
+          enum: [measured, median, none]
+
+    JobProgress:
+      type: object
+      required: [done, total]
+      properties:
+        done:
+          type: integer
+          minimum: 0
+        total:
+          type: integer
+          minimum: 0
+          description: 0 means the extent is unknown (the bar runs indeterminate).
+        note:
+          type: string
+          description: What the run is at, for example a library and folder relative to its root.
+
+    JobWindow:
+      type: object
+      description: A time window in minutes of the server's day; `endMinute` is exclusive and may lie before `startMinute` (across midnight).
+      required: [startMinute, endMinute]
+      properties:
+        startMinute:
+          type: integer
+          minimum: 0
+          maximum: 1439
+        endMinute:
+          type: integer
+          minimum: 0
+          maximum: 1439
+
+    JobSchedule:
+      type: object
+      required: [everySeconds, nextRunAt, enabled, timeZone, limits]
+      properties:
+        everySeconds:
+          type: integer
+          minimum: 300
+        nextRunAt:
+          type: string
+          format: date-time
+        lastFiredAt:
+          type: string
+          format: date-time
+        enabled:
+          type: boolean
+        window:
+          $ref: "#/components/schemas/JobWindow"
+        timeZone:
+          type: string
+          description: The server's time zone of the window, for example `Europe/Zurich`.
+          examples: ["Europe/Zurich"]
+        limits:
+          type: object
+          required: [minEverySeconds, maxEverySeconds]
+          properties:
+            minEverySeconds:
+              type: integer
+              minimum: 1
+            maxEverySeconds:
+              type: integer
+              minimum: 1
+
+    JobScheduleUpdate:
+      type: object
+      description: Only the fields sent change; `clearWindow` removes the window (a JSON null would be indistinguishable from an absent field for the generated clients).
+      properties:
+        everySeconds:
+          type: integer
+          minimum: 1
+        window:
+          $ref: "#/components/schemas/JobWindow"
+        clearWindow:
+          type: boolean
+        enabled:
+          type: boolean
+
+    JobTypeInfo:
+      type: object
+      required: [type, group, trigger, pool, paused, stopping, runnable, counts, running, known]
+      properties:
+        type:
+          $ref: "#/components/schemas/JobTypeName"
+        group:
+          type: string
+          enum: [library, metadata, delivery, system]
+        trigger:
+          type: string
+          enum: [schedule, event, manual]
+        pool:
+          type: string
+          enum: [general, download, notify]
+        paused:
+          type: boolean
+        pausedAt:
+          type: string
+          format: date-time
+        stopping:
+          type: boolean
+          description: Paused, and a run of the type is still coming to a halt.
+        runnable:
+          type: boolean
+          description: Whether `runJobType` is offered (schedule and manual types).
+        schedule:
+          $ref: "#/components/schemas/JobSchedule"
+        counts:
+          type: object
+          required: [queued, planned, running, failed]
+          properties:
+            queued:
+              type: integer
+              minimum: 0
+            planned:
+              type: integer
+              minimum: 0
+              description: Waiting runs whose start lies in the future (backoff, debounce, a waiting download).
+            running:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
+        running:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/JobRun"
+        lastRun:
+          $ref: "#/components/schemas/JobRun"
+        medianDurationSeconds:
+          type: integer
+          minimum: 0
+          description: Median of the newest 50 finished runs that did work; absent below five runs.
+        queuedEstimateSeconds:
+          type: integer
+          minimum: 0
+          description: Estimated wait until the next waiting run of the type starts, cumulated by priority over the pool.
+        known:
+          type: boolean
+          description: False for a type in the database that no worker of this server knows (after a downgrade).
+
+    JobPool:
+      type: object
+      required: [pool, workers]
+      properties:
+        pool:
+          type: string
+          enum: [general, download, notify]
+        workers:
+          type: integer
+          minimum: 0
+        backlogSeconds:
+          type: integer
+          minimum: 0
+          description: Estimated work waiting in the pool, divided by its workers; absent without any median.
+
+    JobOverview:
+      type: object
+      required: [pools, paused, types]
+      properties:
+        pools:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobPool"
+        paused:
+          type: integer
+          minimum: 0
+        types:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobTypeInfo"
+
+    JobRunPage:
+      type: object
+      required: [total, runs]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        runs:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/JobRun"
+
+    JobCancelResult:
+      type: object
+      required: [cancelled]
+      properties:
+        cancelled:
+          type: integer
+          minimum: 0
 
     StorageInfo:
       type: object

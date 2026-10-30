@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -86,6 +87,11 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 	}
 	if d.Jobs.Queued, d.Jobs.Running, d.Jobs.Failed, err = s.ops.jobs.Stats(ctx); err != nil {
 		return model.Dashboard{}, err
+	}
+	if n, err := s.sys.CountPausedJobTypes(ctx); err != nil {
+		return model.Dashboard{}, fmt.Errorf("count paused job types: %w", err)
+	} else {
+		d.Jobs.Paused = int(n)
 	}
 	failed, err := s.ops.jobs.ListFailed(ctx, recentFailedLimit)
 	if err != nil {
@@ -232,7 +238,13 @@ func (s *Service) CancelJob(ctx context.Context, id int64) error {
 	if s.ops.jobs == nil {
 		return ErrNotConfigured
 	}
-	ok, err := s.ops.jobs.Cancel(ctx, id)
+	var ok bool
+	var err error
+	if s.jobctl != nil {
+		ok, err = s.jobctl.reg.CancelJob(ctx, id) // through the cancel hook of the type (concept 09, 6.3)
+	} else {
+		ok, err = s.ops.jobs.Cancel(ctx, id)
+	}
 	if err != nil {
 		return err
 	}
