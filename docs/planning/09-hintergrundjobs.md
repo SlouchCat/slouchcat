@@ -1,12 +1,14 @@
 # Konzept: Hintergrundjobs – eigene Verwaltungsseite mit Start, Pause und Abbruch
 
-- **Status: Entwurf, Fassung 2 (30. Oktober 2026), zur Freigabe durch Marco.** Nichts davon ist
-  umgesetzt. Der OMC-Kritiker hat Fassung 1 geprüft (0 Blocker, 8 Major, 16 Minor; Abschnitt
-  13); Fassung 2 arbeitet alle ein. Die Fragen an Marco stehen in Abschnitt 11; die Umsetzung
-  beginnt erst nach seiner Freigabe mit Schritt 0 aus Abschnitt 10. Ein klickbarer Prototyp der
+- **Status: Fassung 3 (30. Oktober 2026), Fragen beantwortet, zur Freigabe durch Marco (Merge
+  von PR #54).** Nichts davon ist umgesetzt. Der OMC-Kritiker hat Fassung 1 geprüft (0 Blocker,
+  8 Major, 16 Minor; Abschnitt 13); Fassung 2 arbeitet alle ein. Marco hat am 30. Oktober 2026
+  alle Fragen beantwortet (Abschnitt 11, 13.2); zwei Antworten weichen von der Empfehlung ab und
+  sind eingearbeitet: **Zeitpläne einstellbar** (F-4: Takt, Zeitfenster, Ein/Aus) und **Verlauf
+  30 Tage** (F-8). Die Umsetzung beginnt erst nach seiner Freigabe mit Schritt 0 aus Abschnitt 10. Ein klickbarer Prototyp der
   Seite liegt unter `docs/planning/mockups/09-hintergrundjobs-prototyp.html` (Abschnitt 7.1).
-- **Datum: 29. Oktober 2026, Fassung 2 vom 30. Oktober 2026; Nachtrag vom 30. Oktober 2026**
-  (Marcos Wunsch: Pausieren auch in der Liste «Läuft gerade» — 2.2, 6.3, 7, F-10, 13.1).
+- **Datum: 29. Oktober 2026; Fassung 2 und 3 vom 30. Oktober 2026** (Nachträge 13.1: Pausieren
+  auch in «Läuft gerade»; 13.2: Marcos Antworten, F-4 und F-8 eingearbeitet).
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`4049724`** («Merge pull request #45»,
   Bibliotheken), Vertragsfassung **1.3.0** (`api/openapi.yaml:4`), letzte Migration
   **`00025_items_filled_providers.sql`**, letzte ADR **`0015-bibliotheken-ordner-scraper.md`**.
@@ -28,9 +30,10 @@
 > **Abgrenzung.** Hier geht es um das **Sehen und Steuern** der Hintergrundarbeit: welche Jobs es
 > gibt, was gerade läuft, wie lange schon, wie lange noch, wann der letzte Lauf fertig wurde, wann
 > der nächste kommt, und die Knöpfe Start, Pause, Abbruch. **Nicht** hierher gehören: neue
-> **fachliche** Jobarten (der nächtliche `rating.verify` aus Plan 3.2 bleibt draussen, 3), einstellbare
-> Zeitpläne (F-4), eine einstellbare Arbeiterzahl in der Oberfläche (F-9), Erinnerungen an eine
-> stehende Pause (Idee), Jobs je Zuschauer, eine Historie über Wochen oder Diagramme. Die zwei
+> **fachliche** Jobarten (der nächtliche `rating.verify` aus Plan 3.2 bleibt draussen, 3),
+> Kalender-Zeitpläne («jeden Montag um 3», cron; einstellbar sind Takt, Zeitfenster und Ein/Aus,
+> F-4), eine einstellbare Arbeiterzahl in der Oberfläche (F-9), Erinnerungen an eine stehende
+> Pause (Idee), Jobs je Zuschauer, Diagramme oder Auswertungen über den Verlauf. Die zwei
 > Jobarten, die dieses Papier selbst einführt (`jobs.prune`, `podcast.poll`), sind **Haushalt der
 > Queue**: Aufräumen und ein sichtbar gemachter Takt, kein neues Verhalten. Ein Zuschauer sieht
 > von alledem nichts.
@@ -196,13 +199,21 @@ derselben Schranke wie das Dashboard (Administrator im Hauptprofil). Von oben na
    - **Wartend** — Zahl und Schätzung («236 · dran in ca. 2 h 40 min»), kumuliert nach Priorität
      über den Pool (6.2); daneben «geplant 3», falls vorhanden;
    - **Letzter Lauf** — «vor 12 min · 3 s · OK» oder «vor 2 h · 48 min · Fehler: …»;
-   - **Nächster Lauf** — «in 4 h 12 min» bei Zeitplan, «bei Bedarf» bei Ereignis, «pausiert»;
+   - **Nächster Lauf** — «in 4 h 12 min · alle 6 h» bei Zeitplan, mit Zeitfenster «in 9 h 48 min ·
+     täglich · 03:00–05:00», «aus» bei ausgeschaltetem Zeitplan, «bei Bedarf» bei Ereignis,
+     «pausiert»;
    - **Ausgelöst durch** — eine Zeile Text aus der Sprachdatei («Zeitplan alle 6 h und Start des
      Servers», «vom Scan, je neue Datei», «jedes Ereignis mit Kanal»).
 
    Und die Knöpfe: **Jetzt ausführen** (nur bei Zeitplan- und Hand-Jobs, F-3), **Pausieren** /
    **Fortsetzen**, **Wartende abbrechen (236)** bzw. **Alle Läufe abbrechen** mit Bestätigung
-   (F-2). Ein Klick auf «Läufe …» öffnet die **Läufe** des Jobs: Reiter *Laufend · Wartend ·
+   (F-2), bei Zeitplan-Jobs **Zeitplan …** (F-4): ein Dialog «Zeitplan von X» mit **Ein/Aus**,
+   dem **Takt** als Auswahl (5 min, 15 min, 30 min, 1 h, 2 h, 6 h, 12 h, täglich, wöchentlich; die
+   Grenzen kommen vom Server, 5.3) und einem **Zeitfenster** («nur zwischen 03:00 und 05:00»,
+   über Mitternacht erlaubt, Zeitzone des Servers); «Speichern» schreibt den Zeitplan, die Karte
+   zeigt danach den neuen nächsten Lauf. Bei `trakt.refresh` steht im Dialog, dass Takt und
+   Ein/Aus dieselbe Einstellung wie auf der Seite Spotlight sind (6.4). Ein Klick auf «Läufe …»
+   öffnet die **Läufe** des Jobs: Reiter *Laufend · Wartend ·
    Geplant · Fehlgeschlagen · Erledigt*, je Zeile Gegenstand, Priorität, Start, Dauer, Versuche,
    Fehler, **Erneut** bei fehlgeschlagenen, **Abbrechen** bei wartenden und laufenden. Der Reiter
    *Wartend* ist in **Claim-Reihenfolge** sortiert (Priorität, dann Alter), damit die erste
@@ -220,7 +231,8 @@ Regel 12).
 
 1. **Ein Scheduler** im Paket `jobs` löst die fünf Ticker-Schleifen ab und bedient
    `job_schedules`; er kennt zu jedem Zeitplan-Job den nächsten Lauf und führt ihn auf Knopfdruck
-   sofort aus (4.3, 6.1).
+   sofort aus (4.3, 6.1). **Takt, Zeitfenster und Ein/Aus** je Zeitplan-Job sind auf der Seite
+   einstellbar und liegen in der Tabelle, nicht mehr nur im Code (F-4).
 2. **Fortschritt je Lauf**: ein Handler meldet `done`, `total` und eine Notiz; der Arbeiter schreibt
    sie gedrosselt in die Zeile (4.1, 6.2).
 3. **Start- und Endzeit je Lauf** und ein **Verlauf** mit Aufräumjob, aus dem die Median-Dauer je
@@ -229,7 +241,7 @@ Regel 12).
    halten **sofort** an und gehen ohne verbrauchten Versuch in die Queue zurück (4.2, 6.3).
 5. **Abbruch mit Fachlogik**: jede Jobart kann einen Abbruch-Haken registrieren, damit Scan und
    Download ihren Fachzustand richtig setzen (6.1, 6.3).
-6. **Sechs neue Operationen** im Vertrag, alle `x-visibility: admin`, nicht brechend (5).
+6. **Sieben neue Operationen** im Vertrag, alle `x-visibility: admin`, nicht brechend (5).
 
 ### 2.4 Was sich für den Zuschauer ändert
 
@@ -302,20 +314,30 @@ nach Vorlage, mit `foreign_key_check`):
 ```sql
 CREATE TABLE job_schedules (
     type           TEXT    PRIMARY KEY REFERENCES job_types(type),
-    every_ms       INTEGER NOT NULL CHECK (every_ms >= 60000),
+    every_ms       INTEGER NOT NULL CHECK (every_ms BETWEEN 300000 AND 604800000), -- 5 min .. 7 d
     start_delay_ms INTEGER,          -- NULL = beim Start nicht feuern; 0 = sofort; 60000 = nach 60 s
     enabled        INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+    window_start   INTEGER,          -- Minuten seit Mitternacht, Zeitzone des Servers (TZ); NULL = kein Fenster
+    window_end     INTEGER,          -- exklusiv; kleiner als window_start = über Mitternacht
     next_run_at    INTEGER NOT NULL,
     last_fired_at  INTEGER,
-    updated_at     INTEGER NOT NULL
+    updated_at     INTEGER NOT NULL,
+    CHECK ((window_start IS NULL) = (window_end IS NULL)),
+    CHECK (window_start IS NULL OR (window_start BETWEEN 0 AND 1439 AND window_end BETWEEN 0 AND 1439
+           AND window_start <> window_end))
 );
 ```
 
 `cron_expr` fällt weg (3). Die Zeilen schreibt **nicht** die Migration, sondern die Registry beim
-Start (`EnsureSchedule`): Intervall und `start_delay_ms` sind Code-Konstanten
-(`fullScanInterval`, `sweepInterval`, …) oder Einstellungen (`spotlight_config.interval_hours`,
-`update_check.enabled`); ändert der Administrator eine Einstellung, schreibt der betroffene
-Dienst die Zeile um (`UpdateSchedule`, Regeln in 6.1). Beim Start gilt: ist `start_delay_ms`
+Start (`EnsureSchedule`), und zwar **nur, wenn sie fehlen**: Intervall und `start_delay_ms` aus
+dem Code (`fullScanInterval`, `sweepInterval`, …) sind seit F-4 **Vorgaben für die erste Zeile**,
+danach ist die Tabelle die Quelle, und `updateJobSchedule` (5.2) schreibt Takt, Zeitfenster und
+Ein/Aus. Zwei Jobarten haben ihre Einstellung schon an anderer Stelle: `trakt.refresh`
+(`spotlight_config.interval_hours`, `.enabled`, Seite Spotlight) und `update.check`
+(`update_check.enabled`, Seite Update). Dort gilt **ein Wert, zwei Türen**: `updateJobSchedule`
+schreibt für diese zwei in die bestehende Einstellung (mit deren Prüfung, Trakt 6 bis 48 h), und
+die bestehende Seite schreibt wie heute, beide über `UpdateSchedule` in die Zeile (6.1); das
+Zeitfenster liegt für alle nur in `job_schedules`. Beim Start gilt: ist `start_delay_ms`
 gesetzt, feuert der Zeitplan nach dieser Verzögerung (das ersetzt «sofort beim Start» und «60 s
 nach dem Start»); sonst bleibt `next_run_at` erhalten, wenn die Zeile schon da ist, damit ein
 Neustart den Takt nicht verschiebt. Legt `EnsureSchedule` eine Zeile **neu** an (erster Start
@@ -342,7 +364,7 @@ nicht je Jobart.
 
 Heute bleibt jede `done`-Zeile für immer. Für die Median-Dauer braucht der Server einen Verlauf,
 aber einen **begrenzten**: `jobs.prune` läuft täglich und löscht `done`- und `cancelled`-Läufe,
-die älter als **7 Tage** sind, behält aber je Jobart die **neuesten 50** (F-8). `failed` bleibt
+die älter als **30 Tage** sind, behält aber je Jobart die **neuesten 50** (F-8). `failed` bleibt
 wie heute liegen, bis der Administrator «Erneut» oder «Abbrechen» drückt — ein Fehler, den
 niemand gesehen hat, darf nicht von selbst verschwinden. `jobs.prune` ist selbst ein Job der
 Gruppe *System* und erscheint auf der Seite; sein erster Lauf nach der Migration räumt den Bestand
@@ -386,6 +408,7 @@ unverändert. Die Jobart bekommt eine eigene Ressource `/admin/job-types/{type}`
 | `runJobType` | `POST /admin/job-types/{type}/run` | 202 `JobRun[]` | «Jetzt ausführen»: ruft die `Run`-Funktion der Registry mit Priorität 7 und gibt die eingereihten Läufe zurück (ein Scan je Bibliothek). 409 `job_type_not_runnable` bei Ereignis-Jobs, 409 `job_type_paused` bei pausierten; **Fehler der Dienste gehen durch**: 422 `provider_not_configured` (Trakt ohne Schlüssel), 422 `update_check_disabled`, 429 `refresh_too_soon` (Trakt, einmal pro Minute) — dieselben Codes wie an den heutigen Knöpfen |
 | `pauseJobType` | `POST /admin/job-types/{type}/pause` | 200 `JobTypeInfo` | setzt `paused_at`, hält laufende Läufe an; idempotent |
 | `resumeJobType` | `POST /admin/job-types/{type}/resume` | 200 `JobTypeInfo` | löscht `paused_at`; idempotent |
+| `updateJobSchedule` | `PATCH /admin/job-types/{type}/schedule` | 200 `JobTypeInfo` | «Zeitplan …» (F-4): Körper `JobScheduleUpdate { everySeconds?, window?: { startMinute, endMinute } \| null, enabled? }`, nur gesetzte Felder ändern sich; prüft die Grenzen aus `schedule.limits` (sonst 422 `validation_error`), bei `trakt.refresh` und `update.check` schreibt er in deren bestehende Einstellung (4.3); 409 `job_type_not_scheduled` bei Ereignis- und Hand-Jobs; richtet `next_run_at` neu aus (6.1) |
 | `cancelJobRuns` | `DELETE /admin/job-types/{type}/runs?scope=queued\|all` | 200 `{ cancelled: n }` | «Wartende abbrechen» (`queued`, Vorgabe) oder «Alle Läufe abbrechen» (`all`: wartende und laufende, F-2); läuft über den Abbruch-Haken der Jobart (6.3) |
 | `retryJob`, `cancelJob` | wie heute | wie heute | Lauf-Ebene; `cancelJob` läuft neu ebenfalls über den Abbruch-Haken |
 
@@ -407,14 +430,17 @@ nennt einen Titel nur als Text im Gegenstand und als Id, wie `JobSummary.lastErr
 - `JobTypeInfo`: `type`, `group` (`library | metadata | delivery | system`), `trigger`
   (`schedule | event | manual`), `pool` (`general | download | notify`), `paused`, `pausedAt?`,
   `stopping` (Läufe halten gerade an), `runnable` (bool), `schedule? { everySeconds, nextRunAt,
-  lastFiredAt, enabled }`, `counts { queued, planned, running, failed }`, `running: JobRun[]`
+  lastFiredAt, enabled, window?: { startMinute, endMinute }, timeZone, limits: { minEverySeconds,
+  maxEverySeconds } }` (`timeZone` ist die des Servers, z. B. `Europe/Zurich`, damit der Dialog
+  sagt, in welcher Zeit das Fenster gilt; `limits` sind je Jobart, Trakt 6 bis 48 h, sonst 5 min
+  bis 7 d — der Client baut seine Auswahl daraus, Regel 12), `counts { queued, planned, running, failed }`, `running: JobRun[]`
   (≤ 10), `lastRun?: JobRun`, `medianDurationSeconds?`, `queuedEstimateSeconds?`, `known`
   (false für eine Zeile in `job_types` ohne registrierte Jobart).
 - `JobOverview`: `pools: [{ pool, workers, backlogSeconds? }]`, `paused` (Zahl), `types:
   JobTypeInfo[]`.
 - `JobRunPage`: `total`, `runs: JobRun[]`.
 - `JobCounts` (Dashboard) bekommt optional `paused` (Zahl) — additiv.
-- Problemcodes neu: `job_type_not_runnable`, `job_type_paused`; die bestehenden
+- Problemcodes neu: `job_type_not_runnable`, `job_type_paused`, `job_type_not_scheduled`; die bestehenden
   `provider_not_configured`, `update_check_disabled`, `refresh_too_soon` werden an `runJobType`
   wiederverwendet.
 
@@ -471,9 +497,18 @@ Tick alle 60 s: `SELECT … FROM job_schedules WHERE enabled = 1 AND next_run_at
 
 - **Pausierte Jobart:** der Scheduler ruft `Run` **nicht**, schreibt aber `next_run_at` fort
   (die Pause verschiebt den Takt nicht, sie lässt Läufe aus); «Nächster Lauf» zeigt «pausiert».
-- **`UpdateSchedule(type, every, enabled)`** setzt `next_run_at = last_fired_at + every`, ohne
-  `last_fired_at` auf `now + every`, in beiden Fällen mit Untergrenze «jetzt». Wer den Spotlight-
-  Takt von 24 h auf 6 h senkt, bekommt den nächsten Lauf also früher, nicht erst nach dem alten.
+- **`UpdateSchedule(type, every, window, enabled)`** setzt `next_run_at = last_fired_at + every`,
+  ohne `last_fired_at` auf `now + every`, in beiden Fällen mit Untergrenze «jetzt», danach
+  Ausrichtung am Fenster (nächste Regel). Wer den Spotlight-Takt von 24 h auf 6 h senkt, bekommt
+  den nächsten Lauf also früher, nicht erst nach dem alten. Der Scheduler liest die Zeile bei
+  jedem Tick, darum wirkt eine Änderung spätestens nach 60 s.
+- **Zeitfenster** (F-4): nach jedem Feuern und nach jedem `UpdateSchedule` wird `next_run_at`
+  **am Fenster ausgerichtet**: liegt es ausserhalb (`window_start`, `window_end` als Minuten des
+  Tages in `time.Local`, also der `TZ` des Containers; `end < start` heisst über Mitternacht),
+  rückt es auf den nächsten Fensterbeginn. Ein Takt kürzer als das Fenster feuert innerhalb des
+  Fensters im Takt (1 h in 02:00–05:00: dreimal), ein längerer einmal je Fenster. «Jetzt
+  ausführen» ignoriert das Fenster, die Pause bleibt davon unberührt. Sommerzeitwechsel
+  verschieben das Fenster um eine Stunde; das ist hingenommen.
 - **Zeile ohne registrierte Jobart** (`Run == nil`, nach einem Downgrade): bleibt stehen, wird
   übersprungen, erscheint als «unbekannt» mit `known = false`; `jobs.prune` löscht sie nicht.
 
@@ -481,7 +516,8 @@ Verpasste Läufe (Server war aus) holen **nicht** nach: ein Takt, nicht ein Kale
 Verhalten der heutigen Poller. Die fünf Ticker-Schleifen (1.1) fallen; `library.Start` behält nur
 die Dateiwächter. Tests mit injizierter Uhr wie `queue_test.go` heute: «feuert nach
 `StartDelay`», «feuert nach `every`», «feuert nicht bei `enabled = 0`», «ändert `next_run_at`
-nicht bei `runJobType`» (F-5), plus die drei Regeln oben.
+nicht bei `runJobType`» (F-5), «Fenster über Mitternacht», «Fensteränderung verschiebt
+`next_run_at`», «Takt kürzer als Fenster feuert mehrfach», plus die Regeln oben.
 
 ### 6.2 Fortschritt und Schätzung
 
@@ -600,6 +636,7 @@ der laufenden Läufe gesondert.
 | «Scannen» je Bibliothek | bleibt (ein Lauf); «Jetzt ausführen» bei `scan.library` reiht **alle** Bibliotheken ein |
 | «Jetzt abrufen» (Spotlight), «Jetzt prüfen» (Update), «Aktualisieren» (Podcasts) | bleiben unverändert; `runJobType` ruft dieselben Dienstmethoden (6.3) |
 | `getDashboard.jobs` | bleibt, plus `paused` |
+| Spotlight-Takt `intervalHours` und `enabled` (Seite Spotlight), `update_check.enabled` (Seite Update) | bleiben; **ein Wert, zwei Türen**: die Jobkarte schreibt in dieselbe Einstellung (4.3) |
 | `notify.JobFailed` (Meldung nach letztem Versuch) | bleibt; eine Pause löst sie nie aus (6.3) |
 | `offline.Run` (Abgleich alle 10 min) | bleibt; lässt Downloads mit `cancelled_by_admin` liegen |
 
@@ -617,6 +654,7 @@ blendet Knöpfe aus, die der Server mit 409 beantworten würde (`runnable`, `pau
 | **Dashboard** `AdminHomePage.tsx:507` | Kachel bekommt den Link «Alle Jobs» und, bei `paused > 0`, eine vierte `StatTile` «Pausiert» in `warning` |
 | **Abfragen** `features/admin/queries.ts` | `jobTypesQuery` (`refetchInterval: JOBS_POLL_MS = 5000`, aus, solange ein Bestätigungsdialog offen ist, wie `AdminHomePage.tsx:343`), `jobRunsQuery(type, state)`; Mutationen `runJobType`, `pauseJobType`, `resumeJobType`, `cancelJobRuns`, dazu die bestehenden `retryJob`, `cancelJob` |
 | **Laufende Dauer** | `useElapsed(startedAt)` zählt sekündlich hoch; mit `prefers-reduced-motion` keine Animation des unbestimmten Balkens |
+| **Dialog «Zeitplan von X»** | `JobScheduleDialog.tsx` neben `JobsPage.tsx`: `Switch` Ein/Aus, `Select` Takt (Optionen aus `schedule.limits`, Werte in Sekunden, Beschriftung aus der Sprachdatei), `Switch` Zeitfenster mit zwei `<input type="time">` (Minuten des Tages, Zeitzone aus `schedule.timeZone` als Hinweis), Hinweiszeile bei `trakt.refresh`; Mutation `updateJobSchedule`; 422 zeigt die Feldfehler, wie das Spotlight-Formular (`SpotlightPage.tsx`) |
 | **Zeile «Läuft gerade»** | Knöpfe **Pausieren** (ruft `pauseJobType(run.type)`, beschriftet «Lauf … pausieren» mit Jobname, deaktiviert, solange `stopping`) und **Abbrechen** (`cancelJob(run.id)`); Komponententest `JobsPage.test.tsx` (Vitest, wie `AdminHomePage.test.tsx`) mit zwei laufenden Läufen derselben Jobart: ein Klick auf Pausieren in der ersten Zeile ruft die Mutation **einmal** mit der Jobart, beide Zeilen zeigen «wird angehalten» |
 | **Bibliotheken, Spotlight, Integrationen, Podcasts** | **unverändert** |
 
@@ -626,7 +664,9 @@ Tab, «Jetzt ausführen» bei `library.sweep` per Enter (Rückmeldung «Lauf ein
 `expect.poll` auf den Endzustand: die Zeile erscheint im Reiter *Erledigt*), «Pausieren» per Enter
 und Zustandschip «Pausiert», «Fortsetzen», «Wartende abbrechen» öffnet die Bestätigung (Tab in
 die Bestätigung, Escape schliesst, Fokus zurück auf dem Knopf), Dialog «Läufe von X» (Reiter per
-Pfeiltaste, Escape, Zurück, keine Fokusfalle), sichtbarer Fokus überall. Der Test nutzt
+Pfeiltaste, Escape, Zurück, keine Fokusfalle), Dialog «Zeitplan von X» bei `library.sweep` (Tab
+durch Ein/Aus, Takt, Zeitfenster, Takt per Pfeiltaste auf 2 h, Enter speichert, die Karte zeigt
+«alle 2 h»; `afterEach` stellt 1 h ohne Fenster wieder her), sichtbarer Fokus überall. Der Test nutzt
 `library.sweep` und `jobs.prune`, weil beide am e2e-Server in Sekunden enden und nichts Fremdes
 anstossen; den Knopf «Pausieren» in der Zeile «Läuft gerade» erreicht der e2e-Test darum nicht
 (kein Lauf lebt dort lange genug), ihn deckt der Komponententest aus der Tabelle oben ab; weil
@@ -659,10 +699,11 @@ Restzeit, zwei Segmenterkennungen mit Median-Schätzung, eine Zustellung ohne), 
 Jobkarten in vier Gruppen, der Dialog «Läufe von X» mit Reitern und die Knöpfe mit Wirkung
 (Pausieren auf der Karte **und** in der Zeile «Läuft gerade» hält die Läufe des Jobs an und zeigt
 den Hinweis im Kopf, Jetzt ausführen reiht Läufe ein, Wartende abbrechen und Alle Läufe
-abbrechen fragen nach). Ein Knopf «Handy-Ansicht» schaltet auf 390 px. Farben und Abstände sind
+abbrechen fragen nach, Zeitplan … öffnet den Dialog mit Ein/Aus, Takt und Zeitfenster und
+schreibt den nächsten Lauf auf die Karte). Ein Knopf «Handy-Ansicht» schaltet auf 390 px. Farben und Abstände sind
 die Tokens aus `packages/design-tokens/tokens/`. Der Prototyp ist **kein** Code für `web/src`
-und wird nicht gebaut oder getestet. Stand: dritte Fassung vom 30. Oktober 2026 (Pausieren in
-der Laufzeile). Dieselbe Fassung ist als privates Artefakt unter
+und wird nicht gebaut oder getestet. Stand: vierte Fassung vom 30. Oktober 2026 (Pausieren in
+der Laufzeile, Zeitplan-Dialog). Dieselbe Fassung ist als privates Artefakt unter
 `https://claude.ai/artifact/E9nZyNurBZL7gGBEXYgPbK` erreichbar.
 
 ---
@@ -672,7 +713,7 @@ der Laufzeile). Dieselbe Fassung ist als privates Artefakt unter
 ### 8.1 Was mit dem Bestand geschieht
 
 - Alte `jobs`-Zeilen haben `started_at = NULL`: sie zeigen keine Dauer und zählen nicht zum
-  Median; der erste `jobs.prune` räumt sie nach 7 Tagen weg (die neuesten 50 je Jobart bleiben,
+  Median; der erste `jobs.prune` räumt sie nach 30 Tagen weg (die neuesten 50 je Jobart bleiben,
   ohne Dauer).
 - Die Zeitpläne beginnen beim ersten Start nach der Migration aus der bisherigen Historie
   (4.3): `update.check` und `trakt.refresh` aus `checked_at` bzw. `last_attempt`, die drei
@@ -733,6 +774,16 @@ wieder losscannt, wäre schlimmer als einer, der steht, denn die Pause hat einen
 Erinnerung als Mitteilung nach 24 h wäre eine neue Mitteilungsart und ein weiterer Zeitgeber;
 sie ist als Idee notiert, nicht Teil dieses Papiers (Regel 11).
 
+### 9.5 Zeitplan-Eingaben prüft der Server
+
+Takt und Zeitfenster kommen aus einem Formular, also gelten die Grenzen im Server, nicht im
+Client (Regel 12): `everySeconds` innerhalb `limits`, Minuten des Tages 0 bis 1439, Anfang
+ungleich Ende, beides oder nichts; alles andere 422 mit Feldname. Ein Takt unter fünf Minuten
+ist auch für den Administrator tabu (`CHECK` in 4.3), sonst reiht ein Tippfehler alle 10 s einen
+Bibliotheksscan ein. Die Zeitzone ist die des Servers (`TZ` im Container, auf CT 190
+`Europe/Zurich`); der Dialog nennt sie, damit ein Fenster «03:00–05:00» nicht in UTC gelesen
+wird.
+
 ---
 
 ## 10. Schnitt in Schritte
@@ -742,7 +793,7 @@ Jeder Schritt ein Commit, `task ci` grün, DoD-Belege mit Befehl und Ausgabe. Zw
 
 ### Schritt 0 — Entscheide und Papiere
 
-Frage 15 (F-1 bis F-9) ins Entscheidungsprotokoll; ADR 0017 «Scheduler, Fortschritt, Pause und
+Frage 15 (F-1 bis F-10, O-1, O-2) ins Entscheidungsprotokoll; ADR 0017 «Scheduler, Fortschritt, Pause und
 Abbruch-Haken in der Job-Queue» als Teilnachfolger von ADR 0002 (Abschnitte «Zeitpläne» und
 «Abbruch»); Hinweis in ADR 0002; dieses Papier auf den dann aktuellen `main` verankern (Zeilen,
 Nummern, `metadata.vote_backfill` nach dem Stand von 08). `git diff --stat docs/spec/` leer.
@@ -751,7 +802,8 @@ Nummern, `metadata.vote_backfill` nach dem Stand von 08). `git diff --stat docs/
 
 Migration 00027 (4.5), `jobs.Type`, `jobs.Registry`, Scheduler mit Uhr-Mock-Tests, die fünf
 Ticker-Schleifen raus, `RegisterJobs` → `RegisterTypes` in fünf Paketen, `job_types` und
-`job_schedules` beim Start gefüllt, `UpdateSchedule` aus Spotlight- und Update-Einstellungen,
+`job_schedules` beim Start gefüllt (nur fehlende Zeilen), `UpdateSchedule` mit Fenster-Ausrichtung
+aus Spotlight- und Update-Einstellungen,
 `podcast.poll` als Zeitplan-Jobart mit `QueueDuePodcasts` als `Run`, Prioritätsparameter in
 `enqueueScan` und Geschwistern. Kein Vertragsbruch, keine Oberfläche. DoD: `task ci`;
 `go test ./internal/jobs/ -run Scheduler`; auf dem Entwicklungsrechner nach `task dev` zeigt
@@ -773,21 +825,23 @@ wird nicht wieder eingereiht», «Run hebt einen wartenden Lauf an».
 
 ### Schritt 3 — Vertrag 1.5.0 und Server-Handler
 
-`api/openapi.yaml` (5), `task gen`, die sechs Operationen im Paket `admin` (Queue-Methoden
-`ListTypes`, `ListRuns`, `RunType`, `Pause`, `Resume`, `CancelRuns`), Gegenstand je Jobart,
+`api/openapi.yaml` (5), `task gen`, die sieben Operationen im Paket `admin` (Queue-Methoden
+`ListTypes`, `ListRuns`, `RunType`, `Pause`, `Resume`, `CancelRuns`, `UpdateSchedule` mit
+Durchschreiben in `spotlight_config` und `update_check`), Gegenstand je Jobart,
 Schätzungen (6.2), Vertragstest, Fixtures (`web/src/test/fixtures.ts`, `web/e2e/fixtures.ts`).
 Web-Minimum: der api-client kompiliert, keine neue Seite.
 
 ### Schritt 4 — Oberfläche
 
-`JobsPage.tsx`, Navigation, Dashboard-Link und -Kachel, Sprachdateien, `admin-jobs.spec.ts` mit
-`afterEach`, `NAV_PAGES`. DoD: `task ci`; `pnpm -C web test locales`; Playwright-Lauf der zwei
+`JobsPage.tsx`, `JobScheduleDialog.tsx`, Navigation, Dashboard-Link und -Kachel, Sprachdateien,
+`admin-jobs.spec.ts` mit `afterEach`, `NAV_PAGES`. DoD: `task ci`; `pnpm -C web test locales`; Playwright-Lauf der zwei
 Specs mit Ausgabe.
 
 ### Schritt 5 — Abnahme, Messung, Doku
 
 Image bauen, CT 190 umstellen (10.1), Marco nimmt am Handy ab: Scan starten, pausieren,
-fortsetzen, Wartende abbrechen, Restzeit eines NAS-Scans beobachten. Messung nach
+fortsetzen, Wartende abbrechen, Restzeit eines NAS-Scans beobachten, Zeitplan des Scans auf
+«täglich, 03:00–05:00» stellen und am Morgen den Lauf im Verlauf sehen. Messung nach
 `docs/perf/hintergrundjobs.md`: Kosten von `listJobTypes` bei 50 000 Zeilen in `jobs` (vor dem
 ersten `prune`) und danach, Ziel < 50 ms p95 auf CT 190; Vergleich Schätzung gegen Wirklichkeit
 an einem NAS-Scan (12.3). Ein Tag Beobachtung der Zeitpläne vor dem Merge (12.1).
@@ -811,24 +865,25 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist.
 
 | Nr. | Frist | Thema | Empfehlung | Antwort | Datum |
 |-----|-------|-------|------------|---------|-------|
-| **F-1** | vor Schritt 2 | **Was heisst Pause für einen laufenden Lauf?** (a) Nur keine neuen Starts, Laufendes läuft zu Ende — ein NAS-Scan also noch Stunden; (b) Laufendes hält sofort an und geht ohne verbrauchten Versuch in die Queue zurück, beim Fortsetzen wird es wieder aufgenommen | **(b)**: sonst ist «Pause» bei genau dem Job eine Lüge, bei dem sie zählt (6.3) | | |
-| **F-2** | vor Schritt 3 | **Abbrechen je Job.** (a) Nur die Wartenden («Wartende abbrechen (236)»), laufende Läufe einzeln; (b) zusätzlich «Alle Läufe abbrechen» (wartende **und** laufende) mit Bestätigung, die die laufenden gesondert nennt; (c) auch Pause je einzelnem Lauf | **(b)**. Start und Pause bleiben je Jobart; (c) nicht: ein Lauf von zwei Sekunden hat keine Pause (2.1, F-10) | | |
-| **F-3** | vor Schritt 3 | **«Jetzt ausführen» auch für Ereignis-Jobs** (`metadata.match`, `image.fetch`, `probe.file`, …)? Dafür müsste jeder eine Bedeutung von «alle» bekommen («alle Titel ohne Bilder») | **Nein.** Das Nachholen gehört zur Seite Pflege (Befunde) und zum Scan; die Karte zeigt «bei Bedarf» und den Auslöser | | |
-| **F-4** | vor Schritt 1 | **Zeitpläne einstellbar** (alle 6 h → alle 12 h, nachts)? | **Nur anzeigen.** Spotlight-Takt bleibt an seiner Seite einstellbar; alles Weitere als Idee «Zeitpläne» notieren, mit `every_ms` ist der Boden gelegt | | |
-| **F-5** | vor Schritt 1 | **Verschiebt «Jetzt ausführen» den nächsten geplanten Lauf?** | **Nein.** Takt bleibt; wer um 14:00 von Hand scannt, bekommt den 6-h-Lauf trotzdem um 18:00 — vorhersagbar, idempotent, billig | | |
-| **F-6** | vor Schritt 2 | **Überlebt eine Pause den Neustart?** | **Ja** (Spalte, nicht Speicher), mit Warnkachel im Dashboard und Banner (9.4) | | |
-| **F-7** | vor Schritt 4 | **Wortwahl.** «Hintergrundjobs» als Seitentitel (wie die Kachel heute); «Job» für die Jobart, «Lauf» für die Zeile; Knöpfe «Jetzt ausführen», «Pausieren», «Fortsetzen», «Abbrechen», «Wartende abbrechen», «Alle Läufe abbrechen» | wie links | | |
-| **F-8** | vor Schritt 2 | **Verlauf:** erledigte Läufe 7 Tage, mindestens 50 je Jobart; fehlgeschlagene bleiben bis «Erneut» oder «Abbrechen» | wie links | | |
-| **F-9** | vor Schritt 4 | **Arbeiterzahl in der Oberfläche einstellbar?** Heute nur `SLOUCHCAT_WORKERS` in `deploy/.env` (auf CT 190 so gedrosselt); die Seite zeigt die Zahl je Pool | **Nein, nur anzeigen**, mit Hinweis «`SLOUCHCAT_WORKERS` in deploy/.env». Ein Regler im Browser müsste Arbeiter zur Laufzeit starten und stoppen — eigenes Thema, Idee | | |
-| **F-10** | vor Schritt 3 | **Pausieren in der Zeile «Läuft gerade»** (Marcos Wunsch vom 30. Oktober 2026). (a) Der Knopf pausiert den **Job** des Laufs: dieser Lauf hält an, weitere laufende Läufe derselben Jobart ebenfalls, kein neuer Start bis «Fortsetzen» — gleicher Knopf wie auf der Karte, kein neuer Endpunkt; (b) der Knopf hält nur **diesen Lauf** an und legt ihn beiseite (neuer Zustand `held` je Lauf, eigener Endpunkt `pauseJobRun`, eigener Reiter *Angehalten* im Dialog), andere Läufe und neue Starts der Jobart laufen weiter | **(a)**. Die zwei Jobarten, bei denen Pause zählt (`scan.library`, `download.prepare`), laufen je Gegenstand ohnehin nur einmal; (b) brächte einen sechsten Zustand (ADR 0002), eine dritte Stelle für «Fortsetzen» und die Frage, was mit einem beiseitegelegten Lauf nach Tagen geschieht | | |
+| **F-1** | vor Schritt 2 | **Was heisst Pause für einen laufenden Lauf?** (a) Nur keine neuen Starts, Laufendes läuft zu Ende — ein NAS-Scan also noch Stunden; (b) Laufendes hält sofort an und geht ohne verbrauchten Versuch in die Queue zurück, beim Fortsetzen wird es wieder aufgenommen | **(b)**: sonst ist «Pause» bei genau dem Job eine Lüge, bei dem sie zählt (6.3) | **(b)**, hält sofort an | 30. Oktober 2026 |
+| **F-2** | vor Schritt 3 | **Abbrechen je Job.** (a) Nur die Wartenden («Wartende abbrechen (236)»), laufende Läufe einzeln; (b) zusätzlich «Alle Läufe abbrechen» (wartende **und** laufende) mit Bestätigung, die die laufenden gesondert nennt; (c) auch Pause je einzelnem Lauf | **(b)**. Start und Pause bleiben je Jobart; (c) nicht: ein Lauf von zwei Sekunden hat keine Pause (2.1, F-10) | **(b)**, Wartende und Alle Läufe abbrechen | 30. Oktober 2026 |
+| **F-3** | vor Schritt 3 | **«Jetzt ausführen» auch für Ereignis-Jobs** (`metadata.match`, `image.fetch`, `probe.file`, …)? Dafür müsste jeder eine Bedeutung von «alle» bekommen («alle Titel ohne Bilder») | **Nein.** Das Nachholen gehört zur Seite Pflege (Befunde) und zum Scan; die Karte zeigt «bei Bedarf» und den Auslöser | **Nein** | 30. Oktober 2026 |
+| **F-4** | vor Schritt 1 | **Zeitpläne einstellbar** (alle 6 h → alle 12 h, nachts)? | **Nur anzeigen.** Spotlight-Takt bleibt an seiner Seite einstellbar; alles Weitere als Idee «Zeitpläne» notieren, mit `every_ms` ist der Boden gelegt | **Einstellbar: Takt, Zeitfenster, Ein/Aus** (Abweichung von der Empfehlung; eingearbeitet in Abgrenzung, 2.2, 2.3, 4.3, 5.2, 5.3, 6.1, 6.4, 7, 9.5, 10, 12.7) | 30. Oktober 2026 |
+| **F-5** | vor Schritt 1 | **Verschiebt «Jetzt ausführen» den nächsten geplanten Lauf?** | **Nein.** Takt bleibt; wer um 14:00 von Hand scannt, bekommt den 6-h-Lauf trotzdem um 18:00 — vorhersagbar, idempotent, billig | **Nein**, Takt bleibt | 30. Oktober 2026 |
+| **F-6** | vor Schritt 2 | **Überlebt eine Pause den Neustart?** | **Ja** (Spalte, nicht Speicher), mit Warnkachel im Dashboard und Banner (9.4) | **Ja** | 30. Oktober 2026 |
+| **F-7** | vor Schritt 4 | **Wortwahl.** «Hintergrundjobs» als Seitentitel (wie die Kachel heute); «Job» für die Jobart, «Lauf» für die Zeile; Knöpfe «Jetzt ausführen», «Pausieren», «Fortsetzen», «Abbrechen», «Wartende abbrechen», «Alle Läufe abbrechen» | wie links | **So lassen** | 30. Oktober 2026 |
+| **F-8** | vor Schritt 2 | **Verlauf:** erledigte Läufe 7 Tage, mindestens 50 je Jobart; fehlgeschlagene bleiben bis «Erneut» oder «Abbrechen» | wie links | **30 Tage, mindestens 50** (Abweichung; 4.4, 8.1) | 30. Oktober 2026 |
+| **F-9** | vor Schritt 4 | **Arbeiterzahl in der Oberfläche einstellbar?** Heute nur `SLOUCHCAT_WORKERS` in `deploy/.env` (auf CT 190 so gedrosselt); die Seite zeigt die Zahl je Pool | **Nein, nur anzeigen**, mit Hinweis «`SLOUCHCAT_WORKERS` in deploy/.env». Ein Regler im Browser müsste Arbeiter zur Laufzeit starten und stoppen — eigenes Thema, Idee | **Nur anzeigen** | 30. Oktober 2026 |
+| **F-10** | vor Schritt 3 | **Pausieren in der Zeile «Läuft gerade»** (Marcos Wunsch vom 30. Oktober 2026). (a) Der Knopf pausiert den **Job** des Laufs: dieser Lauf hält an, weitere laufende Läufe derselben Jobart ebenfalls, kein neuer Start bis «Fortsetzen» — gleicher Knopf wie auf der Karte, kein neuer Endpunkt; (b) der Knopf hält nur **diesen Lauf** an und legt ihn beiseite (neuer Zustand `held` je Lauf, eigener Endpunkt `pauseJobRun`, eigener Reiter *Angehalten* im Dialog), andere Läufe und neue Starts der Jobart laufen weiter | **(a)**. Die zwei Jobarten, bei denen Pause zählt (`scan.library`, `download.prepare`), laufen je Gegenstand ohnehin nur einmal; (b) brächte einen sechsten Zustand (ADR 0002), eine dritte Stelle für «Fortsetzen» und die Frage, was mit einem beiseitegelegten Lauf nach Tagen geschieht | **(a)**, pausiert den Job | 30. Oktober 2026 |
 
 Offene Punkte, die keine Entscheidung brauchen, aber eine Antwort verdienen:
 
 - **O-1** Sollen `done`-Läufe im Dialog «Läufe von X» überhaupt erscheinen (Reiter *Erledigt*)?
   Vorschlag: ja, die neuesten 50 — man sieht, was der Server die letzte Stunde getan hat.
+  **Antwort (30. Oktober 2026): ja, die neuesten 50.**
 - **O-2** Zeigt die Karte `scan.library` je Bibliothek eine Zeile («Filme: läuft, 31 %», «Serien:
   wartet»)? Vorschlag: nein — die Bibliotheksseite hat das; unter «Läuft gerade» steht die
-  Bibliothek als Gegenstand.
+  Bibliothek als Gegenstand. **Antwort (30. Oktober 2026): nein.**
 - **O-3** Reihenfolge: dieses Papier geht **nach 08** (Kopf). Erledigt durch den Lauf der
   Dinge: 08 ist seit dem 30. Oktober 2026 in `main` (PR #47), der Zweig für 09 kann von `main`
   geschnitten werden (12.5).
@@ -886,6 +941,15 @@ Laufs vorab zählen kann (sonst meldet er nur die Notiz). Und wie 08 `metadata.v
 am Ende anstösst (einmalig aus der Migration oder von Hand), was Gruppe und Auslöser der Karte
 bestimmt.
 
+### 12.7 Ein Zeitfenster kann einen Job aushungern
+
+Takt 6 h und Fenster 03:00–04:00 heisst: ein Lauf am Tag, nicht vier. Das ist gewollt, aber
+leicht vergessen. Darum steht der nächste Lauf mit Takt **und** Fenster auf der Karte («in 9 h
+48 min · alle 6 h · 03:00–04:00»), und ein Fenster, in das der Takt nie fällt, gibt es nicht:
+die Ausrichtung rückt auf den Fensterbeginn (6.1). Der zweite Fallstrick ist die Zeitzone: ein
+Container ohne `TZ` rechnet in UTC, und «03:00» ist dann 04:00 oder 05:00 Schweizer Zeit; der
+Dialog zeigt die Zone des Servers (5.3, 9.5), und `deploy/compose.yaml` setzt `TZ` schon heute.
+
 ---
 
 ## 13. Review-Protokoll (30. Oktober 2026)
@@ -927,6 +991,20 @@ Marco wünscht nach der Durchsicht des Prototyps, auch in der Liste «Läuft ger
 können. Eingearbeitet als Knopf **Pausieren** je Zeile, der den Job des Laufs pausiert (2.1,
 2.2, 6.3, 7, 7.1); kein neuer Endpunkt, kein neuer Zustand. Die Alternative «nur diesen Lauf
 anhalten» steht als F-10 zur Entscheidung. Prototyp und Artefakt tragen den Knopf.
+
+### 13.2 Marcos Antworten vom 30. Oktober 2026
+
+Marco hat F-1 bis F-10, O-1 und O-2 beantwortet (Tabelle in 11). Acht Antworten folgen der
+Empfehlung. Zwei weichen ab und sind in dieser Fassung 3 eingearbeitet:
+
+- **F-4 Zeitpläne einstellbar** — Takt, Zeitfenster und Ein/Aus je Zeitplan-Job auf der Seite:
+  Spalten `window_start`/`window_end` und Grenzen in `job_schedules` (4.3), siebte Operation
+  `updateJobSchedule` mit `JobScheduleUpdate` und `schedule.limits`/`timeZone` (5.2, 5.3),
+  Fenster-Ausrichtung im Scheduler (6.1), «ein Wert, zwei Türen» für Spotlight und Update (4.3,
+  6.4), Dialog «Zeitplan von X» mit Tastaturtest (2.2, 7), Prüfung im Server (9.5), Schritte 1, 3,
+  4, 5 (10), Risiko 12.7. Die Abgrenzung schliesst nur noch Kalender-Zeitpläne (cron) aus.
+- **F-8 Verlauf 30 Tage** statt 7, mindestens 50 je Jobart (4.4, 8.1). Auf CT 190 heisst das
+  mehr Zeilen in `jobs`, bevor `prune` greift; die Messung in Schritt 5 (12.4) deckt den Fall.
 
 Drei offene Fragen des Kritikers ohne Zählung: Schranke «Administrator im Hauptprofil» — ja,
 wie das Dashboard (2.2, 7, 9.1); Arbeiterzahl einstellbar — als F-9 an Marco; `rating.verify`

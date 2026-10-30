@@ -144,6 +144,12 @@ dialog::backdrop { background: var(--overlay); }
 .dlg header h2 { font-size: 1.25rem; margin: 0 0 4px; }
 .dlg header p { margin: 0; color: var(--fg2); font-size: 0.9rem; }
 .dlg footer { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.sched { display: grid; gap: 14px; }
+.sched .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sched .row > span:first-child { min-width: 9em; color: var(--fg2); }
+.sched select, .sched input[type="time"] { background: var(--s1); color: var(--fg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 10px; font: inherit; min-height: 36px; }
+.sched input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+.sched .hint { color: var(--muted); font-size: 0.85rem; }
 .notice { border-radius: var(--r-sm); padding: 10px 12px; font-size: 0.9rem; background: var(--s2); color: var(--fg); border-left: 3px solid var(--warning); }
 .rtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
 .rtab { background: none; border: 0; color: var(--fg2); padding: 8px 12px; border-bottom: 2px solid transparent; font-weight: 500; }
@@ -170,7 +176,7 @@ body.phone .grid { grid-template-columns: 1fr; }
     <button class="tab" role="tab" aria-selected="false" data-view="home" type="button">Übersicht</button>
     <button class="tab" role="tab" aria-selected="true" data-view="jobs" type="button">Hintergrundjobs</button>
   </nav>
-  <div class="proto">Klickbarer Prototyp zum Konzept 09 (Fassung 2) · kein Server, Beispieldaten
+  <div class="proto">Klickbarer Prototyp zum Konzept 09 (Fassung 3) · kein Server, Beispieldaten
     <button id="phone" type="button" aria-pressed="false">Handy-Ansicht</button>
     <button id="reset" type="button">Zurücksetzen</button></div>
 </div></div>
@@ -179,6 +185,7 @@ body.phone .grid { grid-template-columns: 1fr; }
 
 <dialog id="dlgRuns" aria-labelledby="dlgRunsTitle"></dialog>
 <dialog id="dlgConfirm" aria-labelledby="dlgConfirmTitle"></dialog>
+<dialog id="dlgSched" aria-labelledby="dlgSchedTitle"></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
@@ -207,8 +214,8 @@ function makeTypes() {
     { type: 'notify.deliver',   name: 'Mitteilung zustellen',   group: 'delivery', pool: 'notify',  prio: 3, trigger: 'event', trig: 'jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)', median: 2, last: { ago: 15*M, dur: 1, ok: true } },
     { type: 'download.prepare', name: 'Download vorbereiten',   group: 'delivery', pool: 'download', prio: 5, trigger: 'event', trig: 'Download eines Profils; Abgleich alle 10 min reiht Unfertiges nach', median: 9*M, planned: 1, last: { ago: 3*H, dur: 11*M, ok: true } },
     { type: 'update.check',     name: 'Update-Prüfung',         group: 'system',   pool: 'general', prio: 1, trigger: 'schedule', every: 24*H, next: 21*H+5*M, trig: 'Zeitplan täglich, 60 s nach dem Start; «Jetzt prüfen»', median: 1, last: { ago: 2*H+55*M, dur: 1, ok: true } },
-    { type: 'jobs.prune',       name: 'Verlauf aufräumen',      group: 'system',   pool: 'general', prio: 1, trigger: 'schedule', every: 24*H, next: 8*H+30*M, trig: 'Zeitplan täglich: erledigte Läufe älter als 7 Tage, mindestens 50 je Job bleiben', median: 2, last: { ago: 15*H+30*M, dur: 2, ok: true } },
-  ].map(t => ({ queued: 0, planned: 0, failed: 0, paused: false, stopping: false, ...t }));
+    { type: 'jobs.prune',       name: 'Verlauf aufräumen',      group: 'system',   pool: 'general', prio: 1, trigger: 'schedule', every: 24*H, next: 8*H+30*M, trig: 'Zeitplan täglich: erledigte Läufe älter als 30 Tage, mindestens 50 je Job bleiben', window: [3*60, 5*60], median: 2, last: { ago: 15*H+30*M, dur: 2, ok: true } },
+  ].map(t => ({ queued: 0, planned: 0, failed: 0, paused: false, stopping: false, enabled: true, window: null, ...t }));
 }
 
 let nextId = 48211;
@@ -239,6 +246,20 @@ const fmtDur = s => { s = Math.max(0, Math.round(s)); if (s < 60) return `${s} s
 const fmtAbout = s => { if (s == null) return null; if (s < 60) return 'unter 1 min'; if (s < 90*60) return `ca. ${Math.max(1, Math.round(s/60))} min`; if (s < 86400) return `ca. ${Math.round(s/3600*2)/2} h`.replace('.5', '½').replace(',5', '½'); return 'über 1 Tag'; };
 const fmtAgo = s => s < 60 ? 'gerade eben' : s < 3600 ? `vor ${Math.round(s/60)} min` : s < 86400 ? `vor ${Math.round(s/3600)} h` : `vor ${Math.round(s/86400)} Tagen`;
 const fmtIn = s => s <= 0 ? 'jetzt' : s < 3600 ? `in ${Math.max(1, Math.round(s/60))} min` : `in ${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
+const EVERY = [[5*M, 'alle 5 min'], [15*M, 'alle 15 min'], [30*M, 'alle 30 min'], [H, 'stündlich'], [2*H, 'alle 2 h'], [6*H, 'alle 6 h'], [12*H, 'alle 12 h'], [24*H, 'täglich'], [7*24*H, 'wöchentlich']];
+const fmtEvery = s => (EVERY.find(([v]) => v === s) || [0, `alle ${fmtDur(s)}`])[1];
+const fmtHM = m => `${String(Math.floor(m/60)).padStart(2, '0')}:${String(m%60).padStart(2, '0')}`;
+const fmtWindow = w => `${fmtHM(w[0])}–${fmtHM(w[1])}`;
+// next run aligned to the window: seconds from now until the run, moved to the next window start when outside
+function alignToWindow(nextSec, w) {
+  if (!w) return nextSec;
+  const at = new Date(Date.now() + nextSec * 1000), m = at.getHours() * 60 + at.getMinutes();
+  const inside = w[0] < w[1] ? (m >= w[0] && m < w[1]) : (m >= w[0] || m < w[1]);
+  if (inside) return nextSec;
+  const start = new Date(at); start.setHours(Math.floor(w[0]/60), w[0]%60, 0, 0);
+  if (start <= at) start.setDate(start.getDate() + 1);
+  return Math.round((start - Date.now()) / 1000);
+}
 const typeOf = name => S.types.find(t => t.type === name);
 
 // Restzeit nach Konzept 6.2: gemessen (Fortschritt ≥ 5 %, Dauer ≥ 30 s), sonst Median, sonst «wird berechnet».
@@ -344,7 +365,7 @@ function renderCard(t) {
   const [cls, label] = stateOf(t);
   const q = queuedEstimate(t);
   const last = t.last ? `${fmtAgo(t.last.ago)} · ${fmtDur(t.last.dur)} · ${t.last.ok ? '<span class="dim">OK</span>' : '<span class="err">Fehler</span>'}` : '—';
-  const next = t.paused ? '<span style="color:var(--warning)">pausiert</span>' : t.trigger === 'schedule' ? `${fmtIn(t.next)} <span class="dim">(alle ${fmtDur(t.every).replace(' 00 min', '').replace(' 00 s', '')})</span>` : t.trigger === 'manual' ? '<span class="dim">von Hand</span>' : '<span class="dim">bei Bedarf</span>';
+  const next = t.paused ? '<span style="color:var(--warning)">pausiert</span>' : t.trigger === 'schedule' ? (t.enabled ? `${fmtIn(t.next)} <span class="dim">· ${fmtEvery(t.every)}${t.window ? ` · ${fmtWindow(t.window)}` : ''}</span>` : `<span class="dim">aus · ${fmtEvery(t.every)}${t.window ? ` · ${fmtWindow(t.window)}` : ''}</span>`) : t.trigger === 'manual' ? '<span class="dim">von Hand</span>' : '<span class="dim">bei Bedarf</span>';
   const runningHere = S.runs.filter(r => r.type === t.type).length;
   return `<article class="card ${cls === 'running' ? 'active' : cls === 'paused' ? 'paused' : ''}" aria-labelledby="c-${t.type}">
     <div class="head"><h2 id="c-${t.type}">${esc(t.name)}</h2><span class="state"><span class="dot ${cls}"></span>${label}</span></div>
@@ -360,6 +381,7 @@ function renderCard(t) {
       <button class="btn sm" type="button" data-pause="${t.type}" ${t.stopping ? 'disabled' : ''}>${t.paused ? 'Fortsetzen' : 'Pausieren'}</button>
       ${t.queued ? `<button class="btn sm ghost" type="button" data-cancel-queued="${t.type}">Wartende abbrechen (${t.queued})</button>` : ''}
       ${runningHere && t.queued ? `<button class="btn sm ghost" type="button" data-cancel-all="${t.type}">Alle Läufe abbrechen (${t.queued + runningHere})</button>` : ''}
+      ${t.trigger === 'schedule' ? `<button class="btn sm ghost" type="button" data-schedule="${t.type}">Zeitplan …</button>` : ''}
       <button class="btn sm ghost" type="button" data-runs="${t.type}">Läufe …</button>
     </div>
   </article>`;
@@ -436,7 +458,44 @@ main.addEventListener('click', e => {
   const ca = e.target.closest('[data-cancel-all]'); if (ca) return askCancelQueued(ca.dataset.cancelAll, true);
   const cr = e.target.closest('[data-cancel-run]'); if (cr) return askCancelRun(+cr.dataset.cancelRun);
   const rs = e.target.closest('[data-runs]'); if (rs) return openRuns(rs.dataset.runs);
+  const sc = e.target.closest('[data-schedule]'); if (sc) return openSchedule(sc.dataset.schedule, sc);
 });
+
+// ---------- the schedule dialog (F-4: Takt, Zeitfenster, Ein/Aus; limits come from the server)
+const dlgSched = document.getElementById('dlgSched');
+function openSchedule(type, returnFocus) {
+  const t = typeOf(type);
+  const limits = type === 'trakt.refresh' ? [6*H, 48*H] : [5*M, 7*24*H];
+  const opts = EVERY.filter(([v]) => v >= limits[0] && v <= limits[1]).map(([v, l]) => `<option value="${v}" ${v === t.every ? 'selected' : ''}>${l}</option>`).join('');
+  dlgSched.innerHTML = `<form method="dialog" class="dlg" id="schedForm">
+    <header><h2 id="dlgSchedTitle">Zeitplan von ${esc(t.name)}</h2><p><code>${t.type}</code> · Zeitzone des Servers: Europe/Zurich</p></header>
+    <div class="sched">
+      <label class="row"><span>Zeitplan</span><input type="checkbox" name="enabled" ${t.enabled ? 'checked' : ''}> <span>eingeschaltet</span></label>
+      <label class="row"><span>Takt</span><select name="every">${opts}</select></label>
+      <label class="row"><span>Zeitfenster</span><input type="checkbox" name="win" ${t.window ? 'checked' : ''}> <span>nur zwischen</span>
+        <input type="time" name="start" value="${fmtHM(t.window ? t.window[0] : 3*60)}" aria-label="Fensterbeginn"> <span>und</span>
+        <input type="time" name="end" value="${fmtHM(t.window ? t.window[1] : 5*60)}" aria-label="Fensterende"></label>
+      <p class="hint">${type === 'trakt.refresh' ? 'Takt und Ein/Aus sind dieselbe Einstellung wie auf der Seite Spotlight (6 bis 48 h).' : type === 'update.check' ? 'Ein/Aus ist dieselbe Einstellung wie auf der Seite Update.' : 'Ein Fenster über Mitternacht (22:00–06:00) ist erlaubt. Der Takt läuft innerhalb des Fensters; sonst rückt der Lauf auf den nächsten Fensterbeginn.'}</p>
+    </div>
+    <footer><button class="btn sm" type="button" value="cancel" data-close>Abbrechen</button><button class="btn sm primary" type="submit" value="save">Speichern</button></footer>
+  </form>`;
+  const form = dlgSched.querySelector('form');
+  form.addEventListener('submit', () => {
+    const f = new FormData(form);
+    const [sh, sm] = f.get('start').split(':').map(Number), [eh, em] = f.get('end').split(':').map(Number);
+    const w = f.get('win') ? [sh*60 + sm, eh*60 + em] : null;
+    if (w && w[0] === w[1]) { toast('Anfang und Ende des Fensters dürfen nicht gleich sein.'); return; }
+    const every = +f.get('every');
+    t.enabled = !!f.get('enabled'); t.every = every; t.window = w;
+    t.next = alignToWindow(Math.min(t.next, every), w);
+    toast(t.enabled ? `${t.name}: ${fmtEvery(every)}${w ? ', ' + fmtWindow(w) : ''}; nächster Lauf ${fmtIn(t.next)}.` : `${t.name}: Zeitplan ausgeschaltet. «Jetzt ausführen» geht weiterhin.`);
+    render();
+  });
+  dlgSched.querySelector('[data-close]').onclick = () => dlgSched.close();
+  dlgSched.onclose = () => returnFocus?.focus?.();
+  dlgSched.showModal();
+  form.elements.enabled.focus();
+}
 
 function runNow(type) {
   const t = typeOf(type);
@@ -480,7 +539,7 @@ setInterval(() => {
     r.elapsed++;
     if (r.total && r.done < r.total) r.done = Math.min(r.total, r.done + Math.round(r.total / (typeOf(r.type).median || 60)));
   }
-  for (const t of S.types) { if (t.trigger === 'schedule' && !t.paused) t.next--; if (t.last) t.last.ago++; }
+  for (const t of S.types) { if (t.trigger === 'schedule' && !t.paused && t.enabled) t.next--; if (t.last) t.last.ago++; }
   // short runs finish by themselves and the queue drains, so the page breathes a little
   const finished = S.runs.filter(r => !r.total && r.elapsed > (typeOf(r.type).median || 5) * 1.3 + 2);
   for (const r of finished) { const t = typeOf(r.type); t.last = { ago: 0, dur: r.elapsed, ok: true }; S.history[t.type].unshift({ id: r.id, type: t.type, state: 'done', ago: 0, dur: r.elapsed, attempts: 1 }); }
@@ -489,7 +548,7 @@ setInterval(() => {
     const active = S.runs.filter(r => typeOf(r.type).pool === t.pool).length;
     if (t.queued && !t.paused && active < WORKERS[t.pool] && t.trigger === 'event') { t.queued--; S.runs.push({ id: nextId++, type: t.type, note: t.type === 'segments.detect' ? `The Expanse · S03E${String(9 + (nextId % 10)).padStart(2, '0')}` : 'Titel ' + (4000 + nextId % 700), elapsed: 0 }); }
   }
-  if (S.view === 'jobs' && !dlgConfirm.open && !dlgRuns.open) { if (finished.length || S.tick % 5 === 0) render(); else for (const el of document.querySelectorAll('[data-elapsed]')) { const r = S.runs.find(x => x.id === +el.dataset.elapsed); if (r) el.textContent = fmtDur(r.elapsed); } }
+  if (S.view === 'jobs' && !dlgConfirm.open && !dlgRuns.open && !dlgSched.open) { if (finished.length || S.tick % 5 === 0) render(); else for (const el of document.querySelectorAll('[data-elapsed]')) { const r = S.runs.find(x => x.id === +el.dataset.elapsed); if (r) el.textContent = fmtDur(r.elapsed); } }
   S.tick++;
 }, 1000);
 
