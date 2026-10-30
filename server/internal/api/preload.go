@@ -13,15 +13,17 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
-// heroPicker names the title whose image the start page shows first: the first title of the stage
-// (HomePage.heroRow, plan 3.5) or, without a stage, the first title of the first row. The catalog
+// heroPicker names the title whose image the start page shows first: the title the stage begins
+// with (HomePage.heroRow, plan 3.5; drawn once per page view, concept 08, 6) or, without a stage,
+// the first title of the first row. The catalog
 // service (discover.Service) implements it; NewHandler takes it from Options.Catalog by type
 // assertion, so CatalogService stays as it is and a catalog without the methods simply sends no
 // image preload.
 type heroPicker interface {
-	// FirstHero returns the first title of the stage row and whether that row is the first row of
-	// the start page, or model.ErrNotFound when the page has no stage.
-	FirstHero(ctx context.Context, profile model.Profile) (item model.ItemSummary, first bool, err error)
+	// FirstHero draws the title the stage begins with and returns it with its index in the stage
+	// row and whether that row is the first row of the start page, or model.ErrNotFound when the
+	// page has no stage.
+	FirstHero(ctx context.Context, profile model.Profile) (item model.ItemSummary, start int, first bool, err error)
 	// FirstRow returns the titles of the first row when the page has no stage, or
 	// model.ErrNotFound when it has one or its first row holds no titles.
 	FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
@@ -37,11 +39,13 @@ const (
 )
 
 // Width descriptors and sizes of the poster srcset; they must match srcSet and CARD_SIZES in
-// web/src/ui/PosterCard.tsx, or the browser loads the card's image a second time.
+// web/src/ui/PosterCard.tsx, or the browser loads the card's image a second time. Under 768 px a
+// row shows three whole cards (concept 08, N-3; Row.module.css and #poster-prepaint in
+// web/src/ui/global.css).
 const (
 	posterSmallWidth = "200w"
 	posterLargeWidth = "400w"
-	posterSizes      = "(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"
+	posterSizes      = "(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)"
 )
 
 // posterPrepaintCards is the number of cards the shell paints ahead on a start page without a
@@ -54,13 +58,25 @@ const posterPrepaintCards = 6
 // (posterPrepaint). Every GET / replaces it, with nothing when there is no image.
 const heroMarker = "<!--hero-->"
 
+// heroStartMeta is the element that hands the stage's drawn start index to the client when the
+// shell paints no stage image (shellHeroStart in web/src/features/catalog/queries.ts).
+const heroStartMeta = "slouchcat-hero-start"
+
 // startPreloads are the API reads the start page makes first (router guard, home query and the
 // side navigation's libraries, concept 08). The web client sends reads without custom headers, so
-// its fetch() reuses these preloads.
-var startPreloads = []string{
-	"<" + BasePath + "/auth/session>; rel=preload; as=fetch; crossorigin",
-	"<" + BasePath + "/home>; rel=preload; as=fetch; crossorigin",
-	"<" + BasePath + "/libraries/visible>; rel=preload; as=fetch; crossorigin",
+// its fetch() reuses these preloads. With a stage, the home read carries the shell's draw
+// (?start=K, concept 08, 6), the URL the client's first home query asks for; start < 0 means no
+// stage.
+func startPreloads(start int) []string {
+	home := BasePath + "/home"
+	if start >= 0 {
+		home += "?start=" + strconv.Itoa(start)
+	}
+	return []string{
+		"<" + BasePath + "/auth/session>; rel=preload; as=fetch; crossorigin",
+		"<" + home + ">; rel=preload; as=fetch; crossorigin",
+		"<" + BasePath + "/libraries/visible>; rel=preload; as=fetch; crossorigin",
+	}
 }
 
 // startPagePreload adds Link preload headers to the app shell of the start page (P-10): the session,
@@ -71,6 +87,12 @@ var startPreloads = []string{
 // visibility layer, and is left out on any error. The shell itself is always served. /index.html
 // is left out on purpose: the service worker precaches it, and a stored header would preload a
 // stale image later.
+//
+// With a stage the shell draws the title the stage begins with (FirstHero, concept 08, 6: one draw
+// per page view) and hands its index K to the client twice: in the home preload (/home?start=K)
+// and in the shell, as data-start on #hero-prepaint or, without that image, on a
+// <meta name="slouchcat-hero-start">. The client's first home query sends start=K, so it reuses
+// the preload and the band begins with the painted title.
 //
 // When the stage is the first row of the start page, the same request also writes its first image
 // into the shell (heroPrepaint), so the browser paints it as soon as it has loaded instead of after
@@ -99,18 +121,26 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 					// Same as the API middleware: a sliding extension re-issues the cookie.
 					setSessionCookie(w, r, token, session.ExpiresAt)
 				}
+				item, start, first, err := firstHero(r.Context(), picker, session)
+				if err != nil {
+					start = -1
+				}
 				if session.HasProfile() {
-					for _, link := range startPreloads {
+					for _, link := range startPreloads(start) {
 						w.Header().Add("Link", link)
 					}
 				}
-				item, first, err := firstHero(r.Context(), picker, session)
 				link := ""
 				switch {
 				case err == nil:
 					link = heroLink(item, session.Profile.ID)
 					if first {
-						prepaint = heroPrepaint(item, session.Profile.ID)
+						prepaint = heroPrepaint(item, start, session.Profile.ID)
+					}
+					if prepaint == "" {
+						// No stage image ahead (a stage further down, or no backdrop): the draw
+						// still reaches the client.
+						prepaint = `<meta name="` + heroStartMeta + `" content="` + strconv.Itoa(start) + `">`
 					}
 				case errors.Is(err, model.ErrNotFound) && session.HasProfile():
 					// Without a stage the first card's poster is the page's first image: it is
@@ -135,10 +165,11 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 	}
 }
 
-// firstHero is the first stage title of the session's profile; a session without profile has none.
-func firstHero(ctx context.Context, picker heroPicker, session model.Session) (model.ItemSummary, bool, error) {
+// firstHero draws the stage's first title of the session's profile; a session without profile has
+// none.
+func firstHero(ctx context.Context, picker heroPicker, session model.Session) (model.ItemSummary, int, bool, error) {
 	if !session.HasProfile() {
-		return model.ItemSummary{}, false, model.ErrNotFound
+		return model.ItemSummary{}, 0, false, model.ErrNotFound
 	}
 	return picker.FirstHero(ctx, session.Profile)
 }
@@ -174,15 +205,16 @@ func (s *shellWriter) flush(prepaint string) {
 		s.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	}
 	s.ResponseWriter.WriteHeader(s.status)
-	_, _ = s.ResponseWriter.Write(body) //nolint:gosec // G705: the only inserted text is heroPrepaint's or posterPrepaint's output, built from html-escaped values and an integer profile id
+	_, _ = s.ResponseWriter.Write(body) //nolint:gosec // G705: the only inserted text is heroPrepaint's or posterPrepaint's output or the start meta, built from html-escaped values and integers (profile id, start index)
 }
 
 // heroPrepaint returns the first hero image as markup for the app shell, or "" when the item has
 // no backdrop (a poster is shown blurred by the carousel and is not painted ahead). It sits outside
 // #root with the carousel's geometry (#hero-prepaint in web/src/ui/global.css) and the attributes
 // of the carousel's active image (URLs, srcset, sizes, priority, sync decoding); the start page
-// fades it out once its own image is on screen.
-func heroPrepaint(item model.ItemSummary, profileID int64) string {
+// fades it out once its own image is on screen. data-start is the item's index in the stage row,
+// the draw the client's first home query repeats (concept 08, 6).
+func heroPrepaint(item model.ItemSummary, start int, profileID int64) string {
 	var attrs string
 	switch {
 	case item.Backdrop != nil && item.BackdropSmall != nil:
@@ -196,7 +228,7 @@ func heroPrepaint(item model.ItemSummary, profileID int64) string {
 	default:
 		return ""
 	}
-	return `<div id="hero-prepaint" aria-hidden="true"><img ` + attrs +
+	return `<div id="hero-prepaint" data-start="` + strconv.Itoa(start) + `" aria-hidden="true"><img ` + attrs +
 		` alt="" width="1280" height="720" fetchpriority="high" decoding="sync"></div>`
 }
 

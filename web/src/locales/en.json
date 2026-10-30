@@ -421,6 +421,11 @@
       "title": "Nothing here yet",
       "body": "Your films appear here as soon as a library has been scanned.",
       "action": "View libraries"
+    },
+    "spotlight": {
+      "row": "Spotlight titles",
+      "pause": "Pause",
+      "resume": "Resume"
     }
   },
   "ui": {
@@ -1339,6 +1344,8 @@
         "minHitsHint": "hits in the library, per profile (0–10)",
         "intervalHours": "Fetch every … hours",
         "intervalHoursHint": "6 to 48 hours",
+        "rotation": "Stage rhythm … seconds",
+        "rotationHint": "3 to 15 seconds",
         "refresh": "Fetch now",
         "queued": "The list is being fetched.",
         "saved": "Spotlight is saved."

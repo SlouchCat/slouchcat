@@ -70,7 +70,7 @@ func TestFirstHeroWithoutStage(t *testing.T) {
 		if page.HeroRow != "" {
 			t.Errorf("profile %d: hero row = %q, want none", p.ID, page.HeroRow)
 		}
-		if _, _, err := s.FirstHero(ctx, p); !errors.Is(err, model.ErrNotFound) {
+		if _, _, _, err := s.FirstHero(ctx, p); !errors.Is(err, model.ErrNotFound) {
 			t.Errorf("profile %d without a stage: err = %v, want ErrNotFound", p.ID, err)
 		}
 	}
@@ -550,9 +550,14 @@ func TestHeroRowStageRule(t *testing.T) {
 	if page.HeroRow != RowSpotlight || len(spotlight) != 5 || page.Rows[0].Key != RowSpotlight {
 		t.Fatalf("filled spotlight: hero row %q, rows %v", page.HeroRow, rowKeys(page.Rows))
 	}
-	hero, first, err := s.FirstHero(ctx, f.P18)
-	if err != nil || hero.ID != spotlight[0].ID || !first {
-		t.Errorf("FirstHero = %s, first %v, %v; want %s first", hero.ID, first, err, spotlight[0].ID)
+	// FirstHero draws like Home (concept 08, 6): the title at the drawn index, any of the row.
+	hero, k, first, err := s.FirstHero(ctx, f.P18)
+	if err != nil || k < 0 || k >= len(spotlight) || hero.ID != spotlight[k].ID || !first {
+		t.Errorf("FirstHero = %s at %d, first %v, %v; want a spotlight title first", hero.ID, k, first, err)
+	}
+	fixed := New(f.DB, f.CacheDir, vistest.Logger(), WithHeroStart(3))
+	if hero, k, _, err := fixed.FirstHero(ctx, f.P18); err != nil || k != 3 || hero.ID != spotlight[3].ID {
+		t.Errorf("WithHeroStart(3): FirstHero = %s at %d, %v; want %s at 3", hero.ID, k, err, spotlight[3].ID)
 	}
 
 	noStage := func(name string) {
@@ -564,7 +569,7 @@ func TestHeroRowStageRule(t *testing.T) {
 		if page.HeroRow != "" || rowOf(page.Rows, RowSpotlight).Key != "" || len(rowOf(page.Rows, RowPicks).Items) == 0 {
 			t.Errorf("%s: hero row %q, rows %v; want no stage and picks as a row", name, page.HeroRow, rowKeys(page.Rows))
 		}
-		if _, _, err := s.FirstHero(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
+		if _, _, _, err := s.FirstHero(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
 			t.Errorf("%s: FirstHero err = %v, want ErrNotFound", name, err)
 		}
 	}
@@ -592,9 +597,9 @@ func TestHeroRowStageRule(t *testing.T) {
 	if want := []string{RowRecent, RowPicks, RowContinue, RowSpotlight}; page.HeroRow != RowSpotlight || len(page.Rows) < 4 || !slices.Equal(rowKeys(page.Rows)[:4], want) {
 		t.Errorf("reordered: hero row %q, rows %v, want spotlight behind %v", page.HeroRow, rowKeys(page.Rows), want[:3])
 	}
-	hero, first, err = s.FirstHero(ctx, f.P18)
-	if err != nil || hero.ID != spotlight[0].ID || first {
-		t.Errorf("reordered FirstHero = %s, first %v, %v; want %s not first", hero.ID, first, err, spotlight[0].ID)
+	hero, k, first, err = s.FirstHero(ctx, f.P18)
+	if err != nil || hero.ID != spotlight[k].ID || first {
+		t.Errorf("reordered FirstHero = %s at %d, first %v, %v; want a spotlight title not first", hero.ID, k, first, err)
 	}
 	// Hidden rows in front of the stage are left out: with recent, picks and continue hidden, the
 	// stage is the first row again.
@@ -602,9 +607,9 @@ func TestHeroRowStageRule(t *testing.T) {
 	if page, err = s.Home(ctx, f.P18, nil); err != nil || page.HeroRow != RowSpotlight || page.Rows[0].Key != RowSpotlight {
 		t.Errorf("rows in front hidden: hero row %q, rows %v, %v", page.HeroRow, rowKeys(page.Rows), err)
 	}
-	hero, first, err = s.FirstHero(ctx, f.P18)
-	if err != nil || hero.ID != spotlight[0].ID || !first {
-		t.Errorf("rows in front hidden: FirstHero = %s, first %v, %v; want %s first", hero.ID, first, err, spotlight[0].ID)
+	hero, k, first, err = s.FirstHero(ctx, f.P18)
+	if err != nil || hero.ID != spotlight[k].ID || !first {
+		t.Errorf("rows in front hidden: FirstHero = %s at %d, first %v, %v; want a spotlight title first", hero.ID, k, first, err)
 	}
 	// Empty rows in front are left out the same way: P0 sees no pick and has no progress, and with
 	// min_hits 0 its single visible spotlight hit (the film rated 0) still makes a stage.
@@ -617,8 +622,8 @@ func TestHeroRowStageRule(t *testing.T) {
 	if page.HeroRow != RowSpotlight || page.Rows[0].Key != RowSpotlight {
 		t.Fatalf("P0 with picks and continue empty: hero row %q, rows %v", page.HeroRow, rowKeys(page.Rows))
 	}
-	if hero, first, err = s.FirstHero(ctx, f.P0); err != nil || hero.ID != page.Rows[0].Items[0].ID || !first {
-		t.Errorf("P0 FirstHero = %s, first %v, %v; want %s first", hero.ID, first, err, page.Rows[0].Items[0].ID)
+	if hero, k, first, err = s.FirstHero(ctx, f.P0); err != nil || k >= len(page.Rows[0].Items) || hero.ID != page.Rows[0].Items[k].ID || !first {
+		t.Errorf("P0 FirstHero = %s at %d, first %v, %v; want a title of %v first", hero.ID, k, first, err, page.Rows[0].Items)
 	}
 }
 
@@ -778,9 +783,20 @@ func TestHomeHeroStart(t *testing.T) {
 			}
 		}
 	}
-	// FirstHero stays at place 1 until the shell takes the draw (concept 08, step 4).
-	if hero, _, err := s.FirstHero(ctx, f.P18); err != nil || hero.ID != rowOf(mustHome(t, s, f.P18).Rows, RowSpotlight).Items[0].ID {
-		t.Errorf("FirstHero = %s, %v; want the first spotlight title", hero.ID, err)
+	// FirstHero is the shell's draw (concept 08, 6): the title at its index, which Home repeats.
+	for range 4 {
+		hero, k, _, err := s.FirstHero(ctx, f.P18)
+		if err != nil || k < 0 || k >= 5 {
+			t.Fatalf("FirstHero = %s at %d, %v; want an index in [0, 5)", hero.ID, k, err)
+		}
+		page, err := s.Home(ctx, f.P18, &k)
+		if err != nil || page.HeroStart == nil || *page.HeroStart != k || rowOf(page.Rows, RowSpotlight).Items[k].ID != hero.ID {
+			t.Errorf("Home(start %d) = %v, %v; want the shell's title %s", k, page.HeroStart, err, hero.ID)
+		}
+	}
+	if hero, k, _, err := New(f.DB, f.CacheDir, vistest.Logger(), WithHeroStart(9)).FirstHero(ctx, f.P18); err != nil || k != 4 ||
+		hero.ID != rowOf(mustHome(t, s, f.P18).Rows, RowSpotlight).Items[4].ID {
+		t.Errorf("WithHeroStart(9): FirstHero = %s at %d, %v; want the last title", hero.ID, k, err)
 	}
 	// Without a stage: no start, no rhythm, whatever start says.
 	exec(t, f, `UPDATE spotlight_config SET enabled = 0`)

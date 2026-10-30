@@ -421,6 +421,11 @@
       "title": "Hier ist es noch leer",
       "body": "Sobald eine Bibliothek gescannt ist, erscheinen deine Filme hier.",
       "action": "Bibliotheken ansehen"
+    },
+    "spotlight": {
+      "row": "Spotlight-Titel",
+      "pause": "Pause",
+      "resume": "Weiter"
     }
   },
   "ui": {
@@ -1339,6 +1344,8 @@
         "minHitsHint": "Treffern in der Bibliothek, je Profil (0–10)",
         "intervalHours": "Abruf alle … Stunden",
         "intervalHoursHint": "6 bis 48 Stunden",
+        "rotation": "Takt der Bühne … Sekunden",
+        "rotationHint": "3 bis 15 Sekunden",
         "refresh": "Jetzt abrufen",
         "queued": "Die Liste wird abgerufen.",
         "saved": "Spotlight ist gespeichert."

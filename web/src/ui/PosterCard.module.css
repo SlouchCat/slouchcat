@@ -62,6 +62,40 @@
   aspect-ratio: 1 / 1;
 }
 
+/* A card without href (the spotlight row): a button with the link's look. */
+.button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* The chosen card of a row of buttons: a ring in the title's accent inside the frame. */
+.frame::after {
+  position: absolute;
+  inset: 0;
+  border: var(--sc-focus-ring-width) solid transparent;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+}
+
+.active .frame::after {
+  border-color: var(--sc-item-accent, var(--sc-accent));
+}
+
+/* The other cards of that row at reduced strength, at full strength while pointed at or focused. */
+.dimmed .frame {
+  opacity: 0.7;
+  transition: opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+.dimmed:focus-visible .frame {
+  opacity: 1;
+}
+
 .image {
   position: relative;
   width: 100%;
@@ -118,6 +152,10 @@
 }
 
 @media (hover: hover) {
+  .dimmed:hover .frame {
+    opacity: 1;
+  }
+
   .card:hover {
     transform: scale(var(--sc-focus-scale));
   }

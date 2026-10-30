@@ -142,7 +142,7 @@ describe('start page', () => {
     expect(paths).not.toContain('/setup');
   });
 
-  it('loads the active backdrop first, in w780 for small screens, and the next one after it', async () => {
+  it('loads the active backdrop first, in w780 for small screens, and the next two after it', async () => {
     const wideOnly: ItemRef = {
       ...arrival,
       images: {
@@ -163,7 +163,7 @@ describe('start page', () => {
     });
     const { container } = renderApp('/');
     const hero = await screen.findByRole('region', { name: 'Spotlight' });
-    // The band's artwork; the poster strip's images are counted apart.
+    // The band's artwork; the poster row's images are counted apart.
     const images = () => [...container.querySelectorAll('.art img')];
     const strip = () => [...within(hero).getByRole('list').querySelectorAll('img')];
 
@@ -179,18 +179,21 @@ describe('start page', () => {
     expect(first).toHaveAttribute('width', '1280');
     expect(first).toHaveAttribute('height', '720');
 
-    // Once the first image is painted (two frames after load), the next slide joins with low
-    // priority; never before, as the server may have preloaded the first one already.
+    // Once the first image is painted (two frames after load), the next two slides join with low
+    // priority (the 5 s rhythm, concept 08, 7.2); never before, as the server may have preloaded
+    // the first one already.
     fireEvent.load(first!);
     expect(images()).toHaveLength(1);
-    await waitFor(() => expect(images()).toHaveLength(2));
+    await waitFor(() => expect(images()).toHaveLength(3));
     expect(images()[1]).toHaveAttribute(
       'src',
       `/api/v1/items/${ids.alien}/images/backdrop/w780?v=ghi`,
     );
-    expect(images()[1]).toHaveAttribute('loading', 'lazy');
-    expect(images()[1]).toHaveAttribute('fetchpriority', 'low');
-    // The strip's posters join with it (P-10); a slide without a poster keeps the empty frame.
+    for (const image of images().slice(1)) {
+      expect(image).toHaveAttribute('loading', 'lazy');
+      expect(image).toHaveAttribute('fetchpriority', 'low');
+    }
+    // The row's posters join with it (P-10); a slide without a poster keeps the empty frame.
     expect(strip().map((image) => image.getAttribute('src'))).toEqual([
       `/api/v1/items/${ids.heat}/images/poster/w500?v=abc`,
       `/api/v1/items/${ids.alien}/images/poster/w500?v=abc`,
@@ -201,7 +204,7 @@ describe('start page', () => {
     }
 
     // A slide without the small size falls back to w1280 without srcset.
-    fireEvent.click(within(hero).getByRole('button', { name: 'Arrival' }));
+    fireEvent.click(within(hero).getByRole('button', { name: /^Arrival/ }));
     const third = images().find((image) => image.getAttribute('src')?.includes(ids.arrival));
     expect(third).toHaveAttribute(
       'src',
@@ -377,8 +380,89 @@ describe('start page', () => {
     );
   });
 
-  it('rotates the carousel every 8 s', async () => {
+  it('rotates the carousel in the rhythm the server sends, 5 s without one (F-10)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          heroStart: 0,
+          heroIntervalSeconds: 7,
+          rows: [{ key: 'spotlight', items: [heat, arrival] }],
+        }),
+    });
+    renderApp('/');
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
+    expect(hero.style.getPropertyValue('--hero-interval')).toBe('7s');
+    await act(() => vi.advanceTimersByTimeAsync(6900));
+    expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
+    // The poster row marks the active slide's poster, named after its title, with the time bar.
+    const row = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
+    const arrivalPoster = within(row).getByRole('button', { name: /^Arrival/ });
+    expect(arrivalPoster).toHaveAttribute('aria-current', 'true');
+    expect(arrivalPoster.querySelector('[class*="timer"]')).not.toBeNull();
+    expect(within(row).getByRole('button', { name: /^Heat/ })).not.toHaveAttribute('aria-current');
+  });
+
+  it('begins with heroStart and keeps the slide when a refetch draws another (F-2)', async () => {
+    let start = 1;
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          heroStart: start,
+          rows: [{ key: 'spotlight', items: [heat, alien, arrival] }],
+        }),
+    });
+    const { queryClient } = renderApp('/');
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    expect(within(hero).getByRole('heading', { name: 'Alien' })).toBeVisible();
+    expect(within(hero).getByText('2 von 3')).toBeVisible();
+    start = 2;
+    await act(() => queryClient.invalidateQueries({ queryKey: ['home'] }));
+    await waitFor(() =>
+      expect(queryClient.getQueryData<{ heroStart: number }>(['home'])?.heroStart).toBe(2),
+    );
+    expect(within(hero).getByRole('heading', { name: 'Alien' })).toBeVisible();
+  });
+
+  it("repeats the shell's draw on the first read only (data-start, concept 08, 6)", async () => {
+    const shell = document.createElement('meta');
+    shell.name = 'slouchcat-hero-start';
+    shell.content = '2';
+    document.head.append(shell);
+    try {
+      const { fetchMock } = mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            heroRow: 'spotlight',
+            heroStart: 2,
+            rows: [{ key: 'spotlight', items: [heat, alien, arrival] }],
+          }),
+      });
+      const { queryClient } = renderApp('/');
+      const hero = await screen.findByRole('region', { name: 'Spotlight' });
+      expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
+      const homeUrls = () =>
+        fetchMock.mock.calls
+          .map(([request]) => new URL(request.url))
+          .filter((url) => url.pathname === '/api/v1/home')
+          .map((url) => url.search);
+      expect(homeUrls()).toEqual(['?start=2']);
+      await act(() => queryClient.invalidateQueries({ queryKey: ['home'] }));
+      await waitFor(() => expect(homeUrls()).toEqual(['?start=2', '']));
+    } finally {
+      shell.remove();
+    }
+  });
+
+  it('holds on keyboard focus and the pause button, not on a click (F-3, F-9)', async () => {
     mockApi({
       ...signedIn,
       'GET /home': () =>
@@ -386,15 +470,45 @@ describe('start page', () => {
     });
     renderApp('/');
     const hero = await screen.findByRole('region', { name: 'Spotlight' });
-    expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
-    await act(() => vi.advanceTimersByTimeAsync(8000));
+    expect(hero).not.toHaveAttribute('data-paused');
+    // A click on a poster shows its slide and leaves the band running, without navigating.
+    const poster = within(hero).getByRole('button', { name: /^Arrival/ });
+    poster.focus();
+    fireEvent.click(poster);
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
-    // The strip marks the active slide's poster, named after its title.
-    expect(within(hero).getByRole('button', { name: 'Arrival' })).toHaveAttribute(
-      'aria-current',
-      'true',
-    );
-    expect(within(hero).getByRole('button', { name: 'Heat' })).not.toHaveAttribute('aria-current');
+    expect(hero).not.toHaveAttribute('data-paused');
+    // A key press makes the focus a keyboard one: the band holds until the focus leaves it.
+    fireEvent.keyDown(poster, { key: 'ArrowLeft' });
+    expect(hero).toHaveAttribute('data-paused');
+    act(() => poster.blur());
+    expect(hero).not.toHaveAttribute('data-paused');
+
+    const pause = within(hero).getByRole('button', { name: 'Pause' });
+    expect(pause).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(pause);
+    expect(pause).toHaveAttribute('aria-pressed', 'true');
+    expect(pause).toHaveAttribute('title', 'Weiter');
+    expect(hero).toHaveAttribute('data-paused');
+    fireEvent.click(pause);
+    expect(pause).toHaveAttribute('aria-pressed', 'false');
+    expect(hero).not.toHaveAttribute('data-paused');
+  });
+
+  it('opens the title a band button was pressed on, even after a change (12.1)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({ heroRow: 'spotlight', rows: [{ key: 'spotlight', items: [heat, arrival] }] }),
+    });
+    const { router } = renderApp('/');
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    fireEvent.pointerDown(within(hero).getByRole('link', { name: 'Details' }));
+    await act(() => vi.advanceTimersByTimeAsync(5100));
+    const details = within(hero).getByRole('link', { name: 'Details' });
+    expect(details).toHaveAttribute('href', `/items/${ids.arrival}`);
+    fireEvent.click(details, { detail: 1 });
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${ids.heat}`));
   });
 
   it('shows the header with profile name and the admin link for the owner', async () => {

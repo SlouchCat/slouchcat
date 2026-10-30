@@ -179,6 +179,68 @@ Tab-Reihenfolge: Sprunglink → Kopfzeile → Spalte → Inhalt. Im Admin-Bereic
   `SideNavDrawer`, die Admin-Seiten (15 rem schmaler); die alten `ui-appheader--nav-focused.png`
   und `ui-appheader--with-update.png` sind entfernt.
 
+### Schritt 4 — Spotlight nach F-2, F-3, F-5, F-9, F-10 und die Reihen nach N-3, N-4
+
+**Reihen.** `Row` bekommt `RowList` (Scroller und Liste mit der Reihengeometrie, wahlweise mit
+Leerraum am Ende); alle Reihen rasten mit `scroll-snap-type: x mandatory` an der linken Kante
+ein, der Scroller ist ein Grössen-Container: unter 768 px ist eine Karte
+`(100cqi − 2·Gutter − 2·Abstand) / 3` breit (genau drei ganze Cover, N-3), ab 768 px gelten die
+Poster-Tokens. `CARD_SIZES` (`PosterCard`, `CollectionCard`), `posterSizes` (`preload.go`) und
+`#poster-prepaint > img` tragen den Eintrag `calc(33vw - 1.5rem)` unter 768 px im selben Commit.
+Der Scroller hat `tabIndex={-1}` (Firefox macht Scrollboxen sonst zu Tab-Stationen).
+
+**Band.** `HeroCarousel` neu: unter der Bühne eine `PosterCard`-Reihe in Normalgrösse in der neuen
+Variante ohne `href` (`onPress`, `active` mit Ring in `--sc-item-accent`, `dimmed` 70 %,
+`aria-current`, Zeitbalken als Kind im Rahmen); Enter oder Klick stellt den Titel ins Band und
+navigiert nicht (F-5). Bei jedem Wechsel rückt das aktive Poster nur horizontal an die linke Kante,
+der Leerraum am Ende trägt auch das letzte Poster dorthin (N-4). Start bei `heroStart`, einmal je
+Einhängen eingerastet (ein Refetch mit anderem Wert bewegt das Band nicht); Takt aus
+`heroIntervalSeconds`. Pausenregel: Trailer, Pause-Knopf (`aria-pressed`, Symbol wechselt, Label
+bleibt «Pause» nach der WAI-ARIA-Regel für Umschalter, «Weiter» als `title`), **Tastaturfokus im
+Band** (`focusin` prüft `:focus-visible`, eine Taste setzt es, `focusout` löscht es), verborgener
+Tab (`visibilitychange`), eine einzige Folie; **kein** Halt beim Mauszeiger und nicht nach einem
+Mausklick (F-3); bei reduzierter Bewegung keine Automatik und kein Zeitbalken. Die drei Bandknöpfe
+merken sich den Titel beim `pointerdown` und navigieren beim `click` dorthin (12.1). Nach dem
+ersten Bild werden die nächsten zwei vorgeladen. Ein Mausdruck auf ein Spotlight-Poster vergibt
+keinen Fokus (sonst scrollte die Pfeilnavigation die Reihe auf die Mitte und der Klick ging
+verloren – Befund der e2e-Tests). Positionsanzeige «3 von 7» sichtbar neben dem Pause-Knopf.
+
+**Ein Wurf je Seitenaufruf** (Papier 6, der Blocker des Reviews). `discover.FirstHero` liefert
+Titel und Index und würfelt mit demselben `drawHeroStart` wie `Home`; `preload.go` schreibt
+`data-start="K"` an `#hero-prepaint` und die Vorladung `</api/v1/home?start=K>`; steht die Bühne
+weiter unten oder fehlt das Backdrop, trägt die Hülle `<meta name="slouchcat-hero-start"
+content="K">`. Der Client (`shellHeroStart()` in `queries.ts`) schickt `start` nur beim ersten
+Abruf der Sitzung (`dataUpdatedAt === 0`), danach würfelt der Server und das Band bleibt
+eingerastet. Admin-Seite «Spotlight» bekommt das Feld «Takt der Bühne … Sekunden» (3–15).
+
+**Belege (DoD).**
+
+- `task build`, `SLOUCHCAT_E2E_PORT=8197 task web:e2e` (ganze Suite, Chromium und Firefox):
+  `477 passed, 1 failed (25.2m)`; `task ci:server`: `0 issues.`, alle Pakete `ok`;
+  `task web:gen:check && task web:lint && task web:test`: grün (83 Dateien, 670 Tests).
+  Der eine Fehler ist `admin-streams.spec.ts` in Firefox («its player stops within 5 s»): ein
+  Zeitbudget unter der Last der ganzen Suite; allein läuft der Test in Firefox zweimal grün
+  (`--repeat-each=2`, 5.5 s und 6.1 s). Der Test hat mit diesem Konzept nichts zu tun; in der
+  CI läuft die Suite in sechs Shards.
+- `home.spec.ts` (neu oder umgeschrieben): Band beginnt bei `SLOUCHCAT_HERO_START` (`data-start`
+  bzw. Meta = 0, `Link </api/v1/home?start=0>`), `GET /home?start=3` liefert `heroStart 3`, ein
+  Refetch nach `visibilitychange` ändert den Bandtitel nicht; Enter auf einem Poster wechselt das
+  Band ohne Navigation; Tab ins Band hält den Takt (`data-paused`), ein Mausklick nicht, der
+  Pause-Knopf hält und löst; aktives Poster nach jedem Wechsel an der linken Kante, `scrollY`
+  bleibt; bei 390 px drei ganze Cover je Reihe, nach `scrollBy` rastet ein Cover am Gutter ein;
+  Tab-Reihenfolge Abspielen → Details → Pause → aktives Poster. `admin-spotlight.spec.ts`: Takt 7
+  speichern, nach Reload 7, `GET /home` liefert `heroIntervalSeconds 7`.
+- `preload_test.go`: mit `WithHeroStart(2)` trägt die Hülle `data-start="2"` und den `Link`
+  `/home?start=2`; Bühne weiter unten nur das Meta-Element; ohne Bühne keines von beiden; ein
+  Zufallswurf nennt in Hülle, Vorladung und `GET /home?start=K` denselben Titel.
+  `discover_test.go`: `FirstHero` mit `WithHeroStart(3)` und `(9)` (auf den letzten Titel geklemmt),
+  `Home(start=k)` wiederholt den Wurf.
+- `HomePage.test.tsx`: Takt 7 s aus der Antwort, eingerasteter `heroStart`, `?start=2` nur beim
+  ersten Abruf, Klick hält nicht, Taste hält, Pause-Knopf, `pointerdown`-Merker, Vorladen der
+  nächsten zwei Bilder.
+- Storybook-Vergleichsbilder (`ui-herocarousel--*`, `ui-row--*`, `ui-postercard--button-*`) fehlen,
+  kein Docker; `task storybook:update` auf CT 190.
+
 ## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, abgenommen)
 
 Auf dem Zweig `claude/bibliotheken` (Pull Request #45, bereit) nach dem Konzept

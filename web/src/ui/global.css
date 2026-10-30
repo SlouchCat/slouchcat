@@ -130,9 +130,10 @@ img {
   opacity: 0;
 }
 
+/* Below 768 px three cards between the gutters, like the row's cards (Row.module.css, N-3). */
 #poster-prepaint > img {
   flex: none;
-  width: var(--sc-size-poster-sm);
+  width: calc((100% - 2 * var(--sc-space-4)) / 3);
   aspect-ratio: 2 / 3;
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-surface-1);

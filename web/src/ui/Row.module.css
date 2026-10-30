@@ -59,12 +59,20 @@
   }
 }
 
+/*
+ * Every row snaps a whole card to the left edge after a swipe or a page (concept 08, N-4). The
+ * scroller is the size container of its cards: below 768 px exactly three fit between the gutters.
+ */
 .scroller {
+  /* Width of a card; below 768 px a third of the room between the gutters (N-3). */
+  --row-card-width: calc((100cqi - 2 * var(--page-gutter) - 2 * var(--sc-space-4)) / 3);
+
   overflow: auto hidden;
   overscroll-behavior-x: contain;
   scroll-padding-inline: var(--page-gutter);
-  scroll-snap-type: x proximity;
+  scroll-snap-type: x mandatory;
   scrollbar-width: none;
+  container-type: inline-size;
 }
 
 .scroller::-webkit-scrollbar {
@@ -83,8 +91,15 @@
 }
 
 .item {
-  width: var(--sc-size-poster-sm);
+  flex: none;
+  width: var(--row-card-width);
   scroll-snap-align: start;
+}
+
+/* After the last card: the rest of the viewport, so the last card can reach the left edge. */
+.space {
+  flex: none;
+  width: calc(100cqi - var(--row-card-width) - 2 * var(--page-gutter) - var(--sc-space-4));
 }
 
 .chip {
@@ -92,14 +107,15 @@
   scroll-snap-align: start;
 }
 
+/* CARD_SIZES (PosterCard.tsx), posterSizes (api/preload.go) and #poster-prepaint (global.css). */
 @media (width >= 768px) {
-  .item {
-    width: var(--sc-size-poster-md);
+  .scroller {
+    --row-card-width: var(--sc-size-poster-md);
   }
 }
 
 @media (width >= 1440px) {
-  .item {
-    width: var(--sc-size-poster-lg);
+  .scroller {
+    --row-card-width: var(--sc-size-poster-lg);
   }
 }

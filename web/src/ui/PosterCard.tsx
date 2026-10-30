@@ -1,3 +1,4 @@
+import type { ReactNode, Ref } from 'react';
 import { AppLink } from './AppLink';
 import { itemAccentStyle } from './accent';
 import { Chip } from './Chip';
@@ -7,11 +8,12 @@ import { PosterFallback } from './PosterFallback';
 import { ProgressBar } from './ProgressBar';
 import { useSpatialItem } from './spatial';
 
-// Rendered width of a card per breakpoint (Row.module.css, size.poster.* tokens); lets the browser
-// pick the w200 or w400 poster. w800 is left out on purpose: a phone at 3x would take it, and the
-// start page must not get heavier (P-10). The server's poster preload and prepaint copy the srcset
-// widths and this value (posterSizes in server/internal/api/preload.go); change them together.
-const CARD_SIZES = '(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem';
+// Rendered width of a card per breakpoint (Row.module.css, size.poster.* tokens; below 768 px a
+// third of the row, concept 08, N-3); lets the browser pick the w200 or w400 poster. w800 is left
+// out on purpose: a phone at 3x would take it, and the start page must not get heavier (P-10). The
+// server's poster preload and prepaint copy the srcset widths and this value (posterSizes in
+// server/internal/api/preload.go, #poster-prepaint in global.css); change them together.
+const CARD_SIZES = '(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)';
 
 /**
  * Fades out the first cards the server wrote into the shell of a start page without a stage
@@ -26,7 +28,21 @@ export function dismissPosterPrepaint() {
 }
 
 interface PosterCardProps {
-  href: string;
+  /** The title's page. Without it the card is a button that calls `onPress` (concept 08, 7.2). */
+  href?: string;
+  /** Called on Enter, Space or a click on a card without `href`. */
+  onPress?: () => void;
+  /** The chosen card of a row of buttons: a ring in the title's accent. */
+  active?: boolean;
+  /** A card of such a row that is not the chosen one: the poster at reduced strength. */
+  dimmed?: boolean;
+  'aria-current'?: 'true';
+  /** Roving tabindex of a row of buttons: only the chosen card is a Tab stop. */
+  tabIndex?: number;
+  /** Return false to consume an arrow press (the ends of a row that must hold the focus). */
+  onArrowPress?: (direction: string) => boolean;
+  /** Drawn inside the poster's frame, over the image (the time bar of the spotlight row). */
+  children?: ReactNode;
   title: string;
   /** Secondary line under the title (year, remaining time). */
   caption?: string;
@@ -62,9 +78,19 @@ interface PosterCardProps {
  * 2:3 poster (or a square cover) with its title below, one link to the title. The link carries the focus ring and
  * scales on focus (focus.scale token); a soft glow in the title's accent colour lights up behind
  * the poster, and the same colour tints the frame while the image is still on its way.
+ *
+ * Without `href` the card is a `<button>` with the same look that calls `onPress` instead of
+ * navigating: the spotlight row under the band, where a card shows its title in the band (F-5).
  */
 export function PosterCard({
   href,
+  onPress,
+  active = false,
+  dimmed = false,
+  'aria-current': ariaCurrent,
+  tabIndex,
+  onArrowPress,
+  children,
   title,
   caption,
   posterUrl,
@@ -80,16 +106,18 @@ export function PosterCard({
   shape = 'poster',
   focusKey,
 }: PosterCardProps) {
-  const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>({ focusKey });
+  const { ref, onFocus } = useSpatialItem<HTMLElement>({ focusKey, onArrowPress });
   const source = posterUrl ?? posterSmallUrl;
-  return (
-    <AppLink
-      ref={ref}
-      href={href}
-      className={`${styles.card} ${shape === 'square' ? styles.square : ''}`}
-      style={itemAccentStyle(accent)}
-      onFocus={onFocus}
-    >
+  const className = [
+    styles.card,
+    shape === 'square' && styles.square,
+    active && styles.active,
+    dimmed && styles.dimmed,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const content = (
+    <>
       <span className={styles.frame}>
         {deferImage ? null : source ? (
           <img
@@ -133,11 +161,44 @@ export function PosterCard({
             <ProgressBar value={progress.percent} label={progress.label} />
           </span>
         )}
+        {children}
       </span>
       <span className={styles.meta}>
         <span className={styles.title}>{title}</span>
         {caption && <span className={styles.caption}>{caption}</span>}
       </span>
+    </>
+  );
+  if (href === undefined) {
+    return (
+      <button
+        ref={ref as Ref<HTMLButtonElement>}
+        type="button"
+        className={`${styles.button} ${className}`}
+        style={itemAccentStyle(accent)}
+        aria-current={ariaCurrent}
+        tabIndex={tabIndex}
+        onFocus={onFocus}
+        // A press with the pointer chooses without taking the focus: the focus would scroll the
+        // row to the card (spatial reveal) under the pointer and lose the click.
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onPress}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <AppLink
+      ref={ref as Ref<HTMLAnchorElement>}
+      href={href}
+      className={className}
+      style={itemAccentStyle(accent)}
+      aria-current={ariaCurrent}
+      tabIndex={tabIndex}
+      onFocus={onFocus}
+    >
+      {content}
     </AppLink>
   );
 }

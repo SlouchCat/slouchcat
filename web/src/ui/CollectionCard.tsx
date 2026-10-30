@@ -4,7 +4,7 @@ import styles from './CollectionCard.module.css';
 import { PosterFallback } from './PosterFallback';
 import { useSpatialItem } from './spatial';
 
-const CARD_SIZES = '(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem';
+const CARD_SIZES = '(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)';
 
 interface CollectionCardProps {
   href: string;

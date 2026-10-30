@@ -264,20 +264,24 @@ func (s *Service) spotlightRow(ctx context.Context, scope visibility.Scope) ([]m
 	return items, nil
 }
 
-// FirstHero returns the first title of the stage row (HomePage.HeroRow) and whether that row is
-// the first row of the page, or model.ErrNotFound when the page has no stage. The app shell of the
-// start page uses it to preload the stage image and, only when the stage comes first, to paint it
-// ahead (P-10, plan 3.5). It derives from the same computation as Home, so it follows its rule.
-func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.ItemSummary, bool, error) {
+// FirstHero returns the title the stage begins with, its index in the stage row (HomePage.HeroRow)
+// and whether that row is the first row of the page, or model.ErrNotFound when the page has no
+// stage. The app shell of the start page draws the stage's first title with it, once per page view
+// (concept 08, 6): it preloads that title's image, paints it ahead only when the stage comes first
+// (P-10, plan 3.5), and hands the index on to GET /home?start=K, which repeats the draw. It derives
+// from the same computation as Home and draws like it (drawHeroStart, so WithHeroStart fixes both).
+func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.ItemSummary, int, bool, error) {
 	page, err := s.page(ctx, visibility.Profile(profile), true)
 	if err != nil {
-		return model.ItemSummary{}, false, err
+		return model.ItemSummary{}, 0, false, err
 	}
 	if page.HeroRow == "" {
-		return model.ItemSummary{}, false, model.ErrNotFound
+		return model.ItemSummary{}, 0, false, model.ErrNotFound
 	}
 	i := slices.IndexFunc(page.Rows, func(r model.HomeRow) bool { return r.Key == page.HeroRow })
-	return page.Rows[i].Items[0], i == 0, nil
+	items := page.Rows[i].Items
+	k := s.drawHeroStart(len(items), nil)
+	return items[k], k, i == 0, nil
 }
 
 // FirstRow returns the titles of the first row of the start page when the page has no stage, or
