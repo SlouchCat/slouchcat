@@ -1001,7 +1001,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	pf.dlDir, pf.queue = filepath.Join(t.TempDir(), "downloads"), jobs.NewQueue(f.DB.Write, nil)
 	// M8 administration: the queue of the fixture, a mock release manifest and a fake VAPID rotation.
 	adm.WithJobs(pf.queue).WithPushRotator(contractPushRotator{adm}).WithUpdateCheck(contractManifest(t), nil).
-		WithSystem(admin.SystemSource{Version: "test", StartedAt: time.Now(), ConfigDir: t.TempDir(), CacheDir: f.CacheDir})
+		WithSystem(admin.SystemSource{Version: "0.0.0-test", StartedAt: time.Now(), ConfigDir: t.TempDir(), CacheDir: f.CacheDir})
 	pf.off = offline.New(f.DB, visibility.New(f.DB, log), pf.queue, transcode.Runner{}, log, offline.WithDir(pf.dlDir),
 		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
 	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue, a.AllowAttempt)

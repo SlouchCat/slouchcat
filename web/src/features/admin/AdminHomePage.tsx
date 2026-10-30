@@ -482,6 +482,30 @@ export function AdminHomePage() {
                 {t('admin.home.update.body', { current: data.update.currentVersion })}
               </Notice>
             )}
+            {/* A build without a release version cannot be compared with the releases, so the
+                server never offers an update for it; the page says what runs instead. */}
+            {data?.update.development && (
+              <Notice
+                title={t('admin.home.update.development.title')}
+                live={false}
+                actions={
+                  data.update.url && data.update.latestVersion ? (
+                    <TextLink href={data.update.url} external>
+                      {t('admin.home.update.notes')}
+                    </TextLink>
+                  ) : undefined
+                }
+              >
+                {data.update.latestVersion
+                  ? t('admin.home.update.development.body', {
+                      current: data.update.currentVersion,
+                      latest: data.update.latestVersion,
+                    })
+                  : t('admin.home.update.development.bodyUnknown', {
+                      current: data.update.currentVersion,
+                    })}
+              </Notice>
+            )}
             {data?.browse && data.browse.lostSlots > 0 && (
               <Notice tone="warning" title={t('admin.home.browse.title')} live={false}>
                 {data.browse.lostSlots >= data.browse.slots

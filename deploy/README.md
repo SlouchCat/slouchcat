@@ -121,7 +121,10 @@ Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist 
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
-`docker compose up --build` baut stattdessen lokal aus dem Dockerfile.
+`docker compose up --build` baut stattdessen lokal aus dem Dockerfile. Ein Image ohne
+Release-Version (`VERSION` aus `git describe` zwischen zwei Tags, ein Commit-Hash oder `dev`)
+meldet sich in der Verwaltung als Entwicklungsstand und bekommt keinen Update-Hinweis; der kommt
+nur, wenn ein Release neuer ist als die eingebaute Version.
 
 ### Volumes
 

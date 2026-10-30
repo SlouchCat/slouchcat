@@ -5442,10 +5442,24 @@ export interface components {
         UpdateState: {
             /** @description The daily update check is on. */
             enabled: boolean;
+            /**
+             * @description Version built into the running server: a release (`1.4.0`), a commit after one as
+             *     `git describe` writes it (`v1.4.0-12-gabc1234`), or the label of a development
+             *     build (a bare commit id, an image tag, `dev`).
+             * @example 1.4.0
+             * @example v1.4.0-12-gabc1234
+             * @example dev
+             */
             currentVersion: string;
             /** @description Newest published version from the release manifest. */
             latestVersion?: string;
-            /** @description latestVersion is newer than the running version. */
+            /**
+             * @description currentVersion is no semantic version, so it cannot be compared with a release:
+             *     `available` stays false and the header carries no update badge. The
+             *     administration shows the build as a development state instead.
+             */
+            development: boolean;
+            /** @description latestVersion is newer than the running version (never for a development build). */
             available: boolean;
             /**
              * Format: uri
