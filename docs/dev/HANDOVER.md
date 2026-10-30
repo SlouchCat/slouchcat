@@ -98,7 +98,7 @@ geprüft (Entscheid vom 21. Oktober).
   angemeldet als MarcoBrechbuhl. Marco ist in der Gruppe `docker`; bis zur Neuanmeldung braucht er
   `sg docker -c "…"`. Für die Hauptsession funktioniert `sg docker -c` ebenfalls.
 - Laufender Server: Container `slouchcat` aus `deploy/compose.yaml`, Image-Tag
-  `ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.3.0`), Port 8096, Daten in Volumes,
+  `ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.4.0`), Port 8096, Daten in Volumes,
   Medien read-only von SMB/NFS. Seit dem Tag `v1.0.0` veröffentlicht die CI das Image selbst; für
   einen Stand zwischen zwei Releases wird es weiterhin lokal gebaut (Befehl unten).
   `deploy/.env` enthält TMDB- und YouTube-Schlüssel (nie committen, nie anzeigen).
@@ -106,7 +106,7 @@ geprüft (Entscheid vom 21. Oktober).
 - **Image nach jedem Merge neu bauen** (aus sauberem Worktree, nie aus dem Arbeitsbaum):
 
 ```bash
-cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile -t ghcr.io/slouchcat/slouchcat:1.3.0 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
+cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile -t ghcr.io/slouchcat/slouchcat:1.4.0 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
 ```
 
 - Kontrolle: `cd deploy && sg docker -c "docker compose ps"` muss `healthy` zeigen.

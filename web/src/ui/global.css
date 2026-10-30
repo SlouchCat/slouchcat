@@ -130,10 +130,16 @@ img {
   opacity: 0;
 }
 
-/* Below 768 px three cards between the gutters, like the row's cards (Row.module.css, N-3). */
+/*
+ * Below 768 px three cards between the gutters, like the row's cards (Row.module.css, N-3). Half
+ * a pixel wider than the card: the browser takes the larger of two equal LCP candidates, and sub-
+ * pixel rounding made the card's image 7 px² larger than this one (Lighthouse mobile, 412 px), so
+ * the LCP jumped from the prepaint to the card's render (docs/perf/startseite.md 3). The geometry
+ * test (sidenav.spec.ts) allows this difference; nobody can see it.
+ */
 #poster-prepaint > img {
   flex: none;
-  width: calc((100% - 2 * var(--sc-space-4)) / 3);
+  width: calc((100% - 2 * var(--sc-space-4)) / 3 + 0.5px);
   aspect-ratio: 2 / 3;
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-surface-1);
@@ -171,7 +177,7 @@ img {
   }
 
   #poster-prepaint > img {
-    width: var(--sc-size-poster-md);
+    width: calc(var(--sc-size-poster-md) + 0.5px);
   }
 }
 
@@ -181,6 +187,6 @@ img {
   }
 
   #poster-prepaint > img {
-    width: var(--sc-size-poster-lg);
+    width: calc(var(--sc-size-poster-lg) + 0.5px);
   }
 }

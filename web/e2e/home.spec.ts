@@ -730,7 +730,11 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
       ];
     }, prepaint);
     expect(painted).toHaveLength(4);
-    painted.forEach((value, index) => expect(value).toBeCloseTo(card[index] ?? Number.NaN, 0));
+    // Under a pixel: the prepainted poster is half a pixel wider than the card on purpose, so it
+    // stays the larger LCP candidate (global.css, docs/perf/startseite.md 3).
+    painted.forEach((value, index) =>
+      expect(Math.abs(value - (card[index] ?? Number.NaN))).toBeLessThan(1),
+    );
   } finally {
     const on = await put(true);
     expect(on.status(), await on.text()).toBe(200);

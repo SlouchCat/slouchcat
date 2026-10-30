@@ -241,6 +241,103 @@ eingerastet. Admin-Seite «Spotlight» bekommt das Feld «Takt der Bühne … Se
 - Storybook-Vergleichsbilder (`ui-herocarousel--*`, `ui-row--*`, `ui-postercard--button-*`) fehlen,
   kein Docker; `task storybook:update` auf CT 190.
 
+### Schritt 5 — Abnahme, Messung, Doku
+
+**Messung** nach Papier-Abschnitt 8 in `docs/perf/startseite.md` (Entwicklungsrechner, 30. Oktober
+2026): auf dem M3-Baum (2'500 Filme, 400 Serien mit 40'334 Folgen) `GET /home` **58.5 ms p95**
+(während des Scans 34.9 ms; P-11 < 300 ms), die Bibliotheksseite in jeder Sortierung unter 300 ms
+p95 (schwerster Fall «Serien, Status angefangen, Titel, Buchstabe S» **198.4 ms**, `sort=played`
+196.4 ms), `GET /libraries/visible` 50.0 ms p95, `GET /picks` 2.9 ms. Neues Schwesterskript
+`docs/perf/measure-library.sh`. Lighthouse (12.8.2, Testfilme vom NAS mit TMDB-Bildern, angemeldet):
+mit Bühne **1.502 s** mobil (M11: 1.652) und 0.441 s Desktop, ohne Bühne **1.577 s** mobil (M11:
+2.328) und 0.362 s Desktop, Note 100; LCP-Element `#hero-prepaint > img` bzw.
+`#poster-prepaint > img`. K-3 am laufenden Server mit `curl` (Kinderprofil Stufe 6 nach Massen-
+Freigabe): nur «Filme» mit `itemCount 3` in der Seitenleiste, `maxRating=18` ändert nichts,
+`facets.ratings [0]`, unbewertete Serienbibliothek und unbekannte Id 404, `letter` ohne
+Titel-Sortierung 422 `letter_requires_title_sort`, `sort=author` bei Video 422.
+
+**Zwei Befunde der Messung.**
+
+1. **LCP ohne Bühne auf dem Handy (behoben).** Der erste Mobile-Lauf ohne Bühne lag bei 3.5 s: das
+   Vormal-Poster und das Kartenbild waren gleich gross, Chrome nahm durch Subpixel-Rundung die um
+   7 px² grössere Karte als LCP-Kandidaten, der LCP sprang auf das React-Malen. Das Vormal-Poster
+   ist jetzt 0.5 px breiter als die Karte (`global.css`, Kommentar dort; der Geometrie-Test erlaubt
+   unter 1 px). Danach 1.577 s.
+2. **`itemCount` über der Ausstiegsklausel (offen, Entscheid für Marco).** `GET /libraries/visible`
+   braucht 50 ms p95 statt der 20 ms aus Papier-Abschnitt 8. Die vorgeschlagene «Zähltabelle je
+   Bibliothek, die der Scanner pflegt» kann die Zahl nicht liefern: `itemCount` ist je Profil
+   verschieden (Freigabestufe, Bibliotheksrechte), der Scanner kennt kein Profil; eine Zähltabelle je
+   Profil wäre ein zweiter Zustand neben `visible_items` (Regel 2). Der Aufruf wird mit der Sitzung
+   vorgeladen, läuft parallel zu `/home`, hält die Seitenleiste nicht auf und wird 60 s gehalten.
+   Vorschlag: so lassen; Alternative: die Zahl aus der Seitenleiste nehmen (O-1 zurücknehmen).
+   Details in `docs/perf/startseite.md` 1b.
+
+**Belege (DoD) des Abschlusses:** `task web:gen:check && task web:lint && task web:test` grün;
+`task ci:server` `0 issues.`, alle Pakete `ok` (mit `startseite.sql`); ganze Playwright-Suite
+(Chromium und Firefox) `475 passed, 3 failed (25.6m)`: zwei davon waren die Toleranz von
+`home.spec.ts` «no stage» (< 0.5 px) gegen den gewollten halben Pixel des Vormal-Posters – jetzt
+< 1 px wie im Geometrie-Test, danach `home.spec.ts` und `sidenav.spec.ts` in beiden Browsern
+`42 passed`; der dritte ist das bekannte 5-s-Zeitbudget von `admin-streams.spec.ts` in Firefox
+unter Suite-Last.
+
+**Eingefrorener Stand** `testdata/db/startseite.sql` (Erzeugung in `testdata/db/README.md`) mit
+`TestFrozenStartseiteStateCoversTheConcept` (Takt 7, Sortierschlüssel ohne Artikel, Wertung mit
+Herkunft, Indizes, Notiz); `TestFrozenStatesMigrate` nimmt ihn über das Glob mit.
+
+**Versionsstellen auf 1.4.0:** `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+`docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`.
+
+**Release-Notes-Entwurf 1.4.0** (C-5, nicht brechend):
+
+- Zuschauer: Seitenleiste links ab 768 px («Meine Medien» mit jeder sichtbaren Bibliothek und
+  «Cat's Empfehlungen», ausblendbar), Schublade auf dem Handy; Bibliotheksseite je Bibliothek mit
+  Chips «Alle · Filme · Serien», acht Sortierungen, Filtern (Genre, Status, Jahr, Freigabe) und
+  Buchstabenleiste; Seite «Cat's Empfehlungen»; Spotlight-Band mit zufälligem Einstieg je Aufruf,
+  Takt aus der Verwaltung, Pause-Knopf und Posterreihe in Normalgrösse; alle Reihen rasten links
+  ein, auf dem Handy drei Cover je Reihe.
+- Vertrag 1.4.0, additiv: `listVisibleLibraries`, `listLibraryItems`, `listPicks` (alle `scoped`),
+  `getHome?start`, `HomePage.heroStart` und `heroIntervalSeconds`, `SpotlightConfig.rotationSeconds`
+  (im Update optional, fehlt = unverändert), Schemata `LibraryNav`, `LibrarySort`,
+  `LibraryItemStatus`, `LibraryFacets`, `LibraryItemsPage`, `PicksPage`; Fehlercode
+  `letter_requires_title_sort`.
+- Migration 00026 (`rotation_seconds`, `item_texts.sort_key` mit Backfill, `items.vote_average`,
+  Indizes); der Server sichert die Datenbank vorher nach `/config/backups/`. **Nach dem Update läuft
+  einmal der Job `metadata.vote_backfill`** (Wertungen der vorhandenen Titel von TMDB und AniList, in
+  Batches zu 200, gedrosselt; bei 2'500 Filmen und 1'000 Serien rund zwei Stunden, zwei TMDB-Anfragen je
+  Titel für beide Sprachen); bis dahin sortiert «Bewertung» unvollständig. TVDB liefert keine
+  Wertung.
+- `SLOUCHCAT_HERO_START` (nur für Tests) fixiert den Einstieg des Bands.
+
+**Testanleitung für Marco am Handy und am Tablet** (CT 190 oder der Stack auf 8096 nach dem Merge):
+
+1. Startseite öffnen: Menü-Symbol oben links öffnet die Schublade mit Start, Suche, Merkliste,
+   Downloads, «Meine Medien» (jede Bibliothek mit Zahl, Cat's Empfehlungen), Verwaltung, Profile,
+   Abmelden; Tippen neben die Schublade schliesst sie. Am Tablet (quer und hochkant) steht die
+   Leiste fest links; «Seitenleiste ausblenden» unten, danach Menü-Symbol und in der Schublade
+   «Seitenleiste einblenden»; der Zustand bleibt nach dem Neuladen.
+2. Band: bei jedem Öffnen ein anderer Titel zuerst, alle 5 s der nächste (Takt in Verwaltung →
+   Spotlight → «Takt der Bühne» auf 3 bis 15 s stellen); Tippen auf ein Poster unter dem Band
+   stellt den Titel ins Band, öffnet nichts; Pause-Knopf oben rechts hält an; das aktive Poster
+   steht links; Band bleibt stehen, wenn du mit Pfeiltasten (Tastatur am Tablet) hineingehst.
+3. Reihen: auf dem Handy drei ganze Cover je Reihe, nach dem Wischen steht links immer ein ganzes
+   Cover; «Alle anzeigen ›» an Cat's Empfehlungen und Merkliste.
+4. Bibliothek («Filme», «Dokus», …): Zähler oben, bei gemischten Bibliotheken Chips «Alle · Filme ·
+   Serien», Sortieren (Titel, Zuletzt hinzugefügt, Erscheinungsjahr, Bewertung, Laufzeit,
+   Altersfreigabe, Zuletzt gesehen; bei Hörbüchern Autor), Richtung, Filter (Genre, Status, Jahr,
+   Freigabe – nur was es in der Bibliothek gibt), Buchstabenleiste als Lauf über dem Raster
+   (nur bei Sortierung nach Titel); Haken auf gesehenen Titeln, FSK-Chip bei Video; «Mehr laden»
+   ab 50; Zurück landet auf der Karte, von der du kamst. Ein Kinderprofil sieht in jeder
+   Bibliothek nur seine Stufe, eine leere Bibliothek fehlt in der Leiste.
+5. Cat's Empfehlungen: Seite mit allen Empfehlungen und Notizen in Cats Reihenfolge.
+6. Verwaltung → Spotlight: «Takt der Bühne» speichern; Startseite neu laden.
+
+**Offen nach diesem Zweig:** Storybook-Vergleichsbilder auf CT 190 nachholen (`task
+storybook:update`: `AppHeader`, `SideNav`, `SideNavDrawer`, `PosterCard`, `Row`, `HeroCarousel`,
+`SelectField`, `LetterBar`, Admin-Seiten); Messung der Bibliotheksseite auf CT 190 (2 vCPU: die
+Folgen-Aggregation könnte dort über 300 ms liegen, `docs/perf/startseite.md` 1b); Entscheid zu
+`itemCount` (oben); Pfeil links aus einem `<select>` in der Werkzeugzeile erreicht die Leiste
+nicht.
+
 ## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, abgenommen)
 
 Auf dem Zweig `claude/bibliotheken` (Pull Request #45, bereit) nach dem Konzept
