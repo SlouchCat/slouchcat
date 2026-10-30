@@ -27,6 +27,11 @@ export function LinkRouterProvider({
   return <NavigateContext.Provider value={navigate}>{children}</NavigateContext.Provider>;
 }
 
+/** The app router's navigate (LinkRouterProvider), or a page load where there is none. */
+export function useAppNavigate(): Navigate {
+  return useContext(NavigateContext) ?? ((href: string) => window.location.assign(href));
+}
+
 const isAppPath = (href: string) => href.startsWith('/') && !href.startsWith('//');
 
 interface AppLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {

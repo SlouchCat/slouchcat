@@ -512,7 +512,9 @@ func (s *Service) finishPodcastEpisode(ctx context.Context, item systemq.Item, f
 	}
 	if description != "" {
 		for _, lang := range []string{"de", "en"} {
-			if err := q.UpsertItemText(ctx, systemq.UpsertItemTextParams{ItemID: item.ID, Lang: lang, Title: title, Overview: nullString(description)}); err != nil {
+			if err := q.UpsertItemText(ctx, systemq.UpsertItemTextParams{
+				ItemID: item.ID, Lang: lang, Title: title, Overview: nullString(description), SortKey: sortKey(lang, title),
+			}); err != nil {
 				return fmt.Errorf("store episode text: %w", err)
 			}
 		}

@@ -1,0 +1,60 @@
+/* A strip that scrolls sideways on phones; the padding leaves room for the focus ring. */
+.bar {
+  display: flex;
+  gap: var(--sc-space-1);
+  overflow: auto hidden;
+  padding: var(--sc-space-1);
+  scrollbar-width: none;
+}
+
+.bar::-webkit-scrollbar {
+  display: none;
+}
+
+.letter {
+  flex: none;
+  min-width: var(--sc-space-8);
+  min-height: var(--sc-space-8);
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-sm);
+  background-color: transparent;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.letter[aria-pressed='true'] {
+  background-color: var(--sc-color-text-primary);
+  color: var(--sc-color-bg-base);
+}
+
+.letter:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+@media (hover: hover) {
+  .letter:hover:not(:disabled, [aria-pressed='true']) {
+    background-color: var(--sc-color-surface-2);
+    color: var(--sc-color-text-primary);
+  }
+}
+
+/* From 768 px a column at the side of the list. */
+@media (width >= 768px) {
+  .bar {
+    flex-direction: column;
+    gap: 0;
+    overflow: hidden auto;
+  }
+
+  .letter {
+    min-width: var(--sc-space-6);
+    min-height: var(--sc-space-5);
+  }
+}

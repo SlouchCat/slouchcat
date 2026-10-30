@@ -33,6 +33,11 @@
 //     only raised. Seasons and episodes follow when two providers describe them. Queued in the
 //     transaction of every match, by a list change of a folder and by QueuePendingMetadata for
 //     titles whose provenance is missing or stale.
+//   - metadata.vote_backfill, payload {"after": "<ULID>"}, key vote_backfill (vote_backfill:<after>
+//     for a successor), priority 2 (vote_backfill.go, concept 08 4.2): fills items.vote_average of
+//     the titles matched before migration 00026 in batches of 200, asking TMDB and AniList through
+//     their rate limiters; each batch queues the next. QueuePendingMetadata starts it when no job
+//     of the type is active and a title waits.
 //   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2 (episode stills 1):
 //     downloads the original of the stored image paths (items.tmdb_poster_path for movies, series
 //     and seasons; items.tmdb_backdrop_path for movies, series and episode stills) once, scales it
@@ -56,10 +61,10 @@
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
-// runtime_minutes, genres, tmdb_id, tvdb_id, imdb_id, own_rating, the text fields title, overview
-// and tagline (item_texts, both languages), the image kinds poster and backdrop, cast (the
-// credits of the title) and trailer (the automatic trailers). A rating whose rating_source is nfo
-// or manual is never replaced either.
+// runtime_minutes, genres, tmdb_id, tvdb_id, imdb_id, own_rating, vote_average, the text fields
+// title, overview and tagline (item_texts, both languages), the image kinds poster and backdrop,
+// cast (the credits of the title) and trailer (the automatic trailers). A rating whose
+// rating_source is nfo or manual is never replaced either.
 //
 // Genres: items.genres holds the provider genre names per language as a JSON object
 // {"de": ["Drama", …], "en": ["Drama", …]}; the API layer picks the profile language.
@@ -286,11 +291,12 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 	}
 }
 
-// RegisterJobs registers the handlers of metadata.match, metadata.fill, image.fetch,
-// trailer.find, podcast.fetch and trakt.refresh on w.
+// RegisterJobs registers the handlers of metadata.match, metadata.fill, metadata.vote_backfill,
+// image.fetch, trailer.find, podcast.fetch and trakt.refresh on w.
 func (s *Service) RegisterJobs(w *jobs.Worker) {
 	w.Handle(JobMatch, s.handleMatch)
 	w.Handle(JobFill, s.handleFill)
+	w.Handle(JobVoteBackfill, s.handleVoteBackfill)
 	w.Handle(JobImageFetch, s.handleImageFetch)
 	w.Handle(JobTrailerFind, s.handleTrailerFind)
 	w.Handle(JobPodcastFetch, s.handlePodcastFetch)

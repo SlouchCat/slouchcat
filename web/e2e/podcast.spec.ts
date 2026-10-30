@@ -204,9 +204,18 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, play);
-    // The row under the actions (watchlist, M7) comes first.
+    // The row under the actions (watchlist, M7) comes first. Beside the side navigation's column
+    // (concept 08) "Verwalten" may wrap onto a line of its own above it.
+    const remember = page.getByRole('button', { name: 'Merken' });
     await page.keyboard.press('ArrowDown');
-    await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
+    if (
+      await page
+        .getByRole('link', { name: 'Verwalten' })
+        .evaluate((e) => e === document.activeElement)
+    ) {
+      await page.keyboard.press('ArrowDown');
+    }
+    await expectFocusOn(page, remember);
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, toPodcast);
 

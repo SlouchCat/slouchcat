@@ -161,3 +161,14 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Testmedien keine Anime sind: eine gematchte Serie trägt `anilist_id 290` und Herkunftszeilen `overview/en → anilist`
   und `genres → union`. `TestFrozenBibliothekenStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist;
   der Name trägt bewusst keine Meilensteinnummer, wie `benutzerverwaltung.sql`.
+- `startseite.sql`: Stand nach dem Konzept «Startseite, Seitenleiste und Bibliotheksansichten» (ADR 0016; Migration
+  00026). Erzeugt mit `server/bin/slouchcat dump` nach einem Lauf gegen einen frischen Server (Port 8196,
+  `--browse-roots testdata/media`, Marcos TMDB-Schlüssel; Skript in den Sitzungsnotizen `freeze/run.sh`): Assistent mit
+  Hauptkonto `frozen@example.test` und der Video-Bibliothek «Filme» (`testdata/media/Movies`, `["tmdb"]`), dazu
+  «Serien» (`testdata/media/TV`, `["tmdb","tvdb"]`); die Testserien tragen TMDB-Ids in den Ordnernamen und sind
+  gematcht, darum haben sie `item_texts.sort_key` aus dem gezeigten Titel und `items.vote_average` samt
+  Herkunftszeile `vote_average` (der Match des Erkenners schreibt die Wertung); die Filme bleiben unmatched und
+  tragen den Schlüssel aus dem Dateinamen. `spotlight_config.rotation_seconds` steht auf 7 (über
+  `setSpotlightConfig`), eine Empfehlung mit Notiz liegt in `top_picks`. `TestFrozenStartseiteStateCoversTheConcept`
+  prüft, dass jede dieser Datenarten vorhanden ist (Takt 7, Sortierschlüssel ohne Artikel, Wertung mit Herkunft, die
+  Indizes `items_library_kind_added` und `item_texts_sort_key`, die Notiz).

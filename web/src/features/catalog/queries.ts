@@ -1,10 +1,43 @@
-import type { HomePage, ItemDetail, Person, PodcastEpisodes, Trailer } from '@slouchcat/api-client';
+import type {
+  components,
+  HomePage,
+  ItemDetail,
+  Person,
+  PodcastEpisodes,
+  Trailer,
+} from '@slouchcat/api-client';
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
+import type { LibraryRequest } from './libraryParams';
+
+type LibraryNav = components['schemas']['LibraryNav'];
+type LibraryItemsPage = components['schemas']['LibraryItemsPage'];
+type PicksPage = components['schemas']['PicksPage'];
+
+/**
+ * The stage's start the app shell drew for this page view (concept 08, 6; api/preload.go):
+ * `data-start` of `#hero-prepaint` or, without that image, the `slouchcat-hero-start` meta. Absent
+ * when the shell came from the service worker's precache or the page has no stage.
+ */
+export function shellHeroStart(): number | undefined {
+  const value =
+    document.getElementById('hero-prepaint')?.dataset.start ??
+    document.querySelector<HTMLMetaElement>('meta[name="slouchcat-hero-start"]')?.content;
+  const start = value === undefined || value === '' ? NaN : Number(value);
+  return Number.isInteger(start) && start >= 0 ? start : undefined;
+}
 
 export const homeQuery = queryOptions({
   queryKey: ['home'],
-  queryFn: ({ signal }): Promise<HomePage> => request(api.GET('/home', { signal })),
+  // The first read of the session repeats the shell's draw (start=K), so it is the URL the shell
+  // preloads and the band begins with the painted title; every later read lets the server draw.
+  // The stage keeps the start it mounted with, so a refetch never moves the band (5.2).
+  queryFn: ({ signal, client, queryKey }): Promise<HomePage> => {
+    const start = client.getQueryState(queryKey)?.dataUpdatedAt ? undefined : shellHeroStart();
+    return request(
+      api.GET('/home', { params: start === undefined ? {} : { query: { start } }, signal }),
+    );
+  },
   // The router guard prefetches the start page; the page mounting right after must not ask again.
   // The player invalidates it after playback.
   staleTime: 30_000,
@@ -53,3 +86,58 @@ export const podcastEpisodesQuery = (id: string, offset: number) =>
       return next < last.total && last.episodes.length > 0 ? next : undefined;
     },
   });
+
+/** Page size of "Mehr laden" on the library page and the page of Cat's recommendations. */
+export const LIBRARY_PAGE = 50;
+
+const nextOffset = (last: { offset: number; total: number; items: unknown[] }) => {
+  const next = last.offset + last.items.length;
+  return next < last.total && last.items.length > 0 ? next : undefined;
+};
+
+/** The libraries with at least one title the active profile may see (concept 08). */
+export const visibleLibrariesQuery = queryOptions({
+  queryKey: ['libraries', 'visible'],
+  queryFn: ({ signal }): Promise<LibraryNav[]> =>
+    request(api.GET('/libraries/visible', { signal })),
+  staleTime: 60_000,
+});
+
+/** One library's titles with the facets of its filters, paged; 404 when it shows nothing. */
+export const libraryItemsQuery = (id: number, query: LibraryRequest) =>
+  infiniteQueryOptions({
+    queryKey: ['library', id, query],
+    queryFn: ({ pageParam, signal }): Promise<LibraryItemsPage> =>
+      request(
+        api.GET('/libraries/{id}/items', {
+          params: { path: { id }, query: { ...query, offset: pageParam, limit: LIBRARY_PAGE } },
+          signal,
+        }),
+      ),
+    initialPageParam: 0,
+    getNextPageParam: nextOffset,
+    // A changed sort or filter keeps the previous grid until the new one arrives (no jump).
+    placeholderData: (previous) => previous,
+  });
+
+/** All of Cat's recommendations for the active profile, in Cat's order (E-2). */
+/** How many of Cat's recommendations the active profile sees: the side navigation's count. */
+export const picksCountQuery = queryOptions({
+  queryKey: ['picks', 'count'],
+  queryFn: async ({ signal }): Promise<number> =>
+    (await request(api.GET('/picks', { params: { query: { limit: 1 } }, signal }))).total,
+  staleTime: 60_000,
+});
+
+export const picksPageQuery = infiniteQueryOptions({
+  queryKey: ['picks', 'page'],
+  queryFn: ({ pageParam, signal }): Promise<PicksPage> =>
+    request(
+      api.GET('/picks', {
+        params: { query: { offset: pageParam, limit: LIBRARY_PAGE } },
+        signal,
+      }),
+    ),
+  initialPageParam: 0,
+  getNextPageParam: nextOffset,
+});

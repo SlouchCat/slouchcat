@@ -138,9 +138,19 @@ interface SpatialGroupProps {
   rememberLastChild?: boolean;
   /** Child that receives focus when the group is entered and no last child is remembered. */
   preferredChildFocusKey?: string;
+  /** Arrow keys never leave the group (a modal drawer). */
+  focusBoundary?: boolean;
+  /**
+   * Picks the child an arrow press moves to from the child `from` (focus keys), instead of the
+   * geometry; null leaves the group. For containers whose children overlap, like the app shell's
+   * header, side navigation and content.
+   */
+  nextFocusKey?: (direction: string, from: string) => string | null;
   as?: 'div' | 'ul' | 'nav' | 'section';
   'aria-label'?: string;
   'aria-labelledby'?: string;
+  /** -1 keeps a scrolling group out of the Tab order (Firefox makes scroll boxes Tab stops). */
+  tabIndex?: -1;
 }
 
 /** A spatial container (row, hero, header) whose children navigate among each other first. */
@@ -150,6 +160,8 @@ export function SpatialGroup({
   className,
   rememberLastChild = true,
   preferredChildFocusKey,
+  focusBoundary,
+  nextFocusKey,
   as: Tag = 'div',
   ...aria
 }: SpatialGroupProps) {
@@ -158,6 +170,13 @@ export function SpatialGroup({
     focusKey,
     saveLastFocusedChild: rememberLastChild,
     preferredChildFocusKey,
+    isFocusBoundary: focusBoundary,
+    nextFocusResolver: nextFocusKey
+      ? (direction, from, siblings) => {
+          const next = nextFocusKey(direction, from);
+          return siblings.find((sibling) => sibling.focusKey === next) ?? null;
+        }
+      : undefined,
     trackChildren: false,
   });
   return (

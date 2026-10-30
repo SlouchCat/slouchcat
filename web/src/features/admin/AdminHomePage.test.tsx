@@ -478,7 +478,10 @@ describe('update badge (A-5)', () => {
     });
     const { router } = renderApp('/admin/devices');
     const user = userEvent.setup();
-    const badge = await screen.findByRole('link', { name: 'Update auf Version 0.9.1 verfügbar' });
+    // The badge sits on the side navigation's "Verwaltung" entry (concept 08).
+    const badge = await screen.findByRole('link', {
+      name: 'Verwaltung, Update auf Version 0.9.1 verfügbar',
+    });
     expect(badge).toHaveTextContent('Update');
     await user.click(badge);
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));

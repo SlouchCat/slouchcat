@@ -1,0 +1,117 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+  min-height: 100dvh;
+  padding: calc(var(--sc-size-header-height) + var(--sc-space-10)) var(--page-gutter)
+    var(--sc-space-16);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: baseline;
+}
+
+.title {
+  font-size: clamp(var(--sc-font-size-2xl), 4.5vw, var(--sc-font-size-display));
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-font-letter-spacing-display);
+}
+
+.count {
+  color: var(--sc-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chips on the left; sort, direction and "Filter" on the right. */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.grow {
+  flex: 1;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  padding: var(--sc-space-5);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.filterLabel {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.years {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+}
+
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  justify-content: flex-end;
+}
+
+/* The grid, with the letter bar above it on phones and at its right from 768 px. */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-4);
+  align-items: start;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-6);
+  min-width: 0;
+}
+
+/* Three columns on phones, as the rows show three posters (N-3). */
+.results .grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (width >= 768px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .results {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .results .grid {
+    grid-template-columns: repeat(auto-fill, minmax(var(--sc-size-poster-md), 1fr));
+  }
+
+  /* Sticky below the header; a short window scrolls the column itself. */
+  .letters {
+    position: sticky;
+    top: calc(var(--sc-size-header-height) + var(--sc-space-4));
+    grid-row: 1;
+    grid-column: 2;
+    max-height: calc(100dvh - var(--sc-size-header-height) - var(--sc-space-8));
+  }
+}

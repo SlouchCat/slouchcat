@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.3.0
+  version: 1.4.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -886,6 +886,166 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
 
+  /libraries/visible:
+    get:
+      operationId: listVisibleLibraries
+      summary: Libraries with at least one visible title, for the side navigation (concept 08, ADR 0016)
+      description: |
+        The libraries the active profile may browse, in the order of the administration: a library is
+        listed when the profile sees at least one of its titles (derived from the visibility layer,
+        not from a second copy of the library rights, ADR 0016). A library the profile may not see
+        and a library without a visible title are absent alike. `itemCount` counts top-level titles
+        only (films, series, audiobooks, podcasts), never episodes. `contents` names the content
+        kinds of the library's folders (ADR 0015), so the client knows whether to offer the chips
+        "all / films / series". Unlike `listAccountLibraries` (`account`, for the profile settings)
+        this is `scoped`: it describes what the profile sees.
+      tags: [items]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The visible libraries, administration order.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LibraryNav"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+
+  /libraries/{id}/items:
+    get:
+      operationId: listLibraryItems
+      summary: One page of the titles of a library, sorted and filtered (concept 08)
+      description: |
+        The top-level titles of one library (films and series of a video library, audiobooks,
+        podcasts) that the active profile may see, as the library page shows them: one grid with
+        the content kind as a chip (`content`), a sort order with direction, the filters genre,
+        status, year and age rating, and a letter bar when sorted by title. `sort` `title` orders
+        by the sort key of the title in the profile language (article stripped, case and diacritics
+        folded; `item_texts.sort_key`, ADR 0016), `added` by `addedAt`, `released` by the release
+        date, `vote` by the TMDB vote average (unknown last), `runtime` by the runtime, `age` by
+        the age rating, `played` by the time of the profile's last progress (never played last),
+        `author` by the author (audiobook libraries only, 422 elsewhere). The default direction is
+        ascending for `title`, `age` and `author`, descending for the rest. `maxRating` can only
+        lower the ceiling: the server takes the minimum of the profile's ceiling and the parameter
+        (K-3). `status` is per profile: `unwatched`, `started`, `watched`; a series or podcast is
+        `watched` when every visible episode is completed, `started` when at least one episode
+        has progress and not all are completed, else `unwatched` (exclusive). `letter` is one
+        character of `[A-Z#]` (`#` = digits and other characters) and is allowed only with
+        `sort=title` (422 `letter_requires_title_sort`). The answer carries `facets`: the letters
+        of the filtered set (without the letter filter), the genres with hits in the library and
+        the age ratings present below the profile's ceiling; the client offers only what the
+        facets name (rule 12). `progress.completed` is set for series and podcasts by the status
+        rule above. A library the profile may not see and a library without a visible title answer
+        404 (never 403).
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/LibraryID"
+        - name: content
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/RootContent"
+          description: One content kind of the library's folders (the chips "films / series"); absent = all.
+        - name: sort
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/LibrarySort"
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+          description: Absent = the default of `sort`.
+        - name: genre
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+          description: A genre name in the profile language, as `facets.genres` lists it.
+        - name: yearFrom
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1870
+            maximum: 2100
+        - name: yearTo
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1870
+            maximum: 2100
+        - name: maxRating
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Rating"
+          description: Lowers the ceiling for this page; the server takes `min(profile ceiling, maxRating)`.
+        - name: status
+          in: query
+          required: false
+          style: form
+          explode: true
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/LibraryItemStatus"
+          description: Several values are combined with OR.
+        - name: letter
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: "^[A-Z#]$"
+          description: Only with `sort=title`.
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: One page of the library with its facets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryItemsPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown library, not visible for the active profile or without a visible title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`; `letter` `letter_requires_title_sort` without
+            `sort=title` or `invalid_value` outside `[A-Z#]`; `sort` `invalid_value` for `author` outside
+            an audiobook library; `content` `invalid_value` for a kind the library's folders do not hold;
+            `yearFrom`/`yearTo` `invalid_value` outside 1870..2100; `genre` `too_long` over 80 characters).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /invitations/{token}:
     get:
       operationId: getInvitation
@@ -1008,8 +1168,26 @@ paths:
         are omitted; never more than eight (E-9). `heroRow` names the row the client draws as the
         stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
         a poster row. Every item passed the visibility layer of the active profile.
+
+        `heroStart` names the title the stage begins with (concept 08, F-2, ADR 0016): an index into
+        the `items` of the `heroRow`, drawn at random by the server once per page view. The app
+        shell `GET /` draws it and writes it as `data-start` on `#hero-prepaint` and into its
+        `Link` preload `</home?start=K>`; a client that reads the shell passes `start` so the
+        preloaded answer repeats that draw instead of drawing again. Without `start` the server
+        draws. The client keeps the first `heroStart` it mounted the stage with and ignores later
+        values from refetches.
       tags: [items]
       x-visibility: scoped
+      parameters:
+        - name: start
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          description: |
+            Repeat an earlier draw of `heroStart` (from `data-start` of the app shell). Clamped to
+            the stage row; a value outside it or without a stage is ignored and the server draws.
       responses:
         "200":
           description: Start page rows.
@@ -1023,6 +1201,43 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+
+  /picks:
+    get:
+      operationId: listPicks
+      summary: All of Cat's recommendations for the active profile (E-2, concept 08)
+      description: |
+        The same recommendations as the row `picks` of `getHome` (recipient, time window and
+        visibility applied, in Cat's order, with the `note` of the main user on every title), without
+        the row's cut to 20 titles, paged. The page "Cat's recommendations" behind the entry in the
+        side navigation and behind "show all" at the row.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: One page of the recommendations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PicksPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
 
   /items/{id}:
     get:
@@ -7078,6 +7293,20 @@ components:
             decides which row that is (ADR 0011); a client draws large whatever is named here and
             does not interpret the key itself. Absent when the start page has no stage: then every
             row is a poster row. A row named here is always present in `rows`.
+        heroStart:
+          type: integer
+          minimum: 0
+          description: |
+            Index into the `items` of the `heroRow` the stage begins with, drawn once per page view
+            by the server (concept 08, F-2; after deduplication, pinning and the cut of ADR 0011,
+            so the order of pinned entries is untouched). Absent when `heroRow` is absent.
+        heroIntervalSeconds:
+          type: integer
+          minimum: 3
+          maximum: 15
+          description: |
+            Seconds the stage shows one title before it moves on (`rotationSeconds` of the
+            spotlight configuration, F-10). Present only with `heroRow`.
 
     PlaybackRequest:
       type: object
@@ -8865,6 +9094,106 @@ components:
           type: integer
           minimum: 1
 
+    LibraryNav:
+      type: object
+      description: "One library of the side navigation (concept 08): what the active profile sees of it."
+      required: [id, name, kind, contents, itemCount]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/LibraryKind"
+        contents:
+          type: array
+          description: The content kinds of the library's folders, each once, in enum order; more than one offers the chips.
+          items:
+            $ref: "#/components/schemas/RootContent"
+        itemCount:
+          type: integer
+          minimum: 1
+          description: Visible top-level titles (films, series, audiobooks, podcasts; never episodes).
+
+    LibrarySort:
+      type: string
+      enum: [title, added, released, vote, runtime, age, played, author]
+      description: |
+        Sort orders of the library page (F-6, F-12). `vote` is the TMDB vote average (`items.vote_average`,
+        never the age rating, which is `age`); `author` only in audiobook libraries.
+
+    LibraryItemStatus:
+      type: string
+      enum: [unwatched, started, watched]
+      description: Watch status of a title for the active profile (F-8); exclusive per title.
+
+    LibraryFacets:
+      type: object
+      description: |
+        What the library page may offer as filter values (rule 12: the client shows only what the
+        server names). Computed in the same transaction as the page.
+      required: [letters, genres, ratings]
+      properties:
+        letters:
+          type: array
+          description: |
+            Initial letters present in the filtered set, without the letter filter itself; `#` for
+            digits and other characters. Sorted A to Z, `#` last.
+          items:
+            type: string
+            pattern: "^[A-Z#]$"
+        genres:
+          type: array
+          description: Genres with at least one visible title in the library (profile language), with their counts, most frequent first.
+          items:
+            $ref: "#/components/schemas/GenreRef"
+        ratings:
+          type: array
+          description: Age ratings present among the visible titles of the library, all at or below the profile's ceiling, ascending.
+          items:
+            $ref: "#/components/schemas/Rating"
+
+    LibraryItemsPage:
+      type: object
+      required: [items, total, offset, limit, facets]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemRef"
+        total:
+          type: integer
+          minimum: 0
+          description: Titles matching the filters (content, genre, status, years, rating, letter).
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        facets:
+          $ref: "#/components/schemas/LibraryFacets"
+
+    PicksPage:
+      type: object
+      required: [items, total, offset, limit]
+      properties:
+        items:
+          type: array
+          description: Cat's recommendations in Cat's order, each with `note` when the main user wrote one.
+          items:
+            $ref: "#/components/schemas/ItemRef"
+        total:
+          type: integer
+          minimum: 0
+        offset:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+
     ItemPage:
       type: object
       required: [items, total, offset, limit]
@@ -9171,11 +9500,16 @@ components:
 
     SpotlightConfig:
       type: object
-      required: [enabled, listKey, media, itemCount, minHits, intervalHours, listKinds]
+      required: [enabled, listKey, media, itemCount, minHits, intervalHours, rotationSeconds, listKinds]
       properties:
         enabled:
           type: boolean
           description: "`false` keeps the row off the start page; the fetch keeps running."
+        rotationSeconds:
+          type: integer
+          minimum: 3
+          maximum: 15
+          description: Seconds the stage shows one title before it moves on (concept 08, F-10; default 5).
         listKey:
           $ref: "#/components/schemas/SpotlightListKey"
         listUrl:
@@ -9231,6 +9565,13 @@ components:
           type: integer
           minimum: 6
           maximum: 48
+        rotationSeconds:
+          type: integer
+          minimum: 3
+          maximum: 15
+          description: |
+            Optional, absent = unchanged (contract 1.4.0): an older administration client that
+            does not know the field must not reset the stored value silently.
 
     SpotlightEntries:
       type: object

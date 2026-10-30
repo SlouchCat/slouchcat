@@ -111,10 +111,16 @@ test('spotlight by keyboard: source, fetch, hide, pin and note an entry', async 
     await expect(media.getByRole('radio')).toHaveCount(3);
     await expect(media.getByRole('radio', { name: 'Filme und Serien' })).toBeChecked();
 
-    // The three numbers, each with its own line (plan 5.5); Tab through them to "Speichern".
+    // The four numbers, each with its own line (plan 5.5); Tab through them to "Speichern". The
+    // band's rhythm (concept 08, F-10) goes from 5 to 7 seconds.
     for (const label of ['Höchstens', 'Ausblenden unter', 'Abruf alle … Stunden']) {
       await tabTo(page, source.getByLabel(label, { exact: true }), 5);
     }
+    const rotation = source.getByLabel('Takt der Bühne … Sekunden', { exact: true });
+    await tabTo(page, rotation, 5);
+    await expect(rotation).toHaveValue(String(settings.rotationSeconds));
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('7');
     const save = source.getByRole('button', { name: 'Speichern' });
     await tabTo(page, save, 5);
     const stored = answer(page, 'PUT', '/admin/spotlight');
@@ -122,6 +128,17 @@ test('spotlight by keyboard: source, fetch, hide, pin and note an entry', async 
     expect((await stored).status()).toBe(200);
     await expect(source.getByText('Spotlight ist gespeichert.')).toBeVisible();
     await expectVisibleFocus(page);
+    // Stored: the page shows it after a reload, and the start page's band takes it (F-10).
+    await page.reload();
+    await expect(rotation).toHaveValue('7');
+    await expect
+      .poll(
+        async () =>
+          ((await (await owner.get('/api/v1/home')).json()) as { heroIntervalSeconds?: number })
+            .heroIntervalSeconds,
+        { timeout: 60_000, intervals: [1000] },
+      )
+      .toBe(7);
 
     // "Jetzt abrufen": 202 queues the fetch; 429 means another spec fetched within the last minute
     // (one manual fetch a minute, discover.ts refreshSpotlight). Both answers show their notice.

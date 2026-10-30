@@ -45,12 +45,13 @@ func (s *server) itemSession(ctx context.Context) (model.Session, error) {
 	return session, nil
 }
 
-func (s *server) GetHome(ctx context.Context, _ gen.GetHomeRequestObject) (gen.GetHomeResponseObject, error) {
+func (s *server) GetHome(ctx context.Context, req gen.GetHomeRequestObject) (gen.GetHomeResponseObject, error) {
 	session, err := s.itemSession(ctx)
 	if err != nil {
 		return nil, err
 	}
-	home, err := s.opts.Catalog.Home(ctx, session.Profile)
+	// start outside the stage row is ignored by the catalog, which draws again (concept 08, F-2).
+	home, err := s.opts.Catalog.Home(ctx, session.Profile, req.Params.Start)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
@@ -58,6 +59,12 @@ func (s *server) GetHome(ctx context.Context, _ gen.GetHomeRequestObject) (gen.G
 	if home.HeroRow != "" { // the server names the stage (plan 3.5); absent = no stage
 		hero := gen.HomeRowKey(home.HeroRow)
 		page.HeroRow = &hero
+		// The stage's first title and rhythm (concept 08, F-2, F-10), only with a stage.
+		page.HeroStart = home.HeroStart
+		if home.HeroIntervalSeconds > 0 {
+			interval := home.HeroIntervalSeconds
+			page.HeroIntervalSeconds = &interval
+		}
 	}
 	for _, row := range home.Rows {
 		out := gen.HomeRow{Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}

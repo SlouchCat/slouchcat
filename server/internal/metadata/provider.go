@@ -106,8 +106,11 @@ type TitleRecord struct {
 	OriginalTitle string
 	Date          string // release date (movie) or first air date (series), YYYY-MM-DD or empty
 	Runtime       int    // minutes (series: episode run time), 0 when unknown
-	Texts         map[string]Text
-	Genres        map[string][]string
+	// VoteAverage is the provider's average user vote, 0 to 10; 0 when unknown (items.vote_average,
+	// concept 08 4.2). TMDB delivers it; TVDB v4 has none (tvdb.go).
+	VoteAverage float64
+	Texts       map[string]Text
+	Genres      map[string][]string
 	// Certifications per country (ISO 3166-1 alpha-2, upper case): the certification of the main
 	// release (movie) or the content rating (series), mapped after AN-8.
 	Certifications map[string]string

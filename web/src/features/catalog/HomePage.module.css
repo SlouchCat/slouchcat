@@ -45,9 +45,10 @@
   padding: 0 var(--page-gutter);
 }
 
+/* The row's card widths (Row.module.css): below 768 px three between the gutters. */
 .skeletonCard {
   flex: none;
-  width: var(--sc-size-poster-sm);
+  width: calc((100% - 2 * var(--sc-space-4)) / 3);
 }
 
 @media (width >= 768px) {

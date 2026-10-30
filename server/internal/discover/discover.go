@@ -10,6 +10,10 @@
 // spotlight row also below the configured minimum of hits, spotlight_config.min_hits (AN-3). The
 // page names the row the client draws as the stage (HomePage.HeroRow: spotlight when present, else
 // none; picks is never the stage) and carries hasTrailer for the rows spotlight and picks only (D3).
+// With a stage it names the title the stage begins with, drawn once per page view (HeroStart,
+// concept 08, F-2, ADR 0016), and the rhythm of the stage (HeroIntervalSeconds, F-10).
+// The library views of concept 08 (side navigation, library page, Cat's recommendations) pass
+// through to visibility.
 // The package also answers search, genres, collections, the watchlist and the favourites of a
 // profile (m7.go).
 // It holds no SQL on titles: reads go through visibility, the writes of watchlist and favourites
@@ -22,7 +26,9 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"math/rand/v2"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -56,6 +62,12 @@ type Service struct {
 	cacheDir string
 	log      *slog.Logger
 	now      func() time.Time
+
+	// The draw of the stage's first title (concept 08, F-2): rnd is not safe for concurrent use,
+	// so rndMu guards it; heroStart >= 0 replaces the draw by a fixed index (WithHeroStart).
+	rndMu     sync.Mutex
+	rnd       *rand.Rand
+	heroStart int
 }
 
 // Option configures a Service.
@@ -67,14 +79,31 @@ func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
 }
 
+// WithRand replaces the random source of the stage's first title (concept 08, F-2; no security
+// concern), so tests draw deterministically.
+func WithRand(r *rand.Rand) Option {
+	return func(s *Service) { s.rnd = r }
+}
+
+// WithHeroStart fixes the index the stage begins with instead of a draw (tests and the e2e suite,
+// SLOUCHCAT_HERO_START, concept 08); a negative index keeps the draw, an index beyond the row
+// takes its last title. A start passed to Home still wins.
+func WithHeroStart(k int) Option {
+	return func(s *Service) { s.heroStart = k }
+}
+
 // New returns the catalog service. cacheDir is the absolute cache root that image rel_paths are
 // relative to; log is the redacting logger.
 func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Service {
-	s := &Service{read: appq.New(db.Read), write: appq.New(db.Write), cacheDir: cacheDir, log: log, now: time.Now}
+	s := &Service{read: appq.New(db.Read), write: appq.New(db.Write), cacheDir: cacheDir, log: log, now: time.Now, heroStart: -1}
 	for _, o := range opts {
 		o(s)
 	}
 	s.vis = visibility.New(db, log, visibility.WithClock(s.now))
+	if s.rnd == nil {
+		now := uint64(time.Now().UnixNano())
+		s.rnd = rand.New(rand.NewPCG(now, now>>32)) //nolint:gosec // picks a slide, no security concern (ADR 0016)
+	}
 	return s
 }
 
@@ -82,8 +111,11 @@ func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Servi
 // rows and without a spotlight row below its configured minimum of hits; never more than MaxRows.
 // HeroRow names the stage (plan 3.5): spotlight when that row is in the answer, at its stored
 // place, else nothing; picks is never the stage. The titles of the rows spotlight and picks carry
-// HasTrailer (D3); every other row leaves it nil.
-func (s *Service) Home(ctx context.Context, profile model.Profile) (model.HomePage, error) {
+// HasTrailer (D3); every other row leaves it nil. With a stage, HeroStart is the index into the
+// stage row's titles the stage begins with (concept 08, F-2): start when it lies in the row (the
+// app shell's draw repeated), else the fixed index of WithHeroStart, else a fresh draw; and
+// HeroIntervalSeconds is spotlight_config.rotation_seconds (F-10). Without a stage both stay unset.
+func (s *Service) Home(ctx context.Context, profile model.Profile, start *int) (model.HomePage, error) {
 	scope := visibility.Profile(profile)
 	page, err := s.page(ctx, scope, false)
 	if err != nil {
@@ -96,7 +128,28 @@ func (s *Service) Home(ctx context.Context, profile model.Profile) (model.HomePa
 			}
 		}
 	}
+	if i := slices.IndexFunc(page.Rows, func(r model.HomeRow) bool { return r.Key == page.HeroRow }); i >= 0 {
+		cfg, err := s.read.GetSpotlightConfig(ctx)
+		if err != nil {
+			return model.HomePage{}, fmt.Errorf("get spotlight config: %w", err)
+		}
+		k := s.drawHeroStart(len(page.Rows[i].Items), start)
+		page.HeroStart, page.HeroIntervalSeconds = &k, int(cfg.RotationSeconds)
+	}
 	return page, nil
+}
+
+// drawHeroStart returns the index the stage begins with for a stage row of n > 0 titles (see Home).
+func (s *Service) drawHeroStart(n int, start *int) int {
+	if start != nil && *start >= 0 && *start < n {
+		return *start
+	}
+	if s.heroStart >= 0 {
+		return min(s.heroStart, n-1)
+	}
+	s.rndMu.Lock()
+	defer s.rndMu.Unlock()
+	return s.rnd.IntN(n)
 }
 
 // page builds the rows of the start page and names the stage; it is the one computation behind
@@ -211,20 +264,24 @@ func (s *Service) spotlightRow(ctx context.Context, scope visibility.Scope) ([]m
 	return items, nil
 }
 
-// FirstHero returns the first title of the stage row (HomePage.HeroRow) and whether that row is
-// the first row of the page, or model.ErrNotFound when the page has no stage. The app shell of the
-// start page uses it to preload the stage image and, only when the stage comes first, to paint it
-// ahead (P-10, plan 3.5). It derives from the same computation as Home, so it follows its rule.
-func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.ItemSummary, bool, error) {
+// FirstHero returns the title the stage begins with, its index in the stage row (HomePage.HeroRow)
+// and whether that row is the first row of the page, or model.ErrNotFound when the page has no
+// stage. The app shell of the start page draws the stage's first title with it, once per page view
+// (concept 08, 6): it preloads that title's image, paints it ahead only when the stage comes first
+// (P-10, plan 3.5), and hands the index on to GET /home?start=K, which repeats the draw. It derives
+// from the same computation as Home and draws like it (drawHeroStart, so WithHeroStart fixes both).
+func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.ItemSummary, int, bool, error) {
 	page, err := s.page(ctx, visibility.Profile(profile), true)
 	if err != nil {
-		return model.ItemSummary{}, false, err
+		return model.ItemSummary{}, 0, false, err
 	}
 	if page.HeroRow == "" {
-		return model.ItemSummary{}, false, model.ErrNotFound
+		return model.ItemSummary{}, 0, false, model.ErrNotFound
 	}
 	i := slices.IndexFunc(page.Rows, func(r model.HomeRow) bool { return r.Key == page.HeroRow })
-	return page.Rows[i].Items[0], i == 0, nil
+	items := page.Rows[i].Items
+	k := s.drawHeroStart(len(items), nil)
+	return items[k], k, i == 0, nil
 }
 
 // FirstRow returns the titles of the first row of the start page when the page has no stage, or
@@ -242,6 +299,25 @@ func (s *Service) FirstRow(ctx context.Context, profile model.Profile) ([]model.
 		return nil, model.ErrNotFound
 	}
 	return page.Rows[0].Items, nil
+}
+
+// VisibleLibraries returns the libraries with a visible top-level title for the side navigation
+// (concept 08, listVisibleLibraries).
+func (s *Service) VisibleLibraries(ctx context.Context, profile model.Profile) ([]model.LibraryNav, error) {
+	return s.vis.VisibleLibraries(ctx, visibility.Profile(profile))
+}
+
+// LibraryItems returns one page of a library with its facets (concept 08, listLibraryItems);
+// model.ErrNotFound for a library without a visible title, *model.ValidationError for an invalid
+// query. The titles carry no HasTrailer (only the start page rows spotlight and picks do).
+func (s *Service) LibraryItems(ctx context.Context, profile model.Profile, libraryID int64, q model.LibraryQuery) (model.LibraryPage, error) {
+	return s.vis.LibraryItems(ctx, visibility.Profile(profile), libraryID, q)
+}
+
+// PicksPage returns one page of all of Cat's recommendations for the profile and their number
+// (concept 08, listPicks), the row picks without its cut; without HasTrailer.
+func (s *Service) PicksPage(ctx context.Context, profile model.Profile, offset, limit int) ([]model.ItemSummary, int, error) {
+	return s.vis.PicksPage(ctx, visibility.Profile(profile), offset, limit)
 }
 
 // Item returns the detail of a visible title (with its series tree, extras, cast and trailer

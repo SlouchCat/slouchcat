@@ -12,6 +12,7 @@ import { HomePage } from '@/features/catalog/HomePage';
 import { ItemPage } from '@/features/catalog/ItemPage';
 import { homeQuery } from '@/features/catalog/queries';
 import { isStatsDays } from '@/features/admin/statsDays';
+import { validateLibraryParams } from '@/features/catalog/libraryParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
@@ -454,6 +455,21 @@ const collectionRoute = createRoute({
   ),
 });
 
+// concept 08: a library as a grid and every one of Cat's recommendations.
+const libraryRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/libraries/$libraryId',
+  // content, sort, order, letter, genre, status, from, to, rating; anything else is dropped.
+  validateSearch: validateLibraryParams,
+  component: lazyRouteComponent(() => import('@/features/catalog/LibraryPage'), 'LibraryPage'),
+});
+
+const picksPageRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/picks',
+  component: lazyRouteComponent(() => import('@/features/catalog/PicksPage'), 'PicksPage'),
+});
+
 const notificationsRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/notifications',
@@ -523,6 +539,9 @@ export const routeTree = rootRoute.addChildren([
         watchlistRoute,
         collectionRoute,
         notificationsRoute,
+        // concept 08
+        libraryRoute,
+        picksPageRoute,
       ]),
       playRoute,
     ]),

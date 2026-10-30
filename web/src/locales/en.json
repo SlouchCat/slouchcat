@@ -25,7 +25,18 @@
     "notifications": "Notifications",
     "admin": "Administration",
     "update": "Update",
-    "updateLabel": "Update to version {{version}} available"
+    "adminUpdateLabel": "Administration, update to version {{version}} available",
+    "searchOpen": "Open search",
+    "menu": "Menu",
+    "menuClose": "Close menu",
+    "libraries": "My media",
+    "toggleLibraries": "Expand or collapse my media",
+    "libraryLabel_one": "{{name}}, {{count}} title",
+    "libraryLabel_other": "{{name}}, {{count}} titles",
+    "librariesOffline": "Offline: libraries not available",
+    "librariesOfflineLink": "Go to downloads",
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar"
   },
   "system": {
     "server": {
@@ -291,7 +302,8 @@
       "movie": "Films",
       "series": "Series",
       "audiobook": "Audiobooks",
-      "podcast": "Podcasts"
+      "podcast": "Podcasts",
+      "all": "All"
     },
     "providers": {
       "title": "Metadata sources",
@@ -327,7 +339,69 @@
       "addSubmit_one": "Add 1 folder",
       "addSubmit_other": "Add {{count}} folders"
     },
-    "videoHint": "The folders of this library may hold films or series, mixed as well."
+    "videoHint": "The folders of this library may hold films or series, mixed as well.",
+    "page": {
+      "count_one": "{{count}} {{noun}}",
+      "count_other": "{{count}} {{noun}}",
+      "countLetter": "{{count}} {{noun}} starting with {{letter}}",
+      "filtered": "{{text}} · filtered",
+      "sort": "Sort",
+      "direction": "Order:",
+      "ascending": "↑ ascending",
+      "descending": "↓ descending",
+      "filter": "Filter",
+      "filterCount": "Filter ({{count}})",
+      "apply": "Apply",
+      "clear": "Reset",
+      "emptyFilters": "Nothing matches these filters",
+      "more": "Load more ({{count}} more)",
+      "noun": {
+        "video_one": "title",
+        "video_other": "titles",
+        "audiobooks_one": "audiobook",
+        "audiobooks_other": "audiobooks",
+        "podcasts_one": "podcast",
+        "podcasts_other": "podcasts"
+      }
+    },
+    "sort": {
+      "title": "Title",
+      "added": "Recently added",
+      "released": "Release year",
+      "vote": "Rating",
+      "runtime": "Runtime",
+      "age": "Age rating",
+      "played": "Recently watched",
+      "author": "Author"
+    },
+    "status": {
+      "unwatched": "Unwatched",
+      "started": "Started",
+      "watched": "Watched",
+      "unheard": "Not listened",
+      "heard": "Listened"
+    },
+    "letters": {
+      "label": "Initial letter",
+      "all": "All letters",
+      "allMark": "•",
+      "other": "Digit or symbol"
+    },
+    "filters": {
+      "genre": "Genre",
+      "allGenres": "All genres",
+      "status": "Status",
+      "year": "Year",
+      "yearFrom": "Year from",
+      "yearTo": "Year to",
+      "rating": "Age rating",
+      "anyRating": "Profile limit",
+      "upTo": "up to {{age}}"
+    },
+    "notFound": {
+      "title": "Library not found",
+      "body": "This library does not exist or has no titles for this profile."
+    }
   },
   "home": {
     "title": "Home",
@@ -339,13 +413,19 @@
       "collections": "Collections",
       "genres": "Genres",
       "spotlight": "Spotlight",
-      "released": "Recently released"
+      "released": "Recently released",
+      "all": "Show all ›"
     },
     "remaining": "{{time}} left",
     "empty": {
       "title": "Nothing here yet",
       "body": "Your films appear here as soon as a library has been scanned.",
       "action": "View libraries"
+    },
+    "spotlight": {
+      "row": "Spotlight titles",
+      "pause": "Pause",
+      "resume": "Resume"
     }
   },
   "ui": {
@@ -1264,6 +1344,8 @@
         "minHitsHint": "hits in the library, per profile (0–10)",
         "intervalHours": "Fetch every … hours",
         "intervalHoursHint": "6 to 48 hours",
+        "rotation": "Stage rhythm … seconds",
+        "rotationHint": "3 to 15 seconds",
         "refresh": "Fetch now",
         "queued": "The list is being fetched.",
         "saved": "Spotlight is saved."
@@ -2519,5 +2601,13 @@
     "counter": "{{index}} of {{count}}",
     "acknowledge": "Got it",
     "later": "Later"
+  },
+  "picks": {
+    "page": {
+      "title": "Cat's picks",
+      "intro": "Titles Cat picked for you, in Cat's order.",
+      "count_one": "{{count}} title",
+      "count_other": "{{count}} titles"
+    }
   }
 }

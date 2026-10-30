@@ -115,6 +115,7 @@ type Movie struct {
 	Tagline       string       `json:"tagline"`
 	ReleaseDate   string       `json:"release_date"` // YYYY-MM-DD or empty
 	Runtime       int          `json:"runtime"`      // minutes, 0 when unknown
+	VoteAverage   float64      `json:"vote_average"` // 0 to 10, 0 when nobody voted
 	Genres        []Genre      `json:"genres"`
 	PosterPath    string       `json:"poster_path"`
 	BackdropPath  string       `json:"backdrop_path"`
@@ -174,6 +175,7 @@ type TV struct {
 	Tagline        string  `json:"tagline"`
 	FirstAirDate   string  `json:"first_air_date"`
 	EpisodeRunTime []int   `json:"episode_run_time"`
+	VoteAverage    float64 `json:"vote_average"` // 0 to 10, 0 when nobody voted
 	Genres         []Genre `json:"genres"`
 	PosterPath     string  `json:"poster_path"`
 	BackdropPath   string  `json:"backdrop_path"`

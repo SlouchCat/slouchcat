@@ -261,10 +261,11 @@ function PlayerView({ itemId }: { itemId: string }) {
     [playback.data],
   );
 
-  // Progress changed while watching: the start page and the detail page must refetch.
+  // Progress changed while watching: the start, library and detail pages must refetch.
   useEffect(
     () => () => {
       void queryClient.invalidateQueries({ queryKey: ['home'] });
+      void queryClient.invalidateQueries({ queryKey: ['library'] });
       void queryClient.invalidateQueries({ queryKey: ['item', itemId] });
     },
     [itemId, queryClient],

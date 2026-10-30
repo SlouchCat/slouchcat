@@ -1,0 +1,219 @@
+/*
+ * The column: fixed at the left below the header, as wide as --sidenav-width (global.css), which
+ * moves the content and the start page's prepaints by the same amount. It scrolls on its own.
+ */
+.bar {
+  position: fixed;
+  z-index: var(--sc-z-sticky);
+  top: var(--sc-size-header-height);
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  width: var(--sidenav-width);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  padding: var(--sc-space-2) var(--sc-space-3) var(--sc-space-6);
+  border-right: 1px solid var(--sc-color-border-subtle);
+  background-color: var(--sc-color-bg-elevated);
+  scrollbar-width: thin;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list[hidden] {
+  display: none;
+}
+
+/* Every entry: a full-width line, the count or the badge at its end. */
+.entry {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  width: 100%;
+  min-height: var(--sc-size-control-height);
+  padding: 0 var(--sc-space-3);
+  border: 0;
+  border-radius: var(--sc-radius-md);
+  background-color: transparent;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.entry:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .entry:hover {
+    background-color: var(--sc-color-surface-2);
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.entry[aria-current='page'] {
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.label {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  margin-left: auto;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  margin-left: auto;
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+/* The group's title is the button that opens and closes it. */
+.groupTitle {
+  justify-content: space-between;
+  min-height: var(--sc-size-control-height);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+/* A chevron drawn with two borders: right while closed, down while open. */
+.chevron {
+  width: var(--sc-space-2);
+  height: var(--sc-space-2);
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  transform: rotate(-45deg);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.chevron[data-open] {
+  transform: rotate(45deg);
+}
+
+.offline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.offlineText {
+  padding: var(--sc-space-2) var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: var(--sc-space-2);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.quiet {
+  color: var(--sc-color-text-muted);
+}
+
+/* The drawer: a panel from the left over a scrim, with the same entries. */
+.scrim {
+  position: fixed;
+  z-index: var(--sc-z-modal);
+  inset: 0;
+  background-color: var(--sc-color-bg-overlay);
+}
+
+.scrim[data-entering] {
+  animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: min(82vw, 20rem);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+.drawer[data-entering] {
+  animation: slide var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
+}
+
+.dialog {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+}
+
+.drawerBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--sc-space-3) var(--sc-space-3) var(--sc-space-6);
+}
+
+.drawerHead {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawerNav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+}

@@ -1,5 +1,352 @@
 # Aktueller Stand
 
+## Startseite, Seitenleiste und Bibliotheksansichten (Konzept 08, 30. Oktober 2026, in Umsetzung)
+
+Auf dem Zweig `claude/startseite` (ab `main 4049724`, Konzept 07 gemergt) nach dem Konzept
+`docs/planning/08-startseite.md` (Fassung 3), den Entscheiden in **Frage 14** des
+Entscheidungsprotokolls und **ADR 0016** (Teilnachfolger von ADR 0011). Ein Commit je Planschritt;
+vor jedem Abschluss war `task ci` grün (ohne `storybook:test`: auf dem Entwicklungsrechner ist
+kein Docker erreichbar, Baselines holt Marco auf CT 190 nach, wie bei Konzept 07).
+
+**Was sich ändert.** Die Zuschauerseite bekommt eine Seitenleiste («Meine Medien» mit einem
+Eintrag je sichtbarer Bibliothek und «Cat's Empfehlungen»), eine Bibliotheksseite je Bibliothek
+(ein Raster mit Chips, acht Sortierungen, Filtern, Buchstabenleiste) und eine Seite «Cat's
+Empfehlungen»; das Spotlight-Band beginnt je Seitenaufruf mit einem zufälligen Titel, läuft im
+einstellbaren Takt und zeigt darunter eine Posterreihe in Normalgrösse.
+
+### Schritt 0 — Entscheide und Papiere (`dca8efc`)
+
+Frage 14 mit F-1 bis F-12, N-1 bis N-4 und O-1 bis O-5 im Entscheidungsprotokoll, ADR 0016,
+Ablösungshinweis in ADR 0011, Papier auf «freigegeben, in Umsetzung», Nummern nach dem Merge von
+07: **Migration 00026** (00025 hat `items.filled_providers` aus dem Review von 07 belegt), ADR 0016,
+Vertrag 1.4.0. Reiner Doku-Commit; Code identisch mit `main`.
+
+### Schritt 1 — Vertrag 1.4.0, Migration 00026 und Server
+
+**Vertrag 1.4.0, additiv:** `listVisibleLibraries` (`GET /libraries/visible`), `listLibraryItems`
+(`GET /libraries/{id}/items` mit `content`, `sort`, `order`, `genre`, `yearFrom`, `yearTo`,
+`maxRating`, `status`, `letter`, `offset`, `limit`), `listPicks` (`GET /picks`), alle `scoped`;
+`getHome` mit `start`; `HomePage.heroStart` und `heroIntervalSeconds`;
+`SpotlightConfig.rotationSeconds` (Pflicht) und `SpotlightConfigUpdate.rotationSeconds`
+(optional, fehlt = unverändert); Schemata `LibraryNav`, `LibrarySort`, `LibraryItemStatus`,
+`LibraryFacets`, `LibraryItemsPage`, `PicksPage`. Alle drei Operationen stehen im
+`profileRegistry` (`TestContractCoversEveryOperation`).
+
+**Migration 00026** (`server/migrations/00026_library_views.sql`): `spotlight_config.rotation_seconds`
+(3–15, Vorgabe 5), `items.vote_average REAL` (0–10), `item_texts.sort_key` mit Backfill in zwei
+`UPDATE`s (sqlc kennt kein `UPDATE … FROM`; `lower()` faltet nur ASCII, darum die üblichen
+Latin-1-Buchstaben per `replace`), Indizes `items_library_kind_added`, `_released`, `_vote` und
+`item_texts_sort_key`. Der genaue Schlüssel ist `model.SortKey` (NFD, Markierungen weg, ß→ss,
+Artikel je Sprache); jeder Schreiber einer `item_texts`-Zeile setzt ihn (`UpsertItemText` mit
+`@sort_key`: Scanner, Hörbuch- und Podcast-Ordner, Feeds, Match, Fill).
+
+**Server.** `visibility.VisibleLibraries` / `LibraryItems` / `PicksPage` (`server/internal/visibility/library.go`,
+feste Abfragen in `server/queries/scoped/library.sql`, die dynamische Seite als Statement-Builder
+wie die Suche; Seite, `total`, Buchstaben, Genres, Freigaben in **einer** Lesetransaktion;
+Serienstatus über die sichtbaren Folgen, exklusiv). `discover.Home(ctx, profile, start)` würfelt
+`heroStart` über die Bühnenreihe (`WithRand`, `WithHeroStart`; `SLOUCHCAT_HERO_START` /
+`--hero-start`, -1 = Zufall; die e2e-Umgebung setzt 0) und trägt `rotation_seconds` als
+`HeroIntervalSeconds`. Das Vormalen (`preload.go`) bleibt bis Schritt 4 bei Platz 1.
+`metadata`: `vote_average` als Feld in der Auffüllreihenfolge (TMDB `vote_average`, AniList
+`averageScore` ÷ 10; **TVDB v4 liefert keine 0–10-Wertung**, nur einen Beliebtheits-`score` –
+Abweichung vom Papier 4.2, dort und in ADR 0016 nachgetragen), auch beim Match des Erkenners; Job
+`metadata.vote_backfill` in Batches zu 200 mit Cursor, Markierung «gefragt, keine Wertung» als
+`item_field_sources`-Zeile ohne Wert, einmal beim Serverstart und nach jedem vollständigen Scan
+(`QueueVoteBackfill`, idempotent). `admin`: `rotationSeconds` 3–15, nil = unverändert.
+
+**Belege (DoD).**
+
+- `task ci:server` (gen, gen:check, lint, Tests mit `-race`): `0 issues.`, alle Pakete `ok`,
+  darunter `internal/visibility 174.7s`, `internal/api 402.0s`, `internal/store 525.2s`
+  (`TestFrozenStatesMigrate` über alle eingefrorenen Stände bis `bibliotheken.sql`,
+  `TestScopedQueriesJoinVisibleItems` mit `library.sql`), `exit=0`.
+- `task web:gen:check && task web:lint && task web:test`: grün (`exit=0`; die Vertragsänderung
+  brauchte nur `rotationSeconds` in `SpotlightPage.test.tsx`).
+- Negativtest K-3 (`server/internal/api/contract_library_test.go`): P0/P6/P12 sehen in Bibliothek 1
+  keinen Titel über ihrer Stufe, `maxRating=18` ergibt dieselbe Seite wie ohne, `facets.ratings`
+  bleibt unter der Grenze; `px` bekommt für Bibliothek X 404, eine leere und eine unbekannte
+  Bibliothek 404; `letter` ohne `sort=title` 422 `letter_requires_title_sort`, `sort=author`
+  ausserhalb von Hörbüchern 422; `getHome?start=K` wiederholt K, ausserhalb wird gewürfelt;
+  `listPicks` entspricht der Reihe ohne Klemme. Das `curl`-Gegenstück mit einem Kinderprofil am
+  laufenden Server folgt in Schritt 5 auf dem M3-Baum (dort steht ohnehin ein gefüllter Server).
+- `EXPLAIN QUERY PLAN` der Sortierungen (Fixture `vistest`, temporärer Test): `title`, `added`,
+  `released`, `vote` nehmen `SEARCH i USING INDEX items_library_kind_vote (library_id=? AND kind=?)`
+  (der Planer wählt den ersten passenden `(library_id, kind, …)`-Index; die DESC-Spalte nutzt er
+  wegen des `visible_items`-Joins nicht, die Sortierung läuft über `USE TEMP B-TREE FOR ORDER BY`),
+  `played` mit Status materialisiert `ep` einmal (`MATERIALIZE ep`, `GROUP BY` über die sichtbaren
+  Folgen). Ob das auf dem M3-Baum unter 300 ms p95 bleibt, misst Schritt 5 (Ausstiegsklausel 8).
+- `TestSortKey`/`TestSortLetter` (`server/internal/model/sortkey_test.go`): «Der Herr der Ringe» →
+  `herr der ringe`, «Die Ärzte» → `arzte`, «Straße der Besten» → `strasse der besten`, «The Matrix»
+  → `matrix`, «2001» → `#`.
+- Entscheide beim Bauen: eine Podcast-Bibliothek führt `podcast` immer in `contents` (Feed-Abos haben
+  keinen Ordner, H-2); eine angefangene Serie trägt `progress.completed = false` bei Position 0
+  (die Karte zeigt dann keinen Balken); Gleichstand bricht der Sortierschlüssel, dann die Id;
+  Unbekanntes (`NULL`, leerer Autor) steht in beiden Richtungen am Ende; `WithHeroStart(k)` jenseits
+  der Reihe nimmt den letzten Titel, ein gültiges `start` aus der Anfrage gewinnt immer.
+
+### Schritt 2 — Bibliotheksseite und Seite «Cat's Empfehlungen»
+
+Routen `/libraries/$libraryId` (`web/src/features/catalog/LibraryPage.tsx`, Adresszustand in
+`libraryParams.ts`: `content`, `sort`, `order`, `letter`, `genre`, `status`, `from`, `to`,
+`rating`; ungültige Werte fallen weg, `letter` nur mit Sortierung nach Titel) und `/picks`
+(`PicksPage.tsx`), beide lazy unter `_chrome`. Aufbau nach Papier 7.3: Kopf mit Zähler
+(«312 Titel», «41 Titel mit B», «… · gefiltert»; Hörbücher und Podcasts mit eigenem Nomen),
+Werkzeugzeile mit Chips «Alle · Filme · Serien» nur bei mehr als einer Inhaltsart, Sortierung als
+`<select>` (neues `web/src/ui/SelectField.tsx`; «Autor» nur bei Hörbüchern, «Altersfreigabe» nur
+bei Video), Richtungsknopf mit Text, «Filter» mit Zähler und ausklappbarem Feld (Genre und Freigabe
+nur, wenn `facets` Werte nennen – Regel 12; Status mit «Ungehört / Gehört» bei Audio; Escape
+schliesst und gibt den Fokus an «Filter» zurück, gefangen vor der Zurück-Taste der Seite),
+Buchstabenleiste (neues `web/src/ui/LetterBar.tsx`, nur bei Sortierung nach Titel und nicht bei
+Podcasts; ab 768 px als klebende Spalte rechts, darunter als Lauf über dem Raster; Buchstaben ohne
+Treffer `disabled` und für die Pfeiltasten nicht registriert), Raster mit drei Spalten unter 768 px,
+«Mehr laden (N weitere)». `PosterCard` bekommt den Haken (`watchedLabel`, «Gesehen» / «Gehört»)
+und nutzt das vorhandene `badge` für die Freigabe («FSK 12», nur bei Video); `ItemGrid` bekommt
+`showWatched`, `showRating`, `className`. `Row` bekommt `moreHref`/`moreLabel` («Alle anzeigen ›»
+nur an Cat's Empfehlungen und Merkliste, O-3). Neu ausserdem `useBackFocus`: die Zurück-Taste des
+Browsers landet wieder auf der verlassenen Karte (Regel 8), je Verlaufseintrag gemerkt.
+`YearField` aus der Suche nach `web/src/features/discover/YearField.tsx` ausgelagert.
+
+**Belege (DoD).**
+
+- `task web:lint && task web:test`: grün (82 Dateien, 661 Tests im Web-Paket, dazu api-client und
+  design-tokens).
+- `task build`, dann `SLOUCHCAT_E2E_PORT=8197 task web:e2e` (ganze Suite, Chromium und Firefox):
+  `456 passed, 2 failed (24.1m)` – die zwei Fehler waren Firefox-Eigenheiten in den neuen Specs
+  (kein `:focus-visible`-Ring nach einem Skript-Fokus, wenn die letzte Eingabe ein Mausklick war);
+  nach der Korrektur der zwei Specs: `library.spec.ts` und `picks-page.spec.ts` in beiden Browsern
+  `9 passed` / `2 passed`. Tastatur-Belege: Tab-Reihenfolge Kopf → Chips → Sortieren → Richtung →
+  Filter → Leiste → Raster, Pfeiltasten ins Raster und hinüber zur Buchstabenleiste, Enter öffnet
+  die Detailseite, Zurück landet auf derselben Karte mit derselben Adresse, Escape im Filterfeld,
+  kein Fokusfalle (`expectNoFocusTrap`); auf 390 px drei Spalten und die Leiste als Lauf.
+- «Mehr laden» mit Fokus auf der ersten neuen Karte: die Suite hat unter 50 Titel je Bibliothek,
+  darum belegt es der Vitest-Test der Seite «Cat's Empfehlungen» (zweite Seite) und die
+  bestehende `MoreButton`-Logik; am laufenden Server prüft es Schritt 5 auf dem M3-Baum.
+- Drei bestehende Specs brauchten nur neue Locatoren, weil «Alle anzeigen ›» der erste Link der
+  Reihe ist (`admin-picks.spec.ts`, `home.spec.ts`).
+- Storybook-Vergleichsbilder (`PosterCard` Watched/StartedWithRating/SquareHeard, `Row`
+  WithMoreLink, `SelectField`, `LetterBar`) fehlen: kein Docker auf dem Entwicklungsrechner;
+  Marco holt sie wie bei Konzept 07 auf CT 190 nach (`task storybook:update`).
+
+### Schritt 3 — Seitenleiste, Schublade, Vormalen, Offline
+
+`web/src/ui/SideNav.tsx` (ein Bauteil, zwei Darstellungen) mit dem `<nav>`-Namen «Hauptnavigation»:
+ab 768 px eine feste Spalte links (Token `size.sidenav.width` = 15 rem, als `--sidenav-width` in
+`global.css`: 0 unter 768 px und bei `html[data-sidenav="hidden"]`), darunter oder bei
+ausgeblendeter Leiste eine Schublade (`SideNavDrawer.tsx`, react-aria `Modal`/`Dialog`, lazy
+geladen wie der Trailer-Dialog, damit die Startseite ohne react-aria bleibt, P-10). Inhalt ohne
+Symbole (N-2): Start, Suche, Merkliste, Downloads; Gruppe «Meine Medien» (ein- und ausklappbar,
+Zustand je Gerät in `localStorage`, Lesen und Schreiben in `try/catch`) mit einem Eintrag je
+sichtbarer Bibliothek samt Titelzahl (`listVisibleLibraries`, mit der Sitzung vorgeladen) und
+«Cat's Empfehlungen» mit Zahl (`listPicks?limit=1`); unten Verwaltung (Update-Hinweis am Eintrag,
+O-5), Profile, Abmelden, «Seitenleiste ausblenden». Offline oder bei Fehler sagt die Gruppe «Offline:
+Bibliotheken nicht verfügbar» mit Verweis auf Downloads; die Abfrage blockiert die Hülle nicht.
+Die Kopfzeile behält Menü-Symbol (nur ohne Spalte), Logo, Suche, Glocke, Profil; Pillen,
+Update-Hinweis und Abmelden ziehen in die Leiste. Ein Inline-Skript in `web/index.html` setzt
+`data-sidenav` vor dem ersten Malen; `#hero-prepaint`, `#poster-prepaint` und der Inhalt rücken um
+`--sidenav-width`; `sizes` der Bühnenbilder ist `(width >= 768px) calc(100vw - 15rem), 100vw`
+(`heroSizes` in `preload.go`, `HERO_SIZES` in `HeroCarousel.tsx`). Räumliche Navigation:
+`AppLayout` führt Kopfzeile, Spalte und Inhalt in einer Gruppe mit Richtungstabelle (Inhalt links →
+Spalte auf dem Eintrag der aktuellen Seite, Spalte rechts → zuletzt fokussiertes Element im
+Inhalt, hoch → Kopfzeile); `SpatialGroup` bekommt `nextFocusKey`, `focusBoundary` und `tabIndex`.
+Tab-Reihenfolge: Sprunglink → Kopfzeile → Spalte → Inhalt. Im Admin-Bereich bleibt `AdminNav`.
+
+**Belege (DoD).**
+
+- `task web:gen:check && task web:lint && task web:test`: grün (83 Dateien, 666 Tests, darunter
+  `SideNav.test.tsx`); `task ci:server`: `0 issues.`, alle Pakete `ok` (`preload_test.go` mit
+  `data-start`-losem Stand dieses Schritts, drei Vorladungen).
+- `task build`, `SLOUCHCAT_E2E_PORT=8197 task web:e2e` (ganze Suite, Chromium und Firefox):
+  `467 passed, 3 failed (24.9m)`. Zwei Fehler waren Firefox: der scrollende `<nav>` der Spalte
+  war dort eine eigene Tab-Station (Tab-Reihenfolge in `home.spec.ts` und `sidenav.spec.ts`);
+  behoben mit `tabIndex={-1}` auf Spalte und Schubladenkörper. Der dritte
+  (`admin-streams.spec.ts`, Firefox, «stops within 5 s») ist zeitabhängig und ohne Bezug zu diesem
+  Schritt (die Suite lief, während der nächste Agent baute); der Nachweis für beide folgt im
+  Gesamtlauf von Schritt 4.
+- `sidenav.spec.ts` (Chromium, 6 Tests): Spalte bei 1280 px mit allen Einträgen, Pfeile hoch/runter,
+  Enter öffnet die Bibliotheksseite, Pfeil rechts in den Inhalt und links zurück; Ausblenden mit
+  Zustand über `reload`, Schublade zeigt «Seitenleiste einblenden»; Schublade bei 390 px mit Fokus im
+  Dialog, kein Scrollen dahinter, Escape mit Fokusrückgabe; Offline-Zustand der Gruppe
+  (`/libraries/visible` abgebrochen, Service Worker blockiert); Geometrie-Test: `#hero-prepaint`
+  deckt sich mit der Bühne und `#poster-prepaint` mit der ersten Karte, Spalte ein- und
+  ausgeblendet, innerhalb 1 px.
+- Lighthouse mobile und desktop (DoD dieses Schritts) laufen in Schritt 5 zusammen mit der
+  Messung nach Papier-Abschnitt 8, weil der Messaufbau (Lighthouse-CLI, Testfilme vom NAS mit
+  Bildern) dort ohnehin steht.
+- Bekannte Lücke: in einer Bibliothek mit nur einer Inhaltsart beginnt die Werkzeugzeile mit dem
+  `<select>`; Pfeil links von dort erreicht die Spalte nicht, weil `SpatialPage` Pfeiltasten in
+  Auswahlfeldern dem Feld lässt. Raster und Chips erreichen sie.
+- Storybook-Vergleichsbilder fehlen (kein Docker): `AppHeader` SearchFocused/WithMenu, `SideNav`,
+  `SideNavDrawer`, die Admin-Seiten (15 rem schmaler); die alten `ui-appheader--nav-focused.png`
+  und `ui-appheader--with-update.png` sind entfernt.
+
+### Schritt 4 — Spotlight nach F-2, F-3, F-5, F-9, F-10 und die Reihen nach N-3, N-4
+
+**Reihen.** `Row` bekommt `RowList` (Scroller und Liste mit der Reihengeometrie, wahlweise mit
+Leerraum am Ende); alle Reihen rasten mit `scroll-snap-type: x mandatory` an der linken Kante
+ein, der Scroller ist ein Grössen-Container: unter 768 px ist eine Karte
+`(100cqi − 2·Gutter − 2·Abstand) / 3` breit (genau drei ganze Cover, N-3), ab 768 px gelten die
+Poster-Tokens. `CARD_SIZES` (`PosterCard`, `CollectionCard`), `posterSizes` (`preload.go`) und
+`#poster-prepaint > img` tragen den Eintrag `calc(33vw - 1.5rem)` unter 768 px im selben Commit.
+Der Scroller hat `tabIndex={-1}` (Firefox macht Scrollboxen sonst zu Tab-Stationen).
+
+**Band.** `HeroCarousel` neu: unter der Bühne eine `PosterCard`-Reihe in Normalgrösse in der neuen
+Variante ohne `href` (`onPress`, `active` mit Ring in `--sc-item-accent`, `dimmed` 70 %,
+`aria-current`, Zeitbalken als Kind im Rahmen); Enter oder Klick stellt den Titel ins Band und
+navigiert nicht (F-5). Bei jedem Wechsel rückt das aktive Poster nur horizontal an die linke Kante,
+der Leerraum am Ende trägt auch das letzte Poster dorthin (N-4). Start bei `heroStart`, einmal je
+Einhängen eingerastet (ein Refetch mit anderem Wert bewegt das Band nicht); Takt aus
+`heroIntervalSeconds`. Pausenregel: Trailer, Pause-Knopf (`aria-pressed`, Symbol wechselt, Label
+bleibt «Pause» nach der WAI-ARIA-Regel für Umschalter, «Weiter» als `title`), **Tastaturfokus im
+Band** (`focusin` prüft `:focus-visible`, eine Taste setzt es, `focusout` löscht es), verborgener
+Tab (`visibilitychange`), eine einzige Folie; **kein** Halt beim Mauszeiger und nicht nach einem
+Mausklick (F-3); bei reduzierter Bewegung keine Automatik und kein Zeitbalken. Die drei Bandknöpfe
+merken sich den Titel beim `pointerdown` und navigieren beim `click` dorthin (12.1). Nach dem
+ersten Bild werden die nächsten zwei vorgeladen. Ein Mausdruck auf ein Spotlight-Poster vergibt
+keinen Fokus (sonst scrollte die Pfeilnavigation die Reihe auf die Mitte und der Klick ging
+verloren – Befund der e2e-Tests). Positionsanzeige «3 von 7» sichtbar neben dem Pause-Knopf.
+
+**Ein Wurf je Seitenaufruf** (Papier 6, der Blocker des Reviews). `discover.FirstHero` liefert
+Titel und Index und würfelt mit demselben `drawHeroStart` wie `Home`; `preload.go` schreibt
+`data-start="K"` an `#hero-prepaint` und die Vorladung `</api/v1/home?start=K>`; steht die Bühne
+weiter unten oder fehlt das Backdrop, trägt die Hülle `<meta name="slouchcat-hero-start"
+content="K">`. Der Client (`shellHeroStart()` in `queries.ts`) schickt `start` nur beim ersten
+Abruf der Sitzung (`dataUpdatedAt === 0`), danach würfelt der Server und das Band bleibt
+eingerastet. Admin-Seite «Spotlight» bekommt das Feld «Takt der Bühne … Sekunden» (3–15).
+
+**Belege (DoD).**
+
+- `task build`, `SLOUCHCAT_E2E_PORT=8197 task web:e2e` (ganze Suite, Chromium und Firefox):
+  `477 passed, 1 failed (25.2m)`; `task ci:server`: `0 issues.`, alle Pakete `ok`;
+  `task web:gen:check && task web:lint && task web:test`: grün (83 Dateien, 670 Tests).
+  Der eine Fehler ist `admin-streams.spec.ts` in Firefox («its player stops within 5 s»): ein
+  Zeitbudget unter der Last der ganzen Suite; allein läuft der Test in Firefox zweimal grün
+  (`--repeat-each=2`, 5.5 s und 6.1 s). Der Test hat mit diesem Konzept nichts zu tun; in der
+  CI läuft die Suite in sechs Shards.
+- `home.spec.ts` (neu oder umgeschrieben): Band beginnt bei `SLOUCHCAT_HERO_START` (`data-start`
+  bzw. Meta = 0, `Link </api/v1/home?start=0>`), `GET /home?start=3` liefert `heroStart 3`, ein
+  Refetch nach `visibilitychange` ändert den Bandtitel nicht; Enter auf einem Poster wechselt das
+  Band ohne Navigation; Tab ins Band hält den Takt (`data-paused`), ein Mausklick nicht, der
+  Pause-Knopf hält und löst; aktives Poster nach jedem Wechsel an der linken Kante, `scrollY`
+  bleibt; bei 390 px drei ganze Cover je Reihe, nach `scrollBy` rastet ein Cover am Gutter ein;
+  Tab-Reihenfolge Abspielen → Details → Pause → aktives Poster. `admin-spotlight.spec.ts`: Takt 7
+  speichern, nach Reload 7, `GET /home` liefert `heroIntervalSeconds 7`.
+- `preload_test.go`: mit `WithHeroStart(2)` trägt die Hülle `data-start="2"` und den `Link`
+  `/home?start=2`; Bühne weiter unten nur das Meta-Element; ohne Bühne keines von beiden; ein
+  Zufallswurf nennt in Hülle, Vorladung und `GET /home?start=K` denselben Titel.
+  `discover_test.go`: `FirstHero` mit `WithHeroStart(3)` und `(9)` (auf den letzten Titel geklemmt),
+  `Home(start=k)` wiederholt den Wurf.
+- `HomePage.test.tsx`: Takt 7 s aus der Antwort, eingerasteter `heroStart`, `?start=2` nur beim
+  ersten Abruf, Klick hält nicht, Taste hält, Pause-Knopf, `pointerdown`-Merker, Vorladen der
+  nächsten zwei Bilder.
+- Storybook-Vergleichsbilder (`ui-herocarousel--*`, `ui-row--*`, `ui-postercard--button-*`) fehlen,
+  kein Docker; `task storybook:update` auf CT 190.
+
+### Schritt 5 — Abnahme, Messung, Doku
+
+**Messung** nach Papier-Abschnitt 8 in `docs/perf/startseite.md` (Entwicklungsrechner, 30. Oktober
+2026): auf dem M3-Baum (2'500 Filme, 400 Serien mit 40'334 Folgen) `GET /home` **58.5 ms p95**
+(während des Scans 34.9 ms; P-11 < 300 ms), die Bibliotheksseite in jeder Sortierung unter 300 ms
+p95 (schwerster Fall «Serien, Status angefangen, Titel, Buchstabe S» **198.4 ms**, `sort=played`
+196.4 ms), `GET /libraries/visible` 50.0 ms p95, `GET /picks` 2.9 ms. Neues Schwesterskript
+`docs/perf/measure-library.sh`. Lighthouse (12.8.2, Testfilme vom NAS mit TMDB-Bildern, angemeldet):
+mit Bühne **1.502 s** mobil (M11: 1.652) und 0.441 s Desktop, ohne Bühne **1.577 s** mobil (M11:
+2.328) und 0.362 s Desktop, Note 100; LCP-Element `#hero-prepaint > img` bzw.
+`#poster-prepaint > img`. K-3 am laufenden Server mit `curl` (Kinderprofil Stufe 6 nach Massen-
+Freigabe): nur «Filme» mit `itemCount 3` in der Seitenleiste, `maxRating=18` ändert nichts,
+`facets.ratings [0]`, unbewertete Serienbibliothek und unbekannte Id 404, `letter` ohne
+Titel-Sortierung 422 `letter_requires_title_sort`, `sort=author` bei Video 422.
+
+**Zwei Befunde der Messung.**
+
+1. **LCP ohne Bühne auf dem Handy (behoben).** Der erste Mobile-Lauf ohne Bühne lag bei 3.5 s: das
+   Vormal-Poster und das Kartenbild waren gleich gross, Chrome nahm durch Subpixel-Rundung die um
+   7 px² grössere Karte als LCP-Kandidaten, der LCP sprang auf das React-Malen. Das Vormal-Poster
+   ist jetzt 0.5 px breiter als die Karte (`global.css`, Kommentar dort; der Geometrie-Test erlaubt
+   unter 1 px). Danach 1.577 s.
+2. **`itemCount` über der Ausstiegsklausel (offen, Entscheid für Marco).** `GET /libraries/visible`
+   braucht 50 ms p95 statt der 20 ms aus Papier-Abschnitt 8. Die vorgeschlagene «Zähltabelle je
+   Bibliothek, die der Scanner pflegt» kann die Zahl nicht liefern: `itemCount` ist je Profil
+   verschieden (Freigabestufe, Bibliotheksrechte), der Scanner kennt kein Profil; eine Zähltabelle je
+   Profil wäre ein zweiter Zustand neben `visible_items` (Regel 2). Der Aufruf wird mit der Sitzung
+   vorgeladen, läuft parallel zu `/home`, hält die Seitenleiste nicht auf und wird 60 s gehalten.
+   Vorschlag: so lassen; Alternative: die Zahl aus der Seitenleiste nehmen (O-1 zurücknehmen).
+   Details in `docs/perf/startseite.md` 1b.
+
+**Belege (DoD) des Abschlusses:** `task web:gen:check && task web:lint && task web:test` grün;
+`task ci:server` `0 issues.`, alle Pakete `ok` (mit `startseite.sql`); ganze Playwright-Suite
+(Chromium und Firefox) `475 passed, 3 failed (25.6m)`: zwei davon waren die Toleranz von
+`home.spec.ts` «no stage» (< 0.5 px) gegen den gewollten halben Pixel des Vormal-Posters – jetzt
+< 1 px wie im Geometrie-Test, danach `home.spec.ts` und `sidenav.spec.ts` in beiden Browsern
+`42 passed`; der dritte ist das bekannte 5-s-Zeitbudget von `admin-streams.spec.ts` in Firefox
+unter Suite-Last.
+
+**Eingefrorener Stand** `testdata/db/startseite.sql` (Erzeugung in `testdata/db/README.md`) mit
+`TestFrozenStartseiteStateCoversTheConcept` (Takt 7, Sortierschlüssel ohne Artikel, Wertung mit
+Herkunft, Indizes, Notiz); `TestFrozenStatesMigrate` nimmt ihn über das Glob mit.
+
+**Versionsstellen auf 1.4.0:** `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+`docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`.
+
+**Release-Notes-Entwurf 1.4.0** (C-5, nicht brechend):
+
+- Zuschauer: Seitenleiste links ab 768 px («Meine Medien» mit jeder sichtbaren Bibliothek und
+  «Cat's Empfehlungen», ausblendbar), Schublade auf dem Handy; Bibliotheksseite je Bibliothek mit
+  Chips «Alle · Filme · Serien», acht Sortierungen, Filtern (Genre, Status, Jahr, Freigabe) und
+  Buchstabenleiste; Seite «Cat's Empfehlungen»; Spotlight-Band mit zufälligem Einstieg je Aufruf,
+  Takt aus der Verwaltung, Pause-Knopf und Posterreihe in Normalgrösse; alle Reihen rasten links
+  ein, auf dem Handy drei Cover je Reihe.
+- Vertrag 1.4.0, additiv: `listVisibleLibraries`, `listLibraryItems`, `listPicks` (alle `scoped`),
+  `getHome?start`, `HomePage.heroStart` und `heroIntervalSeconds`, `SpotlightConfig.rotationSeconds`
+  (im Update optional, fehlt = unverändert), Schemata `LibraryNav`, `LibrarySort`,
+  `LibraryItemStatus`, `LibraryFacets`, `LibraryItemsPage`, `PicksPage`; Fehlercode
+  `letter_requires_title_sort`.
+- Migration 00026 (`rotation_seconds`, `item_texts.sort_key` mit Backfill, `items.vote_average`,
+  Indizes); der Server sichert die Datenbank vorher nach `/config/backups/`. **Nach dem Update läuft
+  einmal der Job `metadata.vote_backfill`** (Wertungen der vorhandenen Titel von TMDB und AniList, in
+  Batches zu 200, gedrosselt; bei 2'500 Filmen und 1'000 Serien rund zwei Stunden, zwei TMDB-Anfragen je
+  Titel für beide Sprachen); bis dahin sortiert «Bewertung» unvollständig. TVDB liefert keine
+  Wertung.
+- `SLOUCHCAT_HERO_START` (nur für Tests) fixiert den Einstieg des Bands.
+
+**Testanleitung für Marco am Handy und am Tablet** (CT 190 oder der Stack auf 8096 nach dem Merge):
+
+1. Startseite öffnen: Menü-Symbol oben links öffnet die Schublade mit Start, Suche, Merkliste,
+   Downloads, «Meine Medien» (jede Bibliothek mit Zahl, Cat's Empfehlungen), Verwaltung, Profile,
+   Abmelden; Tippen neben die Schublade schliesst sie. Am Tablet (quer und hochkant) steht die
+   Leiste fest links; «Seitenleiste ausblenden» unten, danach Menü-Symbol und in der Schublade
+   «Seitenleiste einblenden»; der Zustand bleibt nach dem Neuladen.
+2. Band: bei jedem Öffnen ein anderer Titel zuerst, alle 5 s der nächste (Takt in Verwaltung →
+   Spotlight → «Takt der Bühne» auf 3 bis 15 s stellen); Tippen auf ein Poster unter dem Band
+   stellt den Titel ins Band, öffnet nichts; Pause-Knopf oben rechts hält an; das aktive Poster
+   steht links; Band bleibt stehen, wenn du mit Pfeiltasten (Tastatur am Tablet) hineingehst.
+3. Reihen: auf dem Handy drei ganze Cover je Reihe, nach dem Wischen steht links immer ein ganzes
+   Cover; «Alle anzeigen ›» an Cat's Empfehlungen und Merkliste.
+4. Bibliothek («Filme», «Dokus», …): Zähler oben, bei gemischten Bibliotheken Chips «Alle · Filme ·
+   Serien», Sortieren (Titel, Zuletzt hinzugefügt, Erscheinungsjahr, Bewertung, Laufzeit,
+   Altersfreigabe, Zuletzt gesehen; bei Hörbüchern Autor), Richtung, Filter (Genre, Status, Jahr,
+   Freigabe – nur was es in der Bibliothek gibt), Buchstabenleiste als Lauf über dem Raster
+   (nur bei Sortierung nach Titel); Haken auf gesehenen Titeln, FSK-Chip bei Video; «Mehr laden»
+   ab 50; Zurück landet auf der Karte, von der du kamst. Ein Kinderprofil sieht in jeder
+   Bibliothek nur seine Stufe, eine leere Bibliothek fehlt in der Leiste.
+5. Cat's Empfehlungen: Seite mit allen Empfehlungen und Notizen in Cats Reihenfolge.
+6. Verwaltung → Spotlight: «Takt der Bühne» speichern; Startseite neu laden.
+
+**Umstellung auf CT 190:** am 30. Oktober 2026, 07:18 Uhr, Image
+`ghcr.io/slouchcat/slouchcat:startseite` (212 MB, Version `startseite-3d37305`), auf dem CT aus der
+Laufzeitstufe des Dockerfiles gebaut (Binary hier mit `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`, Web
+eingebettet; auf dem CT fehlt BuildKit, darum klassischer Builder mit `--build-arg TARGETARCH=amd64`,
+sonst findet apt `jellyfin-ffmpeg7` nicht). `.env` gesichert nach `.env.bak-vor-startseite` (vorher
+`bibliotheken`); Sicherung der Datenbank `pre-migration-startseite-3d37305-20261030T061811.543Z.db`;
+Migration 00026 in 1 927 ms; `/healthz` 200; `metadata.vote_backfill` lief beim Start einmal durch
+(47 s). Die Abnahme nach der Testanleitung oben macht Marco.
+
+**Offen nach diesem Zweig:** Storybook-Vergleichsbilder auf CT 190 nachholen (`task
+storybook:update`: `AppHeader`, `SideNav`, `SideNavDrawer`, `PosterCard`, `Row`, `HeroCarousel`,
+`SelectField`, `LetterBar`, Admin-Seiten); Messung der Bibliotheksseite auf CT 190 (2 vCPU: die
+Folgen-Aggregation könnte dort über 300 ms liegen, `docs/perf/startseite.md` 1b); Entscheid zu
+`itemCount` (oben); Pfeil links aus einem `<select>` in der Werkzeugzeile erreicht die Leiste
+nicht.
+
 ## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, abgenommen)
 
 Auf dem Zweig `claude/bibliotheken` (Pull Request #45, bereit) nach dem Konzept

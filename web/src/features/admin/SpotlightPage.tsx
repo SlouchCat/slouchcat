@@ -151,6 +151,7 @@ function SourceCard({
   const [itemCount, setItemCount] = useState(String(config.itemCount));
   const [minHits, setMinHits] = useState(String(config.minHits));
   const [intervalHours, setIntervalHours] = useState(String(config.intervalHours));
+  const [rotationSeconds, setRotationSeconds] = useState(String(config.rotationSeconds));
   const [message, setMessage] = useState<string | null>(null);
 
   const kind = config.listKinds.find((entry) => entry.key === listKey);
@@ -192,6 +193,7 @@ function SourceCard({
       itemCount: Number(itemCount),
       minHits: Number(minHits),
       intervalHours: Number(intervalHours),
+      rotationSeconds: Number(rotationSeconds),
       ...(kind?.needsUrl ? { listUrl: listUrl.trim() } : {}),
     });
   };
@@ -297,6 +299,20 @@ function SourceCard({
               isRequired
               value={intervalHours}
               onChange={setIntervalHours}
+              validate={required}
+            />
+          </div>
+          <div className={layout.narrow}>
+            {/* The band's rhythm on the start page (concept 08, F-10). */}
+            <TextField
+              name="rotationSeconds"
+              type="number"
+              inputMode="numeric"
+              label={t('admin.spotlight.source.rotation')}
+              description={t('admin.spotlight.source.rotationHint')}
+              isRequired
+              value={rotationSeconds}
+              onChange={setRotationSeconds}
               validate={required}
             />
           </div>

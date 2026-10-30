@@ -50,6 +50,12 @@ const rowTitleKey = {
   genres: 'home.rows.genres',
 } as const;
 
+// Rows with a page of all their titles ("Alle anzeigen ›", concept 08 O-3: only these two).
+const rowPages: Partial<Record<HomeRow['key'], string>> = {
+  picks: paths.picks,
+  watchlist: paths.watchlist,
+};
+
 // Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.
 // The server paints as many ahead on a page without a stage (posterPrepaintCards, api/preload.go).
 const EAGER_POSTERS = 6;
@@ -121,7 +127,11 @@ export function HomePage() {
   // Only a stage at the top is the page's first image: the server paints it into the shell, and the
   // posters wait for it. A stage further down has no prepaint and holds no poster back.
   const leadRow = home.data?.rows.find(hasEntries);
-  const firstHero = leadRow && leadRow.key === home.data?.heroRow ? leadRow.items[0] : undefined;
+  // The band begins with the server's draw (heroStart, concept 08, F-2), the title the shell painted.
+  const firstHero =
+    leadRow && leadRow.key === home.data?.heroRow
+      ? leadRow.items[Math.min(home.data.heroStart ?? 0, leadRow.items.length - 1)]
+      : undefined;
   const heroHasArt = Boolean(
     firstHero &&
     (firstHero.images.backdrop ?? firstHero.images.backdropSmall ?? firstHero.images.poster),
@@ -193,6 +203,8 @@ export function HomePage() {
       backdropSmallUrl: imageUrl(item.images.backdropSmall),
       posterUrl: imageUrl(item.images.poster),
       posterSmallUrl: imageUrl(item.images.posterSmall),
+      accent: item.accent,
+      caption: cardCaption(t, row, item),
       meta: <ItemMeta item={item} />,
       note: item.note,
       hasTrailer: item.hasTrailer,
@@ -239,8 +251,15 @@ export function HomePage() {
         </Row>
       );
     }
+    const moreHref = rowPages[row.key];
     return (
-      <Row key={row.key} title={title} focusKey={focusKey}>
+      <Row
+        key={row.key}
+        title={title}
+        focusKey={focusKey}
+        moreHref={moreHref}
+        moreLabel={moreHref ? t('home.rows.all') : undefined}
+      >
         {row.items.map((item, itemIndex) => (
           <PosterCard
             key={item.id}
@@ -292,6 +311,12 @@ export function HomePage() {
                     playLabel={t('item.play')}
                     detailsLabel={t('item.details')}
                     trailerLabel={t('item.trailer')}
+                    rowLabel={t('home.spotlight.row')}
+                    pauseLabel={t('home.spotlight.pause')}
+                    resumeLabel={t('home.spotlight.resume')}
+                    // Read once when the band mounts (keyed by the row): a refetch never moves it.
+                    start={home.data.heroStart}
+                    intervalSeconds={home.data.heroIntervalSeconds}
                     onTrailerPress={setTrailerSlide}
                     paused={trailerSlide !== undefined}
                     onArtShown={() => setHeroShown(true)}

@@ -36,8 +36,8 @@ func (a preloadAuth) Resolve(_ context.Context, token string) (model.Session, bo
 // emptyCatalog is a catalog whose profiles have no stage and no titles.
 type emptyCatalog struct{ CatalogService }
 
-func (emptyCatalog) FirstHero(context.Context, model.Profile) (model.ItemSummary, bool, error) {
-	return model.ItemSummary{}, false, model.ErrNotFound
+func (emptyCatalog) FirstHero(context.Context, model.Profile) (model.ItemSummary, int, bool, error) {
+	return model.ItemSummary{}, 0, false, model.ErrNotFound
 }
 
 func (emptyCatalog) FirstRow(context.Context, model.Profile) ([]model.ItemSummary, error) {
@@ -69,8 +69,9 @@ func getWithToken(h http.Handler, path, token string) *httptest.ResponseRecorder
 
 // homeAnswer is the part of GET /home the preload tests read.
 type homeAnswer struct {
-	HeroRow *string `json:"heroRow"`
-	Rows    []struct {
+	HeroRow   *string `json:"heroRow"`
+	HeroStart *int    `json:"heroStart"`
+	Rows      []struct {
 		Key   string `json:"key"`
 		Items []struct {
 			ID         string `json:"id"`
@@ -98,6 +99,9 @@ func getHome(t *testing.T, h http.Handler, token string) homeAnswer {
 
 // Plan 3.5 and step 4 (P-10): the shell of GET / preloads the first image of the stage whenever
 // there is one, and paints it ahead only when the stage is the first row of the start page.
+// Concept 08, 6: the shell draws the stage's first title once and hands the index on, as
+// data-start (or the start meta without a painted image) and in the home preload /home?start=K.
+// A page without a stage has neither.
 func TestStartPagePreloadHeaders(t *testing.T) {
 	t.Parallel()
 	f := vistest.New(t)
@@ -118,7 +122,8 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 	auth := preloadAuth{sessions: map[string]model.Session{"p18": session, "extend": session}}
 	h := NewHandler(Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: shellHandler(),
-		Auth: auth, Catalog: discover.New(f.DB, f.CacheDir, log), Playback: playback.New(f.DB, log),
+		// A fixed draw (as SLOUCHCAT_HERO_START in the e2e suite) other than the first title.
+		Auth: auth, Catalog: discover.New(f.DB, f.CacheDir, log, discover.WithHeroStart(2)), Playback: playback.New(f.DB, log),
 	})
 
 	// The header names exactly the URLs the start page's stage uses for its first title.
@@ -126,22 +131,32 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 	if page.HeroRow == nil || *page.HeroRow != "spotlight" || len(page.Rows) == 0 || page.Rows[0].Key != "spotlight" {
 		t.Fatalf("home: hero row %v, rows %+v; want spotlight first", page.HeroRow, page.Rows)
 	}
-	first := page.Rows[0].Items[0]
+	if page.HeroStart == nil || *page.HeroStart != 2 || len(page.Rows[0].Items) < 3 {
+		t.Fatalf("home: hero start %v of %d titles, want 2", page.HeroStart, len(page.Rows[0].Items))
+	}
+	first := page.Rows[0].Items[2]
 	small, large := first.Images.BackdropSmall.URL, first.Images.Backdrop.URL
 	if small == "" || large == "" {
 		t.Fatalf("first stage title %s without both backdrops", first.ID)
 	}
-	want := []string{
+	// Without a stage the home preload carries no start: the server has nothing to draw.
+	plain := []string{
 		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
 		"</api/v1/home>; rel=preload; as=fetch; crossorigin",
+		"</api/v1/libraries/visible>; rel=preload; as=fetch; crossorigin",
+	}
+	want := []string{
+		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
+		"</api/v1/home?start=2>; rel=preload; as=fetch; crossorigin",
+		"</api/v1/libraries/visible>; rel=preload; as=fetch; crossorigin",
 		"<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 780w, " + large +
-			` 1280w"; imagesizes="100vw"; fetchpriority=high`,
+			` 1280w"; imagesizes="(width >= 768px) calc(100vw - 15rem), 100vw"; fetchpriority=high`,
 	}
 
 	// The shell paints the same image ahead of the app: outside #root, URLs HTML-escaped.
 	esc := func(u string) string { return strings.ReplaceAll(u, "&", "&amp;") }
-	prepaint := `<div id="hero-prepaint" aria-hidden="true"><img src="` + esc(small) + `" srcset="` +
-		esc(small) + " 780w, " + esc(large) + ` 1280w" sizes="100vw" alt="" width="1280" height="720" ` +
+	prepaint := `<div id="hero-prepaint" data-start="2" aria-hidden="true"><img src="` + esc(small) + `" srcset="` +
+		esc(small) + " 780w, " + esc(large) + ` 1280w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw" alt="" width="1280" height="720" ` +
 		`fetchpriority="high" decoding="sync"></div>`
 
 	t.Run("start page with session", func(t *testing.T) {
@@ -177,6 +192,33 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		}
 	})
 
+	// Concept 08, 6: with a random draw the shell's index, the home preload and the painted image
+	// agree, and GET /home?start=K repeats the draw.
+	t.Run("random draw: shell, preload and home agree", func(t *testing.T) {
+		h := NewHandler(Options{
+			Version: "test", Started: time.Now(), Logger: log, Web: shellHandler(),
+			Auth: auth, Catalog: discover.New(f.DB, f.CacheDir, log), Playback: playback.New(f.DB, log),
+		})
+		rec := getWithToken(h, "/", "p18")
+		body := rec.Body.String()
+		_, rest, ok := strings.Cut(body, `<div id="hero-prepaint" data-start="`)
+		k, err := strconv.Atoi(strings.SplitN(rest, `"`, 2)[0])
+		if !ok || err != nil {
+			t.Fatalf("shell without data-start: %q", body)
+		}
+		if links := rec.Header().Values("Link"); len(links) < 2 || links[1] != "</api/v1/home?start="+strconv.Itoa(k)+">; rel=preload; as=fetch; crossorigin" {
+			t.Errorf("Link = %q, want the home preload with start=%d", links, k)
+		}
+		var page homeAnswer
+		home := getWithToken(h, BasePath+"/home?start="+strconv.Itoa(k), "p18")
+		if err := json.Unmarshal(home.Body.Bytes(), &page); err != nil || page.HeroStart == nil || *page.HeroStart != k {
+			t.Fatalf("home?start=%d: hero start %v, %v", k, page.HeroStart, err)
+		}
+		if small := page.Rows[0].Items[k].Images.BackdropSmall.URL; !strings.Contains(body, `<img src="`+esc(small)+`"`) {
+			t.Errorf("shell paints another image than title %d (%s): %q", k, small, body)
+		}
+	})
+
 	// The start page always drops the marker; other routes are left alone (it is a comment).
 	for name, tc := range map[string]struct{ path, token, body string }{
 		"without session":       {"/", "", shellWith("")},
@@ -199,7 +241,7 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 	}
 
 	// Plan 3.5: a stage further down keeps the preload header but gets no prepaint, which would
-	// sit at the top of the page.
+	// sit at the top of the page; the draw reaches the client through the start meta.
 	t.Run("stage further down: preload only", func(t *testing.T) {
 		exec(`UPDATE home_rows SET position = CASE key WHEN 'spotlight' THEN 3 WHEN 'recent' THEN 0 ELSE position END`)
 		defer exec(`UPDATE home_rows SET position = CASE key WHEN 'spotlight' THEN 0 WHEN 'recent' THEN 3 ELSE position END`)
@@ -208,8 +250,8 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 			t.Fatalf("home: hero row %v, first row %s; want spotlight further down", page.HeroRow, page.Rows[0].Key)
 		}
 		rec := getWithToken(h, "/", "p18")
-		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
-			t.Fatalf("status %d, body %q, want the shell without prepaint", rec.Code, rec.Body.String())
+		if meta := `<meta name="slouchcat-hero-start" content="2">`; rec.Code != http.StatusOK || rec.Body.String() != shellWith(meta) {
+			t.Fatalf("status %d, body %q, want the shell with only %s", rec.Code, rec.Body.String(), meta)
 		}
 		if got := rec.Header().Values("Link"); !slices.Equal(got, want) {
 			t.Errorf("Link = %q\nwant   %q", got, want)
@@ -243,7 +285,7 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 				class = `class="square" `
 			}
 			cards.WriteString(`<img ` + class + `src="` + esc(small) + `" srcset="` + esc(small) + " 200w, " + esc(large) +
-				` 400w" sizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem" alt="" loading="eager"`)
+				` 400w" sizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)" alt="" loading="eager"`)
 			if i == 0 {
 				cards.WriteString(` fetchpriority="high" decoding="sync"`)
 			}
@@ -254,16 +296,16 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		if rec.Code != http.StatusOK || rec.Body.String() != shellWith(posters) {
 			t.Fatalf("status %d, body %q\nwant %q", rec.Code, rec.Body.String(), shellWith(posters))
 		}
-		if strings.Contains(rec.Body.String(), "hero-prepaint") {
-			t.Errorf("body carries the hero image: %q", rec.Body.String())
+		if strings.Contains(rec.Body.String(), "hero-prepaint") || strings.Contains(rec.Body.String(), "hero-start") {
+			t.Errorf("body carries the hero image or a start: %q", rec.Body.String())
 		}
 		if got := rec.Header().Get("Content-Length"); got != strconv.Itoa(len(shellWith(posters))) {
 			t.Errorf("Content-Length = %q", got)
 		}
 		poster := "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 200w, " + large +
-			` 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"; fetchpriority=high`
-		if got := rec.Header().Values("Link"); !slices.Equal(got, append(slices.Clone(want[:2]), poster)) {
-			t.Errorf("Link = %q\nwant   %q", got, append(slices.Clone(want[:2]), poster))
+			` 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)"; fetchpriority=high`
+		if got := rec.Header().Values("Link"); !slices.Equal(got, append(slices.Clone(plain), poster)) {
+			t.Errorf("Link = %q\nwant   %q", got, append(slices.Clone(plain), poster))
 		}
 	})
 
@@ -276,7 +318,7 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
 			t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
 		}
-		if got := rec.Header().Values("Link"); !slices.Equal(got, want[:2]) {
+		if got := rec.Header().Values("Link"); !slices.Equal(got, plain) {
 			t.Errorf("Link = %q, want only the data preloads", got)
 		}
 	})
@@ -367,7 +409,7 @@ func TestPosterLink(t *testing.T) {
 	}{
 		{"both posters", model.ItemSummary{ID: "a", Poster: img("w400"), PosterSmall: img("w200")},
 			`</api/v1/items/a/images/poster/w200?v=h&p=7>; rel=preload; as=image; imagesrcset="/api/v1/items/a/images/poster/w200?v=h&p=7 200w, ` +
-				`/api/v1/items/a/images/poster/w400?v=h&p=7 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"; fetchpriority=high`},
+				`/api/v1/items/a/images/poster/w400?v=h&p=7 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)"; fetchpriority=high`},
 		{"large poster only", model.ItemSummary{ID: "a", Poster: img("w400")},
 			"</api/v1/items/a/images/poster/w400?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
 		{"small poster only", model.ItemSummary{ID: "a", PosterSmall: img("w200")},
@@ -394,21 +436,21 @@ func TestHeroPrepaint(t *testing.T) {
 		want string
 	}{
 		{"both backdrops", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), BackdropSmall: img("backdrop", "w780")},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7" ` +
-				`srcset="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7 780w, /api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7 1280w" sizes="100vw"` + tail},
+			`<div id="hero-prepaint" data-start="4" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7" ` +
+				`srcset="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7 780w, /api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7 1280w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw"` + tail},
 		{"large backdrop only", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), Poster: img("poster", "w500")},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7"` + tail},
+			`<div id="hero-prepaint" data-start="4" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7"` + tail},
 		{"small backdrop only", model.ItemSummary{ID: "a", BackdropSmall: img("backdrop", "w780")},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7"` + tail},
+			`<div id="hero-prepaint" data-start="4" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7"` + tail},
 		// The carousel blurs a poster; the shell does not paint it ahead.
 		{"poster only", model.ItemSummary{ID: "a", Poster: img("poster", "w500")}, ""},
 		{"no image", model.ItemSummary{ID: "a"}, ""},
 		// Attribute values are escaped even though the URLs are built by the server.
 		{"escaped", model.ItemSummary{ID: "a", Backdrop: &model.Image{Kind: "backdrop", Size: `w1280"><x&`, ContentHash: "h"}},
-			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280&#34;&gt;&lt;x&amp;?v=h&amp;p=7"` + tail},
+			`<div id="hero-prepaint" data-start="4" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280&#34;&gt;&lt;x&amp;?v=h&amp;p=7"` + tail},
 	}
 	for _, tc := range cases {
-		if got := heroPrepaint(tc.item, 7); got != tc.want {
+		if got := heroPrepaint(tc.item, 4, 7); got != tc.want {
 			t.Errorf("%s: heroPrepaint = %q\nwant %q", tc.name, got, tc.want)
 		}
 	}
@@ -422,7 +464,7 @@ func TestPosterPrepaint(t *testing.T) {
 	card := func(id, kind string) model.ItemSummary {
 		return model.ItemSummary{ID: id, Kind: kind, Poster: img("w400"), PosterSmall: img("w200")}
 	}
-	const sizes = `sizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"`
+	const sizes = `sizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)"`
 	both := func(id string) string {
 		u := "/api/v1/items/" + id + "/images/poster/"
 		return `src="` + u + `w200?v=h&amp;p=7" srcset="` + u + `w200?v=h&amp;p=7 200w, ` + u + `w400?v=h&amp;p=7 400w" ` + sizes

@@ -25,7 +25,18 @@
     "notifications": "Benachrichtigungen",
     "admin": "Verwaltung",
     "update": "Update",
-    "updateLabel": "Update auf Version {{version}} verfügbar"
+    "adminUpdateLabel": "Verwaltung, Update auf Version {{version}} verfügbar",
+    "searchOpen": "Suche öffnen",
+    "menu": "Menü",
+    "menuClose": "Menü schliessen",
+    "libraries": "Meine Medien",
+    "toggleLibraries": "Meine Medien ein- oder ausklappen",
+    "libraryLabel_one": "{{name}}, {{count}} Titel",
+    "libraryLabel_other": "{{name}}, {{count}} Titel",
+    "librariesOffline": "Offline: Bibliotheken nicht verfügbar",
+    "librariesOfflineLink": "Zu den Downloads",
+    "hideSidebar": "Seitenleiste ausblenden",
+    "showSidebar": "Seitenleiste einblenden"
   },
   "system": {
     "server": {
@@ -291,7 +302,8 @@
       "movie": "Filme",
       "series": "Serien",
       "audiobook": "Hörbücher",
-      "podcast": "Podcasts"
+      "podcast": "Podcasts",
+      "all": "Alle"
     },
     "providers": {
       "title": "Metadatenquellen",
@@ -327,7 +339,69 @@
       "addSubmit_one": "1 Ordner hinzufügen",
       "addSubmit_other": "{{count}} Ordner hinzufügen"
     },
-    "videoHint": "Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt."
+    "videoHint": "Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt.",
+    "page": {
+      "count_one": "{{count}} {{noun}}",
+      "count_other": "{{count}} {{noun}}",
+      "countLetter": "{{count}} {{noun}} mit {{letter}}",
+      "filtered": "{{text}} · gefiltert",
+      "sort": "Sortieren",
+      "direction": "Reihenfolge:",
+      "ascending": "↑ aufsteigend",
+      "descending": "↓ absteigend",
+      "filter": "Filter",
+      "filterCount": "Filter ({{count}})",
+      "apply": "Anwenden",
+      "clear": "Zurücksetzen",
+      "emptyFilters": "Nichts passt zu diesen Filtern",
+      "more": "Mehr laden ({{count}} weitere)",
+      "noun": {
+        "video_one": "Titel",
+        "video_other": "Titel",
+        "audiobooks_one": "Hörbuch",
+        "audiobooks_other": "Hörbücher",
+        "podcasts_one": "Podcast",
+        "podcasts_other": "Podcasts"
+      }
+    },
+    "sort": {
+      "title": "Titel",
+      "added": "Zuletzt hinzugefügt",
+      "released": "Erscheinungsjahr",
+      "vote": "Bewertung",
+      "runtime": "Laufzeit",
+      "age": "Altersfreigabe",
+      "played": "Zuletzt gesehen",
+      "author": "Autor"
+    },
+    "status": {
+      "unwatched": "Ungesehen",
+      "started": "Angefangen",
+      "watched": "Gesehen",
+      "unheard": "Ungehört",
+      "heard": "Gehört"
+    },
+    "letters": {
+      "label": "Anfangsbuchstabe",
+      "all": "Alle Buchstaben",
+      "allMark": "•",
+      "other": "Ziffer oder Zeichen"
+    },
+    "filters": {
+      "genre": "Genre",
+      "allGenres": "Alle Genres",
+      "status": "Status",
+      "year": "Jahr",
+      "yearFrom": "Jahr von",
+      "yearTo": "Jahr bis",
+      "rating": "Altersfreigabe",
+      "anyRating": "Profilgrenze",
+      "upTo": "bis {{age}}"
+    },
+    "notFound": {
+      "title": "Bibliothek nicht gefunden",
+      "body": "Diese Bibliothek gibt es nicht, oder sie hat für dieses Profil keine Titel."
+    }
   },
   "home": {
     "title": "Startseite",
@@ -339,13 +413,19 @@
       "collections": "Sammlungen",
       "genres": "Genres",
       "spotlight": "Spotlight",
-      "released": "Kürzlich veröffentlicht"
+      "released": "Kürzlich veröffentlicht",
+      "all": "Alle anzeigen ›"
     },
     "remaining": "Noch {{time}}",
     "empty": {
       "title": "Hier ist es noch leer",
       "body": "Sobald eine Bibliothek gescannt ist, erscheinen deine Filme hier.",
       "action": "Bibliotheken ansehen"
+    },
+    "spotlight": {
+      "row": "Spotlight-Titel",
+      "pause": "Pause",
+      "resume": "Weiter"
     }
   },
   "ui": {
@@ -1264,6 +1344,8 @@
         "minHitsHint": "Treffern in der Bibliothek, je Profil (0–10)",
         "intervalHours": "Abruf alle … Stunden",
         "intervalHoursHint": "6 bis 48 Stunden",
+        "rotation": "Takt der Bühne … Sekunden",
+        "rotationHint": "3 bis 15 Sekunden",
         "refresh": "Jetzt abrufen",
         "queued": "Die Liste wird abgerufen.",
         "saved": "Spotlight ist gespeichert."
@@ -2519,5 +2601,13 @@
     "counter": "{{index}} von {{count}}",
     "acknowledge": "Verstanden",
     "later": "Später"
+  },
+  "picks": {
+    "page": {
+      "title": "Cat's Empfehlungen",
+      "intro": "Titel, die Cat für dich ausgesucht hat, in Cats Reihenfolge.",
+      "count_one": "{{count}} Titel",
+      "count_other": "{{count}} Titel"
+    }
   }
 }

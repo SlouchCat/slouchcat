@@ -27,6 +27,7 @@ import (
 //     after another match, after a list change, after a failure.
 //  3. Fields: title, overview, tagline per language; original_title; genres (the union of every
 //     provider's names, source "union"); runtime_minutes; release_date (with the year);
+//     vote_average (TMDB's vote average, AniList's averageScore ÷ 10; concept 08 4.2, ADR 0016);
 //     poster and backdrop. Ratings are the exception (K-3): own_rating is only raised, never
 //     lowered, whatever the provider's place; rating_source names the strictest.
 //  4. A provider without key (Configured false) is skipped and logged as a warning, like the
@@ -76,6 +77,24 @@ func (pf *providerFields) set(field, lang, value string) {
 	}
 }
 
+// fieldVoteAverage is the field of items.vote_average (concept 08 4.2).
+const fieldVoteAverage = "vote_average"
+
+// formatVote is the field value of a vote average: one decimal (7.3, 8.1).
+func formatVote(v float64) string {
+	return strconv.FormatFloat(v, 'f', 1, 64)
+}
+
+// parseVote reads a field value of formatVote back; ok is false outside (0, 10], the range of
+// items.vote_average without the "nobody voted" 0.
+func parseVote(s string) (float64, bool) {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil || v <= 0 || v > 10 {
+		return 0, false
+	}
+	return v, true
+}
+
 // titleFields maps a TMDB or TVDB record onto the fields.
 func titleFields(rec TitleRecord) providerFields {
 	pf := providerFields{provider: rec.Provider, values: fieldValues{}, genres: map[string][]string{}}
@@ -88,6 +107,9 @@ func titleFields(rec TitleRecord) providerFields {
 	pf.set("release_date", "", rec.Date)
 	if rec.Runtime > 0 {
 		pf.set("runtime_minutes", "", strconv.Itoa(rec.Runtime))
+	}
+	if rec.VoteAverage > 0 {
+		pf.set(fieldVoteAverage, "", formatVote(rec.VoteAverage))
 	}
 	pf.set("poster", "", rec.PosterPath)
 	pf.set("backdrop", "", rec.BackdropPath)
@@ -453,6 +475,11 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 	}
 	stored := make(map[fieldKey]string, len(sources))
 	for _, src := range sources {
+		if src.Field == fieldVoteAverage && !cur.VoteAverage.Valid {
+			// The mark of metadata.vote_backfill ("asked, no vote"): it defends no value, so
+			// any provider of the list that has a vote now may write it.
+			continue
+		}
 		stored[fieldKey{src.Field, src.Lang}] = src.Provider
 	}
 	locked := lockedFields(cur.LockedFields)
@@ -488,6 +515,7 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 		if ok3 {
 			p.Tagline = nullString(tagline.value)
 		}
+		p.SortKey = sortKey(lang, p.Title)
 		if err := q.UpsertItemText(ctx, p); err != nil {
 			return out, fmt.Errorf("metadata.fill: write %s text of %s: %w", lang, cur.ID, err)
 		}
@@ -552,10 +580,18 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 		if anilistID >= 0 {
 			anilist = sql.NullInt64{Int64: anilistID, Valid: true}
 		}
+		vote := cur.VoteAverage
+		if w, ok := writes[fieldKey{fieldVoteAverage, ""}]; ok {
+			if v, ok := parseVote(w.value); ok {
+				vote = sql.NullFloat64{Float64: v, Valid: true}
+			} else {
+				delete(writes, fieldKey{fieldVoteAverage, ""})
+			}
+		}
 		if err := q.UpdateItemFill(ctx, systemq.UpdateItemFillParams{
 			OriginalTitle: originalTitle, Year: year, ReleaseDate: releaseDate, RuntimeMinutes: runtime,
 			Genres: genresJSON, OwnRating: ownRating, RatingSource: ratingSource,
-			TmdbPosterPath: poster, TmdbBackdropPath: backdrop, AnilistID: anilist,
+			TmdbPosterPath: poster, TmdbBackdropPath: backdrop, VoteAverage: vote, AnilistID: anilist,
 			FilledProviders: nullString(model.ProvidersJSON(filled)),
 			Now:             now, ID: cur.ID,
 		}); err != nil {
@@ -626,6 +662,9 @@ func (s *Service) recordIdentifier(ctx context.Context, item systemq.Item, ident
 	add("release_date", "", cur.ReleaseDate.String)
 	if cur.RuntimeMinutes.Valid && cur.RuntimeMinutes.Int64 > 0 {
 		add("runtime_minutes", "", "set")
+	}
+	if cur.VoteAverage.Valid {
+		add(fieldVoteAverage, "", "set")
 	}
 	if cur.Genres != "" && cur.Genres != "[]" && cur.Genres != `{"de":[],"en":[]}` {
 		add("genres", "", "set")

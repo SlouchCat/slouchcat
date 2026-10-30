@@ -30,6 +30,7 @@ const config: SpotlightConfig = {
   itemCount: 20,
   minHits: 5,
   intervalHours: 24,
+  rotationSeconds: 5,
   listKinds: [
     { key: 'trending', media: [...all], mediaFilters: false, needsUrl: false },
     { key: 'popular', media: [...all], mediaFilters: false, needsUrl: false },
@@ -239,6 +240,7 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
       itemCount: 20,
       minHits: 5,
       intervalHours: 24,
+      rotationSeconds: 5,
     });
   });
 
@@ -260,6 +262,12 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     const count = within(card).getByLabelText('Höchstens');
     await user.clear(count);
     await user.type(count, '10');
+    // The band's rhythm on the start page (concept 08, F-10).
+    const rotation = within(card).getByLabelText(/Takt der Bühne/);
+    expect(rotation).toHaveValue(5);
+    expect(within(card).getByText('3 bis 15 Sekunden')).toBeVisible();
+    await user.clear(rotation);
+    await user.type(rotation, '7');
     await user.click(within(card).getByRole('button', { name: 'Speichern' }));
 
     expect(await within(card).findByText('Spotlight ist gespeichert.')).toBeVisible();
@@ -270,6 +278,7 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
       itemCount: 10,
       minHits: 5,
       intervalHours: 24,
+      rotationSeconds: 7,
     });
     expect(show).not.toBeChecked();
     // Switched off, the card names that as the reason the row is missing.

@@ -373,6 +373,8 @@ func (p *tvdbProvider) Series(ctx context.Context, id string, langs []string) (S
 	for _, t := range s.Translations.Overviews {
 		overviews[t.Language] = t.Overview
 	}
+	// No VoteAverage: TVDB v4 has no 0-10 user rating; its "score" is a popularity number without
+	// an upper bound, not a vote (concept 08 4.2 assumed one). TMDB and AniList fill the field.
 	rec := SeriesRecord{TitleRecord: TitleRecord{
 		Provider: ProviderTVDB, ID: strconv.FormatInt(s.ID, 10), TVDBID: s.ID, OriginalTitle: s.Name,
 		Date: s.FirstAired, Runtime: s.AverageRuntime, Texts: map[string]Text{}, Genres: map[string][]string{},

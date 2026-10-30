@@ -23,7 +23,7 @@ func TestDefaults(t *testing.T) {
 	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
 		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off", AniList: true,
 		DownloadBudgetGB: DefaultDownloadBudgetGB, SMTPTLS: "starttls", UpdateManifestURL: DefaultUpdateManifestURL,
-		BrowseRoots: []string{DefaultBrowseRoots}}
+		BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: -1}
 	if cfg.Workers < 2 || cfg.Workers > 4 {
 		t.Fatalf("automatic workers = %d, want 2..4", cfg.Workers)
 	}
@@ -61,9 +61,10 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_TELEGRAM_BASE_URL":   "http://127.0.0.1:9/telegram",
 		"SLOUCHCAT_UPDATE_MANIFEST_URL": "http://127.0.0.1:9/manifest.json",
 		"SLOUCHCAT_PUBLIC_URL":          "https://media.example.test/",
+		"SLOUCHCAT_HERO_START":          "2",
 	})
 	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
-		"--trailer-ai", "Experimental"}, env)
+		"--trailer-ai", "Experimental", "--hero-start", "0"}, env)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +77,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		SMTPHost: "smtp.example.test", SMTPPort: 465, SMTPUser: "mailer", SMTPPassword: "smtp-FAKE-password",
 		SMTPFrom: "Slouchcat <media@example.test>", SMTPTLS: "tls", TelegramBotToken: "123456:bot-FAKE-token",
 		TelegramBaseURL: "http://127.0.0.1:9/telegram", UpdateManifestURL: "http://127.0.0.1:9/manifest.json",
-		PublicURL: "https://media.example.test", BrowseRoots: []string{DefaultBrowseRoots}}
+		PublicURL: "https://media.example.test", BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: 0}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
 	}
@@ -128,6 +129,8 @@ func TestValidation(t *testing.T) {
 		"bad manifest url":     {env: map[string]string{"SLOUCHCAT_UPDATE_MANIFEST_URL": "ftp://example.test/manifest.json"}},
 		"bad public url":       {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "media.example.test"}},
 		"public url query":     {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "https://media.example.test/?x=1"}},
+		"bad hero start":       {env: map[string]string{"SLOUCHCAT_HERO_START": "first"}},
+		"negative hero start":  {args: []string{"--hero-start", "-2"}},
 		"unknown flag":         {args: []string{"--nope"}},
 		"extra arguments":      {args: []string{"serve"}},
 	}

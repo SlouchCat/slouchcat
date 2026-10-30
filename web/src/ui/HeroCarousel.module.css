@@ -1,6 +1,6 @@
 /*
- * The band: a framed stage with the page gutter around it, the poster strip below. The frame's
- * place and size are repeated by #hero-prepaint in global.css; keep them in step.
+ * The band: a framed stage with the page gutter around it, the poster row (Row.module.css) below.
+ * The frame's place and size are repeated by #hero-prepaint in global.css; keep them in step.
  */
 .hero {
   display: flex;
@@ -167,102 +167,36 @@
   right: var(--sc-space-3);
 }
 
-/* The poster strip: one poster per slide, scrolling sideways when it overflows. */
-.strip {
-  overflow: auto hidden;
-  overscroll-behavior-x: contain;
-  scroll-padding-inline: var(--page-gutter);
-  scrollbar-width: none;
-}
-
-.strip::-webkit-scrollbar {
-  display: none;
-}
-
-.posters {
-  display: flex;
-  gap: var(--sc-space-3);
-  width: max-content;
-  margin: 0;
-
-  /* Room for the focus ring and the focus scale, which the scroll container would clip. */
-  padding: var(--sc-space-3) var(--page-gutter);
-  list-style: none;
-}
-
-/* Two thirds of a row poster: the strip chooses, the rows below show. */
-.item {
-  width: calc(var(--sc-size-poster-sm) * 2 / 3);
-}
-
-.poster {
-  position: relative;
-  display: block;
-  width: 100%;
-  aspect-ratio: 2 / 3;
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  border-radius: var(--sc-radius-md);
-  background-color: var(--sc-color-surface-1);
-  cursor: pointer;
-  opacity: 0.6;
-  transition:
-    opacity var(--sc-motion-duration-fast) var(--sc-motion-easing-standard),
-    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* The active slide's poster: full strength with an accent edge inside the frame. */
-.poster[data-active] {
-  opacity: 1;
-}
-
-.poster::after {
+/* Position and pause button at the top right of the frame (F-9), above the scrim. */
+.corner {
   position: absolute;
-  inset: 0;
-  border: var(--sc-focus-ring-width) solid transparent;
-  border-radius: inherit;
-  content: '';
-  pointer-events: none;
+  z-index: 2;
+  top: var(--sc-space-3);
+  right: var(--sc-space-3);
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
 }
 
-.poster[data-active]::after {
-  border-color: var(--sc-accent);
+.position {
+  padding: var(--sc-space-1) var(--sc-space-3);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-scrim-strong);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
 }
 
-.poster:focus-visible {
-  opacity: 1;
-  transform: scale(var(--sc-focus-scale));
-}
-
-@media (hover: hover) {
-  .poster:hover {
-    opacity: 1;
-  }
-}
-
-.posterImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Time to the next slide, along the active poster's bottom edge. */
+/* Time to the next slide, along the active poster's bottom edge (inside its frame). */
 .timer {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
   height: var(--sc-space-1);
-  background-color: var(--sc-accent);
+  background-color: var(--sc-color-text-primary);
   transform-origin: left center;
   animation: timer var(--hero-interval) linear forwards;
-}
-
-.poster[data-paused] .timer {
-  animation: none;
-  opacity: 0;
 }
 
 @media (width < 768px) {

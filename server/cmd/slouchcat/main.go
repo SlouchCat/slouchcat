@@ -340,6 +340,13 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			log.Error("library watchers stopped", "err", err)
 		}
 	})
+	// Votes of the titles matched before migration 00026 (concept 08, 4.2): one chain of
+	// metadata.vote_backfill after the update; idempotent, and every complete scan asks again.
+	workers.Go(func() {
+		if _, err := metaSvc.QueueVoteBackfill(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("vote backfill not queued", "err", err)
+		}
+	})
 	// Podcast feeds (M6, H-2): every subscription is fetched again after 60 minutes.
 	workers.Go(func() { metaSvc.RunPodcasts(ctx) })
 	// Trakt lists (M7, E-7): once a day when a client id is configured.
@@ -369,7 +376,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		Handler: api.NewHandler(api.Options{
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
 			Auth: authSvc, Profiles: authSvc, Access: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
-			Catalog:  discover.New(db, cfg.CacheDir, log),
+			Catalog:  discover.New(db, cfg.CacheDir, log, discover.WithHeroStart(cfg.HeroStart)), // -1 draws (concept 08, F-2)
 			Playback: playbackSvc,
 			Offline:  offlineSvc,
 			Notify:   notifySvc,

@@ -715,6 +715,7 @@ func upsertTexts(ctx context.Context, q *systemq.Queries, itemID, title, descrip
 				p.Overview = old.Overview
 			}
 		}
+		p.SortKey = sortKey(lang, p.Title)
 		if err := q.UpsertItemText(ctx, p); err != nil {
 			return fmt.Errorf("store texts of %s: %w", itemID, err)
 		}

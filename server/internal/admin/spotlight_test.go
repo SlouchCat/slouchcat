@@ -76,7 +76,8 @@ func TestSpotlightConfigCatalogue(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Enabled || cfg.ListKey != "trending" || cfg.Media != "both" || cfg.ItemCount != 20 || cfg.MinHits != 5 || cfg.IntervalHours != 24 || cfg.ListURL != "" {
+	if !cfg.Enabled || cfg.ListKey != "trending" || cfg.Media != "both" || cfg.ItemCount != 20 || cfg.MinHits != 5 || cfg.IntervalHours != 24 ||
+		cfg.RotationSeconds != 5 || cfg.ListURL != "" {
 		t.Errorf("seeded config %+v", cfg)
 	}
 	var keys []string
@@ -117,6 +118,7 @@ func TestSpotlightConfigBounds(t *testing.T) {
 		{"itemCount", 4, false}, {"itemCount", 5, true}, {"itemCount", 20, true}, {"itemCount", 21, false},
 		{"minHits", -1, false}, {"minHits", 0, true}, {"minHits", 10, true}, {"minHits", 11, false},
 		{"intervalHours", 5, false}, {"intervalHours", 6, true}, {"intervalHours", 48, true}, {"intervalHours", 49, false},
+		{"rotationSeconds", 2, false}, {"rotationSeconds", 3, true}, {"rotationSeconds", 15, true}, {"rotationSeconds", 16, false},
 	}
 	for _, c := range cases {
 		in := validSpotlightUpdate()
@@ -127,6 +129,8 @@ func TestSpotlightConfigBounds(t *testing.T) {
 			in.MinHits = c.value
 		case "intervalHours":
 			in.IntervalHours = c.value
+		case "rotationSeconds":
+			in.RotationSeconds = &c.value
 		}
 		cfg, err := sf.svc.SetSpotlightConfig(sf.ctx, in)
 		if !c.ok {
@@ -137,7 +141,8 @@ func TestSpotlightConfigBounds(t *testing.T) {
 			t.Errorf("%s %d: %v", c.field, c.value, err)
 			continue
 		}
-		got := map[string]int{"itemCount": cfg.ItemCount, "minHits": cfg.MinHits, "intervalHours": cfg.IntervalHours}[c.field]
+		got := map[string]int{"itemCount": cfg.ItemCount, "minHits": cfg.MinHits, "intervalHours": cfg.IntervalHours,
+			"rotationSeconds": cfg.RotationSeconds}[c.field]
 		if got != c.value {
 			t.Errorf("%s stored %d, want %d", c.field, got, c.value)
 		}
@@ -148,6 +153,27 @@ func TestSpotlightConfigBounds(t *testing.T) {
 	var verr *model.ValidationError
 	if _, err := sf.svc.SetSpotlightConfig(sf.ctx, in); !errors.As(err, &verr) || len(verr.Fields) != 3 {
 		t.Errorf("three bad values: %v", err)
+	}
+}
+
+// rotationSeconds is optional in the update (concept 08 5.2): left out, the stored value stays,
+// so an older administration client does not reset it.
+func TestSpotlightConfigKeepsRotation(t *testing.T) {
+	sf := newSpotlightFixture(t)
+	in := validSpotlightUpdate()
+	seven := 7
+	in.RotationSeconds = &seven
+	if cfg, err := sf.svc.SetSpotlightConfig(sf.ctx, in); err != nil || cfg.RotationSeconds != 7 {
+		t.Fatalf("set 7: %+v, %v", cfg, err)
+	}
+	in = validSpotlightUpdate()
+	in.ItemCount = 12
+	cfg, err := sf.svc.SetSpotlightConfig(sf.ctx, in)
+	if err != nil || cfg.RotationSeconds != 7 || cfg.ItemCount != 12 {
+		t.Fatalf("update without rotationSeconds: %+v, %v", cfg, err)
+	}
+	if got, err := sf.svc.SpotlightConfig(sf.ctx); err != nil || got.RotationSeconds != 7 {
+		t.Errorf("stored %+v, %v", got, err)
 	}
 }
 

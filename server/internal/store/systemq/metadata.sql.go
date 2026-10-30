@@ -68,7 +68,7 @@ func (q *Queries) DeleteItemFieldSources(ctx context.Context, itemID string) err
 }
 
 const listChildItems = `-- name: ListChildItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items
 WHERE parent_id = ?1 AND deleted_at IS NULL
 ORDER BY season_number, episode_number, id
 `
@@ -143,6 +143,7 @@ func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) (
 			&i.AnilistID,
 			&i.FeedOrigin,
 			&i.FilledProviders,
+			&i.VoteAverage,
 		); err != nil {
 			return nil, err
 		}
@@ -317,7 +318,7 @@ func (q *Queries) ListItemFieldSources(ctx context.Context, itemID string) ([]Li
 }
 
 const listItemTextsByItem = `-- name: ListItemTextsByItem :many
-SELECT item_id, lang, title, overview, tagline FROM item_texts WHERE item_id = ?1 ORDER BY lang
+SELECT item_id, lang, title, overview, tagline, sort_key FROM item_texts WHERE item_id = ?1 ORDER BY lang
 `
 
 func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]ItemText, error) {
@@ -335,6 +336,7 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 			&i.Title,
 			&i.Overview,
 			&i.Tagline,
+			&i.SortKey,
 		); err != nil {
 			return nil, err
 		}
@@ -581,6 +583,112 @@ func (q *Queries) ListUpgradeMatchItems(ctx context.Context, arg ListUpgradeMatc
 	return items, nil
 }
 
+const listVoteBackfillItems = `-- name: ListVoteBackfillItems :many
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND vote_average IS NULL AND id > ?1
+  AND (instr(providers, '"tmdb"') > 0 OR instr(providers, '"anilist"') > 0)
+  AND instr(locked_fields, '"vote_average"') = 0
+  AND NOT EXISTS (SELECT 1 FROM item_field_sources AS s WHERE s.item_id = items.id AND s.field = 'vote_average')
+ORDER BY id
+LIMIT ?2
+`
+
+type ListVoteBackfillItemsParams struct {
+	AfterID    string
+	LimitCount int64
+}
+
+// One batch of metadata.vote_backfill (concept 08 4.2, ADR 0016): matched movies and series
+// without a vote average whose list names a provider that delivers one (tmdb, anilist), whose
+// vote_average is not locked and that carry no provenance row for vote_average (a title whose
+// providers gave no vote gets one naming its identifier, so it is not asked again), in id order
+// after @after_id. Provider names and field names carry no quote, so instr on the JSON lists is
+// exact (like ListFillItems).
+func (q *Queries) ListVoteBackfillItems(ctx context.Context, arg ListVoteBackfillItemsParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listVoteBackfillItems, arg.AfterID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+			&i.SegmentsState,
+			&i.SegmentsCheckedAt,
+			&i.Author,
+			&i.Narrator,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Explicit,
+			&i.DurationMs,
+			&i.CoverUrl,
+			&i.CoverPath,
+			&i.FeedUrl,
+			&i.FeedEtag,
+			&i.FeedModified,
+			&i.FeedCheckedAt,
+			&i.FeedError,
+			&i.Guid,
+			&i.PublishedAt,
+			&i.EnclosureType,
+			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
+			&i.VoteAverage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setItemFilledProviders = `-- name: SetItemFilledProviders :exec
 UPDATE items SET filled_providers = ?1, updated_at = ?2 WHERE id = ?3 AND deleted_at IS NULL
 `
@@ -622,6 +730,22 @@ func (q *Queries) SetItemMetadataState(ctx context.Context, arg SetItemMetadataS
 		arg.Now,
 		arg.ID,
 	)
+	return err
+}
+
+const setItemVoteAverage = `-- name: SetItemVoteAverage :exec
+UPDATE items SET vote_average = ?1, updated_at = ?2 WHERE id = ?3 AND deleted_at IS NULL
+`
+
+type SetItemVoteAverageParams struct {
+	VoteAverage sql.NullFloat64
+	Now         int64
+	ID          string
+}
+
+// Writes the vote average metadata.vote_backfill decided (NULL keeps it unknown).
+func (q *Queries) SetItemVoteAverage(ctx context.Context, arg SetItemVoteAverageParams) error {
+	_, err := q.db.ExecContext(ctx, setItemVoteAverage, arg.VoteAverage, arg.Now, arg.ID)
 	return err
 }
 
@@ -719,10 +843,11 @@ SET original_title     = ?1,
     rating_source      = ?7,
     tmdb_poster_path   = ?8,
     tmdb_backdrop_path = ?9,
-    anilist_id         = ?10,
-    filled_providers   = ?11,
-    updated_at         = ?12
-WHERE id = ?13 AND deleted_at IS NULL
+    vote_average       = ?10,
+    anilist_id         = ?11,
+    filled_providers   = ?12,
+    updated_at         = ?13
+WHERE id = ?14 AND deleted_at IS NULL
 `
 
 type UpdateItemFillParams struct {
@@ -735,6 +860,7 @@ type UpdateItemFillParams struct {
 	RatingSource     sql.NullString
 	TmdbPosterPath   sql.NullString
 	TmdbBackdropPath sql.NullString
+	VoteAverage      sql.NullFloat64
 	AnilistID        sql.NullInt64
 	FilledProviders  sql.NullString
 	Now              int64
@@ -754,6 +880,7 @@ func (q *Queries) UpdateItemFill(ctx context.Context, arg UpdateItemFillParams) 
 		arg.RatingSource,
 		arg.TmdbPosterPath,
 		arg.TmdbBackdropPath,
+		arg.VoteAverage,
 		arg.AnilistID,
 		arg.FilledProviders,
 		arg.Now,
@@ -777,11 +904,12 @@ SET original_title     = ?1,
     rating_source      = ?10,
     tmdb_poster_path   = ?11,
     tmdb_backdrop_path = ?12,
+    vote_average       = ?13,
     metadata_state     = 'matched',
     metadata_error     = NULL,
-    matched_at         = ?13,
-    updated_at         = ?13
-WHERE id = ?14 AND deleted_at IS NULL
+    matched_at         = ?14,
+    updated_at         = ?14
+WHERE id = ?15 AND deleted_at IS NULL
 `
 
 type UpdateItemMatchParams struct {
@@ -797,6 +925,7 @@ type UpdateItemMatchParams struct {
 	RatingSource     sql.NullString
 	TmdbPosterPath   sql.NullString
 	TmdbBackdropPath sql.NullString
+	VoteAverage      sql.NullFloat64
 	Now              sql.NullInt64
 	ID               string
 }
@@ -819,6 +948,7 @@ func (q *Queries) UpdateItemMatch(ctx context.Context, arg UpdateItemMatchParams
 		arg.RatingSource,
 		arg.TmdbPosterPath,
 		arg.TmdbBackdropPath,
+		arg.VoteAverage,
 		arg.Now,
 		arg.ID,
 	)
@@ -903,10 +1033,10 @@ func (q *Queries) UpsertItemFieldSource(ctx context.Context, arg UpsertItemField
 }
 
 const upsertItemText = `-- name: UpsertItemText :exec
-INSERT INTO item_texts (item_id, lang, title, overview, tagline)
-VALUES (?1, ?2, ?3, ?4, ?5)
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key
 `
 
 type UpsertItemTextParams struct {
@@ -915,8 +1045,10 @@ type UpsertItemTextParams struct {
 	Title    string
 	Overview sql.NullString
 	Tagline  sql.NullString
+	SortKey  sql.NullString
 }
 
+// sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016).
 func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) error {
 	_, err := q.db.ExecContext(ctx, upsertItemText,
 		arg.ItemID,
@@ -924,6 +1056,7 @@ func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) 
 		arg.Title,
 		arg.Overview,
 		arg.Tagline,
+		arg.SortKey,
 	)
 	return err
 }

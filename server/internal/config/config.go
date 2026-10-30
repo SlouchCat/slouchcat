@@ -87,6 +87,9 @@ type Config struct {
 	// PublicURL is the address of the server for links in e-mails and messages (M8); it wins over the
 	// stored setting. Empty = the setting or no links.
 	PublicURL string
+	// HeroStart is the fixed start index of the spotlight stage for tests (concept 08, F-2; the e2e
+	// suite sets 0); -1 = a random start per page view.
+	HeroStart int
 }
 
 // DefaultUpdateManifestURL is the release manifest the update check reads (M8, A-5).
@@ -164,6 +167,7 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	budget := fs.Float64("transcode-budget", 0, "transcode admission budget, 0 = backend default (env SLOUCHCAT_TRANSCODE_BUDGET)")
 	downloadBudget := fs.Int("download-budget-gb", DefaultDownloadBudgetGB, "space for prepared downloads in GB (env SLOUCHCAT_DOWNLOAD_BUDGET_GB)")
 	trailerAI := fs.String("trailer-ai", env("TRAILER_AI", "off"), "AI step of the trailer search: off (env SLOUCHCAT_TRAILER_AI)")
+	heroStart := fs.Int("hero-start", -1, "fixed start index of the spotlight stage for tests, -1 = random (env SLOUCHCAT_HERO_START)")
 	if v := env("TRANSCODE_BUDGET", ""); v != "" {
 		b, err := strconv.ParseFloat(v, 64)
 		if err != nil {
@@ -185,6 +189,13 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		}
 		*workers = n
 	}
+	if v := env("HERO_START", ""); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("%sHERO_START: invalid index %q", EnvPrefix, v)
+		}
+		*heroStart = n
+	}
 
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -198,12 +209,15 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 
 	cfg := Config{Listen: *listen, LogFormat: logging.Format(*logFormat), Dev: *dev,
-		FFmpeg: *ffmpeg, FFprobe: *ffprobe, Workers: *workers}
+		FFmpeg: *ffmpeg, FFprobe: *ffprobe, Workers: *workers, HeroStart: *heroStart}
 	if cfg.FFmpeg == "" || cfg.FFprobe == "" {
 		return Config{}, errors.New("ffmpeg and ffprobe must not be empty")
 	}
 	if cfg.Workers < 0 {
 		return Config{}, errors.New("workers must not be negative")
+	}
+	if cfg.HeroStart < -1 {
+		return Config{}, errors.New("hero start must be -1 (random) or an index >= 0")
 	}
 	if cfg.TrustedProxies, err = ParseTrustedProxies(*proxies); err != nil {
 		return Config{}, fmt.Errorf("trusted proxies: %w", err)
@@ -296,6 +310,7 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("telegram_configured", c.TelegramBotToken != ""),
 		slog.String("public_url", c.PublicURL),
 		slog.Bool("update_manifest_default", c.ManifestURL() == DefaultUpdateManifestURL),
+		slog.Int("hero_start", c.HeroStart),
 	)
 }
 

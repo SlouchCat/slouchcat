@@ -23,7 +23,8 @@ const PGS_TITLE = 'Slouchcat Test PGS';
 const MULTI_AUDIO_TITLE = 'Slouchcat Test Multi Audio';
 
 const picksRow = (page: Page) => page.getByRole('region', { name: "Cat's Empfehlungen" });
-const firstPick = (page: Page) => picksRow(page).getByRole('link').first();
+// The first card: the row's header also links its page ("Alle anzeigen ›", concept 08).
+const firstPick = (page: Page) => picksRow(page).getByRole('list').getByRole('link').first();
 
 /** Titles of the picks row the session's profile gets from `GET /home`. */
 async function pickTitles(api: APIRequestContext): Promise<string[]> {
@@ -301,7 +302,7 @@ test('a pick for one profile reaches only that profile; an 18 title never a prof
     await page.goto('/');
     await expect(firstPick(page)).toContainText(PGS_TITLE);
     await expect(picksRow(page).getByText(MULTI_AUDIO_TITLE)).toHaveCount(0);
-    await expect(picksRow(page).getByRole('link')).toHaveCount(1);
+    await expect(picksRow(page).getByRole('list').getByRole('link')).toHaveCount(1);
   } finally {
     await setRating(owner, pgs, null);
     await setRating(owner, multi, null);

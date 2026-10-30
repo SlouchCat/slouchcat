@@ -190,6 +190,22 @@ func (q *Queries) GetActiveJobIDByKey(ctx context.Context, idempotencyKey sql.Nu
 	return id, err
 }
 
+const getActiveJobIDByType = `-- name: GetActiveJobIDByType :one
+SELECT id FROM jobs
+WHERE type = ?1 AND state IN ('queued', 'running')
+ORDER BY id
+LIMIT 1
+`
+
+// Any queued or running job of a type (a job that continues itself under changing keys, such as
+// metadata.vote_backfill).
+func (q *Queries) GetActiveJobIDByType(ctx context.Context, type_ string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getActiveJobIDByType, type_)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getJob = `-- name: GetJob :one
 SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at FROM jobs WHERE id = ?1
 `

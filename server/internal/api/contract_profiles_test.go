@@ -279,6 +279,20 @@ func checkSearch(t *testing.T, f *vistest.Fixture, h http.Handler, token string,
 
 var profileRegistry = map[string]profileCall{
 	"getHome": {contract: "GET /home", path: "/home"},
+	// Library views (concept 08): the leak check of the registry runs over every answer; the
+	// positive and K-3 checks are in contract_library_test.go.
+	"listVisibleLibraries": {contract: "GET /libraries/visible", path: "/libraries/visible",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK },
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			checkVisibleLibraries(t, f, fixtureProfile(f, token), rec)
+		}},
+	"listLibraryItems": {contract: "GET /libraries/{id}/items", path: fmt.Sprintf("/libraries/%d/items?limit=100", fixtureLibrary),
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }, // every profile sees a title of library 1
+		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, token string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
+			checkLibraryPage(t, f, fixtureProfile(f, token), rec)
+		}},
+	"listPicks": {contract: "GET /picks", path: "/picks?limit=100",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
 	"getItem": {contract: "GET /items/{id}", path: "/items/{id}", perItem: true, okStatus: http.StatusOK,
 		check: func(t *testing.T, f *vistest.Fixture, _ http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
 			var d struct {

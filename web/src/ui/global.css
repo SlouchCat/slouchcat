@@ -17,6 +17,13 @@
    * paging buttons where a fine pointer shows them. #poster-prepaint places the first cards below it.
    */
   --row-header-height: calc(var(--sc-font-size-lg) * var(--sc-font-line-height-snug));
+
+  /*
+   * Width of the side navigation (SideNav, concept 08): none below 768 px, where it is a drawer, and
+   * none while the viewer hides it (`data-sidenav="hidden"` on this element, set before the first
+   * paint by the inline script in index.html). The content and both prepaints move by it.
+   */
+  --sidenav-width: 0rem;
 }
 
 *,
@@ -75,7 +82,7 @@ img {
   z-index: var(--sc-z-raised);
   top: calc(var(--sc-size-header-height) + var(--sc-space-8));
   right: var(--page-gutter);
-  left: var(--page-gutter);
+  left: calc(var(--sidenav-width) + var(--page-gutter));
   height: clamp(var(--sc-size-hero-min), 60vh, var(--sc-size-hero-max));
   overflow: hidden;
   border-radius: var(--sc-radius-xl);
@@ -114,7 +121,7 @@ img {
   align-items: flex-start;
   gap: var(--sc-space-4);
   overflow: hidden;
-  padding: 0 var(--page-gutter);
+  padding: 0 var(--page-gutter) 0 calc(var(--sidenav-width) + var(--page-gutter));
   pointer-events: none;
   transition: opacity var(--sc-motion-duration-crossfade) var(--sc-motion-easing-standard);
 }
@@ -123,9 +130,16 @@ img {
   opacity: 0;
 }
 
+/*
+ * Below 768 px three cards between the gutters, like the row's cards (Row.module.css, N-3). Half
+ * a pixel wider than the card: the browser takes the larger of two equal LCP candidates, and sub-
+ * pixel rounding made the card's image 7 px² larger than this one (Lighthouse mobile, 412 px), so
+ * the LCP jumped from the prepaint to the card's render (docs/perf/startseite.md 3). The geometry
+ * test (sidenav.spec.ts) allows this difference; nobody can see it.
+ */
 #poster-prepaint > img {
   flex: none;
-  width: var(--sc-size-poster-sm);
+  width: calc((100% - 2 * var(--sc-space-4)) / 3 + 0.5px);
   aspect-ratio: 2 / 3;
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-surface-1);
@@ -158,8 +172,12 @@ img {
     --page-gutter: var(--sc-space-10);
   }
 
+  :root:not([data-sidenav='hidden']) {
+    --sidenav-width: var(--sc-size-sidenav-width);
+  }
+
   #poster-prepaint > img {
-    width: var(--sc-size-poster-md);
+    width: calc(var(--sc-size-poster-md) + 0.5px);
   }
 }
 
@@ -169,6 +187,6 @@ img {
   }
 
   #poster-prepaint > img {
-    width: var(--sc-size-poster-lg);
+    width: calc(var(--sc-size-poster-lg) + 0.5px);
   }
 }

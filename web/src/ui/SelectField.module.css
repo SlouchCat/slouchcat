@@ -1,0 +1,28 @@
+.field {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.label {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.select {
+  min-height: var(--sc-size-control-height);
+  padding: 0 var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  cursor: pointer;
+}
+
+.select option {
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+}

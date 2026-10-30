@@ -32,6 +32,7 @@ import {
   searchRequest,
   type SearchParams,
 } from './searchParams';
+import { YearField } from './YearField';
 import styles from './Discover.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/search');
@@ -39,42 +40,6 @@ const route = getRouteApi('/_authed/_active/_chrome/search');
 export const SEARCH_FIELD_KEY = 'search-field';
 /** Typing waits this long before the URL (and with it the request) follows (design 4.1). */
 const DEBOUNCE_MS = 200;
-const YEAR = /^\d{4}$/;
-
-function YearField({
-  label,
-  value,
-  onChange,
-  focusKey,
-}: {
-  label: string;
-  value: number | undefined;
-  onChange: (year: number | undefined) => void;
-  focusKey: string;
-}) {
-  const [text, setText] = useState(value !== undefined ? String(value) : '');
-  // The URL changed from elsewhere ("Filter zurücksetzen", a link): follow it, but keep a year that
-  // is still being typed.
-  const [seen, setSeen] = useState(value);
-  if (value !== seen) {
-    setSeen(value);
-    setText(value !== undefined ? String(value) : YEAR.test(text) ? '' : text);
-  }
-  return (
-    <SearchField
-      label={label}
-      variant="year"
-      focusKey={focusKey}
-      value={text}
-      onChange={(next) => {
-        const digits = next.replace(/\D/g, '').slice(0, 4);
-        setText(digits);
-        // Only a full year filters; a partial one lifts the filter until it is complete.
-        onChange(YEAR.test(digits) ? Number(digits) : undefined);
-      }}
-    />
-  );
-}
 
 /**
  * Search (E-4): titles, people and collections from the second character, with filters for

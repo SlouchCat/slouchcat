@@ -939,6 +939,7 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord) (sys
 		RatingSource:     cur.RatingSource,
 		TmdbPosterPath:   cur.TmdbPosterPath,
 		TmdbBackdropPath: cur.TmdbBackdropPath,
+		VoteAverage:      cur.VoteAverage,
 	}
 	if !locked["original_title"] && rec.OriginalTitle != "" {
 		p.OriginalTitle = nullString(rec.OriginalTitle)
@@ -983,6 +984,16 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord) (sys
 				p.OwnRating = sql.NullInt64{Int64: int64(*rating), Valid: true}
 				p.RatingSource = nullString(rec.Provider + ":" + country)
 			}
+		}
+	}
+	if !locked[fieldVoteAverage] {
+		// The identifier's vote (concept 08 4.2): a list with one provider never runs the field
+		// decision of metadata.fill, so the match carries it. Without a vote the value stays (a
+		// filler may have given one), unless the match found another title at the provider.
+		if v, ok := parseVote(formatVote(rec.VoteAverage)); ok {
+			p.VoteAverage = sql.NullFloat64{Float64: v, Valid: true}
+		} else if p.TmdbID != cur.TmdbID || p.TvdbID != cur.TvdbID {
+			p.VoteAverage = sql.NullFloat64{}
 		}
 	}
 	if rec.PosterPath != "" {
@@ -1032,6 +1043,7 @@ func buildTexts(cur systemq.Item, stored []systemq.ItemText, locked map[string]b
 		if locked["tagline"] {
 			t.Tagline = prev.Tagline
 		}
+		t.SortKey = sortKey(lang, t.Title)
 		out = append(out, t)
 	}
 	return out
@@ -1133,9 +1145,11 @@ const maxUpgradeMatches = 200
 // (ListUpgradeMatchItems), metadata.fill for matched titles with more than one provider whose
 // provenance is missing or stale (QueuePendingFills, ADR 0015), and trailer.find for matched
 // titles whose trailers are still pending
-// (QueuePendingTrailers, for example after the YouTube quota ran out). The library scan calls it
-// after every complete run, so enrichment converges after aborted scans, failed jobs and the
-// upgrade. It returns the number of jobs queued.
+// (QueuePendingTrailers, for example after the YouTube quota ran out). It also starts
+// metadata.vote_backfill once while titles wait for a vote (QueueVoteBackfill, concept 08 4.2; not
+// counted, the job is not one of the library's). The library scan calls it after every complete
+// run, so enrichment converges after aborted scans, failed jobs and the upgrade. It returns the
+// number of jobs queued.
 func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (int, error) {
 	rows, err := s.read.ListPendingMatchItems(ctx, libraryID)
 	if err != nil {
@@ -1169,7 +1183,14 @@ func (s *Service) QueuePendingMetadata(ctx context.Context, libraryID int64) (in
 		return n, err
 	}
 	t, err := s.QueuePendingTrailers(ctx, libraryID)
-	return n + t, err
+	n += t
+	if err != nil {
+		return n, err
+	}
+	if _, err := s.QueueVoteBackfill(ctx); err != nil {
+		return n, err
+	}
+	return n, nil
 }
 
 func genreNames(gs []Genre) []string {
@@ -1200,4 +1221,10 @@ func firstNonEmpty(vs ...string) string {
 
 func nullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: s != ""}
+}
+
+// sortKey is item_texts.sort_key of a text row: the shown title in its language, article
+// stripped, folded (model.SortKey, concept 08, ADR 0016). Every writer of a text row sets it.
+func sortKey(lang, title string) sql.NullString {
+	return sql.NullString{String: model.SortKey(lang, title), Valid: true}
 }

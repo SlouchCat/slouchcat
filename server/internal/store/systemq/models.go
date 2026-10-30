@@ -290,6 +290,7 @@ type Item struct {
 	AnilistID         sql.NullInt64
 	FeedOrigin        sql.NullString
 	FilledProviders   sql.NullString
+	VoteAverage       sql.NullFloat64
 }
 
 type ItemFieldSource struct {
@@ -311,6 +312,7 @@ type ItemText struct {
 	Title    string
 	Overview sql.NullString
 	Tagline  sql.NullString
+	SortKey  sql.NullString
 }
 
 type Job struct {
@@ -578,6 +580,7 @@ type SpotlightConfig struct {
 	IntervalHours     int64
 	LastManualRefresh sql.NullInt64
 	UpdatedAt         int64
+	RotationSeconds   int64
 }
 
 type SpotlightEntry struct {

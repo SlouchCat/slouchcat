@@ -10,6 +10,14 @@ RETURNING id;
 SELECT id FROM jobs
 WHERE idempotency_key = @idempotency_key AND state IN ('queued', 'running');
 
+-- name: GetActiveJobIDByType :one
+-- Any queued or running job of a type (a job that continues itself under changing keys, such as
+-- metadata.vote_backfill).
+SELECT id FROM jobs
+WHERE type = @type AND state IN ('queued', 'running')
+ORDER BY id
+LIMIT 1;
+
 -- name: SetQueuedJobPayload :execrows
 -- Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'queued';

@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { audioItemId, AUDIO_READY_MS, M4B_TITLE } from './audio';
 import { CSRF, EXTRAS_TITLE } from './catalog';
 import { createPick, DEFAULT_HOME_ROWS, deletePick, listPicks, setHomeRows } from './curation';
@@ -19,12 +19,55 @@ import { TRAKT_ENTRIES } from './trakt-server.mjs';
  * is the server's decision; by default it is the spotlight row on top (DEFAULT_HOME_ROWS).
  */
 const hero = (page: Page) => page.locator('main section[aria-roledescription]');
-/** The band's poster strip: one button per slide, named after its title (step 7b). */
-const strip = (page: Page) => hero(page).getByRole('list').getByRole('button');
+/**
+ * The band's poster row (concept 08, 7.2): one card per slide, a button named after its title
+ * (and the year under it).
+ */
+const strip = (page: Page) =>
+  hero(page).getByRole('list', { name: 'Spotlight-Titel' }).getByRole('button');
 /** The sections of the start page top to bottom: the stage (if any) and the poster rows. */
 const sections = (page: Page) =>
   page.locator('main section:is([aria-labelledby], [aria-roledescription])');
 const recentRow = (page: Page) => page.getByRole('region', { name: 'Neu hinzugefügt' });
+
+/** A name that begins with `title` (a poster card's name is its title and the year under it). */
+const startsWith = (title: string) =>
+  new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+
+/** The titles of the stage row in their order (GET /home; the e2e server begins at 0). */
+async function spotlightTitles(api: APIRequestContext): Promise<string[]> {
+  const response = await api.get('/api/v1/home');
+  expect(response.status(), await response.text()).toBe(200);
+  const { rows } = (await response.json()) as {
+    rows: { key: string; items: { title: string }[] }[];
+  };
+  return (rows.find((row) => row.key === 'spotlight')?.items ?? []).map((item) => item.title);
+}
+
+/** Waits until the server has the spotlight row: it asks the Trakt mock right after its start. */
+async function waitForSpotlight(api: APIRequestContext): Promise<void> {
+  await expect
+    .poll(async () => (await homeRowKeys(api)).includes('spotlight'), {
+      timeout: 60_000,
+      intervals: [1000],
+    })
+    .toBe(true);
+}
+
+/**
+ * Distance of `card`'s left edge from the left edge of its row's visible part, less the page
+ * gutter (the list's inline padding): 0 when the card stands at the row's left edge (N-4).
+ */
+const offsetFromEdge = (card: Locator) =>
+  card.evaluate((card) => {
+    // The list item: the card itself may be scaled by the focus.
+    const element = card.closest('li');
+    const list = card.closest('ul');
+    const scroller = list?.parentElement;
+    if (!element || !scroller || !list) return Number.NaN;
+    const gutter = parseFloat(getComputedStyle(list).paddingLeft);
+    return element.getBoundingClientRect().left - scroller.getBoundingClientRect().left - gutter;
+  });
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -95,7 +138,8 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
   // worker answers the navigation from its precache.
   expect(await (await page.request.get('/')).text()).not.toContain('id="poster-prepaint"');
   // The band shows the library titles the list points at (5 films and 2 series), one per slide;
-  // the poster strip under it has one poster per slide, named after the title it shows.
+  // the poster row under it has one poster per slide, named after the title it shows. A click
+  // shows the slide and stays on the start page (F-5).
   const entries = [...TRAKT_ENTRIES.movies, ...TRAKT_ENTRIES.shows].map((entry) => entry.title);
   const posters = strip(page);
   await expect(posters).toHaveCount(entries.length);
@@ -104,10 +148,11 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
     await posters.nth(slide).click();
     await expect(posters.nth(slide)).toHaveAttribute('aria-current', 'true');
     const title = (await spotlight.getByRole('heading', { level: 2 }).textContent()) ?? '';
-    await expect(posters.nth(slide)).toHaveAccessibleName(title);
+    await expect(posters.nth(slide)).toHaveAccessibleName(startsWith(title));
     shown.push(title);
   }
   expect(shown.toSorted()).toEqual(entries.toSorted());
+  await expect(page).toHaveURL(/\/$/);
 
   try {
     // Trakt down: the refresh fails, the list is emptied and the row disappears (I-7).
@@ -125,18 +170,12 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
   }
 });
 
-test('the band: arrow keys move in the poster strip, Enter selects, the focus stays (7b, C-4)', async ({
+test('the band: arrow keys move in the poster row, Enter selects, the focus stays (7b, C-4, F-5)', async ({
   page,
   owner,
 }) => {
   test.setTimeout(90_000);
-  // The server asks the mock right after its start; the band needs its titles.
-  await expect
-    .poll(async () => (await homeRowKeys(owner)).includes('spotlight'), {
-      timeout: 60_000,
-      intervals: [1000],
-    })
-    .toBe(true);
+  await waitForSpotlight(owner);
   // The carousel stands still (reduced motion, checked in the next test), so only the keys move it.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.reload();
@@ -145,9 +184,9 @@ test('the band: arrow keys move in the poster strip, Enter selects, the focus st
   const posters = strip(page);
   expect(await posters.count()).toBeGreaterThan(2);
   const heading = hero(page).getByRole('heading', { level: 2 });
-  const first = (await posters.nth(0).getAttribute('aria-label')) ?? '';
-  const second = (await posters.nth(1).getAttribute('aria-label')) ?? '';
+  const [first = '', second = ''] = await spotlightTitles(owner);
   await expect(heading).toHaveText(first);
+  await expect(posters.nth(0)).toHaveAccessibleName(startsWith(first));
 
   // Down from the play button lands on the active poster.
   await page.keyboard.press('ArrowDown');
@@ -162,15 +201,18 @@ test('the band: arrow keys move in the poster strip, Enter selects, the focus st
   await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
   await expect(posters.nth(1)).not.toHaveAttribute('aria-current');
 
-  // Enter shows the focused poster's slide; the poster keeps the focus.
+  // Enter shows the focused poster's slide without leaving the page; the poster keeps the focus.
   await page.keyboard.press('Enter');
   await expect(heading).toHaveText(second);
   await expect(posters.nth(1)).toHaveAttribute('aria-current', 'true');
   await expect(posters.nth(0)).not.toHaveAttribute('aria-current');
   await expectFocusOn(page, posters.nth(1));
+  await expect(page).toHaveURL(/\/$/);
+  // The row moved the active poster to its left edge (N-4).
+  await expect.poll(() => offsetFromEdge(posters.nth(1))).toBeCloseTo(0, 0);
 
-  // The active poster is the strip's one Tab stop (roving tabindex): Tab
-  // leaves the strip, Shift+Tab returns to it.
+  // The active poster is the row's one Tab stop (roving tabindex): Tab
+  // leaves the row, Shift+Tab returns to it.
   await page.keyboard.press('Tab');
   expect(
     await posters.evaluateAll((buttons) =>
@@ -180,11 +222,19 @@ test('the band: arrow keys move in the poster strip, Enter selects, the focus st
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, posters.nth(1));
 
-  // The strip's first poster holds the focus on arrow left: it never leaves the band sideways.
+  // Left of the row's first poster is the band's way out to the side navigation, on the
+  // current page's entry (concept 08, 7.1); right from there returns to the band's active poster.
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, posters.nth(0));
   await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, posters.nth(0));
+  await expectFocusOn(
+    page,
+    page
+      .getByRole('navigation', { name: 'Hauptnavigation' })
+      .getByRole('link', { name: 'Start', exact: true }),
+  );
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, posters.nth(1));
   await expect(heading).toHaveText(second);
 
   // Up returns to the buttons, down again lands on the active poster, not the last focused one.
@@ -211,6 +261,7 @@ test('the trailer button on the stage: keys, dialog, paging (step 8, W-10, C-4)'
     })
     .toBe(true);
   type Slide = { id: string; title: string; hasTrailer?: boolean };
+  // The poster row comes after the pause button in the Tab order.
   const spotlightItems = async () => {
     const response = await owner.get('/api/v1/home');
     expect(response.status(), await response.text()).toBe(200);
@@ -334,17 +385,17 @@ test('prefers-reduced-motion stops the rotation (7b)', async ({ page, owner }) =
     .toBe(true);
   const heading = hero(page).getByRole('heading', { level: 2 });
   const posters = strip(page);
-  // Focus and pointer stay out of the band, which pause it as well.
+  // The keyboard focus stays out of the band, which holds it as well.
   await page.clock.install();
   await page.reload();
   await expect(hero(page)).toBeVisible();
   await resetFocus(page);
-  const first = (await posters.nth(0).getAttribute('aria-label')) ?? '';
-  const second = (await posters.nth(1).getAttribute('aria-label')) ?? '';
+  const [first = '', second = ''] = await spotlightTitles(owner);
 
-  // Without the preference the band moves on after its interval (8 s) ...
+  // Without the preference the band moves on after its interval (5 s, F-10) ...
   await expect(heading).toHaveText(first);
-  await page.clock.runFor(9000);
+  await expect(hero(page)).not.toHaveAttribute('data-paused');
+  await page.clock.runFor(6000);
   await expect(heading).toHaveText(second);
 
   // ... with it, it stays on its slide.
@@ -356,6 +407,184 @@ test('prefers-reduced-motion stops the rotation (7b)', async ({ page, owner }) =
   await page.clock.runFor(30_000);
   await expect(heading).toHaveText(first);
   await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+  // No time bar; the band holds, everything else works.
+  await expect(hero(page)).toHaveAttribute('data-paused');
+  await expect(posters.nth(0).locator('[class*="timer"]')).toHaveCount(0);
+  await posters.nth(1).click();
+  await expect(heading).toHaveText(second);
+});
+
+test('one draw per page view: the shell start, start=K, no jump on a refetch (F-2, 6)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await waitForSpotlight(owner);
+  // The shell carries the draw: data-start on #hero-prepaint or, without a backdrop (the test
+  // media have none), the start meta; the home preload asks for the same start. Read from the
+  // network: the service worker answers navigations from its precache, without either.
+  const shell = await page.request.get('/');
+  const html = await shell.text();
+  const drawn =
+    /id="hero-prepaint" data-start="(\d+)"|<meta name="slouchcat-hero-start" content="(\d+)">/.exec(
+      html,
+    );
+  expect(drawn, html).not.toBeNull();
+  // SLOUCHCAT_HERO_START=0 in the e2e server (start-server.mjs).
+  expect(Number(drawn?.[1] ?? drawn?.[2])).toBe(0);
+  const links = shell
+    .headersArray()
+    .filter(({ name }) => name.toLowerCase() === 'link')
+    .map(({ value }) => value)
+    .join(', ');
+  expect(links).toContain('</api/v1/home?start=0>; rel=preload; as=fetch');
+
+  // The band begins with the drawn title, the first poster of its row.
+  const titles = await spotlightTitles(owner);
+  expect(titles.length).toBeGreaterThan(3);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.clock.install();
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  const heading = hero(page).getByRole('heading', { level: 2 });
+  const posters = strip(page);
+  await expect(heading).toHaveText(titles[0] ?? '');
+  await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+  await expect(posters.nth(0)).toHaveAccessibleName(startsWith(titles[0] ?? ''));
+
+  // start repeats an earlier draw, whatever the fixed start says.
+  const repeated = await page.request.get('/api/v1/home?start=3');
+  expect(repeated.status(), await repeated.text()).toBe(200);
+  expect(((await repeated.json()) as { heroStart?: number }).heroStart).toBe(3);
+
+  // A refetch on window focus brings the server's start again (0); the band stays where it is.
+  await posters.nth(3).click();
+  await expect(heading).toHaveText(titles[3] ?? '');
+  await page.clock.fastForward(31_000);
+  const refetch = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === '/api/v1/home',
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
+  const request = await refetch;
+  expect(new URL(request.url()).search).toBe('');
+  await request.response();
+  await expect(heading).toHaveText(titles[3] ?? '');
+  await expect(posters.nth(3)).toHaveAttribute('aria-current', 'true');
+});
+
+test('the band holds on keyboard focus and the pause button, not on a click (F-3, F-9)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await waitForSpotlight(owner);
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  const band = hero(page);
+  const posters = strip(page);
+  const timer = band.locator('[aria-current="true"] [class*="timer"]');
+  await expect(band).not.toHaveAttribute('data-paused');
+  await expect(timer).toHaveCount(1);
+
+  // A mouse click on a poster shows its slide and does not hold the band.
+  await posters.nth(1).click();
+  await expect(posters.nth(1)).toHaveAttribute('aria-current', 'true');
+  await expect(band).not.toHaveAttribute('data-paused');
+  await expect(timer).toHaveCount(1);
+
+  // Tab into the band holds it (keyboard focus), and leaving it lets it run again. Tab starts at
+  // the side navigation's last button, the element before the band.
+  await page.getByRole('button', { name: 'Seitenleiste ausblenden' }).focus();
+  await tabTo(page, band.getByRole('link', { name: 'Abspielen' }), 3);
+  await expect(band).toHaveAttribute('data-paused');
+  await expect(timer).toHaveCount(0);
+  await tabTo(
+    page,
+    page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
+    6,
+  );
+  await expect(band).not.toHaveAttribute('data-paused');
+
+  // The pause button holds the band for everybody (aria-pressed), the second press resumes.
+  await resetFocus(page);
+  const pause = band.getByRole('button', { name: 'Pause' });
+  await expect(pause).toHaveAttribute('aria-pressed', 'false');
+  await pause.click();
+  await expect(pause).toHaveAttribute('aria-pressed', 'true');
+  await expect(band).toHaveAttribute('data-paused');
+  await expect(timer).toHaveCount(0);
+  await pause.click();
+  await expect(pause).toHaveAttribute('aria-pressed', 'false');
+  await expect(band).not.toHaveAttribute('data-paused');
+  await expect(timer).toHaveCount(1);
+});
+
+test('the active poster stands at the left edge of the row after every change, the page stays (N-4)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await waitForSpotlight(owner);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  const posters = strip(page);
+  const count = await posters.count();
+  const top = await page.evaluate(() => window.scrollY);
+  const next = hero(page).getByRole('button', { name: 'Weiterblättern' });
+  // Through the whole row, the last poster too (the space after it lets it get there).
+  for (let slide = 1; slide < count; slide += 1) {
+    await next.click();
+    await expect(posters.nth(slide)).toHaveAttribute('aria-current', 'true');
+    await expect.poll(() => offsetFromEdge(posters.nth(slide))).toBeCloseTo(0, 0);
+  }
+  expect(await page.evaluate(() => window.scrollY)).toBe(top);
+});
+
+test('rows on a phone: three whole covers, a swipe snaps a cover to the left edge (N-3, N-4)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  const row = recentRow(page);
+  await expect(row.getByRole('link').first()).toBeVisible();
+  const list = row.getByRole('list');
+  const scroller = list.locator('..');
+  const cards = list.locator(':scope > li');
+  expect(await cards.count()).toBeGreaterThan(3);
+  const box = await scroller.boundingBox();
+  if (!box) throw new Error('row without box');
+  const widths: number[] = [];
+  for (let index = 0; index < 3; index += 1) {
+    const card = await cards.nth(index).boundingBox();
+    if (!card) throw new Error(`card ${index} without box`);
+    expect(card.x).toBeGreaterThanOrEqual(box.x - 0.5);
+    expect(card.x + card.width).toBeLessThanOrEqual(box.x + box.width + 0.5);
+    widths.push(card.width);
+  }
+  // A third each, the fourth one starts beyond the right edge.
+  widths.forEach((width) => expect(width).toBeCloseTo(widths[0] ?? 0, 1));
+  const fourth = await cards.nth(3).boundingBox();
+  expect(fourth?.x ?? 0).toBeGreaterThanOrEqual(box.x + box.width - 16.5);
+
+  // Scrolled by part of a card, the row snaps a whole cover to the gutter.
+  await scroller.evaluate((element) => element.scrollBy({ left: 70 }));
+  await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  await expect
+    .poll(async () => {
+      const offsets = await cards.evaluateAll((items) => {
+        const node = items[0]?.parentElement;
+        const outer = node?.parentElement;
+        if (!node || !outer) return [];
+        const gutter = parseFloat(getComputedStyle(node).paddingLeft);
+        const left = outer.getBoundingClientRect().left;
+        return items.map((item) => item.getBoundingClientRect().left - left - gutter);
+      });
+      return Math.min(...offsets.map((offset) => Math.abs(offset)));
+    })
+    .toBeLessThan(1);
 });
 
 test('spotlight on a later position: the band stands third, nothing painted ahead (3.5)', async ({
@@ -457,7 +686,13 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
     expect(await shell?.text()).not.toContain('id="hero-prepaint"');
     await expect(page.locator('#hero-prepaint')).toHaveCount(0);
     // The card fetches the preloaded title's poster with high priority as well.
-    const firstCard = sections(page).first().getByRole('link').first().locator('img');
+    // The first card (the picks row's header links its page as well, concept 08).
+    const firstCard = sections(page)
+      .first()
+      .getByRole('list')
+      .getByRole('link')
+      .first()
+      .locator('img');
     await expect(firstCard).toHaveAttribute('fetchpriority', 'high');
     await expect(firstCard).toHaveAttribute(
       'src',
@@ -477,7 +712,7 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
     // image. The markup goes in where the shell has it, in front of #root; the card is measured at
     // rest, without the focus scale.
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-    const firstLink = sections(page).first().getByRole('link').first();
+    const firstLink = sections(page).first().getByRole('list').getByRole('link').first();
     await expect
       .poll(() => firstLink.evaluate((link) => getComputedStyle(link).transform))
       .toBe('none');
@@ -495,7 +730,11 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
       ];
     }, prepaint);
     expect(painted).toHaveLength(4);
-    painted.forEach((value, index) => expect(value).toBeCloseTo(card[index] ?? Number.NaN, 0));
+    // Under a pixel: the prepainted poster is half a pixel wider than the card on purpose, so it
+    // stays the larger LCP candidate (global.css, docs/perf/startseite.md 3).
+    painted.forEach((value, index) =>
+      expect(Math.abs(value - (card[index] ?? Number.NaN))).toBeLessThan(1),
+    );
   } finally {
     const on = await put(true);
     expect(on.status(), await on.text()).toBe(200);
@@ -527,7 +766,7 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, play);
 
-    // Down to the rows: the poster strip, the picks and "Weiterschauen" may stand between the
+    // Down to the rows: the poster row, the picks and "Weiterschauen" may stand between the
     // buttons and "Neu hinzugefügt".
     for (let presses = 0; presses < 5; presses += 1) {
       if (
@@ -586,21 +825,28 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
   await expectVisibleFocus(page);
 });
 
-test('Tab: skip link, header, hero, then the cards; no focus trap', async ({ page }) => {
+// Concept 08: the side navigation stands between the header and the page (DOM order), so Tab goes
+// skip link, header, the navigation's column (Start first, "Seitenleiste ausblenden" last), page.
+test('Tab: skip link, header, side navigation, hero, then the cards; no focus trap', async ({
+  page,
+}) => {
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('link', { name: 'Zum Inhalt springen' }));
+  await tabTo(page, page.locator('header').getByRole('link', { name: /^Profil wechseln/ }), 5);
   await tabTo(
     page,
     page
       .getByRole('navigation', { name: 'Hauptnavigation' })
       .getByRole('link', { name: 'Start', exact: true }),
+    1,
   );
-  await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
+  await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }));
   if ((await hero(page).count()) > 0) {
     await tabTo(page, hero(page).getByRole('link', { name: 'Abspielen' }), 3);
     await tabTo(page, hero(page).getByRole('link', { name: 'Details' }), 2);
-    // The poster strip is one Tab stop: its active poster.
+    // Then the pause button (F-9) and the poster row as one Tab stop: its active poster.
     if ((await strip(page).count()) > 1) {
+      await tabTo(page, hero(page).getByRole('button', { name: 'Pause' }), 2);
       await tabTo(page, strip(page).and(page.locator('[aria-current="true"]')), 1);
     }
   }

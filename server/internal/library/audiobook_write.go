@@ -103,6 +103,7 @@ func (w *batchWriter) audiobookItem(ctx context.Context, info fileInfo) (string,
 	if m.description != "" || m.subtitle != "" {
 		if err := w.q.UpsertItemText(ctx, systemq.UpsertItemTextParams{
 			ItemID: id, Lang: m.lang, Title: title, Overview: nullString(m.description), Tagline: nullString(m.subtitle),
+			SortKey: sortKey(m.lang, title),
 		}); err != nil {
 			return "", fmt.Errorf("insert audiobook text: %w", err)
 		}
@@ -334,6 +335,7 @@ func writeBookText(ctx context.Context, q *systemq.Queries, itemID, title string
 				p.Tagline = t.Tagline
 			}
 		}
+		p.SortKey = sortKey(lang, p.Title)
 		if err := q.UpsertItemText(ctx, p); err != nil {
 			return fmt.Errorf("store audiobook text: %w", err)
 		}

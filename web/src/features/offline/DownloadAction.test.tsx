@@ -57,6 +57,8 @@ describe('download on the detail page', () => {
     const user = userEvent.setup();
     const { calls } = mockApi({
       ...signedIn,
+      // The side navigation's libraries: without them it would offer "Zu den Downloads" as well.
+      'GET /libraries/visible': () => json([]),
       [`GET /items/${ids.alien}`]: () => json(alienDetail),
       [`GET /items/${ids.alien}/download-options`]: () => json(downloadOptions),
       [`POST /items/${ids.alien}/downloads`]: () =>
