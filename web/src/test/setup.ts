@@ -4,6 +4,14 @@ import { afterEach, beforeAll } from 'vitest';
 import { setLanguage } from '@/i18n';
 import { loadSpatialNavigation } from '@/ui';
 
+// @testing-library/react marks the React act environment only where Jest's globals exist
+// (beforeAll/afterAll); Vitest runs without globals here. Without the flag react-aria's live
+// announcer defers its first announcement by 100 ms (a Safari workaround), and that timer can fire
+// after Vitest has torn down jsdom: "ReferenceError: document is not defined", an unhandled error
+// that failed the web job on LoginPage.test.tsx (run 41034366273). With the flag the announcer
+// writes at once, as it does under Jest.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 // jsdom does not implement scrolling; the router restores scroll positions on navigation.
 window.scrollTo = () => undefined;
 Element.prototype.scrollIntoView = () => undefined;

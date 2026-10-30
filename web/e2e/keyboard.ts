@@ -105,10 +105,24 @@ export async function expectNoFocusTrap(page: Page, max = 80): Promise<void> {
   );
 }
 
-/** Starts keyboard navigation from the top of the document, as after a fresh page load. */
+/**
+ * Starts keyboard navigation from the top of the document, as after a fresh page load. A blur
+ * alone is not enough: both browsers keep the sequential focus navigation starting point at the
+ * element that had the focus (or where it stood, once it is gone), so after a click on a form's
+ * submit button Tab would carry on from the form. Chromium wraps around at the end of the page,
+ * headless Firefox stays on the last element, which is how the folders dialog test of the admin
+ * libraries page missed the card above the form in Firefox. Focusing and removing a probe at the
+ * very start of the body moves the starting point there in both browsers.
+ */
 export async function resetFocus(page: Page): Promise<void> {
   await page.evaluate(() => {
     (document.activeElement as HTMLElement | null)?.blur();
+    const probe = document.createElement('span');
+    probe.tabIndex = -1;
+    document.body.prepend(probe);
+    probe.focus({ preventScroll: true });
+    probe.blur();
+    probe.remove();
     window.scrollTo(0, 0);
   });
 }

@@ -130,6 +130,31 @@ export function useSpatialItem<E extends HTMLElement>({
   return { ref: ref as Ref<E>, onFocus, focusKey: key };
 }
 
+/** A registered child of a group, as norigin hands it to a resolver. */
+interface Sibling {
+  focusKey: string;
+  node: HTMLElement;
+}
+
+/**
+ * The child an arrow press moves to in a row that follows the DOM order: ← and → walk the
+ * siblings in order, ↑ and ↓ (and the ends of the row) leave the group. Null hands the press to
+ * the parent group, which decides by geometry.
+ */
+export function nextInOrder(
+  direction: string,
+  from: string,
+  siblings: readonly Sibling[],
+): Sibling | null {
+  if (direction !== 'left' && direction !== 'right') return null;
+  const ordered = [...siblings].sort((a, b) =>
+    a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+  );
+  const index = ordered.findIndex((sibling) => sibling.focusKey === from);
+  if (index < 0) return null;
+  return ordered[index + (direction === 'right' ? 1 : -1)] ?? null;
+}
+
 interface SpatialGroupProps {
   children: ReactNode;
   focusKey?: string;
@@ -146,6 +171,13 @@ interface SpatialGroupProps {
    * header, side navigation and content.
    */
   nextFocusKey?: (direction: string, from: string) => string | null;
+  /**
+   * A row whose arrows follow the DOM order (nextInOrder): ← and → walk the children, ↑ and ↓
+   * leave the row. For a row of buttons that wraps when the space runs out (the detail page's
+   * actions in a wide font): by geometry ↓ from the first button would land on the one that
+   * wrapped under it instead of the row below, and → would never reach it.
+   */
+  ordered?: boolean;
   as?: 'div' | 'ul' | 'nav' | 'section';
   'aria-label'?: string;
   'aria-labelledby'?: string;
@@ -162,6 +194,7 @@ export function SpatialGroup({
   preferredChildFocusKey,
   focusBoundary,
   nextFocusKey,
+  ordered,
   as: Tag = 'div',
   ...aria
 }: SpatialGroupProps) {
@@ -176,7 +209,10 @@ export function SpatialGroup({
           const next = nextFocusKey(direction, from);
           return siblings.find((sibling) => sibling.focusKey === next) ?? null;
         }
-      : undefined,
+      : ordered
+        ? (direction, from, siblings) =>
+            siblings.find((sibling) => sibling === nextInOrder(direction, from, siblings)) ?? null
+        : undefined,
     trackChildren: false,
   });
   return (
