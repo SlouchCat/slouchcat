@@ -370,6 +370,13 @@ const spotlightRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/SpotlightPage'), 'SpotlightPage'),
 });
 
+// admin concept 09: the background jobs (ADR 0017).
+const jobsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/jobs',
+  component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage'),
+});
+
 // admin M8: accounts, backup, statistics and announcements.
 const accountsRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -520,6 +527,7 @@ export const routeTree = rootRoute.addChildren([
           homeRowsRoute,
           // admin M11
           spotlightRoute,
+          jobsRoute,
           maintenanceRoute,
           devicesRoute,
           streamsRoute,

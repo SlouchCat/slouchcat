@@ -4764,7 +4764,7 @@ export interface components {
             sizeBytes?: number;
             segmentsDone: number;
             segmentsTotal?: number;
-            /** @description Stable code (`budget_full`, `not_visible`, `encode_failed`, `source_unavailable` when the enclosure of a podcast episode could not be fetched). */
+            /** @description Stable code (`budget_full`, `not_visible`, `encode_failed`, `source_unavailable` when the enclosure of a podcast episode could not be fetched, `cancelled_by_admin` when the administration cancelled the preparation). */
             error?: string;
             /** Format: date-time */
             createdAt: string;

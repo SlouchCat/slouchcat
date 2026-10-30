@@ -35,6 +35,7 @@ const NAV_PAGES = [
   ['Sammlungen', '/admin/collections'],
   ['Startseite', '/admin/home-rows'],
   ['Ankündigungen', '/admin/announcements'],
+  ['Hintergrundjobs', '/admin/jobs'],
   ['Integrationen', '/admin/integrations'],
   ['Statistiken', '/admin/stats'],
   ['Sicherung', '/admin/backup'],

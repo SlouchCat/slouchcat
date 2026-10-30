@@ -168,7 +168,10 @@
       "owner_required": "Only the owner may do this.",
       "owner_protected": "The owner's account can be neither removed nor demoted.",
       "last_admin": "This is the last administrator. Appoint a second one first.",
-      "admin_limits_fixed": "An administrator always sees every library up to rating 18. Take the role away first."
+      "admin_limits_fixed": "An administrator always sees every library up to rating 18. Take the role away first.",
+      "job_type_not_runnable": "This job has no manual run; its runs come from events.",
+      "job_type_paused": "The job is paused; resume it first.",
+      "job_type_not_scheduled": "This job has no schedule."
     },
     "field": {
       "required": "Required.",
@@ -1491,6 +1494,10 @@
         "title": "Announcements",
         "description": "Messages to every profile."
       },
+      "jobs": {
+        "title": "Background jobs",
+        "description": "Running and scheduled jobs, pause, cancel and schedules."
+      },
       "integrations": {
         "title": "Integrations",
         "description": "Keys, e-mail, Telegram, Web Push and the update check."
@@ -1557,7 +1564,9 @@
           "confirm": "Cancel job"
         },
         "retried": "Job {{type}} is queued again.",
-        "cancelled": "Job {{type}} cancelled."
+        "cancelled": "Job {{type}} cancelled.",
+        "all": "All jobs",
+        "paused": "Paused"
       },
       "storage": {
         "title": "Storage",
@@ -2095,6 +2104,266 @@
         "title": "Delete “{{title}}”?",
         "body": "The announcement and its read receipts are deleted. Messages already sent stay with the recipients.",
         "confirm": "Delete announcement"
+      }
+    },
+    "jobs": {
+      "title": "Background jobs",
+      "intro": "What the server does in the background: which jobs run, since when, for how much longer, and when the next run comes. Every job can be run now, paused and its runs cancelled.",
+      "counts": {
+        "running": "Running",
+        "queued": "Queued",
+        "planned": "Planned",
+        "paused": "Paused",
+        "failed": "Failed"
+      },
+      "pools": {
+        "title": "Workers",
+        "general": "General",
+        "download": "Downloads",
+        "notify": "Notifications",
+        "workers": "{{count}} workers",
+        "backlog": "backlog about {{duration}}",
+        "free": "free",
+        "noEstimate": "no estimate"
+      },
+      "pausedBanner": {
+        "title_one": "{{count}} job paused",
+        "title_other": "{{count}} jobs paused",
+        "body": "Paused jobs start no runs until you resume them: {{types}}."
+      },
+      "running": {
+        "title": "Running now",
+        "empty": "Nothing is running right now.",
+        "since": "for {{duration}}",
+        "progress": "{{done}} of {{total}}",
+        "progressLabel": "{{name}}: {{percent}} %",
+        "pause": "Pause run",
+        "pauseLabel": "Pause {{name}} (stops this and every running run of the job)",
+        "cancel": "Cancel",
+        "cancelLabel": "Cancel run {{id}} of {{name}}"
+      },
+      "estimate": {
+        "left": "about {{duration}} left",
+        "computing": "calculating",
+        "longer": "longer than usual"
+      },
+      "state": {
+        "idle": "idle",
+        "queued": "waiting",
+        "running": "running",
+        "paused": "paused",
+        "stopping": "stopping",
+        "unknown": "unknown"
+      },
+      "groups": {
+        "library": "Library",
+        "metadata": "Metadata",
+        "delivery": "Delivery",
+        "system": "System"
+      },
+      "card": {
+        "queued": "Queued",
+        "queuedValue": "{{count}}",
+        "queuedEstimate": "due in about {{duration}}",
+        "planned": "planned {{count}}",
+        "lastRun": "Last run",
+        "never": "never",
+        "ago": "{{duration}} ago",
+        "lastOk": "OK",
+        "lastFailed": "Error: {{error}}",
+        "lastCancelled": "cancelled",
+        "lastSkipped": "nothing to do",
+        "nextRun": "Next run",
+        "in": "in {{duration}}",
+        "every": "every {{duration}}",
+        "window": "{{start}}–{{end}}",
+        "off": "off",
+        "onDemand": "on demand",
+        "pausedNext": "paused",
+        "trigger": "Triggered by",
+        "triggerEvent": "on demand, by events in the server",
+        "triggerManual": "by hand",
+        "unknown": "This server no longer knows this job (older build).",
+        "median": "usually {{duration}}"
+      },
+      "actions": {
+        "run": "Run now",
+        "runLabel": "Run {{name}} now",
+        "pause": "Pause",
+        "pauseLabel": "Pause {{name}}",
+        "resume": "Resume",
+        "resumeLabel": "Resume {{name}}",
+        "cancelQueued": "Cancel queued ({{count}})",
+        "cancelQueuedLabel": "Cancel the queued runs of {{name}}",
+        "cancelAll": "Cancel all runs",
+        "cancelAllLabel": "Cancel all runs of {{name}}",
+        "schedule": "Schedule …",
+        "scheduleLabel": "Schedule of {{name}}",
+        "runs": "Runs …",
+        "runsLabel": "Runs of {{name}}"
+      },
+      "confirm": {
+        "cancelQueuedTitle": "Cancel the queued runs of {{name}}?",
+        "cancelQueuedBody_one": "{{count}} queued run is cancelled and not made up for.",
+        "cancelQueuedBody_other": "{{count}} queued runs are cancelled and not made up for.",
+        "cancelAllTitle": "Cancel all runs of {{name}}?",
+        "cancelAllBody": "{{queued}} queued and {{running}} running runs end at once. Cancelling is final.",
+        "cancelRunTitle": "Cancel a run of {{name}}?",
+        "cancelRunBody": "The run ends at once and is not made up for.",
+        "notifyWarning": "A cancelled delivery does not arrive.",
+        "scanWarning": "The library ends as “aborted”; the next scan catches up.",
+        "downloadWarning": "The downloads end as “failed” and are not prepared again.",
+        "confirm": "Cancel",
+        "keep": "Keep"
+      },
+      "messages": {
+        "ran_zero": "{{name}}: nothing to queue.",
+        "ran_one": "{{name}}: {{count}} run queued.",
+        "ran_other": "{{name}}: {{count}} runs queued.",
+        "paused": "{{name}} paused; running runs stop and go back to the queue.",
+        "resumed": "{{name}} resumed.",
+        "cancelled_zero": "{{name}}: nothing to cancel.",
+        "cancelled_one": "{{name}}: {{count}} run cancelled.",
+        "cancelled_other": "{{name}}: {{count}} runs cancelled.",
+        "runCancelled": "Run {{id}} cancelled.",
+        "runRetried": "Run {{id}} is queued again.",
+        "scheduleSaved": "Schedule of {{name}} saved."
+      },
+      "runs": {
+        "title": "Runs of {{name}}",
+        "tabs": "Runs by state",
+        "tab": {
+          "running": "Running",
+          "queued": "Queued",
+          "planned": "Planned",
+          "failed": "Failed",
+          "done": "Done",
+          "cancelled": "Cancelled"
+        },
+        "empty": "No runs in this state.",
+        "total": "{{count}} in total, the newest {{shown}} shown",
+        "columns": {
+          "subject": "Subject",
+          "priority": "Prio",
+          "started": "Start",
+          "duration": "Duration",
+          "attempts": "Attempts",
+          "error": "Error",
+          "actions": "Actions"
+        },
+        "noSubject": "#{{id}}",
+        "retry": "Retry",
+        "retryLabel": "Queue run {{id}} again",
+        "cancel": "Cancel",
+        "cancelLabel": "Cancel run {{id}}",
+        "runAfter": "not before {{time}}"
+      },
+      "schedule": {
+        "title": "Schedule of {{name}}",
+        "description": "Interval, time window and on/off. The next run realigns; “Run now” ignores the window.",
+        "enabled": "Schedule on",
+        "every": "Interval",
+        "everyOptions": {
+          "m5": "every 5 minutes",
+          "m15": "every 15 minutes",
+          "m30": "every 30 minutes",
+          "h1": "hourly",
+          "h2": "every 2 hours",
+          "h6": "every 6 hours",
+          "h12": "every 12 hours",
+          "h24": "daily",
+          "h48": "every 2 days",
+          "d7": "weekly"
+        },
+        "window": "Only within a time window",
+        "windowStart": "From",
+        "windowEnd": "Until",
+        "windowHint": "Server time zone: {{zone}}. A window may span midnight.",
+        "traktHint": "Interval and on/off are the same setting as on the spotlight page.",
+        "updateHint": "On/off is the same setting as the update check in the settings.",
+        "save": "Save"
+      },
+      "duration": {
+        "seconds": "{{count}} s",
+        "minutes": "{{count}} min",
+        "hours": "{{count}} h",
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "days": "{{count}} days",
+        "overDay": "over 1 day"
+      },
+      "types": {
+        "scan_library": {
+          "name": "Library scan",
+          "trigger": "Schedule every 6 h and server start, “Scan” on the libraries page, webhook, file watcher"
+        },
+        "scan_path": {
+          "name": "Folder scan",
+          "trigger": "File watcher on changes, webhook"
+        },
+        "probe_file": {
+          "name": "Probe file",
+          "trigger": "From the scan per new file, “Probe file” in maintenance"
+        },
+        "probe_keyframes": {
+          "name": "Keyframe index",
+          "trigger": "From the scan per file, before a playback with priority"
+        },
+        "library_sweep": {
+          "name": "Sweep missing titles",
+          "trigger": "Schedule hourly and server start"
+        },
+        "segments_detect": {
+          "name": "Detect intro and outro",
+          "trigger": "From the scan per season"
+        },
+        "metadata_match": {
+          "name": "Match title",
+          "trigger": "From the scan, manual match, folder change"
+        },
+        "metadata_fill": {
+          "name": "Fill metadata",
+          "trigger": "After the match, list change of a folder"
+        },
+        "metadata_vote_backfill": {
+          "name": "Backfill votes",
+          "trigger": "After every full scan while titles wait for a vote"
+        },
+        "image_fetch": {
+          "name": "Fetch images",
+          "trigger": "After the match, catch-up at start"
+        },
+        "trailer_find": {
+          "name": "Find trailer",
+          "trigger": "After the match"
+        },
+        "podcast_fetch": {
+          "name": "Fetch podcast feed",
+          "trigger": "From the feed poll per due subscription, “Refresh” per podcast, new subscription"
+        },
+        "podcast_poll": {
+          "name": "Check podcast feeds",
+          "trigger": "Schedule every 5 min: due subscriptions are fetched"
+        },
+        "trakt_refresh": {
+          "name": "Fetch spotlight list",
+          "trigger": "Schedule at the interval of the spotlight page, “Fetch now”"
+        },
+        "update_check": {
+          "name": "Update check",
+          "trigger": "Schedule daily, 60 s after start, “Check now”"
+        },
+        "download_prepare": {
+          "name": "Prepare download",
+          "trigger": "A profile's download; the reconciliation every 10 min re-queues unfinished ones"
+        },
+        "notify_deliver": {
+          "name": "Deliver notification",
+          "trigger": "Every event with a channel (e-mail, Web Push, Telegram)"
+        },
+        "jobs_prune": {
+          "name": "Prune history",
+          "trigger": "Schedule daily: finished runs older than 30 days"
+        }
       }
     }
   },

@@ -392,6 +392,7 @@ describe('admin overview (A-2, A-3)', () => {
       ['Ankündigungen', '/admin/announcements'],
     ]);
     expect(cards('System')).toEqual([
+      ['Hintergrundjobs', '/admin/jobs'],
       ['Integrationen', '/admin/integrations'],
       ['Benachrichtigungen', '/settings/notifications'],
       ['Statistiken', '/admin/stats'],
@@ -426,6 +427,7 @@ describe('admin navigation (A-2)', () => {
       'Sammlungen',
       'Startseite',
       'Ankündigungen',
+      'Hintergrundjobs',
       'Integrationen',
       'Statistiken',
       'Sicherung',

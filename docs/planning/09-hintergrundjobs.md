@@ -3,8 +3,8 @@
 - **Status: Fassung 4 (30. Oktober 2026), freigegeben mit dem Merge von PR #54 (`05df9c5`); in
   Umsetzung.** Schritt 0 (Entscheid 15, ADR 0017, Neuverankerung; Abschnitt 13.3), Schritt 1
   (Schema, Registry, Scheduler; 13.4), Schritt 2 (Fortschritt, Pause, Abbruch-Haken, Verlauf;
-  13.5) und Schritt 3 (Vertrag 1.5.0, Server-Handler; 13.6) liegen auf einem Zweig ab `main`
-  `05df9c5` (PR #55). Der
+  13.5), Schritt 3 (Vertrag 1.5.0, Server-Handler; 13.6) und Schritt 4 (Seite; 13.7) liegen auf
+  einem Zweig ab `main` `05df9c5` (PR #55). Der
   OMC-Kritiker hat Fassung 1 geprüft (0 Blocker,
   8 Major, 16 Minor; Abschnitt 13); Fassung 2 arbeitet alle ein. Marco hat am 30. Oktober 2026
   alle Fragen beantwortet (Abschnitt 11, 13.2); zwei Antworten weichen von der Empfehlung ab und
@@ -1109,4 +1109,29 @@ Handler in `api/jobtype_handlers.go`, drei neue Problemcodes, Vertragstest. Abwe
 
 Vertragstest: `TestContractCoversEveryOperation` kennt die sieben Operationen (Fixture mit
 Registry und Scheduler); `JobCounts.paused` kommt aus `job_types`.
+
+### 13.7 Befunde aus Schritt 4 (30. Oktober 2026)
+
+Schritt 4 ist nach Abschnitt 7 gebaut: `web/src/features/admin/JobsPage.tsx` (Kopf mit fünf
+Zahlen, Pools, Pausen-Hinweis mit «Fortsetzen», «Läuft gerade», Karten in vier Gruppen, Dialog
+«Läufe von X» mit sechs Reitern), `JobScheduleDialog.tsx`, `jobsFormat.ts` (Dauern, Namen,
+Zustand), Route `/admin/jobs` und `paths.adminJobs`, Eintrag in `sections.ts` vor
+`integrations`, Dashboard-Kachel mit «Alle Jobs» und «Pausiert», Sprachdateien (`admin.jobs.*`,
+`admin.sections.jobs`, `admin.home.jobs.{all,paused}`, drei Problemcodes, achtzehn
+`admin.jobs.types.<typ>`), `JobsPage.test.tsx`, `web/e2e/admin-jobs.spec.ts`, `NAV_PAGES`.
+Abweichungen:
+
+| Stelle | Papier | Gebaut | Grund |
+|---|---|---|---|
+| 7, Navigation | Icon `activity`, «neu in `Icon.tsx`, falls keines passt» | Icon **`refresh`** (vorhanden) | Ein neues Icon änderte die Storybook-Baselines von `Icon`, die in dieser Sandbox nicht geschossen werden können (kein Docker); die Navigation zeigt ohnehin keine Symbole |
+| 2.2, Kopf | Zahlen «als Chips» | fünf `StatTile` (Laufend, Wartend, Geplant, Pausiert, Fehlgeschlagen), wie das Dashboard | dieselbe Komponente wie die Kachel; Chips tragen auf den Karten den Zustand |
+| 7, Tastaturtest | «Wartende abbrechen» öffnet die Bestätigung, Escape, Fokus zurück | im **Komponententest** (`JobsPage.test.tsx`: Escape behält, Bestätigen ruft `cancelJobRuns` mit `scope=queued`); der e2e-Test lässt es aus | Auf dem e2e-Server gibt es keinen wartenden Lauf, solange die Jobart pausiert ist (kein API-Weg reiht dann ein), und ohne Pause ist der Lauf in Sekunden weg |
+| 7, Zeile «Läuft gerade» | Knopf «Pausieren» beschriftet «Lauf … pausieren» | sichtbar «Lauf pausieren», `aria-label` «<Name> pausieren (hält diesen und alle laufenden Läufe des Jobs an)»; der Komponententest prüft einen Aufruf mit der Jobart und «wird angehalten» an beiden Zeilen | wie 2.2 |
+| 7, Pausen-Hinweis | Hinweis in Warnfarbe | `Notice` in `warning` mit einem «Fortsetzen»-Knopf je pausierter Jobart in der Hinweiszeile | der Weg zur Karte entfällt |
+| 7, Zeitplan-Dialog | `Select` aus `ui` | `SelectField` (natives `<select>`, Pfeiltasten wählen) mit den Stufen 5 min bis wöchentlich innerhalb `limits`; ein gespeicherter Takt ausserhalb der Stufen bleibt als Eintrag erhalten; Fenster über zwei `TextField type="time"` | vorhandene Bausteine |
+| 7, Texte | Gegenstand und Notiz «vom Server» | Notizen sind Rohtext des Servers (`Filme · Movies/2024`), der Client formatiert nur Zahlen und Dauern (`admin.jobs.duration.*`: Sekunden unter einer Minute, Minuten bis 90, dann Stunden, «über 1 Tag») | Regel 9, 12 |
+| 5.3 | `DownloadState.error` | Beschreibung nennt `cancelled_by_admin` | kein Vertragsbruch |
+| 7, Storybook | — | keine neue `ui`-Komponente, keine neuen Baselines | — |
+
+Nicht gebaut (Abgrenzung): kein Pausieren je Lauf, keine Arbeiterzahl, keine Diagramme.
 

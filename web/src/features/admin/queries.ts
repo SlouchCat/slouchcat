@@ -22,7 +22,13 @@ import type {
   Invitation,
   IssueKind,
   IssuePage,
+  JobCancelResult,
+  JobOverview,
+  JobRun,
+  JobRunPage,
+  JobScheduleUpdate,
   JobSummary,
+  JobTypeInfo,
   Library,
   MetadataProviderInfo,
   PathMapping,
@@ -332,6 +338,43 @@ export const retryJob = (id: number): Promise<JobSummary> =>
 
 export const cancelJob = (id: number) =>
   request(api.DELETE('/admin/jobs/{id}', { params: { path: { id } } }));
+
+// Background jobs (concept 09, ADR 0017): the page /admin/jobs polls the overview like the
+// dashboard; the runs of one type are asked when their dialog is open.
+export const JOBS_POLL_MS = 5000;
+
+export const jobTypesQuery = queryOptions({
+  queryKey: ['admin', 'job-types'],
+  queryFn: ({ signal }): Promise<JobOverview> => request(api.GET('/admin/job-types', { signal })),
+  refetchInterval: JOBS_POLL_MS,
+});
+
+export type JobRunState = 'queued' | 'planned' | 'running' | 'failed' | 'done' | 'cancelled';
+
+export const jobRunsQuery = (type: string, state: JobRunState) =>
+  queryOptions({
+    queryKey: ['admin', 'job-runs', type, state],
+    queryFn: ({ signal }): Promise<JobRunPage> =>
+      request(api.GET('/admin/jobs', { params: { query: { type, state, limit: 200 } }, signal })),
+    refetchInterval: JOBS_POLL_MS,
+  });
+
+export const runJobType = (type: string): Promise<JobRun[]> =>
+  request(api.POST('/admin/job-types/{type}/run', { params: { path: { type } } }));
+
+export const pauseJobType = (type: string): Promise<JobTypeInfo> =>
+  request(api.POST('/admin/job-types/{type}/pause', { params: { path: { type } } }));
+
+export const resumeJobType = (type: string): Promise<JobTypeInfo> =>
+  request(api.POST('/admin/job-types/{type}/resume', { params: { path: { type } } }));
+
+export const updateJobSchedule = (type: string, body: JobScheduleUpdate): Promise<JobTypeInfo> =>
+  request(api.PATCH('/admin/job-types/{type}/schedule', { params: { path: { type } }, body }));
+
+export const cancelJobRuns = (type: string, scope: 'queued' | 'all'): Promise<JobCancelResult> =>
+  request(
+    api.DELETE('/admin/job-types/{type}/runs', { params: { path: { type }, query: { scope } } }),
+  );
 
 /** Keys, e-mail server, Telegram bot, Web Push, update check and public URL (A-2). */
 export const settingsQuery = queryOptions({

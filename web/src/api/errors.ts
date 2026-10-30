@@ -71,6 +71,9 @@ const problemKeys = {
   email_send_failed: 'errors.code.email_send_failed',
   job_not_failed: 'errors.code.job_not_failed',
   update_check_disabled: 'errors.code.update_check_disabled',
+  job_type_not_runnable: 'errors.code.job_type_not_runnable',
+  job_type_paused: 'errors.code.job_type_paused',
+  job_type_not_scheduled: 'errors.code.job_type_not_scheduled',
   // The spotlight list (M11): another entry holds the place an entry is pinned to.
   rank_taken: 'errors.code.rank_taken',
 } as const;

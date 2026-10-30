@@ -168,7 +168,10 @@
       "owner_required": "Das darf nur der Besitzer.",
       "owner_protected": "Das Besitzerkonto lässt sich weder entfernen noch degradieren.",
       "last_admin": "Das ist der letzte Administrator. Ernenne zuerst einen zweiten.",
-      "admin_limits_fixed": "Ein Administrator sieht immer alle Bibliotheken bis FSK 18. Entziehe zuerst die Rolle."
+      "admin_limits_fixed": "Ein Administrator sieht immer alle Bibliotheken bis FSK 18. Entziehe zuerst die Rolle.",
+      "job_type_not_runnable": "Dieser Job hat keinen manuellen Lauf; seine Läufe kommen von Ereignissen.",
+      "job_type_paused": "Der Job ist pausiert; setze ihn zuerst fort.",
+      "job_type_not_scheduled": "Dieser Job hat keinen Zeitplan."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -1491,6 +1494,10 @@
         "title": "Ankündigungen",
         "description": "Mitteilungen an alle Profile."
       },
+      "jobs": {
+        "title": "Hintergrundjobs",
+        "description": "Laufende und geplante Jobs, Pause, Abbruch und Zeitpläne."
+      },
       "integrations": {
         "title": "Integrationen",
         "description": "Schlüssel, E-Mail, Telegram, Web-Push und Update-Prüfung."
@@ -1557,7 +1564,9 @@
           "confirm": "Job abbrechen"
         },
         "retried": "Job {{type}} wartet wieder.",
-        "cancelled": "Job {{type}} abgebrochen."
+        "cancelled": "Job {{type}} abgebrochen.",
+        "all": "Alle Jobs",
+        "paused": "Pausiert"
       },
       "storage": {
         "title": "Speicher",
@@ -2095,6 +2104,266 @@
         "title": "„{{title}}“ löschen?",
         "body": "Die Ankündigung und ihre Lesebestätigungen werden gelöscht. Schon verschickte Nachrichten bleiben bei den Empfängern.",
         "confirm": "Ankündigung löschen"
+      }
+    },
+    "jobs": {
+      "title": "Hintergrundjobs",
+      "intro": "Was der Server im Hintergrund tut: welche Jobs laufen, seit wann, wie lange noch, und wann der nächste Lauf kommt. Jeden Job kannst du jetzt ausführen, pausieren und seine Läufe abbrechen.",
+      "counts": {
+        "running": "Laufend",
+        "queued": "Wartend",
+        "planned": "Geplant",
+        "paused": "Pausiert",
+        "failed": "Fehlgeschlagen"
+      },
+      "pools": {
+        "title": "Arbeiter",
+        "general": "Allgemein",
+        "download": "Downloads",
+        "notify": "Benachrichtigungen",
+        "workers": "{{count}} Arbeiter",
+        "backlog": "Stau ca. {{duration}}",
+        "free": "frei",
+        "noEstimate": "ohne Schätzung"
+      },
+      "pausedBanner": {
+        "title_one": "{{count}} Job pausiert",
+        "title_other": "{{count}} Jobs pausiert",
+        "body": "Pausierte Jobs starten keine Läufe, bis du sie fortsetzt: {{types}}."
+      },
+      "running": {
+        "title": "Läuft gerade",
+        "empty": "Gerade läuft nichts.",
+        "since": "seit {{duration}}",
+        "progress": "{{done}} von {{total}}",
+        "progressLabel": "{{name}}: {{percent}} %",
+        "pause": "Lauf pausieren",
+        "pauseLabel": "{{name}} pausieren (hält diesen und alle laufenden Läufe des Jobs an)",
+        "cancel": "Abbrechen",
+        "cancelLabel": "Lauf {{id}} von {{name}} abbrechen"
+      },
+      "estimate": {
+        "left": "noch ca. {{duration}}",
+        "computing": "wird berechnet",
+        "longer": "länger als üblich"
+      },
+      "state": {
+        "idle": "ruht",
+        "queued": "wartet",
+        "running": "läuft",
+        "paused": "pausiert",
+        "stopping": "wird angehalten",
+        "unknown": "unbekannt"
+      },
+      "groups": {
+        "library": "Bibliothek",
+        "metadata": "Metadaten",
+        "delivery": "Zustellung",
+        "system": "System"
+      },
+      "card": {
+        "queued": "Wartend",
+        "queuedValue": "{{count}}",
+        "queuedEstimate": "dran in ca. {{duration}}",
+        "planned": "geplant {{count}}",
+        "lastRun": "Letzter Lauf",
+        "never": "noch nie",
+        "ago": "vor {{duration}}",
+        "lastOk": "OK",
+        "lastFailed": "Fehler: {{error}}",
+        "lastCancelled": "abgebrochen",
+        "lastSkipped": "nichts zu tun",
+        "nextRun": "Nächster Lauf",
+        "in": "in {{duration}}",
+        "every": "alle {{duration}}",
+        "window": "{{start}}–{{end}}",
+        "off": "aus",
+        "onDemand": "bei Bedarf",
+        "pausedNext": "pausiert",
+        "trigger": "Ausgelöst durch",
+        "triggerEvent": "bei Bedarf, durch Ereignisse im Server",
+        "triggerManual": "von Hand",
+        "unknown": "Dieser Server kennt den Job nicht mehr (älterer Stand).",
+        "median": "üblich {{duration}}"
+      },
+      "actions": {
+        "run": "Jetzt ausführen",
+        "runLabel": "{{name}} jetzt ausführen",
+        "pause": "Pausieren",
+        "pauseLabel": "{{name}} pausieren",
+        "resume": "Fortsetzen",
+        "resumeLabel": "{{name}} fortsetzen",
+        "cancelQueued": "Wartende abbrechen ({{count}})",
+        "cancelQueuedLabel": "Wartende Läufe von {{name}} abbrechen",
+        "cancelAll": "Alle Läufe abbrechen",
+        "cancelAllLabel": "Alle Läufe von {{name}} abbrechen",
+        "schedule": "Zeitplan …",
+        "scheduleLabel": "Zeitplan von {{name}}",
+        "runs": "Läufe …",
+        "runsLabel": "Läufe von {{name}}"
+      },
+      "confirm": {
+        "cancelQueuedTitle": "Wartende Läufe von {{name}} abbrechen?",
+        "cancelQueuedBody_one": "{{count}} wartender Lauf wird abgebrochen und nicht nachgeholt.",
+        "cancelQueuedBody_other": "{{count}} wartende Läufe werden abgebrochen und nicht nachgeholt.",
+        "cancelAllTitle": "Alle Läufe von {{name}} abbrechen?",
+        "cancelAllBody": "{{queued}} wartende und {{running}} laufende Läufe enden sofort. Abbrechen ist endgültig.",
+        "cancelRunTitle": "Lauf von {{name}} abbrechen?",
+        "cancelRunBody": "Der Lauf endet sofort und wird nicht nachgeholt.",
+        "notifyWarning": "Eine abgebrochene Zustellung kommt nicht an.",
+        "scanWarning": "Die Bibliothek endet als «abgebrochen»; der nächste Scan holt nach.",
+        "downloadWarning": "Die Downloads enden als «fehlgeschlagen» und werden nicht nachgeholt.",
+        "confirm": "Abbrechen",
+        "keep": "Behalten"
+      },
+      "messages": {
+        "ran_zero": "{{name}}: nichts einzureihen.",
+        "ran_one": "{{name}}: {{count}} Lauf eingereiht.",
+        "ran_other": "{{name}}: {{count}} Läufe eingereiht.",
+        "paused": "{{name}} pausiert; laufende Läufe halten an und gehen in die Warteschlange zurück.",
+        "resumed": "{{name}} fortgesetzt.",
+        "cancelled_zero": "{{name}}: nichts abzubrechen.",
+        "cancelled_one": "{{name}}: {{count}} Lauf abgebrochen.",
+        "cancelled_other": "{{name}}: {{count}} Läufe abgebrochen.",
+        "runCancelled": "Lauf {{id}} abgebrochen.",
+        "runRetried": "Lauf {{id}} wartet wieder.",
+        "scheduleSaved": "Zeitplan von {{name}} gespeichert."
+      },
+      "runs": {
+        "title": "Läufe von {{name}}",
+        "tabs": "Läufe nach Zustand",
+        "tab": {
+          "running": "Laufend",
+          "queued": "Wartend",
+          "planned": "Geplant",
+          "failed": "Fehlgeschlagen",
+          "done": "Erledigt",
+          "cancelled": "Abgebrochen"
+        },
+        "empty": "Keine Läufe in diesem Zustand.",
+        "total": "{{count}} insgesamt, die neuesten {{shown}} gezeigt",
+        "columns": {
+          "subject": "Gegenstand",
+          "priority": "Prio",
+          "started": "Start",
+          "duration": "Dauer",
+          "attempts": "Versuche",
+          "error": "Fehler",
+          "actions": "Aktionen"
+        },
+        "noSubject": "#{{id}}",
+        "retry": "Erneut",
+        "retryLabel": "Lauf {{id}} erneut einreihen",
+        "cancel": "Abbrechen",
+        "cancelLabel": "Lauf {{id}} abbrechen",
+        "runAfter": "frühestens {{time}}"
+      },
+      "schedule": {
+        "title": "Zeitplan von {{name}}",
+        "description": "Takt, Zeitfenster und Ein/Aus. Der nächste Lauf richtet sich danach neu aus; «Jetzt ausführen» ignoriert das Fenster.",
+        "enabled": "Zeitplan eingeschaltet",
+        "every": "Takt",
+        "everyOptions": {
+          "m5": "alle 5 Minuten",
+          "m15": "alle 15 Minuten",
+          "m30": "alle 30 Minuten",
+          "h1": "stündlich",
+          "h2": "alle 2 Stunden",
+          "h6": "alle 6 Stunden",
+          "h12": "alle 12 Stunden",
+          "h24": "täglich",
+          "h48": "alle 2 Tage",
+          "d7": "wöchentlich"
+        },
+        "window": "Nur in einem Zeitfenster",
+        "windowStart": "Von",
+        "windowEnd": "Bis",
+        "windowHint": "Zeitzone des Servers: {{zone}}. Ein Fenster darf über Mitternacht gehen.",
+        "traktHint": "Takt und Ein/Aus sind dieselbe Einstellung wie auf der Seite Spotlight.",
+        "updateHint": "Ein/Aus ist dieselbe Einstellung wie die Update-Prüfung in den Einstellungen.",
+        "save": "Speichern"
+      },
+      "duration": {
+        "seconds": "{{count}} s",
+        "minutes": "{{count}} min",
+        "hours": "{{count}} h",
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "days": "{{count}} Tage",
+        "overDay": "über 1 Tag"
+      },
+      "types": {
+        "scan_library": {
+          "name": "Bibliotheksscan",
+          "trigger": "Zeitplan alle 6 h und Start des Servers, «Scannen» auf der Bibliotheksseite, Webhook, Dateiwächter"
+        },
+        "scan_path": {
+          "name": "Ordnerscan",
+          "trigger": "Dateiwächter bei Änderungen, Webhook"
+        },
+        "probe_file": {
+          "name": "Datei prüfen",
+          "trigger": "vom Scan je neue Datei, «Datei prüfen» in der Pflege"
+        },
+        "probe_keyframes": {
+          "name": "Keyframe-Index",
+          "trigger": "vom Scan je Datei, vor einer Wiedergabe mit Vorrang"
+        },
+        "library_sweep": {
+          "name": "Aufräumen fehlender Titel",
+          "trigger": "Zeitplan stündlich und Start des Servers"
+        },
+        "segments_detect": {
+          "name": "Intro und Abspann erkennen",
+          "trigger": "vom Scan je Serienstaffel"
+        },
+        "metadata_match": {
+          "name": "Titel zuordnen",
+          "trigger": "vom Scan, Zuordnung von Hand, Ordner ändern"
+        },
+        "metadata_fill": {
+          "name": "Metadaten auffüllen",
+          "trigger": "nach der Zuordnung, Listenänderung am Ordner"
+        },
+        "metadata_vote_backfill": {
+          "name": "Wertungen nachholen",
+          "trigger": "nach jedem vollständigen Scan, solange Titel ohne Wertung warten"
+        },
+        "image_fetch": {
+          "name": "Bilder holen",
+          "trigger": "nach der Zuordnung, Nachholen beim Start"
+        },
+        "trailer_find": {
+          "name": "Trailer suchen",
+          "trigger": "nach der Zuordnung"
+        },
+        "podcast_fetch": {
+          "name": "Podcast-Feed abrufen",
+          "trigger": "vom Feed-Takt je fälligem Abo, «Aktualisieren» je Podcast, neues Abo"
+        },
+        "podcast_poll": {
+          "name": "Podcast-Feeds prüfen",
+          "trigger": "Zeitplan alle 5 min: fällige Abos werden abgerufen"
+        },
+        "trakt_refresh": {
+          "name": "Spotlight-Liste abrufen",
+          "trigger": "Zeitplan nach dem Takt der Seite Spotlight, «Jetzt abrufen»"
+        },
+        "update_check": {
+          "name": "Update-Prüfung",
+          "trigger": "Zeitplan täglich, 60 s nach dem Start, «Jetzt prüfen»"
+        },
+        "download_prepare": {
+          "name": "Download vorbereiten",
+          "trigger": "Download eines Profils; der Abgleich alle 10 min reiht Unfertiges nach"
+        },
+        "notify_deliver": {
+          "name": "Mitteilung zustellen",
+          "trigger": "jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)"
+        },
+        "jobs_prune": {
+          "name": "Verlauf aufräumen",
+          "trigger": "Zeitplan täglich: erledigte Läufe älter als 30 Tage"
+        }
       }
     }
   },

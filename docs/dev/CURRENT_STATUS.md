@@ -1,5 +1,45 @@
 # Aktueller Stand
 
+## Hintergrundjobs (Konzept 09): Schritt 4 (30. Oktober 2026)
+
+Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 4:
+die Seite. Kein Vertragsbruch (nur die Beschreibung von `DownloadState.error` nennt
+`cancelled_by_admin`).
+
+**Gebaut.** `web/src/features/admin/JobsPage.tsx`: Kopf mit Titel und fünf Zahlen (Laufend,
+Wartend, Geplant, Pausiert, Fehlgeschlagen), die Pools mit Arbeitern und Stau, ein Hinweis in
+Warnfarbe mit «Fortsetzen» je pausierter Jobart, «Läuft gerade» (Name, Gegenstand, Notiz, Dauer
+sekündlich hochgezählt, Balken bei bekanntem Umfang, Restzeit «noch ca.» / «wird berechnet» /
+«länger als üblich», Knöpfe «Lauf pausieren» und «Abbrechen» mit Bestätigung), je Jobart eine Karte
+in vier Gruppen (Name und Code, Zustandschip, Wartend mit Schätzung und «üblich», Letzter Lauf,
+Nächster Lauf mit Takt und Fenster, Ausgelöst durch; Knöpfe Jetzt ausführen, Pausieren/Fortsetzen,
+Wartende abbrechen (n), Alle Läufe abbrechen, Zeitplan …, Läufe …), Dialog «Läufe von X» mit sechs
+Reitern und Tabelle (Erneut, Abbrechen), `JobScheduleDialog.tsx` (Ein/Aus, Takt aus den Grenzen
+des Servers, Zeitfenster mit zwei Zeitfeldern, Hinweise für Spotlight und Update, 422 am Feld).
+Abfrage alle 5 s, pausiert bei offenem Dialog. Route `/admin/jobs`, Navigation in «System» vor
+«Integrationen» (Icon `refresh`), Dashboard-Kachel mit «Alle Jobs» und «Pausiert». Texte in
+`de.json`/`en.json` (`admin.jobs.*`, achtzehn Jobarten mit Name und Auslöser, drei Problemcodes).
+Abweichungen in **13.7**.
+
+**Tests.** `JobsPage.test.tsx` (Zahlen, Pools, laufende Läufe mit Balken und Restzeit, Karten;
+Pausieren in der Zeile ruft die Mutation einmal mit der Jobart und beide Zeilen zeigen «wird
+angehalten»; Jetzt ausführen mit Meldung und 409; Wartende abbrechen mit Bestätigung, Escape und
+Fokus zurück; Nur-Administratoren-Hinweis), `AdminHomePage.test.tsx` (Karte und Navigation),
+`locales.test.ts`; `web/e2e/admin-jobs.spec.ts` (Navigation, Jetzt ausführen bis «Erledigt»,
+Pausieren/Fortsetzen mit 409, Dialog Läufe mit Pfeiltasten und Escape, Zeitplan auf 2 h, Zurück,
+sichtbarer Fokus, keine Fokusfalle; `afterEach` setzt pausierte Jobarten fort und stellt den
+Sweep-Takt wieder her), `NAV_PAGES` mit «Hintergrundjobs».
+
+**DoD-Belege.**
+
+```
+STEP4_RESULTS
+```
+
+**Offen (Schritt 5):** Image bauen, CT 190 umstellen, Abnahme am Handy, Messung
+`docs/perf/hintergrundjobs.md` (`listJobTypes` vor und nach dem ersten `prune`, Schätzung gegen
+Wirklichkeit), ein Tag Beobachtung der Zeitpläne, Release-Notes-Zeile (5.4), Storybook unverändert.
+
 ## Hintergrundjobs (Konzept 09): Schritt 3 (30. Oktober 2026)
 
 Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 3:
@@ -42,7 +82,9 @@ $ go test ./internal/admin/ ./internal/api/ ./internal/metadata/ ./internal/jobs
 ok  …/admin 0.852s (Jobtypen) · ok …/api 17.933s (Vertrag, Schema) · ok …/metadata 26.090s · ok …/jobs 5.690s
 $ go tool golangci-lint run ./...               0 issues.
 $ pnpm -C web exec tsc --noEmit                 keine Fehler (Web-App kompiliert gegen den Client 1.5.0)
-STEP3_CI_RESULT
+$ task ci:server                               grün (gen, gen:check, lint, test)
+$ task web:gen web:gen:check web:lint web:test   grün (api-client 1.5.0 ohne Drift)
+$ task build && task ci:e2e                     478 passed (24.8m)
 ```
 
 **Offen (Schritt 4 und 5):** Seite `/admin/jobs` mit Dialogen, Navigation, Dashboard-Link und
@@ -97,7 +139,8 @@ ok  …/library 40.259s  ok  …/offline 15.522s  ok  …/admin 21.792s  ok  …
 ok  …/api 38.419s      ok  …/notify 7.351s    ok  …/cmd/slouchcat 4.071s
 $ go test ./internal/store/ -run 'TestFrozenHintergrundjobs|TestFrozenStatesMigrate/hintergrundjobs'   ok  22.154s
 $ go tool golangci-lint run ./...               0 issues.
-STEP2_CI_RESULT
+$ task ci:server (nach dem Commit)           grün (gen, gen:check, lint, test)
+$ task build && task ci:e2e                     478 passed (25.1m); A-9 log scan: 76016 lines, 17 secrets of the run, 0 findings
 ```
 
 Eingefrorener Stand erzeugt aus `startseite.sql` plus 80 s Serverlauf (Port 18099, zwei Arbeiter):
