@@ -143,7 +143,8 @@
 // Each root has a watch mode chosen from its file system (statfs): inotify for local file systems,
 // an incremental stat pass (Poller) for NFS and SMB with the interval max(45 s, 3 × pass duration),
 // and both for FUSE and unknown file systems. Every detected change queues a debounced scan.path
-// of the changed directories; Start adds a full scan per library every 6 hours.
+// of the changed directories; the job scheduler adds a full scan per library every 6 hours
+// (schedule scan.library, RegisterTypes).
 //
 // # Rules shared with the folder browser
 //

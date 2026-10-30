@@ -365,12 +365,12 @@ func TestNewestEpisodes(t *testing.T) {
 	}
 }
 
-// The poller queues a subscription once its last fetch is FeedInterval old (H-2: < 65 min with the
-// 5-minute tick and the wait of the job).
+// The schedule podcast.poll queues a subscription once its last fetch is FeedInterval old (H-2:
+// < 65 min with the 5-minute tick and the wait of the job).
 func TestQueueDuePodcasts(t *testing.T) {
 	t.Parallel()
 	if FeedInterval+feedPollInterval > 60*time.Minute {
-		t.Errorf("FeedInterval %v plus the poller tick %v leaves no reserve below 65 minutes", FeedInterval, feedPollInterval)
+		t.Errorf("FeedInterval %v plus the poll interval %v leaves no reserve below 65 minutes", FeedInterval, feedPollInterval)
 	}
 	e := newPodcastEnv(t, 1)
 	ctx := context.Background()
@@ -390,6 +390,21 @@ func TestQueueDuePodcasts(t *testing.T) {
 	}
 	if got := e.jobs(t, JobPodcastFetch); len(got) != 1 || got[0] != "podcast:"+p.ID {
 		t.Errorf("fetch jobs = %v", got)
+	}
+	// The Run of podcast.poll with a higher priority (a run by hand) raises the waiting fetch
+	// instead of being swallowed by it, and never lowers it.
+	ids, err := e.svc.runPodcastPoll(ctx, e.queue, jobs.ManualPriority)
+	if err != nil || len(ids) != 1 {
+		t.Fatalf("run by hand: %v, %v; want the one waiting job", ids, err)
+	}
+	if j, err := e.queue.Get(ctx, ids[0]); err != nil || j.Priority != jobs.ManualPriority {
+		t.Errorf("waiting fetch after the run by hand = %+v, %v; want priority %d", j, err, jobs.ManualPriority)
+	}
+	if _, err := e.svc.runPodcastPoll(ctx, e.queue, podcastFetchPriority); err != nil {
+		t.Fatal(err)
+	}
+	if j, err := e.queue.Get(ctx, ids[0]); err != nil || j.Priority != jobs.ManualPriority {
+		t.Errorf("waiting fetch after the scheduled run = %+v, %v; want still priority %d", j, err, jobs.ManualPriority)
 	}
 	// The job runs through the worker handler.
 	j, err := e.queue.Claim(ctx, "w", []string{JobPodcastFetch})

@@ -23,7 +23,8 @@ import (
 // priority 2) fetches the top 100 of the public trending list (movies and shows) with the server's
 // client id and replaces spotlight_entries in one transaction, under list_key "trending" (the one
 // list of the singleton spotlight_config). A failure empties the table, so the spotlight row
-// disappears (I-7), and stores the error. RunTrakt queues the job once a day.
+// disappears (I-7), and stores the error. The schedule trakt.refresh (concept 09) queues the job
+// every spotlight_config.interval_hours; runTrakt is its Run.
 const (
 	JobTraktRefresh = "trakt.refresh"
 	traktJobKey     = "trakt"
@@ -33,8 +34,9 @@ const (
 	traktPriority       = 2
 	traktManualPriority = 7
 
-	// traktPollInterval is how often RunTrakt checks whether a run is due.
-	traktPollInterval = 15 * time.Minute
+	// traktDefaultInterval is the interval of the schedule trakt.refresh before the first row
+	// exists; the seed reads spotlight_config.interval_hours (default 24 h as well).
+	traktDefaultInterval = 24 * time.Hour
 
 	// Settings of the Trakt state (Unix ms as decimal text; the error as text).
 	SettingTraktLastSuccess = "trakt_last_success"
@@ -117,48 +119,44 @@ func (s *Service) traktClientID(ctx context.Context) (string, error) {
 	return s.keys.TraktClientID(ctx)
 }
 
-// RunTrakt queues trakt.refresh at the start and then checks every 15 minutes whether the last
-// attempt is spotlight_config.interval_hours old, until ctx ends (E-7, S-8).
-func (s *Service) RunTrakt(ctx context.Context) {
-	t := time.NewTicker(traktPollInterval)
-	defer t.Stop()
-	for {
-		if _, err := s.QueueDueTrakt(ctx); err != nil && ctx.Err() == nil {
-			s.log.WarnContext(ctx, "queue trakt refresh", "err", err)
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-		}
-	}
-}
-
-// QueueDueTrakt queues trakt.refresh when a client id is configured and the last attempt is
-// spotlight_config.interval_hours old or there was none (one tick of RunTrakt). It reports whether
-// it queued.
-// Without a client id it empties the stored entries, so the start page drops the spotlight row
-// (the documented behaviour of an empty SLOUCHCAT_TRAKT_CLIENT_ID).
-func (s *Service) QueueDueTrakt(ctx context.Context) (bool, error) {
+// runTrakt is the Run of the schedule trakt.refresh (jobs.Type): it queues the refresh with prio
+// when a client id is configured (E-7, S-8). Without a client id it queues nothing and empties the
+// stored entries, so the start page drops the spotlight row (the documented behaviour of an empty
+// SLOUCHCAT_TRAKT_CLIENT_ID); that special case stays here and not in the handler. The interval
+// is the schedule's (seeded from spotlight_config.interval_hours, traktSeed).
+func (s *Service) runTrakt(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {
 	id, err := s.traktClientID(ctx)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	if id == "" {
-		return false, s.dropSpotlightEntries(ctx)
+		return nil, s.dropSpotlightEntries(ctx)
 	}
-	last, err := s.traktSettingTime(ctx, SettingTraktLastAttempt)
+	jobID, err := s.enqueueTrakt(ctx, prio)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
+	return []int64{jobID}, nil
+}
+
+// traktSeed is the Seed of the schedule trakt.refresh: the interval of spotlight_config and the
+// last attempt of the earlier poller, so the first row after migration 00027 continues the rhythm
+// instead of fetching at once or a day late. The switch of the spotlight (spotlight_config.enabled)
+// hides the row on the start page only; the list is fetched either way, as before.
+func (s *Service) traktSeed(ctx context.Context) (jobs.ScheduleSeed, error) {
 	cfg, err := appq.New(s.db.Read).GetSpotlightConfig(ctx)
 	if err != nil {
-		return false, fmt.Errorf("get spotlight config: %w", err)
+		return jobs.ScheduleSeed{}, fmt.Errorf("get spotlight config: %w", err)
 	}
-	if last != nil && s.trakt.now().Sub(*last) < time.Duration(cfg.IntervalHours)*time.Hour {
-		return false, nil
+	seed := jobs.ScheduleSeed{Every: time.Duration(cfg.IntervalHours) * time.Hour, Enabled: true}
+	last, err := s.traktSettingTime(ctx, SettingTraktLastAttempt)
+	if err != nil {
+		return jobs.ScheduleSeed{}, err
 	}
-	return true, s.enqueueTrakt(ctx, traktPriority)
+	if last != nil {
+		seed.LastRun = *last
+	}
+	return seed, nil
 }
 
 // RefreshTrakt queues trakt.refresh out of schedule (admin button);
@@ -171,7 +169,8 @@ func (s *Service) RefreshTrakt(ctx context.Context) error {
 	if id == "" {
 		return model.ErrProviderNotConfigured
 	}
-	return s.enqueueTrakt(ctx, traktManualPriority)
+	_, err = s.enqueueTrakt(ctx, traktManualPriority)
+	return err
 }
 
 // dropSpotlightEntries empties spotlight_entries when it holds entries.
@@ -193,16 +192,16 @@ func (s *Service) dropSpotlightEntries(ctx context.Context) error {
 // enqueueTrakt queues the refresh with priority, or raises the priority of the one already waiting
 // under the key (Enqueue returns that job): a manual request must not be swallowed by a queued
 // nightly run.
-func (s *Service) enqueueTrakt(ctx context.Context, priority int) error {
+func (s *Service) enqueueTrakt(ctx context.Context, priority int) (int64, error) {
 	id, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobTraktRefresh, Priority: priority, IdempotencyKey: traktJobKey,
 		Payload: []byte(`{}`)})
 	if err != nil {
-		return fmt.Errorf("enqueue %s: %w", JobTraktRefresh, err)
+		return 0, fmt.Errorf("enqueue %s: %w", JobTraktRefresh, err)
 	}
 	if _, err := s.queue.RaiseQueuedPriority(ctx, id, priority); err != nil {
-		return fmt.Errorf("raise %s: %w", JobTraktRefresh, err)
+		return 0, fmt.Errorf("raise %s: %w", JobTraktRefresh, err)
 	}
-	return nil
+	return id, nil
 }
 
 // TraktStatus returns whether a client id is configured, the times of the last success and

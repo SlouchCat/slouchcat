@@ -20,10 +20,11 @@ import (
 
 // Update check of M8 (A-5, design 3.5). The job update.check reads the release manifest
 // {"version", "url", "notes", "publishedAt"} (JSON, at most 64 KiB, 10 s), compares its version
-// with the running one and stores the result in the setting update_state. RunUpdateCheck queues it
-// 60 s after the start and then whenever the last check is a day old, the way metadata.RunTrakt
-// schedules the Trakt lists. The check only reads the manifest; it never installs anything. Switched
-// off (update_check_enabled "0") there is no job, no stored state and no notice.
+// with the running one and stores the result in the setting update_state. The schedule update.check
+// (concept 09) queues it 60 s after the start and then every UpdateInterval; its switch is the
+// setting update_check_enabled (one value, two doors: this page and the jobs page). The check only
+// reads the manifest; it never installs anything. Switched off (update_check_enabled "0") there is
+// no job, no stored state and no notice.
 const (
 	JobUpdateCheck = "update.check"
 	updateJobKey   = "update.check"
@@ -33,12 +34,12 @@ const (
 	// the administration showed a stale release.
 	updatePriority = 8
 
-	// UpdateInterval is the age of the last check after which RunUpdateCheck queues the next.
-	UpdateInterval     = 24 * time.Hour
-	updatePollInterval = 15 * time.Minute
-	updateStartDelay   = 60 * time.Second
-	updateTimeout      = 10 * time.Second
-	maxManifestBytes   = 64 << 10
+	// UpdateInterval is the default interval of the schedule update.check; updateStartDelay its
+	// start delay (the first row takes them, after that the table job_schedules is the source).
+	UpdateInterval   = 24 * time.Hour
+	updateStartDelay = 60 * time.Second
+	updateTimeout    = 10 * time.Second
+	maxManifestBytes = 64 << 10
 )
 
 // storedUpdate is the setting update_state (times in Unix ms).
@@ -79,57 +80,54 @@ func (s *Service) WithUpdateCheck(manifestURL string, client *http.Client) *Serv
 	return s
 }
 
-// RegisterJobs registers the handlers of the admin jobs (update.check) on w.
-func (s *Service) RegisterJobs(w *jobs.Worker) {
-	w.Handle(JobUpdateCheck, s.handleUpdateCheck)
+// RegisterTypes registers the job types of the administration on r (concept 09, ADR 0017):
+// update.check is a schedule type of the group system, every UpdateInterval, 60 s after the start,
+// switched by update_check_enabled.
+func (s *Service) RegisterTypes(r *jobs.Registry) {
+	delay := updateStartDelay
+	r.Register(jobs.Type{
+		Name: JobUpdateCheck, Group: jobs.GroupSystem, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: updatePriority, Handler: s.handleUpdateCheck, Run: s.runUpdateCheck,
+		Every: UpdateInterval, StartDelay: &delay, Seed: s.updateSeed,
+	})
 }
 
-// RunUpdateCheck queues update.check 60 s after the start when it is due and then checks every
-// 15 minutes, until ctx ends.
-func (s *Service) RunUpdateCheck(ctx context.Context) {
-	start := time.NewTimer(updateStartDelay)
-	defer start.Stop()
-	select {
-	case <-ctx.Done():
-		return
-	case <-start.C:
-	}
-	t := time.NewTicker(updatePollInterval)
-	defer t.Stop()
-	for {
-		if _, err := s.QueueDueUpdateCheck(ctx); err != nil && ctx.Err() == nil {
-			s.log.WarnContext(ctx, "queue update check", "err", err)
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-		}
-	}
-}
-
-// QueueDueUpdateCheck queues update.check when the check is on and the last one is UpdateInterval
-// old or there was none (one tick of RunUpdateCheck). It reports whether it queued.
-func (s *Service) QueueDueUpdateCheck(ctx context.Context) (bool, error) {
-	if s.queue == nil {
-		return false, nil
-	}
+// runUpdateCheck is the Run of the schedule update.check (jobs.Type): one job under the key
+// update.check with prio, raised when it already waits. Switched off it queues nothing (the
+// schedule is disabled then as well; this is the guard for a manual run).
+func (s *Service) runUpdateCheck(ctx context.Context, q *jobs.Queue, prio int) ([]int64, error) {
 	on, err := s.updateCheckEnabled(ctx)
 	if err != nil || !on {
-		return false, err
+		return nil, err
 	}
-	st, err := s.storedUpdate(ctx)
+	id, err := q.Enqueue(ctx, jobs.NewJob{Type: JobUpdateCheck, Priority: prio, IdempotencyKey: updateJobKey, Payload: []byte(`{}`)})
 	if err != nil {
-		return false, err
+		return nil, fmt.Errorf("enqueue %s: %w", JobUpdateCheck, err)
 	}
-	if st.CheckedAt != 0 && s.now().Sub(time.UnixMilli(st.CheckedAt)) < UpdateInterval {
-		return false, nil
+	if _, err := q.RaiseQueuedPriority(ctx, id, prio); err != nil {
+		return nil, fmt.Errorf("raise %s: %w", JobUpdateCheck, err)
 	}
-	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobUpdateCheck, Priority: updatePriority, IdempotencyKey: updateJobKey,
-		Payload: []byte(`{}`)}); err != nil {
-		return false, fmt.Errorf("enqueue %s: %w", JobUpdateCheck, err)
+	return []int64{id}, nil
+}
+
+// updateSeed is the Seed of the schedule update.check: the switch of the setting and the time of
+// the last check, so the first row after migration 00027 continues the daily rhythm.
+func (s *Service) updateSeed(ctx context.Context) (jobs.ScheduleSeed, error) {
+	on, err := s.updateCheckEnabled(ctx)
+	if err != nil {
+		return jobs.ScheduleSeed{}, err
 	}
-	return true, nil
+	seed := jobs.ScheduleSeed{Every: UpdateInterval, Enabled: on}
+	if on {
+		st, err := s.storedUpdate(ctx)
+		if err != nil {
+			return jobs.ScheduleSeed{}, err
+		}
+		if st.CheckedAt != 0 {
+			seed.LastRun = time.UnixMilli(st.CheckedAt)
+		}
+	}
+	return seed, nil
 }
 
 // handleUpdateCheck runs one check. A failed read of the manifest is stored in the state and not

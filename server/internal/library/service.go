@@ -27,8 +27,8 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
-// Schedules inside Start. The table job_schedules stays unused in M1a: two fixed intervals do not
-// need a cron scheduler, and the idempotency keys keep the tickers from piling up jobs.
+// Defaults of the schedules of scan.library and library.sweep (RegisterTypes): the first row in
+// job_schedules takes them, after that the table is the source (concept 09, ADR 0017).
 const (
 	fullScanInterval = 6 * time.Hour
 	sweepInterval    = time.Hour
@@ -353,7 +353,7 @@ func (s *Service) QueueScan(ctx context.Context, id int64) (model.Library, error
 	if _, err := s.Get(ctx, id); err != nil {
 		return model.Library{}, err
 	}
-	if _, err := s.enqueueScan(ctx, id, 0); err != nil {
+	if _, err := s.enqueueScan(ctx, id, 0, prioScan); err != nil {
 		return model.Library{}, err
 	}
 	return s.Get(ctx, id)
@@ -481,11 +481,13 @@ func (s *Service) scannable(ctx context.Context, libraryID int64) (bool, error) 
 	return len(roots) > 0, nil
 }
 
-// enqueueScan queues scan.library and marks the library queued. It returns the job, or the zero
-// job when the library has no folder to walk: queueing one would leave the library "queued" for
-// good, and letting it run would end in "done" with zero files, which reads like a successful
-// scan of an empty folder (idea 02, step 14).
-func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.Duration) (jobs.Job, error) {
+// enqueueScan queues scan.library with prio and marks the library queued. A scan that already
+// waits under the key is raised to prio and never lowered (RaiseQueuedPriority), so a manual run
+// overtakes the scheduled one. It returns the job, or the zero job when the library has no folder
+// to walk: queueing one would leave the library "queued" for good, and letting it run would end
+// in "done" with zero files, which reads like a successful scan of an empty folder (idea 02,
+// step 14).
+func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.Duration, prio int) (jobs.Job, error) {
 	switch ok, err := s.scannable(ctx, libraryID); {
 	case err != nil:
 		return jobs.Job{}, err
@@ -497,9 +499,12 @@ func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.D
 		return jobs.Job{}, err
 	}
 	jobID, err := s.queue.Enqueue(ctx, jobs.NewJob{
-		Type: JobScanLibrary, Priority: prioScan, IdempotencyKey: scanKey(libraryID), Payload: payload, Delay: delay,
+		Type: JobScanLibrary, Priority: prio, IdempotencyKey: scanKey(libraryID), Payload: payload, Delay: delay,
 	})
 	if err != nil {
+		return jobs.Job{}, err
+	}
+	if _, err := s.queue.RaiseQueuedPriority(ctx, jobID, prio); err != nil {
 		return jobs.Job{}, err
 	}
 	if err := appq.New(s.db.Write).MarkLibraryScanQueued(ctx, appq.MarkLibraryScanQueuedParams{Now: s.now().UnixMilli(), ID: libraryID}); err != nil {
@@ -512,7 +517,7 @@ func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.D
 // of that library is already running, the change may have been missed by its walk, so the scan
 // is queued again once the running one has finished.
 func (s *Service) triggerScan(ctx context.Context, libraryID int64) {
-	j, err := s.enqueueScan(ctx, libraryID, jobs.DebounceWindow)
+	j, err := s.enqueueScan(ctx, libraryID, jobs.DebounceWindow, prioScan)
 	if err != nil {
 		if ctx.Err() == nil {
 			s.log.WarnContext(ctx, "queue scan after change", "library_id", libraryID, "err", err)
@@ -755,9 +760,9 @@ func timePtr(v sql.NullInt64) *time.Time {
 	return &t
 }
 
-// Start runs the watchers of all roots and the schedules (full scan of every library every 6 h,
-// sweep hourly) until ctx ends. It queues a scan of every library and a sweep right away, so
-// changes made while the server was down are picked up.
+// Start runs the watchers of all roots until ctx ends. The full scan of every library (every
+// 6 h and at the start, so changes made while the server was down are picked up) and the hourly
+// sweep are schedules of the job scheduler (RegisterTypes), not loops of this service.
 func (s *Service) Start(ctx context.Context) error {
 	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
 	if err != nil {
@@ -769,46 +774,42 @@ func (s *Service) Start(ctx context.Context) error {
 	for _, r := range roots {
 		s.startWatcher(r)
 	}
-
-	s.scheduleScans(ctx)
-	s.scheduleSweep(ctx)
-	scans := time.NewTicker(fullScanInterval)
-	defer scans.Stop()
-	sweeps := time.NewTicker(sweepInterval)
-	defer sweeps.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			s.wg.Wait()
-			return nil
-		case <-scans.C:
-			s.scheduleScans(ctx)
-		case <-sweeps.C:
-			s.scheduleSweep(ctx)
-		}
-	}
+	<-ctx.Done()
+	s.wg.Wait()
+	return nil
 }
 
-func (s *Service) scheduleScans(ctx context.Context) {
+// runScans is the Run of scan.library (jobs.Type): it queues a scan of every library with prio
+// and returns the ids of the jobs (a library without a folder queues none).
+func (s *Service) runScans(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {
 	libs, err := appq.New(s.db.Read).ListLibraries(ctx)
 	if err != nil {
-		if ctx.Err() == nil {
-			s.log.ErrorContext(ctx, "list libraries for the scheduled scan", "err", err)
-		}
-		return
+		return nil, fmt.Errorf("list libraries for the scheduled scan: %w", err)
 	}
+	ids := make([]int64, 0, len(libs))
 	for _, l := range libs {
-		if _, err := s.enqueueScan(ctx, l.ID, 0); err != nil && ctx.Err() == nil {
-			s.log.ErrorContext(ctx, "queue scheduled scan", "library_id", l.ID, "err", err)
+		j, err := s.enqueueScan(ctx, l.ID, 0, prio)
+		if err != nil {
+			return ids, fmt.Errorf("queue scan of library %d: %w", l.ID, err)
+		}
+		if j.ID != 0 {
+			ids = append(ids, j.ID)
 		}
 	}
+	return ids, nil
 }
 
-func (s *Service) scheduleSweep(ctx context.Context) {
-	_, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobSweep, Priority: prioSweep, IdempotencyKey: "sweep"})
-	if err != nil && ctx.Err() == nil {
-		s.log.ErrorContext(ctx, "queue sweep", "err", err)
+// runSweep is the Run of library.sweep: one sweep job under the key "sweep", raised to prio when
+// it already waits.
+func (s *Service) runSweep(ctx context.Context, q *jobs.Queue, prio int) ([]int64, error) {
+	id, err := q.Enqueue(ctx, jobs.NewJob{Type: JobSweep, Priority: prio, IdempotencyKey: "sweep"})
+	if err != nil {
+		return nil, err
 	}
+	if _, err := q.RaiseQueuedPriority(ctx, id, prio); err != nil {
+		return nil, err
+	}
+	return []int64{id}, nil
 }
 
 // startWatcher starts the watcher of root when Start runs; before Start it does nothing (Start

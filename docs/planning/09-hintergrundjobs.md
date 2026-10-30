@@ -1032,3 +1032,28 @@ Code sich widersprachen, gilt der Code**:
 
 Keine Änderung an `docs/spec/`; Entscheid 15 steht in `04-entscheidungen.md`, ADR 0017 in
 `docs/adr/`, ADR 0002 trägt den Hinweis.
+
+### 13.4 Befunde aus Schritt 1 (30. Oktober 2026)
+
+Schritt 1 ist nach Abschnitten 4.1 bis 4.5 und 6.1 gebaut (Migration `00027_jobs_scheduler.sql`,
+`jobs.Type`, `jobs.Registry`, `jobs.Scheduler`, `RegisterTypes` in fünf Paketen, fünf Ticker-Schleifen
+weg, `podcast.poll`). Wo der Code vom Papier abweicht, steht es hier; das Papier wird nicht
+umgeschrieben:
+
+| Stelle | Papier | Gebaut | Grund |
+|---|---|---|---|
+| 6.1, Struct `Type` | Felder bis `StartDelay` | Dazu **`Priority`** (Priorität des planmässigen Laufs; der Scheduler ruft `Run(ctx, q, t.Priority)`) und **`Seed func(ctx) (ScheduleSeed, error)`** (Takt, Schalter und letzter Lauf für die **erste** Zeile: Trakt aus `spotlight_config.interval_hours` und der Einstellung `trakt_last_attempt`, Update aus `update_check_enabled` und `update_state.checkedAt`) | Der Scheduler kennt sonst die Priorität nicht, und die Historie liegt je Jobart an einer anderen Stelle; die Namen `spotlight_trakt.last_attempt` und `update_check.checked_at` aus 4.3 gibt es so nicht |
+| 4.3, `start_delay_ms` von `update.check` | «60 s nach dem Start wie heute, aber nur, wenn fällig» | **60 s nach jedem Start**, auch wenn nicht fällig: `StartDelay` heisst für alle Jobarten «beim Start nach dieser Verzögerung feuern» (`scan.library`, `library.sweep`, `podcast.poll` mit 0) | Ein bedingtes Startfeuer bräuchte ein zweites Feld; eine Manifestabfrage je Neustart kostet nichts und ist nach einem Update erwünscht. Die Ableitung aus `checkedAt` greift damit nur, wenn die Zeile erst entsteht und `StartDelay` nicht wirkt — also praktisch nur für Trakt |
+| 6.1, `UpdateSchedule(type, every, window, enabled)` | vier Argumente | **`UpdateSchedule(ctx, type, ScheduleUpdate{Every, Enabled, Window, ClearWindow})`**: nur gesetzte Felder ändern sich (wie `updateJobSchedule` in 5.2 es braucht); Grenzen 5 min bis 7 d und Fenster 0 bis 1439, Anfang ≠ Ende, als `model.ValidationError` (`everySeconds`, `window`); unbekannte Jobart `model.ErrNotFound` | Spotlight-Seite schreibt nur den Takt, Update-Seite nur den Schalter |
+| 6.1, Fehler in `Run` | nicht geregelt | Schlägt `Run` fehl, bleibt `next_run_at` stehen und der nächste Tick (60 s) versucht es erneut; `last_fired_at` wird nicht gesetzt | Ein vorübergehender DB-Fehler darf keinen Tageslauf kosten; Idempotenz-Schlüssel machen den Neuversuch harmlos |
+| 6.1, Fenster | «nach jedem Feuern und nach jedem `UpdateSchedule`» | Zusätzlich beim **Startfeuer** (`StartDelay`): ein Scan mit Fenster 03:00–05:00 läuft nach einem Neustart um 12:00 nicht sofort, sondern um 03:00 | Jedes planmässige Feuern achtet das Fenster; nur «Jetzt ausführen» (Schritt 3) ignoriert es |
+| 6.1, Takt des Schedulers | Tick alle 60 s | `Run` tickt **sofort** und dann alle 60 s; `Start` (Zeilen in `job_types`, `EnsureSchedule`, Startregel) läuft davor in `main.go`, bevor die Arbeiter starten | Damit `start_delay_ms = 0` wirklich «sofort» heisst |
+| 4.3, `podcast.poll` von Hand | «Jetzt ausführen reiht **alle** Abos ein» | `Run` reiht die **fälligen** ein, mit der übergebenen Priorität; `QueueDuePodcasts` bleibt als Hülle für Tests | `runJobType` kommt erst in Schritt 3; dort entscheidet sich, ob `Run` den Auslöser erfährt (Hand = alle) oder `runJobType` für `podcast.poll` `RefreshLibrary` je Podcast-Bibliothek ruft. **Offen für Schritt 3** |
+| 6.1, Test «ändert `next_run_at` nicht bei `runJobType`» (F-5) | in Schritt 1 | folgt mit `runJobType` in Schritt 3 | Es gibt noch keinen `runJobType`; der Scheduler-Test deckt ab, dass nur `Tick` `last_fired_at` und `next_run_at` schreibt |
+| 4.5, eingefrorener Stand `testdata/db/` | «danach» | kommt mit Schritt 2 | 8.3 verlangt Zeilen mit `skipped`, Fortschritt und `started_at`, die erst Schritt 2 schreibt; `TestFrozenStatesMigrate` führt 00027 heute über alle 15 bestehenden Stände (Wächter greift nie, die Tabelle war immer leer) |
+| 1.1, `scanbench` | nicht genannt | `cmd/slouchcat/scanbench.go` registriert über `RegisterTypes` und `Registry.Attach` | mechanische Folge |
+| 3, `enqueueScan` | Prioritätsparameter | `enqueueScan(ctx, id, delay, prio)` hebt über `RaiseQueuedPriority`; ebenso `enqueuePodcast(ctx, id, prio)`, `enqueueTrakt` (gab es schon) und `runUpdateCheck`; `QueueScan` (Knopf «Scannen») und die Wächter reihen weiter mit 5 | wie 6.1; «Scannen» je Bibliothek bleibt ein Lauf mit 5 (6.4) |
+
+Nicht geändert, weil der Code es nicht verlangt: die fünf Zustände, `ClaimJob` (Pause kommt in
+Schritt 2), der Vertrag (1.4.0 bleibt), die Oberfläche.
+

@@ -314,27 +314,43 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		offline.WithTokenKey(keyring.Derive("download-token")), offline.WithManager(mgr, caps),
 		offline.WithPlayback(playbackSvc), offline.WithPins(authSvc))
 
+	// The job types (concept 09, ADR 0017): every service registers what its job types are; the
+	// registry hands the handlers to the workers of each pool, and the scheduler runs the types
+	// with a schedule (full scan, sweep, podcast poll, Trakt lists, update check) from
+	// job_schedules, which replaces the ticker loops the services ran until 1.4.0.
+	registry := jobs.NewRegistry()
+	libSvc.RegisterTypes(registry)
+	metaSvc.RegisterTypes(registry)
+	adminSvc.RegisterTypes(registry)
+	offlineSvc.RegisterTypes(registry)
+	notifySvc.RegisterTypes(registry)
+	scheduler := jobs.NewScheduler(queue, registry, log)
+	if err := scheduler.Start(ctx); err != nil {
+		return fmt.Errorf("start job scheduler: %w", err)
+	}
+	adminSvc.WithSchedules(scheduler)
+
 	var workers sync.WaitGroup
 	for i := range cfg.Workers {
 		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
-		libSvc.RegisterJobs(worker)
-		metaSvc.RegisterJobs(worker)
-		adminSvc.RegisterJobs(worker)
+		registry.Attach(worker, jobs.PoolGeneral)
 		worker.OnFinalFailure(notifySvc.JobFailed)
 		workers.Go(func() { worker.Run(ctx) })
 	}
-	// A worker of its own for download preparations: workers claim only the job types they
-	// registered, so long encodes never hold up scans and probes.
+	// A worker of its own for download preparations: workers claim only the job types attached
+	// to them, so long encodes never hold up scans and probes.
 	downloadWorker := jobs.NewWorker(queue, "download-1", log)
-	offlineSvc.RegisterJobs(downloadWorker)
+	registry.Attach(downloadWorker, jobs.PoolDownload)
 	downloadWorker.OnFinalFailure(notifySvc.JobFailed)
 	workers.Go(func() { downloadWorker.Run(ctx) })
 	// Notification deliveries (M8) on a worker of their own: a slow mail server never holds up
 	// scans. Run polls Telegram while link codes are open and prunes old deliveries.
 	notifyWorker := jobs.NewWorker(queue, "notify-1", log)
-	notifySvc.RegisterJobs(notifyWorker)
+	registry.Attach(notifyWorker, jobs.PoolNotify)
 	workers.Go(func() { notifyWorker.Run(ctx) })
 	workers.Go(func() { notifySvc.Run(ctx) })
+	workers.Go(func() { scheduler.Run(ctx) })
+	// The library watchers; the full scan at the start and every 6 h is the schedule scan.library.
 	workers.Go(func() {
 		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {
 			log.Error("library watchers stopped", "err", err)
@@ -347,12 +363,6 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			log.Warn("vote backfill not queued", "err", err)
 		}
 	})
-	// Podcast feeds (M6, H-2): every subscription is fetched again after 60 minutes.
-	workers.Go(func() { metaSvc.RunPodcasts(ctx) })
-	// Trakt lists (M7, E-7): once a day when a client id is configured.
-	workers.Go(func() { metaSvc.RunTrakt(ctx) })
-	// Update check (M8, A-5): 60 s after the start, then once a day while it is switched on.
-	workers.Go(func() { adminSvc.RunUpdateCheck(ctx) })
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes
 		workers.Wait()

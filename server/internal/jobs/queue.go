@@ -35,8 +35,10 @@
 //   - Cancel: queued and running jobs can be cancelled; a running handler sees its context
 //     cancelled at the next heartbeat.
 //
-// The table job_schedules holds cron-like schedules; the scheduler that fills the queue from it
-// is not part of this package yet.
+// Job types and schedules (concept 09, ADR 0017): every service registers its job types with
+// Registry.Register (registry.go: group, pool, trigger, priority, handler, Run, interval), and the
+// Scheduler (scheduler.go) runs the types with a schedule from the table job_schedules, with
+// intervals, a time window and a switch per type instead of the ticker loops of before.
 package jobs
 
 import (

@@ -168,14 +168,23 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 	return nil
 }
 
-// RegisterJobs registers the handlers of the library jobs on w.
-func (s *Service) RegisterJobs(w *jobs.Worker) {
-	w.Handle(JobScanLibrary, s.handleScan)
-	w.Handle(JobScanPath, s.handlePathScan)
-	w.Handle(JobProbeFile, s.handleProbe)
-	w.Handle(JobProbeKeyframes, s.handleKeyframes)
-	w.Handle(JobSweep, s.handleSweep)
-	w.Handle(JobSegmentsDetect, s.handleSegments)
+// RegisterTypes registers the job types of the library on r (concept 09, ADR 0017): the full
+// scan and the sweep are schedule types (every 6 h and hourly, both at the start of the server),
+// the rest are event types queued by scans, watchers, webhooks and playbacks.
+func (s *Service) RegisterTypes(r *jobs.Registry) {
+	atStart := time.Duration(0)
+	r.Register(jobs.Type{
+		Name: JobScanLibrary, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: prioScan, Handler: s.handleScan, Run: s.runScans, Every: fullScanInterval, StartDelay: &atStart,
+	})
+	r.Register(jobs.Type{Name: JobScanPath, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioPathScan, Handler: s.handlePathScan})
+	r.Register(jobs.Type{Name: JobProbeFile, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioProbe, Handler: s.handleProbe})
+	r.Register(jobs.Type{Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioKeyframes, Handler: s.handleKeyframes})
+	r.Register(jobs.Type{
+		Name: JobSweep, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: prioSweep, Handler: s.handleSweep, Run: s.runSweep, Every: sweepInterval, StartDelay: &atStart,
+	})
+	r.Register(jobs.Type{Name: JobSegmentsDetect, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioSegments, Handler: s.handleSegments})
 }
 
 func decodePayload(j *jobs.Job, v any) error {

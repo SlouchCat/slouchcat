@@ -380,7 +380,7 @@ func TestPollWatcherQueuesScan(t *testing.T) {
 	}
 }
 
-func TestStartRunsWatchersAndSchedules(t *testing.T) {
+func TestStartRunsWatchers(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	dir := t.TempDir()
@@ -395,12 +395,11 @@ func TestStartRunsWatchersAndSchedules(t *testing.T) {
 		st, ok := e.svc.WatcherStats()[lib.Roots[0].ID]
 		return ok && (st.Dirs > 0 || st.LastPass.Dirs > 0)
 	})
-	// Start queues the scan and the sweep after the watchers are up; on a slow runner the watcher
-	// reports its first pass before those rows exist, so wait for them like for the watcher.
-	waitFor(t, 5*time.Second, "the scan queued by Start", func() bool { return e.queuedScans() == 1 })
-	waitFor(t, 5*time.Second, "the sweep queued by Start", func() bool {
-		return e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = 'sweep'`, JobSweep) == 1
-	})
+	// Start runs the watchers only; the scan at the start and the sweep are schedules of the job
+	// scheduler (RegisterTypes), so Start queues nothing.
+	if e.queuedScans() != 0 || e.count(`SELECT count(*) FROM jobs WHERE type = ?`, JobSweep) != 0 {
+		t.Errorf("Start queued jobs: scans = %d, sweeps = %d; want none", e.queuedScans(), e.count(`SELECT count(*) FROM jobs WHERE type = ?`, JobSweep))
+	}
 	// The dashboard's inotify use is the sum of the watched directories of every root (M8).
 	if st := e.svc.WatcherStats()[lib.Roots[0].ID]; e.svc.WatchedDirs() != int64(st.Dirs) {
 		t.Errorf("WatchedDirs = %d, want %d of the only root", e.svc.WatchedDirs(), st.Dirs)

@@ -49,6 +49,11 @@ func (w *Worker) Handle(typ string, h Handler) {
 	w.handlers[typ] = h
 }
 
+// Handlers returns the job types the worker claims, sorted.
+func (w *Worker) Handlers() []string {
+	return slices.Sorted(maps.Keys(w.handlers))
+}
+
 // OnFinalFailure registers fn, called after a job failed its last attempt and ended in state
 // failed (notify.JobFailed reports it to the main account, M8). Call it before Run. fn runs on the
 // worker's goroutine under a short context; a job whose lease expired after its last attempt is

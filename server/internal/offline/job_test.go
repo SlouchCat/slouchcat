@@ -309,10 +309,11 @@ func TestPrepareStopsWhenDeleted(t *testing.T) {
 	}
 }
 
-// The download worker of main.go: a worker with RegisterJobs only claims download.prepare.
+// The download worker of main.go: a worker of the pool download only claims download.prepare
+// (RegisterTypes puts the type there).
 // Not parallel: this test waits on the clock (an interval, a debounce window or a
 // cancellation), and parallel load would stretch the wait past what it asserts.
-func TestRegisterJobsClaimsOnlyPreparations(t *testing.T) {
+func TestRegisterTypesClaimsOnlyPreparations(t *testing.T) {
 	e := newEnv(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -325,7 +326,12 @@ func TestRegisterJobsClaimsOnlyPreparations(t *testing.T) {
 	e.svc.now = time.Now
 	st := e.create(e.f.P18, e.devA, e.f.Rated(0).ID, model.DownloadLow)
 	w := jobs.NewWorker(q, "download-1", vistest.Logger())
-	e.svc.RegisterJobs(w)
+	registry := jobs.NewRegistry()
+	e.svc.RegisterTypes(registry)
+	registry.Attach(w, jobs.PoolDownload)
+	if types := registry.Types(); len(types) != 1 || types[0].Name != JobPrepare || types[0].Pool != jobs.PoolDownload || types[0].Trigger != jobs.TriggerEvent {
+		t.Fatalf("registered types = %+v, want download.prepare as an event type of the pool download", types)
+	}
 	done := make(chan struct{})
 	go func() { w.Run(ctx); close(done) }()
 	deadline := time.Now().Add(10 * time.Second)

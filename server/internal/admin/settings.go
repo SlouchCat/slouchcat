@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/notify/email"
 	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
@@ -300,6 +301,7 @@ func (s *Service) UpdateSettings(ctx context.Context, upd model.AdminSettingsUpd
 	}
 	if upd.UpdateCheckEnabled != nil {
 		s.forgetUpdateNotice()
+		s.syncSchedule(ctx, JobUpdateCheck, jobs.ScheduleUpdate{Enabled: upd.UpdateCheckEnabled})
 	}
 	s.log.InfoContext(ctx, "settings updated", "fields", changed)
 	// A new Trakt client id fills the lists now instead of at the next daily run.

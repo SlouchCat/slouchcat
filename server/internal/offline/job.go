@@ -40,10 +40,11 @@ var errSourceWait = errors.New("offline: download source not available yet")
 // (another encoder backend or ffmpeg build since the last attempt).
 var errInitChanged = errors.New("offline: init segment differs from the prepared copy")
 
-// RegisterJobs registers download.prepare on w. The server runs a worker of its own for it
+// RegisterTypes registers download.prepare on r (concept 09, ADR 0017): an event type of the
+// group delivery in the pool download. The server runs a worker of its own for that pool
 // (download-1), so long encodes never hold up scans and probes.
-func (s *Service) RegisterJobs(w *jobs.Worker) {
-	w.Handle(JobPrepare, s.handlePrepare)
+func (s *Service) RegisterTypes(r *jobs.Registry) {
+	r.Register(jobs.Type{Name: JobPrepare, Group: jobs.GroupDelivery, Pool: jobs.PoolDownload, Trigger: jobs.TriggerEvent, Priority: jobPriority, Handler: s.handlePrepare})
 }
 
 func (s *Service) handlePrepare(ctx context.Context, j *jobs.Job) error {

@@ -177,6 +177,27 @@ func TestSpotlightConfigKeepsRotation(t *testing.T) {
 	}
 }
 
+// The interval of the spotlight is the interval of the schedule trakt.refresh (one value, two
+// doors, concept 09 4.3): SetSpotlightConfig writes it into the schedule row; the switch of the
+// band is not the switch of the schedule.
+func TestSpotlightConfigSyncsSchedule(t *testing.T) {
+	sf := newSpotlightFixture(t)
+	sched := &fakeSchedules{}
+	sf.svc.WithSchedules(sched)
+	in := validSpotlightUpdate()
+	in.IntervalHours = 6
+	in.Enabled = false
+	if _, err := sf.svc.SetSpotlightConfig(sf.ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	if len(sched.updates) != 1 || sched.updates[0].typ != jobTraktRefresh {
+		t.Fatalf("schedule updates = %+v, want one for trakt.refresh", sched.updates)
+	}
+	if u := sched.updates[0].u; u.Every == nil || *u.Every != 6*time.Hour || u.Enabled != nil || u.Window != nil || u.ClearWindow {
+		t.Errorf("schedule update = %+v, want the interval 6 h only", u)
+	}
+}
+
 // The media follows the list kind (plan 5.6), a watchlist address is refused (plan 5.7, rule 11),
 // a user list address is stored with the kind url only, and the address never reaches the log.
 func TestSpotlightConfigLists(t *testing.T) {

@@ -172,7 +172,7 @@ func WithPlayback(p PlaybackPort) Option { return func(s *Service) { s.playback 
 func WithPins(p PinPort) Option { return func(s *Service) { s.pins = p } }
 
 // New returns the offline service on db. runner encodes the downloads; queue receives the
-// preparation jobs, which a worker of RegisterJobs runs.
+// preparation jobs, which a worker of the pool download runs (RegisterTypes).
 func New(db *store.DB, vis *visibility.Reader, queue *jobs.Queue, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		db: db, read: systemq.New(db.Read), write: systemq.New(db.Write), vis: vis, queue: queue, enc: runner,

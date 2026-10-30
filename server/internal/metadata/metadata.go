@@ -54,10 +54,12 @@
 //     QueuePendingMetadata (after every full scan) enqueues it for titles still pending.
 //   - podcast.fetch, payload {"podcastId": "<ULID>"}, key podcast:<podcastId>, priority 4: fetches
 //     the RSS feed of a podcast subscription (podcast.go, M6 H-2) and stores the channel and its
-//     episodes; RunPodcasts enqueues it for every subscription not fetched for FeedInterval.
+//     episodes; the schedule podcast.poll (every 5 minutes) enqueues it for every subscription
+//     not fetched for FeedInterval.
 //   - trakt.refresh, payload {}, key trakt, priority 2: fetches the public Trakt list trending
 //     (movies and shows, top 100 each) and replaces spotlight_entries; a failure empties the
-//     table (I-7). RunTrakt enqueues it once a day when a client id is configured (trakt.go, M7).
+//     table (I-7). Its schedule enqueues it every spotlight_config.interval_hours when a client id
+//     is configured (trakt.go, M7; concept 09).
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
@@ -291,16 +293,28 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 	}
 }
 
-// RegisterJobs registers the handlers of metadata.match, metadata.fill, metadata.vote_backfill,
-// image.fetch, trailer.find, podcast.fetch and trakt.refresh on w.
-func (s *Service) RegisterJobs(w *jobs.Worker) {
-	w.Handle(JobMatch, s.handleMatch)
-	w.Handle(JobFill, s.handleFill)
-	w.Handle(JobVoteBackfill, s.handleVoteBackfill)
-	w.Handle(JobImageFetch, s.handleImageFetch)
-	w.Handle(JobTrailerFind, s.handleTrailerFind)
-	w.Handle(JobPodcastFetch, s.handlePodcastFetch)
-	w.Handle(JobTraktRefresh, s.handleTraktRefresh)
+// RegisterTypes registers the job types of the metadata enrichment on r (concept 09, ADR 0017):
+// metadata.match, metadata.fill, metadata.vote_backfill, image.fetch, trailer.find and
+// podcast.fetch are event types; podcast.poll (the 5-minute tick that queues podcast.fetch for
+// the due subscriptions, no handler of its own) and trakt.refresh are schedule types.
+// metadata.vote_backfill is an event type: concept 08 queues it after every full scan and at the
+// start of the server while titles wait for a vote (QueuePendingMetadata), so it has no Run.
+func (s *Service) RegisterTypes(r *jobs.Registry) {
+	atStart := time.Duration(0)
+	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
+	r.Register(jobs.Type{Name: JobFill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleFill})
+	r.Register(jobs.Type{Name: JobVoteBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleVoteBackfill})
+	r.Register(jobs.Type{Name: JobImageFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: imageFetchPriority, Handler: s.handleImageFetch})
+	r.Register(jobs.Type{Name: JobTrailerFind, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: trailerPriority, Handler: s.handleTrailerFind})
+	r.Register(jobs.Type{Name: JobPodcastFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: podcastFetchPriority, Handler: s.handlePodcastFetch})
+	r.Register(jobs.Type{
+		Name: JobPodcastPoll, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: podcastFetchPriority, Run: s.runPodcastPoll, Every: feedPollInterval, StartDelay: &atStart,
+	})
+	r.Register(jobs.Type{
+		Name: JobTraktRefresh, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
+		Priority: traktPriority, Handler: s.handleTraktRefresh, Run: s.runTrakt, Every: traktDefaultInterval, Seed: s.traktSeed,
+	})
 }
 
 // CheckKey validates a TMDB key. It returns nil, model.ErrTMDBKeyInvalid or

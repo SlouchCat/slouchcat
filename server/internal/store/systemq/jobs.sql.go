@@ -41,7 +41,7 @@ WHERE id = (
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )
-RETURNING id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at
+RETURNING id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped
 `
 
 type ClaimJobParams struct {
@@ -82,6 +82,12 @@ func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
 		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.ProgressDone,
+		&i.ProgressTotal,
+		&i.ProgressNote,
+		&i.Skipped,
 	)
 	return i, err
 }
@@ -104,6 +110,28 @@ func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const ensureJobType = `-- name: EnsureJobType :exec
+
+INSERT INTO job_types (type, updated_at) VALUES (?1, ?2)
+ON CONFLICT (type) DO NOTHING
+`
+
+type EnsureJobTypeParams struct {
+	Type string
+	Now  int64
+}
+
+// ---------------------------------------------------------------------------------------------
+// Job types and schedules (concept 09, ADR 0017). Times are Unix milliseconds; the window is in
+// minutes of the server's day.
+// ---------------------------------------------------------------------------------------------
+// The registry writes one row per registered type at startup; an existing row (and its pause)
+// stays as it is.
+func (q *Queries) EnsureJobType(ctx context.Context, arg EnsureJobTypeParams) error {
+	_, err := q.db.ExecContext(ctx, ensureJobType, arg.Type, arg.Now)
+	return err
 }
 
 const extendLease = `-- name: ExtendLease :execrows
@@ -207,7 +235,7 @@ func (q *Queries) GetActiveJobIDByType(ctx context.Context, type_ string) (int64
 }
 
 const getJob = `-- name: GetJob :one
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at FROM jobs WHERE id = ?1
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs WHERE id = ?1
 `
 
 func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
@@ -228,7 +256,45 @@ func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
 		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.ProgressDone,
+		&i.ProgressTotal,
+		&i.ProgressNote,
+		&i.Skipped,
 	)
+	return i, err
+}
+
+const getJobSchedule = `-- name: GetJobSchedule :one
+SELECT type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, last_fired_at, updated_at FROM job_schedules WHERE type = ?1
+`
+
+func (q *Queries) GetJobSchedule(ctx context.Context, type_ string) (JobSchedule, error) {
+	row := q.db.QueryRowContext(ctx, getJobSchedule, type_)
+	var i JobSchedule
+	err := row.Scan(
+		&i.Type,
+		&i.EveryMs,
+		&i.StartDelayMs,
+		&i.Enabled,
+		&i.WindowStart,
+		&i.WindowEnd,
+		&i.NextRunAt,
+		&i.LastFiredAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getJobType = `-- name: GetJobType :one
+SELECT type, paused_at, updated_at FROM job_types WHERE type = ?1
+`
+
+func (q *Queries) GetJobType(ctx context.Context, type_ string) (JobType, error) {
+	row := q.db.QueryRowContext(ctx, getJobType, type_)
+	var i JobType
+	err := row.Scan(&i.Type, &i.PausedAt, &i.UpdatedAt)
 	return i, err
 }
 
@@ -264,6 +330,181 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) (int64, er
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const insertJobSchedule = `-- name: InsertJobSchedule :execrows
+INSERT INTO job_schedules (type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+ON CONFLICT (type) DO NOTHING
+`
+
+type InsertJobScheduleParams struct {
+	Type         string
+	EveryMs      int64
+	StartDelayMs sql.NullInt64
+	Enabled      int64
+	WindowStart  sql.NullInt64
+	WindowEnd    sql.NullInt64
+	NextRunAt    int64
+	Now          int64
+}
+
+// EnsureSchedule creates a missing row only; a row that exists keeps its interval, switch, window
+// and next run (the table is the source once it has a row, the code only the default).
+func (q *Queries) InsertJobSchedule(ctx context.Context, arg InsertJobScheduleParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertJobSchedule,
+		arg.Type,
+		arg.EveryMs,
+		arg.StartDelayMs,
+		arg.Enabled,
+		arg.WindowStart,
+		arg.WindowEnd,
+		arg.NextRunAt,
+		arg.Now,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const listDueJobSchedules = `-- name: ListDueJobSchedules :many
+SELECT s.type, s.every_ms, s.start_delay_ms, s.enabled, s.window_start, s.window_end, s.next_run_at, s.last_fired_at, s.updated_at, t.paused_at
+FROM job_schedules AS s
+JOIN job_types AS t ON t.type = s.type
+WHERE s.enabled = 1 AND s.next_run_at <= ?1
+ORDER BY s.type
+`
+
+type ListDueJobSchedulesRow struct {
+	Type         string
+	EveryMs      int64
+	StartDelayMs sql.NullInt64
+	Enabled      int64
+	WindowStart  sql.NullInt64
+	WindowEnd    sql.NullInt64
+	NextRunAt    int64
+	LastFiredAt  sql.NullInt64
+	UpdatedAt    int64
+	PausedAt     sql.NullInt64
+}
+
+// The tick of the scheduler: every enabled schedule whose next run has come, with the pause of
+// its type (a paused type is not run, but its next run moves on).
+func (q *Queries) ListDueJobSchedules(ctx context.Context, now int64) ([]ListDueJobSchedulesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDueJobSchedules, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDueJobSchedulesRow{}
+	for rows.Next() {
+		var i ListDueJobSchedulesRow
+		if err := rows.Scan(
+			&i.Type,
+			&i.EveryMs,
+			&i.StartDelayMs,
+			&i.Enabled,
+			&i.WindowStart,
+			&i.WindowEnd,
+			&i.NextRunAt,
+			&i.LastFiredAt,
+			&i.UpdatedAt,
+			&i.PausedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listJobSchedules = `-- name: ListJobSchedules :many
+SELECT type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, last_fired_at, updated_at FROM job_schedules ORDER BY type
+`
+
+func (q *Queries) ListJobSchedules(ctx context.Context) ([]JobSchedule, error) {
+	rows, err := q.db.QueryContext(ctx, listJobSchedules)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []JobSchedule{}
+	for rows.Next() {
+		var i JobSchedule
+		if err := rows.Scan(
+			&i.Type,
+			&i.EveryMs,
+			&i.StartDelayMs,
+			&i.Enabled,
+			&i.WindowStart,
+			&i.WindowEnd,
+			&i.NextRunAt,
+			&i.LastFiredAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listJobTypes = `-- name: ListJobTypes :many
+SELECT type, paused_at, updated_at FROM job_types ORDER BY type
+`
+
+func (q *Queries) ListJobTypes(ctx context.Context) ([]JobType, error) {
+	rows, err := q.db.QueryContext(ctx, listJobTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []JobType{}
+	for rows.Next() {
+		var i JobType
+		if err := rows.Scan(&i.Type, &i.PausedAt, &i.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markJobScheduleFired = `-- name: MarkJobScheduleFired :execrows
+UPDATE job_schedules SET next_run_at = ?1, updated_at = ?2, last_fired_at = ?2 WHERE type = ?3
+`
+
+type MarkJobScheduleFiredParams struct {
+	NextRunAt int64
+	Now       int64
+	Type      string
+}
+
+func (q *Queries) MarkJobScheduleFired(ctx context.Context, arg MarkJobScheduleFiredParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markJobScheduleFired, arg.NextRunAt, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const raiseQueuedJobPriority = `-- name: RaiseQueuedJobPriority :execrows
@@ -322,6 +563,25 @@ func (q *Queries) RequeueExpiredLeases(ctx context.Context, now int64) (int64, e
 	return result.RowsAffected()
 }
 
+const setJobScheduleNextRun = `-- name: SetJobScheduleNextRun :execrows
+UPDATE job_schedules SET next_run_at = ?1, updated_at = ?2 WHERE type = ?3
+`
+
+type SetJobScheduleNextRunParams struct {
+	NextRunAt int64
+	Now       int64
+	Type      string
+}
+
+// The start rule (start_delay_ms) and the alignment to the window move the next run only.
+func (q *Queries) SetJobScheduleNextRun(ctx context.Context, arg SetJobScheduleNextRunParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setJobScheduleNextRun, arg.NextRunAt, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setQueuedJobPayload = `-- name: SetQueuedJobPayload :execrows
 UPDATE jobs SET payload = ?1, updated_at = ?2 WHERE id = ?3 AND state = 'queued'
 `
@@ -335,6 +595,40 @@ type SetQueuedJobPayloadParams struct {
 // Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 func (q *Queries) SetQueuedJobPayload(ctx context.Context, arg SetQueuedJobPayloadParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setQueuedJobPayload, arg.Payload, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateJobSchedule = `-- name: UpdateJobSchedule :execrows
+UPDATE job_schedules
+SET every_ms = ?1, enabled = ?2, window_start = ?3, window_end = ?4,
+    next_run_at = ?5, updated_at = ?6
+WHERE type = ?7
+`
+
+type UpdateJobScheduleParams struct {
+	EveryMs     int64
+	Enabled     int64
+	WindowStart sql.NullInt64
+	WindowEnd   sql.NullInt64
+	NextRunAt   int64
+	Now         int64
+	Type        string
+}
+
+// UpdateSchedule writes interval, switch, window and the realigned next run together.
+func (q *Queries) UpdateJobSchedule(ctx context.Context, arg UpdateJobScheduleParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateJobSchedule,
+		arg.EveryMs,
+		arg.Enabled,
+		arg.WindowStart,
+		arg.WindowEnd,
+		arg.NextRunAt,
+		arg.Now,
+		arg.Type,
+	)
 	if err != nil {
 		return 0, err
 	}

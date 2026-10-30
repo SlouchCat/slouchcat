@@ -271,7 +271,9 @@ func newBenchEnv(ctx context.Context, o scanbenchOptions, watchers bool) (*bench
 	noop := func(context.Context, *jobs.Job) error { return nil }
 	for i := range o.workers {
 		w := jobs.NewWorker(queue, fmt.Sprintf("bench-%d", i+1), o.log)
-		e.lib.RegisterJobs(w)
+		registry := jobs.NewRegistry()
+		e.lib.RegisterTypes(registry)
+		registry.Attach(w)
 		w.Handle(library.JobMetadataMatch, noop)
 		e.wg.Go(func() { w.Run(runCtx) })
 	}

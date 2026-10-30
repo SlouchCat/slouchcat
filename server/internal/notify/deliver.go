@@ -35,10 +35,11 @@ var (
 	errNoRecipient   = errors.New("no recipient (not linked or no subscription)")
 )
 
-// RegisterJobs registers the handler of notify.deliver on w; main gives the deliveries a worker of
-// their own, so a slow mail server never holds up scans.
-func (s *Service) RegisterJobs(w *jobs.Worker) {
-	w.Handle(JobDeliver, s.deliver)
+// RegisterTypes registers notify.deliver on r (concept 09, ADR 0017): an event type of the group
+// delivery in the pool notify; main gives that pool a worker of its own, so a slow mail server
+// never holds up scans.
+func (s *Service) RegisterTypes(r *jobs.Registry) {
+	r.Register(jobs.Type{Name: JobDeliver, Group: jobs.GroupDelivery, Pool: jobs.PoolNotify, Trigger: jobs.TriggerEvent, Priority: deliverPriority, Handler: s.deliver})
 }
 
 // deliver sends one delivery. A delivery that is no longer queued is done (the job may run twice),

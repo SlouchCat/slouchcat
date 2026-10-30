@@ -29,8 +29,9 @@ import (
 // Podcast subscriptions (M6, design 3.4, H-2, AN-2). A subscription is an item of kind podcast in a
 // library of kind podcasts with its feed URL; its episodes are podcast_episode items below it, one
 // per guid, played and downloaded from their enclosure. Subscribe fetches the feed once right away;
-// the job podcast.fetch fetches it again (conditional GET with ETag and Last-Modified), and
-// RunPodcasts enqueues that job for every subscription not fetched for FeedInterval.
+// the job podcast.fetch fetches it again (conditional GET with ETag and Last-Modified), and the
+// schedule podcast.poll (every 5 minutes, concept 09) enqueues that job for every subscription
+// not fetched for FeedInterval.
 //
 // Ratings (AN-2): the podcast starts with the library's default rating (rating_source library),
 // an explicit channel is FSK 18 (rating_source feed); an explicit episode is FSK 18 (feed), any
@@ -39,21 +40,25 @@ import (
 const (
 	// JobPodcastFetch fetches the feed of one subscription; payload {"podcastId"}.
 	JobPodcastFetch = "podcast.fetch"
-	// FeedInterval is the age after which the poller fetches a feed again (H-2: a new episode
-	// appears in less than 65 minutes, with the 5-minute poller tick and the job's wait).
+	// JobPodcastPoll is the schedule that queues podcast.fetch for the due subscriptions (the
+	// 5-minute tick of the earlier poller, made visible; no job row ever carries this type).
+	JobPodcastPoll = "podcast.poll"
+	// FeedInterval is the age after which the poll fetches a feed again (H-2: a new episode
+	// appears in less than 65 minutes, with the 5-minute tick and the job's wait).
 	FeedInterval = 55 * time.Minute
 
 	podcastFetchPriority = 4
-	feedPollInterval     = 5 * time.Minute
-	feedTimeout          = 30 * time.Second // whole request of a fetch
-	subscribeTimeout     = 20 * time.Second // the synchronous first fetch (createPodcast)
-	maxFeedBytes         = 16 << 20
-	maxFeedRedirects     = 5
-	maxFeedURL           = 2048
-	maxFeedEpisodes      = 2000 // the newest episodes of a feed that are stored
-	maxFeedError         = 200  // characters of items.feed_error
-	feedBatch            = 150  // episodes per transaction (each also writes two texts and fires triggers)
-	maxEpisodeCovers     = 50   // new episodes with an image of their own queued for image.fetch per fetch
+	// feedPollInterval is the default interval of the schedule podcast.poll.
+	feedPollInterval = 5 * time.Minute
+	feedTimeout      = 30 * time.Second // whole request of a fetch
+	subscribeTimeout = 20 * time.Second // the synchronous first fetch (createPodcast)
+	maxFeedBytes     = 16 << 20
+	maxFeedRedirects = 5
+	maxFeedURL       = 2048
+	maxFeedEpisodes  = 2000 // the newest episodes of a feed that are stored
+	maxFeedError     = 200  // characters of items.feed_error
+	feedBatch        = 150  // episodes per transaction (each also writes two texts and fires triggers)
+	maxEpisodeCovers = 50   // new episodes with an image of their own queued for image.fetch per fetch
 )
 
 // Errors of a fetch.
@@ -322,7 +327,7 @@ func (s *Service) RefreshPodcast(ctx context.Context, id string) (model.AdminPod
 	if err != nil {
 		return model.AdminPodcast{}, err
 	}
-	if err := s.enqueuePodcast(ctx, id); err != nil {
+	if _, err := s.enqueuePodcast(ctx, id, podcastFetchPriority); err != nil {
 		return model.AdminPodcast{}, err
 	}
 	return p, nil
@@ -336,44 +341,38 @@ func (s *Service) RefreshLibrary(ctx context.Context, libraryID int64) (int, err
 		return 0, fmt.Errorf("list podcasts of library %d: %w", libraryID, err)
 	}
 	for i, id := range ids {
-		if err := s.enqueuePodcast(ctx, id); err != nil {
+		if _, err := s.enqueuePodcast(ctx, id, podcastFetchPriority); err != nil {
 			return i, err
 		}
 	}
 	return len(ids), nil
-}
-
-// RunPodcasts enqueues podcast.fetch for every subscription whose last fetch is FeedInterval old,
-// once at the start and then every 5 minutes, until ctx ends (H-2).
-func (s *Service) RunPodcasts(ctx context.Context) {
-	t := time.NewTicker(feedPollInterval)
-	defer t.Stop()
-	for {
-		if n, err := s.QueueDuePodcasts(ctx); err != nil && ctx.Err() == nil {
-			s.log.WarnContext(ctx, "queue due podcasts", "queued", n, "err", err)
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-		}
-	}
 }
 
 // QueueDuePodcasts enqueues podcast.fetch for every subscription not fetched for FeedInterval and
-// returns how many it queued (one tick of RunPodcasts).
+// returns how many it queued (one tick of the schedule podcast.poll).
 func (s *Service) QueueDuePodcasts(ctx context.Context) (int, error) {
+	ids, err := s.runPodcastPoll(ctx, s.queue, podcastFetchPriority)
+	return len(ids), err
+}
+
+// runPodcastPoll is the Run of podcast.poll (jobs.Type): it queues podcast.fetch with prio for
+// every subscription not fetched for FeedInterval (the due check is per subscription and stays
+// here, not in the schedule) and returns the job ids; a fetch that already waits is raised to prio.
+func (s *Service) runPodcastPoll(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {
 	before := s.feeds.now().Add(-FeedInterval).UnixMilli()
 	ids, err := s.read.PodcastListDue(ctx, sql.NullInt64{Int64: before, Valid: true})
 	if err != nil {
-		return 0, fmt.Errorf("list due podcasts: %w", err)
+		return nil, fmt.Errorf("list due podcasts: %w", err)
 	}
-	for i, id := range ids {
-		if err := s.enqueuePodcast(ctx, id); err != nil {
-			return i, err
+	queued := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		jobID, err := s.enqueuePodcast(ctx, id, prio)
+		if err != nil {
+			return queued, err
 		}
+		queued = append(queued, jobID)
 	}
-	return len(ids), nil
+	return queued, nil
 }
 
 // podcastPayload is the payload of podcast.fetch.
@@ -381,16 +380,22 @@ type podcastPayload struct {
 	PodcastID string `json:"podcastId"`
 }
 
-func (s *Service) enqueuePodcast(ctx context.Context, id string) error {
+// enqueuePodcast queues the fetch of a subscription with prio and returns the job id; a fetch
+// that already waits under the key is raised to prio and never lowered.
+func (s *Service) enqueuePodcast(ctx context.Context, id string, prio int) (int64, error) {
 	payload, err := json.Marshal(podcastPayload{PodcastID: id})
 	if err != nil {
-		return fmt.Errorf("%s payload: %w", JobPodcastFetch, err)
+		return 0, fmt.Errorf("%s payload: %w", JobPodcastFetch, err)
 	}
-	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobPodcastFetch, Priority: podcastFetchPriority,
-		IdempotencyKey: "podcast:" + id, Payload: payload}); err != nil {
-		return fmt.Errorf("enqueue %s %s: %w", JobPodcastFetch, id, err)
+	jobID, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: JobPodcastFetch, Priority: prio,
+		IdempotencyKey: "podcast:" + id, Payload: payload})
+	if err != nil {
+		return 0, fmt.Errorf("enqueue %s %s: %w", JobPodcastFetch, id, err)
 	}
-	return nil
+	if _, err := s.queue.RaiseQueuedPriority(ctx, jobID, prio); err != nil {
+		return 0, fmt.Errorf("raise %s %s: %w", JobPodcastFetch, id, err)
+	}
+	return jobID, nil
 }
 
 func (s *Service) handlePodcastFetch(ctx context.Context, j *jobs.Job) error {
