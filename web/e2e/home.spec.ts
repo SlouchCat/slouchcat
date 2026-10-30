@@ -69,6 +69,23 @@ const offsetFromEdge = (card: Locator) =>
     return element.getBoundingClientRect().left - scroller.getBoundingClientRect().left - gutter;
   });
 
+/** The band's poster row scroller (the list's parent): what scrolls sideways. */
+const stripScroller = (page: Page) =>
+  hero(page).getByRole('list', { name: 'Spotlight-Titel' }).locator('..');
+
+/** Whether `card` (its list item) lies wholly inside its row's visible part. */
+const inView = (card: Locator) =>
+  card.evaluate((card) => {
+    const element = card.closest('li');
+    const list = card.closest('ul');
+    const scroller = list?.parentElement;
+    if (!element || !scroller || !list) return false;
+    const gutter = parseFloat(getComputedStyle(list).paddingLeft);
+    const box = element.getBoundingClientRect();
+    const view = scroller.getBoundingClientRect();
+    return box.left >= view.left + gutter - 1 && box.right <= view.right + 1;
+  });
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await expect(recentRow(page).getByRole('link').first()).toBeVisible();
@@ -208,8 +225,8 @@ test('the band: arrow keys move in the poster row, Enter selects, the focus stay
   await expect(posters.nth(0)).not.toHaveAttribute('aria-current');
   await expectFocusOn(page, posters.nth(1));
   await expect(page).toHaveURL(/\/$/);
-  // The row moved the active poster to its left edge (N-4).
-  await expect.poll(() => offsetFromEdge(posters.nth(1))).toBeCloseTo(0, 0);
+  // The row did not move: the second poster was in view, only the marker went there.
+  expect(await stripScroller(page).evaluate((element) => element.scrollLeft)).toBe(0);
 
   // The active poster is the row's one Tab stop (roving tabindex): Tab
   // leaves the row, Shift+Tab returns to it.
@@ -520,26 +537,43 @@ test('the band holds on keyboard focus and the pause button, not on a click (F-3
   await expect(timer).toHaveCount(1);
 });
 
-test('the active poster stands at the left edge of the row after every change, the page stays (N-4)', async ({
+test('the poster row stands still while the active poster is in view and scrolls it to the left edge only when it is not (N-4)', async ({
   page,
   owner,
 }) => {
   test.setTimeout(90_000);
   await waitForSpotlight(owner);
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  // A narrow row beside the side navigation (the pager shows from 768 px on), so that the band
+  // leaves the visible part within a few slides.
+  await page.setViewportSize({ width: 800, height: 900 });
   await page.reload();
   await expect(hero(page)).toBeVisible();
   await resetFocus(page);
   const posters = strip(page);
+  const scroller = stripScroller(page);
   const count = await posters.count();
   const top = await page.evaluate(() => window.scrollY);
   const next = hero(page).getByRole('button', { name: 'Weiterblättern' });
-  // Through the whole row, the last poster too (the space after it lets it get there).
+  // The first poster stands at the left edge.
+  await expect.poll(() => offsetFromEdge(posters.nth(0))).toBeCloseTo(0, 0);
+  let scrolled = 0;
   for (let slide = 1; slide < count; slide += 1) {
+    const visible = await inView(posters.nth(slide));
+    const before = await scroller.evaluate((element) => element.scrollLeft);
     await next.click();
     await expect(posters.nth(slide)).toHaveAttribute('aria-current', 'true');
-    await expect.poll(() => offsetFromEdge(posters.nth(slide))).toBeCloseTo(0, 0);
+    if (visible) {
+      // The marker moved, the posters stayed.
+      expect(await scroller.evaluate((element) => element.scrollLeft)).toBe(before);
+    } else {
+      // Out of view: the row brings the poster to its left edge (the space after the last poster
+      // lets the last ones get there), whole, never cut.
+      await expect.poll(() => offsetFromEdge(posters.nth(slide))).toBeCloseTo(0, 0);
+      scrolled += 1;
+    }
   }
+  expect(scrolled).toBeGreaterThan(0);
   expect(await page.evaluate(() => window.scrollY)).toBe(top);
 });
 

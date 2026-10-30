@@ -136,8 +136,11 @@ export function dismissHeroPrepaint() {
  * Tab lands on the active poster (roving tabindex); its last poster holds the focus inside the
  * band, left of the first one is the way out to the side navigation.
  *
- * The poster row follows the band: on every change it scrolls sideways (never the page) until the
- * active poster stands at its left edge (N-4); a space after the last poster lets it get there.
+ * The poster row stands still while the band moves: the marker wanders from poster to poster, the
+ * posters stay where they are (Marco, 30 October 2026). Only when the active poster is outside the
+ * row's visible part does the row scroll sideways (never the page), and then until that poster
+ * stands at its left edge (N-4); a space after the last poster lets it get there. The first slide
+ * is placed the same way, at once.
  *
  * The three buttons keep the slide they were pressed on: a change between pointer down and up
  * opens the pressed title, not the one the band moved to (12.1).
@@ -244,8 +247,10 @@ export function HeroCarousel({
     };
   }, [shown]);
 
-  // The poster row puts the active poster at its left edge: sideways only, so the page never moves
-  // (scrollIntoView would scroll it too). At once on the first slide, gliding afterwards.
+  // The poster row stays put as long as the active poster is wholly visible; the marker moves, not
+  // the posters. Once the active poster is cut off or out of view, the row scrolls sideways only
+  // (scrollIntoView would move the page too) until the poster stands at its left edge (N-4). At
+  // once on the first slide, gliding afterwards.
   const scroller = useRef<HTMLDivElement>(null);
   const placed = useRef(false);
   useEffect(() => {
@@ -254,13 +259,11 @@ export function HeroCarousel({
     const list = node?.firstElementChild;
     if (!node || !card || !list) return;
     const gutter = parseFloat(getComputedStyle(list).paddingLeft) || 0;
-    const left = Math.max(
-      0,
-      card.getBoundingClientRect().left -
-        node.getBoundingClientRect().left +
-        node.scrollLeft -
-        gutter,
-    );
+    const view = node.getBoundingClientRect();
+    const box = card.getBoundingClientRect();
+    const visible = box.left >= view.left + gutter - 1 && box.right <= view.right + 1;
+    if (visible && placed.current) return;
+    const left = Math.max(0, box.left - view.left + node.scrollLeft - gutter);
     if (Math.abs(left - node.scrollLeft) > 1) {
       node.scrollTo({ left, behavior: placed.current && !reducedMotion ? 'smooth' : 'auto' });
     }
