@@ -11,6 +11,28 @@ import (
 	"strings"
 )
 
+const cancelDownloadPreparation = `-- name: CancelDownloadPreparation :execrows
+UPDATE downloads SET state = 'failed', error = ?1, updated_at = ?2
+WHERE id = ?3 AND state IN ('queued', 'preparing', 'paused')
+`
+
+type CancelDownloadPreparationParams struct {
+	Error sql.NullString
+	Now   int64
+	ID    string
+}
+
+// The administration cancels the preparation (concept 09, F-2): a download that still waits,
+// prepares or is paused ends failed with the code cancelled_by_admin; the reconciliation leaves
+// failed downloads alone.
+func (q *Queries) CancelDownloadPreparation(ctx context.Context, arg CancelDownloadPreparationParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, cancelDownloadPreparation, arg.Error, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countOpenAutoDownloads = `-- name: CountOpenAutoDownloads :one
 SELECT count(*) FROM downloads AS d
 LEFT JOIN progress AS p ON p.profile_id = d.profile_id AND p.item_id = d.item_id

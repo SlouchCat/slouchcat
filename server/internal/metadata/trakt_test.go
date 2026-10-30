@@ -382,7 +382,7 @@ func TestTraktSchedule(t *testing.T) {
 func TestRegisterTypesSchedules(t *testing.T) {
 	t.Parallel()
 	e := newTraktEnv(t, "", traktKeys{id: traktTestID})
-	r := jobs.NewRegistry()
+	r := jobs.NewRegistry(e.queue, slog.New(slog.DiscardHandler))
 	e.svc.RegisterTypes(r)
 	trakt, ok := r.Lookup(JobTraktRefresh)
 	if !ok || !trakt.Scheduled() || trakt.Seed == nil || trakt.StartDelay != nil || trakt.Handler == nil || trakt.Priority != traktPriority {
@@ -397,8 +397,8 @@ func TestRegisterTypesSchedules(t *testing.T) {
 	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)
-	if len(w.Handlers()) != 7 {
-		t.Errorf("handlers attached = %v, want the seven types with a handler", w.Handlers())
+	if len(w.Handlers()) != 8 {
+		t.Errorf("handlers attached = %v, want the seven metadata types with a handler plus jobs.prune", w.Handlers())
 	}
 }
 

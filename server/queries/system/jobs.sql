@@ -33,7 +33,7 @@ SELECT * FROM jobs WHERE id = @id;
 -- name: FailExhaustedLeases :execrows
 UPDATE jobs
 SET state = 'failed', lease_owner = NULL, lease_until = NULL,
-    last_error = 'lease expired after the last attempt', updated_at = @now
+    last_error = 'lease expired after the last attempt', updated_at = @now, finished_at = @now
 WHERE state = 'running' AND lease_until < @now AND attempts >= max_attempts;
 
 -- Expired leases of jobs that may still run go back to the queue (the attempt stays counted), so
@@ -44,12 +44,17 @@ SET state = 'queued', lease_owner = NULL, lease_until = NULL, updated_at = @now
 WHERE state = 'running' AND lease_until < @now AND attempts < max_attempts;
 
 -- name: ClaimJob :one
+-- Every attempt starts the run anew: started_at is set, the progress and skipped of the attempt
+-- before are cleared (concept 09, 4.1). A paused type (job_types.paused_at) is not claimed; the
+-- subquery reads at most a few dozen rows.
 UPDATE jobs
 SET state = 'running', lease_owner = @worker_id, lease_until = @lease_until,
-    attempts = attempts + 1, updated_at = @now
+    attempts = attempts + 1, updated_at = @now, started_at = @now, finished_at = NULL,
+    progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
 WHERE id = (
     SELECT j.id FROM jobs AS j
     WHERE j.state = 'queued' AND j.run_after <= @now AND j.type IN (sqlc.slice('types'))
+      AND j.type NOT IN (SELECT t.type FROM job_types AS t WHERE t.paused_at IS NOT NULL)
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )
@@ -62,13 +67,27 @@ WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
 
 -- name: CompleteJob :execrows
 UPDATE jobs
-SET state = 'done', lease_owner = NULL, lease_until = NULL, updated_at = @now
+SET state = 'done', lease_owner = NULL, lease_until = NULL, updated_at = @now, finished_at = @now
 WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
 
 -- name: FailJob :execrows
+-- finished_at is set with the final state only; a retry has not finished (the duration of a run
+-- is finished_at - started_at of its last attempt, concept 09 4.1).
 UPDATE jobs
 SET state = @state, run_after = @run_after, last_error = @last_error,
-    lease_owner = NULL, lease_until = NULL, updated_at = @now
+    lease_owner = NULL, lease_until = NULL, updated_at = @now,
+    finished_at = CASE WHEN @state = 'failed' THEN @now ELSE NULL END
+WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
+
+-- name: UpdateJobProgress :execrows
+-- The reporter of the worker writes the progress of a running job under its own lease.
+UPDATE jobs
+SET progress_done = @progress_done, progress_total = @progress_total, progress_note = @progress_note, updated_at = @now
+WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
+
+-- name: SetJobSkipped :execrows
+-- jobs.Skip: the run had nothing to do and does not count for the median duration.
+UPDATE jobs SET skipped = 1, updated_at = @now
 WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
 
 -- name: ReleaseJob :execrows
@@ -79,8 +98,40 @@ WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
 -- name: CancelJob :execrows
 -- A queued or running job stops; a failed one is dismissed (the dashboard offers both).
 UPDATE jobs
-SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = @now
+SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = @now, finished_at = @now
 WHERE id = @id AND state IN ('queued', 'running', 'failed');
+
+-- name: ListActiveJobsByType :many
+-- The queued and running jobs of a type, oldest first (cancelJobRuns, concept 09 6.3).
+SELECT * FROM jobs WHERE type = @type AND state IN ('queued', 'running') ORDER BY id;
+
+-- name: ListJobDurations :many
+-- The durations of the newest done runs of a type that did work (the median of concept 09 6.2),
+-- over the index jobs_history.
+SELECT finished_at - started_at AS duration_ms
+FROM jobs
+WHERE type = @type AND state = 'done' AND skipped = 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL
+ORDER BY finished_at DESC
+LIMIT @limit_count;
+
+-- name: ListHistoryJobTypes :many
+-- The types that have finished runs to prune.
+SELECT DISTINCT type FROM jobs WHERE state IN ('done', 'cancelled') ORDER BY type;
+
+-- name: PruneJobs :execrows
+-- One batch of jobs.prune (concept 09 4.4, F-8): done and cancelled runs of a type older than
+-- @before, except the newest @keep of the type; failed runs stay until the administrator acts.
+-- Rows from before migration 00027 have no finished_at and age by updated_at.
+DELETE FROM jobs WHERE id IN (
+    SELECT j.id FROM jobs AS j
+    WHERE j.type = @type AND j.state IN ('done', 'cancelled') AND COALESCE(j.finished_at, j.updated_at) < @before
+      AND j.id NOT IN (
+          SELECT k.id FROM jobs AS k WHERE k.type = @type AND k.state IN ('done', 'cancelled')
+          ORDER BY COALESCE(k.finished_at, k.updated_at) DESC, k.id DESC
+          LIMIT @keep)
+    ORDER BY j.id
+    LIMIT @batch
+);
 
 -- ---------------------------------------------------------------------------------------------
 -- Job types and schedules (concept 09, ADR 0017). Times are Unix milliseconds; the window is in
@@ -95,6 +146,17 @@ ON CONFLICT (type) DO NOTHING;
 
 -- name: GetJobType :one
 SELECT * FROM job_types WHERE type = @type;
+
+-- name: PauseJobType :execrows
+-- The pause of a type (concept 09 6.3, F-1, F-6): no new claims, running runs are stopped by the
+-- registry and go back to the queue. Idempotent: a paused type stays paused at its first time.
+UPDATE job_types SET updated_at = @now, paused_at = @now WHERE type = @type AND paused_at IS NULL;
+
+-- name: ResumeJobType :execrows
+UPDATE job_types SET paused_at = NULL, updated_at = @now WHERE type = @type AND paused_at IS NOT NULL;
+
+-- name: ListPausedJobTypes :many
+SELECT type FROM job_types WHERE paused_at IS NOT NULL ORDER BY type;
 
 -- name: ListJobTypes :many
 SELECT * FROM job_types ORDER BY type;

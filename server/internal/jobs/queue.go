@@ -66,6 +66,14 @@ const (
 // cancelled, completed, or its lease expired and another worker claimed it.
 var ErrLeaseLost = errors.New("job lease lost")
 
+// ErrPaused is the cause of a job context that the pause of its type ended (Registry.Pause): the
+// worker releases the job without counting the attempt, whatever the handler returned.
+var ErrPaused = errors.New("job type paused")
+
+// ErrCancelled is the cause of a job context that an administrator's cancel ended
+// (Registry.CancelJob, CancelRuns); the queue row is cancelled already.
+var ErrCancelled = errors.New("job cancelled")
+
 // State is the lifecycle state of a job.
 type State string
 
@@ -103,6 +111,26 @@ type Job struct {
 	LastError      string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	// StartedAt is the start of the last attempt (zero before the first claim), FinishedAt the
+	// end of the run in a final state (done, failed, cancelled; zero while it runs or waits).
+	StartedAt  time.Time
+	FinishedAt time.Time
+	Progress   RunProgress // the last reported progress of the attempt
+	Skipped    bool        // the run had nothing to do (Skip)
+}
+
+// Duration returns how long the last attempt ran: FinishedAt - StartedAt in a final state, the
+// time since StartedAt while it runs; zero without a start.
+func (j Job) Duration(now time.Time) time.Duration {
+	switch {
+	case j.StartedAt.IsZero():
+		return 0
+	case !j.FinishedAt.IsZero():
+		return max(j.FinishedAt.Sub(j.StartedAt), 0)
+	case j.State == StateRunning:
+		return max(now.Sub(j.StartedAt), 0)
+	}
+	return 0
 }
 
 // Queue is the persistent queue on the writer connection of the database.
@@ -279,6 +307,40 @@ func (q *Queue) RaiseQueuedPriority(ctx context.Context, id int64, priority int)
 	return n == 1, nil
 }
 
+// ListActive returns the queued and running jobs of typ, oldest first.
+func (q *Queue) ListActive(ctx context.Context, typ string) ([]Job, error) {
+	rows, err := q.q.ListActiveJobsByType(ctx, typ)
+	if err != nil {
+		return nil, fmt.Errorf("list active jobs of %s: %w", typ, err)
+	}
+	out := make([]Job, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, fromRow(r))
+	}
+	return out, nil
+}
+
+// PausedTypes returns the paused job types, sorted.
+func (q *Queue) PausedTypes(ctx context.Context) ([]string, error) {
+	types, err := q.q.ListPausedJobTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list paused job types: %w", err)
+	}
+	return types, nil
+}
+
+// TypePaused reports whether typ is paused; a type without a row is not.
+func (q *Queue) TypePaused(ctx context.Context, typ string) (bool, error) {
+	row, err := q.q.GetJobType(ctx, typ)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get job type %s: %w", typ, err)
+	}
+	return row.PausedAt.Valid, nil
+}
+
 // Get returns a job by ID.
 func (q *Queue) Get(ctx context.Context, id int64) (Job, error) {
 	row, err := q.q.GetJob(ctx, id)
@@ -318,5 +380,17 @@ func fromRow(r systemq.Job) Job {
 		LastError:      r.LastError.String,
 		CreatedAt:      time.UnixMilli(r.CreatedAt),
 		UpdatedAt:      time.UnixMilli(r.UpdatedAt),
+		StartedAt:      msTime(r.StartedAt),
+		FinishedAt:     msTime(r.FinishedAt),
+		Progress:       RunProgress{Done: r.ProgressDone.Int64, Total: r.ProgressTotal.Int64, Note: r.ProgressNote.String},
+		Skipped:        r.Skipped == 1,
 	}
+}
+
+// msTime converts a nullable Unix-millisecond column; NULL is the zero time.
+func msTime(v sql.NullInt64) time.Time {
+	if !v.Valid {
+		return time.Time{}
+	}
+	return time.UnixMilli(v.Int64)
 }

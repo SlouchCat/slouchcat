@@ -60,7 +60,7 @@ type schedEnv struct {
 func newSchedEnv(t *testing.T, types ...Type) *schedEnv {
 	t.Helper()
 	q, c := newTestQueue(t)
-	reg := NewRegistry()
+	reg := NewRegistry(q, discard)
 	for _, ty := range types {
 		reg.Register(ty)
 	}
@@ -357,7 +357,7 @@ func TestSchedulerSeedAndExistingRow(t *testing.T) {
 		ty.Seed = func(context.Context) (ScheduleSeed, error) { return seed, nil }
 		return ty
 	}
-	reg := NewRegistry()
+	reg := NewRegistry(q, discard)
 	reg.Register(seeded(recent, ScheduleSeed{Every: 6 * time.Hour, Enabled: true, LastRun: now.Add(-4 * time.Hour)}))
 	reg.Register(seeded(stale, ScheduleSeed{Every: 6 * time.Hour, Enabled: true, LastRun: now.Add(-10 * time.Hour)}))
 	reg.Register(seeded(off, ScheduleSeed{Enabled: false}))
@@ -394,8 +394,8 @@ func TestSchedulerSeedAndExistingRow(t *testing.T) {
 		t.Errorf("interval after a restart = %v, want the administrator's 12 h", r.Every)
 	}
 	var types int
-	if err := q.db.QueryRowContext(ctx, `SELECT count(*) FROM job_types`).Scan(&types); err != nil || types != 3 {
-		t.Errorf("job_types rows = %d %v, want 3", types, err)
+	if err := q.db.QueryRowContext(ctx, `SELECT count(*) FROM job_types`).Scan(&types); err != nil || types != 4 {
+		t.Errorf("job_types rows = %d %v, want 3 plus jobs.prune", types, err)
 	}
 }
 
@@ -436,6 +436,7 @@ func TestRegistryValidatesAndAttachesByPool(t *testing.T) {
 		{Name: "x", Group: GroupSystem, Pool: PoolGeneral, Trigger: TriggerManual, Handler: handler},                       // manual without Run
 		{Name: "x", Pool: PoolGeneral, Trigger: TriggerEvent, Handler: handler},                                            // no group
 	}
+	q, _ := newTestQueue(t)
 	for i, ty := range bad {
 		func() {
 			defer func() {
@@ -443,10 +444,10 @@ func TestRegistryValidatesAndAttachesByPool(t *testing.T) {
 					t.Errorf("type %d accepted: %+v", i, ty)
 				}
 			}()
-			NewRegistry().Register(ty)
+			NewRegistry(q, discard).Register(ty)
 		}()
 	}
-	r := NewRegistry()
+	r := NewRegistry(q, discard)
 	r.Register(Type{Name: "g.one", Group: GroupLibrary, Pool: PoolGeneral, Trigger: TriggerEvent, Handler: handler})
 	r.Register(Type{Name: "d.one", Group: GroupDelivery, Pool: PoolDownload, Trigger: TriggerEvent, Handler: handler})
 	r.Register(Type{Name: "p.poll", Group: GroupMetadata, Pool: PoolGeneral, Trigger: TriggerSchedule, Run: run, Every: 5 * time.Minute}) // no handler
@@ -458,21 +459,20 @@ func TestRegistryValidatesAndAttachesByPool(t *testing.T) {
 		}()
 		r.Register(Type{Name: "g.one", Group: GroupLibrary, Pool: PoolGeneral, Trigger: TriggerEvent, Handler: handler})
 	}()
-	q, _ := newTestQueue(t)
 	general, download, all := NewWorker(q, "g", discard), NewWorker(q, "d", discard), NewWorker(q, "a", discard)
 	r.Attach(general, PoolGeneral)
 	r.Attach(download, PoolDownload)
 	r.Attach(all)
-	if len(general.handlers) != 1 || general.handlers["g.one"] == nil {
-		t.Errorf("general worker handles %v", general.handlers)
+	if len(general.handlers) != 2 || general.handlers["g.one"] == nil || general.handlers[JobPrune] == nil {
+		t.Errorf("general worker handles %v, want g.one and jobs.prune", general.handlers)
 	}
 	if len(download.handlers) != 1 || download.handlers["d.one"] == nil {
 		t.Errorf("download worker handles %v", download.handlers)
 	}
-	if len(all.handlers) != 2 {
-		t.Errorf("worker of all pools handles %v, want the two types with a handler", all.handlers)
+	if len(all.handlers) != 3 {
+		t.Errorf("worker of all pools handles %v, want the three types with a handler", all.handlers)
 	}
-	if got := r.Types(); len(got) != 3 || got[0].Name != "g.one" || got[2].Name != "p.poll" {
+	if got := r.Types(); len(got) != 4 || got[0].Name != JobPrune || got[1].Name != "g.one" || got[3].Name != "p.poll" {
 		t.Errorf("Types() = %v", got)
 	}
 }

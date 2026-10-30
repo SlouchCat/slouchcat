@@ -318,7 +318,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// registry hands the handlers to the workers of each pool, and the scheduler runs the types
 	// with a schedule (full scan, sweep, podcast poll, Trakt lists, update check) from
 	// job_schedules, which replaces the ticker loops the services ran until 1.4.0.
-	registry := jobs.NewRegistry()
+	registry := jobs.NewRegistry(queue, log)
 	libSvc.RegisterTypes(registry)
 	metaSvc.RegisterTypes(registry)
 	adminSvc.RegisterTypes(registry)

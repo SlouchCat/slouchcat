@@ -89,7 +89,8 @@ func (q *Queries) ListFailedJobs(ctx context.Context, limitCount int64) ([]ListF
 
 const retryFailedJob = `-- name: RetryFailedJob :execrows
 UPDATE jobs
-SET state = 'queued', attempts = 0, run_after = ?1, lease_owner = NULL, lease_until = NULL, updated_at = ?1
+SET state = 'queued', attempts = 0, run_after = ?1, lease_owner = NULL, lease_until = NULL, updated_at = ?1,
+    started_at = NULL, finished_at = NULL, progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
 WHERE jobs.id = ?2 AND jobs.state = 'failed'
   AND (jobs.idempotency_key IS NULL OR NOT EXISTS (
       SELECT 1 FROM jobs AS a WHERE a.idempotency_key = jobs.idempotency_key AND a.state IN ('queued', 'running')))

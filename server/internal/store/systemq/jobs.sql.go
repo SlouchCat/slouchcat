@@ -13,7 +13,7 @@ import (
 
 const cancelJob = `-- name: CancelJob :execrows
 UPDATE jobs
-SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = ?1
+SET state = 'cancelled', lease_owner = NULL, lease_until = NULL, updated_at = ?1, finished_at = ?1
 WHERE id = ?2 AND state IN ('queued', 'running', 'failed')
 `
 
@@ -34,10 +34,12 @@ func (q *Queries) CancelJob(ctx context.Context, arg CancelJobParams) (int64, er
 const claimJob = `-- name: ClaimJob :one
 UPDATE jobs
 SET state = 'running', lease_owner = ?1, lease_until = ?2,
-    attempts = attempts + 1, updated_at = ?3
+    attempts = attempts + 1, updated_at = ?3, started_at = ?3, finished_at = NULL,
+    progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
 WHERE id = (
     SELECT j.id FROM jobs AS j
     WHERE j.state = 'queued' AND j.run_after <= ?3 AND j.type IN (/*SLICE:types*/?)
+      AND j.type NOT IN (SELECT t.type FROM job_types AS t WHERE t.paused_at IS NOT NULL)
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )
@@ -51,6 +53,9 @@ type ClaimJobParams struct {
 	Types      []string
 }
 
+// Every attempt starts the run anew: started_at is set, the progress and skipped of the attempt
+// before are cleared (concept 09, 4.1). A paused type (job_types.paused_at) is not claimed; the
+// subquery reads at most a few dozen rows.
 func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error) {
 	query := claimJob
 	var queryParams []interface{}
@@ -94,7 +99,7 @@ func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
 
 const completeJob = `-- name: CompleteJob :execrows
 UPDATE jobs
-SET state = 'done', lease_owner = NULL, lease_until = NULL, updated_at = ?1
+SET state = 'done', lease_owner = NULL, lease_until = NULL, updated_at = ?1, finished_at = ?1
 WHERE id = ?2 AND state = 'running' AND lease_owner = ?3
 `
 
@@ -163,7 +168,7 @@ func (q *Queries) ExtendLease(ctx context.Context, arg ExtendLeaseParams) (int64
 const failExhaustedLeases = `-- name: FailExhaustedLeases :execrows
 UPDATE jobs
 SET state = 'failed', lease_owner = NULL, lease_until = NULL,
-    last_error = 'lease expired after the last attempt', updated_at = ?1
+    last_error = 'lease expired after the last attempt', updated_at = ?1, finished_at = ?1
 WHERE state = 'running' AND lease_until < ?1 AND attempts >= max_attempts
 `
 
@@ -178,7 +183,8 @@ func (q *Queries) FailExhaustedLeases(ctx context.Context, now int64) (int64, er
 const failJob = `-- name: FailJob :execrows
 UPDATE jobs
 SET state = ?1, run_after = ?2, last_error = ?3,
-    lease_owner = NULL, lease_until = NULL, updated_at = ?4
+    lease_owner = NULL, lease_until = NULL, updated_at = ?4,
+    finished_at = CASE WHEN ?1 = 'failed' THEN ?4 ELSE NULL END
 WHERE id = ?5 AND state = 'running' AND lease_owner = ?6
 `
 
@@ -191,6 +197,8 @@ type FailJobParams struct {
 	WorkerID  sql.NullString
 }
 
+// finished_at is set with the final state only; a retry has not finished (the duration of a run
+// is finished_at - started_at of its last attempt, concept 09 4.1).
 func (q *Queries) FailJob(ctx context.Context, arg FailJobParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, failJob,
 		arg.State,
@@ -368,6 +376,55 @@ func (q *Queries) InsertJobSchedule(ctx context.Context, arg InsertJobSchedulePa
 	return result.RowsAffected()
 }
 
+const listActiveJobsByType = `-- name: ListActiveJobsByType :many
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs WHERE type = ?1 AND state IN ('queued', 'running') ORDER BY id
+`
+
+// The queued and running jobs of a type, oldest first (cancelJobRuns, concept 09 6.3).
+func (q *Queries) ListActiveJobsByType(ctx context.Context, type_ string) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveJobsByType, type_)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Job{}
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Priority,
+			&i.IdempotencyKey,
+			&i.Payload,
+			&i.State,
+			&i.RunAfter,
+			&i.LeaseOwner,
+			&i.LeaseUntil,
+			&i.Attempts,
+			&i.MaxAttempts,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+			&i.ProgressNote,
+			&i.Skipped,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDueJobSchedules = `-- name: ListDueJobSchedules :many
 SELECT s.type, s.every_ms, s.start_delay_ms, s.enabled, s.window_start, s.window_end, s.next_run_at, s.last_fired_at, s.updated_at, t.paused_at
 FROM job_schedules AS s
@@ -415,6 +472,72 @@ func (q *Queries) ListDueJobSchedules(ctx context.Context, now int64) ([]ListDue
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listHistoryJobTypes = `-- name: ListHistoryJobTypes :many
+SELECT DISTINCT type FROM jobs WHERE state IN ('done', 'cancelled') ORDER BY type
+`
+
+// The types that have finished runs to prune.
+func (q *Queries) ListHistoryJobTypes(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listHistoryJobTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var type_ string
+		if err := rows.Scan(&type_); err != nil {
+			return nil, err
+		}
+		items = append(items, type_)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listJobDurations = `-- name: ListJobDurations :many
+SELECT finished_at - started_at AS duration_ms
+FROM jobs
+WHERE type = ?1 AND state = 'done' AND skipped = 0 AND started_at IS NOT NULL AND finished_at IS NOT NULL
+ORDER BY finished_at DESC
+LIMIT ?2
+`
+
+type ListJobDurationsParams struct {
+	Type       string
+	LimitCount int64
+}
+
+// The durations of the newest done runs of a type that did work (the median of concept 09 6.2),
+// over the index jobs_history.
+func (q *Queries) ListJobDurations(ctx context.Context, arg ListJobDurationsParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listJobDurations, arg.Type, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var duration_ms int64
+		if err := rows.Scan(&duration_ms); err != nil {
+			return nil, err
+		}
+		items = append(items, duration_ms)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -489,6 +612,33 @@ func (q *Queries) ListJobTypes(ctx context.Context) ([]JobType, error) {
 	return items, nil
 }
 
+const listPausedJobTypes = `-- name: ListPausedJobTypes :many
+SELECT type FROM job_types WHERE paused_at IS NOT NULL ORDER BY type
+`
+
+func (q *Queries) ListPausedJobTypes(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listPausedJobTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var type_ string
+		if err := rows.Scan(&type_); err != nil {
+			return nil, err
+		}
+		items = append(items, type_)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markJobScheduleFired = `-- name: MarkJobScheduleFired :execrows
 UPDATE job_schedules SET next_run_at = ?1, updated_at = ?2, last_fired_at = ?2 WHERE type = ?3
 `
@@ -501,6 +651,61 @@ type MarkJobScheduleFiredParams struct {
 
 func (q *Queries) MarkJobScheduleFired(ctx context.Context, arg MarkJobScheduleFiredParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, markJobScheduleFired, arg.NextRunAt, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const pauseJobType = `-- name: PauseJobType :execrows
+UPDATE job_types SET updated_at = ?1, paused_at = ?1 WHERE type = ?2 AND paused_at IS NULL
+`
+
+type PauseJobTypeParams struct {
+	Now  int64
+	Type string
+}
+
+// The pause of a type (concept 09 6.3, F-1, F-6): no new claims, running runs are stopped by the
+// registry and go back to the queue. Idempotent: a paused type stays paused at its first time.
+func (q *Queries) PauseJobType(ctx context.Context, arg PauseJobTypeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pauseJobType, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const pruneJobs = `-- name: PruneJobs :execrows
+DELETE FROM jobs WHERE id IN (
+    SELECT j.id FROM jobs AS j
+    WHERE j.type = ?1 AND j.state IN ('done', 'cancelled') AND COALESCE(j.finished_at, j.updated_at) < ?2
+      AND j.id NOT IN (
+          SELECT k.id FROM jobs AS k WHERE k.type = ?1 AND k.state IN ('done', 'cancelled')
+          ORDER BY COALESCE(k.finished_at, k.updated_at) DESC, k.id DESC
+          LIMIT ?3)
+    ORDER BY j.id
+    LIMIT ?4
+)
+`
+
+type PruneJobsParams struct {
+	Type   string
+	Before sql.NullInt64
+	Keep   int64
+	Batch  int64
+}
+
+// One batch of jobs.prune (concept 09 4.4, F-8): done and cancelled runs of a type older than
+// @before, except the newest @keep of the type; failed runs stay until the administrator acts.
+// Rows from before migration 00027 have no finished_at and age by updated_at.
+func (q *Queries) PruneJobs(ctx context.Context, arg PruneJobsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneJobs,
+		arg.Type,
+		arg.Before,
+		arg.Keep,
+		arg.Batch,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -563,6 +768,23 @@ func (q *Queries) RequeueExpiredLeases(ctx context.Context, now int64) (int64, e
 	return result.RowsAffected()
 }
 
+const resumeJobType = `-- name: ResumeJobType :execrows
+UPDATE job_types SET paused_at = NULL, updated_at = ?1 WHERE type = ?2 AND paused_at IS NOT NULL
+`
+
+type ResumeJobTypeParams struct {
+	Now  int64
+	Type string
+}
+
+func (q *Queries) ResumeJobType(ctx context.Context, arg ResumeJobTypeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, resumeJobType, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setJobScheduleNextRun = `-- name: SetJobScheduleNextRun :execrows
 UPDATE job_schedules SET next_run_at = ?1, updated_at = ?2 WHERE type = ?3
 `
@@ -582,6 +804,26 @@ func (q *Queries) SetJobScheduleNextRun(ctx context.Context, arg SetJobScheduleN
 	return result.RowsAffected()
 }
 
+const setJobSkipped = `-- name: SetJobSkipped :execrows
+UPDATE jobs SET skipped = 1, updated_at = ?1
+WHERE id = ?2 AND state = 'running' AND lease_owner = ?3
+`
+
+type SetJobSkippedParams struct {
+	Now      int64
+	ID       int64
+	WorkerID sql.NullString
+}
+
+// jobs.Skip: the run had nothing to do and does not count for the median duration.
+func (q *Queries) SetJobSkipped(ctx context.Context, arg SetJobSkippedParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setJobSkipped, arg.Now, arg.ID, arg.WorkerID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const setQueuedJobPayload = `-- name: SetQueuedJobPayload :execrows
 UPDATE jobs SET payload = ?1, updated_at = ?2 WHERE id = ?3 AND state = 'queued'
 `
@@ -595,6 +837,37 @@ type SetQueuedJobPayloadParams struct {
 // Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 func (q *Queries) SetQueuedJobPayload(ctx context.Context, arg SetQueuedJobPayloadParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setQueuedJobPayload, arg.Payload, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateJobProgress = `-- name: UpdateJobProgress :execrows
+UPDATE jobs
+SET progress_done = ?1, progress_total = ?2, progress_note = ?3, updated_at = ?4
+WHERE id = ?5 AND state = 'running' AND lease_owner = ?6
+`
+
+type UpdateJobProgressParams struct {
+	ProgressDone  sql.NullInt64
+	ProgressTotal sql.NullInt64
+	ProgressNote  sql.NullString
+	Now           int64
+	ID            int64
+	WorkerID      sql.NullString
+}
+
+// The reporter of the worker writes the progress of a running job under its own lease.
+func (q *Queries) UpdateJobProgress(ctx context.Context, arg UpdateJobProgressParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateJobProgress,
+		arg.ProgressDone,
+		arg.ProgressTotal,
+		arg.ProgressNote,
+		arg.Now,
+		arg.ID,
+		arg.WorkerID,
+	)
 	if err != nil {
 		return 0, err
 	}

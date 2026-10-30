@@ -59,7 +59,7 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 	if j, _ := e.queue.Get(e.ctx, ids[0]); j.Priority != jobs.ManualPriority || j.IdempotencyKey != "sweep" {
 		t.Errorf("waiting sweep after the run by hand = %+v", j)
 	}
-	r := jobs.NewRegistry()
+	r := jobs.NewRegistry(e.queue, discard)
 	e.svc.RegisterTypes(r)
 	for _, name := range []string{JobScanLibrary, JobSweep} {
 		ty, ok := r.Lookup(name)
@@ -67,7 +67,7 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 			t.Errorf("%s = %+v, want a schedule type that fires at the start", name, ty)
 		}
 	}
-	if len(r.Types()) != 6 {
-		t.Errorf("registered types = %d, want the six job types of the library", len(r.Types()))
+	if len(r.Types()) != 7 {
+		t.Errorf("registered types = %d, want the six job types of the library plus jobs.prune", len(r.Types()))
 	}
 }

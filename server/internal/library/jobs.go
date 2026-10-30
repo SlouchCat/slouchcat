@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
@@ -175,9 +176,9 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{
 		Name: JobScanLibrary, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
-		Priority: prioScan, Handler: s.handleScan, Run: s.runScans, Every: fullScanInterval, StartDelay: &atStart,
+		Priority: prioScan, Handler: s.handleScan, Run: s.runScans, Cancel: s.cancelScanJob, Every: fullScanInterval, StartDelay: &atStart,
 	})
-	r.Register(jobs.Type{Name: JobScanPath, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioPathScan, Handler: s.handlePathScan})
+	r.Register(jobs.Type{Name: JobScanPath, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioPathScan, Handler: s.handlePathScan, Cancel: s.cancelScanJob})
 	r.Register(jobs.Type{Name: JobProbeFile, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioProbe, Handler: s.handleProbe})
 	r.Register(jobs.Type{Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioKeyframes, Handler: s.handleKeyframes})
 	r.Register(jobs.Type{
@@ -185,6 +186,22 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Priority: prioSweep, Handler: s.handleSweep, Run: s.runSweep, Every: sweepInterval, StartDelay: &atStart,
 	})
 	r.Register(jobs.Type{Name: JobSegmentsDetect, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioSegments, Handler: s.handleSegments})
+}
+
+// cancelScanJob is the cancel hook of scan.library and scan.path (jobs.Type.Cancel, concept 09
+// 6.3): the administration's cancel of a scan job runs through CancelScan, so the library ends
+// aborted/cancelled like with the button on the library page instead of staying "queued". A
+// deleted library is no error: the queue cancels the job alone.
+func (s *Service) cancelScanJob(ctx context.Context, j jobs.Job) error {
+	var p libraryPayload
+	if err := json.Unmarshal(j.Payload, &p); err != nil {
+		return fmt.Errorf("decode %s payload: %w", j.Type, err)
+	}
+	_, err := s.CancelScan(ctx, p.LibraryID)
+	if errors.Is(err, model.ErrNotFound) {
+		return nil
+	}
+	return err
 }
 
 func decodePayload(j *jobs.Job, v any) error {

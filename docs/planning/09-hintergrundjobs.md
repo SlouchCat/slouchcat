@@ -1,8 +1,9 @@
 # Konzept: Hintergrundjobs – eigene Verwaltungsseite mit Start, Pause und Abbruch
 
 - **Status: Fassung 4 (30. Oktober 2026), freigegeben mit dem Merge von PR #54 (`05df9c5`); in
-  Umsetzung.** Schritt 0 (Entscheid 15, ADR 0017, Neuverankerung; Abschnitt 13.3) und Schritt 1
-  (Schema, Registry, Scheduler; Abschnitt 13.4) laufen auf einem Zweig ab `main` `05df9c5`. Der
+  Umsetzung.** Schritt 0 (Entscheid 15, ADR 0017, Neuverankerung; Abschnitt 13.3), Schritt 1
+  (Schema, Registry, Scheduler; 13.4) und Schritt 2 (Fortschritt, Pause, Abbruch-Haken, Verlauf;
+  13.5) liegen auf einem Zweig ab `main` `05df9c5` (PR #55). Der
   OMC-Kritiker hat Fassung 1 geprüft (0 Blocker,
   8 Major, 16 Minor; Abschnitt 13); Fassung 2 arbeitet alle ein. Marco hat am 30. Oktober 2026
   alle Fragen beantwortet (Abschnitt 11, 13.2); zwei Antworten weichen von der Empfehlung ab und
@@ -1056,4 +1057,28 @@ umgeschrieben:
 
 Nicht geändert, weil der Code es nicht verlangt: die fünf Zustände, `ClaimJob` (Pause kommt in
 Schritt 2), der Vertrag (1.4.0 bleibt), die Oberfläche.
+
+### 13.5 Befunde aus Schritt 2 (30. Oktober 2026)
+
+Schritt 2 ist nach Abschnitten 4.1, 4.4, 6.2 und 6.3 gebaut: `jobs.Progress`, `jobs.Skip`, Reporter
+im Arbeiter, vier meldende Handler, Pause in `ClaimJob` und über die Laufliste, `Release` vor dem
+`switch`, `Type.Cancel` mit `CancelScan` und `offline.CancelPreparation`, Start- und Endzeit je
+Lauf, `jobs.prune`, Median, eingefrorener Stand `testdata/db/hintergrundjobs.sql`. Abweichungen:
+
+| Stelle | Papier | Gebaut | Grund |
+|---|---|---|---|
+| 6.3, Ort von Pause, Fortsetzen und Abbruch | «Queue-Methoden» (Schritt 3), Laufliste «im Speicher der Registry» | **`Registry.Pause/Resume/CancelJob/CancelRuns/Running`**; `NewRegistry(q, log)` kennt die Queue, `Attach` hängt die Laufliste an den Arbeiter. `Queue` behält `Cancel` (roh), `PausedTypes`, `TypePaused`, `ListActive`, `MedianDuration`, `Prune` | Die Haken (`Type.Cancel`) liegen in der Registry; eine zweite Stelle mit Typwissen in der Queue wäre doppelt |
+| 6.3, Abbruch eines laufenden Laufs | «der Handler merkt es beim nächsten Heartbeat» | Sofort über die Laufliste mit Ursache **`jobs.ErrCancelled`**; der Arbeiter schreibt dann nichts mehr (die Zeile ist schon `cancelled`), kein `Fail`, kein Versuch | Dieselbe Mechanik wie die Pause; der Heartbeat bleibt der Rückfall |
+| 6.3, Download-Handler bei Abbruch | «keine Ursachenprüfung nötig» | Der Haken setzt `failed/cancelled_by_admin` **vor** dem Abbruch; der Handler setzt bei Kontextabbruch nur noch `queued`, wenn der Download noch `preparing` oder `paused` ist (`requeueInterrupted` statt `setState(queued)`) | Sonst hätte der unterbrochene Handler den Fachzustand des Hakens überschrieben und `Reconcile` den Download nach 10 min wieder eingereiht |
+| 5.3, Fehlercode | `cancelled_by_admin` | `model.DownloadErrCancelled = "cancelled_by_admin"`; `DownloadState.error` ist im Vertrag freier Text (Beschreibung zählt Codes auf), also **kein Vertragsbruch**; die Beschreibung wird in Schritt 3 ergänzt | — |
+| 4.1, `ClaimJob` | `started_at` je Versuch | Dazu löscht der Claim Fortschritt und `skipped` des vorigen Versuchs; `RetryFailedJob` setzt Start, Ende, Fortschritt und `skipped` zurück; `FailJob` setzt `finished_at` nur im Endzustand `failed` | Der Verlauf zeigt den letzten Stand des letzten Versuchs |
+| 6.2, Notiz des Scans | «Ordner Filme/2024 · 1 240 von 3 980» | Notiz ohne Sprachtext: `<Bibliothek> · <Wurzelname>/<Ordner relativ zur Wurzel>`, die Zahlen stehen in `done`/`total` (Durchsuchphase: gezählte Ordner, `total = 0`) | Regel 9: kein Text im Server; der Client formatiert |
+| 6.2, Notiz von `probe.keyframes` | Datei relativ zur Wurzel | `media_files.rel_path` | wie beschrieben |
+| 4.4, `jobs.prune` | täglich, Priorität offen | Priorität **2**, `StartDelay` nil, registriert von `NewRegistry` selbst (Gruppe System); ein Lauf ohne gelöschte Zeile meldet `Skip` | Haushalt der Queue gehört zur Queue; Alter nach `finished_at`, für Zeilen vor 00027 nach `updated_at` |
+| 6.2, Median | neueste 50 `done` mit `skipped = 0`, ab 5 Läufen | `Queue.MedianDuration(ctx, typ)` liefert Median, Anzahl und `ok` (ab `MedianMinRuns = 5`); die Schätzungen selbst (Restzeit, Wartezeit, Stau) kommen mit `listJobTypes` in Schritt 3 | — |
+| 6.2, Fortschritt von `library.sweep` | keiner | keiner | wie beschrieben |
+| 8.3, eingefrorener Stand | nach Schritt 2 | `testdata/db/hintergrundjobs.sql` aus `startseite.sql` plus 80 s Serverlauf mit Schritt 2 (18 Jobarten, 6 Zeitpläne, 196 erledigte Läufe mit Start/Ende, `jobs.prune` übersprungen, ein laufender `segments.detect` mit Fortschritt per SQL) | — |
+
+Offen für Schritt 3: `JobCounts.paused` im Dashboard, `stopping` je Jobart (`Registry.Running(typ) > 0` bei
+gesetzter Pause), die Schätzungen aus 6.2 und die Durchreichung von `ErrPaused`/`ErrCancelled` als 409.
 

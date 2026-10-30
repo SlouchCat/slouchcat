@@ -134,8 +134,12 @@ func (s *Service) updateSeed(ctx context.Context) (jobs.ScheduleSeed, error) {
 // retried (the next daily run or the admin tries again); only a failure to store it is an error.
 func (s *Service) handleUpdateCheck(ctx context.Context, _ *jobs.Job) error {
 	on, err := s.updateCheckEnabled(ctx)
-	if err != nil || !on {
+	if err != nil {
 		return err
+	}
+	if !on {
+		jobs.Skip(ctx) // nothing to do while the check is switched off (concept 09, 6.2)
+		return nil
 	}
 	_, err = s.checkUpdate(ctx)
 	return err

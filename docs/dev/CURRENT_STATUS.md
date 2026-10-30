@@ -1,5 +1,65 @@
 # Aktueller Stand
 
+## Hintergrundjobs (Konzept 09): Schritt 2 (30. Oktober 2026)
+
+Gleicher Zweig und PR wie Schritt 0 und 1 (`claude/vigorous-raman-651439`, PR #55), auf Marcos
+Wort («mach weiter») nach dem Umstellen von `localhost:8096` auf das Branch-Image. Konzept
+Abschnitt 10, Schritt 2; Vertrag bleibt **1.4.0**, keine Oberfläche.
+
+**Gebaut.** `jobs.Progress(ctx, done, total, note)` und `jobs.Skip(ctx)` über einen Reporter, den
+der Arbeiter in den Kontext legt (schreibt höchstens alle 2 s, mit jedem Heartbeat und einmal nach
+der Rückkehr des Handlers, unter eigener Lease, Notiz durch `logging.RedactString` und auf
+200 Zeichen gekürzt). Vier Handler melden: `scan.library` in der Durchsuchphase (gezählte Ordner,
+`total = 0`, Notiz «Bibliothek · Wurzel/Ordner») und in der Schreibphase (`seen`/`total`),
+`segments.detect` je Folge, `download.prepare` je Segment, `probe.keyframes` die Datei relativ zur
+Wurzel; `Skip` rufen `download.prepare` beim Warten, `scan.library` ohne Ordner, `update.check` bei
+ausgeschalteter Prüfung und `jobs.prune` ohne Arbeit. `ClaimJob` setzt `started_at` und löscht den
+Fortschritt des vorigen Versuchs; `CompleteJob`, `FailJob` (nur im Endzustand), `CancelJob` und
+`FailExhaustedLeases` setzen `finished_at`; `RetryFailedJob` setzt alles zurück. **Pause** (F-1,
+F-6): `ClaimJob` nimmt keine Läufe pausierter Jobarten; `Registry.Pause` setzt `job_types.paused_at`
+und bricht laufende Läufe über die Laufliste mit `jobs.ErrPaused` ab, der Arbeiter prüft die Ursache
+**vor** dem `switch` und gibt den Lauf ohne verbrauchten Versuch zurück, auch wenn der Handler `nil`
+zurückgibt; der Heartbeat ist der Rückfall. **Abbruch** mit Haken: `Registry.CancelJob` und
+`CancelRuns(type, running)` rufen `Type.Cancel` (`library.cancelScanJob` → `CancelScan`, Bibliothek
+endet `aborted/cancelled`; `offline.cancelPrepareJob` → `CancelPreparation`, Download `failed` mit
+`cancelled_by_admin`, `Reconcile` lässt ihn liegen, der unterbrochene Handler setzt nur noch
+`queued`, wenn der Download noch `preparing`/`paused` ist), dann `Cancel` in der Queue und sofortiger
+Abbruch des Kontexts mit `jobs.ErrCancelled`. **Verlauf**: `jobs.prune` (von `NewRegistry` selbst
+registriert, täglich, Priorität 2) löscht `done`/`cancelled` älter als 30 Tage, behält je Jobart die
+neuesten 50, lässt `failed` liegen, Batches à 500; `Queue.MedianDuration` über die neuesten 50
+nicht übersprungenen Läufe (bekannt ab 5). Eingefrorener Stand `testdata/db/hintergrundjobs.sql` mit
+Test. Abweichungen vom Papier in **13.5** (u. a. Pause/Abbruch auf der Registry statt der Queue,
+sofortiger Abbruch statt Heartbeat, Download-Handler schützt den Fachzustand des Hakens).
+
+**Tests.** `control_test.go`: pausiert wird nicht beansprucht; laufender Lauf hält fünfmal an und ist
+wieder `queued` mit `attempts = 0`, kein `JobFailed`, Handler gibt `nil` zurück; Pause per Heartbeat;
+Abbruch durch Haken (wartend, laufend, Reihenfolge der Haken, fremde Jobart unberührt); Fortschritt
+gedrosselt, redigiert, gekürzt, Flush am Ende, Retry setzt zurück; Median (Ausreisser, übersprungene);
+Prune behält 50 und `failed`. `library/cancel_hook_test.go`: Bibliothek endet `aborted/cancelled`.
+`offline/cancel_hook_test.go`: abgebrochener Download wird von `Reconcile` nicht wieder eingereiht,
+fertiger bleibt unberührt. `store/frozen_hintergrundjobs_test.go`.
+
+**DoD-Belege.**
+
+```
+$ go test ./internal/jobs/                      ok  4.950s
+$ go test ./internal/library/ ./internal/offline/ ./internal/admin/ ./internal/metadata/ ./internal/api/ ./internal/notify/ ./cmd/...
+ok  …/library 40.259s  ok  …/offline 15.522s  ok  …/admin 21.792s  ok  …/metadata 28.322s
+ok  …/api 38.419s      ok  …/notify 7.351s    ok  …/cmd/slouchcat 4.071s
+$ go test ./internal/store/ -run 'TestFrozenHintergrundjobs|TestFrozenStatesMigrate/hintergrundjobs'   ok  22.154s
+$ go tool golangci-lint run ./...               0 issues.
+STEP2_CI_RESULT
+```
+
+Eingefrorener Stand erzeugt aus `startseite.sql` plus 80 s Serverlauf (Port 18099, zwei Arbeiter):
+18 `job_types`, 6 `job_schedules` (`update.check` aus), 196 erledigte Läufe mit Start und Ende,
+`jobs.prune` als `skipped = 1`, Scan-Notizen «Filme · Movies/…», ein laufender `segments.detect`
+mit `3/10` per SQL; dann `slouchcat dump` (`testdata/db/README.md`).
+
+**Offen (Schritt 3 bis 5):** Vertrag 1.5.0 mit den sieben Operationen, `JobCounts.paused`,
+`stopping`, die Schätzungen (Restzeit, Wartezeit, Stau), `admin.Schedules`-Rückschreiben,
+`podcast.poll` von Hand = alle Abos; Seite (Schritt 4); CT 190 und Messung (Schritt 5).
+
 ## Hintergrundjobs (Konzept 09): Schritt 0 und 1 (30. Oktober 2026)
 
 Auf dem Zweig `claude/vigorous-raman-651439` (Worktree, ab `main 05df9c5`, der Freigabe des Papiers).

@@ -227,6 +227,9 @@ func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 	if err != nil || !t.found {
 		return err
 	}
+	// The index of a long file takes minutes; the note names the file relative to its root
+	// (concept 09, 6.2), never the absolute path.
+	jobs.Progress(ctx, 0, 0, t.file.RelPath)
 	var kf []time.Duration
 	if t.file.VideoCodec.Valid || !t.file.AudioCodec.Valid {
 		// An audio file (cover art aside) has no video keyframes: its index stays empty.

@@ -326,11 +326,11 @@ func TestRegisterTypesClaimsOnlyPreparations(t *testing.T) {
 	e.svc.now = time.Now
 	st := e.create(e.f.P18, e.devA, e.f.Rated(0).ID, model.DownloadLow)
 	w := jobs.NewWorker(q, "download-1", vistest.Logger())
-	registry := jobs.NewRegistry()
+	registry := jobs.NewRegistry(q, vistest.Logger())
 	e.svc.RegisterTypes(registry)
 	registry.Attach(w, jobs.PoolDownload)
-	if types := registry.Types(); len(types) != 1 || types[0].Name != JobPrepare || types[0].Pool != jobs.PoolDownload || types[0].Trigger != jobs.TriggerEvent {
-		t.Fatalf("registered types = %+v, want download.prepare as an event type of the pool download", types)
+	if ty, ok := registry.Lookup(JobPrepare); !ok || ty.Pool != jobs.PoolDownload || ty.Trigger != jobs.TriggerEvent || ty.Cancel == nil {
+		t.Fatalf("download.prepare = %+v, want an event type of the pool download with a cancel hook", ty)
 	}
 	done := make(chan struct{})
 	go func() { w.Run(ctx); close(done) }()

@@ -210,11 +210,11 @@ func TestQueueDueUpdateCheck(t *testing.T) {
 	}
 	// A worker with the admin jobs runs it.
 	w := jobs.NewWorker(queue, "w1", f.svc.log)
-	registry := jobs.NewRegistry()
+	registry := jobs.NewRegistry(queue, f.svc.log)
 	f.svc.RegisterTypes(registry)
 	registry.Attach(w, jobs.PoolGeneral)
-	if types := registry.Types(); len(types) != 1 || !types[0].Scheduled() || types[0].Every != UpdateInterval || types[0].StartDelay == nil || *types[0].StartDelay != updateStartDelay {
-		t.Fatalf("registered types = %+v, want update.check as a schedule type every %v, %v after the start", types, UpdateInterval, updateStartDelay)
+	if ty, ok := registry.Lookup(JobUpdateCheck); !ok || !ty.Scheduled() || ty.Every != UpdateInterval || ty.StartDelay == nil || *ty.StartDelay != updateStartDelay {
+		t.Fatalf("update.check = %+v, want a schedule type every %v, %v after the start", ty, UpdateInterval, updateStartDelay)
 	}
 	wctx, stop := context.WithCancel(ctx)
 	done := make(chan struct{})

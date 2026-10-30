@@ -172,3 +172,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `setSpotlightConfig`), eine Empfehlung mit Notiz liegt in `top_picks`. `TestFrozenStartseiteStateCoversTheConcept`
   prüft, dass jede dieser Datenarten vorhanden ist (Takt 7, Sortierschlüssel ohne Artikel, Wertung mit Herkunft, die
   Indizes `items_library_kind_added` und `item_texts_sort_key`, die Notiz).
+- `hintergrundjobs.sql`: Stand nach Schritt 2 des Konzepts «Hintergrundjobs» (ADR 0017; Migration 00027). Erzeugt am
+  30. Oktober 2026 aus `startseite.sql` (Pfade der Wurzeln auf den aktuellen Worktree umgeschrieben, `update_check_enabled`
+  auf `0`), gegen das der Server mit Schritt 2 80 Sekunden lief (`--dev`, zwei Arbeiter, Port 18099): die Registry hat 18
+  Zeilen in `job_types` und sechs Zeitpläne in `job_schedules` angelegt (`update.check` ausgeschaltet), Scan, Sweep und
+  `jobs.prune` sind beim Start gelaufen (196 erledigte Läufe mit `started_at`/`finished_at`, der Scan mit Fortschrittsnotiz
+  «Filme · Movies/…», `jobs.prune` ohne Arbeit als `skipped = 1`), dazu per SQL ein laufender `segments.detect` mit
+  `progress_done 3 / progress_total 10` und Notiz, wie ihn ein Arbeiter mitten im Lauf hinterlässt. Dann
+  `server/bin/slouchcat dump`. `TestFrozenHintergrundjobsStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.
+

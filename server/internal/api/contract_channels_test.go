@@ -116,7 +116,7 @@ func drainDeliveries(t *testing.T, pf profileFixture) {
 	t.Helper()
 	ctx := context.Background()
 	w := jobs.NewWorker(pf.queue, "contract-notify", vistest.Logger())
-	registry := jobs.NewRegistry()
+	registry := jobs.NewRegistry(pf.queue, vistest.Logger())
 	pf.notifySvc.RegisterTypes(registry)
 	registry.Attach(w, jobs.PoolNotify)
 	ctx, cancel := context.WithCancel(ctx)

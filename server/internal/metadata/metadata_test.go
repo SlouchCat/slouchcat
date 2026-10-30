@@ -1372,7 +1372,7 @@ func TestJobChainWithWorker(t *testing.T) {
 	e := newEnv(t, goodToken)
 	e.addItem(t, itemSeed{id: idByIMDB, title: "Whatever", imdbID: "tt0000550"})
 	w := jobs.NewWorker(e.queue, "metadata-test", slog.New(slog.DiscardHandler))
-	registry := jobs.NewRegistry()
+	registry := jobs.NewRegistry(e.queue, slog.New(slog.DiscardHandler))
 	e.svc.RegisterTypes(registry)
 	registry.Attach(w, jobs.PoolGeneral)
 	ctx, cancel := context.WithCancel(context.Background())

@@ -2,9 +2,15 @@ package jobs
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // Job types as a concept of their own (concept 09, ADR 0017): every service registers what a job
@@ -92,16 +98,197 @@ type ScheduleSeed struct {
 // Scheduled reports whether the type has a schedule.
 func (t Type) Scheduled() bool { return t.Trigger == TriggerSchedule }
 
-// Registry holds the registered job types in registration order.
+// Registry holds the registered job types in registration order, the list of running jobs of
+// the workers attached to it, and the pause and cancel of types (concept 09, 6.3).
 type Registry struct {
+	q     *Queue
+	log   *slog.Logger
 	mu    sync.RWMutex
 	types map[string]Type
 	order []string
+	runs  *runList
 }
 
-// NewRegistry returns an empty registry.
-func NewRegistry() *Registry {
-	return &Registry{types: map[string]Type{}}
+// NewRegistry returns a registry on the queue q with the housekeeping type jobs.prune
+// registered.
+func NewRegistry(q *Queue, log *slog.Logger) *Registry {
+	r := &Registry{q: q, log: log.With("component", "jobs"), types: map[string]Type{}, runs: newRunList()}
+	r.Register(pruneType(q))
+	return r
+}
+
+// Queue returns the queue of the registry.
+func (r *Registry) Queue() *Queue { return r.q }
+
+// runList is the list of the jobs the attached workers run right now, with the cancel of each
+// job's context, so a pause or a cancel stops a run in under a second instead of at the next
+// heartbeat.
+type runList struct {
+	mu   sync.Mutex
+	runs map[int64]runEntry
+}
+
+type runEntry struct {
+	typ    string
+	cancel context.CancelCauseFunc
+}
+
+func newRunList() *runList { return &runList{runs: map[int64]runEntry{}} }
+
+func (l *runList) add(id int64, typ string, cancel context.CancelCauseFunc) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.runs[id] = runEntry{typ: typ, cancel: cancel}
+}
+
+func (l *runList) remove(id int64) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.runs, id)
+}
+
+// cancelType ends the context of every running job of typ with cause and returns how many.
+func (l *runList) cancelType(typ string, cause error) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	n := 0
+	for _, e := range l.runs {
+		if e.typ == typ {
+			e.cancel(cause)
+			n++
+		}
+	}
+	return n
+}
+
+// cancelJob ends the context of the running job id with cause and reports whether it ran here.
+func (l *runList) cancelJob(id int64, cause error) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	e, ok := l.runs[id]
+	if ok {
+		e.cancel(cause)
+	}
+	return ok
+}
+
+// count returns how many jobs of typ run right now.
+func (l *runList) count(typ string) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	n := 0
+	for _, e := range l.runs {
+		if e.typ == typ {
+			n++
+		}
+	}
+	return n
+}
+
+// Running returns how many jobs of typ the attached workers run right now (after a pause: the
+// runs that are still stopping).
+func (r *Registry) Running(typ string) int { return r.runs.count(typ) }
+
+// Pause pauses the job type typ (F-1, F-6): no worker claims its jobs any more, and every running
+// job of the type is stopped at once and goes back to the queue without a used attempt. The pause
+// is a row in job_types and survives a restart; a type without a row is model.ErrNotFound.
+// Idempotent.
+func (r *Registry) Pause(ctx context.Context, typ string) error {
+	now := r.q.now()
+	n, err := r.q.q.PauseJobType(ctx, systemq.PauseJobTypeParams{Now: now.UnixMilli(), Type: typ})
+	if err != nil {
+		return fmt.Errorf("pause %s: %w", typ, err)
+	}
+	if n == 0 {
+		if _, err := r.q.q.GetJobType(ctx, typ); errors.Is(err, sql.ErrNoRows) {
+			return model.ErrNotFound
+		} else if err != nil {
+			return fmt.Errorf("get job type %s: %w", typ, err)
+		}
+	}
+	stopped := r.runs.cancelType(typ, ErrPaused)
+	r.log.InfoContext(ctx, "job type paused", "job_type", typ, "stopping", stopped)
+	return nil
+}
+
+// Resume ends the pause of typ; model.ErrNotFound without a row. Idempotent.
+func (r *Registry) Resume(ctx context.Context, typ string) error {
+	n, err := r.q.q.ResumeJobType(ctx, systemq.ResumeJobTypeParams{Now: r.q.now().UnixMilli(), Type: typ})
+	if err != nil {
+		return fmt.Errorf("resume %s: %w", typ, err)
+	}
+	if n == 0 {
+		if _, err := r.q.q.GetJobType(ctx, typ); errors.Is(err, sql.ErrNoRows) {
+			return model.ErrNotFound
+		} else if err != nil {
+			return fmt.Errorf("get job type %s: %w", typ, err)
+		}
+	}
+	r.log.InfoContext(ctx, "job type resumed", "job_type", typ)
+	return nil
+}
+
+// CancelJob cancels one job through the cancel hook of its type (Type.Cancel: a scan ends
+// aborted, a download failed), then in the queue, and stops a running one at once. It reports
+// whether a job was cancelled (false: unknown, or already in a final state other than failed).
+func (r *Registry) CancelJob(ctx context.Context, id int64) (bool, error) {
+	j, err := r.q.Get(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return r.cancel(ctx, j)
+}
+
+// CancelRuns cancels the queued jobs of typ, and with running also the running ones (F-2), each
+// through the cancel hook of the type. It returns how many it cancelled.
+func (r *Registry) CancelRuns(ctx context.Context, typ string, running bool) (int, error) {
+	jobs, err := r.q.ListActive(ctx, typ)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, j := range jobs {
+		if j.State == StateRunning && !running {
+			continue
+		}
+		ok, err := r.cancel(ctx, j)
+		if err != nil {
+			return n, err
+		}
+		if ok {
+			n++
+		}
+	}
+	return n, nil
+}
+
+func (r *Registry) cancel(ctx context.Context, j Job) (bool, error) {
+	// The hook runs for a job that still waits or runs; a failed one is only dismissed, a
+	// finished one is nothing to cancel.
+	if t, ok := r.Lookup(j.Type); ok && t.Cancel != nil && (j.State == StateQueued || j.State == StateRunning) {
+		if err := t.Cancel(ctx, j); err != nil {
+			r.log.WarnContext(ctx, "cancel hook", "job_id", j.ID, "job_type", j.Type, "err", err)
+		}
+	}
+	// The hook may have cancelled the row itself (CancelScan); the queue's cancel is then a no-op
+	// and the running handler is still stopped through the run list.
+	cancelled, err := r.q.Cancel(ctx, j.ID)
+	if err != nil {
+		return false, err
+	}
+	if !cancelled && (j.State == StateQueued || j.State == StateRunning) {
+		if cur, err := r.q.Get(ctx, j.ID); err == nil && cur.State == StateCancelled {
+			cancelled = true // the hook cancelled the row
+		}
+	}
+	stopped := r.runs.cancelJob(j.ID, ErrCancelled)
+	if cancelled || stopped {
+		r.log.InfoContext(ctx, "job cancelled by the administration", "job_id", j.ID, "job_type", j.Type, "was_running", stopped)
+	}
+	return cancelled || stopped, nil
 }
 
 // Register adds t. A type that is not consistent (no name, a schedule type without Run or
@@ -175,9 +362,10 @@ func (r *Registry) Lookup(name string) (Type, bool) {
 	return t, ok
 }
 
-// Attach registers the handlers of the types of pools on w (all pools when none is named). Call
-// it before w.Run.
+// Attach registers the handlers of the types of pools on w (all pools when none is named) and
+// puts w's runs on the registry's run list. Call it before w.Run.
 func (r *Registry) Attach(w *Worker, pools ...Pool) {
+	w.runs = r.runs
 	for _, t := range r.Types() {
 		if t.Handler == nil || (len(pools) > 0 && !containsPool(pools, t.Pool)) {
 			continue
