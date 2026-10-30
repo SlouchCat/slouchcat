@@ -331,6 +331,15 @@ Herkunft, Indizes, Notiz); `TestFrozenStatesMigrate` nimmt ihn über das Glob mi
 5. Cat's Empfehlungen: Seite mit allen Empfehlungen und Notizen in Cats Reihenfolge.
 6. Verwaltung → Spotlight: «Takt der Bühne» speichern; Startseite neu laden.
 
+**Umstellung auf CT 190:** am 30. Oktober 2026, 07:18 Uhr, Image
+`ghcr.io/slouchcat/slouchcat:startseite` (212 MB, Version `startseite-3d37305`), auf dem CT aus der
+Laufzeitstufe des Dockerfiles gebaut (Binary hier mit `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`, Web
+eingebettet; auf dem CT fehlt BuildKit, darum klassischer Builder mit `--build-arg TARGETARCH=amd64`,
+sonst findet apt `jellyfin-ffmpeg7` nicht). `.env` gesichert nach `.env.bak-vor-startseite` (vorher
+`bibliotheken`); Sicherung der Datenbank `pre-migration-startseite-3d37305-20261030T061811.543Z.db`;
+Migration 00026 in 1 927 ms; `/healthz` 200; `metadata.vote_backfill` lief beim Start einmal durch
+(47 s). Die Abnahme nach der Testanleitung oben macht Marco.
+
 **Offen nach diesem Zweig:** Storybook-Vergleichsbilder auf CT 190 nachholen (`task
 storybook:update`: `AppHeader`, `SideNav`, `SideNavDrawer`, `PosterCard`, `Row`, `HeroCarousel`,
 `SelectField`, `LetterBar`, Admin-Seiten); Messung der Bibliotheksseite auf CT 190 (2 vCPU: die
