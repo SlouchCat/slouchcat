@@ -10,13 +10,13 @@
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`4049724`** («Merge pull request #45»,
   Bibliotheken), Vertragsfassung **1.3.0** (`api/openapi.yaml:4`), letzte Migration
   **`00025_items_filled_providers.sql`**, letzte ADR **`0015-bibliotheken-ordner-scraper.md`**.
-  Konzept **08 Startseite ist in Umsetzung** (Zweig `claude/startseite`, Commit `dca8efc` hält
-  **Frage 14 und ADR 0016** fest; im Arbeitsbaum liegen Migration **00026** und Vertrag
-  **1.4.0**). Dieses Papier **setzt 08 voraus** und nimmt darum **Frage 15, ADR 0017, Migration
-  00027 und Vertrag 1.5.0**. 08 bringt eine neue Jobart `metadata.vote_backfill` mit, die hier
-  mitgezählt wird (1.1), und fasst dieselben Navigations- und Sprachdateien an (12.5); der Zweig
-  für 09 wird nach dem Merge von 08 von `main` geschnitten und das Papier dann neu verankert.
-  `:Zeile`-Angaben beziehen sich auf `4049724`; nach Namen suchen, nicht nach Zeile.
+  Konzept **08 Startseite ist seit dem 30. Oktober 2026 in `main`** (PR #47, Merge `fa642f1`;
+  **Frage 14, ADR 0016, Migration 00026, Vertrag 1.4.0**), dazu die Nachträge PR #48 bis #53.
+  Dieses Papier **setzt 08 voraus** und nimmt darum **Frage 15, ADR 0017, Migration 00027 und
+  Vertrag 1.5.0**. 08 bringt eine neue Jobart `metadata.vote_backfill` mit, die hier mitgezählt
+  wird (1.1), und fasst dieselben Navigations- und Sprachdateien an (12.5); der Zweig für 09 wird
+  von `main` geschnitten, und Schritt 0 verankert das Papier neu. `:Zeile`-Angaben beziehen sich
+  noch auf `4049724`; nach Namen suchen, nicht nach Zeile.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
   `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 - **Jeder Schritt ist ein eigener Commit, und vor dem Abschluss jedes Schritts ist `task ci` grün**
@@ -829,8 +829,9 @@ Offene Punkte, die keine Entscheidung brauchen, aber eine Antwort verdienen:
 - **O-2** Zeigt die Karte `scan.library` je Bibliothek eine Zeile («Filme: läuft, 31 %», «Serien:
   wartet»)? Vorschlag: nein — die Bibliotheksseite hat das; unter «Läuft gerade» steht die
   Bibliothek als Gegenstand.
-- **O-3** Reihenfolge: dieses Papier geht **nach 08** (Kopf). Soll der Zweig dennoch früher
-  geschnitten werden, wird er beim Merge von 08 rebased (12.5). Vorschlag: nach 08.
+- **O-3** Reihenfolge: dieses Papier geht **nach 08** (Kopf). Erledigt durch den Lauf der
+  Dinge: 08 ist seit dem 30. Oktober 2026 in `main` (PR #47), der Zweig für 09 kann von `main`
+  geschnitten werden (12.5).
 
 ---
 
@@ -873,8 +874,9 @@ die Messung in Schritt 5 prüft den Fall «vor dem ersten prune».
 
 `sections.ts`, `router.tsx`, `de.json`/`en.json`, `admin-home.spec.ts` (`NAV_PAGES`) und die
 Registry-Aufrufe in `metadata` werden von 08 **und** 09 angefasst, und 08 bringt
-`metadata.vote_backfill`. Darum geht 09 nach 08 (Kopf, O-3): der Zweig wird von `main` nach dem
-Merge von 08 geschnitten, und Schritt 0 verankert das Papier neu.
+`metadata.vote_backfill`. Darum geht 09 nach 08 (Kopf, O-3). 08 ist seit dem 30. Oktober 2026
+gemergt (PR #47); der Zweig für 09 wird von `main` geschnitten, und Schritt 0 verankert das
+Papier neu — besonders die Zeilenangaben in `sections.ts`, `router.tsx` und `AdminHomePage.tsx`.
 
 ### 12.6 Was dieses Papier nicht zählen konnte
 
