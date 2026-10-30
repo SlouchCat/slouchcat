@@ -26,9 +26,14 @@ const keysOf = (entry: IndexEntry) =>
 
 /** Waits until the story rendered, its images decoded and the fonts are ready. */
 async function storyReady(page: Page) {
+  // A story that is nothing but an open modal (SideNavDrawer) mounts into react-aria's portal on
+  // <body>, so #storybook-root stays empty; the open dialog is then the sign that it rendered.
   await page.waitForFunction(() => {
     const root = document.querySelector('#storybook-root');
-    return root !== null && root.childElementCount > 0;
+    return (
+      (root !== null && root.childElementCount > 0) ||
+      document.querySelector('[role="dialog"]') !== null
+    );
   });
   await page.waitForLoadState('networkidle');
   await page.evaluate(async () => {
