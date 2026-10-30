@@ -134,14 +134,15 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 	want := []string{
 		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
 		"</api/v1/home>; rel=preload; as=fetch; crossorigin",
+		"</api/v1/libraries/visible>; rel=preload; as=fetch; crossorigin",
 		"<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 780w, " + large +
-			` 1280w"; imagesizes="100vw"; fetchpriority=high`,
+			` 1280w"; imagesizes="(width >= 768px) calc(100vw - 15rem), 100vw"; fetchpriority=high`,
 	}
 
 	// The shell paints the same image ahead of the app: outside #root, URLs HTML-escaped.
 	esc := func(u string) string { return strings.ReplaceAll(u, "&", "&amp;") }
 	prepaint := `<div id="hero-prepaint" aria-hidden="true"><img src="` + esc(small) + `" srcset="` +
-		esc(small) + " 780w, " + esc(large) + ` 1280w" sizes="100vw" alt="" width="1280" height="720" ` +
+		esc(small) + " 780w, " + esc(large) + ` 1280w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw" alt="" width="1280" height="720" ` +
 		`fetchpriority="high" decoding="sync"></div>`
 
 	t.Run("start page with session", func(t *testing.T) {
@@ -262,8 +263,8 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		}
 		poster := "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 200w, " + large +
 			` 400w"; imagesizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, 8.5rem"; fetchpriority=high`
-		if got := rec.Header().Values("Link"); !slices.Equal(got, append(slices.Clone(want[:2]), poster)) {
-			t.Errorf("Link = %q\nwant   %q", got, append(slices.Clone(want[:2]), poster))
+		if got := rec.Header().Values("Link"); !slices.Equal(got, append(slices.Clone(want[:3]), poster)) {
+			t.Errorf("Link = %q\nwant   %q", got, append(slices.Clone(want[:3]), poster))
 		}
 	})
 
@@ -276,7 +277,7 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		if rec.Code != http.StatusOK || rec.Body.String() != shellWith("") {
 			t.Fatalf("status %d, body %q", rec.Code, rec.Body.String())
 		}
-		if got := rec.Header().Values("Link"); !slices.Equal(got, want[:2]) {
+		if got := rec.Header().Values("Link"); !slices.Equal(got, want[:3]) {
 			t.Errorf("Link = %q, want only the data preloads", got)
 		}
 	})
@@ -395,7 +396,7 @@ func TestHeroPrepaint(t *testing.T) {
 	}{
 		{"both backdrops", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), BackdropSmall: img("backdrop", "w780")},
 			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7" ` +
-				`srcset="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7 780w, /api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7 1280w" sizes="100vw"` + tail},
+				`srcset="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7 780w, /api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7 1280w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw"` + tail},
 		{"large backdrop only", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), Poster: img("poster", "w500")},
 			`<div id="hero-prepaint" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7"` + tail},
 		{"small backdrop only", model.ItemSummary{ID: "a", BackdropSmall: img("backdrop", "w780")},

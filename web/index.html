@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <title>Slouchcat</title>
+    <!-- The hidden side navigation (SideNav) before the first paint, so the shell has its geometry. -->
+    <script>
+      try {
+        if (localStorage.getItem('slouchcat.sidenav') === 'hidden')
+          document.documentElement.dataset.sidenav = 'hidden';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <!--hero-->

@@ -173,7 +173,7 @@ describe('start page', () => {
     const base = `/api/v1/items/${ids.heat}/images/backdrop`;
     expect(first).toHaveAttribute('src', `${base}/w780?v=ghi`);
     expect(first).toHaveAttribute('srcset', `${base}/w780?v=ghi 780w, ${base}/w1280?v=def 1280w`);
-    expect(first).toHaveAttribute('sizes', '100vw');
+    expect(first).toHaveAttribute('sizes', '(width >= 768px) calc(100vw - 15rem), 100vw');
     expect(first).toHaveAttribute('loading', 'eager');
     expect(first).toHaveAttribute('fetchpriority', 'high');
     expect(first).toHaveAttribute('width', '1280');

@@ -2,7 +2,14 @@
 // Features import from '@/ui' only (ESLint rule); react-aria based parts (forms, dialogs, the
 // player's buttons) come from '@/ui/aria', so the browsing pages never load react-aria (P-10).
 export { isAccentName, itemAccentStyle, swatchStyle } from './accent';
-export { AppHeader, type HeaderNotifications, type HeaderUpdate, type NavItem } from './AppHeader';
+export {
+  AppHeader,
+  HEADER_MENU_KEY,
+  type HeaderMenu,
+  type HeaderNotifications,
+  type HeaderSearch,
+  type NavItem,
+} from './AppHeader';
 export { Backdrop } from './Backdrop';
 export { LinkRouterProvider } from './AppLink';
 export { Button, ButtonLink, SpatialButton, SpatialButtonLink, type ButtonVariant } from './Button';
@@ -32,6 +39,13 @@ export { ProgressBar } from './ProgressBar';
 export { Row } from './Row';
 export { SearchField } from './SearchField';
 export { SelectField } from './SelectField';
+export {
+  SIDENAV_HIDE_KEY,
+  SideNav,
+  SideNavMenu,
+  type SideNavEntry,
+  type SideNavProps,
+} from './SideNav';
 export { Skeleton } from './Skeleton';
 export {
   loadSpatialNavigation,

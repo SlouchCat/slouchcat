@@ -100,6 +100,14 @@ export const libraryItemsQuery = (id: number, query: LibraryRequest) =>
   });
 
 /** All of Cat's recommendations for the active profile, in Cat's order (E-2). */
+/** How many of Cat's recommendations the active profile sees: the side navigation's count. */
+export const picksCountQuery = queryOptions({
+  queryKey: ['picks', 'count'],
+  queryFn: async ({ signal }): Promise<number> =>
+    (await request(api.GET('/picks', { params: { query: { limit: 1 } }, signal }))).total,
+  staleTime: 60_000,
+});
+
 export const picksPageQuery = infiniteQueryOptions({
   queryKey: ['picks', 'page'],
   queryFn: ({ pageParam, signal }): Promise<PicksPage> =>

@@ -10,18 +10,10 @@ const meta = {
   args: {
     appName: 'Slouchcat',
     homeHref: '#',
-    navLabel: 'Hauptnavigation',
-    nav: [
-      { href: '#', label: 'Start', current: true },
-      { href: '#libraries', label: 'Bibliotheken' },
-      { href: '#access', label: 'Zugriff' },
-      { href: '#profiles', label: 'Profile' },
-    ],
+    search: { href: '#search', label: 'Suche', accessibleLabel: 'Suche öffnen' },
     profileName: 'Marco',
     profileHref: '#profiles',
     profileLabel: 'Profil wechseln, aktuell Marco',
-    logoutLabel: 'Abmelden',
-    onLogout: () => undefined,
   },
   decorators: [
     (Story) => (
@@ -36,10 +28,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** From 768 px with the side navigation's column shown: no menu button (concept 08). */
 export const Default: Story = {};
 
-/** Second Tab stop: the first navigation link. */
-export const NavFocused: Story = { tags: ['press:Tab+Tab'] };
+/** Second Tab stop: the search link. */
+export const SearchFocused: Story = { tags: ['press:Tab+Tab'] };
+
+/** Below 768 px, or with the column hidden: the menu button opens the drawer. */
+export const WithMenu: Story = {
+  args: {
+    menu: { label: 'Menü', expanded: false, controls: 'app-menu', onPress: () => undefined },
+  },
+};
 
 /** The avatar and the primary fills follow the profile accent (here teal, set by the session). */
 export const TealProfile: Story = {
@@ -67,24 +67,6 @@ export const WithNotifications: Story = {
       label: 'Benachrichtigungen',
       accessibleLabel: 'Benachrichtigungen, 3 ungelesen',
       unread: 3,
-      overflowLabel: '99+',
-    },
-  },
-};
-
-/** The main account sees the update badge next to the inbox (A-5). */
-export const WithUpdate: Story = {
-  args: {
-    update: {
-      href: '#admin',
-      label: 'Update',
-      accessibleLabel: 'Update auf Version 0.9.1 verfügbar',
-    },
-    notifications: {
-      href: '#notifications',
-      label: 'Benachrichtigungen',
-      accessibleLabel: 'Benachrichtigungen',
-      unread: 0,
       overflowLabel: '99+',
     },
   },

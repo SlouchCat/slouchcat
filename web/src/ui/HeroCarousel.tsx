@@ -57,6 +57,11 @@ const prefersReducedMotion = () =>
   typeof window.matchMedia === 'function' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Rendered width of the stage: the viewport less the side navigation's column from 768 px (concept
+// 08, 8). The server's hero preload and prepaint copy it (heroSizes in server/internal/api/
+// preload.go); change them together.
+const HERO_SIZES = '(width >= 768px) calc(100vw - 15rem), 100vw';
+
 /** Source attributes of a slide image: the small backdrop first, the large one for wide screens. */
 function imageSource(slide: HeroSlide) {
   const { backdropUrl, backdropSmallUrl, posterUrl } = slide;
@@ -64,7 +69,7 @@ function imageSource(slide: HeroSlide) {
     return {
       src: backdropSmallUrl,
       srcSet: `${backdropSmallUrl} 780w, ${backdropUrl} 1280w`,
-      sizes: '100vw',
+      sizes: HERO_SIZES,
     };
   }
   return { src: backdropUrl ?? backdropSmallUrl ?? posterUrl };
@@ -227,9 +232,10 @@ export function HeroCarousel({
     }
     return pageForward(direction);
   };
-  // The ends of the poster strip hold the focus inside the band.
+  // The strip's last poster holds the focus inside the band; left of the first one is the band's
+  // way out to the side navigation (concept 08, 7.1), or nothing where there is none.
   const holdEnds = (position: number) => (direction: string) =>
-    !(direction === 'left' && position === 0) && !(direction === 'right' && position === count - 1);
+    !(direction === 'right' && position === count - 1);
 
   if (!slide) return null;
 

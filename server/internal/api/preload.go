@@ -27,10 +27,13 @@ type heroPicker interface {
 	FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
 }
 
-// Width descriptors of the hero srcset; they must match imageSource in web/src/ui/HeroCarousel.tsx.
+// Width descriptors and sizes of the hero srcset; they must match imageSource and HERO_SIZES in
+// web/src/ui/HeroCarousel.tsx. From 768 px the side navigation's column (15rem, --sidenav-width in
+// web/src/ui/global.css) takes its width off the stage (concept 08).
 const (
 	heroSmallWidth = "780w"
 	heroLargeWidth = "1280w"
+	heroSizes      = "(width >= 768px) calc(100vw - 15rem), 100vw"
 )
 
 // Width descriptors and sizes of the poster srcset; they must match srcSet and CARD_SIZES in
@@ -51,15 +54,17 @@ const posterPrepaintCards = 6
 // (posterPrepaint). Every GET / replaces it, with nothing when there is no image.
 const heroMarker = "<!--hero-->"
 
-// startPreloads are the API reads the start page makes first (router guard and home query). The
-// web client sends reads without custom headers, so its fetch() reuses these preloads.
+// startPreloads are the API reads the start page makes first (router guard, home query and the
+// side navigation's libraries, concept 08). The web client sends reads without custom headers, so
+// its fetch() reuses these preloads.
 var startPreloads = []string{
 	"<" + BasePath + "/auth/session>; rel=preload; as=fetch; crossorigin",
 	"<" + BasePath + "/home>; rel=preload; as=fetch; crossorigin",
+	"<" + BasePath + "/libraries/visible>; rel=preload; as=fetch; crossorigin",
 }
 
-// startPagePreload adds Link preload headers to the app shell of the start page (P-10): the session
-// and home data and the first image. The browser fetches them while it still loads the JavaScript,
+// startPagePreload adds Link preload headers to the app shell of the start page (P-10): the session,
+// home and library data and the first image. The browser fetches them while it still loads the JavaScript,
 // instead of after the app has run. Only GET / with a valid session gets the headers; the image is
 // the first title of the stage of the session's profile or, without a stage, the poster of the
 // first title of the first row (the first card), read through the catalog service and thus the
@@ -183,7 +188,7 @@ func heroPrepaint(item model.ItemSummary, profileID int64) string {
 	case item.Backdrop != nil && item.BackdropSmall != nil:
 		small, large := imageURL(item.ID, *item.BackdropSmall, profileID), imageURL(item.ID, *item.Backdrop, profileID)
 		attrs = `src="` + html.EscapeString(small) + `" srcset="` +
-			html.EscapeString(small+" "+heroSmallWidth+", "+large+" "+heroLargeWidth) + `" sizes="100vw"`
+			html.EscapeString(small+" "+heroSmallWidth+", "+large+" "+heroLargeWidth) + `" sizes="` + heroSizes + `"`
 	case item.Backdrop != nil:
 		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.Backdrop, profileID)) + `"`
 	case item.BackdropSmall != nil:
@@ -248,7 +253,7 @@ func heroLink(item model.ItemSummary, profileID int64) string {
 	if item.Backdrop != nil && item.BackdropSmall != nil {
 		small, large := imageURL(item.ID, *item.BackdropSmall, profileID), imageURL(item.ID, *item.Backdrop, profileID)
 		return "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " " + heroSmallWidth + ", " +
-			large + " " + heroLargeWidth + `"; imagesizes="100vw"; fetchpriority=high`
+			large + " " + heroLargeWidth + `"; imagesizes="` + heroSizes + `"; fetchpriority=high`
 	}
 	for _, img := range []*model.Image{item.Backdrop, item.BackdropSmall, item.Poster} {
 		if img != nil {

@@ -25,7 +25,18 @@
     "notifications": "Notifications",
     "admin": "Administration",
     "update": "Update",
-    "updateLabel": "Update to version {{version}} available"
+    "adminUpdateLabel": "Administration, update to version {{version}} available",
+    "searchOpen": "Open search",
+    "menu": "Menu",
+    "menuClose": "Close menu",
+    "libraries": "My media",
+    "toggleLibraries": "Expand or collapse my media",
+    "libraryLabel_one": "{{name}}, {{count}} title",
+    "libraryLabel_other": "{{name}}, {{count}} titles",
+    "librariesOffline": "Offline: libraries not available",
+    "librariesOfflineLink": "Go to downloads",
+    "hideSidebar": "Hide sidebar",
+    "showSidebar": "Show sidebar"
   },
   "system": {
     "server": {

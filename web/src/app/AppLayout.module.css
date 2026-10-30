@@ -16,6 +16,8 @@
   transform: none;
 }
 
+/* The page beside the side navigation's column (--sidenav-width, global.css). */
 .content {
+  padding-left: var(--sidenav-width);
   outline: none;
 }

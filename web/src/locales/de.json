@@ -25,7 +25,18 @@
     "notifications": "Benachrichtigungen",
     "admin": "Verwaltung",
     "update": "Update",
-    "updateLabel": "Update auf Version {{version}} verfügbar"
+    "adminUpdateLabel": "Verwaltung, Update auf Version {{version}} verfügbar",
+    "searchOpen": "Suche öffnen",
+    "menu": "Menü",
+    "menuClose": "Menü schliessen",
+    "libraries": "Meine Medien",
+    "toggleLibraries": "Meine Medien ein- oder ausklappen",
+    "libraryLabel_one": "{{name}}, {{count}} Titel",
+    "libraryLabel_other": "{{name}}, {{count}} Titel",
+    "librariesOffline": "Offline: Bibliotheken nicht verfügbar",
+    "librariesOfflineLink": "Zu den Downloads",
+    "hideSidebar": "Seitenleiste ausblenden",
+    "showSidebar": "Seitenleiste einblenden"
   },
   "system": {
     "server": {

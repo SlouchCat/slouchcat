@@ -99,6 +99,12 @@
         "$value": "4rem"
       }
     },
+    "sidenav": {
+      "width": {
+        "$value": "15rem",
+        "$description": "Width of the side navigation from 768 px (concept 08); the server's hero sizes repeat it."
+      }
+    },
     "content": {
       "max": {
         "$value": "90rem",

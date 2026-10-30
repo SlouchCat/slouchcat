@@ -180,11 +180,19 @@ test('the band: arrow keys move in the poster strip, Enter selects, the focus st
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, posters.nth(1));
 
-  // The strip's first poster holds the focus on arrow left: it never leaves the band sideways.
+  // Left of the strip's first poster is the band's way out to the side navigation, on the
+  // current page's entry (concept 08, 7.1); right from there returns to the band's active poster.
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(page, posters.nth(0));
   await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, posters.nth(0));
+  await expectFocusOn(
+    page,
+    page
+      .getByRole('navigation', { name: 'Hauptnavigation' })
+      .getByRole('link', { name: 'Start', exact: true }),
+  );
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, posters.nth(1));
   await expect(heading).toHaveText(second);
 
   // Up returns to the buttons, down again lands on the active poster, not the last focused one.
@@ -592,16 +600,22 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
   await expectVisibleFocus(page);
 });
 
-test('Tab: skip link, header, hero, then the cards; no focus trap', async ({ page }) => {
+// Concept 08: the side navigation stands between the header and the page (DOM order), so Tab goes
+// skip link, header, the navigation's column (Start first, "Seitenleiste ausblenden" last), page.
+test('Tab: skip link, header, side navigation, hero, then the cards; no focus trap', async ({
+  page,
+}) => {
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('link', { name: 'Zum Inhalt springen' }));
+  await tabTo(page, page.locator('header').getByRole('link', { name: /^Profil wechseln/ }), 5);
   await tabTo(
     page,
     page
       .getByRole('navigation', { name: 'Hauptnavigation' })
       .getByRole('link', { name: 'Start', exact: true }),
+    1,
   );
-  await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
+  await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }));
   if ((await hero(page).count()) > 0) {
     await tabTo(page, hero(page).getByRole('link', { name: 'Abspielen' }), 3);
     await tabTo(page, hero(page).getByRole('link', { name: 'Details' }), 2);

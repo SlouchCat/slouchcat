@@ -91,6 +91,14 @@ const paths = {
   ),
   replay: <path d="M4 12a8 8 0 1 0 2.3-5.7M4 5v5h5" fill="none" />,
   forward: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 5v5h-5" fill="none" />,
+  close: <path d="M6 6l12 12M18 6L6 18" fill="none" />,
+  menu: <path d="M4 6.5h16M4 12h16M4 17.5h16" fill="none" />,
+  search: (
+    <>
+      <circle cx="10.5" cy="10.5" r="6" fill="none" />
+      <path d="M15 15l5 5" fill="none" />
+    </>
+  ),
   list: <path d="M9 6.5h11M9 12h11M9 17.5h11M4.5 6.5h.1M4.5 12h.1M4.5 17.5h.1" fill="none" />,
   moon: <path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10Z" fill="none" />,
   // Administration (M8): the cards of the overview.

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AppLink } from './AppLink';
 import styles from './AppHeader.module.css';
 import { SpatialButton } from './Button';
+import { Icon } from './Icon';
 import { Logo } from './Logo';
 import { NotificationBadge } from './NotificationBadge';
 import { SpatialGroup, useSpatialItem } from './spatial';
@@ -24,42 +25,62 @@ export interface HeaderNotifications {
   current?: boolean;
 }
 
-/** The update hint of the main account (A-5): a small badge that links to the overview. */
-export interface HeaderUpdate {
-  href: string;
-  /** Visible text of the badge ("Update"). */
+/**
+ * The menu button at the start of the header (concept 08): it opens the side navigation as a
+ * drawer, below 768 px and wherever the viewer has hidden the column.
+ */
+export interface HeaderMenu {
+  /** Accessible name ("Menü"). */
   label: string;
-  /** Accessible name with the version ("Update auf Version 0.9.1 verfügbar"). */
-  accessibleLabel?: string;
+  /** Whether the drawer is open (`aria-expanded`). */
+  expanded: boolean;
+  /** Id of the drawer (`aria-controls`). */
+  controls: string;
+  onPress: () => void;
+}
+
+/** The search link: it stays in the header next to the inbox (concept 08), like the "/" key. */
+export interface HeaderSearch {
+  href: string;
+  /** Visible text ("Suche"), hidden on phones where the icon stands alone. */
+  label: string;
+  /** Accessible name ("Suche öffnen"). */
+  accessibleLabel: string;
+  current?: boolean;
 }
 
 interface AppHeaderProps {
   appName: string;
   homeHref: string;
-  navLabel: string;
-  nav: readonly NavItem[];
+  menu?: HeaderMenu;
+  search: HeaderSearch;
   profileName: string;
   /** The profile picker: avatar and name link there to switch profiles. */
   profileHref: string;
   /** Accessible name of that link ("Switch profile, now Marco"). */
   profileLabel: string;
-  logoutLabel: string;
-  onLogout: () => void;
   notifications?: HeaderNotifications;
-  update?: HeaderUpdate;
 }
 
-function UpdateLink({ update }: { update: HeaderUpdate }) {
+/** Focus key of the menu button: the focus returns to it after the column was hidden. */
+export const HEADER_MENU_KEY = 'header-menu';
+
+function SearchLink({ search }: { search: HeaderSearch }) {
   const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
   return (
     <AppLink
       ref={ref}
       onFocus={onFocus}
-      href={update.href}
-      className={styles.update}
-      aria-label={update.accessibleLabel}
+      href={search.href}
+      className={styles.inbox}
+      aria-label={search.accessibleLabel}
+      aria-keyshortcuts="/"
+      aria-current={search.current ? 'page' : undefined}
     >
-      {update.label}
+      <Icon name="search" size="md" />
+      <span className={styles.text} aria-hidden="true">
+        {search.label}
+      </span>
     </AppLink>
   );
 }
@@ -75,43 +96,29 @@ function InboxLink({ inbox }: { inbox: HeaderNotifications }) {
       aria-label={inbox.accessibleLabel}
       aria-current={inbox.current ? 'page' : undefined}
     >
-      <span aria-hidden="true">{inbox.label}</span>
+      <Icon name="bell" size="md" />
+      <span className={styles.text} aria-hidden="true">
+        {inbox.label}
+      </span>
       <NotificationBadge count={inbox.unread} overflowLabel={inbox.overflowLabel} />
-    </AppLink>
-  );
-}
-
-function NavLink({ item }: { item: NavItem }) {
-  const { ref, onFocus } = useSpatialItem<HTMLAnchorElement>();
-  return (
-    <AppLink
-      ref={ref}
-      onFocus={onFocus}
-      href={item.href}
-      className={styles.navLink}
-      aria-current={item.current ? 'page' : undefined}
-    >
-      {item.label}
     </AppLink>
   );
 }
 
 /**
  * Fixed top bar shared by viewer and admin pages. Transparent over artwork, solid once the page
- * scrolls. Takes part in spatial navigation (arrow up from the first row lands here).
+ * scrolls. Takes part in spatial navigation (arrow up from the first row lands here). The page
+ * navigation, sign out and the update hint live in the side navigation (SideNav, concept 08).
  */
 export function AppHeader({
   appName,
   homeHref,
-  navLabel,
-  nav,
+  menu,
+  search,
   profileName,
   profileHref,
   profileLabel,
-  logoutLabel,
-  onLogout,
   notifications,
-  update,
 }: AppHeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const { ref: homeRef, onFocus: onHomeFocus } = useSpatialItem<HTMLAnchorElement>();
@@ -127,16 +134,23 @@ export function AppHeader({
   return (
     <header className={styles.header} data-scrolled={scrolled || undefined}>
       <SpatialGroup focusKey="header" className={styles.inner}>
+        {menu && (
+          <SpatialButton
+            focusKey={HEADER_MENU_KEY}
+            variant="ghost"
+            icon="menu"
+            iconOnly
+            aria-label={menu.label}
+            aria-expanded={menu.expanded}
+            aria-controls={menu.controls}
+            onPress={menu.onPress}
+          />
+        )}
         <AppLink ref={homeRef} onFocus={onHomeFocus} href={homeHref} className={styles.brand}>
           <Logo name={appName} />
         </AppLink>
-        <nav aria-label={navLabel} className={styles.nav}>
-          {nav.map((item) => (
-            <NavLink key={item.href} item={item} />
-          ))}
-        </nav>
         <div className={styles.account}>
-          {update && <UpdateLink update={update} />}
+          <SearchLink search={search} />
           {notifications && <InboxLink inbox={notifications} />}
           <AppLink
             ref={profileRef}
@@ -152,13 +166,6 @@ export function AppHeader({
               {profileName}
             </span>
           </AppLink>
-          <SpatialButton
-            variant="ghost"
-            icon="logout"
-            iconOnly
-            aria-label={logoutLabel}
-            onPress={onLogout}
-          />
         </div>
       </SpatialGroup>
     </header>

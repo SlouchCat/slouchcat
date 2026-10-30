@@ -127,6 +127,58 @@ Browsers landet wieder auf der verlassenen Karte (Regel 8), je Verlaufseintrag g
   WithMoreLink, `SelectField`, `LetterBar`) fehlen: kein Docker auf dem Entwicklungsrechner;
   Marco holt sie wie bei Konzept 07 auf CT 190 nach (`task storybook:update`).
 
+### Schritt 3 — Seitenleiste, Schublade, Vormalen, Offline
+
+`web/src/ui/SideNav.tsx` (ein Bauteil, zwei Darstellungen) mit dem `<nav>`-Namen «Hauptnavigation»:
+ab 768 px eine feste Spalte links (Token `size.sidenav.width` = 15 rem, als `--sidenav-width` in
+`global.css`: 0 unter 768 px und bei `html[data-sidenav="hidden"]`), darunter oder bei
+ausgeblendeter Leiste eine Schublade (`SideNavDrawer.tsx`, react-aria `Modal`/`Dialog`, lazy
+geladen wie der Trailer-Dialog, damit die Startseite ohne react-aria bleibt, P-10). Inhalt ohne
+Symbole (N-2): Start, Suche, Merkliste, Downloads; Gruppe «Meine Medien» (ein- und ausklappbar,
+Zustand je Gerät in `localStorage`, Lesen und Schreiben in `try/catch`) mit einem Eintrag je
+sichtbarer Bibliothek samt Titelzahl (`listVisibleLibraries`, mit der Sitzung vorgeladen) und
+«Cat's Empfehlungen» mit Zahl (`listPicks?limit=1`); unten Verwaltung (Update-Hinweis am Eintrag,
+O-5), Profile, Abmelden, «Seitenleiste ausblenden». Offline oder bei Fehler sagt die Gruppe «Offline:
+Bibliotheken nicht verfügbar» mit Verweis auf Downloads; die Abfrage blockiert die Hülle nicht.
+Die Kopfzeile behält Menü-Symbol (nur ohne Spalte), Logo, Suche, Glocke, Profil; Pillen,
+Update-Hinweis und Abmelden ziehen in die Leiste. Ein Inline-Skript in `web/index.html` setzt
+`data-sidenav` vor dem ersten Malen; `#hero-prepaint`, `#poster-prepaint` und der Inhalt rücken um
+`--sidenav-width`; `sizes` der Bühnenbilder ist `(width >= 768px) calc(100vw - 15rem), 100vw`
+(`heroSizes` in `preload.go`, `HERO_SIZES` in `HeroCarousel.tsx`). Räumliche Navigation:
+`AppLayout` führt Kopfzeile, Spalte und Inhalt in einer Gruppe mit Richtungstabelle (Inhalt links →
+Spalte auf dem Eintrag der aktuellen Seite, Spalte rechts → zuletzt fokussiertes Element im
+Inhalt, hoch → Kopfzeile); `SpatialGroup` bekommt `nextFocusKey`, `focusBoundary` und `tabIndex`.
+Tab-Reihenfolge: Sprunglink → Kopfzeile → Spalte → Inhalt. Im Admin-Bereich bleibt `AdminNav`.
+
+**Belege (DoD).**
+
+- `task web:gen:check && task web:lint && task web:test`: grün (83 Dateien, 666 Tests, darunter
+  `SideNav.test.tsx`); `task ci:server`: `0 issues.`, alle Pakete `ok` (`preload_test.go` mit
+  `data-start`-losem Stand dieses Schritts, drei Vorladungen).
+- `task build`, `SLOUCHCAT_E2E_PORT=8197 task web:e2e` (ganze Suite, Chromium und Firefox):
+  `467 passed, 3 failed (24.9m)`. Zwei Fehler waren Firefox: der scrollende `<nav>` der Spalte
+  war dort eine eigene Tab-Station (Tab-Reihenfolge in `home.spec.ts` und `sidenav.spec.ts`);
+  behoben mit `tabIndex={-1}` auf Spalte und Schubladenkörper. Der dritte
+  (`admin-streams.spec.ts`, Firefox, «stops within 5 s») ist zeitabhängig und ohne Bezug zu diesem
+  Schritt (die Suite lief, während der nächste Agent baute); der Nachweis für beide folgt im
+  Gesamtlauf von Schritt 4.
+- `sidenav.spec.ts` (Chromium, 6 Tests): Spalte bei 1280 px mit allen Einträgen, Pfeile hoch/runter,
+  Enter öffnet die Bibliotheksseite, Pfeil rechts in den Inhalt und links zurück; Ausblenden mit
+  Zustand über `reload`, Schublade zeigt «Seitenleiste einblenden»; Schublade bei 390 px mit Fokus im
+  Dialog, kein Scrollen dahinter, Escape mit Fokusrückgabe; Offline-Zustand der Gruppe
+  (`/libraries/visible` abgebrochen, Service Worker blockiert); Geometrie-Test: `#hero-prepaint`
+  deckt sich mit der Bühne und `#poster-prepaint` mit der ersten Karte, Spalte ein- und
+  ausgeblendet, innerhalb 1 px.
+- Lighthouse mobile und desktop (DoD dieses Schritts) laufen in Schritt 5 zusammen mit der
+  Messung nach Papier-Abschnitt 8, weil der Messaufbau (Lighthouse-CLI, Testfilme vom NAS mit
+  Bildern) dort ohnehin steht.
+- Bekannte Lücke: in einer Bibliothek mit nur einer Inhaltsart beginnt die Werkzeugzeile mit dem
+  `<select>`; Pfeil links von dort erreicht die Spalte nicht, weil `SpatialPage` Pfeiltasten in
+  Auswahlfeldern dem Feld lässt. Raster und Chips erreichen sie.
+- Storybook-Vergleichsbilder fehlen (kein Docker): `AppHeader` SearchFocused/WithMenu, `SideNav`,
+  `SideNavDrawer`, die Admin-Seiten (15 rem schmaler); die alten `ui-appheader--nav-focused.png`
+  und `ui-appheader--with-update.png` sind entfernt.
+
 ## Bibliotheken: Familie, Inhaltsart und Metadatenquellen je Ordner (29. Oktober 2026, abgenommen)
 
 Auf dem Zweig `claude/bibliotheken` (Pull Request #45, bereit) nach dem Konzept
