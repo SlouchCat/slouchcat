@@ -110,6 +110,18 @@ cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tm
 ```
 
 - Kontrolle: `cd deploy && sg docker -c "docker compose ps"` muss `healthy` zeigen.
+- **Release:** der Tag `vX.Y.Z` löst `.github/workflows/release.yml` aus (Image auf ghcr.io,
+  `manifest.json` für die Update-Prüfung). Die Beschriftung des annotierten Tags ist der Text der
+  Release-Notes, die erste Zeile («Slouchcat X.Y.Z») fällt als Betreff weg. Regel: **jede Anhebung
+  von `info.version` in `api/openapi.yaml` wird beim Merge getaggt**, sonst zeigen
+  `docs/INSTALLATION.md` und der Update-Hinweis auf einen Stand, den es nicht gibt. Vorher die
+  Versionsstellen prüfen (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+  `docs/INSTALLATION.md`, dieser Abschnitt). Den Tag pusht Marco selbst (der Auto-Modus einer
+  Session legt keine öffentliche Oberfläche an):
+
+```bash
+git tag -a v1.4.0 -F /pfad/zu/release-notes-1.4.0.txt <merge-commit> && git push origin v1.4.0
+```
 - oh-my-claudecode (OMC) 5.7.5 ist als Plugin für den Linux-Benutzer installiert (`~/.claude`), gilt also
   auch für einen anderen Claude-Account auf diesem Rechner. Skills: `execute`, `ralph`, `team`, `verify`,
   `review`, `plan`, `deep-interview`.
