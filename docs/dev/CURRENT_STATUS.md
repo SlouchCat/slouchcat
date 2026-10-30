@@ -44,6 +44,13 @@ beschreibt gegen Tags, der Job `build` holt die ganze Historie. Die roten Storyb
 offene Punkt aus Konzept 08: `main` war auf `fa642f1` und `1bb1c7e` im Job «web» schon rot,
 Baselines holt Marco auf CT 190 nach.
 
+**Veröffentlicht am 30. Oktober 2026:** PR #49 von Marco gemergt (Merge `c6741b4`), Tag `v1.4.0`
+auf `c6741b4` (Beschriftung = Release-Notes), Release-Lauf 41034208236 grün: Image
+`ghcr.io/slouchcat/slouchcat:1.4.0` (amd64, arm64, anonym ziehbar), `manifest.json` unter
+`releases/latest/download` mit `version 1.4.0`. Erste Fassung, die 1.2.0 und 1.3.0 nachträgt. Offen:
+Storybook-Baselines von Konzept 08 (eigener Zweig ab `main`), der Firefox-Test
+`audiobook.spec.ts:110` (eigene Session), CT 190 auf `1.4.0` umstellen.
+
 **Nicht gebaut:** keine Änderung an der Prüfung selbst (Manifest, Takt, Job), kein Abgleich mit
 Vorabfassungen (`1.5.0-rc.1` zählt wie bisher als älter als `1.5.0`).
 
