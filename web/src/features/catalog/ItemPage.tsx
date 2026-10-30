@@ -175,7 +175,9 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
 
   return (
     <>
-      <SpatialGroup className={styles.actions}>
+      {/* Both rows follow their order for arrows and Tab (ordered): in a wide font the actions wrap,
+          and ↓ from play must still reach the row below, not the button that wrapped under it. */}
+      <SpatialGroup ordered className={styles.actions}>
         {playable &&
           (available ? (
             <SpatialButtonLink
@@ -226,7 +228,7 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
       {/* A row of its own under the playback actions: that row keeps its order for arrows and
           Tab, and ↓ from play reaches "Merken" on every kind that has it. */}
       {listable && (
-        <SpatialGroup className={styles.listActions}>
+        <SpatialGroup ordered className={styles.listActions}>
           <SpatialButton
             focusKey={WATCHLIST_KEY}
             variant="secondary"

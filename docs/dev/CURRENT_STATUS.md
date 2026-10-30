@@ -25,6 +25,70 @@ geprüft). `task ci:server` grün.
 Platz hinter dem Rückstau; nur der manuelle Abruf läuft auf 7. Offen als Folgepunkt, nicht Teil
 dieses Fixes.
 
+## CI-Fehler e2e (shard 4) in Firefox nach Konzept 08 (30. Oktober 2026)
+
+Auf dem Zweig `claude/heuristic-moore-3a82ad` (ab `main 1bb1c7e`). Seit PR #47/#48 war der Job
+«e2e (shard 4)» auf `main` rot: `audiobook.spec.ts:110` («the book's detail page by keyboard»)
+fiel in Firefox zweimal je Lauf (Versuch und Wiederholung), Chromium grün. Zwei Ursachen, zwei
+Commits, Test und Seite unverändert in ihrer Erwartung.
+
+**Ursache 1 – Umbruch der Aktionszeile (`3911556`).** Der CI-Runner hat keine Noto/Inter, Firefox
+fällt auf DejaVu Sans zurück (breiter). Mit der Seitenleiste ist die Inhaltsspalte schmaler, die
+Aktionszeile der Detailseite bricht um, und «Verwalten» (Konto `admin`) steht unter «Abspielen».
+norigin sucht das Ziel von ↓ zuerst geometrisch unter den Geschwistern derselben Gruppe und fand
+den umgebrochenen Knopf statt «Merken» in der Zeile darunter. Der Screenshot im Blob-Report des
+Laufs 41026001430 zeigt den Fokusring auf «Verwalten». Lokal (Noto Sans) passte alles in eine Zeile;
+reproduziert mit `letter-spacing: 0.12em` per `addStyleTag`. **Fix:** `SpatialGroup` kennt
+`ordered`: ←/→ laufen die Kinder in DOM-Reihenfolge ab (`nextInOrder`), ↑/↓ und die Zeilenenden
+gehen an die Elterngruppe (Geometrie). Beide Aktionszeilen der Detailseite (`.actions`,
+`.listActions`) nutzen das; es ist die Reihenfolge, die der Kommentar dort schon versprach.
+Unit-Test `spatial.test.ts`.
+
+**Ursache 2 – `admin-library-folders.spec.ts:71` («Tab did not reach the element within 80
+presses», `5d41049`).** Nicht dieselbe Ursache. `resetFocus` blurte nur; der Startpunkt der
+sequenziellen Fokusnavigation blieb beim zuletzt fokussierten Element. Nach dem Klick auf
+«Bibliothek mit 1 Ordner hinzufügen» (die Spec legt ihre Bibliothek im `beforeEach` über das
+Formular an) lief Tab also vom Formular am Seitenende weiter: Chromium springt am Ende an den
+Anfang und erreichte die Karte oberhalb noch, Headless-Firefox bleibt auf dem letzten Element
+stehen. In CI blieb das verborgen, solange der Chromium-Lauf derselben Datei im selben Shard die
+Bibliothek vorher anlegte; im roten Lauf 41026001430 liegt Chromium in Shard 1 und Firefox in
+Shard 4 (die drei neuen Specs von PR #47 verschoben die Shard-Grenze), und die Wiederholung fand
+die Karte vor, darum «flaky». Die Logs der letzten grünen Läufe liefert `gh run view --log` nicht
+mehr, der Split ist nur im roten Lauf belegt. Lokal mit
+`--project=firefox` allein deterministisch rot. **Fix im Helfer:** `resetFocus` fokussiert und
+entfernt eine Sonde am Anfang von `<body>`; damit beginnt Tab in beiden Browsern oben, wie der
+Helfer es verspricht.
+
+**Belege (DoD).**
+
+- `pnpm exec playwright test e2e/audiobook.spec.ts e2e/admin-library-folders.spec.ts
+  --project=firefox --project=chromium --retries=0`: `28 passed (1.1m)`.
+- `pnpm exec vitest run src/ui/spatial.test.ts`: `3 passed`; `tsc --noEmit`: 0 Fehler.
+- `task build`, `SLOUCHCAT_E2E_PORT=8197 task web:e2e` (ganze Suite, Chromium und Firefox):
+  `478 passed (25.5m)`, kein Fehler, nichts flaky.
+- `task ci:web` ohne `storybook:test` (gen, gen:check, lint, Vitest): `84 passed (84)` Dateien,
+  `673 passed (673)` Tests; Storybook-Baselines wie bei Konzept 08 auf CT 190 (kein Docker hier).
+- `task ci:server`: alle Pakete `ok` bis auf `internal/library`
+  (`TestPodcastFolderPairsFileWithFeedEpisodeAfterProbe`): die lokalen Podcast-Dateien stammten vom
+  22. Oktober, `generate-media.sh` schreibt den `date`-Tag erst seit `193fb22` (29. Oktober) und
+  überspringt vorhandene Dateien. Nach `rm testdata/media/Podcasts/episode-*.mp3` und
+  `task testdata:media` läuft der Test grün (`ok 4.559s`); in CI (frische Medien) war der Job
+  «server tests» auch vorher grün. Wer alte Testmedien hat: `FORCE=1 task testdata:media`.
+
+**Nachtrag CI des PR (`web`-Job rot, Lauf 41034366273).** Alle sechs e2e-Shards grün, aber Vitest
+meldete einen unbehandelten Fehler: `ReferenceError: document is not defined` aus react-arias
+`LiveAnnouncer`, 100 ms nach der ersten Ansage, als jsdom nach `LoginPage.test.tsx` schon abgebaut
+war. Ursache: `@testing-library/react` setzt `IS_REACT_ACT_ENVIRONMENT` nur, wo Jest-Globals
+(`beforeAll`/`afterAll`) existieren; unser Vitest läuft ohne `globals`, und ohne das Flag
+verzögert react-aria die erste Ansage um 100 ms (Safari-Umweg). Zeitabhängig, lokal nicht
+aufgetreten; deterministisch nachgestellt mit `announce()` und anschliessend gelöschtem
+`globalThis.document`. **Fix:** `web/src/test/setup.ts` setzt das Flag wie unter Jest; die Ansage
+geschieht sofort. Danach volle Vitest-Suite `674 passed (674)`, keine act-Warnungen, `tsc` 0 Fehler.
+
+**Offen.** Die CI entscheidet über die Firefox-Schrift (DejaVu Sans); lokal (Noto Sans) bricht die
+Aktionszeile nicht um, der e2e-Test deckt den Umbruch also nur in CI ab, der Unit-Test die
+Reihenfolge in jedem Fall.
+
 ## Update-Prüfung: Entwicklungsstand statt Update-Hinweis, Release 1.4.0 (30. Oktober 2026)
 
 Auf dem Zweig `claude/update-check` (ab `main 1bb1c7e`, Startseite und Posterreihe gemergt). Auslöser:
@@ -69,10 +133,17 @@ beschreibt gegen Tags, der Job `build` holt die ganze Historie. Die roten Storyb
 offene Punkt aus Konzept 08: `main` war auf `fa642f1` und `1bb1c7e` im Job «web» schon rot,
 Baselines holt Marco auf CT 190 nach.
 
+**Veröffentlicht am 30. Oktober 2026:** PR #49 von Marco gemergt (Merge `c6741b4`), Tag `v1.4.0`
+auf `c6741b4` (Beschriftung = Release-Notes), Release-Lauf 41034208236 grün: Image
+`ghcr.io/slouchcat/slouchcat:1.4.0` (amd64, arm64, anonym ziehbar), `manifest.json` unter
+`releases/latest/download` mit `version 1.4.0`. Erste Fassung, die 1.2.0 und 1.3.0 nachträgt. Offen:
+Storybook-Baselines von Konzept 08 (eigener Zweig ab `main`), der Firefox-Test
+`audiobook.spec.ts:110` (eigene Session), CT 190 auf `1.4.0` umstellen.
+
 **Nicht gebaut:** keine Änderung an der Prüfung selbst (Manifest, Takt, Job), kein Abgleich mit
 Vorabfassungen (`1.5.0-rc.1` zählt wie bisher als älter als `1.5.0`).
 
- (Konzept 08, 30. Oktober 2026, in Umsetzung)
+## Startseite, Seitenleiste und Bibliotheksansichten (Konzept 08, 30. Oktober 2026, in Umsetzung)
 
 Auf dem Zweig `claude/startseite` (ab `main 4049724`, Konzept 07 gemergt) nach dem Konzept
 `docs/planning/08-startseite.md` (Fassung 3), den Entscheiden in **Frage 14** des
