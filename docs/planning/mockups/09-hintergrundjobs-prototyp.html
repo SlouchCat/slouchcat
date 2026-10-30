@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slouchcat Hintergrundjobs</title>
+</head>
+<body>
+<style>
+/* Layout: Slouchcat admin — sticky header with tab nav, one centred column; summary chips, the running
+   list, then one card per job type in four groups. Single dark theme on purpose: the tokens are
+   Slouchcat's own (packages/design-tokens/tokens), as in the prototypes of concepts 07 and 08. */
+:root {
+  --bg: #0b0c10; --elevated: #13151b; --overlay: #0b0c10d9;
+  --s1: #16181f; --s2: #1d2029; --s3: #262a35;
+  --fg: #f3f3f5; --fg2: #b6b9c4; --muted: #9095a3;
+  --border: #ffffff14; --border-strong: #ffffff38; --ring: #f3f3f5;
+  --track: #ffffff33;
+  --danger: #f2777a; --success: #5fcf8f; --warning: #e8b65a;
+  --accent: #45c2b1; --on-accent: #04191a;
+  --sans: system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r-sm: 6px; --r-md: 12px; --r-full: 999px;
+  --ctl: 40px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--sans); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--elevated); }
+button, input { font: inherit; }
+button { cursor: pointer; }
+code, .mono { font-family: var(--mono); font-size: 0.875em; }
+.num { font-variant-numeric: tabular-nums; }
+.dim { color: var(--fg2); }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* header */
+.hdr { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--elevated); border-bottom: 1px solid var(--border); }
+.hdr .in { max-width: 960px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 10px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.brand { font-weight: 700; letter-spacing: -0.02em; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.brand .cat { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); display: inline-grid; place-items: center; color: var(--on-accent); font-size: 12px; font-weight: 800; }
+.tabs { display: flex; gap: 2px; margin-left: auto; }
+.tab { background: none; border: 0; color: var(--fg2); padding: 10px 12px; border-bottom: 2px solid transparent; font-weight: 500; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--fg); }
+.proto { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; flex-basis: 100%; padding-bottom: 6px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.proto button { background: none; border: 1px solid var(--border); color: var(--fg2); border-radius: var(--r-full); padding: 2px 10px; font-size: 0.75rem; letter-spacing: 0; text-transform: none; }
+.proto button[aria-pressed="true"] { background: var(--s3); color: var(--fg); }
+
+/* page */
+main { max-width: 960px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; display: flex; flex-direction: column; gap: 22px; }
+h1 { font-size: 1.75rem; margin: 0 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: 1.1rem; margin: 0; }
+h3 { font-size: 0.8rem; margin: 0; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.intro { color: var(--fg2); margin: 0; max-width: 65ch; }
+.sec { display: flex; flex-direction: column; gap: 10px; }
+.sec .top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sec .top .cnt { color: var(--muted); font-size: 0.9rem; }
+
+/* summary */
+.sum { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.stat { display: inline-flex; align-items: baseline; gap: 6px; background: var(--s1); border-radius: var(--r-full); padding: 4px 12px 4px 10px; }
+.stat b { font-size: 1.15rem; }
+.stat span { color: var(--fg2); font-size: 0.85rem; }
+.stat.on { box-shadow: inset 0 0 0 1px var(--success); }
+.stat.warn { box-shadow: inset 0 0 0 1px var(--warning); }
+.stat.bad { box-shadow: inset 0 0 0 1px var(--danger); }
+.workers { color: var(--muted); font-size: 0.85rem; flex-basis: 100%; }
+.banner { border-radius: var(--r-sm); padding: 10px 12px; font-size: 0.9rem; background: var(--s2); color: var(--fg); border-left: 3px solid var(--warning); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.banner .btn { margin-left: auto; }
+
+/* running list */
+.runs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.run { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; background: var(--s1); border-radius: var(--r-md); padding: 12px 14px; align-items: center; }
+.run .who { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; min-width: 0; }
+.run .who b { font-weight: 600; }
+.run .who code { color: var(--muted); }
+.run .note { color: var(--fg2); font-size: 0.875rem; overflow-wrap: anywhere; grid-column: 1; }
+.run .bar { grid-column: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.run .track { height: 6px; border-radius: var(--r-full); background: var(--track); overflow: hidden; }
+.run .fill { height: 100%; background: var(--accent); border-radius: var(--r-full); transition: width 600ms; }
+.run .fill.indet { width: 30%; animation: slide 1.6s infinite linear; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .run .fill.indet { animation: none; width: 100%; opacity: 0.35; } .run .fill { transition: none; } .dot.running { animation: none; } }
+.run .times { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.85rem; color: var(--fg2); }
+.run .times b { color: var(--fg); font-weight: 600; }
+.run .acts { grid-row: 1 / span 3; grid-column: 2; align-self: start; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.empty { border: 1px dashed var(--border); border-radius: var(--r-md); padding: 14px; color: var(--fg2); font-size: 0.9rem; }
+
+/* job cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.card { background: var(--s1); border-radius: var(--r-md); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; text-align: left; border: 0; color: inherit; }
+.card.paused { box-shadow: inset 3px 0 0 var(--warning); }
+.card.active { box-shadow: inset 3px 0 0 var(--success); }
+.card .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card .head h2 { margin-right: auto; font-size: 1rem; }
+.card .code { color: var(--muted); font-size: 0.8rem; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 0.875rem; color: var(--fg2); }
+.kv dt { color: var(--muted); margin: 0; }
+.kv dd { margin: 0; color: var(--fg); min-width: 0; overflow-wrap: anywhere; }
+.kv dd .dim { color: var(--fg2); }
+.kv dd .err { color: var(--danger); }
+.card .actions { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; margin-top: auto; }
+.state { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--fg2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.running { background: var(--success); animation: pulse 1.2s infinite; }
+.dot.queued { background: var(--accent); }
+.dot.paused { background: var(--warning); }
+.dot.failed { background: var(--danger); }
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+/* chips, buttons */
+.chip { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 8px; border-radius: var(--r-sm); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; white-space: nowrap; background: var(--s3); color: var(--fg); }
+.chip.info { background: var(--s2); color: var(--fg2); }
+.chip.warning { background: var(--warning); color: var(--bg); }
+.chip.success { background: var(--success); color: var(--bg); }
+.chip.danger { background: var(--danger); color: var(--bg); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--ctl); padding: 0 18px; border: 0; border-radius: var(--r-full); font-weight: 600; line-height: 1; white-space: nowrap; transition: transform 120ms, background-color 180ms; background: var(--s3); color: var(--fg); }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { background: var(--fg); color: var(--bg); }
+.btn.primary:focus-visible { background: var(--accent); color: var(--on-accent); }
+.btn.ghost { background: none; color: var(--fg2); padding: 0 12px; }
+.btn.ghost:hover { color: var(--fg); background: var(--s2); }
+.btn.danger { background: var(--danger); color: var(--bg); }
+.btn.sm { min-height: 32px; padding: 0 12px; font-size: 0.875rem; }
+.link { background: none; border: 0; color: var(--accent); padding: 0; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* dashboard excerpt */
+.tile { background: var(--s1); border-radius: var(--r-md); padding: 16px; display: flex; flex-direction: column; gap: 12px; max-width: 420px; }
+.tile .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.st { background: var(--s2); border-radius: var(--r-sm); padding: 10px 12px; }
+.st b { display: block; font-size: 1.6rem; line-height: 1.1; }
+.st span { color: var(--fg2); font-size: 0.85rem; }
+.st.success { box-shadow: inset 3px 0 0 var(--success); }
+.st.warning { box-shadow: inset 3px 0 0 var(--warning); }
+
+/* dialogs */
+dialog { background: var(--elevated); color: var(--fg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 0; width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+dialog::backdrop { background: var(--overlay); }
+.dlg { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.dlg header h2 { font-size: 1.25rem; margin: 0 0 4px; }
+.dlg header p { margin: 0; color: var(--fg2); font-size: 0.9rem; }
+.dlg footer { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.sched { display: grid; gap: 14px; }
+.sched .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sched .row > span:first-child { min-width: 9em; color: var(--fg2); }
+.sched select, .sched input[type="time"] { background: var(--s1); color: var(--fg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 10px; font: inherit; min-height: 36px; }
+.sched input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+.sched .hint { color: var(--muted); font-size: 0.85rem; }
+.notice { border-radius: var(--r-sm); padding: 10px 12px; font-size: 0.9rem; background: var(--s2); color: var(--fg); border-left: 3px solid var(--warning); }
+.rtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
+.rtab { background: none; border: 0; color: var(--fg2); padding: 8px 12px; border-bottom: 2px solid transparent; font-weight: 500; }
+.rtab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.tbl { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.tbl th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.tbl td.r { text-align: right; white-space: nowrap; }
+.scroll { overflow-x: auto; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: var(--r-full); font-weight: 600; box-shadow: 0 8px 30px #0008; z-index: 20; max-width: calc(100vw - 32px); }
+
+/* phone preview */
+body.phone .hdr .in, body.phone main { max-width: 390px; }
+body.phone main { border-inline: 1px dashed var(--border-strong); }
+@media (max-width: 520px) { .run { grid-template-columns: 1fr; } .run .acts { grid-row: auto; grid-column: 1; justify-content: flex-start; } }
+body.phone .run { grid-template-columns: 1fr; }
+body.phone .run .acts { grid-row: auto; grid-column: 1; justify-content: flex-start; }
+body.phone .grid { grid-template-columns: 1fr; }
+</style>
+
+<div class="hdr"><div class="in">
+  <div class="brand"><span class="cat">S</span> Slouchcat · Verwaltung</div>
+  <nav class="tabs" role="tablist" aria-label="Verwaltung">
+    <button class="tab" role="tab" aria-selected="false" data-view="home" type="button">Übersicht</button>
+    <button class="tab" role="tab" aria-selected="true" data-view="jobs" type="button">Hintergrundjobs</button>
+  </nav>
+  <div class="proto">Klickbarer Prototyp zum Konzept 09 (Fassung 3) · kein Server, Beispieldaten
+    <button id="phone" type="button" aria-pressed="false">Handy-Ansicht</button>
+    <button id="reset" type="button">Zurücksetzen</button></div>
+</div></div>
+
+<main id="main"></main>
+
+<dialog id="dlgRuns" aria-labelledby="dlgRunsTitle"></dialog>
+<dialog id="dlgConfirm" aria-labelledby="dlgConfirmTitle"></dialog>
+<dialog id="dlgSched" aria-labelledby="dlgSchedTitle"></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+// ---------- example data (Marco's dashboard of 29 October 2026: 236 queued, 4 running, 0 failed)
+const GROUPS = { library: 'Bibliothek', metadata: 'Metadaten', delivery: 'Zustellung', system: 'System' };
+const POOLS = { general: 'allgemein', download: 'Downloads', notify: 'Benachrichtigungen' };
+const WORKERS = { general: 4, download: 1, notify: 1 };
+const H = 3600, M = 60;
+
+function makeTypes() {
+  return [
+    { type: 'scan.library',     name: 'Bibliotheksscan',        group: 'library',  pool: 'general', prio: 5, trigger: 'schedule', every: 6*H,  next: 4*H+12*M, trig: 'Zeitplan alle 6 h, Start des Servers, «Scannen» je Bibliothek, Webhook, Dateiwächter', median: 48*M, last: { ago: 6*H+2*M, dur: 51*M, ok: true } },
+    { type: 'scan.path',        name: 'Ordner nachlesen',       group: 'library',  pool: 'general', prio: 6, trigger: 'event', trig: 'Dateiwächter (gleiche Ordner innert 2 s zusammengefasst), Webhook', median: 3, last: { ago: 9*M, dur: 2, ok: true } },
+    { type: 'probe.file',       name: 'Datei prüfen',           group: 'library',  pool: 'general', prio: 3, trigger: 'event', trig: 'vom Scan je neue Datei, von der Pflege', median: 4, queued: 20, last: { ago: 40, dur: 3, ok: true } },
+    { type: 'probe.keyframes',  name: 'Keyframes lesen',        group: 'library',  pool: 'general', prio: 1, trigger: 'event', trig: 'vom Scan (Priorität 1), vor der Wiedergabe (Priorität 9)', median: 25, planned: 2, last: { ago: 2*H, dur: 19, ok: true } },
+    { type: 'library.sweep',    name: 'Bibliothek aufräumen',   group: 'library',  pool: 'general', prio: 2, trigger: 'schedule', every: H, next: 23*M, trig: 'Zeitplan stündlich, Start des Servers', median: 8, last: { ago: 37*M, dur: 7, ok: true } },
+    { type: 'segments.detect',  name: 'Intro und Abspann',      group: 'library',  pool: 'general', prio: 2, trigger: 'event', trig: 'vom Scan, je Folge einer Serie', median: 3*M, queued: 201, last: { ago: 20, dur: 2*M+50, ok: true } },
+    { type: 'metadata.match',   name: 'Titel zuordnen',         group: 'metadata', pool: 'general', prio: 4, trigger: 'event', trig: 'vom Scan, Zuordnung von Hand, Ordner ändern', median: 2, queued: 5, planned: 1, last: { ago: 55, dur: 2, ok: true } },
+    { type: 'metadata.fill',    name: 'Metadaten auffüllen',    group: 'metadata', pool: 'general', prio: 2, trigger: 'event', trig: 'nach der Zuordnung, Listenänderung am Ordner', median: 3, last: { ago: 58, dur: 3, ok: true } },
+    { type: 'image.fetch',      name: 'Bilder laden',           group: 'metadata', pool: 'general', prio: 2, trigger: 'event', trig: 'nach der Zuordnung, Nachholen beim Start', median: 2, queued: 10, last: { ago: 61, dur: 1, ok: true } },
+    { type: 'trailer.find',     name: 'Trailer suchen',         group: 'metadata', pool: 'general', prio: 1, trigger: 'event', trig: 'nach der Zuordnung', median: 4, last: { ago: 70, dur: 4, ok: true } },
+    { type: 'podcast.poll',     name: 'Podcast-Feeds prüfen',   group: 'metadata', pool: 'general', prio: 4, trigger: 'schedule', every: 5*M, next: 3*M+10, trig: 'Zeitplan alle 5 min: reiht Feeds ein, deren letzter Abruf 55 min alt ist; «Jetzt ausführen» nimmt alle', median: 1, last: { ago: 110, dur: 1, ok: true } },
+    { type: 'podcast.fetch',    name: 'Podcast-Feed abrufen',   group: 'metadata', pool: 'general', prio: 4, trigger: 'event', trig: 'von «Podcast-Feeds prüfen», «Aktualisieren» je Podcast, neues Abo', median: 6, last: { ago: 108, dur: 5, ok: true } },
+    { type: 'trakt.refresh',    name: 'Spotlight von Trakt',    group: 'metadata', pool: 'general', prio: 2, trigger: 'schedule', every: 24*H, next: 13*H+40*M, trig: 'Zeitplan nach dem Spotlight-Takt (24 h); «Jetzt abrufen»', median: 40, last: { ago: 10*H+20*M, dur: 38, ok: true } },
+    { type: 'metadata.vote_backfill', name: 'TMDB-Wertungen nachholen', group: 'metadata', pool: 'general', prio: 1, trigger: 'manual', trig: 'von Hand (Konzept 08): holt die Wertung für den ganzen Bestand', median: 14*M, last: { ago: 3*86400, dur: 13*M, ok: true } },
+    { type: 'notify.deliver',   name: 'Mitteilung zustellen',   group: 'delivery', pool: 'notify',  prio: 3, trigger: 'event', trig: 'jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)', median: 2, last: { ago: 15*M, dur: 1, ok: true } },
+    { type: 'download.prepare', name: 'Download vorbereiten',   group: 'delivery', pool: 'download', prio: 5, trigger: 'event', trig: 'Download eines Profils; Abgleich alle 10 min reiht Unfertiges nach', median: 9*M, planned: 1, last: { ago: 3*H, dur: 11*M, ok: true } },
+    { type: 'update.check',     name: 'Update-Prüfung',         group: 'system',   pool: 'general', prio: 1, trigger: 'schedule', every: 24*H, next: 21*H+5*M, trig: 'Zeitplan täglich, 60 s nach dem Start; «Jetzt prüfen»', median: 1, last: { ago: 2*H+55*M, dur: 1, ok: true } },
+    { type: 'jobs.prune',       name: 'Verlauf aufräumen',      group: 'system',   pool: 'general', prio: 1, trigger: 'schedule', every: 24*H, next: 8*H+30*M, trig: 'Zeitplan täglich: erledigte Läufe älter als 30 Tage, mindestens 50 je Job bleiben', window: [3*60, 5*60], median: 2, last: { ago: 15*H+30*M, dur: 2, ok: true } },
+  ].map(t => ({ queued: 0, planned: 0, failed: 0, paused: false, stopping: false, enabled: true, window: null, ...t }));
+}
+
+let nextId = 48211;
+function makeRuns() {
+  return [
+    { id: 48102, type: 'scan.library',    note: 'Filme · Ordner Filme/2024', elapsed: 14*M+12, done: 1240, total: 3980 },
+    { id: 48190, type: 'segments.detect', note: 'The Expanse · S03E07', elapsed: 2*M+5 },
+    { id: 48193, type: 'segments.detect', note: 'The Expanse · S03E08', elapsed: 38 },
+    { id: 48210, type: 'notify.deliver',  note: 'Telegram an Marco', elapsed: 4 },
+  ];
+}
+
+function makeHistory() {
+  // a few finished runs per type for the runs dialog ("Erledigt")
+  const out = {};
+  for (const t of makeTypes()) {
+    out[t.type] = [];
+    for (let i = 0; i < 5; i++) out[t.type].push({ id: 47000 + i * 13, type: t.type, state: 'done', ago: t.last.ago + i * (t.every ? t.every : 7*M), dur: Math.max(1, Math.round(t.median * (0.7 + 0.15 * i))), attempts: 1 });
+  }
+  return out;
+}
+
+let S;
+function reset() { S = { types: makeTypes(), runs: makeRuns(), history: makeHistory(), view: 'jobs', tick: 0 }; render(); }
+
+// ---------- formatting (the client only formats; the server computes the estimates)
+const fmtDur = s => { s = Math.max(0, Math.round(s)); if (s < 60) return `${s} s`; if (s < 3600) return `${Math.floor(s/60)} min ${String(s%60).padStart(2,'0')} s`; return `${Math.floor(s/3600)} h ${String(Math.floor(s%3600/60)).padStart(2,'0')} min`; };
+const fmtAbout = s => { if (s == null) return null; if (s < 60) return 'unter 1 min'; if (s < 90*60) return `ca. ${Math.max(1, Math.round(s/60))} min`; if (s < 86400) return `ca. ${Math.round(s/3600*2)/2} h`.replace('.5', '½').replace(',5', '½'); return 'über 1 Tag'; };
+const fmtAgo = s => s < 60 ? 'gerade eben' : s < 3600 ? `vor ${Math.round(s/60)} min` : s < 86400 ? `vor ${Math.round(s/3600)} h` : `vor ${Math.round(s/86400)} Tagen`;
+const fmtIn = s => s <= 0 ? 'jetzt' : s < 3600 ? `in ${Math.max(1, Math.round(s/60))} min` : `in ${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
+const EVERY = [[5*M, 'alle 5 min'], [15*M, 'alle 15 min'], [30*M, 'alle 30 min'], [H, 'stündlich'], [2*H, 'alle 2 h'], [6*H, 'alle 6 h'], [12*H, 'alle 12 h'], [24*H, 'täglich'], [7*24*H, 'wöchentlich']];
+const fmtEvery = s => (EVERY.find(([v]) => v === s) || [0, `alle ${fmtDur(s)}`])[1];
+const fmtHM = m => `${String(Math.floor(m/60)).padStart(2, '0')}:${String(m%60).padStart(2, '0')}`;
+const fmtWindow = w => `${fmtHM(w[0])}–${fmtHM(w[1])}`;
+// next run aligned to the window: seconds from now until the run, moved to the next window start when outside
+function alignToWindow(nextSec, w) {
+  if (!w) return nextSec;
+  const at = new Date(Date.now() + nextSec * 1000), m = at.getHours() * 60 + at.getMinutes();
+  const inside = w[0] < w[1] ? (m >= w[0] && m < w[1]) : (m >= w[0] || m < w[1]);
+  if (inside) return nextSec;
+  const start = new Date(at); start.setHours(Math.floor(w[0]/60), w[0]%60, 0, 0);
+  if (start <= at) start.setDate(start.getDate() + 1);
+  return Math.round((start - Date.now()) / 1000);
+}
+const typeOf = name => S.types.find(t => t.type === name);
+
+// Restzeit nach Konzept 6.2: gemessen (Fortschritt ≥ 5 %, Dauer ≥ 30 s), sonst Median, sonst «wird berechnet».
+function estimate(r) {
+  const t = typeOf(r.type);
+  if (r.total && r.done / r.total >= 0.05 && r.elapsed >= 30) return { kind: 'measured', left: r.elapsed * (r.total - r.done) / r.done };
+  if (t.median && r.elapsed > 2 * t.median) return { kind: 'longer' };
+  if (t.median) return { kind: 'median', left: Math.max(0, t.median - r.elapsed) };
+  return { kind: 'none' };
+}
+// Wartezeit nach Konzept 6.2: kumuliert über alle Jobs des Pools mit gleicher oder höherer Priorität.
+function queuedEstimate(t) {
+  if (!t.queued) return null;
+  const sum = S.types.filter(o => o.pool === t.pool && o.prio >= t.prio && o.median).reduce((n, o) => n + o.queued * o.median, 0);
+  return sum / WORKERS[t.pool];
+}
+function backlog(pool) {
+  const sum = S.types.filter(o => o.pool === pool && o.median).reduce((n, o) => n + o.queued * o.median, 0);
+  return sum / WORKERS[pool];
+}
+function stateOf(t) {
+  if (t.stopping) return ['paused', 'Wird angehalten'];
+  if (t.paused) return ['paused', 'Pausiert'];
+  if (S.runs.some(r => r.type === t.type)) return ['running', 'Läuft'];
+  if (t.failed) return ['failed', 'Fehler'];
+  if (t.queued) return ['queued', 'Wartet'];
+  return ['', 'Ruht'];
+}
+
+// ---------- rendering
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const main = document.getElementById('main');
+
+function render() {
+  for (const b of document.querySelectorAll('.tab')) b.setAttribute('aria-selected', String(b.dataset.view === S.view));
+  main.innerHTML = S.view === 'home' ? renderHome() : renderJobs();
+}
+
+function renderHome() {
+  const queued = S.types.reduce((n, t) => n + t.queued, 0), paused = S.types.filter(t => t.paused).length;
+  return `
+  <div><h1>Verwaltung</h1><p class="intro">Ausschnitt der Übersicht: die Kachel, die es heute gibt, plus Link und (nur bei Bedarf) die Zahl der pausierten Jobs.</p></div>
+  <section class="tile" aria-labelledby="tileH">
+    <h2 id="tileH">Hintergrundjobs</h2>
+    <div class="stats">
+      <div class="st"><b class="num">${queued}</b><span>Wartend</span></div>
+      <div class="st ${S.runs.length ? 'success' : ''}"><b class="num">${S.runs.length}</b><span>Laufend</span></div>
+      <div class="st"><b class="num">0</b><span>Fehlgeschlagen</span></div>
+      ${paused ? `<div class="st warning"><b class="num">${paused}</b><span>Pausiert</span></div>` : ''}
+    </div>
+    <div><button class="link" type="button" data-go="jobs">Alle Jobs</button></div>
+  </section>`;
+}
+
+function renderJobs() {
+  const queued = S.types.reduce((n, t) => n + t.queued, 0), planned = S.types.reduce((n, t) => n + t.planned, 0);
+  const pausedTypes = S.types.filter(t => t.paused);
+  const runs = S.runs.map(renderRun).join('');
+  const pools = Object.entries(POOLS).map(([p, label]) => { const b = backlog(p); return `${label}: ${WORKERS[p]} ${WORKERS[p] === 1 ? 'Arbeiter' : 'Arbeiter'} · ${b ? 'Stau ' + fmtAbout(b) : 'frei'}`; }).join(' &nbsp;·&nbsp; ');
+  const groups = Object.entries(GROUPS).map(([g, label]) => `
+    <section class="sec" aria-labelledby="g-${g}">
+      <h3 id="g-${g}">${label}</h3>
+      <div class="grid">${S.types.filter(t => t.group === g).map(renderCard).join('')}</div>
+    </section>`).join('');
+  return `
+  <div><h1>Hintergrundjobs</h1><p class="intro">Was der Server im Hintergrund tut: je Job der Zeitplan, die Wartenden und der letzte Lauf; oben die Läufe, die gerade arbeiten.</p></div>
+  <div class="sum" role="group" aria-label="Zusammenfassung">
+    <span class="stat ${S.runs.length ? 'on' : ''}"><b class="num">${S.runs.length}</b><span>laufend</span></span>
+    <span class="stat"><b class="num">${queued}</b><span>wartend</span></span>
+    <span class="stat"><b class="num">${planned}</b><span>geplant</span></span>
+    <span class="stat ${pausedTypes.length ? 'warn' : ''}"><b class="num">${pausedTypes.length}</b><span>pausiert</span></span>
+    <span class="stat"><b class="num">0</b><span>fehlgeschlagen</span></span>
+    <span class="workers">${pools} &nbsp;·&nbsp; <span class="dim">Arbeiter: <code>SLOUCHCAT_WORKERS</code> in deploy/.env</span></span>
+  </div>
+  ${pausedTypes.length ? `<div class="banner" role="status"><span>⏸</span><span><b>${pausedTypes.length === 1 ? 'Ein Job ist pausiert' : pausedTypes.length + ' Jobs sind pausiert'}:</b> ${pausedTypes.map(t => t.name).join(', ')}. ${pausedTypes.some(t => t.type === 'scan.library') ? 'Neue Dateien werden nicht erfasst, bis du fortsetzt.' : 'Wartende Läufe bleiben liegen, bis du fortsetzt.'}</span>
+    <button class="btn sm" type="button" data-resume-all>Alle fortsetzen</button></div>` : ''}
+  <section class="sec" aria-labelledby="runH">
+    <div class="top"><h2 id="runH">Läuft gerade</h2><span class="cnt num">${S.runs.length ? S.runs.length + (S.runs.length === 1 ? ' Lauf' : ' Läufe') : ''}</span></div>
+    ${S.runs.length ? `<ul class="runs">${runs}</ul>` : `<div class="empty">Gerade läuft nichts.</div>`}
+  </section>
+  ${groups}`;
+}
+
+function renderRun(r) {
+  const t = typeOf(r.type), e = estimate(r);
+  const pct = r.total ? Math.round(r.done / r.total * 100) : null;
+  const left = e.kind === 'measured' ? `noch ${fmtAbout(e.left)}` : e.kind === 'median' ? `noch ${fmtAbout(e.left)} <span class="dim">(üblich)</span>` : e.kind === 'longer' ? `<span style="color:var(--warning)">länger als üblich</span>` : 'wird berechnet';
+  return `<li class="run" id="run-${r.id}">
+    <div class="who"><b>${esc(t.name)}</b><code>${t.type}</code>${t.stopping ? '<span class="chip warning">wird angehalten</span>' : ''}</div>
+    <div class="acts">
+      <button class="btn sm" type="button" data-pause="${t.type}" ${t.stopping ? 'disabled' : ''} aria-label="Lauf ${r.id} (${esc(t.name)}) ${t.paused ? 'fortsetzen' : 'pausieren'}">${t.paused ? 'Fortsetzen' : 'Pausieren'}</button>
+      <button class="btn sm" type="button" data-cancel-run="${r.id}" aria-label="Lauf ${r.id} (${esc(t.name)}) abbrechen">Abbrechen</button>
+    </div>
+    <div class="note">${esc(r.note)}${pct != null ? ` · <span class="num">${r.done.toLocaleString('de-CH')} von ${r.total.toLocaleString('de-CH')}</span>` : ''}</div>
+    <div class="bar">
+      <div class="track" aria-hidden="true"><div class="fill ${pct == null ? 'indet' : ''}" style="${pct != null ? `width:${pct}%` : ''}"></div></div>
+      <div class="times"><span>seit <b class="num" data-elapsed="${r.id}">${fmtDur(r.elapsed)}</b></span>${pct != null ? `<span><b class="num">${pct} %</b></span>` : ''}<span>${left}</span></div>
+    </div>
+  </li>`;
+}
+
+function renderCard(t) {
+  const [cls, label] = stateOf(t);
+  const q = queuedEstimate(t);
+  const last = t.last ? `${fmtAgo(t.last.ago)} · ${fmtDur(t.last.dur)} · ${t.last.ok ? '<span class="dim">OK</span>' : '<span class="err">Fehler</span>'}` : '—';
+  const next = t.paused ? '<span style="color:var(--warning)">pausiert</span>' : t.trigger === 'schedule' ? (t.enabled ? `${fmtIn(t.next)} <span class="dim">· ${fmtEvery(t.every)}${t.window ? ` · ${fmtWindow(t.window)}` : ''}</span>` : `<span class="dim">aus · ${fmtEvery(t.every)}${t.window ? ` · ${fmtWindow(t.window)}` : ''}</span>`) : t.trigger === 'manual' ? '<span class="dim">von Hand</span>' : '<span class="dim">bei Bedarf</span>';
+  const runningHere = S.runs.filter(r => r.type === t.type).length;
+  return `<article class="card ${cls === 'running' ? 'active' : cls === 'paused' ? 'paused' : ''}" aria-labelledby="c-${t.type}">
+    <div class="head"><h2 id="c-${t.type}">${esc(t.name)}</h2><span class="state"><span class="dot ${cls}"></span>${label}</span></div>
+    <div class="code mono">${t.type}</div>
+    <dl class="kv">
+      <dt>Wartend</dt><dd><span class="num">${t.queued}</span>${q ? ` <span class="dim">· dran in ${fmtAbout(q)}</span>` : ''}${t.planned ? ` <span class="dim">· geplant ${t.planned}</span>` : ''}</dd>
+      <dt>Letzter Lauf</dt><dd>${last}</dd>
+      <dt>Nächster Lauf</dt><dd>${next}</dd>
+      <dt>Ausgelöst durch</dt><dd class="dim">${esc(t.trig)}</dd>
+    </dl>
+    <div class="actions">
+      ${t.trigger !== 'event' ? `<button class="btn sm primary" type="button" data-run="${t.type}" ${t.paused ? 'disabled' : ''}>Jetzt ausführen</button>` : ''}
+      <button class="btn sm" type="button" data-pause="${t.type}" ${t.stopping ? 'disabled' : ''}>${t.paused ? 'Fortsetzen' : 'Pausieren'}</button>
+      ${t.queued ? `<button class="btn sm ghost" type="button" data-cancel-queued="${t.type}">Wartende abbrechen (${t.queued})</button>` : ''}
+      ${runningHere && t.queued ? `<button class="btn sm ghost" type="button" data-cancel-all="${t.type}">Alle Läufe abbrechen (${t.queued + runningHere})</button>` : ''}
+      ${t.trigger === 'schedule' ? `<button class="btn sm ghost" type="button" data-schedule="${t.type}">Zeitplan …</button>` : ''}
+      <button class="btn sm ghost" type="button" data-runs="${t.type}">Läufe …</button>
+    </div>
+  </article>`;
+}
+
+// ---------- the runs dialog (Laufend · Wartend · Fehlgeschlagen · Erledigt)
+const dlgRuns = document.getElementById('dlgRuns');
+function openRuns(type, tab = 'running') {
+  const t = typeOf(type);
+  const running = S.runs.filter(r => r.type === type);
+  const counts = { running: running.length, queued: t.queued, planned: t.planned, failed: t.failed, done: S.history[type].length };
+  const tabs = [['running', 'Laufend'], ['queued', 'Wartend'], ['planned', 'Geplant'], ['failed', 'Fehlgeschlagen'], ['done', 'Erledigt']];
+  const subjects = { 'segments.detect': i => `The Expanse · S03E${String(10 + i).padStart(2, '0')}`, 'probe.file': i => `Filme/2024/… (Datei ${i + 1})`, 'metadata.match': i => `Titel ${4712 + i}`, 'image.fetch': i => `Titel ${4712 + i} · Poster` };
+  const subj = (i) => (subjects[type] || (() => '—'))(i);
+  let rows = '';
+  if (tab === 'running') rows = running.map(r => `<tr><td class="num">${r.id}</td><td>${esc(r.note)}</td><td class="r num">${t.prio}</td><td class="r num">seit ${fmtDur(r.elapsed)}</td><td class="r">1 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-run="${r.id}">Abbrechen</button></td></tr>`).join('');
+  if (tab === 'queued') rows = Array.from({ length: Math.min(t.queued, 8) }, (_, i) => `<tr><td class="num">${48300 + i}</td><td>${esc(subj(i))} <span class="dim">· wartet seit ${fmtDur(120 + i * 37)}</span></td><td class="r num">${t.prio}</td><td class="r">—</td><td class="r">0 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-queued-one="${type}">Abbrechen</button></td></tr>`).join('') + (t.queued > 8 ? `<tr><td colspan="6" class="dim">… und ${t.queued - 8} weitere, in der Reihenfolge, in der sie drankommen</td></tr>` : '');
+  if (tab === 'planned') rows = Array.from({ length: t.planned }, (_, i) => `<tr><td class="num">${48400 + i}</td><td>${esc(subj(i))} <span class="dim">· ${type === 'download.prepare' ? 'wartet auf Budget' : 'Versuch 2, Backoff'}</span></td><td class="r num">${t.prio}</td><td class="r">${fmtIn(20 + i * 20)}</td><td class="r">1 von 5</td><td class="r"><button class="btn sm ghost" type="button" data-cancel-queued-one="${type}">Abbrechen</button></td></tr>`).join('');
+  if (tab === 'done') rows = S.history[type].map(r => `<tr><td class="num">${r.id}</td><td class="dim">${fmtAgo(r.ago)}</td><td class="r num">${t.prio}</td><td class="r num">${fmtDur(r.dur)}</td><td class="r">${r.attempts} von 5</td><td class="r"><span class="chip info">erledigt</span></td></tr>`).join('');
+  dlgRuns.innerHTML = `<form method="dialog" class="dlg">
+    <header><h2 id="dlgRunsTitle">Läufe von ${esc(t.name)}</h2><p><code>${t.type}</code> · ${esc(t.trig)}${t.median ? ` · üblich ${fmtDur(t.median)} je Lauf` : ''}</p></header>
+    <div class="rtabs" role="tablist" aria-label="Zustand">${tabs.map(([k, l]) => `<button class="rtab" role="tab" type="button" aria-selected="${k === tab}" data-tab="${k}">${l} <span class="num dim">${counts[k]}</span></button>`).join('')}</div>
+    <div class="scroll">${rows ? `<table class="tbl"><thead><tr><th>Lauf</th><th>Gegenstand</th><th class="r">Prio</th><th class="r">${tab === 'planned' ? 'Frühestens' : 'Dauer'}</th><th class="r">Versuche</th><th class="r"></th></tr></thead><tbody>${rows}</tbody></table>` : `<div class="empty">Nichts in diesem Zustand.</div>`}</div>
+    <footer><button class="btn" type="submit">Schliessen</button></footer>
+  </form>`;
+  dlgRuns.dataset.type = type;
+  if (!dlgRuns.open) dlgRuns.showModal();
+  dlgRuns.querySelector(`[data-tab="${tab}"]`).focus();
+}
+dlgRuns.addEventListener('click', e => {
+  const tab = e.target.closest('[data-tab]'); if (tab) return openRuns(dlgRuns.dataset.type, tab.dataset.tab);
+  const c = e.target.closest('[data-cancel-run]'); if (c) { dlgRuns.close(); return askCancelRun(+c.dataset.cancelRun); }
+  const q = e.target.closest('[data-cancel-queued-one]'); if (q) { const t = typeOf(q.dataset.cancelQueuedOne); const tab = dlgRuns.querySelector('.rtab[aria-selected="true"]').dataset.tab; if (tab === 'planned') t.planned--; else t.queued--; toast('Lauf abgebrochen.'); render(); openRuns(t.type, tab); }
+});
+dlgRuns.addEventListener('keydown', e => {
+  if (e.target.matches('.rtab') && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    const tabs = [...dlgRuns.querySelectorAll('.rtab')], i = tabs.indexOf(e.target);
+    const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    e.preventDefault(); openRuns(dlgRuns.dataset.type, n.dataset.tab);
+  }
+});
+
+// ---------- confirmations (no browser dialogs: the page builds its own)
+const dlgConfirm = document.getElementById('dlgConfirm');
+let returnFocus = null;
+function confirm_(title, body, label, danger, onYes) {
+  returnFocus = document.activeElement;
+  dlgConfirm.innerHTML = `<form method="dialog" class="dlg">
+    <header><h2 id="dlgConfirmTitle">${title}</h2></header>
+    ${body}
+    <footer><button class="btn ghost" type="submit" value="no">Behalten</button><button class="btn ${danger ? 'danger' : 'primary'}" type="submit" value="yes">${label}</button></footer>
+  </form>`;
+  dlgConfirm.onclose = () => { if (dlgConfirm.returnValue === 'yes') onYes(); dlgConfirm.returnValue = ''; returnFocus?.focus?.(); };
+  dlgConfirm.showModal();
+  dlgConfirm.querySelector('[value="no"]').focus();
+}
+function askCancelRun(id) {
+  const r = S.runs.find(x => x.id === id); if (!r) return;
+  const t = typeOf(r.type);
+  const extra = t.type === 'notify.deliver' ? `<div class="notice">Diese Mitteilung («${esc(r.note)}») wird dann <b>nicht zugestellt</b>.</div>`
+    : t.type === 'scan.library' ? `<div class="notice">Der Scan endet als «abgebrochen». Der nächste geplante Lauf (${fmtIn(t.next)}) holt den Rest nach.</div>` : '';
+  confirm_(`Lauf von ${esc(t.name)} abbrechen?`, `<p style="margin:0;color:var(--fg2)">${esc(r.note)} · seit ${fmtDur(r.elapsed)}. Slouchcat versucht diesen Lauf nicht mehr.</p>${extra}`, 'Lauf abbrechen', true, () => {
+    S.runs = S.runs.filter(x => x.id !== id); toast(`${t.name} abgebrochen.`); render();
+  });
+}
+
+// ---------- actions on the page
+main.addEventListener('click', e => {
+  const go = e.target.closest('[data-go]'); if (go) { S.view = go.dataset.go; return render(); }
+  const run = e.target.closest('[data-run]'); if (run) return runNow(run.dataset.run);
+  const p = e.target.closest('[data-pause]'); if (p) return togglePause(p.dataset.pause);
+  const ra = e.target.closest('[data-resume-all]'); if (ra) { for (const t of S.types) t.paused = false; toast('Alle Jobs fortgesetzt.'); return render(); }
+  const cq = e.target.closest('[data-cancel-queued]'); if (cq) return askCancelQueued(cq.dataset.cancelQueued, false);
+  const ca = e.target.closest('[data-cancel-all]'); if (ca) return askCancelQueued(ca.dataset.cancelAll, true);
+  const cr = e.target.closest('[data-cancel-run]'); if (cr) return askCancelRun(+cr.dataset.cancelRun);
+  const rs = e.target.closest('[data-runs]'); if (rs) return openRuns(rs.dataset.runs);
+  const sc = e.target.closest('[data-schedule]'); if (sc) return openSchedule(sc.dataset.schedule, sc);
+});
+
+// ---------- the schedule dialog (F-4: Takt, Zeitfenster, Ein/Aus; limits come from the server)
+const dlgSched = document.getElementById('dlgSched');
+function openSchedule(type, returnFocus) {
+  const t = typeOf(type);
+  const limits = type === 'trakt.refresh' ? [6*H, 48*H] : [5*M, 7*24*H];
+  const opts = EVERY.filter(([v]) => v >= limits[0] && v <= limits[1]).map(([v, l]) => `<option value="${v}" ${v === t.every ? 'selected' : ''}>${l}</option>`).join('');
+  dlgSched.innerHTML = `<form method="dialog" class="dlg" id="schedForm">
+    <header><h2 id="dlgSchedTitle">Zeitplan von ${esc(t.name)}</h2><p><code>${t.type}</code> · Zeitzone des Servers: Europe/Zurich</p></header>
+    <div class="sched">
+      <label class="row"><span>Zeitplan</span><input type="checkbox" name="enabled" ${t.enabled ? 'checked' : ''}> <span>eingeschaltet</span></label>
+      <label class="row"><span>Takt</span><select name="every">${opts}</select></label>
+      <label class="row"><span>Zeitfenster</span><input type="checkbox" name="win" ${t.window ? 'checked' : ''}> <span>nur zwischen</span>
+        <input type="time" name="start" value="${fmtHM(t.window ? t.window[0] : 3*60)}" aria-label="Fensterbeginn"> <span>und</span>
+        <input type="time" name="end" value="${fmtHM(t.window ? t.window[1] : 5*60)}" aria-label="Fensterende"></label>
+      <p class="hint">${type === 'trakt.refresh' ? 'Takt und Ein/Aus sind dieselbe Einstellung wie auf der Seite Spotlight (6 bis 48 h).' : type === 'update.check' ? 'Ein/Aus ist dieselbe Einstellung wie auf der Seite Update.' : 'Ein Fenster über Mitternacht (22:00–06:00) ist erlaubt. Der Takt läuft innerhalb des Fensters; sonst rückt der Lauf auf den nächsten Fensterbeginn.'}</p>
+    </div>
+    <footer><button class="btn sm" type="button" value="cancel" data-close>Abbrechen</button><button class="btn sm primary" type="submit" value="save">Speichern</button></footer>
+  </form>`;
+  const form = dlgSched.querySelector('form');
+  form.addEventListener('submit', () => {
+    const f = new FormData(form);
+    const [sh, sm] = f.get('start').split(':').map(Number), [eh, em] = f.get('end').split(':').map(Number);
+    const w = f.get('win') ? [sh*60 + sm, eh*60 + em] : null;
+    if (w && w[0] === w[1]) { toast('Anfang und Ende des Fensters dürfen nicht gleich sein.'); return; }
+    const every = +f.get('every');
+    t.enabled = !!f.get('enabled'); t.every = every; t.window = w;
+    t.next = alignToWindow(Math.min(t.next, every), w);
+    toast(t.enabled ? `${t.name}: ${fmtEvery(every)}${w ? ', ' + fmtWindow(w) : ''}; nächster Lauf ${fmtIn(t.next)}.` : `${t.name}: Zeitplan ausgeschaltet. «Jetzt ausführen» geht weiterhin.`);
+    render();
+  });
+  dlgSched.querySelector('[data-close]').onclick = () => dlgSched.close();
+  dlgSched.onclose = () => returnFocus?.focus?.();
+  dlgSched.showModal();
+  form.elements.enabled.focus();
+}
+
+function runNow(type) {
+  const t = typeOf(type);
+  const notes = { 'scan.library': ['Filme · Ordner Filme/2025', 'Serien · Ordner Serien', 'Hörbücher · Ordner Audiobooks'], 'library.sweep': ['alle Bibliotheken'], 'podcast.poll': ['alle 2 Abos eingereiht'], 'trakt.refresh': ['Trending'], 'metadata.vote_backfill': ['Bestand · 1 312 Titel'], 'update.check': ['ghcr.io, Manifest'], 'jobs.prune': ['erledigte Läufe älter als 7 Tage'] };
+  const list = notes[type] || ['von Hand'];
+  const busy = S.runs.filter(r => typeOf(r.type).pool === t.pool).length;
+  let started = 0;
+  list.forEach((note, i) => {
+    if (busy + i < WORKERS[t.pool]) { S.runs.push({ id: nextId++, type, note, elapsed: 0, ...(type === 'scan.library' || type === 'metadata.vote_backfill' ? { done: 0, total: 1200 + i * 900 } : {}) }); started++; }
+    else t.queued++;
+  });
+  toast(list.length === 1 ? `${t.name}: Lauf eingereiht (Priorität 7).` : `${t.name}: ${list.length} Läufe eingereiht, ${started} laufen, ${list.length - started} warten.`);
+  render();
+}
+function togglePause(type) {
+  const t = typeOf(type);
+  t.paused = !t.paused;
+  if (t.paused) {
+    const stopping = S.runs.filter(r => r.type === type);
+    toast(stopping.length ? `${t.name} pausiert; ${stopping.length === 1 ? 'der laufende Lauf hält an und geht' : 'alle ' + stopping.length + ' laufenden Läufe dieses Jobs halten an und gehen'} ohne verbrauchten Versuch in die Warteschlange zurück.` : `${t.name} pausiert.`);
+    // the running runs stop at once (the server cancels their context); the handler returns within a second
+    if (stopping.length) { t.stopping = true; setTimeout(() => { const n = S.runs.filter(r => r.type === type).length; t.stopping = false; if (!typeOf(type).paused) return render(); S.runs = S.runs.filter(r => r.type !== type); t.queued += n; render(); }, 1200); }
+  } else toast(`${t.name} fortgesetzt.`);
+  render();
+}
+function askCancelQueued(type, all) {
+  const t = typeOf(type);
+  const running = S.runs.filter(r => r.type === type).length;
+  const n = t.queued + (all ? running : 0);
+  const extra = type === 'scan.library' ? ' Die Bibliotheken enden als «abgebrochen».' : type === 'download.prepare' ? ' Die Downloads enden als «fehlgeschlagen» und werden nicht nachgeholt.' : t.trigger === 'event' ? ' Was der nächste Scan wieder braucht, reiht er neu ein.' : '';
+  confirm_(all ? `Alle ${n} Läufe von ${esc(t.name)} abbrechen?` : `${n} wartende Läufe von ${esc(t.name)} abbrechen?`,
+    `<p style="margin:0;color:var(--fg2)">${all ? `Davon <b>${running} laufende</b>, deren Arbeit bis hierher verfällt, und ${t.queued} wartende.` : 'Laufende Läufe bleiben.'}${extra}</p>`,
+    all ? 'Alle Läufe abbrechen' : 'Wartende abbrechen', true, () => {
+    t.queued = 0; if (all) S.runs = S.runs.filter(r => r.type !== type); toast(`${n} Läufe abgebrochen.`); render();
+  });
+}
+
+// ---------- clock: the client counts seconds between two polls, nothing more
+setInterval(() => {
+  for (const r of S.runs) {
+    r.elapsed++;
+    if (r.total && r.done < r.total) r.done = Math.min(r.total, r.done + Math.round(r.total / (typeOf(r.type).median || 60)));
+  }
+  for (const t of S.types) { if (t.trigger === 'schedule' && !t.paused && t.enabled) t.next--; if (t.last) t.last.ago++; }
+  // short runs finish by themselves and the queue drains, so the page breathes a little
+  const finished = S.runs.filter(r => !r.total && r.elapsed > (typeOf(r.type).median || 5) * 1.3 + 2);
+  for (const r of finished) { const t = typeOf(r.type); t.last = { ago: 0, dur: r.elapsed, ok: true }; S.history[t.type].unshift({ id: r.id, type: t.type, state: 'done', ago: 0, dur: r.elapsed, attempts: 1 }); }
+  if (finished.length) S.runs = S.runs.filter(r => !finished.includes(r));
+  for (const t of S.types) {
+    const active = S.runs.filter(r => typeOf(r.type).pool === t.pool).length;
+    if (t.queued && !t.paused && active < WORKERS[t.pool] && t.trigger === 'event') { t.queued--; S.runs.push({ id: nextId++, type: t.type, note: t.type === 'segments.detect' ? `The Expanse · S03E${String(9 + (nextId % 10)).padStart(2, '0')}` : 'Titel ' + (4000 + nextId % 700), elapsed: 0 }); }
+  }
+  if (S.view === 'jobs' && !dlgConfirm.open && !dlgRuns.open && !dlgSched.open) { if (finished.length || S.tick % 5 === 0) render(); else for (const el of document.querySelectorAll('[data-elapsed]')) { const r = S.runs.find(x => x.id === +el.dataset.elapsed); if (r) el.textContent = fmtDur(r.elapsed); } }
+  S.tick++;
+}, 1000);
+
+// ---------- chrome
+for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { S.view = b.dataset.view; render(); });
+document.getElementById('reset').addEventListener('click', reset);
+document.getElementById('phone').addEventListener('click', e => { const on = document.body.classList.toggle('phone'); e.currentTarget.setAttribute('aria-pressed', String(on)); });
+let toastTimer;
+function toast(text) { const el = document.getElementById('toast'); el.textContent = text; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 3200); }
+reset();
+</script>
+</body>
+</html>
