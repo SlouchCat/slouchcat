@@ -261,6 +261,18 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # `git describe` needs the tags and the commits behind them; a shallow clone has
+          # neither and would stamp a bare commit id into the image.
+          fetch-depth: 0
+
+      # The version built into the binary is what the update check compares against the newest
+      # release (server/internal/admin/update.go). A commit after a release describes as
+      # `v1.4.0-12-gabc1234`, which the check reads as that release; a bare commit id is no
+      # version at all, and the server then reports a development build instead of an update.
+      - name: Describe the commit relative to the newest tag
+        id: version
+        run: echo "version=$(git describe --tags --always --dirty)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
@@ -276,7 +288,7 @@ jobs:
           context: .
           file: deploy/Dockerfile
           platforms: linux/amd64,linux/arm64
-          build-args: VERSION=${{ github.sha }}
+          build-args: VERSION=${{ steps.version.outputs.version }}
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -288,7 +300,7 @@ jobs:
           context: .
           file: deploy/Dockerfile
           platforms: linux/amd64
-          build-args: VERSION=${{ github.sha }}
+          build-args: VERSION=${{ steps.version.outputs.version }}
           load: true
           tags: slouchcat:ci-amd64
           cache-from: type=gha
@@ -299,7 +311,7 @@ jobs:
           context: .
           file: deploy/Dockerfile
           platforms: linux/arm64
-          build-args: VERSION=${{ github.sha }}
+          build-args: VERSION=${{ steps.version.outputs.version }}
           load: true
           tags: slouchcat:ci-arm64
           cache-from: type=gha

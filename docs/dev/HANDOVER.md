@@ -106,7 +106,7 @@ geprüft (Entscheid vom 21. Oktober).
 - **Image nach jedem Merge neu bauen** (aus sauberem Worktree, nie aus dem Arbeitsbaum):
 
 ```bash
-cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile -t ghcr.io/slouchcat/slouchcat:1.4.0 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
+cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tmp/slouchcat-build && rm -rf "$W" && git worktree prune && git worktree add --detach "$W" origin/main && (cd "$W" && sg docker -c "docker build -f deploy/Dockerfile --build-arg VERSION=\$(git describe --tags --always) -t ghcr.io/slouchcat/slouchcat:1.4.0 .") && (cd deploy && sg docker -c "docker compose up -d slouchcat") && git worktree remove --force "$W"
 ```
 
 - Kontrolle: `cd deploy && sg docker -c "docker compose ps"` muss `healthy` zeigen.
