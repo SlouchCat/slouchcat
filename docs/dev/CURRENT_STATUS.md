@@ -35,6 +35,15 @@ unparsbare Version als älter als jedes Release; dazu war nur 1.1.0 veröffentli
    Den Tag `v1.4.0` setzt Marco nach dem Merge dieses Zweigs selbst auf den Merge-Commit; vorher
    bleibt der Hinweis auf CT 190 stehen, bis dort ein Release-Image läuft.
 
+**Befund der CI (PR #49, erster Lauf):** der e2e-Test «a newer release in the manifest shows the
+update badge» (A-5) fiel in beiden Browsern, weil `task build` den Server mit `git describe` ohne
+`--tags` auf einem flachen Checkout stempelte, also mit dem blossen Commit-Hash; seit Schritt 2 ist
+das ein Entwicklungsstand ohne Hinweis. Vierter Commit `build(ci,server)`: `server/Taskfile.yml`
+beschreibt gegen Tags, der Job `build` holt die ganze Historie. Die roten Storybook-Screenshots
+(AppHeader, HeroCarousel, LetterBar, PosterCard, SelectField, SideNav, SideNavDrawer) sind der
+offene Punkt aus Konzept 08: `main` war auf `fa642f1` und `1bb1c7e` im Job «web» schon rot,
+Baselines holt Marco auf CT 190 nach.
+
 **Nicht gebaut:** keine Änderung an der Prüfung selbst (Manifest, Takt, Job), kein Abgleich mit
 Vorabfassungen (`1.5.0-rc.1` zählt wie bisher als älter als `1.5.0`).
 
