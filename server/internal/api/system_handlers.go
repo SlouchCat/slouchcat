@@ -175,7 +175,8 @@ func toJobSummary(j model.JobSummary) gen.JobSummary {
 
 func toUpdateState(u model.UpdateState) gen.UpdateState {
 	return gen.UpdateState{
-		Enabled: u.Enabled, CurrentVersion: u.CurrentVersion, LatestVersion: optString(u.LatestVersion), Available: u.Available,
+		Enabled: u.Enabled, CurrentVersion: u.CurrentVersion, LatestVersion: optString(u.LatestVersion),
+		Development: u.Development, Available: u.Available,
 		Url: optString(u.URL), Notes: optString(u.Notes), CheckedAt: utc(u.CheckedAt), Error: optString(u.Error),
 	}
 }

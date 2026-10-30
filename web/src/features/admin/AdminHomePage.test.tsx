@@ -60,6 +60,7 @@ const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard => ({
     enabled: true,
     currentVersion: '0.9.0',
     latestVersion: '0.9.1',
+    development: false,
     available: true,
     url: 'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
   },
@@ -182,6 +183,37 @@ describe('admin overview (A-2, A-3)', () => {
     );
   });
 
+  it('names a development build instead of offering an update for it', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            dashboard({
+              update: {
+                enabled: true,
+                currentVersion: 'spotlight-marker-f92c09f',
+                latestVersion: '1.1.0',
+                development: true,
+                available: false,
+                url: 'https://github.com/SlouchCat/slouchcat/releases/tag/v1.1.0',
+              },
+            }),
+          ),
+      }),
+    );
+    renderApp('/admin');
+    expect(await screen.findByText('Du verwendest einen Entwicklungsstand')).toBeVisible();
+    const box = screen.getByRole('region', { name: 'Zustand des Servers' });
+    expect(box).toHaveTextContent(
+      'spotlight-marker-f92c09f ist kein veröffentlichtes Release, darum gibt es keinen Vergleich und keinen Update-Hinweis. Zuletzt veröffentlicht: 1.1.0.',
+    );
+    expect(screen.getByRole('link', { name: /Versionshinweise/ })).toHaveAttribute(
+      'href',
+      'https://github.com/SlouchCat/slouchcat/releases/tag/v1.1.0',
+    );
+    expect(screen.queryByText(/ist verfügbar/)).not.toBeInTheDocument();
+  });
+
   it('shows no update hint, an empty stream list and no failed jobs when all is quiet', async () => {
     mockApi(
       routes({
@@ -191,7 +223,12 @@ describe('admin overview (A-2, A-3)', () => {
               streams: [],
               jobs: { queued: 0, running: 0, failed: 0, recentFailed: [] },
               errors: [],
-              update: { enabled: true, currentVersion: '0.9.0', available: false },
+              update: {
+                enabled: true,
+                currentVersion: '0.9.0',
+                development: false,
+                available: false,
+              },
             }),
           ),
       }),

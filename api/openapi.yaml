@@ -10114,19 +10114,30 @@ components:
 
     UpdateState:
       type: object
-      required: [enabled, currentVersion, available]
+      required: [enabled, currentVersion, development, available]
       properties:
         enabled:
           type: boolean
           description: The daily update check is on.
         currentVersion:
           type: string
+          description: |
+            Version built into the running server: a release (`1.4.0`), a commit after one as
+            `git describe` writes it (`v1.4.0-12-gabc1234`), or the label of a development
+            build (a bare commit id, an image tag, `dev`).
+          examples: ["1.4.0", "v1.4.0-12-gabc1234", "dev"]
         latestVersion:
           type: string
           description: Newest published version from the release manifest.
+        development:
+          type: boolean
+          description: |
+            currentVersion is no semantic version, so it cannot be compared with a release:
+            `available` stays false and the header carries no update badge. The
+            administration shows the build as a development state instead.
         available:
           type: boolean
-          description: latestVersion is newer than the running version.
+          description: latestVersion is newer than the running version (never for a development build).
         url:
           type: string
           format: uri
