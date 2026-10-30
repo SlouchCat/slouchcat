@@ -1,31 +1,34 @@
 # Konzept: Hintergrundjobs – eigene Verwaltungsseite mit Start, Pause und Abbruch
 
-- **Status: Fassung 3 (30. Oktober 2026), Fragen beantwortet, zur Freigabe durch Marco (Merge
-  von PR #54).** Nichts davon ist umgesetzt. Der OMC-Kritiker hat Fassung 1 geprüft (0 Blocker,
+- **Status: Fassung 4 (30. Oktober 2026), freigegeben mit dem Merge von PR #54 (`05df9c5`); in
+  Umsetzung.** Schritt 0 (Entscheid 15, ADR 0017, Neuverankerung; Abschnitt 13.3) und Schritt 1
+  (Schema, Registry, Scheduler; Abschnitt 13.4) laufen auf einem Zweig ab `main` `05df9c5`. Der
+  OMC-Kritiker hat Fassung 1 geprüft (0 Blocker,
   8 Major, 16 Minor; Abschnitt 13); Fassung 2 arbeitet alle ein. Marco hat am 30. Oktober 2026
   alle Fragen beantwortet (Abschnitt 11, 13.2); zwei Antworten weichen von der Empfehlung ab und
   sind eingearbeitet: **Zeitpläne einstellbar** (F-4: Takt, Zeitfenster, Ein/Aus) und **Verlauf
-  30 Tage** (F-8). Die Umsetzung beginnt erst nach seiner Freigabe mit Schritt 0 aus Abschnitt 10. Ein klickbarer Prototyp der
+  30 Tage** (F-8). Ein klickbarer Prototyp der
   Seite liegt unter `docs/planning/mockups/09-hintergrundjobs-prototyp.html` (Abschnitt 7.1).
-- **Datum: 29. Oktober 2026; Fassung 2 und 3 vom 30. Oktober 2026** (Nachträge 13.1: Pausieren
-  auch in «Läuft gerade»; 13.2: Marcos Antworten, F-4 und F-8 eingearbeitet).
-- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`4049724`** («Merge pull request #45»,
-  Bibliotheken), Vertragsfassung **1.3.0** (`api/openapi.yaml:4`), letzte Migration
-  **`00025_items_filled_providers.sql`**, letzte ADR **`0015-bibliotheken-ordner-scraper.md`**.
-  Konzept **08 Startseite ist seit dem 30. Oktober 2026 in `main`** (PR #47, Merge `fa642f1`;
-  **Frage 14, ADR 0016, Migration 00026, Vertrag 1.4.0**), dazu die Nachträge PR #48 bis #53.
-  Dieses Papier **setzt 08 voraus** und nimmt darum **Frage 15, ADR 0017, Migration 00027 und
-  Vertrag 1.5.0**. 08 bringt eine neue Jobart `metadata.vote_backfill` mit, die hier mitgezählt
-  wird (1.1), und fasst dieselben Navigations- und Sprachdateien an (12.5); der Zweig für 09 wird
-  von `main` geschnitten, und Schritt 0 verankert das Papier neu. `:Zeile`-Angaben beziehen sich
-  noch auf `4049724`; nach Namen suchen, nicht nach Zeile.
+- **Datum: 29. Oktober 2026; Fassung 2, 3 und 4 vom 30. Oktober 2026** (Nachträge 13.1: Pausieren
+  auch in «Läuft gerade»; 13.2: Marcos Antworten, F-4 und F-8 eingearbeitet; 13.3: Neuverankerung
+  in Schritt 0; 13.4: Befunde aus Schritt 1).
+- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`05df9c5`** («Merge pull request #54»,
+  Freigabe dieses Papiers; davor `65563bb`, Storybook-Baselines zu 08), Vertragsfassung **1.4.0**
+  (`api/openapi.yaml:4`), letzte Migration **`00026_library_views.sql`**, letzte ADR
+  **`0016-startseite-seitenleiste.md`**. Konzept **08 Startseite ist seit dem 30. Oktober 2026 in
+  `main`** (PR #47, Merge `fa642f1`; **Frage 14, ADR 0016, Migration 00026, Vertrag 1.4.0**), dazu
+  die Nachträge PR #48 bis #53. Dieses Papier **setzt 08 voraus** und nimmt **Frage 15, ADR 0017,
+  Migration 00027 und Vertrag 1.5.0** (Entscheid 15 und ADR 0017 stehen seit Schritt 0). 08 bringt
+  die Jobart `metadata.vote_backfill` mit, die hier mitgezählt wird (1.1, 4.3), und hat dieselben
+  Navigations- und Sprachdateien angefasst (12.5). `:Zeile`-Angaben beziehen sich auf `05df9c5`
+  (in Schritt 0 geprüft, 13.3); nach Namen suchen, nicht nach Zeile.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
   `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 - **Jeder Schritt ist ein eigener Commit, und vor dem Abschluss jedes Schritts ist `task ci` grün**
   (`CLAUDE.md`, «Arbeitsweise»). DoD-Belege sind Befehl **und** Ausgabe.
 
-> **Dieses Papier selbst ändert keine Zeile Code.** Die Arbeit beginnt mit Schritt 0 aus
-> Abschnitt 10, einem reinen Doku-Commit.
+> **Dieses Papier selbst ändert keine Zeile Code.** Die Arbeit hat mit Schritt 0 aus Abschnitt 10
+> begonnen, einem reinen Doku-Commit; der Stand je Schritt steht in `docs/dev/CURRENT_STATUS.md`.
 
 > **Abgrenzung.** Hier geht es um das **Sehen und Steuern** der Hintergrundarbeit: welche Jobs es
 > gibt, was gerade läuft, wie lange schon, wie lange noch, wann der letzte Lauf fertig wurde, wann
@@ -60,7 +63,7 @@ sechzehnte kommt mit Konzept 08:
 
 | Jobart | Paket | Priorität | Wer löst aus | Dauer je Lauf |
 |---|---|---|---|---|
-| `scan.library` | `library` | 5 | Zeitplan alle 6 h, Start des Servers, «Scannen» auf der Bibliotheksseite, Webhook, Dateiwächter bei Wurzeländerung (`service.go:845`) | Minuten bis **Stunden** (erster Scan am NAS) |
+| `scan.library` | `library` | 5 | Zeitplan alle 6 h, Start des Servers, «Scannen» auf der Bibliotheksseite, Webhook, Dateiwächter bei Wurzeländerung (`service.go:847`) | Minuten bis **Stunden** (erster Scan am NAS) |
 | `scan.path` | `library` | 6 | Dateiwächter (Debounce 2 s), Webhook | Sekunden |
 | `probe.file` | `library` | 3 | Scan je neue Datei, Pflege («Datei prüfen», `metadata/manage.go:193`) | Sekunden |
 | `probe.keyframes` | `library` | 1, bei Wiedergabe 9 | Scan, vor der Wiedergabe | Sekunden bis Minuten; auf CT 190 standen 29 753 davon an |
@@ -72,30 +75,30 @@ sechzehnte kommt mit Konzept 08:
 | `trailer.find` | `metadata` | 1 | nach Match | Sekunden |
 | `podcast.fetch` | `metadata` | 4 | Poller alle 5 min (je Abo fällig nach 55 min), «Aktualisieren» je Podcast, neues Abo | Sekunden |
 | `trakt.refresh` | `metadata` | 2, von Hand 7 | Poller alle 15 min (fällig nach `interval_hours`), «Jetzt abrufen» | Sekunden bis Minuten |
-| `metadata.vote_backfill` | `metadata` | nach 08 | **Konzept 08**: einmalig nach Migration 00026 holt er `vote_average` für den Bestand; danach vom Match | Minuten (einmal) |
-| `update.check` | `admin` | 1 | Poller alle 15 min (fällig nach 24 h), «Jetzt prüfen» | Sekunden |
+| `metadata.vote_backfill` | `metadata` | 2 | **Konzept 08**: `QueuePendingMetadata` nach jedem vollständigen Scan und einmal beim Start des Servers (`main.go`), solange Titel ohne Wertung warten; der Job reiht seinen Nachfolger mit Cursor selbst ein (`vote_backfill.go`). Ein **Ereignis**-Job, kein Hand-Job (13.3) | Minuten je Kette (Batches à 200) |
+| `update.check` | `admin` | **8** (seit 30. Oktober 2026, PR #52; vorher 1) | Poller alle 15 min (fällig nach 24 h), «Jetzt prüfen» | Sekunden |
 | `download.prepare` | `offline` | 5 | Download eines Profils; **Abgleich alle 10 min** (`offline.Run` → `Reconcile`, `cleanup.go:24`) reiht jeden unfertigen Download ohne aktiven Job neu ein | Minuten bis Stunden; ein Lauf, der auf Budget oder Quelle wartet, endet in Millisekunden `done` und reiht seinen Nachfolger ein (`job.go:103`) |
 | `notify.deliver` | `notify` | 3 | jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram) | Sekunden |
 
 Drei Arbeiter-Pools laufen (`server/cmd/slouchcat/main.go:317` bis `:336`): `cfg.Workers`
-allgemeine Arbeiter (Vorgabe `max(2, min(4, NumCPU))`, `config.go:247`; per
+allgemeine Arbeiter (Vorgabe `max(2, min(4, NumCPU))`, `config.go:262`; per
 `SLOUCHCAT_WORKERS` einstellbar, auf CT 190 sind es vier), ein Arbeiter `download-1` nur für
 `download.prepare` und ein Arbeiter `notify-1` nur für `notify.deliver`. Die Zahl «Laufend» im
 Dashboard zählt alle drei Pools zusammen. Ein Arbeiter nimmt immer den Job mit der höchsten
 Priorität seines Pools, bei Gleichstand den ältesten (`ClaimJob`, `ORDER BY priority DESC`).
 
-**Die Zeitpläne liegen nicht in der Queue.** Die Tabelle `job_schedules` (`00001_jobs.sql:33`,
+**Die Zeitpläne liegen nicht in der Queue.** Die Tabelle `job_schedules` (`00001_jobs.sql:32`,
 `type`, `cron_expr`, `next_run`) ist seit M0 angelegt und **leer**; ADR 0002 vertagte den
 Scheduler auf «den ersten periodischen Job». Stattdessen entstanden fünf eigene Schleifen mit
 `time.NewTicker`:
 
 | Schleife | Wo | Takt | Was sie tut |
 |---|---|---|---|
-| Scan aller Bibliotheken | `library.Service.Start`, `service.go:758` | 6 h, dazu sofort beim Start | reiht `scan.library` je Bibliothek ein |
+| Scan aller Bibliotheken | `library.Service.Start`, `service.go:761` | 6 h, dazu sofort beim Start | reiht `scan.library` je Bibliothek ein |
 | Sweep | ebenda | 1 h, sofort beim Start | reiht `library.sweep` ein |
-| Podcast-Poller | `metadata.RunPodcasts`, `podcast.go:348` | prüft alle 5 min | reiht `podcast.fetch` für Abos ein, deren letzter Abruf 55 min alt ist (`QueueDuePodcasts`, `:363`) |
-| Trakt-Poller | `metadata.RunTrakt`, `trakt.go:122` | prüft alle 15 min | reiht `trakt.refresh` ein, wenn der letzte Versuch `spotlight_config.interval_hours` alt ist; **ohne Client-Schlüssel leert er die Einträge** (`:140` bis `:146`) |
-| Update-Poller | `admin.RunUpdateCheck`, `update.go:85` | prüft alle 15 min, erstmals 60 s nach dem Start | reiht `update.check` ein, wenn die letzte Prüfung 24 h alt ist und die Prüfung eingeschaltet |
+| Podcast-Poller | `metadata.RunPodcasts`, `podcast.go:349` | prüft alle 5 min | reiht `podcast.fetch` für Abos ein, deren letzter Abruf 55 min alt ist (`QueueDuePodcasts`, `:365`) |
+| Trakt-Poller | `metadata.RunTrakt`, `trakt.go:122` | prüft alle 15 min | reiht `trakt.refresh` ein, wenn der letzte Versuch `spotlight_config.interval_hours` alt ist; **ohne Client-Schlüssel leert er die Einträge** (`QueueDueTrakt`, `:142` bis `:149`). `spotlight_config.enabled` prüft er **nicht**: das Band wird bei `enabled = 0` nur ausgeblendet (`visibility/discover.go:277`), die Liste wird weiter geholt (13.3) |
+| Update-Poller | `admin.RunUpdateCheck`, `update.go:89` | prüft alle 15 min, erstmals 60 s nach dem Start | reiht `update.check` ein, wenn die letzte Prüfung 24 h alt ist und die Prüfung eingeschaltet |
 
 Der Kommentar in `service.go:30` sagt, warum: «two fixed intervals do not need a cron scheduler».
 Inzwischen sind es fünf Schleifen in drei Paketen, jede mit eigener «fällig»-Logik, und **keine
@@ -104,7 +107,7 @@ weitere Schleifen bleiben, wie sie sind: der Download-Abgleich `offline.Run` (al
 reiht `download.prepare` ein, ist aber kein Zeitplan, sondern eine Reparatur) und der
 Telegram-Link-Poller (`telegram_link.go:108`, reiht nichts ein).
 
-**Das Dashboard** (`getDashboard`, A-3; `web/src/features/admin/AdminHomePage.tsx:507`) zeigt die
+**Das Dashboard** (`getDashboard`, A-3; `web/src/features/admin/AdminHomePage.tsx:531`) zeigt die
 Kachel aus Marcos Bild: drei Zahlen (`JobCounts.queued`, `running`, `failed`), darunter die
 letzten zehn fehlgeschlagenen Jobs mit «Erneut» (`retryJob`) und «Abbrechen» (`cancelJob`),
 alle 5 s abgefragt (`DASHBOARD_POLL_MS`), nur für Administratoren im Hauptprofil
@@ -112,7 +115,7 @@ alle 5 s abgefragt (`DASHBOARD_POLL_MS`), nur für Administratoren im Hauptprofi
 **nicht seit wann**, **nicht wie lange noch**, **nicht** was die 236 Wartenden sind. Einzig der
 Bibliotheksscan hat einen Fortschritt (`libraries.scan_files_seen` / `scan_files_total`,
 `LibraryScan.filesSeen` / `filesTotal`, gemeldet erst in der Schreibphase, `write.go:249`) und
-einen eigenen Abbruch (`cancelLibraryScan`, `api/openapi.yaml:2328`), beides auf der
+einen eigenen Abbruch (`cancelLibraryScan`, `api/openapi.yaml:2540`), beides auf der
 Bibliotheksseite.
 
 **Abbruch und Fachlogik hängen zusammen.** `cancelJob` ist der rohe Queue-Abbruch; er kennt
@@ -261,7 +264,7 @@ Administrator sieht und verantwortet (9.3).
 | ADR 0002, «Scheduler … gehört zum Meilenstein des ersten periodischen Jobs», «spätestens `rating.verify`» | nie eingelöst | **Eingelöst** durch ADR 0017 als Teilnachfolger (Scheduler, Pause, Fortschritt, Verlauf, Abbruch-Haken); Queue-Semantik (Lease, Idempotenz, Backoff, Priorität) bleibt wörtlich. `rating.verify` bleibt, was es seit M10 ist: ein Pflege-Befund `rating_mismatch` (`admin/maintenance.go:155`), **kein** Job — Regel 11; ihn zum nächtlichen Job zu machen wäre neues Verhalten und ist eine Idee, nicht dieses Papier |
 | ADR 0002, Zustände `queued … cancelled` | fünf Zustände | **Unverändert.** «Pausiert» ist ein Merkmal der Jobart (`job_types.paused_at`), kein sechster Zustand; ein angehaltener Lauf ist wieder `queued` (6.3) |
 | `library/service.go:30` «two fixed intervals do not need a cron scheduler» | Begründung für die Ticker | Hinfällig: die Intervalle wandern in `job_schedules`, der Kommentar fällt |
-| Entscheid vom 26. Oktober 2026 (M11, `RaiseQueuedPriority`, manuelle Handlungen mit Priorität 7) | gilt für «Jetzt abrufen» und Match | **Gilt auch für «Jetzt ausführen»**: ein Hand-Lauf reiht mit 7 ein und **muss** einen wartenden Zeitplan-Lauf gleichen Schlüssels anheben; `enqueueScan` (`service.go:500`, feste `prioScan`) bekommt dafür einen Prioritätsparameter (6.1) |
+| Entscheid vom 26. Oktober 2026 (M11, `RaiseQueuedPriority`, manuelle Handlungen mit Priorität 7) | gilt für «Jetzt abrufen» und Match | **Gilt auch für «Jetzt ausführen»**: ein Hand-Lauf reiht mit 7 ein und **muss** einen wartenden Zeitplan-Lauf gleichen Schlüssels anheben; `enqueueScan` (`service.go:488`, feste `prioScan`) bekommt dafür einen Prioritätsparameter (6.1) |
 | CLAUDE.md Regel 11 (nichts vorziehen) | — | Kein Nicht-Ziel berührt; keine neue fachliche Jobart (Abgrenzung) |
 | CLAUDE.md Regel 12 (Entscheid im Server) | — | Schätzungen (Restzeit, Wartezeit, Stau) und der Gegenstand eines Laufs kommen vom **Server**; der Client zählt nur Sekunden hoch |
 
@@ -333,11 +336,12 @@ Start (`EnsureSchedule`), und zwar **nur, wenn sie fehlen**: Intervall und `star
 dem Code (`fullScanInterval`, `sweepInterval`, …) sind seit F-4 **Vorgaben für die erste Zeile**,
 danach ist die Tabelle die Quelle, und `updateJobSchedule` (5.2) schreibt Takt, Zeitfenster und
 Ein/Aus. Zwei Jobarten haben ihre Einstellung schon an anderer Stelle: `trakt.refresh`
-(`spotlight_config.interval_hours`, `.enabled`, Seite Spotlight) und `update.check`
-(`update_check.enabled`, Seite Update). Dort gilt **ein Wert, zwei Türen**: `updateJobSchedule`
+(`spotlight_config.interval_hours`, Seite Spotlight) und `update.check`
+(`update_check_enabled`, Seite Update). Dort gilt **ein Wert, zwei Türen**: `updateJobSchedule`
 schreibt für diese zwei in die bestehende Einstellung (mit deren Prüfung, Trakt 6 bis 48 h), und
 die bestehende Seite schreibt wie heute, beide über `UpdateSchedule` in die Zeile (6.1); das
-Zeitfenster liegt für alle nur in `job_schedules`. Beim Start gilt: ist `start_delay_ms`
+Zeitfenster liegt für alle nur in `job_schedules`, und das Ein/Aus von `trakt.refresh` ebenfalls
+(`spotlight_config.enabled` blendet nur das Band aus, 1.1, 13.3). Beim Start gilt: ist `start_delay_ms`
 gesetzt, feuert der Zeitplan nach dieser Verzögerung (das ersetzt «sofort beim Start» und «60 s
 nach dem Start»); sonst bleibt `next_run_at` erhalten, wenn die Zeile schon da ist, damit ein
 Neustart den Takt nicht verschiebt. Legt `EnsureSchedule` eine Zeile **neu** an (erster Start
@@ -352,10 +356,10 @@ Die sieben Zeilen nach Schritt 1 und 2:
 | `scan.library` | 6 h | 0 | 1 | `fullScanInterval`; `Run` reiht einen Scan je Bibliothek ein |
 | `library.sweep` | 1 h | 0 | 1 | `sweepInterval` |
 | `podcast.poll` | 5 min | 0 | 1 | **neu, sichtbar gemachter Takt**: `Run` ist `QueueDuePodcasts` (reiht `podcast.fetch` für Abos ein, deren Abruf 55 min alt ist). `podcast.fetch` selbst ist eine **Ereignis**-Jobart; «Jetzt ausführen» an `podcast.poll` reiht **alle** Abos ein, nicht nur die fälligen (sonst täte der Knopf meist nichts) |
-| `trakt.refresh` | `interval_hours` | NULL | `spotlight_config.enabled` | der Zeitplan **ist** die Fälligkeit; feuert beim Start nur, wenn `next_run_at` schon vorbei ist. Der Zweig «kein Client-Schlüssel → Einträge leeren» (`trakt.go:140`) bleibt **im `Run`**, nicht im Handler |
+| `trakt.refresh` | `interval_hours` | NULL | 1 (**nicht** an `spotlight_config.enabled` gebunden, 13.3) | der Zeitplan **ist** die Fälligkeit; feuert beim Start nur, wenn `next_run_at` schon vorbei ist. Der Zweig «kein Client-Schlüssel → Einträge leeren» (`trakt.go:147`) bleibt **im `Run`**, nicht im Handler |
 | `update.check` | 24 h | 60 000 | `update_check.enabled` | `UpdateInterval`; 60 s nach dem Start wie heute, aber nur, wenn fällig (`next_run_at` aus `checked_at`) |
 | `jobs.prune` | 24 h | NULL | 1 | neu, 4.4; kommt mit Schritt 2 |
-| `metadata.vote_backfill` | — | — | — | **kein** Zeitplan: Hand-Jobart (`Trigger = manual`, `Run` reiht den Bestand ein), sofern 08 ihn nicht ohnehin einmalig aus der Migration anstösst; Details folgen dem Stand von 08 beim Schnitt des Zweigs |
+| `metadata.vote_backfill` | — | — | — | **kein** Zeitplan und **kein** `Run`: eine **Ereignis**-Jobart (`Trigger = event`), denn 08 stösst ihn nach jedem vollständigen Scan und beim Start selbst an (`QueuePendingMetadata` → `QueueVoteBackfill`, 1.1); ein Hand-Knopf wäre doppelt, und F-3 gilt (13.3) |
 
 Podcast-Fälligkeit je Abo (55 min) bleibt im `Run` von `podcast.poll`, weil sie je Abo gilt,
 nicht je Jobart.
@@ -380,7 +384,7 @@ foreign_key_check` und `PRAGMA foreign_keys=ON`:
 1. `ALTER TABLE jobs ADD COLUMN` × 6 (4.1); `CREATE INDEX jobs_history`.
 2. `CREATE TABLE job_types` (4.2), leer; die Registry füllt sie beim Start, **vor**
    `EnsureSchedule`, so dass der Fremdschlüssel von `job_schedules` immer eine Zeile findet.
-3. Wächter wie in 00023 (`00023_library_roots_providers.sql:118`): eine temporäre Tabelle mit
+3. Wächter wie in 00023 (`00023_library_roots_providers.sql:120`): eine temporäre Tabelle mit
    `CHECK (n = 0)`, in die `SELECT count(*) FROM job_schedules` eingefügt wird — ist die Tabelle
    wider Erwarten nicht leer, bricht die Migration vor dem Löschen ab. Dann `DROP TABLE
    job_schedules; CREATE TABLE job_schedules` (4.3).
@@ -487,7 +491,7 @@ type Type struct {
 `Registry.Register(t Type)` legt die Zeile in `job_types` an, bei `Every > 0` den Zeitplan
 (4.3), und übergibt den Handler an den Arbeiter des Pools. `RegisterJobs(w)` in den fünf Paketen
 wird zu `RegisterTypes(r *jobs.Registry)`; der Umbau ist mechanisch, die Handler bleiben.
-`enqueueScan` (`service.go:500`) und seine Geschwister bekommen die Priorität als Parameter und
+`enqueueScan` (`service.go:488`) und seine Geschwister bekommen die Priorität als Parameter und
 heben über `RaiseQueuedPriority` an — ein Test je Jobart mit `Run` prüft genau das.
 
 Der **Scheduler** ist eine Goroutine in `jobs` (eine je Server, wie die Arbeiter in `main.go`),
@@ -636,7 +640,7 @@ der laufenden Läufe gesondert.
 | «Scannen» je Bibliothek | bleibt (ein Lauf); «Jetzt ausführen» bei `scan.library` reiht **alle** Bibliotheken ein |
 | «Jetzt abrufen» (Spotlight), «Jetzt prüfen» (Update), «Aktualisieren» (Podcasts) | bleiben unverändert; `runJobType` ruft dieselben Dienstmethoden (6.3) |
 | `getDashboard.jobs` | bleibt, plus `paused` |
-| Spotlight-Takt `intervalHours` und `enabled` (Seite Spotlight), `update_check.enabled` (Seite Update) | bleiben; **ein Wert, zwei Türen**: die Jobkarte schreibt in dieselbe Einstellung (4.3) |
+| Spotlight-Takt `intervalHours` (Seite Spotlight), `update_check_enabled` (Seite Update) | bleiben; **ein Wert, zwei Türen**: die Jobkarte schreibt in dieselbe Einstellung (4.3). `spotlight_config.enabled` bleibt die Sichtbarkeit des Bands und wird nicht zum Zeitplan-Schalter (13.3) |
 | `notify.JobFailed` (Meldung nach letztem Versuch) | bleibt; eine Pause löst sie nie aus (6.3) |
 | `offline.Run` (Abgleich alle 10 min) | bleibt; lässt Downloads mit `cancelled_by_admin` liegen |
 
@@ -684,7 +688,7 @@ groups.{library,metadata,delivery,system}}`, dazu `admin.jobs.types.<type>.{name
 achtzehn Typen — **mit `_` statt `.` im Typnamen** (`scan_library`), weil i18next den Punkt als
 `keySeparator` liest; der Rückfall auf den Code läuft über `defaultValue`. Die Problemcodes
 `job_type_not_runnable` und `job_type_paused` liegen wie die heutigen unter `errors.*`
-(`de.json:145`, `job_not_failed`); `admin.home.jobs.{all,paused}` für die Kachel.
+(`de.json:156`, `job_not_failed`); `admin.home.jobs.{all,paused}` für die Kachel.
 `pnpm -C web test locales` prüft die Symmetrie. Farben nur aus Tokens: der Balken nutzt
 `color.state.track` für den leeren Teil und die Akzentfarbe für den vollen, der Pausen-Hinweis
 `color.state.warning`.
@@ -788,8 +792,9 @@ wird.
 
 ## 10. Schnitt in Schritte
 
-Jeder Schritt ein Commit, `task ci` grün, DoD-Belege mit Befehl und Ausgabe. Zweig
-`claude/hintergrundjobs` ab `main`, nachdem dieses Papier **und Konzept 08** gemergt sind.
+Jeder Schritt ein Commit, `task ci` grün, DoD-Belege mit Befehl und Ausgabe. Zweig ab `main`
+`05df9c5`, nachdem dieses Papier **und Konzept 08** gemergt sind (der Zweig trägt den Namen seines
+Worktrees, `claude/vigorous-raman-651439`; Schritte 0 und 1 in einem PR).
 
 ### Schritt 0 — Entscheide und Papiere
 
@@ -930,16 +935,17 @@ die Messung in Schritt 5 prüft den Fall «vor dem ersten prune».
 `sections.ts`, `router.tsx`, `de.json`/`en.json`, `admin-home.spec.ts` (`NAV_PAGES`) und die
 Registry-Aufrufe in `metadata` werden von 08 **und** 09 angefasst, und 08 bringt
 `metadata.vote_backfill`. Darum geht 09 nach 08 (Kopf, O-3). 08 ist seit dem 30. Oktober 2026
-gemergt (PR #47); der Zweig für 09 wird von `main` geschnitten, und Schritt 0 verankert das
-Papier neu — besonders die Zeilenangaben in `sections.ts`, `router.tsx` und `AdminHomePage.tsx`.
+gemergt (PR #47); der Zweig für 09 ist von `main` `05df9c5` geschnitten, und Schritt 0 hat das
+Papier neu verankert (13.3) — die Zeilenangaben in `AdminHomePage.tsx` sind geprüft, `sections.ts`
+und `router.tsx` nennt das Papier ohne Zeile.
 
 ### 12.6 Was dieses Papier nicht zählen konnte
 
 Wie viele `done`-Zeilen auf CT 190 liegen (nach 29 753 `probe.keyframes` und 1683
 `segments.detect` sicher Zehntausende) — Schritt 5 misst. Ob `segments.detect` die Folgen eines
-Laufs vorab zählen kann (sonst meldet er nur die Notiz). Und wie 08 `metadata.vote_backfill`
-am Ende anstösst (einmalig aus der Migration oder von Hand), was Gruppe und Auslöser der Karte
-bestimmt.
+Laufs vorab zählen kann (sonst meldet er nur die Notiz). Wie 08 `metadata.vote_backfill`
+anstösst, ist seit Schritt 0 geklärt (nach jedem vollständigen Scan und beim Start, 1.1, 4.3):
+Gruppe *Metadaten*, Auslöser «vom Scan, solange Titel ohne Wertung warten».
 
 ### 12.7 Ein Zeitfenster kann einen Job aushungern
 
@@ -1009,3 +1015,20 @@ Empfehlung. Zwei weichen ab und sind in dieser Fassung 3 eingearbeitet:
 Drei offene Fragen des Kritikers ohne Zählung: Schranke «Administrator im Hauptprofil» — ja,
 wie das Dashboard (2.2, 7, 9.1); Arbeiterzahl einstellbar — als F-9 an Marco; `rating.verify`
 als Job — bleibt draussen (3, Regel 11).
+
+### 13.3 Neuverankerung in Schritt 0 (30. Oktober 2026)
+
+Geprüft gegen `main` `05df9c5` (Konzept 08 samt Nachträgen PR #48 bis #53, dieses Papier aus
+PR #54). Was sich seit `4049724` geändert hat, und wie das Papier damit umgeht — **wo Papier und
+Code sich widersprachen, gilt der Code**:
+
+| Stelle | Papier (Fassung 3) | Code in `05df9c5` | Folge |
+|---|---|---|---|
+| 1.1, Priorität von `update.check` | 1 | **8** seit PR #52 (30. Oktober 2026, `CURRENT_STATUS.md`): die tägliche Prüfung wartete hinter dem Rückstau eines Imports | Tabelle berichtigt; der Scheduler ruft `Run` mit 8, der Hand-Lauf mit 7 |
+| 1.1, 4.3, `metadata.vote_backfill` | Hand-Jobart mit `Run`, «Details folgen dem Stand von 08» | 08 stösst ihn **selbst** an: `QueuePendingMetadata` nach jedem vollständigen Scan und beim Start (`main.go`), nur wenn kein Job des Typs aktiv ist und Titel ohne Wertung warten; Kette mit Cursor, Priorität 2 | **Ereignis**-Jobart ohne `Run` (F-3); kein Hand-Knopf |
+| 1.1, 4.3, 6.4, Ein/Aus von `trakt.refresh` | `enabled` des Zeitplans = `spotlight_config.enabled` | Der Trakt-Poller prüft `enabled` **nicht**; `enabled = 0` blendet nur das Band aus (`visibility/discover.go:277`), die Liste wird weiter geholt, damit der Cache warm bleibt und das Einschalten sofort etwas zeigt | Das Ein/Aus des Zeitplans ist eigenständig (Vorgabe 1) und liegt nur in `job_schedules`; «ein Wert, zwei Türen» gilt für den **Takt** (`interval_hours`). Für `update.check` gilt es für Takt **und** Ein/Aus wie beschrieben, denn dort prüft der Code `update_check_enabled` |
+| Zeilenangaben | Stand `4049724` | geprüft | Berichtigt: `service.go:847` (Wächter), `:761` (`Start`), `:488` (`enqueueScan`); `config.go:262`; `00001_jobs.sql:32`; `podcast.go:349`/`:365`; `trakt.go:142`–`:149`; `update.go:89`; `AdminHomePage.tsx:531`; `api/openapi.yaml:2540`; `00023_library_roots_providers.sql:120`; `de.json:156`. Unverändert: `manage.go:193`, `sweep.go:29`, `cleanup.go:24`, `job.go:103`/`:478`/`:513`, `write.go:249`, `scanner.go:330`, `service.go:379`, `maintenance.go:155`, `worker.go:121`, `AdminHomePage.tsx:336`/`:343`, `admin-home.spec.ts:25`, `telegram_link.go:108`, `service.go:30` |
+| 10, Zweigname | `claude/hintergrundjobs` | Der Zweig trägt den Namen seines Worktrees (`claude/vigorous-raman-651439`) | Kopf und Abschnitt 10 nennen ihn |
+
+Keine Änderung an `docs/spec/`; Entscheid 15 steht in `04-entscheidungen.md`, ADR 0017 in
+`docs/adr/`, ADR 0002 trägt den Hinweis.

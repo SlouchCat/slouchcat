@@ -1,6 +1,10 @@
 # ADR 0002: Job-Queue – eigene Queue statt goqite
 
-- Status: angenommen (18. Oktober 2026)
+- Status: angenommen (18. Oktober 2026); **teilweise ersetzt durch ADR 0017** (30. Oktober 2026):
+  Zeitpläne (`job_schedules` wird in Migration 00027 neu gebaut, der Scheduler mit Intervallen, Zeitfenster
+  und Ein/Aus kommt mit Konzept 09, nicht mit `rating.verify`) und Abbruch (Abbruch-Haken je Jobart und
+  Pause je Jobart; der Heartbeat ist nur noch der Rückfall). Queue-Semantik, Lease, Idempotenz,
+  Backoff, Priorität und `RaiseQueuedPriority` bleiben wörtlich.
 - Quelle: `docs/planning/03-plan-v1.md`, Abschnitt 3.6 (Jobs) und M0 Schritt 3 (goqite-Timebox)
 - Betroffene Spec-IDs: alle Hintergrundarbeiten (Scan, Proben, Metadaten, Bilder, Downloads)
 
@@ -63,11 +67,14 @@ Umsetzung in M0 (Grundgerüst):
 - `Fail` plant den nächsten Versuch nach 10 s · 2^(Versuch − 1) (10 s, 20 s, 40 s, 80 s), nach
   `max_attempts` endet der Job als `failed` mit letzter Fehlermeldung.
 - `Cancel` bricht wartende und laufende Jobs ab; der Worker bemerkt den Abbruch beim nächsten Heartbeat
-  und bricht den Kontext des Handlers ab.
+  und bricht den Kontext des Handlers ab. **Ergänzt durch ADR 0017:** Abbruch und Pause laufen
+  über den Abbruch-Haken der Jobart und die Laufliste im Speicher; der Heartbeat ist der Rückfall.
 - Der Worker läuft als Goroutine, verlängert die Lease alle 60 s, fängt Panics ab und gibt beim
   Herunterfahren einen unterbrochenen Job ohne verbrauchten Versuch an die Queue zurück.
 - Tabelle `job_schedules` (`type`, `cron_expr`, `next_run`) ist angelegt; der Scheduler, der daraus Jobs
-  erzeugt, folgt mit dem ersten periodischen Job (spätestens `rating.verify`, Plan 3.2).
+  erzeugt, folgt mit dem ersten periodischen Job (spätestens `rating.verify`, Plan 3.2). **Abgelöst durch ADR 0017:**
+  die Tabelle wird neu gebaut (`every_ms`, `start_delay_ms`, `enabled`, Zeitfenster, `next_run_at`), der
+  Scheduler liegt im Paket `jobs`.
 - Alle Abfragen stehen in `server/queries/system/jobs.sql` (sqlc, Paket `store/systemq`).
 - **Ergänzung vom 26. Oktober 2026 (M11):** `RaiseQueuedPriority` hebt die Priorität eines noch nicht
   beanspruchten Jobs an und senkt sie nie. Grund: Das zweite Einreihen unter einem aktiven Schlüssel
@@ -87,5 +94,5 @@ Umsetzung in M0 (Grundgerüst):
 - Wer während eines laufenden Jobs denselben Schlüssel einreiht, erhält den laufenden Job. Braucht ein
   Aufrufer danach einen weiteren Lauf (z. B. Dateiänderung während eines Scans), reiht er nach Ende des
   Jobs erneut ein; der Watcher in M1a berücksichtigt das.
-- Der Scheduler für `job_schedules` ist noch offen und gehört zum Meilenstein des ersten periodischen
-  Jobs.
+- Der Scheduler für `job_schedules` war bis Konzept 09 offen; ADR 0017 (30. Oktober 2026) baut ihn
+  mit Intervallen statt cron-Ausdrücken.
