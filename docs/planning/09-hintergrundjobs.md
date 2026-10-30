@@ -5,7 +5,8 @@
   13); Fassung 2 arbeitet alle ein. Die Fragen an Marco stehen in Abschnitt 11; die Umsetzung
   beginnt erst nach seiner Freigabe mit Schritt 0 aus Abschnitt 10. Ein klickbarer Prototyp der
   Seite liegt unter `docs/planning/mockups/09-hintergrundjobs-prototyp.html` (Abschnitt 7.1).
-- **Datum: 29. Oktober 2026, Fassung 2 vom 30. Oktober 2026**
+- **Datum: 29. Oktober 2026, Fassung 2 vom 30. Oktober 2026; Nachtrag vom 30. Oktober 2026**
+  (Marcos Wunsch: Pausieren auch in der Liste «Läuft gerade» — 2.2, 6.3, 7, F-10, 13.1).
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`4049724`** («Merge pull request #45»,
   Bibliotheken), Vertragsfassung **1.3.0** (`api/openapi.yaml:4`), letzte Migration
   **`00025_items_filled_providers.sql`**, letzte ADR **`0015-bibliotheken-ordner-scraper.md`**.
@@ -157,7 +158,11 @@ Die Knöpfe **Jetzt ausführen** und **Pausieren** gehören zum **Job**, der Kno
 zum **Lauf** und als Sammelknopf («Wartende abbrechen» oder «Alle Läufe abbrechen», F-2) zum
 Job. Begründung in 6.3: ein einzelner `metadata.match` lebt zwei Sekunden, ihn zu pausieren ist
 sinnlos; was Marco anhalten will, ist «die 236 Wartenden sollen jetzt nicht weiterlaufen», und
-das ist eine Aussage über die Jobart.
+das ist eine Aussage über die Jobart. **Pausieren** steht darum an zwei Stellen, wirkt aber
+immer gleich: auf der Karte des Jobs und in jeder Zeile unter «Läuft gerade» (Marcos Wunsch vom
+30. Oktober 2026). Wer den laufenden Scan sieht und ihn anhalten will, muss nicht erst die Karte
+suchen; der Knopf in der Zeile pausiert den Job, dessen Lauf das ist — der Lauf hält sofort an
+(F-1), und bis zum Fortsetzen startet kein weiterer Lauf dieser Jobart (F-10).
 
 ### 2.2 Die Seite «Hintergrundjobs»
 
@@ -177,8 +182,14 @@ derselben Schranke wie das Dashboard (Administrator im Hauptprofil). Von oben na
    (vom Server aus dem Payload abgeleitet, 5.3: «Filme», «The Expanse · S03E07», «Telegram an
    Marco»), die Fortschrittsnotiz, wo der Lauf eine meldet («Ordner Filme/2024 · 1 240 von 3 980»),
    **seit** (Dauer, laufend hochgezählt), ein Fortschrittsbalken, wo der Lauf einen meldet,
-   **Restzeit** («noch ca. 12 min», «wird berechnet», «länger als üblich»), und je Zeile
-   **Abbrechen**. Leer: «Gerade läuft nichts.»
+   **Restzeit** («noch ca. 12 min», «wird berechnet», «länger als üblich»), und je Zeile die
+   Knöpfe **Pausieren** und **Abbrechen**. **Pausieren** in der Zeile ist derselbe Knopf wie auf
+   der Karte (2.1, F-10): der Lauf hält sofort an und geht ohne verbrauchten Versuch zurück unter
+   *Wartend*, die Zeile zeigt «wird angehalten», dann verschwindet sie, und der Job steht als
+   «pausiert» im Kopf und auf seiner Karte; dort und im Hinweis des Kopfs sitzt **Fortsetzen**.
+   Die Rückmeldung sagt, was geschah («Bibliotheksscan pausiert; der laufende Lauf hält an und
+   geht in die Warteschlange zurück»), damit niemand meint, nur diese eine Zeile sei betroffen.
+   **Abbrechen** beendet nur diesen Lauf (endgültig, 9.3). Leer: «Gerade läuft nichts.»
 3. **Jobs.** Eine Karte je Jobart, in vier Gruppen (*Bibliothek*, *Metadaten*, *Zustellung*,
    *System*). Je Karte: Name auf Deutsch und der Code in Schreibmaschinenschrift
    («Bibliotheksscan · `scan.library`»), ein Zustandschip, dann vier Zeilen:
@@ -536,6 +547,11 @@ der Client die laufende Dauer immer mit — sie ist das einzige, was sicher stim
    prüft der Heartbeat den Pausenstand zusätzlich. Bis der Handler zurückgekehrt ist, meldet die
    Jobart `stopping = true` («wird angehalten»).
 
+Der Knopf **Pausieren** in der Zeile unter «Läuft gerade» ruft dieselbe Operation
+`pauseJobType` mit der Jobart des Laufs; es gibt **keinen** Endpunkt «diesen einen Lauf
+pausieren» und keinen Zustand `held` je Lauf (F-10). Zwei Läufe derselben Jobart (zwei
+`segments.detect`) halten darum zusammen an — die Oberfläche sagt das in der Rückmeldung.
+
 **Die Lücke liegt im Arbeiter, nicht in den Handlern.** `worker.run` entscheidet heute mit
 `case err != nil && ctx.Err() != nil` (`worker.go:121`) über `Release`, und `ctx` ist der
 Eltern-Kontext — nur beim Herunterfahren. Ein Abbruch von `jobCtx` liefe darum in `Fail`:
@@ -601,6 +617,7 @@ blendet Knöpfe aus, die der Server mit 409 beantworten würde (`runnable`, `pau
 | **Dashboard** `AdminHomePage.tsx:507` | Kachel bekommt den Link «Alle Jobs» und, bei `paused > 0`, eine vierte `StatTile` «Pausiert» in `warning` |
 | **Abfragen** `features/admin/queries.ts` | `jobTypesQuery` (`refetchInterval: JOBS_POLL_MS = 5000`, aus, solange ein Bestätigungsdialog offen ist, wie `AdminHomePage.tsx:343`), `jobRunsQuery(type, state)`; Mutationen `runJobType`, `pauseJobType`, `resumeJobType`, `cancelJobRuns`, dazu die bestehenden `retryJob`, `cancelJob` |
 | **Laufende Dauer** | `useElapsed(startedAt)` zählt sekündlich hoch; mit `prefers-reduced-motion` keine Animation des unbestimmten Balkens |
+| **Zeile «Läuft gerade»** | Knöpfe **Pausieren** (ruft `pauseJobType(run.type)`, beschriftet «Lauf … pausieren» mit Jobname, deaktiviert, solange `stopping`) und **Abbrechen** (`cancelJob(run.id)`); Komponententest `JobsPage.test.tsx` (Vitest, wie `AdminHomePage.test.tsx`) mit zwei laufenden Läufen derselben Jobart: ein Klick auf Pausieren in der ersten Zeile ruft die Mutation **einmal** mit der Jobart, beide Zeilen zeigen «wird angehalten» |
 | **Bibliotheken, Spotlight, Integrationen, Podcasts** | **unverändert** |
 
 **Regel 8 — Tastaturtest.** Neue Route, also `web/e2e/admin-jobs.spec.ts`: Seite über die
@@ -611,7 +628,9 @@ und Zustandschip «Pausiert», «Fortsetzen», «Wartende abbrechen» öffnet di
 die Bestätigung, Escape schliesst, Fokus zurück auf dem Knopf), Dialog «Läufe von X» (Reiter per
 Pfeiltaste, Escape, Zurück, keine Fokusfalle), sichtbarer Fokus überall. Der Test nutzt
 `library.sweep` und `jobs.prune`, weil beide am e2e-Server in Sekunden enden und nichts Fremdes
-anstossen; weil eine Pause den Neustart überlebt (F-6) und der e2e-Server geteilt ist, setzt
+anstossen; den Knopf «Pausieren» in der Zeile «Läuft gerade» erreicht der e2e-Test darum nicht
+(kein Lauf lebt dort lange genug), ihn deckt der Komponententest aus der Tabelle oben ab; weil
+eine Pause den Neustart überlebt (F-6) und der e2e-Server geteilt ist, setzt
 `afterEach` jede pausierte Jobart über `resumeJobType` fort. `admin-home.spec.ts:25`
 (`NAV_PAGES`) bekommt die Zeile `['Hintergrundjobs', '/admin/jobs']`; `admin-home.spec.ts`
 prüft zusätzlich den Link «Alle Jobs».
@@ -638,11 +657,12 @@ Abhängigkeiten (Doppelklick genügt), gebaut wie die Prototypen zu 07 und 08: d
 fehlgeschlagen), Pools mit Stau, «Läuft gerade» mit vier Läufen (ein Scan mit Fortschritt und
 Restzeit, zwei Segmenterkennungen mit Median-Schätzung, eine Zustellung ohne), achtzehn
 Jobkarten in vier Gruppen, der Dialog «Läufe von X» mit Reitern und die Knöpfe mit Wirkung
-(Pausieren hält die Läufe der Karte an und zeigt den Hinweis im Kopf, Jetzt ausführen reiht
-Läufe ein, Wartende abbrechen und Alle Läufe abbrechen fragen nach). Ein Knopf «Handy-Ansicht»
-schaltet auf 390 px. Farben und Abstände sind die Tokens aus `packages/design-tokens/tokens/`.
-Der Prototyp ist **kein** Code für `web/src` und wird nicht gebaut oder getestet. Stand: zweite
-Fassung vom 30. Oktober 2026. Dieselbe Fassung ist als privates Artefakt unter
+(Pausieren auf der Karte **und** in der Zeile «Läuft gerade» hält die Läufe des Jobs an und zeigt
+den Hinweis im Kopf, Jetzt ausführen reiht Läufe ein, Wartende abbrechen und Alle Läufe
+abbrechen fragen nach). Ein Knopf «Handy-Ansicht» schaltet auf 390 px. Farben und Abstände sind
+die Tokens aus `packages/design-tokens/tokens/`. Der Prototyp ist **kein** Code für `web/src`
+und wird nicht gebaut oder getestet. Stand: dritte Fassung vom 30. Oktober 2026 (Pausieren in
+der Laufzeile). Dieselbe Fassung ist als privates Artefakt unter
 `https://claude.ai/artifact/E9nZyNurBZL7gGBEXYgPbK` erreichbar.
 
 ---
@@ -792,7 +812,7 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist.
 | Nr. | Frist | Thema | Empfehlung | Antwort | Datum |
 |-----|-------|-------|------------|---------|-------|
 | **F-1** | vor Schritt 2 | **Was heisst Pause für einen laufenden Lauf?** (a) Nur keine neuen Starts, Laufendes läuft zu Ende — ein NAS-Scan also noch Stunden; (b) Laufendes hält sofort an und geht ohne verbrauchten Versuch in die Queue zurück, beim Fortsetzen wird es wieder aufgenommen | **(b)**: sonst ist «Pause» bei genau dem Job eine Lüge, bei dem sie zählt (6.3) | | |
-| **F-2** | vor Schritt 3 | **Abbrechen je Job.** (a) Nur die Wartenden («Wartende abbrechen (236)»), laufende Läufe einzeln; (b) zusätzlich «Alle Läufe abbrechen» (wartende **und** laufende) mit Bestätigung, die die laufenden gesondert nennt; (c) auch Pause je einzelnem Lauf | **(b)**. Start und Pause bleiben je Jobart; (c) nicht: ein Lauf von zwei Sekunden hat keine Pause (2.1) | | |
+| **F-2** | vor Schritt 3 | **Abbrechen je Job.** (a) Nur die Wartenden («Wartende abbrechen (236)»), laufende Läufe einzeln; (b) zusätzlich «Alle Läufe abbrechen» (wartende **und** laufende) mit Bestätigung, die die laufenden gesondert nennt; (c) auch Pause je einzelnem Lauf | **(b)**. Start und Pause bleiben je Jobart; (c) nicht: ein Lauf von zwei Sekunden hat keine Pause (2.1, F-10) | | |
 | **F-3** | vor Schritt 3 | **«Jetzt ausführen» auch für Ereignis-Jobs** (`metadata.match`, `image.fetch`, `probe.file`, …)? Dafür müsste jeder eine Bedeutung von «alle» bekommen («alle Titel ohne Bilder») | **Nein.** Das Nachholen gehört zur Seite Pflege (Befunde) und zum Scan; die Karte zeigt «bei Bedarf» und den Auslöser | | |
 | **F-4** | vor Schritt 1 | **Zeitpläne einstellbar** (alle 6 h → alle 12 h, nachts)? | **Nur anzeigen.** Spotlight-Takt bleibt an seiner Seite einstellbar; alles Weitere als Idee «Zeitpläne» notieren, mit `every_ms` ist der Boden gelegt | | |
 | **F-5** | vor Schritt 1 | **Verschiebt «Jetzt ausführen» den nächsten geplanten Lauf?** | **Nein.** Takt bleibt; wer um 14:00 von Hand scannt, bekommt den 6-h-Lauf trotzdem um 18:00 — vorhersagbar, idempotent, billig | | |
@@ -800,6 +820,7 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist.
 | **F-7** | vor Schritt 4 | **Wortwahl.** «Hintergrundjobs» als Seitentitel (wie die Kachel heute); «Job» für die Jobart, «Lauf» für die Zeile; Knöpfe «Jetzt ausführen», «Pausieren», «Fortsetzen», «Abbrechen», «Wartende abbrechen», «Alle Läufe abbrechen» | wie links | | |
 | **F-8** | vor Schritt 2 | **Verlauf:** erledigte Läufe 7 Tage, mindestens 50 je Jobart; fehlgeschlagene bleiben bis «Erneut» oder «Abbrechen» | wie links | | |
 | **F-9** | vor Schritt 4 | **Arbeiterzahl in der Oberfläche einstellbar?** Heute nur `SLOUCHCAT_WORKERS` in `deploy/.env` (auf CT 190 so gedrosselt); die Seite zeigt die Zahl je Pool | **Nein, nur anzeigen**, mit Hinweis «`SLOUCHCAT_WORKERS` in deploy/.env». Ein Regler im Browser müsste Arbeiter zur Laufzeit starten und stoppen — eigenes Thema, Idee | | |
+| **F-10** | vor Schritt 3 | **Pausieren in der Zeile «Läuft gerade»** (Marcos Wunsch vom 30. Oktober 2026). (a) Der Knopf pausiert den **Job** des Laufs: dieser Lauf hält an, weitere laufende Läufe derselben Jobart ebenfalls, kein neuer Start bis «Fortsetzen» — gleicher Knopf wie auf der Karte, kein neuer Endpunkt; (b) der Knopf hält nur **diesen Lauf** an und legt ihn beiseite (neuer Zustand `held` je Lauf, eigener Endpunkt `pauseJobRun`, eigener Reiter *Angehalten* im Dialog), andere Läufe und neue Starts der Jobart laufen weiter | **(a)**. Die zwei Jobarten, bei denen Pause zählt (`scan.library`, `download.prepare`), laufen je Gegenstand ohnehin nur einmal; (b) brächte einen sechsten Zustand (ADR 0002), eine dritte Stelle für «Fortsetzen» und die Frage, was mit einem beiseitegelegten Lauf nach Tagen geschieht | | |
 
 Offene Punkte, die keine Entscheidung brauchen, aber eine Antwort verdienen:
 
@@ -897,6 +918,13 @@ Urteil «Überarbeitung vor der Freigabe». Alle 24 Befunde sind in Fassung 2 ei
 | 22 | Minor | `enqueueScan` reiht mit fester `prioScan`; `Run` muss anheben | 3, 6.1: Vertrag von `Run`, Prioritätsparameter, Test je Jobart |
 | 23 | Minor | «Abbrechen je Job» meint wohl auch laufende Läufe | F-2 mit Variante «Alle Läufe abbrechen», `cancelJobRuns?scope=all` |
 | 24 | Minor | e2e: Pause überlebt am geteilten Server; «oder» nicht deterministisch | 7: `afterEach` fortsetzen, `expect.poll` auf *Erledigt* |
+
+### 13.1 Nachtrag vom 30. Oktober 2026
+
+Marco wünscht nach der Durchsicht des Prototyps, auch in der Liste «Läuft gerade» pausieren zu
+können. Eingearbeitet als Knopf **Pausieren** je Zeile, der den Job des Laufs pausiert (2.1,
+2.2, 6.3, 7, 7.1); kein neuer Endpunkt, kein neuer Zustand. Die Alternative «nur diesen Lauf
+anhalten» steht als F-10 zur Entscheidung. Prototyp und Artefakt tragen den Knopf.
 
 Drei offene Fragen des Kritikers ohne Zählung: Schranke «Administrator im Hauptprofil» — ja,
 wie das Dashboard (2.2, 7, 9.1); Arbeiterzahl einstellbar — als F-9 an Marco; `rating.verify`

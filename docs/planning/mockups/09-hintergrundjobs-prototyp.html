@@ -86,7 +86,7 @@ h3 { font-size: 0.8rem; margin: 0; color: var(--muted); letter-spacing: 0.08em; 
 @media (prefers-reduced-motion: reduce) { .run .fill.indet { animation: none; width: 100%; opacity: 0.35; } .run .fill { transition: none; } .dot.running { animation: none; } }
 .run .times { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.85rem; color: var(--fg2); }
 .run .times b { color: var(--fg); font-weight: 600; }
-.run .act { grid-row: 1 / span 3; grid-column: 2; align-self: start; }
+.run .acts { grid-row: 1 / span 3; grid-column: 2; align-self: start; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .empty { border: 1px dashed var(--border); border-radius: var(--r-md); padding: 14px; color: var(--fg2); font-size: 0.9rem; }
 
 /* job cards */
@@ -158,9 +158,9 @@ dialog::backdrop { background: var(--overlay); }
 /* phone preview */
 body.phone .hdr .in, body.phone main { max-width: 390px; }
 body.phone main { border-inline: 1px dashed var(--border-strong); }
-@media (max-width: 520px) { .run { grid-template-columns: 1fr; } .run .act { grid-row: auto; grid-column: 1; justify-self: start; } }
+@media (max-width: 520px) { .run { grid-template-columns: 1fr; } .run .acts { grid-row: auto; grid-column: 1; justify-content: flex-start; } }
 body.phone .run { grid-template-columns: 1fr; }
-body.phone .run .act { grid-row: auto; grid-column: 1; justify-self: start; }
+body.phone .run .acts { grid-row: auto; grid-column: 1; justify-content: flex-start; }
 body.phone .grid { grid-template-columns: 1fr; }
 </style>
 
@@ -328,7 +328,10 @@ function renderRun(r) {
   const left = e.kind === 'measured' ? `noch ${fmtAbout(e.left)}` : e.kind === 'median' ? `noch ${fmtAbout(e.left)} <span class="dim">(üblich)</span>` : e.kind === 'longer' ? `<span style="color:var(--warning)">länger als üblich</span>` : 'wird berechnet';
   return `<li class="run" id="run-${r.id}">
     <div class="who"><b>${esc(t.name)}</b><code>${t.type}</code>${t.stopping ? '<span class="chip warning">wird angehalten</span>' : ''}</div>
-    <button class="btn sm act" type="button" data-cancel-run="${r.id}" aria-label="Lauf ${r.id} (${esc(t.name)}) abbrechen">Abbrechen</button>
+    <div class="acts">
+      <button class="btn sm" type="button" data-pause="${t.type}" ${t.stopping ? 'disabled' : ''} aria-label="Lauf ${r.id} (${esc(t.name)}) ${t.paused ? 'fortsetzen' : 'pausieren'}">${t.paused ? 'Fortsetzen' : 'Pausieren'}</button>
+      <button class="btn sm" type="button" data-cancel-run="${r.id}" aria-label="Lauf ${r.id} (${esc(t.name)}) abbrechen">Abbrechen</button>
+    </div>
     <div class="note">${esc(r.note)}${pct != null ? ` · <span class="num">${r.done.toLocaleString('de-CH')} von ${r.total.toLocaleString('de-CH')}</span>` : ''}</div>
     <div class="bar">
       <div class="track" aria-hidden="true"><div class="fill ${pct == null ? 'indet' : ''}" style="${pct != null ? `width:${pct}%` : ''}"></div></div>
@@ -453,7 +456,7 @@ function togglePause(type) {
   t.paused = !t.paused;
   if (t.paused) {
     const stopping = S.runs.filter(r => r.type === type);
-    toast(stopping.length ? `${t.name} pausiert; ${stopping.length === 1 ? 'der laufende Lauf hält' : stopping.length + ' laufende Läufe halten'} an und gehen ohne verbrauchten Versuch in die Warteschlange zurück.` : `${t.name} pausiert.`);
+    toast(stopping.length ? `${t.name} pausiert; ${stopping.length === 1 ? 'der laufende Lauf hält an und geht' : 'alle ' + stopping.length + ' laufenden Läufe dieses Jobs halten an und gehen'} ohne verbrauchten Versuch in die Warteschlange zurück.` : `${t.name} pausiert.`);
     // the running runs stop at once (the server cancels their context); the handler returns within a second
     if (stopping.length) { t.stopping = true; setTimeout(() => { const n = S.runs.filter(r => r.type === type).length; t.stopping = false; if (!typeOf(type).paused) return render(); S.runs = S.runs.filter(r => r.type !== type); t.queued += n; render(); }, 1200); }
   } else toast(`${t.name} fortgesetzt.`);
