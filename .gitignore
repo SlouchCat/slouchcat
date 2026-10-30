@@ -31,3 +31,6 @@ testdata/media/
 # Merged Playwright report of the CI shards (`playwright merge-reports`, gate job of ci.yml)
 web/playwright-report/
 blob-reports/
+
+# Python bytecode of the measurement scripts
+__pycache__/
