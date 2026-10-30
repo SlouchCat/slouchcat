@@ -50,6 +50,16 @@ Helfer es verspricht.
   `task testdata:media` läuft der Test grün (`ok 4.559s`); in CI (frische Medien) war der Job
   «server tests» auch vorher grün. Wer alte Testmedien hat: `FORCE=1 task testdata:media`.
 
+**Nachtrag CI des PR (`web`-Job rot, Lauf 41034366273).** Alle sechs e2e-Shards grün, aber Vitest
+meldete einen unbehandelten Fehler: `ReferenceError: document is not defined` aus react-arias
+`LiveAnnouncer`, 100 ms nach der ersten Ansage, als jsdom nach `LoginPage.test.tsx` schon abgebaut
+war. Ursache: `@testing-library/react` setzt `IS_REACT_ACT_ENVIRONMENT` nur, wo Jest-Globals
+(`beforeAll`/`afterAll`) existieren; unser Vitest läuft ohne `globals`, und ohne das Flag
+verzögert react-aria die erste Ansage um 100 ms (Safari-Umweg). Zeitabhängig, lokal nicht
+aufgetreten; deterministisch nachgestellt mit `announce()` und anschliessend gelöschtem
+`globalThis.document`. **Fix:** `web/src/test/setup.ts` setzt das Flag wie unter Jest; die Ansage
+geschieht sofort. Danach volle Vitest-Suite `674 passed (674)`, keine act-Warnungen, `tsc` 0 Fehler.
+
 **Offen.** Die CI entscheidet über die Firefox-Schrift (DejaVu Sans); lokal (Noto Sans) bricht die
 Aktionszeile nicht um, der e2e-Test deckt den Umbruch also nur in CI ab, der Unit-Test die
 Reihenfolge in jedem Fall.
