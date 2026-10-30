@@ -27,7 +27,11 @@ import (
 const (
 	JobUpdateCheck = "update.check"
 	updateJobKey   = "update.check"
-	updatePriority = 1
+	// updatePriority puts the check before every scan, match, probe, image and segment job (the
+	// priority ladder is in the package documentation of jobs). It reads one small file once a
+	// day; at priority 1 it waited behind the keyframe indexes of a library import for days and
+	// the administration showed a stale release.
+	updatePriority = 8
 
 	// UpdateInterval is the age of the last check after which RunUpdateCheck queues the next.
 	UpdateInterval     = 24 * time.Hour
