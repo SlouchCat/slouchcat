@@ -132,7 +132,7 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	rec := send(t, h, http.MethodGet, BasePath+"/admin/system", "p18", "", nil)
 	var sys gen.SystemInfo
 	decode(t, rec, &sys)
-	if rec.Code != http.StatusOK || sys.Version != "test" || sys.ConfigFs == "" || sys.Gpu.Tonemapper == "" {
+	if rec.Code != http.StatusOK || sys.Version != "0.0.0-test" || sys.ConfigFs == "" || sys.Gpu.Tonemapper == "" {
 		t.Errorf("system = %d %s", rec.Code, rec.Body.String())
 	}
 
@@ -183,7 +183,9 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	rec = send(t, h, http.MethodPost, BasePath+"/admin/update/check", "p18", "", nil)
 	var u gen.UpdateState
 	decode(t, rec, &u)
-	if rec.Code != http.StatusOK || !u.Available || deref(u.LatestVersion) != "0.0.1" {
+	// The fixture runs as 0.0.0-test, a pre-release of 0.0.0 and so older than 0.0.1; a label
+	// that is no version at all (a bare commit id) would be a development build without a notice.
+	if rec.Code != http.StatusOK || !u.Available || u.Development || deref(u.LatestVersion) != "0.0.1" {
 		t.Fatalf("check = %d %s", rec.Code, rec.Body.String())
 	}
 	for _, token := range []string{"p18", "p6", "none"} {

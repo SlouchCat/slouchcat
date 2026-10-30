@@ -157,11 +157,14 @@ type UpdateState struct {
 	Enabled        bool
 	CurrentVersion string
 	LatestVersion  string
-	Available      bool
-	URL            string
-	Notes          string
-	CheckedAt      *time.Time
-	Error          string
+	// Development: CurrentVersion is no semantic version (a bare commit id, an image tag or
+	// "dev"), so it cannot be compared with a release and Available stays false.
+	Development bool
+	Available   bool
+	URL         string
+	Notes       string
+	CheckedAt   *time.Time
+	Error       string
 }
 
 // UpdateNotice is the header badge of the main account: a newer version is published.

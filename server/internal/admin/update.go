@@ -146,6 +146,7 @@ func (s *Service) UpdateState(ctx context.Context) (model.UpdateState, error) {
 		return model.UpdateState{}, err
 	}
 	out := model.UpdateState{Enabled: on, CurrentVersion: s.version()}
+	out.Development = !isRelease(out.CurrentVersion)
 	if !on {
 		return out, nil
 	}
@@ -154,7 +155,7 @@ func (s *Service) UpdateState(ctx context.Context) (model.UpdateState, error) {
 		return model.UpdateState{}, err
 	}
 	out.LatestVersion, out.URL, out.Notes, out.Error = st.LatestVersion, st.URL, st.Notes, st.Error
-	out.Available = st.URL != "" && newerVersion(st.LatestVersion, out.CurrentVersion)
+	out.Available = st.URL != "" && !out.Development && newerVersion(st.LatestVersion, out.CurrentVersion)
 	if st.CheckedAt != 0 {
 		t := time.UnixMilli(st.CheckedAt).UTC()
 		out.CheckedAt = &t
@@ -326,14 +327,22 @@ func truncateRunes(s string, n int) string {
 	return s
 }
 
-// newerVersion reports whether latest is newer than current. A current version that does not parse
-// (a development build "dev") counts as older than every release; an unparsable latest is never
-// newer.
+// isRelease reports whether v is a semantic version, with or without the suffix `git describe`
+// adds to a tag. A bare commit id, an image tag or "dev" is a development build: it is not older
+// than any release, it is simply not comparable, and the state says so (UpdateState.Development)
+// instead of asking for an update that may be older than what runs.
+func isRelease(v string) bool {
+	_, ok := version.Parse(v)
+	return ok
+}
+
+// newerVersion reports whether latest is newer than current. Neither side is newer when it does not
+// parse; a development build is isRelease's business, not this one's.
 func newerVersion(latest, current string) bool {
 	l, ok := version.Parse(latest)
 	if !ok {
 		return false
 	}
 	c, ok := version.Parse(current)
-	return !ok || l.Compare(c) > 0
+	return ok && l.Compare(c) > 0
 }

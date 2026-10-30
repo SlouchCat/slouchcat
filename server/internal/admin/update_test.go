@@ -132,14 +132,41 @@ func TestUpdateCheck(t *testing.T) {
 	}
 }
 
-// A development build is older than every release.
+// A development build is not comparable with a release: the state names it and offers no update,
+// and the header carries no badge.
 func TestUpdateCheckDevBuild(t *testing.T) {
+	ctx := context.Background()
 	f := newFixture(t)
 	srv := newManifestServer(t, `{"version":"0.9.0","url":"https://example.org/0.9.0"}`)
 	f.svc.WithUpdateCheck(srv.URL+"/manifest.json", srv.Client())
-	st, err := f.svc.CheckForUpdate(context.Background())
-	if err != nil || !st.Available || st.CurrentVersion != "dev" {
+	st, err := f.svc.CheckForUpdate(ctx)
+	if err != nil || st.Available || !st.Development || st.CurrentVersion != "dev" || st.LatestVersion != "0.9.0" {
 		t.Errorf("dev build: %+v, %v", st, err)
+	}
+	if n := f.svc.UpdateAvailable(ctx); n != nil {
+		t.Errorf("notice of a dev build = %+v", n)
+	}
+}
+
+func TestIsRelease(t *testing.T) {
+	for _, tc := range []struct {
+		v    string
+		want bool
+	}{
+		{"1.4.0", true},
+		{"v1.4.0", true},
+		{"v1.1.0-79-gf92c09f", true},
+		{"v1.1.0-79-gf92c09f-dirty", true},
+		{"1.4.0-rc.1", true},
+		{"dev", false},
+		{"", false},
+		{"f92c09f", false},
+		{"spotlight-marker-f92c09f", false},
+		{"1bb1c7e2b9f0c3d4e5f60718293a4b5c6d7e8f90", false},
+	} {
+		if got := isRelease(tc.v); got != tc.want {
+			t.Errorf("isRelease(%q) = %v, want %v", tc.v, got, tc.want)
+		}
 	}
 }
 
@@ -204,8 +231,9 @@ func TestNewerVersion(t *testing.T) {
 		{"1.0.0-alpha.1", "1.0.0-alpha", true},
 		{"1.0.0-alpha", "1.0.0-1", true},
 		{"1.0.0-rc.1", "1.0.0", false},
-		{"0.9.0", "dev", true},
-		{"0.9.0", "", true},
+		{"0.9.0", "dev", false},
+		{"0.9.0", "", false},
+		{"0.9.0", "spotlight-marker-f92c09f", false},
 		// A self-built image of the release (git describe) runs that release (review M-3).
 		{"0.9.0", "v0.9.0-3-gabc1234-dirty", false},
 		{"0.9.1", "v0.9.0-3-gabc1234", true},

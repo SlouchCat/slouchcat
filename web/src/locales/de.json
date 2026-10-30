@@ -1516,7 +1516,12 @@
       "update": {
         "title": "Version {{version}} ist verfügbar",
         "body": "Du verwendest {{current}}. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.",
-        "notes": "Versionshinweise"
+        "notes": "Versionshinweise",
+        "development": {
+          "title": "Du verwendest einen Entwicklungsstand",
+          "body": "{{current}} ist kein veröffentlichtes Release, darum gibt es keinen Vergleich und keinen Update-Hinweis. Zuletzt veröffentlicht: {{latest}}.",
+          "bodyUnknown": "{{current}} ist kein veröffentlichtes Release, darum gibt es keinen Vergleich und keinen Update-Hinweis."
+        }
       },
       "streams": {
         "title": "Streams",

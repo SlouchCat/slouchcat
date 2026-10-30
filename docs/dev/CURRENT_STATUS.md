@@ -54,6 +54,53 @@ Helfer es verspricht.
 Aktionszeile nicht um, der e2e-Test deckt den Umbruch also nur in CI ab, der Unit-Test die
 Reihenfolge in jedem Fall.
 
+## Update-Prüfung: Entwicklungsstand statt Update-Hinweis, Release 1.4.0 (30. Oktober 2026)
+
+Auf dem Zweig `claude/update-check` (ab `main 1bb1c7e`, Startseite und Posterreihe gemergt). Auslöser:
+CT 190 lief auf dem Image `spotlight-marker-f92c09f` und zeigte unter «Zustand des Servers» «Version
+1.1.0 ist verfügbar», obwohl der Stand drei Vertragsfassungen neuer war. Zwei Ursachen: der
+Image-Tag ist keine Semver-Version, und `newerVersion` in `admin/update.go` wertete jede
+unparsbare Version als älter als jedes Release; dazu war nur 1.1.0 veröffentlicht, während
+`api/openapi.yaml` längst auf 1.4.0 stand (`docs/INSTALLATION.md` zeigte auf Adressen unter
+`v1.4.0`, die es nicht gab). Drei Schritte, je ein Commit:
+
+1. **`build(ci,deploy): stamp git describe into every image`.** Der Image-Job der CI holt die ganze
+   Historie (`fetch-depth: 0`) und stempelt `git describe --tags --always --dirty` statt
+   `github.sha`; `deploy/Taskfile.yml` beschreibt auch leichte Tags (`--tags`); der Baubefehl in
+   `docs/dev/HANDOVER.md` gibt `VERSION` mit. Ein Commit nach einem Release heisst damit
+   `v1.4.0-12-gabc1234`, was `version.Parse` als dieses Release liest (der `describe`-Suffix war
+   im Parser schon vorgesehen, nur kam nie einer an).
+2. **`feat(admin,web): report a development build instead of an update`.** `UpdateState` bekommt
+   das Pflichtfeld `development` (Vertrag 1.4.0, additiv, noch nicht veröffentlicht): wahr, wenn
+   `currentVersion` keine Semver-Version ist (Commit-Hash, Image-Tag, `dev`). Dann bleibt
+   `available` falsch, der Header trägt kein Abzeichen (`UpdateAvailable` folgt `Available`), und
+   die Verwaltung zeigt «Du verwendest einen Entwicklungsstand» mit dem laufenden Stand und dem
+   neuesten Release daneben (`admin.home.update.development.*` in beiden Sprachen). `newerVersion`
+   meldet bei unparsbarem `current` nicht mehr «neuer»; `isRelease` entscheidet. Tests:
+   `TestUpdateCheckDevBuild` (kein Hinweis, kein Abzeichen), `TestIsRelease`, die Tabelle von
+   `TestNewerVersion` mit `spotlight-marker-f92c09f`, im Web «names a development build instead of
+   offering an update for it». Die Vertragsfixture lief bisher als Version `test` und wäre jetzt
+   ein Entwicklungsstand; `SystemSource.Version` ist neu `0.0.0-test` (Semver-Vorabfassung, also
+   älter als `0.0.1`), die Backup-Fixture behält `test` (Dateiname `slouchcat-backup-test-…`).
+3. **Release 1.4.0 vorbereitet.** Notes-Entwurf als Tag-Beschriftung (Konten 1.2.0, Bibliotheken
+   1.3.0, Startseite 1.4.0, die drei Vertragsstufen mit beiden Brüchen wörtlich, Migrationen
+   00022 bis 00026, `metadata.vote_backfill`), Tag-Befehl und die Regel **Vertragsanhebung =
+   Tag beim Merge** in `docs/dev/HANDOVER.md`; `deploy/README.md` erklärt den Entwicklungsstand.
+   Den Tag `v1.4.0` setzt Marco nach dem Merge dieses Zweigs selbst auf den Merge-Commit; vorher
+   bleibt der Hinweis auf CT 190 stehen, bis dort ein Release-Image läuft.
+
+**Befund der CI (PR #49, erster Lauf):** der e2e-Test «a newer release in the manifest shows the
+update badge» (A-5) fiel in beiden Browsern, weil `task build` den Server mit `git describe` ohne
+`--tags` auf einem flachen Checkout stempelte, also mit dem blossen Commit-Hash; seit Schritt 2 ist
+das ein Entwicklungsstand ohne Hinweis. Vierter Commit `build(ci,server)`: `server/Taskfile.yml`
+beschreibt gegen Tags, der Job `build` holt die ganze Historie. Die roten Storybook-Screenshots
+(AppHeader, HeroCarousel, LetterBar, PosterCard, SelectField, SideNav, SideNavDrawer) sind der
+offene Punkt aus Konzept 08: `main` war auf `fa642f1` und `1bb1c7e` im Job «web» schon rot,
+Baselines holt Marco auf CT 190 nach.
+
+**Nicht gebaut:** keine Änderung an der Prüfung selbst (Manifest, Takt, Job), kein Abgleich mit
+Vorabfassungen (`1.5.0-rc.1` zählt wie bisher als älter als `1.5.0`).
+
 ## Startseite, Seitenleiste und Bibliotheksansichten (Konzept 08, 30. Oktober 2026, in Umsetzung)
 
 Auf dem Zweig `claude/startseite` (ab `main 4049724`, Konzept 07 gemergt) nach dem Konzept
