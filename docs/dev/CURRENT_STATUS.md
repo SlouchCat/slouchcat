@@ -438,7 +438,8 @@ Spotlight lud höchstens `w1280`, obwohl `w1920` im Cache lag; auf CT 190 sind 1
 3840 px breit oder mehr, weitere 156 mindestens 2560 px. Jetzt bieten Spotlight, Detailseite, Vorab-Bild
 und `Link`-Header `w1920` und die neue Stufe `w3840` an (nur aus Originalen ab 2560 px, nie hochskaliert,
 mit echter Breite im `srcset`; `ItemImages.backdropUhd`, `getItemImage` `w3840`). Bestehende Titel
-bekommen sie mit dem nächsten Scan. Tests: `TestSizesFor`, `TestBackdropUhdFromWideOriginal` (4000 px →
+bekommen sie mit dem nächsten Scan. Auf CT 190 (`metadaten-e86f520`, 17:10 Uhr) hatten nach dem Startscan 956 Titel `w3840`,
+nach rund 6 min, Cache 12 → 14 GB (`docs/perf/metadaten.md` 3.2). Tests: `TestSizesFor`, `TestBackdropUhdFromWideOriginal` (4000 px →
 3840, 2600 px bleibt, 2000 px ohne; der Scan-Check reiht fehlende Titel ein), `TestHeroPrepaint`,
 `TestStartPagePreloadHeaders`, ein Fall in `HomePage.test.tsx`; Papier 14 «Nachtrag».
 

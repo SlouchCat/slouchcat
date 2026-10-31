@@ -140,3 +140,16 @@ Kopfdaten der lokalen Dateien liest.
 Sprachcodes ohne Region (Schritt 1) steht weiter aus: Marcos Liste hat keine dritte Sprache, `de`
 und `en` gehen wie bisher als `de-DE`/`en-US`.
 
+### 3.2 Nachtrag: Hintergründe in `w3840` (Spotlight-Schärfe)
+
+CT 190 am 31. Oktober 2026 um 17:10 Uhr auf `metadaten-e86f520` umgestellt (`v1.5.0-17-ge86f520`). Der
+Scan beim Start fand die Hintergründe, deren Original mindestens 2560 px breit ist und denen `w3840`
+fehlte, und reihte je Titel ein `image.fetch` ein (das die Grössen aus dem gespeicherten Original neu
+ableitet, ohne TMDB zu fragen).
+
+| Was | Wert |
+|---|---|
+| Titel mit `w3840` danach | 956 |
+| Dauer vom Start bis zum letzten Auftrag | rund 6 min (3 Arbeiter) |
+| Bild-Cache | 12 GB → **14 GB** (+2 GB) |
+
