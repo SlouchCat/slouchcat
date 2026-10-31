@@ -6141,13 +6141,18 @@ export interface components {
             telegram: components["schemas"]["AdminSettingsTelegram"];
             push: components["schemas"]["AdminSettingsPush"];
         };
-        /** @description The provider keys (M3, M7); the values themselves are never returned. */
+        /**
+         * @description The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
+         *     personal client key); the values themselves are never returned.
+         */
         AdminSettingsKeys: {
             tmdb: components["schemas"]["KeyState"];
             tvdb: components["schemas"]["KeyState"];
             tvdbPin: components["schemas"]["KeyState"];
             youtube: components["schemas"]["KeyState"];
             trakt: components["schemas"]["KeyState"];
+            fanart: components["schemas"]["KeyState"];
+            fanartClient: components["schemas"]["KeyState"];
         };
         /** @description The e-mail server; the password is never returned. */
         AdminSettingsEmail: {
@@ -6186,7 +6191,7 @@ export interface components {
             email?: components["schemas"]["AdminSettingsEmailUpdate"];
             telegram?: components["schemas"]["AdminSettingsTelegramUpdate"];
             /** @description Stored values to remove. */
-            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "email" | "telegram")[];
+            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram")[];
         };
         /** @description New keys; each is stored encrypted and never returned. */
         AdminSettingsKeysUpdate: {
@@ -6194,6 +6199,8 @@ export interface components {
             tvdb?: string;
             tvdbPin?: string;
             youtube?: string;
+            fanart?: string;
+            fanartClient?: string;
             trakt?: string;
         };
         /** @description The e-mail server as a whole; `password` absent keeps the stored password. */

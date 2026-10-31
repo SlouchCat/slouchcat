@@ -118,6 +118,9 @@ type TitleRecord struct {
 	// size and votes (ADR 0018, concept 10 6.2); PosterPath and BackdropPath stay the provider's
 	// own default (the candidate of step 5 of the choice).
 	Images []ImageCandidate
+	// Fanart are the Fanart.tv candidates of the title, set by the match before it writes (not by
+	// a provider; concept 10 step 6); the choice takes them last.
+	Fanart []ImageCandidate
 	// Collection is the TMDB collection of a film (E-6); nil for series and films without one.
 	Collection *CollectionRecord
 }

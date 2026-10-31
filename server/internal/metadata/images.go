@@ -247,17 +247,12 @@ func (s *Service) imageSource(item systemq.Item, row systemq.ItemImage) imageReq
 		out.url = s.client.imageURL(originalSize, src)
 	case strings.HasPrefix(src, coverFilePrefix):
 		out.url = src
-	case strings.HasPrefix(src, s.tvdb.artBase+"/"), s.anilist.imageURL(src), fanartImageURL(src):
+	case strings.HasPrefix(src, s.tvdb.artBase+"/"), s.anilist.imageURL(src), s.fanart.assetURL(src):
 		out.url = src
 	default:
 		s.log.Warn("image path of an unknown host ignored", "item_id", item.ID, "kind", row.Kind)
 	}
 	return out
-}
-
-// fanartImageURL reports whether an address points to the asset host of Fanart.tv (step 6).
-func fanartImageURL(src string) bool {
-	return strings.HasPrefix(src, "https://assets.fanart.tv/")
 }
 
 // storedImage is the part of an image row the completeness check needs.
@@ -985,7 +980,7 @@ func (s *Service) feedOf(ctx context.Context, itemID string) (feedURL, origin st
 // provider client, not the guarded cover client: the hosts are constants).
 func (s *Service) providerImage(source string) bool {
 	return strings.HasPrefix(source, s.client.imageURL(originalSize, "")) || strings.HasPrefix(source, s.tvdb.artBase+"/") ||
-		s.anilist.imageURL(source) || fanartImageURL(source)
+		s.anilist.imageURL(source) || s.fanart.assetURL(source)
 }
 
 // mediaFilePath resolves the absolute path of a media file through package paths.

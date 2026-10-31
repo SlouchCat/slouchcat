@@ -30,7 +30,8 @@ test('Tab reaches header, rescan and the add form in order; no focus trap', asyn
   await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
   // Other libraries ("Serien", "Hörbücher", "Podcasts", "E2E leer") have their buttons in between,
   // as many as there are libraries: no fixed budget.
-  await tabTo(page, page.getByLabel('Name', { exact: true }));
+  // Every video library card carries a link to its metadata settings (concept 10): more stops.
+  await tabTo(page, page.getByLabel('Name', { exact: true }), 80);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Video' }));
   await page.keyboard.press('ArrowRight');
@@ -63,7 +64,8 @@ test('content and metadata sources by keyboard: Space ticks, arrows sort, cards 
   page,
 }) => {
   const form = page.getByRole('region', { name: 'Bibliothek hinzufügen' });
-  await tabTo(page, page.getByLabel('Name', { exact: true }));
+  // Every video library card carries a link to its metadata settings (concept 10): more stops.
+  await tabTo(page, page.getByLabel('Name', { exact: true }), 80);
   await page.keyboard.type('E2E Anime');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Video' }));
@@ -127,7 +129,8 @@ test('audio kinds by keyboard: default rating with arrows, no folder for podcast
 }) => {
   const folder = page.getByLabel('Ordner', { exact: true });
   const rating = page.getByRole('radiogroup', { name: 'Standard-Altersstufe' });
-  await tabTo(page, page.getByLabel('Name', { exact: true }));
+  // Every video library card carries a link to its metadata settings (concept 10): more stops.
+  await tabTo(page, page.getByLabel('Name', { exact: true }), 80);
   await page.keyboard.type('E2E Hörbücher');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, page.getByRole('radio', { name: 'Video' }));

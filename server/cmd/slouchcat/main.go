@@ -483,6 +483,11 @@ func (k *lazyKeys) TraktClientID(ctx context.Context) (string, error) {
 	return k.admin.TraktClientID(ctx)
 }
 
+// FanartKeys reads the Fanart.tv keys (environment first, then the encrypted settings).
+func (k *lazyKeys) FanartKeys(ctx context.Context) (string, string, error) {
+	return k.admin.FanartKeys(ctx)
+}
+
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on
 // <cache>/transcode and returns the playback service with the stream-token key of the key file
 // (plan 5.4) and the subtitle cache below <cache>/subtitles. Without a usable ffmpeg the server

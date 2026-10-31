@@ -170,6 +170,7 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
 	if !found || rec.TMDBID == 0 {
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
+	rec.Fanart = s.fanartImages(ctx, item.ID, "movie", rec.TMDBID)
 	_, applied, err := s.applyTitle(ctx, item, rec.TitleRecord, langs)
 	if err != nil || !applied {
 		return err
@@ -275,6 +276,7 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	if !found {
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
+	rec.Fanart = s.fanartImages(ctx, item.ID, "series", rec.TVDBID)
 	series, applied, err := s.applyTitle(ctx, item, rec.TitleRecord, langs)
 	if err != nil || !applied {
 		return err
@@ -677,13 +679,13 @@ func (s *Service) writeChild(ctx context.Context, q *systemq.Queries, cur system
 	if err := q.UpdateChildMatch(ctx, p); err != nil {
 		return fmt.Errorf("metadata.match: update %s: %w", cur.ID, err)
 	}
-	return s.matchImages(ctx, q, cur, identifierOf(cur), images, locked, now)
+	return s.matchImages(ctx, q, cur, identifierOf(cur), images, nil, locked, now)
 }
 
 // matchImages runs the image choice of ADR 0018 for the record of the identifier (the only source
 // a match knows; the fill adds the fillers, local files and Fanart.tv later) and writes
 // item_images and the provenance of the image fields.
-func (s *Service) matchImages(ctx context.Context, q *systemq.Queries, cur systemq.Item, provider string, images []ImageCandidate, locked map[string]bool, now int64) error {
+func (s *Service) matchImages(ctx context.Context, q *systemq.Queries, cur systemq.Item, provider string, images, fanart []ImageCandidate, locked map[string]bool, now int64) error {
 	settings, err := s.Effective(ctx, cur.LibraryID)
 	if err != nil {
 		return fmt.Errorf("metadata.match: %w", err)
@@ -697,6 +699,9 @@ func (s *Service) matchImages(ctx context.Context, q *systemq.Queries, cur syste
 		return fmt.Errorf("metadata.match: load local images of %s: %w", cur.ID, err)
 	}
 	cands := []providerFields{{provider: provider, images: images}}
+	if len(fanart) > 0 {
+		cands = append(cands, providerFields{provider: ImageSourceFanart, images: fanart})
+	}
 	decisions, _ := decideImages(cur.Kind, settings, []string{provider}, cands, local, stored, locked)
 	if _, err := writeImageDecisions(ctx, q, cur.ID, decisions, now); err != nil {
 		return fmt.Errorf("metadata.match: %w", err)
@@ -871,7 +876,7 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 	if err := q.UpdateItemMatch(ctx, p); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: update item %s: %w", itemID, err)
 	}
-	if err := s.matchImages(ctx, q, cur, rec.Provider, rec.Images, locked, now); err != nil {
+	if err := s.matchImages(ctx, q, cur, rec.Provider, rec.Images, rec.Fanart, locked, now); err != nil {
 		return snap, false, err
 	}
 	if !locked["cast"] {

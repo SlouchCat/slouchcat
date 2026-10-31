@@ -368,6 +368,8 @@ func (k staticKey) YouTubeKey(context.Context) (string, error) { return "", nil 
 
 func (k staticKey) TraktClientID(context.Context) (string, error) { return "", nil }
 
+func (k staticKey) FanartKeys(context.Context) (string, string, error) { return "", "", nil }
+
 type env struct {
 	db    *store.DB
 	queue *jobs.Queue
@@ -408,6 +410,7 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 	svc := New(db, q, keys, cache, transcode.Runner{FFmpegPath: lookFFmpeg()}, log,
 		WithBaseURL(f.srv.URL+"/3", f.srv.URL+"/t/p"), WithHTTPClient(f.srv.Client()),
 		WithTVDBBaseURL(tv.srv.URL+"/v4", tv.srv.URL+"/art"),
+		WithFanartBaseURL(f.srv.URL+"/fanart/v3.2", f.srv.URL+"/fanart-assets"),
 		WithYouTubeBaseURL(yt.srv.URL+"/youtube/v3"), WithYouTubeQuota(quota),
 		WithAniListBaseURL(al.srv.URL+"/graphql", al.srv.URL+"/img"),
 		WithAnimeListsURL(al.srv.URL+"/lists/anime-list-full.json", al.srv.Client()),

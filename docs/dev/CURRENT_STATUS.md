@@ -360,6 +360,61 @@ mit `texts` und `images`, lässt den Elternlauf, den Match und den Fill laufen u
 weiter `item_images` = `/en-poster.jpg`, `chosen = 1`, `poster` in `locked_fields`; erst
 `clearItemImage` gibt die automatische Wahl (deutsches Poster) zurück.
 
+### Schritt 6 — Fanart.tv (31. Oktober 2026)
+
+**O-4 geprüft** (Papier 14): gegen den offiziellen Client `@fanart-tv/api` 1.2.0 (README in der
+npm-Registry; `api.fanart.tv` steht hinter einer Browser-Prüfung). API `webservice.fanart.tv/v3.2`
+mit Breite und Höhe je Bild; Projektschlüssel `api_key` und persönlicher Schlüssel `client_key` als
+Query oder Header; kein Kontingent, 429 mit `Retry-After` bei Übernutzung; neue Bilder nach 7
+(Projekt) bzw. 2 Tagen (persönlich); Vorschau über `/preview/` statt `/fanart/`.
+
+**Was gebaut ist.** `metadata/fanart.go`: Anbieter mit eigenem Begrenzer (2 Anfragen/s), Schlüssel
+**als Header** `api-key`/`client-key` (nie in der Adresse), Filme über die TMDB-, Serien über die
+TVDB-Id; Felder `hdmovielogo`/`movielogo`, `movieposter`, `moviebackground`/`movie4kbackground`
+bzw. `hdtvlogo`/`clearlogo`, `tvposter`, `showbackground`/`show4kbackground`; Sprache `00` = ohne
+Text, `likes` als Bewertung; nur Adressen des Asset-Hosts werden Kandidat. Gefragt wird nur mit
+Schalter (`metadata.fanart_enabled`) **und** Projektschlüssel; ein Fehler von Fanart.tv lässt Match
+und Fill weiterlaufen (Warnung im Log). Eingebunden im Match (Erkenner, `TitleRecord.Fanart`), im
+Fill (letzter Datensatz) und in der Bildwahl je Titel (letzte Quelle, CDN-Vorschau); die Wahl in
+sechs Stufen nimmt Fanart.tv wie geplant zuletzt. Schlüssel: `AdminSettingsKeys.fanart` und
+`fanartClient` (Vertrag 1.6.0, additiv), `fanart_api_key`/`fanart_client_key` verschlüsselt in
+`settings`, `SLOUCHCAT_FANART_API_KEY`/`SLOUCHCAT_FANART_CLIENT_KEY` (Umgebung gewinnt, beide aus
+derselben Quelle), zwei Felder auf «Integrationen», `deploy/.env.example`, `compose.yaml`,
+`deploy/README.md`. Redaction: `clientkey` in den Attributnamen, `client_key` in der Query-Regel.
+
+**Tests** (neu): `TestFanartNeverAskedWithoutKeyOrSwitch` (Schalter ohne Schlüssel, Schlüssel ohne
+Schalter: Match, Fill und Bildwahl fragen nie), `TestFanartLogoInCache` (DoD: TMDB ohne Logo, das
+deutsche Fanart-Logo gewinnt, `image.fetch` legt `logo/w400|w800` als PNG und WebP ab; das deutsche
+TMDB-Poster schlägt das textlose Fanart-Poster; Schlüssel nur als Header, nie in Adresse oder Log;
+Kandidat mit `/preview/`; fremder Host nie Kandidat); `TestIsSensitiveKey` um die Fanart-Namen;
+Integrationen-Komponententests mit den zwei Schlüsseln.
+
+Nachzug aus Schritt 4, den erst der volle e2e-Lauf zeigte: `admin-home.spec.ts` zählt 18 Karten (die
+Karte «Metadaten» kam dazu), `admin-libraries.spec.ts` gibt dem Tab bis zum Namensfeld 80 statt 40
+Schritte (jede Videobibliothek trägt jetzt den Link «Metadaten der Bibliothek», Firefox hält dort).
+
+DoD-Belege:
+
+```
+$ git add -A && task ci                    (Zweig 49c74a4 + Schritt 6, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün; gen:check grün
+server test:   ok  … 33 Pakete, kein FAIL
+web lint:      prettier --check: web/src/features/admin/IntegrationsPage.tsx (Zeilenumbruch der KEYS-Liste;
+               korrigiert)
+$ pnpm -w run lint                         web lint: Done; All matched files use Prettier code style!
+$ cd web && pnpm exec vitest run           Test Files  86 passed (86)   Tests  691 passed (691)
+$ task storybook:test                      200 passed (15.1s)
+$ task build && task ci:e2e                489 passed, 5 failed (26.2m): admin-home Tab-Fall (chromium, firefox:
+               17 statt 18 Karten), admin-libraries zwei Fälle (firefox: Tab-Budget 40), admin-streams 5-s-Fall (firefox)
+$ task e2e -- e2e/admin-home.spec.ts e2e/admin-libraries.spec.ts e2e/admin-streams.spec.ts
+                                           29 passed, 1 failed: [firefox] admin-streams.spec.ts:39 «its player stops within 5 s»
+$ go test ./internal/metadata/ -run 'TestFanart' -count=1                  ok
+$ go test ./internal/logging/ -count=1                                    ok
+```
+
+Der eine rote Fall ist das bekannte 5-Sekunden-Zeitbudget von `admin-streams.spec.ts` in Firefox (Schritt 1,
+Konzepte 08 und 09); er berührt keine Zeile dieses Konzepts.
+
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
 **Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis

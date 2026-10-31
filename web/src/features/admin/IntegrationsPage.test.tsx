@@ -14,6 +14,8 @@ const settings = (overrides: Partial<AdminSettings> = {}): AdminSettings => ({
     tmdb: { source: 'stored', hint: 'a1b2' },
     tvdb: { source: 'none' },
     tvdbPin: { source: 'none' },
+    fanart: { source: 'none' },
+    fanartClient: { source: 'none' },
     youtube: { source: 'none' },
     trakt: { source: 'env' },
   },
@@ -47,7 +49,7 @@ describe('integrations (A-2)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
     expect(within(keys).getByText('Gespeichert, endet auf a1b2')).toBeVisible();
-    expect(within(keys).getAllByText('Nicht gesetzt')).toHaveLength(3);
+    expect(within(keys).getAllByText('Nicht gesetzt')).toHaveLength(5);
     expect(within(keys).getByText('In deploy/.env gesetzt')).toBeVisible();
 
     const trakt = within(keys).getByLabelText('Trakt-Client-ID');

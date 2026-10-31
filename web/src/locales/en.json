@@ -1692,7 +1692,7 @@
       "cleared": "{{name}} deleted.",
       "keys": {
         "title": "Provider keys",
-        "intro": "For metadata (TMDB, TVDB), trailers (YouTube) and the Trakt lists of the home page.",
+        "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
         "saveLabel": "Save {{name}}",
         "newValue": "Leave empty to keep the stored value. A new value replaces it.",
         "tmdb": {
@@ -1720,7 +1720,17 @@
           "label": "Trakt client ID",
           "description": "For the rows “Trending” and “Popular” of the home page."
         },
-        "traktStatus": "State of the Trakt lists"
+        "traktStatus": "State of the Trakt lists",
+        "fanart": {
+          "name": "Fanart.tv key",
+          "label": "Fanart.tv project key",
+          "description": "Logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days."
+        },
+        "fanartClient": {
+          "name": "Fanart.tv personal key",
+          "label": "Fanart.tv personal key",
+          "description": "Optional: new images after 2 days instead of 7."
+        }
       },
       "webhooks": {
         "title": "Webhooks from Radarr and Sonarr",

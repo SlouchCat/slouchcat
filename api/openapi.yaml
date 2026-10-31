@@ -11432,8 +11432,10 @@ components:
 
     AdminSettingsKeys:
       type: object
-      description: The provider keys (M3, M7); the values themselves are never returned.
-      required: [tmdb, tvdb, tvdbPin, youtube, trakt]
+      description: |
+        The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
+        personal client key); the values themselves are never returned.
+      required: [tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient]
       properties:
         tmdb:
           $ref: "#/components/schemas/KeyState"
@@ -11444,6 +11446,10 @@ components:
         youtube:
           $ref: "#/components/schemas/KeyState"
         trakt:
+          $ref: "#/components/schemas/KeyState"
+        fanart:
+          $ref: "#/components/schemas/KeyState"
+        fanartClient:
           $ref: "#/components/schemas/KeyState"
 
     AdminSettingsEmail:
@@ -11514,7 +11520,7 @@ components:
           description: Stored values to remove.
           items:
             type: string
-            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, email, telegram]
+            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, email, telegram]
 
     AdminSettingsKeysUpdate:
       type: object
@@ -11536,6 +11542,16 @@ components:
           maxLength: 1024
           writeOnly: true
         youtube:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        fanart:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        fanartClient:
           type: string
           minLength: 1
           maxLength: 1024

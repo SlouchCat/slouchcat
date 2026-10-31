@@ -1692,7 +1692,7 @@
       "cleared": "{{name}} gelöscht.",
       "keys": {
         "title": "Schlüssel der Anbieter",
-        "intro": "Für Metadaten (TMDB, TVDB), Trailer (YouTube) und die Trakt-Listen der Startseite.",
+        "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
         "saveLabel": "{{name}} speichern",
         "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
         "tmdb": {
@@ -1720,7 +1720,17 @@
           "label": "Trakt-Client-ID",
           "description": "Für die Reihen «Trending» und «Beliebt» der Startseite."
         },
-        "traktStatus": "Stand der Trakt-Listen"
+        "traktStatus": "Stand der Trakt-Listen",
+        "fanart": {
+          "name": "Fanart.tv-Schlüssel",
+          "label": "Fanart.tv-Projektschlüssel",
+          "description": "Logos und Poster in hoher Güte als letzte Bildquelle; eingeschaltet wird sie unter «Metadaten». Neue Bilder erscheinen nach 7 Tagen."
+        },
+        "fanartClient": {
+          "name": "Persönlicher Fanart.tv-Schlüssel",
+          "label": "Persönlicher Fanart.tv-Schlüssel",
+          "description": "Optional: neue Bilder schon nach 2 Tagen statt nach 7."
+        }
       },
       "webhooks": {
         "title": "Webhooks von Radarr und Sonarr",

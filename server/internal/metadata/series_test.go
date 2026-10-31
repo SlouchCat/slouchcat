@@ -22,6 +22,7 @@ const (
 // testKeys is a KeySource with every provider key.
 type testKeys struct {
 	tmdb, tvdb, pin, youtube string
+	fanart, fanartClient     string
 }
 
 func (k testKeys) TMDBKey(context.Context) (string, error) { return k.tmdb, nil }
@@ -31,6 +32,10 @@ func (k testKeys) TVDBKey(context.Context) (string, string, error) { return k.tv
 func (k testKeys) YouTubeKey(context.Context) (string, error) { return k.youtube, nil }
 
 func (k testKeys) TraktClientID(context.Context) (string, error) { return "", nil }
+
+func (k testKeys) FanartKeys(context.Context) (string, string, error) {
+	return k.fanart, k.fanartClient, nil
+}
 
 // tid returns a 26 character item ID for tag and n.
 func tid(tag string, n int) string {

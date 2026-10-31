@@ -209,6 +209,32 @@ func (s *Service) collectCandidates(ctx context.Context, item systemq.Item, kind
 		}
 		out.Candidates = append(out.Candidates, sortCandidates(found, chain)...)
 	}
+	// Fanart.tv last (step 6): films by TMDB id, series by TVDB id; no season posters here.
+	if item.Kind != "season" && s.fanart.Active(ctx) {
+		id := series.TmdbID.Int64
+		if series.Kind == "series" {
+			id = series.TvdbID.Int64
+		}
+		if id > 0 {
+			all, err := s.fanart.Images(ctx, series.Kind, id)
+			if err != nil {
+				if ctx.Err() != nil {
+					return out, ctx.Err()
+				}
+				s.log.Warn("image candidates: provider failed", "item_id", item.ID, "kind", kind, "provider", ImageSourceFanart, "err", err)
+				out.Unavailable = append(out.Unavailable, ImageSourceFanart)
+			} else {
+				var found []model.ImageCandidate
+				for _, ic := range all {
+					if ic.Kind == kind {
+						found = append(found, model.ImageCandidate{Provider: ImageSourceFanart, Lang: ic.Lang, Width: ic.Width, Height: ic.Height,
+							Score: ic.Votes, VoteCount: ic.VoteCount, Source: ic.Source, PreviewURL: fanartPreview(ic.Source)})
+					}
+				}
+				out.Candidates = append(out.Candidates, sortCandidates(found, chain)...)
+			}
+		}
+	}
 	return out, nil
 }
 
@@ -421,6 +447,8 @@ func (s *Service) previewOf(provider, source string) string {
 			source = source[:len(source)-4] + ".png"
 		}
 		return s.client.imageURL(previewSize, source)
+	case s.fanart.assetURL(source):
+		return fanartPreview(source)
 	default:
 		return source
 	}

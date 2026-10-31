@@ -29,7 +29,15 @@ import table from './AdminTablePage.module.css';
 
 type KeyName = keyof AdminSettings['keys'];
 
-const KEYS = ['tmdb', 'tvdb', 'tvdbPin', 'youtube', 'trakt'] as const satisfies readonly KeyName[];
+const KEYS = [
+  'tmdb',
+  'tvdb',
+  'tvdbPin',
+  'youtube',
+  'fanart',
+  'fanartClient',
+  'trakt',
+] as const satisfies readonly KeyName[];
 
 const TLS_MODES = ['starttls', 'tls', 'none'] as const satisfies readonly SMTPTLS[];
 

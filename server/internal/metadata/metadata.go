@@ -109,6 +109,9 @@ type KeySource interface {
 	YouTubeKey(ctx context.Context) (string, error)
 	// TraktClientID returns the Trakt client id (M7, E-7).
 	TraktClientID(ctx context.Context) (string, error)
+	// FanartKeys returns the Fanart.tv project key and the optional personal client key
+	// (concept 10 step 6); "" when not configured.
+	FanartKeys(ctx context.Context) (key, client string, err error)
 }
 
 // Service runs the metadata jobs and checks TMDB keys.
@@ -125,6 +128,7 @@ type Service struct {
 	client *Client
 	tmdb   *tmdbProvider
 	tvdb   *tvdbProvider
+	fanart *fanartProvider // Fanart.tv, the last image source (fanart.go)
 	now    func() time.Time
 
 	anilist    *aniListProvider // AniList, a filler (ADR 0015; anilist.go)
@@ -155,6 +159,8 @@ type options struct {
 	imageBase   string
 	tvdbBase    string
 	tvdbArtBase string
+	fanartBase  string
+	fanartArt   string
 	anilistBase string
 	anilistImgs string
 	anilistOn   bool
@@ -180,6 +186,11 @@ type Option func(*options)
 // WithBaseURL replaces the TMDB API and image base URLs (tests use an httptest.Server).
 func WithBaseURL(api, images string) Option {
 	return func(o *options) { o.apiBase, o.imageBase = api, images }
+}
+
+// WithFanartBaseURL replaces the Fanart.tv API and asset base URLs (tests use an httptest.Server).
+func WithFanartBaseURL(api, assets string) Option {
+	return func(o *options) { o.fanartBase, o.fanartArt = api, assets }
 }
 
 // WithTVDBBaseURL replaces the TVDB API and artwork base URLs (tests use an httptest.Server).
@@ -250,7 +261,7 @@ func WithClock(now func() time.Time) Option {
 // <cacheDir>/images. runner scales the images (ffmpeg).
 func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	o := options{apiBase: DefaultAPIBase, imageBase: DefaultImageBase, tvdbBase: DefaultTVDBBase,
-		tvdbArtBase: DefaultTVDBArtworkBase, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now,
+		tvdbArtBase: DefaultTVDBArtworkBase, fanartBase: DefaultFanartBase, fanartArt: DefaultFanartAssets, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now,
 		anilistBase: DefaultAniListBase, anilistImgs: DefaultAniListImageBase, anilistOn: true, animeLists: DefaultAnimeListsURL}
 	for _, opt := range opts {
 		opt(&o)
@@ -265,6 +276,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		o.quota = ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific)
 	}
 	tvdb := newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys)
+	fanart := newFanartProvider(o.fanartBase, o.fanartArt, o.http, keys)
 	tvdb.log = log
 	svc := &Service{
 		db:     db,
@@ -279,6 +291,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		client: client,
 		tmdb:   &tmdbProvider{client: client, keys: keys},
 		tvdb:   tvdb,
+		fanart: fanart,
 		now:    o.now,
 
 		anilist:    newAniListProvider(o.anilistBase, o.anilistImgs, o.http, o.anilistOn, log),
@@ -307,6 +320,10 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 	svc.tmdb.includeAdult = func(ctx context.Context) bool {
 		st, err := svc.Settings(ctx)
 		return err == nil && st.TMDBIncludeAdult
+	}
+	svc.fanart.enabled = func(ctx context.Context) bool {
+		st, err := svc.Settings(ctx)
+		return err == nil && st.FanartEnabled
 	}
 	return svc
 }

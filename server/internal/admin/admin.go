@@ -42,6 +42,13 @@ const (
 	EnvTVDBPin        = "SLOUCHCAT_TVDB_PIN"
 	EnvYouTubeKey     = "SLOUCHCAT_YOUTUBE_API_KEY"
 
+	// Fanart.tv (concept 10 step 6): a project key and an optional personal client key, paired
+	// by source like the TVDB key and PIN.
+	SettingFanartKey    = "fanart_api_key"
+	SettingFanartClient = "fanart_client_key"
+	EnvFanartKey        = "SLOUCHCAT_FANART_API_KEY"
+	EnvFanartClient     = "SLOUCHCAT_FANART_CLIENT_KEY"
+
 	maxLibraryName = 80
 	maxLibraryPath = 4096
 	maxTMDBKeyLen  = 1024
@@ -386,6 +393,22 @@ func (s *Service) TVDBKey(ctx context.Context) (key, pin string, err error) {
 		return "", "", err
 	}
 	return key, pin, nil
+}
+
+// FanartKeys returns the Fanart.tv project key and the optional personal client key from one
+// source: both from the environment when the key is set there, else both from their encrypted
+// settings; "" when not configured.
+func (s *Service) FanartKeys(ctx context.Context) (key, client string, err error) {
+	if key := strings.TrimSpace(s.getenv(EnvFanartKey)); key != "" {
+		return key, strings.TrimSpace(s.getenv(EnvFanartClient)), nil
+	}
+	if key, err = s.secretKey(ctx, "", SettingFanartKey); err != nil {
+		return "", "", err
+	}
+	if client, err = s.secretKey(ctx, "", SettingFanartClient); err != nil {
+		return "", "", err
+	}
+	return key, client, nil
 }
 
 // YouTubeKey returns the YouTube Data API key from the environment or else from its encrypted

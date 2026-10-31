@@ -378,6 +378,15 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 		s.log.Warn("metadata provider in the list of a title but not configured, skipped",
 			"item_id", item.ID, "provider", p)
 	}
+	// Fanart.tv, the last image source (concept 10 step 6): images only, after the list.
+	fanartID := item.TmdbID.Int64
+	if item.Kind == "series" {
+		fanartID = item.TvdbID.Int64
+	}
+	if imgs := s.fanartImages(ctx, item.ID, item.Kind, fanartID); len(imgs) > 0 {
+		out = append(out, fetchedRecord{provider: ImageSourceFanart, id: strconv.FormatInt(fanartID, 10),
+			fields: providerFields{provider: ImageSourceFanart, images: imgs}})
+	}
 	return out, anilistID, skipped, nil
 }
 
