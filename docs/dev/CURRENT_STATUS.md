@@ -6,9 +6,9 @@ Zweig `claude/festive-swanson-7af516` ab `main` `d3d73bc` (Merge von PR #57, Kon
 nach `docs/planning/10-metadaten-einstellungen.md` Abschnitt 10, ein Commit je Schritt, `task ci`
 grün vor jedem Abschluss (Storybook-Vergleich ab Schritt 5 lokal mit Docker, siehe je Schritt). Marco hat
 am 31. Oktober 2026 alle Fragen wie vorgeschlagen beantwortet (Frage 16) und die Umsetzung
-beauftragt. Alle acht Schritte (0 bis 7) sind committet; CT 190 läuft auf dem Kopf des Zweigs. Offen
-für Marco: der `apply`-Lauf auf CT 190 (Anmeldung als Administrator, TMDB-Schlüssel), Merge und Tag
-`v1.6.0` (Vertrag 1.6.0, Release-Notes-Entwurf unten). Nicht mergen; Marco entscheidet.
+beauftragt. Alle acht Schritte (0 bis 7) sind committet (PR #58); CT 190 läuft auf dem Kopf des Zweigs,
+der `apply`-Lauf dort ist gemessen. Offen für Marco: Merge und Tag `v1.6.0` (Vertrag 1.6.0,
+Release-Notes-Entwurf unten). Nicht mergen; Marco entscheidet.
 
 ### Schritt 0 — Entscheide und Papiere (`b0649e4`, 31. Oktober 2026)
 
@@ -427,10 +427,11 @@ Start 3.9 s, gesund nach 7 s. Messwerte und Startzustand in `docs/perf/metadaten
 (2'093 Filme, 2 Serien; 4'480 Bildquellen aus den TMDB-Spalten; 208 Bilddateien in 91 Titelordnern
 kurz nach dem Start; Cache 9.7 GB).
 
-**Nicht erledigt, wartet auf Marco:** der `apply`-Lauf auf CT 190 mit Dauer und Cache-Grösse danach
-(Papier 8) und der Live-Beleg der TMDB-Annahmen aus Schritt 1 und 2 (Sprachcode ohne Region,
-SVG-Logo als PNG-Zwilling): beides braucht eine Anmeldung als Administrator und den TMDB-Schlüssel
-auf CT 190; ein Passwort gibt die Session nicht ein. Ablauf in `docs/perf/metadaten.md` 3.
+**`apply` auf CT 190** (Marco startete ihn um 16:25 Uhr, `docs/perf/metadaten.md` 3.1): 2'095 Titel,
+Zuordnungen in 16.3 min, letztes Bild nach 20.1 min, 0 fehlgeschlagene Jobs; Cache 9.7 → 12 GB; 2'046
+Titel haben jetzt ein Logo, 1'337 ein deutsches Poster (vorher 60). Live belegt: TMDB liefert zu jedem
+der 23 gewählten SVG-Logos die PNG-Fassung (O-3). Offen bleibt nur der Live-Beleg der Sprachcodes ohne
+Region (Schritt 1): Marcos Liste hat keine dritte Sprache.
 
 **Versionsstellen** auf 1.6.0: `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
 `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`. Den Tag `v1.6.0` setzt Marco nach dem Merge

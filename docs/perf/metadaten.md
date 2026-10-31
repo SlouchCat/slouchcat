@@ -110,9 +110,33 @@ auf dem CT aus `git archive` gebaut (HANDOVER), davor `1.5.0`; Sicherung `.env.b
 | `item_local_images` wenige Minuten nach dem Start (Scan lief) | 208 Dateien in 91 Titelordnern |
 | Bild-Cache vor einem `apply` | 9.7 GB (`/opt/slouchcat/deploy/cache/images`; 31'941 Poster-, 19'943 Hintergrundzeilen) |
 
-**Offen:** der `apply`-Lauf selbst (Papier 8, «Was kostet ein `apply`?») und die Cache-Grösse danach.
-Er braucht eine Anmeldung als Administrator auf CT 190 und einen TMDB-Schlüssel dort; beides gibt
-Marco. Ablauf: Verwaltung → Metadaten, Standard lassen (de, en), «Jetzt anwenden» mit «Texte und
-Bilder» über alle Bibliotheken, Dauer unter Hintergrundjobs ablesen (`metadata.apply` und die
-Kinder `metadata.match`/`image.fetch`), danach `du -sh /opt/slouchcat/deploy/cache/images`.
+### 3.1 Der `apply`-Lauf (Papier 8, «Was kostet ein `apply`?»)
+
+Marco hat am 31. Oktober 2026 um 16:25 Uhr auf CT 190 «Jetzt anwenden» mit «Texte und Bilder» über
+alle Bibliotheken gestartet, mit seinen Einstellungen: Texte `de`, `en`; Posterkette `de`, `en`,
+ohne Text; Hintergrund- und Logokette `de`, `en`; Mindestbreite Poster 1500, Hintergrund 1920;
+nach Bewertung; lokale Dateien an; TMDB-Erwachseneninhalte an; Fanart.tv an, aber **ohne
+Schlüssel** (also nie gefragt); Freigabeland DE. Gemessen aus der Tabelle `jobs` (lesend per SSH).
+
+| Was | Wert |
+|---|---|
+| Klick bis Start des Elternlaufs (wartete hinter laufenden Jobs) | 48 s |
+| Elternlauf `metadata.apply` | 0.6 s, «2095 Titel eingereiht» |
+| 2'095 `metadata.match` und 2'095 `metadata.fill` | 16.3 min (2.1 Titel/s; 2 Arbeiter-Läufe parallel), 0 fehlgeschlagen; 4 Fills einmal zurückgestellt («the match of the title is still running»), dann erledigt |
+| 2'401 `image.fetch` | bis 19.3 min nach dem Start, 0 fehlgeschlagen |
+| Klick bis letztes Bild | **20.1 min** |
+| Bild-Cache | 9.7 GB → **12 GB** (+2.3 GB, vor allem 2'046 neue Logos in vier Grössen) |
+| Logos | 2'046 Titel mit Logo (`w400`/`w800` als PNG und WebP; 918 deutsch, 981 englisch, 147 lokale Dateien) |
+| Poster danach | 1'337 deutsch (vorher 60), 360 englisch, 277 ohne Text, 136 lokale Dateien |
+| Hintergründe danach | 712 deutsch, 1'014 englisch, 381 ohne Text (kein Kandidat der Kette), 276 lokale Dateien |
+
+Die Schätzung des Papiers (Texte von der Rate her 4.5 min, mit Latenz und einem Arbeiter 13 min; die
+Bilder der eigentliche Lauf) hält: die Zuordnungen brauchten 16 min, die Bilder liefen nebenher und
+endeten 3 min danach. Der NAS-Stau aus M11 spielte keine Rolle, weil der Lauf nur Bilder von TMDB und
+Kopfdaten der lokalen Dateien liest.
+
+**Live-Beleg O-3 (SVG-Logos):** 23 der gewählten Logos sind bei TMDB `.svg`; für alle 23 liegen
+`w400` als PNG und WebP im Cache, geholt über die `.png`-Adresse (Schritt 2). Der Live-Beleg der
+Sprachcodes ohne Region (Schritt 1) steht weiter aus: Marcos Liste hat keine dritte Sprache, `de`
+und `en` gehen wie bisher als `de-DE`/`en-US`.
 
