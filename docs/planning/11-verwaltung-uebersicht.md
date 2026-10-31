@@ -313,6 +313,20 @@ und Abstände sind von den Tokens abgeschrieben. Das Server-Protokoll (F-3) zeig
 |---|---|---|
 | F-9 | Welcher Titelstil der Gruppen: 1 Akzent, 2 je Gruppe eine Farbe, 3 Band? | Offen, Marcos Geschmack. |
 
+### 10.2 Marcos Antworten (31. Oktober 2026, Interview)
+
+| Nr. | Antwort | Folge |
+|---|---|---|
+| F-1 | **B «Seitenleiste wie Emby»** | 10.1 |
+| F-2 | **Ja, wie empfohlen.** | Tabelle mit Erneut/Abbrechen nur auf «Hintergrundjobs»; Übersicht je Jobart eine Zeile mit Link. Abweichung von Konzept 09 Abschnitt 4 Punkt 4, in Frage 17. |
+| F-3 | **Zugeklappt unten, wie empfohlen.** | Abschnitt «Server-Protokoll» ganz unten, zugeklappt mit Anzahl; Abnahme A-3 unverändert. |
+| F-4 | **Nein, immer zwei Balken** (abweichend von der Empfehlung). | `/config` und `/cache` bleiben getrennt, auch bei gleichen Zahlen. Das Feld `storage.shared` (6.2) und G-6 entfallen; A-3 bleibt wörtlich erfüllt. |
+| F-5 | **Ja, wie empfohlen.** | `jobs.active`, `jobs.nextRun` (6.2). |
+| F-6 | **Beides bauen** (abweichend von der Empfehlung), nach Erklärung: «Neu starten soll unterstützt werden. Letzte Aktivität soll ebenfalls erstellt werden.» | Neues Ereignisprotokoll im Server (Tabelle, Einträge bei Wiedergabe, Scan, Sicherung, Webhook, Serverstart; Aufräumen alter Einträge) und Neustart-Endpunkt mit Rückfrage, weil laufende Streams abbrechen. Beides ist neue Funktion: braucht eine Migration (00031), Vertrag 1.7.0 und vermutlich ADR 0019; in Frage 17. Rund 3 bis 4 Tage zusätzlich. |
+| F-7 | **Offen.** Marco wollte ein Beispiel; der Prototyp zeigt «keine / wenige / viele» Zahlen. | — |
+| F-8 | **Ja, wie empfohlen.** | Hinweis «Scan abgebrochen» in der Karte Hinweise mit Link zu Bibliotheken; `attention.abortedScans` (6.2). |
+| F-9 | **3 «Band».** | Keine neuen Farb-Tokens; Titel als getöntes Band in der Profilfarbe, Einträge eingerückt. |
+
 ## 11. Review-Protokoll
 
 ### Fassung 1 → 2 (OMC-Kritiker, 31. Oktober 2026)

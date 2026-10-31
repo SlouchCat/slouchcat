@@ -125,7 +125,9 @@
   /* 3 Band */
   .anav[data-titles="3"] .agroup { margin-top: var(--s3); }
   .anav[data-titles="3"] .ghead { min-height: 34px; border-radius: var(--r-md); background: var(--tint-accent); color: var(--accent); }
-  .anav[data-titles="3"] .agroup .entry { padding-left: var(--s6); }
+  .anav[data-titles="3"] .agroup .entry { padding-left: var(--s5); }
+  .entry .badge, .entry .ecount { flex: none; }
+  .entry .ecount.warning { color: var(--warning); }
 
   .page { container: content / inline-size; max-width: var(--content-max); margin: 0 auto; padding: var(--s2) var(--gutter) var(--s16); }
 
@@ -335,6 +337,35 @@
   .toast { position: fixed; z-index: 1200; left: 50%; bottom: var(--s6); transform: translateX(-50%); max-width: calc(100% - 32px); padding: var(--s3) var(--s5); border-radius: var(--r-full); background: var(--surface-3); color: var(--text-primary); font-size: var(--fs-sm); box-shadow: 0 8px 24px var(--scrim-strong); }
   .stage.phone .toast { position: absolute; }
 
+  /* B: storage, always one meter per path (F-4) */
+  .meter2 { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3) var(--s4); border-radius: var(--r-lg); background: var(--surface-1); }
+  .meter2 .mh { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--s3); font-size: var(--fs-sm); }
+  .meter2 .mh b { font-weight: 600; } .meter2 .mh b code { font-family: var(--mono); color: var(--text-secondary); font-weight: 500; margin-left: var(--s1); }
+  .meter2 .mh span { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .meter2 small { color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+  .rowi .tlink { flex: none; }
+
+  /* B: server log, collapsed (F-3) */
+  .logcard { margin-top: var(--s4); border-radius: var(--r-xl); background: var(--bg-elevated); }
+  .logcard summary { display: flex; align-items: center; gap: var(--s3); padding: var(--s5) var(--s6); border-radius: var(--r-xl); cursor: pointer; list-style: none; }
+  .logcard summary::-webkit-details-marker { display: none; }
+  .logcard summary:hover { background: var(--surface-1); }
+  .logcard summary .cicon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--r-md); background: var(--surface-3); color: var(--accent); }
+  .logcard summary .st { flex: 1; min-width: 0; font-weight: 600; }
+  .logcard summary .st span { color: var(--text-muted); font-weight: 500; }
+  .logcard summary .chev { color: var(--text-muted); transition: transform var(--dur-fast) var(--ease); }
+  .logcard[open] summary .chev { transform: rotate(180deg); }
+  .logbody { display: flex; flex-direction: column; gap: var(--s2); padding: 0 var(--s6) var(--s6); }
+  @container content (width < 560px) { .logcard summary { padding: var(--s4); } .logbody { padding: 0 var(--s4) var(--s4); } }
+  .loglist { max-height: 18rem; overflow-y: auto; border-radius: var(--r-lg); background: var(--surface-1); }
+  .loglist li { display: grid; grid-template-columns: 3.5rem 8.5rem minmax(0, 1fr); gap: var(--s3); align-items: baseline; padding: var(--s2) var(--s4); font-size: var(--fs-sm); }
+  .loglist li + li { border-top: 1px solid var(--border-subtle); }
+  .loglist time { color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+  .loglist .src { color: var(--text-secondary); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .loglist .msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .loglist .msg code { font-family: var(--mono); font-size: var(--fs-xs); color: var(--text-secondary); }
+  @container content (width < 560px) { .loglist li { grid-template-columns: 3rem minmax(0, 1fr); } .loglist .msg { grid-column: 1 / -1; } }
+
   .notes { max-width: var(--content-max); margin: 0 auto; padding: var(--s6) var(--s4) var(--s12); color: var(--text-muted); font-size: var(--fs-sm); }
 </style>
 </head>
@@ -363,13 +394,25 @@
       <button data-appnav="off" aria-pressed="true">aus</button>
       <button data-appnav="on" aria-pressed="false">ein</button>
     </div>
-    <div class="seg" role="group" aria-label="Gruppentitel" id="titlesSeg"><span>Gruppentitel</span>
-      <button data-titles="1" aria-pressed="true">1 Akzent</button>
-      <button data-titles="2" aria-pressed="false">2 Je Gruppe eine Farbe</button>
-      <button data-titles="3" aria-pressed="false">3 Band</button>
-    </div>
     <label><input type="checkbox" id="rareToggle"> Seltene Hinweise zeigen</label>
     <label><input type="checkbox" id="gapToggle"> Neue Serverdaten markieren</label>
+  </div>
+  <div class="proto-row" id="bOnly">
+    <span class="proto-tag">Nur B</span>
+    <div class="seg" role="group" aria-label="Gruppentitel" id="titlesSeg"><span>Gruppentitel</span>
+      <button data-titles="1" aria-pressed="false">1 Akzent</button>
+      <button data-titles="2" aria-pressed="false">2 Je Gruppe eine Farbe</button>
+      <button data-titles="3" aria-pressed="true">3 Band</button>
+    </div>
+    <div class="seg" role="group" aria-label="Zahlen" id="countsSeg"><span>Zahlen</span>
+      <button data-counts="keine" aria-pressed="false">keine</button>
+      <button data-counts="wenige" aria-pressed="true">wenige</button>
+      <button data-counts="viele" aria-pressed="false">viele</button>
+    </div>
+    <div class="seg" role="group" aria-label="Aktivität und Neustart" id="activitySeg"><span>Aktivität &amp; Neustart</span>
+      <button data-activity="mit" aria-pressed="true">mit</button>
+      <button data-activity="ohne" aria-pressed="false">ohne</button>
+    </div>
   </div>
   <p class="proto-desc" id="desc"></p>
 </div>
@@ -383,7 +426,7 @@
 </div>
 
 <div class="notes">
-  <p><b>Für alle Varianten gleich:</b> gleich hohe Karten je Zeile, Raster 4 / 2 / 1 Spalten nach der echten Inhaltsbreite (mit oder ohne App-Seitenleiste), lange Fehlertexte nur gekürzt mit Verweis auf «Hintergrundjobs», Speicher nur einmal, wenn Konfiguration und Cache auf demselben Datenträger liegen. Hinweise erscheinen nur, wenn etwas zu tun ist. «Ruhig» ist der Stand vom Screenshot, «Alles gut» ein Server ohne Probleme, «Betrieb» zwei Streams, drei laufende Jobs und eine Warnung. «Seltene Hinweise» zeigt Entwicklungsstand, fehlende GPU und vollen Dateiwächter. Das Menü-Symbol blendet am Desktop die App-Seitenleiste ein und aus, wie in der App.</p>
+  <p><b>Für alle Varianten gleich:</b> gleich hohe Karten je Zeile, Raster 4 / 2 / 1 Spalten nach der echten Inhaltsbreite (mit oder ohne App-Seitenleiste), lange Fehlertexte nur gekürzt mit Verweis auf «Hintergrundjobs», Speicher in A, C und D nur einmal, wenn Konfiguration und Cache auf demselben Datenträger liegen; B zeigt immer beide Balken (F-4). Hinweise erscheinen nur, wenn etwas zu tun ist. «Ruhig» ist der Stand vom Screenshot, «Alles gut» ein Server ohne Probleme, «Betrieb» zwei Streams, drei laufende Jobs und zwei Warnungen (Sonarr still, Scan abgebrochen). «Seltene Hinweise» zeigt Entwicklungsstand, fehlende GPU und vollen Dateiwächter. Das Menü-Symbol blendet am Desktop die App-Seitenleiste ein und aus, wie in der App.</p>
 </div>
 
 <script>
@@ -481,6 +524,7 @@ const BASE = {
   update: { current: '1.5.0', latest: '1.5.0', available: false, development: false, checked: 'heute, 03:12' },
   system: { version: '1.5.0', started: '31.10.2026, 08:12', uptime: '6 h 8 min', hw: true, gpu: 'Intel QSV', compose: 'intel', inotifyDirs: 3412, inotifyMax: 524288, inotifyWarn: false },
   browse: { lostSlots: 0, slots: 4 },
+  abortedScan: null,
   next: { type: 'scan.library', at: 'heute, 18:00' },
   counts: { libraries: '4 Bibliotheken · 2.318 Titel', metadata: 'Sprachen de, en', podcasts: '6 Abos', maintenance: '12 Titel ohne Zuordnung', accounts: '3 Konten · 7 Profile', profiles: '2 Profile in deinem Konto', devices: '9 Geräte', spotlight: 'Trakt-Liste «Trending»', picks: '5 im Karussell', collections: '14 Sammlungen', homeRows: '8 Reihen', announcements: 'Keine aktiv', notifications: 'Web-Push', stats: '41 h Schauzeit in 7 Tagen', backup: 'Letzte: heute, 03:00' }
 };
@@ -497,6 +541,20 @@ const STATES = {
     ],
     runningJobs: [],
     webhooks: { total: 0, events: 0, silent: [] },
+    log: [
+      { at: '14:02', src: 'Keyframe-Index', msg: 'ffprobe: exit status 1:', path: LONG[0] },
+      { at: '14:01', src: 'Keyframe-Index', msg: 'ffprobe: moov atom not found:', path: LONG[1] },
+      { at: '13:58', src: 'Keyframe-Index', msg: 'ffprobe: exit status 1:', path: LONG[2] },
+      { at: '13:12', src: 'Trakt', msg: 'Liste «Trending» abrufen: 503 Service Unavailable, nächster Versuch 13:42' },
+      { at: '12:47', src: 'Keyframe-Index', msg: 'ffprobe: exit status 1:', path: '/media/nas/Filme/Oppenheimer (2023)/Oppenheimer.2023.2160p.UHD.BluRay.REMUX.mkv' },
+      { at: '11:20', src: 'Scan', msg: 'Ordner nicht lesbar, übersprungen:', path: '/media/nas/Serien/.Trash-1000' },
+      { at: '10:05', src: 'Keyframe-Index', msg: 'ffprobe: exit status 1:', path: '/media/nas/Serien/Shogun (2024)/Season 01/Shogun.S01E03.mkv' },
+      { at: '09:31', src: 'Bilder holen', msg: 'fanart.tv: 429 Too Many Requests' },
+      { at: '08:40', src: 'Keyframe-Index', msg: 'ffprobe: exit status 1:', path: '/media/nas/Filme/Dune (2021)/Dune.2021.2160p.mkv' },
+      { at: '08:13', src: 'Web-Push', msg: 'Zustellung an 1 Gerät abgelaufen (410 Gone), Abo entfernt' },
+      { at: '06:02', src: 'Keyframe-Index', msg: 'ffprobe: exit status 1:', path: '/media/nas/Serien/Andor (2022)/Season 02/Andor.S02E01.mkv' },
+      { at: '03:00', src: 'Sicherung', msg: 'Alte Sicherung nicht löschbar, Datei gesperrt:', path: '/config/backups/2026-10-24.db' }
+    ],
     activity: [
       { icon: 'alert', tone: 'danger', text: 'Keyframe-Index: 265 Dateien fehlgeschlagen', at: '14:02' },
       { icon: 'check', tone: 'success', text: 'Lina hat «Paddington in Peru» fertig geschaut', at: '12:30' },
@@ -514,6 +572,7 @@ const STATES = {
     recentFailed: [],
     runningJobs: [],
     webhooks: { total: 2, events: 9, silent: [] },
+    log: [],
     activity: [
       { icon: 'play', tone: 'accent', text: 'Lina startet «Paddington in Peru» auf dem iPad', at: '13:50' },
       { icon: 'webhook', tone: '', text: 'Radarr meldet «Conclave» (Download fertig)', at: '13:41' },
@@ -536,6 +595,13 @@ const STATES = {
       { id: 'j3', type: 'probe.keyframes', subject: 'Dune: Part Two', done: 62, total: 100, eta: 'noch ca. 20 s' }
     ],
     webhooks: { total: 2, events: 7, silent: ['Sonarr'] },
+    log: [
+      { at: '11:40', src: 'Scan', msg: 'Abgebrochen, Netzlaufwerk nicht erreichbar:', path: '/media/nas/Serien' },
+      { at: '11:39', src: 'Scan', msg: 'stat: input/output error:', path: '/media/nas/Serien/Severance (2022)' },
+      { at: '09:31', src: 'Bilder holen', msg: 'fanart.tv: 429 Too Many Requests' },
+      { at: '08:13', src: 'Web-Push', msg: 'Zustellung an 1 Gerät abgelaufen (410 Gone), Abo entfernt' }
+    ],
+    abortedScan: { library: 'Serien', at: 'heute, 11:40', reason: 'Netzlaufwerk nicht erreichbar' },
     activity: [
       { icon: 'play', tone: 'accent', text: 'Lina startet «Dune: Part Two» auf Firefox', at: '14:19' },
       { icon: 'play', tone: 'accent', text: 'Marco startet «Severance» S2 E4 auf Android', at: '14:15' },
@@ -549,7 +615,8 @@ const STATES = {
 const RARE = {
   update: { current: 'v1.5.0-12-gabc1234', latest: '1.5.0', available: false, development: true, checked: 'heute, 03:12' },
   system: { version: 'v1.5.0-12-gabc1234', started: '31.10.2026, 08:12', uptime: '6 h 8 min', hw: false, gpu: 'Software (CPU)', compose: 'intel', inotifyDirs: 61200, inotifyMax: 65536, inotifyWarn: true },
-  browse: { lostSlots: 1, slots: 4 }
+  browse: { lostSlots: 1, slots: 4 },
+  abortedScan: { library: 'Serien', at: 'heute, 11:40', reason: 'Netzlaufwerk nicht erreichbar' }
 };
 
 /* ---------- Helpers ---------- */
@@ -574,6 +641,7 @@ function issues(d) {
   if (d.webhooks.silent.length) r.push({ tone: 'warning', chip: `${d.webhooks.silent.join(', ')} still`, title: `${d.webhooks.silent.join(', ')} meldet seit sieben Tagen nichts`, sub: 'Meist hat sich die Adresse geändert.', go: 'Integrationen', action: 'Webhooks prüfen' });
   if (!d.system.hw) r.push({ tone: 'warning', chip: 'Keine GPU', title: 'Kein Hardware-Transcoding', sub: `Slouchcat transkodiert auf der CPU. Die GPU fehlt im Container: <code>compose.${d.system.compose}.yaml</code> einbinden.` });
   if (d.system.inotifyWarn) r.push({ tone: 'warning', chip: 'Dateiwächter fast voll', title: 'Der Dateiwächter ist fast am Limit', sub: `${pct(d.system.inotifyDirs, d.system.inotifyMax)} % von ${n(d.system.inotifyMax)} Ordnern belegt. Erhöhe <code>fs.inotify.max_user_watches</code>.` });
+  if (d.abortedScan) r.push({ tone: 'warning', chip: `Scan ${d.abortedScan.library} abgebrochen`, title: `Scan der Bibliothek «${d.abortedScan.library}» abgebrochen`, sub: `${d.abortedScan.at} · ${d.abortedScan.reason}`, go: 'Bibliotheken', action: 'Zu den Bibliotheken' });
   if (d.browse.lostSlots > 0) r.push({ tone: 'warning', chip: 'Ordner-Browser blockiert', title: 'Ordner-Browser blockiert', sub: 'Eine Einhängung antwortet nicht mehr. Ein Neustart gibt den Platz frei.' });
   const s = d.storage.config;
   if (used(s) / s.total > 0.9) r.push({ tone: 'warning', chip: 'Speicher fast voll', title: 'Der Speicher ist zu über 90 % belegt', sub: '' });
@@ -585,11 +653,11 @@ const issueText = (k) => k === 0 ? 'Alles in Ordnung' : k === 1 ? '1 Sache brauc
 const issueIcon = (tone) => tone === 'info' ? 'info' : 'alert';
 
 /* ---------- State ---------- */
-const state = { variant: 'B', titles: '1', bCurrent: 'Übersicht', mode: 'ruhig', phone: false, appnav: false, gaps: false, rare: false, openGroup: null, menu: null };
+const state = { variant: 'B', titles: '3', counts: 'wenige', activity: 'mit', logOpen: false, bCurrent: 'Übersicht', mode: 'ruhig', phone: false, appnav: false, gaps: false, rare: false, openGroup: null, menu: null };
 const data = () => Object.assign({}, BASE, STATES[state.mode], state.rare ? RARE : {});
 const DESCRIPTIONS = {
   A: '<b>A · Ruhiges Raster.</b> Navigation in zwei sauberen Zeilen: Bereiche als Reiter, ein Klick öffnet darunter ihre Seiten. Oben vier gleich grosse Kennzahlen, darunter vier gleich hohe Karten. Hinweise nur, wenn etwas zu tun ist.',
-  B: '<b>B · Seitenleiste wie Emby.</b> In der Verwaltung ersetzt die Liste der Verwaltungsseiten die Seitenleiste der App (oben «Zurück zur App»). Sie steht immer da, auch wenn die App-Seitenleiste aus ist; auf dem Handy ist sie ein Menü-Knopf. Rechts sechs gleiche Karten. Gruppentitel in drei Stilen zum Vergleich: 1 Akzent, 2 je Gruppe eine Farbe, 3 Band. Ein Klick auf eine Seite markiert sie in der Leiste.',
+  B: '<b>B · Seitenleiste wie Emby (gewählt).</b> In der Verwaltung ersetzt die Liste der Verwaltungsseiten die Seitenleiste der App (oben «Zurück zur App»), auf dem Handy ein Menü-Knopf. Sechs gleiche Karten, darunter das zugeklappte Server-Protokoll. Schalter «Nur B»: Gruppentitel (3 Band gewählt), Zahlen in der Leiste (keine / wenige / viele), Aktivität &amp; Neustart (mit / ohne). Ein Klick auf eine Seite markiert sie in der Leiste.',
   C: '<b>C · Status + Kacheln.</b> Oben ein Satz, ob alles in Ordnung ist, mit vier Kennzahlen. Darunter alle Verwaltungsbereiche als Startrampe, jede Seite mit einer Live-Zeile. Die Übersicht ist der Einstieg, nicht das Messgerät.',
   D: '<b>D · Cockpit (Mischung, Empfehlung).</b> Navigation aus A, Hinweise nur wenn nötig, dann sechs gleiche Live-Karten in drei Reihen (Jetzt läuft, Aufgaben, Speicher, Server, Integrationen, Webhooks), unten alle Bereiche aus C. Jede Angabe steht nur einmal.'
 };
@@ -618,12 +686,23 @@ function appNavContent() {
 
 /* B: the admin sections in place of the app's SideNav, same column, same entries style. */
 function adminNavContent(d) {
-  const badge = (key) => {
-    if (key === 'jobs' && d.jobs.failed) return `<span class="badge danger">${n(d.jobs.failed)}</span>`;
-    if (key === 'jobs' && d.jobs.running) return `<span class="badge accent">${d.jobs.running}</span>`;
-    if (key === 'streams' && d.streams.length) return `<span class="badge accent">${d.streams.length}</span>`;
-    if (key === 'integrations' && d.webhooks.silent.length) return '<span class="badge warning">1</span>';
+  /* Alarm counts as coloured pills, neutral counts as muted text (F-7: keine / wenige / viele). */
+  const pill = (tone, v) => `<span class="badge ${tone}">${v}</span>`;
+  const muted = (v, tone = '') => `<span class="ecount ${tone}">${v}</span>`;
+  const alarm = (key) => {
+    if (key === 'jobs' && d.jobs.failed) return pill('danger', n(d.jobs.failed));
+    if (key === 'streams' && d.streams.length) return pill('accent', d.streams.length);
+    if (key === 'integrations' && d.webhooks.silent.length) return pill('warning', d.webhooks.silent.length);
     return '';
+  };
+  const FEW = { libraries: '2.318', maintenance: pill('warning', '12'), accounts: '3', jobs: d.jobs.running ? String(d.jobs.running) : '', integrations: `${configured(d)}/${d.integrations.length}` };
+  const MANY = Object.assign({}, FEW, { metadata: '2', podcasts: '6', profiles: '7', devices: '9', streams: '0', spotlight: '20', picks: '5', collections: '14', homeRows: '8', announcements: '0', jobs: String(d.jobs.running), notifications: '1', stats: '41 h', backup: '5' });
+  const badge = (key) => {
+    const a = alarm(key);
+    if (a || state.counts === 'keine') return a;
+    const v = (state.counts === 'viele' ? MANY : FEW)[key];
+    if (!v) return '';
+    return v.startsWith('<') ? v : muted(v);
   };
   const pick = (label, opts) => entry(label, opts).replace('<a href="#" ', `<a href="#" data-act="bpick" data-key="${label}" `);
   return `<div class="anav elist" data-titles="${state.titles}" style="gap:var(--s2)"><ul class="elist"><li>${entry('Zurück zur App', { cls: 'back', icon: 'back', go: 'Start' })}</li><li>${pick('Übersicht', { icon: 'grid', current: state.bCurrent === 'Übersicht' })}</li></ul>
@@ -707,10 +786,10 @@ function failedRows(d, limit) {
 }
 
 /* Per type, with the newest failure of that type (recentFailed is newest first). */
-function failedByTypeRows(d) {
+function failedByTypeRows(d, withLink = false) {
   return `<ul class="rows"${gap('Fehler je Jobtyp (heute /admin/job-types)')}>${d.failedByType.map((f) => {
     const newest = d.recentFailed.find((j) => j.type === f.type);
-    return `<li class="rowi"><span class="dot danger" aria-hidden="true"></span><span class="rt"><b>${JOB_NAMES[f.type]}</b>${newest ? `<span class="err" title="${newest.err}">Zuletzt ${newest.at}: ${newest.err}</span>` : ''}</span>${d.failedByType.length > 1 ? `<span class="badge danger">${n(f.n)}</span>` : ''}</li>`;
+    return `<li class="rowi"><span class="dot danger" aria-hidden="true"></span><span class="rt"><b>${JOB_NAMES[f.type]}</b>${newest ? `<span class="err" title="${newest.err}">Zuletzt ${newest.at}: ${newest.err}</span>` : ''}</span>${d.failedByType.length > 1 ? `<span class="badge danger">${n(f.n)}</span>` : ''}${withLink ? link('Hintergrundjobs', 'Ansehen') : ''}</li>`;
   }).join('')}</ul>`;
 }
 
@@ -810,26 +889,48 @@ function variantA(d) {
 }
 
 /* ---------- Variant B: Seitenleiste (Emby) ---------- */
+/* F-4: always one meter per path, even when the numbers are the same. */
+function storageTwo(d) {
+  const one = (info, label) => `<div class="meter2">
+    <div class="mh"><b>${label}<code>${info.path}</code></b><span>${gb(used(info))} von ${gb(info.total)}</span></div>
+    <span class="bar lg" role="meter" aria-label="${label} ${info.path}" aria-valuenow="${pct(used(info), info.total)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct(used(info), info.total)}%"></i></span>
+    <small>Frei: ${gb(info.free)} · ${pct(used(info), info.total)} % belegt</small></div>`;
+  return `<div class="stack">${one(d.storage.config, 'Konfiguration')}${one(d.storage.cache, 'Cache')}</div>`;
+}
+/* F-3: the newest errors of the server log (Dashboard.errors, at most 50), collapsed. */
+function serverLog(d) {
+  const k = d.log.length;
+  const head = k ? `${k} Fehler in den letzten 24 h` : 'keine Fehler';
+  const body = k
+    ? `<ol class="loglist" aria-label="Fehler aus dem Server-Log">${d.log.map((e) => `<li><time>${e.at}</time><span class="src">${e.src}</span><span class="msg" title="${e.msg}${e.path ? ' ' + e.path : ''}">${e.msg}${e.path ? ` <code>${e.path}</code>` : ''}</span></li>`).join('')}</ol><span class="muted xs">Die letzten 50 Fehler aus dem Server-Log, die neusten zuerst.</span>`
+    : `<div class="empty" style="min-height:80px">${ic('check')}Keine Fehler seit dem Start.</div>`;
+  return `<details class="logcard" id="serverlog"${state.logOpen ? ' open' : ''}><summary><span class="cicon">${ic('list')}</span><span class="st">Server-Protokoll <span>· ${head}</span></span>${ic('chevD', 'chev')}</summary><div class="logbody">${body}</div></details>`;
+}
+
 function variantB(d) {
   const list = issues(d);
   const alerts = list.length
-    ? `<ul class="rows">${list.map((x) => `<li class="rowi"><span class="dot ${x.tone}" aria-hidden="true"></span><span class="rt"><b>${x.title}</b>${x.sub ? `<span>${x.sub.replace(/<[^>]+>/g, '')}</span>` : ''}</span></li>`).join('')}</ul>`
+    ? `<ul class="rows">${list.map((x) => `<li class="rowi"><span class="dot ${x.tone === 'info' ? 'info' : x.tone}" aria-hidden="true"></span><span class="rt"><b>${x.title}</b>${x.sub ? `<span>${x.sub.replace(/<[^>]+>/g, '')}</span>` : ''}</span>${x.go ? link(x.go, x.action) : ''}</li>`).join('')}</ul>`
     : `<div class="empty">${ic('check')}Keine Hinweise.</div>`;
-  const firstLink = list.find((x) => x.go);
-  const tasks = `${jobCounters(d)}${d.runningJobs.length ? runningRows(d, 3) : `<div class="empty">${ic('check')}Gerade läuft keine Aufgabe.<span class="xs"${gap('nächster Lauf (heute /admin/job-types)')}>Als Nächstes: ${JOB_NAMES[d.next.type]}, ${d.next.at}</span></div>`}`;
+  const tasks = `${jobCounters(d)}${d.jobs.failed ? failedByTypeRows(d, true) : d.runningJobs.length ? runningRows(d, 3) : `<div class="empty">${ic('check')}Gerade läuft keine Aufgabe.<span class="xs"${gap('nächster Lauf (heute /admin/job-types)')}>Als Nächstes: ${JOB_NAMES[d.next.type]}, ${d.next.at}</span></div>`}`;
+  const withActivity = state.activity === 'mit';
   const server = `${serverFacts(d)}<span class="inline">${versionBadge(d)} Geprüft ${d.update.checked}.</span>`;
-  const serverFoot = `<button class="btn" data-go="Nach Updates suchen">${ic('refresh', 'sm')}Nach Updates suchen</button><button class="btn ghost" data-go="Neu starten"${gap('Neustart-Endpunkt')}>${ic('power', 'sm')}Neu starten</button>`;
+  const serverFoot = `<button class="btn" data-go="Nach Updates suchen">${ic('refresh', 'sm')}Nach Updates suchen</button>${withActivity ? `<button class="btn ghost" data-go="Neu starten"${gap('Neustart-Endpunkt')}>${ic('power', 'sm')}Neu starten</button>` : ''}`;
   const feed = `<ul class="feed"${gap('Aktivitätsprotokoll')}>${d.activity.map((a) => `<li><span class="fi ${a.tone}">${ic(a.icon, 'sm')}</span><span class="ft" title="${a.text}">${a.text}</span><time>${a.at}</time></li>`).join('')}</ul>`;
+  const fourth = withActivity
+    ? card('activity', 'Letzte Aktivität', '', feed, '')
+    : card('plug', 'Integrationen und Webhooks', '', `${integrationList(d)}<div class="divider"></div><div class="stack">${webhookLine(d)}</div>`, link('Integrationen', 'Integrationen einrichten'));
   const body = `<button class="bmenu" data-act="adminsheet" aria-haspopup="dialog"><span>${ic('grid')}Verwaltung <small>· Übersicht</small></span>${ic('chevD')}</button>
     ${titleRow()}
     <div class="g2">
       ${card('server', 'Server', '', server, serverFoot)}
-      ${card('play', 'Jetzt läuft', d.streams.length ? `<span class="badge accent">${d.streams.length}</span>` : '', streamRows(d, true), link('Streams', 'Alle Streams'))}
+      ${card('play', 'Jetzt läuft', '', streamRows(d, true), link('Streams', 'Alle Streams'))}
       ${card('refresh', 'Aufgaben', '', tasks, link('Hintergrundjobs', 'Hintergrundjobs'))}
-      ${card('activity', 'Letzte Aktivität', '', feed, '')}
-      ${card('disk', 'Speicher', '', storageBody(d), '')}
-      ${card('alert', 'Hinweise', `<span class="badge ${list.length ? list[0].tone === 'info' ? 'accent' : list[0].tone : 'success'}">${list.length}</span>`, `<div role="status">${alerts}</div>`, firstLink ? link(firstLink.go, firstLink.action) : '')}
-    </div>`;
+      ${fourth}
+      ${card('disk', 'Speicher', '', storageTwo(d), '')}
+      ${card('alert', 'Hinweise', `<span class="badge ${list.length ? list[0].tone === 'info' ? 'accent' : list[0].tone : 'success'}">${list.length}</span>`, `<div role="status">${alerts}</div>`, '')}
+    </div>
+    ${serverLog(d)}`;
   return frame(body, { label: 'Verwaltung', html: adminNavContent(d) });
 }
 
@@ -893,7 +994,9 @@ function render(keepFocus) {
   press('view', (x) => (x.view === 'phone') === state.phone);
   press('appnav', (x) => (x.appnav === 'on') === state.appnav);
   press('titles', (x) => x.titles === state.titles);
-  $('titlesSeg').hidden = state.variant !== 'B';
+  press('counts', (x) => x.counts === state.counts);
+  press('activity', (x) => x.activity === state.activity);
+  $('bOnly').hidden = state.variant !== 'B';
   if (sel) { const el = $('screen').querySelector(sel); if (el) el.focus(); }
   syncProtoHeight();
   updateFades();
@@ -938,6 +1041,8 @@ document.addEventListener('click', (e) => {
   const m = e.target.closest('[data-mode]'); if (m) { state.mode = m.dataset.mode; render(); return; }
   const w = e.target.closest('[data-view]'); if (w) { state.phone = w.dataset.view === 'phone'; closeOverlay(); render(); return; }
   const ti = e.target.closest('#titlesSeg [data-titles]'); if (ti) { state.titles = ti.dataset.titles; render(); if (!$('overlay').hidden) openOverlay('admin', returnFocus); return; }
+  const co = e.target.closest('#countsSeg [data-counts]'); if (co) { state.counts = co.dataset.counts; render(); return; }
+  const av = e.target.closest('#activitySeg [data-activity]'); if (av) { state.activity = av.dataset.activity; render(); return; }
   const an = e.target.closest('[data-appnav]'); if (an) { state.appnav = an.dataset.appnav === 'on'; render(); return; }
   const act = e.target.closest('[data-act]');
   if (act) {
@@ -968,6 +1073,7 @@ document.addEventListener('keydown', (e) => {
   if (!$('overlay').hidden) { closeOverlay(); return; }
   if (state.menu) { const g = state.menu; state.menu = null; render(); const b = $('screen').querySelector(`[data-act="menu"][data-group="${g}"]`); if (b) b.focus(); }
 });
+document.addEventListener('toggle', (e) => { if (e.target.id === 'serverlog') state.logOpen = e.target.open; }, true);
 document.addEventListener('scroll', (e) => { if (e.target.closest && e.target.closest('.scroller')) updateFades(); }, true);
 $('gapToggle').addEventListener('change', (e) => { state.gaps = e.target.checked; render(); });
 $('rareToggle').addEventListener('change', (e) => { state.rare = e.target.checked; render(); });
