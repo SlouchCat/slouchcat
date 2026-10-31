@@ -86,6 +86,7 @@ func jpegBytes(t *testing.T, w, h int) []byte {
 
 type fixture struct {
 	de, en map[string]any
+	extra  map[string]map[string]any // further languages by TMDB request language ("es"), ADR 0018
 }
 
 func movieFixture(id int64, imdb, title, deTitle, deOverview string, genresDE, genresEN []string, releases []any, poster, backdrop string) fixture {
@@ -202,11 +203,13 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 		}
 		f.mu.Lock()
 		defer f.mu.Unlock()
-		switch r.URL.Query().Get("language") {
-		case langDE:
+		switch lang := r.URL.Query().Get("language"); {
+		case lang == langDE:
 			writeJSON(w, fx.de)
-		case langEN:
+		case lang == langEN:
 			writeJSON(w, fx.en)
+		case fx.extra[lang] != nil:
+			writeJSON(w, fx.extra[lang])
 		default:
 			t.Errorf("unexpected language in %s", r.URL)
 			http.Error(w, "bad language", http.StatusBadRequest)
@@ -272,6 +275,28 @@ func (f *fakeTMDB) setCollection(id string, c map[string]map[string]any) {
 	if c != nil {
 		fx.de["belongs_to_collection"], fx.en["belongs_to_collection"] = c[langDE], c[langEN]
 	}
+}
+
+// setExtraLanguage serves a third language of a fixture film: the English record with the given
+// title, overview and genres (a TMDB answer for a bare language code, concept 10 step 1).
+func (f *fakeTMDB) setExtraLanguage(id, lang, title, overview string, genres []string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fx := f.movies[id]
+	m := map[string]any{}
+	for k, v := range fx.en {
+		m[k] = v
+	}
+	gen := make([]map[string]any, 0, len(genres))
+	for i, n := range genres {
+		gen = append(gen, map[string]any{"id": i + 1, "name": n})
+	}
+	m["title"], m["overview"], m["tagline"], m["genres"] = title, overview, "", gen
+	if fx.extra == nil {
+		fx.extra = map[string]map[string]any{}
+	}
+	fx.extra[lang] = m
+	f.movies[id] = fx
 }
 
 func (f *fakeTMDB) count(path string) int {

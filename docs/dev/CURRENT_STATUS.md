@@ -1,5 +1,103 @@
 # Aktueller Stand
 
+## Konzept 10 «Metadaten-Einstellungen»: Umsetzung läuft (31. Oktober 2026)
+
+Zweig `claude/festive-swanson-7af516` ab `main` `d3d73bc` (Merge von PR #57, Konzept 10). Umsetzung
+nach `docs/planning/10-metadaten-einstellungen.md` Abschnitt 10, ein Commit je Schritt, `task ci`
+grün vor jedem Abschluss (Storybook-Vergleich ohne Docker nicht lokal, siehe je Schritt). Marco hat
+am 31. Oktober 2026 alle Fragen wie vorgeschlagen beantwortet (Frage 16) und die Umsetzung
+beauftragt. Nicht mergen; Marco entscheidet.
+
+### Schritt 0 — Entscheide und Papiere (`b0649e4`, 31. Oktober 2026)
+
+Reiner Doku-Commit: Frage 16 in `docs/planning/04-entscheidungen.md` (Tabellen 11.1 und 11.2 des
+Papiers, Vermerk zu Entscheid 6 mit der Wirkung auf neue Titel), ADR 0018
+`docs/adr/0018-metadaten-sprachen-bilder-freigabeland.md` als Teilnachfolger von ADR 0015 (Abschnitt
+«Bilder») und Ergänzung von ADR 0006 (Trailer-Sprachen) mit Hinweisen in beiden Status-Zeilen, Idee 01
+auf «Übernommen (Teil B)» mit der Restliste aus Abschnitt 1.3 des Papiers, `docs/ideas/README.md`,
+Kommentar an Issue #8 (`issuecomment-6541846035`), Papier auf `d3d73bc` verankert mit neuem Abschnitt
+14 «Abweichungen während der Umsetzung». Dieser Statuseintrag kam erst mit Schritt 1 in die Datei
+(der Schreibvorgang in Schritt 0 landete nicht im Commit).
+
+DoD-Beleg `task ci` auf dem unveränderten Code von `main`:
+
+```
+$ task ci
+… ci:server grün, ci:web: web test FAIL src/features/offline/OfflinePlayer.test.tsx
+  > stops while playing once the rest of the day is played (1159 ms, Timer-Flake)
+$ cd web && npx vitest run src/features/offline/OfflinePlayer.test.tsx
+ Test Files  1 passed (1)   Tests  15 passed (15)
+```
+
+Der eine rote Test war ein Zeitflattern des Offline-Players unter Last (`ci:server` lief parallel);
+allein läuft er grün. Im CI-Lauf von Schritt 1 war er grün (679 passed).
+
+### Schritt 1 — Sprachen (31. Oktober 2026)
+
+**Was gebaut ist.** Migration `00028_metadata_languages.sql` nach Vorlage: `item_texts` und
+`item_genres` neu ohne `CHECK (lang IN ('de','en'))`, `item_texts.rank` (Bestand `de` 0, `en` 1),
+Indizes `item_texts_sort_key` und neu `item_texts_rank`, die Trigger `search_texts_*` und
+`items_genres_*` neu (die Genre-Trigger lesen die Schlüssel des `genres`-Objekts statt fest
+`'de'`/`'en'`), `profiles.metadata_language`. Paket `metadata`: `settings.go` (die zwölf Schlüssel
+`metadata.*` als `Settings` mit Vorgaben, `Validate`, `ValidateTextLangs`, `Effective` noch ohne
+Bibliothek, `AvailableMetadataLanguages`, `ProviderLanguages`), `languages.go` (statische BCP-47-Liste:
+ISO 639-1 plus TMDB-Regionsvarianten, `KnownLanguage`), `textLangs` an allen sechs Stellen des Match
+und im `fill` durch die wirksame Liste ersetzt, `rank` je Zeile, `pruneTexts` (Löschregel 6.1),
+`genresJSON` statt `genres{DE, EN}`, TVDB-Sprachtabelle aus `/languages` mit statischem Rückfall,
+Trailer-Kette in den primären Untersprachen der Liste, Feed-Texte in jeder Sprache der Liste.
+Paket `visibility`: `Scope` trägt Metadaten- und Oberflächensprache, `pickTexts`/`pickGenres` mit
+der Kette «Metadatensprache → Oberflächensprache → Zeilen nach Rang», Sortierschlüssel der
+Bibliotheksseite und Genrefilter in SQL mit beiden Sprachen, Verwaltungssuche und System-Abfragen
+(`admin.sql`, `admin_stats.sql`, `spotlight.sql`, `collections.sql`) mit der Rang-Zeile als dritter
+Stufe. Profil: `metadata_language` im Modell, `updateProfile` prüft gegen die verfügbaren Sprachen
+(422 `metadataLanguage: invalid_value`, `""` setzt zurück), `getSession` liefert
+`availableMetadataLanguages`. Vertrag **1.6.0** (additiv): `Profile.metadataLanguage`,
+`ProfileUpdate.metadataLanguage`, `SessionInfo.availableMetadataLanguages`, Schema
+`MetadataLanguage`; `MetadataProviderInfo.languages` nennt je Quelle die Sprachen der Serverliste,
+die sie liefert. Abweichungen vom Papier mit Begründung in dessen Abschnitt 14.
+
+**Tests** (neu): `TestMigration00028KeepsTriggersAndOpensTheLanguages` (Trigger, Indizes, Ränge,
+Suche nach einem `es`-Text, Genre-Trigger mit drittem Schlüssel, Profilspalte),
+`TestKnownLanguages`, `TestSettingsDefaultsParseAndValidate`,
+`TestMatchFetchesEveryLanguageOfTheListAndPrunesTheRest` (der Blocker-Fall: drei Sprachen über
+einen `[tmdb]`-Ordner, drei TMDB-Anfragen, Ränge 0/1/2, Genres mit drittem Schlüssel; Liste
+schrumpft → `es`-Zeile weg; gesperrtes Feld hält jede Zeile), `TestAvailableAndProviderLanguages`,
+`TestPickTextsChainWithThirdLanguage`, `TestThirdLanguageThroughTheReader` (Detail, Rückfall
+feldweise, Genrefilter und Facette in der dritten Sprache, Buchstabe, Entdecken-Genres),
+`TestContractMetadataLanguage` (Session, 422, Wechsel, Rücksetzen). Angepasst:
+`TestLibraryItemsLetters` (P6 ohne englischen Schlüssel nimmt jetzt den deutschen am Rang 0 statt
+des Dateinamens, das ist die Kette), `TestSetupFlowEndToEnd` (Session trägt die Sprachen).
+
+DoD-Belege:
+
+```
+$ task ci                                   (Zweig b0649e4 + Schritt 1, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün
+server test:   ok  … 33 Pakete (admin 483.8 s, api 440.7 s, store 306 s auf dem NAS-Mount), kein FAIL
+web gen:check, lint grün; web test:  Test Files  85 passed (85)   Tests  679 passed (679)
+storybook:test: permission denied … docker.sock  (kein Docker in dieser Umgebung, wie bei Konzept 07 bis 09;
+                Schritt 1 ändert keine Komponente aus web/src/ui, Baselines unberührt; CI auf GitHub prüft sie)
+$ task build   go build … -X main.version=v1.5.0-8-gb0649e4-dirty -o bin/slouchcat   exit=0
+$ task ci:e2e  479 passed (25.4m), 1 failed: [firefox] admin-streams.spec.ts:39 «its player stops within 5 s»
+$ task e2e -- e2e/admin-streams.spec.ts   1 passed (chromium), 1 failed (firefox, derselbe 5-s-Fall)
+$ go test ./internal/metadata/ -run 'TestKnownLanguages|TestSettingsDefaults|TestMatchFetchesEvery|TestAvailableAndProvider'  ok
+$ go test ./internal/visibility/ -run 'TestPickTexts|TestThirdLanguage|TestLibraryItems'   ok
+$ go test ./internal/api/ -run 'TestContractMetadataLanguage|TestContractProfileLanguage|TestSetupFlowEndToEnd|TestAuthorize'  ok
+$ go test ./internal/store/ -run 'TestMigration00028'   ok
+```
+
+Der eine rote e2e-Fall ist das bekannte 5-Sekunden-Zeitbudget von `admin-streams.spec.ts` in Firefox
+(schon bei Konzept 08 und 09 als zeitabhängig und ohne Bezug notiert; `data-ended-reason` kommt in
+Firefox nach dem Beenden durch den Administrator zu spät). Er berührt keine Zeile dieses Schritts
+(Wiedergabe, nicht Metadaten) und war im Chromium-Lauf grün.
+
+**Messung `listLibraryItems`** (Papier 8, Latte ±10 %): `docs/perf/metadaten.md` Abschnitt 1.
+Fünf Läufe (main zweimal, Zweig mit de+en zweimal, einmal mit `es` als dritter Sprache, je 50'570 Titel
+und 90'802 bzw. 136'203 Textzeilen): die schweren Serienfälle (rund 190 ms p95) liegen in allen Läufen
+innerhalb von 2 %, die leichten Filmfälle schwanken zwischen Läufen desselben Binaries stärker (p50 20 bis
+48 ms) als zwischen den Binaries. Lauf 1 des Zweigs zeigte den doppelten `item_texts`-Join bei gleicher
+Metadaten- und Oberflächensprache; der zweite Join entfällt seither in diesem Fall.
+
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
 **Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis

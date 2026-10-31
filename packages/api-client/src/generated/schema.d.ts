@@ -3489,6 +3489,12 @@ export interface components {
              *     check is on.
              */
             updateAvailable?: components["schemas"]["UpdateNotice"];
+            /**
+             * @description The metadata languages a profile may choose (ADR 0018): the union of the server's list and
+             *     every library's list, in the server's order; always holds at least `de` or `en`. Absent in
+             *     answers of older servers (then `de` and `en`).
+             */
+            availableMetadataLanguages?: components["schemas"]["MetadataLanguage"][];
         };
         Account: {
             /** Format: int64 */
@@ -3524,7 +3530,14 @@ export interface components {
              */
             image?: string;
             maxRating: components["schemas"]["Rating"];
+            /** @description The language of the interface (de, en); also the language of the metadata while `metadataLanguage` is unset. */
             language: components["schemas"]["Language"];
+            /**
+             * @description The language the profile reads titles, descriptions and genres in (ADR 0018), one of
+             *     `SessionInfo.availableMetadataLanguages`; absent = like `language`. A text missing in this
+             *     language falls back field by field to `language`, then to the server's list in its order.
+             */
+            metadataLanguage?: components["schemas"]["MetadataLanguage"];
             accent?: components["schemas"]["Accent"];
             allLibraries: boolean;
             /** @description Libraries the profile may see; empty when `allLibraries` is true. The account's own limits apply on top. */
@@ -3585,6 +3598,12 @@ export interface components {
             name?: string;
             maxRating?: components["schemas"]["Rating"];
             language?: components["schemas"]["Language"];
+            /**
+             * @description The metadata language of the profile (ADR 0018): one of `SessionInfo.availableMetadataLanguages`
+             *     (422 `metadataLanguage: invalid_value` otherwise), or `""` to read the metadata in `language`
+             *     again.
+             */
+            metadataLanguage?: string;
             accent?: components["schemas"]["Accent"];
             allLibraries?: boolean;
             libraryIds?: number[];
@@ -3732,8 +3751,13 @@ export interface components {
             /** @description `manual` after an override, else the metadata source (`tmdb:DE`, `nfo`) or empty. */
             ratingSource?: string;
         };
-        /** @enum {string} */
+        /**
+         * @description An interface language; the two language packs of the web app.
+         * @enum {string}
+         */
         Language: "de" | "en";
+        /** @description A metadata language, BCP-47 with an optional region (`de`, `en`, `pt-BR`, `zh-TW`; ADR 0018). */
+        MetadataLanguage: string;
         /**
          * @description FSK age rating.
          * @enum {integer}
@@ -4384,7 +4408,11 @@ export interface components {
             roles: ("identify" | "fill")[];
             /** @description The root contents the provider may stand in the list of. */
             contents: components["schemas"]["RootContent"][];
-            /** @description Text languages the provider delivers (`de`, `en`); empty for the local reader. */
+            /**
+             * @description Text languages the provider delivers out of the server's metadata language list (ADR 0018):
+             *     the languages of the list it knows, in the list's order; empty for the local reader. A
+             *     language of the list that is missing here is skipped at that provider.
+             */
             languages: string[];
         };
         /** @description Which provider of the list won one field of a title (ADR 0015). */

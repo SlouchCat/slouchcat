@@ -118,11 +118,31 @@ WHERE id = @id;
 SELECT * FROM item_texts WHERE item_id = @item_id ORDER BY lang;
 
 -- name: UpsertItemText :exec
--- sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016).
-INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key)
-VALUES (@item_id, @lang, @title, @overview, @tagline, @sort_key)
+-- sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016). rank is
+-- the position of lang in the effective metadata language list of the title (ADR 0018, 0 = first).
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, rank)
+VALUES (@item_id, @lang, @title, @overview, @tagline, @sort_key, @rank)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key;
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key,
+    rank = excluded.rank;
+
+-- name: DeleteItemText :exec
+-- metadata.fill removes the row of a language that left the effective list (ADR 0018).
+DELETE FROM item_texts WHERE item_id = @item_id AND lang = @lang;
+
+-- name: GetSystemSetting :one
+-- A settings row for the metadata settings (metadata.Settings, ADR 0018); sql.ErrNoRows = default.
+SELECT value FROM settings WHERE key = @key;
+
+-- name: ListSystemSettingsByPrefix :many
+-- Every settings row whose key starts with the prefix (metadata.*), for metadata.Settings.
+SELECT key, value FROM settings WHERE key LIKE @prefix ORDER BY key;
+
+-- name: CountItemsForMetadataApply :one
+-- Matched titles (movies and series) that metadata.apply would queue, optionally of some libraries.
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND (sqlc.arg('all_libraries') = 1 OR library_id IN (sqlc.slice('library_ids')));
 
 -- name: ListImagesByItem :many
 -- Every stored image row of a title, originals included (image.fetch compares them with TMDB).

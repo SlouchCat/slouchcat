@@ -58,8 +58,9 @@ func newYouTubeTrailers(base string, hc *http.Client, quota *ratelimit.Quota, ke
 
 func (y *youtubeTrailers) Name() string { return sourceYouTube }
 
-// FindTrailers searches one trailer per language of q (de and en only). It stops with
-// errQuotaExhausted when the quota runs out and returns the hits found until then.
+// FindTrailers searches one trailer per language of q.Langs (the primary subtags of the metadata
+// language list, ADR 0018). It stops with errQuotaExhausted when the quota runs out and returns
+// the hits found until then.
 func (y *youtubeTrailers) FindTrailers(ctx context.Context, q TrailerQuery) ([]TrailerHit, error) {
 	key, err := y.keys.YouTubeKey(ctx)
 	if err != nil {
@@ -70,9 +71,6 @@ func (y *youtubeTrailers) FindTrailers(ctx context.Context, q TrailerQuery) ([]T
 	}
 	var hits []TrailerHit
 	for _, lang := range q.Langs {
-		if lang != "de" && lang != "en" {
-			continue
-		}
 		hit, ok, err := y.find(ctx, key, q, lang)
 		if err != nil {
 			return hits, err

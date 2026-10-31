@@ -232,7 +232,11 @@ func (r *Reader) LibraryItems(ctx context.Context, s Scope, libraryID int64, q m
 	}
 	out.Facets.Letters = sortLetters(firsts)
 	qtx := r.q.WithTx(tx)
-	genres, err := qtx.ListLibraryGenres(ctx, scopedq.ListLibraryGenresParams{ProfileID: pid, Lang: s.language, LibraryID: libraryID})
+	genres, err := qtx.ListLibraryGenres(ctx, scopedq.ListLibraryGenresParams{ProfileID: pid, Lang: s.metaLang, LibraryID: libraryID})
+	if err == nil && len(genres) == 0 && s.metaLang != s.language {
+		// No genre in the metadata language: the interface language (the chain of 4.2).
+		genres, err = qtx.ListLibraryGenres(ctx, scopedq.ListLibraryGenresParams{ProfileID: pid, Lang: s.language, LibraryID: libraryID})
+	}
 	if err != nil {
 		return model.LibraryPage{}, fmt.Errorf("list library genres: %w", err)
 	}
@@ -277,8 +281,17 @@ func libraryStmt(s Scope, pid, libraryID int64, f libraryFilter, head string, wi
 		episodeStatsBody(b, pid, libraryID)
 		b.add(" GROUP BY COALESCE(se.parent_id, e.parent_id)), ")
 	}
+	// The sort key follows the text chain (ADR 0018): the metadata language, the interface
+	// language (one join when they are the same), then the lowest rank, then the file name.
+	uiKey := "NULLIF(tu.sort_key, '')"
+	if s.metaLang == s.language {
+		uiKey = "NULL"
+	}
 	b.add(`lib AS (SELECT i.id, i.kind,
-		COALESCE(NULLIF(tl.sort_key, ''), NULLIF(te.sort_key, ''), i.sort_title, '') AS sort_key,
+		COALESCE(NULLIF(tm.sort_key, ''), ` + uiKey + `,
+		         (SELECT NULLIF(tr.sort_key, '') FROM item_texts AS tr WHERE tr.item_id = i.id AND tr.sort_key IS NOT NULL
+		          ORDER BY tr.rank, tr.lang LIMIT 1),
+		         i.sort_title, '') AS sort_key,
 		i.added_at, i.release_date, i.vote_average, i.runtime_minutes, i.effective_rating, i.author`)
 	if withEp {
 		b.add(`,
@@ -292,8 +305,11 @@ func libraryStmt(s Scope, pid, libraryID int64, f libraryFilter, head string, wi
 	b.add(`
 		FROM items AS i
 		JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?
-		LEFT JOIN item_texts AS tl ON tl.item_id = i.id AND tl.lang = ?
-		LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'`, pid, s.language)
+		LEFT JOIN item_texts AS tm ON tm.item_id = i.id AND tm.lang = ?`, pid, s.metaLang)
+	if s.metaLang != s.language {
+		b.add(`
+		LEFT JOIN item_texts AS tu ON tu.item_id = i.id AND tu.lang = ?`, s.language)
+	}
 	if withEp {
 		b.add(`
 		LEFT JOIN progress AS p ON p.profile_id = ? AND p.item_id = i.id
@@ -305,7 +321,7 @@ func libraryStmt(s Scope, pid, libraryID int64, f libraryFilter, head string, wi
 	}
 	b.add(" WHERE i.library_id = ? AND i.kind IN "+in(len(kinds)), append([]any{libraryID}, kinds...)...)
 	if f.Genre != "" {
-		b.add(" AND EXISTS (SELECT 1 FROM item_genres AS g WHERE g.item_id = i.id AND g.lang = ? AND g.name = ?)", s.language, f.Genre)
+		b.add(" AND EXISTS (SELECT 1 FROM item_genres AS g WHERE g.item_id = i.id AND g.lang IN (?, ?) AND g.name = ?)", s.metaLang, s.language, f.Genre)
 	}
 	if f.YearFrom != 0 {
 		b.add(" AND i.year >= ?", f.YearFrom)

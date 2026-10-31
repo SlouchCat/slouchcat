@@ -7,8 +7,8 @@ import (
 
 // Provider delivers title data of one external metadata source (design 3.1). Every request runs
 // through the provider's ratelimit.Limiter. IDs are the provider's own IDs as decimal strings.
-// Languages are ISO 639-1 codes ("de", "en"); a record holds the texts of every requested
-// language the provider knows. ErrNotFound means the provider does not know the ID.
+// Languages are BCP-47 codes ("de", "en", "pt-BR"; ADR 0018) from the effective metadata language
+// list; a record holds the texts of every requested language the provider knows. ErrNotFound means the provider does not know the ID.
 type Provider interface {
 	Name() string                        // "tmdb", "tvdb"
 	Configured(ctx context.Context) bool // a key is present
@@ -25,9 +25,6 @@ const (
 	ProviderTMDB = "tmdb"
 	ProviderTVDB = "tvdb"
 )
-
-// textLangs are the languages of item_texts (B-3).
-var textLangs = []string{"de", "en"}
 
 // ErrNotFound is returned when a provider does not know an ID (HTTP 404).
 var ErrNotFound = errors.New("metadata provider: not found")

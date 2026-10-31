@@ -59,10 +59,41 @@ func sameIdentity(cur, snap systemq.Item) bool {
 // transaction stays below 500 rows (jobs package rule).
 const maxEpisodesPerTx = 150
 
-// genres is the JSON shape of items.genres written by metadata.match.
-type genres struct {
-	DE []string `json:"de"`
-	EN []string `json:"en"`
+// genresJSON is items.genres: a JSON object with one key per language of the effective list
+// (ADR 0018; before, fixed to de and en), every value a list (never null). json.Marshal sorts
+// the keys, so the same genres give the same text.
+func genresJSON(langs []string, byLang map[string][]string) (string, error) {
+	out := make(map[string][]string, len(langs))
+	for _, l := range langs {
+		out[l] = nonNil(byLang[l])
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		return "", fmt.Errorf("genres: %w", err)
+	}
+	return string(raw), nil
+}
+
+// genresEmpty reports whether a genres column names no genre in any language (empty, a plain
+// empty list, or an object of empty lists).
+func genresEmpty(raw string) bool {
+	if raw == "" || raw == "[]" {
+		return true
+	}
+	var byLang map[string][]string
+	if err := json.Unmarshal([]byte(raw), &byLang); err == nil {
+		for _, names := range byLang {
+			if len(names) > 0 {
+				return false
+			}
+		}
+		return true
+	}
+	var list []string
+	if err := json.Unmarshal([]byte(raw), &list); err == nil {
+		return len(list) == 0
+	}
+	return false
 }
 
 func (s *Service) handleMatch(ctx context.Context, j *jobs.Job) error {
@@ -128,14 +159,18 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
 	if key == "" {
 		return s.setState(ctx, item, stateSkipped, errNoKey)
 	}
-	rec, found, err := s.resolveMovie(ctx, item)
+	langs, err := s.textLangsOf(ctx, item)
+	if err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
+	}
+	rec, found, err := s.resolveMovie(ctx, item, langs)
 	if err != nil {
 		return s.providerFailure(ctx, item, ProviderTMDB, err)
 	}
 	if !found || rec.TMDBID == 0 {
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
-	_, applied, err := s.applyTitle(ctx, item, rec.TitleRecord)
+	_, applied, err := s.applyTitle(ctx, item, rec.TitleRecord, langs)
 	if err != nil || !applied {
 		return err
 	}
@@ -147,7 +182,7 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
 
 // resolveMovie finds the TMDB movie of item: tmdb_id, else imdb_id through /find, else a title
 // search with the parsed year ±1.
-func (s *Service) resolveMovie(ctx context.Context, item systemq.Item) (MovieRecord, bool, error) {
+func (s *Service) resolveMovie(ctx context.Context, item systemq.Item, langs []string) (MovieRecord, bool, error) {
 	id := ""
 	switch {
 	case item.TmdbID.Valid && item.TmdbID.Int64 > 0:
@@ -170,7 +205,7 @@ func (s *Service) resolveMovie(ctx context.Context, item systemq.Item) (MovieRec
 		}
 		id = c.ID
 	}
-	rec, err := s.tmdb.Movie(ctx, id, textLangs)
+	rec, err := s.tmdb.Movie(ctx, id, langs)
 	if errors.Is(err, ErrNotFound) {
 		return MovieRecord{}, false, nil
 	}
@@ -201,6 +236,10 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	// first, TVDB finds the series and numbers its seasons, and the tmdb_id is fetched on the side
 	// through TMDB's external-id lookup so credits, trailers and images keep working.
 	tvdbFirst := identifierOf(item) == model.ProviderTVDB
+	langs, err := s.textLangsOf(ctx, item)
+	if err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
+	}
 
 	var prov Provider
 	var rec SeriesRecord
@@ -210,23 +249,23 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 		return s.setState(ctx, item, stateSkipped, errNoTVDBKey)
 	case manualTVDB:
 		prov = s.tvdb
-		rec, found, err = s.resolveSeriesTVDB(ctx, item)
+		rec, found, err = s.resolveSeriesTVDB(ctx, item, langs)
 	case tvdbFirst:
 		prov = s.tvdb
-		rec, found, err = s.resolveSeriesTVDB(ctx, item)
+		rec, found, err = s.resolveSeriesTVDB(ctx, item, langs)
 		if err == nil && found && tmdbKey != "" && rec.TMDBID == 0 {
 			rec.TMDBID, err = s.tmdbIDOfTVDB(ctx, rec.TVDBID)
 		}
 	case tmdbKey != "":
 		prov = s.tmdb
-		rec, found, err = s.resolveSeriesTMDB(ctx, item)
+		rec, found, err = s.resolveSeriesTMDB(ctx, item, langs)
 		if err == nil && !found && tvdbKey != "" {
 			prov = s.tvdb
-			rec, found, err = s.resolveSeriesTVDB(ctx, item)
+			rec, found, err = s.resolveSeriesTVDB(ctx, item, langs)
 		}
 	case tvdbKey != "":
 		prov = s.tvdb
-		rec, found, err = s.resolveSeriesTVDB(ctx, item)
+		rec, found, err = s.resolveSeriesTVDB(ctx, item, langs)
 	default:
 		return s.setState(ctx, item, stateSkipped, errNoKey)
 	}
@@ -236,11 +275,11 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	if !found {
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
-	series, applied, err := s.applyTitle(ctx, item, rec.TitleRecord)
+	series, applied, err := s.applyTitle(ctx, item, rec.TitleRecord, langs)
 	if err != nil || !applied {
 		return err
 	}
-	if err := s.matchSeasons(ctx, series, prov, rec); err != nil {
+	if err := s.matchSeasons(ctx, series, prov, rec, langs); err != nil {
 		return err
 	}
 	if err := s.enqueueFill(ctx, item.ID); err != nil {
@@ -252,7 +291,7 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 // resolveSeriesTMDB finds the TMDB series of item: tmdb_id, else tvdb_id or imdb_id through /find,
 // else a title search with the first air date year ±1 (a search with the year first, without it
 // when nothing fits).
-func (s *Service) resolveSeriesTMDB(ctx context.Context, item systemq.Item) (SeriesRecord, bool, error) {
+func (s *Service) resolveSeriesTMDB(ctx context.Context, item systemq.Item, langs []string) (SeriesRecord, bool, error) {
 	id := ""
 	if item.TmdbID.Valid && item.TmdbID.Int64 > 0 {
 		id = strconv.FormatInt(item.TmdbID.Int64, 10)
@@ -293,7 +332,7 @@ func (s *Service) resolveSeriesTMDB(ctx context.Context, item systemq.Item) (Ser
 		}
 		id = c.ID
 	}
-	rec, err := s.tmdb.Series(ctx, id, textLangs)
+	rec, err := s.tmdb.Series(ctx, id, langs)
 	if errors.Is(err, ErrNotFound) {
 		return SeriesRecord{}, false, nil
 	}
@@ -301,7 +340,7 @@ func (s *Service) resolveSeriesTMDB(ctx context.Context, item systemq.Item) (Ser
 }
 
 // resolveSeriesTVDB finds the TVDB series of item: tvdb_id, else a title search with year ±1.
-func (s *Service) resolveSeriesTVDB(ctx context.Context, item systemq.Item) (SeriesRecord, bool, error) {
+func (s *Service) resolveSeriesTVDB(ctx context.Context, item systemq.Item, langs []string) (SeriesRecord, bool, error) {
 	id := ""
 	if item.TvdbID.Valid && item.TvdbID.Int64 > 0 {
 		id = strconv.FormatInt(item.TvdbID.Int64, 10)
@@ -317,7 +356,7 @@ func (s *Service) resolveSeriesTVDB(ctx context.Context, item systemq.Item) (Ser
 		}
 		id = c.ID
 	}
-	rec, err := s.tvdb.Series(ctx, id, textLangs)
+	rec, err := s.tvdb.Series(ctx, id, langs)
 	if errors.Is(err, ErrNotFound) {
 		return SeriesRecord{}, false, nil
 	}
@@ -372,7 +411,7 @@ func (s *Service) seriesProvider(series systemq.Item) (Provider, string, bool) {
 // image.fetch for the series, its seasons and episodes with an image path and metadata.match for
 // the episodes still waiting. series is the series as applyTitle wrote it; a season transaction
 // that finds other provider ids or locked fields on it writes nothing (errItemChanged).
-func (s *Service) matchSeasons(ctx context.Context, series systemq.Item, prov Provider, rec SeriesRecord) error {
+func (s *Service) matchSeasons(ctx context.Context, series systemq.Item, prov Provider, rec SeriesRecord, langs []string) error {
 	seriesID := series.ID
 	children, err := s.read.ListChildItems(ctx, sql.NullString{String: seriesID, Valid: true})
 	if err != nil {
@@ -421,7 +460,7 @@ func (s *Service) matchSeasons(ctx context.Context, series systemq.Item, prov Pr
 		images = append(images, imageJob{seriesID, imageFetchPriority})
 	}
 	for _, n := range numbers {
-		srec, err := prov.Season(ctx, rec.ID, n, textLangs)
+		srec, err := prov.Season(ctx, rec.ID, n, langs)
 		if errors.Is(err, ErrNotFound) {
 			continue // the episodes stay pending and are matched one by one below
 		}
@@ -435,7 +474,7 @@ func (s *Service) matchSeasons(ctx context.Context, series systemq.Item, prov Pr
 		if it, ok := seasons[n]; ok {
 			season = &it
 		}
-		written, err := s.applySeason(ctx, series, season, episodes[n], srec)
+		written, err := s.applySeason(ctx, series, season, episodes[n], srec, langs)
 		if err != nil {
 			return err
 		}
@@ -469,7 +508,7 @@ type imageJob struct {
 
 // applySeason writes the season item (when the library has one) and its episodes in batches. It
 // returns the image jobs for the written items with an image path.
-func (s *Service) applySeason(ctx context.Context, series systemq.Item, season *systemq.Item, eps []systemq.Item, srec SeasonRecord) ([]imageJob, error) {
+func (s *Service) applySeason(ctx context.Context, series systemq.Item, season *systemq.Item, eps []systemq.Item, srec SeasonRecord, langs []string) ([]imageJob, error) {
 	byNumber := make(map[int]EpisodeRecord, len(srec.Episodes))
 	for _, e := range srec.Episodes {
 		byNumber[e.Number] = e
@@ -483,7 +522,7 @@ func (s *Service) applySeason(ctx context.Context, series systemq.Item, season *
 			withSeason = season
 		}
 		first = false
-		written, err := s.applySeasonBatch(ctx, series, withSeason, batch, srec, byNumber)
+		written, err := s.applySeasonBatch(ctx, series, withSeason, batch, srec, byNumber, langs)
 		if err != nil {
 			return nil, err
 		}
@@ -492,7 +531,7 @@ func (s *Service) applySeason(ctx context.Context, series systemq.Item, season *
 	return out, nil
 }
 
-func (s *Service) applySeasonBatch(ctx context.Context, series systemq.Item, season *systemq.Item, eps []systemq.Item, srec SeasonRecord, byNumber map[int]EpisodeRecord) ([]imageJob, error) {
+func (s *Service) applySeasonBatch(ctx context.Context, series systemq.Item, season *systemq.Item, eps []systemq.Item, srec SeasonRecord, byNumber map[int]EpisodeRecord, langs []string) ([]imageJob, error) {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("metadata.match: begin: %w", err)
@@ -513,12 +552,12 @@ func (s *Service) applySeasonBatch(ctx context.Context, series systemq.Item, sea
 		if ok {
 			n := srec.Number
 			texts := map[string]Text{}
-			for _, l := range textLangs {
+			for _, l := range langs {
 				t := srec.Texts[l]
 				t.Title = firstNonEmpty(t.Title, seasonTitle(l, n))
 				texts[l] = t
 			}
-			if err := s.writeChild(ctx, q, cur, texts, srec.AirDate, 0, srec.PosterPath, "", false, now); err != nil {
+			if err := s.writeChild(ctx, q, cur, texts, srec.AirDate, 0, srec.PosterPath, "", false, now, langs); err != nil {
 				return nil, err
 			}
 			if srec.PosterPath != "" {
@@ -551,7 +590,7 @@ func (s *Service) applySeasonBatch(ctx context.Context, series systemq.Item, sea
 				recs = append(recs, r)
 			}
 		}
-		if err := s.writeEpisode(ctx, q, cur, recs, now); err != nil {
+		if err := s.writeEpisode(ctx, q, cur, recs, now, langs); err != nil {
 			return nil, err
 		}
 		if first.StillPath != "" {
@@ -564,13 +603,14 @@ func (s *Service) applySeasonBatch(ctx context.Context, series systemq.Item, sea
 	return out, nil
 }
 
-// seasonTitle is the season title when the provider has none: "Staffel N" / "Season N",
+// seasonTitle is the season title when the provider has none: "Staffel N" for German,
+// "Season N" for every other language (no translation table for the third language, ADR 0018),
 // "Specials" for season 0.
 func seasonTitle(lang string, n int) string {
 	switch {
 	case n == 0:
 		return "Specials"
-	case lang == "de":
+	case PrimaryLanguage(lang) == "de":
 		return "Staffel " + strconv.Itoa(n)
 	default:
 		return "Season " + strconv.Itoa(n)
@@ -580,10 +620,10 @@ func seasonTitle(lang string, n int) string {
 // writeEpisode writes one episode item from its provider records: the first one carries date,
 // runtime and still; a multi-episode file gets "E01–E02: Title1 / Title2" when every title is
 // known in the language.
-func (s *Service) writeEpisode(ctx context.Context, q *systemq.Queries, cur systemq.Item, recs []EpisodeRecord, now int64) error {
+func (s *Service) writeEpisode(ctx context.Context, q *systemq.Queries, cur systemq.Item, recs []EpisodeRecord, now int64, langs []string) error {
 	first := recs[0]
 	texts := map[string]Text{}
-	for _, l := range textLangs {
+	for _, l := range langs {
 		t := first.Texts[l]
 		t.Title = firstNonEmpty(t.Title, first.Texts["en"].Title)
 		if len(recs) > 1 {
@@ -599,13 +639,13 @@ func (s *Service) writeEpisode(ctx context.Context, q *systemq.Queries, cur syst
 		}
 		texts[l] = t
 	}
-	return s.writeChild(ctx, q, cur, texts, first.AirDate, first.Runtime, "", first.StillPath, true, now)
+	return s.writeChild(ctx, q, cur, texts, first.AirDate, first.Runtime, "", first.StillPath, true, now, langs)
 }
 
-// writeChild writes the texts and columns of a season or episode, keeping locked fields. German
-// texts fall back to English when enFallback is set.
+// writeChild writes the texts and columns of a season or episode, keeping locked fields. The
+// other languages fall back to English when enFallback is set.
 func (s *Service) writeChild(ctx context.Context, q *systemq.Queries, cur systemq.Item, texts map[string]Text,
-	date string, runtime int, poster, backdrop string, enFallback bool, now int64,
+	date string, runtime int, poster, backdrop string, enFallback bool, now int64, langs []string,
 ) error {
 	stored, err := q.ListItemTextsByItem(ctx, cur.ID)
 	if err != nil {
@@ -613,10 +653,13 @@ func (s *Service) writeChild(ctx context.Context, q *systemq.Queries, cur system
 	}
 	locked := lockedFields(cur.LockedFields)
 	defTitle := func(string) string { return cur.Title }
-	for _, t := range buildTexts(cur, stored, locked, texts, defTitle, enFallback) {
+	for _, t := range buildTexts(cur, stored, locked, texts, defTitle, enFallback, langs) {
 		if err := q.UpsertItemText(ctx, t); err != nil {
 			return fmt.Errorf("metadata.match: write %s text of %s: %w", t.Lang, cur.ID, err)
 		}
+	}
+	if err := pruneTexts(ctx, q, cur.ID, stored, langs, locked); err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
 	}
 	p := systemq.UpdateChildMatchParams{
 		ID: cur.ID, ReleaseDate: cur.ReleaseDate, RuntimeMinutes: cur.RuntimeMinutes,
@@ -688,14 +731,18 @@ func (s *Service) matchEpisode(ctx context.Context, item systemq.Item) error {
 		return s.setState(ctx, item, stateUnmatched, "")
 	}
 	sn, en := int(item.SeasonNumber.Int64), int(item.EpisodeNumber.Int64)
-	first, err := prov.Episode(ctx, pid, sn, en, textLangs)
+	langs, err := s.textLangsOf(ctx, item)
+	if err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
+	}
+	first, err := prov.Episode(ctx, pid, sn, en, langs)
 	if err != nil {
 		return s.providerFailure(ctx, item, prov.Name(), err)
 	}
 	recs := []EpisodeRecord{first}
 	if item.EpisodeEnd.Valid {
 		for k := en + 1; k <= int(item.EpisodeEnd.Int64); k++ {
-			r, err := prov.Episode(ctx, pid, sn, k, textLangs)
+			r, err := prov.Episode(ctx, pid, sn, k, langs)
 			if errors.Is(err, ErrNotFound) {
 				break
 			}
@@ -719,7 +766,7 @@ func (s *Service) matchEpisode(ctx context.Context, item systemq.Item) error {
 	if err != nil || !ok {
 		return err
 	}
-	if err := s.writeEpisode(ctx, q, cur, recs, s.now().UnixMilli()); err != nil {
+	if err := s.writeEpisode(ctx, q, cur, recs, s.now().UnixMilli(), langs); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
@@ -761,7 +808,7 @@ func (s *Service) seriesOf(ctx context.Context, item systemq.Item) (systemq.Item
 // and errItemChanged is returned for a retry. It returns the item with the provider ids as
 // written, and false when the item disappeared in the meantime. A changed own rating triggers the
 // visibility recheck of open streams after the commit.
-func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRecord) (systemq.Item, bool, error) {
+func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRecord, langs []string) (systemq.Item, bool, error) {
 	itemID := snap.ID
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
@@ -783,12 +830,15 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 	}
 	locked := lockedFields(cur.LockedFields)
 	defTitle := func(string) string { return firstNonEmpty(rec.OriginalTitle, cur.Title) }
-	for _, t := range buildTexts(cur, stored, locked, rec.Texts, defTitle, true) {
+	for _, t := range buildTexts(cur, stored, locked, rec.Texts, defTitle, true, langs) {
 		if err := q.UpsertItemText(ctx, t); err != nil {
 			return snap, false, fmt.Errorf("metadata.match: write %s text of %s: %w", t.Lang, itemID, err)
 		}
 	}
-	p, err := titleUpdate(cur, locked, rec)
+	if err := pruneTexts(ctx, q, itemID, stored, langs, locked); err != nil {
+		return snap, false, fmt.Errorf("metadata.match: %w", err)
+	}
+	p, err := titleUpdate(cur, locked, rec, langs)
 	if err != nil {
 		return snap, false, err
 	}
@@ -924,7 +974,7 @@ func replaceCredits(ctx context.Context, q *systemq.Queries, itemID string, cred
 
 // titleUpdate computes the item columns from a provider record. Locked fields and empty provider
 // values keep the current value.
-func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord) (systemq.UpdateItemMatchParams, error) {
+func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, langs []string) (systemq.UpdateItemMatchParams, error) {
 	p := systemq.UpdateItemMatchParams{
 		ID:               cur.ID,
 		OriginalTitle:    cur.OriginalTitle,
@@ -954,11 +1004,11 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord) (sys
 		p.RuntimeMinutes = sql.NullInt64{Int64: int64(rec.Runtime), Valid: true}
 	}
 	if !locked["genres"] {
-		raw, err := json.Marshal(genres{DE: nonNil(rec.Genres["de"]), EN: nonNil(rec.Genres["en"])})
+		raw, err := genresJSON(langs, rec.Genres)
 		if err != nil {
-			return p, fmt.Errorf("metadata.match: genres: %w", err)
+			return p, fmt.Errorf("metadata.match: %w", err)
 		}
-		p.Genres = string(raw)
+		p.Genres = raw
 	}
 	if !locked["tmdb_id"] && rec.TMDBID > 0 {
 		p.TmdbID = sql.NullInt64{Int64: rec.TMDBID, Valid: true}
@@ -1005,27 +1055,38 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord) (sys
 	return p, nil
 }
 
-// buildTexts returns the de and en texts. With enFallback, German falls back to the English
-// values where the provider has no translation; defTitle names the title when the provider has
-// none. Locked fields keep the stored text (or the parsed title).
+// buildTexts returns one text row per language of langs (the effective list, ADR 0018) with the
+// position in the list as rank. With enFallback, a language without translation falls back to
+// the English values, or, when English is not in the list, to the first language of the list
+// that has a title; defTitle names the title when the provider has none. Locked fields keep the
+// stored text (or the parsed title).
 func buildTexts(cur systemq.Item, stored []systemq.ItemText, locked map[string]bool, texts map[string]Text,
-	defTitle func(lang string) string, enFallback bool,
+	defTitle func(lang string) string, enFallback bool, langs []string,
 ) []systemq.UpsertItemTextParams {
 	old := map[string]systemq.ItemText{}
 	for _, t := range stored {
 		old[t.Lang] = t
 	}
-	en := texts["en"]
-	out := make([]systemq.UpsertItemTextParams, 0, len(textLangs))
-	for _, lang := range textLangs {
+	fallback := texts["en"]
+	if fallback.Title == "" {
+		for _, l := range langs {
+			if texts[l].Title != "" {
+				fallback = texts[l]
+				break
+			}
+		}
+	}
+	out := make([]systemq.UpsertItemTextParams, 0, len(langs))
+	for rank, lang := range langs {
 		m := texts[lang]
 		fb := Text{}
 		if enFallback {
-			fb = en
+			fb = fallback
 		}
 		t := systemq.UpsertItemTextParams{
 			ItemID:   cur.ID,
 			Lang:     lang,
+			Rank:     int64(rank),
 			Title:    firstNonEmpty(m.Title, fb.Title, defTitle(lang)),
 			Overview: nullString(firstNonEmpty(m.Overview, fb.Overview)),
 			Tagline:  nullString(firstNonEmpty(m.Tagline, fb.Tagline)),
@@ -1227,4 +1288,22 @@ func nullString(s string) sql.NullString {
 // stripped, folded (model.SortKey, concept 08, ADR 0016). Every writer of a text row sets it.
 func sortKey(lang, title string) sql.NullString {
 	return sql.NullString{String: model.SortKey(lang, title), Valid: true}
+}
+
+// pruneTexts deletes the stored text rows of languages that are not in the effective list any
+// more (ADR 0018, 6.1), unless a text field of the title is locked (then every row stays: the
+// administrator's text may live in any of them).
+func pruneTexts(ctx context.Context, q *systemq.Queries, itemID string, stored []systemq.ItemText, langs []string, locked map[string]bool) error {
+	if locked["title"] || locked["overview"] || locked["tagline"] {
+		return nil
+	}
+	for _, t := range stored {
+		if slices.Contains(langs, t.Lang) {
+			continue
+		}
+		if err := q.DeleteItemText(ctx, systemq.DeleteItemTextParams{ItemID: itemID, Lang: t.Lang}); err != nil {
+			return fmt.Errorf("delete %s text of %s: %w", t.Lang, itemID, err)
+		}
+	}
+	return nil
 }

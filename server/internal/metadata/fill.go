@@ -305,6 +305,10 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 	var out []fetchedRecord
 	var skipped []string
 	anilistID := int64(-1)
+	langs, err := s.textLangsOf(ctx, item)
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("metadata.fill: %w", err)
+	}
 	for _, p := range order {
 		switch p {
 		case model.ProviderTMDB:
@@ -316,7 +320,7 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 				continue
 			}
 			id := strconv.FormatInt(item.TmdbID.Int64, 10)
-			rec, err := s.titleRecord(ctx, s.tmdb, item.Kind, id)
+			rec, err := s.titleRecord(ctx, s.tmdb, item.Kind, id, langs)
 			if err != nil {
 				return nil, 0, nil, err
 			}
@@ -332,7 +336,7 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 				continue
 			}
 			id := strconv.FormatInt(item.TvdbID.Int64, 10)
-			rec, err := s.titleRecord(ctx, s.tvdb, item.Kind, id)
+			rec, err := s.titleRecord(ctx, s.tvdb, item.Kind, id, langs)
 			if err != nil {
 				return nil, 0, nil, err
 			}
@@ -372,16 +376,16 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 
 // titleRecord fetches the movie or series record of one provider; nil when the provider does
 // not know the id any more.
-func (s *Service) titleRecord(ctx context.Context, prov Provider, kind, id string) (*TitleRecord, error) {
+func (s *Service) titleRecord(ctx context.Context, prov Provider, kind, id string, langs []string) (*TitleRecord, error) {
 	var rec TitleRecord
 	var err error
 	if kind == "movie" {
 		var m MovieRecord
-		m, err = prov.Movie(ctx, id, textLangs)
+		m, err = prov.Movie(ctx, id, langs)
 		rec = m.TitleRecord
 	} else {
 		var sr SeriesRecord
-		sr, err = prov.Series(ctx, id, textLangs)
+		sr, err = prov.Series(ctx, id, langs)
 		rec = sr.TitleRecord
 	}
 	switch {
@@ -438,7 +442,11 @@ func (s *Service) applyFill(ctx context.Context, snap systemq.Item, order []stri
 	for _, r := range recs {
 		candidates = append(candidates, r.fields)
 	}
-	changedImages, err := s.writeFill(ctx, q, cur, order, candidates, true, anilistID, filled)
+	langs, err := s.textLangsOf(ctx, cur)
+	if err != nil {
+		return false, fmt.Errorf("metadata.fill: %w", err)
+	}
+	changedImages, err := s.writeFill(ctx, q, cur, order, candidates, true, anilistID, filled, langs)
 	if err != nil {
 		return false, err
 	}
@@ -463,7 +471,7 @@ type fillOutcome struct {
 // says whether the item is a movie or series (the other columns and the rating); anilistID is
 // stored on a title when it is not -1. Multi-episode files keep the composite title the match
 // wrote.
-func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq.Item, order []string, candidates []providerFields, title bool, anilistID int64, filled []string) (fillOutcome, error) {
+func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq.Item, order []string, candidates []providerFields, title bool, anilistID int64, filled []string, langs []string) (fillOutcome, error) {
 	var out fillOutcome
 	storedTexts, err := q.ListItemTextsByItem(ctx, cur.ID)
 	if err != nil {
@@ -494,15 +502,15 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 	for _, t := range storedTexts {
 		old[t.Lang] = t
 	}
-	for _, lang := range textLangs {
+	for rank, lang := range langs {
 		title, ok1 := writes[fieldKey{"title", lang}]
 		overview, ok2 := writes[fieldKey{"overview", lang}]
 		tagline, ok3 := writes[fieldKey{"tagline", lang}]
-		if !ok1 && !ok2 && !ok3 {
+		prev, had := old[lang]
+		if !ok1 && !ok2 && !ok3 && (!had || prev.Rank == int64(rank)) {
 			continue
 		}
-		prev, had := old[lang]
-		p := systemq.UpsertItemTextParams{ItemID: cur.ID, Lang: lang, Title: cur.Title}
+		p := systemq.UpsertItemTextParams{ItemID: cur.ID, Lang: lang, Rank: int64(rank), Title: cur.Title}
 		if had {
 			p.Title, p.Overview, p.Tagline = prev.Title, prev.Overview, prev.Tagline
 		}
@@ -519,6 +527,9 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 		if err := q.UpsertItemText(ctx, p); err != nil {
 			return out, fmt.Errorf("metadata.fill: write %s text of %s: %w", lang, cur.ID, err)
 		}
+	}
+	if err := pruneTexts(ctx, q, cur.ID, storedTexts, langs, locked); err != nil {
+		return out, fmt.Errorf("metadata.fill: %w", err)
 	}
 
 	// Columns.
@@ -549,14 +560,14 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 		if w, ok := writes[fieldKey{"original_title", ""}]; ok {
 			originalTitle = nullString(w.value)
 		}
-		genresJSON := cur.Genres
+		genresRaw := cur.Genres
 		genreSource := ""
 		if union := unionGenres(candidates); union != nil && !locked["genres"] {
-			raw, err := json.Marshal(genres{DE: nonNil(union["de"]), EN: nonNil(union["en"])})
+			raw, err := genresJSON(langs, union)
 			if err != nil {
-				return out, fmt.Errorf("metadata.fill: genres: %w", err)
+				return out, fmt.Errorf("metadata.fill: %w", err)
 			}
-			genresJSON, genreSource = string(raw), genreUnion
+			genresRaw, genreSource = raw, genreUnion
 		}
 		ownRating, ratingSource := cur.OwnRating, cur.RatingSource
 		ratingProvider := ""
@@ -590,7 +601,7 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 		}
 		if err := q.UpdateItemFill(ctx, systemq.UpdateItemFillParams{
 			OriginalTitle: originalTitle, Year: year, ReleaseDate: releaseDate, RuntimeMinutes: runtime,
-			Genres: genresJSON, OwnRating: ownRating, RatingSource: ratingSource,
+			Genres: genresRaw, OwnRating: ownRating, RatingSource: ratingSource,
 			TmdbPosterPath: poster, TmdbBackdropPath: backdrop, VoteAverage: vote, AnilistID: anilist,
 			FilledProviders: nullString(model.ProvidersJSON(filled)),
 			Now:             now, ID: cur.ID,
@@ -666,7 +677,7 @@ func (s *Service) recordIdentifier(ctx context.Context, item systemq.Item, ident
 	if cur.VoteAverage.Valid {
 		add(fieldVoteAverage, "", "set")
 	}
-	if cur.Genres != "" && cur.Genres != "[]" && cur.Genres != `{"de":[],"en":[]}` {
+	if !genresEmpty(cur.Genres) {
 		add("genres", "", "set")
 	}
 	add("poster", "", cur.TmdbPosterPath.String)
@@ -709,6 +720,10 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 		case model.ProviderTVDB:
 			provs = append(provs, seasonProvider{s.tvdb, r.id})
 		}
+	}
+	langs, err := s.textLangsOf(ctx, series)
+	if err != nil {
+		return fmt.Errorf("metadata.fill: %w", err)
 	}
 	if len(provs) < 2 {
 		return nil
@@ -759,7 +774,7 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 		// the providers count differently, the filler's episode 3 is another episode).
 		var base *SeasonRecord
 		for _, sp := range provs {
-			srec, err := sp.prov.Season(ctx, sp.id, n, textLangs)
+			srec, err := sp.prov.Season(ctx, sp.id, n, langs)
 			if errors.Is(err, ErrNotFound) || errors.Is(err, errNotConfigured) {
 				if base == nil {
 					break // the identifier does not know the season: nothing to fill
@@ -798,7 +813,7 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 				withSeason = season
 			}
 			first = false
-			written, err := s.fillSeasonBatch(ctx, series, order, withSeason, seasonCands, batch, episodeCands)
+			written, err := s.fillSeasonBatch(ctx, series, order, withSeason, seasonCands, batch, episodeCands, langs)
 			if err != nil {
 				return err
 			}
@@ -842,7 +857,7 @@ func waitForMatch(ctx context.Context, q *systemq.Queries, itemID string) error 
 // fillSeasonBatch writes one season item and a batch of its episodes in one transaction. Only
 // children the match wrote (state matched) are filled; the others wait for their match.
 func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, order []string, season *systemq.Item,
-	seasonCands []providerFields, eps []systemq.Item, episodeCands map[int][]providerFields,
+	seasonCands []providerFields, eps []systemq.Item, episodeCands map[int][]providerFields, langs []string,
 ) ([]imageJob, error) {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
@@ -863,7 +878,7 @@ func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, orde
 			return nil, err
 		}
 		if ok && cur.MetadataState == stateMatched {
-			o, err := s.writeFill(ctx, q, cur, order, seasonCands, false, -1, nil)
+			o, err := s.writeFill(ctx, q, cur, order, seasonCands, false, -1, nil, langs)
 			if err != nil {
 				return nil, err
 			}
@@ -887,7 +902,7 @@ func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, orde
 		if !ok || cur.MetadataState != stateMatched {
 			continue
 		}
-		o, err := s.writeFill(ctx, q, cur, order, cands, false, -1, nil)
+		o, err := s.writeFill(ctx, q, cur, order, cands, false, -1, nil, langs)
 		if err != nil {
 			return nil, err
 		}

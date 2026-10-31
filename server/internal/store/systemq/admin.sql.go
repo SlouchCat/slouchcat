@@ -250,7 +250,7 @@ func (q *Queries) AdminGetItemImage(ctx context.Context, arg AdminGetItemImagePa
 
 const adminGetTopPick = `-- name: AdminGetTopPick :one
 SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
+       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
 FROM top_picks AS t
 JOIN items AS i ON i.id = t.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
@@ -903,7 +903,7 @@ func (q *Queries) AdminListTopPickIDs(ctx context.Context) ([]int64, error) {
 const adminListTopPicks = `-- name: AdminListTopPicks :many
 
 SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
+       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
 FROM top_picks AS t
 JOIN items AS i ON i.id = t.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
@@ -928,8 +928,8 @@ type AdminListTopPicksRow struct {
 }
 
 // Cat's picks (E-2, M7). Administration view: unfiltered, owner only, titles in plain text.
-// Every pick in carousel order with kind, title (German text, else English, else the parsed
-// title) and year of the title and the name of the target profile (” = all profiles).
+// Every pick in carousel order with kind, title (German text, else English, else the first language
+// by rank, else the parsed title) and year of the title and the name of the target profile (” = all profiles).
 func (q *Queries) AdminListTopPicks(ctx context.Context) ([]AdminListTopPicksRow, error) {
 	rows, err := q.db.QueryContext(ctx, adminListTopPicks)
 	if err != nil {
@@ -1490,8 +1490,8 @@ func (q *Queries) AdminSoftDeleteItem(ctx context.Context, arg AdminSoftDeleteIt
 
 const adminStreamItems = `-- name: AdminStreamItems :many
 
-SELECT i.id, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.season_number, i.episode_number, i.episode_end,
-       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, s.title, '') AS series_title
+SELECT i.id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.season_number, i.episode_number, i.episode_end,
+       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = s.id ORDER BY tr.rank, tr.lang LIMIT 1), s.title, '') AS series_title
 FROM items AS i
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
@@ -1515,8 +1515,8 @@ type AdminStreamItemsRow struct {
 
 // Stream overview (W-6, M4): titles and durations of running playback sessions. The overview is
 // unfiltered (owner only) and names titles in plain text, never as ItemRef.
-// Title (German text, else English, else the parsed title) with, for an episode, the series title
-// and the season and episode numbers.
+// Title (German text, else English, else the first language by rank, else the parsed title; ADR 0018)
+// with, for an episode, the series title and the season and episode numbers.
 func (q *Queries) AdminStreamItems(ctx context.Context, itemIds []string) ([]AdminStreamItemsRow, error) {
 	query := adminStreamItems
 	var queryParams []interface{}

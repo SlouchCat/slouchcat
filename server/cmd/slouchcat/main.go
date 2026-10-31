@@ -282,6 +282,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
 		library.WithBrowseRoots(cfg.BrowseRoots))
+	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).

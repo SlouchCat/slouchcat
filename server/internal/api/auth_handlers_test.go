@@ -313,6 +313,12 @@ func TestSetupFlowEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &again); err != nil {
 		t.Fatal(err)
 	}
+	// getSession alone carries the metadata languages a profile may choose (ADR 0018): the
+	// server's list, de and en without a setting.
+	if again.AvailableMetadataLanguages == nil || !reflect.DeepEqual(*again.AvailableMetadataLanguages, []string{"de", "en"}) {
+		t.Fatalf("availableMetadataLanguages = %v, want de en", again.AvailableMetadataLanguages)
+	}
+	again.AvailableMetadataLanguages = nil
 	if !reflect.DeepEqual(again, info) {
 		t.Fatalf("GET session = %+v, want %+v", again, info)
 	}

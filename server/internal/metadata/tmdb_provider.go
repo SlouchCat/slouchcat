@@ -14,7 +14,10 @@ type tmdbProvider struct {
 	keys   KeySource
 }
 
-// tmdbLangs maps the text languages to the TMDB request languages.
+// tmdbLangs maps the bare text languages whose TMDB default region is not the obvious one to the
+// TMDB request language; any other code (a bare ISO 639-1 code or an xx-YY variant of the static
+// list, languages.go) is passed through. TMDB accepts a bare code and answers with its primary
+// translation of that language (checked against the API reference in step 1 of concept 10).
 var tmdbLangs = map[string]string{"de": langDE, "en": langEN}
 
 func tmdbLang(lang string) string {
@@ -107,7 +110,7 @@ func (p *tmdbProvider) SearchSeries(ctx context.Context, q SeriesQuery) ([]Candi
 }
 
 // recordLang returns the language whose detail fills the language-independent fields: English
-// when requested (the M1b behaviour), else the first.
+// when requested (the M1b behaviour), else the first of the list.
 func recordLang(langs []string) string {
 	for _, l := range langs {
 		if l == "en" {

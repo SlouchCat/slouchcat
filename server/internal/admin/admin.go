@@ -119,6 +119,9 @@ type Metadata interface {
 	AddManualTrailer(ctx context.Context, itemID, lang, youtubeID string) (model.Trailer, error)
 	// DeleteTrailer removes a trailer of the title (model.ErrNotFound).
 	DeleteTrailer(ctx context.Context, itemID string, trailerID int64) error
+	// ProviderLanguages names, per provider, the languages of the server's metadata language
+	// list it delivers (ADR 0018, listMetadataProviders).
+	ProviderLanguages(ctx context.Context) (map[string][]string, error)
 	// ListTrailersSystem lists every trailer of a title, unfiltered.
 	ListTrailersSystem(ctx context.Context, itemID string) ([]model.Trailer, error)
 }
@@ -486,10 +489,26 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 	if err != nil {
 		return nil, err
 	}
+	// The languages of the server's list each provider delivers (ADR 0018; a language of the list
+	// missing at a provider is skipped there).
+	langs := map[string][]string{model.ProviderTMDB: {"de", "en"}, model.ProviderTVDB: {"de", "en"}, model.ProviderAniList: {"en"}}
+	if s.meta != nil {
+		pl, err := s.meta.ProviderLanguages(ctx)
+		if err != nil {
+			return nil, err
+		}
+		langs = pl
+	}
+	nonNil := func(v []string) []string {
+		if v == nil {
+			return []string{}
+		}
+		return v
+	}
 	infos := []model.MetadataProviderInfo{
-		{ID: model.ProviderTMDB, Configured: tmdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
-		{ID: model.ProviderTVDB, Configured: tvdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
-		{ID: model.ProviderAniList, Configured: s.anilist, Roles: []string{"fill"}, Languages: []string{"en"}},
+		{ID: model.ProviderTMDB, Configured: tmdbKey != "", Roles: []string{"identify", "fill"}, Languages: nonNil(langs[model.ProviderTMDB])},
+		{ID: model.ProviderTVDB, Configured: tvdbKey != "", Roles: []string{"identify", "fill"}, Languages: nonNil(langs[model.ProviderTVDB])},
+		{ID: model.ProviderAniList, Configured: s.anilist, Roles: []string{"fill"}, Languages: nonNil(langs[model.ProviderAniList])},
 		{ID: model.ProviderLocal, Configured: true, Roles: []string{"identify"}, Languages: []string{}},
 	}
 	for i := range infos {

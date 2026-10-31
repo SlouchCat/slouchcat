@@ -255,7 +255,7 @@ func (q *Queries) GetPinAttempt(ctx context.Context, arg GetPinAttemptParams) (P
 }
 
 const getProfileOfAccount = `-- name: GetProfileOfAccount :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin FROM profiles WHERE id = ?1 AND account_id = ?2
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language FROM profiles WHERE id = ?1 AND account_id = ?2
 `
 
 type GetProfileOfAccountParams struct {
@@ -285,6 +285,7 @@ func (q *Queries) GetProfileOfAccount(ctx context.Context, arg GetProfileOfAccou
 		&i.WatchLimitMinutes,
 		&i.PinSalt,
 		&i.OfflinePin,
+		&i.MetadataLanguage,
 	)
 	return i, err
 }
@@ -687,7 +688,7 @@ func (q *Queries) ListProfileLibrariesByAccount(ctx context.Context, accountID i
 }
 
 const listProfilesByAccount = `-- name: ListProfilesByAccount :many
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id
 `
 
 func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([]Profile, error) {
@@ -718,6 +719,7 @@ func (q *Queries) ListProfilesByAccount(ctx context.Context, accountID int64) ([
 			&i.WatchLimitMinutes,
 			&i.PinSalt,
 			&i.OfflinePin,
+			&i.MetadataLanguage,
 		); err != nil {
 			return nil, err
 		}
@@ -983,16 +985,17 @@ func (q *Queries) UpdateAccountLimits(ctx context.Context, arg UpdateAccountLimi
 
 const updateProfile = `-- name: UpdateProfile :exec
 UPDATE profiles
-SET name = ?1, max_rating = ?2, language = ?3, accent = ?4,
-    all_libraries = ?5, max_bitrate_kbps = ?6, max_height = ?7,
-    max_streams = ?8, watch_limit_minutes = ?9, updated_at = ?10
-WHERE id = ?11
+SET name = ?1, max_rating = ?2, language = ?3, metadata_language = ?4, accent = ?5,
+    all_libraries = ?6, max_bitrate_kbps = ?7, max_height = ?8,
+    max_streams = ?9, watch_limit_minutes = ?10, updated_at = ?11
+WHERE id = ?12
 `
 
 type UpdateProfileParams struct {
 	Name              string
 	MaxRating         int64
 	Language          string
+	MetadataLanguage  sql.NullString
 	Accent            sql.NullString
 	AllLibraries      int64
 	MaxBitrateKbps    sql.NullInt64
@@ -1008,6 +1011,7 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) er
 		arg.Name,
 		arg.MaxRating,
 		arg.Language,
+		arg.MetadataLanguage,
 		arg.Accent,
 		arg.AllLibraries,
 		arg.MaxBitrateKbps,

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.5.0
+  version: 1.6.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -6711,6 +6711,14 @@ components:
           description: |
             A newer version is published (A-5); only for administrators and only while the update
             check is on.
+        availableMetadataLanguages:
+          type: array
+          description: |
+            The metadata languages a profile may choose (ADR 0018): the union of the server's list and
+            every library's list, in the server's order; always holds at least `de` or `en`. Absent in
+            answers of older servers (then `de` and `en`).
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
 
     Account:
       type: object
@@ -6766,6 +6774,13 @@ components:
           $ref: "#/components/schemas/Rating"
         language:
           $ref: "#/components/schemas/Language"
+          description: The language of the interface (de, en); also the language of the metadata while `metadataLanguage` is unset.
+        metadataLanguage:
+          $ref: "#/components/schemas/MetadataLanguage"
+          description: |
+            The language the profile reads titles, descriptions and genres in (ADR 0018), one of
+            `SessionInfo.availableMetadataLanguages`; absent = like `language`. A text missing in this
+            language falls back field by field to `language`, then to the server's list in its order.
         accent:
           $ref: "#/components/schemas/Accent"
         allLibraries:
@@ -6875,6 +6890,13 @@ components:
           $ref: "#/components/schemas/Rating"
         language:
           $ref: "#/components/schemas/Language"
+        metadataLanguage:
+          type: string
+          maxLength: 12
+          description: |
+            The metadata language of the profile (ADR 0018): one of `SessionInfo.availableMetadataLanguages`
+            (422 `metadataLanguage: invalid_value` otherwise), or `""` to read the metadata in `language`
+            again.
         accent:
           $ref: "#/components/schemas/Accent"
         allLibraries:
@@ -7161,6 +7183,14 @@ components:
     Language:
       type: string
       enum: [de, en]
+      description: An interface language; the two language packs of the web app.
+
+    MetadataLanguage:
+      type: string
+      minLength: 2
+      maxLength: 12
+      pattern: "^[a-z]{2,3}(-[A-Z]{2})?$"
+      description: A metadata language, BCP-47 with an optional region (`de`, `en`, `pt-BR`, `zh-TW`; ADR 0018).
 
     Rating:
       type: integer
@@ -8212,7 +8242,10 @@ components:
             $ref: "#/components/schemas/RootContent"
         languages:
           type: array
-          description: Text languages the provider delivers (`de`, `en`); empty for the local reader.
+          description: |
+            Text languages the provider delivers out of the server's metadata language list (ADR 0018):
+            the languages of the list it knows, in the list's order; empty for the local reader. A
+            language of the list that is missing here is skipped at that provider.
           items:
             type: string
 

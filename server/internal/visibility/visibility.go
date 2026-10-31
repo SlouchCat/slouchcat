@@ -39,20 +39,29 @@ var ErrUnscoped = errors.New("visibility: a profile scope is required")
 // rejected.
 type Scope struct {
 	profileID int64
-	language  string
+	language  string // the interface language (de, en)
+	metaLang  string // the metadata language (ADR 0018); the interface language when unset
 	system    bool
 	reason    string
 }
 
 // Profile returns the scope of a viewing profile: its id selects the rows of visible_items, its
-// language selects the texts.
+// languages select the texts (metadata language first, then the interface language, then the
+// rank of the server's list; concept 10 section 4.2).
 func Profile(p model.Profile) Scope {
 	lang := p.Language
 	if lang != "de" && lang != "en" {
 		lang = "de"
 	}
-	return Scope{profileID: p.ID, language: lang}
+	meta := p.MetadataLanguage
+	if meta == "" {
+		meta = lang
+	}
+	return Scope{profileID: p.ID, language: lang, metaLang: meta}
 }
+
+// langs returns the language preference of the scope for the text chain.
+func (s Scope) langs() langPref { return langPref{meta: s.metaLang, ui: s.language} }
 
 // System returns an unfiltered scope for internal callers; reason is written to the debug log when
 // the scope is used. The analyzer itemsaccess allows calling it only in visibility, admin,
@@ -141,11 +150,11 @@ func (r *Reader) Summary(ctx context.Context, s Scope, itemID string) (model.Ite
 	if err != nil {
 		return model.ItemSummary{}, notFound(err)
 	}
-	extras, err := r.extras(ctx, pid, s.language, []string{it.ID})
+	extras, err := r.extras(ctx, pid, s.langs(), []string{it.ID})
 	if err != nil {
 		return model.ItemSummary{}, err
 	}
-	return summarize(it, extras, s.language), nil
+	return summarize(it, extras, s.langs()), nil
 }
 
 // Item returns the detail of a visible title with its media files (versions, primary first, with
@@ -159,7 +168,7 @@ func (r *Reader) Item(ctx context.Context, s Scope, itemID string) (model.ItemDe
 	if err != nil {
 		return model.ItemDetail{}, notFound(err)
 	}
-	extras, err := r.extras(ctx, pid, s.language, []string{it.ID})
+	extras, err := r.extras(ctx, pid, s.langs(), []string{it.ID})
 	if err != nil {
 		return model.ItemDetail{}, err
 	}
@@ -167,7 +176,7 @@ func (r *Reader) Item(ctx context.Context, s Scope, itemID string) (model.ItemDe
 	if err != nil {
 		return model.ItemDetail{}, fmt.Errorf("list media files: %w", err)
 	}
-	d := detail(it, extras, s.language)
+	d := detail(it, extras, s.langs())
 	d.MediaFiles = make([]model.MediaFile, 0, len(files))
 	for _, f := range files {
 		d.MediaFiles = append(d.MediaFiles, mediaFile(f))
@@ -394,7 +403,7 @@ type extras struct {
 
 // extras loads texts, images, progress, child counts and series titles for a set of visible
 // items; lang picks the series titles.
-func (r *Reader) extras(ctx context.Context, pid int64, lang string, ids []string) (extras, error) {
+func (r *Reader) extras(ctx context.Context, pid int64, lang langPref, ids []string) (extras, error) {
 	out := extras{texts: map[string][]scopedq.ItemText{}, images: map[string][]scopedq.Image{}, progress: map[string]scopedq.Progress{},
 		childCounts: map[string]int{}, seriesTitles: map[string]string{}, parents: map[string]string{}}
 	if len(ids) == 0 {
@@ -435,13 +444,13 @@ func (r *Reader) summaries(ctx context.Context, s Scope, pid int64, items []scop
 	for _, it := range items {
 		ids = append(ids, it.ID)
 	}
-	ex, err := r.extras(ctx, pid, s.language, ids)
+	ex, err := r.extras(ctx, pid, s.langs(), ids)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]model.ItemSummary, 0, len(items))
 	for _, it := range items {
-		out = append(out, summarize(it, ex, s.language))
+		out = append(out, summarize(it, ex, s.langs()))
 	}
 	return out, nil
 }

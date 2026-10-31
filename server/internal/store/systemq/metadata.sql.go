@@ -8,6 +8,7 @@ package systemq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const assignItemMatch = `-- name: AssignItemMatch :exec
@@ -48,6 +49,36 @@ func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams
 	return err
 }
 
+const countItemsForMetadataApply = `-- name: CountItemsForMetadataApply :one
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND (?1 = 1 OR library_id IN (/*SLICE:library_ids*/?))
+`
+
+type CountItemsForMetadataApplyParams struct {
+	AllLibraries interface{}
+	LibraryIds   []int64
+}
+
+// Matched titles (movies and series) that metadata.apply would queue, optionally of some libraries.
+func (q *Queries) CountItemsForMetadataApply(ctx context.Context, arg CountItemsForMetadataApplyParams) (int64, error) {
+	query := countItemsForMetadataApply
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.AllLibraries)
+	if len(arg.LibraryIds) > 0 {
+		for _, v := range arg.LibraryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(arg.LibraryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
+	}
+	row := q.db.QueryRowContext(ctx, query, queryParams...)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteImage = `-- name: DeleteImage :exec
 DELETE FROM images WHERE id = ?1
 `
@@ -65,6 +96,33 @@ DELETE FROM item_field_sources WHERE item_id = ?1
 func (q *Queries) DeleteItemFieldSources(ctx context.Context, itemID string) error {
 	_, err := q.db.ExecContext(ctx, deleteItemFieldSources, itemID)
 	return err
+}
+
+const deleteItemText = `-- name: DeleteItemText :exec
+DELETE FROM item_texts WHERE item_id = ?1 AND lang = ?2
+`
+
+type DeleteItemTextParams struct {
+	ItemID string
+	Lang   string
+}
+
+// metadata.fill removes the row of a language that left the effective list (ADR 0018).
+func (q *Queries) DeleteItemText(ctx context.Context, arg DeleteItemTextParams) error {
+	_, err := q.db.ExecContext(ctx, deleteItemText, arg.ItemID, arg.Lang)
+	return err
+}
+
+const getSystemSetting = `-- name: GetSystemSetting :one
+SELECT value FROM settings WHERE key = ?1
+`
+
+// A settings row for the metadata settings (metadata.Settings, ADR 0018); sql.ErrNoRows = default.
+func (q *Queries) GetSystemSetting(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSystemSetting, key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
 }
 
 const listChildItems = `-- name: ListChildItems :many
@@ -318,7 +376,7 @@ func (q *Queries) ListItemFieldSources(ctx context.Context, itemID string) ([]Li
 }
 
 const listItemTextsByItem = `-- name: ListItemTextsByItem :many
-SELECT item_id, lang, title, overview, tagline, sort_key FROM item_texts WHERE item_id = ?1 ORDER BY lang
+SELECT item_id, lang, title, overview, tagline, sort_key, rank FROM item_texts WHERE item_id = ?1 ORDER BY lang
 `
 
 func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]ItemText, error) {
@@ -337,6 +395,7 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 			&i.Overview,
 			&i.Tagline,
 			&i.SortKey,
+			&i.Rank,
 		); err != nil {
 			return nil, err
 		}
@@ -525,6 +584,39 @@ func (q *Queries) ListPendingMatchItems(ctx context.Context, libraryID int64) ([
 	for rows.Next() {
 		var i ListPendingMatchItemsRow
 		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSystemSettingsByPrefix = `-- name: ListSystemSettingsByPrefix :many
+SELECT key, value FROM settings WHERE key LIKE ?1 ORDER BY key
+`
+
+type ListSystemSettingsByPrefixRow struct {
+	Key   string
+	Value string
+}
+
+// Every settings row whose key starts with the prefix (metadata.*), for metadata.Settings.
+func (q *Queries) ListSystemSettingsByPrefix(ctx context.Context, prefix string) ([]ListSystemSettingsByPrefixRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSystemSettingsByPrefix, prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSystemSettingsByPrefixRow{}
+	for rows.Next() {
+		var i ListSystemSettingsByPrefixRow
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1033,10 +1125,11 @@ func (q *Queries) UpsertItemFieldSource(ctx context.Context, arg UpsertItemField
 }
 
 const upsertItemText = `-- name: UpsertItemText :exec
-INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, rank)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key,
+    rank = excluded.rank
 `
 
 type UpsertItemTextParams struct {
@@ -1046,9 +1139,11 @@ type UpsertItemTextParams struct {
 	Overview sql.NullString
 	Tagline  sql.NullString
 	SortKey  sql.NullString
+	Rank     int64
 }
 
-// sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016).
+// sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016). rank is
+// the position of lang in the effective metadata language list of the title (ADR 0018, 0 = first).
 func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) error {
 	_, err := q.db.ExecContext(ctx, upsertItemText,
 		arg.ItemID,
@@ -1057,6 +1152,7 @@ func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) 
 		arg.Overview,
 		arg.Tagline,
 		arg.SortKey,
+		arg.Rank,
 	)
 	return err
 }

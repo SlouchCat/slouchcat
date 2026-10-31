@@ -472,7 +472,7 @@ func (q *Queries) ListItemProgress(ctx context.Context, arg ListItemProgressPara
 }
 
 const listItemTexts = `-- name: ListItemTexts :many
-SELECT t.item_id, t.lang, t.title, t.overview, t.tagline, t.sort_key FROM item_texts AS t
+SELECT t.item_id, t.lang, t.title, t.overview, t.tagline, t.sort_key, t.rank FROM item_texts AS t
 JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
 WHERE t.item_id IN (/*SLICE:item_ids*/?)
 `
@@ -509,6 +509,7 @@ func (q *Queries) ListItemTexts(ctx context.Context, arg ListItemTextsParams) ([
 			&i.Overview,
 			&i.Tagline,
 			&i.SortKey,
+			&i.Rank,
 		); err != nil {
 			return nil, err
 		}

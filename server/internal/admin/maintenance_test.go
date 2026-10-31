@@ -76,6 +76,10 @@ func (m *fakeMetadata) AddManualTrailer(ctx context.Context, itemID, lang, youtu
 	return model.Trailer{ID: id, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
 
+func (m *fakeMetadata) ProviderLanguages(context.Context) (map[string][]string, error) {
+	return map[string][]string{"tmdb": {"de", "en"}, "tvdb": {"de", "en"}, "anilist": {"en"}}, nil
+}
+
 func (m *fakeMetadata) DeleteTrailer(ctx context.Context, itemID string, trailerID int64) error {
 	res, err := m.db.ExecContext(ctx, `DELETE FROM trailers WHERE id = ? AND item_id = ?`, trailerID, itemID)
 	if err != nil {

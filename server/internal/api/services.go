@@ -44,6 +44,8 @@ type ProfileService interface {
 	ListProfiles(ctx context.Context, session model.Session) ([]model.Profile, error)
 	CreateProfile(ctx context.Context, session model.Session, in model.ProfileInput) (model.Profile, error)
 	UpdateProfile(ctx context.Context, session model.Session, id int64, in model.ProfileInput) (model.Profile, error)
+	// AvailableMetadataLanguages are the metadata languages a profile may choose (ADR 0018).
+	AvailableMetadataLanguages(ctx context.Context) ([]string, error)
 	// DeleteProfile deletes a non-primary profile; end runs after the checks, before the delete.
 	DeleteProfile(ctx context.Context, session model.Session, id int64, end func(ctx context.Context, profileID int64) error) error
 	SetProfilePIN(ctx context.Context, session model.Session, id int64, pin string) error

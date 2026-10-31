@@ -1360,3 +1360,69 @@ func TestContractAccountDeletionOrder(t *testing.T) {
 		t.Error("the stream that slipped in between survived the revocation")
 	}
 }
+
+// A profile may read its metadata in a third language of the server's list (concept 10, ADR 0018):
+// getSession names the languages, updateProfile takes one of them (422 otherwise) or "" to read
+// the interface language again, and the texts follow from the next request.
+func TestContractMetadataLanguage(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	var info struct {
+		Available []string `json:"availableMetadataLanguages"`
+		Profile   struct {
+			MetadataLanguage *string `json:"metadataLanguage"`
+		} `json:"profile"`
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/auth/session", "p12", "", nil), &info)
+	if !slices.Equal(info.Available, []string{"de", "en"}) || info.Profile.MetadataLanguage != nil {
+		t.Fatalf("session before any setting: %+v", info)
+	}
+	// A language outside the list is refused.
+	rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.P12.ID), "p18", `{"metadataLanguage":"es"}`, nil)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "metadataLanguage") {
+		t.Fatalf("metadataLanguage outside the list: %d %s", rec.Code, rec.Body.String())
+	}
+	// The administrator adds Spanish to the server's list; a Spanish text exists for one film.
+	if _, err := f.DB.Write.Exec(`INSERT INTO settings (key, value, updated_at) VALUES ('metadata.text_langs', '["de","en","es"]', 0)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.DB.Write.Exec(`INSERT INTO item_texts (item_id, lang, title, rank, sort_key) VALUES (?, 'es', 'Película 12', 2, 'pelicula 12')`, f.Rated(12).ID); err != nil {
+		t.Fatal(err)
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/auth/session", "p12", "", nil), &info)
+	if !slices.Equal(info.Available, []string{"de", "en", "es"}) {
+		t.Fatalf("available after the setting: %v", info.Available)
+	}
+	rec = send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.P12.ID), "p18", `{"metadataLanguage":"es"}`, nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"metadataLanguage":"es"`) {
+		t.Fatalf("set metadataLanguage: %d %s", rec.Code, rec.Body.String())
+	}
+	title := func(id string) string {
+		t.Helper()
+		var d struct {
+			Title    string `json:"title"`
+			Overview string `json:"overview"`
+		}
+		decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+id, "p12", "", nil), &d)
+		return d.Title + " / " + d.Overview
+	}
+	if got := title(f.Rated(12).ID); got != "Película 12 / Handlung 12" {
+		t.Errorf("P12 in es: %q, want the Spanish title and the German overview (field-wise)", got)
+	}
+	if got := title(f.Rated(6).ID); got != "Film 06 / Handlung 06" {
+		t.Errorf("P12 in es, title without es text: %q, want German", got)
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/auth/session", "p12", "", nil), &info)
+	if info.Profile.MetadataLanguage == nil || *info.Profile.MetadataLanguage != "es" {
+		t.Errorf("session profile metadataLanguage = %v, want es", info.Profile.MetadataLanguage)
+	}
+	// "" reads the interface language again.
+	rec = send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.P12.ID), "p18", `{"metadataLanguage":""}`, nil)
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), `"metadataLanguage"`) {
+		t.Fatalf("reset metadataLanguage: %d %s", rec.Code, rec.Body.String())
+	}
+	if got := title(f.Rated(12).ID); got != "Film 12 / Handlung 12" {
+		t.Errorf("P12 after the reset: %q, want German", got)
+	}
+}

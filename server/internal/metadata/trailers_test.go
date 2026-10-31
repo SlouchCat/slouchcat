@@ -434,10 +434,10 @@ func TestNoSecretsInLogs(t *testing.T) {
 	var errs []error
 	for _, base := range []string{closedURL, broken.URL} {
 		tmdb := &tmdbProvider{client: NewClient(base, base, &http.Client{Timeout: time.Second}), keys: keys}
-		_, err := tmdb.Movie(ctx, "550", textLangs)
+		_, err := tmdb.Movie(ctx, "550", []string{"de", "en"})
 		errs = append(errs, err)
 		tvdb := newTVDBProvider(base, base, &http.Client{Timeout: time.Second}, keys)
-		_, err = tvdb.Series(ctx, "424242", textLangs)
+		_, err = tvdb.Series(ctx, "424242", []string{"de", "en"})
 		errs = append(errs, err)
 		yt := newYouTubeTrailers(base, &http.Client{Timeout: time.Second}, newTestQuota(), keys)
 		_, err = yt.FindTrailers(ctx, TrailerQuery{Titles: map[string]string{"en": "Searched Film"}, Langs: []string{"en"}})

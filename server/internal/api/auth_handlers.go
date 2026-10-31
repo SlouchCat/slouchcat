@@ -207,6 +207,15 @@ func (s *server) GetSession(ctx context.Context, _ gen.GetSessionRequestObject) 
 	}
 	info := toSessionInfo(session)
 	info.UpdateAvailable = s.updateNotice(ctx, session)
+	if s.opts.Profiles != nil {
+		// The metadata languages a profile may choose (ADR 0018), for the profile page of every
+		// account (the page is an account operation, so the list rides on the session).
+		langs, err := s.opts.Profiles.AvailableMetadataLanguages(ctx)
+		if err != nil {
+			return s.problem(ctx, err), nil
+		}
+		info.AvailableMetadataLanguages = &langs
+	}
 	return gen.GetSession200JSONResponse(info), nil
 }
 

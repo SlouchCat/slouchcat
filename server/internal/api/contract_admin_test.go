@@ -26,6 +26,10 @@ func (contractMetadata) Refresh(context.Context, string) error                  
 func (contractMetadata) AddManualTrailer(_ context.Context, _, lang, youtubeID string) (model.Trailer, error) {
 	return model.Trailer{ID: 1, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
+
+func (contractMetadata) ProviderLanguages(context.Context) (map[string][]string, error) {
+	return map[string][]string{"tmdb": {"de", "en"}, "tvdb": {"de", "en"}, "anilist": {"en"}}, nil
+}
 func (contractMetadata) DeleteTrailer(context.Context, string, int64) error { return model.ErrNotFound }
 func (contractMetadata) ListTrailersSystem(context.Context, string) ([]model.Trailer, error) {
 	return []model.Trailer{{ID: 7, Lang: "de", YouTubeID: "DeTrailer06", Source: "youtube"}}, nil

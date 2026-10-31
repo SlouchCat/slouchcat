@@ -167,17 +167,20 @@ const (
 // Profile is a viewing profile; its MaxRating and library rights drive the visibility layer
 // (capped by the account's own limits in the view visible_items).
 type Profile struct {
-	ID            int64
-	AccountID     int64
-	Name          string
-	MaxRating     int    // 0, 6, 12, 16, 18
-	Language      string // de, en
-	AllLibraries  bool
-	LibraryIDs    []int64 // libraries of a profile with AllLibraries false
-	Accent        string
-	HasPin        bool
-	HasOfflinePin bool // a separate offline PIN is set (AN-19)
-	IsPrimary     bool // the account's primary profile: manages profiles, cannot be deleted
+	ID        int64
+	AccountID int64
+	Name      string
+	MaxRating int    // 0, 6, 12, 16, 18
+	Language  string // de, en: the interface language
+	// MetadataLanguage is the language of the metadata the profile reads (ADR 0018), one of the
+	// server's available metadata languages; empty = like Language.
+	MetadataLanguage string
+	AllLibraries     bool
+	LibraryIDs       []int64 // libraries of a profile with AllLibraries false
+	Accent           string
+	HasPin           bool
+	HasOfflinePin    bool // a separate offline PIN is set (AN-19)
+	IsPrimary        bool // the account's primary profile: manages profiles, cannot be deleted
 	// Limits are the profile's own W-8/K-5 limits (zero = none); Effective applies the account's caps.
 	Limits    PlaybackLimits
 	Effective PlaybackLimits
@@ -239,14 +242,16 @@ func (s Session) IsPrimary() bool { return s.HasProfile() && s.Profile.IsPrimary
 // ProfileInput carries the fields of createProfile and updateProfile; nil fields keep their value
 // (update) or take the default (create).
 type ProfileInput struct {
-	Name         *string
-	MaxRating    *int
-	Language     *string
-	Accent       *string
-	AllLibraries *bool
-	LibraryIDs   *[]int64
-	PIN          *string         // create only
-	Limits       *PlaybackLimits // replaces all limits at once; nil keeps them
+	Name      *string
+	MaxRating *int
+	Language  *string
+	// MetadataLanguage is the metadata language (ADR 0018); "" resets it to the interface language.
+	MetadataLanguage *string
+	Accent           *string
+	AllLibraries     *bool
+	LibraryIDs       *[]int64
+	PIN              *string         // create only
+	Limits           *PlaybackLimits // replaces all limits at once; nil keeps them
 }
 
 // AccountAccessUpdate changes what an account may see and how much it may stream; nil fields keep

@@ -35,7 +35,7 @@ WITH watched AS (
     ORDER BY watched_ms DESC, item_id
     LIMIT @limit_count
 )
-SELECT w.item_id, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year,
+SELECT w.item_id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year,
        CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays
 FROM watched AS w
 JOIN items AS i ON i.id = w.item_id

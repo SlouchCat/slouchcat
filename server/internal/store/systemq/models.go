@@ -313,6 +313,7 @@ type ItemText struct {
 	Overview sql.NullString
 	Tagline  sql.NullString
 	SortKey  sql.NullString
+	Rank     int64
 }
 
 type Job struct {
@@ -494,6 +495,7 @@ type Profile struct {
 	WatchLimitMinutes sql.NullInt64
 	PinSalt           sql.NullString
 	OfflinePin        sql.NullString
+	MetadataLanguage  sql.NullString
 }
 
 type ProfileLibrary struct {
