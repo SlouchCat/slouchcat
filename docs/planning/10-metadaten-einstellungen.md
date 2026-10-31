@@ -1,15 +1,16 @@
 # Konzept: Metadaten-Einstellungen (Sprachen, Bilder, Freigabeland, Bildwahl je Titel)
 
-- **Status: Fassung 2 zur Freigabe (31. Oktober 2026), Umsetzung nicht gestartet.** Dieses Papier
+- **Status: Fragen beantwortet (31. Oktober 2026), Umsetzung nicht gestartet.** Dieses Papier
   ist **Teil B der Idee 01** (`docs/ideas/01-metadaten-einstellungen.md`): alles, was Konzept 07
   dort zurückgelassen hat. Marco hat am 29. Oktober 2026 nach einem Jellyfin-Bild («Bilder
   abrufen») gefragt, welche Einstellungen je Metadatenquelle Sinn ergeben, und am 31. Oktober das
   Konzept beauftragt. Der OMC-Kritiker hat Fassung 1 geprüft (1 Blocker, 19 Major, 31 Minor;
-  Abschnitt 13); Fassung 2 arbeitet alle ein. Ein klickbarer Prototyp liegt unter
-  `docs/planning/mockups/10-metadaten-prototyp.html` (Abschnitt 7.6). **Schritt 0 (Frage 16 im
-  Entscheidungsprotokoll, ADR 0018) und alles Weitere beginnen erst auf Marcos ausdrückliches
-  Wort** nach den Antworten in Abschnitt 11.
-- **Datum: 31. Oktober 2026, Fassung 2 vom selben Tag**
+  Abschnitt 13); Fassung 2 arbeitet alle ein. Marco hat am 31. Oktober im Interview **F-1 bis
+  F-10 und O-1 bis O-4 beantwortet, alle wie vorgeschlagen** (Abschnitt 11). Ein klickbarer
+  Prototyp liegt unter `docs/planning/mockups/10-metadaten-prototyp.html` (Abschnitt 7.6).
+  **Schritt 0 (Frage 16 im Entscheidungsprotokoll, ADR 0018) und alles Weitere beginnen erst
+  auf Marcos ausdrückliches Wort.**
+- **Datum: 31. Oktober 2026, Fassung 2 mit Antworten vom selben Tag**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`525c125`** («Merge pull request
   #56», Release 1.5.0), Vertragsfassung **1.5.0**, letzte Migration **00027**, letzte ADR
   **0017**, letzte Frage **15**. Konzept 07 (Bibliotheken, ADR 0015, `metadata.fill`,
@@ -116,8 +117,8 @@ Je Bibliothek gibt es Name, Familie, Ordner (Inhaltsart, Metadatenquellen) und d
 laut dem Scan in `CURRENT_STATUS.md`; gezählt am 31. Oktober 2026 unter
 `/mnt/nerdnas/medien/Filme`) 122 `poster.jpg`, 122 `fanart.jpg`, 119 `logo.png`,
 119 `landscape.jpg`, 88 `folder.jpg`, 85 `backdrop.jpg`, dazu `movie.nfo` in den meisten
-Ordnern. Das sind Embys Exporte. **Ob Marco diese Bilder von Hand gewählt hat oder Emby sie
-automatisch abgelegt hat, weiss dieses Papier nicht** (F-5 fragt).
+Ordnern. Das sind Embys Exporte, und **Marco hat diese Bilder in Emby selbst gewählt** (F-5,
+31. Oktober 2026); für diese Titel ist eine Datei neben dem Film also seine Wahl.
 
 ### 1.2 Was Marco will (29. und 31. Oktober 2026)
 
@@ -151,7 +152,7 @@ global.
 |---|---|---|
 | Banner, Disc, Clearart «nur holen, cachen, per API liefern» | **nicht geholt** | Clients, die sie bräuchten, sind Non-Goal (Regel 11); ohne Client ist das Cachefüllung. F-3 |
 | «Logo und Thumb mit Platz im Web-Design» | Logo ja; **Thumb nicht** | Thumb für Filme und Serien gibt es nur von Fanart.tv; «Weiterschauen» nutzt heute den beschnittenen Hintergrund, das Folgen-Standbild liegt schon als `backdrop` da. F-3 |
-| Zwei Anbieterlisten (`text_providers`, `image_providers`) je Server und Bibliothek | **eine** Liste je Ordner (07), für Bilder fest ergänzt um `local` davor und `fanart` danach | Zwei Listen je Ordner wären die Unübersichtlichkeit, die Marco am 29. Oktober nicht wollte. E-4; F-5 fragt die lokale Stelle |
+| Zwei Anbieterlisten (`text_providers`, `image_providers`) je Server und Bibliothek | **eine** Liste je Ordner (07), für Bilder fest ergänzt um `local` davor und `fanart` danach | Zwei Listen je Ordner wären die Unübersichtlichkeit, die Marco am 29. Oktober nicht wollte. E-4; F-5 bestätigt die lokale Stelle |
 | Änderung «startet sofort einen Hintergrundjob» | Knopf «Jetzt anwenden» mit Zahl der Titel | Ein Lauf lädt Bilder über das NAS nach und wechselt sichtbar Poster; das soll keine Nebenwirkung eines Speicherns sein. F-8 |
 
 Was Idee 01 sonst noch für Teil B vorsah und dieses Papier **nicht** baut, bleibt dort als
@@ -184,7 +185,7 @@ mit Verlauf auf der Jobseite.
 | E-1 | **Poster und Hintergrund bleiben Pflicht**, kein Schalter | Ohne sie gibt es keine Kacheln (`PosterCard`), keine Bühne, keine Akzentfarbe |
 | E-2 | **Art, Banner, Disc, Clearart werden nicht geholt** | Regel 11, siehe 1.3; Marco zeichnet in F-3 gegen |
 | E-3 | **Ausgelieferte Grössen und Formate bleiben Code** (`imageWidths`, `imageFormats`) | Sie hängen an den Breakpoints der Oberfläche und am Vertrag (`ImageRef`), nicht am Geschmack |
-| E-4 | **Keine zweite Anbieterliste «für Bilder».** Bilder kommen aus **`local` → Ordnerliste (TMDB, TVDB, AniList) → `fanart`**; `local` und `fanart` stehen nie in der Ordnerliste, sondern sind für Bildfelder fest davor und dahinter gesetzt (6.2) | Abweichung von Idee 01 §4/§6, Grund in 1.3. `local` zuerst, weil eine Datei neben dem Film eine bewusste Wahl ist (F-5 fragt, ob das für Marcos Emby-Dateien gilt); Fanart.tv zuletzt, weil es nur Bilder liefert und keine Ids kennt |
+| E-4 | **Keine zweite Anbieterliste «für Bilder».** Bilder kommen aus **`local` → Ordnerliste (TMDB, TVDB, AniList) → `fanart`**; `local` und `fanart` stehen nie in der Ordnerliste, sondern sind für Bildfelder fest davor und dahinter gesetzt (6.2) | Abweichung von Idee 01 §4/§6, Grund in 1.3. `local` zuerst, weil eine Datei neben dem Film eine bewusste Wahl ist (F-5: für Marcos Emby-Dateien gilt das, er hat sie selbst gewählt); Fanart.tv zuletzt, weil es nur Bilder liefert und keine Ids kennt |
 | E-5 | **Mehrere Hintergründe je Titel gibt es nicht** (Jellyfins «maximale Anzahl») | Spotlight und Detailseite zeigen genau einen; mehrere wären Cache ohne Nutzen. Als Idee vermerkt, falls die Bühne je wechseln soll |
 | E-6 | **Trailer-Sprachen folgen den Metadaten-Sprachen** (primäre Untersprache, `pt-BR` → `pt`, weil `trailers.lang` 2 bis 3 Zeichen erlaubt) | Eine Liste; die Trailer-Kette aus ADR 0006 bleibt |
 | E-7 | **Intervalle gehören nach 09**, nicht hierher | `job_schedules` ist die eine Stelle |
@@ -867,24 +868,28 @@ die dieses Papier weglässt.
 
 ## 11. Fragen an Marco
 
-### 11.1 Entscheide vor Schritt 0
+**Beantwortet am 31. Oktober 2026** in einem Interview mit drei Runden (F-1 bis F-10, O-1 bis
+O-4). Marco hat **jede Frage wie vorgeschlagen** entschieden; die Spalte «Vorschlag» ist damit
+der Entscheid. Frage 16 im Entscheidungsprotokoll übernimmt diese Tabelle in Schritt 0.
 
-| Nr. | Frage | Vorschlag |
+### 11.1 Entscheide vor Schritt 0 (entschieden)
+
+| Nr. | Frage | Vorschlag = Entscheid |
 |---|---|---|
 | F-1 | **Sprachen:** Dritte und weitere Sprachen nur für Metadaten (Titel, Beschreibungen, Poster), Oberfläche bleibt Deutsch/Englisch? Oder soll eine neue Sprache auch ein Sprachpaket der Oberfläche bekommen (je Sprache rund 2'300 Texte in `de.json`, Übersetzung und Pflege bei jedem Release)? | **Nur Metadaten.** Ein Profil hat dann zwei Felder: Oberfläche (de/en) und Beschreibungen (Liste). Oberflächensprachen sind ein eigenes Vorhaben |
 | F-2 | **Logo** als neue Bildart, gezeigt auf Detailseite und Spotlight statt des Text-Titels (am 29. Oktober so angenommen, hier zur Gegenzeichnung)? | **Ja.** Grösster sichtbarer Gewinn; TMDB liefert Logos ohne zweite Anfrage, lokale `logo.png` sind schon da |
 | F-3 | **Banner, Disc, Clearart und Thumb streichen?** Im Interview vom 20. Oktober hiess es «Logo und Thumb mit Platz im Web-Design; Banner, Disc, Clearart nur holen». Thumb (Querformat für «Weiterschauen» und Folgenlisten) gäbe es für Filme und Serien nur von Fanart.tv; die Folgen haben ihr Standbild schon | **Streichen, alle vier** (E-2, Regel 11). «Weiterschauen» nutzt weiter den beschnittenen Hintergrund. Sie bleiben als Rest bei Idee 01 |
 | F-4 | **Fanart.tv** als zusätzliche Bildquelle (Logos und Poster in hoher Güte, braucht einen eigenen Schlüssel, ein weiterer Aussendienst, Schritt 6)? Jetzt, später, nie? | **Jetzt, aber optional** (Schalter aus, ohne Schlüssel nie gefragt): TMDB-Logos sind bei älteren und kleineren Titeln lückenhaft, Fanart.tv ist dafür die Standardquelle in Emby und Jellyfin. Wenn du keinen Schlüssel willst: später, Schritt 6 entfällt, nichts anderes ändert sich |
-| F-5 | **Lokale Bilddateien** (`poster.jpg`, `fanart.jpg`, `logo.png` neben dem Film, wie Emby sie schreibt) als Quelle **vor** allen Anbietern? Wichtig: **Hast du diese Bilder in Emby selbst gewählt, oder hat Emby sie automatisch abgelegt?** Emby schreibt auch die automatische Wahl in den Medienordner. Lokal gewinnt immer (ausser zu klein); bei automatischen Emby-Bildern wären das oft englische Poster | **Ja, wenn du sie gewählt hast.** Sonst: Schalter «Lokale Dateien» (4.1) auf aus lassen, bis du die Ordner bereinigt hast; die Dateien bleiben als Kandidaten in der Bildwahl sichtbar |
+| F-5 | **Lokale Bilddateien** (`poster.jpg`, `fanart.jpg`, `logo.png` neben dem Film, wie Emby sie schreibt) als Quelle **vor** allen Anbietern? Wichtig: **Hast du diese Bilder in Emby selbst gewählt, oder hat Emby sie automatisch abgelegt?** Emby schreibt auch die automatische Wahl in den Medienordner | **Ja, lokal zuerst; Marco hat die Bilder selbst gewählt.** Schalter «Lokale Dateien» (4.1) ist an; zu kleine Dateien bleiben Kandidaten in der Bildwahl (O-1) |
 | F-6 | **Abweichung je Bibliothek** nur für Sprachen und Bilder (Kette, Bildarten), alles andere global (am 29. Oktober so angenommen)? | **Ja.** Mindestbreite, Bewertung, Land und Quellen-Schalter sind Servergeschmack; mehr Felder je Bibliothek machen die Seite zu dem, was du nicht willst |
 | F-7 | **Freigabeland:** Vorgabe bleibt DE (heutiges Verhalten) oder wird CH, weil der Haushalt in der Schweiz steht? Wirkung (6.6): ein **neuer** Titel bekommt die Stufe des zuerst gelesenen Landes, mit CH also «12 (CH)», wo DE 16 sagt, und ein Kinderprofil mit Grenze 12 sieht ihn; **gespeicherte** Stufen werden nie gesenkt. Alternativ eine Option «strengste Stufe aus gewähltem Land und DE» | **DE bleibt Vorgabe**, du stellst auf CH um, wenn du die CH-Stufen willst; die Option «strengste aus beiden» **nicht** bauen (eine Einstellung mehr, deren Wirkung niemand ohne Tabelle versteht) |
 | F-8 | **Anwenden:** Nach dem Speichern selbst «Jetzt anwenden» drücken (mit Zahl der Titel) oder sofort automatisch (Interview vom 20. Oktober)? | **Selbst drücken.** Nicht wegen der Dauer (Texte: Minuten), sondern weil der Lauf Bilder über das NAS nachlädt und sichtbar Poster wechselt; das soll keine Nebenwirkung eines Speicherns sein |
 | F-9 | **Sprachliste einer Bibliothek ohne Deutsch** erlaubt (zum Beispiel Anime `["ja","en"]`)? Jede Liste muss `de` oder `en` enthalten (E-9), damit der Rückfall lesbar bleibt; ein de-Profil sähe bei Anime dann Englisch, wo es kein Deutsch gibt | **Erlaubt.** Die Serverliste muss `de` enthalten; eine Bibliothek darf davon abweichen, solange `de` oder `en` drin ist |
 | F-10 | **Vorgabekette für Poster** `["de","en",""]` (deutsche Poster zuerst) oder `["en","de",""]` (wie heute faktisch)? Mit der Vorgabe «de» wechseln nach dem ersten «Jetzt anwenden» viele Poster sichtbar von Englisch auf Deutsch (12.2); neue Titel bekommen sofort deutsche Poster | **`["de","en",""]`.** Das ist der Zweck; die Bildwahl (Schritt 5) kommt vor dem grossen Lauf, damit jeder Einzelfall zurückgeht |
 
-### 11.2 Offene Punkte, die der Bau klärt (Vorschlag steht, Widerspruch willkommen)
+### 11.2 Punkte, die der Bau klärt (Vorschlag von Marco bestätigt)
 
-| Nr. | Punkt | Vorschlag |
+| Nr. | Punkt | Vorschlag = Entscheid |
 |---|---|---|
 | O-1 | Lokale Datei kleiner als die Mindestbreite: trotzdem nehmen? | Nein, dann zählt die Kette; die Datei bleibt als Kandidat in der Bildwahl (Prototyp und Papier sagen dasselbe) |
 | O-2 | Logo ohne Logo-Datei: typografischer Titel in Logo-Optik oder normaler Text-Titel? Und: Logo in der vorgemalten Hülle von 08 (P-10)? | Normaler Text-Titel (kein Pseudo-Logo); Hülle nur, wenn die 08-Messung hält |
@@ -938,8 +943,7 @@ Originals behalten.
 
 Die Zahl der Serien und Staffeln auf dem NAS (nur «KinderSerien» ist aus 09 bekannt), die
 Trefferquote von TMDB-Logos für Marcos Titel, die Grösse der Logos in Byte, die Latenz einer
-TMDB-Anfrage vom CT aus, ob Marcos Emby-Bilder gewählt oder automatisch sind. Schritt 7 misst,
-F-5 fragt.
+TMDB-Anfrage vom CT aus. Schritt 7 misst.
 
 ---
 
