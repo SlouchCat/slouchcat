@@ -519,7 +519,8 @@
       "hint": "Notify me about new episodes"
     },
     "collections": "Collections",
-    "addToPicks": "Add to Cat's picks"
+    "addToPicks": "Add to Cat's picks",
+    "logoAlt": "{{title}}"
   },
   "rating": {
     "fsk": "FSK {{age}}"
@@ -798,7 +799,14 @@
       "rootCount_other": "{{count}} folders",
       "noFolder": "No folder: nothing is scanned until you add one under “Folders”.",
       "rootSummary_one": "{{count}} {{content}}",
-      "rootSummary_other": "{{count}} {{content}}"
+      "rootSummary_other": "{{count}} {{content}}",
+      "metadata": {
+        "like": "Metadata: like the server",
+        "texts": "Metadata: languages deviate",
+        "images": "Metadata: images deviate",
+        "both": "Metadata: languages and images deviate",
+        "link": "Metadata of the library"
+      }
     },
     "access": {
       "notAllowed": {
@@ -1513,6 +1521,10 @@
       "backup": {
         "title": "Backup",
         "description": "Back up and restore the data."
+      },
+      "metadata": {
+        "title": "Metadata",
+        "description": "Languages, image kinds, image language, rating country."
       }
     },
     "home": {
@@ -2365,6 +2377,138 @@
           "trigger": "Schedule daily: finished runs older than 30 days"
         }
       }
+    },
+    "metadata": {
+      "title": "Metadata",
+      "intro": "Which languages the metadata sources deliver, which images in which language and quality, and which country decides the age rating first. The default applies to every library; a library may deviate for languages and images.",
+      "links": {
+        "roots": "The order of the sources is set per folder under Libraries.",
+        "jobs": "The schedules are under Background jobs.",
+        "keys": "Keys under Integrations"
+      },
+      "scope": {
+        "label": "Applies to",
+        "server": "Default",
+        "serverHint": "Applies to every library without a deviation of its own.",
+        "libraryHint": "{{name}} uses the default. Switch «deviates» on to change languages or images for this library only.",
+        "deviates": "deviates",
+        "textsDeviate": "Languages deviate",
+        "imagesDeviate": "Images deviate",
+        "likeServer": "like the server"
+      },
+      "languages": {
+        "title": "Languages",
+        "intro": "Every language here is fetched for every title; profiles pick the language of their descriptions from it. The interface stays German or English. Every further language costs one request per title and season.",
+        "list": "Metadata languages",
+        "add": "Add a language",
+        "addLabel": "Choose a language",
+        "addButton": "Add",
+        "moveUp": "Move {{name}} forward",
+        "moveDown": "Move {{name}} back",
+        "remove": "Remove {{name}}",
+        "position": "{{index}}.",
+        "fallback": "Order = fallback: when a text is missing in the profile's language, Slouchcat shows the first one of the list, then the file name. The default needs German; a library needs German or English.",
+        "unknownAt": "{{provider}} does not know: {{languages}}",
+        "youtube": "{{count}} languages: up to {{titles}} titles a day with the YouTube trailer search (quota 10,000)."
+      },
+      "images": {
+        "title": "Images",
+        "intro": "Which image kinds are fetched and in which language. An image file next to the film (poster.jpg, fanart.jpg, logo.png) wins when it is wide enough; then the folder's sources, Fanart.tv last.",
+        "kinds": "Image kinds",
+        "kind": {
+          "poster": "Poster",
+          "backdrop": "Backdrop",
+          "logo": "Logo",
+          "season_poster": "Season poster",
+          "episode_still": "Episode still"
+        },
+        "kindHint": {
+          "poster": "Films, series, audiobooks, podcasts",
+          "backdrop": "Films, series",
+          "logo": "Title logo on the detail page and the spotlight instead of the text title",
+          "season_poster": "Else the series poster",
+          "episode_still": "A still per episode; about 12 GB of cache for 40,000 episodes"
+        },
+        "always": "always",
+        "notBuilt": "Art, banner and disc are left out on purpose: no page shows them.",
+        "chains": "Image language",
+        "chainsIntro": "The order an image is chosen in. «No text» is an image without lettering. Within a language the best-voted image wins.",
+        "noText": "No text",
+        "chainOf": "Image language {{kind}}"
+      },
+      "quality": {
+        "title": "Quality",
+        "intro": "Applies to every library. The delivered sizes (poster 200/400/800, backdrop 780/1280/1920, logo 400/800) are fixed.",
+        "minPoster": "Minimum poster width",
+        "minBackdrop": "Minimum backdrop width",
+        "any": "any",
+        "px": "{{width}} px",
+        "byVote": "Choose by vote",
+        "byVoteHint": "The best-voted image of the language instead of the first hit.",
+        "fallback": "Without an image of the minimum width Slouchcat takes the best smaller one; a kind never stays empty only because the bar is too high."
+      },
+      "sources": {
+        "title": "Sources",
+        "intro": "The order of the metadata sources is set per folder under Libraries; keys under Integrations. Here only what a source can do differently.",
+        "tmdbAdult": "TMDB: adult content in the search",
+        "tmdbAdultHint": "Otherwise it never appears in the match.",
+        "local": "Local files as a source",
+        "localHint": "poster.jpg, fanart.jpg, logo.png, seasonNN-poster.jpg next to the title; before every provider when wide enough.",
+        "localCount_one": "{{count}} title with image files",
+        "localCount_other": "{{count}} titles with image files",
+        "localSmall": "Files too small or switched off stay candidates in the image choice per title.",
+        "fanart": "Fanart.tv as an image source",
+        "fanartHint": "Logos and posters in high quality, after the folder's sources. Needs a key under Integrations; without a key it is never asked."
+      },
+      "rating": {
+        "title": "Age rating",
+        "intro": "Which country is read first; then DE, AT, CH, GB, US as before. The steps stay FSK 0/6/12/16/18.",
+        "country": "Country",
+        "countries": {
+          "DE": "Germany (DE)",
+          "AT": "Austria (AT)",
+          "CH": "Switzerland (CH)",
+          "GB": "United Kingdom (GB)",
+          "US": "USA (US)"
+        },
+        "hint": "A new title gets the step of the country read first. A stored step is never lowered, not even by another country; lowering is done per title in maintenance."
+      },
+      "apply": {
+        "title": "Apply to existing titles",
+        "intro": "New titles use the settings at once. Existing titles stay until you start the run; it appears under Background jobs with progress, pause and cancel.",
+        "what": "What",
+        "both": "Texts and images",
+        "texts": "Texts only",
+        "images": "Images only",
+        "where": "Where",
+        "all": "Every library",
+        "titles_one": "{{count}} title",
+        "titles_other": "{{count}} titles",
+        "run": "Apply now",
+        "running": "Queuing …",
+        "queued": "Run {{id}} queued: {{count}} titles. Progress under Background jobs.",
+        "waiting": "Still waiting: {{matches}} matches, {{images}} images.",
+        "jobsLink": "To the background jobs",
+        "lastRun": "Last run: {{when}}, {{state}}.",
+        "noRun": "No run yet."
+      },
+      "save": {
+        "dirty": "Unsaved changes",
+        "clean": "Saved",
+        "save": "Save",
+        "saving": "Saving …",
+        "discard": "Discard",
+        "saved_one": "Saved. {{count}} title affected – apply now?",
+        "saved_other": "Saved. {{count}} titles affected – apply now?",
+        "savedLibrary": "Saved for {{name}}."
+      },
+      "errors": {
+        "langs_empty": "At least one language.",
+        "lang_unknown": "Unknown language code.",
+        "ui_lang_required": "The default needs German; a library German or English.",
+        "chain_duplicate": "Every language once.",
+        "country_unknown": "Unknown country."
+      }
     }
   },
   "language": {
@@ -2462,7 +2606,10 @@
         "create": "Add profile",
         "creating": "Adding …",
         "save": "Save",
-        "saving": "Saving …"
+        "saving": "Saving …",
+        "metadataLanguage": "Language of descriptions",
+        "metadataLanguageHint": "Titles, descriptions and genres; the interface follows the language above.",
+        "likeUi": "Like the interface"
       },
       "ratingAboveAccount": "FSK {{age}} · Account at most FSK {{max}}",
       "report": {

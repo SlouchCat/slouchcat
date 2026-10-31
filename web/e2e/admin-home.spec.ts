@@ -27,6 +27,7 @@ const NAV_PAGES = [
   ['Bibliotheken', '/admin/libraries'],
   ['Podcasts', '/admin/podcasts'],
   ['Pflege', '/admin/maintenance'],
+  ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],

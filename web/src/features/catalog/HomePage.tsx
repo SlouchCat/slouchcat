@@ -199,6 +199,7 @@ export function HomePage() {
     row.items.map((item) => ({
       id: item.id,
       title: item.title,
+      logoUrl: imageUrl(item.images.logo),
       backdropUrl: imageUrl(item.images.backdrop),
       backdropSmallUrl: imageUrl(item.images.backdropSmall),
       posterUrl: imageUrl(item.images.poster),

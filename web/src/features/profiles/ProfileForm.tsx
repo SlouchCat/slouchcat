@@ -47,6 +47,14 @@ export function ProfileForm({ profile, profiles, session, libraries, onClose }: 
   // allowed, and answers `above_account_limit` for a value over the account's ceiling).
   const [rating, setRating] = useState(String(profile?.maxRating ?? accountMax));
   const [language, setLanguage] = useState<Language>(profile?.language ?? currentLanguage());
+  const [metadataLanguage, setMetadataLanguage] = useState(profile?.metadataLanguage ?? '');
+  // The metadata languages a profile may choose (ADR 0018): the field shows only when the server
+  // offers more than the interface languages, or the profile has a value to reset.
+  const available = session.availableMetadataLanguages ?? ['de', 'en'];
+  const extraLanguages = available.filter((code) => code !== 'de' && code !== 'en');
+  const showMetadataLanguage = extraLanguages.length > 0 || metadataLanguage !== '';
+  const languageName = (code: string) =>
+    new Intl.DisplayNames([language], { type: 'language' }).of(code) ?? code;
   const [accent, setAccent] = useState<string>(profile?.accent ?? firstFreeAccent);
   const [selection, setSelection] = useState<LibrarySelection>({
     all: profile?.allLibraries ?? true,
@@ -80,6 +88,7 @@ export function ProfileForm({ profile, profiles, session, libraries, onClose }: 
       name: formText(data, 'name'),
       maxRating: ratingOf(rating),
       language,
+      ...(showMetadataLanguage || profile?.metadataLanguage ? { metadataLanguage } : {}),
       ...(isAccentName(accent) ? { accent } : {}),
       allLibraries: selection.all,
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
@@ -120,6 +129,24 @@ export function ProfileForm({ profile, profiles, session, libraries, onClose }: 
         onChange={(value) => isLanguage(value) && setLanguage(value)}
         options={languageOptions(t)}
       />
+      {showMetadataLanguage && (
+        <RadioGroup
+          name="metadataLanguage"
+          label={t('profiles.settings.form.metadataLanguage')}
+          description={t('profiles.settings.form.metadataLanguageHint')}
+          value={metadataLanguage}
+          onChange={setMetadataLanguage}
+          options={[
+            { value: '', label: t('profiles.settings.form.likeUi') },
+            ...available
+              .filter((code) => code !== language)
+              .map((code) => ({ value: code, label: languageName(code) })),
+            ...(metadataLanguage && !available.includes(metadataLanguage)
+              ? [{ value: metadataLanguage, label: languageName(metadataLanguage) }]
+              : []),
+          ]}
+        />
+      )}
       <AccentPicker
         name="accent"
         label={t('accent.label')}

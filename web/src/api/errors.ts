@@ -90,6 +90,12 @@ const fieldKeys = {
   already_exists: 'errors.field.already_exists',
   invalid_value: 'errors.field.invalid',
   invalid_pin: 'errors.field.pin_format',
+  // Metadata settings (concept 10, ADR 0018): the language lists, the chains, the country.
+  langs_empty: 'admin.metadata.errors.langs_empty',
+  lang_unknown: 'admin.metadata.errors.lang_unknown',
+  ui_lang_required: 'admin.metadata.errors.ui_lang_required',
+  chain_duplicate: 'admin.metadata.errors.chain_duplicate',
+  country_unknown: 'admin.metadata.errors.country_unknown',
   not_burnable: 'errors.field.not_burnable',
   not_absolute: 'errors.field.not_absolute',
   library_path_invalid: 'errors.code.library_path_invalid',

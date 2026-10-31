@@ -238,6 +238,65 @@ $ go test ./internal/metadata/ -run 'TestAssignMatchAndRefresh|TestRegisterTypes
 Der Web-Teil von `task ci` (Lint, Komponenten- und Storybook-Tests) folgt mit Schritt 4: das Web
 dieses Commits ist nur der generierte Client (`api-client`-Lint lief grün im selben Lauf).
 
+### Schritt 4 — Oberfläche: Seite «Metadaten», Bibliothek, Profil, Logo beim Zuschauer (31. Oktober 2026)
+
+**Was gebaut ist.** Neue Verwaltungsseite `/admin/metadata` (`web/src/features/admin/MetadataPage.tsx`,
+Sektion «Metadaten» in der Gruppe Bibliothek mit dem neuen Icon `image`): **Geltung** als Segmente
+«Standard | <Videobibliothek> …» (über fünf Bibliotheken das `SelectField`), bei einer Bibliothek die
+Schalter «Sprachen abweichend» und «Bilder abweichend», nicht abweichende Abschnitte gedimmt mit «wie
+Server», die globalen Abschnitte ausgeblendet; **Sprachen** als geordnete Chips (Position, nach vorne,
+nach hinten, entfernen; die letzte Oberflächensprache ist nicht entfernbar, E-9), «Sprache wählen»
+über `Intl.DisplayNames`, darunter welche Quelle welche Sprache nicht kennt und die YouTube-Rechnung
+(100 Suchen am Tag geteilt durch die Zahl der Grundsprachen); **Bilder**: Poster und Hintergrund
+«immer», Logo, Staffelposter, Folgenbild als Kontrollkästchen, je Art die Bildsprache-Kette mit «Ohne
+Text»; **Güte** (Mindestbreiten, «Nach Bewertung wählen»), **Quellen** (TMDB-Erwachseneninhalte,
+lokale Dateien mit Zahl der Titel, Fanart.tv mit Link auf Integrationen), **Altersfreigabe** (Land),
+**Anwenden** (Was, Wo mit Titelzahl, «Jetzt anwenden», «Noch wartend» und letzter Lauf aus
+`listJobTypes`); klebende **Speicherleiste** mit «Ungespeicherte Änderungen» / «Gespeichert»,
+«Verwerfen», nach dem Speichern «n Titel betroffen – jetzt anwenden?». Feldfehler des Servers
+(`langs_empty`, `lang_unknown`, `ui_lang_required`, `chain_duplicate`, `country_unknown`) über
+`formErrors` am Abschnitt. Route mit `?library=<id>` (`validateSearch`). Bibliothekskarte: Zeile
+«Metadaten: wie Server» / «Sprachen abweichend» / «Bilder abweichend» mit Link auf die Seite.
+Profil: Feld «Sprache der Beschreibungen» (nur mit dritter Serversprache oder gesetztem Wert, erster
+Eintrag «Wie Oberfläche», die Oberflächensprache selbst fehlt in der Liste), Chip auf der Profilkarte.
+Zuschauer: `TitleOrLogo` (`web/src/ui`) setzt das Logo ins `<h1>` der Detailseite und in die
+Spotlight-Folie, `alt` = Titel, Rückfall auf den Text bei Ladefehler (offline). Texte de/en, keine
+harte Farbe. Stories `UI/TitleOrLogo` (Text, Logo, kaputtes Logo) und eine Spotlight-Folie mit Logo.
+Abweichungen vom Papier mit Begründung in dessen Abschnitt 14 (sechs Zeilen «4»).
+
+**Tests** (neu): `MetadataPage.test.tsx` (sieben Fälle: Standard, Sprache hinzufügen/verschieben/
+speichern, Feldfehler, Bibliotheksabweichung mit `null` für «wie Server», Wechsel der Geltung,
+«Jetzt anwenden», kein Administrator), zwei Fälle in `ProfileSettingsPage.test.tsx` (Feld nur mit
+dritter Sprache), `web/e2e/admin-metadata.spec.ts` (Regel 8: Standard, dritte Sprache per Tastatur
+hinzufügen, verschieben, speichern, entfernen; Land mit Pfeiltasten und «Verwerfen»; Bibliothek
+weicht ab, Karte zeigt es, Link führt zurück; «Jetzt anwenden»; keine Fokusfalle), ein Fall in
+`profiles.spec.ts` (dritte Serversprache, Pfeiltasten, Speichern, Karte, Rücksetzen), `NAV_PAGES` in
+`admin-home.spec.ts` um «Metadaten».
+
+DoD-Belege:
+
+```
+$ task ci:web                (Zweig 546af07 + Schritt 4)
+web:gen:check, tokens grün; web lint: eslint, stylelint (nach Korrektur der Medienabfrage in
+               HeroCarousel.module.css), tsc grün; prettier --check: All matched files use Prettier code style!
+web test:      Test Files  1 failed | 85 passed (86)  (AdminHomePage: die neue Karte «Metadaten» fehlte
+               in den zwei erwarteten Listen des Tests; nachgeführt)
+$ cd web && pnpm exec vitest run          Test Files  86 passed (86)   Tests  688 passed (688)
+$ pnpm -w run lint                        web lint: Done; All matched files use Prettier code style!
+$ pnpm run storybook:build                Storybook build completed successfully
+storybook:test: braucht Docker (nicht auf dem Entwicklungsrechner); die neuen Stories UI/TitleOrLogo und
+               die Spotlight-Folie mit Logo bekommen ihre Baselines auf CT 190 oder in CI (Papier 14)
+$ task build && task e2e -- e2e/admin-metadata.spec.ts e2e/profiles.spec.ts
+               32 passed, 2 failed (Fall «dritte Serversprache»: Pfeil traf zuerst «Englisch»; Test nachgeführt)
+$ task e2e -- e2e/profiles.spec.ts -g "third server language"   2 passed (chromium, firefox)
+```
+
+Der erste e2e-Lauf meldete «kein sichtbarer Fokus» an der Sprachauswahl, weil `task e2e` das zuvor
+gebaute Bündel ausliefert (das alte native `<select>` mit einer nicht definierten Farbvariable im
+Fokusring); nach `task build` mit dem `SelectField` ist der Ring da. `web:gen:check` lief im zweiten
+Durchgang nicht mehr, weil der Arbeitsbaum schon die Vertragsänderung von Schritt 5 trug; deshalb die
+Komponententests und der Lint einzeln (gleicher Stand des Web-Codes).
+
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
 **Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis

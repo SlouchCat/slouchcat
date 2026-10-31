@@ -1,0 +1,16 @@
+/* The title logo in a heading: never wider than the text would be (40 % of the stage, 60 % on a
+   phone, concept 10 7.5), never taller than two lines of the display size. */
+.logo {
+  display: block;
+  max-width: min(100%, 40vw);
+  max-height: calc(2 * var(--sc-font-size-display) * var(--sc-font-line-height-tight));
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+}
+
+@media (width <= 48rem) {
+  .logo {
+    max-width: min(100%, 60vw);
+  }
+}

@@ -143,6 +143,13 @@ const paths = {
     />
   ),
   plug: <path d="M9 3.5v4M15 3.5v4M6.5 7.5h11v3a5.5 5.5 0 0 1-11 0v-3ZM12 16v4.5" fill="none" />,
+  image: (
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" fill="none" />
+      <circle cx="9" cy="10" r="1.5" fill="none" />
+      <path d="M3.5 16l5-4.5 3.5 3 3-2.5 5.5 4.5" fill="none" />
+    </>
+  ),
   bell: (
     <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15l1.5-2ZM10 20.5a2 2 0 0 0 4 0" fill="none" />
   ),

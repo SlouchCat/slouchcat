@@ -53,6 +53,7 @@ import {
   itemAccentStyle,
   setSpatialFocus,
   spatialFocusKey,
+  TitleOrLogo,
 } from '@/ui';
 import { ItemMeta } from './ItemMeta';
 import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './labels';
@@ -817,7 +818,9 @@ function ItemView({ itemId }: { itemId: string }) {
           <div className={styles.info}>
             <div className={styles.heading}>
               {line && <p className={styles.kicker}>{line}</p>}
-              <h1 className={styles.title}>{item.title}</h1>
+              <h1 className={styles.title}>
+                <TitleOrLogo title={item.title} logoUrl={imageUrl(item.images.logo)} />
+              </h1>
               {item.originalTitle && item.originalTitle !== item.title && (
                 <p className={styles.original}>
                   {t('item.originalTitle', { title: item.originalTitle })}

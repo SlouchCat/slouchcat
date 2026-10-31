@@ -58,4 +58,5 @@ export { Stack } from './Stack';
 export { StatusDot, type StatusDotState } from './StatusDot';
 export { Text } from './Text';
 export { TextLink } from './TextLink';
+export { TitleOrLogo } from './TitleOrLogo';
 export { VisuallyHidden } from './VisuallyHidden';

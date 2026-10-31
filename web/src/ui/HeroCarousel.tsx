@@ -12,12 +12,15 @@ import { useAppNavigate } from './AppLink';
 import { Button, SpatialButton, SpatialButtonLink } from './Button';
 import styles from './HeroCarousel.module.css';
 import { PosterCard } from './PosterCard';
+import { TitleOrLogo } from './TitleOrLogo';
 import { RowList } from './Row';
 import { setSpatialFocus, SpatialGroup } from './spatial';
 
 export interface HeroSlide {
   id: string;
   title: string;
+  /** The title logo (w400, WebP or PNG with transparency, ADR 0018); shown in place of the text. */
+  logoUrl?: string;
   /** Same-origin backdrop URL (w1280); the poster is used blurred when there is none. */
   backdropUrl?: string;
   /** The same backdrop in w780 for phones; the browser picks it through `srcset`. */
@@ -393,7 +396,9 @@ export function HeroCarousel({
             aria-label={t('ui.carousel.position', { index: current + 1, count })}
             aria-live={paused ? 'polite' : 'off'}
           >
-            <h2 className={styles.title}>{slide.title}</h2>
+            <h2 className={styles.title}>
+              <TitleOrLogo title={slide.title} logoUrl={slide.logoUrl} className={styles.logo} />
+            </h2>
             {slide.note && <p className={styles.note}>{slide.note}</p>}
             {slide.meta && <div className={styles.meta}>{slide.meta}</div>}
           </div>

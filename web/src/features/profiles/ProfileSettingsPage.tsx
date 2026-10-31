@@ -152,6 +152,14 @@ export function ProfileSettingsPage() {
                           : t('rating.fsk', { age: profile.maxRating })}
                       </Chip>
                       <Chip tone="info">{t(`language.${profile.language}`)}</Chip>
+                      {profile.metadataLanguage && (
+                        <Chip tone="outline">
+                          {t('profiles.settings.form.metadataLanguage')}:{' '}
+                          {new Intl.DisplayNames([profile.language], { type: 'language' }).of(
+                            profile.metadataLanguage,
+                          ) ?? profile.metadataLanguage}
+                        </Chip>
+                      )}
                       {profile.hasPin && (
                         <Chip tone="info" icon="lock">
                           {t('profiles.settings.hasPin')}
