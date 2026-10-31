@@ -67,6 +67,7 @@ type providerFields struct {
 	provider     string
 	values       fieldValues
 	genres       map[string][]string
+	images       []ImageCandidate // the provider's posters, backdrops and logos (ADR 0018)
 	rating       *int
 	ratingSource string // rating_source when this provider's rating wins ("tmdb:DE", "anilist")
 }
@@ -111,8 +112,7 @@ func titleFields(rec TitleRecord) providerFields {
 	if rec.VoteAverage > 0 {
 		pf.set(fieldVoteAverage, "", formatVote(rec.VoteAverage))
 	}
-	pf.set("poster", "", rec.PosterPath)
-	pf.set("backdrop", "", rec.BackdropPath)
+	pf.images = rec.Images
 	for lang, names := range rec.Genres {
 		if len(names) > 0 {
 			pf.genres[lang] = names
@@ -132,7 +132,10 @@ func seasonFields(provider string, rec SeasonRecord) providerFields {
 		pf.set("overview", lang, t.Overview)
 	}
 	pf.set("release_date", "", rec.AirDate)
-	pf.set("poster", "", rec.PosterPath)
+	pf.images = rec.Images
+	if rec.PosterPath != "" && !slices.ContainsFunc(rec.Images, func(c ImageCandidate) bool { return c.Source == rec.PosterPath }) {
+		pf.images = append(pf.images, ImageCandidate{Kind: "poster", Source: rec.PosterPath, Default: true})
+	}
 	return pf
 }
 
@@ -147,7 +150,9 @@ func episodeFields(provider string, rec EpisodeRecord) providerFields {
 	if rec.Runtime > 0 {
 		pf.set("runtime_minutes", "", strconv.Itoa(rec.Runtime))
 	}
-	pf.set("backdrop", "", rec.StillPath)
+	if rec.StillPath != "" {
+		pf.images = []ImageCandidate{{Kind: "backdrop", Source: rec.StillPath, Default: true}} // the still is the episode's backdrop (4.4.3)
+	}
 	return pf
 }
 
@@ -546,14 +551,25 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 			runtime = sql.NullInt64{Int64: int64(n), Valid: true}
 		}
 	}
+	// Images (ADR 0018, 6.2): the choice over local files, the list and Fanart.tv writes
+	// item_images; the two path columns on items stay as they are (unused since step 2).
 	poster, backdrop := cur.TmdbPosterPath, cur.TmdbBackdropPath
-	if w, ok := writes[fieldKey{"poster", ""}]; ok {
-		poster = nullString(w.value)
+	settings, err := s.Effective(ctx, cur.LibraryID)
+	if err != nil {
+		return out, fmt.Errorf("metadata.fill: %w", err)
 	}
-	if w, ok := writes[fieldKey{"backdrop", ""}]; ok {
-		backdrop = nullString(w.value)
+	storedImages, err := q.ListItemImagesByItem(ctx, cur.ID)
+	if err != nil {
+		return out, fmt.Errorf("metadata.fill: load images of %s: %w", cur.ID, err)
 	}
-	out.images = poster != cur.TmdbPosterPath || backdrop != cur.TmdbBackdropPath
+	localImages, err := q.ListItemLocalImages(ctx, cur.ID)
+	if err != nil {
+		return out, fmt.Errorf("metadata.fill: load local images of %s: %w", cur.ID, err)
+	}
+	decisions, _ := decideImages(cur.Kind, settings, order, candidates, localImages, storedImages, locked)
+	if out.images, err = writeImageDecisions(ctx, q, cur.ID, decisions, now); err != nil {
+		return out, fmt.Errorf("metadata.fill: %w", err)
+	}
 
 	if title {
 		originalTitle := cur.OriginalTitle
@@ -680,8 +696,15 @@ func (s *Service) recordIdentifier(ctx context.Context, item systemq.Item, ident
 	if !genresEmpty(cur.Genres) {
 		add("genres", "", "set")
 	}
-	add("poster", "", cur.TmdbPosterPath.String)
-	add("backdrop", "", cur.TmdbBackdropPath.String)
+	images, err := q.ListItemImagesByItem(ctx, cur.ID)
+	if err != nil {
+		return fmt.Errorf("metadata.fill: load images of %s: %w", cur.ID, err)
+	}
+	for _, im := range images {
+		if im.Provider == identifier {
+			add(im.Kind, "", im.Source)
+		}
+	}
 	if cur.OwnRating.Valid && strings.HasPrefix(cur.RatingSource.String, identifier) {
 		add("own_rating", "", "set")
 	}

@@ -149,12 +149,13 @@ WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'm
 SELECT * FROM images WHERE item_id = @item_id ORDER BY kind, size, format;
 
 -- name: UpsertImage :exec
-INSERT INTO images (item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width,
+INSERT INTO images (item_id, kind, size, format, lang, provider, source_url, rel_path, content_hash, media_type, width,
                     height, bytes, accent, created_at)
-VALUES (@item_id, @kind, @size, @format, @lang, @source_url, @rel_path, @content_hash, @media_type, @width,
+VALUES (@item_id, @kind, @size, @format, @lang, @provider, @source_url, @rel_path, @content_hash, @media_type, @width,
         @height, @bytes, @accent, @now)
 ON CONFLICT (item_id, kind, size, format) DO UPDATE
 SET lang         = excluded.lang,
+    provider     = excluded.provider,
     source_url   = excluded.source_url,
     rel_path     = excluded.rel_path,
     content_hash = excluded.content_hash,
@@ -169,6 +170,46 @@ SET lang         = excluded.lang,
 -- Removes a row the pipeline no longer produces (for example the M1a poster in w500).
 DELETE FROM images WHERE id = @id;
 
+-- The decided image source per title and kind (ADR 0018, concept 10 4.4): the single input of
+-- image.fetch. chosen = 1 is the administrator's choice (the kind is in locked_fields too).
+
+-- name: ListItemImagesByItem :many
+SELECT * FROM item_images WHERE item_id = @item_id ORDER BY kind;
+
+-- name: UpsertItemImage :exec
+INSERT INTO item_images (item_id, kind, provider, lang, source, chosen, updated_at)
+VALUES (@item_id, @kind, @provider, @lang, @source, @chosen, @now)
+ON CONFLICT (item_id, kind) DO UPDATE
+SET provider = excluded.provider, lang = excluded.lang, source = excluded.source, chosen = excluded.chosen,
+    updated_at = excluded.updated_at;
+
+-- name: DeleteItemImage :exec
+DELETE FROM item_images WHERE item_id = @item_id AND kind = @kind;
+
+-- Image files the scanner found next to the media (concept 10 4.6): the local candidates of fill
+-- and of the image choice; rel_path is relative to the root root_id and read through paths only.
+
+-- name: ListItemLocalImages :many
+SELECT * FROM item_local_images WHERE item_id = @item_id ORDER BY kind, rel_path;
+
+-- name: ListLocalImagesByRoot :many
+SELECT * FROM item_local_images WHERE root_id = @root_id ORDER BY item_id, kind, rel_path;
+
+-- name: UpsertItemLocalImage :exec
+INSERT INTO item_local_images (item_id, kind, rel_path, root_id, width, height, size, mtime)
+VALUES (@item_id, @kind, @rel_path, @root_id, @width, @height, @size, @mtime)
+ON CONFLICT (item_id, kind, rel_path) DO UPDATE
+SET root_id = excluded.root_id, width = excluded.width, height = excluded.height, size = excluded.size, mtime = excluded.mtime;
+
+-- name: DeleteItemLocalImage :exec
+DELETE FROM item_local_images WHERE item_id = @item_id AND kind = @kind AND rel_path = @rel_path;
+
+-- name: CountItemsWithLocalImages :one
+SELECT count(DISTINCT item_id) FROM item_local_images;
+
+-- name: GetLibraryRootPath :one
+SELECT path FROM library_roots WHERE id = @id;
+
 -- name: ListMatchedItemImages :many
 -- Stored images of the matched titles of a library, for the image check after a scan
 -- (QueueIncompleteImages). Titles without any image row are not listed here (ListItemsMissingImages
@@ -182,25 +223,28 @@ WHERE i.library_id = @library_id
 ORDER BY i.id, im.kind, im.size, im.format;
 
 -- name: ListItemsMissingImages :many
--- Matched titles of a library with a stored provider image path but no row of that kind yet
--- (their image.fetch failed or never ran): poster for movies, series and seasons, backdrop (still)
--- for movies, series and episodes; the cover (poster) of audiobooks, podcasts and episodes with a
--- cover_path or cover_url (M6).
+-- Matched titles of a library with a decided image source (item_images, ADR 0018) but no row of
+-- that kind yet (their image.fetch failed or never ran); the cover (poster) of audiobooks,
+-- podcasts and episodes with a cover_path or cover_url (M6).
 SELECT i.id, i.kind, i.locked_fields,
-       CAST(((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+       CAST((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
              OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster') AS INTEGER) AS poster_missing,
-       CAST(i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
-            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing
+       CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing,
+       CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'logo')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'logo') AS INTEGER) AS logo_missing
 FROM items AS i
 WHERE i.library_id = @library_id
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
-  AND ((((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+  AND (((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
           OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster'))
-    OR (i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
-        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop')))
+    OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop'))
+    OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'logo')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'logo')))
 ORDER BY i.id;
 
 -- Provenance per field (item_field_sources, ADR 0015): which provider of the list won a field.

@@ -200,6 +200,7 @@ type Image struct {
 	Size        string
 	Format      string
 	Lang        sql.NullString
+	Provider    string
 	SourceUrl   string
 	RelPath     string
 	ContentHash string
@@ -304,6 +305,27 @@ type ItemGenre struct {
 	ItemID string
 	Lang   string
 	Name   string
+}
+
+type ItemImage struct {
+	ItemID    string
+	Kind      string
+	Provider  string
+	Lang      string
+	Source    string
+	Chosen    int64
+	UpdatedAt int64
+}
+
+type ItemLocalImage struct {
+	ItemID  string
+	Kind    string
+	RelPath string
+	RootID  int64
+	Width   int64
+	Height  int64
+	Size    int64
+	Mtime   int64
 }
 
 type ItemText struct {

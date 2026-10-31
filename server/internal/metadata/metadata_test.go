@@ -49,6 +49,7 @@ var testNow = time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
 // fakeTMDB serves the TMDB endpoints the package uses, from fixtures.
 type fakeTMDB struct {
 	srv    *httptest.Server
+	mux    *http.ServeMux
 	poster []byte // TMDB original of the poster
 	backdr []byte // TMDB original of the backdrop
 
@@ -87,6 +88,21 @@ func jpegBytes(t *testing.T, w, h int) []byte {
 type fixture struct {
 	de, en map[string]any
 	extra  map[string]map[string]any // further languages by TMDB request language ("es"), ADR 0018
+	images map[string]any            // the images block (posters, backdrops, logos) of append_to_response=images
+}
+
+// tmdbImage is one entry of a fixture images block.
+func tmdbImage(path string, lang any, w, h int, votes float64, count int) map[string]any {
+	return map[string]any{"file_path": path, "iso_639_1": lang, "width": w, "height": h, "vote_average": votes, "vote_count": count}
+}
+
+// setImages sets the images block of a fixture film.
+func (f *fakeTMDB) setImages(id string, posters, backdrops, logos []map[string]any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fx := f.movies[id]
+	fx.images = map[string]any{"posters": posters, "backdrops": backdrops, "logos": logos}
+	f.movies[id] = fx
 }
 
 func movieFixture(id int64, imdb, title, deTitle, deOverview string, genresDE, genresEN []string, releases []any, poster, backdrop string) fixture {
@@ -198,18 +214,33 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 			http.Error(w, `{"status_code":34}`, http.StatusNotFound)
 			return
 		}
-		if r.URL.Query().Get("append_to_response") != "release_dates,credits" {
+		appends := r.URL.Query().Get("append_to_response")
+		if appends != "release_dates,credits" && appends != "release_dates,credits,images" {
 			t.Errorf("movie request without release_dates and credits: %s", r.URL)
 		}
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		withImages := func(m map[string]any) map[string]any {
+			// The images block rides only on the request that asks for it (the record language).
+			if !strings.HasSuffix(appends, ",images") {
+				return m
+			}
+			out := make(map[string]any, len(m)+1)
+			for k, v := range m {
+				out[k] = v
+			}
+			if fx.images != nil {
+				out["images"] = fx.images
+			}
+			return out
+		}
 		switch lang := r.URL.Query().Get("language"); {
 		case lang == langDE:
-			writeJSON(w, fx.de)
+			writeJSON(w, withImages(fx.de))
 		case lang == langEN:
-			writeJSON(w, fx.en)
+			writeJSON(w, withImages(fx.en))
 		case fx.extra[lang] != nil:
-			writeJSON(w, fx.extra[lang])
+			writeJSON(w, withImages(fx.extra[lang]))
 		default:
 			t.Errorf("unexpected language in %s", r.URL)
 			http.Error(w, "bad language", http.StatusBadRequest)
@@ -254,6 +285,7 @@ func newFakeTMDB(t *testing.T) *fakeTMDB {
 	mux.HandleFunc("GET /t/p/original/poster550.jpg", image(f.poster))
 	mux.HandleFunc("GET /t/p/original/backdrop550.jpg", image(f.backdr))
 	mux.HandleFunc("GET /t/p/original/poster601.jpg", image(f.poster))
+	f.mux = mux
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
 	return f
@@ -275,6 +307,17 @@ func (f *fakeTMDB) setCollection(id string, c map[string]map[string]any) {
 	if c != nil {
 		fx.de["belongs_to_collection"], fx.en["belongs_to_collection"] = c[langDE], c[langEN]
 	}
+}
+
+// serveImage adds an original to the image host (ADR 0018 tests: posters per language, logos).
+func (f *fakeTMDB) serveImage(path string, data []byte, mediaType string) {
+	f.mux.HandleFunc("GET "+path, func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		f.hits[r.URL.Path]++
+		f.mu.Unlock()
+		w.Header().Set("Content-Type", mediaType)
+		_, _ = w.Write(data)
+	})
 }
 
 // setExtraLanguage serves a third language of a fixture film: the English record with the given

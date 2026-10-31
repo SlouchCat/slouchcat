@@ -557,7 +557,7 @@ func (s *Service) applySeasonBatch(ctx context.Context, series systemq.Item, sea
 				t.Title = firstNonEmpty(t.Title, seasonTitle(l, n))
 				texts[l] = t
 			}
-			if err := s.writeChild(ctx, q, cur, texts, srec.AirDate, 0, srec.PosterPath, "", false, now, langs); err != nil {
+			if err := s.writeChild(ctx, q, cur, texts, srec.AirDate, 0, seasonFields(identifierOf(cur), srec).images, false, now, langs); err != nil {
 				return nil, err
 			}
 			if srec.PosterPath != "" {
@@ -639,13 +639,15 @@ func (s *Service) writeEpisode(ctx context.Context, q *systemq.Queries, cur syst
 		}
 		texts[l] = t
 	}
-	return s.writeChild(ctx, q, cur, texts, first.AirDate, first.Runtime, "", first.StillPath, true, now, langs)
+	return s.writeChild(ctx, q, cur, texts, first.AirDate, first.Runtime, episodeFields(identifierOf(cur), first).images, true, now, langs)
 }
 
-// writeChild writes the texts and columns of a season or episode, keeping locked fields. The
-// other languages fall back to English when enFallback is set.
+// writeChild writes the texts, columns and image choice of a season or episode, keeping locked
+// fields. The other languages fall back to English when enFallback is set; images are the
+// identifier's candidates (season posters, the episode still), decided after ADR 0018 with the
+// identifier as the only source.
 func (s *Service) writeChild(ctx context.Context, q *systemq.Queries, cur systemq.Item, texts map[string]Text,
-	date string, runtime int, poster, backdrop string, enFallback bool, now int64, langs []string,
+	date string, runtime int, images []ImageCandidate, enFallback bool, now int64, langs []string,
 ) error {
 	stored, err := q.ListItemTextsByItem(ctx, cur.ID)
 	if err != nil {
@@ -672,14 +674,32 @@ func (s *Service) writeChild(ctx context.Context, q *systemq.Queries, cur system
 	if !locked["runtime_minutes"] && runtime > 0 {
 		p.RuntimeMinutes = sql.NullInt64{Int64: int64(runtime), Valid: true}
 	}
-	if poster != "" {
-		p.TmdbPosterPath = nullString(poster)
-	}
-	if backdrop != "" {
-		p.TmdbBackdropPath = nullString(backdrop)
-	}
 	if err := q.UpdateChildMatch(ctx, p); err != nil {
 		return fmt.Errorf("metadata.match: update %s: %w", cur.ID, err)
+	}
+	return s.matchImages(ctx, q, cur, identifierOf(cur), images, locked, now)
+}
+
+// matchImages runs the image choice of ADR 0018 for the record of the identifier (the only source
+// a match knows; the fill adds the fillers, local files and Fanart.tv later) and writes
+// item_images and the provenance of the image fields.
+func (s *Service) matchImages(ctx context.Context, q *systemq.Queries, cur systemq.Item, provider string, images []ImageCandidate, locked map[string]bool, now int64) error {
+	settings, err := s.Effective(ctx, cur.LibraryID)
+	if err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
+	}
+	stored, err := q.ListItemImagesByItem(ctx, cur.ID)
+	if err != nil {
+		return fmt.Errorf("metadata.match: load images of %s: %w", cur.ID, err)
+	}
+	local, err := q.ListItemLocalImages(ctx, cur.ID)
+	if err != nil {
+		return fmt.Errorf("metadata.match: load local images of %s: %w", cur.ID, err)
+	}
+	cands := []providerFields{{provider: provider, images: images}}
+	decisions, _ := decideImages(cur.Kind, settings, []string{provider}, cands, local, stored, locked)
+	if _, err := writeImageDecisions(ctx, q, cur.ID, decisions, now); err != nil {
+		return fmt.Errorf("metadata.match: %w", err)
 	}
 	return nil
 }
@@ -846,6 +866,9 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 	p.Now = sql.NullInt64{Int64: now, Valid: true}
 	if err := q.UpdateItemMatch(ctx, p); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: update item %s: %w", itemID, err)
+	}
+	if err := s.matchImages(ctx, q, cur, rec.Provider, rec.Images, locked, now); err != nil {
+		return snap, false, err
 	}
 	if !locked["cast"] {
 		if err := replaceCredits(ctx, q, itemID, rec.Credits, now); err != nil {
@@ -1046,12 +1069,8 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, lang
 			p.VoteAverage = sql.NullFloat64{}
 		}
 	}
-	if rec.PosterPath != "" {
-		p.TmdbPosterPath = nullString(rec.PosterPath)
-	}
-	if rec.BackdropPath != "" {
-		p.TmdbBackdropPath = nullString(rec.BackdropPath)
-	}
+	// tmdb_poster_path and tmdb_backdrop_path stay as stored: item_images carries the chosen
+	// image since concept 10 step 2 (ADR 0018), the columns are unused until a later rebuild.
 	return p, nil
 }
 

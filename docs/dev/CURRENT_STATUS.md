@@ -98,6 +98,84 @@ innerhalb von 2 %, die leichten Filmfälle schwanken zwischen Läufen desselben 
 48 ms) als zwischen den Binaries. Lauf 1 des Zweigs zeigte den doppelten `item_texts`-Join bei gleicher
 Metadaten- und Oberflächensprache; der zweite Join entfällt seither in diesem Fall.
 
+### Schritt 2 — Bilder im Scanner, im `fill` und in der Pipeline (31. Oktober 2026)
+
+**Was gebaut ist.** Migration `00029_item_images.sql` nach Vorlage: `images` neu mit `kind` um
+`logo`, `format` um `png`, `provider` (Rückfüllung nach dem Host der `source_url`); `item_images`
+(entschiedene Quelle je Titel und Art, aus `tmdb_poster_path`/`tmdb_backdrop_path` gefüllt,
+`lang = ''`, Quelle nach Host); `item_local_images` (leer, der nächste Scan füllt sie; mit
+`root_id`, Abschnitt 14 des Papiers). Kandidaten je Quelle: TMDB über `append_to_response=images`
+mit `include_image_language=<Vereinigung der Ketten>,null` am Detail-Abruf der `recordLang`-Sprache
+und an der Staffel (`tmdb.go` `Images`, `imageQuery`; `tmdbProvider.imageLangs` liest die
+Einstellungen je Aufruf), TVDB-Artworks mit `language`, `width`, `height` (Typen 2, 3, 23;
+Sprache über die Tabelle aus `/languages`), AniList Cover und Banner als Vorgabe ohne Sprache,
+lokale Dateien aus `item_local_images` als `file:<rel>?<size>-<mtime>`. Die Wahl in sechs Stufen
+(`images_choice.go`: `chooseImage`, `decideImages`, `imageSources` mit der festen Reihenfolge
+`["local", …Ordnerliste, "fanart"]`, `writeImageDecisions`), eingehängt in den **Match**
+(`matchImages`: der Erkenner als einzige Quelle, auch für Staffelposter und Folgen-Standbild) und
+in den **Fill** (`writeFill`); Match und Fill schreiben die zwei Pfadspalten nicht mehr. Pipeline:
+`image.fetch` liest `item_images` (`imageSource`: TMDB-Pfad, `.svg` → `.png`, TVDB/AniList/Fanart-
+Hosts, `file:` über die Wurzel der Scanner-Zeile), `logo` in `itemImageKinds` für Film und Serie
+(Breiten 400/800), Formate **je Art** (`formatsOf`: Logo PNG und WebP, kein JPEG;
+`transcode.ImagePNG` mit `-c:v png -f image2 -update 1`, Alphakanal bleibt), `scaleLocked` behält den
+Medientyp des Originals, Sperre **mit** Wahl (`chosen = 1`) holt genau diese Quelle, Sperre **ohne**
+Wahl skaliert nur, eine ausgeschaltete Art (`metadata.image_kinds`) verliert Zeilen und Dateien
+beim nächsten Lauf (`dropKind`), eine unbrauchbare Quelle (`errImageSkipped`) überspringt die Art
+mit Warnung statt den Job zu brechen. Scanner: `walkRoot` und die Pfad-Scans sammeln Bilddateien je
+Ordner, `syncLocalImages` (`library/local_images.go`) ordnet sie nach 4.6 zu (Film im eigenen
+Ordner: `poster` > `folder`, `fanart` > `backdrop`, `logo` > `clearlogo`; Film direkt in der Wurzel
+nur `<stem>-…`; Serie über den Serienordner; Staffel `seasonNN-poster`; Folge `<stem>-thumb`;
+`landscape` nie), liest nur den Header über die Wurzel (JPEG, PNG, eigener WebP-Header-Leser) und
+pflegt die Tabelle (Ersetzung über Grösse/Änderungszeit, Entfernung). Vertrag (weiter 1.6.0,
+additiv): `ImageKind` um `logo`, `ItemImages.logo` (vom Server nur in `getItem` gesetzt),
+`getAdminItemImage` nimmt `ImageKind`; `getItemImage` liefert Logos in `w400`/`w800` als WebP oder
+PNG (Rückfall je Art in `GetItemImage`/`AdminGetItemImage`). `ListItemsMissingImages` liest
+`item_images`. Abweichungen vom Papier mit Begründung in dessen Abschnitt 14.
+
+**Tests** (neu): `TestMigration00029CarriesTheImagePathsIntoItemImages`, `TestChooseImageSteps`
+(die sechs Stufen, Stimmenregel, Mindestbreite, «TVDB-de schlägt TMDB-en», zu kleine lokale Datei
+verliert), `TestDecideImagesHonoursLocksChoicesAndSwitches` (Sperre, Wahl, Schalter, «local bleibt
+nach dem zweiten fill», lokale Dateien aus), `TestMatchAndFetchWithLogoAndLanguageChain` (deutsches
+Poster vor englischem, Hintergrund ohne Text, SVG-Logo als PNG geholt, PNG mit Alphakanal und WebP
+abgeleitet, kein JPEG, Logo-Schalter aus löscht Zeilen und Dateien),
+`TestLocalImageBeatsTheProviders` (lokale `poster.jpg` über die Wurzel, zweiter Fill behält sie,
+Schalter aus gibt TMDB), `TestScanListsLocalImagesOfMovies`, `TestScanListsLocalImagesOfSeries`,
+`TestLocalImageOutsideTheRootIsNeverRead` (Symlink aus der Wurzel). Angepasst: `fill_test`
+(Poster-Herkunft `tvdb`, der Fixture-Fall des Papiers), `series_test` und `fill_test` lesen
+`item_images` statt der Spalten.
+
+DoD-Belege:
+
+```
+$ git add -A && task ci                     (Zweig e8290b4 + Schritt 2, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün
+server test:   ok  … 33 Pakete (store 720 s, admin 603 s, api 573 s auf dem NAS-Mount), kein FAIL
+web gen:check, lint grün; web test:  Test Files  85 passed (85)   Tests  679 passed (679)
+storybook:test: permission denied … docker.sock  (kein Docker, wie bei Schritt 1; Schritt 2 ändert keine
+                Komponente aus web/src/ui, Baselines unberührt; CI auf GitHub prüft sie)
+$ task build   go build … -X main.version=v1.5.0-9-ge8290b4-dirty -o bin/slouchcat   exit=0
+$ task ci:e2e  480 passed (25.3m)   A-9 log scan: 77338 lines, 17 secrets of the run, 0 findings
+$ go test ./internal/metadata/ -run 'TestChooseImageSteps|TestDecideImages|TestMatchAndFetchWithLogo|TestLocalImageBeats'  ok
+$ go test ./internal/library/ -run 'TestScanListsLocalImages|TestLocalImageOutsideTheRoot'   ok
+$ go test ./internal/store/ -run 'TestMigration00029'   ok
+$ bash nas-scan.sh bin/slouchcat step2     == step2 scan: 1:done:1789 in 220.4 s (kalt) / 6.2 s (warm)
+                                            local_images ('backdrop', 207) ('logo', 119) ('poster', 210); total 536, titles 211
+$ bash nas-scan.sh bin-main main           == main scan: 1:done:1789 in 8.2 s / 4.2 s (warm)
+```
+
+Das Logo im Cache (DoD «ein Titel mit Logo im Cache», Papier 10 Schritt 2) belegt
+`TestMatchAndFetchWithLogoAndLanguageChain` im Paket `metadata`: der Erkenner liefert ein SVG-Logo,
+`image.fetch` holt es als PNG (`.svg` → `.png`), legt `logo/w400.png`, `logo/w400.webp`,
+`logo/w800.png`, `logo/w800.webp` ab (kein JPEG), und der Alphakanal überlebt die Ableitung
+(`transcode.ImagePNG`). Ein Logo aus der echten TMDB (ohne Schlüssel lokal nicht möglich) folgt in
+Schritt 7 auf CT 190.
+
+**Messung NAS-Scan** (Papier 8, Latte «vernachlässigbar»): `docs/perf/metadaten.md` Abschnitt 2.
+Vier Läufe über `/mnt/nerdnas/medien/Filme` (1'789 Filmordner): der erste, kalte Lauf (220 s) wärmt den
+Verzeichnis-Cache des NAS, unabhängig vom Binary; mit warmem Cache braucht der Zweig 3.6 s statt 3.2 s
+(`main`), also 0.4 s für die Header von 536 Bilddateien in 211 Ordnern (`folder.jpg`, `backdrop.jpg`,
+`logo.png`).
+
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
 **Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis

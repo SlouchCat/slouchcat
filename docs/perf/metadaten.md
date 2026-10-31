@@ -57,3 +57,36 @@ beide Joins keinen Schlüssel liefern (`COALESCE` bricht am ersten Wert ab). Der
 `item_texts_rank (item_id, rank)` trägt sie. CT 190 (2 vCPU) steht aus; nach `docs/perf/M3.md` 1c
 ist dort der Faktor 2 bis 3 zu erwarten, die schweren Fälle also 400 bis 600 ms wie schon bei
 Konzept 08 vermerkt, unabhängig von diesem Schritt.
+
+## 2. Schritt 2: NAS-Scan «Filme» mit Bilddateien (`item_local_images`)
+
+Entwicklungsrechner wie oben, 31. Oktober 2026, 13:43 bis 13:55 Uhr. Ordner `/mnt/nerdnas/medien/Filme`
+auf Marcos NAS über autofs (1'789 Filmordner, 1'792 Dateien), je Lauf ein frischer Server
+(`SLOUCHCAT_WORKERS=4`, leerer Konfigurations- und Cache-Ordner auf der lokalen Platte, ohne
+TMDB-Schlüssel), Bibliothek «Filme» (`movie`, `["tmdb"]`) über `POST /setup`; gemessen vom Setup
+bis `scan.state = done` über `GET /admin/libraries` (Abfrage alle 2 s) und aus der Zeile
+`library scan done` im Serverlog (`duration`). Binaries: `main` `d3d73bc` (Vertrag 1.5.0) und der
+Zweig nach Schritt 2 (`v1.5.0-9-ge8290b4-dirty`). Skript `nas-scan.sh` in den Sitzungsnotizen.
+
+| Lauf (Reihenfolge) | Binary | Scan (Serverlog) | bis `done` (API) | `item_local_images` |
+|---|---|---|---|---|
+| 1, kalter Verzeichnis-Cache | Schritt 2 | 218.8 s | 220.4 s | 536 Zeilen, 211 Titel |
+| 2 | main | 6.3 s | 8.2 s | (Tabelle gibt es nicht) |
+| 3 | Schritt 2 | 3.6 s | 6.2 s | 536 Zeilen, 211 Titel |
+| 4 | main | 3.2 s | 4.2 s | (Tabelle gibt es nicht) |
+
+**Lesart.** Der erste Lauf trägt das Aufwärmen des NAS-Verzeichnis-Caches (autofs mountet, der
+Kernel liest 1'789 Ordner zum ersten Mal); das ist die Grössenordnung der «186 s heute» aus dem
+Papier (Abschnitt 8) und hat mit dem Binary nichts zu tun. Mit warmem Cache kostet der Scan auf
+dem Zweig **0.4 s mehr** als auf `main` (3.6 s statt 3.2 s): das ist das Lesen der Header von
+536 Bilddateien über das NAS (rund 0.7 ms je Datei) und das Schreiben der 536 Zeilen in einer
+Transaktion. Ein kalter Lauf mit `main` zum Vergleich war ohne `sudo` (Verwerfen des
+Seiten-Caches) nicht möglich; die Latte des Papiers («vernachlässigbar») hält mit dem warmen
+Paar, der kalte Wert ist eine obere Schranke für beide Binaries.
+
+Was die Tabelle nach dem Scan enthält (Lauf 3): `poster` 210 (Breite 300 bis 2'000, 4 davon unter
+500), `backdrop` 207 (1'280 bis 3'840), `logo` 119 (316 bis 7'735, 7 unter 500), in 211 der 1'789
+Filmordner; die Dateien heissen dort `folder.jpg`, `backdrop.jpg` und `logo.png` (darum nimmt der
+Scanner neben `poster`/`fanart`/`clearlogo` auch diese Namen, Papier 4.6). Der Scan liest nur den
+Header (JPEG/PNG über `image.DecodeConfig`, WebP aus dem RIFF-Kopf), nie das ganze Bild; das Bild
+selbst holt erst `image.fetch`, wenn die lokale Datei die Wahl gewinnt.

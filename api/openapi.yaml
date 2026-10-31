@@ -3290,8 +3290,7 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            enum: [poster, backdrop]
+            $ref: "#/components/schemas/ImageKind"
         - name: size
           in: path
           required: true
@@ -7208,7 +7207,11 @@ components:
 
     ImageKind:
       type: string
-      enum: [poster, backdrop]
+      enum: [poster, backdrop, logo]
+      description: |
+        `logo` (ADR 0018, concept 10) is the transparent title logo of a film or series, delivered in
+        `w400` and `w800` as WebP or PNG (never JPEG); the detail page and the spotlight show it in
+        place of the text title when it exists.
 
     ImageRef:
       type: object
@@ -7232,6 +7235,12 @@ components:
           $ref: "#/components/schemas/ImageRef"
         backdrop:
           $ref: "#/components/schemas/ImageRef"
+        logo:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            The title logo in `w400` (ADR 0018), WebP or PNG with transparency; only on the detail
+            (`ItemDetail`) and the spotlight entries, never on list summaries. Absent when the title
+            has none or the kind is switched off.
         backdropSmall:
           $ref: "#/components/schemas/ImageRef"
           description: Backdrop in w780 for viewports up to about 900 px.

@@ -129,3 +129,16 @@ DELETE FROM tracks WHERE id = @id;
 UPDATE items
 SET own_rating = @own_rating, rating_source = @rating_source, locked_fields = @locked_fields, updated_at = @now
 WHERE id = @id AND deleted_at IS NULL;
+
+-- name: ListRootFilesWithItems :many
+-- The live media files of a root with the kind and parent of their title, for the local image
+-- scan (concept 10 4.6, ADR 0018): a movie's folder, an episode's season and series.
+SELECT m.item_id, m.rel_path, i.kind, i.parent_id
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+WHERE m.root_id = @root_id AND m.missing_since IS NULL AND i.deleted_at IS NULL
+ORDER BY m.rel_path;
+
+-- name: ListItemParents :many
+-- id and parent of titles, for the series of the seasons of a root (local image scan).
+SELECT id, parent_id FROM items WHERE id IN (sqlc.slice('ids'));

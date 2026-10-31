@@ -374,13 +374,18 @@ func (r *Reader) Image(ctx context.Context, s Scope, itemID, kind, size string, 
 	if err != nil {
 		return ImageLocation{}, err
 	}
-	format := "jpeg"
+	// WebP when the client names it, else the fallback of the kind: JPEG, PNG for a logo (ADR 0018).
+	fallback := "jpeg"
+	if kind == "logo" {
+		fallback = "png"
+	}
+	format := fallback
 	if preferWebP {
 		format = "webp"
 	}
-	im, err := r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: size, Format: format})
+	im, err := r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: size, Format: format, Fallback: fallback})
 	if errors.Is(err, sql.ErrNoRows) && kind == "poster" && size == posterSize {
-		im, err = r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: legacyPosterSize, Format: format})
+		im, err = r.q.GetItemImage(ctx, scopedq.GetItemImageParams{ProfileID: pid, ItemID: itemID, Kind: kind, Size: legacyPosterSize, Format: format, Fallback: fallback})
 	}
 	if errors.Is(err, sql.ErrNoRows) {
 		im, err = r.podcastImage(ctx, pid, itemID, kind, size, format) // an episode shows its podcast's cover (M6)

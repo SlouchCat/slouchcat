@@ -191,8 +191,12 @@ func (r AniListRecord) fields() providerFields {
 	pf.set("title", "en", firstNonEmpty(r.English, r.Romaji))
 	pf.set("overview", "en", r.Description)
 	pf.set("original_title", "", r.Native)
-	pf.set("poster", "", r.CoverURL)
-	pf.set("backdrop", "", r.BannerURL)
+	if r.CoverURL != "" {
+		pf.images = append(pf.images, ImageCandidate{Kind: "poster", Source: r.CoverURL, Default: true})
+	}
+	if r.BannerURL != "" {
+		pf.images = append(pf.images, ImageCandidate{Kind: "backdrop", Source: r.BannerURL, Default: true})
+	}
 	if len(r.Genres) > 0 {
 		pf.genres["en"] = r.Genres
 	}

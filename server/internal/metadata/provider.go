@@ -114,8 +114,29 @@ type TitleRecord struct {
 	Credits        []Credit
 	PosterPath     string // TMDB image path (/abc.jpg) or absolute artwork URL (TVDB)
 	BackdropPath   string
+	// Images are every poster, backdrop and logo the provider offers for the title with language,
+	// size and votes (ADR 0018, concept 10 6.2); PosterPath and BackdropPath stay the provider's
+	// own default (the candidate of step 5 of the choice).
+	Images []ImageCandidate
 	// Collection is the TMDB collection of a film (E-6); nil for series and films without one.
 	Collection *CollectionRecord
+}
+
+// ImageCandidate is one image a source offers for a title (concept 10 6.2). Lang is a BCP-47
+// primary subtag or "" for an image without text; Source is the provider's address (a TMDB path
+// /abc.jpg, an absolute artwork URL, or file:<rel>?<size>-<mtime> for a local file); Votes and
+// VoteCount are the provider's rating of the image (0 when it has none).
+type ImageCandidate struct {
+	Kind      string // poster, backdrop, logo
+	Lang      string
+	Width     int
+	Height    int
+	Votes     float64
+	VoteCount int
+	Source    string
+	// Default marks the image the provider itself names for the title (poster_path,
+	// backdrop_path): step 5 of the choice, taken when no candidate matches the chain.
+	Default bool
 }
 
 // CollectionRecord is a TMDB collection with its names and overviews per language (de, en).
@@ -150,6 +171,7 @@ type SeasonRecord struct {
 	Texts      map[string]Text
 	AirDate    string
 	PosterPath string
+	Images     []ImageCandidate // season posters with language (ADR 0018)
 	Episodes   []EpisodeRecord
 }
 

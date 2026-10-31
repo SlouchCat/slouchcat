@@ -92,6 +92,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	}
 	pid := session.Profile.ID
 	ref := toItemRef(pid, d.ItemSummary)
+	ref.Images.Logo = toImageRef(d.ID, pid, d.Logo) // the detail carries the logo (ADR 0018)
 	out := gen.ItemDetail{
 		Id:             ref.Id,
 		Kind:           ref.Kind,
@@ -291,10 +292,11 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 // Image kinds and sizes of the contract (M1b image pipeline, plan 3.1): posters in w200, w400 and
 // w800, backdrops in w780, w1280 and w1920, each stored as WebP and JPEG.
 var (
-	imageKinds = map[string]bool{"poster": true, "backdrop": true}
+	imageKinds = map[string]bool{"poster": true, "backdrop": true, "logo": true}
 	imageSizes = map[string]map[string]bool{
 		"poster":   {"w200": true, "w400": true, "w800": true},
 		"backdrop": {"w780": true, "w1280": true, "w1920": true},
+		"logo":     {"w400": true, "w800": true}, // ADR 0018; WebP or PNG
 	}
 )
 

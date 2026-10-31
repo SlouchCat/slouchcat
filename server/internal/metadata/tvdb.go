@@ -32,10 +32,13 @@ const (
 	tvdbEpisodeCacheSize   = 16
 )
 
-// TVDB artwork types (v4 /artwork/types) used for series images.
+// TVDB artwork types (v4 /artwork/types) used for series images: poster 2, background 3, season
+// poster 7, clear logo 23 (checked against the v4 reference in concept 10 step 2).
 const (
-	tvdbArtworkPoster     = 2
-	tvdbArtworkBackground = 3
+	tvdbArtworkPoster       = 2
+	tvdbArtworkBackground   = 3
+	tvdbArtworkSeasonPoster = 7
+	tvdbArtworkClearLogo    = 23
 )
 
 // tvdbStaticLangs maps the primary subtags of common metadata languages to TVDB's ISO 639-3
@@ -338,9 +341,12 @@ type tvdbSeries struct {
 		SourceName string `json:"sourceName"`
 	} `json:"remoteIds"`
 	Artworks []struct {
-		Image string  `json:"image"`
-		Type  int     `json:"type"`
-		Score float64 `json:"score"`
+		Image    string  `json:"image"`
+		Type     int     `json:"type"`
+		Score    float64 `json:"score"`
+		Language *string `json:"language"` // ISO 639-3 id or null
+		Width    int     `json:"width"`
+		Height   int     `json:"height"`
 	} `json:"artworks"`
 	Seasons []struct {
 		Number int    `json:"number"`
@@ -421,6 +427,7 @@ func (p *tvdbProvider) Series(ctx context.Context, id string, langs []string) (S
 	}
 	rec.PosterPath = p.artURL(firstNonEmpty(p.bestArtwork(s, tvdbArtworkPoster), s.Image))
 	rec.BackdropPath = p.artURL(p.bestArtwork(s, tvdbArtworkBackground))
+	rec.Images = p.artworkCandidates(ctx, s, rec.PosterPath, rec.BackdropPath)
 	for _, season := range s.Seasons {
 		if season.Type.Type == "official" {
 			rec.Seasons = append(rec.Seasons, SeasonInfo{Number: season.Number, PosterPath: p.artURL(season.Image)})
@@ -438,6 +445,38 @@ func (p *tvdbProvider) Series(ctx context.Context, id string, langs []string) (S
 		rec.Credits = append(rec.Credits, Credit{Person: Person{Name: c.PersonName}, Role: RoleCast, Character: c.Name, Order: len(rec.Credits)})
 	}
 	return rec, nil
+}
+
+// artworkCandidates lists the posters, backgrounds and clear logos of a series as candidates
+// (ADR 0018): the language comes from TVDB's ISO 639-3 id through the language table, the score
+// stands in for the votes (TVDB has no vote count, so VoteCount is 0 and the score decides only
+// the order within a language).
+func (p *tvdbProvider) artworkCandidates(ctx context.Context, s tvdbSeries, poster, backdrop string) []ImageCandidate {
+	kinds := map[int]string{tvdbArtworkPoster: "poster", tvdbArtworkBackground: "backdrop", tvdbArtworkClearLogo: "logo"}
+	table := p.languageTable(ctx)
+	var out []ImageCandidate
+	for _, a := range s.Artworks {
+		kind, ok := kinds[a.Type]
+		if !ok || a.Image == "" {
+			continue
+		}
+		lang := ""
+		if a.Language != nil && *a.Language != "" {
+			for short, id := range table {
+				if id == *a.Language {
+					lang = short
+					break
+				}
+			}
+			if lang == "" {
+				lang = *a.Language // an id without short code stays as is and matches no chain entry
+			}
+		}
+		src := p.artURL(a.Image)
+		out = append(out, ImageCandidate{Kind: kind, Lang: lang, Width: a.Width, Height: a.Height, Votes: a.Score,
+			Source: src, Default: src == poster || src == backdrop})
+	}
+	return out
 }
 
 // bestArtwork returns the image of the highest scored artwork of the type, or "".

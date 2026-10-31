@@ -361,13 +361,14 @@ SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a
 -- Like the scoped GetItemImage, a deleted title has no image and the kept original is never served.
 
 -- name: AdminGetItemImage :one
--- One stored image of a title: WebP when asked and stored, else JPEG.
+-- One stored image of a title: WebP when asked and stored, else the fallback of the kind (JPEG;
+-- PNG for a logo).
 SELECT im.rel_path, im.media_type, im.content_hash, im.created_at
 FROM images AS im
 JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
 WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size <> 'original'
-  AND im.format IN (@format, 'jpeg')
-ORDER BY im.format = 'jpeg'
+  AND im.format IN (@format, @fallback)
+ORDER BY im.format = 'webp' DESC
 LIMIT 1;
 
 -- name: AdminListPosters :many

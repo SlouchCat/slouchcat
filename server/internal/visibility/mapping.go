@@ -22,6 +22,7 @@ const (
 	backdropSmallSize = "w780"
 	backdropSize      = "w1280"
 	backdropLargeSize = "w1920"
+	logoSize          = "w400"
 )
 
 // fallbackLang is the last language the trailer order and the genre chain try after the
@@ -250,6 +251,7 @@ func detail(it scopedq.Item, ex extras, lang langPref) model.ItemDetail {
 		ReleaseDate:   it.ReleaseDate.String,
 		Genres:        pickGenres(it.Genres, lang, textLangOrder(ex.texts[it.ID], lang)),
 	}
+	d.Logo = pickImage(ex.images[it.ID], "logo", logoSize) // the detail shows the logo (ADR 0018)
 	if it.TmdbID.Valid {
 		id := it.TmdbID.Int64
 		d.TMDBID = &id

@@ -30,11 +30,11 @@ func (q *Queries) CountVisibleTrailers(ctx context.Context, arg CountVisibleTrai
 }
 
 const getItemImage = `-- name: GetItemImage :one
-SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
+SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = ?1
 WHERE im.item_id = ?2 AND im.kind = ?3 AND im.size = ?4 AND im.size <> 'original'
-  AND im.format IN (?5, 'jpeg')
-ORDER BY im.format = 'jpeg'
+  AND im.format IN (?5, ?6)
+ORDER BY im.format = 'webp' DESC
 LIMIT 1
 `
 
@@ -44,10 +44,12 @@ type GetItemImageParams struct {
 	Kind      string
 	Size      string
 	Format    string
+	Fallback  string
 }
 
 // One delivered image in the wanted format with JPEG as the fallback: format 'webp' returns the
 // WebP row when it exists, else the JPEG row; format 'jpeg' only the JPEG row.
+// The wanted format (webp) when stored, else the fallback of the kind (jpeg; png for a logo).
 func (q *Queries) GetItemImage(ctx context.Context, arg GetItemImageParams) (Image, error) {
 	row := q.db.QueryRowContext(ctx, getItemImage,
 		arg.ProfileID,
@@ -55,6 +57,7 @@ func (q *Queries) GetItemImage(ctx context.Context, arg GetItemImageParams) (Ima
 		arg.Kind,
 		arg.Size,
 		arg.Format,
+		arg.Fallback,
 	)
 	var i Image
 	err := row.Scan(
@@ -64,6 +67,7 @@ func (q *Queries) GetItemImage(ctx context.Context, arg GetItemImageParams) (Ima
 		&i.Size,
 		&i.Format,
 		&i.Lang,
+		&i.Provider,
 		&i.SourceUrl,
 		&i.RelPath,
 		&i.ContentHash,
@@ -356,7 +360,7 @@ func (q *Queries) ListContinueWatching(ctx context.Context, arg ListContinueWatc
 }
 
 const listItemImages = `-- name: ListItemImages :many
-SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
+SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = ?1
 WHERE im.item_id IN (/*SLICE:item_ids*/?) AND im.size <> 'original'
 ORDER BY im.item_id, im.kind, im.size, im.format
@@ -395,6 +399,7 @@ func (q *Queries) ListItemImages(ctx context.Context, arg ListItemImagesParams) 
 			&i.Size,
 			&i.Format,
 			&i.Lang,
+			&i.Provider,
 			&i.SourceUrl,
 			&i.RelPath,
 			&i.ContentHash,

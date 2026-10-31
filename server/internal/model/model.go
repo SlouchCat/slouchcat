@@ -473,11 +473,13 @@ type ItemSummary struct {
 	Poster         *Image // w400
 	Backdrop       *Image // w1280
 	BackdropSmall  *Image // backdrop in w780, nil when that size is not stored
-	PosterSmall    *Image // w200 (M1b image pipeline)
-	PosterLarge    *Image // w800
-	BackdropLarge  *Image // w1920
-	Accent         string // #rrggbb from the poster palette, "" until the pipeline has run
-	Progress       *Progress
+	// Logo is the title logo in w400 (ADR 0018), set only on the detail and the spotlight entries.
+	Logo          *Image
+	PosterSmall   *Image // w200 (M1b image pipeline)
+	PosterLarge   *Image // w800
+	BackdropLarge *Image // w1920
+	Accent        string // #rrggbb from the poster palette, "" until the pipeline has run
+	Progress      *Progress
 
 	// Series tree and extras (M3). ParentID is the season of an episode, the series of a season or
 	// the parent title of an extra. SeriesTitle is set on seasons and episodes (profile language).

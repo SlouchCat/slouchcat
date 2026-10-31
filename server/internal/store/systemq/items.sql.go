@@ -8,6 +8,7 @@ package systemq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const countLibraryItems = `-- name: CountLibraryItems :one
@@ -419,6 +420,49 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 	return err
 }
 
+const listItemParents = `-- name: ListItemParents :many
+SELECT id, parent_id FROM items WHERE id IN (/*SLICE:ids*/?)
+`
+
+type ListItemParentsRow struct {
+	ID       string
+	ParentID sql.NullString
+}
+
+// id and parent of titles, for the series of the seasons of a root (local image scan).
+func (q *Queries) ListItemParents(ctx context.Context, ids []string) ([]ListItemParentsRow, error) {
+	query := listItemParents
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListItemParentsRow{}
+	for rows.Next() {
+		var i ListItemParentsRow
+		if err := rows.Scan(&i.ID, &i.ParentID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItemsByLibrary = `-- name: ListItemsByLibrary :many
 SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
 `
@@ -713,6 +757,51 @@ func (q *Queries) ListRecentlyDeletedItemsByLibrary(ctx context.Context, arg Lis
 			&i.FeedOrigin,
 			&i.FilledProviders,
 			&i.VoteAverage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRootFilesWithItems = `-- name: ListRootFilesWithItems :many
+SELECT m.item_id, m.rel_path, i.kind, i.parent_id
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+WHERE m.root_id = ?1 AND m.missing_since IS NULL AND i.deleted_at IS NULL
+ORDER BY m.rel_path
+`
+
+type ListRootFilesWithItemsRow struct {
+	ItemID   string
+	RelPath  string
+	Kind     string
+	ParentID sql.NullString
+}
+
+// The live media files of a root with the kind and parent of their title, for the local image
+// scan (concept 10 4.6, ADR 0018): a movie's folder, an episode's season and series.
+func (q *Queries) ListRootFilesWithItems(ctx context.Context, rootID int64) ([]ListRootFilesWithItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRootFilesWithItems, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRootFilesWithItemsRow{}
+	for rows.Next() {
+		var i ListRootFilesWithItemsRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.RelPath,
+			&i.Kind,
+			&i.ParentID,
 		); err != nil {
 			return nil, err
 		}

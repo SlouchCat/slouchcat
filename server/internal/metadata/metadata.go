@@ -263,7 +263,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 	}
 	tvdb := newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys)
 	tvdb.log = log
-	return &Service{
+	svc := &Service{
 		db:     db,
 		write:  systemq.New(db.Write),
 		read:   systemq.New(db.Read),
@@ -291,6 +291,17 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		accentRetries: map[string]int{},
 		feeds:         newFeedFetcher(o.feedHTTP, o.feedNow, o.feedAgent),
 	}
+	// The TMDB detail request of the record language asks for the images block in the languages
+	// of the image chains (ADR 0018); read per call, so a changed setting applies at once.
+	svc.tmdb.imageLangs = func(ctx context.Context) []string {
+		st, err := svc.Settings(ctx)
+		if err != nil {
+			log.Warn("metadata settings for the image languages", "err", err)
+			return []string{}
+		}
+		return st.ImageLanguages()
+	}
+	return svc
 }
 
 // RegisterTypes registers the job types of the metadata enrichment on r (concept 09, ADR 0017):

@@ -3767,8 +3767,13 @@ export interface components {
         ItemID: string;
         /** @enum {string} */
         ItemKind: "movie" | "series" | "season" | "episode" | "extra" | "audiobook" | "podcast" | "podcast_episode";
-        /** @enum {string} */
-        ImageKind: "poster" | "backdrop";
+        /**
+         * @description `logo` (ADR 0018, concept 10) is the transparent title logo of a film or series, delivered in
+         *     `w400` and `w800` as WebP or PNG (never JPEG); the detail page and the spotlight show it in
+         *     place of the text title when it exists.
+         * @enum {string}
+         */
+        ImageKind: "poster" | "backdrop" | "logo";
         ImageRef: {
             /**
              * Format: uri-reference
@@ -3781,6 +3786,12 @@ export interface components {
         ItemImages: {
             poster?: components["schemas"]["ImageRef"];
             backdrop?: components["schemas"]["ImageRef"];
+            /**
+             * @description The title logo in `w400` (ADR 0018), WebP or PNG with transparency; only on the detail
+             *     (`ItemDetail`) and the spotlight entries, never on list summaries. Absent when the title
+             *     has none or the kind is switched off.
+             */
+            logo?: components["schemas"]["ImageRef"];
             /** @description Backdrop in w780 for viewports up to about 900 px. */
             backdropSmall?: components["schemas"]["ImageRef"];
             /** @description Poster in w200 (narrow cards, `srcset`); M1b image pipeline. */
@@ -9902,7 +9913,7 @@ export interface operations {
             header?: never;
             path: {
                 id: components["schemas"]["ItemID"];
-                kind: "poster" | "backdrop";
+                kind: components["schemas"]["ImageKind"];
                 size: string;
             };
             cookie?: never;

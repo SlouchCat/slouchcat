@@ -110,7 +110,10 @@ type childRow struct {
 func (e *env) child(t *testing.T, id string) childRow {
 	t.Helper()
 	var r childRow
-	err := e.db.Read.QueryRow(`SELECT metadata_state, metadata_error, release_date, tmdb_poster_path, tmdb_backdrop_path,
+	// Poster and Backdrop are the decided sources of item_images (ADR 0018), not the old columns.
+	err := e.db.Read.QueryRow(`SELECT metadata_state, metadata_error, release_date,
+	                                  (SELECT source FROM item_images WHERE item_id = items.id AND kind = 'poster'),
+	                                  (SELECT source FROM item_images WHERE item_id = items.id AND kind = 'backdrop'),
 	                                  runtime_minutes, tmdb_id, tvdb_id, own_rating, rating_source, imdb_id, original_title
 	                           FROM items WHERE id = ?`, id).
 		Scan(&r.State, &r.Err, &r.Date, &r.Poster, &r.Backdrop, &r.Runtime, &r.TMDB, &r.TVDB, &r.Rating, &r.Source, &r.IMDB, &r.Original)
@@ -177,7 +180,7 @@ func (f *fakeTMDB) addTV(t *testing.T, mux *http.ServeMux, auth func(http.Handle
 			http.Error(w, `{"status_code":34}`, http.StatusNotFound)
 			return
 		}
-		if got := r.URL.Query().Get("append_to_response"); got != "content_ratings,external_ids,credits" {
+		if got := r.URL.Query().Get("append_to_response"); got != "content_ratings,external_ids,credits" && got != "content_ratings,external_ids,credits,images" {
 			t.Errorf("tv request appends %q", got)
 		}
 		cast := []any{}
@@ -910,7 +913,7 @@ func TestImageFetchSeriesTree(t *testing.T) {
 	tvdbSeries := tid("SER", 3)
 	art := e.tvdb.srv.URL + "/art/banners/posters/424242-2.jpg"
 	e.addNode(t, node{id: tvdbSeries, kind: "series", title: "TVDB", state: "matched"})
-	mustExec(t, e.db.Write, `UPDATE items SET tmdb_poster_path = ?, tmdb_backdrop_path = 'https://evil.example/x.jpg' WHERE id = ?`, art, tvdbSeries)
+	mustExec(t, e.db.Write, `INSERT INTO item_images (item_id, kind, provider, lang, source, chosen, updated_at) VALUES (?, 'poster', 'tvdb', 'de', ?, 0, 0), (?, 'backdrop', 'tvdb', '', 'https://evil.example/x.jpg', 0, 0)`, tvdbSeries, art, tvdbSeries)
 	if err := e.svc.fetchImages(ctx, tvdbSeries); err != nil {
 		t.Fatal(err)
 	}
