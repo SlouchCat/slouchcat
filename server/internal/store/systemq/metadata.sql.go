@@ -770,7 +770,7 @@ func (q *Queries) ListLocalImagesByRoot(ctx context.Context, rootID int64) ([]It
 }
 
 const listMatchedItemImages = `-- name: ListMatchedItemImages :many
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent
+SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent, im.width
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = ?1
@@ -788,6 +788,7 @@ type ListMatchedItemImagesRow struct {
 	SourceUrl    string
 	RelPath      string
 	Accent       sql.NullString
+	Width        int64
 }
 
 // Stored images of the matched titles of a library, for the image check after a scan
@@ -811,6 +812,7 @@ func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([
 			&i.SourceUrl,
 			&i.RelPath,
 			&i.Accent,
+			&i.Width,
 		); err != nil {
 			return nil, err
 		}

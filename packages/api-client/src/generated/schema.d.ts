@@ -578,7 +578,10 @@ export interface paths {
          *     pipeline (plan 3.1) scales every image with ffmpeg: posters exist in `w200`, `w400` and `w800`,
          *     backdrops in `w780`, `w1280` and `w1920` (the number is the width in pixels). Every size is stored
          *     as WebP and as JPEG; the server answers WebP when the request's `Accept` header lists
-         *     `image/webp`, JPEG otherwise, and sets `Vary: Accept`.
+         *     `image/webp`, JPEG otherwise, and sets `Vary: Accept`. Since contract 1.6.0 a backdrop whose original
+         *     is at least 2560 px wide also exists in `w3840` (for 4K and high-density screens), scaled down to
+         *     3840 px or kept at the original's width, never scaled up; `ItemImages.backdropUhd` names its real
+         *     width. Logos come in `w400` and `w800` (ADR 0018).
          */
         get: operations["getItemImage"];
         put?: never;
@@ -3962,6 +3965,11 @@ export interface components {
             posterLarge?: components["schemas"]["ImageRef"];
             /** @description Backdrop in w1920 for viewports above about 1400 px; M1b image pipeline. */
             backdropLarge?: components["schemas"]["ImageRef"];
+            /**
+             * @description Backdrop in w3840 for 4K and high-density screens (contract 1.6.0); only when the original is at
+             *     least 2560 px wide, and then at most the original's width (`width` says which).
+             */
+            backdropUhd?: components["schemas"]["ImageRef"];
         };
         Progress: {
             /** Format: int64 */
@@ -8034,7 +8042,7 @@ export interface operations {
                 /** @description Item ID (ULID). */
                 id: components["parameters"]["ItemID"];
                 kind: components["schemas"]["ImageKind"];
-                size: "w200" | "w400" | "w800" | "w780" | "w1280" | "w1920";
+                size: "w200" | "w400" | "w800" | "w780" | "w1280" | "w1920" | "w3840";
             };
             cookie?: never;
         };

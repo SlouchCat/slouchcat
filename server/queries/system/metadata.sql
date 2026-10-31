@@ -214,7 +214,7 @@ SELECT path FROM library_roots WHERE id = @id;
 -- Stored images of the matched titles of a library, for the image check after a scan
 -- (QueueIncompleteImages). Titles without any image row are not listed here (ListItemsMissingImages
 -- covers those with a stored path).
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent
+SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent, im.width
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = @library_id

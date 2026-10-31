@@ -142,6 +142,29 @@ describe('start page', () => {
     expect(paths).not.toContain('/setup');
   });
 
+  it('offers the stage w1920 and the 4K size with its real width for wide and dense screens', async () => {
+    const base = `/items/${ids.heat}/images/backdrop`;
+    const sharp: ItemRef = {
+      ...heat,
+      images: {
+        ...heat.images,
+        backdropLarge: { url: `${base}/w1920?v=w`, width: 1920, height: 1080 },
+        backdropUhd: { url: `${base}/w3840?v=u`, width: 3000, height: 1688 },
+      },
+    };
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({ heroRow: 'spotlight', rows: [{ key: 'spotlight', items: [sharp, alien] }] }),
+    });
+    const { container } = renderApp('/');
+    await screen.findByRole('region', { name: 'Spotlight' });
+    const [first] = [...container.querySelectorAll('.art img')];
+    expect(first?.getAttribute('srcset')).toMatch(
+      new RegExp(`1280w, /api/v1${base}/w1920\\?v=w 1920w, /api/v1${base}/w3840\\?v=u 3000w$`),
+    );
+  });
+
   it('loads the active backdrop first, in w780 for small screens, and the next two after it', async () => {
     const wideOnly: ItemRef = {
       ...arrival,

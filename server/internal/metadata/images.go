@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -51,6 +52,37 @@ var imageWidths = map[string][]int{
 	"poster":   {200, 400, 800},
 	"backdrop": {780, 1280, 1920},
 	"logo":     {400, 800},
+}
+
+// The backdrop size for 4K and high-density screens (contract 1.6.0): made only from an original of
+// at least uhdMinOriginal pixels and never scaled up, so an original between 2560 and 3839 px keeps
+// its width under the name w3840 (the row and ImageRef carry the real width).
+const (
+	uhdSize        = "w3840"
+	uhdWidth       = 3840
+	uhdMinOriginal = 2560
+)
+
+// uhdKinds are the kinds with the extra size.
+var uhdKinds = map[string]bool{"backdrop": true}
+
+// sizeSpec is one derived size: its name (w780 …) and the width it is scaled to.
+type sizeSpec struct {
+	name  string
+	width int
+}
+
+// sizesFor returns the derived sizes of a kind for an original of origWidth pixels (0 = unknown,
+// then without the 4K size).
+func sizesFor(kind string, origWidth int) []sizeSpec {
+	out := make([]sizeSpec, 0, len(imageWidths[kind])+1)
+	for _, w := range imageWidths[kind] {
+		out = append(out, sizeSpec{name: sizeName(w), width: w})
+	}
+	if uhdKinds[kind] && origWidth >= uhdMinOriginal {
+		out = append(out, sizeSpec{name: uhdSize, width: min(origWidth, uhdWidth)})
+	}
+	return out
 }
 
 // imageFormat is a delivered format with its file extension and media type.
@@ -258,6 +290,7 @@ func (s *Service) imageSource(item systemq.Item, row systemq.ItemImage) imageReq
 // storedImage is the part of an image row the completeness check needs.
 type storedImage struct {
 	size, format, sourceURL, relPath string
+	width                            int
 }
 
 // kindComplete reports whether the rows of one kind hold every derived width in both formats with
@@ -265,10 +298,16 @@ type storedImage struct {
 // source_url of every derived row (image.fetch knows the current TMDB original; the check after a
 // scan does not).
 func kindComplete(kind string, rows []storedImage, sourceURL string, exists func(rel string) bool) bool {
+	origWidth := 0
+	for _, r := range rows {
+		if r.size == originalSize {
+			origWidth = r.width
+		}
+	}
 	want := map[string]bool{}
-	for _, w := range imageWidths[kind] {
+	for _, sz := range sizesFor(kind, origWidth) {
 		for _, f := range formatsOf(kind) {
-			want[sizeName(w)+"/"+string(f.format)] = true
+			want[sz.name+"/"+string(f.format)] = true
 		}
 	}
 	have := 0
@@ -459,7 +498,7 @@ func storedAccent(prev []systemq.Image) sql.NullString {
 func storedImages(prev []systemq.Image) []storedImage {
 	out := make([]storedImage, 0, len(prev))
 	for _, r := range prev {
-		out = append(out, storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath})
+		out = append(out, storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath, width: int(r.Width)})
 	}
 	return out
 }
@@ -520,6 +559,7 @@ func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID,
 
 // derived is one scaled output of deriveImages before it is renamed into place.
 type derived struct {
+	size      string // w780 … w3840
 	width     int
 	format    transcode.ImageFormat
 	ext       string
@@ -545,7 +585,7 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			}
 		}
 	}()
-	for _, w := range imageWidths[kind] {
+	for _, sz := range sizesFor(kind, s.originalWidth(root, origRel)) {
 		for _, f := range formatsOf(kind) {
 			tmp, err := tempName(dir)
 			if err != nil {
@@ -555,8 +595,8 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			if err != nil {
 				return nil, fmt.Errorf("resolve temporary image: %w", err)
 			}
-			outs = append(outs, derived{width: w, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
-			args = append(args, transcode.ImageOutput{Path: abs, Width: w, Format: f.format})
+			outs = append(outs, derived{size: sz.name, width: sz.width, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
+			args = append(args, transcode.ImageOutput{Path: abs, Width: sz.width, Format: f.format})
 		}
 	}
 	if err := s.runner.ScaleImage(ctx, in, args); err != nil {
@@ -590,7 +630,7 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			}
 			dims[o.width] = cfg
 		}
-		size := sizeName(o.width)
+		size := o.size
 		rel := dir + "/" + kind + "-" + size + "." + o.ext
 		if err := root.Rename(o.tmp, rel); err != nil {
 			return nil, fmt.Errorf("rename scaled image: %w", err)
@@ -622,6 +662,24 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 		produced[size+"/"+string(o.format)] = true
 	}
 	return produced, nil
+}
+
+// originalWidth reads the width of the original at rel from its header; 0 when it cannot be read
+// (then the 4K size is left out, the other sizes do not need it).
+func (s *Service) originalWidth(root *os.Root, rel string) int {
+	f, err := root.Open(rel)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	head := make([]byte, 1<<20) // a JPEG may carry large EXIF or ICC segments before its frame header
+	n, _ := io.ReadFull(f, head)
+	mediaType := map[string]string{".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[strings.ToLower(path.Ext(rel))]
+	cfg, err := imageConfig(head[:n], mediaType)
+	if err != nil {
+		return 0
+	}
+	return cfg.Width
 }
 
 // accent computes the accent colour of the poster at the absolute path. A failure only costs the
@@ -689,7 +747,7 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 			titles[r.ItemID] = t
 			order = append(order, r.ItemID)
 		}
-		t.kinds[r.Kind] = append(t.kinds[r.Kind], storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath})
+		t.kinds[r.Kind] = append(t.kinds[r.Kind], storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath, width: int(r.Width)})
 		if r.Kind == "poster" && r.Size != originalSize && r.Accent.Valid {
 			t.accent = true
 		}

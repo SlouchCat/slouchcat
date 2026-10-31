@@ -78,10 +78,11 @@ type homeAnswer struct {
 			Kind       string `json:"kind"`
 			HasTrailer *bool  `json:"hasTrailer"`
 			Images     struct {
-				Backdrop      struct{ URL string } `json:"backdrop"`
-				BackdropSmall struct{ URL string } `json:"backdropSmall"`
-				Poster        struct{ URL string } `json:"poster"`
-				PosterSmall   struct{ URL string } `json:"posterSmall"`
+				Backdrop      struct{ URL string }  `json:"backdrop"`
+				BackdropSmall struct{ URL string }  `json:"backdropSmall"`
+				BackdropLarge *struct{ URL string } `json:"backdropLarge"`
+				Poster        struct{ URL string }  `json:"poster"`
+				PosterSmall   struct{ URL string }  `json:"posterSmall"`
 			} `json:"images"`
 		} `json:"items"`
 	} `json:"rows"`
@@ -136,9 +137,11 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 	}
 	first := page.Rows[0].Items[2]
 	small, large := first.Images.BackdropSmall.URL, first.Images.Backdrop.URL
-	if small == "" || large == "" {
-		t.Fatalf("first stage title %s without both backdrops", first.ID)
+	if small == "" || large == "" || first.Images.BackdropLarge == nil {
+		t.Fatalf("first stage title %s without the three backdrops", first.ID)
 	}
+	// The stage offers w1920 too (and w3840 where stored; the fixture's originals are narrower).
+	wide := first.Images.BackdropLarge.URL
 	// Without a stage the home preload carries no start: the server has nothing to draw.
 	plain := []string{
 		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
@@ -149,14 +152,14 @@ func TestStartPagePreloadHeaders(t *testing.T) {
 		"</api/v1/auth/session>; rel=preload; as=fetch; crossorigin",
 		"</api/v1/home?start=2>; rel=preload; as=fetch; crossorigin",
 		"</api/v1/libraries/visible>; rel=preload; as=fetch; crossorigin",
-		"<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 780w, " + large +
-			` 1280w"; imagesizes="(width >= 768px) calc(100vw - 15rem), 100vw"; fetchpriority=high`,
+		"<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " 780w, " + large + " 1280w, " + wide +
+			` 1920w"; imagesizes="(width >= 768px) calc(100vw - 15rem), 100vw"; fetchpriority=high`,
 	}
 
 	// The shell paints the same image ahead of the app: outside #root, URLs HTML-escaped.
 	esc := func(u string) string { return strings.ReplaceAll(u, "&", "&amp;") }
 	prepaint := `<div id="hero-prepaint" data-start="2" aria-hidden="true"><img src="` + esc(small) + `" srcset="` +
-		esc(small) + " 780w, " + esc(large) + ` 1280w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw" alt="" width="1280" height="720" ` +
+		esc(small) + " 780w, " + esc(large) + " 1280w, " + esc(wide) + ` 1920w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw" alt="" width="1280" height="720" ` +
 		`fetchpriority="high" decoding="sync"></div>`
 
 	t.Run("start page with session", func(t *testing.T) {
@@ -438,6 +441,11 @@ func TestHeroPrepaint(t *testing.T) {
 		{"both backdrops", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), BackdropSmall: img("backdrop", "w780")},
 			`<div id="hero-prepaint" data-start="4" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7" ` +
 				`srcset="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7 780w, /api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7 1280w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw"` + tail},
+		{"every backdrop size, the 4K one with its real width", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), BackdropSmall: img("backdrop", "w780"),
+			BackdropLarge: img("backdrop", "w1920"), BackdropUhd: &model.Image{Kind: "backdrop", Size: "w3840", ContentHash: "h", Width: 3000}},
+			`<div id="hero-prepaint" data-start="4" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7" ` +
+				`srcset="/api/v1/items/a/images/backdrop/w780?v=h&amp;p=7 780w, /api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7 1280w, ` +
+				`/api/v1/items/a/images/backdrop/w1920?v=h&amp;p=7 1920w, /api/v1/items/a/images/backdrop/w3840?v=h&amp;p=7 3000w" sizes="(width >= 768px) calc(100vw - 15rem), 100vw"` + tail},
 		{"large backdrop only", model.ItemSummary{ID: "a", Backdrop: img("backdrop", "w1280"), Poster: img("poster", "w500")},
 			`<div id="hero-prepaint" data-start="4" aria-hidden="true"><img src="/api/v1/items/a/images/backdrop/w1280?v=h&amp;p=7"` + tail},
 		{"small backdrop only", model.ItemSummary{ID: "a", BackdropSmall: img("backdrop", "w780")},

@@ -479,6 +479,7 @@ type ItemSummary struct {
 	PosterSmall   *Image // w200 (M1b image pipeline)
 	PosterLarge   *Image // w800
 	BackdropLarge *Image // w1920
+	BackdropUhd   *Image // w3840, only from an original of at least 2560 px (4K, high density)
 	Accent        string // #rrggbb from the poster palette, "" until the pipeline has run
 	Progress      *Progress
 

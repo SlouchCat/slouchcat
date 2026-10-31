@@ -22,6 +22,7 @@ const (
 	backdropSmallSize = "w780"
 	backdropSize      = "w1280"
 	backdropLargeSize = "w1920"
+	backdropUhdSize   = "w3840"
 	logoSize          = "w400"
 )
 
@@ -183,6 +184,7 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 		Backdrop:      pickImage(ex.images[it.ID], "backdrop", backdropSize),
 		BackdropSmall: pickImage(ex.images[it.ID], "backdrop", backdropSmallSize),
 		BackdropLarge: pickImage(ex.images[it.ID], "backdrop", backdropLargeSize),
+		BackdropUhd:   pickImage(ex.images[it.ID], "backdrop", backdropUhdSize),
 		Accent:        pickAccent(ex.images[it.ID]),
 	}
 	if it.Year.Valid {

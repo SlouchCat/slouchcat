@@ -772,6 +772,8 @@ function ItemView({ itemId }: { itemId: string }) {
           url={imageUrl(images.backdrop)}
           smallUrl={imageUrl(images.backdropSmall)}
           largeUrl={imageUrl(images.backdropLarge)}
+          uhdUrl={imageUrl(images.backdropUhd)}
+          uhdWidth={images.backdropUhd?.width}
           posterUrl={imageUrl(images.poster)}
           accent={item.accent}
         />

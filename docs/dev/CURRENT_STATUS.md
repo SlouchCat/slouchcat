@@ -433,6 +433,22 @@ Titel haben jetzt ein Logo, 1'337 ein deutsches Poster (vorher 60). Live belegt:
 der 23 gewählten SVG-Logos die PNG-Fassung (O-3). Offen bleibt nur der Live-Beleg der Sprachcodes ohne
 Region (Schritt 1): Marcos Liste hat keine dritte Sprache.
 
+**Nachtrag Bildschärfe im Spotlight** (Marcos Rückmeldung nach dem `apply`, 31. Oktober 2026): das
+Spotlight lud höchstens `w1280`, obwohl `w1920` im Cache lag; auf CT 190 sind 1'107 Hintergrund-Originale
+3840 px breit oder mehr, weitere 156 mindestens 2560 px. Jetzt bieten Spotlight, Detailseite, Vorab-Bild
+und `Link`-Header `w1920` und die neue Stufe `w3840` an (nur aus Originalen ab 2560 px, nie hochskaliert,
+mit echter Breite im `srcset`; `ItemImages.backdropUhd`, `getItemImage` `w3840`). Bestehende Titel
+bekommen sie mit dem nächsten Scan. Tests: `TestSizesFor`, `TestBackdropUhdFromWideOriginal` (4000 px →
+3840, 2600 px bleibt, 2000 px ohne; der Scan-Check reiht fehlende Titel ein), `TestHeroPrepaint`,
+`TestStartPagePreloadHeaders`, ein Fall in `HomePage.test.tsx`; Papier 14 «Nachtrag».
+
+```
+$ git add -A && task ci                    (Zweig a5abade + Nachtrag)
+server: 0 issues, gen:check grün, 33 Pakete ok; web lint grün; web test: 86 Dateien, 692 Tests passed
+storybook:test: 200 passed (16.7s); task ci:e2e: 493 passed, 1 failed (25.5m):
+               [firefox] admin-streams.spec.ts:39 «its player stops within 5 s» (bekannt, ohne Bezug)
+```
+
 **Versionsstellen** auf 1.6.0: `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
 `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`. Den Tag `v1.6.0` setzt Marco nach dem Merge
 (HANDOVER, Beschriftung = Release-Notes).
@@ -452,8 +468,9 @@ Region (Schritt 1): Marcos Liste hat keine dritte Sprache.
   unter Hintergrundjobs).
 - Profile: «Sprache der Beschreibungen», sobald der Server eine dritte Sprache führt; die
   Oberfläche bleibt Deutsch oder Englisch.
-- Bilder: Logos (PNG und WebP, nie JPEG) auf der Detailseite und im Spotlight statt des
-  Text-Titels; Bilddateien neben dem Film (`poster.jpg`/`folder.jpg`, `fanart.jpg`/`backdrop.jpg`,
+- Bilder: Spotlight und Detailseite laden Hintergründe bis 1920 px und, wo das Original mindestens
+  2560 px breit ist, in einer neuen Stufe bis 3840 px für 4K- und Retina-Bildschirme (nie hochskaliert);
+  Logos (PNG und WebP, nie JPEG) auf der Detailseite und im Spotlight statt des Text-Titels; Bilddateien neben dem Film (`poster.jpg`/`folder.jpg`, `fanart.jpg`/`backdrop.jpg`,
   `logo.png`/`clearlogo.png`, `seasonNN-poster.jpg`, `<Datei>-thumb.jpg`) gewinnen, wenn sie breit
   genug sind; Fanart.tv als letzte Quelle mit Schlüssel unter «Integrationen» oder
   `SLOUCHCAT_FANART_API_KEY`/`SLOUCHCAT_FANART_CLIENT_KEY`.
@@ -466,7 +483,8 @@ Region (Schritt 1): Marcos Liste hat keine dritte Sprache.
   `updateLibraryMetadata`, `applyMetadata`, `listItemImageCandidates`,
   `getItemImageCandidatePreview`, `setItemImage`, `clearItemImage` (alle `admin`);
   `Profile.metadataLanguage`, `SessionInfo.availableMetadataLanguages`, `ImageKind` `logo`,
-  `ItemImages.logo`, `AdminItem.images`, `AdminSettingsKeys.fanart`/`fanartClient`.
+  `ItemImages.logo`, `ItemImages.backdropUhd` mit der Grösse `w3840` in `getItemImage`, `AdminItem.images`,
+  `AdminSettingsKeys.fanart`/`fanartClient`.
 - Datenbank: Migrationen 00028 (Rang der Textsprachen, Metadatensprache des Profils), 00029
   (`item_images`, `item_local_images`, Bildart `logo`, Format `png`), 00030
   (`library_metadata`); vor dem Lauf sichert der Server die Datenbank wie immer.

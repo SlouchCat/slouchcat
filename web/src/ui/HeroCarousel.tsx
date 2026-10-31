@@ -25,6 +25,14 @@ export interface HeroSlide {
   backdropUrl?: string;
   /** The same backdrop in w780 for phones; the browser picks it through `srcset`. */
   backdropSmallUrl?: string;
+  /** The same backdrop in w1920 for wide screens. */
+  backdropLargeUrl?: string;
+  /**
+   * The same backdrop for 4K and high-density screens (w3840, only from a wide original) and its
+   * real width, which the `srcset` names (an original between 2560 and 3839 px keeps its width).
+   */
+  backdropUhdUrl?: string;
+  backdropUhdWidth?: number;
   posterUrl?: string;
   /** The same poster in w200, offered to the poster row under the band through `srcset`. */
   posterSmallUrl?: string;
@@ -95,15 +103,25 @@ const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta']);
 // preload.go); change them together.
 const HERO_SIZES = '(width >= 768px) calc(100vw - 15rem), 100vw';
 
-/** Source attributes of a slide image: the small backdrop first, the large one for wide screens. */
+/**
+ * Source attributes of a slide image: the small backdrop first, the larger ones for wide and dense
+ * screens (the browser picks by `sizes` and the device pixel ratio).
+ */
 function imageSource(slide: HeroSlide) {
-  const { backdropUrl, backdropSmallUrl, posterUrl } = slide;
+  const {
+    backdropUrl,
+    backdropSmallUrl,
+    backdropLargeUrl,
+    backdropUhdUrl,
+    backdropUhdWidth,
+    posterUrl,
+  } = slide;
   if (backdropUrl && backdropSmallUrl) {
-    return {
-      src: backdropSmallUrl,
-      srcSet: `${backdropSmallUrl} 780w, ${backdropUrl} 1280w`,
-      sizes: HERO_SIZES,
-    };
+    const candidates = [`${backdropSmallUrl} 780w`, `${backdropUrl} 1280w`];
+    if (backdropLargeUrl) candidates.push(`${backdropLargeUrl} 1920w`);
+    if (backdropUhdUrl && backdropUhdWidth)
+      candidates.push(`${backdropUhdUrl} ${backdropUhdWidth}w`);
+    return { src: backdropSmallUrl, srcSet: candidates.join(', '), sizes: HERO_SIZES };
   }
   return { src: backdropUrl ?? backdropSmallUrl ?? posterUrl };
 }
