@@ -90,3 +90,29 @@ Filmordner; die Dateien heissen dort `folder.jpg`, `backdrop.jpg` und `logo.png`
 Scanner neben `poster`/`fanart`/`clearlogo` auch diese Namen, Papier 4.6). Der Scan liest nur den
 Header (JPEG/PNG über `image.DecodeConfig`, WebP aus dem RIFF-Kopf), nie das ganze Bild; das Bild
 selbst holt erst `image.fetch`, wenn die lokale Datei die Wahl gewinnt.
+
+## 3. Schritt 7: CT 190 (Migration, Startzustand)
+
+CT 190 (Proxmox pve2, 2 vCPU, Medien per NFS vom NAS), 31. Oktober 2026, 16:01 Uhr. Image
+`ghcr.io/slouchcat/slouchcat:metadaten-19251ac` (`v1.5.0-14-g19251ac`, Kopf des Zweigs nach Schritt 6),
+auf dem CT aus `git archive` gebaut (HANDOVER), davor `1.5.0`; Sicherung `.env.bak-vor-metadaten`.
+
+| Was | Wert |
+|---|---|
+| Sicherung der Datenbank vor der Migration (`VACUUM INTO`) | 1.0 s (`pre-migration-v1.5.0-14-g19251ac-20261031T150131.709Z.db`) |
+| Migration 00028 (`item_texts.rank`, Profilspalte, Genre-Trigger) | 918 ms |
+| Migration 00029 (`images` neu, `item_images`, `item_local_images`) | 702 ms |
+| Migration 00030 (`library_metadata`) | 203 ms |
+| Start bis `listening` | 3.88 s; `compose up --wait` bis gesund 7 s |
+| Titel | 2'093 Filme, 2 Serien (15 Staffeln, 291 Folgen), alle gematcht |
+| `item_texts` nach 00028 | 33'830 Zeilen Rang 0 (`de`), 33'830 Rang 1 (`en`) |
+| `item_images` nach 00029 | 2'097 Poster, 2'383 Hintergründe aus den TMDB-Pfadspalten (Quelle `tmdb`), 1 Logo aus dem ersten `image.fetch` nach dem Start |
+| `item_local_images` wenige Minuten nach dem Start (Scan lief) | 208 Dateien in 91 Titelordnern |
+| Bild-Cache vor einem `apply` | 9.7 GB (`/opt/slouchcat/deploy/cache/images`; 31'941 Poster-, 19'943 Hintergrundzeilen) |
+
+**Offen:** der `apply`-Lauf selbst (Papier 8, «Was kostet ein `apply`?») und die Cache-Grösse danach.
+Er braucht eine Anmeldung als Administrator auf CT 190 und einen TMDB-Schlüssel dort; beides gibt
+Marco. Ablauf: Verwaltung → Metadaten, Standard lassen (de, en), «Jetzt anwenden» mit «Texte und
+Bilder» über alle Bibliotheken, Dauer unter Hintergrundjobs ablesen (`metadata.apply` und die
+Kinder `metadata.match`/`image.fetch`), danach `du -sh /opt/slouchcat/deploy/cache/images`.
+

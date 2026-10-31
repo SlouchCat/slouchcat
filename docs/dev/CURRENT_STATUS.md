@@ -1,12 +1,14 @@
 # Aktueller Stand
 
-## Konzept 10 «Metadaten-Einstellungen»: Umsetzung läuft (31. Oktober 2026)
+## Konzept 10 «Metadaten-Einstellungen»: umgesetzt, Pull Request offen (31. Oktober 2026)
 
 Zweig `claude/festive-swanson-7af516` ab `main` `d3d73bc` (Merge von PR #57, Konzept 10). Umsetzung
 nach `docs/planning/10-metadaten-einstellungen.md` Abschnitt 10, ein Commit je Schritt, `task ci`
-grün vor jedem Abschluss (Storybook-Vergleich ohne Docker nicht lokal, siehe je Schritt). Marco hat
+grün vor jedem Abschluss (Storybook-Vergleich ab Schritt 5 lokal mit Docker, siehe je Schritt). Marco hat
 am 31. Oktober 2026 alle Fragen wie vorgeschlagen beantwortet (Frage 16) und die Umsetzung
-beauftragt. Nicht mergen; Marco entscheidet.
+beauftragt. Alle acht Schritte (0 bis 7) sind committet; CT 190 läuft auf dem Kopf des Zweigs. Offen
+für Marco: der `apply`-Lauf auf CT 190 (Anmeldung als Administrator, TMDB-Schlüssel), Merge und Tag
+`v1.6.0` (Vertrag 1.6.0, Release-Notes-Entwurf unten). Nicht mergen; Marco entscheidet.
 
 ### Schritt 0 — Entscheide und Papiere (`b0649e4`, 31. Oktober 2026)
 
@@ -414,6 +416,61 @@ $ go test ./internal/logging/ -count=1                                    ok
 
 Der eine rote Fall ist das bekannte 5-Sekunden-Zeitbudget von `admin-streams.spec.ts` in Firefox (Schritt 1,
 Konzepte 08 und 09); er berührt keine Zeile dieses Konzepts.
+
+### Schritt 7 — Abnahme, Messung, Doku (31. Oktober 2026)
+
+**CT 190** läuft seit 16:01 Uhr auf `ghcr.io/slouchcat/slouchcat:metadaten-19251ac` (`v1.5.0-14-g19251ac`,
+Kopf nach Schritt 6), gebaut auf dem CT aus `git archive 19251ac` (Skripte im ignorierten Ordner `.omc/ct190/`,
+Umstellung über das Terminal-Panel), Sicherung `.env.bak-vor-metadaten`, davor `1.5.0`. Die Migrationen
+00028 bis 00030 liefen in 0.9 / 0.7 / 0.2 s nach der Datenbanksicherung `pre-migration-v1.5.0-14-g19251ac-…`;
+Start 3.9 s, gesund nach 7 s. Messwerte und Startzustand in `docs/perf/metadaten.md` Abschnitt 3
+(2'093 Filme, 2 Serien; 4'480 Bildquellen aus den TMDB-Spalten; 208 Bilddateien in 91 Titelordnern
+kurz nach dem Start; Cache 9.7 GB).
+
+**Nicht erledigt, wartet auf Marco:** der `apply`-Lauf auf CT 190 mit Dauer und Cache-Grösse danach
+(Papier 8) und der Live-Beleg der TMDB-Annahmen aus Schritt 1 und 2 (Sprachcode ohne Region,
+SVG-Logo als PNG-Zwilling): beides braucht eine Anmeldung als Administrator und den TMDB-Schlüssel
+auf CT 190; ein Passwort gibt die Session nicht ein. Ablauf in `docs/perf/metadaten.md` 3.
+
+**Versionsstellen** auf 1.6.0: `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+`docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`. Den Tag `v1.6.0` setzt Marco nach dem Merge
+(HANDOVER, Beschriftung = Release-Notes).
+
+**Release-Notes-Entwurf 1.6.0** (C-5, nicht brechend; erste Zeile nach 5.4):
+
+- Metadaten-Einstellungen: Sprachen als Liste, Bildsprache und Logo, lokale Bilddateien,
+  Freigabeland, Bildwahl je Titel; Vertrag 1.6.0 fügt hinzu, nichts entfällt.
+- Verwaltung, neue Seite «Metadaten» (Bibliothek → Metadaten): die Sprachen, in denen die
+  Metadatenquellen Titel, Beschreibungen und Genres liefern, als geordnete Liste (Deutsch Pflicht,
+  jede weitere Sprache wird für jeden Titel geholt; die Reihenfolge ist der Rückfall); je Bildart
+  (Poster, Hintergrund, Logo) eine Sprachkette mit «Ohne Text»; Schalter für Logo, Staffelposter
+  und Folgenbild; Mindestbreiten und «Nach Bewertung wählen»; TMDB-Erwachseneninhalte bei der
+  Suche; lokale Bilddateien als Quelle; Fanart.tv; das Land, dessen Altersfreigabe zuerst gelesen
+  wird (DE, AT, CH, GB, US). Jede Videobibliothek kann bei Sprachen und Bildern abweichen. Neue
+  Einstellungen gelten für neue Titel sofort; «Jetzt anwenden» bringt bestehende Titel nach (Lauf
+  unter Hintergrundjobs).
+- Profile: «Sprache der Beschreibungen», sobald der Server eine dritte Sprache führt; die
+  Oberfläche bleibt Deutsch oder Englisch.
+- Bilder: Logos (PNG und WebP, nie JPEG) auf der Detailseite und im Spotlight statt des
+  Text-Titels; Bilddateien neben dem Film (`poster.jpg`/`folder.jpg`, `fanart.jpg`/`backdrop.jpg`,
+  `logo.png`/`clearlogo.png`, `seasonNN-poster.jpg`, `<Datei>-thumb.jpg`) gewinnen, wenn sie breit
+  genug sind; Fanart.tv als letzte Quelle mit Schlüssel unter «Integrationen» oder
+  `SLOUCHCAT_FANART_API_KEY`/`SLOUCHCAT_FANART_CLIENT_KEY`.
+- Titelpflege: Abschnitt «Bilder» mit den Kandidaten aller Quellen je Art; eine eigene Wahl sperrt
+  die Art und überlebt «Anwenden» und «Aktualisieren», «Sperre aufheben» gibt die automatische Wahl
+  zurück.
+- Altersfreigabe: eine gespeicherte Stufe wird durch einen Länderwechsel nie gesenkt; ein neuer
+  Titel bekommt die Stufe des zuerst gelesenen Landes.
+- Vertrag 1.6.0, additiv: `getMetadataSettings`, `updateMetadataSettings`, `getLibraryMetadata`,
+  `updateLibraryMetadata`, `applyMetadata`, `listItemImageCandidates`,
+  `getItemImageCandidatePreview`, `setItemImage`, `clearItemImage` (alle `admin`);
+  `Profile.metadataLanguage`, `SessionInfo.availableMetadataLanguages`, `ImageKind` `logo`,
+  `ItemImages.logo`, `AdminItem.images`, `AdminSettingsKeys.fanart`/`fanartClient`.
+- Datenbank: Migrationen 00028 (Rang der Textsprachen, Metadatensprache des Profils), 00029
+  (`item_images`, `item_local_images`, Bildart `logo`, Format `png`), 00030
+  (`library_metadata`); vor dem Lauf sichert der Server die Datenbank wie immer.
+- Hinweis: Bestehende Titel behalten ihre Bilder und Texte, bis «Jetzt anwenden» läuft. Der erste
+  Scan nach dem Update liest die Bilddateien neben den Medien (nur den Kopf jeder Datei).
 
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
