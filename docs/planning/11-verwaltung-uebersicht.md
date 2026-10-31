@@ -8,9 +8,9 @@
   (`docs/planning/mockups/11-verwaltung-prototyp.html`, Abschnitt 9). Der OMC-Kritiker hat
   Fassung 1 geprüft (1 Blocker, 8 Major, 8 Minor; Abschnitt 11); Fassung 2 arbeitet alle ein.
   **Marco hat am 31. Oktober 2026 Variante B «Seitenleiste wie Emby» gewählt**, mit dem Wunsch,
-  die Gruppentitel deutlich stärker und farbig zu markieren (Abschnitt 10.1). Die übrigen Fragen
-  und der Titelstil (F-9) sind offen. **Die Umsetzung beginnt erst auf Marcos ausdrückliches
-  Wort.**
+  die Gruppentitel deutlich stärker und farbig zu markieren (Abschnitt 10.1). **Alle Fragen F-1
+  bis F-9 sind beantwortet** (Abschnitt 10.2). Die genauen Umsetzungsschritte für B folgen in
+  Fassung 3. **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Datum: 31. Oktober 2026, Fassung 2 vom selben Tag**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`d3d73bc`** («Merge pull request #57»),
   Vertragsfassung **1.5.0**. Konzept 10 (Metadaten) ist gemergt, aber nicht umgesetzt; es hat
@@ -323,7 +323,7 @@ und Abstände sind von den Tokens abgeschrieben. Das Server-Protokoll (F-3) zeig
 | F-4 | **Nein, immer zwei Balken** (abweichend von der Empfehlung). | `/config` und `/cache` bleiben getrennt, auch bei gleichen Zahlen. Das Feld `storage.shared` (6.2) und G-6 entfallen; A-3 bleibt wörtlich erfüllt. |
 | F-5 | **Ja, wie empfohlen.** | `jobs.active`, `jobs.nextRun` (6.2). |
 | F-6 | **Beides bauen** (abweichend von der Empfehlung), nach Erklärung: «Neu starten soll unterstützt werden. Letzte Aktivität soll ebenfalls erstellt werden.» | Neues Ereignisprotokoll im Server (Tabelle, Einträge bei Wiedergabe, Scan, Sicherung, Webhook, Serverstart; Aufräumen alter Einträge) und Neustart-Endpunkt mit Rückfrage, weil laufende Streams abbrechen. Beides ist neue Funktion: braucht eine Migration (00031), Vertrag 1.7.0 und vermutlich ADR 0019; in Frage 17. Rund 3 bis 4 Tage zusätzlich. |
-| F-7 | **Offen.** Marco wollte ein Beispiel; der Prototyp zeigt «keine / wenige / viele» Zahlen. | — |
+| F-7 | **Wenige, wie empfohlen** (nach Beispiel im Prototyp, Schalter «Zahlen»). | Zahlen in der Verwaltungsleiste nur bei Bibliotheken (Titel), Pflege (offene Fälle, Warnfarbe), Konten, Integrationen (eingerichtet / gesamt), Streams und Hintergrundjobs (laufend); Alarme als farbige Pille (Fehlschläge, stummer Webhook). Braucht wenige billige Zähler im Dashboard, kein Zählerobjekt für alle 18 Seiten. |
 | F-8 | **Ja, wie empfohlen.** | Hinweis «Scan abgebrochen» in der Karte Hinweise mit Link zu Bibliotheken; `attention.abortedScans` (6.2). |
 | F-9 | **3 «Band».** | Keine neuen Farb-Tokens; Titel als getöntes Band in der Profilfarbe, Einträge eingerückt. |
 
