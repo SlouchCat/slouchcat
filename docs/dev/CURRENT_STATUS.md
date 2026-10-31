@@ -9,17 +9,23 @@ Release-Notes, nachzulesen mit `git cat-file tag v1.5.0`), Release-Lauf 41184322
 `version 1.5.0` und `FFMPEG-NOTICE.md` am Release. Vertrag 1.5.0 ist damit getaggt (Regel
 Vertrag = Tag).
 
-**CT 190** läuft seit 09:18 auf dem selbst auf dem CT gebauten Image `hintergrundjobs-19ee05c`
-(`v1.4.0-31-g19ee05c`, also der Zweigstand vor dem Merge, inhaltlich gleich `9e1e44a`).
-Migration 00027 lief in 2.1 s; Sicherung vorher als
+**CT 190** lief zuerst, von 09:18 bis 09:27, als Zwischenschritt auf dem selbst auf dem CT gebauten
+Image `hintergrundjobs-19ee05c` (`v1.4.0-31-g19ee05c`, der Zweigstand vor dem Merge). Dabei lief
+Migration 00027 in 2.1 s; Sicherung vorher als
 `pre-migration-v1.4.0-31-g19ee05c-20261031T081751.721Z.db`; `job_schedules` hat sechs Zeilen.
 Bauweg auf dem CT (ohne lokales Docker) in HANDOVER 5. Dafür musste auf dem CT
 `docker-buildx-plugin` nachinstalliert werden: der alte Builder kennt `$BUILDPLATFORM` nicht und
 brach mit `failed to parse platform : ""` ab.
 
+Seit 09:27 läuft CT 190 auf dem Release-Image `ghcr.io/slouchcat/slouchcat:1.5.0`
+(`docker compose pull && docker compose up -d --wait`; Sicherung der Einstellungen
+`/opt/slouchcat/deploy/.env.bak-vor-1.5.0`; `healthz` meldet `version 1.5.0`). Keine Migration
+mehr, 00027 lief schon mit dem Zwischenstand. Beim Start reihte der Scheduler Scan, Sweep und
+Podcast-Abruf sofort und die Update-Prüfung nach 60 s ein: das ist die Startregel (`StartDelay`),
+kein Befund.
+
 **Noch offen** (Einzelheiten im Abschnitt «Schritt 5» unten): Abnahme am Handy, ein Tag
 Beobachtung der Zeitpläne auf CT 190, Messung `listJobTypes` auf CT 190 gegen die Latte 50 ms p95.
-CT 190 auf das veröffentlichte Image `1.5.0` umzustellen ist nicht nötig, der Inhalt ist derselbe.
 
 ## Hintergrundjobs (Konzept 09): Schritt 5, Teil der Session (30. Oktober 2026)
 
@@ -90,7 +96,7 @@ $ task ci:server                                                  grün (lint, g
   der Server sichert die Datenbank vorher nach `/config/backups/`.
 
 **Erledigt:** Image des Zweigs auf CT 190 gebaut und umgestellt (`hintergrundjobs-19ee05c`,
-31. Oktober 09:18), Merge von PR #55 (`9e1e44a`), Tag `v1.5.0`, Release-Lauf grün.
+31. Oktober 09:18, ab 09:27 das Release-Image 1.5.0), Merge von PR #55 (`9e1e44a`), Tag `v1.5.0`, Release-Lauf grün.
 
 **Offen (Marco):**
 
