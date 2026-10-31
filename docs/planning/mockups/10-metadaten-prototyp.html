@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metadaten Prototyp</title>
+<style>
+  /* Slouchcat tokens (packages/design-tokens/tokens). Prototype only, not web/src code (concept 10, 7.6). */
+  :root {
+    --bg-base: #0b0c10; --bg-elevated: #13151b;
+    --surface-1: #16181f; --surface-2: #1d2029; --surface-3: #262a35;
+    --text-primary: #f3f3f5; --text-secondary: #b6b9c4; --text-muted: #9095a3;
+    --border-subtle: #ffffff14; --focus: #f3f3f5;
+    --danger: #f2777a; --success: #5fcf8f; --warning: #e8b65a;
+    --accent: #45c2b1; --on-accent: #04191a;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+    --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-full: 999px;
+    --control: 40px;
+    --font: system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  :root[data-theme="dark"] { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--bg-base); color: var(--text-primary); font: 16px/1.5 var(--font); }
+  a { color: inherit; }
+  .app { max-width: 72rem; margin: 0 auto; padding: 0 var(--s4) var(--s10); }
+
+  .header { display: flex; align-items: center; gap: var(--s4); min-height: 64px; }
+  .brand { display: flex; align-items: center; gap: var(--s2); font-weight: 700; letter-spacing: -0.02em; }
+  .brand .cat { width: 28px; height: 28px; border-radius: var(--r-full); background: var(--accent); display: grid; place-items: center; color: var(--on-accent); font-size: 14px; }
+  .header nav { display: flex; gap: var(--s1); margin-left: var(--s4); }
+  .header nav a { padding: var(--s1) var(--s3); border-radius: var(--r-full); color: var(--text-secondary); font-size: .875rem; font-weight: 500; text-decoration: none; }
+  .header nav a[aria-current] { background: var(--surface-3); color: var(--text-primary); }
+  .header .spacer { flex: 1; }
+  .avatar { width: 32px; height: 32px; border-radius: var(--r-full); background: var(--accent); display: grid; place-items: center; color: var(--on-accent); font-weight: 700; font-size: .875rem; }
+
+  .adminnav { margin: var(--s4) 0 var(--s8); padding-bottom: var(--s3); border-bottom: 1px solid var(--border-subtle); }
+  .groups { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s6); margin: 0; padding: 0; list-style: none; }
+  .group { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); align-items: center; }
+  .glabel { color: var(--text-muted); font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .links { display: flex; flex-wrap: wrap; gap: var(--s1); margin: 0; padding: 0; list-style: none; }
+  .link { display: inline-flex; align-items: center; padding: var(--s1) var(--s3); border-radius: var(--r-full); color: var(--text-secondary); font-size: .875rem; font-weight: 500; white-space: nowrap; text-decoration: none; }
+  .link:hover { color: var(--text-primary); }
+  .link[aria-current="page"] { background: var(--surface-3); color: var(--text-primary); }
+  .link.new::after { content: "neu"; margin-left: var(--s2); padding: 0 var(--s2); border-radius: var(--r-full); background: var(--accent); color: var(--on-accent); font-size: .7rem; font-weight: 700; }
+
+  h1 { margin: 0 0 var(--s2); font-size: 2rem; letter-spacing: -0.02em; line-height: 1.1; }
+  .lead { margin: 0 0 var(--s6); color: var(--text-secondary); max-width: 46rem; }
+  .layout { display: grid; grid-template-columns: 1fr; gap: var(--s6); }
+
+  .scope { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); margin-bottom: var(--s6); }
+  .segments { display: inline-flex; flex-wrap: wrap; gap: var(--s1); padding: var(--s1); border-radius: var(--r-full); background: var(--surface-1); }
+  .segment { display: inline-flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s5); border: 0; border-radius: var(--r-full); background: transparent; color: var(--text-secondary); font: inherit; font-weight: 500; cursor: pointer; }
+  .segment[aria-pressed="true"] { background: var(--surface-3); color: var(--text-primary); }
+  .segment .dot { width: 8px; height: 8px; border-radius: var(--r-full); background: var(--accent); }
+  .segment:focus-visible, .switch:focus-visible, .btn:focus-visible, .chip button:focus-visible, select:focus-visible, input:focus-visible, .link:focus-visible, .chip.add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .scope .hint { color: var(--text-muted); font-size: .875rem; }
+
+  .notice { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s3) var(--s4); border-radius: var(--r-lg); background: var(--surface-1); color: var(--text-secondary); font-size: .875rem; }
+  .notice b { color: var(--text-primary); }
+  .notice.warn { border-left: 3px solid var(--warning); }
+
+  .panel { display: flex; flex-direction: column; gap: var(--s5); padding: var(--s6); border-radius: var(--r-xl); background: var(--bg-elevated); }
+  .panel.inherited { opacity: .55; }
+  .panel.inherited .inheritTag { display: inline-flex; }
+  .inheritTag { display: none; padding: 0 var(--s2); border-radius: var(--r-full); background: var(--surface-3); color: var(--text-secondary); font-size: .75rem; font-weight: 600; vertical-align: middle; }
+  .head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: flex-start; justify-content: space-between; }
+  .headText { display: flex; flex: 1 1 20rem; flex-direction: column; gap: var(--s1); }
+  h2 { margin: 0; font-size: 1.25rem; font-weight: 600; line-height: 1.3; }
+  h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+  .intro { color: var(--text-secondary); margin: 0; }
+  .item { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s6); border-top: 1px solid var(--border-subtle); }
+  .item:first-child { padding-top: 0; border-top: 0; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--s4); max-width: 46rem; }
+  .field { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+  .label { color: var(--text-secondary); font-size: .875rem; font-weight: 500; }
+  .desc { color: var(--text-muted); font-size: .875rem; margin: 0; }
+  select, input[type=number], input[type=text] { width: 100%; min-height: var(--control); padding: 0 var(--s4); border: 1px solid var(--border-subtle); border-radius: var(--r-md); background: var(--surface-1); color: var(--text-primary); font: inherit; }
+  code { font-family: var(--mono); font-size: .875rem; }
+
+  .rows { display: flex; flex-direction: column; gap: var(--s1); max-width: 46rem; }
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--s4); min-height: var(--control); }
+  .row .meta { color: var(--text-muted); font-size: .875rem; }
+  .switch { display: inline-flex; gap: var(--s3); align-items: center; min-height: var(--control); padding: 0 var(--s1); border: 0; border-radius: var(--r-md); background: transparent; color: var(--text-secondary); font: inherit; font-weight: 500; cursor: pointer; }
+  .switch .track { display: inline-flex; align-items: center; width: 48px; height: 24px; padding: var(--s1); border-radius: var(--r-full); background: var(--surface-3); transition: background .18s; }
+  .switch .handle { width: 16px; height: 16px; border-radius: var(--r-full); background: var(--text-secondary); transition: transform .18s, background .18s; }
+  .switch[aria-checked="true"] { color: var(--text-primary); }
+  .switch[aria-checked="true"] .track { background: var(--accent); }
+  .switch[aria-checked="true"] .handle { background: var(--on-accent); transform: translateX(24px); }
+  .switch[disabled] { opacity: .45; cursor: default; }
+  .fixed { color: var(--text-muted); font-size: .875rem; }
+
+  .order { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+  .chip { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--s1) 0 var(--s3); min-height: 34px; border-radius: var(--r-full); background: var(--surface-2); font-size: .875rem; font-weight: 500; }
+  .chip .n { color: var(--text-muted); margin-right: var(--s1); }
+  .chip button { width: 26px; height: 26px; border: 0; border-radius: var(--r-full); background: transparent; color: var(--text-secondary); cursor: pointer; font-size: .8rem; }
+  .chip button:hover { background: var(--surface-3); color: var(--text-primary); }
+  .chip.add { background: transparent; border: 1px dashed var(--border-subtle); color: var(--text-secondary); padding-right: var(--s3); cursor: pointer; }
+  .chip.off { opacity: .5; text-decoration: line-through; }
+
+  .actions { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+  .btn { display: inline-flex; gap: var(--s2); align-items: center; min-height: var(--control); padding: 0 var(--s5); border: 0; border-radius: var(--r-full); font: inherit; font-weight: 600; cursor: pointer; }
+  .btn.primary { background: var(--text-primary); color: var(--bg-base); }
+  .btn.secondary { background: var(--surface-3); color: var(--text-primary); }
+  .btn.ghost { background: transparent; color: var(--text-secondary); }
+  .status { color: var(--text-muted); font-size: .875rem; }
+  .pill { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--s2); border-radius: var(--r-full); background: var(--surface-3); color: var(--text-secondary); font-size: .75rem; font-weight: 600; vertical-align: middle; }
+  .pill.ok::before { content: ""; width: 8px; height: 8px; border-radius: var(--r-full); background: var(--success); }
+  .pill.off::before { content: ""; width: 8px; height: 8px; border-radius: var(--r-full); background: var(--text-muted); }
+
+  .savebar { position: sticky; bottom: 0; z-index: 100; display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between; margin-top: var(--s6); padding: var(--s3) var(--s4); border-radius: var(--r-lg); background: var(--surface-2); box-shadow: 0 -8px 24px #0b0c10cc; }
+  .savebar .txt { color: var(--text-secondary); font-size: .875rem; }
+
+  .note { margin-top: var(--s8); padding: var(--s4); border-radius: var(--r-lg); border: 1px dashed var(--border-subtle); color: var(--text-muted); font-size: .875rem; }
+  .note ul { margin: var(--s2) 0 0; padding-left: 1.2em; }
+  @media (width < 768px) { .row { grid-template-columns: 1fr; } .header nav { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <div class="brand"><span class="cat">🐈</span> Slouchcat</div>
+    <nav aria-label="Hauptnavigation"><a href="#">Start</a><a href="#">Filme</a><a href="#">Serien</a><a href="#">Hören</a><a href="#">Entdecken</a><a href="#" aria-current="page">Administration</a></nav>
+    <div class="spacer"></div>
+    <div class="avatar">M</div>
+  </header>
+
+  <nav class="adminnav" aria-label="Administration">
+    <ul class="groups">
+      <li class="group"><ul class="links"><li><a class="link" href="#">Übersicht</a></li></ul></li>
+      <li class="group"><span class="glabel">Bibliothek</span><ul class="links"><li><a class="link" href="#">Bibliotheken</a></li><li><a class="link" href="#">Podcasts</a></li><li><a class="link" href="#">Pflege</a></li><li><a class="link new" href="#" aria-current="page">Metadaten</a></li></ul></li>
+      <li class="group"><span class="glabel">Konten</span><ul class="links"><li><a class="link" href="#">Konten</a></li><li><a class="link" href="#">Profile</a></li><li><a class="link" href="#">Geräte</a></li><li><a class="link" href="#">Streams</a></li></ul></li>
+      <li class="group"><span class="glabel">Kuratierung</span><ul class="links"><li><a class="link" href="#">Spotlight</a></li><li><a class="link" href="#">Cat's Empfehlungen</a></li><li><a class="link" href="#">Sammlungen</a></li><li><a class="link" href="#">Startseite</a></li><li><a class="link" href="#">Ankündigungen</a></li></ul></li>
+      <li class="group"><span class="glabel">System</span><ul class="links"><li><a class="link" href="#">Integrationen</a></li><li><a class="link" href="#">Hintergrundjobs</a></li><li><a class="link" href="#">Benachrichtigungen</a></li><li><a class="link" href="#">Statistiken</a></li><li><a class="link" href="#">Sicherung</a></li></ul></li>
+    </ul>
+  </nav>
+
+  <h1>Metadaten</h1>
+  <p class="lead">Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Güte, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für alle Bibliotheken; eine Bibliothek kann bei Sprachen und Bildern abweichen. Die Reihenfolge der Quellen steht je Ordner unter <a href="#">Bibliotheken</a>, die Zeitpläne unter <a href="#">Hintergrundjobs</a>.</p>
+
+  <div class="scope" role="group" aria-label="Geltung">
+    <div class="segments" id="scope">
+      <button class="segment" aria-pressed="true" data-scope="default">Standard</button>
+      <button class="segment" aria-pressed="false" data-scope="filme">Filme</button>
+      <button class="segment" aria-pressed="false" data-scope="serien">Serien</button>
+      <button class="segment" aria-pressed="false" data-scope="anime"><span class="dot" aria-hidden="true"></span>Anime</button>
+      <button class="segment" aria-pressed="false" data-scope="kinder">Kinder</button>
+    </div>
+    <span class="hint" id="scopeHint">Gilt für alle Bibliotheken ohne eigene Abweichung.</span>
+  </div>
+
+  <div class="notice warn" id="libNotice" hidden>
+    <span>⚑</span>
+    <div><b id="libName">Anime</b> <span id="libOverrideText">übernimmt den Standard. Schalte «Abweichen» ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern.</span>
+      <div class="actions" style="margin-top:8px">
+        <button class="switch" id="overrideSwitch" role="switch" aria-checked="false"><span class="track"><span class="handle"></span></span> Von Standard abweichen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- Sprachen -->
+    <section class="panel overridable" aria-labelledby="h-lang">
+      <div class="head"><div class="headText"><h2 id="h-lang">Sprachen <span class="inheritTag">Standard</span></h2><p class="intro">Jede Sprache hier wird für jeden Titel geholt; Profile wählen daraus die Sprache ihrer Beschreibungen. Die Oberfläche bleibt Deutsch oder Englisch. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.</p></div></div>
+      <div class="item">
+        <h3>Metadaten-Sprachen</h3>
+        <ul class="order" id="langs" aria-label="Metadaten-Sprachen, Reihenfolge ist die Rückfallreihenfolge">
+          <li class="chip"><span class="n">1</span>Deutsch <button aria-label="Deutsch nach links">◀</button><button aria-label="Deutsch nach rechts">▶</button></li>
+          <li class="chip"><span class="n">2</span>Englisch <button aria-label="Englisch nach links">◀</button><button aria-label="Englisch nach rechts">▶</button><button aria-label="Englisch entfernen" title="entfernen">✕</button></li>
+          <li class="chip add" role="button" tabindex="0">+ Sprache</li>
+        </ul>
+        <p class="desc">Reihenfolge = Rückfall: fehlt ein Text in der Sprache des Profils, zeigt Slouchcat die erste vorhandene der Liste, dann den Dateinamen. Deutsch lässt sich nicht entfernen. Heute fest: Deutsch, Englisch.</p>
+        <p class="desc">Nicht jede Quelle kennt jede Sprache: TVDB kennt rund 25 Sprachen, AniList nur Englisch und Original.</p>
+      </div>
+    </section>
+
+    <!-- Bilder -->
+    <section class="panel overridable" aria-labelledby="h-img">
+      <div class="head"><div class="headText"><h2 id="h-img">Bilder <span class="inheritTag">Standard</span></h2><p class="intro">Welche Bildarten geholt werden und in welcher Sprache. Eine Bilddatei neben dem Film (poster.jpg, fanart.jpg, logo.png) gewinnt, wenn sie breit genug ist; danach die Quellen des Ordners, zuletzt Fanart.tv.</p></div></div>
+
+      <div class="item">
+        <h3>Bildarten</h3>
+        <div class="rows">
+          <div class="row"><div>Poster<div class="meta">Filme, Serien, Hörbücher, Podcasts</div></div><span class="fixed">immer</span></div>
+          <div class="row"><div>Hintergrund<div class="meta">Filme, Serien</div></div><span class="fixed">immer</span></div>
+          <div class="row"><div>Logo<div class="meta">Titelschriftzug auf Detailseite und Spotlight statt des Text-Titels (neu)</div></div><button class="switch" role="switch" aria-checked="true"><span class="track"><span class="handle"></span></span></button></div>
+          <div class="row"><div>Staffelposter<div class="meta">Sonst das Serienposter</div></div><button class="switch" role="switch" aria-checked="true"><span class="track"><span class="handle"></span></span></button></div>
+          <div class="row"><div>Folgenbild<div class="meta">Standbild je Folge; bei 40'000 Folgen rund 12 GB Cache</div></div><button class="switch" role="switch" aria-checked="true"><span class="track"><span class="handle"></span></span></button></div>
+        </div>
+        <p class="desc">Art, Banner und Disc gibt es bewusst nicht: keine Seite zeigt sie, und TMDB liefert sie nicht.</p>
+      </div>
+
+      <div class="item">
+        <h3>Bildsprache</h3>
+        <p class="desc">Reihenfolge, in der ein Bild gewählt wird. «Ohne Text» ist ein Bild ohne Schrift. Innerhalb einer Sprache gewinnt das bestbewertete Bild.</p>
+        <div class="fields">
+          <div class="field"><span class="label">Poster</span>
+            <ul class="order"><li class="chip"><span class="n">1</span>Deutsch <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li><li class="chip"><span class="n">2</span>Englisch <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li><li class="chip"><span class="n">3</span>Ohne Text <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li></ul></div>
+          <div class="field"><span class="label">Hintergrund</span>
+            <ul class="order"><li class="chip"><span class="n">1</span>Ohne Text <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li><li class="chip"><span class="n">2</span>Deutsch <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li><li class="chip"><span class="n">3</span>Englisch <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li></ul></div>
+          <div class="field"><span class="label">Logo</span>
+            <ul class="order"><li class="chip"><span class="n">1</span>Deutsch <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li><li class="chip"><span class="n">2</span>Englisch <button aria-label="links">◀</button><button aria-label="rechts">▶</button></li><li class="chip off"><span class="n">–</span>Ohne Text <button aria-label="einschalten">＋</button></li></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Güte (nur Standard) -->
+    <section class="panel global" aria-labelledby="h-quality">
+      <div class="head"><div class="headText"><h2 id="h-quality">Güte</h2><p class="intro">Gilt für alle Bibliotheken. Die ausgelieferten Grössen (Poster 200/400/800, Hintergrund 780/1280/1920, Logo 400/800) sind fest.</p></div></div>
+      <div class="fields">
+        <div class="field"><label class="label" for="minPoster">Mindestbreite Poster</label><select id="minPoster"><option>egal</option><option selected>500 px</option><option>1000 px</option><option>1500 px</option><option>2000 px</option></select></div>
+        <div class="field"><label class="label" for="minBackdrop">Mindestbreite Hintergrund</label><select id="minBackdrop"><option>egal</option><option selected>1280 px</option><option>1920 px</option><option>3840 px</option></select></div>
+      </div>
+      <div class="rows">
+        <div class="row"><div>Nach Bewertung wählen<div class="meta">Bestbewertetes Bild der Sprache statt des ersten Treffers</div></div><button class="switch" role="switch" aria-checked="true"><span class="track"><span class="handle"></span></span></button></div>
+      </div>
+      <p class="desc">Gibt es kein Bild in der Mindestbreite, nimmt Slouchcat das beste kleinere; die Bildart bleibt nie leer, nur weil die Vorgabe zu hoch ist.</p>
+    </section>
+
+    <!-- Quellen (nur Standard) -->
+    <section class="panel global" aria-labelledby="h-src">
+      <div class="head"><div class="headText"><h2 id="h-src">Quellen</h2><p class="intro">Reihenfolge der Metadatenquellen je Ordner unter <a href="#">Bibliotheken</a>; Schlüssel unter <a href="#">Integrationen</a>. Hier nur, was eine Quelle anders kann.</p></div></div>
+      <div class="item">
+        <div class="head"><h3>TMDB <span class="pill ok">verbunden</span></h3><span class="status">Filme und Serien; Bilder kommen mit dem Titel, keine zweite Anfrage</span></div>
+        <div class="rows">
+          <div class="row"><div>Erwachseneninhalte bei der Suche<div class="meta">Sonst erscheinen sie nie in der Zuordnung</div></div><button class="switch" role="switch" aria-checked="false"><span class="track"><span class="handle"></span></span></button></div>
+        </div>
+      </div>
+      <div class="item">
+        <div class="head"><h3>Lokale Dateien <span class="pill ok">122 Ordner mit Bildern</span></h3><span class="status">poster.jpg, fanart.jpg, logo.png, seasonNN-poster.jpg neben dem Titel</span></div>
+        <div class="rows">
+          <div class="row"><div>Lokale Dateien als Quelle<div class="meta">Vor allen Anbietern, wenn breit genug; aus, solange die Ordner noch Embys automatische Bilder tragen</div></div><button class="switch" role="switch" aria-checked="true"><span class="track"><span class="handle"></span></span></button></div>
+        </div>
+        <p class="desc">Zu kleine oder abgeschaltete Dateien bleiben als Kandidaten in der Bildwahl je Titel.</p>
+      </div>
+      <div class="item">
+        <div class="head"><h3>Fanart.tv <span class="pill off">kein Schlüssel</span></h3><span class="status">Logos und Poster in hoher Güte, nach den Quellen des Ordners</span></div>
+        <div class="rows">
+          <div class="row"><div>Fanart.tv als Bildquelle<div class="meta">Braucht einen Schlüssel unter Integrationen; ohne Schlüssel wird nie gefragt</div></div><button class="switch" role="switch" aria-checked="false" disabled><span class="track"><span class="handle"></span></span></button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Freigabe (nur Standard) -->
+    <section class="panel global" aria-labelledby="h-rating">
+      <div class="head"><div class="headText"><h2 id="h-rating">Altersfreigabe</h2><p class="intro">Welches Land zuerst gelesen wird; danach DE, AT, CH, GB, US wie bisher. Die Stufen bleiben FSK 0/6/12/16/18.</p></div></div>
+      <div class="fields">
+        <div class="field"><label class="label" for="country">Land</label><select id="country"><option selected>Deutschland (DE)</option><option>Schweiz (CH)</option><option>Österreich (AT)</option><option>Grossbritannien (GB)</option><option>USA (US)</option></select><p class="desc">Eine gespeicherte Stufe wird nie gesenkt, auch nicht durch ein anderes Land. Senken geht nur je Titel in der Pflege.</p></div>
+      </div>
+    </section>
+
+    <!-- Anwenden (nur Standard) -->
+    <section class="panel global" aria-labelledby="h-apply">
+      <div class="head"><div class="headText"><h2 id="h-apply">Auf bestehende Titel anwenden</h2><p class="intro">Neue Titel nutzen die Einstellungen sofort. Bestehende Titel bleiben, bis du den Lauf startest; er erscheint unter Hintergrundjobs mit Fortschritt, Pause und Abbruch.</p></div></div>
+      <div class="fields">
+        <div class="field"><label class="label" for="applyWhat">Was</label><select id="applyWhat"><option selected>Texte und Bilder</option><option>Nur Texte</option><option>Nur Bilder</option></select></div>
+        <div class="field"><label class="label" for="applyWhere">Wo</label><select id="applyWhere"><option selected>Alle Bibliotheken (2'538 Titel, 412 Staffeln)</option><option>Filme (1'791)</option><option>Serien (312)</option><option>Anime (96)</option><option>Kinder (339)</option></select></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary">Jetzt anwenden</button>
+        <span class="status">Geschätzt: 5'400 TMDB-Anfragen, rund 25 Minuten; Bilder nur, wo sich die Wahl ändert. Letzter Lauf: gestern 03:12, 2'538 Titel, 0 Fehler.</span>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="savebar" id="savebar">
+    <span class="txt" id="saveTxt">Keine Änderungen.</span>
+    <div class="actions"><button class="btn ghost" id="discard">Verwerfen</button><button class="btn primary" id="save">Speichern</button></div>
+  </div>
+
+  <div class="note">
+    <b>Prototyp, kein Code.</b> Konzept 10, Abschnitt 7.6. Die Fragen an Marco stehen in Abschnitt 11 des Papiers:
+    <ul>
+      <li>F-1 Weitere Sprachen nur für Metadaten, Oberfläche bleibt de/en.</li>
+      <li>F-2 Logo als neue Bildart. F-3 Banner, Disc, Clearart streichen.</li>
+      <li>F-4 Fanart.tv jetzt (optional), später oder nie. F-5 Lokale Bilddateien vor allen Quellen.</li>
+      <li>F-6 Abweichung je Bibliothek nur für Sprachen und Bilder. F-7 Freigabeland bleibt DE als Vorgabe. F-8 «Jetzt anwenden» selbst drücken.</li>
+      <li>F-9 Bibliotheksliste ohne Deutsch erlaubt (mindestens de oder en). F-10 Vorgabekette Poster Deutsch, Englisch, Ohne Text.</li>
+      <li>Die gebaute Seite hat zwei Schalter je Bibliothek (Sprachen, Bilder) und ab sechs Bibliotheken eine Auswahlliste statt der Segmente.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.switch').forEach(function (s) {
+    s.addEventListener('click', function () {
+      if (s.disabled) return;
+      s.setAttribute('aria-checked', s.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+      if (s.id !== 'overrideSwitch') dirty();
+    });
+  });
+  document.querySelectorAll('.segments').forEach(function (g) {
+    g.querySelectorAll('.segment').forEach(function (b) {
+      b.addEventListener('click', function () {
+        g.querySelectorAll('.segment').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+        b.setAttribute('aria-pressed', 'true');
+        if (g.id !== 'scope') dirty();
+      });
+    });
+  });
+  document.querySelectorAll('.order').forEach(function (list) {
+    list.addEventListener('click', function (e) {
+      var btn = e.target.closest('button'); if (!btn) return;
+      var chip = btn.closest('.chip');
+      if (btn.textContent === '◀' && chip.previousElementSibling && !chip.previousElementSibling.classList.contains('add')) chip.parentNode.insertBefore(chip, chip.previousElementSibling);
+      else if (btn.textContent === '▶' && chip.nextElementSibling && !chip.nextElementSibling.classList.contains('add') && !chip.nextElementSibling.classList.contains('off')) chip.parentNode.insertBefore(chip.nextElementSibling, chip);
+      else if (btn.textContent === '＋') { chip.classList.remove('off'); btn.remove(); chip.insertAdjacentHTML('beforeend', '<button aria-label="links">◀</button><button aria-label="rechts">▶</button>'); var add = list.querySelector('.add'); if (add) list.insertBefore(chip, add); }
+      else if (btn.textContent === '✕') { chip.remove(); }
+      renumber(list); dirty();
+    });
+    renumber(list);
+  });
+  function renumber(list) {
+    var i = 0;
+    list.querySelectorAll('.chip').forEach(function (c) {
+      var n = c.querySelector('.n'); if (!n) return;
+      n.textContent = c.classList.contains('off') ? '–' : String(++i);
+    });
+  }
+  document.querySelectorAll('select, input').forEach(function (el) { el.addEventListener('change', dirty); });
+  function dirty() { document.getElementById('saveTxt').textContent = 'Ungespeicherte Änderungen. Neue Titel nutzen sie sofort; bestehende erst nach «Jetzt anwenden».'; }
+  document.getElementById('save').addEventListener('click', function () { document.getElementById('saveTxt').textContent = 'Gespeichert. 2\'538 Titel betroffen: jetzt anwenden?'; });
+  document.getElementById('discard').addEventListener('click', function () { document.getElementById('saveTxt').textContent = 'Keine Änderungen.'; });
+
+  var names = { filme: 'Filme', serien: 'Serien', anime: 'Anime', kinder: 'Kinder' };
+  var overrides = { anime: true };
+  var current = 'default';
+  document.querySelectorAll('#scope .segment').forEach(function (b) {
+    b.addEventListener('click', function () { applyScope(b.dataset.scope); });
+  });
+  var ov = document.getElementById('overrideSwitch');
+  ov.addEventListener('click', function () { overrides[current] = ov.getAttribute('aria-checked') === 'true'; applyScope(current); dirty(); });
+  function applyScope(scope) {
+    current = scope;
+    var isDefault = scope === 'default';
+    var on = !isDefault && !!overrides[scope];
+    document.getElementById('libNotice').hidden = isDefault;
+    document.getElementById('scopeHint').textContent = isDefault ? 'Gilt für alle Bibliotheken ohne eigene Abweichung.' : 'Nur Sprachen und Bilder können je Bibliothek abweichen.';
+    if (!isDefault) {
+      document.getElementById('libName').textContent = names[scope];
+      ov.setAttribute('aria-checked', on ? 'true' : 'false');
+      document.getElementById('libOverrideText').textContent = on ? 'weicht vom Standard ab. Sprachen und Bilder unten gelten nur für diese Bibliothek.' : 'übernimmt den Standard. Schalte «Abweichen» ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern.';
+      document.getElementById('libNotice').classList.toggle('warn', !on);
+    }
+    document.querySelectorAll('.panel.overridable').forEach(function (p) { p.classList.toggle('inherited', !isDefault && !on); });
+    document.querySelectorAll('.panel.global').forEach(function (p) { p.hidden = !isDefault; });
+    document.querySelectorAll('#scope .segment').forEach(function (b) {
+      var d = b.querySelector('.dot');
+      var want = b.dataset.scope !== 'default' && !!overrides[b.dataset.scope];
+      if (want && !d) b.insertAdjacentHTML('afterbegin', '<span class="dot" aria-hidden="true"></span>');
+      if (!want && d) d.remove();
+    });
+  }
+  applyScope('default');
+</script>
+</body>
+</html>
