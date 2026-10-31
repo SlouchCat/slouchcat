@@ -1,10 +1,37 @@
 # Aktueller Stand
 
+## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
+
+**Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis
+`19ee05c`) von Marco gemergt (Merge `9e1e44a`), Tag `v1.5.0` auf `9e1e44a` (Beschriftung =
+Release-Notes, nachzulesen mit `git cat-file tag v1.5.0`), Release-Lauf 41184322886 grün: Image
+`ghcr.io/slouchcat/slouchcat:1.5.0` (amd64, arm64, anonym ziehbar), `manifest.json` mit
+`version 1.5.0` und `FFMPEG-NOTICE.md` am Release. Vertrag 1.5.0 ist damit getaggt (Regel
+Vertrag = Tag).
+
+**CT 190** lief zuerst, von 09:18 bis 09:27, als Zwischenschritt auf dem selbst auf dem CT gebauten
+Image `hintergrundjobs-19ee05c` (`v1.4.0-31-g19ee05c`, der Zweigstand vor dem Merge). Dabei lief
+Migration 00027 in 2.1 s; Sicherung vorher als
+`pre-migration-v1.4.0-31-g19ee05c-20261031T081751.721Z.db`; `job_schedules` hat sechs Zeilen.
+Bauweg auf dem CT (ohne lokales Docker) in HANDOVER 5. Dafür musste auf dem CT
+`docker-buildx-plugin` nachinstalliert werden: der alte Builder kennt `$BUILDPLATFORM` nicht und
+brach mit `failed to parse platform : ""` ab.
+
+Seit 09:27 läuft CT 190 auf dem Release-Image `ghcr.io/slouchcat/slouchcat:1.5.0`
+(`docker compose pull && docker compose up -d --wait`; Sicherung der Einstellungen
+`/opt/slouchcat/deploy/.env.bak-vor-1.5.0`; `healthz` meldet `version 1.5.0`). Keine Migration
+mehr, 00027 lief schon mit dem Zwischenstand. Beim Start reihte der Scheduler Scan, Sweep und
+Podcast-Abruf sofort und die Update-Prüfung nach 60 s ein: das ist die Startregel (`StartDelay`),
+kein Befund.
+
+**Noch offen** (Einzelheiten im Abschnitt «Schritt 5» unten): Abnahme am Handy, ein Tag
+Beobachtung der Zeitpläne auf CT 190, Messung `listJobTypes` auf CT 190 gegen die Latte 50 ms p95.
+
 ## Hintergrundjobs (Konzept 09): Schritt 5, Teil der Session (30. Oktober 2026)
 
 Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 5:
-Messung, Release-Notes, Versionsstellen; Befunde in **13.8**. Was nur Marco kann (Image auf
-CT 190, Abnahme am Handy, ein Tag Beobachtung, Merge), steht aus.
+Messung, Release-Notes, Versionsstellen; Befunde in **13.8**. Image auf CT 190, Merge und Tag sind
+erledigt (siehe oben); Abnahme am Handy, Beobachtung und Messung auf CT 190 stehen aus.
 
 **Messung** `docs/perf/hintergrundjobs.md` (Entwicklungsrechner, eigener Server auf 8099, NAS per
 NFS, schwere Folgejobs pausiert; `docs/perf/seed-jobs.py` für 50'000 erledigte Läufe):
@@ -68,10 +95,16 @@ $ task ci:server                                                  grün (lint, g
   Tabelle `job_types`, `job_schedules` neu gebaut und aus den bisherigen Einstellungen gefüllt;
   der Server sichert die Datenbank vorher nach `/config/backups/`.
 
-**Offen (Marco):** Image des Zweigs bauen und CT 190 umstellen (normales Terminal nach
-`newgrp docker`, Weg aus HANDOVER mit Tag `hintergrundjobs`), Abnahme am Handy nach Schritt 5,
-ein Tag Beobachtung der Zeitpläne, Messung auf CT 190 (Abschnitt 3 der Messung), Merge von
-PR #55, Tag `v1.5.0`.
+**Erledigt:** Image des Zweigs auf CT 190 gebaut und umgestellt (`hintergrundjobs-19ee05c`,
+31. Oktober 09:18, ab 09:27 das Release-Image 1.5.0), Merge von PR #55 (`9e1e44a`), Tag `v1.5.0`, Release-Lauf grün.
+
+**Offen (Marco):**
+
+- Abnahme am Handy nach Schritt 5.
+- Ein Tag Beobachtung der sechs Zeitpläne auf CT 190 (laufen sie im Takt und im Fenster, bleibt
+  der Verlauf nach `jobs.prune` bei 30 Tagen und 50 je Jobart).
+- Messung `listJobTypes` (`/api/v1/admin/job-types`) auf CT 190 gegen die Latte 50 ms p95
+  (Abschnitt 3 der Messung, `docs/perf/hintergrundjobs.md`).
 
 ## Hintergrundjobs (Konzept 09): Schritt 4 (30. Oktober 2026)
 

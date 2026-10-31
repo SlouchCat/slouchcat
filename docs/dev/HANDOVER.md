@@ -110,6 +110,13 @@ cd /mnt/Nerdcloud/NerdcloudDaten/06_KI/01_Slouchcat && git fetch origin && W=/tm
 ```
 
 - Kontrolle: `cd deploy && sg docker -c "docker compose ps"` muss `healthy` zeigen.
+- **Bauen ohne lokales Docker** (Stand für CT 190, auf dem Image `hintergrundjobs-19ee05c` so
+  entstanden): den Stand als Archiv auf den CT streamen, nicht den Arbeitsbaum:
+  `git archive <sha> | ssh root@192.168.1.43 'mkdir -p /root/build-<sha> && tar -x -C /root/build-<sha>'`.
+  Dort `docker build --build-arg VERSION=$(git describe --tags --always <sha>) -t ghcr.io/slouchcat/slouchcat:<tag> -f deploy/Dockerfile .`
+  (`git describe` auf dem Rechner ausführen und das Ergebnis einsetzen, im Archiv gibt es keine
+  Historie). Voraussetzung ist `docker-buildx-plugin` auf dem CT; ohne das bricht der alte Builder
+  mit `failed to parse platform : ""` ab. Schreibend per SSH geht nur über das Terminal-Panel.
 - **Release:** der Tag `vX.Y.Z` löst `.github/workflows/release.yml` aus (Image auf ghcr.io,
   `manifest.json` für die Update-Prüfung). Die Beschriftung des annotierten Tags ist der Text der
   Release-Notes, die erste Zeile («Slouchcat X.Y.Z») fällt als Betreff weg. Regel: **jede Anhebung
