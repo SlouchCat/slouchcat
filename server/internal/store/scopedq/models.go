@@ -395,6 +395,13 @@ type Library struct {
 	LossAcceptedAt     sql.NullInt64
 }
 
+type LibraryMetadatum struct {
+	LibraryID int64
+	TextLangs sql.NullString
+	Images    sql.NullString
+	UpdatedAt int64
+}
+
 type LibraryRoot struct {
 	ID        int64
 	LibraryID int64

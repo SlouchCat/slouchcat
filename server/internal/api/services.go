@@ -108,6 +108,12 @@ type AdminService interface {
 	UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
 	// ListMetadataProviders describes the four providers (ADR 0015).
 	ListMetadataProviders(ctx context.Context) ([]model.MetadataProviderInfo, error)
+	// Metadata settings of concept 10 (ADR 0018): server settings, a library's deviation, apply.
+	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
+	UpdateMetadataSettings(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error)
+	LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error)
+	UpdateLibraryMetadata(ctx context.Context, libraryID int64, textLangs *[]string, images *model.LibraryImages) (model.LibraryMetadata, error)
+	ApplyMetadata(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error)
 	// RemoveLibraryRoot removes a folder and soft-deletes the titles that live only there
 	// (E12). Errors: model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch,
 	// model.ErrScanRunning.

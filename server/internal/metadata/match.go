@@ -858,7 +858,11 @@ func (s *Service) applyTitle(ctx context.Context, snap systemq.Item, rec TitleRe
 	if err := pruneTexts(ctx, q, itemID, stored, langs, locked); err != nil {
 		return snap, false, fmt.Errorf("metadata.match: %w", err)
 	}
-	p, err := titleUpdate(cur, locked, rec, langs)
+	settings, err := s.Effective(ctx, cur.LibraryID)
+	if err != nil {
+		return snap, false, fmt.Errorf("metadata.match: %w", err)
+	}
+	p, err := titleUpdate(cur, locked, rec, langs, settings.RatingCountry)
 	if err != nil {
 		return snap, false, err
 	}
@@ -997,7 +1001,7 @@ func replaceCredits(ctx context.Context, q *systemq.Queries, itemID string, cred
 
 // titleUpdate computes the item columns from a provider record. Locked fields and empty provider
 // values keep the current value.
-func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, langs []string) (systemq.UpdateItemMatchParams, error) {
+func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, langs []string, ratingCountry string) (systemq.UpdateItemMatchParams, error) {
 	p := systemq.UpdateItemMatchParams{
 		ID:               cur.ID,
 		OriginalTitle:    cur.OriginalTitle,
@@ -1044,13 +1048,22 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, lang
 	}
 	src := cur.RatingSource.String
 	if !locked["own_rating"] && src != "nfo" && src != "manual" {
-		rating, country := FSKFromCertifications(rec.Certifications)
+		rating, country := fskFromCertificationsFirst(rec.Certifications, ratingCountry)
 		// A rating another provider gave (a filler's isAdult, the other provider's
 		// certification) is never lowered by a match of the same title (K-3): only the provider
 		// that gave it may revise it, and another title at the provider starts afresh.
 		sameTitle := p.TmdbID == cur.TmdbID && p.TvdbID == cur.TvdbID
 		ownRating := strings.HasPrefix(src, rec.Provider+":")
-		keep := cur.OwnRating.Valid && sameTitle && !ownRating && (rating == nil || int64(*rating) <= cur.OwnRating.Int64)
+		lower := rating == nil || int64(*rating) <= cur.OwnRating.Int64
+		keep := cur.OwnRating.Valid && sameTitle && !ownRating && lower
+		// The same provider read from another country (metadata.rating_country changed, concept
+		// 10 6.6): a stored step is never lowered by a country change; a revision of the provider
+		// in the same country stays possible, and an equal step takes the new country's label
+		// (nothing is lowered, the source names the country that was read).
+		strictlyLower := rating != nil && int64(*rating) < cur.OwnRating.Int64
+		if cur.OwnRating.Valid && sameTitle && ownRating && strictlyLower && src != rec.Provider+":"+country {
+			keep = true
+		}
 		if !keep {
 			p.OwnRating, p.RatingSource = sql.NullInt64{}, sql.NullString{}
 			if rating != nil {

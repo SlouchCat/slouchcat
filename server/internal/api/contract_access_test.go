@@ -211,6 +211,14 @@ var adminRegistry = map[string]adminCall{
 	"updateLibraryRoot": {contract: "PATCH /admin/libraries/{id}/roots/{rootId}", path: "/admin/libraries/9999/roots/9999",
 		body: `{"providers":["tmdb"]}`, ownerStatus: http.StatusNotFound},
 	"listMetadataProviders": {contract: "GET /admin/metadata/providers", path: "/admin/metadata/providers", ownerStatus: http.StatusOK},
+	// Concept 10 (ADR 0018): the metadata settings, a library's deviation (the fixture library 1
+	// exists, 777 does not) and the apply run; the fake metadata service records nothing.
+	"getMetadataSettings": {contract: "GET /admin/settings/metadata", path: "/admin/settings/metadata", ownerStatus: http.StatusOK},
+	"updateMetadataSettings": {contract: "PUT /admin/settings/metadata", path: "/admin/settings/metadata", ownerStatus: http.StatusOK,
+		body: `{"textLangs":["de","en"],"imageLangs":{"poster":["de","en",""],"backdrop":["","de","en"],"logo":["de","en"]},"imageKinds":["logo"],"imageMinWidth":{"poster":500,"backdrop":1280},"imageByVote":true,"localImages":true,"ratingCountry":"DE","tmdbIncludeAdult":false,"fanartEnabled":false}`},
+	"getLibraryMetadata":    {contract: "GET /admin/libraries/{id}/metadata", path: "/admin/libraries/777/metadata", ownerStatus: http.StatusNotFound},
+	"updateLibraryMetadata": {contract: "PUT /admin/libraries/{id}/metadata", path: "/admin/libraries/777/metadata", body: `{"textLangs":["ja","en"]}`, ownerStatus: http.StatusNotFound},
+	"applyMetadata":         {contract: "POST /admin/metadata/apply", path: "/admin/metadata/apply", body: `{"what":["texts"]}`, ownerStatus: http.StatusAccepted},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
 	"listInvitations":     {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},

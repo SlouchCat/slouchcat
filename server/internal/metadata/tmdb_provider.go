@@ -15,6 +15,12 @@ type tmdbProvider struct {
 	// imageLangs returns the languages of the image chains (Settings.ImageLanguages); the detail
 	// request of the record language asks for the images block in them (ADR 0018). nil = no block.
 	imageLangs func(ctx context.Context) []string
+	// includeAdult says whether searches send include_adult (metadata.tmdb_include_adult); nil = no.
+	includeAdult func(ctx context.Context) bool
+}
+
+func (p *tmdbProvider) adult(ctx context.Context) bool {
+	return p.includeAdult != nil && p.includeAdult(ctx)
 }
 
 // imagesFor returns the image languages to ask for, or nil without a source.
@@ -137,7 +143,7 @@ func (p *tmdbProvider) SearchMovie(ctx context.Context, q MovieQuery) ([]Candida
 		movies, _, err := c.Find(ctx, q.IMDBID, "imdb_id")
 		return p.candidates(movies, false), err
 	}
-	rs, err := c.Search(ctx, "movie", q.Title, q.Year)
+	rs, err := c.Search(ctx, "movie", q.Title, q.Year, p.adult(ctx))
 	return p.candidates(rs, false), err
 }
 
@@ -154,7 +160,7 @@ func (p *tmdbProvider) SearchSeries(ctx context.Context, q SeriesQuery) ([]Candi
 		_, series, err := c.Find(ctx, q.IMDBID, "imdb_id")
 		return p.candidates(series, true), err
 	}
-	rs, err := c.Search(ctx, "tv", q.Title, q.Year)
+	rs, err := c.Search(ctx, "tv", q.Title, q.Year, p.adult(ctx))
 	return p.candidates(rs, true), err
 }
 

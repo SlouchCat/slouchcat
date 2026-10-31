@@ -2,10 +2,27 @@ package metadata
 
 import "strings"
 
-// ratingCountries is the order in which release certifications are consulted (AN-8): the
-// household is in Switzerland and TMDB often lists only AT or CH certifications for German
-// language releases.
+// ratingCountries is the default order in which release certifications are consulted (AN-8,
+// decision 6): the household is in Switzerland and TMDB often lists only AT or CH certifications
+// for German language releases. The country read first is a setting since concept 10
+// (metadata.rating_country, F-7); ratingOrder puts it in front, the rest keeps this order.
 var ratingCountries = []string{"DE", "AT", "CH", "GB", "US"}
+
+// ratingOrder returns the country order of the certifications with country first (decision 6
+// as amended by decision 16); an unknown or empty country gives the default order.
+func ratingOrder(country string) []string {
+	if _, ok := fskTables[country]; !ok || country == ratingCountries[0] {
+		return ratingCountries
+	}
+	out := make([]string, 0, len(ratingCountries))
+	out = append(out, country)
+	for _, c := range ratingCountries {
+		if c != country {
+			out = append(out, c)
+		}
+	}
+	return out
+}
 
 // fskTables maps the certification of each country to the FSK step, rounding up to the next
 // higher step (AN-8). Values that are missing here are unknown and skip to the next country.
@@ -56,7 +73,15 @@ func releaseCertifications(rd ReleaseDates) map[string]string {
 // in the order DE → AT → CH → GB → US has a known value. Values are compared in upper case;
 // a "FSK" prefix and a trailing "+" are ignored ("FSK 16", "16+").
 func FSKFromCertifications(certs map[string]string) (rating *int, country string) {
-	for _, c := range ratingCountries {
+	return fskFromCertificationsFirst(certs, ratingCountries[0])
+}
+
+// fskFromCertificationsFirst is FSKFromCertifications with the given country read first (the
+// setting metadata.rating_country): a new title gets the step of that country when it has one
+// (6.6: with CH first "12 (CH)" where DE says 16); a stored rating is never lowered by it (K-3,
+// the callers only raise).
+func fskFromCertificationsFirst(certs map[string]string, first string) (rating *int, country string) {
+	for _, c := range ratingOrder(first) {
 		cert := normalizeCertification(certs[c])
 		if cert == "" {
 			continue

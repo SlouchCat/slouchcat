@@ -122,6 +122,13 @@ type Metadata interface {
 	// ProviderLanguages names, per provider, the languages of the server's metadata language
 	// list it delivers (ADR 0018, listMetadataProviders).
 	ProviderLanguages(ctx context.Context) (map[string][]string, error)
+	// Metadata settings of concept 10 (ADR 0018): the server's settings, a library's deviation
+	// and the apply run (*model.ValidationError, model.ErrNotFound).
+	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
+	UpdateMetadataSettings(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error)
+	LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error)
+	UpdateLibraryMetadata(ctx context.Context, libraryID int64, textLangs *[]string, images *model.LibraryImages) (model.LibraryMetadata, error)
+	Apply(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error)
 	// ListTrailersSystem lists every trailer of a title, unfiltered.
 	ListTrailersSystem(ctx context.Context, itemID string) ([]model.Trailer, error)
 }

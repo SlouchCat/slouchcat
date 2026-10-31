@@ -1665,6 +1665,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/settings/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The server's metadata settings (concept 10, ADR 0018)
+         * @description The twelve keys `metadata.*` resolved with their defaults: the ordered text language list,
+         *     the image language chain per kind, the switchable image kinds, the minimum widths, the vote
+         *     rule, the local files switch, the rating country, the adult switch of the TMDB search and
+         *     the Fanart.tv switch. The languages a provider knows come from `listMetadataProviders`
+         *     (`MetadataProviderInfo.languages`). `knownLanguages` lists every code the server accepts.
+         */
+        get: operations["getMetadataSettings"];
+        /**
+         * Change the server's metadata settings
+         * @description All at once: the body replaces every setting. 422 `validation_failed` with the field errors
+         *     `langs_empty`, `lang_unknown`, `ui_lang_required` (the server's list must hold `de`),
+         *     `chain_duplicate`, `country_unknown`, `invalid_value`. Nothing is queued (F-8): the answer
+         *     names the matched titles the change affects (`affectedTitles`) and the interface offers
+         *     `applyMetadata`.
+         */
+        put: operations["updateMetadataSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries/{id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The metadata deviation of a library (concept 10, ADR 0018)
+         * @description The deviation of the library from the server (`textLangs`, `images`; `null` = like the
+         *     server) and the effective values the jobs use for its titles. 404 for an unknown library.
+         */
+        get: operations["getLibraryMetadata"];
+        /**
+         * Change the metadata deviation of a library
+         * @description `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
+         *     "like the server". A library's language list must hold `de` or `en` (`ui_lang_required`).
+         *     Nothing is queued (F-8); the answer names the affected titles of the library.
+         */
+        put: operations["updateLibraryMetadata"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/metadata/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply the metadata settings to existing titles (concept 10, 6.5)
+         * @description Queues the event job `metadata.apply` (ADR 0017), which queues one `metadata.match` per
+         *     matched film and series of the chosen libraries (every library when `libraryIds` is left
+         *     out) with `what` containing `texts`, or only `metadata.fill` and `image.fetch` with
+         *     `what: ["images"]`. A second call while an `apply` of the same scope waits does not double
+         *     it (idempotency key). 202 with the job id and the number of titles; the progress of the
+         *     children shows on the jobs page (`listJobTypes`).
+         */
+        post: operations["applyMetadata"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/metadata/providers": {
         parameters: {
             query?: never;
@@ -4411,6 +4497,93 @@ export interface components {
          * @enum {string}
          */
         MetadataProvider: "tmdb" | "tvdb" | "anilist" | "local";
+        /** @description The server's metadata settings (concept 10 4.1, ADR 0018), defaults filled in. */
+        MetadataSettings: {
+            /** @description Ordered list of the text languages every source delivers; the position is the rank. */
+            textLangs: components["schemas"]["MetadataLanguage"][];
+            imageLangs: components["schemas"]["ImageLangs"];
+            /** @description The switchable image kinds that are on (`poster` and `backdrop` are always on, E-1). */
+            imageKinds: ("logo" | "season_poster" | "episode_still")[];
+            /** @description Minimum width per kind, 0 = any; a smaller candidate wins only when none reaches it. */
+            imageMinWidth: {
+                poster: number;
+                backdrop: number;
+            };
+            imageByVote: boolean;
+            /** @description Image files next to the media as the first source (F-5). */
+            localImages: boolean;
+            /**
+             * @description The country whose certification is read first (F-7, decision 6); the rest follows in DE, AT, CH, GB, US order.
+             * @enum {string}
+             */
+            ratingCountry: "DE" | "AT" | "CH" | "GB" | "US";
+            tmdbIncludeAdult: boolean;
+            fanartEnabled: boolean;
+            /** @description Every language code the server accepts (the static list, E-10). */
+            knownLanguages: components["schemas"]["MetadataLanguage"][];
+            /** @description Matched films and series an `applyMetadata` over every library would queue. */
+            affectedTitles: number;
+            /** @description Titles with at least one image file next to the media (item_local_images). */
+            localImageTitles: number;
+        };
+        /** @description The fallback chain per image kind; `""` is an image without text. */
+        ImageLangs: {
+            poster: string[];
+            backdrop: string[];
+            logo: string[];
+        };
+        /** @description Replaces every server setting at once; `knownLanguages`, `affectedTitles` and `localImageTitles` are read-only and ignored. */
+        MetadataSettingsUpdate: {
+            textLangs: string[];
+            imageLangs: components["schemas"]["ImageLangs"];
+            imageKinds: string[];
+            imageMinWidth: {
+                poster: number;
+                backdrop: number;
+            };
+            imageByVote: boolean;
+            localImages: boolean;
+            ratingCountry: string;
+            tmdbIncludeAdult: boolean;
+            fanartEnabled: boolean;
+        };
+        /** @description The image deviation of a library: chains and switchable kinds. */
+        LibraryImages: {
+            langs: components["schemas"]["ImageLangs"];
+            kinds: ("logo" | "season_poster" | "episode_still")[];
+        };
+        /** @description The deviation of a library (`null` = like the server) and the effective values of its titles (concept 10 4.5). */
+        LibraryMetadata: {
+            /** Format: int64 */
+            libraryId: number;
+            /** @description The library's own text language list, or `null` for the server's. */
+            textLangs?: components["schemas"]["MetadataLanguage"][] | null;
+            /** @description The library's own image chains and kinds, or `null` for the server's. */
+            images?: components["schemas"]["LibraryImages"] | null;
+            effective: components["schemas"]["MetadataSettings"];
+            /** @description Matched films and series of the library an `applyMetadata` would queue. */
+            affectedTitles: number;
+        };
+        /** @description Replaces the deviation; a field left out or `null` means "like the server". */
+        LibraryMetadataUpdate: {
+            textLangs?: string[] | null;
+            images?: components["schemas"]["LibraryImages"] | null;
+        };
+        ApplyMetadataRequest: {
+            /** @description The libraries to apply to; left out = every library. */
+            libraryIds?: number[];
+            /** @description `texts` queues one `metadata.match` per title (texts, then fill and images follow); `images` alone queues only `metadata.fill` and `image.fetch`. */
+            what: ("texts" | "images")[];
+        };
+        ApplyMetadataResponse: {
+            /**
+             * Format: int64
+             * @description The queued `metadata.apply` run (the parent; the children show on the jobs page).
+             */
+            jobId: number;
+            /** @description Matched films and series the run will queue. */
+            titles: number;
+        };
         /** @description One provider as `listMetadataProviders` describes it. */
         MetadataProviderInfo: {
             id: components["schemas"]["MetadataProvider"];
@@ -9970,6 +10143,177 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMetadataSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateMetadataSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetadataSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The stored settings with the number of affected titles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description `validation_failed` (see `errors`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getLibraryMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deviation and effective values. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryMetadata"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateLibraryMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryMetadataUpdate"];
+            };
+        };
+        responses: {
+            /** @description Deviation and effective values. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryMetadata"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `validation_failed` (see `errors`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    applyMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyMetadataRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyMetadataResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description `validation_failed` (see `errors`). */
             422: {
                 headers: {
                     [name: string]: unknown;

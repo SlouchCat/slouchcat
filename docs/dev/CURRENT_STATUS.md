@@ -176,6 +176,68 @@ Verzeichnis-Cache des NAS, unabhängig vom Binary; mit warmem Cache braucht der 
 (`main`), also 0.4 s für die Header von 536 Bilddateien in 211 Ordnern (`folder.jpg`, `backdrop.jpg`,
 `logo.png`).
 
+### Schritt 3 — Einstellungen, Vertrag, `metadata.apply`, Freigabeland (31. Oktober 2026)
+
+**Was gebaut ist.** Migration `00030_library_metadata.sql` (Abweichung je Bibliothek: `text_langs`,
+`images` als JSON, `NULL` = wie Server). Paket `metadata`: `LibraryDeviation` (Lesen, Prüfen,
+Speichern, Entfernen bei «alles wie Server»), `Effective(libraryID)` legt die Abweichung über den
+Server-Standard, `AvailableMetadataLanguages` ist die Vereinigung aller Listen (Server zuerst),
+`UpdateSettings` schreibt die zwölf Schlüssel auf einmal nach `Validate`; die Sicht für die
+Verwaltung in `settings_api.go` (`MetadataSettings`, `UpdateMetadataSettings`, `LibraryMetadata`,
+`UpdateLibraryMetadata`, `Apply`; mit `affectedTitles`, `localImageTitles`, `knownLanguages`). Job
+`metadata.apply` (`apply.go`): Ereignis-Jobart im Register (Gruppe `metadata`, Pool `general`,
+Priorität 1, kein `Run`), Payload `{libraryIds, what}`, Idempotenzschlüssel je Umfang; der Handler
+reiht je gematchtem Film und je Serie `metadata.match` ein (`what` mit `texts`) oder `metadata.fill`
+und `image.fetch` (`what = ["images"]`), hebt wartende Kinder an (`RaiseQueuedPriority`) und meldet
+«n Titel eingereiht» als Fortschritt. Freigabeland: `ratingOrder(country)` stellt das gewählte Land
+vor die Kette DE → AT → CH → GB → US, `fskFromCertificationsFirst` liest es zuerst; Match und Fill
+lesen das Land aus den wirksamen Einstellungen; ein Länderwechsel senkt eine gespeicherte Stufe
+derselben Quelle nicht (K-3, Papier 14). `metadata.tmdb_include_adult`: `Client.Search` sendet
+`include_adult=true`, wenn gesetzt (Titelsuche des Matches und Verwaltungssuche). Vertrag 1.6.0
+(additiv) um fünf Operationen mit `x-visibility: admin`: `getMetadataSettings`,
+`updateMetadataSettings` (`PUT /admin/settings/metadata`), `getLibraryMetadata`,
+`updateLibraryMetadata` (`/admin/libraries/{id}/metadata`), `applyMetadata`
+(`POST /admin/metadata/apply`, 202 `{jobId, titles}`); Schemata `MetadataSettings`,
+`MetadataSettingsUpdate`, `ImageLangs`, `LibraryImages`, `LibraryMetadata`,
+`LibraryMetadataUpdate`, `ApplyMetadataRequest`, `ApplyMetadataResponse`. Verwaltung (`admin`)
+reicht die fünf Operationen an `metadata` durch; Handler in
+`api/metadata_settings_handlers.go`; Einträge im Vertragstest (`adminRegistry`).
+
+**Tests** (neu): `TestMigration00030CreatesLibraryMetadata`, `TestEffectiveSettingsWithLibraryDeviation`
+(Abweichung wirkt nur auf die Bibliothek, Vereinigung der Sprachen, 422 `ui_lang_required` und
+`invalid_value`, Rücksetzen, 404, Speichern der Serverliste mit Pflicht `de`),
+`TestApplyQueuesChildrenWithoutDoubles` (Zahl der Titel je Umfang, ein Lauf je Umfang, ein Kind je
+Titel, `images` ohne Match, kein Doppel, Register-Eintrag als Ereignis-Jobart),
+`TestRatingCountryReadFirst` (Reihenfolge, Neuzugang bekommt die Stufe des zuerst gelesenen
+Landes, Länderwechsel senkt nicht; die zwei Fälle aus Papier 9.1 als Metadaten-Tests, Papier 14).
+`TestContractCoversEveryOperation` und `TestContractAdminOperations` decken die fünf Operationen.
+Eingefrorener Stand `testdata/db/metadaten.sql` (Migrationen 00028 bis 00030 in einem Stand, Papier 14)
+mit `TestFrozenMetadatenStateCoversTheConcept`; der Eintrag in `testdata/db/README.md` nennt Herkunft und
+Daten. Zwei Nachbesserungen aus dem CI-Lauf: `TestRegisterTypesSchedules` zählt jetzt neun Handler
+(`metadata.apply` kam dazu), und die Regel «ein Länderwechsel senkt nicht» greift nur noch bei einer
+**echt tieferen** Stufe; bei gleicher Stufe nimmt die Quelle das neu gelesene Land an
+(`TestAssignMatchAndRefresh`: ein neu zugeordneter Titel trug sonst die Quelle `tmdb:DE` seines
+Vorgängers; Papier 14 nachgeführt).
+
+DoD-Belege:
+
+```
+$ git add <Schritt 3> && task ci                (Zweig 50a74f0 + Schritt 3 gestaged, Schritt 4 im Arbeitsbaum;
+                                                Schritt 4 ändert keine Server-Datei)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün; server:gen:check grün
+server test:   ok  … 33 Pakete (api 419.7 s, playback 317.8 s, metadata 311.3 s, library 297.3 s;
+               admin, store aus dem Cache des abgebrochenen Laufs mit demselben Code), kein FAIL
+$ go build ./... && go vet ./internal/{metadata,admin,api,store}/   auf dem gestagten Baum allein (git archive)
+                                                → STEP3-INDEX-BUILDS
+$ bash freeze-metadaten.sh   migration applied 28/29/30; rows: 3 item_images, 1 library_metadata, 1 es texts
+                             → testdata/db/metadaten.sql (1607 Zeilen)
+$ go test ./internal/store/ -run 'TestFrozenMetadaten|TestFrozenStatesMigrate' -count=1   ok (127.0 s)
+$ go test ./internal/metadata/ -run 'TestAssignMatchAndRefresh|TestRegisterTypesSchedules|TestRatingCountryReadFirst' -count=1   ok
+```
+
+Der Web-Teil von `task ci` (Lint, Komponenten- und Storybook-Tests) folgt mit Schritt 4: das Web
+dieses Commits ist nur der generierte Client (`api-client`-Lint lief grün im selben Lauf).
+
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
 **Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis

@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -314,16 +315,160 @@ func (s *Service) Settings(ctx context.Context) (Settings, error) {
 	return out, nil
 }
 
-// Effective resolves the settings a title of library libraryID is filled with: the server
-// default with the library's deviation (library_metadata, step 3) applied. libraryID 0 (a title
-// without library, as in some tests) is the server default.
-func (s *Service) Effective(ctx context.Context, libraryID int64) (Settings, error) {
-	return s.effective(ctx, s.read, libraryID)
+// LibraryDeviation is what a library overrides (concept 10 4.5): nil = like the server.
+type LibraryDeviation struct {
+	TextLangs *[]string
+	Images    *LibraryImages
 }
 
-func (s *Service) effective(ctx context.Context, _ *systemq.Queries, _ int64) (Settings, error) {
-	// Step 3 reads library_metadata here; until then every library uses the server default.
-	return s.Settings(ctx)
+// LibraryImages is the image part of a library's deviation: the chains per kind and the
+// switchable kinds that are on.
+type LibraryImages struct {
+	Langs map[string][]string `json:"langs"`
+	Kinds []string            `json:"kinds"`
+}
+
+// apply returns the server settings with the deviation applied.
+func (d LibraryDeviation) apply(st Settings) Settings {
+	out := st
+	if d.TextLangs != nil {
+		out.TextLangs = slices.Clone(*d.TextLangs)
+	}
+	if d.Images != nil {
+		out.ImageLangs = make(map[string][]string, len(ChainImageKinds))
+		for _, k := range ChainImageKinds {
+			chain := d.Images.Langs[k]
+			if chain == nil {
+				chain = st.ImageLangs[k]
+			}
+			out.ImageLangs[k] = slices.Clone(chain)
+		}
+		out.ImageKinds = slices.Clone(nonNil(d.Images.Kinds))
+	}
+	return out
+}
+
+// Validate checks a deviation: a library's list holds de or en (E-9), chains and kinds as the
+// server's (concept 9.5).
+func (d LibraryDeviation) Validate() *model.ValidationError {
+	var verr *model.ValidationError
+	if d.TextLangs != nil {
+		verr = ValidateTextLangs("textLangs", *d.TextLangs, false)
+	}
+	if d.Images != nil {
+		for _, k := range ChainImageKinds {
+			if chain, ok := d.Images.Langs[k]; ok {
+				verr = validateChain("images.langs."+k, chain, verr)
+			}
+		}
+		for k := range d.Images.Langs {
+			if !slices.Contains(ChainImageKinds, k) {
+				verr = verr.Add("images.langs", "invalid_value")
+				break
+			}
+		}
+		for _, k := range d.Images.Kinds {
+			if !slices.Contains(SwitchableImageKinds, k) {
+				verr = verr.Add("images.kinds", "invalid_value")
+				break
+			}
+		}
+	}
+	return verr
+}
+
+// deviationOf decodes a library_metadata row.
+func deviationOf(row systemq.LibraryMetadatum) (LibraryDeviation, error) {
+	var d LibraryDeviation
+	if row.TextLangs.Valid {
+		var langs []string
+		if err := json.Unmarshal([]byte(row.TextLangs.String), &langs); err != nil {
+			return d, fmt.Errorf("library %d text_langs: %w", row.LibraryID, err)
+		}
+		d.TextLangs = &langs
+	}
+	if row.Images.Valid {
+		var imgs LibraryImages
+		if err := json.Unmarshal([]byte(row.Images.String), &imgs); err != nil {
+			return d, fmt.Errorf("library %d images: %w", row.LibraryID, err)
+		}
+		d.Images = &imgs
+	}
+	return d, nil
+}
+
+// LibraryDeviation reads the deviation of a library (empty when it has no row).
+func (s *Service) LibraryDeviation(ctx context.Context, libraryID int64) (LibraryDeviation, error) {
+	row, err := s.read.GetLibraryMetadata(ctx, libraryID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return LibraryDeviation{}, nil
+	}
+	if err != nil {
+		return LibraryDeviation{}, fmt.Errorf("library metadata %d: %w", libraryID, err)
+	}
+	return deviationOf(row)
+}
+
+// UpdateLibraryDeviation stores (or, when everything is nil, removes) the deviation of a library.
+func (s *Service) UpdateLibraryDeviation(ctx context.Context, libraryID int64, d LibraryDeviation) error {
+	if verr := d.Validate(); verr != nil {
+		return verr
+	}
+	if d.TextLangs == nil && d.Images == nil {
+		if err := s.write.DeleteLibraryMetadata(ctx, libraryID); err != nil {
+			return fmt.Errorf("delete library metadata %d: %w", libraryID, err)
+		}
+		return nil
+	}
+	p := systemq.UpsertLibraryMetadataParams{LibraryID: libraryID, Now: s.now().UnixMilli()}
+	if d.TextLangs != nil {
+		raw, _ := json.Marshal(*d.TextLangs)
+		p.TextLangs = sql.NullString{String: string(raw), Valid: true}
+	}
+	if d.Images != nil {
+		imgs := *d.Images
+		imgs.Kinds = nonNil(imgs.Kinds)
+		if imgs.Langs == nil {
+			imgs.Langs = map[string][]string{}
+		}
+		raw, _ := json.Marshal(imgs)
+		p.Images = sql.NullString{String: string(raw), Valid: true}
+	}
+	if err := s.write.UpsertLibraryMetadata(ctx, p); err != nil {
+		return fmt.Errorf("write library metadata %d: %w", libraryID, err)
+	}
+	return nil
+}
+
+// UpdateSettings validates and stores the server's metadata settings (all twelve keys at once);
+// it queues nothing (F-8).
+func (s *Service) UpdateSettings(ctx context.Context, st Settings) error {
+	if verr := st.Validate(); verr != nil {
+		return verr
+	}
+	now := s.now().UnixMilli()
+	for key, value := range st.rows() {
+		if err := s.write.UpsertSystemSetting(ctx, systemq.UpsertSystemSettingParams{Key: key, Value: value, Now: now}); err != nil {
+			return fmt.Errorf("write setting %s: %w", key, err)
+		}
+	}
+	return nil
+}
+
+// Effective resolves the settings a title of library libraryID is filled with: the server
+// default with the library's deviation (library_metadata, concept 10 4.5) applied. libraryID 0
+// (a title without library, as in some tests) is the server default.
+func (s *Service) Effective(ctx context.Context, libraryID int64) (Settings, error) {
+	st, err := s.Settings(ctx)
+	if err != nil || libraryID == 0 {
+		return st, err
+	}
+	d, err := s.LibraryDeviation(ctx, libraryID)
+	if err != nil {
+		s.log.Warn("library metadata ignored", "library_id", libraryID, "err", err)
+		return st, nil
+	}
+	return d.apply(st), nil
 }
 
 // textLangsOf returns the effective text language list of an item (its library's).
@@ -336,14 +481,29 @@ func (s *Service) textLangsOf(ctx context.Context, item systemq.Item) ([]string,
 }
 
 // AvailableMetadataLanguages is the union of every effective text language list (the server's and
-// every library's), in the server's order: the languages a profile may choose (4.3). Step 3
-// adds the libraries' lists.
+// every library's), the server's first: the languages a profile may choose (4.3).
 func (s *Service) AvailableMetadataLanguages(ctx context.Context) ([]string, error) {
 	st, err := s.Settings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return slices.Clone(st.TextLangs), nil
+	out := slices.Clone(st.TextLangs)
+	rows, err := s.read.ListLibraryMetadata(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list library metadata: %w", err)
+	}
+	for _, r := range rows {
+		d, err := deviationOf(r)
+		if err != nil || d.TextLangs == nil {
+			continue
+		}
+		for _, l := range *d.TextLangs {
+			if !slices.Contains(out, l) {
+				out = append(out, l)
+			}
+		}
+	}
+	return out, nil
 }
 
 // ProviderLanguages names, per provider, the languages of the server's list it delivers (for

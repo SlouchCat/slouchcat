@@ -180,4 +180,15 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   «Filme · Movies/…», `jobs.prune` ohne Arbeit als `skipped = 1`), dazu per SQL ein laufender `segments.detect` mit
   `progress_done 3 / progress_total 10` und Notiz, wie ihn ein Arbeiter mitten im Lauf hinterlässt. Dann
   `server/bin/slouchcat dump`. `TestFrozenHintergrundjobsStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.
-
+- `metadaten.sql`: Stand nach Schritt 3 des Konzepts «Metadaten-Einstellungen» (ADR 0018; Migrationen 00028 bis 00030, ein
+  Stand für die drei, weil kein Schritt allein einen Server auf den NAS-Daten brauchte; Papier 10, Abschnitt 14). Erzeugt am
+  31. Oktober 2026 aus `hintergrundjobs.sql`, gegen das der Server mit Schritt 3 acht Sekunden lief (ein Arbeiter, Port 18097,
+  `--browse-roots testdata/media`; die drei Migrationen laufen beim Start, 00028 schreibt `item_texts.rank` 0/1 aus `de`/`en`,
+  00029 trägt die zwei TMDB-Pfadspalten der gematchten Serie nach `item_images`), dann per SQL die Daten des Konzepts, die ohne
+  TMDB-Schlüssel kein Lauf erzeugt: `metadata.text_langs` mit `es` als dritter Sprache, `metadata.rating_country` `CH`,
+  `metadata.image_min_width.poster` 1000, ein `es`-Text mit Rang 2 an der gematchten Serie und das Hauptprofil mit
+  `metadata_language = 'es'`, eine Abweichung der Bibliothek 2 in `library_metadata` (`["ja","en"]`, Posterkette `["","ja"]`,
+  nur `logo` als zusätzliche Bildart), eine Bilddatei `Frozen Film (2001)/poster.jpg` (1000 × 1500) in `item_local_images`
+  und ihre Wahl als gesperrtes Poster in `item_images` (`provider 'local'`, `chosen 1`, `locked_fields ["poster"]`). Dann
+  `server/bin/slouchcat dump` (Skript in den Sitzungsnotizen `freeze-metadaten.sh`). `TestFrozenMetadatenStateCoversTheConcept`
+  prüft, dass jede dieser Datenarten vorhanden ist.

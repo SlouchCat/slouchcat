@@ -665,3 +665,23 @@ func edge(f *vistest.Fixture, pick func(vistest.Movie) bool) vistest.Movie {
 	}
 	panic("admin test: edge case missing from the fixture")
 }
+
+func (m *fakeMetadata) MetadataSettings(context.Context) (model.MetadataSettings, error) {
+	return model.MetadataSettings{}, nil
+}
+
+func (m *fakeMetadata) UpdateMetadataSettings(context.Context, model.MetadataSettings) (model.MetadataSettings, error) {
+	return model.MetadataSettings{}, nil
+}
+
+func (m *fakeMetadata) LibraryMetadata(context.Context, int64) (model.LibraryMetadata, error) {
+	return model.LibraryMetadata{}, nil
+}
+
+func (m *fakeMetadata) UpdateLibraryMetadata(context.Context, int64, *[]string, *model.LibraryImages) (model.LibraryMetadata, error) {
+	return model.LibraryMetadata{}, nil
+}
+
+func (m *fakeMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {
+	return model.ApplyMetadataResult{}, nil
+}

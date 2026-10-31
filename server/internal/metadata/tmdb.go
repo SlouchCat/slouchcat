@@ -318,11 +318,14 @@ func (c *Client) Find(ctx context.Context, externalID, source string) (movies, s
 
 // Search runs /search/movie or /search/tv (kind "movie" or "tv") in English. year filters by
 // release year (movie) or first air date year (tv).
-func (c *Client) Search(ctx context.Context, kind, query string, year *int) ([]SearchResult, error) {
+func (c *Client) Search(ctx context.Context, kind, query string, year *int, includeAdult bool) ([]SearchResult, error) {
 	var res struct {
 		Results []SearchResult `json:"results"`
 	}
 	q := url.Values{"query": {query}, "language": {langEN}}
+	if includeAdult {
+		q.Set("include_adult", "true") // metadata.tmdb_include_adult (concept 10 4.1)
+	}
 	if year != nil {
 		if kind == "tv" {
 			q.Set("first_air_date_year", strconv.Itoa(*year))

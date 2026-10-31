@@ -96,8 +96,9 @@ func parseVote(s string) (float64, bool) {
 	return v, true
 }
 
-// titleFields maps a TMDB or TVDB record onto the fields.
-func titleFields(rec TitleRecord) providerFields {
+// titleFields maps a TMDB or TVDB record onto the fields; country is the rating country read
+// first (metadata.rating_country).
+func titleFields(rec TitleRecord, country string) providerFields {
 	pf := providerFields{provider: rec.Provider, values: fieldValues{}, genres: map[string][]string{}}
 	for lang, t := range rec.Texts {
 		pf.set("title", lang, t.Title)
@@ -118,8 +119,8 @@ func titleFields(rec TitleRecord) providerFields {
 			pf.genres[lang] = names
 		}
 	}
-	if rating, country := FSKFromCertifications(rec.Certifications); rating != nil {
-		pf.rating, pf.ratingSource = rating, rec.Provider+":"+country
+	if rating, from := fskFromCertificationsFirst(rec.Certifications, country); rating != nil {
+		pf.rating, pf.ratingSource = rating, rec.Provider+":"+from
 	}
 	return pf
 }
@@ -310,10 +311,11 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 	var out []fetchedRecord
 	var skipped []string
 	anilistID := int64(-1)
-	langs, err := s.textLangsOf(ctx, item)
+	settings, err := s.Effective(ctx, item.LibraryID)
 	if err != nil {
 		return nil, 0, nil, fmt.Errorf("metadata.fill: %w", err)
 	}
+	langs := settings.TextLangs
 	for _, p := range order {
 		switch p {
 		case model.ProviderTMDB:
@@ -330,7 +332,7 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 				return nil, 0, nil, err
 			}
 			if rec != nil {
-				out = append(out, fetchedRecord{p, id, titleFields(*rec)})
+				out = append(out, fetchedRecord{p, id, titleFields(*rec, settings.RatingCountry)})
 			}
 		case model.ProviderTVDB:
 			if item.Kind != "series" || !item.TvdbID.Valid || item.TvdbID.Int64 <= 0 {
@@ -346,7 +348,7 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 				return nil, 0, nil, err
 			}
 			if rec != nil {
-				out = append(out, fetchedRecord{p, id, titleFields(*rec)})
+				out = append(out, fetchedRecord{p, id, titleFields(*rec, settings.RatingCountry)})
 			}
 		case model.ProviderAniList:
 			if !s.anilist.Configured(ctx) {

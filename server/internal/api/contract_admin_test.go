@@ -156,3 +156,28 @@ func TestContractCancelFailedJob(t *testing.T) {
 		t.Errorf("cancel it again: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+// Metadata settings of concept 10 (ADR 0018): the fake answers with the defaults and records nothing.
+func (contractMetadata) MetadataSettings(context.Context) (model.MetadataSettings, error) {
+	return model.MetadataSettings{TextLangs: []string{"de", "en"}, ImageLangs: map[string][]string{}, ImageMinWidth: map[string]int{}, RatingCountry: "DE"}, nil
+}
+
+func (m contractMetadata) UpdateMetadataSettings(ctx context.Context, _ model.MetadataSettings) (model.MetadataSettings, error) {
+	return m.MetadataSettings(ctx)
+}
+
+func (m contractMetadata) LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error) {
+	if libraryID > 100 {
+		return model.LibraryMetadata{}, model.ErrNotFound
+	}
+	eff, _ := m.MetadataSettings(ctx)
+	return model.LibraryMetadata{LibraryID: libraryID, Effective: eff}, nil
+}
+
+func (m contractMetadata) UpdateLibraryMetadata(ctx context.Context, libraryID int64, _ *[]string, _ *model.LibraryImages) (model.LibraryMetadata, error) {
+	return m.LibraryMetadata(ctx, libraryID)
+}
+
+func (contractMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {
+	return model.ApplyMetadataResult{JobID: 1, Titles: 0}, nil
+}

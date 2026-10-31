@@ -90,6 +90,18 @@ func (q *Queries) CountItemsWithLocalImages(ctx context.Context) (int64, error) 
 	return count, err
 }
 
+const countLibraryItemsForApply = `-- name: CountLibraryItemsForApply :one
+SELECT count(*) FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+`
+
+// Matched films and series of one library, the titles metadata.apply queues for it.
+func (q *Queries) CountLibraryItemsForApply(ctx context.Context, libraryID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLibraryItemsForApply, libraryID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteImage = `-- name: DeleteImage :exec
 DELETE FROM images WHERE id = ?1
 `
@@ -153,6 +165,31 @@ func (q *Queries) DeleteItemText(ctx context.Context, arg DeleteItemTextParams) 
 	return err
 }
 
+const deleteLibraryMetadata = `-- name: DeleteLibraryMetadata :exec
+DELETE FROM library_metadata WHERE library_id = ?1
+`
+
+func (q *Queries) DeleteLibraryMetadata(ctx context.Context, libraryID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteLibraryMetadata, libraryID)
+	return err
+}
+
+const getLibraryMetadata = `-- name: GetLibraryMetadata :one
+SELECT library_id, text_langs, images, updated_at FROM library_metadata WHERE library_id = ?1
+`
+
+func (q *Queries) GetLibraryMetadata(ctx context.Context, libraryID int64) (LibraryMetadatum, error) {
+	row := q.db.QueryRowContext(ctx, getLibraryMetadata, libraryID)
+	var i LibraryMetadatum
+	err := row.Scan(
+		&i.LibraryID,
+		&i.TextLangs,
+		&i.Images,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getLibraryRootPath = `-- name: GetLibraryRootPath :one
 SELECT path FROM library_roots WHERE id = ?1
 `
@@ -174,6 +211,39 @@ func (q *Queries) GetSystemSetting(ctx context.Context, key string) (string, err
 	var value string
 	err := row.Scan(&value)
 	return value, err
+}
+
+const listApplyItems = `-- name: ListApplyItems :many
+SELECT id, kind FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched' ORDER BY id
+`
+
+type ListApplyItemsRow struct {
+	ID   string
+	Kind string
+}
+
+// The matched films and series of a library in id order, for metadata.apply (one match per title).
+func (q *Queries) ListApplyItems(ctx context.Context, libraryID int64) ([]ListApplyItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listApplyItems, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListApplyItemsRow{}
+	for rows.Next() {
+		var i ListApplyItemsRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listChildItems = `-- name: ListChildItems :many
@@ -590,6 +660,65 @@ func (q *Queries) ListItemsMissingImages(ctx context.Context, libraryID int64) (
 			&i.PosterMissing,
 			&i.BackdropMissing,
 			&i.LogoMissing,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLibraryIDs = `-- name: ListLibraryIDs :many
+SELECT id FROM libraries ORDER BY id
+`
+
+func (q *Queries) ListLibraryIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listLibraryIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLibraryMetadata = `-- name: ListLibraryMetadata :many
+SELECT library_id, text_langs, images, updated_at FROM library_metadata ORDER BY library_id
+`
+
+func (q *Queries) ListLibraryMetadata(ctx context.Context) ([]LibraryMetadatum, error) {
+	rows, err := q.db.QueryContext(ctx, listLibraryMetadata)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LibraryMetadatum{}
+	for rows.Next() {
+		var i LibraryMetadatum
+		if err := rows.Scan(
+			&i.LibraryID,
+			&i.TextLangs,
+			&i.Images,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1390,5 +1519,47 @@ func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) 
 		arg.SortKey,
 		arg.Rank,
 	)
+	return err
+}
+
+const upsertLibraryMetadata = `-- name: UpsertLibraryMetadata :exec
+INSERT INTO library_metadata (library_id, text_langs, images, updated_at)
+VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT (library_id) DO UPDATE SET text_langs = excluded.text_langs, images = excluded.images, updated_at = excluded.updated_at
+`
+
+type UpsertLibraryMetadataParams struct {
+	LibraryID int64
+	TextLangs sql.NullString
+	Images    sql.NullString
+	Now       int64
+}
+
+func (q *Queries) UpsertLibraryMetadata(ctx context.Context, arg UpsertLibraryMetadataParams) error {
+	_, err := q.db.ExecContext(ctx, upsertLibraryMetadata,
+		arg.LibraryID,
+		arg.TextLangs,
+		arg.Images,
+		arg.Now,
+	)
+	return err
+}
+
+const upsertSystemSetting = `-- name: UpsertSystemSetting :exec
+
+INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+`
+
+type UpsertSystemSettingParams struct {
+	Key   string
+	Value string
+	Now   int64
+}
+
+// Metadata settings (concept 10, ADR 0018): the server's keys live in settings (metadata.*), the
+// deviation of a library in library_metadata (NULL = like the server).
+func (q *Queries) UpsertSystemSetting(ctx context.Context, arg UpsertSystemSettingParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSystemSetting, arg.Key, arg.Value, arg.Now)
 	return err
 }

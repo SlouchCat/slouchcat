@@ -301,6 +301,10 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		}
 		return st.ImageLanguages()
 	}
+	svc.tmdb.includeAdult = func(ctx context.Context) bool {
+		st, err := svc.Settings(ctx)
+		return err == nil && st.TMDBIncludeAdult
+	}
 	return svc
 }
 
@@ -316,6 +320,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{Name: JobFill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleFill})
 	r.Register(jobs.Type{Name: JobVoteBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleVoteBackfill})
 	r.Register(jobs.Type{Name: JobImageFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: imageFetchPriority, Handler: s.handleImageFetch})
+	r.Register(jobs.Type{Name: JobApply, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: applyPriority, Handler: s.handleApply})
 	r.Register(jobs.Type{Name: JobTrailerFind, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: trailerPriority, Handler: s.handleTrailerFind})
 	r.Register(jobs.Type{Name: JobPodcastFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: podcastFetchPriority, Handler: s.handlePodcastFetch})
 	r.Register(jobs.Type{

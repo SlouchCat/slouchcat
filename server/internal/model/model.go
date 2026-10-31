@@ -1172,6 +1172,50 @@ func ProvidersJSON(providers []string) string {
 	return string(raw)
 }
 
+// MetadataSettings are the server's metadata settings as the administration sees them (concept 10,
+// ADR 0018, getMetadataSettings); KnownLanguages, AffectedTitles and LocalImageTitles are read-only.
+type MetadataSettings struct {
+	TextLangs        []string
+	ImageLangs       map[string][]string // poster, backdrop, logo; "" = without text
+	ImageKinds       []string            // logo, season_poster, episode_still
+	ImageMinWidth    map[string]int      // poster, backdrop
+	ImageByVote      bool
+	LocalImages      bool
+	RatingCountry    string
+	TMDBIncludeAdult bool
+	FanartEnabled    bool
+	KnownLanguages   []string
+	AffectedTitles   int
+	LocalImageTitles int
+}
+
+// LibraryImages is the image deviation of a library (concept 10 4.5).
+type LibraryImages struct {
+	Langs map[string][]string
+	Kinds []string
+}
+
+// LibraryMetadata is the deviation of a library (nil = like the server) with the effective values.
+type LibraryMetadata struct {
+	LibraryID      int64
+	TextLangs      *[]string
+	Images         *LibraryImages
+	Effective      MetadataSettings
+	AffectedTitles int
+}
+
+// ApplyMetadataRequest queues metadata.apply (concept 10 6.5).
+type ApplyMetadataRequest struct {
+	LibraryIDs []int64  // empty = every library
+	What       []string // texts, images
+}
+
+// ApplyMetadataResult is the queued run and the number of titles it covers.
+type ApplyMetadataResult struct {
+	JobID  int64
+	Titles int
+}
+
 // MetadataProviderInfo describes one provider to the administration (listMetadataProviders).
 type MetadataProviderInfo struct {
 	ID         string

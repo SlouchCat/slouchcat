@@ -330,3 +330,35 @@ LIMIT @limit_count;
 -- name: SetItemVoteAverage :exec
 -- Writes the vote average metadata.vote_backfill decided (NULL keeps it unknown).
 UPDATE items SET vote_average = @vote_average, updated_at = @now WHERE id = @id AND deleted_at IS NULL;
+
+-- Metadata settings (concept 10, ADR 0018): the server's keys live in settings (metadata.*), the
+-- deviation of a library in library_metadata (NULL = like the server).
+
+-- name: UpsertSystemSetting :exec
+INSERT INTO settings (key, value, updated_at) VALUES (@key, @value, @now)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;
+
+-- name: GetLibraryMetadata :one
+SELECT * FROM library_metadata WHERE library_id = @library_id;
+
+-- name: ListLibraryMetadata :many
+SELECT * FROM library_metadata ORDER BY library_id;
+
+-- name: UpsertLibraryMetadata :exec
+INSERT INTO library_metadata (library_id, text_langs, images, updated_at)
+VALUES (@library_id, @text_langs, @images, @now)
+ON CONFLICT (library_id) DO UPDATE SET text_langs = excluded.text_langs, images = excluded.images, updated_at = excluded.updated_at;
+
+-- name: DeleteLibraryMetadata :exec
+DELETE FROM library_metadata WHERE library_id = @library_id;
+
+-- name: CountLibraryItemsForApply :one
+-- Matched films and series of one library, the titles metadata.apply queues for it.
+SELECT count(*) FROM items WHERE library_id = @library_id AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched';
+
+-- name: ListApplyItems :many
+-- The matched films and series of a library in id order, for metadata.apply (one match per title).
+SELECT id, kind FROM items WHERE library_id = @library_id AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched' ORDER BY id;
+
+-- name: ListLibraryIDs :many
+SELECT id FROM libraries ORDER BY id;
