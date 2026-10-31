@@ -181,3 +181,18 @@ func (m contractMetadata) UpdateLibraryMetadata(ctx context.Context, libraryID i
 func (contractMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {
 	return model.ApplyMetadataResult{JobID: 1, Titles: 0}, nil
 }
+
+// The image choice per title (concept 10 step 5).
+func (m contractMetadata) ImageCandidates(context.Context, string, string, bool) (model.ImageCandidateList, error) {
+	return model.ImageCandidateList{Candidates: []model.ImageCandidate{{Provider: "tmdb", Lang: "de", Width: 1000, Height: 1500, Source: "/p.jpg", PreviewURL: "https://image.tmdb.org/t/p/w300/p.jpg"}, {Provider: "local", Width: 600, Height: 900, Source: "file:Film/poster.jpg?1-1"}}, Unavailable: []string{}}, nil
+}
+func (m contractMetadata) SetItemImage(context.Context, string, string, string, string) error {
+	return nil
+}
+func (m contractMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m contractMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
+	return nil, nil
+}
+func (m contractMetadata) LocalImagePreview(context.Context, string, string) (model.StreamSource, error) {
+	return model.StreamSource{}, model.ErrNotFound
+}

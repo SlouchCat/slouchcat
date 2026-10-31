@@ -1009,6 +1009,36 @@
           "body": "Der Trailer wird entfernt. Ein automatisch gefundener Trailer kann beim nächsten Aktualisieren zurückkommen.",
           "confirm": "Löschen"
         }
+      },
+      "images": {
+        "title": "Bilder",
+        "intro": "Je Art das gewählte Bild mit Quelle und Sprache. Eine eigene Wahl sperrt die Art; «Anwenden» und «Aktualisieren» behalten sie.",
+        "none": "Kein Bild",
+        "chosen": "von Hand gewählt",
+        "locked": "gesperrt",
+        "lockedNoChoice": "Sperre ohne Wahl",
+        "pick": "Andere wählen",
+        "unlock": "Sperre aufheben",
+        "pickTitle": "{{kind}} wählen",
+        "candidates": "Kandidaten für {{kind}}",
+        "chooseOne": "{{label}}, {{detail}} wählen",
+        "empty": "Keine Kandidaten. Ist der Titel zugeordnet und die Quelle eingerichtet?",
+        "current": "aktuell",
+        "more_one": "{{count}} weiteres zeigen",
+        "more_other": "{{count}} weitere zeigen",
+        "reload": "Neu abfragen",
+        "unavailable": "Nicht erreichbar: {{providers}}. Die Liste zeigt die übrigen Quellen.",
+        "size": "{{width}} × {{height}}",
+        "score": "Bewertung {{score}}",
+        "chosenSaved": "{{kind}} gewählt und gesperrt; das Bild wird geholt.",
+        "unlocked": "Sperre für {{kind}} aufgehoben; die automatische Wahl läuft.",
+        "provider": {
+          "local": "Lokale Datei",
+          "tmdb": "TMDB",
+          "tvdb": "TVDB",
+          "anilist": "AniList",
+          "fanart": "Fanart.tv"
+        }
       }
     },
     "match": {
@@ -2507,7 +2537,8 @@
         "lang_unknown": "Unbekannter Sprachcode.",
         "ui_lang_required": "Der Standard braucht Deutsch; eine Bibliothek Deutsch oder Englisch.",
         "chain_duplicate": "Jede Sprache nur einmal.",
-        "country_unknown": "Unbekanntes Land."
+        "country_unknown": "Unbekanntes Land.",
+        "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."
       }
     }
   },

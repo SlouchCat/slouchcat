@@ -137,6 +137,11 @@ type AdminService interface {
 	CreateItemTrailer(ctx context.Context, itemID, lang, youtubeID, url string) (model.Trailer, error)
 	// DeleteItemTrailer removes a trailer of a title.
 	DeleteItemTrailer(ctx context.Context, itemID string, trailerID int64) error
+	// The image choice per title (concept 10 6.4, 7.3).
+	ItemImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error)
+	SetItemImage(ctx context.Context, itemID, kind, provider, source string) (model.AdminItem, error)
+	ClearItemImage(ctx context.Context, itemID, kind string) (model.AdminItem, error)
+	ItemImageCandidatePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 	// SetItemsRating applies SetItemRating to many titles; unknown ids are skipped and not counted.
 	SetItemsRating(ctx context.Context, itemIDs []string, rating *int) (int, error)
 	// SearchMetadata asks a provider (model.ErrProviderNotConfigured, model.ErrTMDBKeyInvalid,

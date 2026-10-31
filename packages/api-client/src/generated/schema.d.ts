@@ -1644,6 +1644,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/image-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image candidates of every source for one kind of a title (concept 10 6.4)
+         * @description Asked live: the image files next to the media (`item_local_images`), then the providers of the
+         *     folder in list order (TMDB without language filter, TVDB artworks of a series); within a source by
+         *     the kind's language chain, then votes and width. Cached in the server for ten minutes per title and
+         *     kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
+         *     provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
+         *     of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
+         *     series, poster for seasons; another kind is 422.
+         */
+        get: operations["listItemImageCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/image-candidates/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A local image file of a title as preview (binary)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6). Serves only a `source` the scanner listed for
+         *     the title (`file:<rel>?<size>-<mtime>` from `listItemImageCandidates`), read through the library
+         *     root (rule 4), at most 20 MB; any other source is 404 (concept 10 9.2).
+         */
+        get: operations["getItemImageCandidatePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/images/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose and lock the image of a kind (concept 10 6.3)
+         * @description Stores the candidate as the title's image of the kind (`chosen`) and locks the kind
+         *     (`lockedFields`); `image.fetch` fetches it at the manual priority. `source` must be a candidate of
+         *     the title (`listItemImageCandidates`); an expired cache is asked again before a source is
+         *     `source_unknown`. A later `applyMetadata`, refresh or fill keeps the choice.
+         */
+        put: operations["setItemImage"];
+        post?: never;
+        /**
+         * Lift the choice and the lock of a kind
+         * @description Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
+         *     for a season) decides the kind again by the language chain and queues `image.fetch`.
+         */
+        delete: operations["clearItemImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/rating": {
         parameters: {
             query?: never;
@@ -4705,6 +4781,50 @@ export interface components {
                 episodes: number;
                 extras: number;
             };
+            /** @description The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out. */
+            images?: components["schemas"]["AdminItemImage"][];
+        };
+        /** @description One image a source offers for a kind of a title (concept 10 6.4). */
+        ImageCandidate: {
+            /** @description `local`, `tmdb`, `tvdb` or `fanart`. */
+            provider: string;
+            /** @description Language of the text on the image (BCP-47 primary subtag); empty for an image without text or unknown. */
+            lang: string;
+            /** @description Width in pixels, 0 when the source does not say. */
+            width: number;
+            height: number;
+            /**
+             * Format: double
+             * @description The source's rating of the image (TMDB vote average, TVDB score, Fanart likes); 0 without one.
+             */
+            score: number;
+            voteCount: number;
+            /** @description The source's address of the image; the value `setItemImage` takes. */
+            source: string;
+            /** @description Small preview; a provider's address (loaded by the browser without referrer) or `getItemImageCandidatePreview` for a local file. */
+            previewUrl: string;
+            /** @description The title's current image of the kind. */
+            chosen: boolean;
+        };
+        ImageCandidateList: {
+            candidates: components["schemas"]["ImageCandidate"][];
+            /** @description Providers of the title that did not answer (the list is complete without them). */
+            unavailable: string[];
+        };
+        ItemImageChoice: {
+            provider: string;
+            source: string;
+        };
+        /** @description The decided image source of a kind (concept 10 7.3); `locked` without `provider` is a lock without choice. */
+        AdminItemImage: {
+            kind: components["schemas"]["ImageKind"];
+            provider?: string;
+            lang?: string;
+            source?: string;
+            previewUrl?: string;
+            /** @description The administrator chose this source (`setItemImage`). */
+            chosen: boolean;
+            locked: boolean;
         };
         /** @enum {string} */
         IssueKind: "unmatched" | "no_images" | "unrated" | "orphaned" | "unplayable" | "rating_mismatch";
@@ -10107,6 +10227,182 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description No such title or no such image (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listItemImageCandidates: {
+        parameters: {
+            query: {
+                kind: components["schemas"]["ImageKind"];
+                refresh?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The candidates. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageCandidateList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The kind is not chosen by hand for this title (`validation_failed`, field `kind`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getItemImageCandidatePreview: {
+        parameters: {
+            query: {
+                source: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title or source (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                kind: components["schemas"]["ImageKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemImageChoice"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`): field `kind` (`invalid_value`) or `source` (`source_unknown`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    clearItemImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                kind: components["schemas"]["ImageKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The administration view after lifting the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The kind is not chosen by hand for this title (`validation_failed`, field `kind`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

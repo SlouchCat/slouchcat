@@ -3325,6 +3325,187 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/items/{id}/image-candidates:
+    get:
+      operationId: listItemImageCandidates
+      summary: Image candidates of every source for one kind of a title (concept 10 6.4)
+      description: |
+        Asked live: the image files next to the media (`item_local_images`), then the providers of the
+        folder in list order (TMDB without language filter, TVDB artworks of a series); within a source by
+        the kind's language chain, then votes and width. Cached in the server for ten minutes per title and
+        kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
+        provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
+        of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
+        series, poster for seasons; another kind is 422.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: The candidates.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageCandidateList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The kind is not chosen by hand for this title (`validation_failed`, field `kind`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/image-candidates/preview:
+    get:
+      operationId: getItemImageCandidatePreview
+      summary: A local image file of a title as preview (binary)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6). Serves only a `source` the scanner listed for
+        the title (`file:<rel>?<size>-<mtime>` from `listItemImageCandidates`), read through the library
+        root (rule 4), at most 20 MB; any other source is 404 (concept 10 9.2).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: source
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 2048
+      responses:
+        "200":
+          description: The image file.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title or source (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/images/{kind}:
+    put:
+      operationId: setItemImage
+      summary: Choose and lock the image of a kind (concept 10 6.3)
+      description: |
+        Stores the candidate as the title's image of the kind (`chosen`) and locks the kind
+        (`lockedFields`); `image.fetch` fetches it at the manual priority. `source` must be a candidate of
+        the title (`listItemImageCandidates`); an expired cache is asked again before a source is
+        `source_unknown`. A later `applyMetadata`, refresh or fill keeps the choice.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemImageChoice"
+      responses:
+        "200":
+          description: The administration view after the choice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: "Validation failed (`validation_failed`): field `kind` (`invalid_value`) or `source` (`source_unknown`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: clearItemImage
+      summary: Lift the choice and the lock of a kind
+      description: |
+        Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
+        for a season) decides the kind again by the language chain and queues `image.fetch`.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+      responses:
+        "200":
+          description: The administration view after lifting the choice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The kind is not chosen by hand for this title (`validation_failed`, field `kind`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/items/rating:
     post:
       operationId: setItemsRating
@@ -8813,6 +8994,90 @@ components:
               type: integer
             extras:
               type: integer
+        images:
+          type: array
+          description: The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out.
+          items:
+            $ref: "#/components/schemas/AdminItemImage"
+
+    ImageCandidate:
+      type: object
+      description: One image a source offers for a kind of a title (concept 10 6.4).
+      required: [provider, lang, width, height, score, voteCount, source, previewUrl, chosen]
+      properties:
+        provider:
+          type: string
+          description: "`local`, `tmdb`, `tvdb` or `fanart`."
+        lang:
+          type: string
+          description: Language of the text on the image (BCP-47 primary subtag); empty for an image without text or unknown.
+        width:
+          type: integer
+          description: Width in pixels, 0 when the source does not say.
+        height:
+          type: integer
+        score:
+          type: number
+          format: double
+          description: The source's rating of the image (TMDB vote average, TVDB score, Fanart likes); 0 without one.
+        voteCount:
+          type: integer
+        source:
+          type: string
+          description: The source's address of the image; the value `setItemImage` takes.
+        previewUrl:
+          type: string
+          description: Small preview; a provider's address (loaded by the browser without referrer) or `getItemImageCandidatePreview` for a local file.
+        chosen:
+          type: boolean
+          description: The title's current image of the kind.
+
+    ImageCandidateList:
+      type: object
+      required: [candidates, unavailable]
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageCandidate"
+        unavailable:
+          type: array
+          description: Providers of the title that did not answer (the list is complete without them).
+          items:
+            type: string
+
+    ItemImageChoice:
+      type: object
+      required: [provider, source]
+      properties:
+        provider:
+          type: string
+          maxLength: 16
+        source:
+          type: string
+          minLength: 1
+          maxLength: 2048
+
+    AdminItemImage:
+      type: object
+      description: The decided image source of a kind (concept 10 7.3); `locked` without `provider` is a lock without choice.
+      required: [kind, chosen, locked]
+      properties:
+        kind:
+          $ref: "#/components/schemas/ImageKind"
+        provider:
+          type: string
+        lang:
+          type: string
+        source:
+          type: string
+        previewUrl:
+          type: string
+        chosen:
+          type: boolean
+          description: The administrator chose this source (`setItemImage`).
+        locked:
+          type: boolean
 
     IssueKind:
       type: string

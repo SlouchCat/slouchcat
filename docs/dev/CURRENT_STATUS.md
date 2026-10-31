@@ -297,6 +297,69 @@ Fokusring); nach `task build` mit dem `SelectField` ist der Ring da. `web:gen:ch
 Durchgang nicht mehr, weil der Arbeitsbaum schon die Vertragsänderung von Schritt 5 trug; deshalb die
 Komponententests und der Lint einzeln (gleicher Stand des Web-Codes).
 
+### Schritt 5 — Bildwahl je Titel (31. Oktober 2026)
+
+**Was gebaut ist.** Paket `metadata`, `image_candidates.go`: `ImageCandidates` fragt live die
+Bilddateien neben dem Medium (`item_local_images`, zuerst), TMDB ohne Sprachfilter
+(`Client.AllImages`: `/movie|tv/{id}/images`, `/tv/{id}/season/{n}/images`) und die TVDB-Artworks
+einer Serie (`tvdbProvider.Artworks`), sortiert je Quelle nach der Sprachkette der Art, dann
+Bewertung, Stimmen und Breite; Vorschau beim Anbieter in `w300` (ein SVG-Logo als PNG-Zwilling),
+lokal über den neuen Vorschau-Handler. Cache im Prozess 10 Minuten je Titel und Art (höchstens 256
+Einträge), `refresh` fragt neu; eine Quelle, die nicht antwortet, steht in `unavailable`.
+`SetItemImage` nimmt nur einen Kandidaten des Titels (abgelaufener Cache wird neu gefüllt, sonst
+422 `source_unknown`), schreibt `item_images` mit `chosen = 1`, sperrt die Art in `locked_fields`,
+setzt die Herkunft und reiht `image.fetch` mit der manuellen Priorität ein. `ClearItemImage` löscht
+Wahl und Sperre und reiht einen manuellen Match ein (Papier 14). `ItemImages` liefert
+`AdminItem.images` (Quelle, Sprache, Vorschau, gewählt, gesperrt; «Sperre ohne Wahl»).
+`LocalImagePreview` liefert nur Dateien, die der Scanner für den Titel gelistet hat, über die
+Wurzel (Regel 4), höchstens 20 MB. Neue Abfrage `SetItemLockedFields`. Vertrag 1.6.0 (additiv) um
+vier Operationen mit `x-visibility: admin`: `listItemImageCandidates`,
+`getItemImageCandidatePreview` (`http.Handler`, Regel 6, vom strict server ausgenommen),
+`setItemImage`, `clearItemImage`; Schemata `ImageCandidate`, `ImageCandidateList`,
+`ItemImageChoice`, `AdminItemImage`, `AdminItem.images`. Oberfläche: Abschnitt «Bilder» in der
+Titelpflege (`ImagesPanel.tsx`: je Art Vorschau, Quelle, Sprache, «von Hand gewählt», «Sperre ohne
+Wahl», «Andere wählen», «Sperre aufheben») mit dem Dialog «<Art> wählen» (Raster
+`ImageCandidateGrid` aus `web/src/ui`, 40 Kacheln, «weitere zeigen», «Neu abfragen», Vorschauen ohne
+Referrer). Texte de/en, Feldfehler `source_unknown`.
+
+**Tests** (neu): `TestImageChoiceSurvivesApply` (Kandidaten in Kettenreihenfolge, Cache und
+`refresh`, SVG-Vorschau als PNG, 422 `source_unknown` und `kind`, Wahl mit Sperre und Job p7,
+`ItemImages`, **DoD: ein `apply` mit Texten und Bildern behält das gewählte, gesperrte Poster**,
+Sperre aufheben gibt die automatische Wahl zurück), `TestLocalImagePreviewServesOnlyListedFiles`
+(gelistete Datei ja; ungelistete, `..`, falsche Version, Anbieterpfad: 404); Vertragstest um die
+vier Operationen; drei Komponententests in `AdminItemPage.test.tsx`; e2e-Fall in
+`admin-item.spec.ts` (Regel 8: Raster mit Pfeiltasten, Enter wählt, Escape schliesst, Fokus zurück
+auf «Andere wählen», keine Fokusfalle); Story `UI/ImageCandidateGrid`.
+
+Storybook-Baselines: Docker ist auf dem Entwicklungsrechner jetzt verfügbar, `storybook:test` lief im
+CI-Lauf. Neu bzw. geändert und von Hand geprüft: `ui-titleorlogo--{text,logo,broken-logo}`,
+`ui-imagecandidategrid--{posters,landscape,empty}`, `ui-herocarousel--{poster-only,active-poster}`
+(die Folie «Glut» trägt seit Schritt 4 ein Logo). Die Logo-Fixture der Stories war zuerst ein in
+breiter Box zentriertes SVG und stand dadurch eingerückt; sie ist jetzt eng beschnitten wie ein
+echtes Logo. Damit sind auch die Baselines der Stories aus Schritt 4 nachgeholt.
+
+DoD-Belege:
+
+```
+$ git add -A && task ci                    (Zweig a161762 + Schritt 5, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün; gen:check grün
+server test:   ok  … 33 Pakete, kein FAIL
+web lint grün; web test:  Test Files  86 passed (86)   Tests  691 passed (691)
+storybook:test: 192 passed, 8 failed (2 geänderte HeroCarousel-Bilder, 6 neue Stories ohne Baseline)
+$ task web:storybook:update -- -g "herocarousel--poster-only|herocarousel--active-poster|imagecandidategrid|titleorlogo"
+                                           8 passed (Bilder geprüft, Logo-Fixture gestrafft, erneut geschrieben)
+$ task storybook:test                      200 passed (15.2s)
+$ go test ./internal/metadata/ -run 'TestImageChoiceSurvivesApply|TestLocalImagePreviewServesOnlyListedFiles' -count=1   ok
+$ go test ./internal/api/ -run 'TestContract' -count=1                                                                 ok
+$ task build && task e2e -- e2e/admin-item.spec.ts --repeat-each=2        28 passed (chromium, firefox)
+```
+
+**DoD «ein Titel mit gewähltem und gesperrtem Poster überlebt einen `apply`»:**
+`TestImageChoiceSurvivesApply` wählt das englische Poster (`setItemImage`), startet `applyMetadata`
+mit `texts` und `images`, lässt den Elternlauf, den Match und den Fill laufen und findet danach
+weiter `item_images` = `/en-poster.jpg`, `chosen = 1`, `poster` in `locked_fields`; erst
+`clearItemImage` gibt die automatische Wahl (deutsches Poster) zurück.
+
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
 **Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis

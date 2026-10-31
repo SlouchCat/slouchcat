@@ -22,6 +22,7 @@ import {
   providerChain,
 } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../shared/choices';
+import { ImagesPanel } from './ImagesPanel';
 import { MatchDialog } from './MatchDialog';
 import { adminItemQuery, maintenanceKey } from './queries';
 import styles from './AdminItemPage.module.css';
@@ -473,6 +474,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
           await reload();
         }}
       />
+      <ImagesPanel item={data} onChanged={(next, message) => void adopt(next, message)} />
       <FilesPanel item={data} />
       <TrailersPanel item={data} onChanged={reload} />
 

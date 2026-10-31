@@ -201,6 +201,15 @@ func (c *Client) Movie(ctx context.Context, id int64, lang string, imageLangs []
 	return m, err
 }
 
+// AllImages reads the images of a title in every language (/movie/{id}/images, /tv/{id}/images,
+// /tv/{id}/season/{n}/images without language filter), the candidates of the image choice per
+// title (concept 10 6.4). path is the title's path without "/images".
+func (c *Client) AllImages(ctx context.Context, path string) (Images, error) {
+	var im Images
+	err := c.getJSON(ctx, path+"/images", nil, &im)
+	return im, err
+}
+
 // TV is the TMDB series detail in one language with content ratings, external IDs and credits.
 type TV struct {
 	ID             int64   `json:"id"`

@@ -113,6 +113,149 @@ test('Tab: header, actions, rating, files, trailers; no focus trap', async ({ pa
   await tabTo(page, page.getByRole('button', { name: 'Zuordnen' }), 12);
   await tabTo(page, page.getByRole('button', { name: 'Aktualisieren' }), 2);
   await tabTo(page, page.getByRole('link', { name: 'Zur Detailseite' }), 2);
-  await tabTo(page, trailers(page).getByRole('button', { name: 'Hinzufügen' }), 12);
+  await tabTo(page, trailers(page).getByRole('button', { name: 'Hinzufügen' }), 20);
   await expectNoFocusTrap(page);
+});
+
+test.describe('image choice', () => {
+  // Chromium sends the page's GET requests through the service worker, where page.route does not
+  // see them; the candidates and the reread title are answered here, so the worker stays out.
+  test.use({ serviceWorkers: 'block' });
+
+  test('image choice: the grid by arrow keys, Enter chooses, Escape closes, focus returns (concept 10 7.3)', async ({
+    page,
+    owner,
+  }) => {
+    // The e2e server has no TMDB key and the test film no image file next to it: the candidates and
+    // the choice are answered here; the server side is covered by the Go tests of package metadata.
+    const stored = (await (await owner.get(`/api/v1${admin}`)).json()) as Record<string, unknown>;
+    const candidates = [
+      {
+        provider: 'local',
+        lang: '',
+        width: 600,
+        height: 900,
+        score: 0,
+        voteCount: 0,
+        source: 'file:A/poster.jpg?1-1',
+        previewUrl: '',
+        chosen: false,
+      },
+      {
+        provider: 'tmdb',
+        lang: 'de',
+        width: 1000,
+        height: 1500,
+        score: 5.5,
+        voteCount: 10,
+        source: '/de.jpg',
+        previewUrl: '',
+        chosen: false,
+      },
+      {
+        provider: 'tmdb',
+        lang: 'en',
+        width: 2000,
+        height: 3000,
+        score: 6,
+        voteCount: 20,
+        source: '/en.jpg',
+        previewUrl: '',
+        chosen: false,
+      },
+    ];
+    let chosen: unknown = null;
+    await page.route(
+      (url) => url.pathname === `/api/v1${admin}/image-candidates`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ candidates, unavailable: [] }),
+        }),
+    );
+    await page.route(
+      (url) => url.pathname === `/api/v1${admin}/images/poster`,
+      async (route) => {
+        chosen = route.request().postDataJSON();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...stored,
+            images: [
+              {
+                kind: 'poster',
+                provider: 'tmdb',
+                lang: 'de',
+                source: '/de.jpg',
+                chosen: true,
+                locked: true,
+              },
+            ],
+          }),
+        });
+      },
+    );
+
+    // After the choice the page reads the title again: that answer carries the choice too.
+    await page.route(
+      (url) => url.pathname === `/api/v1${admin}`,
+      async (route) => {
+        if (chosen === null || route.request().method() !== 'GET') return route.continue();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...stored,
+            images: [
+              {
+                kind: 'poster',
+                provider: 'tmdb',
+                lang: 'de',
+                source: '/de.jpg',
+                chosen: true,
+                locked: true,
+              },
+            ],
+          }),
+        });
+      },
+    );
+
+    const images = page.getByRole('region', { name: 'Bilder' });
+    const pick = images
+      .getByRole('listitem')
+      .filter({ hasText: 'Poster' })
+      .getByRole('button', { name: 'Andere wählen' });
+    await tabTo(page, pick, 30);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Poster wählen' });
+    const grid = dialog.getByRole('listbox', { name: 'Kandidaten für Poster' });
+    const tiles = grid.getByRole('option');
+    await expect(tiles).toHaveCount(3);
+    await expectFocusOn(page, tiles.nth(0));
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, tiles.nth(1));
+
+    // Escape closes without a choice; the focus is back on the button.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, pick);
+    expect(chosen).toBeNull();
+
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, tiles.nth(0));
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+    expect(chosen).toEqual({ provider: 'tmdb', source: '/de.jpg' });
+    await expect(
+      page.getByText('Poster gewählt und gesperrt; das Bild wird geholt.'),
+    ).toBeVisible();
+    const poster = images.getByRole('listitem').filter({ hasText: 'Poster' });
+    await expect(poster.getByText('von Hand gewählt')).toBeVisible();
+    await expect(poster.getByRole('button', { name: 'Sperre aufheben' })).toBeVisible();
+    await expectNoFocusTrap(page);
+  });
 });

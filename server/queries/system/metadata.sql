@@ -362,3 +362,7 @@ SELECT id, kind FROM items WHERE library_id = @library_id AND deleted_at IS NULL
 
 -- name: ListLibraryIDs :many
 SELECT id FROM libraries ORDER BY id;
+
+-- name: SetItemLockedFields :exec
+-- The administrator's lock of a kind (setItemImage, clearItemImage; concept 10 6.3).
+UPDATE items SET locked_fields = @locked_fields, updated_at = @now WHERE id = @id;

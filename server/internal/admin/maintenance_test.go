@@ -685,3 +685,18 @@ func (m *fakeMetadata) UpdateLibraryMetadata(context.Context, int64, *[]string, 
 func (m *fakeMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {
 	return model.ApplyMetadataResult{}, nil
 }
+
+// The image choice per title (concept 10 step 5).
+func (m *fakeMetadata) ImageCandidates(context.Context, string, string, bool) (model.ImageCandidateList, error) {
+	return model.ImageCandidateList{Candidates: []model.ImageCandidate{{Provider: "tmdb", Lang: "de", Width: 1000, Height: 1500, Source: "/p.jpg", PreviewURL: "https://image.tmdb.org/t/p/w300/p.jpg"}, {Provider: "local", Width: 600, Height: 900, Source: "file:Film/poster.jpg?1-1"}}, Unavailable: []string{}}, nil
+}
+func (m *fakeMetadata) SetItemImage(context.Context, string, string, string, string) error {
+	return nil
+}
+func (m *fakeMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m *fakeMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
+	return nil, nil
+}
+func (m *fakeMetadata) LocalImagePreview(context.Context, string, string) (model.StreamSource, error) {
+	return model.StreamSource{}, model.ErrNotFound
+}

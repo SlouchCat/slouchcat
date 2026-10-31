@@ -1096,6 +1096,22 @@ func (q *Queries) SetItemFilledProviders(ctx context.Context, arg SetItemFilledP
 	return err
 }
 
+const setItemLockedFields = `-- name: SetItemLockedFields :exec
+UPDATE items SET locked_fields = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type SetItemLockedFieldsParams struct {
+	LockedFields string
+	Now          int64
+	ID           string
+}
+
+// The administrator's lock of a kind (setItemImage, clearItemImage; concept 10 6.3).
+func (q *Queries) SetItemLockedFields(ctx context.Context, arg SetItemLockedFieldsParams) error {
+	_, err := q.db.ExecContext(ctx, setItemLockedFields, arg.LockedFields, arg.Now, arg.ID)
+	return err
+}
+
 const setItemMetadataState = `-- name: SetItemMetadataState :exec
 UPDATE items
 SET metadata_state = ?1,

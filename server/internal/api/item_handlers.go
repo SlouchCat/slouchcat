@@ -348,6 +348,28 @@ func (s *server) getAdminItemImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
+// getItemImageCandidatePreview serves a local image file of a title as preview of the image choice
+// (binary endpoint, CLAUDE.md rule 6, concept 10 9.2): only a source the scanner listed for the
+// title, read through its library root; anything else is 404. Not cached: the file next to the
+// media may change, and the address carries its size and modification time anyway.
+func (s *server) getItemImageCandidatePreview(w http.ResponseWriter, r *http.Request) {
+	source := r.URL.Query().Get("source")
+	if source == "" || len(source) > 2048 {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	src, err := s.opts.Admin.ItemImageCandidatePreview(r.Context(), chi.URLParam(r, "id"), source)
+	if err != nil {
+		s.p.mapError(w, r, err)
+		return
+	}
+	defer src.File.Close()
+	w.Header().Set("Content-Type", src.MediaType)
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
 // getItemStream serves the media file of a direct-play session with Range support (binary
 // endpoint, CLAUDE.md rule 6), authorised by the stream token (streamGrant): http.ServeContent
 // answers 206 for a satisfiable range and 416 otherwise. A token of another title answers 404. A

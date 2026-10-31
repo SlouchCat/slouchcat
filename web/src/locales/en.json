@@ -1009,6 +1009,36 @@
           "body": "The trailer is removed. An automatically found trailer may come back with the next refresh.",
           "confirm": "Delete"
         }
+      },
+      "images": {
+        "title": "Images",
+        "intro": "Per kind the chosen image with source and language. A choice of your own locks the kind; \"Apply\" and \"Refresh\" keep it.",
+        "none": "No image",
+        "chosen": "chosen by hand",
+        "locked": "locked",
+        "lockedNoChoice": "Lock without choice",
+        "pick": "Choose another",
+        "unlock": "Lift lock",
+        "pickTitle": "Choose {{kind}}",
+        "candidates": "Candidates for {{kind}}",
+        "chooseOne": "Choose {{label}}, {{detail}}",
+        "empty": "No candidates. Is the title matched and the source set up?",
+        "current": "current",
+        "more_one": "Show {{count}} more",
+        "more_other": "Show {{count}} more",
+        "reload": "Ask again",
+        "unavailable": "Not reachable: {{providers}}. The list shows the other sources.",
+        "size": "{{width}} × {{height}}",
+        "score": "Rating {{score}}",
+        "chosenSaved": "{{kind}} chosen and locked; the image is being fetched.",
+        "unlocked": "Lock of {{kind}} lifted; the automatic choice runs.",
+        "provider": {
+          "local": "Local file",
+          "tmdb": "TMDB",
+          "tvdb": "TVDB",
+          "anilist": "AniList",
+          "fanart": "Fanart.tv"
+        }
       }
     },
     "match": {
@@ -2507,7 +2537,8 @@
         "lang_unknown": "Unknown language code.",
         "ui_lang_required": "The default needs German; a library German or English.",
         "chain_duplicate": "Every language once.",
-        "country_unknown": "Unknown country."
+        "country_unknown": "Unknown country.",
+        "source_unknown": "This image source is not a candidate of the title."
       }
     }
   },

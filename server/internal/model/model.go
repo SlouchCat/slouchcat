@@ -367,6 +367,7 @@ type AdminItem struct {
 	Seasons         int           // child counts
 	Episodes        int
 	Extras          int
+	Images          []AdminItemImage // the decided image source per choosable kind (concept 10 7.3)
 }
 
 // MetadataCandidate is a search result of a metadata provider (manual match, B-6).
@@ -1563,4 +1564,38 @@ type LibraryPage struct {
 	Items  []ItemSummary
 	Total  int
 	Facets LibraryFacets
+}
+
+// ImageCandidate is one image a source offers for a kind of a title (listItemImageCandidates,
+// concept 10 6.4). PreviewURL is the provider's small size; empty for a local file (the API sets
+// the address of the preview handler).
+type ImageCandidate struct {
+	Provider   string
+	Lang       string
+	Width      int
+	Height     int
+	Score      float64
+	VoteCount  int
+	Source     string
+	PreviewURL string
+	Chosen     bool
+}
+
+// ImageCandidateList is the answer of listItemImageCandidates: the candidates and the providers
+// that did not answer.
+type ImageCandidateList struct {
+	Candidates  []ImageCandidate
+	Unavailable []string
+}
+
+// AdminItemImage is the decided image source of a kind for the title page (AdminItem.images,
+// concept 10 7.3); Locked without Provider is a lock without choice.
+type AdminItemImage struct {
+	Kind       string
+	Provider   string
+	Lang       string
+	Source     string
+	PreviewURL string
+	Chosen     bool
+	Locked     bool
 }

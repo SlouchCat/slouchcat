@@ -144,6 +144,9 @@ type Service struct {
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
 
+	candMu    sync.Mutex
+	candCache map[string]candidateEntry // image candidates per title and kind (image_candidates.go)
+
 	feeds feedFetcher // podcast feeds (podcast.go)
 }
 

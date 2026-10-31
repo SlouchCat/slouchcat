@@ -131,6 +131,14 @@ type Metadata interface {
 	Apply(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error)
 	// ListTrailersSystem lists every trailer of a title, unfiltered.
 	ListTrailersSystem(ctx context.Context, itemID string) ([]model.Trailer, error)
+	// The image choice per title (concept 10 6.4, 7.3): candidates of every source, choose and
+	// lock, lift the lock, the decided sources, the preview of a local file (model.ErrNotFound,
+	// *model.ValidationError).
+	ImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error)
+	SetItemImage(ctx context.Context, itemID, kind, provider, source string) error
+	ClearItemImage(ctx context.Context, itemID, kind string) error
+	ItemImages(ctx context.Context, itemID string) ([]model.AdminItemImage, error)
+	LocalImagePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 }
 
 // ErrNotConfigured: a maintenance operation needs a collaborator that was not wired

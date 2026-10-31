@@ -479,6 +479,16 @@ func (p *tvdbProvider) artworkCandidates(ctx context.Context, s tvdbSeries, post
 	return out
 }
 
+// Artworks reads the artworks of a series with language and size (posters, backgrounds, clear
+// logos), the TVDB candidates of the image choice per title (concept 10 6.4).
+func (p *tvdbProvider) Artworks(ctx context.Context, id int64) ([]ImageCandidate, error) {
+	var s tvdbSeries
+	if _, err := p.getJSON(ctx, "/series/"+strconv.FormatInt(id, 10)+"/extended", url.Values{"meta": {"translations"}}, &s); err != nil {
+		return nil, err
+	}
+	return p.artworkCandidates(ctx, s, "", ""), nil
+}
+
 // bestArtwork returns the image of the highest scored artwork of the type, or "".
 func (p *tvdbProvider) bestArtwork(s tvdbSeries, kind int) string {
 	best, score := "", -1.0
