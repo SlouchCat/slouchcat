@@ -1,24 +1,25 @@
 # Konzept: Metadaten-Einstellungen (Sprachen, Bilder, Freigabeland, Bildwahl je Titel)
 
-- **Status: Fragen beantwortet (31. Oktober 2026), Umsetzung nicht gestartet.** Dieses Papier
-  ist **Teil B der Idee 01** (`docs/ideas/01-metadaten-einstellungen.md`): alles, was Konzept 07
-  dort zurückgelassen hat. Marco hat am 29. Oktober 2026 nach einem Jellyfin-Bild («Bilder
+- **Status: Umsetzung gestartet (31. Oktober 2026, Schritt 0 auf dem Zweig `claude/festive-swanson-7af516`).**
+  Dieses Papier ist **Teil B der Idee 01** (`docs/ideas/01-metadaten-einstellungen.md`): alles, was
+  Konzept 07 dort zurückgelassen hat. Marco hat am 29. Oktober 2026 nach einem Jellyfin-Bild («Bilder
   abrufen») gefragt, welche Einstellungen je Metadatenquelle Sinn ergeben, und am 31. Oktober das
   Konzept beauftragt. Der OMC-Kritiker hat Fassung 1 geprüft (1 Blocker, 19 Major, 31 Minor;
   Abschnitt 13); Fassung 2 arbeitet alle ein. Marco hat am 31. Oktober im Interview **F-1 bis
-  F-10 und O-1 bis O-4 beantwortet, alle wie vorgeschlagen** (Abschnitt 11). Ein klickbarer
-  Prototyp liegt unter `docs/planning/mockups/10-metadaten-prototyp.html` (Abschnitt 7.6).
-  **Schritt 0 (Frage 16 im Entscheidungsprotokoll, ADR 0018) und alles Weitere beginnen erst
-  auf Marcos ausdrückliches Wort.**
+  F-10 und O-1 bis O-4 beantwortet, alle wie vorgeschlagen** (Abschnitt 11), und am selben Tag die
+  Umsetzung beauftragt. Frage 16 steht im Entscheidungsprotokoll, ADR 0018 in `docs/adr/`. Ein
+  klickbarer Prototyp liegt unter `docs/planning/mockups/10-metadaten-prototyp.html` (Abschnitt 7.6).
+  Der Stand je Schritt steht in `docs/dev/CURRENT_STATUS.md`; Abweichungen vom Papier, die der Code
+  erzwingt, werden hier mit Begründung nachgeführt (Abschnitt 14).
 - **Datum: 31. Oktober 2026, Fassung 2 mit Antworten vom selben Tag**
-- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`525c125`** («Merge pull request
-  #56», Release 1.5.0), Vertragsfassung **1.5.0**, letzte Migration **00027**, letzte ADR
-  **0017**, letzte Frage **15**. Konzept 07 (Bibliotheken, ADR 0015, `metadata.fill`,
+- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`d3d73bc`** («Merge pull request
+  #57», Konzept 10 gemergt; Code unverändert seit `525c125`, Release 1.5.0), Vertragsfassung
+  **1.5.0**, letzte Migration **00027**, letzte ADR **0017**, letzte Frage **15**. Konzept 07 (Bibliotheken, ADR 0015, `metadata.fill`,
   `item_field_sources`), 08 (Startseite, ADR 0016) und 09 (Hintergrundjobs, ADR 0017,
   `jobs.Registry`) sind gemergt und werden **vorausgesetzt**. Die nächsten freien Nummern sind
   darum **Migrationen 00028 bis 00030** (eine je Schritt, 4.7), **ADR 0018, Vertrag 1.6.0,
-  Frage 16**. `:Zeile`-Angaben beziehen sich auf `525c125`; wo eine Stelle wandern kann, steht
-  der Name.
+  Frage 16**. `:Zeile`-Angaben beziehen sich auf `525c125` (Code identisch mit `d3d73bc`); wo eine Stelle
+  wandern kann, steht der Name.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
   und `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 - **Jeder Schritt ist ein eigener Commit, und vor dem Abschluss jedes Schritts ist `task ci`
@@ -968,3 +969,14 @@ und `:542`, YouTube-Kontingent, Bildschranke 20 MB, `jobs.Type`, die Gruppe in `
 TMDB-Annahmen (`append_to_response=images` mit `include_image_language=…,null`, `logos` mit
 `iso_639_1` und `vote_average`, keine Banner/Disc/Clearart) und die Fanart-Artnamen nach seinem
 Wissen. Fassung 2 ist **nicht** erneut geprüft.
+
+---
+
+## 14. Abweichungen während der Umsetzung
+
+Hier steht, wo der Code das Papier korrigiert hat (Regel der Beauftragung: der Code ist die
+Ausgangslage, das Papier wird mit Begründung nachgeführt, nie stillschweigend abgewichen).
+
+| Schritt | Papier sagte | Gebaut | Warum |
+|---|---|---|---|
+| 0 | verankert an `525c125` | verankert an `d3d73bc` (Merge von PR #57, nur dieses Papier) | Code und Nummern unverändert; die nächsten freien Nummern bleiben 00028, ADR 0018, 1.6.0, Frage 16 |
