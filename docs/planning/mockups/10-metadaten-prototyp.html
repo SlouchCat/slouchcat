@@ -180,7 +180,7 @@
 
     <!-- Bilder -->
     <section class="panel overridable" aria-labelledby="h-img">
-      <div class="head"><div class="headText"><h2 id="h-img">Bilder <span class="inheritTag">Standard</span></h2><p class="intro">Welche Bildarten geholt werden und in welcher Sprache. Eine Bilddatei neben dem Film (poster.jpg, fanart.jpg, logo.png) gewinnt immer; danach die Quellen des Ordners, zuletzt Fanart.tv.</p></div></div>
+      <div class="head"><div class="headText"><h2 id="h-img">Bilder <span class="inheritTag">Standard</span></h2><p class="intro">Welche Bildarten geholt werden und in welcher Sprache. Eine Bilddatei neben dem Film (poster.jpg, fanart.jpg, logo.png) gewinnt, wenn sie breit genug ist; danach die Quellen des Ordners, zuletzt Fanart.tv.</p></div></div>
 
       <div class="item">
         <h3>Bildarten</h3>
@@ -232,7 +232,10 @@
       </div>
       <div class="item">
         <div class="head"><h3>Lokale Dateien <span class="pill ok">122 Ordner mit Bildern</span></h3><span class="status">poster.jpg, fanart.jpg, logo.png, seasonNN-poster.jpg neben dem Titel</span></div>
-        <p class="desc">Immer vor allen Quellen; eine Datei neben dem Film ist eine bewusste Wahl. Zu kleine Dateien zählen als Kandidat in der Bildwahl.</p>
+        <div class="rows">
+          <div class="row"><div>Lokale Dateien als Quelle<div class="meta">Vor allen Anbietern, wenn breit genug; aus, solange die Ordner noch Embys automatische Bilder tragen</div></div><button class="switch" role="switch" aria-checked="true"><span class="track"><span class="handle"></span></span></button></div>
+        </div>
+        <p class="desc">Zu kleine oder abgeschaltete Dateien bleiben als Kandidaten in der Bildwahl je Titel.</p>
       </div>
       <div class="item">
         <div class="head"><h3>Fanart.tv <span class="pill off">kein Schlüssel</span></h3><span class="status">Logos und Poster in hoher Güte, nach den Quellen des Ordners</span></div>
@@ -277,6 +280,8 @@
       <li>F-2 Logo als neue Bildart. F-3 Banner, Disc, Clearart streichen.</li>
       <li>F-4 Fanart.tv jetzt (optional), später oder nie. F-5 Lokale Bilddateien vor allen Quellen.</li>
       <li>F-6 Abweichung je Bibliothek nur für Sprachen und Bilder. F-7 Freigabeland bleibt DE als Vorgabe. F-8 «Jetzt anwenden» selbst drücken.</li>
+      <li>F-9 Bibliotheksliste ohne Deutsch erlaubt (mindestens de oder en). F-10 Vorgabekette Poster Deutsch, Englisch, Ohne Text.</li>
+      <li>Die gebaute Seite hat zwei Schalter je Bibliothek (Sprachen, Bilder) und ab sechs Bibliotheken eine Auswahlliste statt der Segmente.</li>
     </ul>
   </div>
 </div>
