@@ -14,6 +14,8 @@
     --danger: #f2777a; --success: #5fcf8f; --warning: #e8b65a;
     --scrim-solid: #0b0c10f5; --scrim-strong: #0b0c10cc; --scrim-clear: #0b0c1000;
     --accent: #e8794a; --on-accent: #1c0d06;
+    /* Admin group colours for title style 2 (accent tokens teal, sky, rose, violet); contrast on bg-elevated 8.35 / 7.67 / 6.72 / 7.11. */
+    --group-library: #45c2b1; --group-accounts: #62aef0; --group-curation: #ec77a3; --group-system: #a993f5;
     --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px; --s16: 64px;
     --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-xl: 20px; --r-full: 9999px;
     --ring-w: 3px; --ring-o: 2px;
@@ -101,6 +103,29 @@
   .entry.quiet { color: var(--text-muted); }
   .egroup { justify-content: space-between; color: var(--text-muted); font-size: var(--fs-xs); font-weight: 600; letter-spacing: var(--caps); text-transform: uppercase; cursor: default; }
   .egroup:hover { background: transparent; color: var(--text-muted); }
+
+  /* B: group titles of the admin column, three styles to compare (data-titles on the nav). */
+  .agroup { display: flex; flex-direction: column; gap: var(--s1); }
+  .agroup[data-g="library"] { --gc: var(--group-library); }
+  .agroup[data-g="accounts"] { --gc: var(--group-accounts); }
+  .agroup[data-g="curation"] { --gc: var(--group-curation); }
+  .agroup[data-g="system"] { --gc: var(--group-system); }
+  .ghead { display: flex; align-items: center; gap: var(--s2); min-height: 32px; margin: 0; padding: 0 var(--s3); font-size: .8125rem; font-weight: 700; letter-spacing: var(--caps); line-height: 1.2; text-transform: uppercase; }
+  .ghead svg.i { width: 16px; height: 16px; }
+  .anav .entry svg.i { color: var(--text-muted); transition: color var(--dur-focus) var(--ease); }
+  .anav .entry { position: relative; }
+  /* 1 Akzent */
+  .anav[data-titles="1"] .agroup { margin-top: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--border-subtle); }
+  .anav[data-titles="1"] .ghead { color: var(--accent); }
+  /* 2 Je Gruppe eine Farbe */
+  .anav[data-titles="2"] .agroup { margin-top: var(--s3); }
+  .anav[data-titles="2"] .ghead { color: var(--gc); }
+  .anav[data-titles="2"] .agroup .entry:hover svg.i, .anav[data-titles="2"] .agroup .entry[aria-current="page"] svg.i { color: var(--gc); }
+  .anav[data-titles="2"] .agroup .entry[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: var(--s2); bottom: var(--s2); width: 3px; border-radius: 3px; background: var(--gc); }
+  /* 3 Band */
+  .anav[data-titles="3"] .agroup { margin-top: var(--s3); }
+  .anav[data-titles="3"] .ghead { min-height: 34px; border-radius: var(--r-md); background: var(--tint-accent); color: var(--accent); }
+  .anav[data-titles="3"] .agroup .entry { padding-left: var(--s6); }
 
   .page { container: content / inline-size; max-width: var(--content-max); margin: 0 auto; padding: var(--s2) var(--gutter) var(--s16); }
 
@@ -318,8 +343,8 @@
   <div class="proto-row">
     <span class="proto-tag">Prototyp · Verwaltung</span>
     <div class="seg" role="group" aria-label="Variante">
-      <button data-variant="A" aria-pressed="true"><b>A</b> Ruhiges Raster</button>
-      <button data-variant="B" aria-pressed="false"><b>B</b> Seitenleiste (Emby)</button>
+      <button data-variant="A" aria-pressed="false"><b>A</b> Ruhiges Raster</button>
+      <button data-variant="B" aria-pressed="true"><b>B</b> Seitenleiste (Emby)</button>
       <button data-variant="C" aria-pressed="false"><b>C</b> Status + Kacheln</button>
       <button data-variant="D" aria-pressed="false"><b>D</b> Cockpit</button>
     </div>
@@ -337,6 +362,11 @@
     <div class="seg" role="group" aria-label="App-Seitenleiste"><span>App-Seitenleiste</span>
       <button data-appnav="off" aria-pressed="true">aus</button>
       <button data-appnav="on" aria-pressed="false">ein</button>
+    </div>
+    <div class="seg" role="group" aria-label="Gruppentitel" id="titlesSeg"><span>Gruppentitel</span>
+      <button data-titles="1" aria-pressed="true">1 Akzent</button>
+      <button data-titles="2" aria-pressed="false">2 Je Gruppe eine Farbe</button>
+      <button data-titles="3" aria-pressed="false">3 Band</button>
     </div>
     <label><input type="checkbox" id="rareToggle"> Seltene Hinweise zeigen</label>
     <label><input type="checkbox" id="gapToggle"> Neue Serverdaten markieren</label>
@@ -428,6 +458,7 @@ const SECTIONS = [
 ];
 /* The app's SideNav (AppLayout.tsx, de.json nav.*): no icons (N-2). */
 const LIBRARIES = [['Filme', 1204], ['Serien', 512], ['Anime', 188], ['Kinder', 414]];
+const GROUP_ICONS = { library: 'film', accounts: 'users', curation: 'star', system: 'server' };
 const JOB_NAMES = { 'probe.keyframes': 'Keyframe-Index', 'scan.library': 'Bibliotheksscan', 'image.fetch': 'Bilder holen', 'metadata.match': 'Titel zuordnen' };
 const INTEGRATION_NAMES = { tmdb: 'TMDB', tvdb: 'TVDB', youtube: 'YouTube', trakt: 'Trakt', email: 'E-Mail', push: 'Web-Push', telegram: 'Telegram', updateCheck: 'Update-Prüfung' };
 const STATE_TEXT = { configured: 'eingerichtet', missing: 'nicht eingerichtet', error: 'Fehler', disabled: 'ausgeschaltet' };
@@ -554,11 +585,11 @@ const issueText = (k) => k === 0 ? 'Alles in Ordnung' : k === 1 ? '1 Sache brauc
 const issueIcon = (tone) => tone === 'info' ? 'info' : 'alert';
 
 /* ---------- State ---------- */
-const state = { variant: 'A', mode: 'ruhig', phone: false, appnav: false, gaps: false, rare: false, openGroup: null, menu: null };
+const state = { variant: 'B', titles: '1', bCurrent: 'Übersicht', mode: 'ruhig', phone: false, appnav: false, gaps: false, rare: false, openGroup: null, menu: null };
 const data = () => Object.assign({}, BASE, STATES[state.mode], state.rare ? RARE : {});
 const DESCRIPTIONS = {
   A: '<b>A · Ruhiges Raster.</b> Navigation in zwei sauberen Zeilen: Bereiche als Reiter, ein Klick öffnet darunter ihre Seiten. Oben vier gleich grosse Kennzahlen, darunter vier gleich hohe Karten. Hinweise nur, wenn etwas zu tun ist.',
-  B: '<b>B · Seitenleiste wie Emby.</b> In der Verwaltung ersetzt die Liste der Verwaltungsseiten die Seitenleiste der App (oben «Zurück zur App»). Sie steht immer da, auch wenn die App-Seitenleiste aus ist; auf dem Handy ist sie ein Menü-Knopf. Rechts sechs gleiche Karten.',
+  B: '<b>B · Seitenleiste wie Emby.</b> In der Verwaltung ersetzt die Liste der Verwaltungsseiten die Seitenleiste der App (oben «Zurück zur App»). Sie steht immer da, auch wenn die App-Seitenleiste aus ist; auf dem Handy ist sie ein Menü-Knopf. Rechts sechs gleiche Karten. Gruppentitel in drei Stilen zum Vergleich: 1 Akzent, 2 je Gruppe eine Farbe, 3 Band. Ein Klick auf eine Seite markiert sie in der Leiste.',
   C: '<b>C · Status + Kacheln.</b> Oben ein Satz, ob alles in Ordnung ist, mit vier Kennzahlen. Darunter alle Verwaltungsbereiche als Startrampe, jede Seite mit einer Live-Zeile. Die Übersicht ist der Einstieg, nicht das Messgerät.',
   D: '<b>D · Cockpit (Mischung, Empfehlung).</b> Navigation aus A, Hinweise nur wenn nötig, dann sechs gleiche Live-Karten in drei Reihen (Jetzt läuft, Aufgaben, Speicher, Server, Integrationen, Webhooks), unten alle Bereiche aus C. Jede Angabe steht nur einmal.'
 };
@@ -594,8 +625,9 @@ function adminNavContent(d) {
     if (key === 'integrations' && d.webhooks.silent.length) return '<span class="badge warning">1</span>';
     return '';
   };
-  return `<ul class="elist"><li>${entry('Zurück zur App', { cls: 'back', icon: 'back', go: 'Start' })}</li><li>${entry('Übersicht', { current: true })}</li></ul>
-    ${GROUPS.map((g) => `<div class="elist"><span class="entry egroup">${g.label}</span>${SECTIONS.filter((s) => s.group === g.key).map((s) => entry(s.title, { badge: badge(s.key) })).join('')}</div>`).join('')}`;
+  const pick = (label, opts) => entry(label, opts).replace('<a href="#" ', `<a href="#" data-act="bpick" data-key="${label}" `);
+  return `<div class="anav elist" data-titles="${state.titles}" style="gap:var(--s2)"><ul class="elist"><li>${entry('Zurück zur App', { cls: 'back', icon: 'back', go: 'Start' })}</li><li>${pick('Übersicht', { icon: 'grid', current: state.bCurrent === 'Übersicht' })}</li></ul>
+    ${GROUPS.map((g) => `<div class="agroup" data-g="${g.key}"><h4 class="ghead">${ic(GROUP_ICONS[g.key])}<span>${g.label}</span></h4><ul class="elist">${SECTIONS.filter((s) => s.group === g.key).map((s) => `<li>${pick(s.title, { icon: s.icon, badge: badge(s.key), current: state.bCurrent === s.title })}</li>`).join('')}</ul></div>`).join('')}</div>`;
 }
 
 /* Header, then column (when shown) and content. */
@@ -855,11 +887,13 @@ function render(keepFocus) {
   $('desc').innerHTML = DESCRIPTIONS[state.variant];
   $('stage').classList.toggle('phone', state.phone);
   $('stage').classList.toggle('gaps', state.gaps);
-  const press = (attr, fn) => document.querySelectorAll(`[data-${attr}]`).forEach((b) => b.setAttribute('aria-pressed', String(fn(b.dataset))));
+  const press = (attr, fn) => document.querySelectorAll(`button[data-${attr}]`).forEach((b) => b.setAttribute('aria-pressed', String(fn(b.dataset))));
   press('variant', (x) => x.variant === state.variant);
   press('mode', (x) => x.mode === state.mode);
   press('view', (x) => (x.view === 'phone') === state.phone);
   press('appnav', (x) => (x.appnav === 'on') === state.appnav);
+  press('titles', (x) => x.titles === state.titles);
+  $('titlesSeg').hidden = state.variant !== 'B';
   if (sel) { const el = $('screen').querySelector(sel); if (el) el.focus(); }
   syncProtoHeight();
   updateFades();
@@ -903,6 +937,7 @@ document.addEventListener('click', (e) => {
   const v = e.target.closest('[data-variant]'); if (v) { state.variant = v.dataset.variant; state.menu = null; state.openGroup = null; closeOverlay(); render(); return; }
   const m = e.target.closest('[data-mode]'); if (m) { state.mode = m.dataset.mode; render(); return; }
   const w = e.target.closest('[data-view]'); if (w) { state.phone = w.dataset.view === 'phone'; closeOverlay(); render(); return; }
+  const ti = e.target.closest('#titlesSeg [data-titles]'); if (ti) { state.titles = ti.dataset.titles; render(); if (!$('overlay').hidden) openOverlay('admin', returnFocus); return; }
   const an = e.target.closest('[data-appnav]'); if (an) { state.appnav = an.dataset.appnav === 'on'; render(); return; }
   const act = e.target.closest('[data-act]');
   if (act) {
@@ -913,6 +948,7 @@ document.addEventListener('click', (e) => {
     }
     if (a === 'hideapp') { closeOverlay(); state.appnav = false; render(); return; }
     if (a === 'adminsheet') { openOverlay('admin', act); return; }
+    if (a === 'bpick') { e.preventDefault(); state.bCurrent = act.dataset.key; const inSheet = !$('overlay').hidden; closeOverlay(); render(!inSheet); toast(`Prototyp: führt zu «${act.dataset.key}» (markiert in der Leiste)`); return; }
     if (a === 'close') { closeOverlay(); return; }
     if (a === 'group') { const g = act.dataset.group || null; state.openGroup = state.openGroup === g ? null : g; render(true); return; }
     if (a === 'menu') { const g = act.dataset.group; state.menu = state.menu === g ? null : g; render(true); return; }

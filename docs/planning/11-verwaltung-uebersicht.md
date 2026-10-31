@@ -7,8 +7,10 @@
   **vier Varianten** vor (Abschnitt 5) und einen klickbaren Prototyp
   (`docs/planning/mockups/11-verwaltung-prototyp.html`, Abschnitt 9). Der OMC-Kritiker hat
   Fassung 1 geprüft (1 Blocker, 8 Major, 8 Minor; Abschnitt 11); Fassung 2 arbeitet alle ein.
-  **Die Umsetzung beginnt erst, wenn Marco eine Variante gewählt und die Fragen in Abschnitt 10
-  beantwortet hat.**
+  **Marco hat am 31. Oktober 2026 Variante B «Seitenleiste wie Emby» gewählt**, mit dem Wunsch,
+  die Gruppentitel deutlich stärker und farbig zu markieren (Abschnitt 10.1). Die übrigen Fragen
+  und der Titelstil (F-9) sind offen. **Die Umsetzung beginnt erst auf Marcos ausdrückliches
+  Wort.**
 - **Datum: 31. Oktober 2026, Fassung 2 vom selben Tag**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`d3d73bc`** («Merge pull request #57»),
   Vertragsfassung **1.5.0**. Konzept 10 (Metadaten) ist gemergt, aber nicht umgesetzt; es hat
@@ -281,6 +283,35 @@ und Abstände sind von den Tokens abgeschrieben. Das Server-Protokoll (F-3) zeig
 | F-6 | «Letzte Aktivität» und «Neu starten» wie in Emby? | **Nein, jetzt nicht**; als Idee festhalten. |
 | F-7 | Zahlen in «Alle Bereiche» nur, wo sie billig sind, sonst ein kurzer Zweck? | **Ja.** |
 | F-8 | Ein abgebrochener Bibliotheksscan als Hinweis auf der Übersicht, mit Link zur Seite Bibliotheken (dort bleibt «Verlust akzeptieren»)? | **Ja.** |
+
+### 10.1 Marcos Wahl (31. Oktober 2026)
+
+- **F-1: Variante B «Seitenleiste wie Emby»**, nicht die Empfehlung D. Wörtlich: «Mir gefällt die
+  Seitenleiste (Emby) am besten. Jedoch müssen die Titel stärker markiert werden (Bibliothek,
+  Konten, Kuratierung etc.), am besten farblich markiert.»
+- Folge für die anderen Fragen: Die Navigation aller Verwaltungsseiten wird die Verwaltungsleiste
+  (Abschnitt 7 gilt dann nicht). F-6 («Letzte Aktivität», «Neu starten») ist bei B die Karte
+  rechts unten und der zweite Knopf im Server; bleibt die Empfehlung «nein», füllt eine andere
+  Karte den Platz (zum Beispiel Integrationen und Webhooks), damit das Raster symmetrisch bleibt.
+- Der Prototyp zeigt für B drei **Titelstile** der Gruppen (Schalter «Gruppentitel»), alle
+  0,8125 rem, fett, Grossbuchstaben, mit Gruppensymbol (Bibliothek Film, Konten Personen,
+  Kuratierung Stern, System Server):
+
+| Nr. | Stil | Farben (Kontrast auf `bg-elevated`) |
+|---|---|---|
+| 1 | **Akzent:** Titel und Symbol in der Profilfarbe, feine Linie über jeder Gruppe | Profilfarbe, 6,31:1 bei Ember |
+| 2 | **Je Gruppe eine Farbe:** Titel, Gruppensymbol und Markierung der aktuellen Seite in der Gruppenfarbe | Bibliothek Teal 8,35:1, Konten Himmelblau 7,67:1, Kuratierung Rosa 6,72:1, System Violett 7,11:1 – aus den bestehenden Profilfarben |
+| 3 | **Band:** Titel als farbig getöntes Band über die ganze Breite, Einträge eingerückt | Profilfarbe auf 16 % Tönung, 5,04:1 |
+
+  Alle liegen über 4,5:1 (WCAG AA). Stil 2 braucht vier neue Tokens in
+  `packages/design-tokens/tokens/color.json` (`group.library` usw.); Stil 1 und 3 kommen ohne neue
+  Farbe aus. Bei Stil 2 liegt Rosa nahe am Fehlerrot; dafür trägt Kuratierung nie einen roten Zähler.
+- **Abweichung:** Die Verwaltungsleiste zeigt Symbole vor jeder Seite (wie Emby, für Stil 2 nötig);
+  die Seitenleiste der App hat nach N-2 keine. Das gehört in Frage 17.
+
+| Nr. | Frage | Empfehlung |
+|---|---|---|
+| F-9 | Welcher Titelstil der Gruppen: 1 Akzent, 2 je Gruppe eine Farbe, 3 Band? | Offen, Marcos Geschmack. |
 
 ## 11. Review-Protokoll
 
