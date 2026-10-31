@@ -66,6 +66,7 @@ type diskFile struct {
 type rootScan struct {
 	root     appq.LibraryRoot
 	proot    paths.Root
+	lib      string // library name, for the progress notes (concept 09, 6.2)
 	disk     []diskFile
 	known    []systemq.MediaFile
 	ignored  map[string]bool // rel paths of ignored_files
@@ -265,6 +266,7 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 		return err
 	case !ok:
 		s.log.InfoContext(ctx, "library has no folder, nothing to scan", "library_id", lib.ID, "kind", lib.Kind)
+		jobs.Skip(ctx) // a run that had nothing to do does not count for the median (concept 09)
 		// A job queued before the last folder went still holds the library in "queued"; nothing
 		// else would ever finish it, and the interface offers no way out of that state.
 		if lib.LastScanState == "queued" || lib.LastScanState == "running" {
@@ -439,11 +441,18 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 		if err != nil {
 			return stats, err
 		}
+		rs.lib = lib.Name
 		rs.proot, err = paths.NewRoot(root.Path)
 		if err != nil {
 			return stats, scanAbort{abortRootMissing}
 		}
-		if rs.disk, rs.subs, err = walkRoot(ctx, rs.proot, root.Content, rs.ignored, s.log); err != nil {
+		// The walk is the phase that takes hours on a NAS: it reports the directories read so
+		// far (extent unknown) and the folder, relative to the root (concept 09, 6.2).
+		rootName := path.Base(root.Path)
+		onDir := func(dirs int, dir string) {
+			jobs.Progress(ctx, int64(dirs), 0, lib.Name+" · "+path.Join(rootName, dir))
+		}
+		if rs.disk, rs.subs, err = walkRoot(ctx, rs.proot, root.Content, rs.ignored, s.log, onDir); err != nil {
 			if errors.Is(err, errRootMissing) {
 				return stats, scanAbort{abortRootMissing}
 			}
@@ -486,7 +495,11 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 
 	total := unchanged + len(ops)
 	seen := unchanged
-	if len(ops) > 0 {
+	if len(ops) == 0 {
+		// Nothing new, changed or missing: the walk and the hashes were all the work, and a run
+		// like that must not pull the median of the type towards zero (concept 09, 12.3; B-4).
+		jobs.Skip(ctx)
+	} else {
 		idx, err := s.loadItemIndex(ctx, lib, scans)
 		if err != nil {
 			return stats, err
@@ -519,6 +532,9 @@ func (s *Service) applyOps(ctx context.Context, lib appq.Library, idx *libraryIn
 		var prog *scanProgress
 		if progress {
 			prog = &scanProgress{seen: seen + end - i, total: total}
+			// The write phase reports files seen of total and the folder of the batch, relative
+			// to its root (concept 09, 6.2); the library row gets the same numbers below.
+			jobs.Progress(ctx, int64(seen+end-i), int64(total), lib.Name+" · "+path.Join(path.Base(ops[i].rs.root.Path), path.Dir(ops[i].disk.rel)))
 		}
 		n, err := s.applyBatch(ctx, lib, idx, ops[i:end], prog, stats)
 		if err != nil {
@@ -551,7 +567,7 @@ var errRootMissing = errors.New("library root missing")
 // look like lost files. Symlinked directories are not followed; a symlinked file whose target
 // cannot be read inside the root (it leaves the root, dangles, or is not readable) is logged and
 // skipped.
-func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[string]bool, log *slog.Logger) ([]diskFile, map[string][]string, error) {
+func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[string]bool, log *slog.Logger, onDir func(dirs int, dir string)) ([]diskFile, map[string][]string, error) {
 	r, err := paths.Open(root)
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", errRootMissing, err)
@@ -563,6 +579,7 @@ func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[
 	var files []diskFile
 	subs := map[string][]string{}
 	noMarker := map[string]int{}
+	dirs := 0
 	err = paths.Walk(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -580,6 +597,10 @@ func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[
 			return nil
 		}
 		if d.IsDir() {
+			dirs++
+			if onDir != nil {
+				onDir(dirs, p)
+			}
 			return nil
 		}
 		if isSubtitle(d.Name()) {
@@ -740,10 +761,14 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 			}
 		}
 	}
-	for _, d := range unmatched {
+	// Hashing every new file is the longest phase of a first scan over a network share: it
+	// reports files of files, with the folder of the file (concept 09, 6.2; B-2).
+	rootName := path.Base(rs.root.Path)
+	for i, d := range unmatched {
 		if err := ctx.Err(); err != nil {
 			return nil, 0, 0, err
 		}
+		jobs.Progress(ctx, int64(i+1), int64(len(unmatched)), rs.lib+" · "+path.Join(rootName, path.Dir(d.rel)))
 		if d.id.inode != 0 {
 			if k := byID[identity{toInt64(d.id.dev), toInt64(d.id.inode), d.size}]; k != nil && usable(k) {
 				claimed[k.ID] = true

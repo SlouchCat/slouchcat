@@ -55,6 +55,16 @@ type Enqueuer interface {
 // jobMetadataMatch is the job of package metadata that enriches one item; payload {"itemId": …}.
 const jobMetadataMatch = "metadata.match"
 
+// jobTraktRefresh is the schedule type of package metadata that fetches the Trakt lists; its
+// interval is spotlight_config.interval_hours (one value, two doors, concept 09 4.3).
+const jobTraktRefresh = "trakt.refresh"
+
+// Schedules is the scheduler of package jobs: the settings pages write their interval and switch
+// into the schedule row as well (SetSpotlightConfig, the update check of UpdateSettings).
+type Schedules interface {
+	UpdateSchedule(ctx context.Context, typ string, u jobs.ScheduleUpdate) (jobs.Schedule, error)
+}
+
 // Libraries is implemented by package library.
 type Libraries interface {
 	ValidatePath(ctx context.Context, path string) error // model.ErrLibraryPathInvalid when not absolute, missing, not a directory or not readable
@@ -131,6 +141,8 @@ type Service struct {
 	auth      *auth.Service
 	vis       *visibility.Reader // system-scope read of the rating override
 	queue     Enqueuer           // metadata refresh after a cleared override; nil = none
+	schedules Schedules          // nil until WithSchedules or WithJobControl
+	jobctl    *jobControl        // nil until WithJobControl (concept 09, step 3)
 	libraries Libraries
 	maint     LibraryMaintenance // nil until WithLibraryMaintenance
 	meta      Metadata           // nil until WithMetadata
@@ -174,6 +186,23 @@ func (s *Service) WithAniList(on bool) *Service {
 func (s *Service) WithQueue(q Enqueuer) *Service {
 	s.queue = q
 	return s
+}
+
+// WithSchedules sets the job scheduler the settings pages write through and returns the receiver.
+func (s *Service) WithSchedules(sched Schedules) *Service {
+	s.schedules = sched
+	return s
+}
+
+// syncSchedule writes a changed setting into the schedule row of typ (concept 09, "one value,
+// two doors"). A missing row (the server starts, the scheduler has not run yet) is no error.
+func (s *Service) syncSchedule(ctx context.Context, typ string, u jobs.ScheduleUpdate) {
+	if s.schedules == nil {
+		return
+	}
+	if _, err := s.schedules.UpdateSchedule(ctx, typ, u); err != nil && !errors.Is(err, model.ErrNotFound) {
+		s.log.WarnContext(ctx, "sync schedule with the setting", "job_type", typ, "err", err)
+	}
 }
 
 // WithLibraryMaintenance sets the scan cancellation and file removal of package library, and

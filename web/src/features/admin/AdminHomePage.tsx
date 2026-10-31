@@ -544,7 +544,15 @@ export function AdminHomePage() {
                       value={number.format(data.jobs.failed)}
                       tone={data.jobs.failed > 0 ? 'danger' : 'neutral'}
                     />
+                    {(data.jobs.paused ?? 0) > 0 && (
+                      <StatTile
+                        label={t('admin.home.jobs.paused')}
+                        value={number.format(data.jobs.paused ?? 0)}
+                        tone="warning"
+                      />
+                    )}
                   </div>
+                  <TextLink href={paths.adminJobs}>{t('admin.home.jobs.all')}</TextLink>
                 </Tile>
                 <StorageTile storage={data.storage} />
                 <IntegrationsTile integrations={data.integrations} />

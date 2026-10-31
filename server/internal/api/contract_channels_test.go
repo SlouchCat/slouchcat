@@ -116,7 +116,9 @@ func drainDeliveries(t *testing.T, pf profileFixture) {
 	t.Helper()
 	ctx := context.Background()
 	w := jobs.NewWorker(pf.queue, "contract-notify", vistest.Logger())
-	pf.notifySvc.RegisterJobs(w)
+	registry := jobs.NewRegistry(pf.queue, vistest.Logger())
+	pf.notifySvc.RegisterTypes(registry)
+	registry.Attach(w, jobs.PoolNotify)
 	ctx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() {

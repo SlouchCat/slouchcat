@@ -67,6 +67,13 @@ WHERE id = @id AND state IN ('preparing', 'paused');
 -- name: SetDownloadAllowed :exec
 UPDATE downloads SET allowed_profile_ids = @allowed_profile_ids, allowed_at = @now WHERE id = @id;
 
+-- name: CancelDownloadPreparation :execrows
+-- The administration cancels the preparation (concept 09, F-2): a download that still waits,
+-- prepares or is paused ends failed with the code cancelled_by_admin; the reconciliation leaves
+-- failed downloads alone.
+UPDATE downloads SET state = 'failed', error = @error, updated_at = @now
+WHERE id = @id AND state IN ('queued', 'preparing', 'paused');
+
 -- name: SetDownloadState :execrows
 -- queued (waiting, error budget_full or a retry), paused (preempted by live playback) or failed.
 UPDATE downloads SET state = @state, error = @error, updated_at = @now WHERE id = @id;

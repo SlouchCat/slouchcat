@@ -23,6 +23,7 @@ export interface AdminSection {
     | 'collections'
     | 'homeRows'
     | 'announcements'
+    | 'jobs'
     | 'integrations'
     | 'notifications'
     | 'stats'
@@ -53,6 +54,7 @@ export const adminSections: readonly AdminSection[] = [
   { key: 'collections', href: paths.adminCollections, icon: 'stack', group: 'curation' },
   { key: 'homeRows', href: paths.adminHomeRows, icon: 'list', group: 'curation' },
   { key: 'announcements', href: paths.adminAnnouncements, icon: 'megaphone', group: 'curation' },
+  { key: 'jobs', href: paths.adminJobs, icon: 'refresh', group: 'system' },
   { key: 'integrations', href: paths.adminIntegrations, icon: 'plug', group: 'system' },
   { key: 'notifications', href: paths.notificationSettings, icon: 'bell', group: 'system' },
   { key: 'stats', href: paths.adminStats, icon: 'chart', group: 'system' },

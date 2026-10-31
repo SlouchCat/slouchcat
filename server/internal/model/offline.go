@@ -40,6 +40,9 @@ const (
 	DownloadErrBudgetFull   = "budget_full"
 	DownloadErrNotVisible   = "not_visible"
 	DownloadErrEncodeFailed = "encode_failed"
+	// DownloadErrCancelled marks a download whose preparation an administrator cancelled (concept
+	// 09, F-2): the reconciliation leaves it, the viewer sees "failed" and can start it again.
+	DownloadErrCancelled = "cancelled_by_admin"
 )
 
 // Results of an uploaded offline event (OfflineEventResult.results).

@@ -13,5 +13,10 @@ SET enabled = @enabled, list_key = @list_key, list_url = @list_url, media = @med
     rotation_seconds = @rotation_seconds, updated_at = @now
 WHERE id = 1;
 
+-- name: SetSpotlightInterval :exec
+-- The jobs page writes the interval of the schedule trakt.refresh here as well (concept 09, one
+-- value, two doors).
+UPDATE spotlight_config SET interval_hours = @interval_hours, updated_at = @now WHERE id = 1;
+
 -- name: SetSpotlightManualRefresh :exec
 UPDATE spotlight_config SET last_manual_refresh = @now WHERE id = 1;

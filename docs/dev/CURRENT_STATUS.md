@@ -1,5 +1,348 @@
 # Aktueller Stand
 
+## Hintergrundjobs (Konzept 09): Schritt 5, Teil der Session (30. Oktober 2026)
+
+Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 5:
+Messung, Release-Notes, Versionsstellen; Befunde in **13.8**. Was nur Marco kann (Image auf
+CT 190, Abnahme am Handy, ein Tag Beobachtung, Merge), steht aus.
+
+**Messung** `docs/perf/hintergrundjobs.md` (Entwicklungsrechner, eigener Server auf 8099, NAS per
+NFS, schwere Folgejobs pausiert; `docs/perf/seed-jobs.py` für 50'000 erledigte Läufe):
+
+```
+$ bash docs/perf/measure-home.sh /api/v1/admin/job-types     (55'423 Zeilen, vor dem ersten prune)
+/api/v1/admin/job-types: n=60 p50=14.9 ms p95=23.6 ms max=33.8 ms not-200=0
+$ POST /admin/job-types/jobs.prune/run                        32'760 Zeilen in 525 ms, 22'663 bleiben
+$ bash docs/perf/measure-home.sh /api/v1/admin/job-types     (nach dem prune)
+/api/v1/admin/job-types: n=60 p50=9.0 ms p95=23.6 ms max=26.2 ms not-200=0
+```
+
+Latte < 50 ms p95 gilt für CT 190; mit Faktor 2 bis 3 (M3 1c) sind dort 47 bis 71 ms zu
+erwarten, Messung auf CT 190 offen. NAS-Scan «Filme» (1'791 Dateien): 186 s; Schätzung
+«gemessen» 2'036 s bei wirklich 34 s, Median nach sechs leeren Rescans 0 s. **Vier Befunde mit
+Hebeln** (B-1 Reporter lässt Meldungen bis zum Heartbeat liegen, B-2 Hash-Phase ohne Fortschritt,
+B-3 Rate ab `started_at` statt ab der ersten Meldung, B-4 leere Rescans zählen für den Median) in
+`docs/perf/hintergrundjobs.md` 2. **Auf Marcos Wort am 31. Oktober behoben** (`jobs/progress.go`
+Timer und Fortschrittsreihe, `Registry.ProgressSince`, `admin/jobtypes.go` Rate ab der Reihe mit
+`measuredMinSeries` 10 s, `library/scanner.go` Fortschritt in `planRoot` und `Skip` bei leerem
+Schreibplan; Testhilfe `jobs.Recorder`). Nachmessung in 2a: Scan «KinderSerien» (3'749 Folgen,
+126 s) mit Schätzfehler unter Faktor 2 statt 60; leere Rescans `skipped`.
+
+```
+$ go test ./internal/jobs ./internal/admin ./internal/library     ok (TestProgressTimerAndSeries,
+                                                                  TestJobRunMeasuredEstimate, TestScanReportsHashPhaseAndSkipsUnchangedRescan)
+$ task ci:server                                                  grün (lint, gen-check, go test -race, 31.10. 00:30)
+```
+
+**Versionsstellen auf 1.5.0:** `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+`docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`. Tag `v1.5.0` setzt Marco auf den Merge-Commit
+(HANDOVER, Beschriftung = Release-Notes).
+
+**Release-Notes-Entwurf 1.5.0** (C-5, nicht brechend; erste Zeile nach 5.4):
+
+- Neue Verwaltungsseite Hintergrundjobs; Vertrag 1.5.0 fügt `/admin/job-types` hinzu, nichts
+  entfällt.
+- Verwaltung: Seite «Hintergrundjobs» (System → Hintergrundjobs, Kachel auf dem Dashboard) mit
+  den Zahlen Laufend, Wartend, Geplant, Pausiert, Fehlgeschlagen, den Arbeitern und dem Stau je
+  Pool, «Läuft gerade» mit Fortschritt und Restzeit («noch ca.», «wird berechnet», «länger als
+  üblich») und einer Karte je Jobart: Jetzt ausführen, Pausieren und Fortsetzen (hält laufende
+  Läufe sofort an, überlebt einen Neustart), Wartende abbrechen, Alle Läufe abbrechen, Zeitplan
+  (Takt 5 Minuten bis 7 Tage, Zeitfenster in der Serverzeit), Läufe (Verlauf nach Zustand, Erneut,
+  Abbrechen).
+- Zeitpläne: Bibliotheksscan, Aufräumen fehlender Titel, Podcast-Abruf (`podcast.poll`),
+  Spotlight-Liste (`trakt.refresh`), Update-Prüfung (`update.check`) und Verlauf aufräumen
+  (`jobs.prune`) laufen über einen Scheduler statt über fünf eigene Schleifen; Takt und Fenster
+  sind in der Verwaltung einstellbar. Der Spotlight-Takt (ganze Stunden, 6 bis 48) und der
+  Schalter der Update-Prüfung bleiben mit ihren Einstellungen verbunden; die Update-Prüfung läuft
+  60 Sekunden nach jedem Start.
+- Verlauf: erledigte und abgebrochene Läufe älter als 30 Tage werden täglich gelöscht, die
+  neuesten 50 je Jobart bleiben; fehlgeschlagene Läufe bleiben, bis die Verwaltung sie erneut
+  startet oder abbricht.
+- Vertrag 1.5.0, additiv: `listJobTypes`, `runJobType`, `pauseJobType`, `resumeJobType`,
+  `updateJobSchedule`, `cancelJobRuns`, `listJobRuns` (alle `admin`), `JobCounts.paused`,
+  Schemata `JobRun`, `JobProgress`, `JobWindow`, `JobSchedule`, `JobScheduleUpdate` (mit
+  `clearWindow`), `JobTypeInfo`, `JobPool`, `JobOverview`, `JobRunPage`, `JobCancelResult`,
+  `JobTypeName`; Fehlercodes `job_type_not_runnable`, `job_type_paused`,
+  `job_type_not_scheduled`; `DownloadState.error` kennt `cancelled_by_admin`.
+- Migration 00027: `jobs` mit Start, Ende, Fortschritt und `skipped`, Index `jobs_history`,
+  Tabelle `job_types`, `job_schedules` neu gebaut und aus den bisherigen Einstellungen gefüllt;
+  der Server sichert die Datenbank vorher nach `/config/backups/`.
+
+**Offen (Marco):** Image des Zweigs bauen und CT 190 umstellen (normales Terminal nach
+`newgrp docker`, Weg aus HANDOVER mit Tag `hintergrundjobs`), Abnahme am Handy nach Schritt 5,
+ein Tag Beobachtung der Zeitpläne, Messung auf CT 190 (Abschnitt 3 der Messung), Merge von
+PR #55, Tag `v1.5.0`.
+
+## Hintergrundjobs (Konzept 09): Schritt 4 (30. Oktober 2026)
+
+Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 4:
+die Seite. Kein Vertragsbruch (nur die Beschreibung von `DownloadState.error` nennt
+`cancelled_by_admin`).
+
+**Gebaut.** `web/src/features/admin/JobsPage.tsx`: Kopf mit Titel und fünf Zahlen (Laufend,
+Wartend, Geplant, Pausiert, Fehlgeschlagen), die Pools mit Arbeitern und Stau, ein Hinweis in
+Warnfarbe mit «Fortsetzen» je pausierter Jobart, «Läuft gerade» (Name, Gegenstand, Notiz, Dauer
+sekündlich hochgezählt, Balken bei bekanntem Umfang, Restzeit «noch ca.» / «wird berechnet» /
+«länger als üblich», Knöpfe «Lauf pausieren» und «Abbrechen» mit Bestätigung), je Jobart eine Karte
+in vier Gruppen (Name und Code, Zustandschip, Wartend mit Schätzung und «üblich», Letzter Lauf,
+Nächster Lauf mit Takt und Fenster, Ausgelöst durch; Knöpfe Jetzt ausführen, Pausieren/Fortsetzen,
+Wartende abbrechen (n), Alle Läufe abbrechen, Zeitplan …, Läufe …), Dialog «Läufe von X» mit sechs
+Reitern und Tabelle (Erneut, Abbrechen), `JobScheduleDialog.tsx` (Ein/Aus, Takt aus den Grenzen
+des Servers, Zeitfenster mit zwei Zeitfeldern, Hinweise für Spotlight und Update, 422 am Feld).
+Abfrage alle 5 s, pausiert bei offenem Dialog. Route `/admin/jobs`, Navigation in «System» vor
+«Integrationen» (Icon `refresh`), Dashboard-Kachel mit «Alle Jobs» und «Pausiert». Texte in
+`de.json`/`en.json` (`admin.jobs.*`, achtzehn Jobarten mit Name und Auslöser, drei Problemcodes).
+Abweichungen in **13.7**.
+
+**Tests.** `JobsPage.test.tsx` (Zahlen, Pools, laufende Läufe mit Balken und Restzeit, Karten;
+Pausieren in der Zeile ruft die Mutation einmal mit der Jobart und beide Zeilen zeigen «wird
+angehalten»; Jetzt ausführen mit Meldung und 409; Wartende abbrechen mit Bestätigung, Escape und
+Fokus zurück; Nur-Administratoren-Hinweis), `AdminHomePage.test.tsx` (Karte und Navigation),
+`locales.test.ts`; `web/e2e/admin-jobs.spec.ts` (Navigation, Jetzt ausführen bis «Erledigt»,
+Pausieren/Fortsetzen mit 409, Dialog Läufe mit Pfeiltasten und Escape, Zeitplan auf 2 h, Zurück,
+sichtbarer Fokus, keine Fokusfalle; `afterEach` setzt pausierte Jobarten fort und stellt den
+Sweep-Takt wieder her), `NAV_PAGES` mit «Hintergrundjobs».
+
+**DoD-Belege.**
+
+```
+$ pnpm exec vitest run src/features/admin/JobsPage.test.tsx src/features/admin/AdminHomePage.test.tsx src/locales
+Tests  22 passed (22)
+$ task web:lint                                 grün (eslint, stylelint, tsc, prettier)
+$ task ci:server · web:gen:check · web:test · build   grün für ced5636
+$ task ci:e2e (ced5636)                        477 passed, 3 failed: Kartenzahl 16 → 17 in admin-home.spec.ts
+                                                und zwei Firefox-Fallen in admin-jobs.spec.ts (Fokus-Startpunkt
+                                                nach ersetztem Knopf, Fokusrückgabe nach dem Speichern); behoben
+                                                im Folge-Commit, beide Specs danach in Chromium und Firefox grün
+$ task ci:e2e (nach dem Fix, 9ee3b72)           480 passed (25.2m); GitHub-CI für 9ee3b72 grün (Lauf 41088318618,
+                                                inkl. Job «web» mit storybook:test, der hier nicht laufen kann)
+```
+
+Dev-Stack: `localhost:8096` läuft seit 16:58 auf dem Image `hintergrundjobs` mit dieser Seite
+(`v1.4.0-26-gced5636`), sechs Zeitpläne (`jobs.prune` übersprungen beim ersten Lauf), 18 Jobarten.
+
+```
+```
+
+**Offen (Schritt 5):** Image bauen, CT 190 umstellen, Abnahme am Handy, Messung
+`docs/perf/hintergrundjobs.md` (`listJobTypes` vor und nach dem ersten `prune`, Schätzung gegen
+Wirklichkeit), ein Tag Beobachtung der Zeitpläne, Release-Notes-Zeile (5.4), Storybook unverändert.
+
+## Hintergrundjobs (Konzept 09): Schritt 3 (30. Oktober 2026)
+
+Gleicher Zweig und PR (`claude/vigorous-raman-651439`, PR #55). Konzept Abschnitt 10, Schritt 3:
+**Vertrag 1.5.0, additiv**, Server-Handler, keine Seite (Schritt 4).
+
+**Vertrag.** `api/openapi.yaml` 1.5.0: `listJobTypes` (`GET /admin/job-types`), `listJobRuns`
+(`GET /admin/jobs?type=&state=&limit=`, `state` mit `planned`), `runJobType`, `pauseJobType`,
+`resumeJobType`, `updateJobSchedule` (PATCH, `JobScheduleUpdate` mit `everySeconds`, `window`,
+`clearWindow`, `enabled`), `cancelJobRuns` (`?scope=queued|all`), alle `x-visibility: admin`, kein
+`ItemRef`; Schemata `JobRun`, `JobProgress`, `JobWindow`, `JobSchedule`, `JobTypeInfo`, `JobPool`,
+`JobOverview`, `JobRunPage`, `JobCancelResult`, `JobTypeName`; `JobCounts.paused` optional;
+Problemcodes `job_type_not_runnable`, `job_type_paused`, `job_type_not_scheduled`. `task gen` für
+Go (`internal/api/gen`) und TypeScript (`packages/api-client`); die Web-App kompiliert unverändert
+(`tsc --noEmit`).
+
+**Server.** `admin/jobtypes.go`: `WithJobControl(registry, scheduler, Arbeiter je Pool)`;
+`ListJobTypes` baut je Jobart Gruppe, Auslöser, Pool, Pause (`stopping` = pausiert und noch
+laufend), `runnable`, Zeitplan mit `limits` und `timeZone`, Zähler (wartend, geplant, laufend,
+fehlgeschlagen), bis zehn laufende Läufe mit Fortschritt und Restzeit (gemessen ab 5 % und 30 s,
+sonst Median, «länger als üblich» ab 2 × Median), letzter Lauf, Median (ab 5 Läufen), Wartezeit
+kumuliert nach Priorität über den Pool, Stau je Pool, unbekannte `job_types`-Zeilen mit
+`known = false`; Gegenstand je Lauf aus dem Payload (Bibliothek, Titel mit Staffel-/Folgenmarke,
+Kanal, Download), redigiert. `RunJobType` mit Priorität 7 (Trakt über `RefreshSpotlight`, Update
+mit Schalterprüfung, `podcast.poll` über neues `metadata.QueueAllPodcasts` = alle Abos), der
+Zeitplan rückt nicht (F-5). `UpdateJobSchedule` prüft Grenzen (Trakt 6 bis 48 ganze Stunden) und
+schreibt «ein Wert, zwei Türen»: `spotlight_config.interval_hours` (`SetSpotlightInterval`) und
+`update_check_enabled`. `CancelJob` des Dashboards läuft neu über den Abbruch-Haken.
+Abweichungen in **13.6** (u. a. `clearWindow` statt `null`, `JobRun` als eigenes Schema).
+
+**Tests.** `admin/jobtypes_test.go` (Übersicht mit Median, Wartezeit, Stau, laufender Lauf,
+unbekannte Zeile, Dashboard `paused`; gemessene Schätzung; `runJobType` mit 409/404/422 und
+unverändertem `next_run_at`; Pause/Fortsetzen; Zeitplan mit Grenzen, Fenster, Trakt- und
+Update-Durchschreiben; Läufe listen und abbrechen). Vertragstest mit Registry und Scheduler in der
+Fixture (`TestContractCoversEveryOperation`, Schema-Test `x-visibility`).
+
+**DoD-Belege.**
+
+```
+$ go test ./internal/admin/ ./internal/api/ ./internal/metadata/ ./internal/jobs/
+ok  …/admin 0.852s (Jobtypen) · ok …/api 17.933s (Vertrag, Schema) · ok …/metadata 26.090s · ok …/jobs 5.690s
+$ go tool golangci-lint run ./...               0 issues.
+$ pnpm -C web exec tsc --noEmit                 keine Fehler (Web-App kompiliert gegen den Client 1.5.0)
+$ task ci:server                               grün (gen, gen:check, lint, test)
+$ task web:gen web:gen:check web:lint web:test   grün (api-client 1.5.0 ohne Drift)
+$ task build && task ci:e2e                     478 passed (24.8m)
+```
+
+**Offen (Schritt 4 und 5):** Seite `/admin/jobs` mit Dialogen, Navigation, Dashboard-Link und
+-Kachel, Sprachdateien, `admin-jobs.spec.ts`, Fixtures; `DownloadState.error` um
+`cancelled_by_admin` in der Beschreibung ergänzen; CT 190, Messung, Release-Notes.
+
+## Hintergrundjobs (Konzept 09): Schritt 2 (30. Oktober 2026)
+
+Gleicher Zweig und PR wie Schritt 0 und 1 (`claude/vigorous-raman-651439`, PR #55), auf Marcos
+Wort («mach weiter») nach dem Umstellen von `localhost:8096` auf das Branch-Image. Konzept
+Abschnitt 10, Schritt 2; Vertrag bleibt **1.4.0**, keine Oberfläche.
+
+**Gebaut.** `jobs.Progress(ctx, done, total, note)` und `jobs.Skip(ctx)` über einen Reporter, den
+der Arbeiter in den Kontext legt (schreibt höchstens alle 2 s, mit jedem Heartbeat und einmal nach
+der Rückkehr des Handlers, unter eigener Lease, Notiz durch `logging.RedactString` und auf
+200 Zeichen gekürzt). Vier Handler melden: `scan.library` in der Durchsuchphase (gezählte Ordner,
+`total = 0`, Notiz «Bibliothek · Wurzel/Ordner») und in der Schreibphase (`seen`/`total`),
+`segments.detect` je Folge, `download.prepare` je Segment, `probe.keyframes` die Datei relativ zur
+Wurzel; `Skip` rufen `download.prepare` beim Warten, `scan.library` ohne Ordner, `update.check` bei
+ausgeschalteter Prüfung und `jobs.prune` ohne Arbeit. `ClaimJob` setzt `started_at` und löscht den
+Fortschritt des vorigen Versuchs; `CompleteJob`, `FailJob` (nur im Endzustand), `CancelJob` und
+`FailExhaustedLeases` setzen `finished_at`; `RetryFailedJob` setzt alles zurück. **Pause** (F-1,
+F-6): `ClaimJob` nimmt keine Läufe pausierter Jobarten; `Registry.Pause` setzt `job_types.paused_at`
+und bricht laufende Läufe über die Laufliste mit `jobs.ErrPaused` ab, der Arbeiter prüft die Ursache
+**vor** dem `switch` und gibt den Lauf ohne verbrauchten Versuch zurück, auch wenn der Handler `nil`
+zurückgibt; der Heartbeat ist der Rückfall. **Abbruch** mit Haken: `Registry.CancelJob` und
+`CancelRuns(type, running)` rufen `Type.Cancel` (`library.cancelScanJob` → `CancelScan`, Bibliothek
+endet `aborted/cancelled`; `offline.cancelPrepareJob` → `CancelPreparation`, Download `failed` mit
+`cancelled_by_admin`, `Reconcile` lässt ihn liegen, der unterbrochene Handler setzt nur noch
+`queued`, wenn der Download noch `preparing`/`paused` ist), dann `Cancel` in der Queue und sofortiger
+Abbruch des Kontexts mit `jobs.ErrCancelled`. **Verlauf**: `jobs.prune` (von `NewRegistry` selbst
+registriert, täglich, Priorität 2) löscht `done`/`cancelled` älter als 30 Tage, behält je Jobart die
+neuesten 50, lässt `failed` liegen, Batches à 500; `Queue.MedianDuration` über die neuesten 50
+nicht übersprungenen Läufe (bekannt ab 5). Eingefrorener Stand `testdata/db/hintergrundjobs.sql` mit
+Test. Abweichungen vom Papier in **13.5** (u. a. Pause/Abbruch auf der Registry statt der Queue,
+sofortiger Abbruch statt Heartbeat, Download-Handler schützt den Fachzustand des Hakens).
+
+**Tests.** `control_test.go`: pausiert wird nicht beansprucht; laufender Lauf hält fünfmal an und ist
+wieder `queued` mit `attempts = 0`, kein `JobFailed`, Handler gibt `nil` zurück; Pause per Heartbeat;
+Abbruch durch Haken (wartend, laufend, Reihenfolge der Haken, fremde Jobart unberührt); Fortschritt
+gedrosselt, redigiert, gekürzt, Flush am Ende, Retry setzt zurück; Median (Ausreisser, übersprungene);
+Prune behält 50 und `failed`. `library/cancel_hook_test.go`: Bibliothek endet `aborted/cancelled`.
+`offline/cancel_hook_test.go`: abgebrochener Download wird von `Reconcile` nicht wieder eingereiht,
+fertiger bleibt unberührt. `store/frozen_hintergrundjobs_test.go`.
+
+**DoD-Belege.**
+
+```
+$ go test ./internal/jobs/                      ok  4.950s
+$ go test ./internal/library/ ./internal/offline/ ./internal/admin/ ./internal/metadata/ ./internal/api/ ./internal/notify/ ./cmd/...
+ok  …/library 40.259s  ok  …/offline 15.522s  ok  …/admin 21.792s  ok  …/metadata 28.322s
+ok  …/api 38.419s      ok  …/notify 7.351s    ok  …/cmd/slouchcat 4.071s
+$ go test ./internal/store/ -run 'TestFrozenHintergrundjobs|TestFrozenStatesMigrate/hintergrundjobs'   ok  22.154s
+$ go tool golangci-lint run ./...               0 issues.
+$ task ci:server (nach dem Commit)           grün (gen, gen:check, lint, test)
+$ task build && task ci:e2e                     478 passed (25.1m); A-9 log scan: 76016 lines, 17 secrets of the run, 0 findings
+```
+
+Eingefrorener Stand erzeugt aus `startseite.sql` plus 80 s Serverlauf (Port 18099, zwei Arbeiter):
+18 `job_types`, 6 `job_schedules` (`update.check` aus), 196 erledigte Läufe mit Start und Ende,
+`jobs.prune` als `skipped = 1`, Scan-Notizen «Filme · Movies/…», ein laufender `segments.detect`
+mit `3/10` per SQL; dann `slouchcat dump` (`testdata/db/README.md`).
+
+**Offen (Schritt 3 bis 5):** Vertrag 1.5.0 mit den sieben Operationen, `JobCounts.paused`,
+`stopping`, die Schätzungen (Restzeit, Wartezeit, Stau), `admin.Schedules`-Rückschreiben,
+`podcast.poll` von Hand = alle Abos; Seite (Schritt 4); CT 190 und Messung (Schritt 5).
+
+## Hintergrundjobs (Konzept 09): Schritt 0 und 1 (30. Oktober 2026)
+
+Auf dem Zweig `claude/vigorous-raman-651439` (Worktree, ab `main 05df9c5`, der Freigabe des Papiers).
+Konzept `docs/planning/09-hintergrundjobs.md`, Abschnitt 10; Vertrag bleibt **1.4.0** (1.5.0 kommt
+mit Schritt 3), keine Oberfläche.
+
+**Schritt 0 (`065889e`, nur Doku).** Entscheid 15 (F-1 bis F-10, O-1, O-2) in
+`04-entscheidungen.md` in beiden Tabellen; ADR 0017 «Scheduler, Fortschritt, Pause und
+Abbruch-Haken in der Job-Queue» als Teilnachfolger von ADR 0002, dort der Hinweis; das Papier auf
+`05df9c5` neu verankert (Kopf: Vertrag 1.4.0, Migration 00026, ADR 0016; alle Zeilenangaben
+geprüft). Wo Papier und Code sich widersprachen, gilt der Code, festgehalten in **13.3**:
+`update.check` läuft mit Priorität 8 (PR #52), `metadata.vote_backfill` ist eine Ereignis-Jobart
+(08 stösst ihn nach jedem Scan und beim Start selbst an), der Trakt-Zeitplan hängt nicht an
+`spotlight_config.enabled` (der Poller hat es nie gelesen; `enabled = 0` blendet nur das Band aus).
+`git diff --stat docs/spec/` leer.
+
+**Schritt 1 (`8e95e3e`).** Migration `00027_jobs_scheduler.sql` nach Vorlage: sechs Spalten und
+Index `jobs_history` an `jobs`, Tabelle `job_types`, `job_schedules` mit Wächter wie 00023
+gelöscht und neu gebaut (`every_ms` 5 min bis 7 d, `start_delay_ms`, `enabled`, `window_start`,
+`window_end`, `next_run_at`, `last_fired_at`). Paket `jobs`: `Type` (Gruppe, Pool, Auslöser,
+Priorität, Handler, `Run`, `Cancel`, `Every`, `StartDelay`, `Seed`), `Registry`
+(`Register`, `Lookup`, `Types`, `Attach` je Pool), `Scheduler` (`Start` legt `job_types` und
+fehlende Zeitplanzeilen an, aus Einstellung und Historie der alten Poller, und wendet die
+Startregel an; `Run` tickt sofort und dann alle 60 s; pausierte Jobart feuert nicht, rückt aber
+vor; unbekannte Zeile wird übersprungen; verpasste Läufe holen nicht nach; `UpdateSchedule`
+richtet `next_run_at` an `last_fired_at + every`, Untergrenze jetzt, und am Fenster aus, über
+Mitternacht erlaubt). `RegisterJobs(w)` → `RegisterTypes(r)` in `library`, `metadata`, `admin`,
+`offline`, `notify`; Handler unverändert. Die fünf Ticker-Schleifen sind weg (`library.Start`
+nur noch Wächter; `RunPodcasts`, `RunTrakt`, `RunUpdateCheck` gelöscht); neue Zeitplan-Jobart
+`podcast.poll` mit `QueueDuePodcasts` als `Run`; der Trakt-Sonderfall «kein Client-Schlüssel
+leert die Einträge» liegt im `Run`. `enqueueScan`, `enqueuePodcast`, `runUpdateCheck` nehmen die
+Priorität als Parameter und heben über `RaiseQueuedPriority`. Spotlight-Seite schreibt den Takt,
+Update-Seite den Schalter über `admin.Schedules` in die Zeile. Abweichungen vom Papier in
+**13.4** (u. a. `update.check` prüft 60 s nach jedem Start; `Type` hat zusätzlich `Priority` und
+`Seed`; Run-Fehler lässt `next_run_at` stehen; `podcast.poll` von Hand bleibt für Schritt 3 offen).
+
+**Tests.** `scheduler_test.go` mit injizierter Uhr und fester Zone UTC+2: Startverzögerung
+(0, 90 s, keine; Neustart), Takt, `enabled = 0`, Fenster über Mitternacht (22:00–02:00, vier
+Läufe), Fensteränderung verschiebt `next_run_at`, Takt kürzer als Fenster (1 h in 02:00–05:00:
+dreimal je Nacht, 6 h einmal), pausiert feuert nicht, unbekannte Zeile, fehlgeschlagener `Run`,
+Seed und bestehende Zeile, Prüfung der Grenzen, Registry. Je Jobart mit `Run` ein Test, dass ein
+wartender Lauf angehoben wird: `TestRunScansRaisesWaitingScan`, `TestRunSweepRaisesWaitingSweep`
+(`library`), `TestQueueDuePodcasts`, `TestTraktSchedule` mit Sonderfall in
+`TestTraktRowsGoWithoutClientID` (`metadata`), `TestQueueDueUpdateCheck` (`admin`, mit
+`fakeSchedules`), `TestSpotlightConfigSyncsSchedule`.
+
+**DoD-Belege.**
+
+```
+$ go test ./internal/jobs/ -run Scheduler
+ok  	github.com/slouchcat/slouchcat/server/internal/jobs	1.641s
+
+$ go test ./internal/jobs/ ./internal/library/ ./internal/metadata/ ./internal/admin/ ./internal/offline/ ./internal/notify/ ./internal/api/ ./cmd/...
+ok  	…/internal/jobs	5.072s   ok  …/internal/library	35.126s   ok  …/internal/metadata	26.635s
+ok  	…/internal/admin	24.101s  ok  …/internal/offline	15.205s  ok  …/internal/notify	7.609s
+ok  	…/internal/api	32.729s  ok  …/cmd/slouchcat	4.197s
+
+$ go test ./internal/store/ -run 'TestFrozenStatesMigrate|Migration'   (alle 15 Stände durch 00027)
+ok  	github.com/slouchcat/slouchcat/server/internal/store	195.335s
+
+$ go tool golangci-lint run ./...
+0 issues.
+
+$ task ci
+ci:server grün (gen, gen:check, lint, test); ci:web grün bis storybook:test, das in der Sandbox
+nicht läuft (`sg docker`: setgroups: Vorgang nicht zulässig; kein web/src-Anteil in diesem PR,
+die GitHub-CI schiesst die Baselines); danach von Hand:
+$ task build        → server/bin/slouchcat v1.4.0-22-g8e95e3e-dirty
+$ task ci:e2e       → 478 passed (25.1m); A-9 log scan: 75548 lines, 17 secrets of the run, 0 findings
+```
+
+Dev-Server (`sqlite3` ist auf dem Rechner nicht installiert, darum `python3 -I` mit dem
+eingebauten `sqlite3`-Modul; Port 8096 ist vom laufenden Stack belegt, darum `--listen
+127.0.0.1:18097` gegen `.dev/config/slouchcat.db`, frische Datenbank):
+
+```
+level=INFO msg="migration applied" version=27 file=00027_jobs_scheduler.sql duration_ms=17
+level=INFO msg="schedule created" component=scheduler job_type=scan.library every=6h0m0s enabled=true next_run_at=2026-10-30T13:06:19.160Z
+level=INFO msg="schedule created" component=scheduler job_type=library.sweep every=1h0m0s enabled=true …
+level=INFO msg="schedule created" component=scheduler job_type=podcast.poll every=5m0s enabled=true …
+level=INFO msg="schedule created" component=scheduler job_type=trakt.refresh every=24h0m0s enabled=true …
+level=INFO msg="schedule created" component=scheduler job_type=update.check every=24h0m0s enabled=true …
+level=INFO msg="scheduled run queued" component=scheduler job_type=library.sweep jobs=1
+level=INFO msg="scheduled run queued" component=scheduler job_type=podcast.poll jobs=0
+level=INFO msg="scheduled run queued" component=scheduler job_type=scan.library jobs=0
+level=INFO msg="scheduled run queued" component=scheduler job_type=trakt.refresh jobs=0
+level=INFO msg="job done" worker=worker-1 job_id=1 job_type=library.sweep attempt=1 duration=1.546532ms
+
+SELECT type, next_run_at FROM job_schedules            (fünf Zeilen; jobs.prune kommt mit Schritt 2)
+('library.sweep', 1793369179163)    = 15:06:19 lokal, in 1 h
+('podcast.poll',  1793365879163)    = 14:11:19, in 5 min
+('scan.library',  1793387179163)    = 20:06:19, in 6 h
+('trakt.refresh', 1793451979163)    = 31.10. 14:06:19, in 24 h
+('update.check',  1793365639160)    = 14:07:19, 60 s nach dem Start (start_delay_ms)
+SELECT count(*) FROM job_types                          17 (die 16 Jobarten von heute plus podcast.poll), paused_at überall NULL
+```
+
+**Offen (Schritt 2 bis 5):** `Type.Cancel` setzen (`CancelScan`, `offline.CancelPreparation`),
+Pause in `ClaimJob` und im Arbeiter, `started_at`/`finished_at`/Fortschritt schreiben (`jobs.Job`
+trägt die Felder noch nicht), `jobs.prune`, eingefrorener Stand `testdata/db/` nach 00027 (8.3);
+Vertrag 1.5.0 und `admin.Schedules`-Rückschreiben (Schritt 3); Seite (Schritt 4); CT 190 und
+Messung (Schritt 5). Ein Tag Beobachtung der fünf Zeitpläne auf CT 190 vor dem Merge (12.1).
+
 ## Update-Prüfung: Warteschlangenplatz des täglichen Jobs (30. Oktober 2026)
 
 Auf dem Zweig `claude/interesting-kalam-9fb6ca` (ab `main c6741b4`, Release 1.4.0). Befund: der

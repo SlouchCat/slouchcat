@@ -330,12 +330,30 @@ type Job struct {
 	LastError      sql.NullString
 	CreatedAt      int64
 	UpdatedAt      int64
+	StartedAt      sql.NullInt64
+	FinishedAt     sql.NullInt64
+	ProgressDone   sql.NullInt64
+	ProgressTotal  sql.NullInt64
+	ProgressNote   sql.NullString
+	Skipped        int64
 }
 
 type JobSchedule struct {
-	Type     string
-	CronExpr string
-	NextRun  int64
+	Type         string
+	EveryMs      int64
+	StartDelayMs sql.NullInt64
+	Enabled      int64
+	WindowStart  sql.NullInt64
+	WindowEnd    sql.NullInt64
+	NextRunAt    int64
+	LastFiredAt  sql.NullInt64
+	UpdatedAt    int64
+}
+
+type JobType struct {
+	Type      string
+	PausedAt  sql.NullInt64
+	UpdatedAt int64
 }
 
 type Library struct {

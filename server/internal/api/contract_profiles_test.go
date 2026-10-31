@@ -1006,6 +1006,17 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		offline.WithTokenKey(testDownloadKey), offline.WithEncoder(contractEncoder{}), offline.WithPins(a), offline.WithPlayback(pf.pb))
 	pf.notifySvc, pf.senders = newContractNotify(f, log, pf.queue, a.AllowAttempt)
 	adm.WithAnnouncements(pf.notifySvc)
+	// Concept 09: the registry and scheduler of the fixture (download.prepare, notify.deliver, the
+	// metadata types), started once so job_types and job_schedules have their rows.
+	registry := jobs.NewRegistry(pf.queue, log)
+	pf.off.RegisterTypes(registry)
+	pf.notifySvc.RegisterTypes(registry)
+	pods.RegisterTypes(registry)
+	scheduler := jobs.NewScheduler(pf.queue, registry, log)
+	if err := scheduler.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	adm.WithJobControl(registry, scheduler, map[jobs.Pool]int{jobs.PoolGeneral: 2, jobs.PoolDownload: 1, jobs.PoolNotify: 1})
 	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
 	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
 	adm.WithIntegrations(pf.integrations)

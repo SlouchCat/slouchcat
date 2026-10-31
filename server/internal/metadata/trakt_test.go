@@ -315,10 +315,11 @@ func TestTraktRefresh(t *testing.T) {
 	}
 }
 
-// E-7, S-8: the schedule queues the first run right away, the next one spotlight_config.
-// interval_hours after the last attempt, none before; the admin refresh queues one any time. The
-// default of migration 00021 (24 hours) and both bounds of the administration (6 and 48 hours)
-// prove that the interval follows the configuration.
+// E-7, S-8, concept 09: the Run of the schedule trakt.refresh queues the nightly job with the
+// priority the scheduler passes, and the seed of the first schedule row takes the interval from
+// spotlight_config and the last attempt of the earlier poller. The default of migration 00021
+// (24 hours) and both bounds of the administration (6 and 48 hours) prove that the interval
+// follows the configuration. The manual refresh raises the waiting job and is never lowered.
 func TestTraktSchedule(t *testing.T) {
 	t.Parallel()
 	for _, hours := range []int{24, 6, 48} {
@@ -330,30 +331,22 @@ func TestTraktSchedule(t *testing.T) {
 			}
 			ctx := context.Background()
 			start := e.clock.now()
-			due := func(at time.Duration) bool {
-				t.Helper()
-				e.clock.set(start.Add(at))
-				ok, err := e.svc.QueueDueTrakt(ctx)
-				if err != nil {
-					t.Fatal(err)
-				}
-				return ok
+			interval := time.Duration(hours) * time.Hour
+			// No attempt yet: the first row is due now.
+			seed, err := e.svc.traktSeed(ctx)
+			if err != nil || seed.Every != interval || !seed.Enabled || !seed.LastRun.IsZero() {
+				t.Fatalf("seed before any run = %+v, %v; want every %v, enabled, no last run", seed, err, interval)
 			}
-			if !due(0) {
-				t.Fatal("first run not queued")
+			ids, err := e.svc.runTrakt(ctx, e.queue, traktPriority)
+			if err != nil || len(ids) != 1 {
+				t.Fatalf("scheduled run: %v, %v; want one job", ids, err)
 			}
-			// The worker runs the job.
+			// The worker runs the job; the seed now continues from the attempt.
 			if err := e.svc.handleTraktRefresh(ctx, &jobs.Job{}); err != nil {
 				t.Fatal(err)
 			}
-			interval := time.Duration(hours) * time.Hour
-			for _, at := range []time.Duration{15 * time.Minute, interval / 2, interval - time.Minute} {
-				if due(at) {
-					t.Errorf("queued again after %v", at)
-				}
-			}
-			if !due(interval) {
-				t.Errorf("not queued after %v", interval)
+			if seed, err := e.svc.traktSeed(ctx); err != nil || !seed.LastRun.Equal(start) {
+				t.Errorf("seed after the run = %+v, %v; want the last attempt %v", seed, err, start)
 			}
 			var queued int
 			if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = 'trakt' AND priority = 2`,
@@ -370,42 +363,42 @@ func TestTraktSchedule(t *testing.T) {
 				JobTraktRefresh, traktManualPriority).Scan(&manual); err != nil || manual != 1 {
 				t.Errorf("queued trakt jobs at manual priority = %d %v, want the one waiting job raised", manual, err)
 			}
-			// The next nightly tick keeps the raised priority: Enqueue returns the waiting job and
+			// The next scheduled run keeps the raised priority: Enqueue returns the waiting job and
 			// the raise never lowers.
 			e.clock.set(start.Add(3 * interval))
-			if _, err := e.svc.QueueDueTrakt(ctx); err != nil {
-				t.Fatal(err)
+			if ids, err := e.svc.runTrakt(ctx, e.queue, traktPriority); err != nil || len(ids) != 1 {
+				t.Fatalf("scheduled run with a waiting job: %v, %v", ids, err)
 			}
 			if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND priority = ?`,
 				JobTraktRefresh, traktManualPriority).Scan(&manual); err != nil || manual != 1 {
-				t.Errorf("queued trakt jobs after the nightly tick = %d %v, want still one at the manual priority", manual, err)
+				t.Errorf("queued trakt jobs after the nightly run = %d %v, want still one at the manual priority", manual, err)
 			}
 		})
 	}
 }
 
-// RunTrakt checks at once on start.
-// Not parallel: this test waits on the clock (an interval, a debounce window or a
-// cancellation), and parallel load would stretch the wait past what it asserts.
-func TestRunTraktStartsAtOnce(t *testing.T) {
-	e := newTraktEnv(t, traktTestID, staticKey(""))
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	wg.Go(func() { e.svc.RunTrakt(ctx) })
-	defer func() { cancel(); wg.Wait() }()
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		var n int
-		if err := e.db.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ?`, JobTraktRefresh).Scan(&n); err != nil {
-			t.Fatal(err)
-		}
-		if n == 1 {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("RunTrakt queued nothing at the start")
-		}
-		time.Sleep(10 * time.Millisecond)
+// RegisterTypes registers trakt.refresh as a schedule type with the seed, and podcast.poll as the
+// visible 5-minute tick without a handler of its own.
+func TestRegisterTypesSchedules(t *testing.T) {
+	t.Parallel()
+	e := newTraktEnv(t, "", traktKeys{id: traktTestID})
+	r := jobs.NewRegistry(e.queue, slog.New(slog.DiscardHandler))
+	e.svc.RegisterTypes(r)
+	trakt, ok := r.Lookup(JobTraktRefresh)
+	if !ok || !trakt.Scheduled() || trakt.Seed == nil || trakt.StartDelay != nil || trakt.Handler == nil || trakt.Priority != traktPriority {
+		t.Errorf("trakt.refresh = %+v, want a schedule type with seed, handler and no start delay", trakt)
+	}
+	poll, ok := r.Lookup(JobPodcastPoll)
+	if !ok || !poll.Scheduled() || poll.Handler != nil || poll.Every != feedPollInterval || poll.StartDelay == nil || *poll.StartDelay != 0 {
+		t.Errorf("podcast.poll = %+v, want a schedule type every %v at the start without a handler", poll, feedPollInterval)
+	}
+	if vote, ok := r.Lookup(JobVoteBackfill); !ok || vote.Trigger != jobs.TriggerEvent || vote.Run != nil {
+		t.Errorf("metadata.vote_backfill = %+v, want an event type without Run (concept 08 queues it)", vote)
+	}
+	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
+	r.Attach(w, jobs.PoolGeneral)
+	if len(w.Handlers()) != 8 {
+		t.Errorf("handlers attached = %v, want the seven metadata types with a handler plus jobs.prune", w.Handlers())
 	}
 }
 
@@ -414,8 +407,8 @@ func TestTraktNotConfigured(t *testing.T) {
 	t.Parallel()
 	e := newTraktEnv(t, "", staticKey(""))
 	ctx := context.Background()
-	if ok, err := e.svc.QueueDueTrakt(ctx); ok || err != nil {
-		t.Errorf("queue due without client id: %v %v", ok, err)
+	if ids, err := e.svc.runTrakt(ctx, e.queue, traktPriority); len(ids) != 0 || err != nil {
+		t.Errorf("scheduled run without client id: %v %v", ids, err)
 	}
 	if err := e.svc.RefreshTrakt(ctx); !errors.Is(err, model.ErrProviderNotConfigured) {
 		t.Errorf("refresh without client id: %v", err)
@@ -474,10 +467,11 @@ func TestTraktRowsGoWithoutClientID(t *testing.T) {
 		}
 	}
 
-	// The client id goes: the next tick empties the table and queues nothing.
+	// The client id goes: the next scheduled run empties the table and queues nothing (the
+	// special case stays in the Run of the type, concept 09 4.3).
 	keys.id = ""
-	if ok, err := e.svc.QueueDueTrakt(ctx); ok || err != nil {
-		t.Errorf("queue due without client id: %v %v", ok, err)
+	if ids, err := e.svc.runTrakt(ctx, e.queue, traktPriority); len(ids) != 0 || err != nil {
+		t.Errorf("scheduled run without client id: %v %v", ids, err)
 	}
 	if got := e.rows(t); len(got) != 0 {
 		t.Errorf("rows without client id = %v", got)
@@ -485,9 +479,9 @@ func TestTraktRowsGoWithoutClientID(t *testing.T) {
 	if st := e.status(t); st.Configured || st.Entries != 0 {
 		t.Errorf("status without client id = %+v", st)
 	}
-	// A second tick finds nothing to empty.
-	if ok, err := e.svc.QueueDueTrakt(ctx); ok || err != nil {
-		t.Errorf("second tick without client id: %v %v", ok, err)
+	// A second run finds nothing to empty.
+	if ids, err := e.svc.runTrakt(ctx, e.queue, traktPriority); len(ids) != 0 || err != nil {
+		t.Errorf("second run without client id: %v %v", ids, err)
 	}
 }
 

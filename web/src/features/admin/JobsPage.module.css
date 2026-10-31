@@ -1,0 +1,198 @@
+/* The jobs page (concept 09): head with counters and pools, the list "Läuft gerade", the cards
+   of the job types in four groups; one column on the phone. */
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: 44rem;
+  margin-bottom: var(--sc-space-6);
+}
+
+.counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  margin-bottom: var(--sc-space-4);
+}
+
+.pools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-4);
+  margin: 0 0 var(--sc-space-6);
+  padding: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  list-style: none;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  margin-bottom: var(--sc-space-10);
+}
+
+.sectionTitle {
+  font-size: var(--sc-font-size-xl);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+  outline: none;
+}
+
+.live:empty {
+  display: none;
+}
+
+/* "Läuft gerade": one row per run. */
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.run {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: start;
+  padding-top: var(--sc-space-3);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.run:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.runBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.runName {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: baseline;
+}
+
+.runMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.runActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.bar {
+  max-width: 28rem;
+}
+
+/* The cards of a group. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: var(--sc-space-4);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cardTitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: baseline;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.code {
+  color: var(--sc-color-text-muted);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-regular);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sc-space-1) var(--sc-space-3);
+  margin: 0;
+  font-size: var(--sc-font-size-sm);
+}
+
+.facts dt {
+  color: var(--sc-color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+/* The runs dialog: the tab's table and its count line. */
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* The schedule dialog's fields. */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.windowFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}

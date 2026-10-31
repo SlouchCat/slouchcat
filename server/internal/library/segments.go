@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -95,6 +96,8 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 	fingerprinted := make([]bool, len(rows))
 	sem := make(chan struct{}, fingerprintWorkers)
 	var wg sync.WaitGroup
+	var fingerprintsDone atomic.Int64
+	jobs.Progress(ctx, 0, int64(len(rows)), "")
 	for i, r := range rows {
 		eps[i] = segments.Episode{ID: r.ItemID, Duration: time.Duration(r.DurationMs.Int64) * time.Millisecond, Chapters: storedChapters(r.Probe)}
 		wg.Add(1)
@@ -102,6 +105,8 @@ func (s *Service) handleSegments(ctx context.Context, j *jobs.Job) error {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
+			// One episode of the season done, with or without a fingerprint (concept 09, 6.2).
+			defer func() { jobs.Progress(ctx, fingerprintsDone.Add(1), int64(len(rows)), "") }()
 			head, tail, err := s.fingerprintEpisode(ctx, r, eps[i].Duration, opts)
 			if err != nil {
 				if ctx.Err() == nil {

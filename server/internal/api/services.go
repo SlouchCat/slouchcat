@@ -227,6 +227,17 @@ type AdminService interface {
 	// cancels a queued or running one (model.ErrNotFound for an unknown or ended job).
 	RetryJob(ctx context.Context, id int64) (model.JobSummary, error)
 	CancelJob(ctx context.Context, id int64) error
+	// The page "Hintergrundjobs" (concept 09): model.ErrNotFound for an unknown type,
+	// model.ErrJobTypeNotRunnable, model.ErrJobTypePaused, model.ErrJobTypeNotScheduled,
+	// *model.ValidationError, and the services' own refusals of a manual run
+	// (model.ErrProviderNotConfigured, model.ErrRefreshTooSoon, model.ErrUpdateCheckDisabled).
+	ListJobTypes(ctx context.Context) (model.JobOverview, error)
+	ListJobRuns(ctx context.Context, typ, state string, limit int) (model.JobRunPage, error)
+	RunJobType(ctx context.Context, typ string) ([]model.JobRun, error)
+	PauseJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
+	ResumeJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
+	UpdateJobSchedule(ctx context.Context, typ string, upd model.JobScheduleUpdate) (model.JobTypeInfo, error)
+	CancelJobRuns(ctx context.Context, typ string, all bool) (int, error)
 	// Settings and integrations (A-2). UpdateSettings checks everything before it stores anything:
 	// *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable,
 	// model.ErrTelegramTokenInvalid, model.ErrTelegramUnreachable.

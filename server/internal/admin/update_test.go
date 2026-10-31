@@ -187,9 +187,10 @@ func TestQueueDueUpdateCheck(t *testing.T) {
 	}
 	now = now.Add(time.Second)
 
-	queued, err := f.svc.QueueDueUpdateCheck(ctx)
-	if err != nil || !queued {
-		t.Fatalf("first tick: %v, %v; want queued", queued, err)
+	// The scheduled run (the Run of the type update.check) queues one job under its key.
+	ids, err := f.svc.runUpdateCheck(ctx, queue, updatePriority)
+	if err != nil || len(ids) != 1 {
+		t.Fatalf("scheduled run: %v, %v; want one job", ids, err)
 	}
 	// The check carries a priority above every bulk job (the ladder in package jobs), so a worker
 	// claims it before the older index job: at priority 1 it waited behind the backlog of an
@@ -209,7 +210,12 @@ func TestQueueDueUpdateCheck(t *testing.T) {
 	}
 	// A worker with the admin jobs runs it.
 	w := jobs.NewWorker(queue, "w1", f.svc.log)
-	f.svc.RegisterJobs(w)
+	registry := jobs.NewRegistry(queue, f.svc.log)
+	f.svc.RegisterTypes(registry)
+	registry.Attach(w, jobs.PoolGeneral)
+	if ty, ok := registry.Lookup(JobUpdateCheck); !ok || !ty.Scheduled() || ty.Every != UpdateInterval || ty.StartDelay == nil || *ty.StartDelay != updateStartDelay {
+		t.Fatalf("update.check = %+v, want a schedule type every %v, %v after the start", ty, UpdateInterval, updateStartDelay)
+	}
 	wctx, stop := context.WithCancel(ctx)
 	done := make(chan struct{})
 	go func() { w.Run(wctx); close(done) }()
@@ -222,20 +228,66 @@ func TestQueueDueUpdateCheck(t *testing.T) {
 	if n := f.svc.UpdateAvailable(ctx); n == nil || n.Version != "1.0.0" {
 		t.Fatalf("notice after the job = %+v", n)
 	}
-	if queued, err := f.svc.QueueDueUpdateCheck(ctx); err != nil || queued {
-		t.Errorf("tick right after the check: %v, %v; want nothing queued", queued, err)
+	// The seed of the first schedule row continues the daily rhythm from the stored check.
+	seed, err := f.svc.updateSeed(ctx)
+	if err != nil || !seed.Enabled || seed.Every != UpdateInterval || !seed.LastRun.Equal(now) {
+		t.Errorf("seed after the check = %+v, %v; want enabled, %v, last run %v", seed, err, UpdateInterval, now)
 	}
-	now = now.Add(UpdateInterval + time.Minute)
-	if queued, err := f.svc.QueueDueUpdateCheck(ctx); err != nil || !queued {
-		t.Errorf("tick a day later: %v, %v; want queued", queued, err)
+	// A second run under the same key raises the waiting job instead of being swallowed by it,
+	// and never lowers it (a job queued low, the scheduled run at 8, a manual run at 7).
+	if _, err := f.svc.runUpdateCheck(ctx, queue, 1); err != nil {
+		t.Fatal(err)
 	}
+	if _, err := f.svc.runUpdateCheck(ctx, queue, updatePriority); err != nil {
+		t.Fatal(err)
+	}
+	waiting, err := queue.Claim(ctx, "w2", []string{JobUpdateCheck})
+	if err != nil || waiting == nil || waiting.Priority != updatePriority {
+		t.Fatalf("claimed after a run at priority 1: %+v, %v; want the job at %d", waiting, err, updatePriority)
+	}
+	if err := queue.Release(ctx, "w2", waiting.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.runUpdateCheck(ctx, queue, jobs.ManualPriority); err != nil {
+		t.Fatal(err)
+	}
+	if j, err := queue.Get(ctx, waiting.ID); err != nil || j.State != jobs.StateQueued || j.Priority != updatePriority {
+		t.Errorf("waiting job after a manual run = %+v, %v; want still queued at %d (never lowered, 8 > 7)", j, err, updatePriority)
+	}
+	// Switched off, the run queues nothing and the setting is written into the schedule row.
+	sched := &fakeSchedules{}
+	f.svc.WithSchedules(sched)
 	if _, err := f.svc.UpdateSettings(ctx, model.AdminSettingsUpdate{UpdateCheckEnabled: ptr(false)}); err != nil {
 		t.Fatal(err)
 	}
-	now = now.Add(2 * UpdateInterval)
-	if queued, err := f.svc.QueueDueUpdateCheck(ctx); err != nil || queued {
-		t.Errorf("tick while disabled: %v, %v; want nothing queued", queued, err)
+	if len(sched.updates) != 1 || sched.updates[0].typ != JobUpdateCheck || sched.updates[0].u.Enabled == nil || *sched.updates[0].u.Enabled {
+		t.Errorf("schedule updates after switching the check off = %+v, want update.check disabled", sched.updates)
 	}
+	if _, err := queue.Cancel(ctx, waiting.ID); err != nil {
+		t.Fatal(err)
+	}
+	if ids, err := f.svc.runUpdateCheck(ctx, queue, updatePriority); err != nil || len(ids) != 0 {
+		t.Errorf("run while disabled: %v, %v; want nothing queued", ids, err)
+	}
+	if seed, err := f.svc.updateSeed(ctx); err != nil || seed.Enabled {
+		t.Errorf("seed while disabled = %+v, %v", seed, err)
+	}
+}
+
+// fakeSchedules records the schedule updates of the settings pages (admin.Schedules).
+type fakeSchedules struct {
+	updates []struct {
+		typ string
+		u   jobs.ScheduleUpdate
+	}
+}
+
+func (f *fakeSchedules) UpdateSchedule(_ context.Context, typ string, u jobs.ScheduleUpdate) (jobs.Schedule, error) {
+	f.updates = append(f.updates, struct {
+		typ string
+		u   jobs.ScheduleUpdate
+	}{typ, u})
+	return jobs.Schedule{Type: typ}, nil
 }
 
 func TestNewerVersion(t *testing.T) {

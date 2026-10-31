@@ -451,6 +451,12 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusTooManyRequests, "too_many_requests", "The list was fetched less than a minute ago; wait and try again.")
 	case errors.Is(err, model.ErrJobNotFailed):
 		p.write(w, r, http.StatusConflict, "job_not_failed", "Only a failed job can be queued again.")
+	case errors.Is(err, model.ErrJobTypeNotRunnable):
+		p.write(w, r, http.StatusConflict, "job_type_not_runnable", "This job type has no manual run; its runs come from events.")
+	case errors.Is(err, model.ErrJobTypePaused):
+		p.write(w, r, http.StatusConflict, "job_type_paused", "The job type is paused; resume it first.")
+	case errors.Is(err, model.ErrJobTypeNotScheduled):
+		p.write(w, r, http.StatusConflict, "job_type_not_scheduled", "This job type has no schedule.")
 	case errors.Is(err, model.ErrUpdateCheckDisabled):
 		p.write(w, r, http.StatusUnprocessableEntity, "update_check_disabled", "The update check is switched off.")
 	case errors.Is(err, model.ErrChannelUnavailable):

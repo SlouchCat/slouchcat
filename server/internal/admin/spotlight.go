@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -115,6 +116,10 @@ func (s *Service) SetSpotlightConfig(ctx context.Context, in model.SpotlightConf
 		return model.SpotlightConfig{}, fmt.Errorf("get spotlight config: %w", err)
 	}
 	s.log.InfoContext(ctx, "spotlight config set", "list_key", in.ListKey, "media", in.Media)
+	// The interval is the interval of the schedule trakt.refresh (one value, two doors); the
+	// switch of the band hides the row on the start page only and does not stop the fetch.
+	every := time.Duration(in.IntervalHours) * time.Hour
+	s.syncSchedule(ctx, jobTraktRefresh, jobs.ScheduleUpdate{Every: &every})
 	return toSpotlightConfig(row), nil
 }
 

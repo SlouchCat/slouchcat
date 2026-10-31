@@ -21,7 +21,8 @@ LIMIT @limit_count;
 -- A failed job goes back to the queue with its attempts reset. Nothing changes when the job is not
 -- failed or an active job with the same idempotency key exists (the unique index of active keys).
 UPDATE jobs
-SET state = 'queued', attempts = 0, run_after = @now, lease_owner = NULL, lease_until = NULL, updated_at = @now
+SET state = 'queued', attempts = 0, run_after = @now, lease_owner = NULL, lease_until = NULL, updated_at = @now,
+    started_at = NULL, finished_at = NULL, progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
 WHERE jobs.id = @id AND jobs.state = 'failed'
   AND (jobs.idempotency_key IS NULL OR NOT EXISTS (
       SELECT 1 FROM jobs AS a WHERE a.idempotency_key = jobs.idempotency_key AND a.state IN ('queued', 'running')));

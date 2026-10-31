@@ -286,10 +286,20 @@ var adminRegistry = map[string]adminCall{
 		ownerStatus: http.StatusNotFound},
 	// M8 administration: jobs 9999 do not exist; the fixture has no e-mail server (422
 	// email_not_configured), checks a mock manifest and writes backups into a temporary directory.
-	"getSystemInfo":       {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
-	"getDashboard":        {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
-	"retryJob":            {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
-	"cancelJob":           {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
+	"getSystemInfo": {contract: "GET /admin/system", path: "/admin/system", ownerStatus: http.StatusOK},
+	"getDashboard":  {contract: "GET /admin/dashboard", path: "/admin/dashboard", ownerStatus: http.StatusOK},
+	"retryJob":      {contract: "POST /admin/jobs/{id}/retry", path: "/admin/jobs/9999/retry", ownerStatus: http.StatusNotFound},
+	"cancelJob":     {contract: "DELETE /admin/jobs/{id}", path: "/admin/jobs/9999", ownerStatus: http.StatusNotFound},
+	// Concept 09: the page "Hintergrundjobs"; the fixture's registry knows download.prepare and
+	// notify.deliver (event types) and the schedule types of package metadata; nobody.home does
+	// not exist (404).
+	"listJobTypes":        {contract: "GET /admin/job-types", path: "/admin/job-types", ownerStatus: http.StatusOK},
+	"listJobRuns":         {contract: "GET /admin/jobs", path: "/admin/jobs?type=download.prepare&state=queued", ownerStatus: http.StatusOK},
+	"runJobType":          {contract: "POST /admin/job-types/{type}/run", path: "/admin/job-types/nobody.home/run", ownerStatus: http.StatusNotFound},
+	"pauseJobType":        {contract: "POST /admin/job-types/{type}/pause", path: "/admin/job-types/nobody.home/pause", ownerStatus: http.StatusNotFound},
+	"resumeJobType":       {contract: "POST /admin/job-types/{type}/resume", path: "/admin/job-types/nobody.home/resume", ownerStatus: http.StatusNotFound},
+	"updateJobSchedule":   {contract: "PATCH /admin/job-types/{type}/schedule", path: "/admin/job-types/nobody.home/schedule", body: `{"enabled":true}`, ownerStatus: http.StatusNotFound},
+	"cancelJobRuns":       {contract: "DELETE /admin/job-types/{type}/runs", path: "/admin/job-types/nobody.home/runs", ownerStatus: http.StatusNotFound},
 	"getAdminSettings":    {contract: "GET /admin/settings", path: "/admin/settings", ownerStatus: http.StatusOK},
 	"updateAdminSettings": {contract: "PUT /admin/settings", path: "/admin/settings", body: `{"updateCheckEnabled":true}`, ownerStatus: http.StatusOK},
 	"sendTestEmail":       {contract: "POST /admin/settings/email/test", path: "/admin/settings/email/test", body: `{}`, ownerStatus: http.StatusUnprocessableEntity},

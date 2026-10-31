@@ -73,6 +73,22 @@ func (q *Queries) SetSpotlightConfig(ctx context.Context, arg SetSpotlightConfig
 	return err
 }
 
+const setSpotlightInterval = `-- name: SetSpotlightInterval :exec
+UPDATE spotlight_config SET interval_hours = ?1, updated_at = ?2 WHERE id = 1
+`
+
+type SetSpotlightIntervalParams struct {
+	IntervalHours int64
+	Now           int64
+}
+
+// The jobs page writes the interval of the schedule trakt.refresh here as well (concept 09, one
+// value, two doors).
+func (q *Queries) SetSpotlightInterval(ctx context.Context, arg SetSpotlightIntervalParams) error {
+	_, err := q.db.ExecContext(ctx, setSpotlightInterval, arg.IntervalHours, arg.Now)
+	return err
+}
+
 const setSpotlightManualRefresh = `-- name: SetSpotlightManualRefresh :exec
 UPDATE spotlight_config SET last_manual_refresh = ?1 WHERE id = 1
 `

@@ -40,10 +40,43 @@ var errSourceWait = errors.New("offline: download source not available yet")
 // (another encoder backend or ffmpeg build since the last attempt).
 var errInitChanged = errors.New("offline: init segment differs from the prepared copy")
 
-// RegisterJobs registers download.prepare on w. The server runs a worker of its own for it
+// RegisterTypes registers download.prepare on r (concept 09, ADR 0017): an event type of the
+// group delivery in the pool download. The server runs a worker of its own for that pool
 // (download-1), so long encodes never hold up scans and probes.
-func (s *Service) RegisterJobs(w *jobs.Worker) {
-	w.Handle(JobPrepare, s.handlePrepare)
+func (s *Service) RegisterTypes(r *jobs.Registry) {
+	r.Register(jobs.Type{Name: JobPrepare, Group: jobs.GroupDelivery, Pool: jobs.PoolDownload, Trigger: jobs.TriggerEvent, Priority: jobPriority, Handler: s.handlePrepare, Cancel: s.cancelPrepareJob})
+}
+
+// cancelPrepareJob is the cancel hook of download.prepare (jobs.Type.Cancel, concept 09 6.3): the
+// download ends failed with the code cancelled_by_admin before the queue cancels the job, so the
+// reconciliation (Reconcile lists unfinished downloads only) does not queue it again and the
+// viewer sees "failed" and can start it anew. An unknown download is no error.
+func (s *Service) cancelPrepareJob(ctx context.Context, j jobs.Job) error {
+	var p preparePayload
+	if err := json.Unmarshal(j.Payload, &p); err != nil {
+		return fmt.Errorf("decode %s payload: %w", JobPrepare, err)
+	}
+	return s.CancelPreparation(ctx, p.DownloadID)
+}
+
+// CancelPreparation ends the preparation of a download by the administration: state failed,
+// error cancelled_by_admin; a download that is ready, evicted or failed already is left as it is.
+func (s *Service) CancelPreparation(ctx context.Context, id string) error {
+	n, err := s.write.CancelDownloadPreparation(ctx, systemq.CancelDownloadPreparationParams{Error: sql.NullString{String: model.DownloadErrCancelled, Valid: true}, Now: ms(s.now()), ID: id})
+	if err != nil {
+		return fmt.Errorf("cancel preparation of download %s: %w", id, err)
+	}
+	if n == 1 {
+		s.log.InfoContext(ctx, "download preparation cancelled by the administration", "download_id", id)
+	}
+	return nil
+}
+
+// requeueInterrupted puts a download whose preparation was interrupted (shutdown, pause) back to
+// queued, unless the administration ended it meanwhile (failed, cancelled_by_admin): that state
+// wins over the interrupted attempt.
+func (s *Service) requeueInterrupted(ctx context.Context, id string) {
+	_, _ = s.write.SetStalledDownloadQueued(context.WithoutCancel(ctx), systemq.SetStalledDownloadQueuedParams{Now: ms(s.now()), ID: id})
 }
 
 func (s *Service) handlePrepare(ctx context.Context, j *jobs.Job) error {
@@ -102,7 +135,9 @@ func (s *Service) prepare(ctx context.Context, j *jobs.Job, id string) error {
 
 // wait sets the state and error code of a download and queues its successor after delay under
 // the other key; the job itself ends, so waiting uses no attempt (budget, source, preemption).
+// The run did no work: it is skipped and does not count for the median duration (concept 09).
 func (s *Service) wait(ctx context.Context, j *jobs.Job, id, state, code string, delay time.Duration) error {
+	jobs.Skip(ctx)
 	if err := s.setState(ctx, id, state, code); err != nil {
 		return s.attemptFailed(ctx, j, id, err)
 	}
@@ -511,7 +546,7 @@ func (s *Service) encode(ctx context.Context, j *jobs.Job, row systemq.Download)
 		s.log.InfoContext(ctx, "download paused for live playback", "download_id", id, "segments_done", len(files.ix.entries))
 		return s.wait(ctx, j, id, model.DownloadPaused, "", preemptWait)
 	case ctx.Err() != nil:
-		_ = s.setState(ctx, id, model.DownloadQueued, "")
+		s.requeueInterrupted(ctx, id)
 		return ctx.Err()
 	case err != nil:
 		return s.attemptFailed(ctx, j, id, fmt.Errorf("encode download %s: %w", id, err))
@@ -589,10 +624,12 @@ func (s *Service) runEncoder(ctx context.Context, id string, lease Lease, p plan
 		}
 		return nil // resumed: the same init segment is already in the file
 	}
+	total := int64(len(p.plan.Segments))
 	onSegment := func(n int, data []byte, start, dur time.Duration) error {
 		if err := files.appendSegment(n, data, start, dur); err != nil {
 			return err
 		}
+		jobs.Progress(ctx, int64(n+1), total, "") // segments, not bytes (concept 09, 6.2)
 		return s.progress(ctx, id, n+1)
 	}
 	err := s.enc.Download(encCtx, s.caps, p.src, p.plan, work, start, onInit, onSegment)
@@ -713,7 +750,7 @@ func (s *Service) convert(ctx context.Context, p planned, t systemq.Track) ([]by
 // when the enclosure could not be fetched).
 func (s *Service) attemptFailed(ctx context.Context, j *jobs.Job, id string, cause error) error {
 	if ctx.Err() != nil {
-		_ = s.setState(ctx, id, model.DownloadQueued, "")
+		s.requeueInterrupted(ctx, id)
 		return ctx.Err()
 	}
 	if j.Attempts >= j.MaxAttempts {

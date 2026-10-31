@@ -30,6 +30,8 @@ type Worker struct {
 	heartbeat time.Duration
 	// onFinalFailure is told about a job that failed its last attempt (notify.JobFailed, M8).
 	onFinalFailure func(ctx context.Context, j Job, err error)
+	// runs is the list of running jobs the registry keeps (Registry.Attach); nil without one.
+	runs *runList
 }
 
 // NewWorker returns a worker with the unique id that claims from q.
@@ -47,6 +49,11 @@ func NewWorker(q *Queue, id string, log *slog.Logger) *Worker {
 // Handle registers h for jobs of type typ. Call it before Run.
 func (w *Worker) Handle(typ string, h Handler) {
 	w.handlers[typ] = h
+}
+
+// Handlers returns the job types the worker claims, sorted.
+func (w *Worker) Handlers() []string {
+	return slices.Sorted(maps.Keys(w.handlers))
 }
 
 // OnFinalFailure registers fn, called after a job failed its last attempt and ended in state
@@ -79,8 +86,16 @@ func (w *Worker) Run(ctx context.Context) {
 
 func (w *Worker) run(ctx context.Context, job *Job) {
 	log := w.log.With("job_id", job.ID, "job_type", job.Type, "attempt", job.Attempts)
-	jobCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	// The job context carries a cause: the pause of the type (ErrPaused, Registry.Pause) or a
+	// cancel (ErrCancelled) end it at once through the run list; the heartbeat is the fallback.
+	jobCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	rep := newReporter(w.queue, w.id, job.ID, log)
+	if w.runs != nil {
+		w.runs.add(job.ID, job.Type, cancel, rep)
+		defer w.runs.remove(job.ID)
+	}
+	handlerCtx := context.WithValue(jobCtx, reporterKey{}, rep)
 
 	var leaseLost atomic.Bool
 	heartbeatDone := make(chan struct{})
@@ -93,31 +108,47 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 			case <-jobCtx.Done():
 				return
 			case <-ticker.C:
+				rep.flush(jobCtx)
 				err := w.queue.Heartbeat(jobCtx, w.id, job.ID)
 				if errors.Is(err, ErrLeaseLost) {
 					log.Info("job lease lost, stopping handler")
 					leaseLost.Store(true)
-					cancel()
+					cancel(ErrLeaseLost)
 					return
 				}
 				if err != nil && jobCtx.Err() == nil {
 					log.Warn("heartbeat", "err", err)
+				}
+				// A pause set while this run held an old lease (restart) is noticed here.
+				if paused, perr := w.queue.TypePaused(jobCtx, job.Type); perr == nil && paused {
+					cancel(ErrPaused)
+					return
 				}
 			}
 		}
 	}()
 
 	start := time.Now()
-	err := w.call(jobCtx, job)
-	cancel()
+	err := w.call(handlerCtx, job)
+	cancel(nil)
 	<-heartbeatDone
 
 	fctx, fcancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer fcancel()
+	rep.flush(fctx)
+	rep.stop()
 	var ferr error
 	switch {
 	case leaseLost.Load():
 		return
+	case errors.Is(context.Cause(jobCtx), ErrPaused):
+		// Always a release, whatever the handler returned (concept 09 6.3): the pause must not
+		// use an attempt, and a handler that returns nil after the cancel has not finished.
+		log.Info("job paused, released to the queue", "duration", time.Since(start))
+		ferr = w.queue.Release(fctx, w.id, job.ID)
+	case errors.Is(context.Cause(jobCtx), ErrCancelled):
+		log.Info("job cancelled", "duration", time.Since(start))
+		return // the row is cancelled already
 	case err != nil && ctx.Err() != nil:
 		log.Info("job interrupted by shutdown, released")
 		ferr = w.queue.Release(fctx, w.id, job.ID)
