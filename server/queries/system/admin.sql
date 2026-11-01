@@ -281,10 +281,10 @@ UPDATE items SET deleted_at = @now, updated_at = @now WHERE id = @id AND deleted
 -- unfiltered (owner only) and names titles in plain text, never as ItemRef.
 
 -- name: AdminStreamItems :many
--- Title (German text, else English, else the parsed title) with, for an episode, the series title
--- and the season and episode numbers.
-SELECT i.id, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.season_number, i.episode_number, i.episode_end,
-       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, s.title, '') AS series_title
+-- Title (German text, else English, else the first language by rank, else the parsed title; ADR 0018)
+-- with, for an episode, the series title and the season and episode numbers.
+SELECT i.id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.season_number, i.episode_number, i.episode_end,
+       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = s.id ORDER BY tr.rank, tr.lang LIMIT 1), s.title, '') AS series_title
 FROM items AS i
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
@@ -310,10 +310,10 @@ WHERE library_id = @library_id AND deleted_at IS NULL
 -- Cat's picks (E-2, M7). Administration view: unfiltered, owner only, titles in plain text.
 
 -- name: AdminListTopPicks :many
--- Every pick in carousel order with kind, title (German text, else English, else the parsed
--- title) and year of the title and the name of the target profile ('' = all profiles).
+-- Every pick in carousel order with kind, title (German text, else English, else the first language
+-- by rank, else the parsed title) and year of the title and the name of the target profile ('' = all profiles).
 SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
+       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
 FROM top_picks AS t
 JOIN items AS i ON i.id = t.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
@@ -323,7 +323,7 @@ ORDER BY t.position, t.id;
 
 -- name: AdminGetTopPick :one
 SELECT t.id, t.item_id, t.profile_id, t.position, t.note, t.starts_at, t.ends_at, t.created_at,
-       i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
+       i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year, COALESCE(p.name, '') AS profile_name
 FROM top_picks AS t
 JOIN items AS i ON i.id = t.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
@@ -361,13 +361,14 @@ SELECT p.id FROM profiles AS p JOIN accounts AS a ON a.id = p.account_id WHERE a
 -- Like the scoped GetItemImage, a deleted title has no image and the kept original is never served.
 
 -- name: AdminGetItemImage :one
--- One stored image of a title: WebP when asked and stored, else JPEG.
+-- One stored image of a title: WebP when asked and stored, else the fallback of the kind (JPEG;
+-- PNG for a logo).
 SELECT im.rel_path, im.media_type, im.content_hash, im.created_at
 FROM images AS im
 JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
 WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size <> 'original'
-  AND im.format IN (@format, 'jpeg')
-ORDER BY im.format = 'jpeg'
+  AND im.format IN (@format, @fallback)
+ORDER BY im.format = 'webp' DESC
 LIMIT 1;
 
 -- name: AdminListPosters :many

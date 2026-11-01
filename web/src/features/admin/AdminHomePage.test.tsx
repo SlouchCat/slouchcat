@@ -377,6 +377,7 @@ describe('admin overview (A-2, A-3)', () => {
       ['Bibliotheken', '/admin/libraries'],
       ['Podcasts', '/admin/podcasts'],
       ['Pflege', '/admin/maintenance'],
+      ['Metadaten', '/admin/metadata'],
     ]);
     expect(cards('Konten')).toEqual([
       ['Konten', '/admin/accounts'],
@@ -419,6 +420,7 @@ describe('admin navigation (A-2)', () => {
       'Bibliotheken',
       'Podcasts',
       'Pflege',
+      'Metadaten',
       'Konten',
       'Geräte',
       'Streams',

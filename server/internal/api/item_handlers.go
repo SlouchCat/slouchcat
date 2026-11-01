@@ -92,6 +92,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	}
 	pid := session.Profile.ID
 	ref := toItemRef(pid, d.ItemSummary)
+	ref.Images.Logo = toImageRef(d.ID, pid, d.Logo) // the detail carries the logo (ADR 0018)
 	out := gen.ItemDetail{
 		Id:             ref.Id,
 		Kind:           ref.Kind,
@@ -289,12 +290,14 @@ func (s *server) ReportProgress(ctx context.Context, req gen.ReportProgressReque
 }
 
 // Image kinds and sizes of the contract (M1b image pipeline, plan 3.1): posters in w200, w400 and
-// w800, backdrops in w780, w1280 and w1920, each stored as WebP and JPEG.
+// w800, backdrops in w780, w1280, w1920 and (from an original of 2560 px or more) w3840, each stored
+// as WebP and JPEG.
 var (
-	imageKinds = map[string]bool{"poster": true, "backdrop": true}
+	imageKinds = map[string]bool{"poster": true, "backdrop": true, "logo": true}
 	imageSizes = map[string]map[string]bool{
 		"poster":   {"w200": true, "w400": true, "w800": true},
-		"backdrop": {"w780": true, "w1280": true, "w1920": true},
+		"backdrop": {"w780": true, "w1280": true, "w1920": true, "w3840": true}, // w3840 only from wide originals
+		"logo":     {"w400": true, "w800": true},                                // ADR 0018; WebP or PNG
 	}
 )
 
@@ -343,6 +346,28 @@ func (s *server) getAdminItemImage(w http.ResponseWriter, r *http.Request) {
 	defer src.File.Close()
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
+// getItemImageCandidatePreview serves a local image file of a title as preview of the image choice
+// (binary endpoint, CLAUDE.md rule 6, concept 10 9.2): only a source the scanner listed for the
+// title, read through its library root; anything else is 404. Not cached: the file next to the
+// media may change, and the address carries its size and modification time anyway.
+func (s *server) getItemImageCandidatePreview(w http.ResponseWriter, r *http.Request) {
+	source := r.URL.Query().Get("source")
+	if source == "" || len(source) > 2048 {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	src, err := s.opts.Admin.ItemImageCandidatePreview(r.Context(), chi.URLParam(r, "id"), source)
+	if err != nil {
+		s.p.mapError(w, r, err)
+		return
+	}
+	defer src.File.Close()
+	w.Header().Set("Content-Type", src.MediaType)
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
@@ -447,6 +472,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 			Backdrop:      toImageRef(it.ID, profileID, it.Backdrop),
 			BackdropSmall: toImageRef(it.ID, profileID, it.BackdropSmall),
 			BackdropLarge: toImageRef(it.ID, profileID, it.BackdropLarge),
+			BackdropUhd:   toImageRef(it.ID, profileID, it.BackdropUhd),
 		},
 	}
 	if it.Author != "" {

@@ -27,6 +27,7 @@ const NAV_PAGES = [
   ['Bibliotheken', '/admin/libraries'],
   ['Podcasts', '/admin/podcasts'],
   ['Pflege', '/admin/maintenance'],
+  ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
@@ -202,8 +203,9 @@ test('Tab: header, navigation, dashboard, cards; Enter on a card; no focus trap'
 }) => {
   await openOverview(page);
   const cards = page.getByRole('region', { name: 'Alle Verwaltungsseiten' });
-  // One card per admin page; "Zugriff" went into "Konten" with ADR 0014.
-  await expect(cards.getByRole('link')).toHaveCount(17);
+  // One card per admin page; "Zugriff" went into "Konten" with ADR 0014, "Metadaten" came with
+  // concept 10.
+  await expect(cards.getByRole('link')).toHaveCount(18);
   await expect(cards.getByRole('link', { name: 'Benachrichtigungen' })).toHaveAttribute(
     'href',
     '/settings/notifications',

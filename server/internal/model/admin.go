@@ -314,6 +314,9 @@ type AdminKeys struct {
 	TVDBPin KeyState
 	YouTube KeyState
 	Trakt   KeyState
+	// Fanart.tv (concept 10 step 6): the project key and the optional personal client key.
+	Fanart       KeyState
+	FanartClient KeyState
 }
 
 // EmailSettings is the e-mail server without its password.
@@ -340,14 +343,16 @@ type PushSettings struct {
 
 // Fields of AdminSettingsUpdate.Clear.
 const (
-	ClearPublicURL = "publicUrl"
-	ClearTMDB      = "tmdb"
-	ClearTVDB      = "tvdb"
-	ClearTVDBPin   = "tvdbPin"
-	ClearYouTube   = "youtube"
-	ClearTrakt     = "trakt"
-	ClearEmail     = "email"
-	ClearTelegram  = "telegram"
+	ClearPublicURL    = "publicUrl"
+	ClearTMDB         = "tmdb"
+	ClearTVDB         = "tvdb"
+	ClearTVDBPin      = "tvdbPin"
+	ClearYouTube      = "youtube"
+	ClearTrakt        = "trakt"
+	ClearFanart       = "fanart"
+	ClearFanartClient = "fanartClient"
+	ClearEmail        = "email"
+	ClearTelegram     = "telegram"
 )
 
 // AdminSettingsUpdate changes settings: nil fields keep their value, Clear removes stored values.
@@ -362,11 +367,13 @@ type AdminSettingsUpdate struct {
 
 // AdminKeysUpdate sets provider keys; nil keeps a key.
 type AdminKeysUpdate struct {
-	TMDB    *string
-	TVDB    *string
-	TVDBPin *string
-	YouTube *string
-	Trakt   *string
+	TMDB         *string
+	TVDB         *string
+	TVDBPin      *string
+	YouTube      *string
+	Trakt        *string
+	Fanart       *string
+	FanartClient *string
 }
 
 // EmailSettingsUpdate replaces the e-mail server; a nil Password keeps the stored one.

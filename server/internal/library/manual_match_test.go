@@ -16,6 +16,7 @@ func (noKeys) TMDBKey(context.Context) (string, error)              { return "",
 func (noKeys) TVDBKey(context.Context) (key, pin string, err error) { return "", "", nil }
 func (noKeys) YouTubeKey(context.Context) (string, error)           { return "", nil }
 func (noKeys) TraktClientID(context.Context) (string, error)        { return "", nil }
+func (noKeys) FanartKeys(context.Context) (string, string, error)   { return "", "", nil }
 
 // B-6: a manual assignment survives three full scans and a metadata refresh. The scanner binds
 // files by path, inode and hash, never by title, and the refresh keeps the locked provider ids

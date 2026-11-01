@@ -24,6 +24,8 @@ const slides: HeroSlide[] = [
   {
     id: 'ember',
     title: 'Glut',
+    // A title logo (concept 10, 7.5) stands in for the text title of the slide.
+    logoUrl: art.logoEmber,
     posterUrl: art.posterEmber,
     accent: accents.ember,
     caption: '2019',

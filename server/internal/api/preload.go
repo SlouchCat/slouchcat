@@ -29,12 +29,14 @@ type heroPicker interface {
 	FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
 }
 
-// Width descriptors and sizes of the hero srcset; they must match imageSource and HERO_SIZES in
+// Width descriptors and sizes of the hero srcset (the 4K size names its real width, heroSrcset);
+// they must match imageSource and HERO_SIZES in
 // web/src/ui/HeroCarousel.tsx. From 768 px the side navigation's column (15rem, --sidenav-width in
 // web/src/ui/global.css) takes its width off the stage (concept 08).
 const (
 	heroSmallWidth = "780w"
 	heroLargeWidth = "1280w"
+	heroWideWidth  = "1920w"
 	heroSizes      = "(width >= 768px) calc(100vw - 15rem), 100vw"
 )
 
@@ -218,9 +220,8 @@ func heroPrepaint(item model.ItemSummary, start int, profileID int64) string {
 	var attrs string
 	switch {
 	case item.Backdrop != nil && item.BackdropSmall != nil:
-		small, large := imageURL(item.ID, *item.BackdropSmall, profileID), imageURL(item.ID, *item.Backdrop, profileID)
-		attrs = `src="` + html.EscapeString(small) + `" srcset="` +
-			html.EscapeString(small+" "+heroSmallWidth+", "+large+" "+heroLargeWidth) + `" sizes="` + heroSizes + `"`
+		small := imageURL(item.ID, *item.BackdropSmall, profileID)
+		attrs = `src="` + html.EscapeString(small) + `" srcset="` + html.EscapeString(heroSrcset(item, profileID)) + `" sizes="` + heroSizes + `"`
 	case item.Backdrop != nil:
 		attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.Backdrop, profileID)) + `"`
 	case item.BackdropSmall != nil:
@@ -279,13 +280,28 @@ func squareCover(kind string) bool {
 	return kind == "audiobook" || kind == "podcast" || kind == "podcast_episode"
 }
 
+// heroSrcset is the srcset of the hero image of item with both backdrops: w780, w1280, w1920 when
+// stored, and the 4K size with its real width when stored (an original of 2560 to 3839 px is not
+// scaled up); the order and widths match imageSource in web/src/ui/HeroCarousel.tsx.
+func heroSrcset(item model.ItemSummary, profileID int64) string {
+	set := imageURL(item.ID, *item.BackdropSmall, profileID) + " " + heroSmallWidth + ", " +
+		imageURL(item.ID, *item.Backdrop, profileID) + " " + heroLargeWidth
+	if item.BackdropLarge != nil {
+		set += ", " + imageURL(item.ID, *item.BackdropLarge, profileID) + " " + heroWideWidth
+	}
+	if item.BackdropUhd != nil && item.BackdropUhd.Width > 0 {
+		set += ", " + imageURL(item.ID, *item.BackdropUhd, profileID) + " " + strconv.Itoa(item.BackdropUhd.Width) + "w"
+	}
+	return set
+}
+
 // heroLink returns the Link header value that preloads the image the hero shows for item, chosen
 // exactly like the carousel does (same URLs, srcset and sizes), or "" when the item has no image.
 func heroLink(item model.ItemSummary, profileID int64) string {
 	if item.Backdrop != nil && item.BackdropSmall != nil {
-		small, large := imageURL(item.ID, *item.BackdropSmall, profileID), imageURL(item.ID, *item.Backdrop, profileID)
-		return "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " " + heroSmallWidth + ", " +
-			large + " " + heroLargeWidth + `"; imagesizes="` + heroSizes + `"; fetchpriority=high`
+		small := imageURL(item.ID, *item.BackdropSmall, profileID)
+		return "<" + small + `>; rel=preload; as=image; imagesrcset="` + heroSrcset(item, profileID) +
+			`"; imagesizes="` + heroSizes + `"; fetchpriority=high`
 	}
 	for _, img := range []*model.Image{item.Backdrop, item.BackdropSmall, item.Poster} {
 		if img != nil {

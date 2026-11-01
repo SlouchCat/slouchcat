@@ -32,14 +32,25 @@ const (
 	tvdbEpisodeCacheSize   = 16
 )
 
-// TVDB artwork types (v4 /artwork/types) used for series images.
+// TVDB artwork types (v4 /artwork/types) used for series images: poster 2, background 3, season
+// poster 7, clear logo 23 (checked against the v4 reference in concept 10 step 2).
 const (
-	tvdbArtworkPoster     = 2
-	tvdbArtworkBackground = 3
+	tvdbArtworkPoster       = 2
+	tvdbArtworkBackground   = 3
+	tvdbArtworkSeasonPoster = 7
+	tvdbArtworkClearLogo    = 23
 )
 
-// tvdbLangs maps the text languages to TVDB's ISO 639-2 codes.
-var tvdbLangs = map[string]string{"de": "deu", "en": "eng"}
+// tvdbStaticLangs maps the primary subtags of common metadata languages to TVDB's ISO 639-3
+// codes: the table the provider uses until /languages answered, and for a server that cannot
+// reach it (ADR 0018). The live table (tvdbProvider.languages) replaces it once fetched.
+var tvdbStaticLangs = map[string]string{
+	"de": "deu", "en": "eng", "fr": "fra", "es": "spa", "it": "ita", "ja": "jpn", "pt": "por", "nl": "nld",
+	"ru": "rus", "zh": "zho", "ko": "kor", "pl": "pol", "sv": "swe", "da": "dan", "fi": "fin", "nb": "nor",
+	"no": "nor", "cs": "ces", "hu": "hun", "tr": "tur", "el": "ell", "he": "heb", "ar": "ara", "uk": "ukr",
+	"ro": "ron", "bg": "bul", "hr": "hrv", "sk": "slk", "sl": "slv", "th": "tha", "vi": "vie", "id": "ind",
+	"ca": "cat", "eu": "eus", "gl": "glg", "fa": "fas", "hi": "hin", "ta": "tam", "ms": "msa", "tl": "tgl",
+}
 
 // tvdbCountries maps TVDB's ISO 3166-1 alpha-3 rating countries to the AN-8 countries.
 var tvdbCountries = map[string]string{"deu": "DE", "aut": "AT", "che": "CH", "gbr": "GB", "usa": "US"}
@@ -58,7 +69,10 @@ type tvdbProvider struct {
 	mu       sync.Mutex
 	token    string
 	tokenFor [32]byte // hash of the key and PIN the token belongs to
-	episodes map[string]tvdbEpisodeCache
+
+	langMu    sync.Mutex
+	languages map[string]string // /languages: primary subtag -> TVDB id, once fetched (nil until then)
+	episodes  map[string]tvdbEpisodeCache
 }
 
 type tvdbEpisodeCache struct {
@@ -327,9 +341,12 @@ type tvdbSeries struct {
 		SourceName string `json:"sourceName"`
 	} `json:"remoteIds"`
 	Artworks []struct {
-		Image string  `json:"image"`
-		Type  int     `json:"type"`
-		Score float64 `json:"score"`
+		Image    string  `json:"image"`
+		Type     int     `json:"type"`
+		Score    float64 `json:"score"`
+		Language *string `json:"language"` // ISO 639-3 id or null
+		Width    int     `json:"width"`
+		Height   int     `json:"height"`
 	} `json:"artworks"`
 	Seasons []struct {
 		Number int    `json:"number"`
@@ -387,7 +404,10 @@ func (p *tvdbProvider) Series(ctx context.Context, id string, langs []string) (S
 		}
 	}
 	for _, l := range langs {
-		code := tvdbLangs[l]
+		code, ok := p.langCode(ctx, l)
+		if !ok {
+			continue // TVDB does not know the language: no text, the chain falls through (12.3)
+		}
 		t := Text{Title: names[code], Overview: overviews[code]}
 		if code == s.OriginalLanguage {
 			t.Title, t.Overview = firstNonEmpty(t.Title, s.Name), firstNonEmpty(t.Overview, s.Overview)
@@ -407,6 +427,7 @@ func (p *tvdbProvider) Series(ctx context.Context, id string, langs []string) (S
 	}
 	rec.PosterPath = p.artURL(firstNonEmpty(p.bestArtwork(s, tvdbArtworkPoster), s.Image))
 	rec.BackdropPath = p.artURL(p.bestArtwork(s, tvdbArtworkBackground))
+	rec.Images = p.artworkCandidates(ctx, s, rec.PosterPath, rec.BackdropPath)
 	for _, season := range s.Seasons {
 		if season.Type.Type == "official" {
 			rec.Seasons = append(rec.Seasons, SeasonInfo{Number: season.Number, PosterPath: p.artURL(season.Image)})
@@ -424,6 +445,48 @@ func (p *tvdbProvider) Series(ctx context.Context, id string, langs []string) (S
 		rec.Credits = append(rec.Credits, Credit{Person: Person{Name: c.PersonName}, Role: RoleCast, Character: c.Name, Order: len(rec.Credits)})
 	}
 	return rec, nil
+}
+
+// artworkCandidates lists the posters, backgrounds and clear logos of a series as candidates
+// (ADR 0018): the language comes from TVDB's ISO 639-3 id through the language table, the score
+// stands in for the votes (TVDB has no vote count, so VoteCount is 0 and the score decides only
+// the order within a language).
+func (p *tvdbProvider) artworkCandidates(ctx context.Context, s tvdbSeries, poster, backdrop string) []ImageCandidate {
+	kinds := map[int]string{tvdbArtworkPoster: "poster", tvdbArtworkBackground: "backdrop", tvdbArtworkClearLogo: "logo"}
+	table := p.languageTable(ctx)
+	var out []ImageCandidate
+	for _, a := range s.Artworks {
+		kind, ok := kinds[a.Type]
+		if !ok || a.Image == "" {
+			continue
+		}
+		lang := ""
+		if a.Language != nil && *a.Language != "" {
+			for short, id := range table {
+				if id == *a.Language {
+					lang = short
+					break
+				}
+			}
+			if lang == "" {
+				lang = *a.Language // an id without short code stays as is and matches no chain entry
+			}
+		}
+		src := p.artURL(a.Image)
+		out = append(out, ImageCandidate{Kind: kind, Lang: lang, Width: a.Width, Height: a.Height, Votes: a.Score,
+			Source: src, Default: src == poster || src == backdrop})
+	}
+	return out
+}
+
+// Artworks reads the artworks of a series with language and size (posters, backgrounds, clear
+// logos), the TVDB candidates of the image choice per title (concept 10 6.4).
+func (p *tvdbProvider) Artworks(ctx context.Context, id int64) ([]ImageCandidate, error) {
+	var s tvdbSeries
+	if _, err := p.getJSON(ctx, "/series/"+strconv.FormatInt(id, 10)+"/extended", url.Values{"meta": {"translations"}}, &s); err != nil {
+		return nil, err
+	}
+	return p.artworkCandidates(ctx, s, "", ""), nil
 }
 
 // bestArtwork returns the image of the highest scored artwork of the type, or "".
@@ -493,7 +556,11 @@ func (p *tvdbProvider) Season(ctx context.Context, seriesID string, n int, langs
 	byNumber := map[int]*EpisodeRecord{}
 	var order []int
 	for _, l := range langs {
-		eps, err := p.allEpisodes(ctx, id, tvdbLangs[l])
+		code, ok := p.langCode(ctx, l)
+		if !ok {
+			continue
+		}
+		eps, err := p.allEpisodes(ctx, id, code)
 		if err != nil {
 			return SeasonRecord{}, err
 		}
@@ -533,4 +600,58 @@ func (p *tvdbProvider) Episode(ctx context.Context, seriesID string, s, e int, l
 		}
 	}
 	return EpisodeRecord{}, fmt.Errorf("tvdb episode S%02dE%02d of %s: %w", s, e, seriesID, ErrNotFound)
+}
+
+// tvdbLanguage is one row of /languages.
+type tvdbLanguage struct {
+	ID        string `json:"id"`        // ISO 639-3 ("deu")
+	ShortCode string `json:"shortCode"` // ISO 639-1 ("de"), may be empty
+}
+
+// langCode maps a metadata language (BCP-47; the region is dropped) to TVDB's language id, or
+// false when TVDB knows no such language. The table comes from /languages, fetched once per
+// process and per configured key (a server without TVDB key, or one whose fetch fails, uses the
+// static table), so listMetadataProviders can say "TVDB: no Romansh" (concept 6.1, 12.3).
+func (p *tvdbProvider) langCode(ctx context.Context, lang string) (string, bool) {
+	primary := PrimaryLanguage(lang)
+	table := p.languageTable(ctx)
+	code, ok := table[primary]
+	return code, ok
+}
+
+// languageTable returns the live table when it is loaded (or loadable now), else the static one.
+func (p *tvdbProvider) languageTable(ctx context.Context) map[string]string {
+	p.langMu.Lock()
+	defer p.langMu.Unlock()
+	if p.languages != nil {
+		return p.languages
+	}
+	if !p.Configured(ctx) {
+		return tvdbStaticLangs
+	}
+	var rows []tvdbLanguage
+	if _, err := p.getJSON(ctx, "/languages", nil, &rows); err != nil || len(rows) == 0 {
+		if p.log != nil {
+			p.log.Warn("tvdb languages not loaded, static table used", "err", err)
+		}
+		return tvdbStaticLangs
+	}
+	table := make(map[string]string, len(rows))
+	for _, r := range rows {
+		if r.ShortCode != "" && r.ID != "" {
+			table[strings.ToLower(r.ShortCode)] = r.ID
+		}
+	}
+	// A language TVDB lists without short code (rare) keeps the static mapping when it has one.
+	for k, v := range tvdbStaticLangs {
+		if _, ok := table[k]; !ok {
+			for _, r := range rows {
+				if r.ID == v {
+					table[k] = v
+				}
+			}
+		}
+	}
+	p.languages = table
+	return table
 }

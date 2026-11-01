@@ -30,7 +30,7 @@ func (q *Queries) CountVisiblePodcastEpisodes(ctx context.Context, arg CountVisi
 }
 
 const getPodcastFallbackImage = `-- name: GetPodcastFallbackImage :one
-SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM items AS i
+SELECT im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN visible_items AS vp ON vp.item_id = i.parent_id AND vp.profile_id = ?1
 JOIN images AS im ON im.item_id = i.parent_id
@@ -67,6 +67,7 @@ func (q *Queries) GetPodcastFallbackImage(ctx context.Context, arg GetPodcastFal
 		&i.Size,
 		&i.Format,
 		&i.Lang,
+		&i.Provider,
 		&i.SourceUrl,
 		&i.RelPath,
 		&i.ContentHash,
@@ -226,7 +227,7 @@ func (q *Queries) ListNextVisiblePodcastEpisodes(ctx context.Context, arg ListNe
 }
 
 const listPodcastFallbackImages = `-- name: ListPodcastFallbackImages :many
-SELECT i.id AS episode_id, im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM items AS i
+SELECT i.id AS episode_id, im.id, im.item_id, im.kind, im.size, im.format, im.lang, im.provider, im.source_url, im.rel_path, im.content_hash, im.media_type, im.width, im.height, im.bytes, im.accent, im.created_at FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 JOIN visible_items AS vp ON vp.item_id = i.parent_id AND vp.profile_id = ?1
 JOIN images AS im ON im.item_id = i.parent_id AND im.size <> 'original'
@@ -275,6 +276,7 @@ func (q *Queries) ListPodcastFallbackImages(ctx context.Context, arg ListPodcast
 			&i.Image.Size,
 			&i.Image.Format,
 			&i.Image.Lang,
+			&i.Image.Provider,
 			&i.Image.SourceUrl,
 			&i.Image.RelPath,
 			&i.Image.ContentHash,

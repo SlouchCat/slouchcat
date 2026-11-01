@@ -61,6 +61,10 @@ type Service struct {
 	// Hooks of package notify (M8), set before the service runs; nil = none.
 	accountCreated     func(ctx context.Context, accountID int64) error
 	invitationAccepted func(ctx context.Context, inviterAccountID int64, guestEmail string) error
+
+	// metadataLanguages names the metadata languages a profile may choose (package metadata,
+	// ADR 0018: the union of the server's and every library's list); nil = de and en.
+	metadataLanguages func(ctx context.Context) ([]string, error)
 }
 
 // New returns the service on db.
@@ -79,6 +83,26 @@ func New(db *store.DB, log *slog.Logger) *Service {
 func (s *Service) WithClock(now func() time.Time) *Service {
 	s.now = now
 	return s
+}
+
+// WithMetadataLanguages sets the source of the metadata languages a profile may choose
+// (metadata.Service.AvailableMetadataLanguages, ADR 0018) and returns the receiver.
+func (s *Service) WithMetadataLanguages(fn func(ctx context.Context) ([]string, error)) *Service {
+	s.metadataLanguages = fn
+	return s
+}
+
+// AvailableMetadataLanguages returns the metadata languages a profile may choose, in the
+// server's order (SessionInfo.availableMetadataLanguages); de and en without a source.
+func (s *Service) AvailableMetadataLanguages(ctx context.Context) ([]string, error) {
+	if s.metadataLanguages == nil {
+		return []string{"de", "en"}, nil
+	}
+	langs, err := s.metadataLanguages(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("available metadata languages: %w", err)
+	}
+	return langs, nil
 }
 
 // WithAccountCreated runs fn after CreateOwner or AcceptInvitation committed a new account
@@ -531,7 +555,8 @@ func toProfile(p appq.Profile, libs []int64, account model.PlaybackLimits) model
 	limits := ProfileLimits(p)
 	return model.Profile{
 		ID: p.ID, AccountID: p.AccountID, Name: p.Name, MaxRating: int(p.MaxRating), Language: p.Language,
-		AllLibraries: p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
+		MetadataLanguage: p.MetadataLanguage.String,
+		AllLibraries:     p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
 		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1,
 		Limits: limits, Effective: limits.Cap(account),
 	}

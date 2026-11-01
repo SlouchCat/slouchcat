@@ -26,6 +26,10 @@ func (contractMetadata) Refresh(context.Context, string) error                  
 func (contractMetadata) AddManualTrailer(_ context.Context, _, lang, youtubeID string) (model.Trailer, error) {
 	return model.Trailer{ID: 1, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
+
+func (contractMetadata) ProviderLanguages(context.Context) (map[string][]string, error) {
+	return map[string][]string{"tmdb": {"de", "en"}, "tvdb": {"de", "en"}, "anilist": {"en"}}, nil
+}
 func (contractMetadata) DeleteTrailer(context.Context, string, int64) error { return model.ErrNotFound }
 func (contractMetadata) ListTrailersSystem(context.Context, string) ([]model.Trailer, error) {
 	return []model.Trailer{{ID: 7, Lang: "de", YouTubeID: "DeTrailer06", Source: "youtube"}}, nil
@@ -151,4 +155,44 @@ func TestContractCancelFailedJob(t *testing.T) {
 	if rec := send(t, pf.h, http.MethodDelete, path, "p18", "", nil); rec.Code != http.StatusNotFound || problemCode(t, rec) != "not_found" {
 		t.Errorf("cancel it again: %d %s", rec.Code, rec.Body.String())
 	}
+}
+
+// Metadata settings of concept 10 (ADR 0018): the fake answers with the defaults and records nothing.
+func (contractMetadata) MetadataSettings(context.Context) (model.MetadataSettings, error) {
+	return model.MetadataSettings{TextLangs: []string{"de", "en"}, ImageLangs: map[string][]string{}, ImageMinWidth: map[string]int{}, RatingCountry: "DE"}, nil
+}
+
+func (m contractMetadata) UpdateMetadataSettings(ctx context.Context, _ model.MetadataSettings) (model.MetadataSettings, error) {
+	return m.MetadataSettings(ctx)
+}
+
+func (m contractMetadata) LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error) {
+	if libraryID > 100 {
+		return model.LibraryMetadata{}, model.ErrNotFound
+	}
+	eff, _ := m.MetadataSettings(ctx)
+	return model.LibraryMetadata{LibraryID: libraryID, Effective: eff}, nil
+}
+
+func (m contractMetadata) UpdateLibraryMetadata(ctx context.Context, libraryID int64, _ *[]string, _ *model.LibraryImages) (model.LibraryMetadata, error) {
+	return m.LibraryMetadata(ctx, libraryID)
+}
+
+func (contractMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {
+	return model.ApplyMetadataResult{JobID: 1, Titles: 0}, nil
+}
+
+// The image choice per title (concept 10 step 5).
+func (m contractMetadata) ImageCandidates(context.Context, string, string, bool) (model.ImageCandidateList, error) {
+	return model.ImageCandidateList{Candidates: []model.ImageCandidate{{Provider: "tmdb", Lang: "de", Width: 1000, Height: 1500, Source: "/p.jpg", PreviewURL: "https://image.tmdb.org/t/p/w300/p.jpg"}, {Provider: "local", Width: 600, Height: 900, Source: "file:Film/poster.jpg?1-1"}}, Unavailable: []string{}}, nil
+}
+func (m contractMetadata) SetItemImage(context.Context, string, string, string, string) error {
+	return nil
+}
+func (m contractMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m contractMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
+	return nil, nil
+}
+func (m contractMetadata) LocalImagePreview(context.Context, string, string) (model.StreamSource, error) {
+	return model.StreamSource{}, model.ErrNotFound
 }

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -46,22 +47,84 @@ const (
 	accentColors      = 8
 )
 
-// imageWidths lists the delivered widths per kind.
+// imageWidths lists the delivered widths per kind (logos: ADR 0018, concept 10 6.3).
 var imageWidths = map[string][]int{
 	"poster":   {200, 400, 800},
 	"backdrop": {780, 1280, 1920},
+	"logo":     {400, 800},
 }
 
-// imageFormats lists the delivered formats with their file extension and media type. JPEG comes
-// first: its header gives the dimensions of both formats of a width.
-var imageFormats = []struct {
+// The backdrop size for 4K and high-density screens (contract 1.6.0): made only from an original of
+// at least uhdMinOriginal pixels and never scaled up, so an original between 2560 and 3839 px keeps
+// its width under the name w3840 (the row and ImageRef carry the real width).
+const (
+	uhdSize        = "w3840"
+	uhdWidth       = 3840
+	uhdMinOriginal = 2560
+)
+
+// uhdKinds are the kinds with the extra size.
+var uhdKinds = map[string]bool{"backdrop": true}
+
+// sizeSpec is one derived size: its name (w780 …) and the width it is scaled to.
+type sizeSpec struct {
+	name  string
+	width int
+}
+
+// sizesFor returns the derived sizes of a kind for an original of origWidth pixels (0 = unknown,
+// then without the 4K size).
+func sizesFor(kind string, origWidth int) []sizeSpec {
+	out := make([]sizeSpec, 0, len(imageWidths[kind])+1)
+	for _, w := range imageWidths[kind] {
+		out = append(out, sizeSpec{name: sizeName(w), width: w})
+	}
+	if uhdKinds[kind] && origWidth >= uhdMinOriginal {
+		out = append(out, sizeSpec{name: uhdSize, width: min(origWidth, uhdWidth)})
+	}
+	return out
+}
+
+// imageFormat is a delivered format with its file extension and media type.
+type imageFormat struct {
 	format    transcode.ImageFormat
 	ext       string
 	mediaType string
-}{
+}
+
+// imageFormats lists the delivered formats of posters and backdrops. JPEG comes first: its header
+// gives the dimensions of both formats of a width.
+var imageFormats = []imageFormat{
 	{transcode.ImageJPEG, "jpg", "image/jpeg"},
 	{transcode.ImageWebP, "webp", "image/webp"},
 }
+
+// logoFormats are the formats of a logo: PNG (transparency) first for the dimensions, then WebP;
+// never JPEG (6.3).
+var logoFormats = []imageFormat{
+	{transcode.ImagePNG, "png", "image/png"},
+	{transcode.ImageWebP, "webp", "image/webp"},
+}
+
+// formatsOf returns the delivered formats of a kind.
+func formatsOf(kind string) []imageFormat {
+	if kind == "logo" {
+		return logoFormats
+	}
+	return imageFormats
+}
+
+// FallbackFormat is the format a client without WebP gets for a kind: jpeg, png for a logo.
+func FallbackFormat(kind string) string {
+	if kind == "logo" {
+		return "png"
+	}
+	return "jpeg"
+}
+
+// errImageSkipped marks a source the pipeline cannot use (an SVG logo without PNG twin, an
+// answer that is no image): the kind is left as it is and the job goes on.
+var errImageSkipped = errors.New("image source skipped")
 
 // imageExt lists the accepted media types of originals and their file extensions.
 var imageExt = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
@@ -81,8 +144,8 @@ func (s *Service) handleImageFetch(ctx context.Context, j *jobs.Job) error {
 // backdrops for movies and series and the still of an episode; the (square) cover of audiobooks,
 // podcasts and podcast episodes is their poster (M6).
 var itemImageKinds = map[string][]string{
-	"movie":           {"poster", "backdrop"},
-	"series":          {"poster", "backdrop"},
+	"movie":           {"poster", "backdrop", "logo"},
+	"series":          {"poster", "backdrop", "logo"},
 	"season":          {"poster"},
 	"episode":         {"backdrop"},
 	"audiobook":       {"poster"},
@@ -127,63 +190,107 @@ func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	for _, r := range rows {
 		byKind[r.Kind] = append(byKind[r.Kind], r)
 	}
+	chosen, err := s.read.ListItemImagesByItem(ctx, item.ID)
+	if err != nil {
+		return fmt.Errorf("image.fetch: list image choice of %s: %w", item.ID, err)
+	}
+	decided := map[string]systemq.ItemImage{}
+	for _, c := range chosen {
+		decided[c.Kind] = c
+	}
+	settings, err := s.Effective(ctx, item.LibraryID)
+	if err != nil {
+		return fmt.Errorf("image.fetch: %w", err)
+	}
+	wanted := imageKindsOf(item.Kind, settings)
 	locked := lockedFields(item.LockedFields)
 	for _, kind := range kinds {
-		if locked[kind] {
+		if !audioKinds[item.Kind] && !slices.Contains(wanted, kind) {
+			// The kind is switched off (metadata.image_kinds): its files go, unless the
+			// administrator locked the kind (6.3, 8.1).
+			if !locked[kind] {
+				s.dropKind(ctx, root, item.ID, kind, byKind[kind])
+			}
+			continue
+		}
+		row, hasRow := decided[kind]
+		if locked[kind] && (!hasRow || row.Chosen != 1) {
+			// Locked without a choice (an upload, the old lock): keep the image, scale the sizes.
 			if err := s.scaleLocked(ctx, root, item.ID, kind, byKind[kind]); err != nil {
 				return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
 			}
 			continue
 		}
-		source := ""
+		src := imageRequest{provider: ImageSourceCover}
 		if audioKinds[item.Kind] {
-			if source, err = s.coverSource(ctx, item); err != nil {
+			if src.url, err = s.coverSource(ctx, item); err != nil {
 				return fmt.Errorf("image.fetch %s cover: %w", item.ID, err)
 			}
-		} else {
-			source = s.imageSource(item, kind, byKind[kind])
+		} else if hasRow {
+			src = s.imageSource(item, row)
 		}
-		if source == "" {
+		if src.url == "" {
 			continue
 		}
-		if err := s.processKind(ctx, root, item.ID, kind, source, byKind[kind]); err != nil {
+		err := s.processKind(ctx, root, item.ID, kind, src, byKind[kind])
+		if errors.Is(err, errImageSkipped) {
+			s.log.Warn("image source skipped", "item_id", item.ID, "kind", kind, "provider", src.provider, "err", err)
+			continue
+		}
+		if err != nil {
 			return fmt.Errorf("image.fetch %s %s: %w", item.ID, kind, err)
 		}
 	}
 	return nil
 }
 
-// imageSource returns the URL of the original of kind: the TMDB original of the stored path
-// (/abc.jpg), a stored TVDB artwork or AniList image URL (the fill job stores those, ADR 0015),
-// or for titles matched before M3 (no stored path) the source of the stored original. "" means
-// there is nothing to fetch.
-func (s *Service) imageSource(item systemq.Item, kind string, prev []systemq.Image) string {
-	path := item.TmdbPosterPath
-	if kind == "backdrop" {
-		path = item.TmdbBackdropPath
-	}
-	if path.Valid && path.String != "" {
-		switch {
-		case strings.HasPrefix(path.String, "/"):
-			return s.client.imageURL(originalSize, path.String)
-		case strings.HasPrefix(path.String, s.tvdb.artBase+"/"), s.anilist.imageURL(path.String):
-			return path.String
-		}
-		s.log.Warn("image path of an unknown host ignored", "item_id", item.ID, "kind", kind)
-		return ""
-	}
-	prefix := s.client.imageURL(originalSize, "")
+// imageRequest is the original to fetch for one kind: its address, the source it came from and
+// the language of the image (both copied onto every row, 4.4.1).
+type imageRequest struct {
+	url      string
+	provider string
+	lang     string
+}
+
+// dropKind removes the rows and files of a kind the administrator switched off.
+func (s *Service) dropKind(ctx context.Context, root *os.Root, itemID, kind string, prev []systemq.Image) {
 	for _, r := range prev {
-		if r.Size == originalSize && strings.HasPrefix(r.SourceUrl, prefix) {
-			return r.SourceUrl
+		if err := s.write.DeleteImage(ctx, r.ID); err != nil {
+			s.log.Warn("delete image row of a switched-off kind", "item_id", itemID, "kind", kind, "err", err)
+			continue
 		}
+		s.removeFile(root, itemID, kind, r.RelPath)
 	}
-	return ""
+}
+
+// imageSource turns the decided row of a kind (item_images, ADR 0018) into the original to
+// fetch: a TMDB path (/abc.jpg) becomes the TMDB original URL (an .svg logo is asked for as
+// .png, the twin TMDB serves for every logo, O-3), a TVDB artwork, AniList or Fanart.tv URL is
+// taken as it is, a file:<rel>?… source is read through package paths (local files). An address
+// of an unknown host is ignored and logged. url "" means there is nothing to fetch.
+func (s *Service) imageSource(item systemq.Item, row systemq.ItemImage) imageRequest {
+	out := imageRequest{provider: row.Provider, lang: row.Lang}
+	src := row.Source
+	switch {
+	case strings.HasPrefix(src, "/"):
+		if strings.HasSuffix(strings.ToLower(src), ".svg") {
+			src = src[:len(src)-4] + ".png"
+		}
+		out.url = s.client.imageURL(originalSize, src)
+	case strings.HasPrefix(src, coverFilePrefix):
+		out.url = src
+	case strings.HasPrefix(src, s.tvdb.artBase+"/"), s.anilist.imageURL(src), s.fanart.assetURL(src):
+		out.url = src
+	default:
+		s.log.Warn("image path of an unknown host ignored", "item_id", item.ID, "kind", row.Kind)
+	}
+	return out
 }
 
 // storedImage is the part of an image row the completeness check needs.
 type storedImage struct {
 	size, format, sourceURL, relPath string
+	width                            int
 }
 
 // kindComplete reports whether the rows of one kind hold every derived width in both formats with
@@ -191,10 +298,16 @@ type storedImage struct {
 // source_url of every derived row (image.fetch knows the current TMDB original; the check after a
 // scan does not).
 func kindComplete(kind string, rows []storedImage, sourceURL string, exists func(rel string) bool) bool {
+	origWidth := 0
+	for _, r := range rows {
+		if r.size == originalSize {
+			origWidth = r.width
+		}
+	}
 	want := map[string]bool{}
-	for _, w := range imageWidths[kind] {
-		for _, f := range imageFormats {
-			want[sizeName(w)+"/"+string(f.format)] = true
+	for _, sz := range sizesFor(kind, origWidth) {
+		for _, f := range formatsOf(kind) {
+			want[sz.name+"/"+string(f.format)] = true
 		}
 	}
 	have := 0
@@ -213,8 +326,8 @@ func kindComplete(kind string, rows []storedImage, sourceURL string, exists func
 	return have == len(want)
 }
 
-// processKind brings the rows and files of one kind up to date with the original at sourceURL.
-func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind, sourceURL string, prev []systemq.Image) error {
+// processKind brings the rows and files of one kind up to date with the original of src.
+func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind string, src imageRequest, prev []systemq.Image) error {
 	exists := rootExists(root)
 	var orig *systemq.Image
 	for i, r := range prev {
@@ -222,7 +335,7 @@ func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind, 
 			orig = &prev[i]
 		}
 	}
-	if kindComplete(kind, storedImages(prev), sourceURL, exists) {
+	if kindComplete(kind, storedImages(prev), src.url, exists) {
 		return s.fillAccent(ctx, itemID, kind, prev)
 	}
 
@@ -231,23 +344,23 @@ func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind, 
 		return fmt.Errorf("create image dir: %w", err)
 	}
 	origRel := ""
-	if orig != nil && orig.SourceUrl == sourceURL && exists(orig.RelPath) {
+	if orig != nil && orig.SourceUrl == src.url && exists(orig.RelPath) {
 		origRel = orig.RelPath
 	} else {
-		rel, err := s.storeOriginal(ctx, root, dir, itemID, kind, sourceURL, orig)
+		rel, err := s.storeOriginal(ctx, root, dir, itemID, kind, src, orig)
 		if err != nil {
 			return err
 		}
 		origRel = rel
 	}
-	return s.deriveAndPrune(ctx, root, dir, itemID, kind, origRel, sourceURL, prev)
+	return s.deriveAndPrune(ctx, root, dir, itemID, kind, origRel, src, prev)
 }
 
 // deriveAndPrune derives every size of kind from the original at origRel and removes the rows
 // (and files) of sizes the pipeline no longer produces (M1a's w500 poster). A palette failure
 // keeps the accent the poster rows had.
-func (s *Service) deriveAndPrune(ctx context.Context, root *os.Root, dir, itemID, kind, origRel, sourceURL string, prev []systemq.Image) error {
-	produced, err := s.deriveImages(ctx, root, dir, itemID, kind, origRel, sourceURL, storedAccent(prev))
+func (s *Service) deriveAndPrune(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, src imageRequest, prev []systemq.Image) error {
+	produced, err := s.deriveImages(ctx, root, dir, itemID, kind, origRel, src, storedAccent(prev))
 	if err != nil {
 		return err
 	}
@@ -281,8 +394,9 @@ func (s *Service) scaleLocked(ctx context.Context, root *os.Root, itemID, kind s
 		return nil
 	}
 	dir := imagesDir + "/" + itemID
+	req := imageRequest{url: src.SourceUrl, provider: src.Provider, lang: src.Lang.String}
 	if src.Size == originalSize {
-		return s.deriveAndPrune(ctx, root, dir, itemID, kind, src.RelPath, src.SourceUrl, prev)
+		return s.deriveAndPrune(ctx, root, dir, itemID, kind, src.RelPath, req, prev)
 	}
 	data, err := root.ReadFile(src.RelPath)
 	if err != nil {
@@ -292,19 +406,25 @@ func (s *Service) scaleLocked(ctx context.Context, root *os.Root, itemID, kind s
 	if err != nil {
 		return fmt.Errorf("decode stored %s header: %w", kind, err)
 	}
-	rel := dir + "/" + kind + "-" + originalSize + ".jpg"
+	// The original keeps the media type of the stored file (a PNG logo stays PNG, 6.3).
+	ext, ok := imageExt[src.MediaType]
+	if !ok {
+		ext = "jpg"
+	}
+	rel := dir + "/" + kind + "-" + originalSize + "." + ext
 	if err := writeFile(root, dir, rel, data); err != nil {
 		return err
 	}
 	sum := sha256.Sum256(data)
 	if err := s.write.UpsertImage(ctx, systemq.UpsertImageParams{
 		ItemID: itemID, Kind: kind, Size: originalSize, Format: originalFormat, SourceUrl: src.SourceUrl,
-		RelPath: rel, ContentHash: hex.EncodeToString(sum[:]), MediaType: "image/jpeg",
+		Lang: src.Lang, Provider: src.Provider,
+		RelPath: rel, ContentHash: hex.EncodeToString(sum[:]), MediaType: src.MediaType,
 		Width: int64(cfg.Width), Height: int64(cfg.Height), Bytes: int64(len(data)), Now: s.now().UnixMilli(),
 	}); err != nil {
 		return fmt.Errorf("upsert original row: %w", err)
 	}
-	return s.deriveAndPrune(ctx, root, dir, itemID, kind, rel, src.SourceUrl, prev)
+	return s.deriveAndPrune(ctx, root, dir, itemID, kind, rel, req, prev)
 }
 
 // lockedSource returns the stored image a locked kind is scaled from: the original when its file
@@ -319,8 +439,8 @@ func lockedSource(prev []systemq.Image, exists func(rel string) bool) *systemq.I
 		if r.Size == originalSize {
 			return r
 		}
-		if r.Format == string(transcode.ImageJPEG) && r.MediaType == "image/jpeg" && (best == nil || r.Width > best.Width) {
-			best = r
+		if r.Format != string(transcode.ImageWebP) && (best == nil || r.Width > best.Width) {
+			best = r // the widest JPEG, or PNG of a logo (6.3)
 		}
 	}
 	return best
@@ -378,7 +498,7 @@ func storedAccent(prev []systemq.Image) sql.NullString {
 func storedImages(prev []systemq.Image) []storedImage {
 	out := make([]storedImage, 0, len(prev))
 	for _, r := range prev {
-		out = append(out, storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath})
+		out = append(out, storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath, width: int(r.Width)})
 	}
 	return out
 }
@@ -393,14 +513,16 @@ func rootExists(root *os.Root) func(rel string) bool {
 // storeOriginal downloads the original at sourceURL to <dir>/<kind>-original.<ext> (temporary name, then
 // rename), upserts its row and returns its rel_path. A replaced original with another extension
 // is removed.
-func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID, kind, sourceURL string, prev *systemq.Image) (string, error) {
+func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID, kind string, src imageRequest, prev *systemq.Image) (string, error) {
+	sourceURL := src.url
 	data, mediaType, err := s.fetchOriginal(ctx, itemID, sourceURL)
 	if err != nil {
 		return "", err
 	}
 	ext, ok := imageExt[mediaType]
 	if !ok {
-		return "", fmt.Errorf("unsupported image media type %q", mediaType)
+		// An SVG logo without PNG twin, or an answer that is no image: the kind is skipped (9.4).
+		return "", fmt.Errorf("%w: unsupported image media type %q", errImageSkipped, mediaType)
 	}
 	cfg, err := imageConfig(data, mediaType)
 	if err != nil {
@@ -416,6 +538,8 @@ func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID,
 		Kind:        kind,
 		Size:        originalSize,
 		Format:      originalFormat,
+		Lang:        sql.NullString{String: src.lang, Valid: true},
+		Provider:    src.provider,
 		SourceUrl:   sourceURL,
 		RelPath:     rel,
 		ContentHash: hex.EncodeToString(sum[:]),
@@ -435,6 +559,7 @@ func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID,
 
 // derived is one scaled output of deriveImages before it is renamed into place.
 type derived struct {
+	size      string // w780 … w3840
 	width     int
 	format    transcode.ImageFormat
 	ext       string
@@ -445,7 +570,8 @@ type derived struct {
 // deriveImages scales the original at origRel into every width and format of kind in one ffmpeg
 // run, computes the accent colour for posters (prevAccent stays when the palette fails), renames
 // the files into place and upserts their rows. It returns the produced "<size>/<format>" keys.
-func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, kind, origRel, sourceURL string, prevAccent sql.NullString) (map[string]bool, error) {
+func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, src imageRequest, prevAccent sql.NullString) (map[string]bool, error) {
+	sourceURL := src.url
 	in, err := paths.Resolve(s.cache, origRel)
 	if err != nil {
 		return nil, fmt.Errorf("resolve original: %w", err)
@@ -459,8 +585,8 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			}
 		}
 	}()
-	for _, w := range imageWidths[kind] {
-		for _, f := range imageFormats {
+	for _, sz := range sizesFor(kind, s.originalWidth(root, origRel)) {
+		for _, f := range formatsOf(kind) {
 			tmp, err := tempName(dir)
 			if err != nil {
 				return nil, err
@@ -469,8 +595,8 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			if err != nil {
 				return nil, fmt.Errorf("resolve temporary image: %w", err)
 			}
-			outs = append(outs, derived{width: w, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
-			args = append(args, transcode.ImageOutput{Path: abs, Width: w, Format: f.format})
+			outs = append(outs, derived{size: sz.name, width: sz.width, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
+			args = append(args, transcode.ImageOutput{Path: abs, Width: sz.width, Format: f.format})
 		}
 	}
 	if err := s.runner.ScaleImage(ctx, in, args); err != nil {
@@ -489,21 +615,22 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 		}
 	}
 
-	dims := map[int]image.Config{} // per width, from the JPEG (first in imageFormats)
+	dims := map[int]image.Config{} // per width, from the first format of the kind (JPEG, or PNG for a logo)
 	produced := map[string]bool{}
+	first := formatsOf(kind)[0].format
 	for _, o := range outs {
 		data, err := root.ReadFile(o.tmp)
 		if err != nil {
 			return nil, fmt.Errorf("read scaled image: %w", err)
 		}
-		if o.format == transcode.ImageJPEG {
+		if o.format == first {
 			cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 			if err != nil {
 				return nil, fmt.Errorf("decode scaled image header: %w", err)
 			}
 			dims[o.width] = cfg
 		}
-		size := sizeName(o.width)
+		size := o.size
 		rel := dir + "/" + kind + "-" + size + "." + o.ext
 		if err := root.Rename(o.tmp, rel); err != nil {
 			return nil, fmt.Errorf("rename scaled image: %w", err)
@@ -518,6 +645,8 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			Kind:        kind,
 			Size:        size,
 			Format:      string(o.format),
+			Lang:        sql.NullString{String: src.lang, Valid: true},
+			Provider:    src.provider,
 			SourceUrl:   sourceURL,
 			RelPath:     rel,
 			ContentHash: hex.EncodeToString(sum[:]),
@@ -533,6 +662,24 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 		produced[size+"/"+string(o.format)] = true
 	}
 	return produced, nil
+}
+
+// originalWidth reads the width of the original at rel from its header; 0 when it cannot be read
+// (then the 4K size is left out, the other sizes do not need it).
+func (s *Service) originalWidth(root *os.Root, rel string) int {
+	f, err := root.Open(rel)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+	head := make([]byte, 1<<20) // a JPEG may carry large EXIF or ICC segments before its frame header
+	n, _ := io.ReadFull(f, head)
+	mediaType := map[string]string{".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[strings.ToLower(path.Ext(rel))]
+	cfg, err := imageConfig(head[:n], mediaType)
+	if err != nil {
+		return 0
+	}
+	return cfg.Width
 }
 
 // accent computes the accent colour of the poster at the absolute path. A failure only costs the
@@ -600,7 +747,7 @@ func (s *Service) QueueIncompleteImages(ctx context.Context, libraryID int64) (i
 			titles[r.ItemID] = t
 			order = append(order, r.ItemID)
 		}
-		t.kinds[r.Kind] = append(t.kinds[r.Kind], storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath})
+		t.kinds[r.Kind] = append(t.kinds[r.Kind], storedImage{size: r.Size, format: r.Format, sourceURL: r.SourceUrl, relPath: r.RelPath, width: int(r.Width)})
 		if r.Kind == "poster" && r.Size != originalSize && r.Accent.Valid {
 			t.accent = true
 		}
@@ -800,12 +947,17 @@ func (s *Service) fetchOriginal(ctx context.Context, itemID, source string) ([]b
 	switch {
 	case strings.HasPrefix(source, coverFilePrefix):
 		rel := unversioned(strings.TrimPrefix(source, coverFilePrefix))
-		root, err := s.coverRoot(ctx, itemID)
+		root, err := s.localImageRoot(ctx, itemID, rel)
 		if err != nil {
 			return nil, "", err
 		}
 		if root == nil {
-			return nil, "", errors.New("cover root gone")
+			if root, err = s.coverRoot(ctx, itemID); err != nil {
+				return nil, "", err
+			}
+		}
+		if root == nil {
+			return nil, "", fmt.Errorf("%w: root of the local file gone", errImageSkipped)
 		}
 		defer root.Close()
 		f, err := root.Open(rel)
@@ -831,6 +983,31 @@ func (s *Service) fetchOriginal(ctx context.Context, itemID, source string) ([]b
 		feedURL, origin := s.feedOf(ctx, itemID)
 		return s.downloadCover(ctx, feedURL, origin, source)
 	}
+}
+
+// localImageRoot opens the library root of a local image file the scanner listed for the title
+// (item_local_images, ADR 0018; the row names the root, so a series without media file of its own
+// is served too); nil when no row names rel (then it is an audio cover, coverRoot).
+func (s *Service) localImageRoot(ctx context.Context, itemID, rel string) (*os.Root, error) {
+	rows, err := s.read.ListItemLocalImages(ctx, itemID)
+	if err != nil {
+		return nil, fmt.Errorf("load local images: %w", err)
+	}
+	for _, r := range rows {
+		if r.RelPath != rel {
+			continue
+		}
+		dir, err := s.read.GetLibraryRootPath(ctx, r.RootID)
+		if err != nil {
+			return nil, fmt.Errorf("load root of a local image: %w", err)
+		}
+		pr, err := paths.NewRoot(dir)
+		if err != nil {
+			return nil, err
+		}
+		return paths.Open(pr)
+	}
+	return nil, nil
 }
 
 // unversioned drops the version after the last "?" of a cover source.
@@ -861,7 +1038,7 @@ func (s *Service) feedOf(ctx context.Context, itemID string) (feedURL, origin st
 // provider client, not the guarded cover client: the hosts are constants).
 func (s *Service) providerImage(source string) bool {
 	return strings.HasPrefix(source, s.client.imageURL(originalSize, "")) || strings.HasPrefix(source, s.tvdb.artBase+"/") ||
-		s.anilist.imageURL(source)
+		s.anilist.imageURL(source) || s.fanart.assetURL(source)
 }
 
 // mediaFilePath resolves the absolute path of a media file through package paths.

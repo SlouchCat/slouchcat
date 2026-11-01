@@ -282,6 +282,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
 		library.WithBrowseRoots(cfg.BrowseRoots))
+	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
@@ -480,6 +481,11 @@ func (k *lazyKeys) TraktClientID(ctx context.Context) (string, error) {
 		return k.cfg.TraktClientID, nil
 	}
 	return k.admin.TraktClientID(ctx)
+}
+
+// FanartKeys reads the Fanart.tv keys (environment first, then the encrypted settings).
+func (k *lazyKeys) FanartKeys(ctx context.Context) (string, string, error) {
+	return k.admin.FanartKeys(ctx)
 }
 
 // newPlayback detects the transcode backend (SLOUCHCAT_HW), starts the transcode manager on

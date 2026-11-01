@@ -1,5 +1,528 @@
 # Aktueller Stand
 
+## Nachtrag Konzept 10: «Nur Bilder» bei Ordnern mit einer Quelle (1. November 2026)
+
+Zweig `claude/fix-apply-images-single-source` ab `main` `da5d854` (Merge von PR #58). Befund vom
+`apply`-Lauf auf CT 190 nach dem Merge: die Hintergrund-Kette auf `["", "de", "en"]` gestellt und
+«Nur Bilder» gestartet (Lauf 124231, 2'095 Titel) – alle `metadata.fill`-Kinder endeten in einer
+Sekunde mit `item provenance recorded … fields=0`, keine TMDB-Anfrage, kein Bild neu entschieden.
+Ursache: `fill` kehrt bei einem Ordner mit einer Quelle vor jedem Abruf zurück (`recordIdentifier`,
+Papier 1.1); Bilder entschied bis dahin nur der Match (`matchImages`). Die Bibliothek «Filme» auf
+CT 190 hat nur TMDB. «Texte und Bilder» (Lauf 128425, Match je Titel, rund 6 min) setzte die Kette
+dann um; das ist die Umgehung auf dem Stand 1.6.0.
+
+**Gebaut.** `itemPayload.Images` (Paket `metadata`), `handleFill` ruft damit `fillImages`, das die
+Ein-Quellen-Abkürzung überspringt und die Datensätze holt; `metadata.apply` reiht das Kind mit dem
+Flag und dem Schlüssel `fill:images:<id>` ein (neben einem wartenden `fill:<id>` des Matches, dessen
+Payload das Flag sonst nicht bekäme). Der gewöhnliche `fill` und alle anderen Aufrufer sind
+unverändert; Vertrag unverändert (1.6.0). Papier Abschnitt 14 nachgeführt.
+
+**Belege.** Ohne Fix schlägt `TestApplyImagesRedecidesWithOneProvider` fehl (Hintergrund bleibt
+der ohne Text, obwohl die Kette `en` zuerst nennt); mit Fix:
+
+```
+$ go test ./internal/metadata/
+ok  	github.com/slouchcat/slouchcat/server/internal/metadata
+$ go tool golangci-lint run ./internal/metadata/... ./internal/admin/... ./internal/api/...
+0 issues.
+```
+
+`task ci` lief in dieser Sitzung nicht lokal (der Entwicklungsrechner hatte am 1. November 2026 keinen
+Zugriff auf das Arbeitsverzeichnis unter `/mnt/Nerdcloud`, Klon unter `~/src/slouchcat`); der
+CI-Lauf des Pull Requests ist der Beleg. Offen: Lauf «Nur Bilder» auf CT 190 mit dem Fix-Image.
+
+## Konzept 10 «Metadaten-Einstellungen»: umgesetzt, Pull Request offen (31. Oktober 2026)
+
+Zweig `claude/festive-swanson-7af516` ab `main` `d3d73bc` (Merge von PR #57, Konzept 10). Umsetzung
+nach `docs/planning/10-metadaten-einstellungen.md` Abschnitt 10, ein Commit je Schritt, `task ci`
+grün vor jedem Abschluss (Storybook-Vergleich ab Schritt 5 lokal mit Docker, siehe je Schritt). Marco hat
+am 31. Oktober 2026 alle Fragen wie vorgeschlagen beantwortet (Frage 16) und die Umsetzung
+beauftragt. Alle acht Schritte (0 bis 7) sind committet (PR #58); CT 190 läuft auf dem Kopf des Zweigs,
+der `apply`-Lauf dort ist gemessen. Offen für Marco: Merge und Tag `v1.6.0` (Vertrag 1.6.0,
+Release-Notes-Entwurf unten). Nicht mergen; Marco entscheidet.
+
+### Schritt 0 — Entscheide und Papiere (`b0649e4`, 31. Oktober 2026)
+
+Reiner Doku-Commit: Frage 16 in `docs/planning/04-entscheidungen.md` (Tabellen 11.1 und 11.2 des
+Papiers, Vermerk zu Entscheid 6 mit der Wirkung auf neue Titel), ADR 0018
+`docs/adr/0018-metadaten-sprachen-bilder-freigabeland.md` als Teilnachfolger von ADR 0015 (Abschnitt
+«Bilder») und Ergänzung von ADR 0006 (Trailer-Sprachen) mit Hinweisen in beiden Status-Zeilen, Idee 01
+auf «Übernommen (Teil B)» mit der Restliste aus Abschnitt 1.3 des Papiers, `docs/ideas/README.md`,
+Kommentar an Issue #8 (`issuecomment-6541846035`), Papier auf `d3d73bc` verankert mit neuem Abschnitt
+14 «Abweichungen während der Umsetzung». Dieser Statuseintrag kam erst mit Schritt 1 in die Datei
+(der Schreibvorgang in Schritt 0 landete nicht im Commit).
+
+DoD-Beleg `task ci` auf dem unveränderten Code von `main`:
+
+```
+$ task ci
+… ci:server grün, ci:web: web test FAIL src/features/offline/OfflinePlayer.test.tsx
+  > stops while playing once the rest of the day is played (1159 ms, Timer-Flake)
+$ cd web && npx vitest run src/features/offline/OfflinePlayer.test.tsx
+ Test Files  1 passed (1)   Tests  15 passed (15)
+```
+
+Der eine rote Test war ein Zeitflattern des Offline-Players unter Last (`ci:server` lief parallel);
+allein läuft er grün. Im CI-Lauf von Schritt 1 war er grün (679 passed).
+
+### Schritt 1 — Sprachen (31. Oktober 2026)
+
+**Was gebaut ist.** Migration `00028_metadata_languages.sql` nach Vorlage: `item_texts` und
+`item_genres` neu ohne `CHECK (lang IN ('de','en'))`, `item_texts.rank` (Bestand `de` 0, `en` 1),
+Indizes `item_texts_sort_key` und neu `item_texts_rank`, die Trigger `search_texts_*` und
+`items_genres_*` neu (die Genre-Trigger lesen die Schlüssel des `genres`-Objekts statt fest
+`'de'`/`'en'`), `profiles.metadata_language`. Paket `metadata`: `settings.go` (die zwölf Schlüssel
+`metadata.*` als `Settings` mit Vorgaben, `Validate`, `ValidateTextLangs`, `Effective` noch ohne
+Bibliothek, `AvailableMetadataLanguages`, `ProviderLanguages`), `languages.go` (statische BCP-47-Liste:
+ISO 639-1 plus TMDB-Regionsvarianten, `KnownLanguage`), `textLangs` an allen sechs Stellen des Match
+und im `fill` durch die wirksame Liste ersetzt, `rank` je Zeile, `pruneTexts` (Löschregel 6.1),
+`genresJSON` statt `genres{DE, EN}`, TVDB-Sprachtabelle aus `/languages` mit statischem Rückfall,
+Trailer-Kette in den primären Untersprachen der Liste, Feed-Texte in jeder Sprache der Liste.
+Paket `visibility`: `Scope` trägt Metadaten- und Oberflächensprache, `pickTexts`/`pickGenres` mit
+der Kette «Metadatensprache → Oberflächensprache → Zeilen nach Rang», Sortierschlüssel der
+Bibliotheksseite und Genrefilter in SQL mit beiden Sprachen, Verwaltungssuche und System-Abfragen
+(`admin.sql`, `admin_stats.sql`, `spotlight.sql`, `collections.sql`) mit der Rang-Zeile als dritter
+Stufe. Profil: `metadata_language` im Modell, `updateProfile` prüft gegen die verfügbaren Sprachen
+(422 `metadataLanguage: invalid_value`, `""` setzt zurück), `getSession` liefert
+`availableMetadataLanguages`. Vertrag **1.6.0** (additiv): `Profile.metadataLanguage`,
+`ProfileUpdate.metadataLanguage`, `SessionInfo.availableMetadataLanguages`, Schema
+`MetadataLanguage`; `MetadataProviderInfo.languages` nennt je Quelle die Sprachen der Serverliste,
+die sie liefert. Abweichungen vom Papier mit Begründung in dessen Abschnitt 14.
+
+**Tests** (neu): `TestMigration00028KeepsTriggersAndOpensTheLanguages` (Trigger, Indizes, Ränge,
+Suche nach einem `es`-Text, Genre-Trigger mit drittem Schlüssel, Profilspalte),
+`TestKnownLanguages`, `TestSettingsDefaultsParseAndValidate`,
+`TestMatchFetchesEveryLanguageOfTheListAndPrunesTheRest` (der Blocker-Fall: drei Sprachen über
+einen `[tmdb]`-Ordner, drei TMDB-Anfragen, Ränge 0/1/2, Genres mit drittem Schlüssel; Liste
+schrumpft → `es`-Zeile weg; gesperrtes Feld hält jede Zeile), `TestAvailableAndProviderLanguages`,
+`TestPickTextsChainWithThirdLanguage`, `TestThirdLanguageThroughTheReader` (Detail, Rückfall
+feldweise, Genrefilter und Facette in der dritten Sprache, Buchstabe, Entdecken-Genres),
+`TestContractMetadataLanguage` (Session, 422, Wechsel, Rücksetzen). Angepasst:
+`TestLibraryItemsLetters` (P6 ohne englischen Schlüssel nimmt jetzt den deutschen am Rang 0 statt
+des Dateinamens, das ist die Kette), `TestSetupFlowEndToEnd` (Session trägt die Sprachen).
+
+DoD-Belege:
+
+```
+$ task ci                                   (Zweig b0649e4 + Schritt 1, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün
+server test:   ok  … 33 Pakete (admin 483.8 s, api 440.7 s, store 306 s auf dem NAS-Mount), kein FAIL
+web gen:check, lint grün; web test:  Test Files  85 passed (85)   Tests  679 passed (679)
+storybook:test: permission denied … docker.sock  (kein Docker in dieser Umgebung, wie bei Konzept 07 bis 09;
+                Schritt 1 ändert keine Komponente aus web/src/ui, Baselines unberührt; CI auf GitHub prüft sie)
+$ task build   go build … -X main.version=v1.5.0-8-gb0649e4-dirty -o bin/slouchcat   exit=0
+$ task ci:e2e  479 passed (25.4m), 1 failed: [firefox] admin-streams.spec.ts:39 «its player stops within 5 s»
+$ task e2e -- e2e/admin-streams.spec.ts   1 passed (chromium), 1 failed (firefox, derselbe 5-s-Fall)
+$ go test ./internal/metadata/ -run 'TestKnownLanguages|TestSettingsDefaults|TestMatchFetchesEvery|TestAvailableAndProvider'  ok
+$ go test ./internal/visibility/ -run 'TestPickTexts|TestThirdLanguage|TestLibraryItems'   ok
+$ go test ./internal/api/ -run 'TestContractMetadataLanguage|TestContractProfileLanguage|TestSetupFlowEndToEnd|TestAuthorize'  ok
+$ go test ./internal/store/ -run 'TestMigration00028'   ok
+```
+
+Der eine rote e2e-Fall ist das bekannte 5-Sekunden-Zeitbudget von `admin-streams.spec.ts` in Firefox
+(schon bei Konzept 08 und 09 als zeitabhängig und ohne Bezug notiert; `data-ended-reason` kommt in
+Firefox nach dem Beenden durch den Administrator zu spät). Er berührt keine Zeile dieses Schritts
+(Wiedergabe, nicht Metadaten) und war im Chromium-Lauf grün.
+
+**Messung `listLibraryItems`** (Papier 8, Latte ±10 %): `docs/perf/metadaten.md` Abschnitt 1.
+Fünf Läufe (main zweimal, Zweig mit de+en zweimal, einmal mit `es` als dritter Sprache, je 50'570 Titel
+und 90'802 bzw. 136'203 Textzeilen): die schweren Serienfälle (rund 190 ms p95) liegen in allen Läufen
+innerhalb von 2 %, die leichten Filmfälle schwanken zwischen Läufen desselben Binaries stärker (p50 20 bis
+48 ms) als zwischen den Binaries. Lauf 1 des Zweigs zeigte den doppelten `item_texts`-Join bei gleicher
+Metadaten- und Oberflächensprache; der zweite Join entfällt seither in diesem Fall.
+
+### Schritt 2 — Bilder im Scanner, im `fill` und in der Pipeline (31. Oktober 2026)
+
+**Was gebaut ist.** Migration `00029_item_images.sql` nach Vorlage: `images` neu mit `kind` um
+`logo`, `format` um `png`, `provider` (Rückfüllung nach dem Host der `source_url`); `item_images`
+(entschiedene Quelle je Titel und Art, aus `tmdb_poster_path`/`tmdb_backdrop_path` gefüllt,
+`lang = ''`, Quelle nach Host); `item_local_images` (leer, der nächste Scan füllt sie; mit
+`root_id`, Abschnitt 14 des Papiers). Kandidaten je Quelle: TMDB über `append_to_response=images`
+mit `include_image_language=<Vereinigung der Ketten>,null` am Detail-Abruf der `recordLang`-Sprache
+und an der Staffel (`tmdb.go` `Images`, `imageQuery`; `tmdbProvider.imageLangs` liest die
+Einstellungen je Aufruf), TVDB-Artworks mit `language`, `width`, `height` (Typen 2, 3, 23;
+Sprache über die Tabelle aus `/languages`), AniList Cover und Banner als Vorgabe ohne Sprache,
+lokale Dateien aus `item_local_images` als `file:<rel>?<size>-<mtime>`. Die Wahl in sechs Stufen
+(`images_choice.go`: `chooseImage`, `decideImages`, `imageSources` mit der festen Reihenfolge
+`["local", …Ordnerliste, "fanart"]`, `writeImageDecisions`), eingehängt in den **Match**
+(`matchImages`: der Erkenner als einzige Quelle, auch für Staffelposter und Folgen-Standbild) und
+in den **Fill** (`writeFill`); Match und Fill schreiben die zwei Pfadspalten nicht mehr. Pipeline:
+`image.fetch` liest `item_images` (`imageSource`: TMDB-Pfad, `.svg` → `.png`, TVDB/AniList/Fanart-
+Hosts, `file:` über die Wurzel der Scanner-Zeile), `logo` in `itemImageKinds` für Film und Serie
+(Breiten 400/800), Formate **je Art** (`formatsOf`: Logo PNG und WebP, kein JPEG;
+`transcode.ImagePNG` mit `-c:v png -f image2 -update 1`, Alphakanal bleibt), `scaleLocked` behält den
+Medientyp des Originals, Sperre **mit** Wahl (`chosen = 1`) holt genau diese Quelle, Sperre **ohne**
+Wahl skaliert nur, eine ausgeschaltete Art (`metadata.image_kinds`) verliert Zeilen und Dateien
+beim nächsten Lauf (`dropKind`), eine unbrauchbare Quelle (`errImageSkipped`) überspringt die Art
+mit Warnung statt den Job zu brechen. Scanner: `walkRoot` und die Pfad-Scans sammeln Bilddateien je
+Ordner, `syncLocalImages` (`library/local_images.go`) ordnet sie nach 4.6 zu (Film im eigenen
+Ordner: `poster` > `folder`, `fanart` > `backdrop`, `logo` > `clearlogo`; Film direkt in der Wurzel
+nur `<stem>-…`; Serie über den Serienordner; Staffel `seasonNN-poster`; Folge `<stem>-thumb`;
+`landscape` nie), liest nur den Header über die Wurzel (JPEG, PNG, eigener WebP-Header-Leser) und
+pflegt die Tabelle (Ersetzung über Grösse/Änderungszeit, Entfernung). Vertrag (weiter 1.6.0,
+additiv): `ImageKind` um `logo`, `ItemImages.logo` (vom Server nur in `getItem` gesetzt),
+`getAdminItemImage` nimmt `ImageKind`; `getItemImage` liefert Logos in `w400`/`w800` als WebP oder
+PNG (Rückfall je Art in `GetItemImage`/`AdminGetItemImage`). `ListItemsMissingImages` liest
+`item_images`. Abweichungen vom Papier mit Begründung in dessen Abschnitt 14.
+
+**Tests** (neu): `TestMigration00029CarriesTheImagePathsIntoItemImages`, `TestChooseImageSteps`
+(die sechs Stufen, Stimmenregel, Mindestbreite, «TVDB-de schlägt TMDB-en», zu kleine lokale Datei
+verliert), `TestDecideImagesHonoursLocksChoicesAndSwitches` (Sperre, Wahl, Schalter, «local bleibt
+nach dem zweiten fill», lokale Dateien aus), `TestMatchAndFetchWithLogoAndLanguageChain` (deutsches
+Poster vor englischem, Hintergrund ohne Text, SVG-Logo als PNG geholt, PNG mit Alphakanal und WebP
+abgeleitet, kein JPEG, Logo-Schalter aus löscht Zeilen und Dateien),
+`TestLocalImageBeatsTheProviders` (lokale `poster.jpg` über die Wurzel, zweiter Fill behält sie,
+Schalter aus gibt TMDB), `TestScanListsLocalImagesOfMovies`, `TestScanListsLocalImagesOfSeries`,
+`TestLocalImageOutsideTheRootIsNeverRead` (Symlink aus der Wurzel). Angepasst: `fill_test`
+(Poster-Herkunft `tvdb`, der Fixture-Fall des Papiers), `series_test` und `fill_test` lesen
+`item_images` statt der Spalten.
+
+DoD-Belege:
+
+```
+$ git add -A && task ci                     (Zweig e8290b4 + Schritt 2, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün
+server test:   ok  … 33 Pakete (store 720 s, admin 603 s, api 573 s auf dem NAS-Mount), kein FAIL
+web gen:check, lint grün; web test:  Test Files  85 passed (85)   Tests  679 passed (679)
+storybook:test: permission denied … docker.sock  (kein Docker, wie bei Schritt 1; Schritt 2 ändert keine
+                Komponente aus web/src/ui, Baselines unberührt; CI auf GitHub prüft sie)
+$ task build   go build … -X main.version=v1.5.0-9-ge8290b4-dirty -o bin/slouchcat   exit=0
+$ task ci:e2e  480 passed (25.3m)   A-9 log scan: 77338 lines, 17 secrets of the run, 0 findings
+$ go test ./internal/metadata/ -run 'TestChooseImageSteps|TestDecideImages|TestMatchAndFetchWithLogo|TestLocalImageBeats'  ok
+$ go test ./internal/library/ -run 'TestScanListsLocalImages|TestLocalImageOutsideTheRoot'   ok
+$ go test ./internal/store/ -run 'TestMigration00029'   ok
+$ bash nas-scan.sh bin/slouchcat step2     == step2 scan: 1:done:1789 in 220.4 s (kalt) / 6.2 s (warm)
+                                            local_images ('backdrop', 207) ('logo', 119) ('poster', 210); total 536, titles 211
+$ bash nas-scan.sh bin-main main           == main scan: 1:done:1789 in 8.2 s / 4.2 s (warm)
+```
+
+Das Logo im Cache (DoD «ein Titel mit Logo im Cache», Papier 10 Schritt 2) belegt
+`TestMatchAndFetchWithLogoAndLanguageChain` im Paket `metadata`: der Erkenner liefert ein SVG-Logo,
+`image.fetch` holt es als PNG (`.svg` → `.png`), legt `logo/w400.png`, `logo/w400.webp`,
+`logo/w800.png`, `logo/w800.webp` ab (kein JPEG), und der Alphakanal überlebt die Ableitung
+(`transcode.ImagePNG`). Ein Logo aus der echten TMDB (ohne Schlüssel lokal nicht möglich) folgt in
+Schritt 7 auf CT 190.
+
+**Messung NAS-Scan** (Papier 8, Latte «vernachlässigbar»): `docs/perf/metadaten.md` Abschnitt 2.
+Vier Läufe über `/mnt/nerdnas/medien/Filme` (1'789 Filmordner): der erste, kalte Lauf (220 s) wärmt den
+Verzeichnis-Cache des NAS, unabhängig vom Binary; mit warmem Cache braucht der Zweig 3.6 s statt 3.2 s
+(`main`), also 0.4 s für die Header von 536 Bilddateien in 211 Ordnern (`folder.jpg`, `backdrop.jpg`,
+`logo.png`).
+
+### Schritt 3 — Einstellungen, Vertrag, `metadata.apply`, Freigabeland (31. Oktober 2026)
+
+**Was gebaut ist.** Migration `00030_library_metadata.sql` (Abweichung je Bibliothek: `text_langs`,
+`images` als JSON, `NULL` = wie Server). Paket `metadata`: `LibraryDeviation` (Lesen, Prüfen,
+Speichern, Entfernen bei «alles wie Server»), `Effective(libraryID)` legt die Abweichung über den
+Server-Standard, `AvailableMetadataLanguages` ist die Vereinigung aller Listen (Server zuerst),
+`UpdateSettings` schreibt die zwölf Schlüssel auf einmal nach `Validate`; die Sicht für die
+Verwaltung in `settings_api.go` (`MetadataSettings`, `UpdateMetadataSettings`, `LibraryMetadata`,
+`UpdateLibraryMetadata`, `Apply`; mit `affectedTitles`, `localImageTitles`, `knownLanguages`). Job
+`metadata.apply` (`apply.go`): Ereignis-Jobart im Register (Gruppe `metadata`, Pool `general`,
+Priorität 1, kein `Run`), Payload `{libraryIds, what}`, Idempotenzschlüssel je Umfang; der Handler
+reiht je gematchtem Film und je Serie `metadata.match` ein (`what` mit `texts`) oder `metadata.fill`
+und `image.fetch` (`what = ["images"]`), hebt wartende Kinder an (`RaiseQueuedPriority`) und meldet
+«n Titel eingereiht» als Fortschritt. Freigabeland: `ratingOrder(country)` stellt das gewählte Land
+vor die Kette DE → AT → CH → GB → US, `fskFromCertificationsFirst` liest es zuerst; Match und Fill
+lesen das Land aus den wirksamen Einstellungen; ein Länderwechsel senkt eine gespeicherte Stufe
+derselben Quelle nicht (K-3, Papier 14). `metadata.tmdb_include_adult`: `Client.Search` sendet
+`include_adult=true`, wenn gesetzt (Titelsuche des Matches und Verwaltungssuche). Vertrag 1.6.0
+(additiv) um fünf Operationen mit `x-visibility: admin`: `getMetadataSettings`,
+`updateMetadataSettings` (`PUT /admin/settings/metadata`), `getLibraryMetadata`,
+`updateLibraryMetadata` (`/admin/libraries/{id}/metadata`), `applyMetadata`
+(`POST /admin/metadata/apply`, 202 `{jobId, titles}`); Schemata `MetadataSettings`,
+`MetadataSettingsUpdate`, `ImageLangs`, `LibraryImages`, `LibraryMetadata`,
+`LibraryMetadataUpdate`, `ApplyMetadataRequest`, `ApplyMetadataResponse`. Verwaltung (`admin`)
+reicht die fünf Operationen an `metadata` durch; Handler in
+`api/metadata_settings_handlers.go`; Einträge im Vertragstest (`adminRegistry`).
+
+**Tests** (neu): `TestMigration00030CreatesLibraryMetadata`, `TestEffectiveSettingsWithLibraryDeviation`
+(Abweichung wirkt nur auf die Bibliothek, Vereinigung der Sprachen, 422 `ui_lang_required` und
+`invalid_value`, Rücksetzen, 404, Speichern der Serverliste mit Pflicht `de`),
+`TestApplyQueuesChildrenWithoutDoubles` (Zahl der Titel je Umfang, ein Lauf je Umfang, ein Kind je
+Titel, `images` ohne Match, kein Doppel, Register-Eintrag als Ereignis-Jobart),
+`TestRatingCountryReadFirst` (Reihenfolge, Neuzugang bekommt die Stufe des zuerst gelesenen
+Landes, Länderwechsel senkt nicht; die zwei Fälle aus Papier 9.1 als Metadaten-Tests, Papier 14).
+`TestContractCoversEveryOperation` und `TestContractAdminOperations` decken die fünf Operationen.
+Eingefrorener Stand `testdata/db/metadaten.sql` (Migrationen 00028 bis 00030 in einem Stand, Papier 14)
+mit `TestFrozenMetadatenStateCoversTheConcept`; der Eintrag in `testdata/db/README.md` nennt Herkunft und
+Daten. Zwei Nachbesserungen aus dem CI-Lauf: `TestRegisterTypesSchedules` zählt jetzt neun Handler
+(`metadata.apply` kam dazu), und die Regel «ein Länderwechsel senkt nicht» greift nur noch bei einer
+**echt tieferen** Stufe; bei gleicher Stufe nimmt die Quelle das neu gelesene Land an
+(`TestAssignMatchAndRefresh`: ein neu zugeordneter Titel trug sonst die Quelle `tmdb:DE` seines
+Vorgängers; Papier 14 nachgeführt).
+
+DoD-Belege:
+
+```
+$ git add <Schritt 3> && task ci                (Zweig 50a74f0 + Schritt 3 gestaged, Schritt 4 im Arbeitsbaum;
+                                                Schritt 4 ändert keine Server-Datei)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün; server:gen:check grün
+server test:   ok  … 33 Pakete (api 419.7 s, playback 317.8 s, metadata 311.3 s, library 297.3 s;
+               admin, store aus dem Cache des abgebrochenen Laufs mit demselben Code), kein FAIL
+$ go build ./... && go vet ./internal/{metadata,admin,api,store}/   auf dem gestagten Baum allein (git archive)
+                                                → STEP3-INDEX-BUILDS
+$ bash freeze-metadaten.sh   migration applied 28/29/30; rows: 3 item_images, 1 library_metadata, 1 es texts
+                             → testdata/db/metadaten.sql (1607 Zeilen)
+$ go test ./internal/store/ -run 'TestFrozenMetadaten|TestFrozenStatesMigrate' -count=1   ok (127.0 s)
+$ go test ./internal/metadata/ -run 'TestAssignMatchAndRefresh|TestRegisterTypesSchedules|TestRatingCountryReadFirst' -count=1   ok
+```
+
+Der Web-Teil von `task ci` (Lint, Komponenten- und Storybook-Tests) folgt mit Schritt 4: das Web
+dieses Commits ist nur der generierte Client (`api-client`-Lint lief grün im selben Lauf).
+
+### Schritt 4 — Oberfläche: Seite «Metadaten», Bibliothek, Profil, Logo beim Zuschauer (31. Oktober 2026)
+
+**Was gebaut ist.** Neue Verwaltungsseite `/admin/metadata` (`web/src/features/admin/MetadataPage.tsx`,
+Sektion «Metadaten» in der Gruppe Bibliothek mit dem neuen Icon `image`): **Geltung** als Segmente
+«Standard | <Videobibliothek> …» (über fünf Bibliotheken das `SelectField`), bei einer Bibliothek die
+Schalter «Sprachen abweichend» und «Bilder abweichend», nicht abweichende Abschnitte gedimmt mit «wie
+Server», die globalen Abschnitte ausgeblendet; **Sprachen** als geordnete Chips (Position, nach vorne,
+nach hinten, entfernen; die letzte Oberflächensprache ist nicht entfernbar, E-9), «Sprache wählen»
+über `Intl.DisplayNames`, darunter welche Quelle welche Sprache nicht kennt und die YouTube-Rechnung
+(100 Suchen am Tag geteilt durch die Zahl der Grundsprachen); **Bilder**: Poster und Hintergrund
+«immer», Logo, Staffelposter, Folgenbild als Kontrollkästchen, je Art die Bildsprache-Kette mit «Ohne
+Text»; **Güte** (Mindestbreiten, «Nach Bewertung wählen»), **Quellen** (TMDB-Erwachseneninhalte,
+lokale Dateien mit Zahl der Titel, Fanart.tv mit Link auf Integrationen), **Altersfreigabe** (Land),
+**Anwenden** (Was, Wo mit Titelzahl, «Jetzt anwenden», «Noch wartend» und letzter Lauf aus
+`listJobTypes`); klebende **Speicherleiste** mit «Ungespeicherte Änderungen» / «Gespeichert»,
+«Verwerfen», nach dem Speichern «n Titel betroffen – jetzt anwenden?». Feldfehler des Servers
+(`langs_empty`, `lang_unknown`, `ui_lang_required`, `chain_duplicate`, `country_unknown`) über
+`formErrors` am Abschnitt. Route mit `?library=<id>` (`validateSearch`). Bibliothekskarte: Zeile
+«Metadaten: wie Server» / «Sprachen abweichend» / «Bilder abweichend» mit Link auf die Seite.
+Profil: Feld «Sprache der Beschreibungen» (nur mit dritter Serversprache oder gesetztem Wert, erster
+Eintrag «Wie Oberfläche», die Oberflächensprache selbst fehlt in der Liste), Chip auf der Profilkarte.
+Zuschauer: `TitleOrLogo` (`web/src/ui`) setzt das Logo ins `<h1>` der Detailseite und in die
+Spotlight-Folie, `alt` = Titel, Rückfall auf den Text bei Ladefehler (offline). Texte de/en, keine
+harte Farbe. Stories `UI/TitleOrLogo` (Text, Logo, kaputtes Logo) und eine Spotlight-Folie mit Logo.
+Abweichungen vom Papier mit Begründung in dessen Abschnitt 14 (sechs Zeilen «4»).
+
+**Tests** (neu): `MetadataPage.test.tsx` (sieben Fälle: Standard, Sprache hinzufügen/verschieben/
+speichern, Feldfehler, Bibliotheksabweichung mit `null` für «wie Server», Wechsel der Geltung,
+«Jetzt anwenden», kein Administrator), zwei Fälle in `ProfileSettingsPage.test.tsx` (Feld nur mit
+dritter Sprache), `web/e2e/admin-metadata.spec.ts` (Regel 8: Standard, dritte Sprache per Tastatur
+hinzufügen, verschieben, speichern, entfernen; Land mit Pfeiltasten und «Verwerfen»; Bibliothek
+weicht ab, Karte zeigt es, Link führt zurück; «Jetzt anwenden»; keine Fokusfalle), ein Fall in
+`profiles.spec.ts` (dritte Serversprache, Pfeiltasten, Speichern, Karte, Rücksetzen), `NAV_PAGES` in
+`admin-home.spec.ts` um «Metadaten».
+
+DoD-Belege:
+
+```
+$ task ci:web                (Zweig 546af07 + Schritt 4)
+web:gen:check, tokens grün; web lint: eslint, stylelint (nach Korrektur der Medienabfrage in
+               HeroCarousel.module.css), tsc grün; prettier --check: All matched files use Prettier code style!
+web test:      Test Files  1 failed | 85 passed (86)  (AdminHomePage: die neue Karte «Metadaten» fehlte
+               in den zwei erwarteten Listen des Tests; nachgeführt)
+$ cd web && pnpm exec vitest run          Test Files  86 passed (86)   Tests  688 passed (688)
+$ pnpm -w run lint                        web lint: Done; All matched files use Prettier code style!
+$ pnpm run storybook:build                Storybook build completed successfully
+storybook:test: braucht Docker (nicht auf dem Entwicklungsrechner); die neuen Stories UI/TitleOrLogo und
+               die Spotlight-Folie mit Logo bekommen ihre Baselines auf CT 190 oder in CI (Papier 14)
+$ task build && task e2e -- e2e/admin-metadata.spec.ts e2e/profiles.spec.ts
+               32 passed, 2 failed (Fall «dritte Serversprache»: Pfeil traf zuerst «Englisch»; Test nachgeführt)
+$ task e2e -- e2e/profiles.spec.ts -g "third server language"   2 passed (chromium, firefox)
+```
+
+Der erste e2e-Lauf meldete «kein sichtbarer Fokus» an der Sprachauswahl, weil `task e2e` das zuvor
+gebaute Bündel ausliefert (das alte native `<select>` mit einer nicht definierten Farbvariable im
+Fokusring); nach `task build` mit dem `SelectField` ist der Ring da. `web:gen:check` lief im zweiten
+Durchgang nicht mehr, weil der Arbeitsbaum schon die Vertragsänderung von Schritt 5 trug; deshalb die
+Komponententests und der Lint einzeln (gleicher Stand des Web-Codes).
+
+### Schritt 5 — Bildwahl je Titel (31. Oktober 2026)
+
+**Was gebaut ist.** Paket `metadata`, `image_candidates.go`: `ImageCandidates` fragt live die
+Bilddateien neben dem Medium (`item_local_images`, zuerst), TMDB ohne Sprachfilter
+(`Client.AllImages`: `/movie|tv/{id}/images`, `/tv/{id}/season/{n}/images`) und die TVDB-Artworks
+einer Serie (`tvdbProvider.Artworks`), sortiert je Quelle nach der Sprachkette der Art, dann
+Bewertung, Stimmen und Breite; Vorschau beim Anbieter in `w300` (ein SVG-Logo als PNG-Zwilling),
+lokal über den neuen Vorschau-Handler. Cache im Prozess 10 Minuten je Titel und Art (höchstens 256
+Einträge), `refresh` fragt neu; eine Quelle, die nicht antwortet, steht in `unavailable`.
+`SetItemImage` nimmt nur einen Kandidaten des Titels (abgelaufener Cache wird neu gefüllt, sonst
+422 `source_unknown`), schreibt `item_images` mit `chosen = 1`, sperrt die Art in `locked_fields`,
+setzt die Herkunft und reiht `image.fetch` mit der manuellen Priorität ein. `ClearItemImage` löscht
+Wahl und Sperre und reiht einen manuellen Match ein (Papier 14). `ItemImages` liefert
+`AdminItem.images` (Quelle, Sprache, Vorschau, gewählt, gesperrt; «Sperre ohne Wahl»).
+`LocalImagePreview` liefert nur Dateien, die der Scanner für den Titel gelistet hat, über die
+Wurzel (Regel 4), höchstens 20 MB. Neue Abfrage `SetItemLockedFields`. Vertrag 1.6.0 (additiv) um
+vier Operationen mit `x-visibility: admin`: `listItemImageCandidates`,
+`getItemImageCandidatePreview` (`http.Handler`, Regel 6, vom strict server ausgenommen),
+`setItemImage`, `clearItemImage`; Schemata `ImageCandidate`, `ImageCandidateList`,
+`ItemImageChoice`, `AdminItemImage`, `AdminItem.images`. Oberfläche: Abschnitt «Bilder» in der
+Titelpflege (`ImagesPanel.tsx`: je Art Vorschau, Quelle, Sprache, «von Hand gewählt», «Sperre ohne
+Wahl», «Andere wählen», «Sperre aufheben») mit dem Dialog «<Art> wählen» (Raster
+`ImageCandidateGrid` aus `web/src/ui`, 40 Kacheln, «weitere zeigen», «Neu abfragen», Vorschauen ohne
+Referrer). Texte de/en, Feldfehler `source_unknown`.
+
+**Tests** (neu): `TestImageChoiceSurvivesApply` (Kandidaten in Kettenreihenfolge, Cache und
+`refresh`, SVG-Vorschau als PNG, 422 `source_unknown` und `kind`, Wahl mit Sperre und Job p7,
+`ItemImages`, **DoD: ein `apply` mit Texten und Bildern behält das gewählte, gesperrte Poster**,
+Sperre aufheben gibt die automatische Wahl zurück), `TestLocalImagePreviewServesOnlyListedFiles`
+(gelistete Datei ja; ungelistete, `..`, falsche Version, Anbieterpfad: 404); Vertragstest um die
+vier Operationen; drei Komponententests in `AdminItemPage.test.tsx`; e2e-Fall in
+`admin-item.spec.ts` (Regel 8: Raster mit Pfeiltasten, Enter wählt, Escape schliesst, Fokus zurück
+auf «Andere wählen», keine Fokusfalle); Story `UI/ImageCandidateGrid`.
+
+Storybook-Baselines: Docker ist auf dem Entwicklungsrechner jetzt verfügbar, `storybook:test` lief im
+CI-Lauf. Neu bzw. geändert und von Hand geprüft: `ui-titleorlogo--{text,logo,broken-logo}`,
+`ui-imagecandidategrid--{posters,landscape,empty}`, `ui-herocarousel--{poster-only,active-poster}`
+(die Folie «Glut» trägt seit Schritt 4 ein Logo). Die Logo-Fixture der Stories war zuerst ein in
+breiter Box zentriertes SVG und stand dadurch eingerückt; sie ist jetzt eng beschnitten wie ein
+echtes Logo. Damit sind auch die Baselines der Stories aus Schritt 4 nachgeholt.
+
+DoD-Belege:
+
+```
+$ git add -A && task ci                    (Zweig a161762 + Schritt 5, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün; gen:check grün
+server test:   ok  … 33 Pakete, kein FAIL
+web lint grün; web test:  Test Files  86 passed (86)   Tests  691 passed (691)
+storybook:test: 192 passed, 8 failed (2 geänderte HeroCarousel-Bilder, 6 neue Stories ohne Baseline)
+$ task web:storybook:update -- -g "herocarousel--poster-only|herocarousel--active-poster|imagecandidategrid|titleorlogo"
+                                           8 passed (Bilder geprüft, Logo-Fixture gestrafft, erneut geschrieben)
+$ task storybook:test                      200 passed (15.2s)
+$ go test ./internal/metadata/ -run 'TestImageChoiceSurvivesApply|TestLocalImagePreviewServesOnlyListedFiles' -count=1   ok
+$ go test ./internal/api/ -run 'TestContract' -count=1                                                                 ok
+$ task build && task e2e -- e2e/admin-item.spec.ts --repeat-each=2        28 passed (chromium, firefox)
+```
+
+**DoD «ein Titel mit gewähltem und gesperrtem Poster überlebt einen `apply`»:**
+`TestImageChoiceSurvivesApply` wählt das englische Poster (`setItemImage`), startet `applyMetadata`
+mit `texts` und `images`, lässt den Elternlauf, den Match und den Fill laufen und findet danach
+weiter `item_images` = `/en-poster.jpg`, `chosen = 1`, `poster` in `locked_fields`; erst
+`clearItemImage` gibt die automatische Wahl (deutsches Poster) zurück.
+
+### Schritt 6 — Fanart.tv (31. Oktober 2026)
+
+**O-4 geprüft** (Papier 14): gegen den offiziellen Client `@fanart-tv/api` 1.2.0 (README in der
+npm-Registry; `api.fanart.tv` steht hinter einer Browser-Prüfung). API `webservice.fanart.tv/v3.2`
+mit Breite und Höhe je Bild; Projektschlüssel `api_key` und persönlicher Schlüssel `client_key` als
+Query oder Header; kein Kontingent, 429 mit `Retry-After` bei Übernutzung; neue Bilder nach 7
+(Projekt) bzw. 2 Tagen (persönlich); Vorschau über `/preview/` statt `/fanart/`.
+
+**Was gebaut ist.** `metadata/fanart.go`: Anbieter mit eigenem Begrenzer (2 Anfragen/s), Schlüssel
+**als Header** `api-key`/`client-key` (nie in der Adresse), Filme über die TMDB-, Serien über die
+TVDB-Id; Felder `hdmovielogo`/`movielogo`, `movieposter`, `moviebackground`/`movie4kbackground`
+bzw. `hdtvlogo`/`clearlogo`, `tvposter`, `showbackground`/`show4kbackground`; Sprache `00` = ohne
+Text, `likes` als Bewertung; nur Adressen des Asset-Hosts werden Kandidat. Gefragt wird nur mit
+Schalter (`metadata.fanart_enabled`) **und** Projektschlüssel; ein Fehler von Fanart.tv lässt Match
+und Fill weiterlaufen (Warnung im Log). Eingebunden im Match (Erkenner, `TitleRecord.Fanart`), im
+Fill (letzter Datensatz) und in der Bildwahl je Titel (letzte Quelle, CDN-Vorschau); die Wahl in
+sechs Stufen nimmt Fanart.tv wie geplant zuletzt. Schlüssel: `AdminSettingsKeys.fanart` und
+`fanartClient` (Vertrag 1.6.0, additiv), `fanart_api_key`/`fanart_client_key` verschlüsselt in
+`settings`, `SLOUCHCAT_FANART_API_KEY`/`SLOUCHCAT_FANART_CLIENT_KEY` (Umgebung gewinnt, beide aus
+derselben Quelle), zwei Felder auf «Integrationen», `deploy/.env.example`, `compose.yaml`,
+`deploy/README.md`. Redaction: `clientkey` in den Attributnamen, `client_key` in der Query-Regel.
+
+**Tests** (neu): `TestFanartNeverAskedWithoutKeyOrSwitch` (Schalter ohne Schlüssel, Schlüssel ohne
+Schalter: Match, Fill und Bildwahl fragen nie), `TestFanartLogoInCache` (DoD: TMDB ohne Logo, das
+deutsche Fanart-Logo gewinnt, `image.fetch` legt `logo/w400|w800` als PNG und WebP ab; das deutsche
+TMDB-Poster schlägt das textlose Fanart-Poster; Schlüssel nur als Header, nie in Adresse oder Log;
+Kandidat mit `/preview/`; fremder Host nie Kandidat); `TestIsSensitiveKey` um die Fanart-Namen;
+Integrationen-Komponententests mit den zwei Schlüsseln.
+
+Nachzug aus Schritt 4, den erst der volle e2e-Lauf zeigte: `admin-home.spec.ts` zählt 18 Karten (die
+Karte «Metadaten» kam dazu), `admin-libraries.spec.ts` gibt dem Tab bis zum Namensfeld 80 statt 40
+Schritte (jede Videobibliothek trägt jetzt den Link «Metadaten der Bibliothek», Firefox hält dort).
+
+DoD-Belege:
+
+```
+$ git add -A && task ci                    (Zweig 49c74a4 + Schritt 6, alles gestaged)
+server lint:   0 issues.   itemsaccess, go vet, testgroups --check grün; gen:check grün
+server test:   ok  … 33 Pakete, kein FAIL
+web lint:      prettier --check: web/src/features/admin/IntegrationsPage.tsx (Zeilenumbruch der KEYS-Liste;
+               korrigiert)
+$ pnpm -w run lint                         web lint: Done; All matched files use Prettier code style!
+$ cd web && pnpm exec vitest run           Test Files  86 passed (86)   Tests  691 passed (691)
+$ task storybook:test                      200 passed (15.1s)
+$ task build && task ci:e2e                489 passed, 5 failed (26.2m): admin-home Tab-Fall (chromium, firefox:
+               17 statt 18 Karten), admin-libraries zwei Fälle (firefox: Tab-Budget 40), admin-streams 5-s-Fall (firefox)
+$ task e2e -- e2e/admin-home.spec.ts e2e/admin-libraries.spec.ts e2e/admin-streams.spec.ts
+                                           29 passed, 1 failed: [firefox] admin-streams.spec.ts:39 «its player stops within 5 s»
+$ go test ./internal/metadata/ -run 'TestFanart' -count=1                  ok
+$ go test ./internal/logging/ -count=1                                    ok
+```
+
+Der eine rote Fall ist das bekannte 5-Sekunden-Zeitbudget von `admin-streams.spec.ts` in Firefox (Schritt 1,
+Konzepte 08 und 09); er berührt keine Zeile dieses Konzepts.
+
+### Schritt 7 — Abnahme, Messung, Doku (31. Oktober 2026)
+
+**CT 190** läuft seit 16:01 Uhr auf `ghcr.io/slouchcat/slouchcat:metadaten-19251ac` (`v1.5.0-14-g19251ac`,
+Kopf nach Schritt 6), gebaut auf dem CT aus `git archive 19251ac` (Skripte im ignorierten Ordner `.omc/ct190/`,
+Umstellung über das Terminal-Panel), Sicherung `.env.bak-vor-metadaten`, davor `1.5.0`. Die Migrationen
+00028 bis 00030 liefen in 0.9 / 0.7 / 0.2 s nach der Datenbanksicherung `pre-migration-v1.5.0-14-g19251ac-…`;
+Start 3.9 s, gesund nach 7 s. Messwerte und Startzustand in `docs/perf/metadaten.md` Abschnitt 3
+(2'093 Filme, 2 Serien; 4'480 Bildquellen aus den TMDB-Spalten; 208 Bilddateien in 91 Titelordnern
+kurz nach dem Start; Cache 9.7 GB).
+
+**`apply` auf CT 190** (Marco startete ihn um 16:25 Uhr, `docs/perf/metadaten.md` 3.1): 2'095 Titel,
+Zuordnungen in 16.3 min, letztes Bild nach 20.1 min, 0 fehlgeschlagene Jobs; Cache 9.7 → 12 GB; 2'046
+Titel haben jetzt ein Logo, 1'337 ein deutsches Poster (vorher 60). Live belegt: TMDB liefert zu jedem
+der 23 gewählten SVG-Logos die PNG-Fassung (O-3). Offen bleibt nur der Live-Beleg der Sprachcodes ohne
+Region (Schritt 1): Marcos Liste hat keine dritte Sprache.
+
+**Nachtrag Bildschärfe im Spotlight** (Marcos Rückmeldung nach dem `apply`, 31. Oktober 2026): das
+Spotlight lud höchstens `w1280`, obwohl `w1920` im Cache lag; auf CT 190 sind 1'107 Hintergrund-Originale
+3840 px breit oder mehr, weitere 156 mindestens 2560 px. Jetzt bieten Spotlight, Detailseite, Vorab-Bild
+und `Link`-Header `w1920` und die neue Stufe `w3840` an (nur aus Originalen ab 2560 px, nie hochskaliert,
+mit echter Breite im `srcset`; `ItemImages.backdropUhd`, `getItemImage` `w3840`). Bestehende Titel
+bekommen sie mit dem nächsten Scan. Auf CT 190 (`metadaten-e86f520`, 17:10 Uhr) hatten nach dem Startscan 956 Titel `w3840`,
+nach rund 6 min, Cache 12 → 14 GB (`docs/perf/metadaten.md` 3.2). Tests: `TestSizesFor`, `TestBackdropUhdFromWideOriginal` (4000 px →
+3840, 2600 px bleibt, 2000 px ohne; der Scan-Check reiht fehlende Titel ein), `TestHeroPrepaint`,
+`TestStartPagePreloadHeaders`, ein Fall in `HomePage.test.tsx`; Papier 14 «Nachtrag».
+
+```
+$ git add -A && task ci                    (Zweig a5abade + Nachtrag)
+server: 0 issues, gen:check grün, 33 Pakete ok; web lint grün; web test: 86 Dateien, 692 Tests passed
+storybook:test: 200 passed (16.7s); task ci:e2e: 493 passed, 1 failed (25.5m):
+               [firefox] admin-streams.spec.ts:39 «its player stops within 5 s» (bekannt, ohne Bezug)
+```
+
+**Versionsstellen** auf 1.6.0: `deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+`docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`. Den Tag `v1.6.0` setzt Marco nach dem Merge
+(HANDOVER, Beschriftung = Release-Notes).
+
+**Release-Notes-Entwurf 1.6.0** (C-5, nicht brechend; erste Zeile nach 5.4):
+
+- Metadaten-Einstellungen: Sprachen als Liste, Bildsprache und Logo, lokale Bilddateien,
+  Freigabeland, Bildwahl je Titel; Vertrag 1.6.0 fügt hinzu, nichts entfällt.
+- Verwaltung, neue Seite «Metadaten» (Bibliothek → Metadaten): die Sprachen, in denen die
+  Metadatenquellen Titel, Beschreibungen und Genres liefern, als geordnete Liste (Deutsch Pflicht,
+  jede weitere Sprache wird für jeden Titel geholt; die Reihenfolge ist der Rückfall); je Bildart
+  (Poster, Hintergrund, Logo) eine Sprachkette mit «Ohne Text»; Schalter für Logo, Staffelposter
+  und Folgenbild; Mindestbreiten und «Nach Bewertung wählen»; TMDB-Erwachseneninhalte bei der
+  Suche; lokale Bilddateien als Quelle; Fanart.tv; das Land, dessen Altersfreigabe zuerst gelesen
+  wird (DE, AT, CH, GB, US). Jede Videobibliothek kann bei Sprachen und Bildern abweichen. Neue
+  Einstellungen gelten für neue Titel sofort; «Jetzt anwenden» bringt bestehende Titel nach (Lauf
+  unter Hintergrundjobs).
+- Profile: «Sprache der Beschreibungen», sobald der Server eine dritte Sprache führt; die
+  Oberfläche bleibt Deutsch oder Englisch.
+- Bilder: Spotlight und Detailseite laden Hintergründe bis 1920 px und, wo das Original mindestens
+  2560 px breit ist, in einer neuen Stufe bis 3840 px für 4K- und Retina-Bildschirme (nie hochskaliert);
+  Logos (PNG und WebP, nie JPEG) auf der Detailseite und im Spotlight statt des Text-Titels; Bilddateien neben dem Film (`poster.jpg`/`folder.jpg`, `fanart.jpg`/`backdrop.jpg`,
+  `logo.png`/`clearlogo.png`, `seasonNN-poster.jpg`, `<Datei>-thumb.jpg`) gewinnen, wenn sie breit
+  genug sind; Fanart.tv als letzte Quelle mit Schlüssel unter «Integrationen» oder
+  `SLOUCHCAT_FANART_API_KEY`/`SLOUCHCAT_FANART_CLIENT_KEY`.
+- Titelpflege: Abschnitt «Bilder» mit den Kandidaten aller Quellen je Art; eine eigene Wahl sperrt
+  die Art und überlebt «Anwenden» und «Aktualisieren», «Sperre aufheben» gibt die automatische Wahl
+  zurück.
+- Altersfreigabe: eine gespeicherte Stufe wird durch einen Länderwechsel nie gesenkt; ein neuer
+  Titel bekommt die Stufe des zuerst gelesenen Landes.
+- Vertrag 1.6.0, additiv: `getMetadataSettings`, `updateMetadataSettings`, `getLibraryMetadata`,
+  `updateLibraryMetadata`, `applyMetadata`, `listItemImageCandidates`,
+  `getItemImageCandidatePreview`, `setItemImage`, `clearItemImage` (alle `admin`);
+  `Profile.metadataLanguage`, `SessionInfo.availableMetadataLanguages`, `ImageKind` `logo`,
+  `ItemImages.logo`, `ItemImages.backdropUhd` mit der Grösse `w3840` in `getItemImage`, `AdminItem.images`,
+  `AdminSettingsKeys.fanart`/`fanartClient`.
+- Datenbank: Migrationen 00028 (Rang der Textsprachen, Metadatensprache des Profils), 00029
+  (`item_images`, `item_local_images`, Bildart `logo`, Format `png`), 00030
+  (`library_metadata`); vor dem Lauf sichert der Server die Datenbank wie immer.
+- Hinweis: Bestehende Titel behalten ihre Bilder und Texte, bis «Jetzt anwenden» läuft. Der erste
+  Scan nach dem Update liest die Bilddateien neben den Medien (nur den Kopf jeder Datei).
+
 ## Konzept 09 abgeschlossen, Release 1.5.0, CT 190 (31. Oktober 2026)
 
 **Veröffentlicht am 31. Oktober 2026:** PR #55 (`claude/vigorous-raman-651439`, 11 Commits bis

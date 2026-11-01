@@ -42,6 +42,13 @@ const (
 	EnvTVDBPin        = "SLOUCHCAT_TVDB_PIN"
 	EnvYouTubeKey     = "SLOUCHCAT_YOUTUBE_API_KEY"
 
+	// Fanart.tv (concept 10 step 6): a project key and an optional personal client key, paired
+	// by source like the TVDB key and PIN.
+	SettingFanartKey    = "fanart_api_key"
+	SettingFanartClient = "fanart_client_key"
+	EnvFanartKey        = "SLOUCHCAT_FANART_API_KEY"
+	EnvFanartClient     = "SLOUCHCAT_FANART_CLIENT_KEY"
+
 	maxLibraryName = 80
 	maxLibraryPath = 4096
 	maxTMDBKeyLen  = 1024
@@ -119,8 +126,26 @@ type Metadata interface {
 	AddManualTrailer(ctx context.Context, itemID, lang, youtubeID string) (model.Trailer, error)
 	// DeleteTrailer removes a trailer of the title (model.ErrNotFound).
 	DeleteTrailer(ctx context.Context, itemID string, trailerID int64) error
+	// ProviderLanguages names, per provider, the languages of the server's metadata language
+	// list it delivers (ADR 0018, listMetadataProviders).
+	ProviderLanguages(ctx context.Context) (map[string][]string, error)
+	// Metadata settings of concept 10 (ADR 0018): the server's settings, a library's deviation
+	// and the apply run (*model.ValidationError, model.ErrNotFound).
+	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
+	UpdateMetadataSettings(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error)
+	LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error)
+	UpdateLibraryMetadata(ctx context.Context, libraryID int64, textLangs *[]string, images *model.LibraryImages) (model.LibraryMetadata, error)
+	Apply(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error)
 	// ListTrailersSystem lists every trailer of a title, unfiltered.
 	ListTrailersSystem(ctx context.Context, itemID string) ([]model.Trailer, error)
+	// The image choice per title (concept 10 6.4, 7.3): candidates of every source, choose and
+	// lock, lift the lock, the decided sources, the preview of a local file (model.ErrNotFound,
+	// *model.ValidationError).
+	ImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error)
+	SetItemImage(ctx context.Context, itemID, kind, provider, source string) error
+	ClearItemImage(ctx context.Context, itemID, kind string) error
+	ItemImages(ctx context.Context, itemID string) ([]model.AdminItemImage, error)
+	LocalImagePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 }
 
 // ErrNotConfigured: a maintenance operation needs a collaborator that was not wired
@@ -370,6 +395,22 @@ func (s *Service) TVDBKey(ctx context.Context) (key, pin string, err error) {
 	return key, pin, nil
 }
 
+// FanartKeys returns the Fanart.tv project key and the optional personal client key from one
+// source: both from the environment when the key is set there, else both from their encrypted
+// settings; "" when not configured.
+func (s *Service) FanartKeys(ctx context.Context) (key, client string, err error) {
+	if key := strings.TrimSpace(s.getenv(EnvFanartKey)); key != "" {
+		return key, strings.TrimSpace(s.getenv(EnvFanartClient)), nil
+	}
+	if key, err = s.secretKey(ctx, "", SettingFanartKey); err != nil {
+		return "", "", err
+	}
+	if client, err = s.secretKey(ctx, "", SettingFanartClient); err != nil {
+		return "", "", err
+	}
+	return key, client, nil
+}
+
 // YouTubeKey returns the YouTube Data API key from the environment or else from its encrypted
 // setting; "" when not configured.
 func (s *Service) YouTubeKey(ctx context.Context) (string, error) {
@@ -486,10 +527,26 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 	if err != nil {
 		return nil, err
 	}
+	// The languages of the server's list each provider delivers (ADR 0018; a language of the list
+	// missing at a provider is skipped there).
+	langs := map[string][]string{model.ProviderTMDB: {"de", "en"}, model.ProviderTVDB: {"de", "en"}, model.ProviderAniList: {"en"}}
+	if s.meta != nil {
+		pl, err := s.meta.ProviderLanguages(ctx)
+		if err != nil {
+			return nil, err
+		}
+		langs = pl
+	}
+	nonNil := func(v []string) []string {
+		if v == nil {
+			return []string{}
+		}
+		return v
+	}
 	infos := []model.MetadataProviderInfo{
-		{ID: model.ProviderTMDB, Configured: tmdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
-		{ID: model.ProviderTVDB, Configured: tvdbKey != "", Roles: []string{"identify", "fill"}, Languages: []string{"de", "en"}},
-		{ID: model.ProviderAniList, Configured: s.anilist, Roles: []string{"fill"}, Languages: []string{"en"}},
+		{ID: model.ProviderTMDB, Configured: tmdbKey != "", Roles: []string{"identify", "fill"}, Languages: nonNil(langs[model.ProviderTMDB])},
+		{ID: model.ProviderTVDB, Configured: tvdbKey != "", Roles: []string{"identify", "fill"}, Languages: nonNil(langs[model.ProviderTVDB])},
+		{ID: model.ProviderAniList, Configured: s.anilist, Roles: []string{"fill"}, Languages: nonNil(langs[model.ProviderAniList])},
 		{ID: model.ProviderLocal, Configured: true, Roles: []string{"identify"}, Languages: []string{}},
 	}
 	for i := range infos {

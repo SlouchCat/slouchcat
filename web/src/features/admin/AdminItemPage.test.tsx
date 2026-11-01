@@ -246,6 +246,134 @@ describe('admin item page', () => {
     expect(screen.queryByRole('button', { name: 'Zuordnen' })).not.toBeInTheDocument();
   });
 
+  it('shows the decided images per kind with source, language and lock (concept 10 7.3)', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () =>
+        json({
+          ...item,
+          images: [
+            {
+              kind: 'poster',
+              provider: 'tmdb',
+              lang: 'de',
+              source: '/p.jpg',
+              previewUrl: 'https://image.tmdb.org/t/p/w300/p.jpg',
+              chosen: true,
+              locked: true,
+            },
+            { kind: 'backdrop', chosen: false, locked: true },
+          ],
+        }),
+    });
+    renderApp(base);
+    const images = await screen.findByRole('region', { name: 'Bilder' });
+    const rows = within(images).getAllByRole('listitem');
+    expect(rows).toHaveLength(3);
+    expect(within(rows[0]!).getByText('Poster')).toBeVisible();
+    expect(within(rows[0]!).getByText('TMDB')).toBeVisible();
+    expect(within(rows[0]!).getByText('Deutsch')).toBeVisible();
+    expect(within(rows[0]!).getByText('von Hand gewählt')).toBeVisible();
+    expect(within(rows[1]!).getByText('Sperre ohne Wahl')).toBeVisible();
+    expect(within(rows[2]!).getByText('Kein Bild')).toBeVisible();
+    // Only a locked kind offers to lift the lock.
+    expect(within(rows[0]!).getByRole('button', { name: 'Sperre aufheben' })).toBeVisible();
+    expect(within(rows[2]!).queryByRole('button', { name: 'Sperre aufheben' })).toBeNull();
+  });
+
+  it('chooses a candidate from the grid and lifts a lock again', async () => {
+    let current: AdminItem = { ...item, images: [] };
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () => json(current),
+      [`GET ${base}/image-candidates`]: () =>
+        json({
+          candidates: [
+            {
+              provider: 'local',
+              lang: '',
+              width: 600,
+              height: 900,
+              score: 0,
+              voteCount: 0,
+              source: 'file:Alien/poster.jpg?1-1',
+              previewUrl: '/api/v1/preview',
+              chosen: false,
+            },
+            {
+              provider: 'tmdb',
+              lang: 'en',
+              width: 2000,
+              height: 3000,
+              score: 5.4,
+              voteCount: 12,
+              source: '/en.jpg',
+              previewUrl: 'https://image.tmdb.org/t/p/w300/en.jpg',
+              chosen: true,
+            },
+          ],
+          unavailable: ['tvdb'],
+        }),
+      [`PUT ${base}/images/poster`]: () => {
+        current = {
+          ...item,
+          images: [
+            {
+              kind: 'poster',
+              provider: 'local',
+              lang: '',
+              source: 'file:Alien/poster.jpg?1-1',
+              chosen: true,
+              locked: true,
+            },
+          ],
+        };
+        return json(current);
+      },
+      [`DELETE ${base}/images/poster`]: () => {
+        current = { ...item, images: [] };
+        return json(current);
+      },
+    });
+    renderApp(base);
+    const user = userEvent.setup();
+    const images = await screen.findByRole('region', { name: 'Bilder' });
+    await user.click(within(images).getAllByRole('button', { name: 'Andere wählen' })[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Poster wählen' });
+    expect(
+      await within(dialog).findByText(
+        'Nicht erreichbar: TVDB. Die Liste zeigt die übrigen Quellen.',
+      ),
+    ).toBeVisible();
+    const grid = within(dialog).getByRole('listbox', { name: 'Kandidaten für Poster' });
+    const tiles = within(grid).getAllByRole('option');
+    expect(tiles).toHaveLength(2);
+    expect(tiles[0]).toHaveAccessibleName('Ohne Text, 600 × 900 · Lokale Datei wählen');
+    expect(within(tiles[1]!).getByText('aktuell')).toBeVisible();
+    await user.click(tiles[0]!);
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+      provider: 'local',
+      source: 'file:Alien/poster.jpg?1-1',
+    });
+    expect(
+      await screen.findByText('Poster gewählt und gesperrt; das Bild wird geholt.'),
+    ).toBeVisible();
+
+    await user.click(await within(images).findByRole('button', { name: 'Sperre aufheben' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
+    expect(
+      await screen.findByText('Sperre für Poster aufgehoben; die automatische Wahl läuft.'),
+    ).toBeVisible();
+  });
+
+  it('offers no image section for an episode', async () => {
+    mockApi({ ...signedIn, [`GET ${base}`]: () => json({ ...item, kind: 'episode' }) });
+    renderApp(base);
+    await screen.findByRole('heading', { level: 1, name: 'Alien' });
+    expect(screen.queryByRole('region', { name: 'Bilder' })).toBeNull();
+  });
+
   it('answers an unknown title and a profile without rights', async () => {
     mockApi({ ...signedIn, [`GET ${base}`]: () => problem(404, 'not_found') });
     const { unmount } = renderApp(base);

@@ -67,6 +67,7 @@ type providerFields struct {
 	provider     string
 	values       fieldValues
 	genres       map[string][]string
+	images       []ImageCandidate // the provider's posters, backdrops and logos (ADR 0018)
 	rating       *int
 	ratingSource string // rating_source when this provider's rating wins ("tmdb:DE", "anilist")
 }
@@ -95,8 +96,9 @@ func parseVote(s string) (float64, bool) {
 	return v, true
 }
 
-// titleFields maps a TMDB or TVDB record onto the fields.
-func titleFields(rec TitleRecord) providerFields {
+// titleFields maps a TMDB or TVDB record onto the fields; country is the rating country read
+// first (metadata.rating_country).
+func titleFields(rec TitleRecord, country string) providerFields {
 	pf := providerFields{provider: rec.Provider, values: fieldValues{}, genres: map[string][]string{}}
 	for lang, t := range rec.Texts {
 		pf.set("title", lang, t.Title)
@@ -111,15 +113,14 @@ func titleFields(rec TitleRecord) providerFields {
 	if rec.VoteAverage > 0 {
 		pf.set(fieldVoteAverage, "", formatVote(rec.VoteAverage))
 	}
-	pf.set("poster", "", rec.PosterPath)
-	pf.set("backdrop", "", rec.BackdropPath)
+	pf.images = rec.Images
 	for lang, names := range rec.Genres {
 		if len(names) > 0 {
 			pf.genres[lang] = names
 		}
 	}
-	if rating, country := FSKFromCertifications(rec.Certifications); rating != nil {
-		pf.rating, pf.ratingSource = rating, rec.Provider+":"+country
+	if rating, from := fskFromCertificationsFirst(rec.Certifications, country); rating != nil {
+		pf.rating, pf.ratingSource = rating, rec.Provider+":"+from
 	}
 	return pf
 }
@@ -132,7 +133,10 @@ func seasonFields(provider string, rec SeasonRecord) providerFields {
 		pf.set("overview", lang, t.Overview)
 	}
 	pf.set("release_date", "", rec.AirDate)
-	pf.set("poster", "", rec.PosterPath)
+	pf.images = rec.Images
+	if rec.PosterPath != "" && !slices.ContainsFunc(rec.Images, func(c ImageCandidate) bool { return c.Source == rec.PosterPath }) {
+		pf.images = append(pf.images, ImageCandidate{Kind: "poster", Source: rec.PosterPath, Default: true})
+	}
 	return pf
 }
 
@@ -147,7 +151,9 @@ func episodeFields(provider string, rec EpisodeRecord) providerFields {
 	if rec.Runtime > 0 {
 		pf.set("runtime_minutes", "", strconv.Itoa(rec.Runtime))
 	}
-	pf.set("backdrop", "", rec.StillPath)
+	if rec.StillPath != "" {
+		pf.images = []ImageCandidate{{Kind: "backdrop", Source: rec.StillPath, Default: true}} // the still is the episode's backdrop (4.4.3)
+	}
 	return pf
 }
 
@@ -220,16 +226,31 @@ func strictestRating(candidates []providerFields) (*int, string) {
 }
 
 func (s *Service) handleFill(ctx context.Context, j *jobs.Job) error {
-	itemID, err := parsePayload(j)
+	p, err := parseItemPayload(j)
 	if err != nil {
 		return err
 	}
-	return s.fill(ctx, itemID)
+	if p.Images {
+		return s.fillImages(ctx, p.ItemID)
+	}
+	return s.fill(ctx, p.ItemID)
 }
 
 // fill runs the job for one title. Transient provider errors are returned so the queue retries;
 // a title that is gone, not matched or of another kind ends the job quietly.
 func (s *Service) fill(ctx context.Context, itemID string) error {
+	return s.fillTitle(ctx, itemID, false)
+}
+
+// fillImages is the fill of a metadata.apply for the images (apply.go): it fetches the records
+// even for a folder with one provider, so decideImages sees the candidates and the image chains
+// of the settings reach the title. The ordinary fill makes no request then (1.1), and the match
+// alone decided the images; without this the apply changed nothing for such folders.
+func (s *Service) fillImages(ctx context.Context, itemID string) error {
+	return s.fillTitle(ctx, itemID, true)
+}
+
+func (s *Service) fillTitle(ctx context.Context, itemID string, images bool) error {
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
@@ -249,7 +270,7 @@ func (s *Service) fill(ctx context.Context, itemID string) error {
 	if len(order) == 0 {
 		order = []string{model.ProviderTMDB}
 	}
-	if len(order) == 1 {
+	if len(order) == 1 && !images {
 		return s.recordIdentifier(ctx, item, order[0])
 	}
 
@@ -305,6 +326,11 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 	var out []fetchedRecord
 	var skipped []string
 	anilistID := int64(-1)
+	settings, err := s.Effective(ctx, item.LibraryID)
+	if err != nil {
+		return nil, 0, nil, fmt.Errorf("metadata.fill: %w", err)
+	}
+	langs := settings.TextLangs
 	for _, p := range order {
 		switch p {
 		case model.ProviderTMDB:
@@ -316,12 +342,12 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 				continue
 			}
 			id := strconv.FormatInt(item.TmdbID.Int64, 10)
-			rec, err := s.titleRecord(ctx, s.tmdb, item.Kind, id)
+			rec, err := s.titleRecord(ctx, s.tmdb, item.Kind, id, langs)
 			if err != nil {
 				return nil, 0, nil, err
 			}
 			if rec != nil {
-				out = append(out, fetchedRecord{p, id, titleFields(*rec)})
+				out = append(out, fetchedRecord{p, id, titleFields(*rec, settings.RatingCountry)})
 			}
 		case model.ProviderTVDB:
 			if item.Kind != "series" || !item.TvdbID.Valid || item.TvdbID.Int64 <= 0 {
@@ -332,12 +358,12 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 				continue
 			}
 			id := strconv.FormatInt(item.TvdbID.Int64, 10)
-			rec, err := s.titleRecord(ctx, s.tvdb, item.Kind, id)
+			rec, err := s.titleRecord(ctx, s.tvdb, item.Kind, id, langs)
 			if err != nil {
 				return nil, 0, nil, err
 			}
 			if rec != nil {
-				out = append(out, fetchedRecord{p, id, titleFields(*rec)})
+				out = append(out, fetchedRecord{p, id, titleFields(*rec, settings.RatingCountry)})
 			}
 		case model.ProviderAniList:
 			if !s.anilist.Configured(ctx) {
@@ -367,21 +393,30 @@ func (s *Service) fetchTitleRecords(ctx context.Context, item systemq.Item, orde
 		s.log.Warn("metadata provider in the list of a title but not configured, skipped",
 			"item_id", item.ID, "provider", p)
 	}
+	// Fanart.tv, the last image source (concept 10 step 6): images only, after the list.
+	fanartID := item.TmdbID.Int64
+	if item.Kind == "series" {
+		fanartID = item.TvdbID.Int64
+	}
+	if imgs := s.fanartImages(ctx, item.ID, item.Kind, fanartID); len(imgs) > 0 {
+		out = append(out, fetchedRecord{provider: ImageSourceFanart, id: strconv.FormatInt(fanartID, 10),
+			fields: providerFields{provider: ImageSourceFanart, images: imgs}})
+	}
 	return out, anilistID, skipped, nil
 }
 
 // titleRecord fetches the movie or series record of one provider; nil when the provider does
 // not know the id any more.
-func (s *Service) titleRecord(ctx context.Context, prov Provider, kind, id string) (*TitleRecord, error) {
+func (s *Service) titleRecord(ctx context.Context, prov Provider, kind, id string, langs []string) (*TitleRecord, error) {
 	var rec TitleRecord
 	var err error
 	if kind == "movie" {
 		var m MovieRecord
-		m, err = prov.Movie(ctx, id, textLangs)
+		m, err = prov.Movie(ctx, id, langs)
 		rec = m.TitleRecord
 	} else {
 		var sr SeriesRecord
-		sr, err = prov.Series(ctx, id, textLangs)
+		sr, err = prov.Series(ctx, id, langs)
 		rec = sr.TitleRecord
 	}
 	switch {
@@ -438,7 +473,11 @@ func (s *Service) applyFill(ctx context.Context, snap systemq.Item, order []stri
 	for _, r := range recs {
 		candidates = append(candidates, r.fields)
 	}
-	changedImages, err := s.writeFill(ctx, q, cur, order, candidates, true, anilistID, filled)
+	langs, err := s.textLangsOf(ctx, cur)
+	if err != nil {
+		return false, fmt.Errorf("metadata.fill: %w", err)
+	}
+	changedImages, err := s.writeFill(ctx, q, cur, order, candidates, true, anilistID, filled, langs)
 	if err != nil {
 		return false, err
 	}
@@ -463,7 +502,7 @@ type fillOutcome struct {
 // says whether the item is a movie or series (the other columns and the rating); anilistID is
 // stored on a title when it is not -1. Multi-episode files keep the composite title the match
 // wrote.
-func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq.Item, order []string, candidates []providerFields, title bool, anilistID int64, filled []string) (fillOutcome, error) {
+func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq.Item, order []string, candidates []providerFields, title bool, anilistID int64, filled []string, langs []string) (fillOutcome, error) {
 	var out fillOutcome
 	storedTexts, err := q.ListItemTextsByItem(ctx, cur.ID)
 	if err != nil {
@@ -494,15 +533,15 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 	for _, t := range storedTexts {
 		old[t.Lang] = t
 	}
-	for _, lang := range textLangs {
+	for rank, lang := range langs {
 		title, ok1 := writes[fieldKey{"title", lang}]
 		overview, ok2 := writes[fieldKey{"overview", lang}]
 		tagline, ok3 := writes[fieldKey{"tagline", lang}]
-		if !ok1 && !ok2 && !ok3 {
+		prev, had := old[lang]
+		if !ok1 && !ok2 && !ok3 && (!had || prev.Rank == int64(rank)) {
 			continue
 		}
-		prev, had := old[lang]
-		p := systemq.UpsertItemTextParams{ItemID: cur.ID, Lang: lang, Title: cur.Title}
+		p := systemq.UpsertItemTextParams{ItemID: cur.ID, Lang: lang, Rank: int64(rank), Title: cur.Title}
 		if had {
 			p.Title, p.Overview, p.Tagline = prev.Title, prev.Overview, prev.Tagline
 		}
@@ -520,6 +559,9 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 			return out, fmt.Errorf("metadata.fill: write %s text of %s: %w", lang, cur.ID, err)
 		}
 	}
+	if err := pruneTexts(ctx, q, cur.ID, storedTexts, langs, locked); err != nil {
+		return out, fmt.Errorf("metadata.fill: %w", err)
+	}
 
 	// Columns.
 	releaseDate, runtime := cur.ReleaseDate, cur.RuntimeMinutes
@@ -535,28 +577,39 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 			runtime = sql.NullInt64{Int64: int64(n), Valid: true}
 		}
 	}
+	// Images (ADR 0018, 6.2): the choice over local files, the list and Fanart.tv writes
+	// item_images; the two path columns on items stay as they are (unused since step 2).
 	poster, backdrop := cur.TmdbPosterPath, cur.TmdbBackdropPath
-	if w, ok := writes[fieldKey{"poster", ""}]; ok {
-		poster = nullString(w.value)
+	settings, err := s.Effective(ctx, cur.LibraryID)
+	if err != nil {
+		return out, fmt.Errorf("metadata.fill: %w", err)
 	}
-	if w, ok := writes[fieldKey{"backdrop", ""}]; ok {
-		backdrop = nullString(w.value)
+	storedImages, err := q.ListItemImagesByItem(ctx, cur.ID)
+	if err != nil {
+		return out, fmt.Errorf("metadata.fill: load images of %s: %w", cur.ID, err)
 	}
-	out.images = poster != cur.TmdbPosterPath || backdrop != cur.TmdbBackdropPath
+	localImages, err := q.ListItemLocalImages(ctx, cur.ID)
+	if err != nil {
+		return out, fmt.Errorf("metadata.fill: load local images of %s: %w", cur.ID, err)
+	}
+	decisions, _ := decideImages(cur.Kind, settings, order, candidates, localImages, storedImages, locked)
+	if out.images, err = writeImageDecisions(ctx, q, cur.ID, decisions, now); err != nil {
+		return out, fmt.Errorf("metadata.fill: %w", err)
+	}
 
 	if title {
 		originalTitle := cur.OriginalTitle
 		if w, ok := writes[fieldKey{"original_title", ""}]; ok {
 			originalTitle = nullString(w.value)
 		}
-		genresJSON := cur.Genres
+		genresRaw := cur.Genres
 		genreSource := ""
 		if union := unionGenres(candidates); union != nil && !locked["genres"] {
-			raw, err := json.Marshal(genres{DE: nonNil(union["de"]), EN: nonNil(union["en"])})
+			raw, err := genresJSON(langs, union)
 			if err != nil {
-				return out, fmt.Errorf("metadata.fill: genres: %w", err)
+				return out, fmt.Errorf("metadata.fill: %w", err)
 			}
-			genresJSON, genreSource = string(raw), genreUnion
+			genresRaw, genreSource = raw, genreUnion
 		}
 		ownRating, ratingSource := cur.OwnRating, cur.RatingSource
 		ratingProvider := ""
@@ -590,7 +643,7 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 		}
 		if err := q.UpdateItemFill(ctx, systemq.UpdateItemFillParams{
 			OriginalTitle: originalTitle, Year: year, ReleaseDate: releaseDate, RuntimeMinutes: runtime,
-			Genres: genresJSON, OwnRating: ownRating, RatingSource: ratingSource,
+			Genres: genresRaw, OwnRating: ownRating, RatingSource: ratingSource,
 			TmdbPosterPath: poster, TmdbBackdropPath: backdrop, VoteAverage: vote, AnilistID: anilist,
 			FilledProviders: nullString(model.ProvidersJSON(filled)),
 			Now:             now, ID: cur.ID,
@@ -666,11 +719,18 @@ func (s *Service) recordIdentifier(ctx context.Context, item systemq.Item, ident
 	if cur.VoteAverage.Valid {
 		add(fieldVoteAverage, "", "set")
 	}
-	if cur.Genres != "" && cur.Genres != "[]" && cur.Genres != `{"de":[],"en":[]}` {
+	if !genresEmpty(cur.Genres) {
 		add("genres", "", "set")
 	}
-	add("poster", "", cur.TmdbPosterPath.String)
-	add("backdrop", "", cur.TmdbBackdropPath.String)
+	images, err := q.ListItemImagesByItem(ctx, cur.ID)
+	if err != nil {
+		return fmt.Errorf("metadata.fill: load images of %s: %w", cur.ID, err)
+	}
+	for _, im := range images {
+		if im.Provider == identifier {
+			add(im.Kind, "", im.Source)
+		}
+	}
 	if cur.OwnRating.Valid && strings.HasPrefix(cur.RatingSource.String, identifier) {
 		add("own_rating", "", "set")
 	}
@@ -709,6 +769,10 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 		case model.ProviderTVDB:
 			provs = append(provs, seasonProvider{s.tvdb, r.id})
 		}
+	}
+	langs, err := s.textLangsOf(ctx, series)
+	if err != nil {
+		return fmt.Errorf("metadata.fill: %w", err)
 	}
 	if len(provs) < 2 {
 		return nil
@@ -759,7 +823,7 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 		// the providers count differently, the filler's episode 3 is another episode).
 		var base *SeasonRecord
 		for _, sp := range provs {
-			srec, err := sp.prov.Season(ctx, sp.id, n, textLangs)
+			srec, err := sp.prov.Season(ctx, sp.id, n, langs)
 			if errors.Is(err, ErrNotFound) || errors.Is(err, errNotConfigured) {
 				if base == nil {
 					break // the identifier does not know the season: nothing to fill
@@ -798,7 +862,7 @@ func (s *Service) fillSeasons(ctx context.Context, series systemq.Item, order []
 				withSeason = season
 			}
 			first = false
-			written, err := s.fillSeasonBatch(ctx, series, order, withSeason, seasonCands, batch, episodeCands)
+			written, err := s.fillSeasonBatch(ctx, series, order, withSeason, seasonCands, batch, episodeCands, langs)
 			if err != nil {
 				return err
 			}
@@ -842,7 +906,7 @@ func waitForMatch(ctx context.Context, q *systemq.Queries, itemID string) error 
 // fillSeasonBatch writes one season item and a batch of its episodes in one transaction. Only
 // children the match wrote (state matched) are filled; the others wait for their match.
 func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, order []string, season *systemq.Item,
-	seasonCands []providerFields, eps []systemq.Item, episodeCands map[int][]providerFields,
+	seasonCands []providerFields, eps []systemq.Item, episodeCands map[int][]providerFields, langs []string,
 ) ([]imageJob, error) {
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
@@ -863,7 +927,7 @@ func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, orde
 			return nil, err
 		}
 		if ok && cur.MetadataState == stateMatched {
-			o, err := s.writeFill(ctx, q, cur, order, seasonCands, false, -1, nil)
+			o, err := s.writeFill(ctx, q, cur, order, seasonCands, false, -1, nil, langs)
 			if err != nil {
 				return nil, err
 			}
@@ -887,7 +951,7 @@ func (s *Service) fillSeasonBatch(ctx context.Context, series systemq.Item, orde
 		if !ok || cur.MetadataState != stateMatched {
 			continue
 		}
-		o, err := s.writeFill(ctx, q, cur, order, cands, false, -1, nil)
+		o, err := s.writeFill(ctx, q, cur, order, cands, false, -1, nil, langs)
 		if err != nil {
 			return nil, err
 		}

@@ -526,7 +526,11 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 			newest = k.PublishedAt
 		}
 	}
-	if err := upsertTexts(ctx, s.write, podcastID, title, f.Description, locked); err != nil {
+	langs, err := s.textLangsOf(ctx, systemq.Item{LibraryID: libraryID})
+	if err != nil {
+		return false, fmt.Errorf("podcast %s: %w", podcastID, err)
+	}
+	if err := upsertTexts(ctx, s.write, podcastID, title, f.Description, locked, langs); err != nil {
 		return false, err
 	}
 	// File episodes of a podcast folder (ADR 0015): a new feed episode that matches exactly one
@@ -535,7 +539,7 @@ func (s *Service) storeEpisodes(ctx context.Context, podcastID string, libraryID
 	if err != nil {
 		return false, fmt.Errorf("list file episodes of %s: %w", podcastID, err)
 	}
-	w := episodeWrite{parent: parent, libraryID: libraryID, channelImage: httpURL(f.ImageURL), byGUID: byGUID,
+	w := episodeWrite{parent: parent, libraryID: libraryID, channelImage: httpURL(f.ImageURL), byGUID: byGUID, langs: langs,
 		files: fileEpisodes, ms: now.UnixMilli(), now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}}
 	var covers, added []string
 	defer func() { s.announceEpisodes(ctx, added) }()
@@ -586,6 +590,7 @@ type episodeWrite struct {
 	files        []systemq.PodcastListFileEpisodesWithoutGUIDRow // file episodes without guid, pairing candidates
 	ms           int64
 	now          sql.NullInt64
+	langs        []string // the effective text languages of the library (ADR 0018)
 }
 
 // episodeChange is what storing one episode changed: the rating of a known episode, or a new
@@ -639,7 +644,7 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 		}); err != nil {
 			return episodeChange{}, fmt.Errorf("update episode: %w", err)
 		}
-		return episodeChange{rerated: rating != known.OwnRating}, upsertTexts(ctx, q, known.ID, title, e.Description, locked)
+		return episodeChange{rerated: rating != known.OwnRating}, upsertTexts(ctx, q, known.ID, title, e.Description, locked, w.langs)
 	}
 	if adopted, ok := w.adopt(e, published); ok {
 		if err := q.PodcastAdoptFileEpisode(ctx, systemq.PodcastAdoptFileEpisodeParams{
@@ -653,7 +658,7 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 		w.byGUID[e.GUID] = systemq.PodcastListEpisodesRow{ID: adopted.ID, Guid: nullStr(e.GUID), Title: title, SortTitle: sort, LockedFields: "[]",
 			PublishedAt: published}
 		// Not a new episode: the household has the file already, so no announcement and no cover job.
-		return episodeChange{}, upsertTexts(ctx, q, adopted.ID, title, e.Description, nil)
+		return episodeChange{}, upsertTexts(ctx, q, adopted.ID, title, e.Description, nil, w.langs)
 	}
 	id := ulid.Make().String()
 	if err := q.PodcastInsertEpisode(ctx, systemq.PodcastInsertEpisodeParams{
@@ -671,7 +676,7 @@ func (w *episodeWrite) store(ctx context.Context, q *systemq.Queries, e feed.Epi
 	if cover.Valid {
 		c.newCover = id
 	}
-	return c, upsertTexts(ctx, q, id, title, e.Description, nil)
+	return c, upsertTexts(ctx, q, id, title, e.Description, nil, w.langs)
 }
 
 // adopt finds the one file episode a new feed episode stands for (concept 4.5): the same
@@ -717,10 +722,10 @@ func PairsEpisode(feedPublished sql.NullInt64, feedSortTitle string, feedDuratio
 	return true
 }
 
-// upsertTexts writes title and description for both languages (a feed has one language; the
-// profile language picks the row, so both carry the feed's text). A locked title or overview keeps
-// the stored text.
-func upsertTexts(ctx context.Context, q *systemq.Queries, itemID, title, description string, locked map[string]bool) error {
+// upsertTexts writes title and description for every language of the effective list (a feed has
+// one language; the profile language picks the row, so every row carries the feed's text, with its
+// rank). A locked title or overview keeps the stored text.
+func upsertTexts(ctx context.Context, q *systemq.Queries, itemID, title, description string, locked map[string]bool, langs []string) error {
 	stored := map[string]systemq.ItemText{}
 	if locked["title"] || locked["overview"] {
 		rows, err := q.ListItemTextsByItem(ctx, itemID)
@@ -731,8 +736,8 @@ func upsertTexts(ctx context.Context, q *systemq.Queries, itemID, title, descrip
 			stored[r.Lang] = r
 		}
 	}
-	for _, lang := range []string{"de", "en"} {
-		p := systemq.UpsertItemTextParams{ItemID: itemID, Lang: lang, Title: title, Overview: nullStr(description)}
+	for rank, lang := range langs {
+		p := systemq.UpsertItemTextParams{ItemID: itemID, Lang: lang, Rank: int64(rank), Title: title, Overview: nullStr(description)}
 		if old, ok := stored[lang]; ok {
 			p.Tagline = old.Tagline
 			if locked["title"] {

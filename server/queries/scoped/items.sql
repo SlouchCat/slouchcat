@@ -69,11 +69,12 @@ ORDER BY m.missing_since IS NOT NULL, COALESCE(m.height, 0) DESC, m.created_at, 
 -- One delivered image in the wanted format with JPEG as the fallback: format 'webp' returns the
 -- WebP row when it exists, else the JPEG row; format 'jpeg' only the JPEG row.
 -- name: GetItemImage :one
+-- The wanted format (webp) when stored, else the fallback of the kind (jpeg; png for a logo).
 SELECT im.* FROM images AS im
 JOIN visible_items AS v ON v.item_id = im.item_id AND v.profile_id = @profile_id
 WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size <> 'original'
-  AND im.format IN (@format, 'jpeg')
-ORDER BY im.format = 'jpeg'
+  AND im.format IN (@format, @fallback)
+ORDER BY im.format = 'webp' DESC
 LIMIT 1;
 
 -- Series tree, extras, cast and trailers (M3, design 4.1).

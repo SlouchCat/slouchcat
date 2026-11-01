@@ -227,3 +227,14 @@
     transform: scaleX(0);
   }
 }
+
+/* The title logo on the stage (ADR 0018): the width of the text title at most, left-aligned. */
+.logo {
+  max-width: min(100%, 40vw);
+}
+
+@media (width <= 48rem) {
+  .logo {
+    max-width: min(100%, 60vw);
+  }
+}

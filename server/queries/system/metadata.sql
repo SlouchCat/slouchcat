@@ -118,23 +118,44 @@ WHERE id = @id;
 SELECT * FROM item_texts WHERE item_id = @item_id ORDER BY lang;
 
 -- name: UpsertItemText :exec
--- sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016).
-INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key)
-VALUES (@item_id, @lang, @title, @overview, @tagline, @sort_key)
+-- sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016). rank is
+-- the position of lang in the effective metadata language list of the title (ADR 0018, 0 = first).
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, rank)
+VALUES (@item_id, @lang, @title, @overview, @tagline, @sort_key, @rank)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key;
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key,
+    rank = excluded.rank;
+
+-- name: DeleteItemText :exec
+-- metadata.fill removes the row of a language that left the effective list (ADR 0018).
+DELETE FROM item_texts WHERE item_id = @item_id AND lang = @lang;
+
+-- name: GetSystemSetting :one
+-- A settings row for the metadata settings (metadata.Settings, ADR 0018); sql.ErrNoRows = default.
+SELECT value FROM settings WHERE key = @key;
+
+-- name: ListSystemSettingsByPrefix :many
+-- Every settings row whose key starts with the prefix (metadata.*), for metadata.Settings.
+SELECT key, value FROM settings WHERE key LIKE @prefix ORDER BY key;
+
+-- name: CountItemsForMetadataApply :one
+-- Matched titles (movies and series) that metadata.apply would queue, optionally of some libraries.
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND (sqlc.arg('all_libraries') = 1 OR library_id IN (sqlc.slice('library_ids')));
 
 -- name: ListImagesByItem :many
 -- Every stored image row of a title, originals included (image.fetch compares them with TMDB).
 SELECT * FROM images WHERE item_id = @item_id ORDER BY kind, size, format;
 
 -- name: UpsertImage :exec
-INSERT INTO images (item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width,
+INSERT INTO images (item_id, kind, size, format, lang, provider, source_url, rel_path, content_hash, media_type, width,
                     height, bytes, accent, created_at)
-VALUES (@item_id, @kind, @size, @format, @lang, @source_url, @rel_path, @content_hash, @media_type, @width,
+VALUES (@item_id, @kind, @size, @format, @lang, @provider, @source_url, @rel_path, @content_hash, @media_type, @width,
         @height, @bytes, @accent, @now)
 ON CONFLICT (item_id, kind, size, format) DO UPDATE
 SET lang         = excluded.lang,
+    provider     = excluded.provider,
     source_url   = excluded.source_url,
     rel_path     = excluded.rel_path,
     content_hash = excluded.content_hash,
@@ -149,11 +170,51 @@ SET lang         = excluded.lang,
 -- Removes a row the pipeline no longer produces (for example the M1a poster in w500).
 DELETE FROM images WHERE id = @id;
 
+-- The decided image source per title and kind (ADR 0018, concept 10 4.4): the single input of
+-- image.fetch. chosen = 1 is the administrator's choice (the kind is in locked_fields too).
+
+-- name: ListItemImagesByItem :many
+SELECT * FROM item_images WHERE item_id = @item_id ORDER BY kind;
+
+-- name: UpsertItemImage :exec
+INSERT INTO item_images (item_id, kind, provider, lang, source, chosen, updated_at)
+VALUES (@item_id, @kind, @provider, @lang, @source, @chosen, @now)
+ON CONFLICT (item_id, kind) DO UPDATE
+SET provider = excluded.provider, lang = excluded.lang, source = excluded.source, chosen = excluded.chosen,
+    updated_at = excluded.updated_at;
+
+-- name: DeleteItemImage :exec
+DELETE FROM item_images WHERE item_id = @item_id AND kind = @kind;
+
+-- Image files the scanner found next to the media (concept 10 4.6): the local candidates of fill
+-- and of the image choice; rel_path is relative to the root root_id and read through paths only.
+
+-- name: ListItemLocalImages :many
+SELECT * FROM item_local_images WHERE item_id = @item_id ORDER BY kind, rel_path;
+
+-- name: ListLocalImagesByRoot :many
+SELECT * FROM item_local_images WHERE root_id = @root_id ORDER BY item_id, kind, rel_path;
+
+-- name: UpsertItemLocalImage :exec
+INSERT INTO item_local_images (item_id, kind, rel_path, root_id, width, height, size, mtime)
+VALUES (@item_id, @kind, @rel_path, @root_id, @width, @height, @size, @mtime)
+ON CONFLICT (item_id, kind, rel_path) DO UPDATE
+SET root_id = excluded.root_id, width = excluded.width, height = excluded.height, size = excluded.size, mtime = excluded.mtime;
+
+-- name: DeleteItemLocalImage :exec
+DELETE FROM item_local_images WHERE item_id = @item_id AND kind = @kind AND rel_path = @rel_path;
+
+-- name: CountItemsWithLocalImages :one
+SELECT count(DISTINCT item_id) FROM item_local_images;
+
+-- name: GetLibraryRootPath :one
+SELECT path FROM library_roots WHERE id = @id;
+
 -- name: ListMatchedItemImages :many
 -- Stored images of the matched titles of a library, for the image check after a scan
 -- (QueueIncompleteImages). Titles without any image row are not listed here (ListItemsMissingImages
 -- covers those with a stored path).
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent
+SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent, im.width
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = @library_id
@@ -162,25 +223,28 @@ WHERE i.library_id = @library_id
 ORDER BY i.id, im.kind, im.size, im.format;
 
 -- name: ListItemsMissingImages :many
--- Matched titles of a library with a stored provider image path but no row of that kind yet
--- (their image.fetch failed or never ran): poster for movies, series and seasons, backdrop (still)
--- for movies, series and episodes; the cover (poster) of audiobooks, podcasts and episodes with a
--- cover_path or cover_url (M6).
+-- Matched titles of a library with a decided image source (item_images, ADR 0018) but no row of
+-- that kind yet (their image.fetch failed or never ran); the cover (poster) of audiobooks,
+-- podcasts and episodes with a cover_path or cover_url (M6).
 SELECT i.id, i.kind, i.locked_fields,
-       CAST(((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+       CAST((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
              OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster') AS INTEGER) AS poster_missing,
-       CAST(i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
-            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing
+       CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing,
+       CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'logo')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'logo') AS INTEGER) AS logo_missing
 FROM items AS i
 WHERE i.library_id = @library_id
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
-  AND ((((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+  AND (((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
           OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster'))
-    OR (i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
-        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop')))
+    OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop'))
+    OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'logo')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'logo')))
 ORDER BY i.id;
 
 -- Provenance per field (item_field_sources, ADR 0015): which provider of the list won a field.
@@ -266,3 +330,39 @@ LIMIT @limit_count;
 -- name: SetItemVoteAverage :exec
 -- Writes the vote average metadata.vote_backfill decided (NULL keeps it unknown).
 UPDATE items SET vote_average = @vote_average, updated_at = @now WHERE id = @id AND deleted_at IS NULL;
+
+-- Metadata settings (concept 10, ADR 0018): the server's keys live in settings (metadata.*), the
+-- deviation of a library in library_metadata (NULL = like the server).
+
+-- name: UpsertSystemSetting :exec
+INSERT INTO settings (key, value, updated_at) VALUES (@key, @value, @now)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;
+
+-- name: GetLibraryMetadata :one
+SELECT * FROM library_metadata WHERE library_id = @library_id;
+
+-- name: ListLibraryMetadata :many
+SELECT * FROM library_metadata ORDER BY library_id;
+
+-- name: UpsertLibraryMetadata :exec
+INSERT INTO library_metadata (library_id, text_langs, images, updated_at)
+VALUES (@library_id, @text_langs, @images, @now)
+ON CONFLICT (library_id) DO UPDATE SET text_langs = excluded.text_langs, images = excluded.images, updated_at = excluded.updated_at;
+
+-- name: DeleteLibraryMetadata :exec
+DELETE FROM library_metadata WHERE library_id = @library_id;
+
+-- name: CountLibraryItemsForApply :one
+-- Matched films and series of one library, the titles metadata.apply queues for it.
+SELECT count(*) FROM items WHERE library_id = @library_id AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched';
+
+-- name: ListApplyItems :many
+-- The matched films and series of a library in id order, for metadata.apply (one match per title).
+SELECT id, kind FROM items WHERE library_id = @library_id AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched' ORDER BY id;
+
+-- name: ListLibraryIDs :many
+SELECT id FROM libraries ORDER BY id;
+
+-- name: SetItemLockedFields :exec
+-- The administrator's lock of a kind (setItemImage, clearItemImage; concept 10 6.3).
+UPDATE items SET locked_fields = @locked_fields, updated_at = @now WHERE id = @id;

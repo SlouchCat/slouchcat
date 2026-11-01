@@ -12,16 +12,27 @@ import { useAppNavigate } from './AppLink';
 import { Button, SpatialButton, SpatialButtonLink } from './Button';
 import styles from './HeroCarousel.module.css';
 import { PosterCard } from './PosterCard';
+import { TitleOrLogo } from './TitleOrLogo';
 import { RowList } from './Row';
 import { setSpatialFocus, SpatialGroup } from './spatial';
 
 export interface HeroSlide {
   id: string;
   title: string;
+  /** The title logo (w400, WebP or PNG with transparency, ADR 0018); shown in place of the text. */
+  logoUrl?: string;
   /** Same-origin backdrop URL (w1280); the poster is used blurred when there is none. */
   backdropUrl?: string;
   /** The same backdrop in w780 for phones; the browser picks it through `srcset`. */
   backdropSmallUrl?: string;
+  /** The same backdrop in w1920 for wide screens. */
+  backdropLargeUrl?: string;
+  /**
+   * The same backdrop for 4K and high-density screens (w3840, only from a wide original) and its
+   * real width, which the `srcset` names (an original between 2560 and 3839 px keeps its width).
+   */
+  backdropUhdUrl?: string;
+  backdropUhdWidth?: number;
   posterUrl?: string;
   /** The same poster in w200, offered to the poster row under the band through `srcset`. */
   posterSmallUrl?: string;
@@ -92,15 +103,25 @@ const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta']);
 // preload.go); change them together.
 const HERO_SIZES = '(width >= 768px) calc(100vw - 15rem), 100vw';
 
-/** Source attributes of a slide image: the small backdrop first, the large one for wide screens. */
+/**
+ * Source attributes of a slide image: the small backdrop first, the larger ones for wide and dense
+ * screens (the browser picks by `sizes` and the device pixel ratio).
+ */
 function imageSource(slide: HeroSlide) {
-  const { backdropUrl, backdropSmallUrl, posterUrl } = slide;
+  const {
+    backdropUrl,
+    backdropSmallUrl,
+    backdropLargeUrl,
+    backdropUhdUrl,
+    backdropUhdWidth,
+    posterUrl,
+  } = slide;
   if (backdropUrl && backdropSmallUrl) {
-    return {
-      src: backdropSmallUrl,
-      srcSet: `${backdropSmallUrl} 780w, ${backdropUrl} 1280w`,
-      sizes: HERO_SIZES,
-    };
+    const candidates = [`${backdropSmallUrl} 780w`, `${backdropUrl} 1280w`];
+    if (backdropLargeUrl) candidates.push(`${backdropLargeUrl} 1920w`);
+    if (backdropUhdUrl && backdropUhdWidth)
+      candidates.push(`${backdropUhdUrl} ${backdropUhdWidth}w`);
+    return { src: backdropSmallUrl, srcSet: candidates.join(', '), sizes: HERO_SIZES };
   }
   return { src: backdropUrl ?? backdropSmallUrl ?? posterUrl };
 }
@@ -393,7 +414,9 @@ export function HeroCarousel({
             aria-label={t('ui.carousel.position', { index: current + 1, count })}
             aria-live={paused ? 'polite' : 'off'}
           >
-            <h2 className={styles.title}>{slide.title}</h2>
+            <h2 className={styles.title}>
+              <TitleOrLogo title={slide.title} logoUrl={slide.logoUrl} className={styles.logo} />
+            </h2>
             {slide.note && <p className={styles.note}>{slide.note}</p>}
             {slide.meta && <div className={styles.meta}>{slide.meta}</div>}
           </div>

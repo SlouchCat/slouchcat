@@ -467,7 +467,7 @@ func (f *Fixture) addMovie(t testing.TB, m Movie, libraryID, rootID int64, media
 		               VALUES (?, ?, ?, ?, ?, 1, 'mp4', 'h264', 'aac', 1920, 1080, ?, 1, 1)`,
 			m.FileID, m.ID, rootID, m.RelPath, FileSize, DurationMs)
 	}
-	exec(t, f.DB, `INSERT INTO item_texts (item_id, lang, title, overview, tagline) VALUES (?, 'de', ?, ?, ?), (?, 'en', ?, ?, ?)`,
+	exec(t, f.DB, `INSERT INTO item_texts (item_id, lang, title, overview, tagline, rank) VALUES (?, 'de', ?, ?, ?, 0), (?, 'en', ?, ?, ?, 1)`,
 		m.ID, "Film "+m.Label, "Handlung "+m.Label, "Leitsatz "+m.Label,
 		m.ID, "Movie "+m.Label, "Plot "+m.Label, "Tagline "+m.Label)
 	// The image pipeline's layout (plan 3.1): every size as JPEG and WebP, the accent on the

@@ -578,7 +578,10 @@ export interface paths {
          *     pipeline (plan 3.1) scales every image with ffmpeg: posters exist in `w200`, `w400` and `w800`,
          *     backdrops in `w780`, `w1280` and `w1920` (the number is the width in pixels). Every size is stored
          *     as WebP and as JPEG; the server answers WebP when the request's `Accept` header lists
-         *     `image/webp`, JPEG otherwise, and sets `Vary: Accept`.
+         *     `image/webp`, JPEG otherwise, and sets `Vary: Accept`. Since contract 1.6.0 a backdrop whose original
+         *     is at least 2560 px wide also exists in `w3840` (for 4K and high-density screens), scaled down to
+         *     3840 px or kept at the original's width, never scaled up; `ItemImages.backdropUhd` names its real
+         *     width. Logos come in `w400` and `w800` (ADR 0018).
          */
         get: operations["getItemImage"];
         put?: never;
@@ -1644,6 +1647,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/image-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image candidates of every source for one kind of a title (concept 10 6.4)
+         * @description Asked live: the image files next to the media (`item_local_images`), then the providers of the
+         *     folder in list order (TMDB without language filter, TVDB artworks of a series); within a source by
+         *     the kind's language chain, then votes and width. Cached in the server for ten minutes per title and
+         *     kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
+         *     provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
+         *     of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
+         *     series, poster for seasons; another kind is 422.
+         */
+        get: operations["listItemImageCandidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/image-candidates/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A local image file of a title as preview (binary)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6). Serves only a `source` the scanner listed for
+         *     the title (`file:<rel>?<size>-<mtime>` from `listItemImageCandidates`), read through the library
+         *     root (rule 4), at most 20 MB; any other source is 404 (concept 10 9.2).
+         */
+        get: operations["getItemImageCandidatePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/images/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Choose and lock the image of a kind (concept 10 6.3)
+         * @description Stores the candidate as the title's image of the kind (`chosen`) and locks the kind
+         *     (`lockedFields`); `image.fetch` fetches it at the manual priority. `source` must be a candidate of
+         *     the title (`listItemImageCandidates`); an expired cache is asked again before a source is
+         *     `source_unknown`. A later `applyMetadata`, refresh or fill keeps the choice.
+         */
+        put: operations["setItemImage"];
+        post?: never;
+        /**
+         * Lift the choice and the lock of a kind
+         * @description Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
+         *     for a season) decides the kind again by the language chain and queues `image.fetch`.
+         */
+        delete: operations["clearItemImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/rating": {
         parameters: {
             query?: never;
@@ -1659,6 +1738,92 @@ export interface paths {
          *     Unknown ids are skipped and not counted. `null` clears the overrides.
          */
         post: operations["setItemsRating"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/settings/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The server's metadata settings (concept 10, ADR 0018)
+         * @description The twelve keys `metadata.*` resolved with their defaults: the ordered text language list,
+         *     the image language chain per kind, the switchable image kinds, the minimum widths, the vote
+         *     rule, the local files switch, the rating country, the adult switch of the TMDB search and
+         *     the Fanart.tv switch. The languages a provider knows come from `listMetadataProviders`
+         *     (`MetadataProviderInfo.languages`). `knownLanguages` lists every code the server accepts.
+         */
+        get: operations["getMetadataSettings"];
+        /**
+         * Change the server's metadata settings
+         * @description All at once: the body replaces every setting. 422 `validation_failed` with the field errors
+         *     `langs_empty`, `lang_unknown`, `ui_lang_required` (the server's list must hold `de`),
+         *     `chain_duplicate`, `country_unknown`, `invalid_value`. Nothing is queued (F-8): the answer
+         *     names the matched titles the change affects (`affectedTitles`) and the interface offers
+         *     `applyMetadata`.
+         */
+        put: operations["updateMetadataSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/libraries/{id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /**
+         * The metadata deviation of a library (concept 10, ADR 0018)
+         * @description The deviation of the library from the server (`textLangs`, `images`; `null` = like the
+         *     server) and the effective values the jobs use for its titles. 404 for an unknown library.
+         */
+        get: operations["getLibraryMetadata"];
+        /**
+         * Change the metadata deviation of a library
+         * @description `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
+         *     "like the server". A library's language list must hold `de` or `en` (`ui_lang_required`).
+         *     Nothing is queued (F-8); the answer names the affected titles of the library.
+         */
+        put: operations["updateLibraryMetadata"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/metadata/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply the metadata settings to existing titles (concept 10, 6.5)
+         * @description Queues the event job `metadata.apply` (ADR 0017), which queues one `metadata.match` per
+         *     matched film and series of the chosen libraries (every library when `libraryIds` is left
+         *     out) with `what` containing `texts`, or only `metadata.fill` and `image.fetch` with
+         *     `what: ["images"]`. A second call while an `apply` of the same scope waits does not double
+         *     it (idempotency key). 202 with the job id and the number of titles; the progress of the
+         *     children shows on the jobs page (`listJobTypes`).
+         */
+        post: operations["applyMetadata"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3489,6 +3654,12 @@ export interface components {
              *     check is on.
              */
             updateAvailable?: components["schemas"]["UpdateNotice"];
+            /**
+             * @description The metadata languages a profile may choose (ADR 0018): the union of the server's list and
+             *     every library's list, in the server's order; always holds at least `de` or `en`. Absent in
+             *     answers of older servers (then `de` and `en`).
+             */
+            availableMetadataLanguages?: components["schemas"]["MetadataLanguage"][];
         };
         Account: {
             /** Format: int64 */
@@ -3524,7 +3695,14 @@ export interface components {
              */
             image?: string;
             maxRating: components["schemas"]["Rating"];
+            /** @description The language of the interface (de, en); also the language of the metadata while `metadataLanguage` is unset. */
             language: components["schemas"]["Language"];
+            /**
+             * @description The language the profile reads titles, descriptions and genres in (ADR 0018), one of
+             *     `SessionInfo.availableMetadataLanguages`; absent = like `language`. A text missing in this
+             *     language falls back field by field to `language`, then to the server's list in its order.
+             */
+            metadataLanguage?: components["schemas"]["MetadataLanguage"];
             accent?: components["schemas"]["Accent"];
             allLibraries: boolean;
             /** @description Libraries the profile may see; empty when `allLibraries` is true. The account's own limits apply on top. */
@@ -3585,6 +3763,12 @@ export interface components {
             name?: string;
             maxRating?: components["schemas"]["Rating"];
             language?: components["schemas"]["Language"];
+            /**
+             * @description The metadata language of the profile (ADR 0018): one of `SessionInfo.availableMetadataLanguages`
+             *     (422 `metadataLanguage: invalid_value` otherwise), or `""` to read the metadata in `language`
+             *     again.
+             */
+            metadataLanguage?: string;
             accent?: components["schemas"]["Accent"];
             allLibraries?: boolean;
             libraryIds?: number[];
@@ -3732,8 +3916,13 @@ export interface components {
             /** @description `manual` after an override, else the metadata source (`tmdb:DE`, `nfo`) or empty. */
             ratingSource?: string;
         };
-        /** @enum {string} */
+        /**
+         * @description An interface language; the two language packs of the web app.
+         * @enum {string}
+         */
         Language: "de" | "en";
+        /** @description A metadata language, BCP-47 with an optional region (`de`, `en`, `pt-BR`, `zh-TW`; ADR 0018). */
+        MetadataLanguage: string;
         /**
          * @description FSK age rating.
          * @enum {integer}
@@ -3743,8 +3932,13 @@ export interface components {
         ItemID: string;
         /** @enum {string} */
         ItemKind: "movie" | "series" | "season" | "episode" | "extra" | "audiobook" | "podcast" | "podcast_episode";
-        /** @enum {string} */
-        ImageKind: "poster" | "backdrop";
+        /**
+         * @description `logo` (ADR 0018, concept 10) is the transparent title logo of a film or series, delivered in
+         *     `w400` and `w800` as WebP or PNG (never JPEG); the detail page and the spotlight show it in
+         *     place of the text title when it exists.
+         * @enum {string}
+         */
+        ImageKind: "poster" | "backdrop" | "logo";
         ImageRef: {
             /**
              * Format: uri-reference
@@ -3757,6 +3951,12 @@ export interface components {
         ItemImages: {
             poster?: components["schemas"]["ImageRef"];
             backdrop?: components["schemas"]["ImageRef"];
+            /**
+             * @description The title logo in `w400` (ADR 0018), WebP or PNG with transparency; only on the detail
+             *     (`ItemDetail`) and the spotlight entries, never on list summaries. Absent when the title
+             *     has none or the kind is switched off.
+             */
+            logo?: components["schemas"]["ImageRef"];
             /** @description Backdrop in w780 for viewports up to about 900 px. */
             backdropSmall?: components["schemas"]["ImageRef"];
             /** @description Poster in w200 (narrow cards, `srcset`); M1b image pipeline. */
@@ -3765,6 +3965,11 @@ export interface components {
             posterLarge?: components["schemas"]["ImageRef"];
             /** @description Backdrop in w1920 for viewports above about 1400 px; M1b image pipeline. */
             backdropLarge?: components["schemas"]["ImageRef"];
+            /**
+             * @description Backdrop in w3840 for 4K and high-density screens (contract 1.6.0); only when the original is at
+             *     least 2560 px wide, and then at most the original's width (`width` says which).
+             */
+            backdropUhd?: components["schemas"]["ImageRef"];
         };
         Progress: {
             /** Format: int64 */
@@ -4376,6 +4581,93 @@ export interface components {
          * @enum {string}
          */
         MetadataProvider: "tmdb" | "tvdb" | "anilist" | "local";
+        /** @description The server's metadata settings (concept 10 4.1, ADR 0018), defaults filled in. */
+        MetadataSettings: {
+            /** @description Ordered list of the text languages every source delivers; the position is the rank. */
+            textLangs: components["schemas"]["MetadataLanguage"][];
+            imageLangs: components["schemas"]["ImageLangs"];
+            /** @description The switchable image kinds that are on (`poster` and `backdrop` are always on, E-1). */
+            imageKinds: ("logo" | "season_poster" | "episode_still")[];
+            /** @description Minimum width per kind, 0 = any; a smaller candidate wins only when none reaches it. */
+            imageMinWidth: {
+                poster: number;
+                backdrop: number;
+            };
+            imageByVote: boolean;
+            /** @description Image files next to the media as the first source (F-5). */
+            localImages: boolean;
+            /**
+             * @description The country whose certification is read first (F-7, decision 6); the rest follows in DE, AT, CH, GB, US order.
+             * @enum {string}
+             */
+            ratingCountry: "DE" | "AT" | "CH" | "GB" | "US";
+            tmdbIncludeAdult: boolean;
+            fanartEnabled: boolean;
+            /** @description Every language code the server accepts (the static list, E-10). */
+            knownLanguages: components["schemas"]["MetadataLanguage"][];
+            /** @description Matched films and series an `applyMetadata` over every library would queue. */
+            affectedTitles: number;
+            /** @description Titles with at least one image file next to the media (item_local_images). */
+            localImageTitles: number;
+        };
+        /** @description The fallback chain per image kind; `""` is an image without text. */
+        ImageLangs: {
+            poster: string[];
+            backdrop: string[];
+            logo: string[];
+        };
+        /** @description Replaces every server setting at once; `knownLanguages`, `affectedTitles` and `localImageTitles` are read-only and ignored. */
+        MetadataSettingsUpdate: {
+            textLangs: string[];
+            imageLangs: components["schemas"]["ImageLangs"];
+            imageKinds: string[];
+            imageMinWidth: {
+                poster: number;
+                backdrop: number;
+            };
+            imageByVote: boolean;
+            localImages: boolean;
+            ratingCountry: string;
+            tmdbIncludeAdult: boolean;
+            fanartEnabled: boolean;
+        };
+        /** @description The image deviation of a library: chains and switchable kinds. */
+        LibraryImages: {
+            langs: components["schemas"]["ImageLangs"];
+            kinds: ("logo" | "season_poster" | "episode_still")[];
+        };
+        /** @description The deviation of a library (`null` = like the server) and the effective values of its titles (concept 10 4.5). */
+        LibraryMetadata: {
+            /** Format: int64 */
+            libraryId: number;
+            /** @description The library's own text language list, or `null` for the server's. */
+            textLangs?: components["schemas"]["MetadataLanguage"][] | null;
+            /** @description The library's own image chains and kinds, or `null` for the server's. */
+            images?: components["schemas"]["LibraryImages"] | null;
+            effective: components["schemas"]["MetadataSettings"];
+            /** @description Matched films and series of the library an `applyMetadata` would queue. */
+            affectedTitles: number;
+        };
+        /** @description Replaces the deviation; a field left out or `null` means "like the server". */
+        LibraryMetadataUpdate: {
+            textLangs?: string[] | null;
+            images?: components["schemas"]["LibraryImages"] | null;
+        };
+        ApplyMetadataRequest: {
+            /** @description The libraries to apply to; left out = every library. */
+            libraryIds?: number[];
+            /** @description `texts` queues one `metadata.match` per title (texts, then fill and images follow); `images` alone queues only `metadata.fill` and `image.fetch`. */
+            what: ("texts" | "images")[];
+        };
+        ApplyMetadataResponse: {
+            /**
+             * Format: int64
+             * @description The queued `metadata.apply` run (the parent; the children show on the jobs page).
+             */
+            jobId: number;
+            /** @description Matched films and series the run will queue. */
+            titles: number;
+        };
         /** @description One provider as `listMetadataProviders` describes it. */
         MetadataProviderInfo: {
             id: components["schemas"]["MetadataProvider"];
@@ -4384,7 +4676,11 @@ export interface components {
             roles: ("identify" | "fill")[];
             /** @description The root contents the provider may stand in the list of. */
             contents: components["schemas"]["RootContent"][];
-            /** @description Text languages the provider delivers (`de`, `en`); empty for the local reader. */
+            /**
+             * @description Text languages the provider delivers out of the server's metadata language list (ADR 0018):
+             *     the languages of the list it knows, in the list's order; empty for the local reader. A
+             *     language of the list that is missing here is skipped at that provider.
+             */
             languages: string[];
         };
         /** @description Which provider of the list won one field of a title (ADR 0015). */
@@ -4493,6 +4789,50 @@ export interface components {
                 episodes: number;
                 extras: number;
             };
+            /** @description The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out. */
+            images?: components["schemas"]["AdminItemImage"][];
+        };
+        /** @description One image a source offers for a kind of a title (concept 10 6.4). */
+        ImageCandidate: {
+            /** @description `local`, `tmdb`, `tvdb` or `fanart`. */
+            provider: string;
+            /** @description Language of the text on the image (BCP-47 primary subtag); empty for an image without text or unknown. */
+            lang: string;
+            /** @description Width in pixels, 0 when the source does not say. */
+            width: number;
+            height: number;
+            /**
+             * Format: double
+             * @description The source's rating of the image (TMDB vote average, TVDB score, Fanart likes); 0 without one.
+             */
+            score: number;
+            voteCount: number;
+            /** @description The source's address of the image; the value `setItemImage` takes. */
+            source: string;
+            /** @description Small preview; a provider's address (loaded by the browser without referrer) or `getItemImageCandidatePreview` for a local file. */
+            previewUrl: string;
+            /** @description The title's current image of the kind. */
+            chosen: boolean;
+        };
+        ImageCandidateList: {
+            candidates: components["schemas"]["ImageCandidate"][];
+            /** @description Providers of the title that did not answer (the list is complete without them). */
+            unavailable: string[];
+        };
+        ItemImageChoice: {
+            provider: string;
+            source: string;
+        };
+        /** @description The decided image source of a kind (concept 10 7.3); `locked` without `provider` is a lock without choice. */
+        AdminItemImage: {
+            kind: components["schemas"]["ImageKind"];
+            provider?: string;
+            lang?: string;
+            source?: string;
+            previewUrl?: string;
+            /** @description The administrator chose this source (`setItemImage`). */
+            chosen: boolean;
+            locked: boolean;
         };
         /** @enum {string} */
         IssueKind: "unmatched" | "no_images" | "unrated" | "orphaned" | "unplayable" | "rating_mismatch";
@@ -5809,13 +6149,18 @@ export interface components {
             telegram: components["schemas"]["AdminSettingsTelegram"];
             push: components["schemas"]["AdminSettingsPush"];
         };
-        /** @description The provider keys (M3, M7); the values themselves are never returned. */
+        /**
+         * @description The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
+         *     personal client key); the values themselves are never returned.
+         */
         AdminSettingsKeys: {
             tmdb: components["schemas"]["KeyState"];
             tvdb: components["schemas"]["KeyState"];
             tvdbPin: components["schemas"]["KeyState"];
             youtube: components["schemas"]["KeyState"];
             trakt: components["schemas"]["KeyState"];
+            fanart: components["schemas"]["KeyState"];
+            fanartClient: components["schemas"]["KeyState"];
         };
         /** @description The e-mail server; the password is never returned. */
         AdminSettingsEmail: {
@@ -5854,7 +6199,7 @@ export interface components {
             email?: components["schemas"]["AdminSettingsEmailUpdate"];
             telegram?: components["schemas"]["AdminSettingsTelegramUpdate"];
             /** @description Stored values to remove. */
-            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "email" | "telegram")[];
+            clear?: ("publicUrl" | "tmdb" | "tvdb" | "tvdbPin" | "youtube" | "trakt" | "fanart" | "fanartClient" | "email" | "telegram")[];
         };
         /** @description New keys; each is stored encrypted and never returned. */
         AdminSettingsKeysUpdate: {
@@ -5862,6 +6207,8 @@ export interface components {
             tvdb?: string;
             tvdbPin?: string;
             youtube?: string;
+            fanart?: string;
+            fanartClient?: string;
             trakt?: string;
         };
         /** @description The e-mail server as a whole; `password` absent keeps the stored password. */
@@ -7695,7 +8042,7 @@ export interface operations {
                 /** @description Item ID (ULID). */
                 id: components["parameters"]["ItemID"];
                 kind: components["schemas"]["ImageKind"];
-                size: "w200" | "w400" | "w800" | "w780" | "w1280" | "w1920";
+                size: "w200" | "w400" | "w800" | "w780" | "w1280" | "w1920" | "w3840";
             };
             cookie?: never;
         };
@@ -9874,7 +10221,7 @@ export interface operations {
             header?: never;
             path: {
                 id: components["schemas"]["ItemID"];
-                kind: "poster" | "backdrop";
+                kind: components["schemas"]["ImageKind"];
                 size: string;
             };
             cookie?: never;
@@ -9895,6 +10242,182 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description No such title or no such image (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listItemImageCandidates: {
+        parameters: {
+            query: {
+                kind: components["schemas"]["ImageKind"];
+                refresh?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The candidates. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageCandidateList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The kind is not chosen by hand for this title (`validation_failed`, field `kind`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getItemImageCandidatePreview: {
+        parameters: {
+            query: {
+                source: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title or source (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                kind: components["schemas"]["ImageKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemImageChoice"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`): field `kind` (`invalid_value`) or `source` (`source_unknown`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    clearItemImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                kind: components["schemas"]["ImageKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The administration view after lifting the choice. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The kind is not chosen by hand for this title (`validation_failed`, field `kind`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9931,6 +10454,177 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMetadataSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateMetadataSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MetadataSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description The stored settings with the number of affected titles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description `validation_failed` (see `errors`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getLibraryMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deviation and effective values. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryMetadata"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateLibraryMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryMetadataUpdate"];
+            };
+        };
+        responses: {
+            /** @description Deviation and effective values. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryMetadata"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown library. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description `validation_failed` (see `errors`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    applyMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyMetadataRequest"];
+            };
+        };
+        responses: {
+            /** @description Queued. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyMetadataResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description `validation_failed` (see `errors`). */
             422: {
                 headers: {
                     [name: string]: unknown;

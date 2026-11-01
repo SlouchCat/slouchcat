@@ -200,6 +200,7 @@ type Image struct {
 	Size        string
 	Format      string
 	Lang        sql.NullString
+	Provider    string
 	SourceUrl   string
 	RelPath     string
 	ContentHash string
@@ -306,6 +307,27 @@ type ItemGenre struct {
 	Name   string
 }
 
+type ItemImage struct {
+	ItemID    string
+	Kind      string
+	Provider  string
+	Lang      string
+	Source    string
+	Chosen    int64
+	UpdatedAt int64
+}
+
+type ItemLocalImage struct {
+	ItemID  string
+	Kind    string
+	RelPath string
+	RootID  int64
+	Width   int64
+	Height  int64
+	Size    int64
+	Mtime   int64
+}
+
 type ItemText struct {
 	ItemID   string
 	Lang     string
@@ -313,6 +335,7 @@ type ItemText struct {
 	Overview sql.NullString
 	Tagline  sql.NullString
 	SortKey  sql.NullString
+	Rank     int64
 }
 
 type Job struct {
@@ -370,6 +393,13 @@ type Library struct {
 	ScanFilesSeen      int64
 	ScanFilesTotal     int64
 	LossAcceptedAt     sql.NullInt64
+}
+
+type LibraryMetadatum struct {
+	LibraryID int64
+	TextLangs sql.NullString
+	Images    sql.NullString
+	UpdatedAt int64
 }
 
 type LibraryRoot struct {
@@ -494,6 +524,7 @@ type Profile struct {
 	WatchLimitMinutes sql.NullInt64
 	PinSalt           sql.NullString
 	OfflinePin        sql.NullString
+	MetadataLanguage  sql.NullString
 }
 
 type ProfileLibrary struct {

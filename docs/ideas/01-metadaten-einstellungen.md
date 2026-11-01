@@ -1,15 +1,25 @@
 # Idee 01: Metadaten- und Scraper-Einstellungen je Bibliothek
 
-- Status: Ausgearbeitet (Interview am 20. Oktober 2026, Mehrdeutigkeit 17%; Review durch den
-  OMC-Kritiker am selben Tag eingearbeitet). **Teil A übernommen durch Konzept 07 (29. Oktober 2026):**
-  die geordnete Anbieterliste, das feldweise Auffüllen in dieser Reihenfolge, die Herkunft je Feld
-  (`item_field_sources`), die Freigabe-Ausnahme «nie senken» und TVDB als frei platzierbarer Erkenner
-  sind mit `docs/planning/07-bibliotheken.md` (Frage 13, ADR 0015) beauftragt und gebaut, allerdings
-  **auf Ordnerebene statt Bibliotheksebene** und ohne Serverstandard. **Teil B bleibt hier:** Sprachen
-  je Bibliothek, Bildarten (Logo, Thumb, Banner, Disc, Clearart), Bildsprache, die Anbieter Fanart.tv,
-  OMDb und lokale Dateien/NFO, die Bildwahl je Titel, das Land für die Altersfreigabe und die
-  Rohzertifikate (`item_certifications`). Wer Teil B plant, baut auf `library_roots.providers` und
-  `item_field_sources` auf und ergänzt dort nur Werte
+- Status: **Übernommen (Teil B)** am 31. Oktober 2026 durch Konzept 10
+  (`docs/planning/10-metadaten-einstellungen.md`, Frage 16, ADR 0018). Interview am 20. Oktober 2026
+  (Mehrdeutigkeit 17%; Review durch den OMC-Kritiker am selben Tag eingearbeitet). **Teil A übernommen
+  durch Konzept 07 (29. Oktober 2026):** die geordnete Anbieterliste, das feldweise Auffüllen in dieser
+  Reihenfolge, die Herkunft je Feld (`item_field_sources`), die Freigabe-Ausnahme «nie senken» und TVDB
+  als frei platzierbarer Erkenner sind mit `docs/planning/07-bibliotheken.md` (Frage 13, ADR 0015)
+  beauftragt und gebaut, allerdings **auf Ordnerebene statt Bibliotheksebene** und ohne Serverstandard.
+  **Teil B übernommen durch Konzept 10:** Sprachen als geordnete Liste (Server-Standard, Abweichung je
+  Bibliothek, Profil wählt die Metadatensprache getrennt von der Oberfläche), Bildsprache-Kette je
+  Bildart, Logo als neue Bildart, lokale Bilddateien als erste Bildquelle, Fanart.tv optional, die
+  Bildwahl je Titel und das Land für die Altersfreigabe. Konzept 10 weicht in vier Punkten vom
+  Interview ab (Abschnitt 1.3 dort): Banner, Disc, Clearart werden nicht geholt; Thumb nicht;
+  **eine** Anbieterliste je Ordner statt zwei (`local` davor und `fanart` dahinter fest gesetzt);
+  «Jetzt anwenden» von Hand statt automatisch nach dem Speichern.
+- **Rest, nicht übernommen** (bleibt hier vermerkt, kein Konzept geplant): OMDb (Texte, Bewertungen);
+  Banner, Disc, Clearart (Regel 11: Clients, die sie bräuchten, sind Non-Goal); Thumb für Filme und
+  Serien (nur von Fanart.tv; «Weiterschauen» nutzt den beschnittenen Hintergrund, Folgen haben ihr
+  Standbild); NFO als **Text**quelle (der Scanner liest NFO nur für Ids, Plot und Freigabe); die
+  Rohzertifikate `item_certifications` (Landwechsel ohne Netz); `item_provider_state` (Zustand je
+  Quelle und Titel); die zweite Anbieterliste `image_providers`; mehrere Hintergründe je Titel.
 - Frühestens: nach Version 1.0
 - Interview: `.omc/specs/deep-interview-metadaten-einstellungen.md`
 - Vorbild: Bibliothekseinstellungen und Bildbeschaffer-Liste in Emby

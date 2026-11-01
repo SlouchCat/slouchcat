@@ -3,7 +3,10 @@
 - Status: angenommen (19. Oktober 2026); **teilweise ersetzt durch ADR 0015** (29. Oktober 2026): die
   Reihenfolge der Anbieter ist nicht mehr fest im Code, sondern je Ordner eine geordnete Liste; TVDB ist
   als Erkenner für Serienordner wählbar; die zwei ersten «Verworfenen Alternativen» unten sind damit
-  angenommen. Schnittstelle, Serien-Job, Trailer-Kette, Tageskontingent und Schlüsselregel gelten weiter
+  angenommen. Schnittstelle, Serien-Job, Trailer-Kette, Tageskontingent und Schlüsselregel gelten weiter;
+  **ergänzt durch ADR 0018** (31. Oktober 2026): Schritt 2 der Trailer-Kette sucht YouTube in den
+  primären Untersprachen der wirksamen Metadaten-Sprachliste statt fest in Deutsch und Englisch, und die
+  Redaction-Liste wächst um `fanart_api_key`, `fanart_client_key` und das Query-Muster `client_key`
 - Quelle: `docs/planning/03-plan-v1.md`, Abschnitte 3.1, 3.2, 5.3 und M3; Entscheid 7 in
   `docs/planning/04-entscheidungen.md` (Antwort auf Frage 7); M3-Entwurf, Abschnitte 3.1 und 3.2
 - Betroffene Spec-IDs: B-3, B-6, B-8, W-10, AN-8, AN-15

@@ -109,6 +109,9 @@ type KeySource interface {
 	YouTubeKey(ctx context.Context) (string, error)
 	// TraktClientID returns the Trakt client id (M7, E-7).
 	TraktClientID(ctx context.Context) (string, error)
+	// FanartKeys returns the Fanart.tv project key and the optional personal client key
+	// (concept 10 step 6); "" when not configured.
+	FanartKeys(ctx context.Context) (key, client string, err error)
 }
 
 // Service runs the metadata jobs and checks TMDB keys.
@@ -125,6 +128,7 @@ type Service struct {
 	client *Client
 	tmdb   *tmdbProvider
 	tvdb   *tvdbProvider
+	fanart *fanartProvider // Fanart.tv, the last image source (fanart.go)
 	now    func() time.Time
 
 	anilist    *aniListProvider // AniList, a filler (ADR 0015; anilist.go)
@@ -144,6 +148,9 @@ type Service struct {
 	accentMu      sync.Mutex
 	accentRetries map[string]int // per item: queued image checks for a missing accent
 
+	candMu    sync.Mutex
+	candCache map[string]candidateEntry // image candidates per title and kind (image_candidates.go)
+
 	feeds feedFetcher // podcast feeds (podcast.go)
 }
 
@@ -152,6 +159,8 @@ type options struct {
 	imageBase   string
 	tvdbBase    string
 	tvdbArtBase string
+	fanartBase  string
+	fanartArt   string
 	anilistBase string
 	anilistImgs string
 	anilistOn   bool
@@ -177,6 +186,11 @@ type Option func(*options)
 // WithBaseURL replaces the TMDB API and image base URLs (tests use an httptest.Server).
 func WithBaseURL(api, images string) Option {
 	return func(o *options) { o.apiBase, o.imageBase = api, images }
+}
+
+// WithFanartBaseURL replaces the Fanart.tv API and asset base URLs (tests use an httptest.Server).
+func WithFanartBaseURL(api, assets string) Option {
+	return func(o *options) { o.fanartBase, o.fanartArt = api, assets }
 }
 
 // WithTVDBBaseURL replaces the TVDB API and artwork base URLs (tests use an httptest.Server).
@@ -247,7 +261,7 @@ func WithClock(now func() time.Time) Option {
 // <cacheDir>/images. runner scales the images (ffmpeg).
 func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	o := options{apiBase: DefaultAPIBase, imageBase: DefaultImageBase, tvdbBase: DefaultTVDBBase,
-		tvdbArtBase: DefaultTVDBArtworkBase, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now,
+		tvdbArtBase: DefaultTVDBArtworkBase, fanartBase: DefaultFanartBase, fanartArt: DefaultFanartAssets, youtubeBase: DefaultYouTubeBase, trailerAI: "off", now: time.Now,
 		anilistBase: DefaultAniListBase, anilistImgs: DefaultAniListImageBase, anilistOn: true, animeLists: DefaultAnimeListsURL}
 	for _, opt := range opts {
 		opt(&o)
@@ -262,8 +276,9 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		o.quota = ratelimit.NewQuota("youtube", youtubeDailyUnits, ratelimit.MidnightPacific)
 	}
 	tvdb := newTVDBProvider(o.tvdbBase, o.tvdbArtBase, o.http, keys)
+	fanart := newFanartProvider(o.fanartBase, o.fanartArt, o.http, keys)
 	tvdb.log = log
-	return &Service{
+	svc := &Service{
 		db:     db,
 		write:  systemq.New(db.Write),
 		read:   systemq.New(db.Read),
@@ -276,6 +291,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		client: client,
 		tmdb:   &tmdbProvider{client: client, keys: keys},
 		tvdb:   tvdb,
+		fanart: fanart,
 		now:    o.now,
 
 		anilist:    newAniListProvider(o.anilistBase, o.anilistImgs, o.http, o.anilistOn, log),
@@ -291,6 +307,25 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		accentRetries: map[string]int{},
 		feeds:         newFeedFetcher(o.feedHTTP, o.feedNow, o.feedAgent),
 	}
+	// The TMDB detail request of the record language asks for the images block in the languages
+	// of the image chains (ADR 0018); read per call, so a changed setting applies at once.
+	svc.tmdb.imageLangs = func(ctx context.Context) []string {
+		st, err := svc.Settings(ctx)
+		if err != nil {
+			log.Warn("metadata settings for the image languages", "err", err)
+			return []string{}
+		}
+		return st.ImageLanguages()
+	}
+	svc.tmdb.includeAdult = func(ctx context.Context) bool {
+		st, err := svc.Settings(ctx)
+		return err == nil && st.TMDBIncludeAdult
+	}
+	svc.fanart.enabled = func(ctx context.Context) bool {
+		st, err := svc.Settings(ctx)
+		return err == nil && st.FanartEnabled
+	}
+	return svc
 }
 
 // RegisterTypes registers the job types of the metadata enrichment on r (concept 09, ADR 0017):
@@ -305,6 +340,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{Name: JobFill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleFill})
 	r.Register(jobs.Type{Name: JobVoteBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleVoteBackfill})
 	r.Register(jobs.Type{Name: JobImageFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: imageFetchPriority, Handler: s.handleImageFetch})
+	r.Register(jobs.Type{Name: JobApply, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: applyPriority, Handler: s.handleApply})
 	r.Register(jobs.Type{Name: JobTrailerFind, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: trailerPriority, Handler: s.handleTrailerFind})
 	r.Register(jobs.Type{Name: JobPodcastFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: podcastFetchPriority, Handler: s.handlePodcastFetch})
 	r.Register(jobs.Type{
@@ -323,20 +359,28 @@ func (s *Service) CheckKey(ctx context.Context, key string) error {
 	return s.client.CheckKey(ctx, key)
 }
 
-// itemPayload is the payload of both jobs.
+// itemPayload is the payload of both jobs. Images marks a fill queued by metadata.apply for
+// the images: it fetches the records and decides the image kinds again even for a folder with
+// one provider, which an ordinary fill leaves to the match (section 1.1 of concept 10).
 type itemPayload struct {
 	ItemID string `json:"itemId"`
+	Images bool   `json:"images,omitempty"`
 }
 
 func parsePayload(j *jobs.Job) (string, error) {
+	p, err := parseItemPayload(j)
+	return p.ItemID, err
+}
+
+func parseItemPayload(j *jobs.Job) (itemPayload, error) {
 	var p itemPayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil {
-		return "", fmt.Errorf("%s payload: %w", j.Type, err)
+		return itemPayload{}, fmt.Errorf("%s payload: %w", j.Type, err)
 	}
 	if !isULID(p.ItemID) {
-		return "", fmt.Errorf("%s payload: invalid itemId %q", j.Type, p.ItemID)
+		return itemPayload{}, fmt.Errorf("%s payload: invalid itemId %q", j.Type, p.ItemID)
 	}
-	return p.ItemID, nil
+	return p, nil
 }
 
 // logRequest records an outbound provider request at debug level: provider, host and path, never

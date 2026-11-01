@@ -21,7 +21,8 @@ import (
 //
 //  1. TMDB videos (/movie|tv/{id}/videos in de-DE and en-US, video languages de, en and none):
 //     type Trailer on YouTube, official first, then the newest, one per video language.
-//  2. YouTube Data API v3 for de and en (youtube.go), within the daily quota. An exhausted quota
+//  2. YouTube Data API v3 for the primary subtags of the effective metadata language list (E-6,
+//     ADR 0018; youtube.go), within the daily quota. An exhausted quota
 //     leaves the title pending; QueuePendingTrailers queues it again after the next scan.
 //  3. An AITrailerProvider; M3 ships only the nop implementation (SLOUCHCAT_TRAILER_AI=off).
 //
@@ -42,8 +43,16 @@ const (
 	sourceManual  = "manual"
 )
 
-// trailerLangs are the languages the trailer chain looks for.
-var trailerLangs = []string{"de", "en"}
+// trailerLangsOf returns the languages the trailer chain looks for: the primary subtags of the
+// effective text language list of the title's library (pt-BR -> pt; trailers.lang holds two or
+// three letters). The chain of ADR 0006 is unchanged, only the list is no longer fixed to de, en.
+func (s *Service) trailerLangsOf(ctx context.Context, item systemq.Item) ([]string, error) {
+	langs, err := s.textLangsOf(ctx, item)
+	if err != nil {
+		return nil, err
+	}
+	return primaryLanguages(langs), nil
+}
 
 // TrailerQuery describes the title a TrailerProvider looks for.
 type TrailerQuery struct {
@@ -117,7 +126,7 @@ func (p *tmdbTrailers) FindTrailers(ctx context.Context, q TrailerQuery) ([]Trai
 	}
 	seen := map[string]bool{}
 	var videos []Video
-	for _, l := range trailerLangs {
+	for _, l := range q.Langs {
 		vs, err := c.Videos(ctx, kind, q.TMDBID, tmdbLang(l))
 		if errors.Is(err, ErrNotFound) {
 			return nil, nil
@@ -204,17 +213,21 @@ func (s *Service) findTrailers(ctx context.Context, itemID string) error {
 		q.Year = int(item.Year.Int64)
 	}
 
+	langs, err := s.trailerLangsOf(ctx, item)
+	if err != nil {
+		return fmt.Errorf("trailer.find %s: %w", item.ID, err)
+	}
 	var hits []TrailerHit
 	missing := func() []string {
 		var out []string
-		for _, l := range trailerLangs {
+		for _, l := range langs {
 			if !hasLang(hits, l) {
 				out = append(out, l)
 			}
 		}
 		return out
 	}
-	q.Langs = trailerLangs
+	q.Langs = langs
 	found, err := s.trailersTMDB.FindTrailers(ctx, q)
 	switch {
 	case errors.Is(err, model.ErrTMDBKeyInvalid):

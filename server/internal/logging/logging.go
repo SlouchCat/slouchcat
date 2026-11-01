@@ -46,16 +46,18 @@ const (
 // M8 adds the e-mail server password (smtp_password), the Telegram bot token (bot_token), backup
 // passphrases, the VAPID private key and the parts of a push subscription: its keys (p256dh,
 // auth_secret) and its endpoint, a capability URL of the push service. M11 adds the address of
-// the spotlight user list (list_url): it can carry a Trakt user name (plan 8.4).
+// the spotlight user list (list_url): it can carry a Trakt user name (plan 8.4). Concept 10 adds
+// the personal key of Fanart.tv (client_key, also as query parameter); the keys go as headers,
+// so this is a second line of defence.
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
 	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
 	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",
-	"listurl", "deviceid"}
+	"listurl", "deviceid", "clientkey"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
 // st (stream token), dt (download token, M5) and the credentials of private podcast feeds and their
 // enclosures (M6): auth, token, access_token, secret, sig and signature.
-var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|apikey|key|st|dt|auth|token|access_token|secret|sig|signature)=)[^&;#\s"']*`)
+var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|apikey|key|client_key|st|dt|auth|token|access_token|secret|sig|signature)=)[^&;#\s"']*`)
 
 // New returns a logger that writes to w in the given format and level, with redaction applied.
 func New(w io.Writer, format Format, level slog.Leveler) (*slog.Logger, error) {

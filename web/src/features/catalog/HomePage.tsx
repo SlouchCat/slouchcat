@@ -199,8 +199,12 @@ export function HomePage() {
     row.items.map((item) => ({
       id: item.id,
       title: item.title,
+      logoUrl: imageUrl(item.images.logo),
       backdropUrl: imageUrl(item.images.backdrop),
       backdropSmallUrl: imageUrl(item.images.backdropSmall),
+      backdropLargeUrl: imageUrl(item.images.backdropLarge),
+      backdropUhdUrl: imageUrl(item.images.backdropUhd),
+      backdropUhdWidth: item.images.backdropUhd?.width,
       posterUrl: imageUrl(item.images.poster),
       posterSmallUrl: imageUrl(item.images.posterSmall),
       accent: item.accent,

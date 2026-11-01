@@ -3,8 +3,11 @@ import type { TFunction } from 'i18next';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '@/lib/format';
-import { Chip, Notice, Panel, ProgressBar, StatusDot, type StatusDotState } from '@/ui';
+import { useQuery } from '@tanstack/react-query';
+import { paths } from '@/app/paths';
+import { Chip, Notice, Panel, ProgressBar, StatusDot, TextLink, type StatusDotState } from '@/ui';
 import { providerChain } from '@/ui/aria';
+import { libraryMetadataQuery } from './queries';
 import styles from './LibrariesPage.module.css';
 
 const dotOf: Record<Library['scan']['state'], StatusDotState> = {
@@ -115,6 +118,7 @@ export function LibraryCard({ library, actions }: LibraryCardProps) {
       )}
 
       <Folders library={library} />
+      {library.kind === 'video' && <MetadataLine libraryId={library.id} />}
 
       <div className={styles.actions}>{actions}</div>
     </Panel>
@@ -192,5 +196,26 @@ function Folders({ library }: { library: Library }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The metadata deviation of the library (concept 10, 7.2): "like the server" or which part
+ * deviates, with a link to the page "Metadaten" of this library.
+ */
+function MetadataLine({ libraryId }: { libraryId: number }) {
+  const { t } = useTranslation();
+  const metadata = useQuery(libraryMetadataQuery(libraryId));
+  if (!metadata.data) return null;
+  const texts = metadata.data.textLangs != null;
+  const images = metadata.data.images != null;
+  const key = texts && images ? 'both' : texts ? 'texts' : images ? 'images' : 'like';
+  return (
+    <p className={styles.muted}>
+      {t(`admin.libraries.metadata.${key}`)}{' '}
+      <TextLink href={`${paths.adminMetadata}?library=${libraryId}`}>
+        {t('admin.libraries.metadata.link')}
+      </TextLink>
+    </p>
   );
 }

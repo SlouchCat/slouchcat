@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"net/url"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -18,6 +19,11 @@ func (e serviceProblem) VisitCancelLibraryScanResponse(w http.ResponseWriter) er
 func (e serviceProblem) VisitGetAdminItemResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitSetItemMatchResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitRefreshItemResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitListItemImageCandidatesResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitSetItemImageResponse(w http.ResponseWriter) error   { return e.visit(w) }
+func (e serviceProblem) VisitClearItemImageResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitCreateItemTrailerResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -84,6 +90,50 @@ func (s *server) DeleteItemTrailer(ctx context.Context, req gen.DeleteItemTraile
 		return s.problem(ctx, err), nil
 	}
 	return gen.DeleteItemTrailer204Response{}, nil
+}
+
+func (s *server) ListItemImageCandidates(ctx context.Context, req gen.ListItemImageCandidatesRequestObject) (gen.ListItemImageCandidatesResponseObject, error) {
+	list, err := s.opts.Admin.ItemImageCandidates(ctx, req.Id, string(req.Params.Kind), deref(req.Params.Refresh))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.ListItemImageCandidates200JSONResponse{Candidates: make([]gen.ImageCandidate, 0, len(list.Candidates)), Unavailable: list.Unavailable}
+	if out.Unavailable == nil {
+		out.Unavailable = []string{}
+	}
+	for _, c := range list.Candidates {
+		preview := c.PreviewURL
+		if preview == "" {
+			preview = candidatePreviewURL(req.Id, c.Source)
+		}
+		out.Candidates = append(out.Candidates, gen.ImageCandidate{Provider: c.Provider, Lang: c.Lang, Width: c.Width, Height: c.Height,
+			Score: c.Score, VoteCount: c.VoteCount, Source: c.Source, PreviewUrl: preview, Chosen: c.Chosen})
+	}
+	return out, nil
+}
+
+func (s *server) SetItemImage(ctx context.Context, req gen.SetItemImageRequestObject) (gen.SetItemImageResponseObject, error) {
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("source", "required")), nil
+	}
+	it, err := s.opts.Admin.SetItemImage(ctx, req.Id, string(req.Kind), req.Body.Provider, req.Body.Source)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetItemImage200JSONResponse(toAdminItem(it)), nil
+}
+
+func (s *server) ClearItemImage(ctx context.Context, req gen.ClearItemImageRequestObject) (gen.ClearItemImageResponseObject, error) {
+	it, err := s.opts.Admin.ClearItemImage(ctx, req.Id, string(req.Kind))
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.ClearItemImage200JSONResponse(toAdminItem(it)), nil
+}
+
+// candidatePreviewURL is the address of getItemImageCandidatePreview for a local candidate.
+func candidatePreviewURL(itemID, source string) string {
+	return BasePath + "/admin/items/" + url.PathEscape(itemID) + "/image-candidates/preview?source=" + url.QueryEscape(source)
 }
 
 func (s *server) SetItemsRating(ctx context.Context, req gen.SetItemsRatingRequestObject) (gen.SetItemsRatingResponseObject, error) {
@@ -224,6 +274,22 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 		out.MediaFiles = append(out.MediaFiles, toAdminMediaFile(f))
 	}
 	out.Children.Seasons, out.Children.Episodes, out.Children.Extras = it.Seasons, it.Episodes, it.Extras
+	if it.Images != nil {
+		images := make([]gen.AdminItemImage, 0, len(it.Images))
+		for _, img := range it.Images {
+			g := gen.AdminItemImage{Kind: gen.ImageKind(img.Kind), Chosen: img.Chosen, Locked: img.Locked,
+				Provider: optString(img.Provider), Lang: optString(img.Lang), Source: optString(img.Source)}
+			switch {
+			case img.PreviewURL != "":
+				g.PreviewUrl = &img.PreviewURL
+			case img.Provider != "":
+				preview := candidatePreviewURL(it.ID, img.Source)
+				g.PreviewUrl = &preview
+			}
+			images = append(images, g)
+		}
+		out.Images = &images
+	}
 	return out
 }
 

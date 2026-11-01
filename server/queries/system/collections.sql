@@ -47,7 +47,7 @@ WHERE c.id = @id;
 -- name: AdminListCollectionItems :many
 -- Live members in order (position, then release date) with kind, title (German text, else
 -- English, else the parsed title) and year.
-SELECT ci.item_id, ci.position, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year
+SELECT ci.item_id, ci.position, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year
 FROM collection_items AS ci
 JOIN items AS i ON i.id = ci.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'

@@ -980,6 +980,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		t.Fatal(err)
 	}
 	pods := metadata.New(f.DB, jobs.NewQueue(f.DB.Write, nil), nil, t.TempDir(), transcode.Runner{}, log)
+	a.WithMetadataLanguages(pods.AvailableMetadataLanguages)
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
 		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods).
 		WithBackups(t.TempDir(), "test")

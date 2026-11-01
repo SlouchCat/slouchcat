@@ -12,9 +12,67 @@ import (
 type tmdbProvider struct {
 	client *Client
 	keys   KeySource
+	// imageLangs returns the languages of the image chains (Settings.ImageLanguages); the detail
+	// request of the record language asks for the images block in them (ADR 0018). nil = no block.
+	imageLangs func(ctx context.Context) []string
+	// includeAdult says whether searches send include_adult (metadata.tmdb_include_adult); nil = no.
+	includeAdult func(ctx context.Context) bool
 }
 
-// tmdbLangs maps the text languages to the TMDB request languages.
+func (p *tmdbProvider) adult(ctx context.Context) bool {
+	return p.includeAdult != nil && p.includeAdult(ctx)
+}
+
+// imagesFor returns the image languages to ask for, or nil without a source.
+func (p *tmdbProvider) imagesFor(ctx context.Context) []string {
+	if p.imageLangs == nil {
+		return nil
+	}
+	return p.imageLangs(ctx)
+}
+
+// tmdbImageCandidates converts an images block; defaults names the provider's own poster, backdrop
+// (and logo) paths, which are marked Default (or added as candidates without language when the
+// block does not list them).
+func tmdbImageCandidates(imgs Images, defaults map[string]string) []ImageCandidate {
+	var out []ImageCandidate
+	add := func(kind string, list []Image) {
+		for _, im := range list {
+			if im.FilePath == "" {
+				continue
+			}
+			lang := ""
+			if im.Lang != nil {
+				lang = *im.Lang
+			}
+			out = append(out, ImageCandidate{Kind: kind, Lang: lang, Width: im.Width, Height: im.Height,
+				Votes: im.VoteAverage, VoteCount: im.VoteCount, Source: im.FilePath, Default: defaults[kind] == im.FilePath})
+		}
+	}
+	add("poster", imgs.Posters)
+	add("backdrop", imgs.Backdrops)
+	add("logo", imgs.Logos)
+	for kind, path := range defaults {
+		if path == "" {
+			continue
+		}
+		found := false
+		for _, c := range out {
+			if c.Kind == kind && c.Source == path {
+				found = true
+			}
+		}
+		if !found {
+			out = append(out, ImageCandidate{Kind: kind, Source: path, Default: true})
+		}
+	}
+	return out
+}
+
+// tmdbLangs maps the bare text languages whose TMDB default region is not the obvious one to the
+// TMDB request language; any other code (a bare ISO 639-1 code or an xx-YY variant of the static
+// list, languages.go) is passed through. TMDB accepts a bare code and answers with its primary
+// translation of that language (checked against the API reference in step 1 of concept 10).
 var tmdbLangs = map[string]string{"de": langDE, "en": langEN}
 
 func tmdbLang(lang string) string {
@@ -85,7 +143,7 @@ func (p *tmdbProvider) SearchMovie(ctx context.Context, q MovieQuery) ([]Candida
 		movies, _, err := c.Find(ctx, q.IMDBID, "imdb_id")
 		return p.candidates(movies, false), err
 	}
-	rs, err := c.Search(ctx, "movie", q.Title, q.Year)
+	rs, err := c.Search(ctx, "movie", q.Title, q.Year, p.adult(ctx))
 	return p.candidates(rs, false), err
 }
 
@@ -102,12 +160,12 @@ func (p *tmdbProvider) SearchSeries(ctx context.Context, q SeriesQuery) ([]Candi
 		_, series, err := c.Find(ctx, q.IMDBID, "imdb_id")
 		return p.candidates(series, true), err
 	}
-	rs, err := c.Search(ctx, "tv", q.Title, q.Year)
+	rs, err := c.Search(ctx, "tv", q.Title, q.Year, p.adult(ctx))
 	return p.candidates(rs, true), err
 }
 
 // recordLang returns the language whose detail fills the language-independent fields: English
-// when requested (the M1b behaviour), else the first.
+// when requested (the M1b behaviour), else the first of the list.
 func recordLang(langs []string) string {
 	for _, l := range langs {
 		if l == "en" {
@@ -130,14 +188,19 @@ func (p *tmdbProvider) Movie(ctx context.Context, id string, langs []string) (Mo
 		return MovieRecord{}, err
 	}
 	byLang := map[string]Movie{}
+	main := recordLang(langs)
 	for _, l := range langs {
-		m, err := c.Movie(ctx, n, tmdbLang(l))
+		var imgs []string
+		if l == main {
+			imgs = p.imagesFor(ctx) // the images block once, with the record language (6.2)
+		}
+		m, err := c.Movie(ctx, n, tmdbLang(l), imgs)
 		if err != nil {
 			return MovieRecord{}, err
 		}
 		byLang[l] = m
 	}
-	m := byLang[recordLang(langs)]
+	m := byLang[main]
 	rec := MovieRecord{TitleRecord: TitleRecord{
 		Provider: ProviderTMDB, ID: strconv.FormatInt(m.ID, 10), TMDBID: m.ID, IMDBID: m.IMDBID,
 		OriginalTitle: m.OriginalTitle, Date: m.ReleaseDate, Runtime: m.Runtime, VoteAverage: m.VoteAverage,
@@ -145,6 +208,7 @@ func (p *tmdbProvider) Movie(ctx context.Context, id string, langs []string) (Mo
 		Certifications: releaseCertifications(m.ReleaseDates),
 		Credits:        tmdbCredits(m.Credits, nil),
 		PosterPath:     m.PosterPath, BackdropPath: m.BackdropPath,
+		Images: tmdbImageCandidates(m.Images, map[string]string{"poster": m.PosterPath, "backdrop": m.BackdropPath}),
 	}}
 	for l, lm := range byLang {
 		rec.Texts[l] = Text{Title: lm.Title, Overview: lm.Overview, Tagline: lm.Tagline}
@@ -172,14 +236,19 @@ func (p *tmdbProvider) Series(ctx context.Context, id string, langs []string) (S
 		return SeriesRecord{}, err
 	}
 	byLang := map[string]TV{}
+	main := recordLang(langs)
 	for _, l := range langs {
-		tv, err := c.TV(ctx, n, tmdbLang(l))
+		var imgs []string
+		if l == main {
+			imgs = p.imagesFor(ctx)
+		}
+		tv, err := c.TV(ctx, n, tmdbLang(l), imgs)
 		if err != nil {
 			return SeriesRecord{}, err
 		}
 		byLang[l] = tv
 	}
-	tv := byLang[recordLang(langs)]
+	tv := byLang[main]
 	certs := map[string]string{}
 	for _, r := range tv.ContentRatings.Results {
 		if code, rating := strings.ToUpper(strings.TrimSpace(r.Country)), strings.TrimSpace(r.Rating); rating != "" {
@@ -203,6 +272,7 @@ func (p *tmdbProvider) Series(ctx context.Context, id string, langs []string) (S
 		VoteAverage: tv.VoteAverage, Texts: map[string]Text{}, Genres: map[string][]string{}, Certifications: certs,
 		Credits:    tmdbCredits(tv.Credits, creators),
 		PosterPath: tv.PosterPath, BackdropPath: tv.BackdropPath,
+		Images: tmdbImageCandidates(tv.Images, map[string]string{"poster": tv.PosterPath, "backdrop": tv.BackdropPath}),
 	}}
 	for l, ltv := range byLang {
 		rec.Texts[l] = Text{Title: ltv.Name, Overview: ltv.Overview, Tagline: ltv.Tagline}
@@ -228,13 +298,18 @@ func (p *tmdbProvider) Season(ctx context.Context, seriesID string, n int, langs
 	var order []int
 	main := recordLang(langs)
 	for _, l := range langs {
-		s, err := c.TVSeason(ctx, id, n, tmdbLang(l))
+		var imgs []string
+		if l == main {
+			imgs = p.imagesFor(ctx)
+		}
+		s, err := c.TVSeason(ctx, id, n, tmdbLang(l), imgs)
 		if err != nil {
 			return SeasonRecord{}, err
 		}
 		rec.Texts[l] = Text{Title: s.Name, Overview: s.Overview}
 		if l == main {
 			rec.AirDate, rec.PosterPath = s.AirDate, s.PosterPath
+			rec.Images = tmdbImageCandidates(Images{Posters: s.Images.Posters}, map[string]string{"poster": s.PosterPath})
 		}
 		for _, e := range s.Episodes {
 			ep := episodes[e.EpisodeNumber]
