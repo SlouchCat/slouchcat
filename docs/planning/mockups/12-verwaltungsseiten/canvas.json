@@ -6,312 +6,246 @@
  },
  "title": "Verwaltungsseiten Grundmuster",
  "launch": {
-  "view": "canvas",
-  "page": "jobs"
+  "view": "canvas"
  },
- "pages": [
-  {
-   "id": "grundmuster",
-   "name": "Grundmuster"
-  },
-  {
-   "id": "jobs",
-   "name": "Hintergrundjobs"
-  },
-  {
-   "id": "met",
-   "name": "Metadaten"
-  },
-  {
-   "id": "int",
-   "name": "Integrationen"
-  },
-  {
-   "id": "bib",
-   "name": "Bibliotheken"
-  },
-  {
-   "id": "pfl",
-   "name": "Pflege"
-  },
-  {
-   "id": "tit",
-   "name": "Titel (Unterseite von Pflege)"
-  }
- ],
+ "pages": [],
  "boards": {
   "Main.dc.html": {
    "x": 0,
-   "y": 0,
+   "y": 13260,
    "w": 1440,
    "h": 2370,
    "title": "A · Hintergrundjobs",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "A-Integrationen.dc.html": {
    "x": 1520,
-   "y": 0,
+   "y": 13260,
    "w": 1440,
    "h": 2370,
    "title": "A · Integrationen",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "A-Konten.dc.html": {
    "x": 3040,
-   "y": 0,
+   "y": 13260,
    "w": 1440,
    "h": 1310,
    "title": "A · Konten",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "B-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 2790,
+   "y": 16350,
    "w": 1440,
    "h": 1710,
    "title": "B · Hintergrundjobs",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "B-Integrationen.dc.html": {
    "x": 1520,
-   "y": 2790,
+   "y": 16350,
    "w": 1440,
    "h": 1500,
    "title": "B · Integrationen",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "B-Konten.dc.html": {
    "x": 3040,
-   "y": 2790,
+   "y": 16350,
    "w": 1440,
    "h": 1300,
    "title": "B · Konten",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "C-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 4920,
+   "y": 18780,
    "w": 1440,
    "h": 1810,
    "title": "C · Hintergrundjobs",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "C-Integrationen.dc.html": {
    "x": 1520,
-   "y": 4920,
+   "y": 18780,
    "w": 1440,
    "h": 1530,
    "title": "C · Integrationen",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "C-Konten.dc.html": {
    "x": 3040,
-   "y": 4920,
+   "y": 18780,
    "w": 1440,
    "h": 1430,
    "title": "C · Konten",
-   "expand": "fill",
-   "page": "grundmuster"
+   "expand": "fill"
   },
   "Jobs-A.dc.html": {
    "x": 0,
-   "y": 0,
+   "y": 300,
    "w": 1440,
    "h": 1700,
    "title": "A · Kompakte Liste",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "jobs"
+   "is_interactive": true
   },
   "Jobs-B.dc.html": {
    "x": 1520,
-   "y": 0,
+   "y": 300,
    "w": 1440,
    "h": 1190,
    "title": "B · Liste und Detail",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "jobs"
+   "is_interactive": true
   },
   "Jobs-C.dc.html": {
    "x": 3040,
-   "y": 0,
+   "y": 300,
    "w": 1440,
    "h": 1230,
    "title": "C · Reiter und Klappbereiche",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "jobs"
+   "is_interactive": true
   },
   "Met-A.dc.html": {
    "x": 0,
-   "y": 0,
+   "y": 2720,
    "w": 1440,
    "h": 1410,
    "title": "A · Kompakte Liste",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "met"
+   "is_interactive": true
   },
   "Met-B.dc.html": {
    "x": 1520,
-   "y": 0,
+   "y": 2720,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "met"
+   "is_interactive": true
   },
   "Met-C.dc.html": {
    "x": 3040,
-   "y": 0,
+   "y": 2720,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "met"
+   "is_interactive": true
   },
   "Int-A.dc.html": {
    "x": 0,
-   "y": 0,
+   "y": 4850,
    "w": 1440,
    "h": 2260,
    "title": "A · Kompakte Liste",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "int"
+   "is_interactive": true
   },
   "Int-B.dc.html": {
    "x": 1520,
-   "y": 0,
+   "y": 4850,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "int"
+   "is_interactive": true
   },
   "Int-C.dc.html": {
    "x": 3040,
-   "y": 0,
+   "y": 4850,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "int"
+   "is_interactive": true
   },
   "Bib-A.dc.html": {
    "x": 0,
-   "y": 0,
+   "y": 7830,
    "w": 1440,
    "h": 910,
    "title": "A · Kompakte Liste",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "bib"
+   "is_interactive": true
   },
   "Bib-B.dc.html": {
    "x": 1520,
-   "y": 0,
+   "y": 7830,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "bib"
+   "is_interactive": true
   },
   "Bib-C.dc.html": {
    "x": 3040,
-   "y": 0,
+   "y": 7830,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "bib"
+   "is_interactive": true
   },
   "Pfl-A.dc.html": {
    "x": 0,
-   "y": 0,
+   "y": 9460,
    "w": 1440,
    "h": 910,
    "title": "A · Kompakte Liste",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "pfl"
+   "is_interactive": true
   },
   "Pfl-B.dc.html": {
    "x": 1520,
-   "y": 0,
+   "y": 9460,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "pfl"
+   "is_interactive": true
   },
   "Pfl-C.dc.html": {
    "x": 3040,
-   "y": 0,
+   "y": 9460,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "pfl"
+   "is_interactive": true
   },
   "Tit-A.dc.html": {
    "x": 0,
-   "y": 0,
+   "y": 11090,
    "w": 1440,
    "h": 1450,
    "title": "A · Kompakte Liste",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "tit"
+   "is_interactive": true
   },
   "Tit-B.dc.html": {
    "x": 1520,
-   "y": 0,
+   "y": 11090,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "tit"
+   "is_interactive": true
   },
   "Tit-C.dc.html": {
    "x": 3040,
-   "y": 0,
+   "y": 11090,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
    "expand": "fill",
-   "is_interactive": true,
-   "page": "tit"
+   "is_interactive": true
   }
  },
  "order": [
-  "Main.dc.html",
-  "A-Integrationen.dc.html",
-  "A-Konten.dc.html",
-  "B-Hintergrundjobs.dc.html",
-  "B-Integrationen.dc.html",
-  "B-Konten.dc.html",
-  "C-Hintergrundjobs.dc.html",
-  "C-Integrationen.dc.html",
-  "C-Konten.dc.html",
   "Jobs-A.dc.html",
   "Jobs-B.dc.html",
   "Jobs-C.dc.html",
@@ -329,80 +263,80 @@
   "Pfl-C.dc.html",
   "Tit-A.dc.html",
   "Tit-B.dc.html",
-  "Tit-C.dc.html"
+  "Tit-C.dc.html",
+  "Main.dc.html",
+  "A-Integrationen.dc.html",
+  "A-Konten.dc.html",
+  "B-Hintergrundjobs.dc.html",
+  "B-Integrationen.dc.html",
+  "B-Konten.dc.html",
+  "C-Hintergrundjobs.dc.html",
+  "C-Integrationen.dc.html",
+  "C-Konten.dc.html"
  ],
  "notes": {
-  "rowA": {
+  "row0": {
    "x": 0,
-   "y": -300,
-   "text": "Variante A «Kompakte Liste»",
+   "y": 0,
+   "text": "Hintergrundjobs",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "grundmuster"
+   "maxW": 4480
   },
-  "rowB": {
+  "row1": {
    "x": 0,
-   "y": 2490,
-   "text": "Variante B «Liste und Detail»",
+   "y": 2420,
+   "text": "Metadaten · gewählt: B",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "grundmuster"
+   "maxW": 4480
   },
-  "rowC": {
+  "row2": {
    "x": 0,
-   "y": 4620,
-   "text": "Variante C «Reiter und Klappbereiche»",
+   "y": 4550,
+   "text": "Integrationen",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "grundmuster"
+   "maxW": 4480
   },
-  "jobsTitle": {
+  "row3": {
    "x": 0,
-   "y": -300,
-   "text": "Hintergrundjobs · klickbar",
+   "y": 7530,
+   "text": "Bibliotheken",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "jobs"
+   "maxW": 4480
   },
-  "metTitle": {
+  "row4": {
    "x": 0,
-   "y": -300,
-   "text": "Metadaten · klickbar",
+   "y": 9160,
+   "text": "Pflege",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "met"
+   "maxW": 4480
   },
-  "intTitle": {
+  "row5": {
    "x": 0,
-   "y": -300,
-   "text": "Integrationen · klickbar",
+   "y": 10790,
+   "text": "Titel (Unterseite von Pflege)",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "int"
+   "maxW": 4480
   },
-  "bibTitle": {
+  "row6": {
    "x": 0,
-   "y": -300,
-   "text": "Bibliotheken · klickbar",
+   "y": 12960,
+   "text": "Grundmuster A (alt, nicht klickbar)",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "bib"
+   "maxW": 4480
   },
-  "pflTitle": {
+  "row7": {
    "x": 0,
-   "y": -300,
-   "text": "Pflege · klickbar",
+   "y": 16050,
+   "text": "Grundmuster B (alt, nicht klickbar)",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "pfl"
+   "maxW": 4480
   },
-  "titTitle": {
+  "row8": {
    "x": 0,
-   "y": -300,
-   "text": "Titel (Unterseite von Pflege) · klickbar",
+   "y": 18480,
+   "text": "Grundmuster C (alt, nicht klickbar)",
    "kind": "title1",
-   "maxW": 4480,
-   "page": "tit"
+   "maxW": 4480
   }
  },
  "designSystems": []
