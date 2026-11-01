@@ -1,6 +1,8 @@
 # Konzept: Seitenmuster der Verwaltungsseiten (alle Seiten unter `/admin/*`)
 
-- **Status: Fassung 3 (1. November 2026), Bauplan (Abschnitt 11).** Fassung 1 hat der
+- **Status: Fassung 3 (1. November 2026), Bauplan (Abschnitt 11). Als Papier abgeschlossen**
+  (Marco, 1. November 2026: «Ja, abschliessen»); gebaut wird erst auf sein Wort, zusammen mit
+  Konzept 11 und den weiteren Konzepten. Fassung 1 hat der
   OMC-Kritiker geprüft (1 Blocker, 9 Major, 8 Minor; Abschnitt 12); Fassung 2 arbeitet alle ein.
   Marco hat am 1. November 2026 gesagt: «Im Prinzip möchte ich alle Seiten in der Verwaltung
   überarbeiten. Es ist mir alles irgendwie zu gross und zu unübersichtlich.» Dieses Papier legt
@@ -483,7 +485,7 @@ Phase 2  Je Seite 3 klickbare Vorschläge (A, B, C)       → Wahl und Änderung
          2b  Konten, Profile, Geräte, Streams, Podcasts                   → veröffentlicht
          2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen  → veröffentlicht
          2d  Benachrichtigungen, Statistik, Sicherung                     → veröffentlicht
-Phase 3  Fassung «Bauplan»: Schritte, Tests, Frage 18, ADR 0020; OMC-Kritiker  → Abschnitt 11
+Phase 3  Fassung «Bauplan»: Schritte, Tests, Frage 18, ADR 0020; OMC-Kritiker  → abgeschlossen (Abschnitt 11)
 Phase 4  Bau zusammen mit Konzept 11 und den weiteren Konzepten (auf Marcos Wort)
 ```
 
