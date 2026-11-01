@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Konten und Profile · 1 Profile im Konto</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 8px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr>*:first-child{padding-left:16px}.tr>*:last-child{padding-right:16px}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.mh{padding:6px 8px 2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.fs{border:none;margin:0;padding:0;min-width:0}.lg{padding:0;margin-bottom:4px;font-size:13px;color:#b6b9c4}
+.rw{display:flex;gap:6px 16px;flex-wrap:wrap}.rg{display:inline-flex;align-items:center;gap:6px;height:24px;font-size:14px}.rg>input{accent-color:#e8794a;margin:0}
+.fl{display:flex;flex-direction:column;gap:4px;min-width:0}.fl>label{font-size:13px;color:#b6b9c4}
+.hn{margin:0;font-size:12px;color:#9095a3}.er{font-size:12px;color:#f2777a}.it{margin:0;font-size:13px;color:#b6b9c4}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px}
+.h2b{margin:0;font-size:16px;font-weight:600;min-width:0}.h3{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:600}
+.tb{display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.oc{background:transparent;border:1px solid rgba(255,255,255,0.14);padding:0 7px}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px}.nm{font-variant-numeric:tabular-nums}
+.ft{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.i{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}.k{width:16px;height:16px}
+.co{background:transparent;border:1px solid rgba(255,255,255,0.14)}.tm{font-size:12px;color:#9095a3}.tx{font-size:13px;color:#b6b9c4}
+.av{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:14px;font-size:13px;font-weight:700;flex:none}
+.hb{display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.tr>.ov{display:flex;justify-content:flex-end;align-items:center;gap:6px}
+.rl{display:inline-flex;align-items:center;gap:6px;height:28px;font-size:14px;cursor:pointer}.er{margin:0}
+input[type=checkbox],input[type=radio]{accent-color:#e8794a;margin:0;width:16px;height:16px}
+fieldset{border:none;margin:0;padding:0;min-width:0}
+dl{margin:0}dt{font-size:12px;color:#9095a3}dd{margin:2px 0 0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" class="i"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" class="i"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Konten</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<span style="flex:1"></span><button type="button" class="b bp" onClick="{{ invite }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M12 5v14M5 12h14"/></svg>Konto einladen</button></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Alle Konten mit Rolle, Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen. Neue Konten entstehen über eine Einladung. Die Profile deines eigenen Kontos verwaltest du hier; die Profile anderer Konten verwaltet jedes Konto selbst (für Konten ohne Verwaltung bleibt die Seite Profile wie heute). Der Eintrag «Profile» in der Seitenleiste öffnet hier dein Konto bei «Meine Profile».</p></sc-if></div>
+<div role="group" aria-label="Zusammenfassung" style="margin-top:24px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+<sc-for list="{{ tiles }}" as="tt" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;justify-content:center;gap:2px;height:56px;padding:0 14px;box-sizing:border-box;border-radius:10px;background:#16181f;min-width:0"><span style="font-size:12px;color:#9095a3">{{ tt.label }}</span><span style="{{ tt.vstyle }}">{{ tt.value }}</span></div></sc-for></div>
+<section aria-label="Bereiche" style="margin-top:24px"><div role="tablist" aria-label="Bereiche der Konten" style="display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,0.08)">
+<sc-for list="{{ ctabs }}" as="t" hint-placeholder-count="2"><button type="button" role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }} <span class="{{ t.cnt }}" style="height:18px;padding:0 6px">{{ t.count }}</span></button></sc-for></div>
+<div role="tabpanel" aria-label="{{ tabName }}" style="margin-top:12px"><sc-if value="{{ tab0 }}" hint-placeholder-val="{{ true }}"><section aria-label="Konten" style="background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;min-width:0"><div style="{{ bandOpen }}"><h2 class="h2b" style="display:flex;align-items:center;gap:10px"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg></span>{{ accText }}</h2><span style="flex:1"></span><span style="font-size:12px;color:#9095a3">Eine Zeile aufklappen zum Bearbeiten</span></div><sc-if value="{{ saved }}" hint-placeholder-val="{{ false }}"><div role="status" style="display:flex;align-items:center;gap:8px;margin:12px 16px 0;padding:6px 6px 6px 12px;border-radius:8px;font-size:13px;background:color-mix(in srgb, #5fcf8f 10%, transparent);border:1px solid color-mix(in srgb, #5fcf8f 30%, transparent)"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M20 6 9 17l-5-5"/></svg></span><span style="flex:1">Dein Konto ist gespeichert.</span><button type="button" class="b bs bi bg" aria-label="Meldung schliessen" onClick="{{ dismissSaved }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div></sc-if><div aria-hidden="true" class="tr th" style="grid-template-columns:minmax(0,1.2fr) 160px 96px 128px minmax(0,1.3fr) 132px 150px"><span style="padding-left:24px">E-Mail</span><span>Rolle</span><span>Altersstufe</span><span>Bibliotheken</span><span>Profile</span><span>Zuletzt gesehen</span><span>Kanäle</span></div><div role="list" aria-label="Konten"><sc-for list="{{ accounts }}" as="a" hint-placeholder-count="4"><div role="listitem" style="{{ a.wrap }}"><button type="button" class="tr" aria-expanded="{{ a.exp }}" onClick="{{ a.toggle }}" style="grid-template-columns:minmax(0,1.2fr) 160px 96px 128px minmax(0,1.3fr) 132px 150px;width:100%;padding:0;border-width:0 0 1px;border-style:solid;border-color:rgba(255,255,255,0.08);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer">
+<span style="display:flex;align-items:center;gap:8px"><span style="{{ a.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="m9 6 6 6-6 6"/></svg></span><span style="{{ a.nameStyle }}">{{ a.title }}</span><sc-if value="{{ a.ac.dirty }}" hint-placeholder-val="{{ false }}"><span class="c cw">ungespeichert</span></sc-if></span><span><span style="display:flex;align-items:center;gap:6px">{{ a.role }}<sc-if value="{{ a.owner }}" hint-placeholder-val="{{ false }}"><span class="c ca">Besitzer</span></sc-if></span></span><span>{{ a.fsk }}</span><span title="{{ a.libNames }}">{{ a.libs }}</span><span title="{{ a.prof }}">{{ a.prof }}</span><span class="nm" style="color:#b6b9c4">{{ a.seen }}</span><span><span style="display:flex;gap:4px"><sc-for list="{{ a.chans }}" as="ch" hint-placeholder-count="2"><span class="c oc">{{ ch.label }}</span></sc-for><sc-if value="{{ a.noChans }}" hint-placeholder-val="{{ false }}"><span style="color:#9095a3">Keine</span></sc-if></span></span></button><sc-if value="{{ a.open }}" hint-placeholder-val="{{ true }}"><div class="col" style="gap:14px;padding:14px 16px 16px 42px;border-bottom:1px solid rgba(255,255,255,0.08)"><sc-if value="{{ a.isUser }}" hint-placeholder-val="{{ true }}"><div class="col"><div style="display:flex;align-items:center;gap:8px;min-height:24px"><h3 class="h3"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3"/></svg></span>Zugriff</h3></div><div class="g2" style="align-items:start"><div class="col"><fieldset class="fs"><legend class="lg">Höchste Altersfreigabe</legend><div class="rw"><sc-for list="{{ a.ac.ratings }}" as="or" hint-placeholder-count="5"><label class="rg"><input type="radio" name="{{ or.name }}" checked="{{ or.on }}" onChange="{{ or.pick }}">{{ or.label }}</label></sc-for></div></fieldset><fieldset class="fs"><legend class="lg">Bibliotheken</legend><div class="rw"><sc-for list="{{ a.ac.modes }}" as="om" hint-placeholder-count="2"><label class="rg"><input type="radio" name="{{ om.name }}" checked="{{ om.on }}" onChange="{{ om.pick }}">{{ om.label }}</label></sc-for></div></fieldset>
+<sc-if value="{{ a.ac.some }}" hint-placeholder-val="{{ true }}"><fieldset class="fs"><legend class="lg">Bibliotheken wählen</legend><div class="rw"><sc-for list="{{ a.ac.libs }}" as="ol" hint-placeholder-count="5"><label class="rg"><input type="checkbox" checked="{{ ol.on }}" onChange="{{ ol.toggle }}">{{ ol.label }}</label></sc-for></div>
+<sc-if value="{{ a.ac.he.libs }}" hint-placeholder-val="{{ false }}"><span class="er">{{ a.ac.e.libs }}</span></sc-if></fieldset></sc-if></div><div class="col"><fieldset class="fs" style="display:flex;flex-direction:column;gap:10px"><legend class="lg" style="font-weight:600;color:#f3f3f5">Wiedergabe-Limits</legend><p class="hn" style="margin-top:-6px">Gilt für alle Profile dieses Kontos.</p>
+<fieldset class="fs"><legend class="lg">Höchste Qualität</legend><div class="rw"><sc-for list="{{ a.ac.heights }}" as="oh" hint-placeholder-count="5"><label class="rg"><input type="radio" name="{{ oh.name }}" checked="{{ oh.on }}" onChange="{{ oh.pick }}">{{ oh.label }}</label></sc-for></div></fieldset>
+<div class="g2" style="gap:12px"><div class="fl"><label for="{{ a.ac.fid }}-b">Bandbreite (kbit/s)</label><input class="in nm" id="{{ a.ac.fid }}-b" inputmode="numeric" placeholder="Ohne Limit" value="{{ a.ac.b }}" onChange="{{ a.ac.set_b }}" style="width:100%"><span class="hn">200 bis 200'000. Leer heisst ohne Limit.</span><sc-if value="{{ a.ac.he.b }}" hint-placeholder-val="{{ false }}"><span class="er">{{ a.ac.e.b }}</span></sc-if></div><div class="fl"><label for="{{ a.ac.fid }}-s">Gleichzeitige Streams</label><input class="in nm" id="{{ a.ac.fid }}-s" inputmode="numeric" placeholder="Ohne Limit" value="{{ a.ac.s }}" onChange="{{ a.ac.set_s }}" style="width:100%"><span class="hn">1 bis 16. Leer heisst ohne Limit.</span><sc-if value="{{ a.ac.he.s }}" hint-placeholder-val="{{ false }}"><span class="er">{{ a.ac.e.s }}</span></sc-if></div></div></fieldset></div></div><div class="ft"><button type="button" class="b bs" title="Nur für den Besitzer" aria-label="{{ a.roleAria }}" onClick="{{ a.doRole }}">{{ a.roleLabel }}</button><button type="button" class="b bs dz" aria-label="{{ a.removeAria }}" onClick="{{ a.doRemove }}">Entfernen …</button>
+<span style="flex:1"></span><button type="button" class="b" onClick="{{ a.ac.reset }}">Zurücksetzen</button><button type="button" class="b bp" onClick="{{ a.ac.save }}">Zugriff speichern</button></div></div><div style="border-top:1px solid rgba(255,255,255,0.08)"></div><div class="ft" style="gap:8px 10px"><h3 class="h3"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></span>Profile</h3><sc-for list="{{ a.pnames }}" as="q" hint-placeholder-count="2"><span class="c" style="color:#f3f3f5">{{ q.name }}<sc-if value="{{ q.primary }}" hint-placeholder-val="{{ true }}"><span style="color:#e8794a">· Hauptprofil</span></sc-if></span></sc-for><span class="hn">Profile verwaltet jedes Konto selbst.</span></div></sc-if><sc-if value="{{ a.isMe }}" hint-placeholder-val="{{ false }}"><div class="col"><div style="display:flex;align-items:center;gap:8px;min-height:24px"><h3 class="h3"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3"/></svg></span>Konto ändern</h3><span style="font-size:12px;color:#9095a3">E-Mail-Adresse und Passwort deines Kontos. Jede Änderung braucht dein aktuelles Passwort.</span></div><sc-if value="{{ a.ed.unchanged }}" hint-placeholder-val="{{ false }}"><div role="status" style="padding:8px 12px;border-radius:8px;font-size:13px;background:color-mix(in srgb, #e8b65a 12%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent)">Ändere die E-Mail-Adresse oder gib ein neues Passwort ein.</div></sc-if><div class="g2" style="align-items:start"><div class="fl"><label for="{{ a.ed.fid }}-email">E-Mail-Adresse</label><input class="in" id="{{ a.ed.fid }}-email" type="email" value="{{ a.ed.email }}" onChange="{{ a.ed.set_email }}" style="width:100%"><sc-if value="{{ a.ed.he.email }}" hint-placeholder-val="{{ false }}"><span class="er">{{ a.ed.e.email }}</span></sc-if></div><div class="fl"><label for="{{ a.ed.fid }}-cur">Aktuelles Passwort</label><input class="in" id="{{ a.ed.fid }}-cur" type="password" value="{{ a.ed.cur }}" onChange="{{ a.ed.set_cur }}" style="width:100%"><span class="hn">Bestätigt, dass du es bist.</span><sc-if value="{{ a.ed.he.cur }}" hint-placeholder-val="{{ false }}"><span class="er">{{ a.ed.e.cur }}</span></sc-if></div><div class="fl"><label for="{{ a.ed.fid }}-pw">Neues Passwort</label><input class="in" id="{{ a.ed.fid }}-pw" type="password" value="{{ a.ed.pw }}" onChange="{{ a.ed.set_pw }}" style="width:100%"><span class="hn">Leer lassen, um das Passwort zu behalten. Sonst mindestens 10 Zeichen.</span><sc-if value="{{ a.ed.he.pw }}" hint-placeholder-val="{{ false }}"><span class="er">{{ a.ed.e.pw }}</span></sc-if></div><sc-if value="{{ a.ed.showRepeat }}" hint-placeholder-val="{{ false }}"><div class="fl"><label for="{{ a.ed.fid }}-pw2">Neues Passwort wiederholen</label><input class="in" id="{{ a.ed.fid }}-pw2" type="password" value="{{ a.ed.pw2 }}" onChange="{{ a.ed.set_pw2 }}" style="width:100%"><sc-if value="{{ a.ed.he.pw2 }}" hint-placeholder-val="{{ false }}"><span class="er">{{ a.ed.e.pw2 }}</span></sc-if></div></sc-if></div><div class="ft"><span style="flex:1"></span><button type="button" class="b" onClick="{{ a.ed.reset }}">Zurücksetzen</button><button type="button" class="b bp" onClick="{{ a.ed.save }}">Speichern</button></div></div><div style="border-top:1px solid rgba(255,255,255,0.08)"></div><div class="col"><div style="display:flex;align-items:center;gap:8px;min-height:28px"><h3 class="h3"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></span>Meine Profile</h3><span class="tm">{{ countText }}</span><span style="flex:1"></span><sc-if value="{{ isPrimary }}" hint-placeholder-val="{{ true }}"><button type="button" class="b bs" onClick="{{ add }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M12 5v14M5 12h14"/></svg>Profil hinzufügen</button></sc-if></div><sc-if value="{{ isPrimary }}" hint-placeholder-val="{{ true }}"><div style="border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:#16181f;padding-bottom:4px"><div role="table" aria-label="Profile dieses Kontos"><div role="row" class="tr th" style="grid-template-columns:170px minmax(0,1.2fr) 80px 112px 64px minmax(0,1fr) minmax(0,1fr) 296px"><span role="columnheader">Profil</span><span role="columnheader">Altersfreigabe</span><span role="columnheader">Sprache</span><span role="columnheader">Beschreibungen</span><span role="columnheader">PIN</span><span role="columnheader">Limits</span><span role="columnheader">Bibliotheken</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ profiles }}" as="p" hint-placeholder-count="4"><div role="rowgroup"><div role="row" class="tr" style="grid-template-columns:170px minmax(0,1.2fr) 80px 112px 64px minmax(0,1fr) minmax(0,1fr) 296px"><div role="cell" style="display:flex;align-items:center;gap:10px"><span class="av" aria-hidden="true" style="{{ p.avStyle }}">{{ p.initial }}</span><b id="pr-{{ p.id }}" style="font-weight:600;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</b><sc-if value="{{ p.isPrimary }}" hint-placeholder-val="{{ false }}"><span class="c ca">Hauptprofil</span></sc-if></div>
+<div role="cell" title="{{ p.ratingText }}" style="{{ p.ratingStyle }}">{{ p.ratingText }}</div><div role="cell" class="tx">{{ p.langText }}</div><div role="cell" class="tx">{{ p.metaText }}</div>
+<div role="cell"><sc-if value="{{ p.hasPin }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:4px;color:#b6b9c4"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span>PIN</span></span></sc-if><sc-if value="{{ p.noPin }}" hint-placeholder-val="{{ false }}"><span style="color:#9095a3">Keine</span></sc-if></div>
+<div role="cell" class="tx" title="{{ p.limText }}" style="{{ p.limStyle }}">{{ p.limText }}</div><div role="cell" class="tx" title="{{ p.libText }}">{{ p.libText }}</div>
+<div role="cell" class="ov"><button type="button" class="b bs" aria-describedby="pr-{{ p.id }}" onClick="{{ p.edit }}">Bearbeiten</button><button type="button" class="b bs bg" aria-expanded="{{ p.repAria }}" aria-describedby="pr-{{ p.id }}" onClick="{{ p.toggleReport }}">{{ p.repLabel }}</button><button type="button" class="b bs bi" aria-haspopup="menu" aria-expanded="{{ p.menuAria }}" aria-label="Weitere Aktionen für {{ p.name }}" onClick="{{ p.toggleMenu }}" style="{{ p.moreStyle }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="5" cy="12" r="1.5" style="fill:currentColor;stroke:none"/><circle cx="12" cy="12" r="1.5" style="fill:currentColor;stroke:none"/><circle cx="19" cy="12" r="1.5" style="fill:currentColor;stroke:none"/></svg></button>
+<sc-if value="{{ p.menuOpen }}" hint-placeholder-val="{{ false }}"><div role="menu" aria-label="Weitere Aktionen für {{ p.name }}" style="{{ p.menuStyle }}"><button type="button" role="menuitem" class="mi" onClick="{{ p.menuPin }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3"/></svg>{{ p.pinLabel }}</button>
+<sc-if value="{{ p.hasPin }}" hint-placeholder-val="{{ true }}"><button type="button" role="menuitem" class="mi" onClick="{{ p.removePin }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>PIN entfernen …</button></sc-if>
+<sc-if value="{{ p.canDelete }}" hint-placeholder-val="{{ true }}"><div role="separator" style="{{ p.sepStyle }}"></div><button type="button" role="menuitem" class="mi" style="color:#f2777a" onClick="{{ p.del }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>Löschen …</button></sc-if></div></sc-if></div></div>
+<sc-if value="{{ p.repOpen }}" hint-placeholder-val="{{ false }}"><div style="padding:12px 16px 16px 50px;border-bottom:1px solid rgba(255,255,255,0.08);background:#13151b"><section aria-labelledby="{{ p.rep.hid }}" style="display:flex;flex-direction:column;gap:8px;min-width:0"><h3 id="{{ p.rep.hid }}" style="margin:0;font-size:14px;font-weight:600">{{ p.rep.title }}</h3><div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap"><span class="tm">Minuten pro Tag in den letzten 30 Tagen.</span>
+<sc-for list="{{ p.rep.facts }}" as="x" hint-placeholder-count="3"><span style="font-size:13px;font-variant-numeric:tabular-nums">{{ x.t }}</span></sc-for></div>
+<div role="img" aria-label="{{ p.rep.aria }}" style="position:relative;display:grid;grid-template-columns:repeat(30,minmax(0,1fr));align-items:end;gap:3px;height:112px;padding-right:56px;border-bottom:1px solid rgba(255,255,255,0.14)">
+<sc-for list="{{ p.rep.bars }}" as="b" hint-placeholder-count="30"><span title="{{ b.tip }}" style="{{ b.style }}"></span></sc-for>
+<sc-if value="{{ p.rep.hasLimit }}" hint-placeholder-val="{{ true }}"><span style="{{ p.rep.line }}"></span><span style="{{ p.rep.lineLabel }}">{{ p.rep.limitText }}</span></sc-if></div>
+<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:3px;padding-right:56px;margin-top:-4px"><sc-for list="{{ p.rep.bars }}" as="b" hint-placeholder-count="30"><span style="font-size:11px;color:#9095a3;white-space:nowrap;overflow:visible">{{ b.tick }}</span></sc-for></div></section></div></sc-if></div></sc-for></div></div></sc-if><sc-if value="{{ notPrimary }}" hint-placeholder-val="{{ false }}"><div class="ft"><sc-for list="{{ a.pnames }}" as="q" hint-placeholder-count="2"><span class="c" style="color:#f3f3f5">{{ q.name }}<sc-if value="{{ q.primary }}" hint-placeholder-val="{{ true }}"><span style="color:#e8794a">· Hauptprofil</span></sc-if></span></sc-for></div><sc-if value="{{ notPrimary }}" hint-placeholder-val="{{ false }}"><div role="note" style="display:flex;align-items:flex-start;gap:12px;max-width:760px;padding:14px 16px;border-radius:10px;background:#16181f;border:1px solid rgba(255,255,255,0.08)">
+<span style="display:flex;color:#e8794a;padding-top:2px"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span><div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><h2 style="margin:0;font-size:15px;font-weight:600">Nur im Hauptprofil</h2><p style="margin:0;font-size:13px;color:#b6b9c4">Profile verwaltest du im Hauptprofil dieses Kontos. Wechsle dorthin, um Profile anzulegen oder zu ändern.</p></div>
+<a href="#" class="b" onClick="{{ toPicker }}" style="text-decoration:none">Profil wechseln</a></div></sc-if></sc-if></div></sc-if><sc-if value="{{ a.isAdmin }}" hint-placeholder-val="{{ false }}"><div class="ft"><span class="hn" style="flex:1;min-width:0">Ein Administrator hat immer FSK 18 und alle Bibliotheken; «Zugriff» gibt es nur für Konten ohne Verwaltung.</span><button type="button" class="b bs" title="Nur für den Besitzer" aria-label="{{ a.roleAria }}" onClick="{{ a.doRole }}">{{ a.roleLabel }}</button><button type="button" class="b bs dz" aria-label="{{ a.removeAria }}" onClick="{{ a.doRemove }}">Entfernen …</button></div><div style="border-top:1px solid rgba(255,255,255,0.08)"></div><div class="ft" style="gap:8px 10px"><h3 class="h3"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg></span>Profile</h3><sc-for list="{{ a.pnames }}" as="q" hint-placeholder-count="2"><span class="c" style="color:#f3f3f5">{{ q.name }}<sc-if value="{{ q.primary }}" hint-placeholder-val="{{ true }}"><span style="color:#e8794a">· Hauptprofil</span></sc-if></span></sc-for><span class="hn">Profile verwaltet jedes Konto selbst.</span></div></sc-if></div></sc-if></div></sc-for></div></section></sc-if><sc-if value="{{ tab1 }}" hint-placeholder-val="{{ false }}"><section aria-label="Konto einladen" style="background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;min-width:0"><div style="{{ nw.band }}"><h2 class="h2b"><button type="button" class="tb" aria-expanded="{{ nw.exp }}" onClick="{{ nw.toggle }}"><span style="{{ nw.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M12 5v14M5 12h14"/></svg></span>Konto einladen</button></h2><span style="flex:1"></span><span style="font-size:12px;color:#9095a3">Ein Link gilt einmal und sieben Tage. Wer ihn öffnet, legt ein eigenes Konto an.</span></div><sc-if value="{{ nw.open }}" hint-placeholder-val="{{ true }}"><div><div class="col" style="padding:14px 16px 16px"><sc-if value="{{ iv.step1 }}" hint-placeholder-val="{{ true }}"><div class="col" style="gap:16px"><div class="g2" style="align-items:start"><div class="col"><div class="fl"><label for="iv-note">Für wen ist der Link?</label><input class="in" id="iv-note" value="{{ iv.note }}" onChange="{{ iv.setNote }}" placeholder="Zum Beispiel Für Grosi" style="width:100%"><span class="hn">Zum Beispiel ein Name. Die Notiz sieht auch die eingeladene Person.</span></div><fieldset class="fs"><legend class="lg">Höchste Altersfreigabe</legend><div class="rw"><sc-for list="{{ iv.ratings }}" as="or" hint-placeholder-count="5"><label class="rg"><input type="radio" name="{{ or.name }}" checked="{{ or.on }}" onChange="{{ or.pick }}">{{ or.label }}</label></sc-for></div></fieldset></div><div class="col"><fieldset class="fs"><legend class="lg">Bibliotheken</legend><div class="rw"><sc-for list="{{ iv.modes }}" as="om" hint-placeholder-count="2"><label class="rg"><input type="radio" name="{{ om.name }}" checked="{{ om.on }}" onChange="{{ om.pick }}">{{ om.label }}</label></sc-for></div></fieldset>
+<sc-if value="{{ iv.some }}" hint-placeholder-val="{{ true }}"><fieldset class="fs"><legend class="lg">Bibliotheken wählen</legend><div class="rw"><sc-for list="{{ iv.libs }}" as="ol" hint-placeholder-count="5"><label class="rg"><input type="checkbox" checked="{{ ol.on }}" onChange="{{ ol.toggle }}">{{ ol.label }}</label></sc-for></div>
+<sc-if value="{{ iv.he.libs }}" hint-placeholder-val="{{ false }}"><span class="er">{{ iv.e.libs }}</span></sc-if></fieldset></sc-if></div></div><div class="ft" style="justify-content:flex-end"><button type="button" class="b bp" onClick="{{ iv.create }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M12 5v14M5 12h14"/></svg>Einladung erstellen</button></div></div></sc-if><sc-if value="{{ iv.step2 }}" hint-placeholder-val="{{ false }}"><div class="col"><h3 class="h3"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M20 6 9 17l-5-5"/></svg></span>Einladungslink erstellt</h3><div role="status" style="padding:8px 12px;border-radius:8px;font-size:13px;background:color-mix(in srgb, #e8b65a 12%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent)">Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.</div>
+<div class="fl"><label for="iv-link">Einladungslink</label><input class="in mono" id="iv-link" readonly value="{{ iv.link }}" style="width:100%"></div>
+<p role="status" class="hn" style="min-height:17px">{{ iv.copiedText }}</p><div class="ft" style="justify-content:flex-end"><button type="button" class="b bp" onClick="{{ iv.copy }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Link kopieren</button><button type="button" class="b bg" onClick="{{ iv.done }}">Fertig</button></div></div></sc-if></div></div></sc-if></section>
+<section aria-label="Bestehende Einladungen" style="margin-top:20px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;min-width:0"><div style="{{ bandOpen }}"><h2 class="h2b" style="display:flex;align-items:center;gap:10px"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></span>Bestehende Einladungen</h2><span style="flex:1"></span><span style="font-size:12px;color:#9095a3">{{ openInv }} offen</span></div><div role="table" aria-label="Bestehende Einladungen"><div role="row" class="tr th" style="grid-template-columns:minmax(0,1fr) 116px 104px minmax(0,1.3fr) 230px 136px"><span role="columnheader">Notiz</span><span role="columnheader">Zustand</span><span role="columnheader">Altersstufe</span><span role="columnheader">Bibliotheken</span><span role="columnheader">Gültig bis / angenommen</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ invs }}" as="i" hint-placeholder-count="4"><div role="row" class="tr" style="grid-template-columns:minmax(0,1fr) 116px 104px minmax(0,1.3fr) 230px 136px;{{ i.hl }}"><div role="rowheader" title="{{ i.note }}" style="{{ i.noteStyle }}">{{ i.note }}</div>
+<div role="cell"><span class="{{ i.chipCls }}">{{ i.state }}</span></div><div role="cell">{{ i.fsk }}</div><div role="cell" title="{{ i.libs }}">{{ i.libs }}</div><div role="cell" class="nm" style="color:#b6b9c4" title="{{ i.detail }}">{{ i.detail }}</div>
+<div role="cell" class="ov"><sc-if value="{{ i.isOpen }}" hint-placeholder-val="{{ true }}"><button type="button" class="b bs dz" aria-label="{{ i.revokeAria }}" onClick="{{ i.revoke }}">Widerrufen …</button></sc-if></div></div></sc-for></div>
+<sc-if value="{{ noInvs }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:12px 16px;font-size:13px;color:#9095a3">Noch keine Einladung erstellt.</p></sc-if></section></sc-if></div></section>
+<div style="margin-top:32px;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup, Beispiel wechseln:</span>
+<div role="tablist" aria-label="Beispiel" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ exs }}" as="x" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ x.sel }}" onClick="{{ x.pick }}" style="{{ x.style }}">{{ x.label }}</button></sc-for></div></div>
+</main>
+</div>
+<sc-if value="{{ f.dlgOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ f.cancel }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ f.title }}" style="{{ f.box }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ f.title }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ f.cancel }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><sc-if value="{{ f.hasErr }}" hint-placeholder-val="{{ false }}"><p role="alert" style="margin:0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb, #f2777a 12%, transparent);font-size:13px;color:#f2777a">Bitte prüfe die markierten Felder.</p></sc-if><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start"><div style="display:flex;flex-direction:column;gap:14px;min-width:0"><div class="fl"><label for="pf-name">Name</label><input class="in" id="pf-name" type="text" value="{{ f.name }}" onChange="{{ f.setName }}" style="width:100%" maxlength="60" autocomplete="off"><sc-if value="{{ f.eNameOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ f.eName }}</p></sc-if></div><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Altersfreigabe</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.ratings }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-rating" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div><span class="tm">{{ f.ratingHint }}</span></fieldset><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Sprache</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.langs }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-lang" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div></fieldset><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Sprache der Beschreibungen</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.metas }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-meta" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div><span class="tm">Titel, Beschreibungen und Genres; die Oberfläche folgt der Sprache oben.</span></fieldset><div class="fl"><span class="lg" id="pf-acc">Farbe</span><div role="radiogroup" aria-labelledby="pf-acc" style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ f.accents }}" as="a" hint-placeholder-count="8"><button type="button" role="radio" aria-checked="{{ a.checkedA }}" aria-label="{{ a.label }}" title="{{ a.label }}" onClick="{{ a.pick }}" style="{{ a.style }}"><sc-if value="{{ a.checked }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M20 6 9 17l-5-5"/></svg></sc-if></button></sc-for></div></div></div>
+<div style="display:flex;flex-direction:column;gap:14px;min-width:0"><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Bibliotheken</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.libModes }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-libmode" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div></fieldset><sc-if value="{{ f.some }}" hint-placeholder-val="{{ true }}"><fieldset class="fl" style="margin-top:-8px"><legend class="lg" style="margin-bottom:2px">Bibliotheken wählen</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.libs }}" as="l" hint-placeholder-count="3"><label class="rl"><input type="checkbox" checked="{{ l.checked }}" onChange="{{ l.pick }}"><span>{{ l.label }}</span></label></sc-for></div>
+<sc-if value="{{ f.eLibsOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ f.eLibs }}</p></sc-if></fieldset></sc-if>
+<fieldset style="display:flex;flex-direction:column;gap:12px;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:8px"><legend style="padding:0 6px;font-size:13px;font-weight:600;color:#f3f3f5">Wiedergabe-Limits</legend><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Höchste Qualität</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.heights }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-h" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div></fieldset><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:2px 12px;align-items:center"><label for="pf-br" style="font-size:13px;color:#b6b9c4">Bandbreite (kbit/s)</label><input class="in" id="pf-br" type="text" inputmode="numeric" value="{{ f.br }}" onChange="{{ f.setBr }}">
+<span class="tm" style="grid-column:1 / -1">200 bis 200.000. Leer heisst ohne Limit.</span><sc-if value="{{ f.eBrOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert" style="grid-column:1 / -1">{{ f.eBr }}</p></sc-if></div><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:2px 12px;align-items:center"><label for="pf-st" style="font-size:13px;color:#b6b9c4">Gleichzeitige Streams</label><input class="in" id="pf-st" type="text" inputmode="numeric" value="{{ f.st }}" onChange="{{ f.setSt }}">
+<span class="tm" style="grid-column:1 / -1">1 bis 16. Leer heisst ohne Limit.</span><sc-if value="{{ f.eStOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert" style="grid-column:1 / -1">{{ f.eSt }}</p></sc-if></div><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:2px 12px;align-items:center"><label for="pf-w" style="font-size:13px;color:#b6b9c4">Schauzeit pro Tag (Minuten)</label><input class="in" id="pf-w" type="text" inputmode="numeric" value="{{ f.w }}" onChange="{{ f.setW }}">
+<span class="tm" style="grid-column:1 / -1">1 bis 1.440. Leer heisst ohne Limit.</span><sc-if value="{{ f.eWOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert" style="grid-column:1 / -1">{{ f.eW }}</p></sc-if></div><sc-if value="{{ f.capped }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:8px 12px;border-radius:8px;background:#1d2029;font-size:13px;color:#b6b9c4">{{ f.cappedText }}</p></sc-if></fieldset>
+<sc-if value="{{ f.isNew }}" hint-placeholder-val="{{ true }}"><div class="fl"><label for="pf-pin">PIN (optional)</label><input class="in" id="pf-pin" type="password" value="{{ f.pin }}" onChange="{{ f.setPin }}" style="width:160px" inputmode="numeric" maxlength="8" autocomplete="one-time-code"><span class="tm">4 bis 8 Ziffern. Ohne die PIN lässt sich das Profil nicht öffnen.</span><sc-if value="{{ f.ePinOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ f.ePin }}</p></sc-if></div></sc-if></div></div></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bg" onClick="{{ f.cancel }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ f.save }}">{{ f.saveLabel }}</button></div></section></div></sc-if>
+<sc-if value="{{ pn.open }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ pn.close }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ pn.title }}" style="{{ pn.box }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ pn.title }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ pn.close }}"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><div class="fl"><label for="pin-new">Neue PIN</label><input class="in" id="pin-new" type="password" value="{{ pn.val }}" onChange="{{ pn.set }}" style="width:160px" inputmode="numeric" maxlength="8" autocomplete="one-time-code"><span class="tm">4 bis 8 Ziffern. Ohne die PIN lässt sich das Profil nicht öffnen.</span><sc-if value="{{ pn.errOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ pn.err }}</p></sc-if></div></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bg" onClick="{{ pn.close }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ pn.save }}">PIN speichern</button></div></section></div></sc-if>
+<sc-if value="{{ menuOn }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:10"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="{{ cOkStyle }}" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" class="i k"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+// Profiles of the own account marco@example.ch (data adapted from gen12/pro/core.js). Runs before gen12/kon/core.js,
+// so nothing here may use its constants at load time. The variant defines INIT, MENU and MENU_PIN after this.
+const ACCENTS = [['ember', 'Glut', '#e8794a', '#1c0d06'], ['coral', 'Koralle', '#f0857a', '#1f0b09'], ['amber', 'Bernstein', '#e3b24f', '#1d1404'], ['lime', 'Limette', '#a3d465', '#111a06'],
+  ['teal', 'Türkis', '#45c2b1', '#04191a'], ['sky', 'Himmel', '#62aef0', '#06121f'], ['violet', 'Violett', '#a993f5', '#120c24'], ['rose', 'Rosa', '#ec77a3', '#1f0812']];
+const ACC = {}; ACCENTS.forEach((a) => { ACC[a[0]] = a; });
+const UI_LANG = { de: 'Deutsch', en: 'English' };
+const META_LANGS = ['de', 'en', 'fr', 'it'];
+const LANG_NAME = { de: { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', it: 'Italienisch' }, en: { de: 'German', en: 'English', fr: 'French', it: 'Italian' } };
+const plim = (w, h) => ({ h: h || '', br: '', st: '', w: w || '' });
+// Minutes per day, 3 Oct to 1 Nov 2026 (today, a Sunday). Marco is an administrator: FSK 18 and all libraries, no account ceiling.
+const PROFILES = [
+  { id: 1, name: 'Marco', primary: true, accent: 'ember', rating: 18, lang: 'de', meta: '', pin: false, all: true, libs: [], lim: plim(),
+    mins: [140, 155, 45, 0, 60, 95, 30, 120, 150, 0, 75, 40, 55, 90, 160, 110, 35, 60, 0, 80, 45, 130, 145, 50, 70, 0, 65, 40, 150, 85] },
+  { id: 2, name: 'Kino', primary: false, accent: 'violet', rating: 16, lang: 'de', meta: 'en', pin: true, all: true, libs: [], lim: plim(),
+    mins: [175, 0, 0, 0, 0, 0, 128, 182, 96, 0, 0, 0, 0, 141, 0, 168, 0, 0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 122, 176, 0] },
+  { id: 3, name: 'Noah', primary: false, accent: 'sky', rating: 12, lang: 'de', meta: '', pin: false, all: false, libs: ['Filme', 'Kinder'], lim: plim('120', '1080'),
+    mins: [120, 110, 45, 60, 35, 75, 90, 120, 95, 50, 40, 65, 30, 85, 120, 120, 55, 45, 70, 60, 95, 105, 120, 40, 35, 50, 65, 80, 120, 45] },
+];
+// Mockup-only switch (PRO-0): only the primary profile of an account manages its profiles.
+const EXAMPLES = ['Hauptprofil aktiv', 'Anderes Profil aktiv'];
+const INIT_P = { profiles: PROFILES, nextId: 4, form: null, pin: null, reports: {}, popen: {}, ex: 0 };
+const pad = (n) => (n < 10 ? '0' : '') + n;
+const dayOf = (i) => new Date(Date.UTC(2026, 9, 3) + i * 864e5);
+const longDay = (i) => { const d = dayOf(i); return pad(d.getUTCDate()) + '.' + pad(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(); };
+const shortDay = (i) => { const d = dayOf(i); return d.getUTCDate() + '.' + (d.getUTCMonth() + 1) + '.'; };
+const pnum = (v, min, max) => v === '' || (/^\d+$/.test(v) && +v >= min && +v <= max);
+const BD1 = 'rgba(255,255,255,0.08)';
+const PBAND = 'background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid ' + BD1;
+// Tree connector of a profile sub-row (KP-3): vertical line and a tick; the last child stops in the middle.
+const TREE_C = 'rgba(255,255,255,0.14)';
+const TREE = 'align-self:stretch;width:12px;flex:none;background:linear-gradient(' + TREE_C + ',' + TREE_C + ') 0 0/1px 100% no-repeat,linear-gradient(' + TREE_C + ',' + TREE_C + ') 0 50%/12px 1px no-repeat';
+const TREE_END = TREE.replace('0 0/1px 100%', '0 0/1px 50%');
+
+const INIT = Object.assign({}, INIT_P, { open: { a1: true } });
+const MENU_PIN = true;
+const MENU = () => 'position:absolute;right:0;top:34px;z-index:12;width:220px;padding:4px;box-sizing:border-box;background:#1d2029;border:1px solid rgba(255,255,255,0.14);border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.55);text-align:left;white-space:normal';
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06' };
+const LIBS = ['Filme', 'Serien', 'Kinder', 'Hörbücher', 'Podcasts'];
+const RATINGS = [0, 6, 12, 16, 18];
+const HEIGHTS = ['', '360', '480', '720', '1080'];
+const ME = 'a1';
+const NOLIM = { h: '', b: '', s: '' };
+const ACCOUNTS = [
+  { id: 'a1', email: 'marco@example.ch', role: 'admin', owner: true, rating: 18, all: true, ids: [], profiles: ['Marco', 'Kino'], seen: '01.11.2026, 15:42', chans: ['E-Mail', 'Web-Push'], lim: NOLIM },
+  { id: 'a2', email: 'sandra@example.ch', role: 'admin', owner: false, rating: 18, all: true, ids: [], profiles: ['Sandra'], seen: '01.11.2026, 13:10', chans: ['E-Mail', 'Telegram'], lim: NOLIM },
+  { id: 'a3', email: 'lea@example.ch', role: 'user', owner: false, rating: 12, all: false, ids: ['Filme', 'Kinder', 'Hörbücher'], profiles: ['Lea', 'Nino'], seen: '31.10.2026, 21:14', chans: ['Web-Push'], lim: { h: '1080', b: '', s: '2' } },
+  { id: 'a4', email: 'fritz@example.ch', role: 'user', owner: false, rating: 16, all: false, ids: ['Filme'], profiles: ['Fritz'], seen: '20.10.2026, 19:03', chans: [], lim: { h: '720', b: '4000', s: '1' } },
+];
+const INVS = [
+  { id: 'i1', note: 'Für Grosi', state: 'open', rating: 12, all: false, ids: ['Filme', 'Kinder'], until: '06.11.2026, 18:20', by: '' },
+  { id: 'i2', note: 'Fritz', state: 'used', rating: 16, all: false, ids: ['Filme'], until: '', by: 'fritz@example.ch' },
+  { id: 'i3', note: 'Nachbarn Meier', state: 'revoked', rating: 16, all: false, ids: ['Filme', 'Serien'], until: '28.10.2026, 10:05', by: '' },
+  { id: 'i4', note: '', state: 'expired', rating: 18, all: true, ids: [], until: '20.10.2026, 09:12', by: '' },
+];
+const STATES = { open: ['Offen', 'c cs', COL.su], used: ['Benutzt', 'c ca', COL.ac], expired: ['Abgelaufen', 'c', COL.tm], revoked: ['Widerrufen', 'c cw', COL.wa] };
+const LINKS = ['https://media.example.ch/einladung/k7Qm2xV9pL4rT8wZ', 'https://media.example.ch/einladung/Hq3vN8sR1cW5yB2e', 'https://media.example.ch/einladung/Zt6pD0mK9wF4aX7u'];
+const T_PROMOTE = 'Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf FSK 18 und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen.';
+const T_DEMOTE = 'Das Konto verwaltet danach nur noch seine eigenen Profile und wird überall abgemeldet. Altersstufe und Bibliotheken bleiben, wo sie sind; setze sie danach bewusst neu.';
+const T_REMOVE = 'Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort. Downloads auf den Geräten des Kontos verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.';
+const IV0 = { step: 1, note: '', rating: 18, all: true, ids: [], err: {}, copied: false, link: '', newId: null };
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const libCount = (r) => (r.all ? 'Alle Bibliotheken' : r.ids.length === 1 ? '1 Bibliothek' : r.ids.length + ' Bibliotheken');
+const libNames = (r) => (r.all ? 'Alle Bibliotheken' : r.ids.length ? r.ids.join(', ') : 'Keine Bibliothek');
+const profText = (a) => a.profiles.map((p, i) => (i === 0 ? p + ' (Hauptprofil)' : p)).join(', ');
+const limText = (l) => {
+  const p = [];
+  if (l.h) p.push('bis ' + l.h + 'p');
+  if (l.b) p.push(fmt(l.b) + ' kbit/s');
+  if (l.s) p.push(l.s === '1' ? '1 Stream' : l.s + ' Streams');
+  return p.length ? p.join(' · ') : 'Ohne Limit';
+};
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const bandStyle = (open) => 'display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);' + (open ? 'border-bottom:1px solid rgba(255,255,255,0.08);border-radius:9px 9px 0 0' : 'border-radius:9px');
+const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+const whole = (v) => (/^\d+$/.test(String(v).trim()) ? Number(String(v).trim()) : null);
+const rangeErr = (v, min, max, txt) => (String(v).trim() === '' ? '' : (whole(v) !== null && whole(v) >= min && whole(v) <= max ? '' : 'Erlaubt sind ' + txt + '.'));
+const errs = (e) => { const he = {}; Object.keys(e).forEach((k) => { he[k] = !!e[k]; }); return { e, he }; };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, dlg: null, dlgAcc: null, accounts: clone(ACCOUNTS), invs: clone(INVS),
+      drafts: {}, ed: null, iv: null, saved: false, nInv: 0, sel: 'a3', q: '', tab: 0, open: {}, newOpen: false, sec: { acc: true, inv: true } }, INIT);
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // run() changes the state and returns the toast text.
+  ask(title, text, ok, danger, run) { this.setState({ confirm: { title, text, ok, danger, run }, menu: null }); }
+  acc(id) { return this.state.accounts.find((a) => a.id === id); }
+  setAcc(id, p) { this.setState({ accounts: this.state.accounts.map((a) => (a.id === id ? Object.assign({}, a, p) : a)) }); }
+  dropDraft(id) { const d = Object.assign({}, this.state.drafts); delete d[id]; this.setState({ drafts: d }); }
+  promote(a) {
+    this.ask(a.email + ' zum Administrator ernennen?', T_PROMOTE, 'Ernennen', false, () => {
+      this.setAcc(a.id, { role: 'admin', rating: 18, all: true, ids: [] });
+      this.dropDraft(a.id);
+      return a.email + ' ist jetzt Administrator.';
+    });
+  }
+  demote(a) {
+    this.ask(a.email + ' die Administratorrolle entziehen?', T_DEMOTE, 'Entziehen', false, () => {
+      this.setAcc(a.id, { role: 'user' });
+      return a.email + ' ist jetzt ein Konto ohne Verwaltung.';
+    });
+  }
+  remove(a) {
+    this.ask('Konto ' + a.email + ' entfernen?', T_REMOVE, 'Konto entfernen', true, () => {
+      this.setState({ accounts: this.state.accounts.filter((x) => x.id !== a.id), sel: this.state.sel === a.id ? ME : this.state.sel });
+      this.dropDraft(a.id);
+      return 'Konto ' + a.email + ' entfernt.';
+    });
+  }
+  revoke(i) {
+    this.ask('Einladung widerrufen?', 'Der Link funktioniert danach nicht mehr.', 'Widerrufen', true, () => {
+      this.setState({ invs: this.state.invs.map((x) => (x.id === i.id ? Object.assign({}, x, { state: 'revoked' }) : x)) });
+      return 'Einladung «' + (i.note || 'Ohne Notiz') + '» widerrufen.';
+    });
+  }
+  // Rating ceiling and LibraryChoice («Alle» or «Auswahl» with a checklist) of a draft.
+  choiceVals(fid, d, set) {
+    const e = Object.assign({ libs: '' }, d.err);
+    return Object.assign({ fid, some: !d.all, all: d.all },
+      errs(e),
+      {
+        ratings: RATINGS.map((r) => ({ name: fid + '-r', label: 'FSK ' + r, on: String(d.rating) === String(r), pick: () => set({ rating: r }) })),
+        modes: [{ name: fid + '-m', label: 'Alle', on: d.all, pick: () => set({ all: true, err: Object.assign({}, d.err, { libs: '' }) }) },
+          { name: fid + '-m', label: 'Auswahl', on: !d.all, pick: () => set({ all: false }) }],
+        libs: LIBS.map((l) => ({ label: l, on: d.ids.indexOf(l) >= 0,
+          toggle: () => set({ ids: LIBS.filter((x) => (x === l ? d.ids.indexOf(l) < 0 : d.ids.indexOf(x) >= 0)), err: Object.assign({}, d.err, { libs: '' }) }) })),
+      });
+  }
+  draftOf(a) { return this.state.drafts[a.id] || { rating: a.rating, all: a.all, ids: a.ids.slice(), h: a.lim.h, b: a.lim.b, s: a.lim.s, err: {} }; }
+  // «Zugriff» of a user account; after() runs once the access is saved (A closes its dialog).
+  accVals(a, after) {
+    const d = this.draftOf(a);
+    const fid = 'z' + a.id;
+    const set = (p) => this.setState({ drafts: Object.assign({}, this.state.drafts, { [a.id]: Object.assign({}, d, p) }) });
+    const e = Object.assign({ libs: '', b: '', s: '' }, d.err);
+    const same = String(d.rating) === String(a.rating) && d.all === a.all && d.ids.join() === a.ids.join() && d.h === a.lim.h && d.b === a.lim.b && d.s === a.lim.s;
+    return Object.assign(this.choiceVals(fid, d, set), errs(e), {
+      email: a.email, dirty: !same,
+      heights: HEIGHTS.map((h) => ({ name: fid + '-h', label: h ? h + 'p' : 'Ohne Limit', on: d.h === h, pick: () => set({ h }) })),
+      b: d.b, s: d.s,
+      set_b: (ev) => set({ b: ev.target.value, err: Object.assign({}, d.err, { b: '' }) }),
+      set_s: (ev) => set({ s: ev.target.value, err: Object.assign({}, d.err, { s: '' }) }),
+      save: () => {
+        const ne = { libs: !d.all && !d.ids.length ? 'Wähle mindestens eine Bibliothek.' : '', b: rangeErr(d.b, 200, 200000, "200 bis 200'000"), s: rangeErr(d.s, 1, 16, '1 bis 16') };
+        if (ne.libs || ne.b || ne.s) { set({ err: ne }); this.say('Bitte die markierten Felder prüfen.'); return; }
+        this.setAcc(a.id, { rating: Number(d.rating), all: d.all, ids: d.all ? [] : d.ids.slice(), lim: { h: d.h, b: String(d.b).trim(), s: String(d.s).trim() } });
+        this.dropDraft(a.id);
+        if (after) after();
+        this.say('Zugriff von ' + a.email + ' gespeichert.');
+      },
+      reset: () => { this.dropDraft(a.id); if (after) after(); },
+    });
+  }
+  // «Konto ändern»: every change needs the current password; nothing changed is a notice, not a save.
+  edVals(after) {
+    const me = this.acc(ME);
+    const d = this.state.ed || { email: me.email, pw: '', pw2: '', cur: '', err: {}, unchanged: false };
+    const set = (p) => this.setState({ ed: Object.assign({}, d, p) });
+    const field = (k) => (ev) => set({ [k]: ev.target.value, unchanged: false, err: Object.assign({}, d.err, { [k]: '' }) });
+    const e = Object.assign({ email: '', pw: '', pw2: '', cur: '' }, d.err);
+    return Object.assign(errs(e), {
+      fid: 'ed', email: d.email, pw: d.pw, pw2: d.pw2, cur: d.cur, showRepeat: d.pw !== '', unchanged: d.unchanged,
+      dirty: d.email !== me.email || d.pw !== '' || d.cur !== '',
+      set_email: field('email'), set_pw: field('pw'), set_pw2: field('pw2'), set_cur: field('cur'),
+      save: () => {
+        const m = d.email.trim();
+        const ne = { email: !m ? 'Pflichtfeld.' : /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m) ? '' : 'Keine gültige E-Mail-Adresse.',
+          pw: d.pw && d.pw.length < 10 ? 'Mindestens 10 Zeichen.' : '', pw2: d.pw && d.pw2 !== d.pw ? 'Die Passwörter stimmen nicht überein.' : '', cur: d.cur ? '' : 'Pflichtfeld.' };
+        if (ne.email || ne.pw || ne.pw2 || ne.cur) { set({ err: ne, unchanged: false }); return; }
+        if (m === me.email && !d.pw) { set({ unchanged: true, err: {} }); return; }
+        this.setAcc(ME, { email: m });
+        this.setState({ ed: null, saved: true });
+        if (after) after();
+        this.say('Dein Konto ist gespeichert.');
+      },
+      reset: () => { this.setState({ ed: null }); if (after) after(); },
+    });
+  }
+  // «Konto einladen»: form, then the one-time link. done(id) gets the id of the new invitation.
+  ivVals(done) {
+    const d = this.state.iv || IV0;
+    const set = (p) => this.setState({ iv: Object.assign({}, d, p) });
+    return Object.assign(this.choiceVals('iv', d, set), {
+      step1: d.step === 1, step2: d.step === 2, note: d.note, link: d.link, copiedText: d.copied ? 'Link kopiert.' : '',
+      setNote: (ev) => set({ note: ev.target.value.slice(0, 120) }),
+      create: () => {
+        if (!d.all && !d.ids.length) { set({ err: { libs: 'Wähle mindestens eine Bibliothek.' } }); return; }
+        const n = this.state.nInv;
+        const inv = { id: 'n' + n, note: d.note.trim(), state: 'open', rating: Number(d.rating), all: d.all, ids: d.all ? [] : d.ids.slice(), until: '08.11.2026, 15:44', by: '' };
+        this.setState({ invs: [inv].concat(this.state.invs), nInv: n + 1, iv: Object.assign({}, d, { step: 2, link: LINKS[n % LINKS.length], newId: inv.id }) });
+      },
+      copy: () => { set({ copied: true }); this.say('Link kopiert.'); },
+      done: () => { this.setState({ iv: null }); if (done) done(d.newId); },
+    });
+  }
+  invVals(i) {
+    const st = STATES[i.state];
+    const note = i.note || 'Ohne Notiz';
+    const fresh = i.id === (this.state.iv && this.state.iv.newId) || i.id === this.state.lastNew;
+    return { id: i.id, note, noteStyle: i.note ? 'font-weight:500' : 'color:' + COL.tm, state: st[0], chipCls: st[1], dot: dot(st[2]), fsk: 'FSK ' + i.rating, libs: libNames(i),
+      detail: i.state === 'used' ? 'Angenommen von ' + i.by : 'Gültig bis ' + i.until, isOpen: i.state === 'open', revoke: () => this.revoke(i), revokeAria: 'Einladung «' + note + '» widerrufen',
+      hl: fresh ? 'background:color-mix(in srgb, #5fcf8f 8%, transparent)' : '' };
+  }
+  accRow(a) {
+    const me = a.id === ME;
+    const user = a.role === 'user';
+    const open = this.state.menu === a.id;
+    return {
+      id: a.id, email: a.email, title: a.email + (me ? ' (du)' : ''), isMe: me, role: user ? 'Konto' : 'Administrator', owner: !!a.owner, fsk: 'FSK ' + a.rating,
+      libs: libCount(a), libNames: libNames(a), prof: profText(a), seen: a.seen, chans: a.chans.map((c) => ({ label: c })), noChans: !a.chans.length, chanText: a.chans.length ? a.chans.join(', ') : 'Keine',
+      lim: user ? limText(a.lim) : '–', isUser: user && !me, isAdmin: !user && !me, canRole: !me && !a.owner,
+      roleLabel: user ? 'Zum Administrator ernennen …' : 'Rolle entziehen …', roleAria: user ? a.email + ' zum Administrator ernennen' : a.email + ' die Administratorrolle entziehen',
+      doRole: () => (user ? this.promote(a) : this.demote(a)), removeAria: a.email + ' entfernen', doRemove: () => this.remove(a),
+      hasMenu: !me && !a.owner, menuOpen: open, menuExp: open ? 'true' : 'false', menuAria: 'Weitere Aktionen für ' + a.email,
+      menuBtn: open ? 'background:' + COL.s3 : '', toggleMenu: () => this.setState({ menu: open ? null : a.id }),
+      accessAria: 'Zugriff von ' + a.email + ' ändern', toProfiles: (ev) => { stop(ev); this.say('Öffnet Profile (/settings/profiles).'); },
+    };
+  }
+  baseVals() {
+    const s = this.state;
+    const cf = s.confirm;
+    const openInv = s.invs.filter((i) => i.state === 'open').length;
+    const admins = s.accounts.filter((a) => a.role === 'admin').length;
+    return {
+      helpOpen: s.help, helpAria: s.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !s.help }),
+      statusText: s.accounts.length + ' Konten · ' + (openInv === 1 ? '1 offene Einladung' : openInv + ' offene Einladungen'),
+      accText: admins + (admins === 1 ? ' Administrator, ' : ' Administratoren, ') + (s.accounts.length - admins) + (s.accounts.length - admins === 1 ? ' Konto' : ' Konten'),
+      openInv, admins, saved: s.saved, dismissSaved: () => this.setState({ saved: false }),
+      accounts: s.accounts.map((a) => this.accRow(a)), invs: s.invs.map((i) => this.invVals(i)), noInvs: s.invs.length === 0,
+      menuOn: !!s.menu, closeMenu: () => this.setState({ menu: null }),
+      hasToast: !!s.toast, toast: s.toast || '',
+      toastStyle: 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(140, 460),
+      cOkStyle: 'font-weight:600;color:' + COL.oa + ';background:' + (cf && cf.danger ? COL.da : COL.ac) + ';border-color:' + (cf && cf.danger ? COL.da : COL.ac),
+      closeConfirm: () => this.setState({ confirm: null }), confirmOk: () => { const msg = cf.run(); this.say(msg); },
+    };
+  }
+
+  // ---- Profiles, adapted from gen12/pro/core.js. The profile API (/profiles, /profiles/{id}, …/pin, …/watch-time) is
+  // x-visibility: account: only the own account is managed here; other accounts show the profile names of the account list.
+  flip(key, id) { this.setState({ [key]: Object.assign({}, this.state[key], { [id]: !this.state[key][id] }) }); }
+  setProfile(id, p) { this.setState({ profiles: this.state.profiles.map((x) => (x.id === id ? Object.assign({}, x, p) : x)) }); }
+  limitParts(l) {
+    const out = [];
+    if (l.h) out.push('bis ' + l.h + 'p');
+    if (l.br) out.push(l.br + ' kbit/s');
+    if (l.st) out.push(l.st + (l.st === '1' ? ' Stream' : ' Streams'));
+    if (l.w) out.push(l.w + ' min pro Tag');
+    return out;
+  }
+  plibText(p) { return p.all ? 'Alle Bibliotheken' : p.libs.length ? p.libs.join(', ') : 'Keine Bibliothek'; }
+  metaText(p) { return p.meta ? LANG_NAME[p.lang][p.meta] : 'Wie Oberfläche'; }
+  // WatchReport.tsx: Heute, Total, Limit, 30 bars, limit line
+  reportVals(p) {
+    const mins = p.mins; const total = mins.reduce((a, b) => a + b, 0); const today = mins[mins.length - 1];
+    const limit = p.lim.w ? +p.lim.w : null; const max = Math.max(60, limit || 0, ...mins) * 1.12; const H = 112;
+    const a = ACC[p.accent];
+    const bars = mins.map((m, i) => ({ tip: longDay(i) + ': ' + m + ' min', tick: (mins.length - 1 - i) % 7 === 0 ? shortDay(i) : '',
+      style: 'display:block;height:' + (m ? Math.max(2, Math.round((m / max) * H)) : 0) + 'px;border-radius:2px 2px 0 0;background:' + (i === mins.length - 1 ? a[2] : 'color-mix(in srgb, ' + a[2] + ' 55%, #262a35)') }));
+    const facts = [{ t: 'Heute: ' + today + ' min' }, { t: 'Total: ' + total + ' min' }];
+    if (limit) facts.push({ t: 'Limit: ' + limit + ' min pro Tag' });
+    const y = limit ? Math.round((limit / max) * H) : 0;
+    return { hid: 'rep-' + p.id, title: 'Schauzeit von ' + p.name, facts, bars, aria: 'Schauzeit pro Tag, ' + facts.map((f) => f.t).join(', '), hasLimit: !!limit,
+      line: 'position:absolute;left:0;right:56px;bottom:' + y + 'px;border-top:1px dashed ' + COL.ts + ';pointer-events:none',
+      lineLabel: 'position:absolute;right:0;bottom:' + (y - 8) + 'px;width:52px;font-size:11px;color:' + COL.ts + ';font-variant-numeric:tabular-nums',
+      limitText: limit ? limit + ' min' : '' };
+  }
+  // A foldable block with its own panel and a tinted head band when open (Profile C, Marco 1.11.2026).
+  block(o, toggle) {
+    return { open: o, closed: !o, expAria: o ? 'true' : 'false', chev: chev(o), toggle,
+      box: 'background:#16181f;border:1px solid ' + BD1 + ';border-radius:10px', head: o ? PBAND + ';border-radius:9px 9px 0 0' : 'border-radius:9px' };
+  }
+  profVals(p, i) {
+    const a = ACC[p.accent];
+    const open = this.state.menu === p.id;
+    const rep = !!this.state.reports[p.id];
+    const eff = this.limitParts(p.lim);
+    const limText = eff.length ? eff.join(' · ') : 'Ohne Limit';
+    const lang = UI_LANG[p.lang] + (p.meta ? ' · Beschreibungen ' + LANG_NAME[p.lang][p.meta] : '');
+    return {
+      id: p.id, name: p.name, initial: p.name.slice(0, 1).toUpperCase(), avStyle: 'background:' + a[2] + ';color:' + a[3],
+      isPrimary: p.primary, hasPin: p.pin, noPin: !p.pin, canDelete: !p.primary, hasMenu: p.pin || !p.primary,
+      ratingText: 'FSK ' + p.rating, ratingStyle: '', langText: UI_LANG[p.lang], metaText: this.metaText(p), limText, limStyle: eff.length ? '' : 'color:' + COL.tm, libText: this.plibText(p),
+      traits: lang + ' · ' + limText, summary: ['FSK ' + p.rating, lang].concat(p.pin ? ['PIN'] : [], eff, [this.plibText(p)]).join(' · '),
+      facts: [{ k: 'Altersfreigabe', v: 'FSK ' + p.rating }, { k: 'Sprache', v: UI_LANG[p.lang] }, { k: 'Sprache der Beschreibungen', v: this.metaText(p) },
+        { k: 'Farbe', v: a[1], dot: 'display:inline-block;width:10px;height:10px;border-radius:5px;margin-right:6px;background:' + a[2] }, { k: 'PIN', v: p.pin ? 'Gesetzt' : 'Keine' },
+        { k: 'Bibliotheken', v: this.plibText(p) }, { k: 'Wiedergabe-Limits', v: limText }].map((x) => Object.assign({ dot: '' }, x)),
+      rep: this.reportVals(p), repOpen: rep, repAria: rep ? 'true' : 'false', repLabel: rep ? 'Schauzeit ausblenden' : 'Schauzeit anzeigen',
+      toggleReport: () => this.flip('reports', p.id),
+      edit: () => this.openForm(p), pinLabel: p.pin ? 'PIN ändern' : 'PIN setzen', setPin: () => this.openPin(p),
+      menuOpen: open, menuAria: open ? 'true' : 'false', toggleMenu: () => this.setState({ menu: open ? null : p.id }),
+      moreStyle: open ? 'background:' + COL.s3 : '', menuStyle: MENU(i), sepStyle: p.pin || MENU_PIN ? 'height:1px;margin:4px 0;background:' + BD1 : 'display:none',
+      menuPin: () => { this.setState({ menu: null }); this.openPin(p); },
+      removePin: () => this.ask('PIN von ' + p.name + ' entfernen?', 'Danach kann jeder dieses Profil ohne PIN öffnen.', 'PIN entfernen', false,
+        () => { this.setProfile(p.id, { pin: false }); return 'PIN von ' + p.name + ' entfernt.'; }),
+      del: () => this.ask('Profil „' + p.name + '“ löschen?', 'Fortschritt und Einstellungen dieses Profils gehen verloren. Das lässt sich nicht rückgängig machen.', 'Profil löschen', true,
+        () => { this.setState({ profiles: this.state.profiles.filter((x) => x.id !== p.id) }); return 'Profil „' + p.name + '“ gelöscht.'; }),
+    };
+  }
+  // ProfileForm.tsx as a dialog. An administrator has FSK 18 and all libraries, so no account ceiling applies.
+  formFrom(p) {
+    if (p) return { id: p.id, name: p.name, rating: p.rating, lang: p.lang, meta: p.meta, accent: p.accent, all: p.all, libs: p.libs.slice(), h: p.lim.h, br: p.lim.br, st: p.lim.st, w: p.lim.w, pin: '', err: {} };
+    const free = ACCENTS.find((a) => !this.state.profiles.some((x) => x.accent === a[0]));
+    return { id: null, name: '', rating: 18, lang: 'de', meta: '', accent: free ? free[0] : 'ember', all: true, libs: [], h: '', br: '', st: '', w: '', pin: '', err: {} };
+  }
+  patchForm(p) { if (this.state.form) this.setState({ form: Object.assign({}, this.state.form, p) }); }
+  openForm(p) { this.setState({ form: this.formFrom(p), menu: null }); }
+  saveForm() {
+    const f = this.state.form; const err = {};
+    if (!f) return;
+    if (!f.name.trim()) err.name = 'Pflichtfeld.';
+    if (!f.all && !f.libs.length) err.libs = 'Wähle mindestens eine Bibliothek.';
+    if (!pnum(f.br.trim(), 200, 200000)) err.br = 'Erlaubt sind 200 bis 200.000.';
+    if (!pnum(f.st.trim(), 1, 16)) err.st = 'Erlaubt sind 1 bis 16.';
+    if (!pnum(f.w.trim(), 1, 1440)) err.w = 'Erlaubt sind 1 bis 1.440.';
+    if (f.id == null && f.pin && !/^\d{4,8}$/.test(f.pin)) err.pin = 'Die PIN besteht aus 4 bis 8 Ziffern.';
+    if (Object.keys(err).length) { this.patchForm({ err }); return; }
+    const data = { name: f.name.trim(), rating: f.rating, lang: f.lang, meta: f.meta, accent: f.accent, all: f.all, libs: f.all ? [] : f.libs.slice(), lim: { h: f.h, br: f.br.trim(), st: f.st.trim(), w: f.w.trim() } };
+    if (f.id == null) {
+      const id = this.state.nextId;
+      this.setState({ profiles: this.state.profiles.concat([Object.assign({ id, primary: false, pin: !!f.pin, mins: PROFILES[0].mins.map(() => 0) }, data)]), nextId: id + 1, form: null });
+      this.say('Profil „' + data.name + '“ angelegt.');
+    } else {
+      this.setProfile(f.id, data);
+      this.setState({ form: null });
+      this.say('Profil gespeichert.');
+    }
+  }
+  formVals() {
+    const f = this.state.form; const g = f || this.formFrom(null); const e = g.err || {};
+    const opt = (label, on, pick) => ({ label, checked: on, pick, dis: false });
+    const field = (k) => (ev) => this.patchForm({ [k]: ev.target.value });
+    return {
+      dlgOpen: !!f, box: boxStyle(72, 780), isNew: g.id == null, title: g.id == null ? 'Neues Profil' : 'Profil bearbeiten', saveLabel: g.id == null ? 'Profil anlegen' : 'Speichern',
+      cancel: () => this.setState({ form: null }), save: () => this.saveForm(), hasErr: Object.keys(e).length > 0,
+      name: g.name, setName: field('name'), eName: e.name || '', eNameOn: !!e.name,
+      ratings: RATINGS.map((r) => opt('FSK ' + r, g.rating === r, () => this.patchForm({ rating: r }))),
+      ratingHint: 'Titel mit höherer Freigabe bleiben für dieses Profil unsichtbar.',
+      langs: ['de', 'en'].map((l) => opt(UI_LANG[l], g.lang === l, () => this.patchForm({ lang: l, meta: g.meta === l ? '' : g.meta }))),
+      metas: [opt('Wie Oberfläche', g.meta === '', () => this.patchForm({ meta: '' }))].concat(META_LANGS.filter((c) => c !== g.lang).map((c) => opt(LANG_NAME[g.lang][c], g.meta === c, () => this.patchForm({ meta: c })))),
+      accents: ACCENTS.map((a) => { const on = g.accent === a[0]; return { label: a[1], checked: on, checkedA: on ? 'true' : 'false', pick: () => this.patchForm({ accent: a[0] }),
+        style: 'display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:none;border-radius:14px;cursor:pointer;background:' + a[2] + ';color:' + a[3] + ';box-shadow:' + (on ? '0 0 0 2px #16181f, 0 0 0 4px ' + a[2] : 'none') }; }),
+      libModes: [opt('Alle', g.all, () => this.patchForm({ all: true })), opt('Auswahl', !g.all, () => this.patchForm({ all: false }))], some: !g.all,
+      libs: LIBS.map((l) => { const on = g.libs.includes(l); return { label: l, checked: on, pick: () => this.patchForm({ libs: LIBS.filter((x) => (x === l ? !on : g.libs.includes(x))) }) }; }),
+      eLibs: e.libs || '', eLibsOn: !!e.libs,
+      heights: HEIGHTS.map((h) => opt(h ? h + 'p' : 'Ohne Limit', g.h === h, () => this.patchForm({ h }))),
+      br: g.br, setBr: field('br'), eBr: e.br || '', eBrOn: !!e.br, st: g.st, setSt: field('st'), eSt: e.st || '', eStOn: !!e.st, w: g.w, setW: field('w'), eW: e.w || '', eWOn: !!e.w,
+      capped: false, cappedText: '',
+      pin: g.pin, setPin: (ev) => this.patchForm({ pin: ev.target.value.replace(/\D/g, '').slice(0, 8) }), ePin: e.pin || '', ePinOn: !!e.pin,
+    };
+  }
+  // PinSetDialog.tsx
+  openPin(p) { this.setState({ pin: { id: p.id, name: p.name, val: '', err: '' }, menu: null }); }
+  pinVals() {
+    const s = this.state.pin || { name: '', val: '', err: '' };
+    return { open: !!this.state.pin, title: 'PIN für ' + s.name, box: boxStyle(160, 420), val: s.val, err: s.err, errOn: !!s.err,
+      set: (ev) => this.setState({ pin: Object.assign({}, this.state.pin, { val: ev.target.value.replace(/\D/g, '').slice(0, 8), err: '' }) }),
+      close: () => this.setState({ pin: null }),
+      save: () => {
+        if (!/^\d{4,8}$/.test(s.val)) { this.setState({ pin: Object.assign({}, s, { err: 'Die PIN besteht aus 4 bis 8 Ziffern.' }) }); return; }
+        this.setProfile(s.id, { pin: true }); this.setState({ pin: null }); this.say('PIN für ' + s.name + ' gespeichert.');
+      } };
+  }
+  // ---- Konten C (gen12/kon/variants.py C_POST) plus the profiles. tabs: [label, count, highlighted]; Einladungen is tab 1.
+  cVals(tabs) {
+    const s = this.state;
+    const v = this.baseVals();
+    const ex = s.ex;
+    v.profiles = s.profiles.map((p, i) => this.profVals(p, i));
+    v.countText = s.profiles.length + ' Profile · ' + s.profiles.filter((p) => p.pin).length + ' mit PIN';
+    v.isPrimary = ex === 0; v.notPrimary = ex === 1; v.add = () => this.openForm(null);
+    v.toPicker = (e) => { stop(e); this.say('Öffnet die Profilwahl.'); };
+    v.f = this.formVals(); v.pn = this.pinVals();
+    v.exs = EXAMPLES.map((label, i) => ({ label, sel: i === ex ? 'true' : 'false', pick: () => this.setState({ ex: i, menu: null, form: null, pin: null }),
+      style: 'height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (i === ex ? COL.s3 : 'transparent') + ';color:' + (i === ex ? COL.tp : COL.ts) }));
+    v.bandOpen = bandStyle(true);
+    v.invite = () => this.setState({ tab: 1, newOpen: true, iv: null });
+    const ed = this.edVals();
+    const own = s.profiles.map((p) => p.name);
+    v.accounts = s.accounts.map((a) => {
+      const r = this.accRow(a);
+      const o = !!s.open[a.id];
+      const names = r.isMe ? own : a.profiles;
+      const last = names.length - 1;
+      return Object.assign(r, { open: o, exp: o ? 'true' : 'false', chev: chev(o), nameStyle: 'font-weight:' + (o ? 600 : 500) + ';overflow:hidden;text-overflow:ellipsis',
+        wrap: o ? 'background:' + COL.s2 : '', toggle: () => this.setState({ open: Object.assign({}, s.open, { [a.id]: !o }) }),
+        ac: Object.assign(this.accVals(a), a.role === 'user' && !r.isMe ? {} : { dirty: r.isMe ? ed.dirty : false }), ed, notMe: !r.isMe,
+        prof: names.map((n, i) => (i === 0 ? n + ' (Hauptprofil)' : n)).join(', '), pcountText: names.length === 1 ? '1 Profil' : names.length + ' Profile',
+        pnames: names.map((n, i) => ({ name: n, primary: i === 0, note: !r.isMe && i === 0 ? 'Profile verwaltet jedes Konto selbst.' : '', tree: i === last ? TREE_END : TREE })) });
+    });
+    const o = !!s.newOpen;
+    v.nw = { open: o, exp: o ? 'true' : 'false', chev: chev(o), band: bandStyle(o), toggle: () => this.setState({ newOpen: !o }) };
+    v.iv = this.ivVals((id) => this.setState({ newOpen: false, lastNew: id }));
+    const nProf = s.accounts.reduce((n, a) => n + (a.id === ME ? own.length : a.profiles.length), 0);
+    const owners = s.accounts.filter((a) => a.owner).length;
+    const next = s.invs.find((i) => i.state === 'open');
+    v.tiles = [
+      { label: 'Konten', value: String(s.accounts.length) },
+      { label: 'Administratoren', value: v.admins + ' · davon ' + owners + ' Besitzer' },
+      { label: 'Profile', value: nProf + ' in ' + s.accounts.length + ' Konten · ' + own.length + ' eigene' },
+      { label: 'Offene Einladungen', value: v.openInv ? v.openInv + ' · bis ' + next.until.split(',')[0] : 'keine', hot: v.openInv > 0 },
+    ].map((t) => Object.assign(t, { vstyle: 'font-size:15px;line-height:22px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + (t.hot ? COL.ac : COL.tp) }));
+    v.ctabs = tabs.map(([label, count, hot], i) => ({ label, count, cnt: hot ? 'c cs' : 'c', sel: i === s.tab ? 'true' : 'false', style: tabStyle(i === s.tab), pick: () => this.setState({ tab: i, menu: null }) }));
+    v.tabName = tabs[s.tab][0];
+    tabs.forEach((t, i) => { v['tab' + i] = s.tab === i; });
+    return v;
+  }
+
+  renderVals() {
+    const v = this.cVals([['Konten', String(this.state.accounts.length)], ['Einladungen', this.state.invs.filter((i) => i.state === 'open').length + ' offen', true]]);
+    return v;
+  }
+}
+</script>
+</body>
+</html>
