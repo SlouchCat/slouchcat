@@ -622,13 +622,19 @@ lassen».** Die drei Seiten bleiben eigene Einträge der Verwaltungsleiste wie i
 Sammlungen bleibt eigenständig. Benachrichtigungen bleibt getrennt von Integrationen, beide verlinken einander.
 Ankündigungen steht inhaltlich näher bei Benachrichtigungen als bei der Kuratierung.
 
-**Korrektur Hintergrundjobs (alle Varianten, auch das gewählte C):** Das Mockup zeigt 14
-erfundene oder vereinfachte Jobarten, darunter «Sicherung» mit täglichem Zeitplan,
-«Vorschaubilder» und «Untertitel». Diese gibt es im Server nicht. Es fehlen «Datei prüfen»,
-«Aufräumen fehlender Titel», «Intro und Abspann erkennen», «Titel zuordnen», «Wertungen
-nachholen», «Trailer suchen» und «Podcast-Feed abrufen». Massgebend für den Bau sind die 18
-Jobarten aus `admin.jobs.types` in `de.json` (Registry des Servers); die Wahl C betrifft nur
-den Aufbau (JOB-1 bis JOB-8 unverändert).
+**Korrektur Hintergrundjobs (alle Varianten, auch das gewählte C), eingearbeitet am 1. November
+2026:** Die erste Fassung zeigte 14 teils erfundene Jobarten («Sicherung» mit täglichem Zeitplan,
+«Vorschaubilder», «Untertitel»). Jetzt zeigen A, B und C die **19 Jobarten, die der Server
+registriert**, in ihren Gruppen: Bibliothek (Bibliotheksscan, Ordnerscan, Datei prüfen,
+Keyframe-Index, Aufräumen fehlender Titel, Intro und Abspann erkennen), Metadaten (Titel
+zuordnen, Metadaten auffüllen, Wertungen nachholen, Bilder holen, Metadaten anwenden, Trailer
+suchen, Podcast-Feed abrufen, Podcast-Feeds prüfen, Spotlight-Liste abrufen), Zustellung
+(Download vorbereiten, Mitteilung zustellen), System (Update-Prüfung, Verlauf aufräumen). Einen
+Zeitplan haben sechs davon (Scan alle 6 h, Aufräumen stündlich, Podcast-Feeds alle 5 min,
+Spotlight nach Takt, Update-Prüfung und Verlauf täglich); «Geplant» zeigt darum 6. Für den Bau:
+`metadata.apply` hat heute keinen Eintrag unter `admin.jobs.types` in `de.json`/`en.json` und
+erscheint roh als «metadata.apply»; der Bau ergänzt «Metadaten anwenden» (Text, keine neue
+Funktion). JOB-1 bis JOB-8 bleiben unverändert.
 
 ## 11. Review-Protokoll
 

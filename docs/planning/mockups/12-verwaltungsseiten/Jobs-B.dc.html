@@ -70,7 +70,7 @@ summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:n
 <span style="display:flex;align-items:center;gap:8px"><span role="progressbar" aria-label="{{ r.barLabel }}" aria-valuenow="{{ r.pct }}" aria-valuemin="0" aria-valuemax="100" style="flex:1;height:6px;border-radius:3px;background:#262a35;overflow:hidden"><span style="{{ r.barStyle }}"></span></span><span>{{ r.txt }}</span></span><span style="text-align:right">{{ r.eta }}</span></div></div></sc-for></section>
 <section aria-label="Arbeiter" style="display:flex;flex-direction:column;gap:4px;background:#16181f;border-radius:10px;padding:16px"><div style="display:flex;align-items:center;justify-content:space-between;height:24px"><h2 style="margin:0;font-size:15px;font-weight:600">Arbeiter</h2><span style="font-size:12px;color:#9095a3">3 Pools, 7 Arbeiter</span></div>
 <div style="display:flex;flex-direction:column"><div style="display:flex;align-items:center;gap:10px;height:40px;border-top:1px solid rgba(255,255,255,0.08)"><span style="display:inline-flex;align-items:center;gap:8px"><b style="font-weight:500">Allgemein</b><span style="color:#b6b9c4">4 Arbeiter</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px"><span class="d" style="background:#e8b65a"></span>Stau ca. 6 min</span></span></div><div style="display:flex;align-items:center;gap:10px;height:40px;border-top:1px solid rgba(255,255,255,0.08)"><span style="display:inline-flex;align-items:center;gap:8px"><b style="font-weight:500">Downloads</b><span style="color:#b6b9c4">2 Arbeiter</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px"><span class="d" style="background:#5fcf8f"></span>frei</span></span></div><div style="display:flex;align-items:center;gap:10px;height:40px;border-top:1px solid rgba(255,255,255,0.08)"><span style="display:inline-flex;align-items:center;gap:8px"><b style="font-weight:500">Benachrichtigungen</b><span style="color:#b6b9c4">1 Arbeiter</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px"><span class="d" style="background:#5fcf8f"></span>frei</span></span></div>
-<div style="display:flex;justify-content:space-between;align-items:center;height:32px;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#b6b9c4"><span>Laufend <b style="color:#f3f3f5">2</b></span><span>Wartend <b style="color:#f3f3f5">14</b></span><span>Geplant <b style="color:#f3f3f5">9</b></span><span>Pausiert <b style="color:#e8b65a">{{ pausedCount }}</b></span><span>Fehlgeschlagen <b style="color:#f2777a">265</b></span></div></div></section></div>
+<div style="display:flex;justify-content:space-between;align-items:center;height:32px;border-top:1px solid rgba(255,255,255,0.08);font-size:13px;color:#b6b9c4"><span>Laufend <b style="color:#f3f3f5">2</b></span><span>Wartend <b style="color:#f3f3f5">14</b></span><span>Geplant <b style="color:#f3f3f5">6</b></span><span>Pausiert <b style="color:#e8b65a">{{ pausedCount }}</b></span><span>Fehlgeschlagen <b style="color:#f2777a">265</b></span></div></div></section></div>
 <div style="margin-top:24px;display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:stretch">
 <nav aria-label="Jobarten" style="display:flex;flex-direction:column;gap:4px;min-width:0;background:#16181f;border-radius:10px;padding:8px">
 <div style="display:flex;gap:8px"><div style="position:relative;flex:1;min-width:0"><span style="position:absolute;left:9px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Jobs filtern" placeholder="Jobs filtern" value="{{ q }}" onChange="{{ setQ }}" style="width:100%;padding-left:32px"></div>
@@ -116,7 +116,7 @@ summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:n
 <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1190}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1370}}'>
 const Y = { banner: 120, running: 220, fails: 440, detail: 440 };
 const MAXY = { toast: 1140, confirm: 1000 };
 const ERR = 'ffprobe: /media/Serien/The Expanse/Season 05/The.Expanse.S05E07.2160p.WEB-DL.mkv: Invalid data found when processing input';
@@ -124,45 +124,57 @@ const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#
 const MONO = 'ui-monospace, Menlo, Consolas, monospace';
 const GROUPS = ['Bibliothek', 'Metadaten', 'Zustellung', 'System'];
 const OFF = { on: false, every: 'stündlich', win: false, from: '01:00', to: '06:00' };
+// The 19 job types the server registers (library/jobs.go, metadata/metadata.go, offline/job.go, notify/deliver.go,
+// admin/update.go, jobs/history.go), in their groups; schedules and triggers as in admin.jobs.types (de.json).
 const JOBS = [
-  { id: 'scan', g: 0, name: 'Bibliotheksscan', base: 'läuft', q: 0, last: 'vor 6 h · OK', next: 'in 1 h 52 min · alle 6 h', trig: 'Zeitplan alle 6 h, Start des Servers, «Scannen», Webhook, Dateiwächter', sch: { on: true, every: 'alle 6 Stunden', win: false, from: '01:00', to: '06:00' }, c: { running: 1, queued: 0, planned: 1, failed: 0, done: 412, cancelled: 2 } },
+  { id: 'scan', g: 0, name: 'Bibliotheksscan', base: 'läuft', q: 0, last: 'vor 6 h · OK', next: 'in 1 h 52 min · alle 6 h', trig: 'Zeitplan alle 6 h und Start des Servers, «Scannen» auf der Bibliotheksseite, Webhook, Dateiwächter', sch: { on: true, every: 'alle 6 Stunden', win: false, from: '01:00', to: '06:00' }, c: { running: 1, queued: 0, planned: 1, failed: 0, done: 412, cancelled: 2 } },
   { id: 'folder', g: 0, name: 'Ordnerscan', base: 'ruht', q: 0, last: 'vor 12 min · OK', next: 'bei Bedarf', trig: 'Dateiwächter bei Änderungen, Webhook', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 1288, cancelled: 0 } },
+  { id: 'probe', g: 0, name: 'Datei prüfen', base: 'läuft', q: 3, last: 'vor 1 min · OK', next: 'bei Bedarf', trig: 'vom Scan je neue Datei, «Datei prüfen» in der Pflege', c: { running: 1, queued: 3, planned: 0, failed: 0, done: 2204, cancelled: 1 } },
   { id: 'keyframes', g: 0, name: 'Keyframe-Index', base: 'wartet', q: 11, err: ERR, last: 'vor 2 min · Fehler', next: 'bei Bedarf', trig: 'vom Scan je Datei, vor einer Wiedergabe mit Vorrang', c: { running: 0, queued: 11, planned: 0, failed: 263, done: 1893, cancelled: 4 } },
-  { id: 'thumbs', g: 0, name: 'Vorschaubilder', base: 'läuft', q: 3, last: 'vor 1 Tag · OK', next: 'bei Bedarf', trig: 'vom Scan je neue Datei', c: { running: 1, queued: 3, planned: 0, failed: 0, done: 2204, cancelled: 1 } },
+  { id: 'sweep', g: 0, name: 'Aufräumen fehlender Titel', base: 'ruht', q: 0, last: 'vor 18 min · OK', next: 'in 42 min · stündlich', trig: 'Zeitplan stündlich und Start des Servers', sch: { on: true, every: 'stündlich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 720, cancelled: 0 } },
+  { id: 'segments', g: 0, name: 'Intro und Abspann erkennen', base: 'ruht', q: 0, last: 'vor 2 h · OK', next: 'bei Bedarf', trig: 'vom Scan je Serienstaffel', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 186, cancelled: 0 } },
+  { id: 'match', g: 1, name: 'Titel zuordnen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'vom Scan, Zuordnung von Hand, Ordner ändern', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 3088, cancelled: 0 } },
   { id: 'meta', g: 1, name: 'Metadaten auffüllen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'nach der Zuordnung, Listenänderung am Ordner', c: { running: 0, queued: 0, planned: 0, failed: 1, done: 3120, cancelled: 0 } },
+  { id: 'votes', g: 1, name: 'Wertungen nachholen', base: 'ruht', q: 0, last: 'vor 6 h · OK', next: 'bei Bedarf', trig: 'nach jedem vollständigen Scan, solange Titel ohne Wertung warten', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 74, cancelled: 0 } },
   { id: 'images', g: 1, name: 'Bilder holen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'nach der Zuordnung, Nachholen beim Start', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 2977, cancelled: 0 } },
-  { id: 'subs', g: 1, name: 'Untertitel', base: 'ruht', q: 0, last: 'vor 2 h · nichts zu tun', next: 'in 9 h 40 min · alle 12 h', trig: 'Zeitplan alle 12 h, nach dem Scan', sch: { on: true, every: 'alle 12 Stunden', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 2, failed: 0, done: 96, cancelled: 0 } },
+  { id: 'apply', g: 1, name: 'Metadaten anwenden', base: 'ruht', q: 0, last: 'vor 2 Tagen · OK', next: 'bei Bedarf', trig: '«Anwenden» auf der Seite Metadaten; reiht Zuordnen, Auffüllen und Bilder je Titel ein', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 4, cancelled: 0 } },
+  { id: 'trailer', g: 1, name: 'Trailer suchen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'nach der Zuordnung', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 1460, cancelled: 0 } },
+  { id: 'feed', g: 1, name: 'Podcast-Feed abrufen', base: 'ruht', q: 0, last: 'vor 2 min · OK', next: 'bei Bedarf', trig: 'vom Feed-Takt je fälligem Abo, «Aktualisieren» je Podcast, neues Abo', c: { running: 0, queued: 0, planned: 0, failed: 1, done: 2210, cancelled: 0 } },
+  { id: 'podcast', g: 1, name: 'Podcast-Feeds prüfen', base: 'ruht', q: 0, last: 'vor 2 min · OK', next: 'in 3 min · alle 5 min', trig: 'Zeitplan alle 5 min: fällige Abos werden abgerufen', sch: { on: true, every: 'alle 5 Minuten', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 8640, cancelled: 0 } },
   { id: 'trakt', g: 1, name: 'Spotlight-Liste abrufen', base: 'ruht', q: 0, last: 'vor 5 h · OK', next: 'in 19 h · täglich', trig: 'Zeitplan nach dem Takt der Seite Spotlight, «Jetzt abrufen»', hint: 'Takt und Ein/Aus sind dieselbe Einstellung wie auf der Seite Spotlight.', sch: { on: true, every: 'täglich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 61, cancelled: 0 } },
   { id: 'dl', g: 2, name: 'Download vorbereiten', base: 'ruht', q: 0, last: 'vor 1 Tag · OK', next: 'bei Bedarf', trig: 'Download eines Profils; der Abgleich alle 10 min reiht Unfertiges nach', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 38, cancelled: 1 } },
   { id: 'notify', g: 2, name: 'Mitteilung zustellen', base: 'ruht', q: 0, last: 'vor 8 min · OK', next: 'bei Bedarf', trig: 'jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 744, cancelled: 0 } },
-  { id: 'podcast', g: 2, name: 'Podcast-Feeds prüfen', base: 'ruht', q: 0, last: 'vor 2 min · OK', next: 'in 3 min · alle 5 min', trig: 'Zeitplan alle 5 min: fällige Abos werden abgerufen', sch: { on: true, every: 'alle 5 Minuten', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 2, failed: 1, done: 8640, cancelled: 0 } },
-  { id: 'backup', g: 3, name: 'Sicherung', base: 'ruht', q: 0, last: 'vor 21 h · OK', next: 'in 3 h · 03:00–05:00', trig: 'Zeitplan täglich im Fenster', sch: { on: true, every: 'täglich', win: true, from: '03:00', to: '05:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 30, cancelled: 0 } },
-  { id: 'prune', g: 3, name: 'Verlauf aufräumen', base: 'ruht', q: 0, last: 'vor 20 h · OK', next: 'in 4 h · täglich', trig: 'Zeitplan täglich: erledigte Läufe älter als 30 Tage', sch: { on: true, every: 'täglich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 30, cancelled: 0 } },
   { id: 'update', g: 3, name: 'Update-Prüfung', base: 'ruht', q: 0, last: 'vor 9 h · OK', next: 'in 15 h · täglich', trig: 'Zeitplan täglich, 60 s nach dem Start, «Jetzt prüfen»', hint: 'Ein/Aus ist dieselbe Einstellung wie die Update-Prüfung unter Integrationen.', sch: { on: true, every: 'täglich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 31, cancelled: 0 } },
+  { id: 'prune', g: 3, name: 'Verlauf aufräumen', base: 'ruht', q: 0, last: 'vor 20 h · OK', next: 'in 4 h · täglich', trig: 'Zeitplan täglich: erledigte Läufe älter als 30 Tage', sch: { on: true, every: 'täglich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 30, cancelled: 0 } },
 ];
 const BYID = {};
 JOBS.forEach((j) => { BYID[j.id] = j; });
 const SUBJ = {
   scan: ['Filme', 'Serien', 'Kinder'],
   folder: ['/media/Filme/Dune Part Two (2024)', '/media/Serien/Shogun/Season 01', '/media/Kinder/Bluey/Season 03', '/media/Filme/Heat (1995)', '/media/Serien/Andor/Season 01'],
+  probe: ['Dune.Part.Two.2024.2160p.mkv', 'Shogun.S01E04.1080p.mkv', 'Arrival.2016.1080p.mkv', 'Bluey.S03E12.mkv', 'Heat.1995.Remux.mkv'],
   keyframes: ['The.Expanse.S05E07.2160p.WEB-DL.mkv', 'Andor.S01E03.1080p.WEB.mkv', 'Heat.1995.Remux.mkv', 'Severance.S02E01.mkv', 'Bluey.S03E12.mkv'],
-  thumbs: ['Dune: Part Two (2024)', 'Shogun · S01E04', 'Arrival (2016)', 'Heat (1995)', 'Bluey · S03E12'],
+  sweep: ['Filme', 'Serien', 'Kinder'],
+  segments: ['Shogun · Staffel 1', 'Bluey · Staffel 3', 'The Bear · Staffel 3', 'Andor · Staffel 1', 'Severance · Staffel 2'],
+  match: ['Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'The Bear', 'Paddington 2 (2017)'],
   meta: ['The Bear · Staffel 3', 'Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'Paddington 2 (2017)'],
+  votes: ['Heat (1995)', 'Der Bestatter', 'Wilder', 'Mein Name ist Eugen (2005)', 'Arrival (2016)'],
   images: ['Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'The Bear', 'Paddington 2 (2017)'],
-  subs: ['Filme', 'Serien'],
+  apply: ['Alle Bibliotheken · Texte und Bilder', 'Kinder · Bilder'],
+  trailer: ['Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'Paddington 2 (2017)', 'The Bear'],
+  feed: ['Zeitblende', 'Echo der Zeit', 'Input', 'Sternstunde Philosophie', 'Wissenschaftsmagazin'],
+  podcast: ['Fällige Abos'],
   trakt: ['Trending', 'Beliebt'],
   dl: ['Lea · Bluey S03E12', 'Nino · Paddington 2 (2017)', 'Marco · Shogun S01E04'],
   notify: ['E-Mail an lea@example.ch', 'Web-Push an Marco', 'Telegram an Sandra', 'E-Mail an fritz@example.ch', 'Web-Push an Lea'],
-  podcast: ['Zeitblende', 'Echo der Zeit', 'Input', 'Sternstunde Philosophie', 'Wissenschaftsmagazin'],
-  backup: ['Sicherung von /config'],
-  prune: ['Läufe älter als 30 Tage'],
   update: ['Release-Manifest'],
+  prune: ['Läufe älter als 30 Tage'],
 };
 const FERR = {
   keyframes: [ERR, 'ffprobe: /media/Serien/Andor/Season 01/Andor.S01E03.1080p.WEB.mkv: moov atom not found', 'ffprobe: /media/Filme/Heat (1995)/Heat.1995.Remux.mkv: End of file',
     'ffprobe: /media/Serien/Severance/Season 02/Severance.S02E01.mkv: Invalid data found when processing input', 'ffprobe: /media/Kinder/Bluey/Season 03/Bluey.S03E12.mkv: could not find codec parameters'],
   meta: ['TMDB: 429 Too Many Requests (The Bear, Staffel 3)'],
-  podcast: ['HTTP 404 Not Found: https://feeds.example.ch/zeitblende/podcast.xml'],
+  feed: ['HTTP 404 Not Found: https://feeds.example.ch/zeitblende/podcast.xml'],
 };
 const TIMES = {
   running: ['seit 14:32', 'seit 14:36'], queued: ['sofort', 'frühestens 15:10', 'frühestens 15:10', 'frühestens 15:25', 'frühestens 15:40'],
@@ -172,14 +184,14 @@ const TIMES = {
 const TABS = [['running', 'Laufend'], ['queued', 'Wartend'], ['planned', 'Geplant'], ['failed', 'Fehlgeschlagen'], ['done', 'Erledigt'], ['cancelled', 'Abgebrochen']];
 const RUNNING = [
   { id: 'r48213', job: 'scan', subj: 'Filme', pct: 52, txt: "1'204 von 2'318", since: '4 min', eta: 'noch ca. 3 min' },
-  { id: 'r48230', job: 'thumbs', subj: 'Dune: Part Two (2024)', pct: 60, txt: '6 von 10', since: '38 s', eta: 'wird berechnet' },
+  { id: 'r48230', job: 'probe', subj: 'Dune.Part.Two.2024.2160p.mkv', pct: 60, txt: '6 von 10', since: '38 s', eta: 'wird berechnet' },
 ];
 const FAILALL = [
   { job: 'keyframes', att: '3 / 3', err: ERR, at: 'heute 14:31' },
   { job: 'keyframes', att: '3 / 3', err: FERR.keyframes[1], at: 'heute 14:30' },
   { job: 'keyframes', att: '3 / 3', err: FERR.keyframes[2], at: 'heute 14:28' },
   { job: 'meta', att: '5 / 5', err: 'TMDB: 429 Too Many Requests (The Bear, Staffel 3)', at: 'heute 14:12' },
-  { job: 'podcast', att: '3 / 3', err: FERR.podcast[0], at: 'heute 13:55' },
+  { job: 'feed', att: '3 / 3', err: FERR.feed[0], at: 'heute 13:55' },
   { job: 'keyframes', att: '3 / 3', err: FERR.keyframes[3], at: 'heute 13:41' },
 ];
 const STATECOL = { 'läuft': COL.ac, 'ruht': COL.tm, 'wartet': COL.ts, 'pausiert': COL.wa };
@@ -198,7 +210,7 @@ class Component extends DCLogic {
     super(props);
     const scheds = {};
     JOBS.forEach((j) => { scheds[j.id] = Object.assign({}, j.sch || OFF); });
-    this.state = { help: false, toast: null, toastY: 120, paused: { thumbs: true }, menu: null, confirm: null, dlg: null, draft: null, scheds, runTab: {}, sel: 'keyframes', q: '', f: 'Alle', tab: 0, open: { keyframes: true } };
+    this.state = { help: false, toast: null, toastY: 120, paused: { trailer: true }, menu: null, confirm: null, dlg: null, draft: null, scheds, runTab: {}, sel: 'keyframes', q: '', f: 'Alle', tab: 0, open: { keyframes: true } };
   }
   componentWillUnmount() { clearTimeout(this._t); }
   say(msg, y) {

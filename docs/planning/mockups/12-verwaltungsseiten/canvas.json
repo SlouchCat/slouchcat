@@ -12,7 +12,7 @@
  "boards": {
   "Main.dc.html": {
    "x": 0,
-   "y": 45530,
+   "y": 45730,
    "w": 1440,
    "h": 2370,
    "title": "A · Hintergrundjobs",
@@ -20,7 +20,7 @@
   },
   "A-Integrationen.dc.html": {
    "x": 1520,
-   "y": 45530,
+   "y": 45730,
    "w": 1440,
    "h": 2370,
    "title": "A · Integrationen",
@@ -28,7 +28,7 @@
   },
   "A-Konten.dc.html": {
    "x": 3040,
-   "y": 45530,
+   "y": 45730,
    "w": 1440,
    "h": 1310,
    "title": "A · Konten",
@@ -36,7 +36,7 @@
   },
   "B-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 48620,
+   "y": 48820,
    "w": 1440,
    "h": 1710,
    "title": "B · Hintergrundjobs",
@@ -44,7 +44,7 @@
   },
   "B-Integrationen.dc.html": {
    "x": 1520,
-   "y": 48620,
+   "y": 48820,
    "w": 1440,
    "h": 1500,
    "title": "B · Integrationen",
@@ -52,7 +52,7 @@
   },
   "B-Konten.dc.html": {
    "x": 3040,
-   "y": 48620,
+   "y": 48820,
    "w": 1440,
    "h": 1300,
    "title": "B · Konten",
@@ -60,7 +60,7 @@
   },
   "C-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 51050,
+   "y": 51250,
    "w": 1440,
    "h": 1810,
    "title": "C · Hintergrundjobs",
@@ -68,7 +68,7 @@
   },
   "C-Integrationen.dc.html": {
    "x": 1520,
-   "y": 51050,
+   "y": 51250,
    "w": 1440,
    "h": 1530,
    "title": "C · Integrationen",
@@ -76,7 +76,7 @@
   },
   "C-Konten.dc.html": {
    "x": 3040,
-   "y": 51050,
+   "y": 51250,
    "w": 1440,
    "h": 1430,
    "title": "C · Konten",
@@ -86,7 +86,7 @@
    "x": 0,
    "y": 300,
    "w": 1440,
-   "h": 1700,
+   "h": 1900,
    "title": "A · Kompakte Liste",
    "expand": "fill",
    "is_interactive": true
@@ -95,7 +95,7 @@
    "x": 1520,
    "y": 300,
    "w": 1440,
-   "h": 1190,
+   "h": 1370,
    "title": "B · Liste und Detail",
    "expand": "fill",
    "is_interactive": true
@@ -104,14 +104,14 @@
    "x": 3040,
    "y": 300,
    "w": 1440,
-   "h": 1230,
+   "h": 1450,
    "title": "C · Reiter und Klappbereiche",
    "expand": "fill",
    "is_interactive": true
   },
   "Met-A.dc.html": {
    "x": 0,
-   "y": 2720,
+   "y": 2920,
    "w": 1440,
    "h": 1410,
    "title": "A · Kompakte Liste",
@@ -120,7 +120,7 @@
   },
   "Met-B.dc.html": {
    "x": 1520,
-   "y": 2720,
+   "y": 2920,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -129,7 +129,7 @@
   },
   "Met-C.dc.html": {
    "x": 3040,
-   "y": 2720,
+   "y": 2920,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -138,7 +138,7 @@
   },
   "Int-A.dc.html": {
    "x": 0,
-   "y": 4850,
+   "y": 5050,
    "w": 1440,
    "h": 2520,
    "title": "A · Kompakte Liste",
@@ -147,7 +147,7 @@
   },
   "Int-B.dc.html": {
    "x": 1520,
-   "y": 4850,
+   "y": 5050,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -156,7 +156,7 @@
   },
   "Int-C.dc.html": {
    "x": 3040,
-   "y": 4850,
+   "y": 5050,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -165,7 +165,7 @@
   },
   "Bib-A.dc.html": {
    "x": 0,
-   "y": 8090,
+   "y": 8290,
    "w": 1440,
    "h": 910,
    "title": "A · Kompakte Liste",
@@ -174,7 +174,7 @@
   },
   "Bib-B.dc.html": {
    "x": 1520,
-   "y": 8090,
+   "y": 8290,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -183,7 +183,7 @@
   },
   "Bib-C.dc.html": {
    "x": 3040,
-   "y": 8090,
+   "y": 8290,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -192,7 +192,7 @@
   },
   "Pfl-A.dc.html": {
    "x": 0,
-   "y": 9720,
+   "y": 9920,
    "w": 1440,
    "h": 910,
    "title": "A · Kompakte Liste",
@@ -201,7 +201,7 @@
   },
   "Pfl-B.dc.html": {
    "x": 1520,
-   "y": 9720,
+   "y": 9920,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -210,7 +210,7 @@
   },
   "Pfl-C.dc.html": {
    "x": 3040,
-   "y": 9720,
+   "y": 9920,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -219,7 +219,7 @@
   },
   "Tit-A.dc.html": {
    "x": 0,
-   "y": 11350,
+   "y": 11550,
    "w": 1440,
    "h": 1450,
    "title": "A · Kompakte Liste",
@@ -228,7 +228,7 @@
   },
   "Tit-B.dc.html": {
    "x": 1520,
-   "y": 11350,
+   "y": 11550,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -237,7 +237,7 @@
   },
   "Tit-C.dc.html": {
    "x": 3040,
-   "y": 11350,
+   "y": 11550,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -251,7 +251,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 15340
+   "y": 15540
   },
   "Kon-B.dc.html": {
    "w": 1440,
@@ -260,7 +260,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 15340
+   "y": 15540
   },
   "Kon-C.dc.html": {
    "w": 1440,
@@ -269,7 +269,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 15340
+   "y": 15540
   },
   "Pro-A.dc.html": {
    "w": 1440,
@@ -278,7 +278,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 18610
+   "y": 18810
   },
   "Pro-B.dc.html": {
    "w": 1440,
@@ -287,7 +287,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 18610
+   "y": 18810
   },
   "Pro-C.dc.html": {
    "w": 1440,
@@ -296,7 +296,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 18610
+   "y": 18810
   },
   "Ger-A.dc.html": {
    "w": 1440,
@@ -305,7 +305,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 20240
+   "y": 20440
   },
   "Ger-B.dc.html": {
    "w": 1440,
@@ -314,7 +314,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 20240
+   "y": 20440
   },
   "Ger-C.dc.html": {
    "w": 1440,
@@ -323,7 +323,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 20240
+   "y": 20440
   },
   "Str-A.dc.html": {
    "w": 1440,
@@ -332,7 +332,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 26760
+   "y": 26960
   },
   "Str-B.dc.html": {
    "w": 1440,
@@ -341,7 +341,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 26760
+   "y": 26960
   },
   "Str-C.dc.html": {
    "w": 1440,
@@ -350,7 +350,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 26760
+   "y": 26960
   },
   "Pod-A.dc.html": {
    "w": 1440,
@@ -359,7 +359,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 28390
+   "y": 28590
   },
   "Pod-B.dc.html": {
    "w": 1440,
@@ -368,7 +368,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 28390
+   "y": 28590
   },
   "Pod-C.dc.html": {
    "w": 1440,
@@ -377,7 +377,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 28390
+   "y": 28590
   },
   "Str-D.dc.html": {
    "w": 1440,
@@ -386,7 +386,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 25130
+   "y": 25330
   },
   "Str-E.dc.html": {
    "w": 1440,
@@ -395,7 +395,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 25130
+   "y": 25330
   },
   "Str-F.dc.html": {
    "w": 1440,
@@ -404,7 +404,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 25130
+   "y": 25330
   },
   "Str-A2.dc.html": {
    "w": 1440,
@@ -413,7 +413,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 23500
+   "y": 23700
   },
   "Str-D2.dc.html": {
    "w": 1440,
@@ -422,7 +422,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 21870
+   "y": 22070
   },
   "KP-1.dc.html": {
    "w": 1440,
@@ -431,7 +431,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 13520
+   "y": 13720
   },
   "KP-2.dc.html": {
    "w": 1440,
@@ -440,7 +440,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 16970
+   "y": 17170
   },
   "KP-3.dc.html": {
    "w": 1440,
@@ -449,7 +449,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 16970
+   "y": 17170
   },
   "Rei-A.dc.html": {
    "w": 1440,
@@ -458,7 +458,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 30020
+   "y": 30220
   },
   "Rei-B.dc.html": {
    "w": 1440,
@@ -467,7 +467,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 30020
+   "y": 30220
   },
   "Rei-C.dc.html": {
    "w": 1440,
@@ -476,7 +476,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 30020
+   "y": 30220
   },
   "Spo-A.dc.html": {
    "w": 1440,
@@ -485,7 +485,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 31670
+   "y": 31870
   },
   "Spo-B.dc.html": {
    "w": 1440,
@@ -494,7 +494,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 31670
+   "y": 31870
   },
   "Spo-C.dc.html": {
    "w": 1440,
@@ -503,7 +503,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 31670
+   "y": 31870
   },
   "Pic-A.dc.html": {
    "w": 1440,
@@ -512,7 +512,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 34090
+   "y": 34290
   },
   "Pic-B.dc.html": {
    "w": 1440,
@@ -521,7 +521,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 34090
+   "y": 34290
   },
   "Pic-C.dc.html": {
    "w": 1440,
@@ -530,7 +530,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 34090
+   "y": 34290
   },
   "Sam-A.dc.html": {
    "w": 1440,
@@ -539,7 +539,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 35810
+   "y": 36010
   },
   "Sam-B.dc.html": {
    "w": 1440,
@@ -548,7 +548,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 35810
+   "y": 36010
   },
   "Sam-C.dc.html": {
    "w": 1440,
@@ -557,7 +557,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 35810
+   "y": 36010
   },
   "Ank-A.dc.html": {
    "w": 1440,
@@ -566,7 +566,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 37640
+   "y": 37840
   },
   "Ank-B.dc.html": {
    "w": 1440,
@@ -575,7 +575,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 37640
+   "y": 37840
   },
   "Ank-C.dc.html": {
    "w": 1440,
@@ -584,7 +584,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 37640
+   "y": 37840
   },
   "Ben-A.dc.html": {
    "w": 1440,
@@ -593,7 +593,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 39270
+   "y": 39470
   },
   "Ben-B.dc.html": {
    "w": 1440,
@@ -602,7 +602,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 39270
+   "y": 39470
   },
   "Ben-C.dc.html": {
    "w": 1440,
@@ -611,7 +611,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 39270
+   "y": 39470
   },
   "Sta-A.dc.html": {
    "w": 1440,
@@ -620,7 +620,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 41220
+   "y": 41420
   },
   "Sta-B.dc.html": {
    "w": 1440,
@@ -629,7 +629,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 41220
+   "y": 41420
   },
   "Sta-C.dc.html": {
    "w": 1440,
@@ -638,7 +638,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 41220
+   "y": 41420
   },
   "Sic-A.dc.html": {
    "w": 1440,
@@ -647,7 +647,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 43900
+   "y": 44100
   },
   "Sic-B.dc.html": {
    "w": 1440,
@@ -656,7 +656,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 43900
+   "y": 44100
   },
   "Sic-C.dc.html": {
    "w": 1440,
@@ -665,7 +665,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 43900
+   "y": 44100
   }
  },
  "order": [
@@ -754,182 +754,182 @@
   },
   "row1": {
    "x": 0,
-   "y": 2420,
+   "y": 2620,
    "text": "Metadaten · gewählt: B",
    "kind": "title1",
    "maxW": 4480
   },
   "row2": {
    "x": 0,
-   "y": 4550,
+   "y": 4750,
    "text": "Integrationen · gewählt: A",
    "kind": "title1",
    "maxW": 4480
   },
   "row3": {
    "x": 0,
-   "y": 7790,
+   "y": 7990,
    "text": "Bibliotheken · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row4": {
    "x": 0,
-   "y": 9420,
+   "y": 9620,
    "text": "Pflege · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row5": {
    "x": 0,
-   "y": 11050,
+   "y": 11250,
    "text": "Titel (Unterseite von Pflege) · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row6": {
    "x": 0,
-   "y": 13220,
+   "y": 13420,
    "text": "Konten und Profile · gewählt: 1 Profile im Konto",
    "kind": "title1",
    "maxW": 4480
   },
   "row7": {
    "x": 0,
-   "y": 15040,
+   "y": 15240,
    "text": "Konten (Grundlage C) und weitere Vorschläge",
    "kind": "title1",
    "maxW": 4480
   },
   "row8": {
    "x": 0,
-   "y": 16670,
+   "y": 16870,
    "text": "Konten und Profile · Vorschläge 2 und 3",
    "kind": "title1",
    "maxW": 4480
   },
   "row9": {
    "x": 0,
-   "y": 18310,
+   "y": 18510,
    "text": "Profile (allein, zum Vergleich)",
    "kind": "title1",
    "maxW": 4480
   },
   "row10": {
    "x": 0,
-   "y": 19940,
+   "y": 20140,
    "text": "Geräte · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row11": {
    "x": 0,
-   "y": 21570,
+   "y": 21770,
    "text": "Streams · gewählt: D mit Serverlast aus E",
    "kind": "title1",
    "maxW": 4480
   },
   "row12": {
    "x": 0,
-   "y": 23200,
+   "y": 23400,
    "text": "Streams · A mit Serverlast (verworfen)",
    "kind": "title1",
    "maxW": 4480
   },
   "row13": {
    "x": 0,
-   "y": 24830,
+   "y": 25030,
    "text": "Streams · neue Vorschläge D, E, F",
    "kind": "title1",
    "maxW": 4480
   },
   "row14": {
    "x": 0,
-   "y": 26460,
+   "y": 26660,
    "text": "Streams (erste Runde A, B, C)",
    "kind": "title1",
    "maxW": 4480
   },
   "row15": {
    "x": 0,
-   "y": 28090,
+   "y": 28290,
    "text": "Podcasts · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row16": {
    "x": 0,
-   "y": 29720,
+   "y": 29920,
    "text": "Startseitenreihen · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row17": {
    "x": 0,
-   "y": 31370,
+   "y": 31570,
    "text": "Spotlight · gewählt: A",
    "kind": "title1",
    "maxW": 4480
   },
   "row18": {
    "x": 0,
-   "y": 33790,
+   "y": 33990,
    "text": "Cat's Empfehlungen · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row19": {
    "x": 0,
-   "y": 35510,
+   "y": 35710,
    "text": "Sammlungen · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row20": {
    "x": 0,
-   "y": 37340,
+   "y": 37540,
    "text": "Ankündigungen · gewählt: B",
    "kind": "title1",
    "maxW": 4480
   },
   "row21": {
    "x": 0,
-   "y": 38970,
+   "y": 39170,
    "text": "Benachrichtigungen · gewählt: A",
    "kind": "title1",
    "maxW": 4480
   },
   "row22": {
    "x": 0,
-   "y": 40920,
+   "y": 41120,
    "text": "Statistik · gewählt: B, ergänzt um Tageszeit und Wochentag",
    "kind": "title1",
    "maxW": 4480
   },
   "row23": {
    "x": 0,
-   "y": 43600,
+   "y": 43800,
    "text": "Sicherung · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row24": {
    "x": 0,
-   "y": 45230,
+   "y": 45430,
    "text": "Grundmuster A (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row25": {
    "x": 0,
-   "y": 48320,
+   "y": 48520,
    "text": "Grundmuster B (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row26": {
    "x": 0,
-   "y": 50750,
+   "y": 50950,
    "text": "Grundmuster C (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
