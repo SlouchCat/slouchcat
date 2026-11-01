@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -319,6 +320,26 @@ func TestDashboardAttentionAndCounts(t *testing.T) {
 	}
 	movie("01J000000000000000000000A1", 1)
 	movie("01J000000000000000000000A2", 4)
+	// CountAllLibraryItems equals the sum of LibraryScan.itemCount (CountLibraryItems) over every
+	// library: seasons count like films, a soft-deleted title does not.
+	jf.exec(t, `INSERT INTO items (id, kind, library_id, title, sort_title, added_at, created_at, updated_at, deleted_at)
+	            VALUES ('01J000000000000000000000D1', 'movie', 2, 'Weg', 'weg', 0, 0, 0, 1)`)
+	jf.exec(t, `INSERT INTO items (id, kind, library_id, title, sort_title, own_rating, added_at, created_at, updated_at)
+	            VALUES ('01J000000000000000000000S1', 'series', 3, 'Serie', 'serie', 12, 0, 0, 0),
+	                   ('01J000000000000000000000S2', 'season', 3, 'Staffel 1', 'staffel 1', 12, 0, 0, 0)`)
+	jf.exec(t, `UPDATE items SET parent_id = '01J000000000000000000000S1', season_number = 1 WHERE id = '01J000000000000000000000S2'`)
+	sum := int64(0)
+	for id := int64(1); id <= 5; id++ {
+		n, err := jf.svc.sys.CountLibraryItems(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum += n
+	}
+	if all, err := jf.svc.sys.CountAllLibraryItems(ctx); err != nil || all != sum || all != 4 {
+		t.Fatalf("CountAllLibraryItems = %d, %v; the sum over the libraries is %d, want 4", all, err, sum)
+	}
+	jf.exec(t, `DELETE FROM items WHERE id IN ('01J000000000000000000000S2', '01J000000000000000000000S1', '01J000000000000000000000D1')`)
 	if _, _, err := jf.auth.CreateOwner(ctx, "owner@example.ch", "FAKE-owner-password-0815", "de"); err != nil {
 		t.Fatal(err)
 	}
@@ -378,5 +399,81 @@ func TestDashboardAttentionAndCounts(t *testing.T) {
 	jf.svc.ForgetDashboardCounts()
 	if d, err = jf.svc.Dashboard(ctx); err != nil || d.Counts.Accounts != 1 {
 		t.Errorf("accounts after ForgetDashboardCounts = %+v, %v, want 1", d.Counts, err)
+	}
+}
+
+// Concept 11: one computation of the counts at a time. Without kept values the second caller
+// waits for the running computation and gets its result; with expired values it gets those at
+// once while the computation runs.
+func TestDashboardCountsSingleFlight(t *testing.T) {
+	f := newFixture(t)
+	now := time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)
+	f.svc.now = func() time.Time { return now }
+	entered, release := make(chan struct{}, 2), make(chan struct{})
+	var calls atomic.Int32
+	f.svc.counts.compute = func(context.Context, time.Time) (model.DashboardCounts, error) {
+		n := calls.Add(1)
+		entered <- struct{}{}
+		<-release
+		return model.DashboardCounts{Titles: int(n)}, nil
+	}
+	ctx := context.Background()
+	results := make(chan model.DashboardCounts, 2)
+	call := func() {
+		c, err := f.svc.dashboardCounts(ctx)
+		if err != nil {
+			t.Error(err)
+		}
+		results <- c
+	}
+	go call()
+	<-entered
+	go call()
+	// The second caller cannot finish before the release: it waits for the first computation.
+	select {
+	case c := <-results:
+		t.Fatalf("a caller finished before the computation: %+v", c)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	for range 2 {
+		if c := <-results; c.Titles != 1 {
+			t.Errorf("counts = %+v, want the one computation's", c)
+		}
+	}
+	if n := calls.Load(); n != 1 {
+		t.Errorf("computations = %d, want 1", n)
+	}
+
+	// Expired: the first caller recomputes, a second one meanwhile gets the old values at once.
+	now = now.Add(dashboardCountsTTL)
+	release = make(chan struct{})
+	go call()
+	<-entered
+	if c, err := f.svc.dashboardCounts(ctx); err != nil || c.Titles != 1 {
+		t.Errorf("during the recomputation = %+v, %v, want the expired values", c, err)
+	}
+	close(release)
+	if c := <-results; c.Titles != 2 {
+		t.Errorf("recomputed counts = %+v, want the second computation's", c)
+	}
+	if c, err := f.svc.dashboardCounts(ctx); err != nil || c.Titles != 2 || calls.Load() != 2 {
+		t.Errorf("after the recomputation = %+v, %v (%d computations), want the kept second values", c, err, calls.Load())
+	}
+}
+
+// Concept 11: the first-start wizard creates an account; the counts follow at once.
+func TestDashboardCountsAfterSetup(t *testing.T) {
+	jf := newJobFixture(t)
+	ctx := jf.ctx
+	jf.svc.WithSystem(SystemSource{ConfigDir: t.TempDir(), CacheDir: t.TempDir()})
+	if d, err := jf.svc.Dashboard(ctx); err != nil || d.Counts.Accounts != 0 {
+		t.Fatalf("before the setup: %+v, %v", d.Counts, err)
+	}
+	if _, _, err := jf.svc.RunSetup(ctx, setupRequest(), "test"); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := jf.svc.Dashboard(ctx); err != nil || d.Counts.Accounts != 1 {
+		t.Errorf("after the setup: %+v, %v, want one account at once", d.Counts, err)
 	}
 }

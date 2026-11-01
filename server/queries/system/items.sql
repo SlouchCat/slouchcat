@@ -27,6 +27,10 @@ ORDER BY deleted_at DESC, id;
 -- name: CountLibraryItems :one
 SELECT count(*) FROM items WHERE library_id = @library_id AND deleted_at IS NULL;
 
+-- name: CountAllLibraryItems :one
+-- The sum of CountLibraryItems over every library (concept 11, Dashboard.counts.titles).
+SELECT count(*) FROM items WHERE deleted_at IS NULL AND library_id IN (SELECT id FROM libraries);
+
 -- name: InsertMediaFile :one
 INSERT INTO media_files (id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label,
                          container, created_at, updated_at)

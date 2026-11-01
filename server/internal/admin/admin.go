@@ -252,6 +252,7 @@ func (s *Service) WithMetadata(m Metadata) *Service {
 // scan); start the session. Every call counts against the client's attempt limit. Password and
 // key never appear in logs or errors.
 func (s *Service) RunSetup(ctx context.Context, req model.SetupRequest, userAgent string) (model.Session, string, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if err := s.auth.AllowAttempt(ctx); err != nil {
 		return model.Session{}, "", err
 	}
@@ -611,6 +612,7 @@ const ratingLockField = "own_rating"
 // lock is removed; the title counts as unrated (18) until the next metadata match restores the
 // rating. The result is the unfiltered administration view. model.ErrNotFound for an unknown title.
 func (s *Service) SetItemRating(ctx context.Context, itemID string, rating *int) (model.ItemRating, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if !validRating(rating) {
 		return model.ItemRating{}, (&model.ValidationError{}).Add("rating", "invalid_value")
 	}

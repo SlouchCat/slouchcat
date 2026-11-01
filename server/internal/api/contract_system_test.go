@@ -172,8 +172,17 @@ func TestDashboardOverviewOverHTTP(t *testing.T) {
 		}
 	}
 	accounts := d.Counts.Accounts
-	if accounts != 3 || d.Counts.Titles <= 0 || d.Counts.MaintenanceOpen < 0 {
-		t.Errorf("counts = %+v, want the three accounts of the fixture and its titles", d.Counts)
+	// maintenanceOpen is the sum of the five cheap issue kinds; the fixture has two such cases.
+	open := 0
+	for _, kind := range []string{"unmatched", "no_images", "unrated", "orphaned", "unplayable"} {
+		rec := send(t, h, http.MethodGet, BasePath+"/admin/maintenance/issues?kind="+kind, "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var page gen.IssuePage
+		decode(t, rec, &page)
+		open += page.Total
+	}
+	if accounts != 3 || d.Counts.Titles <= 0 || d.Counts.MaintenanceOpen != 2 || open != 2 {
+		t.Errorf("counts = %+v (issues %d), want the three accounts of the fixture, its titles and two maintenance cases", d.Counts, open)
 	}
 
 	// One running and one failed job of notify.deliver.
@@ -203,6 +212,16 @@ func TestDashboardOverviewOverHTTP(t *testing.T) {
 	if err := f.DB.Read.QueryRowContext(ctx, `SELECT id, name FROM libraries ORDER BY id LIMIT 1`).Scan(&libID, &libName); err != nil {
 		t.Fatal(err)
 	}
+	// Every schedule in 10 h, the first one by name in 1 h: that is the next run.
+	next := time.Now().Add(time.Hour).Truncate(time.Millisecond).UTC()
+	var nextType string
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT type FROM job_schedules WHERE enabled = 1 ORDER BY type LIMIT 1`).Scan(&nextType); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE job_schedules SET next_run_at = CASE WHEN type = ? THEN ? ELSE ? END`,
+		nextType, next.UnixMilli(), next.Add(9*time.Hour).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
 	// An episode streams; its series has a poster.
 	if _, err := f.DB.Write.ExecContext(ctx, `INSERT INTO images (item_id, kind, size, format, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at)
 	    VALUES (?, 'poster', ?, 'jpeg', 'https://example.org/p.jpg', 'p.jpg', 'seriesHash', 'image/jpeg', 200, 300, 1, 1)
@@ -228,8 +247,8 @@ func TestDashboardOverviewOverHTTP(t *testing.T) {
 	if strings.Contains(body, "dash-FAKE-token") {
 		t.Error("the dashboard carries the secret of the failed job")
 	}
-	if n := d.Jobs.NextRun; n != nil && (n.Type == "" || n.At.IsZero()) {
-		t.Errorf("next run = %+v", n)
+	if n := d.Jobs.NextRun; n == nil || n.Type != nextType || !n.At.Equal(next) || n.At.Location() != time.UTC {
+		t.Errorf("next run = %+v, want %s at %v", n, nextType, next)
 	}
 	want := gen.AbortedScan{LibraryId: libID, Name: libName, Reason: "root_missing"}
 	if len(d.Attention.AbortedScans) != 1 || d.Attention.AbortedScans[0] != want {
@@ -243,6 +262,17 @@ func TestDashboardOverviewOverHTTP(t *testing.T) {
 	wantStatus(t, send(t, h, http.MethodDelete, BasePath+"/admin/accounts/"+strconv.FormatInt(f.Guest.ID, 10), "p18", "", nil), http.StatusNoContent)
 	if d, _ = dashboard(); d.Counts.Accounts != accounts-1 {
 		t.Errorf("accounts after deleting one = %d, want %d at once", d.Counts.Accounts, accounts-1)
+	}
+	// A redeemed invitation creates an account; the count follows at once.
+	rec := send(t, h, http.MethodPost, BasePath+"/admin/invitations", "p18", `{"maxRating":12,"allLibraries":true}`, nil)
+	wantStatus(t, rec, http.StatusCreated)
+	var inv gen.InvitationCreated
+	decode(t, rec, &inv)
+	rec = send(t, h, http.MethodPost, BasePath+"/invitations/"+inv.Token+"/accept", "",
+		`{"email":"neu@example.ch","password":"FAKE-guest-password-4711","profileName":"Neu","language":"de"}`, nil)
+	wantStatus(t, rec, http.StatusCreated)
+	if d, _ = dashboard(); d.Counts.Accounts != accounts {
+		t.Errorf("accounts after a redeemed invitation = %d, want %d at once", d.Counts.Accounts, accounts)
 	}
 }
 

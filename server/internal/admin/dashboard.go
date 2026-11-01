@@ -31,12 +31,25 @@ const (
 
 // countsCache keeps the counts of the sidebar for dashboardCountsTTL. gen grows with every
 // ForgetDashboardCounts, so a computation that overlapped a change does not store its result.
+// One computation runs per generation (flight): while it runs, the other callers get the expired
+// values of the same generation, or wait for it when there are none.
 type countsCache struct {
-	mu   sync.Mutex
+	mu     sync.Mutex
+	gen    uint64
+	at     time.Time
+	ok     bool // vals belong to gen (possibly expired)
+	vals   model.DashboardCounts
+	flight *countsFlight
+	// compute replaces computeDashboardCounts when set; a seam for tests.
+	compute func(ctx context.Context, now time.Time) (model.DashboardCounts, error)
+}
+
+// countsFlight is the running computation of one generation; done closes when vals and err are set.
+type countsFlight struct {
 	gen  uint64
-	at   time.Time
-	ok   bool
+	done chan struct{}
 	vals model.DashboardCounts
+	err  error
 }
 
 // Jobs is implemented by *jobs.Queue: the counters, the failed jobs and their administration.
@@ -130,7 +143,7 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 		return model.Dashboard{}, fmt.Errorf("list libraries: %w", err)
 	}
 	d.Attention = dashboardAttention(libs)
-	if d.Counts, err = s.dashboardCounts(ctx, libs); err != nil {
+	if d.Counts, err = s.dashboardCounts(ctx); err != nil {
 		return model.Dashboard{}, err
 	}
 	d.Config = s.storage(ctx, s.ops.system.ConfigDir)
@@ -177,14 +190,14 @@ func (s *Service) dashboardJobs(ctx context.Context, jc *model.JobCounts) error 
 		if !ok && s.jobctl != nil {
 			st = &typeStats{}
 			if st.median, _, st.medianOK, err = s.jobctl.reg.Queue().MedianDuration(ctx, r.Type); err != nil {
-				return err
+				return fmt.Errorf("median duration of %s: %w", r.Type, err)
 			}
 			medians[r.Type] = st
 		}
 		jc.Active = append(jc.Active, s.jobRun(ctx, jobs.FromRow(r), st, now))
 	}
 	if jc.NextRun, err = s.nextScheduledRun(ctx); err != nil {
-		return err
+		return fmt.Errorf("next scheduled run: %w", err)
 	}
 	rows, err := s.sys.ListFailedJobsNewestPerType(ctx)
 	if err != nil {
@@ -208,7 +221,7 @@ func (s *Service) nextScheduledRun(ctx context.Context) (*model.JobNextRun, erro
 	}
 	schedules, err := s.jobctl.sched.Schedules(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list schedules: %w", err)
 	}
 	typeRows, err := s.sys.ListJobTypes(ctx)
 	if err != nil {
@@ -252,7 +265,7 @@ const abortCancelled = "cancelled"
 
 // dashboardCounts returns the counts of the sidebar, recomputed at most every dashboardCountsTTL
 // and at once after ForgetDashboardCounts.
-func (s *Service) dashboardCounts(ctx context.Context, libs []appq.Library) (model.DashboardCounts, error) {
+func (s *Service) dashboardCounts(ctx context.Context) (model.DashboardCounts, error) {
 	now := s.now()
 	c := &s.counts
 	c.mu.Lock()
@@ -261,19 +274,41 @@ func (s *Service) dashboardCounts(ctx context.Context, libs []appq.Library) (mod
 		c.mu.Unlock()
 		return vals, nil
 	}
-	gen := c.gen
+	if f := c.flight; f != nil && f.gen == c.gen {
+		if c.ok { // expired values of this generation while the computation runs
+			vals := c.vals
+			c.mu.Unlock()
+			return vals, nil
+		}
+		c.mu.Unlock()
+		select {
+		case <-f.done:
+			return f.vals, f.err
+		case <-ctx.Done():
+			return model.DashboardCounts{}, ctx.Err()
+		}
+	}
+	f := &countsFlight{gen: c.gen, done: make(chan struct{})}
+	c.flight = f
+
+	compute := s.computeDashboardCounts
+	if c.compute != nil {
+		compute = c.compute
+	}
 	c.mu.Unlock()
 
-	vals, err := s.computeDashboardCounts(ctx, libs, now)
-	if err != nil {
-		return model.DashboardCounts{}, err
-	}
+	// The computation outlives a cancelled first caller, so the callers waiting on it get a result.
+	f.vals, f.err = compute(context.WithoutCancel(ctx), now)
 	c.mu.Lock()
-	if c.gen == gen {
-		c.vals, c.at, c.ok = vals, now, true
+	if f.err == nil && c.gen == f.gen {
+		c.vals, c.at, c.ok = f.vals, now, true
+	}
+	if c.flight == f {
+		c.flight = nil
 	}
 	c.mu.Unlock()
-	return vals, nil
+	close(f.done)
+	return f.vals, f.err
 }
 
 // ForgetDashboardCounts drops the kept counts of the sidebar; the next dashboard recomputes them.
@@ -285,15 +320,13 @@ func (s *Service) ForgetDashboardCounts() {
 	s.counts.mu.Unlock()
 }
 
-func (s *Service) computeDashboardCounts(ctx context.Context, libs []appq.Library, now time.Time) (model.DashboardCounts, error) {
+func (s *Service) computeDashboardCounts(ctx context.Context, now time.Time) (model.DashboardCounts, error) {
 	var out model.DashboardCounts
-	for _, l := range libs {
-		n, err := s.sys.CountLibraryItems(ctx, l.ID)
-		if err != nil {
-			return out, fmt.Errorf("count items of library %d: %w", l.ID, err)
-		}
-		out.Titles += int(n)
+	titles, err := s.sys.CountAllLibraryItems(ctx)
+	if err != nil {
+		return out, fmt.Errorf("count items: %w", err)
 	}
+	out.Titles = int(titles)
 	accounts, err := s.read.CountAccounts(ctx)
 	if err != nil {
 		return out, fmt.Errorf("count accounts: %w", err)

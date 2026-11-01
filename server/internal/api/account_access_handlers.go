@@ -81,7 +81,7 @@ func (s *server) SetAccountRole(ctx context.Context, req gen.SetAccountRoleReque
 }
 
 // forgetDashboardCounts lets the next dashboard recount the accounts of the admin sidebar
-// (concept 11) after a change on the accounts page.
+// (concept 11) after a change on the accounts page or a redeemed invitation.
 func (s *server) forgetDashboardCounts() {
 	if s.opts.Admin != nil {
 		s.opts.Admin.ForgetDashboardCounts()
