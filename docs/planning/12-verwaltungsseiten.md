@@ -557,8 +557,8 @@ eigener Commit, `task ci` grün.
 | Bibliotheken | **C «Reiter und Klappbereiche»** (Reiter nach Art, je Bibliothek ein Klappbereich) | 1. November 2026 |
 | Pflege | **C «Reiter und Klappbereiche»** (Reiter je Problemart, je Bibliothek ein Klappbereich) | 1. November 2026 |
 | Titel (Unterseite von Pflege) | **C «Reiter und Klappbereiche»** (Reiter Metadaten, Bilder, Dateien, Trailer) | 1. November 2026 |
-| Konten | **C «Reiter und Klappbereiche»**; Zusammenlegung mit Profile wird geprüft (Vorschläge KP-1 bis KP-3) | 1. November 2026 |
-| Profile | offen (Mockup in Verwaltungsdichte; beim Bau gilt S-1: App-Seitenleiste, heutige Dichte) | |
+| Konten | **C «Reiter und Klappbereiche»**, zusammengelegt mit Profile nach **KP-1 «Profile im Konto»**: das aufgeklappte eigene Konto zeigt unter «Konto ändern» den Block «Meine Profile» mit allen Profilaktionen (PRO-1 bis PRO-3); fremde Konten zeigen ihre Profilnamen nur zum Lesen («Profile verwaltet jedes Konto selbst.»). Marco: «Profile im Konto ist gut.» | 1. November 2026 |
+| Profile | **In Konten aufgegangen (KP-1)** für Administratoren. Der Eintrag «Profile» der Verwaltungsleiste öffnet Konten mit dem eigenen Konto aufgeklappt bei «Meine Profile» (Abweichung von Konzept 11, 11.1 Punkt 4 und O-3, geht in Frage 18). `/settings/profiles` bleibt unverändert für Konten ohne Verwaltung (PRO-0, S-1). Keine Vertragsänderung: die Profil-Endpunkte bleiben `x-visibility: account`. | 1. November 2026 |
 | Geräte | **C «Reiter und Klappbereiche»** (Reiter Geräte und Fähigkeiten, je Typ ein Klappbereich) | 1. November 2026 |
 | Streams | **D «Kacheln» mit der Leiste «Serverlast» aus E** (Marco korrigierte zuerst gemeldetes «A»). Kachelbild = **Hintergrundbild quer** des Films bzw. der Serie: neues Feld `AdminStream.backdropUrl` (additiv, Vertrag 1.7.0, Hash wie `posterUrl` aus Konzept 11, bei Folgen das Bild der Serie). Zähler Transcode HW/SW, Remux, Direct und Bandbreite als Summe der Bitraten im Client aus `AdminStream`. **Marco: «genehmigt».** | 1. November 2026 |
 | Podcasts | **C «Reiter und Klappbereiche»** (Reiter je Bibliothek, je Podcast ein Klappbereich) | 1. November 2026 |

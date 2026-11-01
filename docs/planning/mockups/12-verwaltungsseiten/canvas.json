@@ -12,7 +12,7 @@
  "boards": {
   "Main.dc.html": {
    "x": 0,
-   "y": 28380,
+   "y": 30020,
    "w": 1440,
    "h": 2370,
    "title": "A · Hintergrundjobs",
@@ -20,7 +20,7 @@
   },
   "A-Integrationen.dc.html": {
    "x": 1520,
-   "y": 28380,
+   "y": 30020,
    "w": 1440,
    "h": 2370,
    "title": "A · Integrationen",
@@ -28,7 +28,7 @@
   },
   "A-Konten.dc.html": {
    "x": 3040,
-   "y": 28380,
+   "y": 30020,
    "w": 1440,
    "h": 1310,
    "title": "A · Konten",
@@ -36,7 +36,7 @@
   },
   "B-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 31470,
+   "y": 33110,
    "w": 1440,
    "h": 1710,
    "title": "B · Hintergrundjobs",
@@ -44,7 +44,7 @@
   },
   "B-Integrationen.dc.html": {
    "x": 1520,
-   "y": 31470,
+   "y": 33110,
    "w": 1440,
    "h": 1500,
    "title": "B · Integrationen",
@@ -52,7 +52,7 @@
   },
   "B-Konten.dc.html": {
    "x": 3040,
-   "y": 31470,
+   "y": 33110,
    "w": 1440,
    "h": 1300,
    "title": "B · Konten",
@@ -60,7 +60,7 @@
   },
   "C-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 33900,
+   "y": 35540,
    "w": 1440,
    "h": 1810,
    "title": "C · Hintergrundjobs",
@@ -68,7 +68,7 @@
   },
   "C-Integrationen.dc.html": {
    "x": 1520,
-   "y": 33900,
+   "y": 35540,
    "w": 1440,
    "h": 1530,
    "title": "C · Integrationen",
@@ -76,7 +76,7 @@
   },
   "C-Konten.dc.html": {
    "x": 3040,
-   "y": 33900,
+   "y": 35540,
    "w": 1440,
    "h": 1430,
    "title": "C · Konten",
@@ -251,7 +251,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 13520
+   "y": 15340
   },
   "Kon-B.dc.html": {
    "w": 1440,
@@ -260,7 +260,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 13520
+   "y": 15340
   },
   "Kon-C.dc.html": {
    "w": 1440,
@@ -269,7 +269,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 13520
+   "y": 15340
   },
   "Pro-A.dc.html": {
    "w": 1440,
@@ -278,7 +278,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 16970
+   "y": 18610
   },
   "Pro-B.dc.html": {
    "w": 1440,
@@ -287,7 +287,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 16970
+   "y": 18610
   },
   "Pro-C.dc.html": {
    "w": 1440,
@@ -296,7 +296,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 16970
+   "y": 18610
   },
   "Ger-A.dc.html": {
    "w": 1440,
@@ -305,7 +305,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 18600
+   "y": 20240
   },
   "Ger-B.dc.html": {
    "w": 1440,
@@ -314,7 +314,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 18600
+   "y": 20240
   },
   "Ger-C.dc.html": {
    "w": 1440,
@@ -323,7 +323,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 18600
+   "y": 20240
   },
   "Str-A.dc.html": {
    "w": 1440,
@@ -332,7 +332,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 25120
+   "y": 26760
   },
   "Str-B.dc.html": {
    "w": 1440,
@@ -341,7 +341,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 25120
+   "y": 26760
   },
   "Str-C.dc.html": {
    "w": 1440,
@@ -350,7 +350,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 25120
+   "y": 26760
   },
   "Pod-A.dc.html": {
    "w": 1440,
@@ -359,7 +359,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 26750
+   "y": 28390
   },
   "Pod-B.dc.html": {
    "w": 1440,
@@ -368,7 +368,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 26750
+   "y": 28390
   },
   "Pod-C.dc.html": {
    "w": 1440,
@@ -377,7 +377,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 26750
+   "y": 28390
   },
   "Str-D.dc.html": {
    "w": 1440,
@@ -386,7 +386,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 23490
+   "y": 25130
   },
   "Str-E.dc.html": {
    "w": 1440,
@@ -395,7 +395,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 23490
+   "y": 25130
   },
   "Str-F.dc.html": {
    "w": 1440,
@@ -404,7 +404,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 23490
+   "y": 25130
   },
   "Str-A2.dc.html": {
    "w": 1440,
@@ -413,7 +413,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 21860
+   "y": 23500
   },
   "Str-D2.dc.html": {
    "w": 1440,
@@ -422,7 +422,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 20230
+   "y": 21870
   },
   "KP-1.dc.html": {
    "w": 1440,
@@ -431,7 +431,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 15150
+   "y": 13520
   },
   "KP-2.dc.html": {
    "w": 1440,
@@ -439,8 +439,8 @@
    "title": "2 · Reiter Meine Profile",
    "expand": "fill",
    "is_interactive": true,
-   "x": 1520,
-   "y": 15150
+   "x": 0,
+   "y": 16970
   },
   "KP-3.dc.html": {
    "w": 1440,
@@ -448,8 +448,8 @@
    "title": "3 · Profile als Unterzeilen",
    "expand": "fill",
    "is_interactive": true,
-   "x": 3040,
-   "y": 15150
+   "x": 1520,
+   "y": 16970
   }
  },
  "order": [
@@ -471,10 +471,10 @@
   "Tit-A.dc.html",
   "Tit-B.dc.html",
   "Tit-C.dc.html",
+  "KP-1.dc.html",
   "Kon-A.dc.html",
   "Kon-B.dc.html",
   "Kon-C.dc.html",
-  "KP-1.dc.html",
   "KP-2.dc.html",
   "KP-3.dc.html",
   "Pro-A.dc.html",
@@ -550,83 +550,90 @@
   "row6": {
    "x": 0,
    "y": 13220,
-   "text": "Konten · gewählt: C",
+   "text": "Konten und Profile · gewählt: 1 Profile im Konto",
    "kind": "title1",
    "maxW": 4480
   },
   "row7": {
    "x": 0,
-   "y": 14850,
-   "text": "Konten und Profile · neu, zusammengelegt",
+   "y": 15040,
+   "text": "Konten (Grundlage C) und weitere Vorschläge",
    "kind": "title1",
    "maxW": 4480
   },
   "row8": {
    "x": 0,
    "y": 16670,
-   "text": "Profile (allein, zum Vergleich)",
+   "text": "Konten und Profile · Vorschläge 2 und 3",
    "kind": "title1",
    "maxW": 4480
   },
   "row9": {
    "x": 0,
-   "y": 18300,
-   "text": "Geräte · gewählt: C",
+   "y": 18310,
+   "text": "Profile (allein, zum Vergleich)",
    "kind": "title1",
    "maxW": 4480
   },
   "row10": {
    "x": 0,
-   "y": 19930,
-   "text": "Streams · gewählt: D mit Serverlast aus E",
+   "y": 19940,
+   "text": "Geräte · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row11": {
    "x": 0,
-   "y": 21560,
-   "text": "Streams · A mit Serverlast (verworfen)",
+   "y": 21570,
+   "text": "Streams · gewählt: D mit Serverlast aus E",
    "kind": "title1",
    "maxW": 4480
   },
   "row12": {
    "x": 0,
-   "y": 23190,
-   "text": "Streams · neue Vorschläge D, E, F",
+   "y": 23200,
+   "text": "Streams · A mit Serverlast (verworfen)",
    "kind": "title1",
    "maxW": 4480
   },
   "row13": {
    "x": 0,
-   "y": 24820,
-   "text": "Streams (erste Runde A, B, C)",
+   "y": 24830,
+   "text": "Streams · neue Vorschläge D, E, F",
    "kind": "title1",
    "maxW": 4480
   },
   "row14": {
    "x": 0,
-   "y": 26450,
-   "text": "Podcasts · gewählt: C",
+   "y": 26460,
+   "text": "Streams (erste Runde A, B, C)",
    "kind": "title1",
    "maxW": 4480
   },
   "row15": {
    "x": 0,
-   "y": 28080,
-   "text": "Grundmuster A (alt, nicht klickbar)",
+   "y": 28090,
+   "text": "Podcasts · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row16": {
    "x": 0,
-   "y": 31170,
-   "text": "Grundmuster B (alt, nicht klickbar)",
+   "y": 29720,
+   "text": "Grundmuster A (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row17": {
    "x": 0,
-   "y": 33600,
+   "y": 32810,
+   "text": "Grundmuster B (alt, nicht klickbar)",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row18": {
+   "x": 0,
+   "y": 35240,
    "text": "Grundmuster C (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
