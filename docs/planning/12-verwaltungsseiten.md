@@ -1,14 +1,14 @@
 # Konzept: Seitenmuster der Verwaltungsseiten (alle Seiten unter `/admin/*`)
 
-- **Status: Fassung 2 (1. November 2026), Phase 1 «Grundmuster».** Fassung 1 hat der
-  OMC-Kritiker geprüft (1 Blocker, 9 Major, 8 Minor; Abschnitt 11); Fassung 2 arbeitet alle ein. Marco hat am 1. November 2026
-  gesagt: «Im Prinzip möchte ich alle Seiten in der Verwaltung überarbeiten. Es ist mir alles
-  irgendwie zu gross und zu unübersichtlich.» Dieses Papier legt ein **Seitenmuster** fest, das
-  alle bestehenden Verwaltungsseiten umbaut und für **jede künftige Verwaltungsseite** gilt.
-  Die drei Grundmuster (Abschnitt 6) sind Bausteine, keine Vorgabe für alle Seiten: Marco
-  entscheidet **je Seite einzeln anhand eines klickbaren Mockups** mit drei Vorschlägen
-  (Marco, 1. November 2026; Abschnitt 8).
-- **Datum:** 1. November 2026.
+- **Status: Fassung 3 (1. November 2026), Bauplan (Abschnitt 11).** Fassung 1 hat der
+  OMC-Kritiker geprüft (1 Blocker, 9 Major, 8 Minor; Abschnitt 12); Fassung 2 arbeitet alle ein.
+  Marco hat am 1. November 2026 gesagt: «Im Prinzip möchte ich alle Seiten in der Verwaltung
+  überarbeiten. Es ist mir alles irgendwie zu gross und zu unübersichtlich.» Dieses Papier legt
+  ein **Seitenmuster** fest, das alle bestehenden Verwaltungsseiten umbaut und für **jede künftige
+  Verwaltungsseite** gilt. Marco hat **je Seite anhand eines klickbaren Mockups** gewählt
+  (Abschnitt 10.3, alle 19 Seiten gewählt). Fassung 3 legt den Bau fest (Abschnitt 11); **wo
+  Abschnitt 11 etwas anderes sagt als die Abschnitte 4 bis 9, gilt Abschnitt 11.**
+- **Datum:** 1. November 2026; Fassung 3 vom selben Tag.
 - **Verankert gegen:** `main` **`5e0e63d`** («Merge pull request #61», Konzept 11 als Papier),
   Vertragsfassung **1.6.0**. Konzept 11 reserviert Frage 17, ADR 0019, Migration 00031 und
   Vertrag 1.7.0. Dieses Konzept nimmt darum **Frage 18** und, falls nötig, **ADR 0020**.
@@ -483,7 +483,7 @@ Phase 2  Je Seite 3 klickbare Vorschläge (A, B, C)       → Wahl und Änderung
          2b  Konten, Profile, Geräte, Streams, Podcasts                   → veröffentlicht
          2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen  → veröffentlicht
          2d  Benachrichtigungen, Statistik, Sicherung                     → veröffentlicht
-Phase 3  Fassung «Bauplan»: Schritte, Tests, Frage 18, ggf. ADR 0020; OMC-Kritiker
+Phase 3  Fassung «Bauplan»: Schritte, Tests, Frage 18, ADR 0020; OMC-Kritiker  → Abschnitt 11
 Phase 4  Bau zusammen mit Konzept 11 und den weiteren Konzepten (auf Marcos Wort)
 ```
 
@@ -505,7 +505,8 @@ eigener Commit, `task ci` grün.
 
 ## 9. Was dieses Konzept nicht tut
 
-- Keine neue Funktion, keine Änderung am Vertrag (OpenAPI), keine Migration. JOB-8 zieht eine
+- Keine Migration. ~~Keine neue Funktion, keine Änderung am Vertrag (OpenAPI).~~ Überholt durch
+  Marcos Wünsche: «Wann geschaut wird» und additive Bildfelder (11.1, 11.4). JOB-8 zieht eine
   bestehende Anzeige um und nutzt ein bestehendes Feld. Adressen je Auswahl sind Suchparameter im
   Client (S-14).
 - Keine Änderung an der Übersicht `/admin` (Konzept 11) und an Zuschauerseiten.
@@ -606,9 +607,9 @@ Kopfband und Auf-/Zuklappen, Auswahl statt Verschieben):
 - Sammlungen: TMDB-Sammlungen bleiben nur zum Lesen; «Löschen» ist für sie aus, wie im Code.
 - Benachrichtigungen: «Verknüpfung lösen» (Telegram) bekommt eine Rückfrage; heute löst ein
   Klick sofort (geht in Frage 18).
-- Seitentitel: die Mockups zeigen «Startseitenreihen», «Benachrichtigungskanäle» und
-  «Statistiken» wie die heutigen `h1`; die Verwaltungsleiste aus Konzept 11 sagt «Startseite»,
-  «Benachrichtigungen» und «Statistik». Beim Bau gleicht Frage 18 Leiste und `h1` an.
+- Seitentitel: ~~die Verwaltungsleiste sagt «Startseite», «Benachrichtigungen» und
+  «Statistik».~~ Berichtigt in 11.1: heute heissen Seite und Leiste «Startseite» und
+  «Statistiken»; nur «Benachrichtigungskanäle» (Leiste «Benachrichtigungen») weicht ab.
 - Bildfelder, die der Vertrag noch nicht hat (additiv, Hash wie `posterUrl`, Vertrag 1.7.0):
   `StatTitle.posterUrl` (Statistik A, C) und `StatTitle.backdropUrl` (Statistik B),
   `AdminCollectionItem.posterUrl` (Sammlungen), wahlweise `AdminPick.backdropUrl`
@@ -636,7 +637,278 @@ Spotlight nach Takt, Update-Prüfung und Verlauf täglich); «Geplant» zeigt da
 erscheint roh als «metadata.apply»; der Bau ergänzt «Metadaten anwenden» (Text, keine neue
 Funktion). JOB-1 bis JOB-8 bleiben unverändert.
 
-## 11. Review-Protokoll
+## 11. Bauplan (Fassung 3)
+
+Grundlage: Marcos Wahl je Seite (10.3), seine Änderungswünsche (10.2), die Erhaltungsliste
+(Abschnitt 7) und die gewählten Mockups im Ordner `docs/planning/mockups/12-verwaltungsseiten/`
+(Dateien in 11.3). Zeilenangaben beziehen sich auf `main` `5e0e63d`, Vertrag 1.6.0. **Wo dieser
+Abschnitt etwas anderes sagt als die Abschnitte 4 bis 9, gilt Abschnitt 11.** Der Bau beginnt erst
+auf Marcos ausdrückliches Wort und läuft zusammen mit Konzept 11 (11.8). Der OMC-Kritiker hat
+diesen Abschnitt geprüft (Abschnitt 12, Fassung 2 → 3); die Befunde sind eingearbeitet.
+
+### 11.1 Was sich gegenüber Fassung 2 ändert
+
+- **Abschnitt 9 gilt nicht mehr ganz:** Marcos Wünsche bringen eine neue Funktion (Statistik
+  «Wann geschaut wird», 10.2) und Bildfelder (Streams, Statistik, Sammlungen). Der Vertrag
+  bekommt darum **additive** Felder (11.4). Eine Migration braucht es nicht.
+- **Neue Regel S-16 «Reihenfolge durch Platzwahl»** (aus Marcos Wunsch an Metadaten, 10.2):
+  Wo eine Liste geordnet wird, wählt man den Platz in einer Auswahl («1. Sprache», «Stelle»);
+  die anderen rücken nach oder tauschen. Kein «Nach oben»/«Nach unten» und kein Ziehen. Gilt für
+  Metadaten (Sprachen, Bildsprachen), Bibliotheken (Anbieterkette im Ordnerdialog der Verwaltung),
+  Startseite, Cat's Empfehlungen und Sammlungen. Die Texte `moveUp`/`moveDown` dieser Seiten fallen
+  weg.
+- **Neue Regel S-17 «Entwürfe gehören der Seite»:** Ungespeicherte Eingaben liegen im Zustand
+  der Seite, geschlüsselt nach der Id des Gegenstands (Jobart, Konto, Empfehlung, Sammlung,
+  Geltung), nicht in einem Reiter oder einer Klappzeile. So bleiben sie beim Reiterwechsel, beim
+  Zuklappen und beim Wechsel der Auswahl erhalten (S-13), und derselbe Gegenstand hat in zwei
+  Reitern denselben Entwurf. Reiter dürfen darum aushängen wie heute (`ui/Tabs.tsx:8`); ein
+  `keepMounted` braucht es nicht. Zwei Arten von Reitern: **Filterreiter** zeigen eine Liste mit
+  Filter (Bibliotheken nach Art, Podcasts je Bibliothek, Empfehlungen, Sammlungen); **Bereichsreiter**
+  zeigen verschiedene Inhalte (Hintergrundjobs, Pflege, Titel, Konten, Geräte, Startseite,
+  Sicherung). Die Vorschau der Startseite zeigt die ungespeicherte Reihenfolge.
+- **Ausserhalb der Verwaltung** ändern sich nur Teile ohne sichtbare Folge: der Inhalt des
+  Ankündigungsdialogs der Zuschauer wird als eigener Baustein herausgelöst (für die Vorschau
+  auf «Ankündigungen»), und `ui/ProviderList` bekommt eine Platzwahl als Option, die nur der
+  Ordnerdialog der Verwaltung einschaltet; der Einrichtungsassistent bleibt wie er ist.
+- **Seitentitel bleiben, wie sie heute in `de.json` stehen:** «Startseite» (`de.json:1335`,
+  Leiste ebenso `:1528`), «Statistiken» (`:2063`, Leiste `:1548`) und «Benachrichtigungskanäle»
+  (`:2985`, Leiste «Benachrichtigungen» `:1544`). Die Mockups zeigen «Startseitenreihen»; gebaut
+  wird «Startseite». Die Notiz zu den Seitentiteln in 10.3 (Phase 2c und 2d) ist damit erledigt:
+  nur Benachrichtigungen weicht ab, und das ist gewollt (Seite gilt für jedes Konto).
+- **Nummern:** Frage 18 und ADR 0020 (wie im Kopf). Die Vertragsfelder kommen in **1.7.0**
+  zusammen mit Konzept 11, wenn beide in einem Release landen (Marcos Plan, 10.1); sonst in 1.8.0
+  (Schritt 0 hält es fest).
+
+### 11.2 Bausteine in `web/src/ui`
+
+Je Baustein eine Story mit Referenzbild. Bausteine sind darstellend; Daten lesen nur die Seiten
+in `features/`.
+
+| Baustein | Zweck | Gebraucht von | Heute |
+|---|---|---|---|
+| Komponententokens, Gruppe `density.compact` | Masse aus 5.1, Standard = heutiger Wert (ADR 0020, 11.6) | alle | keine Dichte im Tokensystem; Panel-Abstand fest in `Panel.module.css:7` |
+| `Text` Variante `pageTitle` | h1 nach dem Token `--sc-page-title-size`: Standard heutige Grösse (`display`), kompakt 24 px, 600 (S-2). `/settings/*` und die Zwischenstände K12-3 bis K12-7 zeigen darum die heutige Grösse | alle | Varianten `display`, `title`, `body`, `caption` (`ui/Text.tsx:4-11`) |
+| `AdminPage` | Kopf in einer Zeile (h1, Hilfe-Knopf mit dem heutigen Einleitungssatz, Live-Anzeige, Hauptaktionen), Zustandsleiste, Inhalt; Kopf mit `tabIndex={-1}` für ALL-2 | alle Verwaltungsseiten und die beiden `/settings/*`-Seiten | jede Seite baut ihren Kopf selbst (15 CSS-Module) |
+| `StatusStrip` | Reihe kompakter `StatTile` (56 px, S-4) | Hintergrundjobs, Konten, Streams (Serverlast), Statistik (Wiedergabe) | `ui/StatTile.tsx` |
+| `BandPanel` | Feld mit getöntem Kopfband (Profilfarbe zu 12 %, dieselbe `--sc-band-tint`-Technik wie das Band der Leiste aus K11-4, 11.6 dort), wahlweise auf- und zuklappbar (`aria-expanded`), wahlweise mit Reiterleiste im Band. Der Kontrasttest aus Konzept 11 prüft zusätzlich 12 % | Integrationen, Spotlight, Benachrichtigungen, Statistik, Streams, Ankündigungen, Konten; Reiter im Band: Geräte, Podcasts, Startseite, Empfehlungen, Sammlungen, Sicherung | `ui/Panel.tsx` ohne Kopf |
+| `Tabs` erweitert | Zahl und Ton je Reiter, Anbindung an `?tab=`; inaktive Reiter hängen weiter aus (S-17) | Hintergrundjobs, Bibliotheken, Pflege, Titel, Konten, Geräte, Podcasts, Startseite, Empfehlungen, Sammlungen, Sicherung | hängt inaktive Reiter aus (`ui/Tabs.tsx:8,40-44`) |
+| `DataTable` mit Klappzeilen, `DisclosureGroup` | Klappzeile **in der Tabelle**: die erste Zelle ist ein Knopf mit `aria-expanded` und `aria-controls`, der Inhalt steht in einer eigenen Zeile `<tr><td colSpan>` darunter; Tabelle, Spaltenköpfe und die Rollen `row`/`cell` der heutigen Specs bleiben (`ui/DataTable.tsx:62-83`). Kein react-aria `Disclosure` in Tabellen (ein `div` gehört nicht in `<tr>`). `DisclosureGroup` (Klappbereich je Bibliothek, Typ, Art) ist ein Abschnitt mit Überschrift als Knopf und eigener Tabelle; dort darf react-aria `Disclosure` (`react-aria-components` 1.22.1) benutzt werden. Prüfung mit Bildschirmleser in K12-2 | Hintergrundjobs, Bibliotheken, Pflege, Titel, Konten, Geräte, Podcasts, Startseite, Empfehlungen, Sammlungen, Sicherung, Statistik | keiner |
+| `MasterDetail` | Liste links (ein Tab-Halt, Pfeil hoch/runter, Enter), Detail rechts, Auswahl in `?item=` (S-14) | Metadaten (Bereiche), Ankündigungen | keiner |
+| `SettingRow` | Bezeichnung und Hilfe links, Steuerelement rechts (S-7) | Metadaten, Integrationen, Spotlight, Benachrichtigungen | keiner |
+| `SaveBar` | «Ungespeicherte Änderungen» / «Gespeichert», Verwerfen, Speichern; aus `MetadataPage.tsx` gelöst | Metadaten, Startseite | nur in `MetadataPage` |
+| `RankSelect` | Platzwahl nach S-16 (verschieben oder tauschen, Hinweis darunter, `aria-describedby`) | Metadaten, Startseite, Empfehlungen, Sammlungen; in `ui/ProviderList` als Option nur für den Ordnerdialog der Verwaltung | keiner |
+| `ActionMenu` | Menü «Weitere Aktionen» (S-6), Abschnitt «Gefahr», Fokus zurück auf den Knopf | Sicherung, Profile im Konto, Zeilen mit mehr als zwei Aktionen | `MenuButton` ist ein Auswahlmenü (`ui/Menu.tsx:40-42,132-146`) |
+| `ConfirmDialog` steuerbar | `isOpen`/`onOpenChange`, damit Menü und Klappzeilen eine Rückfrage öffnen | alle Seiten mit `ActionMenu` | nur über `trigger` (`ui/Dialog.tsx:15-26,43`); `FormDialog` ist schon steuerbar (`:228`) |
+| `AdminDensityScope` | Kontext, den `AdminPage` setzt; Dialoge aus einer Verwaltungsseite tragen damit `data-density="compact"` an ihrem eigenen Portal. Andere Portale auf `/admin` (Schublade der App, Ankündigungsdialog der Zuschauer) bleiben in heutiger Grösse | alle Dialoge der Verwaltungsseiten | keiner |
+| `useDrafts` | Entwürfe je Gegenstand-Id im Zustand der Seite (S-17), meldet «geändert» je Id und gesamt, Verwerfen je Id | alle Seiten mit Formularen | keiner |
+| `useUnsavedChanges` | S-13: TanStack `useBlocker` (`@tanstack/react-router` 1.170.45) fragt beim Verlassen der Seite; ein Wechsel nur von `?tab=` oder `?item=` auf demselben Pfad blockiert nicht (S-17 hält die Entwürfe); pausiert das Abfragen | Metadaten, Integrationen, Spotlight, Benachrichtigungen, Konten, Empfehlungen, Sammlungen, Startseite, Titel (Freigabe) | `useBlocker` wird nirgends benutzt |
+| `ImageTile` | Bild quer oder hoch mit Rückfall `PosterFallback` (Farbfläche mit Titel) | Streams, Statistik, Sammlungen | `PosterFallback` vorhanden |
+| `adminSearch` (`web/src/app/router.tsx`) | gemeinsame `validateSearch`-Hilfe für `?tab=` und `?item=` nach dem Muster von `:385` und `:412`; bestehende Parameter bleiben | alle Seiten mit Reitern oder Auswahl | je Route eigene Prüfung |
+| `BarChart` erweitert, `HeatGrid` neu | waagrechte Balken (Wochentage), Raster 7 × 24; beide mit Tabelle für Bildschirmleser wie heute `BarChart` | Statistik | `ui/BarChart.tsx` senkrecht mit Tabelle |
+
+**Texte (Regel 9):** neue Schlüssel je Deutsch und Englisch für Hilfe-Knopf, Live-Anzeige,
+Platzwahl-Hinweis, «Weitere Aktionen» und «Gefahr», ungespeicherte Änderungen, Reiternamen,
+Beschreibungen der Startseitenreihen, «Wann geschaut wird» mit Wochentagen und «Aus den letzten 90
+Tagen», Rückfrage «Verknüpfung lösen», Gerätetyp «Unbekannt», `admin.jobs.types.metadata_apply`
+mit `.name` und `.trigger` (`JobsPage.tsx:539`). Nicht mehr gebrauchte Schlüssel werden entfernt.
+
+**Abgrenzung zu Konzept 11:** `data-shell="admin"`, die Band-Technik und `RestartPanel` kommen
+aus Konzept 11 (11.6, 11.5) und werden hier benutzt, nicht neu gebaut. Die Stream-Kachel dieser
+Seite und `StreamRow` der Übersicht teilen Bild, Modus-Pille und Fortschritt als gemeinsame
+Teile.
+
+### 11.3 Seiten
+
+Je Seite ein Commit. «Daten» nennt nur, was sich am Vertrag ändert; sonst bleiben alle Aufrufe
+wie heute. Die Erhaltungsliste (Abschnitt 7) gilt vollständig (E-2).
+
+| Seite | Mockup | Aufbau beim Bau | Daten und Hinweise |
+|---|---|---|---|
+| Hintergrundjobs | `Jobs-C` | Hinweis pausierter Jobarten (JOB-3); Zustandsleiste mit fünf Zahlen (JOB-1); Klappbereich «Läuft gerade» mit Arbeiter-Pools (JOB-2, JOB-4, JOB-4a); Reiter Bibliothek, Metadaten, Zustellung, System mit Zahl und Reiter «Fehlschläge» (JOB-8); je Jobart eine Klappzeile (JOB-5) mit Aktionen (JOB-6), Zeitplan als Block in der Zeile statt `JobScheduleDialog`, Läufe als Unterreiter statt `RunsDialog` (JOB-7) | Keine Vertragsänderung. Zeitplan **nur bei Jobarten mit `schedule`** (JOB-6); das Mockup zeigt den Block bei allen, das gilt nicht. Text `admin.jobs.types.metadata_apply` ergänzen (10.3). Der Reiter «Fehlschläge» trägt die Gesamtzahl `JobCounts.failed` und listet die zehn aus `recentFailed`. Der Link der Übersicht heisst `?tab=failed` (S-14); die Karte «Aufgaben» aus Konzept 11 bekommt ihn in K11-5. |
+| Metadaten | `Met-B` | Geltung als Auswahl im Kopf (`?library=`), Bereiche links (Sprachen, Bilder, Güte, Quellen, Altersfreigabe, Anwenden), eine `SaveBar` für alle Geltungen; Änderungen je Geltung bleiben beim Wechsel erhalten (S-13, S-17) | Keine Vertragsänderung. **Speichern** schickt die geänderten Geltungen nacheinander: zuerst den Standard (`updateMetadataSettings`), dann die Bibliotheken in Listenreihenfolge (`updateLibraryMetadata`, `openapi.yaml:3573,3641`). Die Meldungen mit der Zahl betroffener Titel (MET-6) erscheinen je Geltung untereinander. Schlägt ein Aufruf fehl, hält das Speichern an; die fehlgeschlagene und alle folgenden Geltungen bleiben geändert, der Fehler nennt die Geltung. **Verwerfen** setzt alle geänderten Geltungen zurück und nennt sie in der Rückfrage. Sprachen und Bildsprachen mit `RankSelect` (10.2). |
+| Integrationen | `Int-A` | sechs auf- und zuklappbare `BandPanel`, alle offen; Speichern je Zeile oder Block wie heute; Pfad-Umsetzung je Webhook als Klappbereich | Keine Vertragsänderung. |
+| Bibliotheken | `Bib-C` | Filterreiter nach Art mit Zahl; je Bibliothek eine Klappzeile mit Aktionen, Fortschritt, Fehlerband und Ordnern; «Bibliothek hinzufügen» als Dialog (heute ein Bereich in der Seite, `LibrariesPage.tsx:76,360`); Ordnerdialog wie heute (`LibraryFoldersDialog`, Bestätigung durch Eintippen des Pfads) | Keine Vertragsänderung. Anbieterkette mit `RankSelect` (S-16) nur im Ordnerdialog der Verwaltung. Live-Anzeige nur während eines Scans. |
+| Pflege | `Pfl-C` | Reiter je Problemart mit Zahl (PFL-1); je Reiter Werkzeugzeile und ein Klappbereich je Bibliothek; Duplikate als Gruppen | Keine Vertragsänderung: `Issue.libraryId` ist Pflicht (`openapi.yaml:9094-9119`), Namen aus der Bibliotheksliste. Gruppiert werden die **geladenen** Einträge; «Mehr laden» und «X von Y» bleiben je Reiter (50 je Seite, O-3). **Duplikate** werden nicht nach Bibliothek gruppiert (eine Gruppe kann mehrere Bibliotheken umfassen, `libraryId` ist dort optional, `openapi.yaml:3862-3863,9156`); jede Gruppe ist ein Klappbereich wie im Mockup. |
+| Titel | `Tit-C` | Reiter Metadaten, Bilder, Dateien, Trailer; Freigabe und Herkunft als Klappbereiche; Bildwahl im Dialog wie heute | Keine Vertragsänderung. |
+| Konten mit Profilen | `KP-1` | Zustandsleiste mit vier Zahlen; Reiter Konten und Einladungen; je Konto eine Klappzeile; Zugriff eines Benutzerkontos inline mit eigenem Speichern (heute Dialog); im eigenen Konto «Konto ändern» inline (heute `AccountDialog`, `AccountsPage.tsx:59-154`) und «Meine Profile»; Profil anlegen und bearbeiten im Dialog wie heute (`ProfileSettingsPage.tsx:235-248`) | Keine Vertragsänderung (`/profiles` bleibt `x-visibility: account`). `ProfileForm` und `WatchReport` sind schon eigene Dateien; nur die Profilliste zieht aus `ProfileSettingsPage.tsx` in eine Komponente, die `/settings/profiles` und Konten gemeinsam benutzen. **Leisten-Eintrag «Profile»** (in K12-5): Ziel `/admin/accounts?item=me#meine-profile`; `me` steht für das eigene Konto, die Seite löst es auf, die Leiste braucht keine Konto-Id. `isSectionPath` (`sections.ts:70-71`) bekommt für diesen Eintrag die Bedingung `item=me`, damit «Profile» und nicht «Konten» aktuell ist. Angepasst werden `sections.ts:51`, `AdminShellNav` aus Konzept 11 und dessen Tests (`admin-home.spec.ts:213-215`, `AdminHomePage.test.tsx:384`). **`/settings/profiles` bleibt für alle Konten erreichbar, auch für Administratoren; keine Weiterleitung** (`profiles.spec.ts:23`, `watch-limit.spec.ts:81` laufen als Besitzer). |
+| Geräte | `Ger-C` | Reiter Geräte und Fähigkeiten im Band; je Gerätetyp ein Klappbereich | Keine Vertragsänderung; Geräte ohne `type` (`openapi.yaml:8454`, optional) unter «Unbekannt». |
+| Streams | `Str-D2` | `BandPanel` «Serverlast» mit vier Zählern und Bandbreite (Summe von `AdminStream.bitrate`); Kacheln mit Hintergrundbild, Profil, Gerät, Qualität, Fortschritt, «Beenden» mit Rückfrage | **`AdminStream.backdropUrl`** (11.4). Live alle 5 s, pausiert bei offener Rückfrage (`StreamsPage.tsx:57`). |
+| Podcasts | `Pod-C` | Filterreiter «Alle» und je Podcast-Bibliothek; je Podcast eine Klappzeile | Keine Vertragsänderung (`AdminPodcast.libraryId`, `openapi.yaml:8369`). |
+| Startseite | `Rei-C` | Reiter Reihenfolge und Vorschau; je Reihe Klappzeile mit Beschreibung und Link; Platz mit `RankSelect`, Ausblenden; `SaveBar` mit Verwerfen | Keine Vertragsänderung (`setHomeRows`, `openapi.yaml:4790`). h1 bleibt «Startseite». Die Vorschau ist schematisch und braucht keine Daten. Beschreibungen je Reihe sind neue Texte in `de.json`/`en.json`. |
+| Spotlight | `Spo-A` | drei `BandPanel` (Quelle, Einträge, verwaiste Anpassungen); ein Speichern für das Quellformular mit «Aktiv» (SPO-1, SPO-2) | Keine Vertragsänderung. Anheften im Dialog mit Platzraster bis «Höchstens». |
+| Cat's Empfehlungen | `Pic-C` | Filterreiter Alle, Aktiv, Geplant, Abgelaufen (im Client aus `startsAt`/`endsAt`; «Aktiv» statt «Sichtbar» im Mockup, weil es nur die Zeit meint, Regel 12); je Empfehlung Klappzeile mit Notiz, Zeitraum und Stelle, inline gespeichert (heute Dialog); Hinzufügen im Dialog, `?add=` wie heute | Keine Vertragsänderung: die Stelle ruft `reorderTopPicks` mit der neuen Reihenfolge auf (`openapi.yaml:4460-4466`); `AdminPick.posterUrl` gibt es schon. |
+| Sammlungen | `Sam-C` | Filterreiter Alle, Manuell, TMDB; je Sammlung Klappzeile mit Mitgliedern inline (heute Dialog), Suche, `RankSelect`, Speichern, Verwerfen; Umbenennen im Dialog; TMDB gesperrt | **`AdminCollectionItem.posterUrl`** (11.4). |
+| Ankündigungen | `Ank-B` | `MasterDetail`: links Entwürfe und Veröffentlicht, rechts Angaben, gelesen «n von m Profilen» und die Vorschau «So sehen es die Profile»; Erstellen und Bearbeiten inline (heute Dialog) | Keine Vertragsänderung (`acknowledgedCount`, `profileCount`, `openapi.yaml:11960`). Die Vorschau benutzt den Inhalt von `AnnouncementDialog` (`features/notifications/AnnouncementDialog.tsx`), der dafür als Baustein herausgelöst wird, ohne Knöpfe; die Zuschauerseite sieht gleich aus (`Announcements.test.tsx` läuft weiter). |
+| Benachrichtigungen | `Ben-A` | `/settings/notifications`, heutige Dichte (S-1); drei `BandPanel` (E-Mail, Telegram, Web-Push); Speichern und Test je Kanal | Keine Vertragsänderung: gespeichert wird schon je Kanal (`updateMyChannel`, `openapi.yaml:6182-6184`). «Verknüpfung lösen» bekommt eine Rückfrage (`deleteTelegramLink`, `:6310`). |
+| Statistik | `Sta-B` | Zeitraum im Kopf (`?days=`); Streifen «Wiedergabe»; Meistgesehen mit Platz 1 bis 3 als Bildkacheln und Tabelle ab Platz 4; Schauzeit je Profil und Geräte nebeneinander; «Wann geschaut wird» (10.2) | **`StatTitle.posterUrl`, `StatTitle.backdropUrl`, `Stats.watchTimeByQuarterHour`, `Stats.timeWindowDays`, `Stats.timeZone`** (11.4). Bei 365 Tagen steht unter «Wann geschaut wird» «Aus den letzten 90 Tagen» (O-4). |
+| Sicherung | `Sic-C` | Reiter Sicherungen, Neue Sicherung, Aus Datei wiederherstellen; Klappbereiche Manuell und Automatisch; Zeile mit «Herunterladen» und `ActionMenu` (Wiederherstellen, Löschen); Passphrase einer verschlüsselten Sicherung im Dialog; Warteanzeige `RestartPanel` (Konzept 11, 11.5) | Keine Vertragsänderung. Der Satz zu automatischen Sicherungen heisst «vor einer Migration der Datenbank (bei einem Update) und vor einer Wiederherstellung» (`store/migrate.go`, `store/restore.go`). |
+
+### 11.4 Vertrag (additiv)
+
+Nichts wird entfernt oder im Typ geändert.
+
+| Ort | Neu | Herkunft im Server |
+|---|---|---|
+| `AdminStream.backdropUrl` | optional, Hintergrundbild `w780` mit Hash | Wie `AdminStream.posterUrl` aus Konzept 11 (11.3), bei Folgen das Bild der Serie (die Serien-Id liefert `AdminStreamItems` nach Konzept 11). `AdminListPosters` (`server/queries/system/admin.sql:374-381`) wird zu `AdminListImages` mit Art und Grösse verallgemeinert; `posterHashes` (`server/internal/admin/images.go:74`) bekommt eine Schwester für `backdrop`. URL über `adminImageURL` (`server/internal/api/item_handlers.go:441-443`). |
+| `StatTitle.posterUrl`, `StatTitle.backdropUrl` | optional | Für die höchstens 20 `topTitles`. `StatsTopTitles` gruppiert nach dem gespielten Titel (`server/queries/system/admin_stats.sql:15-35`), also auch nach Folgen, die kein Poster haben. Die Abfrage liefert darum zusätzlich die Id der Serie (Folge → Staffel → Serie über `parent_id`), und für Folgen gelten Poster und Hintergrundbild der Serie, wie bei `AdminStream`. |
+| `AdminCollectionItem.posterUrl` | optional, `w200` | `withPosters` (`images.go:90`) ist auf `[]model.AdminPick` getippt und wird für beliebige Listen mit Item-Id verallgemeinert; dann für die Mitglieder (`server/queries/system/collections.sql:47-50`, `collections.go:219`). |
+| `Stats.watchTimeByQuarterHour` | Pflicht, genau 672 Werte `watchedMs` (7 Tage × 96 Viertelstunden, Montag 00:00 zuerst) | Neue Abfrage `StatsWatchTimeByQuarter` über `progress_events`: `SUM(played_ms)` gruppiert nach `server_time / 900000` (UTC-Viertelstunde, Unix-ms, `migrations/00004_playback_progress.sql:35`). Viertelstunden statt Stunden, damit auch Zonen mit halben oder Viertelstunden-Versatz stimmen. Offline gespielte Ereignisse tragen schon die richtige Spielzeit (`server/internal/playback/offline.go:61`). Go ordnet jede Viertelstunde über die Zeitzone des Servers einem Wochentag und einer Uhrzeit zu (`time.Local` aus `TZ`, `deploy/compose.yaml:31`; `tzdata` im Image, `deploy/Dockerfile:96`). Die Zeitzone kommt als Option in `admin.Service`, damit Tests sie festlegen. Die Oberfläche fasst zu Stunden zusammen und summiert Zeilen und Spalten für «Nach Tageszeit» und «Nach Wochentag». |
+| `Stats.timeWindowDays` | Pflicht, Zahl der Tage, über die `watchTimeByQuarterHour` rechnet | `min(days, 90)`: nach 90 Tagen fasst der Server Ereignisse zu Tagen zusammen (`progress_days`, `migrations/00019_progress_days.sql:37-45`), die Uhrzeit ist dann weg. |
+| `Stats.timeZone` | Pflicht, IANA-Name (zum Beispiel `Europe/Zurich`) | `time.Local.String()` bzw. die Option; die Oberfläche nennt die Zone unter dem Diagramm. |
+
+### 11.5 Abweichungen (gehen in Frage 18)
+
+1. **Profile in Konten (KP-1):** Für Administratoren verwaltet «Konten» die eigenen Profile; der
+   Leisten-Eintrag «Profile» zeigt dorthin (Abweichung von Konzept 11, 11.1 Punkt 4 und O-3).
+   `/settings/profiles` bleibt für Konten ohne Verwaltung (PRO-0).
+2. **Fehlschläge aller Jobarten (JOB-8)** stehen als Reiter auf «Hintergrundjobs»; das schliesst
+   die Lücke, die Konzept 11 F-2 auf der Übersicht lässt.
+3. **Neue Funktion «Wann geschaut wird»** auf «Statistik» (Marco, 1. November 2026) mit den
+   Feldern aus 11.4; über Spec A-8 hinaus, kein Nicht-Ziel (Regel 11).
+4. **Bildfelder** für Streams, Statistik und Sammlungen (11.4), damit die Kacheln Bilder statt
+   Farbflächen zeigen (Marcos Wahl «Hintergrundbild quer»).
+5. **Neue Rückfrage** vor «Verknüpfung lösen» (Telegram); heute löst ein Klick sofort.
+6. **Startseite:** «Verwerfen», Beschreibung je Reihe und Reiter «Vorschau» sind neu in der
+   Oberfläche, ohne neue Funktion.
+7. **Ankündigungen:** Vorschau «So sehen es die Profile» und Lesefortschritt als Balken, aus
+   vorhandenen Daten.
+8. **Vom Dialog in die Seite** (E-3): Zeitplan einer Jobart (`JobScheduleDialog`), Läufe einer
+   Jobart (`RunsDialog`, `JobsPage.tsx:717-775`), Zugriff eines Kontos, «Konto ändern»
+   (`AccountDialog`, `AccountsPage.tsx:59-154`), Bearbeiten einer Empfehlung, Mitglieder einer
+   Sammlung, Erstellen und Bearbeiten einer Ankündigung, Neue Sicherung und Wiederherstellen aus
+   Datei (Reiter). **Von der Seite in einen Dialog:** «Bibliothek hinzufügen» (BIB-6, heute ein
+   Bereich in der Seite, `LibrariesPage.tsx:76,360`). Alle Felder und Rückfragen bleiben.
+9. **Reihenfolge durch Platzwahl (S-16)** statt «Nach oben»/«Nach unten» auf fünf Seiten.
+10. **Kompakte Dichte** unter `/admin/*` mit Maus ab 768 px (Abschnitt 5, ADR 0020); sie gilt
+    auch für die Übersicht `/admin` aus Konzept 11, deren Aufbau gleich bleibt (Abweichung von
+    Abschnitt 9, zweiter Punkt).
+11. **Link zu den Fehlschlägen** `?tab=failed` (JOB-8 nannte `?section=failed`); die Karte
+    «Aufgaben» der Übersicht bekommt ihn in K11-5. Der Satz in Konzept 11, 11.3, die eigene
+    Oberfläche lese `recentFailed` nicht mehr, wird in K12-0 berichtigt: «Hintergrundjobs» liest es
+    (JOB-8).
+12. **Profile:** der Leisten-Eintrag führt nach Konten (`?item=me`), `/settings/profiles` bleibt für
+    alle Konten.
+13. **Cat's Empfehlungen:** Reiter «Aktiv» statt «Sichtbar» (Mockup).
+
+### 11.6 ADR 0020 «Kompakte Dichte der Verwaltung»
+
+Inhalt: Komponententokens mit dem heutigen Wert als Standard; Gruppe `density.compact`; wirksam
+im Inhaltsbereich und in Dialogen unter `[data-shell="admin"]` mit `(min-width: 48rem) and
+(pointer: fine)`; Touch und Handy behalten 44 px (WCAG 2.5.8 bleibt erfüllt). **Geprüfte
+Alternativen:** eigene Admin-Kopien der Bausteine (verstösst gegen Regel 9), die allgemeine Skala
+umstellen (schrumpft Fliesstext und Chips überall), CSS-`zoom` (bricht Fokusringe und
+Trefferflächen). **Folgen:** der Commit mit den Komponententokens (K12-2a) ändert keine Story, und alle
+Referenzbilder bleiben pixelgleich (Beweis, dass ausserhalb von `/admin` nichts kleiner wird);
+erst die Erweiterungen (K12-2b) ändern Bilder. Jeder Baustein bekommt eine Story in beiden Dichten
+(Dekorator `density`), damit die kompakte Dichte eine Bildprüfung hat; Seiten haben keine eigenen
+Referenzbilder. Neue Verwaltungsseiten bekommen die Dichte ohne eigenes CSS.
+
+### 11.7 Tests
+
+- **Server:** Vertragstest (`TestContractOpenAPI`) mit den Feldern aus 11.4; Handlertests für
+  `backdropUrl`, `posterUrl` und die Statistik; Abfragetest `StatsWatchTimeByHour`; Test der
+  Zuordnung mit fester Zone `Europe/Zurich` über beide Zeitumstellungen (29. März und 25. Oktober
+  2026), mit `Asia/Kolkata` (halbe Stunde) und mit 365 Tagen (`timeWindowDays` = 90); Handlertest
+  einer Folge in `topTitles` mit den Bildern der Serie; `server/internal/admin/stats_bench_test.go`
+  um die neue Abfrage erweitert; Statistik-Attrappen der Web-Tests um die Pflichtfelder ergänzt.
+- **Unit (web):** jede Seitentest-Datei wird auf den neuen Aufbau umgeschrieben und behält jede
+  geprüfte Funktion (die Erhaltungsliste ist die Prüfliste): `LibrariesPage`,
+  `LibraryFoldersDialog`, `PodcastsPage`, `MaintenancePage`, `AdminItemPage`, `MetadataPage`,
+  `AccountsPage`, `ProfileSettingsPage`, `ProfileLimits`, `DevicesStreamsPages`, `SpotlightPage`,
+  `PicksPage`, `CollectionsPage`, `HomeRowsPage`, `AnnouncementsPage`, `JobsPage`,
+  `IntegrationsPage`, `WebhooksSection`, `ChannelSettingsPage`, `StatsPage`, `BackupPage`. Neu:
+  Tests der Bausteine (`RankSelect` verschieben und tauschen, Entwurf bleibt beim Reiterwechsel
+  (S-17), `useUnsavedChanges` fragt beim Verlassen und nicht beim Wechsel von `?tab=`,
+  `ActionMenu` gibt den Fokus zurück, Klappzeile mit Enter und Leertaste, `AdminDensityScope`
+  an Dialogen) und der Text für `metadata.apply`. Ausserdem: `ProviderList.test.tsx`,
+  `FolderList.test.tsx` (Platzwahl als Option, Standard unverändert), `Announcements.test.tsx`
+  (herausgelöster Inhalt), `AdminHomePage.test.tsx` (Leisten-Eintrag «Profile», Link
+  `?tab=failed`).
+- **e2e (Regel 8):** alle Verwaltungs-Specs werden angepasst, keiner gelöscht: `admin-libraries`,
+  `admin-library-folders`, `admin-folder-browser`, `admin-podcasts`, `podcast`, `maintenance`,
+  `admin-item`, `admin-metadata`, `admin-accounts`, `invitations`, `profiles`, `watch-limit`,
+  `admin-devices`, `admin-streams`, `admin-spotlight`, `admin-picks`, `admin-collections`,
+  `admin-home-rows`, `admin-announcements`, `admin-jobs`, `admin-integrations`,
+  `admin-webhooks`, `notification-channels`, `admin-stats`, `admin-backup`. Je Seite geprüft:
+  Reiter mit Pfeil links/rechts, Klappzeilen mit Enter, Menü mit Pfeiltasten und Esc, Liste von
+  `MasterDetail` mit Pfeil hoch/runter, `RankSelect` mit Tastatur, die Tabelle hinter `HeatGrid`
+  für Bildschirmleser, Rückfrage
+  beim Verlassen mit Ungespeichertem, Fokus nach dem Entfernen auf den Seitenkopf (ALL-2,
+  `expectFocusOn` in `web/e2e/keyboard.ts:44-45`), sichtbarer Fokus, keine Fokusfalle.
+  `profiles.spec` bleibt für `/settings/profiles`; die Profilfälle für Administratoren kommen
+  neu in `admin-accounts`. `admin-home.spec.ts` (Leiste, Konzept 11) und `setup.spec.ts`
+  (Einrichtungsassistent unverändert) laufen mit.
+- **Storybook-Referenzbilder:** nach K12-2a alle bestehenden Bilder unverändert (11.6); in
+  K12-2b neu für jeden Baustein aus 11.2 in beiden Dichten, geändert `ui-tabs--*`,
+  `ui-barchart--*`, `ui-confirmdialog--*`, `ui-datatable--*` und neu `ui-providerlist--rank`.
+- **Abnahme je Seite:** `verifier` hakt die Erhaltungsliste ab (E-2), `designer` vergleicht mit
+  dem gewählten Mockup.
+
+### 11.8 Schnitt in Schritte (zusammen mit Konzept 11)
+
+Konzept 11 hat die Schritte 0 bis 6 (11.8 dort); dieses Konzept hängt seine Schritte K12-0 bis
+K12-9 so ein, dass die Seiten erst nach dem Gerüst umgebaut werden. Jeder Schritt ein Commit
+(Seiten: je Seite ein Commit), `task ci` grün inklusive e2e, DoD-Belege in
+`docs/dev/CURRENT_STATUS.md`.
+
+```
+K11-0 + K12-0  Papiere (Frage 17 und 18, ADR 0019 und 0020)
+K11-1 → K12-1  Vertrag 1.7.0: Dashboard, dann Bilder und Statistik
+K11-2, K11-3   Aktivitätsprotokoll, Neustart
+K11-4 → K12-2  ui-Bausteine: zuerst Konzept 11 (Band), dann dieses (Dichte noch aus)
+K11-5          Gerüst, Leiste, Übersicht
+K12-3 … K12-7  Seiten je Gruppe, heutige Dichte
+K12-8          Dichte einschalten
+K11-6 + K12-9  Abnahme auf CT 190, Messung, Doku, Release 1.7.0
+```
+
+| Schritt | Inhalt | DoD | Tage |
+|---|---|---|---|
+| K12-0 Papiere | Frage 18 (11.5, die Wahl je Seite aus 10.3) ins Entscheidungsprotokoll, ADR 0020 (11.6), Papier auf den dann aktuellen `main` verankern | Doku-Commit, `task ci` grün | 0,5 |
+| K12-1 Vertrag und Server | Felder aus 11.4, `task gen`, Abfragen, Serien-Id in `StatsTopTitles`, `withPosters` verallgemeinert, Zeitzone als Option, Bench, Tests | Antwort von `GET /admin/stats?days=30` und `GET /admin/streams` als Beleg; Bench-Werte in `docs/perf/verwaltungsseiten.md` | 2,5 |
+| K12-2a Komponententokens | Tokens mit Standardwerten, Bausteine lesen sie; **Ausgangsmessung** der Höhe bis zur ersten Arbeitszeile auf Hintergrundjobs, Integrationen und Konten nach `docs/perf/verwaltungsseiten.md` (Abschnitt 3) | alle Referenzbilder pixelgleich | 1,5 |
+| K12-2b Bausteine | alle Bausteine aus 11.2 mit Story in beiden Dichten und Test, `adminSearch`, Prüfung der Klappzeilen mit Bildschirmleser | neue Referenzbilder auf CT 190 erzeugt | 6 |
+| K12-3 Seiten, die am meisten stören | Hintergrundjobs, Metadaten, Integrationen (rund 2'900 Zeilen) | Tests aus 11.7 grün, Erhaltungsliste abgehakt | 6 |
+| K12-4 Bibliothek | Bibliotheken, Pflege, Titel, Podcasts | wie oben | 5 |
+| K12-5 Konten | Konten mit Profilen und Leisten-Eintrag «Profile», Geräte, Streams | wie oben | 4,5 |
+| K12-6 Kuratierung | Startseite, Spotlight, Cat's Empfehlungen, Sammlungen, Ankündigungen | wie oben | 5 |
+| K12-7 System | Benachrichtigungen, Statistik, Sicherung. Danach entfallen die seiteneigenen CSS-Module für Kopf, Abstände und Seitenaufbau (S-12): `AdminData`, `AdminTablePage`, `AdminItemPage`, `Curation`, `IntegrationsPage`, `Invitations`, `JobsPage`, `LibrariesPage`, `MaintenancePage`, `MetadataPage`, `PicksPage`, `SpotlightPage`. Es bleiben `AdminHomePage` (Konzept 11), `LibraryFoldersDialog` und `PosterTitle` (Bausteine, kein Seitenaufbau) | wie oben | 4 |
+| K12-8 Dichte | `density.compact` unter `[data-shell="admin"]` und `AdminDensityScope` einschalten, Messung wiederholen (Ziel: höchstens die Hälfte), `designer` vergleicht jede Seite mit dem Mockup | Messwerte in `docs/perf/verwaltungsseiten.md` | 1,5 |
+| K12-9 Abnahme | auf CT 190 mit Marco am Desktop (Maus) und am Handy (44 px); p95 von `GET /admin/stats?days=90` in `docs/perf/verwaltungsseiten.md`; `CURRENT_STATUS.md`, Release-Notes | Marcos Abnahme | 1 |
+
+**Aufwand:** Summe **37,5 Tage** (Spanne 33 bis 42), dazu die 15 Tage von Konzept 11. Grundlage:
+rund 10'500 Zeilen Seitencode, 6'000 Zeilen Unit-Tests und 10'000 Zeilen e2e, die angepasst
+werden.
+
+**Rollen (Phase 4, wie Abschnitt 8):** `planner` legt die Reihenfolge beider Konzepte fest;
+`executor` mit Opus für K12-1, K12-2 und K12-8, mit Sonnet für die Seiten; `designer` und
+`verifier` je Seite; `code-reviewer` je Schritt.
+
+### 11.9 Offene Punkte
+
+| Nr. | Punkt | Vorschlag |
+|---|---|---|
+| O-1 | Vertrag 1.7.0 oder 1.8.0, falls Konzept 11 vorher allein erscheint. | In K12-0 festhalten; die Felder bleiben dieselben. |
+| O-2 | Mockup-Fehler, die nicht gebaut werden: Zeitplan-Block bei Jobarten ohne Zeitplan (`Jobs-C`), veralteter Einleitungssatz im Dialog «Sammlung anlegen» (`Sam-C`), Hilfetext «stündlich» bei Podcasts (`Pod-C`; das Abo hat seinen Takt, geprüft wird alle 5 min). | Gebaut wird nach Code und `de.json`. |
+| O-3 | Pflege gruppiert nur die geladenen Einträge je Bibliothek; eine Bibliothek kann darum auf Seite 2 nochmals erscheinen. | So lassen; Alternative wäre eine Abfrage je Bibliothek (`listMaintenanceIssues` kennt `libraryId`, `openapi.yaml:3801-3830`), mehr Aufrufe. |
+| O-4 | «Wann geschaut wird» bei 365 Tagen nur aus den letzten 90 Tagen. | Hinweis unter der Überschrift; volle 365 Tage bräuchten eine Stundenspalte in `progress_days` und eine Migration (nicht empfohlen). |
+
+### 11.10 Risiken
+
+- **Umfang:** 19 Seiten, 21 Testdateien und 25 e2e-Specs. Je Seite ein Commit mit grüner CI;
+  K12-3 nimmt die schwierigsten Seiten zuerst, damit die Bausteine früh an echten Seiten reifen.
+- **Entwürfe im Seitenzustand (S-17):** mehr Zustand je Seite. Jede Seite bekommt einen
+  kleinen Hook (`useDrafts`), der Entwürfe nach Id hält, «geändert» meldet und das Abfragen
+  pausiert; Unit-Tests prüfen den Wechsel von Reiter und Auswahl.
+- **Dichte und Referenzbilder:** viele Bilder ändern sich in K12-8 auf einmal. Die
+  Komponententokens kommen darum in K12-2 mit pixelgleichen Bildern, die Umstellung allein in
+  K12-8.
+- **Zusammenspiel mit Konzept 11:** beide ändern `AppLayout`, `AdminLayout` und die Specs der
+  Leiste. Die Seiten beginnen erst nach K11-5.
+- **Statistik-Abfrage:** 90 Tage `progress_events` je Aufruf. K12-9 misst p95; über 200 ms
+  rechnet der Server die Stundenwerte höchstens alle 5 min neu (Zwischenspeicher).
+
+## 12. Review-Protokoll
 
 ### Fassung 1 → 2 (OMC-Kritiker, 1. November 2026)
 
@@ -660,3 +932,21 @@ Urteil «überarbeiten»: 1 Blocker, 9 Major, 8 Minor. Alle eingearbeitet.
 | S-2 Geltungsbereich, S-3 h3, S-8, Ziel, Live-Text, `?select=` | Minor | S-2, S-3, S-8, S-14, Abschnitt 3 |
 | Mockup-Ordner statt Datei | Minor | Abschnitt 6 begründet |
 | Zwischenstände in Phase 4 | Minor | 5.2: Dichte erst mit der letzten Seite |
+
+### Fassung 2 → 3 (OMC-Kritiker, 1. November 2026)
+
+Geprüft wurde Abschnitt 11. Urteil «überarbeiten»: kein Blocker, 7 Major, 20 Minor. Die meisten
+Zeilenangaben stimmten; `react-aria-components` 1.22.1 hat `Disclosure`, `@tanstack/react-router`
+1.170.45 hat `useBlocker`. Alle Befunde sind eingearbeitet.
+
+| Befund | Einarbeitung |
+|---|---|
+| M-1 Filterreiter brechen S-13, ob eingehängt oder nicht | S-17: Entwürfe nach Id im Zustand der Seite, Filter- und Bereichsreiter, kein `keepMounted`, `useDrafts` (11.1, 11.2) |
+| M-2 Leisten-Eintrag «Profile» ohne Schritt, bricht Konzept 11 | Ziel `?item=me#meine-profile`, `isSectionPath`, Tests von Konzept 11, Schritt K12-5; `/settings/profiles` ohne Weiterleitung (11.3, 11.5) |
+| M-3 E-3-Liste unvollständig | `RunsDialog`, `AccountDialog`, «Bibliothek hinzufügen» in 11.5 Punkt 8 |
+| M-4 Platzwahl ändert den Einrichtungsassistenten | Option in `ui/ProviderList`, nur der Ordnerdialog der Verwaltung; Tests und Bild genannt |
+| M-5 Statistik-Kacheln ohne Bild bei Folgen | Serien-Id in `StatsTopTitles`, Bilder der Serie, Handlertest |
+| M-6 react-aria `Disclosure` gehört nicht in `<tr>` | Klappzeile als Knopf mit `aria-expanded` und Detailzeile in `DataTable`; `Disclosure` nur für Gruppen |
+| M-7 Speichern über mehrere Geltungen undefiniert | Reihenfolge, Halt bei Fehler, Meldungen je Geltung, Verwerfen (11.3 Metadaten) |
+| Minor 1–20 | Link `?tab=failed` in K11-5 und Satz zu `recentFailed`; `adminSearch`; `useBlocker` nicht bei `?tab=`; K12-2a pixelgleich, K12-2b mit Bildern in beiden Dichten; Seitentitel als Token; `AdminDensityScope` statt Attribut am Dokument; Übersicht kompakt als Abweichung; CSS-Module namentlich; nur Profilliste herauslösen; `withPosters` verallgemeinert; Duplikate nicht nach Bibliothek; Zeile `:6310`; Kontrast 12 %; Inhalt von `AnnouncementDialog` herauslösen; `timeZone`, Viertelstunden, Bench; Reiter «Aktiv»; Textliste; Tastaturtests für `MasterDetail`, `RankSelect`, `HeatGrid`; Aufwand 37,5 Tage; K12-2 nach K11-4 |
+
