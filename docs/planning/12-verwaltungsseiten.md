@@ -548,7 +548,7 @@ eigener Commit, `task ci` grün.
 | Seite | Wahl | Datum |
 |---|---|---|
 | Hintergrundjobs | offen (Pilot; Format der klickbaren Mockups am 1. November 2026 angenommen) | |
-| Metadaten | offen | |
+| Metadaten | **B «Liste und Detail»** (Liste der Einstellungsbereiche, Geltung im Kopf), mit Sprachen als feste Plätze (10.2); «Sonst soweit eigentlich gut» | 1. November 2026 |
 | Integrationen | offen | |
 | Bibliotheken | offen | |
 | Pflege | offen | |
