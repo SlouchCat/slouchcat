@@ -23,8 +23,9 @@ import (
 //   - what contains "texts": metadata.match (a new fetch as refreshItem does, without the probes),
 //     because only the match asks the providers per language and a folder with one provider runs
 //     no fill request (1.1); the match queues fill and image.fetch as always.
-//   - what is ["images"]: metadata.fill and image.fetch, which decide the image fields again from
-//     the candidates the fill fetches anyway.
+//   - what is ["images"]: metadata.fill with the images flag (fillImages: it fetches the records
+//     even for a folder with one provider, where the ordinary fill makes no request) and
+//     image.fetch, which decide the image fields again from the candidates.
 //
 // Children carry the idempotency keys of their kind (match:<id>, fill:<id>, image:<id>), so a
 // second apply does not double what still waits (RaiseQueuedPriority lifts a waiting child to the
@@ -163,14 +164,14 @@ func (s *Service) handleApply(ctx context.Context, j *jobs.Job) error {
 				return err
 			}
 			if texts {
-				if err := s.enqueueRaised(ctx, JobMatch, "match:", it.ID, applyPriority); err != nil {
+				if err := s.enqueueRaised(ctx, JobMatch, "match:", it.ID, applyPriority, false); err != nil {
 					return err
 				}
 			} else {
-				if err := s.enqueueRaised(ctx, JobFill, "fill:", it.ID, applyPriority); err != nil {
+				if err := s.enqueueRaised(ctx, JobFill, "fill:images:", it.ID, applyPriority, true); err != nil {
 					return err
 				}
-				if err := s.enqueueRaised(ctx, JobImageFetch, "image:", it.ID, applyPriority); err != nil {
+				if err := s.enqueueRaised(ctx, JobImageFetch, "image:", it.ID, applyPriority, false); err != nil {
 					return err
 				}
 			}
@@ -184,8 +185,10 @@ func (s *Service) handleApply(ctx context.Context, j *jobs.Job) error {
 
 // enqueueRaised queues a child job with its idempotency key and lifts a waiting one of the same
 // key to prio (RaiseQueuedPriority, decision of 26 October 2026): a second apply doubles nothing.
-func (s *Service) enqueueRaised(ctx context.Context, jobType, keyPrefix, itemID string, prio int) error {
-	payload, err := json.Marshal(itemPayload{ItemID: itemID})
+// images marks the fill of an images apply (itemPayload.Images); its key "fill:images:<id>" keeps
+// it apart from the fill a match queues, which would otherwise keep its payload without the flag.
+func (s *Service) enqueueRaised(ctx context.Context, jobType, keyPrefix, itemID string, prio int, images bool) error {
+	payload, err := json.Marshal(itemPayload{ItemID: itemID, Images: images})
 	if err != nil {
 		return fmt.Errorf("%s payload: %w", jobType, err)
 	}

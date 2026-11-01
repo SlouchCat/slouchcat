@@ -1,5 +1,36 @@
 # Aktueller Stand
 
+## Nachtrag Konzept 10: «Nur Bilder» bei Ordnern mit einer Quelle (1. November 2026)
+
+Zweig `claude/fix-apply-images-single-source` ab `main` `da5d854` (Merge von PR #58). Befund vom
+`apply`-Lauf auf CT 190 nach dem Merge: die Hintergrund-Kette auf `["", "de", "en"]` gestellt und
+«Nur Bilder» gestartet (Lauf 124231, 2'095 Titel) – alle `metadata.fill`-Kinder endeten in einer
+Sekunde mit `item provenance recorded … fields=0`, keine TMDB-Anfrage, kein Bild neu entschieden.
+Ursache: `fill` kehrt bei einem Ordner mit einer Quelle vor jedem Abruf zurück (`recordIdentifier`,
+Papier 1.1); Bilder entschied bis dahin nur der Match (`matchImages`). Die Bibliothek «Filme» auf
+CT 190 hat nur TMDB. «Texte und Bilder» (Lauf 128425, Match je Titel, rund 6 min) setzte die Kette
+dann um; das ist die Umgehung auf dem Stand 1.6.0.
+
+**Gebaut.** `itemPayload.Images` (Paket `metadata`), `handleFill` ruft damit `fillImages`, das die
+Ein-Quellen-Abkürzung überspringt und die Datensätze holt; `metadata.apply` reiht das Kind mit dem
+Flag und dem Schlüssel `fill:images:<id>` ein (neben einem wartenden `fill:<id>` des Matches, dessen
+Payload das Flag sonst nicht bekäme). Der gewöhnliche `fill` und alle anderen Aufrufer sind
+unverändert; Vertrag unverändert (1.6.0). Papier Abschnitt 14 nachgeführt.
+
+**Belege.** Ohne Fix schlägt `TestApplyImagesRedecidesWithOneProvider` fehl (Hintergrund bleibt
+der ohne Text, obwohl die Kette `en` zuerst nennt); mit Fix:
+
+```
+$ go test ./internal/metadata/
+ok  	github.com/slouchcat/slouchcat/server/internal/metadata
+$ go tool golangci-lint run ./internal/metadata/... ./internal/admin/... ./internal/api/...
+0 issues.
+```
+
+`task ci` lief in dieser Sitzung nicht lokal (der Entwicklungsrechner hatte am 1. November 2026 keinen
+Zugriff auf das Arbeitsverzeichnis unter `/mnt/Nerdcloud`, Klon unter `~/src/slouchcat`); der
+CI-Lauf des Pull Requests ist der Beleg. Offen: Lauf «Nur Bilder» auf CT 190 mit dem Fix-Image.
+
 ## Konzept 10 «Metadaten-Einstellungen»: umgesetzt, Pull Request offen (31. Oktober 2026)
 
 Zweig `claude/festive-swanson-7af516` ab `main` `d3d73bc` (Merge von PR #57, Konzept 10). Umsetzung

@@ -226,16 +226,31 @@ func strictestRating(candidates []providerFields) (*int, string) {
 }
 
 func (s *Service) handleFill(ctx context.Context, j *jobs.Job) error {
-	itemID, err := parsePayload(j)
+	p, err := parseItemPayload(j)
 	if err != nil {
 		return err
 	}
-	return s.fill(ctx, itemID)
+	if p.Images {
+		return s.fillImages(ctx, p.ItemID)
+	}
+	return s.fill(ctx, p.ItemID)
 }
 
 // fill runs the job for one title. Transient provider errors are returned so the queue retries;
 // a title that is gone, not matched or of another kind ends the job quietly.
 func (s *Service) fill(ctx context.Context, itemID string) error {
+	return s.fillTitle(ctx, itemID, false)
+}
+
+// fillImages is the fill of a metadata.apply for the images (apply.go): it fetches the records
+// even for a folder with one provider, so decideImages sees the candidates and the image chains
+// of the settings reach the title. The ordinary fill makes no request then (1.1), and the match
+// alone decided the images; without this the apply changed nothing for such folders.
+func (s *Service) fillImages(ctx context.Context, itemID string) error {
+	return s.fillTitle(ctx, itemID, true)
+}
+
+func (s *Service) fillTitle(ctx context.Context, itemID string, images bool) error {
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
@@ -255,7 +270,7 @@ func (s *Service) fill(ctx context.Context, itemID string) error {
 	if len(order) == 0 {
 		order = []string{model.ProviderTMDB}
 	}
-	if len(order) == 1 {
+	if len(order) == 1 && !images {
 		return s.recordIdentifier(ctx, item, order[0])
 	}
 

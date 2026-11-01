@@ -251,3 +251,81 @@ func TestRatingCountryReadFirst(t *testing.T) {
 		t.Fatalf("DE first again lowered the stored rating to %v (K-3)", r.Rating)
 	}
 }
+
+// An images apply reaches a title whose folder has one provider: the ordinary fill makes no
+// request there and leaves the images to the match, so a changed chain never reached the title
+// (CT 190, 1 November 2026). The fill with the images flag fetches the records and decides again;
+// the key "fill:images:<id>" keeps it apart from a waiting fill of a match.
+func TestApplyImagesRedecidesWithOneProvider(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.tmdb.setImages("550",
+		[]map[string]any{tmdbImage("/poster550.jpg", "en", 2000, 3000, 7.0, 20)},
+		[]map[string]any{tmdbImage("/backdrop550.jpg", nil, 1920, 1080, 7.0, 20), tmdbImage("/backdrop550-en.jpg", "en", 1920, 1080, 9.0, 50)},
+		nil)
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First Film", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.itemImages(t, idByTMDB)["backdrop"]; got.Source != "/backdrop550.jpg" {
+		t.Fatalf("backdrop after the match = %+v, want the one without text", got)
+	}
+	// The chain now prefers English backdrops.
+	raw, _ := json.Marshal([]string{"en", ""})
+	mustExec(t, e.db.Write, `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, 0) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+		SettingImageLangsPrefix+"backdrop", string(raw))
+
+	// The ordinary fill of a one-provider folder: no request, nothing decided (1.1).
+	calls := e.tmdb.total()
+	if err := e.svc.fill(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if e.tmdb.total() != calls {
+		t.Fatalf("the ordinary fill made %d requests", e.tmdb.total()-calls)
+	}
+	if got := e.itemImages(t, idByTMDB)["backdrop"]; got.Source != "/backdrop550.jpg" {
+		t.Fatalf("backdrop after the ordinary fill = %+v, want unchanged", got)
+	}
+
+	// The apply for the images queues the fill with the flag under its own key.
+	id, _, err := e.svc.ApplyMetadata(ctx, ApplyRequest{What: []string{ApplyImages}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j, err := e.queue.Get(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.handleApply(ctx, &j); err != nil {
+		t.Fatal(err)
+	}
+	// Beside the fill the match queued (key fill:<id>), not in its place.
+	if fills := e.jobList(t, JobFill); !slices.Contains(fills, "fill:images:"+idByTMDB+" p1") || len(fills) != 2 {
+		t.Fatalf("fill jobs after apply(images) = %v", fills)
+	}
+	var fillID int64
+	if err := e.db.Read.QueryRow(`SELECT id FROM jobs WHERE type = ? AND idempotency_key = ?`, JobFill, "fill:images:"+idByTMDB).Scan(&fillID); err != nil {
+		t.Fatal(err)
+	}
+	fillJob, err := e.queue.Get(ctx, fillID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p itemPayload
+	if err := json.Unmarshal(fillJob.Payload, &p); err != nil || !p.Images || p.ItemID != idByTMDB {
+		t.Fatalf("fill payload %s (%v), want the images flag", fillJob.Payload, err)
+	}
+	if err := e.svc.handleFill(ctx, &fillJob); err != nil {
+		t.Fatal(err)
+	}
+	if e.tmdb.total() == calls {
+		t.Fatal("the images fill made no request")
+	}
+	if got := e.itemImages(t, idByTMDB)["backdrop"]; got.Source != "/backdrop550-en.jpg" || got.Lang != "en" {
+		t.Errorf("backdrop after the images fill = %+v, want the English one (chain en, '')", got)
+	}
+	if imgs := e.jobList(t, JobImageFetch); len(imgs) != 1 {
+		t.Errorf("image jobs = %v, want one", imgs)
+	}
+}
