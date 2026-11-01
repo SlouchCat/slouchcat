@@ -30,7 +30,13 @@ import type {
   JobSummary,
   JobTypeInfo,
   Library,
+  LibraryMetadata,
+  LibraryMetadataUpdate,
   MetadataProviderInfo,
+  MetadataSettings,
+  MetadataSettingsUpdate,
+  ApplyMetadataRequest,
+  ApplyMetadataResponse,
   PathMapping,
   PickRequest,
   PickUpdate,
@@ -424,3 +430,29 @@ export const setIntegrationPathMap = (id: number, pathMap: PathMapping[]): Promi
 /** Removes an integration and its event log; its address stops working at once. */
 export const deleteIntegration = (id: number) =>
   request(api.DELETE('/admin/integrations/{id}', { params: { path: { id } } }));
+
+// Concept 10 (ADR 0018): the metadata settings, a library's deviation and the apply run.
+export const metadataSettingsQuery = queryOptions({
+  queryKey: ['admin', 'metadata-settings'],
+  queryFn: ({ signal }): Promise<MetadataSettings> =>
+    request(api.GET('/admin/settings/metadata', { signal })),
+});
+
+export const updateMetadataSettings = (body: MetadataSettingsUpdate): Promise<MetadataSettings> =>
+  request(api.PUT('/admin/settings/metadata', { body }));
+
+export const libraryMetadataQuery = (id: number) =>
+  queryOptions({
+    queryKey: ['admin', 'library-metadata', id],
+    queryFn: ({ signal }): Promise<LibraryMetadata> =>
+      request(api.GET('/admin/libraries/{id}/metadata', { params: { path: { id } }, signal })),
+  });
+
+export const updateLibraryMetadata = (
+  id: number,
+  body: LibraryMetadataUpdate,
+): Promise<LibraryMetadata> =>
+  request(api.PUT('/admin/libraries/{id}/metadata', { params: { path: { id } }, body }));
+
+export const applyMetadata = (body: ApplyMetadataRequest): Promise<ApplyMetadataResponse> =>
+  request(api.POST('/admin/metadata/apply', { body }));

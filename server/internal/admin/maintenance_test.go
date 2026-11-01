@@ -76,6 +76,10 @@ func (m *fakeMetadata) AddManualTrailer(ctx context.Context, itemID, lang, youtu
 	return model.Trailer{ID: id, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
 
+func (m *fakeMetadata) ProviderLanguages(context.Context) (map[string][]string, error) {
+	return map[string][]string{"tmdb": {"de", "en"}, "tvdb": {"de", "en"}, "anilist": {"en"}}, nil
+}
+
 func (m *fakeMetadata) DeleteTrailer(ctx context.Context, itemID string, trailerID int64) error {
 	res, err := m.db.ExecContext(ctx, `DELETE FROM trailers WHERE id = ? AND item_id = ?`, trailerID, itemID)
 	if err != nil {
@@ -660,4 +664,39 @@ func edge(f *vistest.Fixture, pick func(vistest.Movie) bool) vistest.Movie {
 		}
 	}
 	panic("admin test: edge case missing from the fixture")
+}
+
+func (m *fakeMetadata) MetadataSettings(context.Context) (model.MetadataSettings, error) {
+	return model.MetadataSettings{}, nil
+}
+
+func (m *fakeMetadata) UpdateMetadataSettings(context.Context, model.MetadataSettings) (model.MetadataSettings, error) {
+	return model.MetadataSettings{}, nil
+}
+
+func (m *fakeMetadata) LibraryMetadata(context.Context, int64) (model.LibraryMetadata, error) {
+	return model.LibraryMetadata{}, nil
+}
+
+func (m *fakeMetadata) UpdateLibraryMetadata(context.Context, int64, *[]string, *model.LibraryImages) (model.LibraryMetadata, error) {
+	return model.LibraryMetadata{}, nil
+}
+
+func (m *fakeMetadata) Apply(context.Context, model.ApplyMetadataRequest) (model.ApplyMetadataResult, error) {
+	return model.ApplyMetadataResult{}, nil
+}
+
+// The image choice per title (concept 10 step 5).
+func (m *fakeMetadata) ImageCandidates(context.Context, string, string, bool) (model.ImageCandidateList, error) {
+	return model.ImageCandidateList{Candidates: []model.ImageCandidate{{Provider: "tmdb", Lang: "de", Width: 1000, Height: 1500, Source: "/p.jpg", PreviewURL: "https://image.tmdb.org/t/p/w300/p.jpg"}, {Provider: "local", Width: 600, Height: 900, Source: "file:Film/poster.jpg?1-1"}}, Unavailable: []string{}}, nil
+}
+func (m *fakeMetadata) SetItemImage(context.Context, string, string, string, string) error {
+	return nil
+}
+func (m *fakeMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m *fakeMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
+	return nil, nil
+}
+func (m *fakeMetadata) LocalImagePreview(context.Context, string, string) (model.StreamSource, error) {
+	return model.StreamSource{}, model.ErrNotFound
 }

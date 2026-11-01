@@ -519,7 +519,8 @@
       "hint": "Bei neuen Folgen benachrichtigen"
     },
     "collections": "Sammlungen",
-    "addToPicks": "Zu Cat's Empfehlungen"
+    "addToPicks": "Zu Cat's Empfehlungen",
+    "logoAlt": "{{title}}"
   },
   "rating": {
     "fsk": "FSK {{age}}"
@@ -798,7 +799,14 @@
       "rootCount_other": "{{count}} Ordner",
       "noFolder": "Kein Ordner: Es wird nichts gescannt, bis du unter «Ordner» einen hinzufügst.",
       "rootSummary_one": "{{count}} {{content}}",
-      "rootSummary_other": "{{count}} {{content}}"
+      "rootSummary_other": "{{count}} {{content}}",
+      "metadata": {
+        "like": "Metadaten: wie Server",
+        "texts": "Metadaten: Sprachen abweichend",
+        "images": "Metadaten: Bilder abweichend",
+        "both": "Metadaten: Sprachen und Bilder abweichend",
+        "link": "Metadaten der Bibliothek"
+      }
     },
     "access": {
       "notAllowed": {
@@ -1000,6 +1008,36 @@
           "title": "Trailer löschen?",
           "body": "Der Trailer wird entfernt. Ein automatisch gefundener Trailer kann beim nächsten Aktualisieren zurückkommen.",
           "confirm": "Löschen"
+        }
+      },
+      "images": {
+        "title": "Bilder",
+        "intro": "Je Art das gewählte Bild mit Quelle und Sprache. Eine eigene Wahl sperrt die Art; «Anwenden» und «Aktualisieren» behalten sie.",
+        "none": "Kein Bild",
+        "chosen": "von Hand gewählt",
+        "locked": "gesperrt",
+        "lockedNoChoice": "Sperre ohne Wahl",
+        "pick": "Andere wählen",
+        "unlock": "Sperre aufheben",
+        "pickTitle": "{{kind}} wählen",
+        "candidates": "Kandidaten für {{kind}}",
+        "chooseOne": "{{label}}, {{detail}} wählen",
+        "empty": "Keine Kandidaten. Ist der Titel zugeordnet und die Quelle eingerichtet?",
+        "current": "aktuell",
+        "more_one": "{{count}} weiteres zeigen",
+        "more_other": "{{count}} weitere zeigen",
+        "reload": "Neu abfragen",
+        "unavailable": "Nicht erreichbar: {{providers}}. Die Liste zeigt die übrigen Quellen.",
+        "size": "{{width}} × {{height}}",
+        "score": "Bewertung {{score}}",
+        "chosenSaved": "{{kind}} gewählt und gesperrt; das Bild wird geholt.",
+        "unlocked": "Sperre für {{kind}} aufgehoben; die automatische Wahl läuft.",
+        "provider": {
+          "local": "Lokale Datei",
+          "tmdb": "TMDB",
+          "tvdb": "TVDB",
+          "anilist": "AniList",
+          "fanart": "Fanart.tv"
         }
       }
     },
@@ -1513,6 +1551,10 @@
       "backup": {
         "title": "Sicherung",
         "description": "Daten sichern und wiederherstellen."
+      },
+      "metadata": {
+        "title": "Metadaten",
+        "description": "Sprachen, Bildarten, Bildsprache, Freigabeland."
       }
     },
     "home": {
@@ -1650,7 +1692,7 @@
       "cleared": "{{name}} gelöscht.",
       "keys": {
         "title": "Schlüssel der Anbieter",
-        "intro": "Für Metadaten (TMDB, TVDB), Trailer (YouTube) und die Trakt-Listen der Startseite.",
+        "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
         "saveLabel": "{{name}} speichern",
         "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
         "tmdb": {
@@ -1678,7 +1720,17 @@
           "label": "Trakt-Client-ID",
           "description": "Für die Reihen «Trending» und «Beliebt» der Startseite."
         },
-        "traktStatus": "Stand der Trakt-Listen"
+        "traktStatus": "Stand der Trakt-Listen",
+        "fanart": {
+          "name": "Fanart.tv-Schlüssel",
+          "label": "Fanart.tv-Projektschlüssel",
+          "description": "Logos und Poster in hoher Güte als letzte Bildquelle; eingeschaltet wird sie unter «Metadaten». Neue Bilder erscheinen nach 7 Tagen."
+        },
+        "fanartClient": {
+          "name": "Persönlicher Fanart.tv-Schlüssel",
+          "label": "Persönlicher Fanart.tv-Schlüssel",
+          "description": "Optional: neue Bilder schon nach 2 Tagen statt nach 7."
+        }
       },
       "webhooks": {
         "title": "Webhooks von Radarr und Sonarr",
@@ -2365,6 +2417,139 @@
           "trigger": "Zeitplan täglich: erledigte Läufe älter als 30 Tage"
         }
       }
+    },
+    "metadata": {
+      "title": "Metadaten",
+      "intro": "Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Güte, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für alle Bibliotheken; eine Bibliothek kann bei Sprachen und Bildern abweichen.",
+      "links": {
+        "roots": "Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.",
+        "jobs": "Die Zeitpläne stehen unter Hintergrundjobs.",
+        "keys": "Schlüssel unter Integrationen"
+      },
+      "scope": {
+        "label": "Geltung",
+        "server": "Standard",
+        "serverHint": "Gilt für alle Bibliotheken ohne eigene Abweichung.",
+        "libraryHint": "{{name}} übernimmt den Standard. Schalte «abweichend» ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern.",
+        "deviates": "abweichend",
+        "textsDeviate": "Sprachen abweichend",
+        "imagesDeviate": "Bilder abweichend",
+        "likeServer": "wie Server"
+      },
+      "languages": {
+        "title": "Sprachen",
+        "intro": "Jede Sprache hier wird für jeden Titel geholt; Profile wählen daraus die Sprache ihrer Beschreibungen. Die Oberfläche bleibt Deutsch oder Englisch. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.",
+        "list": "Metadaten-Sprachen",
+        "add": "Sprache hinzufügen",
+        "addLabel": "Sprache wählen",
+        "addButton": "Hinzufügen",
+        "moveUp": "{{name}} nach vorne",
+        "moveDown": "{{name}} nach hinten",
+        "remove": "{{name}} entfernen",
+        "position": "{{index}}.",
+        "fallback": "Reihenfolge = Rückfall: fehlt ein Text in der Sprache des Profils, zeigt Slouchcat die erste vorhandene der Liste, dann den Dateinamen. Der Standard braucht Deutsch; eine Bibliothek braucht Deutsch oder Englisch.",
+        "unknownAt": "{{provider}} kennt nicht: {{languages}}",
+        "youtube": "{{count}} Sprachen: bis zu {{titles}} Titel am Tag mit YouTube-Trailersuche (Kontingent 10'000)."
+      },
+      "images": {
+        "title": "Bilder",
+        "intro": "Welche Bildarten geholt werden und in welcher Sprache. Eine Bilddatei neben dem Film (poster.jpg, fanart.jpg, logo.png) gewinnt, wenn sie breit genug ist; danach die Quellen des Ordners, zuletzt Fanart.tv.",
+        "kinds": "Bildarten",
+        "kind": {
+          "poster": "Poster",
+          "backdrop": "Hintergrund",
+          "logo": "Logo",
+          "season_poster": "Staffelposter",
+          "episode_still": "Folgenbild"
+        },
+        "kindHint": {
+          "poster": "Filme, Serien, Hörbücher, Podcasts",
+          "backdrop": "Filme, Serien",
+          "logo": "Titelschriftzug auf Detailseite und Spotlight statt des Text-Titels",
+          "season_poster": "Sonst das Serienposter",
+          "episode_still": "Standbild je Folge; bei 40'000 Folgen rund 12 GB Cache"
+        },
+        "always": "immer",
+        "notBuilt": "Art, Banner und Disc gibt es bewusst nicht: keine Seite zeigt sie.",
+        "chains": "Bildsprache",
+        "chainsIntro": "Reihenfolge, in der ein Bild gewählt wird. «Ohne Text» ist ein Bild ohne Schrift. Innerhalb einer Sprache gewinnt das bestbewertete Bild.",
+        "noText": "Ohne Text",
+        "chainOf": "Bildsprache {{kind}}"
+      },
+      "quality": {
+        "title": "Güte",
+        "intro": "Gilt für alle Bibliotheken. Die ausgelieferten Grössen (Poster 200/400/800, Hintergrund 780/1280/1920, Logo 400/800) sind fest.",
+        "minPoster": "Mindestbreite Poster",
+        "minBackdrop": "Mindestbreite Hintergrund",
+        "any": "egal",
+        "px": "{{width}} px",
+        "byVote": "Nach Bewertung wählen",
+        "byVoteHint": "Bestbewertetes Bild der Sprache statt des ersten Treffers.",
+        "fallback": "Gibt es kein Bild in der Mindestbreite, nimmt Slouchcat das beste kleinere; die Bildart bleibt nie leer, nur weil die Vorgabe zu hoch ist."
+      },
+      "sources": {
+        "title": "Quellen",
+        "intro": "Reihenfolge der Metadatenquellen je Ordner unter Bibliotheken; Schlüssel unter Integrationen. Hier nur, was eine Quelle anders kann.",
+        "tmdbAdult": "TMDB: Erwachseneninhalte bei der Suche",
+        "tmdbAdultHint": "Sonst erscheinen sie nie in der Zuordnung.",
+        "local": "Lokale Dateien als Quelle",
+        "localHint": "poster.jpg, fanart.jpg, logo.png, seasonNN-poster.jpg neben dem Titel; vor allen Anbietern, wenn breit genug.",
+        "localCount_one": "{{count}} Titel mit Bilddateien",
+        "localCount_other": "{{count}} Titel mit Bilddateien",
+        "localSmall": "Zu kleine oder abgeschaltete Dateien bleiben als Kandidaten in der Bildwahl je Titel.",
+        "fanart": "Fanart.tv als Bildquelle",
+        "fanartHint": "Logos und Poster in hoher Güte, nach den Quellen des Ordners. Braucht einen Schlüssel unter Integrationen; ohne Schlüssel wird nie gefragt."
+      },
+      "rating": {
+        "title": "Altersfreigabe",
+        "intro": "Welches Land zuerst gelesen wird; danach DE, AT, CH, GB, US wie bisher. Die Stufen bleiben FSK 0/6/12/16/18.",
+        "country": "Land",
+        "countries": {
+          "DE": "Deutschland (DE)",
+          "AT": "Österreich (AT)",
+          "CH": "Schweiz (CH)",
+          "GB": "Grossbritannien (GB)",
+          "US": "USA (US)"
+        },
+        "hint": "Ein neuer Titel bekommt die Stufe des zuerst gelesenen Landes. Eine gespeicherte Stufe wird nie gesenkt, auch nicht durch ein anderes Land; senken geht nur je Titel in der Pflege."
+      },
+      "apply": {
+        "title": "Auf bestehende Titel anwenden",
+        "intro": "Neue Titel nutzen die Einstellungen sofort. Bestehende Titel bleiben, bis du den Lauf startest; er erscheint unter Hintergrundjobs mit Fortschritt, Pause und Abbruch.",
+        "what": "Was",
+        "both": "Texte und Bilder",
+        "texts": "Nur Texte",
+        "images": "Nur Bilder",
+        "where": "Wo",
+        "all": "Alle Bibliotheken",
+        "titles_one": "{{count}} Titel",
+        "titles_other": "{{count}} Titel",
+        "run": "Jetzt anwenden",
+        "running": "Wird eingereiht …",
+        "queued": "Lauf {{id}} eingereiht: {{count}} Titel. Fortschritt unter Hintergrundjobs.",
+        "waiting": "Noch wartend: {{matches}} Zuordnungen, {{images}} Bilder.",
+        "jobsLink": "Zu den Hintergrundjobs",
+        "lastRun": "Letzter Lauf: {{when}}, {{state}}.",
+        "noRun": "Noch kein Lauf."
+      },
+      "save": {
+        "dirty": "Ungespeicherte Änderungen",
+        "clean": "Gespeichert",
+        "save": "Speichern",
+        "saving": "Wird gespeichert …",
+        "discard": "Verwerfen",
+        "saved_one": "Gespeichert. {{count}} Titel betroffen – jetzt anwenden?",
+        "saved_other": "Gespeichert. {{count}} Titel betroffen – jetzt anwenden?",
+        "savedLibrary": "Gespeichert für {{name}}."
+      },
+      "errors": {
+        "langs_empty": "Mindestens eine Sprache.",
+        "lang_unknown": "Unbekannter Sprachcode.",
+        "ui_lang_required": "Der Standard braucht Deutsch; eine Bibliothek Deutsch oder Englisch.",
+        "chain_duplicate": "Jede Sprache nur einmal.",
+        "country_unknown": "Unbekanntes Land.",
+        "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."
+      }
     }
   },
   "language": {
@@ -2462,7 +2647,10 @@
         "create": "Profil anlegen",
         "creating": "Wird angelegt …",
         "save": "Speichern",
-        "saving": "Wird gespeichert …"
+        "saving": "Wird gespeichert …",
+        "metadataLanguage": "Sprache der Beschreibungen",
+        "metadataLanguageHint": "Titel, Beschreibungen und Genres; die Oberfläche folgt der Sprache oben.",
+        "likeUi": "Wie Oberfläche"
       },
       "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}",
       "report": {

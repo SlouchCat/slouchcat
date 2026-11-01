@@ -19,17 +19,17 @@ func text(lang, title, overview string) scopedq.ItemText {
 func TestPickTextsFallback(t *testing.T) {
 	t.Parallel()
 	both := []scopedq.ItemText{text("en", "Alien", "In space"), text("de", "Alien – Das unheimliche Wesen", "")}
-	got := pickTexts(both, "de", "alien")
+	got := pickTexts(both, langPref{"de", "de"}, "alien")
 	if got.title != "Alien – Das unheimliche Wesen" || got.overview != "In space" {
 		t.Errorf("de with en overview fallback = %+v", got)
 	}
-	if got := pickTexts(both, "en", "alien"); got.title != "Alien" {
+	if got := pickTexts(both, langPref{"en", "en"}, "alien"); got.title != "Alien" {
 		t.Errorf("en = %+v", got)
 	}
-	if got := pickTexts([]scopedq.ItemText{text("en", "Alien", "")}, "de", "alien"); got.title != "Alien" {
+	if got := pickTexts([]scopedq.ItemText{text("en", "Alien", "")}, langPref{"de", "de"}, "alien"); got.title != "Alien" {
 		t.Errorf("de without de row = %+v, want the en title", got)
 	}
-	if got := pickTexts(nil, "de", "alien (1979)"); got.title != "alien (1979)" || got.overview != "" {
+	if got := pickTexts(nil, langPref{"de", "de"}, "alien (1979)"); got.title != "alien (1979)" || got.overview != "" {
 		t.Errorf("no rows = %+v, want the parsed title", got)
 	}
 }
@@ -49,7 +49,7 @@ func TestPickGenres(t *testing.T) {
 		{`not json`, "de", []string{}},
 	}
 	for _, c := range cases {
-		got := pickGenres(c.raw, c.lang)
+		got := pickGenres(c.raw, langPref{c.lang, c.lang}, nil)
 		if got == nil || !slices.Equal(got, c.want) {
 			t.Errorf("pickGenres(%s, %s) = %#v, want %#v", c.raw, c.lang, got, c.want)
 		}

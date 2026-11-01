@@ -44,6 +44,9 @@ const (
 	downloadSubtitleRoute = "/downloads/{id}/subtitles/{track}"
 	// adminImagePath serves the images of the administration tables system-wide (M11 step 5b).
 	adminImagePath = "/admin/items/{id}/images/{kind}/{size}"
+	// candidatePreviewPath serves a local image file of a title as preview of the image choice
+	// (concept 10 9.2).
+	candidatePreviewPath = "/admin/items/{id}/image-candidates/preview"
 )
 
 var binaryRoutes = map[string]string{
@@ -58,8 +61,9 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + downloadFilePath:     "scoped",
 	"GET " + BasePath + downloadSubtitlePath: "scoped",
 
-	"GET " + BasePath + backupDownloadPath: "admin",
-	"GET " + BasePath + adminImagePath:     "admin",
+	"GET " + BasePath + backupDownloadPath:   "admin",
+	"GET " + BasePath + adminImagePath:       "admin",
+	"GET " + BasePath + candidatePreviewPath: "admin",
 }
 
 // Options configure NewHandler.
@@ -139,6 +143,7 @@ func NewHandler(o Options) http.Handler {
 		r.With(downloadAuth).Get(downloadSubtitleRoute, s.getDownloadSubtitle)
 		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
 		r.With(authorize).Get(adminImagePath, s.getAdminItemImage)
+		r.With(authorize).Get(candidatePreviewPath, s.getItemImageCandidatePreview)
 	})
 	// The catalog names the first stage title, or the first title without a stage, when it
 	// implements heroPicker (discover.Service does); the start page's app shell then carries a

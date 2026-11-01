@@ -7,8 +7,8 @@ import (
 
 // Provider delivers title data of one external metadata source (design 3.1). Every request runs
 // through the provider's ratelimit.Limiter. IDs are the provider's own IDs as decimal strings.
-// Languages are ISO 639-1 codes ("de", "en"); a record holds the texts of every requested
-// language the provider knows. ErrNotFound means the provider does not know the ID.
+// Languages are BCP-47 codes ("de", "en", "pt-BR"; ADR 0018) from the effective metadata language
+// list; a record holds the texts of every requested language the provider knows. ErrNotFound means the provider does not know the ID.
 type Provider interface {
 	Name() string                        // "tmdb", "tvdb"
 	Configured(ctx context.Context) bool // a key is present
@@ -25,9 +25,6 @@ const (
 	ProviderTMDB = "tmdb"
 	ProviderTVDB = "tvdb"
 )
-
-// textLangs are the languages of item_texts (B-3).
-var textLangs = []string{"de", "en"}
 
 // ErrNotFound is returned when a provider does not know an ID (HTTP 404).
 var ErrNotFound = errors.New("metadata provider: not found")
@@ -117,8 +114,32 @@ type TitleRecord struct {
 	Credits        []Credit
 	PosterPath     string // TMDB image path (/abc.jpg) or absolute artwork URL (TVDB)
 	BackdropPath   string
+	// Images are every poster, backdrop and logo the provider offers for the title with language,
+	// size and votes (ADR 0018, concept 10 6.2); PosterPath and BackdropPath stay the provider's
+	// own default (the candidate of step 5 of the choice).
+	Images []ImageCandidate
+	// Fanart are the Fanart.tv candidates of the title, set by the match before it writes (not by
+	// a provider; concept 10 step 6); the choice takes them last.
+	Fanart []ImageCandidate
 	// Collection is the TMDB collection of a film (E-6); nil for series and films without one.
 	Collection *CollectionRecord
+}
+
+// ImageCandidate is one image a source offers for a title (concept 10 6.2). Lang is a BCP-47
+// primary subtag or "" for an image without text; Source is the provider's address (a TMDB path
+// /abc.jpg, an absolute artwork URL, or file:<rel>?<size>-<mtime> for a local file); Votes and
+// VoteCount are the provider's rating of the image (0 when it has none).
+type ImageCandidate struct {
+	Kind      string // poster, backdrop, logo
+	Lang      string
+	Width     int
+	Height    int
+	Votes     float64
+	VoteCount int
+	Source    string
+	// Default marks the image the provider itself names for the title (poster_path,
+	// backdrop_path): step 5 of the choice, taken when no candidate matches the chain.
+	Default bool
 }
 
 // CollectionRecord is a TMDB collection with its names and overviews per language (de, en).
@@ -153,6 +174,7 @@ type SeasonRecord struct {
 	Texts      map[string]Text
 	AirDate    string
 	PosterPath string
+	Images     []ImageCandidate // season posters with language (ADR 0018)
 	Episodes   []EpisodeRecord
 }
 

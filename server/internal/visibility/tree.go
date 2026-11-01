@@ -18,8 +18,8 @@ import (
 // the visible titles of their credits.
 
 // treeExtras fills the child counts of series and seasons, the parents the profile may see and the
-// series titles of seasons and episodes (profile language, then English, then the parsed title).
-func (r *Reader) treeExtras(ctx context.Context, pid int64, lang string, ids []string, out *extras) error {
+// series titles of seasons and episodes (the text chain of the scope, then the parsed title).
+func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids []string, out *extras) error {
 	counts, err := r.q.ListVisibleChildCounts(ctx, scopedq.ListVisibleChildCountsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
 		return fmt.Errorf("list child counts: %w", err)
@@ -205,14 +205,19 @@ func (r *Reader) Trailers(ctx context.Context, s Scope, itemID string) ([]model.
 	if err != nil {
 		return nil, fmt.Errorf("list trailers: %w", err)
 	}
+	// trailers.lang holds primary subtags (pt, not pt-BR): the metadata language first, then the
+	// interface language, then English, then the rest.
+	meta, ui := primarySubtag(s.metaLang), primarySubtag(s.language)
 	rank := func(lang string) int {
 		switch lang {
-		case s.language:
+		case meta:
 			return 0
-		case fallbackLang:
+		case ui:
 			return 1
-		default:
+		case fallbackLang:
 			return 2
+		default:
+			return 3
 		}
 	}
 	slices.SortStableFunc(rows, func(a, b scopedq.Trailer) int { return cmp.Compare(rank(a.Lang), rank(b.Lang)) })

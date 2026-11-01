@@ -377,6 +377,18 @@ const jobsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage'),
 });
 
+// admin concept 10: the metadata settings (ADR 0018).
+const metadataRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/metadata',
+  // `?library=<id>` opens the page on that library's deviation (the link on the library card).
+  validateSearch: (search: Record<string, unknown>): { library?: number } =>
+    typeof search.library === 'number' && Number.isInteger(search.library) && search.library > 0
+      ? { library: search.library }
+      : {},
+  component: lazyRouteComponent(() => import('@/features/admin/MetadataPage'), 'MetadataPage'),
+});
+
 // admin M8: accounts, backup, statistics and announcements.
 const accountsRoute = createRoute({
   getParentRoute: () => adminRoute,
@@ -528,6 +540,7 @@ export const routeTree = rootRoute.addChildren([
           // admin M11
           spotlightRoute,
           jobsRoute,
+          metadataRoute,
           maintenanceRoute,
           devicesRoute,
           streamsRoute,

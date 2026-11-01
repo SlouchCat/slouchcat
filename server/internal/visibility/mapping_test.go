@@ -24,7 +24,7 @@ func TestSummaryImagesAndAccent(t *testing.T) {
 		row("poster", "w400", "webp", "p400w", 400, "#123abc"),
 		row("poster", "w500", "jpeg", "m1a", 500, ""), // M1a leftover: never exposed
 	}
-	s := summarize(scopedq.Item{ID: "i", Kind: "movie", Title: "t"}, extras{images: map[string][]scopedq.Image{"i": rows}}, "de")
+	s := summarize(scopedq.Item{ID: "i", Kind: "movie", Title: "t"}, extras{images: map[string][]scopedq.Image{"i": rows}}, langPref{"de", "de"})
 	for name, c := range map[string]struct {
 		got        string
 		size, hash string
@@ -52,7 +52,7 @@ func TestSummaryImagesAndAccent(t *testing.T) {
 	// M1a rows only (before the pipeline ran): the w500 poster stands in for w400, the two backdrop
 	// sizes, no accent.
 	m1a := []scopedq.Image{row("poster", "w500", "jpeg", "m1a", 500, ""), row("backdrop", "w1280", "jpeg", "b", 1280, "")}
-	s = summarize(scopedq.Item{ID: "i", Kind: "movie"}, extras{images: map[string][]scopedq.Image{"i": m1a}}, "de")
+	s = summarize(scopedq.Item{ID: "i", Kind: "movie"}, extras{images: map[string][]scopedq.Image{"i": m1a}}, langPref{"de", "de"})
 	if imgKey(s.Poster) != "w400/m1a" || s.Poster.Width != 500 || s.PosterSmall != nil || s.PosterLarge != nil || s.Backdrop == nil || s.Accent != "" {
 		t.Errorf("M1a summary = %+v, poster %+v", s, s.Poster)
 	}

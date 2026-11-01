@@ -92,14 +92,14 @@ func TestMatchWritesNothingAfterAManualMatchMeanwhile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec, found, err := e.svc.resolveMovie(ctx, snap)
+	rec, found, err := e.svc.resolveMovie(ctx, snap, []string{"de", "en"})
 	if err != nil || !found {
 		t.Fatalf("resolve = %v, %v", found, err)
 	}
 	if err := e.svc.AssignMatch(ctx, idByTMDB, "tmdb", "601"); err != nil {
 		t.Fatal(err)
 	}
-	if _, applied, err := e.svc.applyTitle(ctx, snap, rec.TitleRecord); applied || !errors.Is(err, errItemChanged) {
+	if _, applied, err := e.svc.applyTitle(ctx, snap, rec.TitleRecord, []string{"de", "en"}); applied || !errors.Is(err, errItemChanged) {
 		t.Fatalf("applyTitle with the old snapshot = %v, %v; want errItemChanged", applied, err)
 	}
 	if r := e.item(t, idByTMDB); r.State != "pending" || r.TMDB.Int64 != 601 {
@@ -131,14 +131,14 @@ func TestSeasonWriteChecksTheSeriesSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rec, err := e.svc.tmdb.Series(ctx, "900", textLangs)
+	rec, err := e.svc.tmdb.Series(ctx, "900", []string{"de", "en"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := e.svc.AssignMatch(ctx, idSeries, "tvdb", "424242"); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.svc.matchSeasons(ctx, snap, e.svc.tmdb, rec); !errors.Is(err, errItemChanged) {
+	if err := e.svc.matchSeasons(ctx, snap, e.svc.tmdb, rec, []string{"de", "en"}); !errors.Is(err, errItemChanged) {
 		t.Fatalf("matchSeasons with the old snapshot = %v, want errItemChanged", err)
 	}
 	for _, id := range []string{idSeason1, idE0101} {

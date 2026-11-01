@@ -24,11 +24,15 @@ func (s *Service) ItemImage(ctx context.Context, itemID, kind, size string, pref
 	if s.ops.system.CacheDir == "" {
 		return model.StreamSource{}, ErrNotConfigured
 	}
-	format := "jpeg"
+	fallback := "jpeg"
+	if kind == "logo" {
+		fallback = "png" // a logo keeps its transparency (ADR 0018)
+	}
+	format := fallback
 	if preferWebP {
 		format = "webp"
 	}
-	im, err := s.sys.AdminGetItemImage(ctx, systemq.AdminGetItemImageParams{ItemID: itemID, Kind: kind, Size: size, Format: format})
+	im, err := s.sys.AdminGetItemImage(ctx, systemq.AdminGetItemImageParams{ItemID: itemID, Kind: kind, Size: size, Format: format, Fallback: fallback})
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.StreamSource{}, model.ErrNotFound
 	}

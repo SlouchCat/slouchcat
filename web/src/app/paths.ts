@@ -45,6 +45,7 @@ export const paths = {
   /** Administration (M8): the overview with the dashboard and the cards of every admin page. */
   admin: '/admin',
   adminIntegrations: '/admin/integrations',
+  adminMetadata: '/admin/metadata',
   /** Background jobs (concept 09): job types, their runs, schedules, pause and cancel. */
   adminJobs: '/admin/jobs',
   adminAccounts: '/admin/accounts',

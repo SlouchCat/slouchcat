@@ -7,6 +7,9 @@ interface BackdropProps {
   /** The same backdrop in w780 and w1920; the browser picks through `srcset`. */
   smallUrl?: string;
   largeUrl?: string;
+  /** The same backdrop for 4K and dense screens (w3840) and its real width, when stored. */
+  uhdUrl?: string;
+  uhdWidth?: number;
   /** Poster URL, shown blurred when the title has no backdrop. */
   posterUrl?: string;
   /** The title's accent colour (`#rrggbb`, ItemRef.accent): tints the artwork under the scrim. */
@@ -14,11 +17,12 @@ interface BackdropProps {
 }
 
 /** Candidate list for the backdrop `srcset`, smallest first. */
-function backdropSources({ url, smallUrl, largeUrl }: BackdropProps) {
+function backdropSources({ url, smallUrl, largeUrl, uhdUrl, uhdWidth }: BackdropProps) {
   const candidates = [
     smallUrl && `${smallUrl} 780w`,
     url && `${url} 1280w`,
     largeUrl && `${largeUrl} 1920w`,
+    uhdUrl && uhdWidth && `${uhdUrl} ${uhdWidth}w`,
   ].filter(Boolean);
   return {
     src: url ?? smallUrl ?? largeUrl,

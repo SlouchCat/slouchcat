@@ -211,6 +211,14 @@ var adminRegistry = map[string]adminCall{
 	"updateLibraryRoot": {contract: "PATCH /admin/libraries/{id}/roots/{rootId}", path: "/admin/libraries/9999/roots/9999",
 		body: `{"providers":["tmdb"]}`, ownerStatus: http.StatusNotFound},
 	"listMetadataProviders": {contract: "GET /admin/metadata/providers", path: "/admin/metadata/providers", ownerStatus: http.StatusOK},
+	// Concept 10 (ADR 0018): the metadata settings, a library's deviation (the fixture library 1
+	// exists, 777 does not) and the apply run; the fake metadata service records nothing.
+	"getMetadataSettings": {contract: "GET /admin/settings/metadata", path: "/admin/settings/metadata", ownerStatus: http.StatusOK},
+	"updateMetadataSettings": {contract: "PUT /admin/settings/metadata", path: "/admin/settings/metadata", ownerStatus: http.StatusOK,
+		body: `{"textLangs":["de","en"],"imageLangs":{"poster":["de","en",""],"backdrop":["","de","en"],"logo":["de","en"]},"imageKinds":["logo"],"imageMinWidth":{"poster":500,"backdrop":1280},"imageByVote":true,"localImages":true,"ratingCountry":"DE","tmdbIncludeAdult":false,"fanartEnabled":false}`},
+	"getLibraryMetadata":    {contract: "GET /admin/libraries/{id}/metadata", path: "/admin/libraries/777/metadata", ownerStatus: http.StatusNotFound},
+	"updateLibraryMetadata": {contract: "PUT /admin/libraries/{id}/metadata", path: "/admin/libraries/777/metadata", body: `{"textLangs":["ja","en"]}`, ownerStatus: http.StatusNotFound},
+	"applyMetadata":         {contract: "POST /admin/metadata/apply", path: "/admin/metadata/apply", body: `{"what":["texts"]}`, ownerStatus: http.StatusAccepted},
 	"removeLibraryRoot": {contract: "POST /admin/libraries/{id}/roots/{rootId}/removal", path: "/admin/libraries/777/roots/888/removal",
 		body: `{"confirmPath":"/media/does-not-exist"}`, ownerStatus: http.StatusNotFound},
 	"listInvitations":     {contract: "GET /admin/invitations", path: "/admin/invitations", ownerStatus: http.StatusOK},
@@ -229,6 +237,15 @@ var adminRegistry = map[string]adminCall{
 	"createItemTrailer": {contract: "POST /admin/items/{id}/trailers", path: "/admin/items/" + fixtureFilm6 + "/trailers",
 		body: `{"lang":"de","url":"https://youtu.be/dQw4w9WgXcQ"}`, ownerStatus: http.StatusCreated},
 	"deleteItemTrailer": {contract: "DELETE /admin/items/{id}/trailers/{trailerId}", path: "/admin/items/" + fixtureFilm6 + "/trailers/999", ownerStatus: http.StatusNotFound},
+	// Concept 10 step 5: the image choice per title (the contract fake answers two candidates,
+	// accepts every choice and knows no local file for the preview).
+	"listItemImageCandidates": {contract: "GET /admin/items/{id}/image-candidates", path: "/admin/items/" + fixtureFilm6 + "/image-candidates?kind=poster",
+		ownerStatus: http.StatusOK},
+	"getItemImageCandidatePreview": {contract: "GET /admin/items/{id}/image-candidates/preview",
+		path: "/admin/items/" + fixtureFilm6 + "/image-candidates/preview?source=file%3AFilm%2Fposter.jpg%3F1-1", ownerStatus: http.StatusNotFound},
+	"setItemImage": {contract: "PUT /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster",
+		body: `{"provider":"tmdb","source":"/p.jpg"}`, ownerStatus: http.StatusOK},
+	"clearItemImage": {contract: "DELETE /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster", ownerStatus: http.StatusOK},
 	"setItemsRating": {contract: "POST /admin/items/rating", path: "/admin/items/rating",
 		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
 	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",
@@ -1358,5 +1375,71 @@ func TestContractAccountDeletionOrder(t *testing.T) {
 	case <-slipped.File.(interface{ Done() <-chan struct{} }).Done():
 	default:
 		t.Error("the stream that slipped in between survived the revocation")
+	}
+}
+
+// A profile may read its metadata in a third language of the server's list (concept 10, ADR 0018):
+// getSession names the languages, updateProfile takes one of them (422 otherwise) or "" to read
+// the interface language again, and the texts follow from the next request.
+func TestContractMetadataLanguage(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	var info struct {
+		Available []string `json:"availableMetadataLanguages"`
+		Profile   struct {
+			MetadataLanguage *string `json:"metadataLanguage"`
+		} `json:"profile"`
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/auth/session", "p12", "", nil), &info)
+	if !slices.Equal(info.Available, []string{"de", "en"}) || info.Profile.MetadataLanguage != nil {
+		t.Fatalf("session before any setting: %+v", info)
+	}
+	// A language outside the list is refused.
+	rec := send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.P12.ID), "p18", `{"metadataLanguage":"es"}`, nil)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), "metadataLanguage") {
+		t.Fatalf("metadataLanguage outside the list: %d %s", rec.Code, rec.Body.String())
+	}
+	// The administrator adds Spanish to the server's list; a Spanish text exists for one film.
+	if _, err := f.DB.Write.Exec(`INSERT INTO settings (key, value, updated_at) VALUES ('metadata.text_langs', '["de","en","es"]', 0)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.DB.Write.Exec(`INSERT INTO item_texts (item_id, lang, title, rank, sort_key) VALUES (?, 'es', 'Película 12', 2, 'pelicula 12')`, f.Rated(12).ID); err != nil {
+		t.Fatal(err)
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/auth/session", "p12", "", nil), &info)
+	if !slices.Equal(info.Available, []string{"de", "en", "es"}) {
+		t.Fatalf("available after the setting: %v", info.Available)
+	}
+	rec = send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.P12.ID), "p18", `{"metadataLanguage":"es"}`, nil)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"metadataLanguage":"es"`) {
+		t.Fatalf("set metadataLanguage: %d %s", rec.Code, rec.Body.String())
+	}
+	title := func(id string) string {
+		t.Helper()
+		var d struct {
+			Title    string `json:"title"`
+			Overview string `json:"overview"`
+		}
+		decode(t, send(t, h, http.MethodGet, BasePath+"/items/"+id, "p12", "", nil), &d)
+		return d.Title + " / " + d.Overview
+	}
+	if got := title(f.Rated(12).ID); got != "Película 12 / Handlung 12" {
+		t.Errorf("P12 in es: %q, want the Spanish title and the German overview (field-wise)", got)
+	}
+	if got := title(f.Rated(6).ID); got != "Film 06 / Handlung 06" {
+		t.Errorf("P12 in es, title without es text: %q, want German", got)
+	}
+	decode(t, send(t, h, http.MethodGet, BasePath+"/auth/session", "p12", "", nil), &info)
+	if info.Profile.MetadataLanguage == nil || *info.Profile.MetadataLanguage != "es" {
+		t.Errorf("session profile metadataLanguage = %v, want es", info.Profile.MetadataLanguage)
+	}
+	// "" reads the interface language again.
+	rec = send(t, h, http.MethodPatch, BasePath+fmt.Sprintf("/profiles/%d", f.P12.ID), "p18", `{"metadataLanguage":""}`, nil)
+	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), `"metadataLanguage"`) {
+		t.Fatalf("reset metadataLanguage: %d %s", rec.Code, rec.Body.String())
+	}
+	if got := title(f.Rated(12).ID); got != "Film 12 / Handlung 12" {
+		t.Errorf("P12 after the reset: %q, want German", got)
 	}
 }

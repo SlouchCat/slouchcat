@@ -121,8 +121,41 @@ type Movie struct {
 	BackdropPath  string       `json:"backdrop_path"`
 	ReleaseDates  ReleaseDates `json:"release_dates"`
 	Credits       Credits      `json:"credits"`
+	Images        Images       `json:"images"` // append_to_response=images (ADR 0018)
 	// BelongsToCollection is the TMDB collection of the film (E-6), nil when it has none.
 	BelongsToCollection *MovieCollection `json:"belongs_to_collection"`
+}
+
+// Image is one entry of the images block of a movie, series or season: the path, its language
+// (null for an image without text), its size and its votes.
+type Image struct {
+	FilePath    string  `json:"file_path"`
+	Lang        *string `json:"iso_639_1"`
+	Width       int     `json:"width"`
+	Height      int     `json:"height"`
+	VoteAverage float64 `json:"vote_average"`
+	VoteCount   int     `json:"vote_count"`
+}
+
+// Images is the append_to_response=images part of a movie, series or season.
+type Images struct {
+	Posters   []Image `json:"posters"`
+	Backdrops []Image `json:"backdrops"`
+	Logos     []Image `json:"logos"`
+}
+
+// imageQuery adds images to append_to_response with the wanted languages (plus null, the images
+// without text) when imageLangs is not nil; TMDB returns the block only for the languages named.
+func imageQuery(q url.Values, appendTo string, imageLangs []string) url.Values {
+	if imageLangs == nil {
+		q.Set("append_to_response", appendTo)
+		return q
+	}
+	q.Set("append_to_response", appendTo+",images")
+	langs := append([]string{}, imageLangs...)
+	langs = append(langs, "null")
+	q.Set("include_image_language", strings.Join(langs, ","))
+	return q
 }
 
 // MovieCollection is the belongs_to_collection part of a TMDB movie in one language.
@@ -159,11 +192,22 @@ type Credits struct {
 
 // Movie returns the detail of movie id in lang (de-DE, en-US) including its release dates and
 // credits.
-func (c *Client) Movie(ctx context.Context, id int64, lang string) (Movie, error) {
+// Movie returns the detail of movie id in lang; imageLangs (nil = none) adds the images block
+// for those languages (ADR 0018).
+func (c *Client) Movie(ctx context.Context, id int64, lang string, imageLangs []string) (Movie, error) {
 	var m Movie
-	q := url.Values{"language": {lang}, "append_to_response": {"release_dates,credits"}}
+	q := imageQuery(url.Values{"language": {lang}}, "release_dates,credits", imageLangs)
 	err := c.getJSON(ctx, "/movie/"+strconv.FormatInt(id, 10), q, &m)
 	return m, err
+}
+
+// AllImages reads the images of a title in every language (/movie/{id}/images, /tv/{id}/images,
+// /tv/{id}/season/{n}/images without language filter), the candidates of the image choice per
+// title (concept 10 6.4). path is the title's path without "/images".
+func (c *Client) AllImages(ctx context.Context, path string) (Images, error) {
+	var im Images
+	err := c.getJSON(ctx, path+"/images", nil, &im)
+	return im, err
 }
 
 // TV is the TMDB series detail in one language with content ratings, external IDs and credits.
@@ -200,12 +244,13 @@ type TV struct {
 		TVDBID int64  `json:"tvdb_id"`
 	} `json:"external_ids"`
 	Credits Credits `json:"credits"`
+	Images  Images  `json:"images"` // append_to_response=images (ADR 0018)
 }
 
-// TV returns the detail of series id in lang.
-func (c *Client) TV(ctx context.Context, id int64, lang string) (TV, error) {
+// TV returns the detail of series id in lang; imageLangs (nil = none) adds the images block.
+func (c *Client) TV(ctx context.Context, id int64, lang string, imageLangs []string) (TV, error) {
 	var tv TV
-	q := url.Values{"language": {lang}, "append_to_response": {"content_ratings,external_ids,credits"}}
+	q := imageQuery(url.Values{"language": {lang}}, "content_ratings,external_ids,credits", imageLangs)
 	err := c.getJSON(ctx, "/tv/"+strconv.FormatInt(id, 10), q, &tv)
 	return tv, err
 }
@@ -229,13 +274,19 @@ type TVSeason struct {
 	AirDate      string      `json:"air_date"`
 	PosterPath   string      `json:"poster_path"`
 	Episodes     []TVEpisode `json:"episodes"`
+	Images       Images      `json:"images"` // append_to_response=images (season posters, ADR 0018)
 }
 
-// TVSeason returns season n of series id in lang.
-func (c *Client) TVSeason(ctx context.Context, id int64, n int, lang string) (TVSeason, error) {
+// TVSeason returns season n of series id in lang; imageLangs (nil = none) adds the season posters.
+func (c *Client) TVSeason(ctx context.Context, id int64, n int, lang string, imageLangs []string) (TVSeason, error) {
 	var s TVSeason
 	path := "/tv/" + strconv.FormatInt(id, 10) + "/season/" + strconv.Itoa(n)
-	err := c.getJSON(ctx, path, url.Values{"language": {lang}}, &s)
+	q := url.Values{"language": {lang}}
+	if imageLangs != nil {
+		q = imageQuery(q, "", imageLangs)
+		q.Set("append_to_response", "images")
+	}
+	err := c.getJSON(ctx, path, q, &s)
 	return s, err
 }
 
@@ -276,11 +327,14 @@ func (c *Client) Find(ctx context.Context, externalID, source string) (movies, s
 
 // Search runs /search/movie or /search/tv (kind "movie" or "tv") in English. year filters by
 // release year (movie) or first air date year (tv).
-func (c *Client) Search(ctx context.Context, kind, query string, year *int) ([]SearchResult, error) {
+func (c *Client) Search(ctx context.Context, kind, query string, year *int, includeAdult bool) ([]SearchResult, error) {
 	var res struct {
 		Results []SearchResult `json:"results"`
 	}
 	q := url.Values{"query": {query}, "language": {langEN}}
+	if includeAdult {
+		q.Set("include_adult", "true") // metadata.tmdb_include_adult (concept 10 4.1)
+	}
 	if year != nil {
 		if kind == "tv" {
 			q.Set("first_air_date_year", strconv.Itoa(*year))

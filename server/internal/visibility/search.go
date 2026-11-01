@@ -109,7 +109,7 @@ func titleFilters(b *stmt, s Scope, pid int64, q model.SearchQuery) {
 	}
 	b.add(" AND i.kind IN "+in(len(kinds)), args...)
 	if q.Genre != "" {
-		b.add(" AND EXISTS (SELECT 1 FROM item_genres AS g WHERE g.item_id = i.id AND g.lang = ? AND g.name = ?)", s.language, q.Genre)
+		b.add(" AND EXISTS (SELECT 1 FROM item_genres AS g WHERE g.item_id = i.id AND g.lang IN (?, ?) AND g.name = ?)", s.metaLang, s.language, q.Genre)
 	}
 	if q.YearFrom != 0 {
 		b.add(" AND i.year >= ?", q.YearFrom)
@@ -323,13 +323,16 @@ func (r *Reader) AdminSearch(ctx context.Context, s Scope, text string, limit in
 	limit = min(limit, MaxAdminHits)
 	rows, err := r.read.QueryContext(ctx, `SELECT i.id, i.kind,
 		       COALESCE((SELECT t.title FROM item_texts AS t WHERE t.item_id = i.id AND t.lang = 'de'),
-		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = i.id AND t.lang = 'en'), i.title),
+		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = i.id AND t.lang = 'en'),
+		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = i.id ORDER BY t.rank, t.lang LIMIT 1), i.title),
 		       i.year, i.library_id,
 		       CASE i.kind
 		         WHEN 'episode' THEN COALESCE((SELECT t.title FROM item_texts AS t WHERE t.item_id = gp.id AND t.lang = 'de'),
-		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = gp.id AND t.lang = 'en'), gp.title)
+		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = gp.id AND t.lang = 'en'),
+		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = gp.id ORDER BY t.rank, t.lang LIMIT 1), gp.title)
 		         WHEN 'podcast_episode' THEN COALESCE((SELECT t.title FROM item_texts AS t WHERE t.item_id = pa.id AND t.lang = 'de'),
-		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = pa.id AND t.lang = 'en'), pa.title)
+		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = pa.id AND t.lang = 'en'),
+		                (SELECT t.title FROM item_texts AS t WHERE t.item_id = pa.id ORDER BY t.rank, t.lang LIMIT 1), pa.title)
 		       END
 		FROM search_index AS s
 		JOIN items AS i ON i.id = s.item_id

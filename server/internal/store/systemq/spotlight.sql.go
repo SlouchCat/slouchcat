@@ -72,7 +72,7 @@ func (q *Queries) GetSpotlightOverride(ctx context.Context, arg GetSpotlightOver
 
 const listSpotlightEntriesAdmin = `-- name: ListSpotlightEntriesAdmin :many
 SELECT e.media, e.position, e.tmdb_id, e.title, e.year,
-       i.id AS item_id, COALESCE(td.title, te.title, i.title, '') AS item_title,
+       i.id AS item_id, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title, '') AS item_title,
        o.hidden AS override_hidden, o.pinned_rank, o.note
 FROM spotlight_entries AS e
 LEFT JOIN items AS i ON i.tmdb_id = e.tmdb_id

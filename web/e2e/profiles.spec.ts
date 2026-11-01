@@ -1,4 +1,5 @@
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
+import { CSRF } from './catalog';
 import { createProfile, ensureEmptyLibrary, listMyProfiles, loginOwner } from './accounts';
 import { choose } from './controls';
 import { OWNER_PROFILE } from './env';
@@ -252,6 +253,30 @@ test('switching to an English profile changes the start page without a reload an
 test.describe('profile management', () => {
   const article = (page: Page, name: string) => page.getByRole('article', { name });
 
+  /** The server's metadata settings, as the page "Metadaten" edits them (concept 10). */
+  async function metadataSettings(api: APIRequestContext): Promise<Record<string, unknown>> {
+    const response = await api.get('/api/v1/admin/settings/metadata');
+    expect(response.status(), await response.text()).toBe(200);
+    return (await response.json()) as Record<string, unknown>;
+  }
+
+  async function putTextLangs(
+    api: APIRequestContext,
+    settings: Record<string, unknown>,
+    textLangs: string[],
+  ) {
+    const body = Object.fromEntries(
+      Object.entries(settings).filter(
+        ([key]) => !['knownLanguages', 'affectedTitles', 'localImageTitles'].includes(key),
+      ),
+    );
+    const response = await api.put('/api/v1/admin/settings/metadata', {
+      headers: CSRF,
+      data: { ...body, textLangs },
+    });
+    expect(response.status(), await response.text()).toBe(200);
+  }
+
   // One profile: the login picks it, so the session starts on the primary profile.
   test.beforeEach(async ({ page }) => {
     await loginOwner(page.request);
@@ -492,5 +517,62 @@ test.describe('profile management', () => {
     await expect(page.getByRole('link', { name: 'Verwaltung' })).toHaveCount(0);
     await page.getByRole('link', { name: 'Profil wechseln', exact: true }).click();
     await expect(page).toHaveURL(/\/profiles$/);
+  });
+
+  test('with a third server language the form offers "Sprache der Beschreibungen" by arrows (ADR 0018)', async ({
+    page,
+    owner,
+  }) => {
+    const before = await metadataSettings(owner);
+    const textLangs = before.textLangs as string[];
+    try {
+      // Without a third language the field stays away (the interface languages need no choice).
+      await article(page, OWNER_PROFILE).getByRole('button', { name: 'Bearbeiten' }).click();
+      const edit = page.getByRole('dialog', { name: 'Profil bearbeiten' });
+      await expect(edit.getByLabel('Name', { exact: true })).toHaveValue(OWNER_PROFILE);
+      await expect(
+        edit.getByRole('radiogroup', { name: 'Sprache der Beschreibungen' }),
+      ).toHaveCount(0);
+      await edit.getByRole('button', { name: 'Abbrechen' }).click();
+      await expect(edit).toBeHidden();
+
+      await putTextLangs(owner, before, [...textLangs.filter((code) => code !== 'ja'), 'ja']);
+      await page.reload();
+      await expect(article(page, OWNER_PROFILE)).toBeVisible();
+      await article(page, OWNER_PROFILE).getByRole('button', { name: 'Bearbeiten' }).click();
+      const field = edit.getByRole('radiogroup', { name: 'Sprache der Beschreibungen' });
+      await expect(field.getByRole('radio', { name: 'Wie Oberfläche' })).toBeChecked();
+      // Tab from the name field: rating, interface language, then the metadata language.
+      await tabTo(page, field.getByRole('radio', { name: 'Wie Oberfläche' }), 6);
+      // The interface language itself is left out: «Wie Oberfläche», Englisch, Japanisch.
+      await page.keyboard.press('ArrowRight');
+      await expect(field.getByRole('radio', { name: 'Englisch' })).toBeChecked();
+      await page.keyboard.press('ArrowRight');
+      await expect(field.getByRole('radio', { name: 'Japanisch' })).toBeChecked();
+      await expectVisibleFocus(page);
+      await edit.getByRole('button', { name: 'Speichern' }).focus();
+      await page.keyboard.press('Enter');
+      await expect(edit).toBeHidden();
+      await expect(
+        article(page, OWNER_PROFILE).getByText('Sprache der Beschreibungen: Japanisch'),
+      ).toBeVisible();
+      const stored = (await (await page.request.get('/api/v1/profiles')).json()) as {
+        name: string;
+        metadataLanguage?: string;
+      }[];
+      expect(stored.find((profile) => profile.name === OWNER_PROFILE)?.metadataLanguage).toBe('ja');
+
+      // Back to "wie Oberfläche": the chip goes, the value is unset.
+      await article(page, OWNER_PROFILE).getByRole('button', { name: 'Bearbeiten' }).click();
+      await choose(edit, 'radio', 'Wie Oberfläche');
+      await edit.getByRole('button', { name: 'Speichern' }).click();
+      await expect(edit).toBeHidden();
+      await expect(
+        article(page, OWNER_PROFILE).getByText(/Sprache der Beschreibungen/),
+      ).toHaveCount(0);
+      await expectNoFocusTrap(page, 60);
+    } finally {
+      await putTextLangs(owner, before, textLangs);
+    }
   });
 });

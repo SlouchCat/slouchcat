@@ -123,12 +123,15 @@ var providerKeys = []providerKey{
 	{model.ClearTVDBPin, SettingTVDBPin, EnvTVDBKey},
 	{model.ClearYouTube, SettingYouTubeKey, EnvYouTubeKey},
 	{model.ClearTrakt, SettingTraktClientID, EnvTraktClientID},
+	{model.ClearFanart, SettingFanartKey, EnvFanartKey},
+	{model.ClearFanartClient, SettingFanartClient, EnvFanartKey},
 }
 
 // clearable are the valid entries of AdminSettingsUpdate.Clear.
 var clearable = map[string]bool{
 	model.ClearPublicURL: true, model.ClearTMDB: true, model.ClearTVDB: true, model.ClearTVDBPin: true,
 	model.ClearYouTube: true, model.ClearTrakt: true, model.ClearEmail: true, model.ClearTelegram: true,
+	model.ClearFanart: true, model.ClearFanartClient: true,
 }
 
 // Settings returns the server settings and integrations without any secret.
@@ -149,7 +152,8 @@ func (s *Service) Settings(ctx context.Context) (model.AdminSettings, error) {
 		}
 	}
 	st.Keys = model.AdminKeys{TMDB: states[model.ClearTMDB], TVDB: states[model.ClearTVDB], TVDBPin: states[model.ClearTVDBPin],
-		YouTube: states[model.ClearYouTube], Trakt: states[model.ClearTrakt]}
+		YouTube: states[model.ClearYouTube], Trakt: states[model.ClearTrakt],
+		Fanart: states[model.ClearFanart], FanartClient: states[model.ClearFanartClient]}
 	if st.Email, err = s.emailSettings(ctx); err != nil {
 		return model.AdminSettings{}, err
 	}
@@ -337,6 +341,7 @@ func validateSettings(upd model.AdminSettingsUpdate) (settingsChange, *model.Val
 	values := map[string]*string{
 		model.ClearTMDB: upd.Keys.TMDB, model.ClearTVDB: upd.Keys.TVDB, model.ClearTVDBPin: upd.Keys.TVDBPin,
 		model.ClearYouTube: upd.Keys.YouTube, model.ClearTrakt: upd.Keys.Trakt,
+		model.ClearFanart: upd.Keys.Fanart, model.ClearFanartClient: upd.Keys.FanartClient,
 	}
 	for _, k := range providerKeys {
 		v := values[k.field]

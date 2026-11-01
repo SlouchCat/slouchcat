@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
@@ -201,6 +202,9 @@ func (s *Service) scanLibraryPaths(ctx context.Context, lib appq.Library, req []
 			if err := s.syncSidecars(ctx, rs, scope); err != nil {
 				return stats, 0, false, err
 			}
+			if err := s.syncLocalImages(ctx, rs, scope); err != nil {
+				return stats, 0, false, err
+			}
 		}
 	}
 	return stats, dirCount, usedLoss, nil
@@ -252,11 +256,12 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 
 	scope := &dirScope{listed: map[string]bool{}}
 	rs.subs = map[string][]string{}
+	rs.imgs = map[string][]string{}
 	for _, dir := range dirs {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		files, subs, isGone, err := listDirFiles(ctx, r, dir, rs.root.Content, rs.ignored, s.log)
+		files, subs, imgs, isGone, err := listDirFiles(ctx, r, dir, rs.root.Content, rs.ignored, s.log)
 		if err != nil {
 			return nil, fmt.Errorf("list %s in root %d: %w", dir, rs.root.ID, err)
 		}
@@ -267,6 +272,7 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 		scope.listed[dir] = true
 		rs.disk = append(rs.disk, files...)
 		rs.subs[dir] = subs
+		rs.imgs[dir] = imgs
 	}
 	return scope, nil
 }
@@ -275,29 +281,29 @@ func (s *Service) readDirs(ctx context.Context, lib appq.Library, rs *rootScan, 
 // and the names of its subtitle files (sidecars, I-5); subdirectories are not entered (a path scan
 // names every directory it reads). isGone reports a directory that does not exist any more. A
 // symlinked directory is not read, like in the walk of a full scan.
-func listDirFiles(ctx context.Context, r *os.Root, dir, content string, ignored map[string]bool, log *slog.Logger) (files []diskFile, subs []string, isGone bool, err error) {
+func listDirFiles(ctx context.Context, r *os.Root, dir, content string, ignored map[string]bool, log *slog.Logger) (files []diskFile, subs, imgs []string, isGone bool, err error) {
 	fi, err := r.Lstat(dir)
 	switch {
 	case gone(err):
-		return nil, nil, true, nil
+		return nil, nil, nil, true, nil
 	case err != nil:
-		return nil, nil, false, err
+		return nil, nil, nil, false, err
 	case fi.Mode()&fs.ModeSymlink != 0:
-		return nil, nil, false, nil
+		return nil, nil, nil, false, nil
 	case !fi.IsDir():
-		return nil, nil, true, nil
+		return nil, nil, nil, true, nil
 	}
 	f, err := r.Open(dir)
 	if gone(err) {
-		return nil, nil, true, nil
+		return nil, nil, nil, true, nil
 	}
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, nil, false, err
 	}
 	entries, err := f.ReadDir(-1)
 	_ = f.Close()
 	if err != nil {
-		return nil, nil, false, err
+		return nil, nil, nil, false, err
 	}
 	noMarker := map[string]int{}
 	for _, e := range entries {
@@ -308,14 +314,18 @@ func listDirFiles(ctx context.Context, r *os.Root, dir, content string, ignored 
 			subs = append(subs, e.Name())
 			continue
 		}
+		if (content == model.RootMovie || content == model.RootSeries) && isLocalImage(e.Name()) {
+			imgs = append(imgs, e.Name())
+			continue
+		}
 		df, ok, err := videoFile(ctx, r, path.Join(dir, e.Name()), e, content, ignored, noMarker, log)
 		if err != nil {
-			return nil, nil, false, err
+			return nil, nil, nil, false, err
 		}
 		if ok {
 			files = append(files, df)
 		}
 	}
 	logNoMarker(ctx, log, noMarker)
-	return files, subs, false, nil
+	return files, subs, imgs, false, nil
 }

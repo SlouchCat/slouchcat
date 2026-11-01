@@ -1,0 +1,81 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--sc-space-3);
+  max-height: 60vh;
+  margin: 0;
+  padding: var(--sc-space-1);
+  overflow-y: auto;
+}
+
+.grid[data-shape='landscape'] {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-2);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  cursor: pointer;
+}
+
+/* P-15: the ring lies inside the tile, the grid scrolls and would cut a ring outside. */
+.tile[data-focused],
+.tile[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
+}
+
+.tile[data-hovered] {
+  background-color: var(--sc-color-surface-2);
+}
+
+.frame {
+  display: block;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+}
+
+.grid[data-shape='landscape'] .frame {
+  aspect-ratio: 16 / 9;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1);
+  align-items: baseline;
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.current {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.detail {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: var(--sc-space-4);
+  color: var(--sc-color-text-muted);
+}

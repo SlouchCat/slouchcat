@@ -5,6 +5,9 @@ export const art = {
   posterEmber: 'poster-ember.jpg',
   posterMoss: 'poster-moss.jpg',
   backdropDusk: 'backdrop-dusk.jpg',
+  /** A title logo with transparent ground (concept 10, 7.5): inline, so no fixture file is needed. */
+  logoEmber:
+    "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 330 100'%3E%3Ctext x='4' y='86' text-anchor='start' font-family='Georgia, serif' font-size='96' font-weight='700' fill='%23f2c27a' stroke='%231a0c08' stroke-width='4'%3EGLUT%3C/text%3E%3C/svg%3E",
 } as const;
 
 export const accents = {

@@ -13,7 +13,7 @@ services:
     # Published with every release (ADR 0001, .github/workflows/release.yml). The tag is pinned:
     # an update is a conscious step (SLOUCHCAT_VERSION in .env, then `docker compose pull`), the
     # update check only says that there is one. `docker compose up --build` builds locally instead.
-    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.5.0}
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.6.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -35,6 +35,8 @@ services:
       # Optional providers (README «Metadaten-Anbieter und Trailer»); empty = not used.
       SLOUCHCAT_TVDB_API_KEY: ${SLOUCHCAT_TVDB_API_KEY:-}
       SLOUCHCAT_TVDB_PIN: ${SLOUCHCAT_TVDB_PIN:-}
+      SLOUCHCAT_FANART_API_KEY: ${SLOUCHCAT_FANART_API_KEY:-}
+      SLOUCHCAT_FANART_CLIENT_KEY: ${SLOUCHCAT_FANART_CLIENT_KEY:-}
       SLOUCHCAT_YOUTUBE_API_KEY: ${SLOUCHCAT_YOUTUBE_API_KEY:-}
       SLOUCHCAT_TRAILER_AI: ${SLOUCHCAT_TRAILER_AI:-off}
       # Trakt client id (M7): the public lists the spotlight row draws from; empty = row hidden.

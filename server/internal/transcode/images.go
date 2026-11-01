@@ -20,10 +20,12 @@ import (
 // ImageFormat is an output format of the image pipeline.
 type ImageFormat string
 
-// Delivered image formats: WebP (libwebp) for browsers that accept it, JPEG as the fallback.
+// Delivered image formats: WebP (libwebp) for browsers that accept it, JPEG as the fallback of
+// posters and backdrops, PNG as the fallback of logos (transparency, ADR 0018).
 const (
 	ImageWebP ImageFormat = "webp"
 	ImageJPEG ImageFormat = "jpeg"
+	ImagePNG  ImageFormat = "png"
 )
 
 // ImageOutput is one scaled copy of an image: the width in pixels (the height follows the aspect
@@ -42,6 +44,10 @@ func imageEncoderArgs(f ImageFormat) ([]string, error) {
 		return []string{"-c:v", "libwebp", "-quality", "82", "-compression_level", "4", "-f", "webp"}, nil
 	case ImageJPEG:
 		return []string{"-c:v", "mjpeg", "-q:v", "3", "-pix_fmt", "yuvj420p", "-f", "mjpeg"}, nil
+	case ImagePNG:
+		// image2 writes one file; -update 1 keeps a plain name without a frame pattern. The alpha
+		// channel of the source survives (rgba in, rgba out).
+		return []string{"-c:v", "png", "-f", "image2", "-update", "1"}, nil
 	default:
 		return nil, fmt.Errorf("unknown image format %q", f)
 	}

@@ -44,6 +44,8 @@ type ProfileService interface {
 	ListProfiles(ctx context.Context, session model.Session) ([]model.Profile, error)
 	CreateProfile(ctx context.Context, session model.Session, in model.ProfileInput) (model.Profile, error)
 	UpdateProfile(ctx context.Context, session model.Session, id int64, in model.ProfileInput) (model.Profile, error)
+	// AvailableMetadataLanguages are the metadata languages a profile may choose (ADR 0018).
+	AvailableMetadataLanguages(ctx context.Context) ([]string, error)
 	// DeleteProfile deletes a non-primary profile; end runs after the checks, before the delete.
 	DeleteProfile(ctx context.Context, session model.Session, id int64, end func(ctx context.Context, profileID int64) error) error
 	SetProfilePIN(ctx context.Context, session model.Session, id int64, pin string) error
@@ -106,6 +108,12 @@ type AdminService interface {
 	UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
 	// ListMetadataProviders describes the four providers (ADR 0015).
 	ListMetadataProviders(ctx context.Context) ([]model.MetadataProviderInfo, error)
+	// Metadata settings of concept 10 (ADR 0018): server settings, a library's deviation, apply.
+	MetadataSettings(ctx context.Context) (model.MetadataSettings, error)
+	UpdateMetadataSettings(ctx context.Context, m model.MetadataSettings) (model.MetadataSettings, error)
+	LibraryMetadata(ctx context.Context, libraryID int64) (model.LibraryMetadata, error)
+	UpdateLibraryMetadata(ctx context.Context, libraryID int64, textLangs *[]string, images *model.LibraryImages) (model.LibraryMetadata, error)
+	ApplyMetadata(ctx context.Context, req model.ApplyMetadataRequest) (model.ApplyMetadataResult, error)
 	// RemoveLibraryRoot removes a folder and soft-deletes the titles that live only there
 	// (E12). Errors: model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch,
 	// model.ErrScanRunning.
@@ -129,6 +137,11 @@ type AdminService interface {
 	CreateItemTrailer(ctx context.Context, itemID, lang, youtubeID, url string) (model.Trailer, error)
 	// DeleteItemTrailer removes a trailer of a title.
 	DeleteItemTrailer(ctx context.Context, itemID string, trailerID int64) error
+	// The image choice per title (concept 10 6.4, 7.3).
+	ItemImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error)
+	SetItemImage(ctx context.Context, itemID, kind, provider, source string) (model.AdminItem, error)
+	ClearItemImage(ctx context.Context, itemID, kind string) (model.AdminItem, error)
+	ItemImageCandidatePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 	// SetItemsRating applies SetItemRating to many titles; unknown ids are skipped and not counted.
 	SetItemsRating(ctx context.Context, itemIDs []string, rating *int) (int, error)
 	// SearchMetadata asks a provider (model.ErrProviderNotConfigured, model.ErrTMDBKeyInvalid,

@@ -1,7 +1,11 @@
 # ADR 0015: Bibliotheken als Familie, Inhaltsart und geordnete Metadatenquellen je Ordner
 
 - Status: angenommen (29. Oktober 2026); **ersetzt teilweise ADR 0006** (siehe Abschnitt «Was von
-  ADR 0006 stehen bleibt») und schreibt eine Zeile von ADR 0007 fort (Podcast-Bibliothek «ohne Wurzel»)
+  ADR 0006 stehen bleibt») und schreibt eine Zeile von ADR 0007 fort (Podcast-Bibliothek «ohne Wurzel»);
+  **teilweise ersetzt durch ADR 0018** (31. Oktober 2026): die Bildfelder `poster`, `backdrop` und neu
+  `logo` werden nicht mehr allein nach dem Rang der Ordnerliste entschieden, sondern mit der festen
+  Reihenfolge `["local", …Ordnerliste, "fanart"]`, Sprachkette, Mindestbreite und Bewertung; Quelle und
+  Sprache stehen in `item_images`. Alles andere gilt weiter
 - Quelle: Konzept `docs/planning/07-bibliotheken.md` (Fassung 4, 28./29. Oktober 2026, Abschnitte 2,
   4, 5, 6, 9); **Frage 13** in `docs/planning/04-entscheidungen.md` mit Marcos Antworten F-1 bis F-13;
   Idee 01 (`docs/ideas/01-metadaten-einstellungen.md`, Teil A); ADR 0006 (Anbieter-Schnittstelle),
@@ -169,6 +173,7 @@ und diesen Entscheid:
   `library_roots`; `visible_items` prüft Rechte über `library_id` und Alter über die Titelart. Eine
   Bibliotheksnavigation für Zuschauer ist nicht Teil dieses Entscheids.
 - **Nicht gebaut und bewusst nicht gebaut:** Sprachen je Ordner, Bildarten, Bildsprache, Bildwahl je
-  Titel, Fanart.tv, OMDb, NFO, Rohzertifikate und das Land für die Altersfreigabe (Idee 01, Teil B);
+  Titel, Fanart.tv, OMDb, NFO, Rohzertifikate und das Land für die Altersfreigabe (Idee 01, Teil B;
+  Sprachen, Bildarten, Bildsprache, Bildwahl, Fanart.tv und Freigabeland sind seit ADR 0018 gebaut);
   AniDB, MyAnimeList; ein externer Hörbuch-Anbieter (F-7); eine Podcast-Suche; das Löschen einer
   Bibliothek.

@@ -289,6 +289,10 @@ func toProfile(p model.Profile) gen.Profile {
 		a := gen.Accent(p.Accent)
 		out.Accent = &a
 	}
+	if p.MetadataLanguage != "" {
+		m := p.MetadataLanguage
+		out.MetadataLanguage = &m
+	}
 	return out
 }
 

@@ -189,10 +189,29 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	}
 	acc := session.Account
 	p := appq.UpdateProfileParams{
-		ID: row.ID, Name: row.Name, MaxRating: row.MaxRating, Language: row.Language, Accent: row.Accent, AllLibraries: row.AllLibraries,
+		ID: row.ID, Name: row.Name, MaxRating: row.MaxRating, Language: row.Language, MetadataLanguage: row.MetadataLanguage,
+		Accent: row.Accent, AllLibraries: row.AllLibraries,
 		MaxBitrateKbps: row.MaxBitrateKbps, MaxHeight: row.MaxHeight, MaxStreams: row.MaxStreams, WatchLimitMinutes: row.WatchLimitMinutes,
 	}
 	verr := applyInput(acc, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
+	if in.MetadataLanguage != nil {
+		// "" reads the metadata in the interface language again; any other value must be one the
+		// server offers (the union of the effective lists, ADR 0018).
+		switch v := *in.MetadataLanguage; v {
+		case "":
+			p.MetadataLanguage = sql.NullString{}
+		default:
+			avail, err := s.AvailableMetadataLanguages(ctx)
+			if err != nil {
+				return model.Profile{}, err
+			}
+			if !slices.Contains(avail, v) {
+				verr = verr.Add("metadataLanguage", "invalid_value")
+			} else {
+				p.MetadataLanguage = sql.NullString{String: v, Valid: true}
+			}
+		}
+	}
 	if in.Limits != nil {
 		verr = validateLimits(*in.Limits, true, verr)
 		p.MaxBitrateKbps, p.MaxHeight, p.MaxStreams, p.WatchLimitMinutes = limitColumns(*in.Limits)
@@ -234,6 +253,7 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 		return model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
 	row.Name, row.MaxRating, row.Language, row.Accent, row.AllLibraries = p.Name, p.MaxRating, p.Language, p.Accent, p.AllLibraries
+	row.MetadataLanguage = p.MetadataLanguage
 	row.MaxBitrateKbps, row.MaxHeight, row.MaxStreams, row.WatchLimitMinutes = p.MaxBitrateKbps, p.MaxHeight, p.MaxStreams, p.WatchLimitMinutes
 	return toProfile(row, libs, acc.Limits), nil
 }

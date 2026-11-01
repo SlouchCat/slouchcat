@@ -138,6 +138,47 @@ describe('profile settings page', () => {
     expect(within(dialog).getByLabelText('Name')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('offers the metadata language only with a third server language and sends it (ADR 0018)', async () => {
+    let lenaStored = profiles[1]!;
+    const { calls } = mockApi({
+      ...manage,
+      'GET /auth/session': () =>
+        json({ ...session, availableMetadataLanguages: ['de', 'en', 'ja'] }),
+      'GET /profiles': () => json([profiles[0], lenaStored, ...profiles.slice(2)]),
+      'PATCH /profiles/2': () => {
+        lenaStored = { ...profiles[1]!, metadataLanguage: 'ja' };
+        return json(lenaStored);
+      },
+    });
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    const lena = await screen.findByRole('article', { name: 'Lena' });
+    await user.click(within(lena).getByRole('button', { name: 'Bearbeiten' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Profil bearbeiten' });
+    const field = within(dialog).getByRole('radiogroup', { name: 'Sprache der Beschreibungen' });
+    expect(within(field).getByRole('radio', { name: 'Wie Oberfläche' })).toBeChecked();
+    // Names in the profile's own language (Lena reads English).
+    await user.click(within(field).getByRole('radio', { name: 'Japanese' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(calls.find((call) => call.method === 'PATCH')?.body).toMatchObject({
+      metadataLanguage: 'ja',
+    });
+    expect(await within(lena).findByText('Sprache der Beschreibungen: Japanese')).toBeVisible();
+  });
+
+  it('hides the metadata language while the server offers only the interface languages', async () => {
+    mockApi(manage);
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    const lena = await screen.findByRole('article', { name: 'Lena' });
+    await user.click(within(lena).getByRole('button', { name: 'Bearbeiten' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Profil bearbeiten' });
+    expect(
+      within(dialog).queryByRole('radiogroup', { name: 'Sprache der Beschreibungen' }),
+    ).toBeNull();
+  });
+
   it('edits a profile with PATCH and asks before deleting', async () => {
     const { calls } = mockApi({
       ...manage,

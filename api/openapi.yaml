@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.5.0
+  version: 1.6.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -1278,7 +1278,10 @@ paths:
         pipeline (plan 3.1) scales every image with ffmpeg: posters exist in `w200`, `w400` and `w800`,
         backdrops in `w780`, `w1280` and `w1920` (the number is the width in pixels). Every size is stored
         as WebP and as JPEG; the server answers WebP when the request's `Accept` header lists
-        `image/webp`, JPEG otherwise, and sets `Vary: Accept`.
+        `image/webp`, JPEG otherwise, and sets `Vary: Accept`. Since contract 1.6.0 a backdrop whose original
+        is at least 2560 px wide also exists in `w3840` (for 4K and high-density screens), scaled down to
+        3840 px or kept at the original's width, never scaled up; `ItemImages.backdropUhd` names its real
+        width. Logos come in `w400` and `w800` (ADR 0018).
       tags: [items]
       x-visibility: scoped
       parameters:
@@ -1293,7 +1296,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [w200, w400, w800, w780, w1280, w1920]
+            enum: [w200, w400, w800, w780, w1280, w1920, w3840]
         - name: v
           in: query
           required: false
@@ -3290,8 +3293,7 @@ paths:
           in: path
           required: true
           schema:
-            type: string
-            enum: [poster, backdrop]
+            $ref: "#/components/schemas/ImageKind"
         - name: size
           in: path
           required: true
@@ -3321,6 +3323,187 @@ paths:
           $ref: "#/components/responses/AdminOnly"
         "404":
           description: No such title or no such image (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/image-candidates:
+    get:
+      operationId: listItemImageCandidates
+      summary: Image candidates of every source for one kind of a title (concept 10 6.4)
+      description: |
+        Asked live: the image files next to the media (`item_local_images`), then the providers of the
+        folder in list order (TMDB without language filter, TVDB artworks of a series); within a source by
+        the kind's language chain, then votes and width. Cached in the server for ten minutes per title and
+        kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
+        provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
+        of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
+        series, poster for seasons; another kind is 422.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: The candidates.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageCandidateList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The kind is not chosen by hand for this title (`validation_failed`, field `kind`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/image-candidates/preview:
+    get:
+      operationId: getItemImageCandidatePreview
+      summary: A local image file of a title as preview (binary)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6). Serves only a `source` the scanner listed for
+        the title (`file:<rel>?<size>-<mtime>` from `listItemImageCandidates`), read through the library
+        root (rule 4), at most 20 MB; any other source is 404 (concept 10 9.2).
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: source
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 2048
+      responses:
+        "200":
+          description: The image file.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title or source (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/images/{kind}:
+    put:
+      operationId: setItemImage
+      summary: Choose and lock the image of a kind (concept 10 6.3)
+      description: |
+        Stores the candidate as the title's image of the kind (`chosen`) and locks the kind
+        (`lockedFields`); `image.fetch` fetches it at the manual priority. `source` must be a candidate of
+        the title (`listItemImageCandidates`); an expired cache is asked again before a source is
+        `source_unknown`. A later `applyMetadata`, refresh or fill keeps the choice.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemImageChoice"
+      responses:
+        "200":
+          description: The administration view after the choice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: "Validation failed (`validation_failed`): field `kind` (`invalid_value`) or `source` (`source_unknown`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    delete:
+      operationId: clearItemImage
+      summary: Lift the choice and the lock of a kind
+      description: |
+        Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
+        for a season) decides the kind again by the language chain and queues `image.fetch`.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+      responses:
+        "200":
+          description: The administration view after lifting the choice.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: The kind is not chosen by hand for this title (`validation_failed`, field `kind`).
           content:
             application/problem+json:
               schema:
@@ -3358,6 +3541,173 @@ paths:
           $ref: "#/components/responses/AdminOnly"
         "422":
           description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/settings/metadata:
+    get:
+      operationId: getMetadataSettings
+      summary: The server's metadata settings (concept 10, ADR 0018)
+      description: |
+        The twelve keys `metadata.*` resolved with their defaults: the ordered text language list,
+        the image language chain per kind, the switchable image kinds, the minimum widths, the vote
+        rule, the local files switch, the rating country, the adult switch of the TMDB search and
+        the Fanart.tv switch. The languages a provider knows come from `listMetadataProviders`
+        (`MetadataProviderInfo.languages`). `knownLanguages` lists every code the server accepts.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The settings.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    put:
+      operationId: updateMetadataSettings
+      summary: Change the server's metadata settings
+      description: |
+        All at once: the body replaces every setting. 422 `validation_failed` with the field errors
+        `langs_empty`, `lang_unknown`, `ui_lang_required` (the server's list must hold `de`),
+        `chain_duplicate`, `country_unknown`, `invalid_value`. Nothing is queued (F-8): the answer
+        names the matched titles the change affects (`affectedTitles`) and the interface offers
+        `applyMetadata`.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetadataSettingsUpdate"
+      responses:
+        "200":
+          description: The stored settings with the number of affected titles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetadataSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: "`validation_failed` (see `errors`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/libraries/{id}/metadata:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+    get:
+      operationId: getLibraryMetadata
+      summary: The metadata deviation of a library (concept 10, ADR 0018)
+      description: |
+        The deviation of the library from the server (`textLangs`, `images`; `null` = like the
+        server) and the effective values the jobs use for its titles. 404 for an unknown library.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: Deviation and effective values.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown library.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: updateLibraryMetadata
+      summary: Change the metadata deviation of a library
+      description: |
+        `textLangs` and `images` replace the stored deviation; `null` (or a field left out) means
+        "like the server". A library's language list must hold `de` or `en` (`ui_lang_required`).
+        Nothing is queued (F-8); the answer names the affected titles of the library.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LibraryMetadataUpdate"
+      responses:
+        "200":
+          description: Deviation and effective values.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryMetadata"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown library.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: "`validation_failed` (see `errors`)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/metadata/apply:
+    post:
+      operationId: applyMetadata
+      summary: Apply the metadata settings to existing titles (concept 10, 6.5)
+      description: |
+        Queues the event job `metadata.apply` (ADR 0017), which queues one `metadata.match` per
+        matched film and series of the chosen libraries (every library when `libraryIds` is left
+        out) with `what` containing `texts`, or only `metadata.fill` and `image.fetch` with
+        `what: ["images"]`. A second call while an `apply` of the same scope waits does not double
+        it (idempotency key). 202 with the job id and the number of titles; the progress of the
+        children shows on the jobs page (`listJobTypes`).
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyMetadataRequest"
+      responses:
+        "202":
+          description: Queued.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplyMetadataResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "422":
+          description: "`validation_failed` (see `errors`)."
           content:
             application/problem+json:
               schema:
@@ -6711,6 +7061,14 @@ components:
           description: |
             A newer version is published (A-5); only for administrators and only while the update
             check is on.
+        availableMetadataLanguages:
+          type: array
+          description: |
+            The metadata languages a profile may choose (ADR 0018): the union of the server's list and
+            every library's list, in the server's order; always holds at least `de` or `en`. Absent in
+            answers of older servers (then `de` and `en`).
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
 
     Account:
       type: object
@@ -6766,6 +7124,13 @@ components:
           $ref: "#/components/schemas/Rating"
         language:
           $ref: "#/components/schemas/Language"
+          description: The language of the interface (de, en); also the language of the metadata while `metadataLanguage` is unset.
+        metadataLanguage:
+          $ref: "#/components/schemas/MetadataLanguage"
+          description: |
+            The language the profile reads titles, descriptions and genres in (ADR 0018), one of
+            `SessionInfo.availableMetadataLanguages`; absent = like `language`. A text missing in this
+            language falls back field by field to `language`, then to the server's list in its order.
         accent:
           $ref: "#/components/schemas/Accent"
         allLibraries:
@@ -6875,6 +7240,13 @@ components:
           $ref: "#/components/schemas/Rating"
         language:
           $ref: "#/components/schemas/Language"
+        metadataLanguage:
+          type: string
+          maxLength: 12
+          description: |
+            The metadata language of the profile (ADR 0018): one of `SessionInfo.availableMetadataLanguages`
+            (422 `metadataLanguage: invalid_value` otherwise), or `""` to read the metadata in `language`
+            again.
         accent:
           $ref: "#/components/schemas/Accent"
         allLibraries:
@@ -7161,6 +7533,14 @@ components:
     Language:
       type: string
       enum: [de, en]
+      description: An interface language; the two language packs of the web app.
+
+    MetadataLanguage:
+      type: string
+      minLength: 2
+      maxLength: 12
+      pattern: "^[a-z]{2,3}(-[A-Z]{2})?$"
+      description: A metadata language, BCP-47 with an optional region (`de`, `en`, `pt-BR`, `zh-TW`; ADR 0018).
 
     Rating:
       type: integer
@@ -7178,7 +7558,11 @@ components:
 
     ImageKind:
       type: string
-      enum: [poster, backdrop]
+      enum: [poster, backdrop, logo]
+      description: |
+        `logo` (ADR 0018, concept 10) is the transparent title logo of a film or series, delivered in
+        `w400` and `w800` as WebP or PNG (never JPEG); the detail page and the spotlight show it in
+        place of the text title when it exists.
 
     ImageRef:
       type: object
@@ -7202,6 +7586,12 @@ components:
           $ref: "#/components/schemas/ImageRef"
         backdrop:
           $ref: "#/components/schemas/ImageRef"
+        logo:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            The title logo in `w400` (ADR 0018), WebP or PNG with transparency; only on the detail
+            (`ItemDetail`) and the spotlight entries, never on list summaries. Absent when the title
+            has none or the kind is switched off.
         backdropSmall:
           $ref: "#/components/schemas/ImageRef"
           description: Backdrop in w780 for viewports up to about 900 px.
@@ -7214,6 +7604,11 @@ components:
         backdropLarge:
           $ref: "#/components/schemas/ImageRef"
           description: Backdrop in w1920 for viewports above about 1400 px; M1b image pipeline.
+        backdropUhd:
+          $ref: "#/components/schemas/ImageRef"
+          description: |
+            Backdrop in w3840 for 4K and high-density screens (contract 1.6.0); only when the original is at
+            least 2560 px wide, and then at most the original's width (`width` says which).
 
     Progress:
       type: object
@@ -8190,6 +8585,195 @@ components:
         file-based reader of audiobook and podcast folders. Only `tmdb` and `tvdb` can be searched
         or assigned by hand.
 
+    MetadataSettings:
+      type: object
+      description: The server's metadata settings (concept 10 4.1, ADR 0018), defaults filled in.
+      required: [textLangs, imageLangs, imageKinds, imageMinWidth, imageByVote, localImages, ratingCountry, tmdbIncludeAdult, fanartEnabled, knownLanguages, affectedTitles, localImageTitles]
+      properties:
+        textLangs:
+          type: array
+          description: Ordered list of the text languages every source delivers; the position is the rank.
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
+        imageLangs:
+          $ref: "#/components/schemas/ImageLangs"
+        imageKinds:
+          type: array
+          description: The switchable image kinds that are on (`poster` and `backdrop` are always on, E-1).
+          items:
+            type: string
+            enum: [logo, season_poster, episode_still]
+        imageMinWidth:
+          type: object
+          description: Minimum width per kind, 0 = any; a smaller candidate wins only when none reaches it.
+          required: [poster, backdrop]
+          properties:
+            poster:
+              type: integer
+              minimum: 0
+            backdrop:
+              type: integer
+              minimum: 0
+        imageByVote:
+          type: boolean
+        localImages:
+          type: boolean
+          description: Image files next to the media as the first source (F-5).
+        ratingCountry:
+          type: string
+          enum: [DE, AT, CH, GB, US]
+          description: The country whose certification is read first (F-7, decision 6); the rest follows in DE, AT, CH, GB, US order.
+        tmdbIncludeAdult:
+          type: boolean
+        fanartEnabled:
+          type: boolean
+        knownLanguages:
+          type: array
+          description: Every language code the server accepts (the static list, E-10).
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
+        affectedTitles:
+          type: integer
+          description: Matched films and series an `applyMetadata` over every library would queue.
+        localImageTitles:
+          type: integer
+          description: Titles with at least one image file next to the media (item_local_images).
+
+    ImageLangs:
+      type: object
+      description: The fallback chain per image kind; `""` is an image without text.
+      required: [poster, backdrop, logo]
+      properties:
+        poster:
+          type: array
+          items:
+            type: string
+        backdrop:
+          type: array
+          items:
+            type: string
+        logo:
+          type: array
+          items:
+            type: string
+
+    MetadataSettingsUpdate:
+      type: object
+      description: Replaces every server setting at once; `knownLanguages`, `affectedTitles` and `localImageTitles` are read-only and ignored.
+      required: [textLangs, imageLangs, imageKinds, imageMinWidth, imageByVote, localImages, ratingCountry, tmdbIncludeAdult, fanartEnabled]
+      properties:
+        textLangs:
+          type: array
+          items:
+            type: string
+        imageLangs:
+          $ref: "#/components/schemas/ImageLangs"
+        imageKinds:
+          type: array
+          items:
+            type: string
+        imageMinWidth:
+          type: object
+          required: [poster, backdrop]
+          properties:
+            poster:
+              type: integer
+            backdrop:
+              type: integer
+        imageByVote:
+          type: boolean
+        localImages:
+          type: boolean
+        ratingCountry:
+          type: string
+        tmdbIncludeAdult:
+          type: boolean
+        fanartEnabled:
+          type: boolean
+
+    LibraryImages:
+      type: object
+      description: "The image deviation of a library: chains and switchable kinds."
+      required: [langs, kinds]
+      properties:
+        langs:
+          $ref: "#/components/schemas/ImageLangs"
+        kinds:
+          type: array
+          items:
+            type: string
+            enum: [logo, season_poster, episode_still]
+
+    LibraryMetadata:
+      type: object
+      description: The deviation of a library (`null` = like the server) and the effective values of its titles (concept 10 4.5).
+      required: [libraryId, effective, affectedTitles]
+      properties:
+        libraryId:
+          type: integer
+          format: int64
+        textLangs:
+          type: array
+          nullable: true
+          description: The library's own text language list, or `null` for the server's.
+          items:
+            $ref: "#/components/schemas/MetadataLanguage"
+        images:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/LibraryImages"
+          description: The library's own image chains and kinds, or `null` for the server's.
+        effective:
+          $ref: "#/components/schemas/MetadataSettings"
+        affectedTitles:
+          type: integer
+          description: Matched films and series of the library an `applyMetadata` would queue.
+
+    LibraryMetadataUpdate:
+      type: object
+      description: Replaces the deviation; a field left out or `null` means "like the server".
+      properties:
+        textLangs:
+          type: array
+          nullable: true
+          items:
+            type: string
+        images:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/LibraryImages"
+
+    ApplyMetadataRequest:
+      type: object
+      required: [what]
+      properties:
+        libraryIds:
+          type: array
+          description: The libraries to apply to; left out = every library.
+          items:
+            type: integer
+            format: int64
+        what:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          description: "`texts` queues one `metadata.match` per title (texts, then fill and images follow); `images` alone queues only `metadata.fill` and `image.fetch`."
+          items:
+            type: string
+            enum: [texts, images]
+
+    ApplyMetadataResponse:
+      type: object
+      required: [jobId, titles]
+      properties:
+        jobId:
+          type: integer
+          format: int64
+          description: The queued `metadata.apply` run (the parent; the children show on the jobs page).
+        titles:
+          type: integer
+          description: Matched films and series the run will queue.
+
     MetadataProviderInfo:
       type: object
       required: [id, configured, roles, contents, languages]
@@ -8212,7 +8796,10 @@ components:
             $ref: "#/components/schemas/RootContent"
         languages:
           type: array
-          description: Text languages the provider delivers (`de`, `en`); empty for the local reader.
+          description: |
+            Text languages the provider delivers out of the server's metadata language list (ADR 0018):
+            the languages of the list it knows, in the list's order; empty for the local reader. A
+            language of the list that is missing here is skipped at that provider.
           items:
             type: string
 
@@ -8415,6 +9002,90 @@ components:
               type: integer
             extras:
               type: integer
+        images:
+          type: array
+          description: The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out.
+          items:
+            $ref: "#/components/schemas/AdminItemImage"
+
+    ImageCandidate:
+      type: object
+      description: One image a source offers for a kind of a title (concept 10 6.4).
+      required: [provider, lang, width, height, score, voteCount, source, previewUrl, chosen]
+      properties:
+        provider:
+          type: string
+          description: "`local`, `tmdb`, `tvdb` or `fanart`."
+        lang:
+          type: string
+          description: Language of the text on the image (BCP-47 primary subtag); empty for an image without text or unknown.
+        width:
+          type: integer
+          description: Width in pixels, 0 when the source does not say.
+        height:
+          type: integer
+        score:
+          type: number
+          format: double
+          description: The source's rating of the image (TMDB vote average, TVDB score, Fanart likes); 0 without one.
+        voteCount:
+          type: integer
+        source:
+          type: string
+          description: The source's address of the image; the value `setItemImage` takes.
+        previewUrl:
+          type: string
+          description: Small preview; a provider's address (loaded by the browser without referrer) or `getItemImageCandidatePreview` for a local file.
+        chosen:
+          type: boolean
+          description: The title's current image of the kind.
+
+    ImageCandidateList:
+      type: object
+      required: [candidates, unavailable]
+      properties:
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageCandidate"
+        unavailable:
+          type: array
+          description: Providers of the title that did not answer (the list is complete without them).
+          items:
+            type: string
+
+    ItemImageChoice:
+      type: object
+      required: [provider, source]
+      properties:
+        provider:
+          type: string
+          maxLength: 16
+        source:
+          type: string
+          minLength: 1
+          maxLength: 2048
+
+    AdminItemImage:
+      type: object
+      description: The decided image source of a kind (concept 10 7.3); `locked` without `provider` is a lock without choice.
+      required: [kind, chosen, locked]
+      properties:
+        kind:
+          $ref: "#/components/schemas/ImageKind"
+        provider:
+          type: string
+        lang:
+          type: string
+        source:
+          type: string
+        previewUrl:
+          type: string
+        chosen:
+          type: boolean
+          description: The administrator chose this source (`setItemImage`).
+        locked:
+          type: boolean
 
     IssueKind:
       type: string
@@ -10769,8 +11440,10 @@ components:
 
     AdminSettingsKeys:
       type: object
-      description: The provider keys (M3, M7); the values themselves are never returned.
-      required: [tmdb, tvdb, tvdbPin, youtube, trakt]
+      description: |
+        The provider keys (M3, M7; Fanart.tv since concept 10 step 6, a project key and an optional
+        personal client key); the values themselves are never returned.
+      required: [tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient]
       properties:
         tmdb:
           $ref: "#/components/schemas/KeyState"
@@ -10781,6 +11454,10 @@ components:
         youtube:
           $ref: "#/components/schemas/KeyState"
         trakt:
+          $ref: "#/components/schemas/KeyState"
+        fanart:
+          $ref: "#/components/schemas/KeyState"
+        fanartClient:
           $ref: "#/components/schemas/KeyState"
 
     AdminSettingsEmail:
@@ -10851,7 +11528,7 @@ components:
           description: Stored values to remove.
           items:
             type: string
-            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, email, telegram]
+            enum: [publicUrl, tmdb, tvdb, tvdbPin, youtube, trakt, fanart, fanartClient, email, telegram]
 
     AdminSettingsKeysUpdate:
       type: object
@@ -10873,6 +11550,16 @@ components:
           maxLength: 1024
           writeOnly: true
         youtube:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        fanart:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+        fanartClient:
           type: string
           minLength: 1
           maxLength: 1024

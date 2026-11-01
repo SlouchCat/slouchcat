@@ -14,6 +14,8 @@ const settings: AdminSettings = {
     tmdb: { source: 'none' },
     tvdb: { source: 'none' },
     tvdbPin: { source: 'none' },
+    fanart: { source: 'none' },
+    fanartClient: { source: 'none' },
     youtube: { source: 'none' },
     trakt: { source: 'none' },
   },

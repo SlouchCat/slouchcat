@@ -246,9 +246,11 @@ func TestLibraryItemsLetters(t *testing.T) {
 	if s := libraryItems(t, r, f.P18, f.LibraryID(), model.LibraryQuery{Letter: "S"}); !slices.Equal(ids(s.Items), []string{f.Show.Series.ID}) {
 		t.Errorf("P18 letter S = %v, want the series", ids(s.Items))
 	}
-	// P6 reads English: the 0 sorts by its file name, the 6 by its English key.
+	// P6 reads English: the 6 sorts by its English key; the 0 has no English key, so the chain
+	// (metadata language, interface language, then the rows by rank; ADR 0018) takes the German
+	// key at rank 0 before the file name.
 	p6 := libraryItems(t, r, f.P6, f.LibraryID(), model.LibraryQuery{})
-	if !slices.Equal(p6.Facets.Letters, []string{"A", "M"}) || ids(p6.Items)[0] != f.Rated(6).ID {
+	if !slices.Equal(p6.Facets.Letters, []string{"A", "#"}) || ids(p6.Items)[0] != f.Rated(0).ID {
 		t.Errorf("P6 letters = %v, order %v", p6.Facets.Letters, ids(p6.Items))
 	}
 	// The facet follows the other filters: films only, no series letter.

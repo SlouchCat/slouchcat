@@ -8,6 +8,7 @@ package systemq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
 const assignItemMatch = `-- name: AssignItemMatch :exec
@@ -48,6 +49,59 @@ func (q *Queries) AssignItemMatch(ctx context.Context, arg AssignItemMatchParams
 	return err
 }
 
+const countItemsForMetadataApply = `-- name: CountItemsForMetadataApply :one
+SELECT count(*) FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND (?1 = 1 OR library_id IN (/*SLICE:library_ids*/?))
+`
+
+type CountItemsForMetadataApplyParams struct {
+	AllLibraries interface{}
+	LibraryIds   []int64
+}
+
+// Matched titles (movies and series) that metadata.apply would queue, optionally of some libraries.
+func (q *Queries) CountItemsForMetadataApply(ctx context.Context, arg CountItemsForMetadataApplyParams) (int64, error) {
+	query := countItemsForMetadataApply
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.AllLibraries)
+	if len(arg.LibraryIds) > 0 {
+		for _, v := range arg.LibraryIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", strings.Repeat(",?", len(arg.LibraryIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:library_ids*/?", "NULL", 1)
+	}
+	row := q.db.QueryRowContext(ctx, query, queryParams...)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countItemsWithLocalImages = `-- name: CountItemsWithLocalImages :one
+SELECT count(DISTINCT item_id) FROM item_local_images
+`
+
+func (q *Queries) CountItemsWithLocalImages(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countItemsWithLocalImages)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countLibraryItemsForApply = `-- name: CountLibraryItemsForApply :one
+SELECT count(*) FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+`
+
+// Matched films and series of one library, the titles metadata.apply queues for it.
+func (q *Queries) CountLibraryItemsForApply(ctx context.Context, libraryID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countLibraryItemsForApply, libraryID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteImage = `-- name: DeleteImage :exec
 DELETE FROM images WHERE id = ?1
 `
@@ -65,6 +119,131 @@ DELETE FROM item_field_sources WHERE item_id = ?1
 func (q *Queries) DeleteItemFieldSources(ctx context.Context, itemID string) error {
 	_, err := q.db.ExecContext(ctx, deleteItemFieldSources, itemID)
 	return err
+}
+
+const deleteItemImage = `-- name: DeleteItemImage :exec
+DELETE FROM item_images WHERE item_id = ?1 AND kind = ?2
+`
+
+type DeleteItemImageParams struct {
+	ItemID string
+	Kind   string
+}
+
+func (q *Queries) DeleteItemImage(ctx context.Context, arg DeleteItemImageParams) error {
+	_, err := q.db.ExecContext(ctx, deleteItemImage, arg.ItemID, arg.Kind)
+	return err
+}
+
+const deleteItemLocalImage = `-- name: DeleteItemLocalImage :exec
+DELETE FROM item_local_images WHERE item_id = ?1 AND kind = ?2 AND rel_path = ?3
+`
+
+type DeleteItemLocalImageParams struct {
+	ItemID  string
+	Kind    string
+	RelPath string
+}
+
+func (q *Queries) DeleteItemLocalImage(ctx context.Context, arg DeleteItemLocalImageParams) error {
+	_, err := q.db.ExecContext(ctx, deleteItemLocalImage, arg.ItemID, arg.Kind, arg.RelPath)
+	return err
+}
+
+const deleteItemText = `-- name: DeleteItemText :exec
+DELETE FROM item_texts WHERE item_id = ?1 AND lang = ?2
+`
+
+type DeleteItemTextParams struct {
+	ItemID string
+	Lang   string
+}
+
+// metadata.fill removes the row of a language that left the effective list (ADR 0018).
+func (q *Queries) DeleteItemText(ctx context.Context, arg DeleteItemTextParams) error {
+	_, err := q.db.ExecContext(ctx, deleteItemText, arg.ItemID, arg.Lang)
+	return err
+}
+
+const deleteLibraryMetadata = `-- name: DeleteLibraryMetadata :exec
+DELETE FROM library_metadata WHERE library_id = ?1
+`
+
+func (q *Queries) DeleteLibraryMetadata(ctx context.Context, libraryID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteLibraryMetadata, libraryID)
+	return err
+}
+
+const getLibraryMetadata = `-- name: GetLibraryMetadata :one
+SELECT library_id, text_langs, images, updated_at FROM library_metadata WHERE library_id = ?1
+`
+
+func (q *Queries) GetLibraryMetadata(ctx context.Context, libraryID int64) (LibraryMetadatum, error) {
+	row := q.db.QueryRowContext(ctx, getLibraryMetadata, libraryID)
+	var i LibraryMetadatum
+	err := row.Scan(
+		&i.LibraryID,
+		&i.TextLangs,
+		&i.Images,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getLibraryRootPath = `-- name: GetLibraryRootPath :one
+SELECT path FROM library_roots WHERE id = ?1
+`
+
+func (q *Queries) GetLibraryRootPath(ctx context.Context, id int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, getLibraryRootPath, id)
+	var path string
+	err := row.Scan(&path)
+	return path, err
+}
+
+const getSystemSetting = `-- name: GetSystemSetting :one
+SELECT value FROM settings WHERE key = ?1
+`
+
+// A settings row for the metadata settings (metadata.Settings, ADR 0018); sql.ErrNoRows = default.
+func (q *Queries) GetSystemSetting(ctx context.Context, key string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getSystemSetting, key)
+	var value string
+	err := row.Scan(&value)
+	return value, err
+}
+
+const listApplyItems = `-- name: ListApplyItems :many
+SELECT id, kind FROM items WHERE library_id = ?1 AND deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched' ORDER BY id
+`
+
+type ListApplyItemsRow struct {
+	ID   string
+	Kind string
+}
+
+// The matched films and series of a library in id order, for metadata.apply (one match per title).
+func (q *Queries) ListApplyItems(ctx context.Context, libraryID int64) ([]ListApplyItemsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listApplyItems, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListApplyItemsRow{}
+	for rows.Next() {
+		var i ListApplyItemsRow
+		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listChildItems = `-- name: ListChildItems :many
@@ -239,7 +418,7 @@ func (q *Queries) ListFillItems(ctx context.Context, libraryID int64) ([]ListFil
 }
 
 const listImagesByItem = `-- name: ListImagesByItem :many
-SELECT id, item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width, height, bytes, accent, created_at FROM images WHERE item_id = ?1 ORDER BY kind, size, format
+SELECT id, item_id, kind, size, format, lang, provider, source_url, rel_path, content_hash, media_type, width, height, bytes, accent, created_at FROM images WHERE item_id = ?1 ORDER BY kind, size, format
 `
 
 // Every stored image row of a title, originals included (image.fetch compares them with TMDB).
@@ -259,6 +438,7 @@ func (q *Queries) ListImagesByItem(ctx context.Context, itemID string) ([]Image,
 			&i.Size,
 			&i.Format,
 			&i.Lang,
+			&i.Provider,
 			&i.SourceUrl,
 			&i.RelPath,
 			&i.ContentHash,
@@ -317,8 +497,85 @@ func (q *Queries) ListItemFieldSources(ctx context.Context, itemID string) ([]Li
 	return items, nil
 }
 
+const listItemImagesByItem = `-- name: ListItemImagesByItem :many
+
+SELECT item_id, kind, provider, lang, source, chosen, updated_at FROM item_images WHERE item_id = ?1 ORDER BY kind
+`
+
+// The decided image source per title and kind (ADR 0018, concept 10 4.4): the single input of
+// image.fetch. chosen = 1 is the administrator's choice (the kind is in locked_fields too).
+func (q *Queries) ListItemImagesByItem(ctx context.Context, itemID string) ([]ItemImage, error) {
+	rows, err := q.db.QueryContext(ctx, listItemImagesByItem, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ItemImage{}
+	for rows.Next() {
+		var i ItemImage
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Kind,
+			&i.Provider,
+			&i.Lang,
+			&i.Source,
+			&i.Chosen,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listItemLocalImages = `-- name: ListItemLocalImages :many
+
+SELECT item_id, kind, rel_path, root_id, width, height, size, mtime FROM item_local_images WHERE item_id = ?1 ORDER BY kind, rel_path
+`
+
+// Image files the scanner found next to the media (concept 10 4.6): the local candidates of fill
+// and of the image choice; rel_path is relative to the root root_id and read through paths only.
+func (q *Queries) ListItemLocalImages(ctx context.Context, itemID string) ([]ItemLocalImage, error) {
+	rows, err := q.db.QueryContext(ctx, listItemLocalImages, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ItemLocalImage{}
+	for rows.Next() {
+		var i ItemLocalImage
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Kind,
+			&i.RelPath,
+			&i.RootID,
+			&i.Width,
+			&i.Height,
+			&i.Size,
+			&i.Mtime,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItemTextsByItem = `-- name: ListItemTextsByItem :many
-SELECT item_id, lang, title, overview, tagline, sort_key FROM item_texts WHERE item_id = ?1 ORDER BY lang
+SELECT item_id, lang, title, overview, tagline, sort_key, rank FROM item_texts WHERE item_id = ?1 ORDER BY lang
 `
 
 func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]ItemText, error) {
@@ -337,6 +594,7 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 			&i.Overview,
 			&i.Tagline,
 			&i.SortKey,
+			&i.Rank,
 		); err != nil {
 			return nil, err
 		}
@@ -353,20 +611,24 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 
 const listItemsMissingImages = `-- name: ListItemsMissingImages :many
 SELECT i.id, i.kind, i.locked_fields,
-       CAST(((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+       CAST((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
              OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
             AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster') AS INTEGER) AS poster_missing,
-       CAST(i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
-            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing
+       CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop') AS INTEGER) AS backdrop_missing,
+       CAST(EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'logo')
+            AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'logo') AS INTEGER) AS logo_missing
 FROM items AS i
 WHERE i.library_id = ?1
   AND i.deleted_at IS NULL
   AND i.metadata_state = 'matched'
-  AND ((((i.tmdb_poster_path IS NOT NULL AND i.kind IN ('movie', 'series', 'season'))
+  AND (((EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'poster')
           OR ((i.cover_path IS NOT NULL OR i.cover_url IS NOT NULL) AND i.kind IN ('audiobook', 'podcast', 'podcast_episode')))
         AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'poster'))
-    OR (i.tmdb_backdrop_path IS NOT NULL AND i.kind IN ('movie', 'series', 'episode')
-        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop')))
+    OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'backdrop')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'backdrop'))
+    OR (EXISTS (SELECT 1 FROM item_images AS ii WHERE ii.item_id = i.id AND ii.kind = 'logo')
+        AND NOT EXISTS (SELECT 1 FROM images AS im WHERE im.item_id = i.id AND im.kind = 'logo')))
 ORDER BY i.id
 `
 
@@ -376,12 +638,12 @@ type ListItemsMissingImagesRow struct {
 	LockedFields    string
 	PosterMissing   int64
 	BackdropMissing int64
+	LogoMissing     int64
 }
 
-// Matched titles of a library with a stored provider image path but no row of that kind yet
-// (their image.fetch failed or never ran): poster for movies, series and seasons, backdrop (still)
-// for movies, series and episodes; the cover (poster) of audiobooks, podcasts and episodes with a
-// cover_path or cover_url (M6).
+// Matched titles of a library with a decided image source (item_images, ADR 0018) but no row of
+// that kind yet (their image.fetch failed or never ran); the cover (poster) of audiobooks,
+// podcasts and episodes with a cover_path or cover_url (M6).
 func (q *Queries) ListItemsMissingImages(ctx context.Context, libraryID int64) ([]ListItemsMissingImagesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listItemsMissingImages, libraryID)
 	if err != nil {
@@ -397,6 +659,102 @@ func (q *Queries) ListItemsMissingImages(ctx context.Context, libraryID int64) (
 			&i.LockedFields,
 			&i.PosterMissing,
 			&i.BackdropMissing,
+			&i.LogoMissing,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLibraryIDs = `-- name: ListLibraryIDs :many
+SELECT id FROM libraries ORDER BY id
+`
+
+func (q *Queries) ListLibraryIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listLibraryIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLibraryMetadata = `-- name: ListLibraryMetadata :many
+SELECT library_id, text_langs, images, updated_at FROM library_metadata ORDER BY library_id
+`
+
+func (q *Queries) ListLibraryMetadata(ctx context.Context) ([]LibraryMetadatum, error) {
+	rows, err := q.db.QueryContext(ctx, listLibraryMetadata)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LibraryMetadatum{}
+	for rows.Next() {
+		var i LibraryMetadatum
+		if err := rows.Scan(
+			&i.LibraryID,
+			&i.TextLangs,
+			&i.Images,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLocalImagesByRoot = `-- name: ListLocalImagesByRoot :many
+SELECT item_id, kind, rel_path, root_id, width, height, size, mtime FROM item_local_images WHERE root_id = ?1 ORDER BY item_id, kind, rel_path
+`
+
+func (q *Queries) ListLocalImagesByRoot(ctx context.Context, rootID int64) ([]ItemLocalImage, error) {
+	rows, err := q.db.QueryContext(ctx, listLocalImagesByRoot, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ItemLocalImage{}
+	for rows.Next() {
+		var i ItemLocalImage
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.Kind,
+			&i.RelPath,
+			&i.RootID,
+			&i.Width,
+			&i.Height,
+			&i.Size,
+			&i.Mtime,
 		); err != nil {
 			return nil, err
 		}
@@ -412,7 +770,7 @@ func (q *Queries) ListItemsMissingImages(ctx context.Context, libraryID int64) (
 }
 
 const listMatchedItemImages = `-- name: ListMatchedItemImages :many
-SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent
+SELECT i.id AS item_id, i.locked_fields, im.kind, im.size, im.format, im.source_url, im.rel_path, im.accent, im.width
 FROM items AS i
 JOIN images AS im ON im.item_id = i.id
 WHERE i.library_id = ?1
@@ -430,6 +788,7 @@ type ListMatchedItemImagesRow struct {
 	SourceUrl    string
 	RelPath      string
 	Accent       sql.NullString
+	Width        int64
 }
 
 // Stored images of the matched titles of a library, for the image check after a scan
@@ -453,6 +812,7 @@ func (q *Queries) ListMatchedItemImages(ctx context.Context, libraryID int64) ([
 			&i.SourceUrl,
 			&i.RelPath,
 			&i.Accent,
+			&i.Width,
 		); err != nil {
 			return nil, err
 		}
@@ -525,6 +885,39 @@ func (q *Queries) ListPendingMatchItems(ctx context.Context, libraryID int64) ([
 	for rows.Next() {
 		var i ListPendingMatchItemsRow
 		if err := rows.Scan(&i.ID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSystemSettingsByPrefix = `-- name: ListSystemSettingsByPrefix :many
+SELECT key, value FROM settings WHERE key LIKE ?1 ORDER BY key
+`
+
+type ListSystemSettingsByPrefixRow struct {
+	Key   string
+	Value string
+}
+
+// Every settings row whose key starts with the prefix (metadata.*), for metadata.Settings.
+func (q *Queries) ListSystemSettingsByPrefix(ctx context.Context, prefix string) ([]ListSystemSettingsByPrefixRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSystemSettingsByPrefix, prefix)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSystemSettingsByPrefixRow{}
+	for rows.Next() {
+		var i ListSystemSettingsByPrefixRow
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -702,6 +1095,22 @@ type SetItemFilledProvidersParams struct {
 // Records the list a fill ran with (a run with one provider writes provenance only).
 func (q *Queries) SetItemFilledProviders(ctx context.Context, arg SetItemFilledProvidersParams) error {
 	_, err := q.db.ExecContext(ctx, setItemFilledProviders, arg.FilledProviders, arg.Now, arg.ID)
+	return err
+}
+
+const setItemLockedFields = `-- name: SetItemLockedFields :exec
+UPDATE items SET locked_fields = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type SetItemLockedFieldsParams struct {
+	LockedFields string
+	Now          int64
+	ID           string
+}
+
+// The administrator's lock of a kind (setItemImage, clearItemImage; concept 10 6.3).
+func (q *Queries) SetItemLockedFields(ctx context.Context, arg SetItemLockedFieldsParams) error {
+	_, err := q.db.ExecContext(ctx, setItemLockedFields, arg.LockedFields, arg.Now, arg.ID)
 	return err
 }
 
@@ -956,12 +1365,13 @@ func (q *Queries) UpdateItemMatch(ctx context.Context, arg UpdateItemMatchParams
 }
 
 const upsertImage = `-- name: UpsertImage :exec
-INSERT INTO images (item_id, kind, size, format, lang, source_url, rel_path, content_hash, media_type, width,
+INSERT INTO images (item_id, kind, size, format, lang, provider, source_url, rel_path, content_hash, media_type, width,
                     height, bytes, accent, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-        ?11, ?12, ?13, ?14)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
+        ?12, ?13, ?14, ?15)
 ON CONFLICT (item_id, kind, size, format) DO UPDATE
 SET lang         = excluded.lang,
+    provider     = excluded.provider,
     source_url   = excluded.source_url,
     rel_path     = excluded.rel_path,
     content_hash = excluded.content_hash,
@@ -979,6 +1389,7 @@ type UpsertImageParams struct {
 	Size        string
 	Format      string
 	Lang        sql.NullString
+	Provider    string
 	SourceUrl   string
 	RelPath     string
 	ContentHash string
@@ -997,6 +1408,7 @@ func (q *Queries) UpsertImage(ctx context.Context, arg UpsertImageParams) error 
 		arg.Size,
 		arg.Format,
 		arg.Lang,
+		arg.Provider,
 		arg.SourceUrl,
 		arg.RelPath,
 		arg.ContentHash,
@@ -1032,11 +1444,75 @@ func (q *Queries) UpsertItemFieldSource(ctx context.Context, arg UpsertItemField
 	return err
 }
 
+const upsertItemImage = `-- name: UpsertItemImage :exec
+INSERT INTO item_images (item_id, kind, provider, lang, source, chosen, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+ON CONFLICT (item_id, kind) DO UPDATE
+SET provider = excluded.provider, lang = excluded.lang, source = excluded.source, chosen = excluded.chosen,
+    updated_at = excluded.updated_at
+`
+
+type UpsertItemImageParams struct {
+	ItemID   string
+	Kind     string
+	Provider string
+	Lang     string
+	Source   string
+	Chosen   int64
+	Now      int64
+}
+
+func (q *Queries) UpsertItemImage(ctx context.Context, arg UpsertItemImageParams) error {
+	_, err := q.db.ExecContext(ctx, upsertItemImage,
+		arg.ItemID,
+		arg.Kind,
+		arg.Provider,
+		arg.Lang,
+		arg.Source,
+		arg.Chosen,
+		arg.Now,
+	)
+	return err
+}
+
+const upsertItemLocalImage = `-- name: UpsertItemLocalImage :exec
+INSERT INTO item_local_images (item_id, kind, rel_path, root_id, width, height, size, mtime)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+ON CONFLICT (item_id, kind, rel_path) DO UPDATE
+SET root_id = excluded.root_id, width = excluded.width, height = excluded.height, size = excluded.size, mtime = excluded.mtime
+`
+
+type UpsertItemLocalImageParams struct {
+	ItemID  string
+	Kind    string
+	RelPath string
+	RootID  int64
+	Width   int64
+	Height  int64
+	Size    int64
+	Mtime   int64
+}
+
+func (q *Queries) UpsertItemLocalImage(ctx context.Context, arg UpsertItemLocalImageParams) error {
+	_, err := q.db.ExecContext(ctx, upsertItemLocalImage,
+		arg.ItemID,
+		arg.Kind,
+		arg.RelPath,
+		arg.RootID,
+		arg.Width,
+		arg.Height,
+		arg.Size,
+		arg.Mtime,
+	)
+	return err
+}
+
 const upsertItemText = `-- name: UpsertItemText :exec
-INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, rank)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key,
+    rank = excluded.rank
 `
 
 type UpsertItemTextParams struct {
@@ -1046,9 +1522,11 @@ type UpsertItemTextParams struct {
 	Overview sql.NullString
 	Tagline  sql.NullString
 	SortKey  sql.NullString
+	Rank     int64
 }
 
-// sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016).
+// sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016). rank is
+// the position of lang in the effective metadata language list of the title (ADR 0018, 0 = first).
 func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) error {
 	_, err := q.db.ExecContext(ctx, upsertItemText,
 		arg.ItemID,
@@ -1057,6 +1535,49 @@ func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) 
 		arg.Overview,
 		arg.Tagline,
 		arg.SortKey,
+		arg.Rank,
 	)
+	return err
+}
+
+const upsertLibraryMetadata = `-- name: UpsertLibraryMetadata :exec
+INSERT INTO library_metadata (library_id, text_langs, images, updated_at)
+VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT (library_id) DO UPDATE SET text_langs = excluded.text_langs, images = excluded.images, updated_at = excluded.updated_at
+`
+
+type UpsertLibraryMetadataParams struct {
+	LibraryID int64
+	TextLangs sql.NullString
+	Images    sql.NullString
+	Now       int64
+}
+
+func (q *Queries) UpsertLibraryMetadata(ctx context.Context, arg UpsertLibraryMetadataParams) error {
+	_, err := q.db.ExecContext(ctx, upsertLibraryMetadata,
+		arg.LibraryID,
+		arg.TextLangs,
+		arg.Images,
+		arg.Now,
+	)
+	return err
+}
+
+const upsertSystemSetting = `-- name: UpsertSystemSetting :exec
+
+INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
+ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+`
+
+type UpsertSystemSettingParams struct {
+	Key   string
+	Value string
+	Now   int64
+}
+
+// Metadata settings (concept 10, ADR 0018): the server's keys live in settings (metadata.*), the
+// deviation of a library in library_metadata (NULL = like the server).
+func (q *Queries) UpsertSystemSetting(ctx context.Context, arg UpsertSystemSettingParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSystemSetting, arg.Key, arg.Value, arg.Now)
 	return err
 }

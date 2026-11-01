@@ -222,8 +222,11 @@ func TestFillSeriesTMDBThenTVDB(t *testing.T) {
 		t.Fatalf("titles changed: %+v", tx)
 	}
 	src := e.sources(t, idSeries)
+	// Images follow the chain of ADR 0018 (de first): the German TVDB poster beats TMDB's poster
+	// without language (the fixture case of concept 10, 6.2); the backdrop stays TMDB's, TVDB's
+	// background has no language and TMDB stands first in the list.
 	want := map[string]string{"overview/de": "tvdb", "overview/en": "tmdb", "title/de": "tmdb", "title/en": "tmdb",
-		"original_title/": "tmdb", "release_date/": "tmdb", "runtime_minutes/": "tmdb", "poster/": "tmdb", "backdrop/": "tmdb",
+		"original_title/": "tmdb", "release_date/": "tmdb", "runtime_minutes/": "tmdb", "poster/": "tvdb", "backdrop/": "tmdb",
 		"genres/": "union", "own_rating/": "tmdb"}
 	for k, v := range want {
 		if src[k] != v {
@@ -444,7 +447,7 @@ func TestFillAniListThroughTheMappingList(t *testing.T) {
 	}
 	// The series: TMDB has no backdrop for AniList to beat, but film 550's AniList cover is a
 	// poster only where TMDB has none. Give the series a provider without poster to see AniList's.
-	mustExec(t, e.db.Write, `UPDATE items SET tmdb_poster_path = NULL, tmdb_backdrop_path = NULL WHERE id = ?`, idSeries)
+	mustExec(t, e.db.Write, `DELETE FROM item_images WHERE item_id = ? AND kind IN ('poster', 'backdrop')`, idSeries)
 	mustExec(t, e.db.Write, `DELETE FROM item_field_sources WHERE item_id = ? AND field IN ('poster', 'backdrop')`, idSeries)
 	e.tmdb.mu.Lock()
 	e.tmdb.tvNoGermanOverview = true

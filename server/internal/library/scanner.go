@@ -73,6 +73,8 @@ type rootScan struct {
 	deferred []diskFile      // unchanged extras an earlier scan skipped for want of a parent
 	// subs lists the subtitle files of every directory the scan read (I-5 sidecar sync).
 	subs map[string][]string
+	// imgs lists the image files of every directory the scan read (local images, ADR 0018).
+	imgs map[string][]string
 }
 
 // fileStamp is the size and mtime of a file on disk.
@@ -452,7 +454,7 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 		onDir := func(dirs int, dir string) {
 			jobs.Progress(ctx, int64(dirs), 0, lib.Name+" · "+path.Join(rootName, dir))
 		}
-		if rs.disk, rs.subs, err = walkRoot(ctx, rs.proot, root.Content, rs.ignored, s.log, onDir); err != nil {
+		if rs.disk, rs.subs, rs.imgs, err = walkRoot(ctx, rs.proot, root.Content, rs.ignored, s.log, onDir); err != nil {
 			if errors.Is(err, errRootMissing) {
 				return stats, scanAbort{abortRootMissing}
 			}
@@ -512,6 +514,9 @@ func (s *Service) scanLibrary(ctx context.Context, lib appq.Library) (scanStats,
 		if err := s.syncSidecars(ctx, rs, nil); err != nil {
 			return stats, err
 		}
+		if err := s.syncLocalImages(ctx, rs, nil); err != nil {
+			return stats, err
+		}
 	}
 	return stats, s.finish(ctx, lib, "done", "", seen, total)
 }
@@ -567,17 +572,18 @@ var errRootMissing = errors.New("library root missing")
 // look like lost files. Symlinked directories are not followed; a symlinked file whose target
 // cannot be read inside the root (it leaves the root, dangles, or is not readable) is logged and
 // skipped.
-func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[string]bool, log *slog.Logger, onDir func(dirs int, dir string)) ([]diskFile, map[string][]string, error) {
+func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[string]bool, log *slog.Logger, onDir func(dirs int, dir string)) ([]diskFile, map[string][]string, map[string][]string, error) {
 	r, err := paths.Open(root)
 	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", errRootMissing, err)
+		return nil, nil, nil, fmt.Errorf("%w: %w", errRootMissing, err)
 	}
 	defer r.Close()
 	if fi, err := r.Stat("."); err != nil || !fi.IsDir() {
-		return nil, nil, errRootMissing
+		return nil, nil, nil, errRootMissing
 	}
 	var files []diskFile
 	subs := map[string][]string{}
+	imgs := map[string][]string{}
 	noMarker := map[string]int{}
 	dirs := 0
 	err = paths.Walk(root, func(p string, d fs.DirEntry, err error) error {
@@ -607,6 +613,10 @@ func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[
 			subs[path.Dir(p)] = append(subs[path.Dir(p)], d.Name())
 			return nil
 		}
+		if (content == model.RootMovie || content == model.RootSeries) && isLocalImage(d.Name()) {
+			imgs[path.Dir(p)] = append(imgs[path.Dir(p)], d.Name())
+			return nil
+		}
 		f, ok, err := videoFile(ctx, r, p, d, content, ignored, noMarker, log)
 		if ok {
 			files = append(files, f)
@@ -614,10 +624,10 @@ func walkRoot(ctx context.Context, root paths.Root, content string, ignored map[
 		return err
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("walk %s: %w", root.Dir(), err)
+		return nil, nil, nil, fmt.Errorf("walk %s: %w", root.Dir(), err)
 	}
 	logNoMarker(ctx, log, noMarker)
-	return files, subs, nil
+	return files, subs, imgs, nil
 }
 
 // wanted reports whether a parsed video file is scanned: never a sample; in a movie folder a

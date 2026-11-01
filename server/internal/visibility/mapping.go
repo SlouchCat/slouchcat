@@ -1,8 +1,11 @@
 package visibility
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -19,34 +22,61 @@ const (
 	backdropSmallSize = "w780"
 	backdropSize      = "w1280"
 	backdropLargeSize = "w1920"
+	backdropUhdSize   = "w3840"
+	logoSize          = "w400"
 )
 
-// fallbackLang is the second choice for texts after the profile language (B-3).
+// fallbackLang is the last language the trailer order and the genre chain try after the
+// profile's languages (B-3; the text chain itself reads the rank of the rows, ADR 0018).
 const fallbackLang = "en"
 
-// texts picks the profile language, then English, field by field.
+// langPref is the language preference of a scope: the metadata language of the profile, then its
+// interface language; after those the rows of a title are read in the order of their rank
+// (concept 10 section 4.2, decided in the server, never in the client; rule 12).
+type langPref struct {
+	meta, ui string
+}
+
+// texts picks the chain field by field.
 type texts struct {
 	title, overview, tagline string
 }
 
-// pickTexts returns the title, overview and tagline in lang with a fallback to English per field.
-// The title falls back to the parsed title of the item when no text row has one.
-func pickTexts(rows []scopedq.ItemText, lang, parsedTitle string) texts {
-	var primary, fallback *scopedq.ItemText
-	for i := range rows {
-		switch rows[i].Lang {
-		case lang:
-			primary = &rows[i]
-		case fallbackLang:
-			fallback = &rows[i]
+// orderTexts returns the text rows of one title in the order of the chain: metadata language,
+// interface language, then by rank and language code.
+func orderTexts(rows []scopedq.ItemText, lang langPref) []scopedq.ItemText {
+	out := slices.Clone(rows)
+	weight := func(t scopedq.ItemText) int {
+		switch t.Lang {
+		case lang.meta:
+			return -2
+		case lang.ui:
+			return -1
+		default:
+			return 0
 		}
 	}
+	slices.SortStableFunc(out, func(a, b scopedq.ItemText) int {
+		if c := cmp.Compare(weight(a), weight(b)); c != 0 {
+			return c
+		}
+		if c := cmp.Compare(a.Rank, b.Rank); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Lang, b.Lang)
+	})
+	return out
+}
+
+// pickTexts returns the title, overview and tagline of a title, each the first non-empty value
+// along the chain (metadata language, interface language, then the rows by rank). The title falls
+// back to the parsed title of the item when no text row has one.
+func pickTexts(rows []scopedq.ItemText, lang langPref, parsedTitle string) texts {
+	ordered := orderTexts(rows, lang)
 	first := func(get func(*scopedq.ItemText) string) string {
-		for _, r := range []*scopedq.ItemText{primary, fallback} {
-			if r != nil {
-				if v := get(r); v != "" {
-					return v
-				}
+		for i := range ordered {
+			if v := get(&ordered[i]); v != "" {
+				return v
 			}
 		}
 		return ""
@@ -62,13 +92,26 @@ func pickTexts(rows []scopedq.ItemText, lang, parsedTitle string) texts {
 	return out
 }
 
-// pickGenres reads the genres column: a JSON object {"de": [...], "en": [...]} written by the
-// metadata package, or a plain array before matching. It returns the profile language, then
-// English, and never nil.
-func pickGenres(raw, lang string) []string {
+// textLangOrder returns the languages of a title's text rows in chain order (orderTexts), the
+// order the genres follow when their own language is missing.
+func textLangOrder(rows []scopedq.ItemText, lang langPref) []string {
+	ordered := orderTexts(rows, lang)
+	out := make([]string, 0, len(ordered)+3)
+	for _, t := range ordered {
+		out = append(out, t.Lang)
+	}
+	return out
+}
+
+// pickGenres reads the genres column: a JSON object {"de": [...], "en": [...], …} written by the
+// metadata package, or a plain array before matching. It walks the chain (metadata language,
+// interface language, the title's languages by rank, English) and never returns nil.
+func pickGenres(raw string, lang langPref, rankOrder []string) []string {
 	var byLang map[string][]string
 	if err := json.Unmarshal([]byte(raw), &byLang); err == nil {
-		for _, l := range []string{lang, fallbackLang} {
+		chain := append([]string{lang.meta, lang.ui}, rankOrder...)
+		chain = append(chain, fallbackLang)
+		for _, l := range chain {
 			if g := byLang[l]; len(g) > 0 {
 				return g
 			}
@@ -130,7 +173,7 @@ func pickAccent(rows []scopedq.Image) string {
 	return ""
 }
 
-func summarize(it scopedq.Item, ex extras, lang string) model.ItemSummary {
+func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 	s := model.ItemSummary{
 		ID:            it.ID,
 		Kind:          it.Kind,
@@ -141,6 +184,7 @@ func summarize(it scopedq.Item, ex extras, lang string) model.ItemSummary {
 		Backdrop:      pickImage(ex.images[it.ID], "backdrop", backdropSize),
 		BackdropSmall: pickImage(ex.images[it.ID], "backdrop", backdropSmallSize),
 		BackdropLarge: pickImage(ex.images[it.ID], "backdrop", backdropLargeSize),
+		BackdropUhd:   pickImage(ex.images[it.ID], "backdrop", backdropUhdSize),
 		Accent:        pickAccent(ex.images[it.ID]),
 	}
 	if it.Year.Valid {
@@ -199,7 +243,7 @@ func optInt(v sql.NullInt64) *int {
 	return &n
 }
 
-func detail(it scopedq.Item, ex extras, lang string) model.ItemDetail {
+func detail(it scopedq.Item, ex extras, lang langPref) model.ItemDetail {
 	t := pickTexts(ex.texts[it.ID], lang, it.Title)
 	d := model.ItemDetail{
 		ItemSummary:   summarize(it, ex, lang),
@@ -207,8 +251,9 @@ func detail(it scopedq.Item, ex extras, lang string) model.ItemDetail {
 		Tagline:       t.tagline,
 		Overview:      t.overview,
 		ReleaseDate:   it.ReleaseDate.String,
-		Genres:        pickGenres(it.Genres, lang),
+		Genres:        pickGenres(it.Genres, lang, textLangOrder(ex.texts[it.ID], lang)),
 	}
+	d.Logo = pickImage(ex.images[it.ID], "logo", logoSize) // the detail shows the logo (ADR 0018)
 	if it.TmdbID.Valid {
 		id := it.TmdbID.Int64
 		d.TMDBID = &id
@@ -259,4 +304,13 @@ func mediaFile(f scopedq.ListMediaFilesForItemRow) model.MediaFile {
 		VersionLabel: versionLabel(f.VersionLabel.String, f.Height.Int64),
 		Available:    !f.MissingSince.Valid,
 	}
+}
+
+// primarySubtag returns the primary language subtag of a BCP-47 code (pt-BR -> pt), the form
+// trailers.lang and the providers without regions use.
+func primarySubtag(code string) string {
+	if i := strings.IndexByte(code, '-'); i > 0 {
+		return code[:i]
+	}
+	return code
 }

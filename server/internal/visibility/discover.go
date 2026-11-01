@@ -113,7 +113,11 @@ func (r *Reader) Genres(ctx context.Context, s Scope, limit int) ([]model.GenreR
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.q.ListVisibleGenres(ctx, scopedq.ListVisibleGenresParams{ProfileID: pid, Lang: s.language, LimitCount: clamp(limit)})
+	rows, err := r.q.ListVisibleGenres(ctx, scopedq.ListVisibleGenresParams{ProfileID: pid, Lang: s.metaLang, LimitCount: clamp(limit)})
+	if err == nil && len(rows) == 0 && s.metaLang != s.language {
+		// No genre in the metadata language: the interface language (the chain of 4.2).
+		rows, err = r.q.ListVisibleGenres(ctx, scopedq.ListVisibleGenresParams{ProfileID: pid, Lang: s.language, LimitCount: clamp(limit)})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list genres: %w", err)
 	}

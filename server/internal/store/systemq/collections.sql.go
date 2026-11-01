@@ -142,7 +142,7 @@ func (q *Queries) AdminInsertCollectionItem(ctx context.Context, arg AdminInsert
 }
 
 const adminListCollectionItems = `-- name: AdminListCollectionItems :many
-SELECT ci.item_id, ci.position, i.kind, COALESCE(td.title, te.title, i.title) AS title, i.year
+SELECT ci.item_id, ci.position, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year
 FROM collection_items AS ci
 JOIN items AS i ON i.id = ci.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'

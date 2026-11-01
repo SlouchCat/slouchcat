@@ -115,8 +115,8 @@ func (s *server) UpdateProfile(ctx context.Context, req gen.UpdateProfileRequest
 	}
 	b := deref(req.Body)
 	in := model.ProfileInput{
-		Name: b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), Accent: accentPtr(b.Accent),
-		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, Limits: fromPlaybackLimits(b.Limits),
+		Name: b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), MetadataLanguage: b.MetadataLanguage,
+		Accent: accentPtr(b.Accent), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, Limits: fromPlaybackLimits(b.Limits),
 	}
 	p, err := svc.UpdateProfile(ctx, session, req.Id, in)
 	if err != nil {

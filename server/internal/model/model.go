@@ -167,17 +167,20 @@ const (
 // Profile is a viewing profile; its MaxRating and library rights drive the visibility layer
 // (capped by the account's own limits in the view visible_items).
 type Profile struct {
-	ID            int64
-	AccountID     int64
-	Name          string
-	MaxRating     int    // 0, 6, 12, 16, 18
-	Language      string // de, en
-	AllLibraries  bool
-	LibraryIDs    []int64 // libraries of a profile with AllLibraries false
-	Accent        string
-	HasPin        bool
-	HasOfflinePin bool // a separate offline PIN is set (AN-19)
-	IsPrimary     bool // the account's primary profile: manages profiles, cannot be deleted
+	ID        int64
+	AccountID int64
+	Name      string
+	MaxRating int    // 0, 6, 12, 16, 18
+	Language  string // de, en: the interface language
+	// MetadataLanguage is the language of the metadata the profile reads (ADR 0018), one of the
+	// server's available metadata languages; empty = like Language.
+	MetadataLanguage string
+	AllLibraries     bool
+	LibraryIDs       []int64 // libraries of a profile with AllLibraries false
+	Accent           string
+	HasPin           bool
+	HasOfflinePin    bool // a separate offline PIN is set (AN-19)
+	IsPrimary        bool // the account's primary profile: manages profiles, cannot be deleted
 	// Limits are the profile's own W-8/K-5 limits (zero = none); Effective applies the account's caps.
 	Limits    PlaybackLimits
 	Effective PlaybackLimits
@@ -239,14 +242,16 @@ func (s Session) IsPrimary() bool { return s.HasProfile() && s.Profile.IsPrimary
 // ProfileInput carries the fields of createProfile and updateProfile; nil fields keep their value
 // (update) or take the default (create).
 type ProfileInput struct {
-	Name         *string
-	MaxRating    *int
-	Language     *string
-	Accent       *string
-	AllLibraries *bool
-	LibraryIDs   *[]int64
-	PIN          *string         // create only
-	Limits       *PlaybackLimits // replaces all limits at once; nil keeps them
+	Name      *string
+	MaxRating *int
+	Language  *string
+	// MetadataLanguage is the metadata language (ADR 0018); "" resets it to the interface language.
+	MetadataLanguage *string
+	Accent           *string
+	AllLibraries     *bool
+	LibraryIDs       *[]int64
+	PIN              *string         // create only
+	Limits           *PlaybackLimits // replaces all limits at once; nil keeps them
 }
 
 // AccountAccessUpdate changes what an account may see and how much it may stream; nil fields keep
@@ -362,6 +367,7 @@ type AdminItem struct {
 	Seasons         int           // child counts
 	Episodes        int
 	Extras          int
+	Images          []AdminItemImage // the decided image source per choosable kind (concept 10 7.3)
 }
 
 // MetadataCandidate is a search result of a metadata provider (manual match, B-6).
@@ -468,11 +474,14 @@ type ItemSummary struct {
 	Poster         *Image // w400
 	Backdrop       *Image // w1280
 	BackdropSmall  *Image // backdrop in w780, nil when that size is not stored
-	PosterSmall    *Image // w200 (M1b image pipeline)
-	PosterLarge    *Image // w800
-	BackdropLarge  *Image // w1920
-	Accent         string // #rrggbb from the poster palette, "" until the pipeline has run
-	Progress       *Progress
+	// Logo is the title logo in w400 (ADR 0018), set only on the detail and the spotlight entries.
+	Logo          *Image
+	PosterSmall   *Image // w200 (M1b image pipeline)
+	PosterLarge   *Image // w800
+	BackdropLarge *Image // w1920
+	BackdropUhd   *Image // w3840, only from an original of at least 2560 px (4K, high density)
+	Accent        string // #rrggbb from the poster palette, "" until the pipeline has run
+	Progress      *Progress
 
 	// Series tree and extras (M3). ParentID is the season of an episode, the series of a season or
 	// the parent title of an extra. SeriesTitle is set on seasons and episodes (profile language).
@@ -1165,6 +1174,50 @@ func ProvidersJSON(providers []string) string {
 	return string(raw)
 }
 
+// MetadataSettings are the server's metadata settings as the administration sees them (concept 10,
+// ADR 0018, getMetadataSettings); KnownLanguages, AffectedTitles and LocalImageTitles are read-only.
+type MetadataSettings struct {
+	TextLangs        []string
+	ImageLangs       map[string][]string // poster, backdrop, logo; "" = without text
+	ImageKinds       []string            // logo, season_poster, episode_still
+	ImageMinWidth    map[string]int      // poster, backdrop
+	ImageByVote      bool
+	LocalImages      bool
+	RatingCountry    string
+	TMDBIncludeAdult bool
+	FanartEnabled    bool
+	KnownLanguages   []string
+	AffectedTitles   int
+	LocalImageTitles int
+}
+
+// LibraryImages is the image deviation of a library (concept 10 4.5).
+type LibraryImages struct {
+	Langs map[string][]string
+	Kinds []string
+}
+
+// LibraryMetadata is the deviation of a library (nil = like the server) with the effective values.
+type LibraryMetadata struct {
+	LibraryID      int64
+	TextLangs      *[]string
+	Images         *LibraryImages
+	Effective      MetadataSettings
+	AffectedTitles int
+}
+
+// ApplyMetadataRequest queues metadata.apply (concept 10 6.5).
+type ApplyMetadataRequest struct {
+	LibraryIDs []int64  // empty = every library
+	What       []string // texts, images
+}
+
+// ApplyMetadataResult is the queued run and the number of titles it covers.
+type ApplyMetadataResult struct {
+	JobID  int64
+	Titles int
+}
+
 // MetadataProviderInfo describes one provider to the administration (listMetadataProviders).
 type MetadataProviderInfo struct {
 	ID         string
@@ -1512,4 +1565,38 @@ type LibraryPage struct {
 	Items  []ItemSummary
 	Total  int
 	Facets LibraryFacets
+}
+
+// ImageCandidate is one image a source offers for a kind of a title (listItemImageCandidates,
+// concept 10 6.4). PreviewURL is the provider's small size; empty for a local file (the API sets
+// the address of the preview handler).
+type ImageCandidate struct {
+	Provider   string
+	Lang       string
+	Width      int
+	Height     int
+	Score      float64
+	VoteCount  int
+	Source     string
+	PreviewURL string
+	Chosen     bool
+}
+
+// ImageCandidateList is the answer of listItemImageCandidates: the candidates and the providers
+// that did not answer.
+type ImageCandidateList struct {
+	Candidates  []ImageCandidate
+	Unavailable []string
+}
+
+// AdminItemImage is the decided image source of a kind for the title page (AdminItem.images,
+// concept 10 7.3); Locked without Provider is a lock without choice.
+type AdminItemImage struct {
+	Kind       string
+	Provider   string
+	Lang       string
+	Source     string
+	PreviewURL string
+	Chosen     bool
+	Locked     bool
 }

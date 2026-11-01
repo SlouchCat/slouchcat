@@ -32,7 +32,7 @@ SELECT count(*) FROM profiles WHERE account_id = @account_id;
 
 -- name: UpdateProfile :exec
 UPDATE profiles
-SET name = @name, max_rating = @max_rating, language = @language, accent = @accent,
+SET name = @name, max_rating = @max_rating, language = @language, metadata_language = sqlc.narg('metadata_language'), accent = @accent,
     all_libraries = @all_libraries, max_bitrate_kbps = sqlc.narg('max_bitrate_kbps'), max_height = sqlc.narg('max_height'),
     max_streams = sqlc.narg('max_streams'), watch_limit_minutes = sqlc.narg('watch_limit_minutes'), updated_at = @now
 WHERE id = @id;
